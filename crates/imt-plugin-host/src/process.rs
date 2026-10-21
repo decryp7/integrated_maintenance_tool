@@ -202,10 +202,22 @@ impl Handler for HostServices {
     }
 }
 
-/// The data one call lends the plugin: files (read with `ReadFile`) and an annotator's view.
+/// A file the host reads by ranges for the plugin (a large dump), instead of holding it in memory.
+pub trait RangeSource: Send + Sync {
+    fn len(&self) -> u64;
+    /// Up to `len` bytes at `offset` (fewer at the end).
+    fn read_at(&self, offset: u64, len: usize) -> std::io::Result<Vec<u8>>;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+/// The data one call lends the plugin: files (read with `ReadFile`): bytes the host holds, then files it reads
+/// by ranges; and an annotator's view.
 #[derive(Default)]
 pub(crate) struct Lent<'a> {
     pub files: Vec<&'a [u8]>,
+    pub ranges: Vec<&'a dyn RangeSource>,
     pub view: Option<&'a dyn AnnotationView>,
 }
 
@@ -232,10 +244,21 @@ fn serve_pumped(p: &Pumped, lent: &Lent, file_ids: &[u64]) -> Result<Vec<u8>, Re
                 .iter()
                 .position(|f| f == id)
                 .ok_or_else(|| RemoteError::new(code::INVALID, "unknown file"))?;
-            let data = lent.files[i];
-            let start = usize::try_from(*offset).unwrap_or(usize::MAX).min(data.len());
-            let end = start.saturating_add((*len).min(READ_CHUNK) as usize).min(data.len());
-            encode_reply(&data[start..end].to_vec())
+            let want = (*len).min(READ_CHUNK) as usize;
+            if let Some(data) = lent.files.get(i) {
+                let start = usize::try_from(*offset).unwrap_or(usize::MAX).min(data.len());
+                let end = start.saturating_add(want).min(data.len());
+                return encode_reply(&data[start..end].to_vec());
+            }
+            let source = lent
+                .ranges
+                .get(i - lent.files.len())
+                .ok_or_else(|| RemoteError::new(code::INVALID, "unknown file"))?;
+            let mut bytes = source
+                .read_at(*offset, want)
+                .map_err(|e| RemoteError::new(code::INTERNAL, format!("cannot read the file: {e}")))?;
+            bytes.truncate(want);
+            encode_reply(&bytes)
         }
         HostRequest::ViewSelect { filter, limit, .. } => {
             let view = lent.view.ok_or_else(|| RemoteError::new(code::INVALID, "no view for this call"))?;
@@ -476,13 +499,12 @@ impl PluginProcess {
             services: &self.services,
             ids: Vec::new(),
         };
-        let files: Vec<HostFileRef> = lent
-            .files
-            .iter()
-            .map(|f| {
+        let lens = lent.files.iter().map(|f| f.len() as u64).chain(lent.ranges.iter().map(|r| r.len()));
+        let files: Vec<HostFileRef> = lens
+            .map(|len| {
                 let id = self.services.ticket();
                 reg.ids.push(id);
-                HostFileRef { id, len: f.len() as u64 }
+                HostFileRef { id, len }
             })
             .collect();
         let ticket = self.services.ticket();

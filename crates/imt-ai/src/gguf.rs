@@ -1,6 +1,9 @@
 //! A tiny bounded reader for the header of GGUF model files: name, architecture, quantisation,
 //! context length and the numbers needed to estimate memory. It never allocates from untrusted
 //! sizes without a limit, never reads past the file and never panics (covered by truncation tests).
+//!
+//! A multimodal projector (`mmproj`, architecture `clip`) is never a model on its own: [`parse`] refuses it,
+//! and [`parse_projector`] accepts it only as the image encoder of a model (ADR 0025).
 
 use crate::error::{AiError, Result};
 use crate::recommend::Quant;
@@ -162,7 +165,18 @@ fn scalar_size(t: u32) -> Option<u64> {
 fn wanted(key: &str) -> bool {
     matches!(
         key,
-        "general.architecture" | "general.name" | "general.size_label" | "general.file_type" | "tokenizer.chat_template"
+        "general.architecture"
+            | "general.name"
+            | "general.size_label"
+            | "general.file_type"
+            | "tokenizer.chat_template"
+            | "clip.has_vision_encoder"
+            | "clip.projector_type"
+            | "clip.vision.projector_type"
+            | "clip.vision.projection_dim"
+            | "clip.vision.image_size"
+            | "clip.vision.patch_size"
+            | "clip.vision.spatial_merge_size"
     ) || [
         ".context_length",
         ".block_count",
@@ -253,8 +267,39 @@ pub fn parse_size_label(s: &str) -> Option<f64> {
     .filter(|v| v.is_finite() && *v > 0.0)
 }
 
-/// Reads the header of `r` (a stream of `len` bytes).
-pub fn parse<R: Read + Seek>(r: R, len: u64) -> Result<GgufInfo> {
+/// The key-value section of a header: what [`wanted`] keeps.
+struct Header {
+    version: u32,
+    tensor_count: u64,
+    vals: HashMap<String, Val>,
+}
+
+impl Header {
+    fn text(&self, k: &str) -> Option<String> {
+        match self.vals.get(k) {
+            Some(Val::Str(s)) => Some(s.clone()),
+            _ => None,
+        }
+    }
+
+    fn int(&self, k: &str) -> Option<u64> {
+        match self.vals.get(k) {
+            Some(Val::Int(n)) => Some(*n),
+            _ => None,
+        }
+    }
+
+    fn u32(&self, k: &str) -> Option<u32> {
+        self.int(k).and_then(|n| u32::try_from(n).ok())
+    }
+
+    fn architecture(&self) -> Result<String> {
+        self.text("general.architecture")
+            .ok_or_else(|| AiError::ModelFile("the header has no architecture".into()))
+    }
+}
+
+fn read_header<R: Read + Seek>(r: R, len: u64) -> Result<Header> {
     let mut rd = Reader { r, len };
     let mut magic = [0u8; 4];
     rd.r.read_exact(&mut magic)
@@ -283,26 +328,30 @@ pub fn parse<R: Read + Seek>(r: R, len: u64) -> Result<GgufInfo> {
             vals.insert(key, v);
         }
     }
-    let text = |k: &str| match vals.get(k) {
-        Some(Val::Str(s)) => Some(s.clone()),
-        _ => None,
-    };
-    let int = |k: &str| match vals.get(k) {
-        Some(Val::Int(n)) => Some(*n),
-        _ => None,
-    };
-    let architecture = text("general.architecture").ok_or_else(|| AiError::ModelFile("the header has no architecture".into()))?;
+    Ok(Header {
+        version,
+        tensor_count,
+        vals,
+    })
+}
+
+/// Whether `architecture` names a multimodal projector rather than a language model.
+pub fn is_projector_architecture(architecture: &str) -> bool {
+    matches!(architecture, "clip" | "mmproj")
+}
+
+/// Reads the header of `r` (a stream of `len` bytes).
+pub fn parse<R: Read + Seek>(r: R, len: u64) -> Result<GgufInfo> {
+    let h = read_header(r, len)?;
+    let architecture = h.architecture()?;
     if NOT_A_LANGUAGE_MODEL.contains(&architecture.as_str()) {
         return Err(AiError::ModelFile(format!(
             "this is a '{architecture}' file, not a language model (for vision models choose the main model file, not the mmproj file)"
         )));
     }
-    let per_arch = |s: &str| int(&format!("{architecture}.{s}"));
-    let quant = int("general.file_type")
-        .and_then(|n| u32::try_from(n).ok())
-        .and_then(quant_of)
-        .map(str::to_string);
-    let params_b = text("general.size_label").and_then(|s| parse_size_label(&s)).unwrap_or_else(|| {
+    let per_arch = |s: &str| h.int(&format!("{architecture}.{s}"));
+    let quant = h.u32("general.file_type").and_then(quant_of).map(str::to_string);
+    let params_b = h.text("general.size_label").and_then(|s| parse_size_label(&s)).unwrap_or_else(|| {
         let q = quant.as_deref().and_then(Quant::parse).unwrap_or(Quant::Q4);
         (len as f64 / 1e9) / q.gb_per_b()
     });
@@ -310,9 +359,9 @@ pub fn parse<R: Read + Seek>(r: R, len: u64) -> Result<GgufInfo> {
         return Err(eof("the file is far too small to hold a model"));
     }
     Ok(GgufInfo {
-        version,
+        version: h.version,
         known_architecture: KNOWN.contains(&architecture.as_str()),
-        name: text("general.name"),
+        name: h.text("general.name"),
         quant,
         context_length: per_arch("context_length"),
         block_count: per_arch("block_count").map(|n| n as u32),
@@ -320,22 +369,117 @@ pub fn parse<R: Read + Seek>(r: R, len: u64) -> Result<GgufInfo> {
         head_count: per_arch("attention.head_count").map(|n| n as u32),
         head_count_kv: per_arch("attention.head_count_kv").map(|n| n as u32),
         expert_count: per_arch("expert_count").map(|n| n as u32),
-        chat_template: text("tokenizer.chat_template"),
+        chat_template: h.text("tokenizer.chat_template"),
         architecture,
-        tensor_count,
+        tensor_count: h.tensor_count,
         file_size: len,
         params_b,
     })
 }
 
-/// Validates and describes a model file on disk.
-pub fn inspect(path: &Path) -> Result<GgufInfo> {
+/// What the header of a multimodal projector (`mmproj`) says: enough to pair it with its model and to size the
+/// images it is given.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectorInfo {
+    pub name: Option<String>,
+    /// llama.cpp's projector kind, e.g. `qwen3vl_merger`.
+    pub projector_type: Option<String>,
+    /// Width of the embeddings it produces: must equal the model's embedding length.
+    pub projection_dim: Option<u32>,
+    /// The encoder's native input size (square), in pixels.
+    pub image_size: Option<u32>,
+    pub patch_size: Option<u32>,
+    /// Patches merged into one token per side (Qwen-VL: 2).
+    pub spatial_merge_size: Option<u32>,
+    pub file_size: u64,
+}
+
+/// Most image tokens IMT spends on one image: the downscaling target (a 1366×768 screenshot at 32 px per token).
+pub const MAX_IMAGE_TOKENS: u64 = 1024;
+
+impl ProjectorInfo {
+    /// Pixels per image token along one side (`patch × merge`), 28 when the header does not say.
+    pub fn token_side_px(&self) -> u32 {
+        match (self.patch_size, self.spatial_merge_size) {
+            (Some(p), m) if (4..=64).contains(&p) => p * m.filter(|m| (1..=4).contains(m)).unwrap_or(1),
+            _ => 28,
+        }
+    }
+
+    /// Most pixels of one image sent to this projector: [`MAX_IMAGE_TOKENS`] tokens, never below its native
+    /// input size.
+    pub fn max_image_pixels(&self) -> u64 {
+        let side = u64::from(self.token_side_px());
+        let budget = MAX_IMAGE_TOKENS * side * side;
+        let native = self
+            .image_size
+            .filter(|s| (64..=4096).contains(s))
+            .map_or(0, |s| u64::from(s) * u64::from(s));
+        budget.max(native)
+    }
+
+    /// Whether this projector belongs to `model`: its embeddings must have the model's width. A projector of
+    /// another model (generation) is refused here instead of failing inside llama-server.
+    pub fn check_fits(&self, model: &GgufInfo) -> Result<()> {
+        match (self.projection_dim, model.embedding_length) {
+            (Some(p), Some(e)) if p != e => Err(AiError::ModelFile(format!(
+                "this image projector belongs to another model (it produces {p}-wide embeddings, the model expects {e}); \
+                 use the projector made for this model"
+            ))),
+            _ => Ok(()),
+        }
+    }
+}
+
+/// Reads the header of a multimodal projector (`mmproj`). Refuses a language model and a projector without an
+/// image encoder (audio only).
+pub fn parse_projector<R: Read + Seek>(r: R, len: u64) -> Result<ProjectorInfo> {
+    let h = read_header(r, len)?;
+    let architecture = h.architecture()?;
+    if !is_projector_architecture(&architecture) {
+        return Err(AiError::ModelFile(format!(
+            "this is a '{architecture}' model, not an image projector (mmproj) file"
+        )));
+    }
+    if h.int("clip.has_vision_encoder") != Some(1) {
+        return Err(AiError::ModelFile(
+            "this projector has no image encoder (it is for audio or another input)".into(),
+        ));
+    }
+    if len < MIN_FILE {
+        return Err(eof("the file is far too small to hold an image projector"));
+    }
+    Ok(ProjectorInfo {
+        name: h.text("general.name"),
+        projector_type: h.text("clip.projector_type").or_else(|| h.text("clip.vision.projector_type")),
+        projection_dim: h.u32("clip.vision.projection_dim"),
+        image_size: h.u32("clip.vision.image_size"),
+        patch_size: h.u32("clip.vision.patch_size"),
+        spatial_merge_size: h.u32("clip.vision.spatial_merge_size"),
+        file_size: len,
+    })
+}
+
+fn open(path: &Path) -> Result<(std::fs::File, u64)> {
     let meta = std::fs::metadata(path).map_err(|e| AiError::ModelFile(format!("cannot read {}: {e}", path.display())))?;
     if !meta.is_file() {
         return Err(AiError::ModelFile(format!("{} is not a file", path.display())));
     }
     let f = std::fs::File::open(path).map_err(|e| AiError::ModelFile(format!("cannot open {}: {e}", path.display())))?;
-    parse(std::io::BufReader::new(f), meta.len())
+    Ok((f, meta.len()))
+}
+
+/// Validates and describes a model file on disk.
+pub fn inspect(path: &Path) -> Result<GgufInfo> {
+    let (f, len) = open(path)?;
+    parse(std::io::BufReader::new(f), len)
+}
+
+/// Validates and describes a projector file on disk.
+pub fn inspect_projector(path: &Path) -> Result<ProjectorInfo> {
+    let (f, len) = open(path)?;
+    parse_projector(std::io::BufReader::new(f), len)
 }
 
 #[cfg(test)]
@@ -495,5 +639,66 @@ mod tests {
         assert_eq!(quant_of(7), Some("Q8_0"));
         assert_eq!(quant_of(25), Some("IQ"));
         assert_eq!(quant_of(999), None);
+    }
+
+    #[test]
+    fn a_projector_is_read_only_as_a_projector() {
+        let proj = projector_like(2560);
+        // Never a model on its own, with the message that tells the user which file to choose.
+        let e = info(&proj).unwrap_err().to_string();
+        assert!(e.contains("not a language model") && e.contains("mmproj"), "{e}");
+        let p = parse_projector(Cursor::new(proj.clone()), proj.len() as u64).unwrap();
+        assert_eq!(p.projector_type.as_deref(), Some("qwen3vl_merger"));
+        assert_eq!((p.projection_dim, p.image_size, p.token_side_px()), (Some(2560), Some(768), 32));
+        assert_eq!(p.max_image_pixels(), MAX_IMAGE_TOKENS * 32 * 32);
+        let model = info(&qwen_like()).unwrap();
+        assert!(p.check_fits(&model).is_ok());
+        let other = parse_projector(Cursor::new(projector_like(4096)), proj.len() as u64).unwrap();
+        assert!(other.check_fits(&model).unwrap_err().to_string().contains("another model"));
+        // A model is not a projector; an audio-only projector has no image encoder.
+        let m = qwen_like();
+        assert!(parse_projector(Cursor::new(m.clone()), m.len() as u64)
+            .unwrap_err()
+            .to_string()
+            .contains("not an image projector"));
+        let audio = build("clip", &[("clip.has_audio_encoder", Kv::Bool(true))], 1 << 17);
+        assert!(parse_projector(Cursor::new(audio.clone()), audio.len() as u64)
+            .unwrap_err()
+            .to_string()
+            .contains("no image encoder"));
+        let tiny = build("clip", &[("clip.has_vision_encoder", Kv::Bool(true))], 0);
+        assert!(parse_projector(Cursor::new(tiny.clone()), tiny.len() as u64)
+            .unwrap_err()
+            .to_string()
+            .contains("too small"));
+        // Defaults when the header says little; the native size wins over a tiny token budget.
+        let bare = ProjectorInfo {
+            name: None,
+            projector_type: None,
+            projection_dim: None,
+            image_size: Some(4096),
+            patch_size: Some(2),
+            spatial_merge_size: None,
+            file_size: 1,
+        };
+        assert_eq!(bare.token_side_px(), 28);
+        assert_eq!(bare.max_image_pixels(), 4096 * 4096);
+        assert!(bare.check_fits(&model).is_ok());
+        assert!(is_projector_architecture("mmproj") && !is_projector_architecture("qwen3"));
+        for cut in 0..proj.len() - (1 << 17) {
+            assert!(
+                parse_projector(Cursor::new(proj[..cut].to_vec()), cut as u64).is_err(),
+                "cut at {cut}"
+            );
+        }
+    }
+
+    #[test]
+    fn inspect_projector_reads_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("x.mmproj.gguf");
+        std::fs::write(&p, projector_like(2560)).unwrap();
+        assert_eq!(inspect_projector(&p).unwrap().projection_dim, Some(2560));
+        assert!(inspect_projector(dir.path()).unwrap_err().to_string().contains("not a file"));
     }
 }

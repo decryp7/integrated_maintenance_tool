@@ -46,6 +46,14 @@ pub fn sandbox_for(manifest: &Manifest, granted: &[Permission], elevated: bool) 
     if has(Permission::Network) {
         s.network = true;
     }
+    if has(Permission::ReadFolders) && s.fs == FsAccess::Nothing {
+        // Reading anything, writing nothing: low integrity on Windows (it reads, it cannot write), a read-only
+        // file system elsewhere. The folders are settings that change after the start, so they are not listed.
+        s.fs = FsAccess::Paths {
+            read: vec![PathBuf::from("/")],
+            write: Vec::new(),
+        };
+    }
     if elevated {
         // An elevated process cannot lower its own integrity below what its operations need (ETW sessions);
         // it keeps no file-system writes of its own by contract (its output streams back to the host).
@@ -81,7 +89,7 @@ pub fn container_name(id: &str) -> String {
 /// The sandbox of a third-party plugin: the strictest one ([`SandboxSpec::locked`]: no files but its own folders,
 /// no network, no other programs, low integrity, a memory cap), enforced by the launcher before the program runs,
 /// and widened only by `network` and `runPrograms` when asked for and granted. Third-party plugins never get
-/// `openedFilePaths` or `writeFolders`: they read the files the user opens through IMT.
+/// `openedFilePaths`, `readFolders` or `writeFolders`: they read the files the user opens through IMT.
 pub fn sandbox_for_third_party(manifest: &Manifest, granted: &[Permission], home: &PluginHome) -> SandboxSpec {
     let has = |p: Permission| manifest.asks_for(p) && granted.contains(&p);
     let mut s = SandboxSpec::locked();
@@ -128,6 +136,7 @@ mod tests {
             settings: None,
             tools: Vec::new(),
             profile_importers: Vec::new(),
+            document_importers: Vec::new(),
         }
     }
 
@@ -158,6 +167,8 @@ mod tests {
         let mut big = manifest(&[]);
         big.memory_limit = Some(u64::MAX);
         assert_eq!(sandbox_for(&big, &[], false).memory_limit, Some(MAX_MEMORY_LIMIT));
+        let reads = sandbox_for(&manifest(&[Permission::ReadFolders]), &[Permission::ReadFolders], false);
+        assert!(reads.low_integrity && matches!(&reads.fs, FsAccess::Paths { read, write } if read.len() == 1 && write.is_empty()));
         big.memory_limit = Some(1);
         assert_eq!(sandbox_for(&big, &[], false).memory_limit, Some(MIN_MEMORY_LIMIT));
     }

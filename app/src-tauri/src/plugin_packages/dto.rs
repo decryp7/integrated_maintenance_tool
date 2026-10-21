@@ -19,6 +19,8 @@ pub enum PermissionDto {
     WriteFolders,
     /// Connect to the network.
     Network,
+    /// Read files in folders the user configures (IMT's own plugins only).
+    ReadFolders,
 }
 
 impl From<Permission> for PermissionDto {
@@ -28,6 +30,7 @@ impl From<Permission> for PermissionDto {
             Permission::RunPrograms => PermissionDto::RunPrograms,
             Permission::WriteFolders => PermissionDto::WriteFolders,
             Permission::Network => PermissionDto::Network,
+            Permission::ReadFolders => PermissionDto::ReadFolders,
         }
     }
 }
@@ -39,6 +42,7 @@ impl From<PermissionDto> for Permission {
             PermissionDto::RunPrograms => Permission::RunPrograms,
             PermissionDto::WriteFolders => Permission::WriteFolders,
             PermissionDto::Network => Permission::Network,
+            PermissionDto::ReadFolders => Permission::ReadFolders,
         }
     }
 }
@@ -295,5 +299,8 @@ pub fn generated(header: &str) -> String {
         DamagedPluginDto::decl(),
         InstalledPluginsDto::decl(),
     ];
-    format!("{header}{}", decls.iter().map(|d| format!("export {d}\n")).collect::<Vec<_>>().join("\n"))
+    format!(
+        "{header}{}",
+        decls.iter().map(|d| format!("export {d}\n")).collect::<Vec<_>>().join("\n")
+    )
 }

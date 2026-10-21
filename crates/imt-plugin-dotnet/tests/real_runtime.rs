@@ -254,11 +254,13 @@ fn etw_framework_and_core_targets_elevated() {
         let etl = dir.path().join(format!("{label}.etl"));
         imt_plugin_dotnet::etw::session::record_etl(&info, &etl, Duration::from_secs(4)).expect("record .etl");
         let cancel = std::sync::atomic::AtomicBool::new(false);
-        let procs = imt_plugin_dotnet::etw::etl::scan(&etl, &cancel).expect("scan .etl");
+        let procs = imt_plugin_dotnet::etw::etl::scan(&etl, imt_etw::scan::Order::DotnetFirst, &cancel).expect("scan .etl");
         let me = procs.iter().find(|p| p.pid == target.1).expect("the fixture is in the .etl");
         assert!(me.is_dotnet());
         let out = dir.path().join(format!("{label}-etl.nettrace"));
-        let c = imt_plugin_dotnet::etw::etl::convert(&etl, me, &out, 1 << 30, &cancel).expect("convert .etl");
+        let mut no_symbols = |_: &[imt_plugin_profiling::nettrace::ext::ImageLoad], _: &[u64]| Vec::new();
+        let c = imt_plugin_dotnet::etw::etl::convert(&etl, me, &out, 1 << 30, &cancel, Default::default(), &mut no_symbols)
+            .expect("convert .etl");
         eprintln!("{label} .etl: {c:?}");
         let Capture::Profile(p) = import(&out) else { panic!("a profile") };
         assert!(functions(&p).iter().any(|n| n.contains("HotLoop")), "{label} .etl");

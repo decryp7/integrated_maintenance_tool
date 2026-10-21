@@ -64,12 +64,14 @@ pub mod settings;
 pub mod text;
 pub mod time;
 pub mod tools;
+pub mod units;
 pub mod user_regex;
 
+pub use host_file::RangeRead;
 pub use importer::{BinaryImporter, ImportCtx, Imported, TextImporter};
 pub use manifest::{Manifest, Permission, PermissionRequest};
 pub use model::{Fields, Level, Record};
-pub use plugin::{Contributions, Plugin, ProfileImporter, Transform, TransformCtx, Verdict};
+pub use plugin::{Contributions, DocumentImporter, Plugin, ProfileImporter, Transform, TransformCtx, Verdict};
 pub use protocol::{ProtocolVersion, PROTOCOL};
 pub use serve::serve;
 

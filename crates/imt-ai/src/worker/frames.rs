@@ -48,6 +48,7 @@ pub struct ChatWire {
     pub max_tokens: u64,
     pub temperature: f32,
     pub json_schema: Option<Json>,
+    pub images: Vec<WireImage>,
 }
 
 /// What the supervisor asks the worker.
@@ -172,11 +173,13 @@ impl WorkerHandler {
         if lock(&self.loaded).is_none() {
             return Err(RpcError::new(code::NOT_LOADED, "no model is loaded"));
         }
+        WireImage::check_all(&w.images)?;
         let params = ChatParams {
             prompt: w.prompt,
             max_tokens: w.max_tokens as usize,
             temperature: w.temperature,
             json_schema: w.json_schema.map(Json::into_inner),
+            images: w.images,
         };
         let id = self.next_chat.fetch_add(1, Ordering::SeqCst);
         let (tx, rx) = mpsc::channel();
@@ -362,6 +365,7 @@ impl FramesTransport {
             max_tokens: p.max_tokens as u64,
             temperature: p.temperature,
             json_schema: p.json_schema.map(Json),
+            images: p.images,
         });
         let mut stream = self.peer.stream_request(&req, CHAT_CREDIT).map_err(|e| self.logged(e))?;
         let mut deadline = Instant::now() + opts.timeout;
@@ -557,6 +561,12 @@ mod tests {
             max_tokens: 5,
             temperature: 0.5,
             json_schema: Some(json!({"type": "object"}).into()),
+            images: vec![WireImage {
+                mime: "image/png".into(),
+                data: "AAAA".into(),
+                width: 1,
+                height: 1,
+            }],
         });
         assert_eq!(
             imt_ipc::wire::decode::<WorkerRequest>(&imt_ipc::wire::encode(&r).unwrap()).unwrap(),

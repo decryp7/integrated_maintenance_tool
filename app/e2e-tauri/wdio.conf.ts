@@ -3,7 +3,7 @@ import { browser } from '@wdio/globals';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { connect } from 'node:net';
 import { platform, tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import {
   appBinary,
   ARTIFACTS_DIR,
@@ -192,6 +192,10 @@ export const config: WebdriverIO.Config = {
       fail(
         `No IMT binary at ${app}. Build it first: npm run e2e:tauri:build (or set IMT_E2E_APP).`,
       );
+    // The built-in plugins run in their own processes of `imt-plugins`, found next to the app (ADR 0017).
+    const plugins = join(dirname(app), platform() === 'win32' ? 'imt-plugins.exe' : 'imt-plugins');
+    if (!process.env['IMT_PLUGINS'] && !existsSync(plugins))
+      fail(`No plugins binary at ${plugins}. Build it with npm run e2e:tauri:build (or set IMT_PLUGINS).`);
     const td = tauriDriver();
     if (!existsSync(td))
       fail(

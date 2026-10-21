@@ -94,7 +94,7 @@ view, exports, reports and bundles), `report/` (versioned report model, Markdown
 | [0007](adr/0007-reports-pdf-and-redaction.md) | Incident reports: engine-side model, HTML and pure-Rust PDF; one redactor. |
 | [0008](adr/0008-menus-one-model-native-on-macos.md) | Menus: one model, native on macOS. |
 | [0009](adr/0009-prebuilt-llama-server-runtimes.md) | AI inference runs the official prebuilt `llama-server`, downloaded on demand. |
-| [0010](adr/0010-persistent-store.md) | Large workspaces: a persistent DuckDB store in a worker process with a Tantivy index (decided, not started). |
+| [0010](adr/0010-persistent-store.md) | Amended by 0014. A persistent DuckDB store in a worker process with a Tantivy index. |
 | [0011](adr/0011-internal-browser.md) | The AI gets web content only through an internal browser the user drives (no AI web search); pages get no IPC. Amended by 0012: read-only research mode; by 0024: docked panel. |
 | [0012](adr/0012-jobs.md) | Jobs and notifications: every long task is a job with per-kind queues and limits in Rust; a notification centre for what needs attention; research mode as a job. |
 | [0013](adr/0013-ai-browsing-banner.md) | "AI is browsing" while agent mode or research drives the browser; the state comes from the browser hub. Superseded by 0024: the banner is the Browser panel's header. |

@@ -470,6 +470,7 @@ fn probe(exe: &Path, m: &PackageManifest, home: &PluginHome, sha: [u8; 32]) -> R
         settings: None,
         tools: Vec::new(),
         profile_importers: Vec::new(),
+        document_importers: Vec::new(),
     };
     let mut spec = PluginSpec::third_party(exe, &m.id, home.clone(), sha, Vec::new());
     spec.log = None;

@@ -162,6 +162,12 @@ fn imports_and_queries_within_the_budgets() {
     std::thread::sleep(Duration::from_millis(300));
     let idle = rss_of(pid) >> 20;
     sampler.take_mb();
+    // Printed before the queries, so a failing query still reports the import.
+    eprintln!(
+        "worker: import {} events in {elapsed:.2} s ({:.0}/s); peak RSS importing {import_peak} MB, indexing {index_peak} MB, idle {idle} MB",
+        report.events,
+        report.events as f64 / elapsed
+    );
     // Queries.
     let summary = store.summary().unwrap();
     assert_eq!(summary.total, report.events);

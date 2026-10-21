@@ -1766,4 +1766,109 @@ manifest = {"format": "imt-share", "schema": 1, "name": "WEB02 clock skew", "cre
 write_bytes(stored_zip([(p, d) for p, _, d in files] + [("manifest.json", json.dumps(manifest, indent=2).encode("utf-8"))]),
             "share", "web02-clock-skew.imtz")
 
+# --------------------------------------------------------------------------
+# UMDH: three heap snapshots of OrderService on WEB02 (pid 4120) taken while it
+# leaks (`umdh -p:4120 -f:...` at 10:30, 10:35 and 10:40) and UMDH's own diff of
+# the first and the last (`umdh snap-1030.txt snap-1040.txt`, hexadecimal). The
+# order cache grows by about 10 MB per snapshot (the leak), payment retries
+# grow a little, sessions stay level, a 32 MB report buffer is one large
+# allocation, and PdfLib has no symbols (raw addresses placed in its module).
+
+urnd = random.Random(1023)
+UMDH_MODULES = [
+    (0x7FF6A0000000, 0x40000, r"C:\Program Files\Shop\OrderService.exe"),
+    (0x7FF6B0000000, 0x120000, r"C:\Program Files\Shop\Shop.Orders.dll"),
+    (0x7FF6B2000000, 0x80000, r"C:\Program Files\Shop\Shop.Payments.dll"),
+    (0x7FF6B4000000, 0x60000, r"C:\Program Files\Shop\Shop.Reports.dll"),
+    (0x7FF6B6000000, 0x200000, r"C:\Program Files\Shop\PdfLib.dll"),
+    (0x7FFB1C000000, 0x1F8000, r"C:\Windows\SYSTEM32\ntdll.dll"),
+    (0x7FFB1A000000, 0x2C0000, r"C:\Windows\System32\KERNELBASE.dll"),
+    (0x7FFB18000000, 0x120000, r"C:\Windows\System32\ucrtbase.dll"),
+]
+ALLOC = ["ntdll!RtlpAllocateHeapInternal+0000000E", "ntdll!RtlAllocateHeap+00000021", "ucrtbase!_malloc_base+00000036"]
+UMDH_STACKS = [
+    # back trace id, allocation size, counts per snapshot, frames below the allocator
+    (0xA2C3, 0x10000, [160, 320, 480], ["Shop.Orders!OrderCache::Add+0000004A (c:\\src\\orders\\ordercache.cpp, 88)",
+                                        "Shop.Orders!OrderService::Handle+00000112 (c:\\src\\orders\\orderservice.cpp, 214)",
+                                        "OrderService!wmain+0000002B", "KERNEL32!BaseThreadInitThunk+00000014", "ntdll!RtlUserThreadStart+00000021"]),
+    (0x77B1, 0x800, [50, 82, 121], ["Shop.Payments!Capture::Retry+0000003C (c:\\src\\payments\\capture.cpp, 57)",
+                                    "Shop.Payments!Capture::Run+000000A0", "OrderService!wmain+0000002B"]),
+    (0x1F04, 0x200, [400, 412, 396], ["Shop.Orders!Session::Create+00000019 (c:\\src\\orders\\session.cpp, 31)",
+                                      "Shop.Orders!OrderService::Handle+00000040", "OrderService!wmain+0000002B"]),
+    (0x0C9A, 0x2000000, [1, 1, 1], ["Shop.Reports!ReportBuffer::Allocate+00000011", "Shop.Reports!Report::Render+00000208",
+                                    "OrderService!wmain+0000002B"]),
+    (0x5E12, 0x1000, [30, 30, 30], ["7FF6B6012A40", "7FF6B6004410", "Shop.Reports!Report::Render+00000300", "OrderService!wmain+0000002B"]),
+]
+UMDH_HEAP = 0x000001E0A3C40000
+UMDH_TIMES = ["1030", "1035", "1040"]
+
+
+def umdh_header():
+    lines = ["// Debug library initialized ...",
+             "DBGHELP: OrderService - private symbols & lines ",
+             "         C:\\Program Files\\Shop\\OrderService.pdb",
+             "DBGHELP: ntdll - public symbols  ",
+             "         c:\\symbols\\ntdll.pdb\\9C8A0B5D4E2F4A1B8C3D2E1F0A9B8C7D1\\ntdll.pdb",
+             "DBGHELP: PdfLib - export symbols",
+             "//                                                                          ",
+             "// Loaded modules:",
+             "//     Base Size Module"]
+    lines += ["//      %12X %8X %s" % m for m in UMDH_MODULES]
+    lines += ["//", "// Process modules enumerated.", ""]
+    return lines
+
+
+def umdh_snapshot(snap):
+    lines = umdh_header()
+    lines += ["*- - - - - - - - - - Start of data for heap @ %016X - - - - - - - - - -" % UMDH_HEAP, "",
+              "REQUESTED bytes + OVERHEAD at ADDRESS by BackTraceID",
+              "     STACK if not already dumped.", "",
+              "*- - - - - - - - - - Heap %016X Hogs - - - - - - - - - -" % UMDH_HEAP, ""]
+    address = UMDH_HEAP + 0x10000
+    for trace, size, counts, frames in UMDH_STACKS:
+        for i in range(counts[snap]):
+            lines.append("%08X bytes + %08X at %016X by BackTrace%04X" % (size, 0x30 if size >= 0x10000 else 0x10, address, trace))
+            address += size + 0x40 + urnd.randrange(0, 4) * 0x10
+            if i == 0:
+                lines += ["\t" + f for f in ALLOC + frames]
+            lines.append("")
+    lines += ["*- - - - - - - - - - End of data for heap @ %016X - - - - - - - - - -" % UMDH_HEAP, ""]
+    return "\n".join(lines)
+
+
+def umdh_diff(old, new):
+    lines = ["//", "// Each log entry has the following syntax:", "//",
+             "// + BYTES_DELTA (NEW_BYTES - OLD_BYTES) NEW_COUNT allocs BackTrace TRACEID",
+             "// + COUNT_DELTA (NEW_COUNT - OLD_COUNT) BackTrace TRACEID allocations",
+             "//     ... stack trace ...", "//", "// where:", "//",
+             "//     BYTES_DELTA - increase in bytes between before and after log",
+             "//     NEW_BYTES - bytes in after log", "//     OLD_BYTES - bytes in before log",
+             "//     COUNT_DELTA - increase in allocations between before and after log",
+             "//     NEW_COUNT - number of allocations in after log",
+             "//     OLD_COUNT - number of allocations in before log",
+             "//     TRACEID - decimal index of the stack trace in the trace database",
+             "//         (can be used to search for allocation instances in the original",
+             "//         UMDH logs).", "//", ""]
+    total = 0
+    for trace, size, counts, frames in sorted(UMDH_STACKS, key=lambda s: -(s[2][new] - s[2][old]) * s[1]):
+        nb, ob = counts[new] * size, counts[old] * size
+        if nb == ob:
+            continue
+        total += nb - ob
+        sign = "+" if nb >= ob else "-"
+        lines.append("%s %7X ( %7X - %7X) %6X allocs\tBackTrace%04X" % (sign, abs(nb - ob), nb, ob, counts[new], trace))
+        lines.append("%s %7X ( %7X - %7X)\tBackTrace%04X\tallocations" % (sign, abs(counts[new] - counts[old]), counts[new], counts[old], trace))
+        lines.append("")
+        lines += ["\t" + f for f in ALLOC + frames]
+        lines.append("")
+    overhead = 0x30 * 320
+    lines.append("Total increase == %X requested + %X overhead = %X" % (total, overhead, total + overhead))
+    lines.append("")
+    return "\n".join(lines)
+
+
+for i, hhmm in enumerate(UMDH_TIMES):
+    write_text(umdh_snapshot(i), "dumps", "umdh", f"OrderService-4120-snap-{hhmm}.txt", newline="\r\n", encoding="ascii")
+write_text(umdh_diff(0, 2), "dumps", "umdh", "OrderService-4120-diff-1030-1040.txt", newline="\r\n", encoding="ascii")
+
 print("samples written to", ROOT)

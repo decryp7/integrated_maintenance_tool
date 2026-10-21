@@ -25,7 +25,9 @@ fn template_schema() -> Schema {
         .optional("extraCounters", Schema::list(Schema::text(1024), 512))
         .optional("sampleIntervalSecs", Schema::int(0, U32_MAX))
         .optional("format", Schema::one_of(["blg", "csv", "tsv"]))
-        .optional("outputDir", Schema::path(PathKind::Dir, PathAccess::Write))
+        // Where the Data Collector Set writes its logs on the machine it runs on (a Windows path in the generated
+        // XML, often of another machine): a setting, not a path IMT writes to, so it is not checked against grants.
+        .optional("outputDir", Schema::text(4096))
         .optional("maxSizeMb", Schema::int(0, U32_MAX))
         .optional("durationSecs", Schema::int(0, U32_MAX))
 }

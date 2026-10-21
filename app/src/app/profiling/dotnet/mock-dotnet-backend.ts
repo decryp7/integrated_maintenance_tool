@@ -1,4 +1,4 @@
-import { DotnetCaptureRequest, DotnetCaptureStatus, DotnetProcess, EtlConverted, EtlProcess } from '../../core/api.types';
+import { DotnetCaptureRequest, DotnetCaptureStatus, DotnetProcess } from '../../core/api.types';
 import { CmdError } from '../../core/cmd-error';
 import { DotnetBackend } from './dotnet-backend';
 
@@ -102,20 +102,5 @@ export class MockDotnetBackend extends DotnetBackend {
       this.started.delete(id);
     }
     return { ...c };
-  }
-
-  async etlProcesses(path: string): Promise<EtlProcess[]> {
-    this.fail('etlProcesses');
-    if (!path.toLowerCase().endsWith('.etl')) throw new Error(`${path} is not an .etl file`);
-    return [
-      { pid: 4242, name: 'Shop.Web.exe', commandLine: null, samples: 12500, clrEvents: 3400, pointerSize: 8 },
-      { pid: 880, name: 'sqlservr.exe', commandLine: null, samples: 8200, clrEvents: 0, pointerSize: 8 },
-      { pid: 5150, name: 'Legacy.Billing.exe', commandLine: null, samples: 900, clrEvents: 120, pointerSize: 4 },
-    ];
-  }
-
-  async etlConvert(path: string, pid: number): Promise<EtlConverted> {
-    this.fail('etlConvert');
-    return { path: MOCK_PROFILE_PATH, notes: [`Converted process ${pid} of ${path}`] };
   }
 }

@@ -24,6 +24,8 @@ pub enum Permission {
     WriteFolders,
     /// Open network connections.
     Network,
+    /// Read (never write) files in folders the user configured, such as symbol folders.
+    ReadFolders,
 }
 
 impl Permission {
@@ -34,6 +36,7 @@ impl Permission {
             Permission::RunPrograms => "run programs",
             Permission::WriteFolders => "write into folders you choose",
             Permission::Network => "connect to the network",
+            Permission::ReadFolders => "read files in folders you configure (never write them)",
         }
     }
 }
@@ -91,6 +94,16 @@ pub struct ProfileImporterCap {
     pub heap: bool,
 }
 
+/// A document format a plugin contributes (dumps, UMDH logs: ADR 0023).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentImporterCap {
+    /// The importer's id.
+    pub id: Arc<str>,
+    /// What it produces, in the host engine's words (`dump`, `umdh`).
+    pub produces: Arc<str>,
+}
+
 /// A plugin's identity and contributions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -123,6 +136,9 @@ pub struct Manifest {
     pub tools: Vec<ToolInfo>,
     /// Profile and heap-snapshot importers it contributes.
     pub profile_importers: Vec<ProfileImporterCap>,
+    /// Document importers it contributes (dumps, UMDH logs).
+    #[serde(default)]
+    pub document_importers: Vec<DocumentImporterCap>,
 }
 
 impl Manifest {
@@ -136,6 +152,7 @@ impl Manifest {
         out.extend(self.transforms.iter().map(|t| format!("transform:{t}")));
         out.extend(self.tools.iter().map(|t| format!("tool:{}", t.id)));
         out.extend(self.profile_importers.iter().map(|p| format!("profile-importer:{}", p.id)));
+        out.extend(self.document_importers.iter().map(|d| format!("document-importer:{}", d.id)));
         if self.settings.is_some() {
             out.push("settings".into());
         }
@@ -221,6 +238,7 @@ mod tests {
             settings: None,
             tools: vec![ToolInfo::new("toy.tool", "Toy").op(OpSpec::new("go", "Go").elevated())],
             profile_importers: Vec::new(),
+            document_importers: Vec::new(),
         }
     }
 

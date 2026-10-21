@@ -16,6 +16,10 @@ pub trait ModelLoader: Send + Sync {
     fn context_hint(&self) -> usize {
         4096
     }
+    /// Whether the model will read images, before it is loaded (its projector is installed).
+    fn vision_hint(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -204,6 +208,13 @@ impl LlmProvider for LazyProvider {
         match &*lock(&self.shared.slot) {
             Slot::Ready { provider, .. } => provider.context_length(),
             _ => self.loader.context_hint(),
+        }
+    }
+
+    fn vision(&self) -> bool {
+        match &*lock(&self.shared.slot) {
+            Slot::Ready { provider, .. } => provider.vision(),
+            _ => self.loader.vision_hint(),
         }
     }
 

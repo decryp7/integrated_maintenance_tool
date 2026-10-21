@@ -48,6 +48,8 @@ impl HardwareProbe for Probe {
 struct FakeRuntime {
     replies: Mutex<Vec<Reply>>,
     loads: Mutex<usize>,
+    /// The projector of every load request (ADR 0025).
+    projectors: Mutex<Vec<Option<PathBuf>>>,
 }
 
 impl FakeRuntime {
@@ -55,13 +57,19 @@ impl FakeRuntime {
         Arc::new(FakeRuntime {
             replies: Mutex::new(replies),
             loads: Mutex::new(0),
+            projectors: Mutex::new(vec![]),
         })
+    }
+
+    fn projectors(&self) -> Vec<Option<PathBuf>> {
+        self.projectors.lock().unwrap().clone()
     }
 }
 
 impl ModelRuntime for FakeRuntime {
     fn load(&self, req: &LoadRequest) -> imt_ai::Result<Loaded> {
         *self.loads.lock().unwrap() += 1;
+        self.projectors.lock().unwrap().push(req.projector.clone());
         let mut replies = vec![Reply::Text("OK".into())];
         replies.extend(self.replies.lock().unwrap().drain(..));
         Ok(Loaded {
@@ -1876,3 +1884,4 @@ fn a_runtime_is_installed_from_archives_downloaded_by_hand() {
 }
 
 mod update_checks;
+mod vision;

@@ -74,6 +74,7 @@ fn import_controls(state: &CurrentWindow) -> Controls {
             done: Some(p.done as u64),
             total: Some(p.total as u64),
             eta_ms: p.eta_ms,
+            ..JobProgress::default()
         })
     })
 }

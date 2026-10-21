@@ -299,7 +299,7 @@ fn budgets_labels_and_durations() {
     h.set_budgets(Budgets::unlimited());
     assert_eq!(h.budgets(), Budgets::unlimited());
     assert_eq!(b.get(CallKind::Export), None);
-    assert_eq!(fmt_duration(Duration::from_secs(120)), "120 s");
+    assert_eq!(fmt_duration(Duration::from_secs(120)), "2 min");
     assert_eq!(fmt_duration(Duration::from_millis(1500)), "1.5 s");
     assert_eq!(fmt_duration(Duration::from_millis(50)), "50 ms");
 }

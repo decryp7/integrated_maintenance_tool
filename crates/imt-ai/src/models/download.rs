@@ -75,11 +75,30 @@ impl Downloader<'_> {
         self.download_checked(remote, dir, progress, is_safe_file_name)
     }
 
+    /// [`Self::download`] stored under `name` instead of the host's file name (an image projector is often just
+    /// `mmproj-F16.gguf` in every repository, so it is kept as `<model stem>.mmproj.gguf`).
+    pub fn download_as(&self, remote: &RemoteFile, dir: &Path, name: &str, progress: &Progress) -> Result<PathBuf> {
+        self.download_named(remote, dir, name, progress, is_safe_file_name)
+    }
+
     /// [`Self::download`] for files other than models (e.g. inference runtimes): `name_ok` decides which
     /// file names are acceptable in `dir`; it must reject path separators and `..`.
     pub fn download_checked(&self, remote: &RemoteFile, dir: &Path, progress: &Progress, name_ok: fn(&str) -> bool) -> Result<PathBuf> {
-        if !name_ok(&remote.file) || remote.file.contains(['/', '\\']) || remote.file.contains("..") {
-            return Err(AiError::Refused(format!("'{}' is not an acceptable file name", remote.file)));
+        self.download_named(remote, dir, &remote.file, progress, name_ok)
+    }
+
+    fn download_named(
+        &self,
+        remote: &RemoteFile,
+        dir: &Path,
+        name: &str,
+        progress: &Progress,
+        name_ok: fn(&str) -> bool,
+    ) -> Result<PathBuf> {
+        for n in [remote.file.as_str(), name] {
+            if !name_ok(n) || n.contains(['/', '\\']) || n.contains("..") {
+                return Err(AiError::Refused(format!("'{n}' is not an acceptable file name")));
+            }
         }
         if remote.size == 0 || remote.size > self.opts.max_bytes {
             return Err(AiError::Refused(format!(
@@ -94,8 +113,8 @@ impl Downloader<'_> {
             ));
         }
         std::fs::create_dir_all(dir)?;
-        let dest = dir.join(&remote.file);
-        let part = dir.join(format!("{}.part", remote.file));
+        let dest = dir.join(name);
+        let part = dir.join(format!("{name}.part"));
         if dest.is_file() && std::fs::metadata(&dest)?.len() == remote.size {
             progress.begin(Phase::Verifying, remote.size, 0);
             if sha256_file(&dest, progress)? == remote.sha256 {

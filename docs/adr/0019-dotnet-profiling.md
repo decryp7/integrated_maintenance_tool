@@ -1,7 +1,7 @@
 # 19. .NET profiling: event-based capture through ETW and EventPipe, one NetTrace path
 
 - Status: accepted (2026-10-20)
-- Related: docs/dotnet-profiling-plan.md (the brief and the wire contract), ADR 0012 (jobs), ADR 0004 (languages),
+- Related: ADR 0012 (jobs), ADR 0004 (languages),
   docs/profiling.md (the profile model and views), AGENTS.md (pure core / thin edges, robustness)
 
 ## Context
@@ -123,3 +123,9 @@ The manual ETW test is unchanged (it exercises the recorder directly):
 The elevated route itself is tested with the elevated role started as an ordinary process
 (`imt-plugin-host`'s `the_normal_process_runs_only_declared_elevated_operations_through_the_host`, and the
 `etw-*` operations against a fake recorder in `imt-plugin-dotnet`); the prompt is a manual check.
+
+Amendment (2026-10-21, ADR 0022): the ETW decoders, the ETW → NetTrace converter, the NetTrace writer and the `.etl`
+reader are the shared crate `imt-etw`; this plugin keeps only its recording control. `.etl` traces open through the
+native profiling plugin's importer and its *Open process from .etl…* picker (one importer for .NET and native
+processes, .NET processes first); this plugin's `.etl` importer and its `etl-processes` / `etl-convert` operations are
+deleted.

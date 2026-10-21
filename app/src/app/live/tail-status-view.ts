@@ -76,7 +76,7 @@ export function parseLimit(text: string): number | null {
 
     @if (status.status(); as st) {
       <div class="totals" role="status" aria-live="off">
-        <span i18n="@@live.tailStatus.totalFiles"><strong>{{ st.totals.files }}</strong> files</span>
+        <span i18n="@@live.tailStatus.totalFiles"><strong>{{ fmt(st.totals.files) }}</strong> files</span>
         <span i18n="@@live.tailStatus.totalTailing"><strong>{{ st.totals.tailing }}</strong> tailing</span>
         @if (st.totals.errors) { <span class="bad" i18n="@@live.tailStatus.totalErrors"><strong>{{ st.totals.errors }}</strong> with errors</span> }
         <span [title]="exact(st.totals.bytes)">{{ bytes(st.totals.bytes) }}</span>
@@ -137,6 +137,7 @@ export function parseLimit(text: string): number | null {
   `,
 })
 export class TailStatusView {
+  protected readonly fmt = formatCount;
   protected readonly live = inject(LiveTail);
   protected readonly status = inject(TailStatusStore);
   private readonly cdr = inject(ChangeDetectorRef);

@@ -15,6 +15,8 @@ use crate::ops::nav::hot_path;
 use crate::ops::tree::CallTree;
 use rustc_hash::FxHashMap;
 
+mod native;
+
 /// Garbage collector work (lower-case substrings of function names).
 const GC: &[&str] = &[
     "(garbage collector)",
@@ -198,7 +200,8 @@ pub fn findings(target: &Side<'_>, baseline: Option<&Side<'_>>, ctx: &Context<'_
         out: Vec::new(),
     };
     if grand > 0 {
-        top_self(&mut b, target, k, grand, th);
+        let hot_native = native::hot_function(&mut b, target, k, grand);
+        top_self(&mut b, target, k, grand, th, hot_native);
         gc(&mut b, target, k, grand, th);
         locks(&mut b, target, k, grand, th);
         exceptions(&mut b, target, k, grand, th);
@@ -208,7 +211,9 @@ pub fn findings(target: &Side<'_>, baseline: Option<&Side<'_>>, ctx: &Context<'_
     }
     // Waits and allocations have their own metrics: reported even when the default metric is empty.
     blocking(&mut b, target);
+    native::wait_hot_spot(&mut b, target);
     allocations(&mut b, target);
+    native::heap_growth(&mut b, target);
     if let Some(base) = baseline {
         regressions(&mut b, base, target, th)?;
     }
@@ -221,10 +226,11 @@ pub fn findings(target: &Side<'_>, baseline: Option<&Side<'_>>, ctx: &Context<'_
     Ok(out)
 }
 
-fn top_self(b: &mut Builder<'_>, s: &Side<'_>, k: usize, grand: u64, th: &FindingThresholds) {
+/// Top self time; `skip` is a frame another finding already reports (the hot native function).
+fn top_self(b: &mut Builder<'_>, s: &Side<'_>, k: usize, grand: u64, th: &FindingThresholds, skip: Option<u32>) {
     let groups = group(s.profile, s.tree, s.view, GroupBy::Function);
     let mut idx: Vec<usize> = (0..groups.len())
-        .filter(|&g| groups.touched[g] && !matches_any(&groups.names[g], IDLE))
+        .filter(|&g| groups.touched[g] && !matches_any(&groups.names[g], IDLE) && (skip.is_none() || groups.frame[g] != skip))
         .collect();
     let sort = SortSpec {
         metric: Some(b.metric),
@@ -1099,5 +1105,101 @@ mod tests {
         assert!(a
             .iter()
             .any(|f| f.title.contains("40% of the allocations go to the large object heap")));
+    }
+
+    /// A native capture: CPU in busy::spin (busy.exe, with source), waits under busy::contend in
+    /// EnterCriticalSection, and unfreed heap memory under busy::grow.
+    fn native_profile() -> Profile {
+        use crate::model::FrameKind;
+        let metrics = [
+            MetricInfo::new(MetricId::Samples, Measurement::Sampled),
+            MetricInfo::new(MetricId::TimeNs, Measurement::Sampled),
+            MetricInfo::new(MetricId::WaitNs, Measurement::Exact),
+            MetricInfo::new(MetricId::AllocBytes, Measurement::Exact),
+            MetricInfo::new(MetricId::LiveBytes, Measurement::Exact),
+        ];
+        let mut b = ProfileBuilder::new("t", ProfileKind::Mixed, &metrics, Limits::default()).unwrap();
+        b.set_has_time(true).set_duration_ns(1_000_000_000);
+        let native = |b: &mut ProfileBuilder, name: &str, module: &str, line: Option<u32>| {
+            b.frame(
+                FrameSpec::new(name)
+                    .module(Some(module))
+                    .file(line.map(|_| r"C:\src\busy.rs"))
+                    .line(line)
+                    .kind(FrameKind::Native),
+            )
+            .unwrap()
+        };
+        let main = native(&mut b, "busy::main", "busy.exe", Some(3));
+        let spin = native(&mut b, "busy::spin", "busy.exe", Some(12));
+        let contend = native(&mut b, "busy::contend", "busy.exe", Some(30));
+        let enter = native(&mut b, "EnterCriticalSection", "KERNELBASE.dll", None);
+        let rtl = native(&mut b, "RtlpWaitOnCriticalSection", "ntdll.dll", None);
+        let grow = native(&mut b, "busy::grow", "busy.exe", Some(50));
+        let malloc = native(&mut b, "malloc", "ucrtbase.dll", None);
+        let raw = native(&mut b, "ntdll.dll+0x1234", "ntdll.dll", None);
+        let next = native(&mut b, "core::iter::range::impl$5::spec_next<i32>", "busy.exe", Some(1099));
+        let hot = b.stack(&[main, spin]).unwrap();
+        let hot_lib = b.stack(&[main, spin, next]).unwrap();
+        let waiting = b.stack(&[main, contend, enter, rtl]).unwrap();
+        let growing = b.stack(&[main, grow, malloc]).unwrap();
+        let unnamed = b.stack(&[main, raw]).unwrap();
+        let th = b.thread(Some(1), "main").unwrap();
+        for i in 0..90u64 {
+            // Two thirds in the standard-library code busy::spin calls: still busy::spin's hot spot.
+            let stack = if i % 3 == 0 { hot } else { hot_lib };
+            b.sample_with(th, i * 1_000_000, stack, &[(MetricId::Samples, 1), (MetricId::TimeNs, 1_000_000)])
+                .unwrap();
+        }
+        for i in 0..10u64 {
+            b.sample_with(th, i * 1_000_000, unnamed, &[(MetricId::Samples, 1), (MetricId::TimeNs, 1_000_000)])
+                .unwrap();
+        }
+        b.sample_with(th, 5, waiting, &[(MetricId::WaitNs, 400_000_000)]).unwrap();
+        b.sample_with(th, 6, growing, &[(MetricId::AllocBytes, 4 << 20)]).unwrap();
+        b.sample_with(th, 7, growing, &[(MetricId::LiveBytes, 3 << 20)]).unwrap();
+        b.finish().unwrap()
+    }
+
+    #[test]
+    fn native_hot_function_wait_hot_spot_and_heap_growth() {
+        let p = native_profile();
+        let f = run(&p, None);
+        let hot = f.iter().find(|f| f.kind == FindingKind::HotNativeFunction).unwrap();
+        assert!(hot.title.contains("busy::spin (busy.rs:12)"), "{}", hot.title);
+        assert!(hot.detail.contains("busy.exe"), "{}", hot.detail);
+        assert_eq!(hot.severity, FindingSeverity::Warning);
+        assert!(hot.value_pct.is_some_and(|v| v > 89.0), "{:?}", hot.value_pct);
+        // Not repeated as a generic top-self finding.
+        assert!(!f
+            .iter()
+            .any(|x| x.kind == FindingKind::TopSelf && x.evidence.frame.as_ref().is_some_and(|fr| fr.name == "busy::spin")));
+        let wait = f.iter().find(|f| f.kind == FindingKind::WaitHotSpot).unwrap();
+        assert!(
+            wait.title.starts_with("busy::contend (busy.rs:30) waited 400.0 ms on a lock"),
+            "{}",
+            wait.title
+        );
+        assert_eq!(wait.evidence.metric, MetricId::WaitNs);
+        assert_eq!(wait.severity, FindingSeverity::Warning);
+        let heap = f.iter().find(|f| f.kind == FindingKind::NativeHeapGrowth).unwrap();
+        assert!(heap.title.contains("3.1 MB of native heap not freed"), "{}", heap.title);
+        assert!(heap.title.contains("under busy::grow (busy.rs:50)"), "{}", heap.title);
+        assert_eq!(heap.evidence.metric, MetricId::LiveBytes);
+        assert_eq!(heap.evidence.frame.as_ref().unwrap().name, "busy::grow");
+        assert_eq!(heap.severity, FindingSeverity::Warning);
+        assert!(native::is_system_module(Some("VCRUNTIME140.dll")) && !native::is_system_module(None));
+    }
+
+    #[test]
+    fn native_findings_need_their_data() {
+        // Managed or unnamed frames, no waits, no heap: no native findings.
+        let p = profile(&[(0, 0, "main;work", 50)]);
+        let k = kinds(&run(&p, None));
+        assert!(
+            !k.contains(&FindingKind::HotNativeFunction) && !k.contains(&FindingKind::WaitHotSpot),
+            "{k:?}"
+        );
+        assert!(!k.contains(&FindingKind::NativeHeapGrowth));
     }
 }

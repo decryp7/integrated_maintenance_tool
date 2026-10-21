@@ -90,6 +90,15 @@ struct Running {
     child: ServerChild,
     launch: Launch,
     n_ctx: usize,
+    /// Pixels per image token along one side, when the model's projector is loaded (images accepted).
+    image_token_px: Option<u32>,
+}
+
+/// Tokens an image of `w`×`h` takes, estimated from the projector's token size (llama-server's `/tokenize`
+/// counts only the text, so the context check adds this per image).
+pub fn image_tokens(w: u32, h: u32, token_px: u32) -> usize {
+    let side = token_px.max(1) as usize;
+    (w as usize).div_ceil(side) * (h as usize).div_ceil(side) + 2
 }
 
 pub struct ServerBackend {
@@ -184,8 +193,10 @@ impl ServerBackend {
     }
 }
 
-/// The command line for one model and build (the host, port and key are added when starting).
-fn server_args(model: &Path, context: usize, layers: u32, moe_to_cpu: bool, threads: u32) -> Vec<String> {
+/// The command line for one model (and its image projector) and build (the host, port and key are added when
+/// starting). Never speculative or multi-token-prediction decoding: llama.cpp reports crashes when it is combined
+/// with image input (ADR 0025).
+fn server_args(model: &Path, mmproj: Option<&Path>, context: usize, layers: u32, moe_to_cpu: bool, threads: u32) -> Vec<String> {
     let mut a: Vec<String> = vec![
         "-m".into(),
         model.to_string_lossy().into_owned(),
@@ -214,6 +225,15 @@ fn server_args(model: &Path, context: usize, layers: u32, moe_to_cpu: bool, thre
     if moe_to_cpu {
         a.push("--cpu-moe".into());
     }
+    if let Some(p) = mmproj {
+        a.push("--mmproj".into());
+        a.push(p.to_string_lossy().into_owned());
+        // The projector goes to the GPU only with the whole model; with a partial (or no) offload it stays in system
+        // RAM, so it never pushes the model's own layers off a small GPU.
+        if layers != u32::MAX {
+            a.push("--no-mmproj-offload".into());
+        }
+    }
     a
 }
 
@@ -222,6 +242,14 @@ impl WorkerBackend for ServerBackend {
         self.unload();
         let model = Path::new(&p.model_path);
         let info = gguf::inspect(model).map_err(|e| load_failed(e.to_string()))?;
+        let projector = match &p.mmproj_path {
+            Some(path) => {
+                let proj = gguf::inspect_projector(Path::new(path)).map_err(|e| load_failed(format!("the image projector: {e}")))?;
+                proj.check_fits(&info).map_err(|e| load_failed(e.to_string()))?;
+                Some((Path::new(path), proj))
+            }
+            None => None,
+        };
         let context = match info.context_length {
             Some(c) if c >= 512 => p.context.min(c as usize),
             _ => p.context,
@@ -274,7 +302,7 @@ impl WorkerBackend for ServerBackend {
                     (plan.gpu_layers, plan.moe_to_cpu)
                 }
             };
-            let args = server_args(model, context, layers, moe_to_cpu, threads);
+            let args = server_args(model, projector.as_ref().map(|(p, _)| *p), context, layers, moe_to_cpu, threads);
             match ServerChild::start(&build.exe, &args, self.timeouts.ready, &|| false) {
                 Ok(child) => {
                     let n_ctx = self.props_ctx(&child).filter(|n| *n > 0).unwrap_or(context);
@@ -290,6 +318,7 @@ impl WorkerBackend for ServerBackend {
                         .clone()
                         .unwrap_or_else(|| model.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default());
                     let pid = child.pid();
+                    let image_token_px = projector.as_ref().map(|(_, info)| info.token_side_px());
                     self.running = Some(Running {
                         child,
                         launch: Launch {
@@ -297,12 +326,14 @@ impl WorkerBackend for ServerBackend {
                             args,
                         },
                         n_ctx,
+                        image_token_px,
                     });
                     return Ok(LoadResult {
                         backend,
                         context: n_ctx,
                         name,
                         rss_bytes: rss_with(pid),
+                        vision: image_token_px.is_some(),
                     });
                 }
                 Err(e) => {
@@ -337,6 +368,17 @@ impl WorkerBackend for ServerBackend {
         if cancelled() {
             return Ok(cancelled_result(0, String::new(), 0));
         }
+        WireImage::check_all(&p.images)?;
+        let image_tokens: usize = match (r.image_token_px, p.images.is_empty()) {
+            (_, true) => 0,
+            (Some(px), false) => p.images.iter().map(|i| image_tokens(i.width, i.height, px)).sum(),
+            (None, false) => {
+                return Err(RpcError::new(
+                    code::INVALID_PARAMS,
+                    "this model was loaded without an image projector, so it cannot read images",
+                ))
+            }
+        };
         let n_ctx = r.n_ctx;
         let body = tokenize_body(&p.prompt).to_string();
         let call = Call {
@@ -347,11 +389,13 @@ impl WorkerBackend for ServerBackend {
             cancelled,
         };
         let tokens = match r.child.client().send(&call, 64 * 1024 * 1024) {
-            Ok(resp) if resp.status == 200 => resp
-                .json()
-                .as_ref()
-                .and_then(token_count)
-                .ok_or_else(|| engine("llama-server sent a malformed token count"))?,
+            Ok(resp) if resp.status == 200 => {
+                resp.json()
+                    .as_ref()
+                    .and_then(token_count)
+                    .ok_or_else(|| engine("llama-server sent a malformed token count"))?
+                    + image_tokens
+            }
             Ok(resp) => return Err(server_error(resp.status, &resp.json().unwrap_or(Value::Null))),
             Err(HttpError::Cancelled) => return Ok(cancelled_result(0, String::new(), 0)),
             Err(e) => return Err(dead_or(&mut r.child, e)),
@@ -463,7 +507,7 @@ mod tests {
 
     #[test]
     fn arguments_are_explicit_and_quiet() {
-        let a = server_args(Path::new("/m/x.gguf"), 4096, u32::MAX, true, 6);
+        let a = server_args(Path::new("/m/x.gguf"), None, 4096, u32::MAX, true, 6);
         let s = a.join(" ");
         assert!(s.starts_with("-m /m/x.gguf -c 4096 -ngl all --threads 6"));
         for flag in [
@@ -478,7 +522,30 @@ mod tests {
             assert!(s.contains(flag), "{flag}");
         }
         assert!(!s.contains("api-key"), "the key never appears on the command line");
-        assert!(server_args(Path::new("m"), 1, 8, false, 1).join(" ").contains("-ngl 8"));
+        assert!(!s.contains("mmproj"));
+        assert!(server_args(Path::new("m"), None, 1, 8, false, 1).join(" ").contains("-ngl 8"));
+        // With the model's projector: the same server reads images; on the CPU the projector stays there too.
+        let v = server_args(
+            Path::new("/m/x.gguf"),
+            Some(Path::new("/m/x.mmproj.gguf")),
+            4096,
+            u32::MAX,
+            false,
+            4,
+        )
+        .join(" ");
+        assert!(v.contains("--mmproj /m/x.mmproj.gguf") && !v.contains("--no-mmproj-offload"), "{v}");
+        let partial = server_args(Path::new("m"), Some(Path::new("p")), 4096, 20, false, 4).join(" ");
+        assert!(partial.contains("--no-mmproj-offload"), "{partial}");
+        let cpu = server_args(Path::new("m"), Some(Path::new("p")), 4096, 0, false, 4).join(" ");
+        assert!(cpu.contains("--mmproj p --no-mmproj-offload"), "{cpu}");
+        for args in [s, v, cpu] {
+            for never in ["--draft", "-md ", "--model-draft", "--spec", "--mtp", "-ngld", "--lookup"] {
+                assert!(!args.contains(never), "{never} in {args}");
+            }
+        }
+        assert_eq!(image_tokens(1366, 768, 32), 43 * 24 + 2);
+        assert_eq!(image_tokens(1, 1, 0), 3);
     }
 
     #[test]

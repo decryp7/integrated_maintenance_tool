@@ -101,3 +101,35 @@ test.describe('browser page scripts', () => {
     expect((await run(page, 'act.js', { op: 'back' }))['ok']).toBe(true);
   });
 });
+
+// A results page shaped like Google's: dozens of the engine's own links before the organic results, which sit in
+// `#rso` below the fold. The generic snapshot keeps 60 elements, visible first; the collector keeps them all.
+const RESULTS = `<!doctype html><html><head><title>x - Google Search</title></head><body>
+  <header>${Array.from({ length: 80 }, (_, i) => `<a href="https://www.google.com/x${i}">Own ${i}</a>`).join(' ')}</header>
+  <div style="height:3000px"></div>
+  <div id="search"><div id="rso">
+    <div><a href="https://learn.example.org/a"><br><h3>HttpRequestException Class</h3><cite>learn.example.org</cite></a></div>
+    <div><a href="/url?q=https%3A%2F%2Fstackoverflow.example%2Fq%2F1">504 Gateway Timeout</a></div>
+  </div></div>
+  <footer><a href="https://blog.example.org/footer">Footer</a></footer>
+</body></html>`;
+
+test.describe('results page link collector', () => {
+  test('collects every link in document order and marks the ones in the results region', async ({ page }) => {
+    await page.setContent(RESULTS);
+    const r = await run(page, 'result_links.js', { max: 300, maxText: 200, region: ['#rso', '#search'] });
+    const links = r['links'] as { href: string; text: string; region: boolean }[];
+    expect(links.length).toBe(83);
+    expect(r['total']).toBe(83);
+    expect(r['regionFound']).toBe(true);
+    expect(links.filter((l) => l.region).map((l) => l.text)).toEqual(['HttpRequestException Class', '504 Gateway Timeout']);
+    expect(links[80]?.href).toBe('https://learn.example.org/a');
+    expect(links[81]?.href).toMatch(/\/url\?q=https%3A%2F%2Fstackoverflow\.example/);
+    expect(links.at(-1)).toMatchObject({ href: 'https://blog.example.org/footer', region: false });
+    expect(r['title']).toBe('x - Google Search');
+    // Capped, and a page without the region falls back to `main` (here none: nothing is in a region).
+    const few = await run(page, 'result_links.js', { max: 5, maxText: 20, region: ['#b_results', 'not a [selector'] });
+    expect((few['links'] as unknown[]).length).toBe(5);
+    expect(few['regionFound']).toBe(false);
+  });
+});

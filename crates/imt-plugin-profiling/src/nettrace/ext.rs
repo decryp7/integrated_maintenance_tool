@@ -9,6 +9,13 @@
 //! | `ImageLoad` | 1 | base `u64`, size `u64`, file path UTF-16 NUL-terminated | any / none |
 //! | `ThreadWait` | 2 | duration in timestamp ticks `u64`, wait reason `u8`, readying thread `u32` (0: unknown) | the waiting thread; row time = when it stopped running; stack = where it blocked |
 //! | `ThreadName` | 3 | name UTF-16 NUL-terminated | the named thread |
+//! | `NativeSymbol` | 4 | address `u64`, function start `u64`, line `u32` (0: unknown), function name and source file UTF-16 NUL-terminated | any / none |
+//! | `HeapAlloc` | 5 | heap `u64`, address `u64`, size `u64` | the allocating thread / stack |
+//! | `HeapFree` | 6 | heap `u64`, address `u64` | the freeing thread / none |
+//! | `HeapReAlloc` | 7 | heap `u64`, new address `u64`, old address `u64`, new size `u64` | the reallocating thread / stack |
+//!
+//! `NativeSymbol` names a code address (ADR 0022: the capture's symbolisation step writes one per distinct
+//! address); the heap events come from the Windows heap provider (native allocations, ADR 0022).
 //!
 //! Decoders return `None` for payloads too short for their fields.
 
@@ -22,6 +29,43 @@ pub mod ids {
     pub const IMAGE_LOAD: u32 = 1;
     pub const THREAD_WAIT: u32 = 2;
     pub const THREAD_NAME: u32 = 3;
+    pub const NATIVE_SYMBOL: u32 = 4;
+    pub const HEAP_ALLOC: u32 = 5;
+    pub const HEAP_FREE: u32 = 6;
+    pub const HEAP_REALLOC: u32 = 7;
+}
+
+/// What a native code address is: the function containing it and the function's source location.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeSymbol {
+    pub address: u64,
+    /// First address of the function.
+    pub start: u64,
+    /// The function's first source line (0: unknown).
+    pub line: u32,
+    pub function: String,
+    /// Source file ("" when unknown).
+    pub file: String,
+}
+
+/// A native heap operation (Windows heap provider).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HeapOp {
+    Alloc {
+        heap: u64,
+        address: u64,
+        size: u64,
+    },
+    Free {
+        heap: u64,
+        address: u64,
+    },
+    ReAlloc {
+        heap: u64,
+        new_address: u64,
+        old_address: u64,
+        size: u64,
+    },
 }
 
 /// A module mapped into the process: addresses in `base..base + size` belong to `path`.
@@ -72,6 +116,71 @@ pub fn thread_name(name: &str) -> Vec<u8> {
     let mut p = Vec::new();
     utf16z(&mut p, name);
     p
+}
+
+/// Encodes a `NativeSymbol` payload.
+pub fn native_symbol(sym: &NativeSymbol) -> Vec<u8> {
+    let mut p = Vec::with_capacity(24 + (sym.function.len() + sym.file.len()) * 2);
+    p.extend_from_slice(&sym.address.to_le_bytes());
+    p.extend_from_slice(&sym.start.to_le_bytes());
+    p.extend_from_slice(&sym.line.to_le_bytes());
+    utf16z(&mut p, &sym.function);
+    utf16z(&mut p, &sym.file);
+    p
+}
+
+/// The event id and payload of a heap operation.
+pub fn heap_op(op: &HeapOp) -> (u32, Vec<u8>) {
+    let words: &[u64] = match op {
+        HeapOp::Alloc { heap, address, size } => &[*heap, *address, *size],
+        HeapOp::Free { heap, address } => &[*heap, *address],
+        HeapOp::ReAlloc {
+            heap,
+            new_address,
+            old_address,
+            size,
+        } => &[*heap, *new_address, *old_address, *size],
+    };
+    let id = match op {
+        HeapOp::Alloc { .. } => ids::HEAP_ALLOC,
+        HeapOp::Free { .. } => ids::HEAP_FREE,
+        HeapOp::ReAlloc { .. } => ids::HEAP_REALLOC,
+    };
+    (id, words.iter().flat_map(|w| w.to_le_bytes()).collect())
+}
+
+pub(super) fn decode_native_symbol(payload: &[u8], max_name: usize) -> Option<NativeSymbol> {
+    let mut c = Cursor::new(payload, 0);
+    Some(NativeSymbol {
+        address: c.u64().ok()?,
+        start: c.u64().ok()?,
+        line: c.u32().ok()?,
+        function: c.utf16z(max_name).ok()?,
+        file: c.utf16z(max_name).ok()?,
+    })
+}
+
+pub(super) fn decode_heap_op(id: u32, payload: &[u8]) -> Option<HeapOp> {
+    let mut c = Cursor::new(payload, 0);
+    let heap = c.u64().ok()?;
+    match id {
+        ids::HEAP_ALLOC => Some(HeapOp::Alloc {
+            heap,
+            address: c.u64().ok()?,
+            size: c.u64().ok()?,
+        }),
+        ids::HEAP_FREE => Some(HeapOp::Free {
+            heap,
+            address: c.u64().ok()?,
+        }),
+        ids::HEAP_REALLOC => Some(HeapOp::ReAlloc {
+            heap,
+            new_address: c.u64().ok()?,
+            old_address: c.u64().ok()?,
+            size: c.u64().ok()?,
+        }),
+        _ => None,
+    }
 }
 
 pub(super) fn decode_image_load(payload: &[u8], max_name: usize) -> Option<ImageLoad> {
@@ -146,6 +255,34 @@ mod tests {
         assert!(decode_thread_name(&[0x41], 100).is_none());
         assert_eq!(image_file_name(&i.path), "ntdll.dll");
         assert_eq!(image_file_name("a.so"), "a.so");
+        let sym = NativeSymbol {
+            address: 0x1234,
+            start: 0x1200,
+            line: 42,
+            function: "busy::spin".into(),
+            file: r"C:\src\main.rs".into(),
+        };
+        assert_eq!(decode_native_symbol(&native_symbol(&sym), 100), Some(sym.clone()));
+        assert!(decode_native_symbol(&native_symbol(&sym)[..19], 100).is_none());
+        for op in [
+            HeapOp::Alloc {
+                heap: 1,
+                address: 2,
+                size: 3,
+            },
+            HeapOp::Free { heap: 1, address: 2 },
+            HeapOp::ReAlloc {
+                heap: 1,
+                new_address: 2,
+                old_address: 3,
+                size: 4,
+            },
+        ] {
+            let (id, p) = heap_op(&op);
+            assert_eq!(decode_heap_op(id, &p), Some(op));
+            assert!(decode_heap_op(id, &p[..p.len() - 1]).is_none());
+        }
+        assert!(decode_heap_op(ids::THREAD_NAME, &[0; 32]).is_none());
     }
 
     #[test]

@@ -11,7 +11,7 @@ pub mod dto;
 mod trust_section;
 
 pub use commands::*;
-pub use trust_section::{TrustSection, TRUST_SECTION};
+pub use trust_section::TrustSection;
 
 use imt_plugin_host::installed::{InstallRecord, PluginsDir};
 use imt_plugin_host::{Builtins, PluginProcess};

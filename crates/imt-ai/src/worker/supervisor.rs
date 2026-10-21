@@ -406,6 +406,22 @@ pub struct WorkerEngine {
     sup: Arc<Supervisor>,
     name: String,
     context: usize,
+    /// The server loaded the model's projector.
+    vision: bool,
+}
+
+/// The images of a prompt as the worker protocol carries them (base64 of IMT's sanitised encoding).
+fn wire_images(images: &[crate::llm::ImageInput]) -> Vec<WireImage> {
+    use base64::Engine as _;
+    images
+        .iter()
+        .map(|i| WireImage {
+            mime: i.mime().as_str().to_string(),
+            data: base64::engine::general_purpose::STANDARD.encode(i.bytes()),
+            width: i.width(),
+            height: i.height(),
+        })
+        .collect()
 }
 
 impl WorkerEngine {
@@ -423,12 +439,20 @@ impl TextEngine for WorkerEngine {
         self.context
     }
 
+    fn vision(&self) -> bool {
+        self.vision
+    }
+
     fn generate(&self, prompt: &str, p: &GenParams, on_text: &mut dyn FnMut(&str)) -> Result<Generated> {
+        if !p.images.is_empty() && !self.vision {
+            return Err(AiError::NoVision);
+        }
         let params = ChatParams {
             prompt: prompt.to_string(),
             max_tokens: p.max_tokens,
             temperature: p.temperature,
             json_schema: p.json_schema.clone(),
+            images: wire_images(&p.images),
         };
         let r = self.sup.chat(&params, p.cancel.as_deref(), on_text)?;
         Ok(Generated {
@@ -487,10 +511,15 @@ impl ModelRuntime for WorkerRuntime {
     fn load(&self, req: &LoadRequest) -> Result<Loaded> {
         self.health.check()?;
         // Refuse a model that cannot fit the memory that is free right now.
-        check_memory(&(self.hardware)(), &req.info)?;
+        check_memory(
+            &(self.hardware)(),
+            &req.info,
+            crate::runtime::projector_bytes(req.projector.as_deref()),
+        )?;
         let sup = Arc::new(Supervisor::new(self.cfg.clone(), self.health.clone()));
         let l = sup.load(LoadParams {
             model_path: req.path.to_string_lossy().into_owned(),
+            mmproj_path: req.projector.as_ref().map(|p| p.to_string_lossy().into_owned()),
             gpu_layers: gpu_layers(req.gpu),
             context: req.context,
             threads: req.threads,
@@ -499,6 +528,7 @@ impl ModelRuntime for WorkerRuntime {
             sup,
             name: l.name.clone(),
             context: l.context,
+            vision: l.vision,
         };
         Ok(Loaded {
             provider: Arc::new(PromptedProvider::new(engine, prompt_format_of(&req.info))),

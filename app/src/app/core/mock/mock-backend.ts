@@ -59,6 +59,7 @@ import { FileOpened, ImportProgress, OpenFileRequest, ProfileVersionInfo } from 
 import { mockFileKind, mockOpenSourceFile } from './mock-files';
 import { mockNotifications } from '../../notifications/mock-notifications';
 import { timestampNotice, withTimestampIssue } from './mock-timestamps';
+import { isImagePath } from '../../ai/vision/image-files';
 import { IDLE_PROGRESS, isMockDemoPath, MockFiles, MockImportSim, MockProfileHistory, NOT_IMPORTED_REASON, slowImportFiles } from './mock-import';
 
 /** Built-in marker icon names the engine accepts (mirrors MARKER_ICONS). */
@@ -311,6 +312,11 @@ export class MockBackend implements ImtBackend {
   /** Adds one generated source for `path` (once). */
   private addExtra(path: string): void {
     if (this.dataset.sources.some((s) => s.path === path)) return;
+    // No importer reads images: they are listed as unrecognised (the Explorer offers them to the AI, ADR 0025).
+    if (isImagePath(path)) {
+      if (!this.dataset.unrecognized.some((u) => u.path === path)) this.dataset.unrecognized.push({ path, name: path.split(/[\\/]/).pop() ?? path, reason: 'An image, not a log file' });
+      return;
+    }
     const id = this.nextSourceId++;
     const generated = generateExtraSource(id, path, id);
     const extra = withTimestampIssue(path, generated.source, generated.records);

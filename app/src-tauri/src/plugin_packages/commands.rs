@@ -23,7 +23,7 @@ fn dir(installed: &Installed) -> CmdResult<PluginsDir> {
         .ok_or_else(|| CmdError::unavailable("IMT has no data folder to install plugins into"))
 }
 
-fn check_id(id: &str) -> CmdResult<()> {
+pub(super) fn check_id(id: &str) -> CmdResult<()> {
     if valid_id(id) {
         Ok(())
     } else {
@@ -31,7 +31,7 @@ fn check_id(id: &str) -> CmdResult<()> {
     }
 }
 
-fn check_digest(d: &str) -> CmdResult<()> {
+pub(super) fn check_digest(d: &str) -> CmdResult<()> {
     if d.len() == 64 && d.chars().all(|c| c.is_ascii_hexdigit()) {
         Ok(())
     } else {
@@ -40,7 +40,7 @@ fn check_digest(d: &str) -> CmdResult<()> {
 }
 
 /// At most one of each permission.
-fn permissions(list: &[PermissionDto]) -> CmdResult<Vec<Permission>> {
+pub(super) fn permissions(list: &[PermissionDto]) -> CmdResult<Vec<Permission>> {
     if list.len() > 8 {
         return Err(CmdError::invalid("too many permissions").field("granted"));
     }
@@ -55,11 +55,18 @@ fn permissions(list: &[PermissionDto]) -> CmdResult<Vec<Permission>> {
 }
 
 /// An installed plugin as the UI shows it, from its record now and what was loaded at start.
-pub fn installed_dto(r: &InstallRecord, loaded: Option<&(InstallRecord, Result<Arc<PluginProcess>, String>)>, safe_mode: bool) -> InstalledPluginDto {
+pub fn installed_dto(
+    r: &InstallRecord,
+    loaded: Option<&(InstallRecord, Result<Arc<PluginProcess>, String>)>,
+    safe_mode: bool,
+) -> InstalledPluginDto {
     let (state, problem) = if !r.enabled {
         (InstalledState::Disabled, None)
     } else if safe_mode {
-        (InstalledState::Unavailable, Some("IMT runs in safe mode: no plugins are loaded".to_string()))
+        (
+            InstalledState::Unavailable,
+            Some("IMT runs in safe mode: no plugins are loaded".to_string()),
+        )
     } else {
         match loaded {
             None => (InstalledState::PendingRestart, None),
@@ -100,7 +107,10 @@ pub fn list(installed: &Installed) -> InstalledPluginsDto {
         for r in d.list() {
             match r {
                 Ok(r) => plugins.push(installed_dto(&r, installed.loaded.get(&r.id), installed.safe_mode)),
-                Err((id, e)) => damaged.push(DamagedPluginDto { id, message: e.to_string() }),
+                Err((id, e)) => damaged.push(DamagedPluginDto {
+                    id,
+                    message: e.to_string(),
+                }),
             }
         }
     }
@@ -159,7 +169,7 @@ pub async fn plugin_packages_list(state: State<'_, AppState>) -> CmdResult<Insta
 /// Reads and checks a package the user chose and says what installing it means (signature, permissions, update).
 #[tauri::command]
 pub async fn plugin_package_inspect(state: State<'_, AppState>, grants: WindowGrants, path: String) -> CmdResult<PackageReviewDto> {
-    let file = grants.read_file(&path, &[PACKAGE_EXTENSION])?.path;
+    let file = grants.read_file(&path, &[PACKAGE_EXTENSION])?.path().to_path_buf();
     let installed = state.installed.clone();
     blocking(move || review(&installed, &file)).await
 }
@@ -175,7 +185,7 @@ pub async fn plugin_package_install(
     digest: String,
     approved: Vec<PermissionDto>,
 ) -> CmdResult<InstalledPluginDto> {
-    let file = grants.read_file(&path, &[PACKAGE_EXTENSION])?.path;
+    let file = grants.read_file(&path, &[PACKAGE_EXTENSION])?.path().to_path_buf();
     check_digest(&digest)?;
     let approved = permissions(&approved)?;
     let installed = state.installed.clone();
@@ -186,7 +196,11 @@ pub async fn plugin_package_install(
     .await?;
     log::info!(Plugin = record.id.as_str(), Version = record.version.as_str(), Signature = record.signature.as_str(); "Plugin installed");
     crate::activity::domain_event("plugin.installed", op.as_deref(), &[("Plugin", &record.id)]);
-    Ok(installed_dto(&record, state.installed.loaded.get(&record.id), state.installed.safe_mode))
+    Ok(installed_dto(
+        &record,
+        state.installed.loaded.get(&record.id),
+        state.installed.safe_mode,
+    ))
 }
 
 /// Removes an installed plugin (its process stops; its files go at the next start). Returns whether it was
@@ -215,7 +229,11 @@ pub async fn plugin_package_set_enabled(
 ) -> CmdResult<InstalledPluginDto> {
     check_id(&id)?;
     let r = dir(&state.installed)?.set_enabled(&id, enabled).map_err(cmd_error)?;
-    crate::activity::domain_event(if enabled { "plugin.enabled" } else { "plugin.disabled" }, op.as_deref(), &[("Plugin", &id)]);
+    crate::activity::domain_event(
+        if enabled { "plugin.enabled" } else { "plugin.disabled" },
+        op.as_deref(),
+        &[("Plugin", &id)],
+    );
     Ok(installed_dto(&r, state.installed.loaded.get(&id), state.installed.safe_mode))
 }
 
@@ -241,5 +259,5 @@ pub async fn plugin_package_set_permissions(
 
 #[cfg(test)]
 pub(super) mod checks {
-    pub use super::{check_digest, check_id, permissions};
+    pub(in crate::plugin_packages) use super::{check_digest, check_id, permissions};
 }

@@ -156,6 +156,12 @@ impl Plugin for PanicsOnRegister {
     }
 }
 
+fn chaos_quarantined(s: &WorkspaceSummary) -> bool {
+    s.plugins
+        .iter()
+        .any(|p| p.id == "test.chaos" && p.status == PluginStatus::Quarantined)
+}
+
 fn quiet<T>(f: impl FnOnce() -> T) -> T {
     // Keep expected panics out of the test output.
     let hook: Arc<dyn Fn(&std::panic::PanicHookInfo) + Send + Sync> = Arc::from(std::panic::take_hook());
@@ -208,11 +214,13 @@ fn crashing_plugins_are_contained_and_quarantined() {
                 .map(|u| u.reason.clone())
                 .unwrap_or_default()
         };
-        // Files import in parallel: the plugin may already be quarantined when bad.txt's turn comes; either way the
-        // reason names the plugin.
+        // Files import in parallel (order and timing vary with the machine's cores): the plugin may crash on bad.txt
+        // (the reason names it), be quarantined between choosing its importer and importing (the reason says so), or be
+        // quarantined before bad.txt is even sniffed, when its importer is skipped and nothing else recognises the file.
         let bad = reason("bad.txt");
         assert!(
-            bad.contains("test.chaos") && (bad.contains("import exploded") || bad.contains("disabled after repeated crashes")),
+            (bad.contains("test.chaos") && (bad.contains("import exploded") || bad.contains("disabled after repeated crashes")))
+                || (bad == "no importer recognises this format" && chaos_quarantined(&s)),
             "{bad}"
         );
         // Likewise, if the plugin was quarantined before bin.dat's turn, its crashing binary importer is skipped and

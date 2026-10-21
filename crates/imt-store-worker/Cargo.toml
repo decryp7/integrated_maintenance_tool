@@ -21,6 +21,7 @@ name = "imt-store-worker"
 path = "src/main.rs"
 
 [dependencies]
+imt-alloc = { path = "../imt-alloc" }
 imt-core = { path = "../imt-core" }
 imt-ipc = { path = "../imt-ipc" }
 imt-store-duck = { path = "../imt-store-duck" }

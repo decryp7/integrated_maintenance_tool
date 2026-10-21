@@ -1,0 +1,46 @@
+[package]
+name = "imt-plugin-native"
+license.workspace = true
+repository.workspace = true
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+description = "IMT plugin: native (C/C++) profiling by ETW (elevated) or suspend-and-sample (no rights), written as NetTrace with symbols; .etl import (ADR 0022). Nothing is loaded into the target."
+
+[dependencies]
+imt-plugin-api = { path = "../imt-plugin-api" }
+imt-etw = { path = "../imt-etw" }
+imt-symbols = { path = "../imt-symbols", default-features = false }
+imt-plugin-profiling = { path = "../imt-plugin-profiling", default-features = false }
+imt-profile = { path = "../imt-profile" }
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = [
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_Kernel",
+    "Win32_System_SystemInformation",
+    "Win32_Storage_FileSystem",
+    "Win32_UI_Shell",
+    "Win32_System_Com",
+] }
+
+[features]
+# Downloads from the Microsoft symbol server (only when the user enables it in the settings).
+default = ["symbol-server"]
+symbol-server = ["imt-symbols/server"]
+
+[dev-dependencies]
+proptest.workspace = true
+tempfile.workspace = true
+
+# The profiling target of the integration tests: a busy loop, lock contention and a growing heap
+# (tests/fixtures/native-busy). Built by `cargo test` like every example.
+[[example]]
+name = "native-busy"
+path = "tests/fixtures/native-busy/main.rs"

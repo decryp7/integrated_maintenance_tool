@@ -202,6 +202,16 @@ pub async fn handshake(address: &str, token: &Token, label: &str) -> Result<Box<
 /// [`handshake`] for a child that speaks `protocol` (a plugin: the plugin protocol it was built for). The host
 /// refuses a protocol it cannot serve with a message saying which side to update.
 pub async fn handshake_speaking(address: &str, token: &Token, label: &str, protocol: ProtocolVersion) -> Result<Box<dyn Duplex>, IpcError> {
+    Ok(Box::new(platform_handshake(address, token, label, protocol).await?))
+}
+
+/// [`handshake_speaking`] on this platform's stream type (Unix: so the child can move it to another runtime).
+pub(crate) async fn platform_handshake(
+    address: &str,
+    token: &Token,
+    label: &str,
+    protocol: ProtocolVersion,
+) -> Result<platform::Stream, IpcError> {
     let mut io = platform::connect(address)
         .await
         .map_err(|e| IpcError::Spawn(format!("cannot connect to {label}: {e}")))?;
@@ -217,7 +227,7 @@ pub async fn handshake_speaking(address: &str, token: &Token, label: &str, proto
     match tokio::time::timeout(HANDSHAKE_TIMEOUT, frame::read_frame(&mut io, HANDSHAKE_MAX)).await {
         Err(_) => Err(IpcError::Protocol(format!("{label} did not answer the handshake"))),
         Ok(Err(e)) => Err(handshake_error(label, e)),
-        Ok(Ok(Frame::Welcome { version: VERSION, .. })) => Ok(Box::new(io)),
+        Ok(Ok(Frame::Welcome { version: VERSION, .. })) => Ok(io),
         Ok(Ok(other)) => Err(IpcError::Protocol(format!("{label} answered the handshake with {other:?}"))),
     }
 }
@@ -260,6 +270,8 @@ mod platform {
             Ok(Accepted { io: Box::new(s), peer_pid })
         }
     }
+
+    pub type Stream = UnixStream;
 
     pub async fn connect(address: &str) -> io::Result<UnixStream> {
         UnixStream::connect(address).await
@@ -341,6 +353,8 @@ mod platform {
             })
         }
     }
+
+    pub type Stream = NamedPipeClient;
 
     pub async fn connect(address: &str) -> io::Result<NamedPipeClient> {
         const ERROR_PIPE_BUSY: i32 = 231;

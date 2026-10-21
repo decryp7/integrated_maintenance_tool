@@ -193,7 +193,7 @@ fn silence_in_the_middle_and_at_the_end() {
         silent[1].message
     );
     assert_eq!(silent[0].instance.as_deref(), Some("C"));
-    assert!(silent[0].message.contains("no events for 15 min 0 s"), "{}", silent[0].message);
+    assert!(silent[0].message.contains("no events for 15 min)"), "{}", silent[0].message);
     assert!(silent[0].score > 1.0);
 
     // An instance that says it stopped is not silent, a sparse one is not "steady".

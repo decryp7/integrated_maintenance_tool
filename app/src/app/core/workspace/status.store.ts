@@ -25,10 +25,32 @@ export const WorkspaceStatusStore = signalStore(
     /** True while an import runs (the import progress follows it). */
     importing: computed(() => store.busy()?.kind === 'import'),
   })),
-  withMethods((store) => ({
-    setBusy: (busy: WorkspaceBusy | null) => patchState(store, { busy }),
-    dismissError: () => patchState(store, { error: null }),
-    setError: (error: string | null) => patchState(store, { error }),
-    setNotice: (notice: string | null) => patchState(store, { notice }),
-  })),
+  withMethods((store) => {
+    // A notice goes after NOTICE_MS like a notification toast (paused while hovered or focused); an error stays
+    // until it is dismissed, so it is never missed.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const clearLater = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => patchState(store, { notice: null }), NOTICE_MS);
+    };
+    return {
+      setBusy: (busy: WorkspaceBusy | null) => patchState(store, { busy }),
+      dismissError: () => patchState(store, { error: null }),
+      setError: (error: string | null) => patchState(store, { error }),
+      setNotice: (notice: string | null) => {
+        patchState(store, { notice });
+        if (notice === null) clearTimeout(timer);
+        else clearLater();
+      },
+      /** Keeps the notice while the pointer or focus is on it. */
+      holdNotice: () => clearTimeout(timer),
+      /** The pointer and focus left the notice: it goes after the usual time again. */
+      releaseNotice: () => {
+        if (store.notice() !== null) clearLater();
+      },
+    };
+  }),
 );
+
+/** How long a notice stays (the same as a notification toast). */
+export const NOTICE_MS = 8000;

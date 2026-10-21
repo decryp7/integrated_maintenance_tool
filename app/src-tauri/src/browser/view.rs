@@ -269,12 +269,18 @@ pub fn place<R: Runtime>(app: &AppHandle<R>, owner: &str, host: &str, placement:
     Ok(view)
 }
 
-/// Window `label` is about to close: a page webview it hosts (the Browser panel was popped out into it) goes back to
-/// its owner window, hidden, so the page survives the pop-out (the panel docks back and places it again).
+/// Window `label` is about to close: when the Browser panel was popped out into it, the remembered place goes back to
+/// the owner window, hidden (the panel docks back and places it again; on every platform, also with no page open), and
+/// a page webview it hosts (docked platforms) moves back with it, so the page survives the pop-out.
 pub fn host_closing<R: Runtime>(app: &AppHandle<R>, label: &str) {
     let Some(owner) = crate::panel_windows::host_of(label) else {
         return;
     };
+    if let Some(hub) = hub(app) {
+        if hub.placement(owner).0.as_deref() == Some(label) {
+            hub.set_placement(owner, owner, View::Hidden);
+        }
+    }
     let Some(webview) = page_webview(app, owner) else { return };
     if webview.window().label() != label {
         return;
@@ -284,9 +290,6 @@ pub fn host_closing<R: Runtime>(app: &AppHandle<R>, label: &str) {
         if let Err(e) = webview.reparent(&window) {
             log::warn!(Window = owner; "The browser could not move back from a closing pop-out: {e}");
         }
-    }
-    if let Some(hub) = hub(app) {
-        hub.set_placement(owner, owner, View::Hidden);
     }
 }
 
@@ -298,7 +301,9 @@ pub fn close<R: Runtime>(app: &AppHandle<R>, owner: &str) -> Result<bool, String
     if DOCKED {
         webview.close().map_err(crate::err)?;
     } else {
-        webview.window().close().map_err(crate::err)?;
+        // Destroy, not close: `close` only asks the page window to close (it would still be there when the panel
+        // already shows no page, and a second Open would find it). The page window has nothing to save.
+        webview.window().destroy().map_err(crate::err)?;
     }
     closed(app, owner);
     Ok(true)
@@ -332,6 +337,7 @@ pub fn owner_destroyed<R: Runtime>(app: &AppHandle<R>, owner: &str) {
 }
 
 /// Gives the keyboard back to IMT: the IMT webview of the window hosting the page (Esc in the page).
+#[cfg_attr(not(windows), allow(dead_code))]
 fn focus_imt<R: Runtime>(app: &AppHandle<R>, owner: &str) {
     let host = page_webview(app, owner).map_or_else(|| owner.to_string(), |w| w.window().label().to_string());
     if let Some(w) = app.get_webview(&host) {
@@ -340,7 +346,8 @@ fn focus_imt<R: Runtime>(app: &AppHandle<R>, owner: &str) {
 }
 
 /// A key IMT takes from the page: Esc gives the keyboard back to IMT; the panel focuses its address bar or replays
-/// the shortcut (`key` event).
+/// the shortcut (`key` event). Called by the WebView2 key hook only.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn key_pressed<R: Runtime>(app: &AppHandle<R>, owner: &str, key: PageKey) {
     focus_imt(app, owner);
     emit(app, owner, BrowserEvent::Key(key));

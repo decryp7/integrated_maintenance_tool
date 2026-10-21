@@ -9,7 +9,7 @@ import { UI_STATE_CONTRIBUTIONS } from '../lifecycle/ui-state';
 import { aiActivityItems } from './ai-activity';
 import { AiBackend, provideAiBackend } from './ai-backend';
 import { AiChatPersistence } from './ai-chat-persistence';
-import { AiLauncher } from './ai-launcher';
+import { AI_IMAGE_VIEW, AiLauncher } from './ai-launcher';
 import { AiStatusStore } from './ai-status.store';
 
 export const AI_CHAT_VIEW = 'ai-chat';
@@ -24,6 +24,15 @@ export function aiViews(status: InstanceType<typeof AiStatusStore>): ImtView[] {
       icon: 'puzzle',
       defaultPosition: 'right',
       component: () => import('./chat/chat-panel').then((m) => m.AiChatPanel),
+      enabled: () => status.available(),
+    },
+    {
+      id: AI_IMAGE_VIEW,
+      title: $localize`:@@ai.vision.view.title:Image`,
+      category: 'AI',
+      icon: 'image',
+      defaultPosition: 'right',
+      component: () => import('./vision/image-panel').then((m) => m.AiImagePanel),
       enabled: () => status.available(),
     },
   ];
@@ -53,6 +62,14 @@ export function aiCommands(
     { id: 'ai.chat.show', title: $localize`:@@ai.provide.cmd.chat:AI: Open the assistant chat`, category: $localize`:@@ai.provide.category:AI`, when: available, run: (ctx) => ctx.showView(AI_CHAT_VIEW) },
     { id: 'ai.setup', title: $localize`:@@ai.provide.cmd.setup:Set up AI assistant`, category: $localize`:@@ai.provide.category:AI`, when: available, run: () => launcher.openSetup() },
     { id: 'ai.models', title: $localize`:@@ai.provide.cmd.models:AI: Manage models…`, category: $localize`:@@ai.provide.category:AI`, when: available, run: () => launcher.openModels() },
+    { id: 'ai.image.open', title: $localize`:@@ai.vision.cmd.open:AI: Open an image…`, category: $localize`:@@ai.provide.category:AI`, when: available, run: () => void launcher.openImage() },
+    {
+      id: 'ai.image.related',
+      title: $localize`:@@ai.vision.cmd.related:AI: Find logs related to an image…`,
+      category: $localize`:@@ai.provide.category:AI`,
+      when: withData,
+      run: () => void launcher.openImage(null, { findRelated: true }),
+    },
     {
       id: 'ai.explain',
       title: $localize`:@@ai.provide.cmd.explain:AI: Explain the selected event`,

@@ -56,6 +56,8 @@ pub struct WindowState {
     pub(crate) close_asked: AtomicBool,
     /// Open profiles and heap snapshots (see `profiling`).
     pub(crate) profiling: crate::profiling::ProfilingSlot,
+    /// Open dumps and UMDH logs (see `dumps`).
+    pub(crate) dumps: crate::dumps::DumpsSlot,
     /// The window's AI chats and running AI use cases.
     pub(crate) ai: crate::ai::WindowAi,
 }
@@ -76,6 +78,7 @@ impl WindowState {
             project: Mutex::default(),
             close_asked: AtomicBool::new(false),
             profiling: crate::profiling::ProfilingSlot::default(),
+            dumps: crate::dumps::DumpsSlot::default(),
             ai: crate::ai::WindowAi::default(),
         }
     }

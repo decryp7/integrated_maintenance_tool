@@ -25,7 +25,10 @@ pub fn parse_keys(lines: &[String], developer_mode: bool) -> Result<TrustSetting
             continue;
         }
         let Some((name, key)) = line.rsplit_once('=') else {
-            return Err(format!("trusted key {}: write it as \"Publisher = imt-plugin-public-key ed25519 …\"", i + 1));
+            return Err(format!(
+                "trusted key {}: write it as \"Publisher = imt-plugin-public-key ed25519 …\"",
+                i + 1
+            ));
         };
         t.add_key(name, key).map_err(|e| format!("trusted key {}: {e}", i + 1))?;
     }

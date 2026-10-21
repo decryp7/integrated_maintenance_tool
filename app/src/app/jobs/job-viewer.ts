@@ -1,5 +1,5 @@
 import { inject, Injectable, Injector } from '@angular/core';
-import { AiLauncher } from '../ai/ai-launcher';
+import { AI_IMAGE_VIEW, AiLauncher } from '../ai/ai-launcher';
 import { Narrative, Proposal } from '../ai/ai.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { PANEL } from '../dock/dock.service';
@@ -42,14 +42,14 @@ export class JobViewer {
         this.ctx().showView(JOBS_VIEW);
         return null;
       }
-      await this.open(result, job.title);
+      await this.open(result, job.title, job.id);
       return null;
     } catch (e) {
       return e instanceof Error ? e.message : typeof e === 'string' ? e : $localize`:@@jobs.viewer.failed:The result could not be opened.`;
     }
   }
 
-  private async open(result: JobResult, title: string): Promise<void> {
+  private async open(result: JobResult, title: string, jobId: number): Promise<void> {
     const ctx = this.ctx();
     const ai = this.injector.get(AiLauncher);
     switch (result.type) {
@@ -99,6 +99,13 @@ export class JobViewer {
         ]);
         this.injector.get(StorageStore).showResult(result.result as StorageClearResult);
         this.injector.get(SettingsDialogService).open(STORAGE_ID);
+        return;
+      }
+      case 'relatedLogs': {
+        // The image view with the links (on their own when the image is no longer open).
+        const { AiImageStore } = await import('../ai/vision/ai-image.store');
+        this.injector.get(AiImageStore).showOutcome(jobId, result.result);
+        ctx.showView(AI_IMAGE_VIEW);
         return;
       }
       case 'file':

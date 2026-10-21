@@ -13,6 +13,7 @@ name = "imt-plugins"
 path = "src/main.rs"
 
 [dependencies]
+imt-alloc = { path = "../imt-alloc" }
 imt-plugin-api = { path = "../imt-plugin-api" }
 imt-plugin-registry = { path = "../imt-plugin-registry" }
 imt-plugin-otel = { path = "../imt-plugin-otel" }
@@ -23,6 +24,8 @@ imt-plugin-formats = { path = "../imt-plugin-formats" }
 imt-plugin-profiling = { path = "../imt-plugin-profiling" }
 imt-plugin-dotnet = { path = "../imt-plugin-dotnet" }
 imt-plugin-tools = { path = "../imt-plugin-tools" }
+imt-plugin-dumps = { path = "../imt-plugin-dumps" }
+imt-plugin-native = { path = "../imt-plugin-native" }
 serde_json.workspace = true
 
 [dev-dependencies]
@@ -30,6 +33,7 @@ chrono.workspace = true
 imt-core = { path = "../imt-core" }
 imt-plugin-host = { path = "../imt-plugin-host" }
 imt-profile = { path = "../imt-profile" }
+imt-dump = { path = "../imt-dump" }
 imt-ipc = { path = "../imt-ipc" }
 insta.workspace = true
 proptest.workspace = true

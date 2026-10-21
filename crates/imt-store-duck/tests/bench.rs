@@ -5,6 +5,10 @@
 
 mod common;
 
+// The store worker's allocator (`imt-store-worker`), so the numbers are the shipped ones.
+#[global_allocator]
+static GLOBAL: imt_alloc::MiMalloc = imt_alloc::MiMalloc;
+
 use common::rss::{current, Sampler};
 use common::TempDir;
 use imt_core::api::{FacetRequest, TimelineRequest};
@@ -43,6 +47,7 @@ fn dir_mb(p: &std::path::Path) -> f64 {
 
 #[test]
 fn interactive_operations_at_scale() {
+    imt_alloc::tune();
     let Some(events) = std::env::var("IMT_BENCH_EVENTS").ok().and_then(|v| v.parse::<u64>().ok()) else {
         eprintln!("skipped: set IMT_BENCH_EVENTS (e.g. 10000000) to run the benchmark");
         return;
@@ -63,28 +68,38 @@ fn interactive_operations_at_scale() {
     let reuse = kept.is_some() && store_dir.0.join("data.duckdb").is_file();
     let sampler = Sampler::start();
 
-    // Import, then wait for the full-text index.
+    // Import, then wait for the full-text index (`IMT_BENCH_IMPORT_ONLY=1`: import only, for A/B runs).
     if !reuse {
-        let ((r, import_peak, status, index_ms, index_peak), all_ms) = ms(|| {
-            let store = DuckStore::create(&store_dir.0, Profile::default_profile(), PluginRegistry::new()).unwrap();
-            let r = store.open(std::slice::from_ref(&corpus)).unwrap().wait().unwrap();
-            let import_peak = sampler.take_peak_mb();
-            let (status, index_ms) = ms(|| store.wait_for_index(Duration::from_secs(3600)).unwrap());
-            (r, import_peak, status, index_ms, sampler.take_peak_mb())
-        });
-        let import_ms = all_ms - index_ms;
+        let started = Instant::now();
+        let store = DuckStore::create(&store_dir.0, Profile::default_profile(), PluginRegistry::new()).unwrap();
+        let r = store.open(std::slice::from_ref(&corpus)).unwrap().wait().unwrap();
+        let import_ms = started.elapsed().as_secs_f64() * 1000.0;
+        let import_peak = sampler.take_peak_mb();
+        let import = format!(
+            "import: {} events in {:.1} s = {:.0} events/s, peak RSS {import_peak} MB",
+            r.events,
+            import_ms / 1000.0,
+            r.events as f64 / (import_ms / 1000.0),
+        );
+        if std::env::var_os("IMT_BENCH_IMPORT_ONLY").is_some() {
+            eprintln!("{import}");
+            if kept.is_some() {
+                drop(store);
+                std::mem::forget(store_dir);
+            }
+            return;
+        }
+        let (status, index_ms) = ms(|| store.wait_for_index(Duration::from_secs(3600)).unwrap());
         eprintln!(
-        "import: {} events in {:.1} s = {:.0} events/s, peak RSS {import_peak} MB; index: {} docs in {:.1} s = {:.0} docs/s, peak RSS {index_peak} MB; store {:.0} MB (segments {:.0} MB, index {:.0} MB)",
-        r.events,
-        import_ms / 1000.0,
-        r.events as f64 / (import_ms / 1000.0),
-        status.indexed,
-        index_ms / 1000.0,
-        status.indexed as f64 / (index_ms / 1000.0),
-        dir_mb(&store_dir.0),
-        dir_mb(&store_dir.0.join("segments")),
-        dir_mb(&store_dir.0.join("index")),
-    );
+            "{import}; index: {} docs in {:.1} s = {:.0} docs/s, peak RSS {} MB; store {:.0} MB (segments {:.0} MB, index {:.0} MB)",
+            status.indexed,
+            index_ms / 1000.0,
+            status.indexed as f64 / (index_ms / 1000.0),
+            sampler.take_peak_mb(),
+            dir_mb(&store_dir.0),
+            dir_mb(&store_dir.0.join("segments")),
+            dir_mb(&store_dir.0.join("index")),
+        );
     }
     // A reused store forgets what earlier runs cached (field list, analyses): reads are measured cold.
     if reuse {

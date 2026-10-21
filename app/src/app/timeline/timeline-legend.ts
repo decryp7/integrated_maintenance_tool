@@ -1,3 +1,4 @@
+import { formatCount } from '../shared/format/units';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { AnnotationDto, MarkerKind } from '../core/api.types';
 import { formatDateTime } from '../core/format';
@@ -66,7 +67,7 @@ let legendSeq = 0;
                   [attr.data-run-kind]="k.kind"
                   [title]="runKindTitle(k)"
                   (click)="ann.toggleRunKind(k.kind)"
-                ><span class="pill">{{ k.label }} <span class="faint mono">{{ k.count }}</span>@if (k.anomalies) { <span class="run-anoms" [attr.aria-label]="anomaliesAria(k.anomalies)">⚠ {{ k.anomalies }}</span> }</span></button>
+                ><span class="pill">{{ k.label }} <span class="faint mono">{{ fmt(k.count) }}</span>@if (k.anomalies) { <span class="run-anoms" [attr.aria-label]="anomaliesAria(k.anomalies)">⚠ {{ k.anomalies }}</span> }</span></button>
               }
             }
             @if (!ann.kinds().length && !ann.error() && inView().length) {
@@ -140,6 +141,7 @@ let legendSeq = 0;
   `,
 })
 export class TimelineLegend {
+  protected readonly fmt = formatCount;
   /** The annotations and runs in view, in time order (the Evidence menu lists them). */
   readonly inView = input.required<readonly AnnotationDto[]>();
 

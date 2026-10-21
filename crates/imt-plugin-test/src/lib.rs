@@ -125,6 +125,7 @@ fn unknown_manifest() -> Manifest {
         settings: None,
         tools: Vec::new(),
         profile_importers: Vec::new(),
+        document_importers: Vec::new(),
     }
 }
 

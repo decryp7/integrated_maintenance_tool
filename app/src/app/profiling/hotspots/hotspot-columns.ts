@@ -52,6 +52,7 @@ export function hotspotColumns(profile: ProfileSummary, metric: MetricId, groupL
   add(metricCol('allocBytes', 'self', $localize`:@@profiling.hotspots.col.allocBytes:Alloc bytes`, $localize`:@@profiling.hotspots.help.allocBytes:Bytes allocated in the function itself`));
   add(metricCol('exceptions', 'self', $localize`:@@profiling.hotspots.col.exceptions:Exceptions`, $localize`:@@profiling.hotspots.help.exceptions:Exceptions thrown in the function itself`));
   add(metricCol('waitNs', 'self', $localize`:@@profiling.hotspots.col.wait:Wait`, $localize`:@@profiling.hotspots.help.wait:Time blocked waiting (locks, I/O)`));
+  add(metricCol('liveBytes', 'self', $localize`:@@profiling.hotspots.col.liveBytes:Unfreed bytes`, $localize`:@@profiling.hotspots.help.liveBytes:Bytes allocated in the function itself and not freed by the end of the capture`));
   return cols;
 }
 

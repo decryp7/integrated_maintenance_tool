@@ -32,7 +32,7 @@ function jobInfo(p: Partial<JobInfo> & { id: number }): JobInfo {
     title: `Job ${p.id}`,
     source: { window: 'main', link: null },
     state: 'done',
-    progress: { fraction: null, done: null, total: null, etaMs: null },
+    progress: { fraction: null, done: null, total: null, etaMs: null, unit: 'items' },
     message: null,
     queuedAt: 0,
     startedAt: 0,

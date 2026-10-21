@@ -1,0 +1,6 @@
+*- - - - - - - - - - Start of data for heap @ 00150000 - - - - - - - - - -
+
+00000100 bytes + 00000010 at 00157C40 by BackTrace00A1
+	ntdll!RtlAllocateHeap+00000021
+	Shop!Cache::Add+1D (c:\src\cache.cpp, 42)
+	7FF600001100

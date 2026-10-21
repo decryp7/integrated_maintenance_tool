@@ -43,6 +43,7 @@ const RUST_GENERATORS: &[(&str, &[&str], &str)] = &[
     ("imt-plugin-profiling", &["--no-default-features"], "gen_json_samples"),
     ("imt-plugin-profiling", &["--no-default-features"], "gen_nettrace"),
     ("imt-plugin-profiling", &["--no-default-features"], "gen_pprof"),
+    ("imt-plugin-dumps", &[], "samples"),
     ("imt-plugin-windows", &[], "samples"),
 ];
 

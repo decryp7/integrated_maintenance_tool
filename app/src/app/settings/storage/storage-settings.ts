@@ -1,3 +1,4 @@
+import { formatCount } from '../../shared/format/units';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject } from '@angular/core';
 import { formatBytes } from '../../ai/ai-format';
 import { ConfirmDialog } from '../../ui/confirm-dialog';
@@ -122,7 +123,7 @@ export function resultLine(r: StorageCategoryClearResult, label: string): string
               </th>
               <td class="num">
                 <span class="size">{{ size(c.bytes, c.capped) }}</span>
-                <span class="files" i18n="@@settings.storage.files">{c.files, plural, =1 {1 file} other {{{ c.files }} files}}</span>
+                <span class="files" i18n="@@settings.storage.files">{c.files, plural, =1 {1 file} other {{{ fmt(c.files) // i18n(ph: "count") }} files}}</span>
               </td>
               <td class="where">
                 @if (c.path) {
@@ -186,6 +187,7 @@ export function resultLine(r: StorageCategoryClearResult, label: string): string
   `,
 })
 export class StorageSettings {
+  protected readonly fmt = formatCount;
   protected readonly store = inject(StorageStore);
   private readonly dialogs = inject(DialogService);
   protected readonly cacheLabel = $localize`:Kind of storage IMT can rebuild@@settings.storage.kind.cache:cache`;

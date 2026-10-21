@@ -274,8 +274,17 @@ fn cancellation(p: &PluginUnderTest, inputs: &[(String, Vec<u8>)]) -> Result<Str
     };
     let result = (|| -> Result<String, String> {
         let mut stream = p.child.peer().stream_request(&req, 1).map_err(|e| e.to_string())?;
-        // Let it start, then give up on it.
-        let _ = stream.next(Some(Duration::from_millis(100)));
+        // Give up on it once it has read the whole file (the SDK stops reads at a cancel itself): what is checked
+        // is that the importer's own work ends.
+        let read_before = p.host.bytes_read.load(std::sync::atomic::Ordering::Relaxed);
+        let waiting = Instant::now();
+        while p.host.bytes_read.load(std::sync::atomic::Ordering::Relaxed) - read_before < content.len() as u64
+            && waiting.elapsed() < Duration::from_secs(10)
+        {
+            if let Ok(StreamEvent::Done(_)) = stream.next(Some(Duration::from_millis(20))) {
+                return Ok("the import ended before it could be cancelled".into());
+            }
+        }
         let started = Instant::now();
         stream.cancel();
         loop {

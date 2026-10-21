@@ -71,6 +71,7 @@ fn model(gpu: GpuMode) -> Model {
         _dir: dir,
         req: LoadRequest {
             path,
+            projector: None,
             info,
             context: 4096,
             gpu,
@@ -115,6 +116,7 @@ fn wait_gone(pid: u32) -> bool {
 fn params(gpu_layers: i32) -> LoadParams {
     LoadParams {
         model_path: "x.gguf".into(),
+        mmproj_path: None,
         gpu_layers,
         context: 2048,
         threads: 0,
@@ -127,6 +129,7 @@ fn chat_params(p: &str) -> ChatParams {
         max_tokens: 16,
         temperature: 0.0,
         json_schema: None,
+        images: vec![],
     }
 }
 

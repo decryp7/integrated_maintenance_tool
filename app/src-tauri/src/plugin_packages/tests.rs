@@ -96,7 +96,14 @@ fn package_errors_keep_their_reason() {
             "wrongTarget",
         ),
         (PackageError::UnlistedFile("x".into()), ErrorCode::InvalidManifest, "unlistedFile"),
-        (PackageError::TooLarge { what: "x".into(), limit: 1 }, ErrorCode::TooLarge, "tooLarge"),
+        (
+            PackageError::TooLarge {
+                what: "x".into(),
+                limit: 1,
+            },
+            ErrorCode::TooLarge,
+            "tooLarge",
+        ),
         (PackageError::Io("x".into()), ErrorCode::Io, "io"),
         (PackageError::InvalidKey("x".into()), ErrorCode::Invalid, "invalidKey"),
     ];
@@ -116,9 +123,15 @@ fn an_installed_plugin_shows_its_state_in_this_run() {
     assert_eq!(dto.granted, [PermissionDto::Network]);
     assert_eq!(dto.requested[0].allows, "connect to the network");
     assert_eq!(dto.signature.kind, SignatureKind::Trusted);
-    let loaded = (r.clone(), Err::<Arc<imt_plugin_host::PluginProcess>, _>("its program is missing".to_string()));
+    let loaded = (
+        r.clone(),
+        Err::<Arc<imt_plugin_host::PluginProcess>, _>("its program is missing".to_string()),
+    );
     let dto = installed_dto(&r, Some(&loaded), false);
-    assert_eq!((dto.state, dto.problem.as_deref()), (InstalledState::Unavailable, Some("its program is missing")));
+    assert_eq!(
+        (dto.state, dto.problem.as_deref()),
+        (InstalledState::Unavailable, Some("its program is missing"))
+    );
     let mut updated = r.clone();
     updated.digest = "b".repeat(64);
     assert_eq!(installed_dto(&updated, Some(&loaded), false).state, InstalledState::PendingRestart);
@@ -132,13 +145,13 @@ fn an_installed_plugin_shows_its_state_in_this_run() {
 
 #[test]
 fn the_list_reads_the_install_folder_and_reports_damaged_records() {
-    let t = tempfile::tempdir().unwrap();
-    let dir = PluginsDir::new(t.path());
+    let t = crate::test_support::TempDir::new("plugin-packages-list");
+    let dir = PluginsDir::new(t.0.as_path());
     let good = record("com.example.kv");
-    std::fs::create_dir_all(t.path().join(&good.id)).unwrap();
-    std::fs::write(t.path().join(&good.id).join(RECORD_FILE), serde_json::to_vec(&good).unwrap()).unwrap();
-    std::fs::create_dir_all(t.path().join("com.example.bad")).unwrap();
-    std::fs::write(t.path().join("com.example.bad").join(RECORD_FILE), b"{").unwrap();
+    std::fs::create_dir_all(t.0.as_path().join(&good.id)).unwrap();
+    std::fs::write(t.0.as_path().join(&good.id).join(RECORD_FILE), serde_json::to_vec(&good).unwrap()).unwrap();
+    std::fs::create_dir_all(t.0.as_path().join("com.example.bad")).unwrap();
+    std::fs::write(t.0.as_path().join("com.example.bad").join(RECORD_FILE), b"{").unwrap();
     let installed = Installed {
         dir: Some(dir.clone()),
         ..Installed::none()
@@ -151,7 +164,9 @@ fn the_list_reads_the_install_folder_and_reports_damaged_records() {
     // Grants and enablement go through the folder (the commands add their argument checks).
     let r = dir.set_granted("com.example.kv", &[]).unwrap();
     assert!(r.granted.is_empty());
-    let r = dir.set_granted("com.example.kv", &[Permission::Network, Permission::RunPrograms]).unwrap();
+    let r = dir
+        .set_granted("com.example.kv", &[Permission::Network, Permission::RunPrograms])
+        .unwrap();
     assert_eq!(r.granted, [Permission::Network], "only what it asks for");
     assert!(!dir.set_enabled("com.example.kv", false).unwrap().enabled);
     assert_eq!(list(&installed).plugins[0].state, InstalledState::Disabled);
@@ -160,11 +175,11 @@ fn the_list_reads_the_install_folder_and_reports_damaged_records() {
 
 #[test]
 fn nothing_is_loaded_in_safe_mode_and_a_missing_folder_is_empty() {
-    let t = tempfile::tempdir().unwrap();
+    let t = crate::test_support::TempDir::new("plugin-packages-load");
     let mut b = imt_plugin_host::Builtins::none();
-    let i = Installed::load(Some(t.path().join("plugins")), true, &mut b);
+    let i = Installed::load(Some(t.0.as_path().join("plugins")), true, &mut b);
     assert!(i.loaded.is_empty() && i.safe_mode && b.processes().is_empty());
-    let i = Installed::load(Some(t.path().join("none")), false, &mut b);
+    let i = Installed::load(Some(t.0.as_path().join("none")), false, &mut b);
     assert!(i.loaded.is_empty());
     let i = Installed::load(None, false, &mut b);
     assert!(i.dir.is_none());

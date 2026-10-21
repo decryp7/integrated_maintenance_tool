@@ -187,6 +187,27 @@ pub enum PluginRequest {
         /// Import limits as JSON.
         limits: Json,
     },
+    /// → `u8`.
+    SniffDocument {
+        /// The document importer.
+        importer: Arc<str>,
+        /// The file's name.
+        file_name: String,
+        /// The first bytes of the file.
+        head: Vec<u8>,
+    },
+    /// Items: pieces (`Vec<u8>`) of the document, encoded by the plugin's document library; → [`DocumentDone`].
+    /// The plugin reads `content` by ranges.
+    ImportDocument {
+        /// The document importer.
+        importer: Arc<str>,
+        /// The file's name.
+        file_name: String,
+        /// The file, read by ranges.
+        content: HostFileRef,
+        /// The host's import options.
+        options: Json,
+    },
 }
 
 /// The end of an import.
@@ -216,6 +237,13 @@ pub struct ProfileDone {
     pub bytes: u64,
     /// Whether the capture is a heap snapshot (else a profile).
     pub heap: bool,
+}
+
+/// The end of a document import: the encoded document's size.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DocumentDone {
+    /// Bytes of the encoded document.
+    pub bytes: u64,
 }
 
 /// A failed tool call.
