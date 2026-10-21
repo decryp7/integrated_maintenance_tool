@@ -65,8 +65,11 @@ impl Containment {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct SandboxSpec {
-    /// Memory cap in bytes (Windows: committed memory, job object; Linux: `RLIMIT_DATA`; macOS: none, see
-    /// [`memory_rlimit`]).
+    /// Memory cap in bytes: the memory the child uses (resident), watched by the host on every platform, which stops a
+    /// child over it with a message that says so (`process::ChildProcess`). Never an rlimit: `RLIMIT_AS` and
+    /// `RLIMIT_DATA` count reservations, which allocators such as mimalloc make up front, so capped plugins failed
+    /// their first allocations and closed the connection. An elevated child, which the host cannot watch, caps itself
+    /// with a job object (Windows).
     pub memory_limit: Option<u64>,
     /// CPU share cap in percent of the machine (Windows job object; not enforced on Unix).
     pub cpu_rate_percent: Option<u8>,
@@ -206,13 +209,12 @@ pub(crate) fn contain_before_exec(cmd: &mut std::process::Command, spec: &Sandbo
     readable.extend(SYSTEM_READ.iter().map(PathBuf::from).filter(|p| p.exists()));
     let ruleset = std::sync::Mutex::new(Some(platform::launcher_ruleset(&readable, write)?));
     let filter = bpf::filter(!spec.network, false);
-    let (memory, cpu) = (spec.memory_limit, spec.cpu_seconds);
+    let cpu = spec.cpu_seconds;
     // SAFETY: the hook runs in the forked child before exec; it only makes system calls on data prepared above
     // (the limits, the landlock ruleset's descriptor and the BPF program). The ruleset's mutex is never contended:
     // only this hook takes it, so no lock held at fork time can block it.
     unsafe {
         cmd.pre_exec(move || {
-            platform::set_limit(libc::RLIMIT_DATA, memory).map_err(std::io::Error::other)?;
             platform::set_limit(libc::RLIMIT_CPU, cpu).map_err(std::io::Error::other)?;
             if libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0 {
                 return Err(std::io::Error::last_os_error());
@@ -339,12 +341,7 @@ mod platform {
     use super::{FsAccess, Gap, Note, SandboxSpec};
 
     pub fn lockdown(spec: &SandboxSpec, _elevated: bool, notes: &mut Vec<Note>) -> Result<(), String> {
-        // RLIMIT_DATA, not RLIMIT_AS: since Linux 4.7 it counts the private writable memory a process uses, while
-        // the address space also counts reservations (glibc reserves 64 MiB per malloc arena, one per busy thread),
-        // so an address-space cap made a plugin process fail allocations long before it used its memory.
-        if super::memory_rlimit("linux") == Some(super::MemoryRlimit::Data) {
-            set_limit(libc::RLIMIT_DATA, spec.memory_limit)?;
-        }
+        // No memory rlimit: the host watches the memory the child uses (see `SandboxSpec::memory_limit`).
         set_limit(libc::RLIMIT_CPU, spec.cpu_seconds)?;
         landlock(&spec.fs, notes)?;
         if let Err(e) = seccomp(!spec.network, !spec.children) {
@@ -612,13 +609,7 @@ mod platform {
         fn sandbox_free_error(errorbuf: *mut c_char);
     }
 
-    pub fn lockdown(spec: &SandboxSpec, _elevated: bool, notes: &mut Vec<super::Note>) -> Result<(), String> {
-        if spec.memory_limit.is_some() && super::memory_rlimit("macos").is_none() {
-            notes.push(super::Note::new(
-                super::Gap::Limits,
-                "no memory cap on macOS: it has no limit on used memory, only on the address space, which the system libraries fill",
-            ));
-        }
+    pub fn lockdown(spec: &SandboxSpec, _elevated: bool, _notes: &mut Vec<super::Note>) -> Result<(), String> {
         set_limit(libc::RLIMIT_CPU, spec.cpu_seconds)?;
         // A contained child already runs under the profile sandbox-exec applied.
         let Some(profile) = super::macos_profile(spec).filter(|_| !spec.contained()) else {
@@ -665,26 +656,6 @@ mod platform {
     pub fn lockdown(_spec: &SandboxSpec, _elevated: bool, notes: &mut Vec<super::Note>) -> Result<(), String> {
         notes.push(super::Note::new(super::Gap::Files, "no sandbox on this platform"));
         Ok(())
-    }
-}
-
-/// The resource limit that caps a Unix process's memory.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
-enum MemoryRlimit {
-    /// `RLIMIT_DATA`: since Linux 4.7 the private writable memory the process uses.
-    Data,
-}
-
-/// How `os` (`std::env::consts::OS`) caps a sandboxed process's memory, `None` when it cannot. Never the address
-/// space (`RLIMIT_AS`): it counts reservations, not use. glibc reserves 64 MiB per malloc arena, and on macOS the
-/// shared system libraries alone take gigabytes of it, so plugin processes failed their first allocations and closed
-/// the connection. macOS does not enforce `RLIMIT_DATA`. Pure, so every platform's choice is tested on every CI runner.
-#[cfg_attr(not(any(target_os = "linux", target_os = "macos")), allow(dead_code))]
-fn memory_rlimit(os: &str) -> Option<MemoryRlimit> {
-    match os {
-        "linux" | "android" => Some(MemoryRlimit::Data),
-        _ => None,
     }
 }
 
@@ -742,19 +713,16 @@ mod tests {
     }
 
     #[test]
-    fn memory_is_capped_by_used_memory_never_by_address_space() {
-        assert_eq!(memory_rlimit("linux"), Some(MemoryRlimit::Data));
-        assert_eq!(memory_rlimit("macos"), None, "macOS has no limit on used memory");
-        for os in ["windows", "freebsd", "ios"] {
-            assert_eq!(memory_rlimit(os), None, "{os}");
-        }
-        // The address-space limit must not come back in any platform's lockdown (it broke Linux, then macOS).
+    fn no_lockdown_caps_memory_with_an_rlimit() {
+        // The host watches the memory a child uses instead (process.rs): rlimits count reservations, which broke
+        // Linux (RLIMIT_AS, then RLIMIT_DATA with mimalloc) and macOS. Guard against their return in any lockdown.
         let src = include_str!("sandbox.rs");
-        let banned = ["RLIMIT", "_AS"].concat();
-        assert!(
-            !src.lines().any(|l| l.contains(&banned) && !l.trim_start().starts_with("//")),
-            "{banned} is used in sandbox.rs"
-        );
+        for banned in [["RLIMIT", "_AS"].concat(), ["RLIMIT", "_DATA"].concat()] {
+            assert!(
+                !src.lines().any(|l| l.contains(&banned) && !l.trim_start().starts_with("//")),
+                "{banned} is used in sandbox.rs"
+            );
+        }
     }
 
     #[test]
