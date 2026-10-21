@@ -5,6 +5,7 @@
  */
 import { AiRuntimeDevice, AiRuntimeEntry, AiRuntimeEvent, AiRuntimeOverview } from '../ai.types';
 import { formatBytes, formatEta, formatRate, percent } from '../ai-format';
+import { TransferSpeed } from '../../shared/format/transfer-speed';
 import { localizeDecimal } from '../../i18n/locale';
 
 export type RuntimeTerminal = Extract<AiRuntimeEvent, { stage: 'ready' | 'failed' | 'cancelled' }>;
@@ -38,14 +39,12 @@ export function runtimePercent(e: RuntimeRunning | null): number | null {
 }
 
 /** "12 MB of 32 MB · 24 MB/s · 1 s left". */
-export function runtimeProgressText(e: RuntimeRunning | null): string {
+export function runtimeProgressText(e: RuntimeRunning | null, speed?: TransferSpeed): string {
   if (e?.stage !== 'progress') return '';
   const base = $localize`:@@ai.runtime.progress.of:${formatBytes(e.bytes)}:done: of ${formatBytes(e.total)}:total:`;
   if (e.verifying) return base;
-  const eta = formatEta(e.etaSecs);
-  return [base, e.bytesPerSec > 0 ? formatRate(e.bytesPerSec) : '', eta && $localize`:@@ai.runtime.progress.left:${eta}:eta: left`]
-    .filter(Boolean)
-    .join(' · ');
+  const { rate, etaSecs } = speed ?? { rate: e.bytesPerSec, etaSecs: e.etaSecs };
+  return [base, formatRate(rate), formatEta(etaSecs)].filter(Boolean).join(' · ');
 }
 
 export type EntryState = 'active' | 'ready' | 'problem' | 'unchecked' | 'available';

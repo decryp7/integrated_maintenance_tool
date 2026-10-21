@@ -1,3 +1,4 @@
+import { transferSpeed } from '../../shared/format/transfer-speed';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -397,9 +398,11 @@ export class AiRuntimePanel implements OnInit {
    * the files they downloaded (a rejected archive keeps the instructions), cleared once it is installed. */
   protected readonly manual = signal<{ id: string; code: AiErrorCode } | null>(null);
   protected readonly pct = computed(() => runtimePercent(this.store.job()?.stage ?? null));
-  protected readonly progressText = computed(() =>
-    runtimeProgressText(this.store.job()?.stage ?? null),
-  );
+  private readonly speed = transferSpeed(() => {
+    const e = this.store.job()?.stage;
+    return e?.stage === 'progress' && !e.verifying ? e : null;
+  });
+  protected readonly progressText = computed(() => runtimeProgressText(this.store.job()?.stage ?? null, this.speed()));
   protected readonly stageText = computed(() => {
     const i = this.store.job();
     if (!i) return '';
