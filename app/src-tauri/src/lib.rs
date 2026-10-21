@@ -52,6 +52,7 @@ mod opener;
 mod panel_windows;
 mod paths;
 mod plugin_config;
+mod plugin_packages;
 mod pointer;
 mod profile;
 mod profiling;
@@ -232,6 +233,12 @@ command_table! {
     Mutation [MAIN] => lifecycle::restart_app,
     Mutation [MAIN] => plugin_config::plugin_reset,
     Mutation [MAIN] => plugin_config::plugin_set_enabled,
+    Query [MAIN] => plugin_packages::plugin_packages_list,
+    Query [MAIN] => plugin_packages::plugin_package_inspect,
+    Mutation [MAIN] => plugin_packages::plugin_package_install,
+    Mutation [MAIN] => plugin_packages::plugin_package_remove,
+    Mutation [MAIN] => plugin_packages::plugin_package_set_enabled,
+    Mutation [MAIN] => plugin_packages::plugin_package_set_permissions,
     Quiet [MAIN] limit 16 * MIB => lifecycle::save_session,
     Query [MAIN] => lifecycle::last_session,
     Mutation [MAIN] => lifecycle::restore_windows,
@@ -440,7 +447,11 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     log::info!(Version = env!("CARGO_PKG_VERSION"), SafeMode = safe_mode, PreviousCrash = previous_crash, SingleInstance = single; "Application starting — IMT {}", env!("CARGO_PKG_VERSION"));
 
     // ---- managed state (app-wide) ----
-    let shared = AppState::new(ctx.config.as_ref().map(|d| d.join("profiles")), ctx.safe_mode);
+    let shared = AppState::new_in(
+        ctx.config.as_ref().map(|d| d.join("profiles")),
+        ctx.safe_mode,
+        ctx.data.as_ref().map(|d| d.join("plugins")),
+    );
     if let Some(problem) = shared.plugins.problem() {
         log::error!("Plugins are unavailable: {problem}");
     }
@@ -463,6 +474,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
 
     // ---- settings ----
     settings::init(app.handle());
+    plugin_packages::init(app.handle());
     window_prefs::register(app.handle())?;
     updater::init(app.handle());
     ai::init(app.handle(), safe_mode);

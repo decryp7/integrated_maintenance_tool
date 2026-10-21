@@ -18,18 +18,28 @@ pub(crate) struct AppState {
     /// Plugins the user turned off (read once: changes need a restart).
     disabled: Arc<Vec<String>>,
     /// The built-in plugins, each in its own process (ADR 0017), shared by every window: a running process
-    /// monitor is the same in every window. None in safe mode.
+    /// monitor is the same in every window. None in safe mode. Installed third-party plugins are among them.
     pub(crate) plugins: Arc<Builtins>,
+    /// Installed third-party plugins (ADR 0027): the install folder, the trust settings and what was loaded.
+    pub(crate) installed: Arc<crate::plugin_packages::Installed>,
 }
 
 impl AppState {
     pub fn new(profile_dir: Option<PathBuf>, safe_mode: bool) -> AppState {
-        let plugins = if safe_mode {
+        AppState::new_in(profile_dir, safe_mode, None)
+    }
+
+    /// [`AppState::new`] with the third-party plugins installed below `plugins_dir` (loaded unless in safe mode).
+    pub fn new_in(profile_dir: Option<PathBuf>, safe_mode: bool, plugins_dir: Option<PathBuf>) -> AppState {
+        let mut plugins = if safe_mode {
             Builtins::none()
         } else {
             Builtins::load(&imt_plugin_host::builtins::default_binary())
         };
-        AppState::with_plugins(profile_dir, safe_mode, plugins)
+        let installed = crate::plugin_packages::Installed::load(plugins_dir, safe_mode, &mut plugins);
+        let mut state = AppState::with_plugins(profile_dir, safe_mode, plugins);
+        state.installed = Arc::new(installed);
+        state
     }
 
     /// The state with the given plugins (tests).
@@ -42,6 +52,7 @@ impl AppState {
             safe_mode,
             disabled: Arc::new(disabled),
             plugins: Arc::new(plugins),
+            installed: Arc::new(crate::plugin_packages::Installed::none()),
         }
     }
 
