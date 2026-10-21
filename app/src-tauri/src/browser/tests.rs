@@ -349,7 +349,11 @@ fn the_panel_places_the_page_and_the_page_follows_it_into_a_pop_out_and_back() {
     ] {
         assert!(place(&main, bad.clone()).is_err(), "{bad}");
     }
-    let page = child(&app, "browser-main", "main");
+    // The page as each platform has it (ADR 0024): a child webview of the IMT window, or on Linux a window of its own.
+    let _page_window = (!super::view::DOCKED).then(|| window(&app, "browser-main"));
+    let _page_child = super::view::DOCKED.then(|| child(&app, "browser-main", "main"));
+    let page_host = || app.get_webview("browser-main").map(|w| w.window().label().to_string());
+    let home = if super::view::DOCKED { "main" } else { "browser-main" };
     assert_eq!(
         place(&main, json!({"visible": false, "rect": null, "scale": 1})).unwrap(),
         false,
@@ -359,15 +363,15 @@ fn the_panel_places_the_page_and_the_page_follows_it_into_a_pop_out_and_back() {
     // and is never reparented; only the panel's place is remembered.
     let popout = window(&app, "p-main-1");
     assert_eq!(place(&popout, shown).unwrap(), true);
-    let in_popout = if super::view::DOCKED { "p-main-1" } else { "main" };
-    assert_eq!(page.window().label(), in_popout);
+    let in_popout = if super::view::DOCKED { "p-main-1" } else { "browser-main" };
+    assert_eq!(page_host().as_deref(), Some(in_popout));
     assert_eq!(hub.placement("main").0.as_deref(), Some("p-main-1"));
     // The pop-out closes: the page goes back to its window, hidden, and lives on.
     super::host_closing(app.handle(), "p-main-1");
-    assert_eq!(page.window().label(), "main");
+    assert_eq!(page_host().as_deref(), Some(home));
     assert_eq!(hub.placement("main"), (Some("main".into()), super::geometry::View::Hidden));
     super::host_closing(app.handle(), "main");
-    assert_eq!(page.window().label(), "main", "only a pop-out hands it back");
+    assert_eq!(page_host().as_deref(), Some(home), "only a pop-out hands it back");
     // Closing the page: the panel shows none, the page webview is gone.
     assert_eq!(ipc(&main, "browser_close", json!({})).unwrap(), true);
     assert!(app.get_webview("browser-main").is_none());
