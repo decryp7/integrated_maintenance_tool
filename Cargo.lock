@@ -2896,6 +2896,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "imt-plugin-e2e"
+version = "0.1.0"
+dependencies = [
+ "cargo-imt-plugin",
+ "imt-core",
+ "imt-example-importer",
+ "imt-plugin-api",
+ "imt-plugin-host",
+ "imt-plugin-package",
+ "tempfile",
+]
+
+[[package]]
 name = "imt-plugin-formats"
 version = "0.1.0"
 dependencies = [

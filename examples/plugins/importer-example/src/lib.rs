@@ -60,10 +60,12 @@ impl TextImporter for KvLines {
                 ctx.timestamps.parse(time).is_some() && rest.contains('=')
             })
             .count();
-        if lines.is_empty() {
-            0
-        } else {
-            (good * 90 / lines.len()) as u8
+        // Sure when most lines are ours (a few lines of something else are skipped): higher than IMT's generic
+        // text importer, which reads anything with a timestamp.
+        match (good, lines.len()) {
+            (0, _) => 0,
+            (g, n) if g * 4 >= n * 3 => 95,
+            _ => 40,
         }
     }
 

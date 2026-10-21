@@ -1,0 +1,26 @@
+[package]
+name = "imt-plugin-e2e"
+license.workspace = true
+repository.workspace = true
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+description = "End-to-end tests of third-party plugins (ADR 0027): the importer example packaged, signed, installed and importing a file through IMT's real host and engine. Tests only; never bundled."
+
+# The importer example's program, built here so the tests can package it.
+[[bin]]
+name = "imt-plugin-e2e-kv"
+path = "src/kv.rs"
+test = false
+
+[dependencies]
+imt-example-importer = { path = "../../examples/plugins/importer-example" }
+imt-plugin-api = { path = "../imt-plugin-api" }
+
+[dev-dependencies]
+cargo-imt-plugin = { path = "../cargo-imt-plugin" }
+imt-core = { path = "../imt-core" }
+imt-plugin-host = { path = "../imt-plugin-host" }
+imt-plugin-package = { path = "../imt-plugin-package" }
+tempfile.workspace = true
