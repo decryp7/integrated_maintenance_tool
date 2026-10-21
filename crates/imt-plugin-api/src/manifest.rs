@@ -7,8 +7,7 @@ use crate::tools::ToolInfo;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-/// Version of the plugin contract. A plugin built against another version is refused with a message.
-pub const CONTRACT: u32 = 1;
+pub use crate::protocol::{ProtocolVersion, PROTOCOL};
 /// Largest memory a plugin may ask for (4 GiB).
 pub const MAX_MEMORY_LIMIT: u64 = 4 << 30;
 
@@ -94,8 +93,8 @@ pub struct Manifest {
     pub name: Arc<str>,
     /// Semver.
     pub version: Arc<str>,
-    /// [`CONTRACT`] it was built against.
-    pub contract: u32,
+    /// The plugin protocol it was built for ([`PROTOCOL`] of its SDK).
+    pub protocol: ProtocolVersion,
     pub permissions: Vec<PermissionRequest>,
     /// Memory it needs at most (bytes); the host caps it at [`MAX_MEMORY_LIMIT`]. `None`: the default.
     pub memory_limit: Option<u64>,
@@ -138,11 +137,8 @@ impl Manifest {
 
     /// Checks what the host relies on: the contract version, ids, unique contributions.
     pub fn check(&self) -> Result<(), String> {
-        if self.contract != CONTRACT {
-            return Err(format!(
-                "plugin \"{}\" was built for plugin contract {}, this IMT speaks {CONTRACT}",
-                self.id, self.contract
-            ));
+        if let Some(why) = PROTOCOL.mismatch(self.protocol, &format!("plugin \"{}\"", self.id)) {
+            return Err(why);
         }
         if self.id.is_empty() || self.id.len() > 128 || !self.id.chars().all(|c| c.is_ascii_alphanumeric() || ".-_".contains(c)) {
             return Err(format!("plugin id \"{}\" is not valid", self.id));
@@ -188,7 +184,7 @@ mod tests {
             id: "net.example.toy".into(),
             name: "Toy".into(),
             version: "1.0.0".into(),
-            contract: CONTRACT,
+            protocol: PROTOCOL,
             permissions: vec![PermissionRequest {
                 permission: Permission::RunPrograms,
                 reason: "relog".into(),
@@ -224,8 +220,11 @@ mod tests {
         let back: Manifest = serde_json::from_value(serde_json::to_value(&m).unwrap()).unwrap();
         assert_eq!(back, m);
         let mut old = m.clone();
-        old.contract = 0;
-        assert!(old.check().unwrap_err().contains("contract 0"));
+        old.protocol = ProtocolVersion::new(0, 9);
+        assert!(old.check().unwrap_err().contains("too old"));
+        let mut new = m.clone();
+        new.protocol = ProtocolVersion::new(PROTOCOL.major, PROTOCOL.minor + 1);
+        assert!(new.check().unwrap_err().contains("needs a newer IMT"));
         let mut identity = m.clone();
         identity.importers[0].identity_fields = vec!["".into()];
         assert!(identity.check().unwrap_err().contains("identity fields"));

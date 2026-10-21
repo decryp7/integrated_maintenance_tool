@@ -53,7 +53,7 @@ mod tests {
             id: "p".into(),
             name: "P".into(),
             version: "1.0.0".into(),
-            contract: imt_plugin_api::CONTRACT,
+            protocol: imt_plugin_api::PROTOCOL,
             permissions: perms
                 .iter()
                 .map(|p| PermissionRequest {

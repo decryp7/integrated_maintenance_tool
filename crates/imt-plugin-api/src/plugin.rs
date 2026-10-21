@@ -3,7 +3,7 @@
 use crate::annotate::Annotator;
 use crate::config::ConfigParser;
 use crate::importer::{BinaryImporter, TextImporter};
-use crate::manifest::{ConfigParserCap, ImporterCap, Manifest, PermissionRequest, ProfileImporterCap, CONTRACT};
+use crate::manifest::{ConfigParserCap, ImporterCap, Manifest, PermissionRequest, ProfileImporterCap, PROTOCOL};
 use crate::markers::PluginMarkerKind;
 use crate::model::Record;
 use crate::settings::Configurable;
@@ -170,7 +170,7 @@ impl Contributions {
             id: plugin.id().into(),
             name: plugin.name().into(),
             version: plugin.version().into(),
-            contract: CONTRACT,
+            protocol: PROTOCOL,
             permissions: plugin.permissions(),
             memory_limit: plugin.memory_limit(),
             importers,

@@ -27,7 +27,9 @@ pub const MAX_IMPORT_BYTES: u64 = 2 << 30;
 /// Serves `plugin` in this process (its `main`): connects to IMT, locks down and answers until IMT closes the
 /// connection.
 pub fn serve(plugin: Arc<dyn Plugin>) -> std::io::Result<()> {
-    imt_ipc::child::child_main("IMT", move |boot| Arc::new(PluginHandler::new(plugin, boot.role == ELEVATED_ROLE)))
+    imt_ipc::child::child_main_speaking("IMT", PROTOCOL, move |boot| {
+        Arc::new(PluginHandler::new(plugin, boot.role == ELEVATED_ROLE))
+    })
 }
 
 /// Answers the host's requests for one plugin.

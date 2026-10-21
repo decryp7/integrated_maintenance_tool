@@ -462,6 +462,7 @@ fn child_spec(manifest: &Manifest, spec: &PluginSpec, elevated: bool) -> ChildSp
     s.log = if elevated { None } else { spec.log.clone() };
     s.sandbox = sandbox_for(manifest, &spec.granted, elevated);
     let mut c = ChildSpec::new(s);
+    c.peer.protocol = imt_plugin_api::PROTOCOL;
     if elevated {
         c.role = ELEVATED_ROLE.into();
     }

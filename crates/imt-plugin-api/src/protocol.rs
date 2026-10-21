@@ -15,6 +15,18 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
 
+pub use imt_ipc::frame::ProtocolVersion;
+
+/// The plugin protocol this SDK speaks: sent in the handshake and in the [`crate::Manifest`]. IMT serves a plugin
+/// built for the same major version and a minor version it knows; otherwise it refuses the plugin with a message
+/// saying whether the plugin or IMT needs an update.
+///
+/// - **minor**: a request, reply, host request or manifest field was added at the end (older plugins keep working);
+/// - **major**: anything else (a plugin built for another major version must be rebuilt).
+///
+/// The versions IMT releases speak are listed in `docs/plugin-sdk.md` ("Versions").
+pub const PROTOCOL: ProtocolVersion = ProtocolVersion::new(1, 0);
+
 /// Most events in one streamed item (the engine's batch size, `imt_batch::BATCH_ROWS`).
 pub const MAX_EVENTS_PER_ITEM: usize = 8192;
 /// An item is sent once its events reach about this many bytes, whatever their count.
