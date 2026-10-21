@@ -227,6 +227,14 @@ runs in the `imt-profile` engine:
 - **Automatic findings** linking to the evidence, and **heap snapshots**: top types, snapshot diff,
   growth over three or more snapshots, dominator tree with retained sizes and paths to GC roots.
 
+**Record a native (C/C++) process** with *Tools ▸ Profile native process…*: without administrator rights
+IMT samples it from outside (it pauses one thread at a time for microseconds and copies its stack), with them it
+records it with ETW (every CPU sample, waits with the thread that ended them, heap allocations by call stack).
+Nothing is loaded into the process. Frames are named from PDBs (your symbol path; downloads from the Microsoft
+symbol server only when you enable them), and the capture opens on its findings: the hot native function with its
+source line, where threads wait for locks, and which call paths keep heap memory. `.etl` traces from WPR or xperf
+open the same way.
+
 Values are labelled *sampled* (an estimate) or *exact*. Open captures and the profiling view state
 are kept in projects and sessions. Details, limits and how to regenerate the sample captures are in
 [docs/profiling.md](profiling.md).

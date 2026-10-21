@@ -28,7 +28,10 @@
 //!   the file import as a heap snapshot instead of a profile.
 //! - IMT's ETW extension events ([`ext`]): `ImageLoad` (native frames as
 //!   `module+0xoffset`), `ThreadWait` (Wait events and WaitNs at the blocking stack),
-//!   `ThreadName`.
+//!   `ThreadName`, `NativeSymbol` (native frames named by their function, with module,
+//!   source file and the function's first line) and the native heap events `HeapAlloc` /
+//!   `HeapFree` / `HeapReAlloc` (paired by address: AllocBytes / AllocCount at the
+//!   allocating stack, and LiveBytes for what was not freed by the end of the capture).
 //!
 //! Pointer-sized payload fields follow the Trace object's pointer size (the target's
 //! bitness).
@@ -308,6 +311,79 @@ fn jit_event(thread: u64, ts: i64, dur_ns: u64, name: &str) -> Pending {
     Pending::event(EventKind::Jit, Some(thread), ts, dur_ns, name.to_string())
 }
 
+/// An allocation not freed (yet): size, stack, thread, time.
+type Outstanding = (u64, Option<u32>, u64, i64);
+
+/// Native heap operations (ETW heap provider): every allocation as AllocBytes / AllocCount at its stack, and
+/// allocations not freed by the end as LiveBytes at their stack (the heap growth by call path). Returns the
+/// allocation observations, the unfreed ones and notes. The table of outstanding allocations is bounded by the
+/// number of heap events read (itself bounded by `Limits::max_samples`).
+fn native_heap(parsed: &Parsed) -> (Vec<Pending>, Vec<Pending>, Vec<String>) {
+    use ext::HeapOp;
+    if parsed.heap_ops.is_empty() {
+        return (Vec::new(), Vec::new(), Vec::new());
+    }
+    let mut ops: Vec<&format::HeapRec> = parsed.heap_ops.iter().collect();
+    ops.sort_by_key(|r| r.ts);
+    let observation = |thread: u64, ts: i64, stack: Option<u32>, values: Vec<(MetricId, u64)>| Pending {
+        kind: None,
+        thread: Some(thread),
+        ts,
+        dur_ns: 0,
+        label: String::new(),
+        stack,
+        values,
+        leaf: None,
+    };
+    let mut allocs = Vec::new();
+    let mut live: HashMap<u64, Outstanding> = HashMap::new();
+    let mut unmatched_frees = 0u64;
+    for r in ops {
+        let (freed, new) = match r.op {
+            HeapOp::Alloc { address, size, .. } => (None, Some((address, size))),
+            HeapOp::Free { address, .. } => (Some(address), None),
+            HeapOp::ReAlloc {
+                new_address,
+                old_address,
+                size,
+                ..
+            } => (Some(old_address), Some((new_address, size))),
+        };
+        if let Some(address) = freed {
+            if live.remove(&address).is_none() && new.is_none() {
+                unmatched_frees += 1;
+            }
+        }
+        if let Some((address, size)) = new {
+            allocs.push(observation(
+                r.thread,
+                r.ts,
+                r.stack,
+                vec![(MetricId::AllocBytes, size), (MetricId::AllocCount, 1)],
+            ));
+            live.insert(address, (size, r.stack, r.thread, r.ts));
+        }
+    }
+    let mut rest: Vec<(u64, Outstanding)> = live.into_iter().collect();
+    rest.sort_by_key(|(addr, (_, _, _, ts))| (*ts, *addr));
+    let unfreed_bytes: u64 = rest.iter().map(|(_, (size, ..))| *size).fold(0, u64::saturating_add);
+    let unfreed: Vec<Pending> = rest
+        .iter()
+        .map(|(_, (size, stack, thread, ts))| observation(*thread, *ts, *stack, vec![(MetricId::LiveBytes, *size)]))
+        .collect();
+    let mut notes = vec![format!(
+        "{} native allocations were traced; {} of them ({unfreed_bytes} bytes) were not freed by the end of the capture (Unfreed bytes)",
+        allocs.len(),
+        unfreed.len()
+    )];
+    if unmatched_frees > 0 {
+        notes.push(format!(
+            "{unmatched_frees} frees were of memory allocated before the capture started"
+        ));
+    }
+    (allocs, unfreed, notes)
+}
+
 /// Address ranges, sorted by start, for lookup (methods, then images).
 struct Ranges {
     /// (start, end exclusive, index).
@@ -336,11 +412,15 @@ impl Ranges {
 struct Resolver<'p> {
     parsed: &'p Parsed,
     symbols: Ranges,
+    /// Native symbols by exact address (the last one written for an address wins).
+    native: HashMap<u64, usize>,
     images: Ranges,
     method_frames: Vec<u32>,
     address_frames: HashMap<u64, u32>,
     /// Addresses resolved only to a module (+offset).
     image_hits: usize,
+    /// Addresses resolved through native symbols.
+    native_hits: usize,
     stacks: Vec<u32>,
 }
 
@@ -349,10 +429,12 @@ impl<'p> Resolver<'p> {
         Resolver {
             parsed,
             symbols: Ranges::new(parsed.methods.iter().map(|m| (m.start, u64::from(m.size)))),
+            native: parsed.native_symbols.iter().enumerate().map(|(i, s)| (s.address, i)).collect(),
             images: Ranges::new(parsed.images.iter().map(|i| (i.base, i.size))),
             method_frames: vec![NONE; parsed.methods.len()],
             address_frames: HashMap::new(),
             image_hits: 0,
+            native_hits: 0,
             stacks: vec![NONE; parsed.stacks.len()],
         }
     }
@@ -367,6 +449,20 @@ impl<'p> Resolver<'p> {
             return Ok(self.method_frames[i]);
         }
         if let Some(&f) = self.address_frames.get(&addr) {
+            return Ok(f);
+        }
+        if let Some(&i) = self.native.get(&addr) {
+            let sym = &self.parsed.native_symbols[i];
+            let image = self.images.lookup(addr).map(|i| ext::image_file_name(&self.parsed.images[i].path));
+            let f = b.frame(
+                FrameSpec::new(&sym.function)
+                    .module(image)
+                    .file(Some(sym.file.as_str()))
+                    .line((sym.line > 0).then_some(sym.line))
+                    .kind(FrameKind::Native),
+            )?;
+            self.native_hits += 1;
+            self.address_frames.insert(addr, f);
             return Ok(f);
         }
         let f = match self.images.lookup(addr) {
@@ -404,7 +500,7 @@ impl<'p> Resolver<'p> {
 
     /// Addresses shown as `0x…` (neither a method nor an image covers them).
     fn unresolved(&self) -> usize {
-        self.address_frames.len() - self.image_hits
+        self.address_frames.len() - self.image_hits - self.native_hits
     }
 }
 
@@ -452,11 +548,18 @@ fn build(file_name: &str, mut parsed: Parsed, limits: &Limits) -> Result<Profile
         metrics.push(MetricInfo::new(MetricId::Samples, Measurement::Sampled));
         metrics.push(MetricInfo::new(MetricId::TimeNs, Measurement::Sampled));
     }
+    let (heap_allocs, unfreed, heap_notes) = native_heap(&parsed);
     let has = |id: MetricId| pending.iter().any(|p| p.values.iter().any(|(m, _)| *m == id));
-    let allocations = has(MetricId::AllocBytes);
+    let ticks = has(MetricId::AllocBytes);
+    let allocations = ticks || !heap_allocs.is_empty();
     if allocations {
-        metrics.push(MetricInfo::new(MetricId::AllocBytes, Measurement::Sampled));
-        metrics.push(MetricInfo::new(MetricId::AllocCount, Measurement::Sampled));
+        // GC allocation ticks are sampled; the heap provider reports every allocation.
+        let m = if ticks { Measurement::Sampled } else { Measurement::Exact };
+        metrics.push(MetricInfo::new(MetricId::AllocBytes, m));
+        metrics.push(MetricInfo::new(MetricId::AllocCount, m));
+    }
+    if !unfreed.is_empty() {
+        metrics.push(MetricInfo::new(MetricId::LiveBytes, Measurement::Exact));
     }
     for id in [MetricId::Exceptions, MetricId::WaitNs] {
         if has(id) {
@@ -466,6 +569,7 @@ fn build(file_name: &str, mut parsed: Parsed, limits: &Limits) -> Result<Profile
     if metrics.is_empty() {
         metrics.push(MetricInfo::new(MetricId::Samples, Measurement::Sampled));
     }
+    let pending: Vec<Pending> = pending.into_iter().chain(heap_allocs).chain(unfreed).collect();
     let kind = match (parsed.samples.is_empty(), allocations) {
         (true, true) => ProfileKind::Alloc,
         (false, true) => ProfileKind::Mixed,
@@ -530,9 +634,18 @@ fn build(file_name: &str, mut parsed: Parsed, limits: &Limits) -> Result<Profile
         }
     }
     notes(&mut b, &parsed, resolver.unresolved());
+    for n in heap_notes {
+        b.note(n);
+    }
+    if resolver.native_hits > 0 {
+        b.note(format!(
+            "{} native code addresses were named from symbols (PDB or exports)",
+            resolver.native_hits
+        ));
+    }
     if resolver.image_hits > 0 {
         b.note(format!(
-            "{} native code addresses are shown as module+offset (no symbols are loaded for native code)",
+            "{} native code addresses are shown as module+offset (no symbols were found for them)",
             resolver.image_hits
         ));
     }
@@ -562,6 +675,7 @@ fn notes(b: &mut ProfileBuilder, p: &Parsed, unresolved: usize) {
         (p.dropped_events, "runtime events beyond the event limit were skipped"),
         (p.dropped_methods, "method or module records beyond the frame limit were ignored"),
         (p.unknown_objects, "unknown objects in the file were skipped"),
+        (p.dropped_heap_ops, "native heap events beyond the sample limit were skipped"),
     ];
     for (n, what) in counts {
         if n > 0 {

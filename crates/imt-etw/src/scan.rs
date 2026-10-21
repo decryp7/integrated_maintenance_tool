@@ -2,9 +2,9 @@
 //! CPU samples each has, whether it ran .NET, and its bitness, so the user
 //! (or the importer) can pick the process to convert.
 
-use super::kernel::{self, guids, opcodes};
-use super::RawEvent;
 use crate::clr;
+use crate::kernel::{self, guids, opcodes};
+use crate::RawEvent;
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -107,6 +107,11 @@ impl Scanner {
 
     /// The processes, .NET ones first, then by CPU samples (the idle process 0 is left out).
     pub fn finish(self) -> Vec<EtlProcess> {
+        self.finish_in(Order::DotnetFirst)
+    }
+
+    /// The processes in `order` (the idle process 0 is left out).
+    pub fn finish_in(self, order: Order) -> Vec<EtlProcess> {
         let mut out: Vec<EtlProcess> = self
             .procs
             .into_iter()
@@ -125,9 +130,21 @@ impl Scanner {
                 },
             })
             .collect();
-        out.sort_by_key(|p| (std::cmp::Reverse(p.is_dotnet()), std::cmp::Reverse(p.samples), p.pid));
+        match order {
+            Order::DotnetFirst => out.sort_by_key(|p| (std::cmp::Reverse(p.is_dotnet()), std::cmp::Reverse(p.samples), p.pid)),
+            Order::Samples => out.sort_by_key(|p| (std::cmp::Reverse(p.samples), p.pid)),
+        }
         out
     }
+}
+
+/// How [`Scanner::finish_in`] orders the processes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Order {
+    /// .NET processes first (the .NET profiler), then by CPU samples.
+    DotnetFirst,
+    /// By CPU samples (the native profiler: any process).
+    Samples,
 }
 
 /// The process to open when the user did not choose: the .NET process with the most samples,
@@ -139,7 +156,7 @@ pub fn default_process(procs: &[EtlProcess]) -> Option<&EtlProcess> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::etw::kernel::encode as k;
+    use crate::kernel::encode as k;
 
     fn ev<'a>(provider: u128, opcode: u8, pid: u32, ptr: u8, payload: &'a [u8]) -> RawEvent<'a> {
         RawEvent {
@@ -188,6 +205,18 @@ mod tests {
         assert_eq!(list[2].command_line, None);
         assert_eq!(default_process(&list).map(|p| p.pid), Some(30));
         assert!(default_process(&[]).is_none());
+    }
+
+    #[test]
+    fn native_order_is_by_samples() {
+        let mut s = Scanner::default();
+        let t1 = k::thread_group1(10, 100);
+        s.event(&ev(guids::THREAD, opcodes::DC_START, 0, 8, &t1));
+        let sample = k::sampled_profile(1, 100, 8);
+        s.event(&ev(guids::PERF_INFO, opcodes::SAMPLED_PROFILE, 0, 8, &sample));
+        s.event(&ev(clr::RUNTIME_GUID, 0, 30, 8, &[]));
+        let list = s.finish_in(Order::Samples);
+        assert_eq!(list.iter().map(|p| p.pid).collect::<Vec<_>>(), [10, 30]);
     }
 
     #[test]

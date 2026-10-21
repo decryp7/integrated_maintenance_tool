@@ -6,6 +6,7 @@ import { PROFILING_VIEW_IDS as V } from './profiling-navigator';
 import { ProfileViewState } from './profile-view-state';
 import { ProfilingCommands, PROFILING_VIEWS, provideProfiling, showOpened, startProfiling } from './provide-profiling';
 import { DotnetCommands } from './dotnet/dotnet-commands';
+import { NativeCommands } from './native/native-commands';
 import { provideProfilingTesting, setupProfiling } from './testing/profiling-test-support';
 import { FakeContext } from '../analysis/test-setup';
 import { settle } from '../../testing/helpers';
@@ -127,7 +128,7 @@ describe('startProfiling and provideProfiling', () => {
     const views = flattenContributions<ImtView>(TestBed.inject(IMT_VIEWS));
     const commands = flattenContributions<ImtCommand>(TestBed.inject(IMT_COMMANDS));
     expect(views).toEqual(PROFILING_VIEWS);
-    expect(commands.map((c) => c.id)).toEqual([...TestBed.inject(ProfilingCommands).commands, ...TestBed.inject(DotnetCommands).commands].map((c) => c.id));
+    expect(commands.map((c) => c.id)).toEqual([...TestBed.inject(ProfilingCommands).commands, ...TestBed.inject(DotnetCommands).commands, ...TestBed.inject(NativeCommands).commands].map((c) => c.id));
   });
 
   it('refreshes at startup and claims dropped captures, leaving other files to the log import', async () => {

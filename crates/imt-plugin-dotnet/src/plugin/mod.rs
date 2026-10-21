@@ -1,17 +1,15 @@
-//! The plugin adapter (ADR 0019 on the plugin contract, ADR 0017): the `dotnet-profiler` tool and the `.etl`
-//! profile importer. IMT runs the plugin in its own process; captures are app-wide within it.
+//! The plugin adapter (ADR 0019 on the plugin contract, ADR 0017): the `dotnet-profiler` tool. IMT runs the plugin
+//! in its own process; captures are app-wide within it. `.etl` traces open through the native profiling plugin
+//! (one importer for .NET and native processes, ADR 0022 §9).
 //!
 //! ETW needs administrator rights, so ETW recordings run in the plugin's **elevated process** (ADR 0017 §7): the
 //! normal process asks the host to run the tool's elevated `etw-*` operations there, and the host starts that
-//! process through the administrator prompt on first use. EventPipe, listing processes and `.etl` files stay in
-//! the normal process.
+//! process through the administrator prompt on first use. EventPipe and listing processes stay in the normal process.
 
 mod captures;
 mod elevated;
-mod importer;
 mod tool;
 
-pub use importer::EtlImporter;
 pub use tool::{TASK_KIND, TOOL_ID};
 
 use crate::{Collector, Limits, PLUGIN_ID};
@@ -77,7 +75,6 @@ impl Plugin for DotnetPlugin {
             self.router.clone(),
             self.limits,
         )));
-        c.add_profile_importer(importer::Adapter);
         Ok(())
     }
 
@@ -100,13 +97,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn registers_the_tool_and_the_importer() {
+    fn registers_the_tool() {
         let plugin = DotnetPlugin::default();
         let mut c = Contributions::default();
         plugin.register(&mut c).unwrap();
         let m = c.manifest(&plugin);
         m.check().unwrap();
-        assert!(m.profile_importers.iter().any(|i| &*i.id == "etl" && !i.heap));
+        assert!(m.profile_importers.is_empty(), ".etl is the native profiler's");
         let tool = m.tools.iter().find(|t| t.id == TOOL_ID).unwrap();
         // ETW runs in the elevated process; nothing the UI calls does.
         let elevated: Vec<&str> = tool.ops.iter().filter(|o| o.elevated).map(|o| o.name.as_str()).collect();

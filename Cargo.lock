@@ -2749,6 +2749,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "imt-etw"
+version = "0.1.0"
+dependencies = [
+ "imt-plugin-profiling",
+ "imt-profile",
+ "proptest",
+ "serde",
+ "tempfile",
+ "thiserror 2.0.21",
+ "windows",
+]
+
+[[package]]
 name = "imt-ipc"
 version = "0.1.0"
 dependencies = [
@@ -2814,6 +2827,7 @@ name = "imt-plugin-dotnet"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "imt-etw",
  "imt-plugin-api",
  "imt-plugin-profiling",
  "imt-profile",
@@ -2854,6 +2868,24 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "imt-plugin-native"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "imt-etw",
+ "imt-plugin-api",
+ "imt-plugin-profiling",
+ "imt-profile",
+ "imt-symbols",
+ "proptest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "windows",
 ]
 
 [[package]]
@@ -2963,6 +2995,7 @@ dependencies = [
  "imt-plugin-dotnet",
  "imt-plugin-formats",
  "imt-plugin-host",
+ "imt-plugin-native",
  "imt-plugin-otel",
  "imt-plugin-profiling",
  "imt-plugin-registry",
@@ -2988,6 +3021,17 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "imt-symbols"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "tempfile",
+ "thiserror 2.0.21",
+ "ureq",
+ "windows",
 ]
 
 [[package]]

@@ -4,7 +4,7 @@
 //! the callback is caught (it must not unwind into the OS); later events are
 //! then ignored and the caller learns about it.
 
-use super::{win32_error, EtwError, RawEvent};
+use crate::{win32_error, EtwError, RawEvent};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use windows::core::PWSTR;
 use windows::Win32::System::Diagnostics::Etw::*;

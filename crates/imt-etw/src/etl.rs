@@ -1,13 +1,14 @@
 //! Reading `.etl` files (PerfView, WPR/xperf, `logman`, any ETW logger) with
 //! the ETW consumer API: [`scan`] lists the processes a trace contains, and
 //! [`convert`] writes one of them as NetTrace through the same converter as
-//! live sessions.
+//! live sessions (with a symbolisation step before the stream ends).
 
-use super::convert::{Converter, Stats};
-use super::scan::{EtlProcess, Scanner};
-use super::sys::{self, LogHeader, Source};
-use super::{EtwError, RawEvent};
+use crate::convert::{Converter, Options, Stats};
 use crate::nettrace::{system_time, TraceHeader};
+use crate::scan::{EtlProcess, Order, Scanner};
+use crate::sys::{self, LogHeader, Source};
+use crate::{EtwError, RawEvent};
+use imt_plugin_profiling::nettrace::ext::{ImageLoad, NativeSymbol};
 use std::io::BufWriter;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -32,8 +33,8 @@ fn file_error(e: EtwError) -> EtwError {
     }
 }
 
-/// The processes in `path`, .NET ones first.
-pub fn scan(path: &Path, cancel: &AtomicBool) -> Result<Vec<EtlProcess>, EtwError> {
+/// The processes in `path`, in `order`.
+pub fn scan(path: &Path, order: Order, cancel: &AtomicBool) -> Result<Vec<EtlProcess>, EtwError> {
     let mut scanner = Scanner::default();
     sys::consume(Source::File(path), |_| {}, &mut |e: &RawEvent<'_>| {
         scanner.event(e);
@@ -48,8 +49,11 @@ pub fn scan(path: &Path, cancel: &AtomicBool) -> Result<Vec<EtlProcess>, EtwErro
             "the trace contains no events (is the file empty or truncated?)".into(),
         ));
     }
-    Ok(scanner.finish())
+    Ok(scanner.finish_in(order))
 }
+
+/// Names the code addresses of a capture: given its images and distinct addresses, the symbols it found.
+pub type Symbolize<'a> = &'a mut dyn FnMut(&[ImageLoad], &[u64]) -> Vec<NativeSymbol>;
 
 /// What a conversion produced.
 #[derive(Debug, Clone, Default)]
@@ -58,6 +62,8 @@ pub struct Converted {
     pub stats: Stats,
     pub truncated: bool,
     pub notes: Vec<String>,
+    /// Addresses named by the symbolisation step.
+    pub symbols: usize,
 }
 
 /// Unix milliseconds of a FILETIME.
@@ -65,8 +71,17 @@ pub fn filetime_ms(ft: i64) -> i64 {
     (ft - UNIX_EPOCH_FILETIME) / 10_000
 }
 
-/// Converts the events of `process` in `path` into a NetTrace file at `out`.
-pub fn convert(path: &Path, process: &EtlProcess, out: &Path, max_bytes: u64, cancel: &AtomicBool) -> Result<Converted, EtwError> {
+/// Converts the events of `process` in `path` into a NetTrace file at `out`, writing what `options` asks for and
+/// the symbols `symbolize` finds for the collected addresses.
+pub fn convert(
+    path: &Path,
+    process: &EtlProcess,
+    out: &Path,
+    max_bytes: u64,
+    cancel: &AtomicBool,
+    options: Options,
+    symbolize: Symbolize<'_>,
+) -> Result<Converted, EtwError> {
     let file = std::fs::File::create(out)?;
     let mut writer = Some(BufWriter::with_capacity(1 << 20, file));
     let header = std::cell::Cell::new(LogHeader::default());
@@ -90,7 +105,7 @@ pub fn convert(path: &Path, process: &EtlProcess, out: &Path, max_bytes: u64, ca
                 processors: header.processors.max(1),
                 sampling_ns: 1_000_000,
             };
-            match Converter::new(w, h) {
+            match Converter::with_options(w, h, options) {
                 Ok(c) => conv = Some(c),
                 Err(err) => {
                     failed = Some(err);
@@ -116,7 +131,9 @@ pub fn convert(path: &Path, process: &EtlProcess, out: &Path, max_bytes: u64, ca
     if cancel.load(Ordering::Relaxed) {
         return Err(EtwError::Unsupported("cancelled".into()));
     }
-    let conv = conv.ok_or_else(|| EtwError::Unsupported("the trace contains no events (is the file empty or truncated?)".into()))?;
+    let mut conv = conv.ok_or_else(|| EtwError::Unsupported("the trace contains no events (is the file empty or truncated?)".into()))?;
+    let symbols = symbolize(conv.images(), &conv.addresses());
+    conv.symbols(&symbols)?;
     let (w, stats) = conv.finish()?;
     let file = w.into_inner().map_err(|e| EtwError::Io(e.into_error()))?;
     let bytes = file.metadata()?.len();
@@ -134,14 +151,18 @@ pub fn convert(path: &Path, process: &EtlProcess, out: &Path, max_bytes: u64, ca
     if lost > 0 {
         notes.push(format!("The trace lost {lost} events while it was recorded"));
     }
-    if stats.samples == 0 && stats.clr_events == 0 {
-        notes.push(format!("The trace has no CPU samples or .NET events for process {}", process.pid));
+    if stats.samples == 0 && stats.clr_events == 0 && stats.heap_ops == 0 {
+        notes.push(format!(
+            "The trace has no CPU samples, heap or .NET events for process {}",
+            process.pid
+        ));
     }
     Ok(Converted {
         bytes,
         stats,
         truncated,
         notes,
+        symbols: symbols.len(),
     })
 }
 
@@ -154,11 +175,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let cancel = AtomicBool::new(false);
         let missing = dir.path().join("nope.etl");
-        let e = scan(&missing, &cancel).unwrap_err();
+        let e = scan(&missing, Order::Samples, &cancel).unwrap_err();
         assert!(e.to_string().contains("not found") || e.to_string().contains("not a valid"), "{e}");
         let junk = dir.path().join("junk.etl");
         std::fs::write(&junk, vec![0x5a; 4096]).unwrap();
-        let e = scan(&junk, &cancel).unwrap_err();
+        let e = scan(&junk, Order::DotnetFirst, &cancel).unwrap_err();
         assert!(!e.to_string().is_empty());
         let p = EtlProcess {
             pid: 1,
@@ -168,7 +189,17 @@ mod tests {
             clr_events: 0,
             pointer_size: 8,
         };
-        assert!(convert(&junk, &p, &dir.path().join("o.nettrace"), 1 << 20, &cancel).is_err());
+        let mut none = |_: &[ImageLoad], _: &[u64]| Vec::new();
+        assert!(convert(
+            &junk,
+            &p,
+            &dir.path().join("o.nettrace"),
+            1 << 20,
+            &cancel,
+            Options::default(),
+            &mut none
+        )
+        .is_err());
         assert_eq!(filetime_ms(UNIX_EPOCH_FILETIME + 10_000), 1);
     }
 }

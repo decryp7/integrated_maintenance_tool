@@ -5,8 +5,9 @@
 //!
 //! - **ETW** ([`etw`], Windows): .NET Framework 4.6.2+ (and .NET Core)
 //!   processes, x86 or x64, recorded by a real-time session with kernel CPU
-//!   samples, context switches and the CLR providers; `.etl` files read with
-//!   the same converter. Needs administrator rights.
+//!   samples, context switches and the CLR providers, on `imt-etw`'s sessions
+//!   and converter (shared with the native profiler, ADR 0022). Needs
+//!   administrator rights.
 //! - **EventPipe** ([`eventpipe`], every platform): .NET Core 3+/5+ processes
 //!   through the diagnostics IPC. Needs no elevation.
 //!
@@ -15,22 +16,23 @@
 //! hides which backend records a process.
 //!
 //! With feature `plugin` (default) the crate is also a plugin on `imt-plugin-api` (ADR 0017): the
-//! `dotnet-profiler` tool and the `.etl` importer, served in its own process by `imt-plugins`; ETW
-//! recordings run in the plugin's elevated process.
+//! `dotnet-profiler` tool, served in its own process by `imt-plugins`; ETW recordings run in the plugin's
+//! elevated process. `.etl` traces open through the native profiling plugin.
 
 pub mod clr;
 pub mod etw;
 pub mod eventpipe;
 #[doc(hidden)]
 pub mod fuzz;
-pub mod nettrace;
+/// The streaming NetTrace writer (`imt-etw`'s).
+pub use imt_etw::nettrace;
 pub mod process;
 pub mod recording;
 
 #[cfg(feature = "plugin")]
 mod plugin;
 #[cfg(feature = "plugin")]
-pub use plugin::{DotnetPlugin, EtlImporter, TASK_KIND, TOOL_ID};
+pub use plugin::{DotnetPlugin, TASK_KIND, TOOL_ID};
 
 pub use clr::Preset;
 pub use process::{ProcessInfo, Runtime};

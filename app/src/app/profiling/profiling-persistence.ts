@@ -31,7 +31,7 @@ export interface ProfilingUiState {
 }
 
 const RECURSION: readonly RecursionMode[] = ['off', 'direct', 'all'];
-const METRICS: readonly MetricId[] = ['samples', 'timeNs', 'calls', 'allocCount', 'allocBytes', 'exceptions', 'waitNs', 'maxCallNs'];
+const METRICS: readonly MetricId[] = ['samples', 'timeNs', 'calls', 'allocCount', 'allocBytes', 'exceptions', 'waitNs', 'maxCallNs', 'liveBytes'];
 /** Bound on restored captures (the engine keeps at most 32 open). */
 const MAX_CAPTURES = 32;
 

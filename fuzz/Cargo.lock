@@ -1049,6 +1049,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "imt-etw"
+version = "0.1.0"
+dependencies = [
+ "imt-plugin-profiling",
+ "imt-profile",
+ "serde",
+ "thiserror 2.0.21",
+ "windows",
+]
+
+[[package]]
 name = "imt-fuzz"
 version = "0.0.0"
 dependencies = [
@@ -1056,6 +1067,7 @@ dependencies = [
  "imt-ai",
  "imt-ai-worker",
  "imt-core",
+ "imt-etw",
  "imt-ipc",
  "imt-plugin-api",
  "imt-plugin-dotnet",
@@ -1067,6 +1079,7 @@ dependencies = [
  "imt-plugin-web",
  "imt-plugin-windows",
  "imt-profile",
+ "imt-symbols",
  "libfuzzer-sys",
  "serde_json",
 ]
@@ -1103,6 +1116,7 @@ dependencies = [
 name = "imt-plugin-dotnet"
 version = "0.1.0"
 dependencies = [
+ "imt-etw",
  "imt-plugin-profiling",
  "imt-profile",
  "serde",
@@ -1198,6 +1212,14 @@ dependencies = [
  "rustc-hash",
  "serde",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "imt-symbols"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.21",
+ "windows",
 ]
 
 [[package]]

@@ -5,13 +5,14 @@ import { baseName, errorMessage } from '../../tools/tool-errors';
 import { ToolError } from '../../tools/elevation-hint';
 import { DIALOG_REF } from '../../ui/dialog.service';
 import { formatValue } from '../profiling-format';
-import { DotnetBackend } from './dotnet-backend';
-import { DotnetOpener } from './dotnet-capture.store';
+import { NativeBackend } from './native-backend';
+import { NativeOpener } from './native-capture.store';
 
 /**
  * "Open process from .etl…": lists the processes in an `.etl` trace (PerfView, WPR, logman) with their CPU samples,
- * .NET ones first, and converts the chosen one into a profile. Dropping an `.etl` file opens its busiest .NET
- * process directly; this dialog is for choosing another.
+ * .NET ones first, and converts the chosen one into a profile through the native profiler's `.etl` support (managed
+ * frames from the CLR events, native frames from symbols; ADR 0022 §9). Dropping an `.etl` file opens its busiest
+ * .NET process (else its busiest process) directly; this dialog is for choosing another.
  */
 @Component({
   selector: 'imt-etl-dialog',
@@ -53,8 +54,8 @@ import { DotnetOpener } from './dotnet-capture.store';
 })
 export class EtlDialog implements OnInit {
   protected readonly ref = inject(DIALOG_REF);
-  private readonly backend = inject(DotnetBackend);
-  private readonly opener = inject(DotnetOpener);
+  private readonly backend = inject(NativeBackend);
+  private readonly opener = inject(NativeOpener);
   readonly path = input.required<string>();
   protected readonly processes = signal<EtlProcess[]>([]);
   protected readonly selected = signal<number | null>(null);

@@ -59,11 +59,13 @@ inputs only to the first directory, so `fuzz/corpus/` stays small (seeds copied 
 | `fuzz_syslog` | syslog and journald importers (first byte selects) |
 | `fuzz_perfmon_csv` | PerfMon CSV and `.nfo` importers, counter path parser |
 | `fuzz_prof_speedscope`, `fuzz_prof_folded`, `fuzz_prof_cpuprofile`, `fuzz_prof_chrome_trace`, `fuzz_prof_pprof`, `fuzz_prof_perf_script`, `fuzz_prof_nettrace`, `fuzz_prof_nettrace_heap`, `fuzz_prof_heapsnapshot` | profiling importers (`imt-plugin-profiling`, built without the plugin feature), then every view over what they produced (`imt_profile::fuzz_views`) |
-| `fuzz_dotnet_etw`, `fuzz_dotnet_ipc` | .NET capture (`imt-plugin-dotnet`, without the plugin feature): ETW event payloads through the NetTrace converter, the `.etl` process scanner and back through the nettrace importer; diagnostics IPC replies |
+| `fuzz_dotnet_ipc` | .NET diagnostics IPC replies (`imt-plugin-dotnet`, without the plugin feature); its ETW events are `imt-etw`'s and fuzzed by `fuzz_native_etw` |
+| `fuzz_native_etw` | ETW events of a native capture (kernel, stack walks, context switches, images, heap provider, CLR) through `imt-etw`'s converter and `.etl` scanner, symbols for the collected addresses, then the nettrace importer (ADR 0022) |
+| `fuzz_native_pe` | PE headers and the CodeView PDB identity (`imt_symbols::pe`), and the symbol-cache path a PDB name becomes |
 
 CI (`.gitea/workflows/fuzz.yml`) runs every target for 5 minutes each night (and on demand
 through `workflow_dispatch`, with a configurable duration) and uploads crash inputs as the
-`crashes-<target>` artifact. Four shards of seven targets each build the fuzz workspace once
+`crashes-<target>` artifact. Five shards build the fuzz workspace once
 and then fuzz their targets one after another, on the dated nightly in `FUZZ_TOOLCHAIN`
 (use the same one locally, e.g. `cargo +nightly-2026-10-01 fuzz run ...`, to reproduce CI).
 
