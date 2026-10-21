@@ -332,6 +332,7 @@ pub fn owner_destroyed<R: Runtime>(app: &AppHandle<R>, owner: &str) {
 }
 
 /// Gives the keyboard back to IMT: the IMT webview of the window hosting the page (Esc in the page).
+#[cfg_attr(not(windows), allow(dead_code))]
 fn focus_imt<R: Runtime>(app: &AppHandle<R>, owner: &str) {
     let host = page_webview(app, owner).map_or_else(|| owner.to_string(), |w| w.window().label().to_string());
     if let Some(w) = app.get_webview(&host) {
@@ -340,7 +341,8 @@ fn focus_imt<R: Runtime>(app: &AppHandle<R>, owner: &str) {
 }
 
 /// A key IMT takes from the page: Esc gives the keyboard back to IMT; the panel focuses its address bar or replays
-/// the shortcut (`key` event).
+/// the shortcut (`key` event). Called by the WebView2 key hook only.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn key_pressed<R: Runtime>(app: &AppHandle<R>, owner: &str, key: PageKey) {
     focus_imt(app, owner);
     emit(app, owner, BrowserEvent::Key(key));

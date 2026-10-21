@@ -123,7 +123,8 @@ pub enum BrowserEvent {
     Reveal {
         activate: bool,
     },
-    /// A key IMT took from the page (Ctrl+L, Esc, one of IMT's shortcuts).
+    /// A key IMT took from the page (Ctrl+L, Esc, one of IMT's shortcuts). Only WebView2 reports page keys.
+    #[cfg_attr(not(windows), allow(dead_code))]
     Key(PageKey),
 }
 

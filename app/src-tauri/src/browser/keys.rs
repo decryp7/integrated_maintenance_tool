@@ -6,6 +6,9 @@
 //! Only WebView2 tells IMT about these keys (`AcceleratorKeyPressed`); WKWebView and WebKitGTK do not, so on macOS
 //! and Linux the user clicks into IMT instead.
 
+// Only the WebView2 hook uses these at run time; elsewhere they are compiled for the shared event type and tests.
+#![cfg_attr(not(windows), allow(dead_code))]
+
 use serde::Serialize;
 
 /// Windows virtual-key codes used here.
