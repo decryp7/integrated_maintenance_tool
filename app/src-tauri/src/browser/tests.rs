@@ -374,8 +374,13 @@ fn the_panel_places_the_page_and_the_page_follows_it_into_a_pop_out_and_back() {
     assert_eq!(page_host().as_deref(), Some(home), "only a pop-out hands it back");
     // Closing the page: the panel shows none, the page webview is gone.
     assert_eq!(ipc(&main, "browser_close", json!({})).unwrap(), true);
-    assert!(app.get_webview("browser-main").is_none());
-    assert_eq!(ipc(&main, "browser_close", json!({})).unwrap(), false);
+    assert!(!hub.page("main").open, "the panel shows no page");
+    // A child webview goes at once. Linux's page window is destroyed through the event loop, which the mock runtime
+    // of a unit test does not run, so it stays listed here.
+    if super::view::DOCKED {
+        assert!(app.get_webview("browser-main").is_none());
+        assert_eq!(ipc(&main, "browser_close", json!({})).unwrap(), false);
+    }
 }
 
 #[test]

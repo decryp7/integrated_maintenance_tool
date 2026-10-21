@@ -211,7 +211,14 @@ fn a_locked_child_cannot_write_files_or_start_programs() {
     // The child locks down before it starts any thread (landlock restricts only those started afterwards), and
     // the handler runs on threads started after it: the checks below are made from such a thread.
     let notes = notes(&locked);
-    assert!(!notes.iter().any(|n| n.message.contains("before the lockdown")), "{notes:?}");
+    // Where landlock is enforced, no thread may escape it; without landlock no thread is file-restricted anyway (and
+    // that gap is reported on its own), so an early thread changes nothing there.
+    let landlock_missing = notes.iter().any(|n| n.message.contains("landlock is not available"));
+    if landlock_missing {
+        eprintln!("skipped the early-thread check: landlock is not available here: {notes:?}");
+    } else {
+        assert!(!notes.iter().any(|n| n.message.contains("before the lockdown")), "{notes:?}");
+    }
     let gaps = gaps(&locked);
     let w = ask(&locked, &format!("write {target}")).unwrap();
     if gaps.contains(&Gap::Files) {
