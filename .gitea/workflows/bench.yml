@@ -60,7 +60,8 @@ jobs:
       - name: libduckdb (prebuilt, pinned SHA-256)
         shell: bash
         run: |
-          eval "$(crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+          eval "$(bash crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+          : "${DUCKDB_LIB_DIR:?fetch-libduckdb.sh did not set DUCKDB_LIB_DIR}"
           echo "DUCKDB_LIB_DIR=$DUCKDB_LIB_DIR" >> "$GITHUB_ENV"
           echo "DUCKDB_INCLUDE_DIR=$DUCKDB_INCLUDE_DIR" >> "$GITHUB_ENV"
           case "$RUNNER_OS" in
@@ -114,7 +115,8 @@ jobs:
       - name: libduckdb (prebuilt, pinned SHA-256)
         shell: bash
         run: |
-          eval "$(crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+          eval "$(bash crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+          : "${DUCKDB_LIB_DIR:?fetch-libduckdb.sh did not set DUCKDB_LIB_DIR}"
           echo "DUCKDB_LIB_DIR=$DUCKDB_LIB_DIR" >> "$GITHUB_ENV"
           echo "DUCKDB_INCLUDE_DIR=$DUCKDB_INCLUDE_DIR" >> "$GITHUB_ENV"
           case "$RUNNER_OS" in
