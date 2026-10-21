@@ -475,6 +475,41 @@ jobs:
           path: app/e2e-tauri/.artifacts
           if-no-files-found: ignore
 
+      # The live search test (docs/development.md, "Live search test"): research against the real Google, Bing,
+      # DuckDuckGo and Stack Overflow in the real page webview. Nightly and manual runs only, never on pushes or pull
+      # requests: engines rate-limit automated traffic and change their pages. Runs after the smoke tests, which
+      # use the binary without the probe; this rebuilds only imt-app.
+      - name: Live search test binary
+        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && !cancelled()
+        working-directory: app
+        shell: bash
+        run: npm run e2e:tauri:build:live
+
+      - name: Live search test (Windows)
+        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && !cancelled() && runner.os == 'Windows'
+        working-directory: app
+        shell: bash
+        run: npm run e2e:tauri:live
+
+      - name: Live search test (Linux)
+        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && !cancelled() && runner.os == 'Linux'
+        working-directory: app
+        env:
+          WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS: "1"
+          WEBKIT_DISABLE_DMABUF_RENDERER: "1"
+          WEBKIT_DISABLE_COMPOSITING_MODE: "1"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: dbus-run-session -- xvfb-run -a --server-args="-screen 0 1600x1000x24" npm run e2e:tauri:live
+
+      # The report and page screenshots, passed or not (a warning is worth a look too).
+      - name: Live search test report
+        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && !cancelled()
+        uses: actions/upload-artifact@v3
+        with:
+          name: live-search-${{ runner.os }}
+          path: app/e2e-tauri/.artifacts
+          if-no-files-found: ignore
+
       # Unlink the shared node_modules (rmdir on a junction removes the link only, never the target's files).
       - name: Unlink the shared node_modules (Windows)
         if: always() && runner.os == 'Windows'

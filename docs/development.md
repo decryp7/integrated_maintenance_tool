@@ -182,6 +182,36 @@ cargo deny --workspace check
 - **Benchmarks (criterion)** for the engine live in `crates/imt-core/benches` (`cargo bench -p imt-core`);
   the plugin tests over the real IPC are in `crates/imt-plugins/tests`.
 - **Mutation testing (cargo-mutants)** measures how many injected bugs the engine tests catch.
+- **Live search test** of AI research against the real engines: see below. Nightly and manual CI runs only.
+
+### Live search test
+
+AI research reads the results page of the user's search engine in IMT's own browser. Search engines serve the
+system webview (WebView2, WebKitGTK) other pages than a desktop browser, and change them without notice, so a live
+test searches once with every built-in engine (Google, DuckDuckGo, Bing, Stack Overflow) in the real app, through the
+real collector script and the real Rust rules (`research::search`, `research::read_results`).
+
+The app does the searching itself: the `live-search-probe` feature of `imt-app` (`app/src-tauri/src/browser/live_probe.rs`)
+compiles only into debug builds (a release build with it does not compile) and adds no command or capability. When
+`IMT_E2E_LIVE_SEARCH_OUT` names a folder at start-up, it searches with each engine in the main window's browser and
+writes `live-search.json` and, on Windows, a screenshot of each page there. The WebdriverIO spec (`app/e2e-tauri/live`)
+starts the app and judges the report: an engine passes with at least 3 result links and its first result opening
+(directly, or through the engine's own redirect where the engine hides result addresses, as Google does for the
+system webview); a recognised consent,
+human-check or redirect page is a warning; anything else fails, with the page's host and path (never the query string),
+title, readyState, DOM quiet time, link counts and whether the results region was found.
+
+```sh
+cd app
+npm run e2e:tauri:driver        # Windows: msedgedriver matching the installed WebView2
+npm run e2e:tauri:build:live    # debug binary with the probe (the sidecars too)
+npm run e2e:tauri:live          # Windows; on Linux: xvfb-run -a npm run e2e:tauri:live
+```
+
+The report and screenshots land in `app/e2e-tauri/.artifacts/live-search/`. `IMT_E2E_LIVE_SEARCH_QUERY` replaces the
+default query (`System.TimeoutException`); use neutral text only, never anything from real logs. CI runs it in the
+real-app smoke job on the nightly schedule and on manual runs, never on pushes or pull requests: engines rate-limit
+automated traffic, so keep runs rare.
 
 ### UI responsiveness rules
 
