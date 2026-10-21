@@ -101,6 +101,12 @@ function main() {
   mkdirSync(libOut, { recursive: true });
   copyFileSync(join(libDir, lib), join(libOut, lib));
   console.log(`library: ${join(libOut, lib)}`);
+  // And next to the built worker, where an app run straight from the target folder (development, the end-to-end
+  // builds) finds it.
+  for (const built of binaries.find((b) => b.name === 'imt-store-worker').built) {
+    copyFileSync(join(libDir, lib), join(dirname(built), lib));
+    console.log(`library: ${join(dirname(built), lib)}`);
+  }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
