@@ -424,26 +424,9 @@ export interface UiState {
   query?: { query: unknown; textInput: string };
   layout?: { id: string; openViews: string[] };
   selection?: { recordId: number | null };
-  bookmarks?: Bookmark[];
   savedQueries?: SavedQuery[];
   highlightRules?: HighlightRule[];
   [key: string]: unknown;
-}
-
-export interface Bookmark {
-  id: string;
-  kind: 'record' | 'range';
-  note: string;
-  /** Record bookmarks. */
-  recordId?: number;
-  /** A short description captured when bookmarking (message or time range text). */
-  label: string;
-  ts?: number | null;
-  level?: Level;
-  /** Range bookmarks (epoch ms). */
-  from?: number;
-  to?: number;
-  createdAt: number;
 }
 
 export interface SavedQuery {

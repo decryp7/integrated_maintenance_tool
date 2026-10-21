@@ -284,7 +284,7 @@ export function buildMenus(state: MenuState): TopMenu[] {
         cmd('report.new'),
         sub('analyze.report', $localize`:@@shell.menu.analyze.addToReport:Add to report`, [
           cmd('report.addSelected', $localize`:@@shell.menu.report.selectedEvent:Selected event`),
-          cmd('report.addBookmarks', $localize`:@@shell.menu.report.bookmarks:Bookmarks`),
+          cmd('report.addNotes', $localize`:@@shell.menu.report.notes:Notes`),
           cmd('report.addTimeline', $localize`:@@shell.menu.report.timeline:Timeline`),
           cmd('report.addAnnotations', $localize`:@@shell.menu.report.annotations:Annotations`),
           cmd('report.addQueryTable', $localize`:@@shell.menu.report.queryResult:Query result`),

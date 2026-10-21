@@ -1,40 +1,13 @@
 import { expect, test } from '@playwright/test';
-import { expectNoSeriousViolations } from './axe';
-import { openAppWith, openView, runCommand } from './tools-support';
+import { openAppWith, openView } from './tools-support';
 
-test.describe('bookmarks, saved queries and highlight rules', () => {
-  test('bookmarks the selected event with a note, jumps back, and keeps it in the project', async ({ page }, testInfo) => {
-    await openAppWith(page);
-    await page.locator('imt-events-grid [role=row].row').nth(2).click();
-    await runCommand(page, 'Bookmark selected event');
-    const panel = page.locator('imt-bookmarks-view');
-    const list = panel.getByRole('list', { name: 'Bookmarks' });
-    await expect(list.getByRole('listitem')).toHaveCount(1);
-    await list.getByRole('textbox', { name: /^Note for / }).fill('start here');
-    await list.getByRole('textbox', { name: /^Note for / }).press('Enter');
-    await expectNoSeriousViolations(page, testInfo, 'bookmarks');
-
-    await page.locator('imt-events-grid [role=row].row').nth(0).click();
-    await list.getByRole('button', { name: /^Jump to bookmark/ }).click();
-    await expect(page.locator('imt-events-grid .row.sel')).toBeVisible();
-
-    await runCommand(page, 'Save project as');
-    // Edit only once the save has written the bookmark.
-    await expect(page.getByRole('status').filter({ hasText: /^Saved / })).toBeVisible();
-    await list.getByRole('button', { name: /^Delete bookmark/ }).click();
-    await expect(list).toHaveCount(0);
-    await runCommand(page, 'Open project');
-    // Deleting the bookmark left unsaved changes: discard them to reopen the saved project.
-    await page.getByRole('dialog', { name: 'Unsaved changes' }).getByRole('button', { name: 'Discard' }).click();
-    await expect(panel.getByRole('list', { name: 'Bookmarks' }).getByRole('textbox', { name: /^Note for / })).toHaveValue('start here');
-  });
-
+test.describe('saved queries and highlight rules', () => {
   test('saved queries re-apply the search', async ({ page }) => {
     await openAppWith(page);
-    await openView(page, 'Bookmarks');
+    await openView(page, 'Saved queries');
     const search = page.getByRole('textbox', { name: 'Search messages and exceptions' });
     await search.fill('timed out');
-    const panel = page.locator('imt-bookmarks-view');
+    const panel = page.locator('imt-saved-queries-view');
     await panel.getByRole('textbox', { name: 'Saved query name' }).fill('Timeouts');
     await panel.getByRole('button', { name: 'Save current query' }).click();
     await search.fill('');
@@ -44,8 +17,8 @@ test.describe('bookmarks, saved queries and highlight rules', () => {
 
   test('highlight rules can be added and removed', async ({ page }) => {
     await openAppWith(page);
-    await openView(page, 'Bookmarks');
-    const panel = page.locator('imt-bookmarks-view');
+    await openView(page, 'Saved queries');
+    const panel = page.locator('imt-saved-queries-view');
     await panel.getByLabel('Highlight field').fill('@level');
     await panel.getByLabel('Highlight condition').selectOption('eq');
     await panel.getByRole('textbox', { name: 'Highlight value' }).fill('Error');

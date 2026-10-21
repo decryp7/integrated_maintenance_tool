@@ -20,6 +20,10 @@ import { TimestampWarning } from './timestamp-warning';
 import { AiLauncher } from '../ai/ai-launcher';
 import { AiStatusStore } from '../ai/ai-status.store';
 import { isImagePath } from '../ai/vision/image-files';
+import { COMMAND_CONTEXT } from '../extensions/command-registry';
+import { NoteImageStore } from '../notes/image/note-image.store';
+import { anchors, NOTE_IMAGE_VIEW, NoteActions } from '../notes/note-actions';
+import { NotesStore } from '../notes/notes.store';
 
 type TailFileStateOf = Extract<TailFileState, { kind: NotableState }>;
 
@@ -109,9 +113,12 @@ function shortPath(path: string): string {
           <imt-icon name="file" [size]="13" />
           <span class="ellipsis name">{{ short(u.path) }}</span>
           <span class="badge">—</span>
+          @if (isImage(u.path)) {
+            <button class="btn ghost setup" data-testid="mark-up-image" [attr.aria-label]="markUpLabel(u.name)" title="Open the image to mark areas and write notes" i18n-title="@@shell.sidebar.markUpTitle" (click)="markUp(u)" i18n="@@shell.sidebar.markUp">Mark up</button>
+          }
           @if (canOpenImage(u.path)) {
             <button class="btn ghost setup" data-testid="open-image" [attr.aria-label]="openImageLabel(u.name)" title="Open the image for the AI assistant" i18n-title="@@shell.sidebar.openImageTitle" (click)="openImage(u)" i18n="@@shell.sidebar.openImage">Open image</button>
-          } @else {
+          } @else if (!isImage(u.path)) {
             <button class="btn ghost setup" [attr.aria-label]="setUpFormatLabel(u.name)" title="Teach IMT how to read this file" i18n-title="@@shell.sidebar.setUpFormatTitle" (click)="setUpFormat(u)" i18n="@@shell.sidebar.setUpFormat">Set up format…</button>
           }
         </div>
@@ -138,6 +145,9 @@ function shortPath(path: string): string {
           <span class="skew mono" data-testid="skew-badge" [title]="skewLabel(s.offsetMs)" [attr.aria-label]="skewLabel(s.offsetMs)" role="img">{{ offset(s.offsetMs) }}</span>
         }
         <imt-timestamp-warning [source]="s" />
+        @if (notes.bySource().get(s.path); as n) {
+          <span class="notes-badge" data-testid="source-notes-badge" role="img" [title]="notesLabel(n)" [attr.aria-label]="notesLabel(n)"><imt-icon name="note" [size]="11" />{{ n }}</span>
+        }
         <span class="badge">{{ s.importer }}</span>
         <span class="mono count">{{ compact(s.records) }}</span>
         <button class="icon-btn rm" aria-haspopup="menu" data-testid="source-actions" [attr.aria-label]="actionsLabel(s.name)" [attr.title]="actionsLabel(s.name)" (click)="sourceMenu($event, s)"><imt-icon name="drag" [size]="12" /></button>
@@ -178,6 +188,7 @@ function shortPath(path: string): string {
     .state.rotated, .state.truncated { border-color: var(--warn-text); color: var(--warn-text); }
     .state.deleted { border-style: dashed; }
     .state.error { border-color: var(--danger-text); color: var(--danger-text); }
+    .notes-badge { flex: none; display: inline-flex; align-items: center; gap: 2px; font-size: var(--fs-2xs); color: var(--accent-text); }
     .skew { flex: none; font-size: var(--fs-2xs); padding: 0 5px; border-radius: 7px; border: 1px solid var(--accent); color: var(--text-2); }
   `,
 })
@@ -298,6 +309,7 @@ export class Sidebar {
       r ? r.bottom : event.clientY,
       [
         ...this.files.items(s),
+        { label: $localize`:@@shell.sidebar.menu.addNote:Add note…`, run: () => void this.noteActions.write(anchors.source(s.path)) },
         { label: $localize`:@@shell.sidebar.menu.adjustClock:Adjust clock…`, run: () => this.adjustClock(s) },
         { label: $localize`:Context menu item@@shell.sidebar.menu.remove:Remove`, run: () => void this.store.removeSource(s.id) },
       ],
@@ -320,6 +332,29 @@ export class Sidebar {
 
   protected openImageLabel(name: string): string {
     return $localize`:@@shell.sidebar.openImageLabel:Open image ${name}:name:`;
+  }
+
+  protected readonly notes = inject(NotesStore);
+  private readonly noteActions = inject(NoteActions);
+  private readonly noteImages = inject(NoteImageStore);
+  private readonly commands = inject(COMMAND_CONTEXT);
+
+  protected isImage(path: string): boolean {
+    return isImagePath(path);
+  }
+
+  protected markUpLabel(name: string): string {
+    return $localize`:@@shell.sidebar.markUpLabel:Mark up image ${name}:name:`;
+  }
+
+  protected notesLabel(n: number): string {
+    return n === 1 ? $localize`:@@shell.sidebar.oneNote:1 note` : $localize`:@@shell.sidebar.notes:${n}:count: notes`;
+  }
+
+  /** Opens an image of the workspace in the image view to mark areas and write notes (ADR 0021). */
+  protected markUp(file: UnrecognizedFile): void {
+    this.commands.showView(NOTE_IMAGE_VIEW);
+    void this.noteImages.showPath(file.path);
   }
 
   protected openImage(file: UnrecognizedFile): void {

@@ -2858,3 +2858,19 @@ export type {
   UmdhTreeNode,
   UmdhTreeRequest,
 } from './generated/dumps';
+
+// Notes (ADR 0021): generated from `imt_notes` and `notes::commands`.
+export type {
+  Note,
+  NoteAnchor,
+  NoteChange,
+  NoteDraft,
+  NoteImage,
+  NoteImageRef,
+  NoteItem,
+  NoteRecord,
+  NoteRegion,
+  NoteSeverity,
+  NotesList,
+  NotesRestore,
+} from './generated/notes';

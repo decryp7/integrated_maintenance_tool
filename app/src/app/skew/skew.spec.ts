@@ -9,7 +9,6 @@ import { RecordView } from '../core/api.types';
 import { SkewBackend } from '../core/skew-backend';
 import { CommandRegistry } from '../extensions/command-registry';
 import { Inspector } from '../inspector/inspector';
-import { BookmarkStore } from '../projects/bookmarks/bookmark.store';
 import { Sidebar } from '../shell/sidebar';
 import { ContextMenuService } from '../ui/context-menu.service';
 import { DIALOG_REF, DialogService } from '../ui/dialog.service';
@@ -75,7 +74,7 @@ describe('skew formatting', () => {
 });
 
 describe('ClockSkewStore', () => {
-  it('applies an offset, refreshes the summary and keeps selection, reference and bookmarks on their records', async () => {
+  it('applies an offset, refreshes the summary and keeps selection and reference on their records', async () => {
     const { backend, store, skew } = setup();
     await settle();
     const all0 = await rows(backend);
@@ -85,8 +84,6 @@ describe('ClockSkewStore', () => {
     expect(skew.setReference(web01)).toBe(true);
     expect(skew.setReference(all0.find((r) => r.ts === null)!)).toBe(false);
     expect(skew.setReference(null)).toBe(false);
-    const bookmarks = TestBed.inject(BookmarkStore);
-    bookmarks.addSelected('worker start');
     const jump = vi.spyOn(store, 'jumpTo');
 
     const change = await skew.apply({ kind: 'manual', source: 1, offsetMs: 200_000 });
@@ -94,7 +91,6 @@ describe('ClockSkewStore', () => {
     expect(store.summary()?.sources.find((s) => s.id === 1)?.offsetMs).toBe(200_000);
     const moved = (await rows(backend)).find((r) => r.message === 'Application starting — Worker')!;
     expect(jump).toHaveBeenCalledWith(moved.id);
-    expect(bookmarks.items()[0]?.recordId).toBe(moved.id);
     expect(skew.reference()?.id).toBe((await rows(backend)).find((r) => r.message === web01.message)!.id);
     expect(store.notice()).toContain('+3 min 20 s');
 
@@ -290,13 +286,13 @@ describe('clock section, commands, sidebar and inspector', () => {
     const row = badge.closest('.src') as HTMLElement;
     const menu = TestBed.inject(ContextMenuService);
     row.dispatchEvent(new MouseEvent('contextmenu', { clientX: 10, clientY: 20, bubbles: true }));
-    expect(menu.menu()?.items.map((i) => i.label)).toEqual(['Open file', 'Show in folder', 'Adjust clock…', 'Remove']);
-    at(menu.menu()!.items, 2).run();
+    expect(menu.menu()?.items.map((i) => i.label)).toEqual(['Open file', 'Show in folder', 'Add note…', 'Adjust clock…', 'Remove']);
+    at(menu.menu()!.items, 3).run();
     const dialogs = TestBed.inject(DialogService);
     expect(dialogs.stack()[0]?.options.inputs).toEqual({ sourceId: 1 });
     el(fixture, '[aria-label="Adjust clock of app.clef"]').click();
     expect(dialogs.stack()).toHaveLength(2);
-    at(menu.menu()!.items, 3).run();
+    at(menu.menu()!.items, 4).run();
     await settle(fixture);
     expect(store.summary()?.sources.some((s) => s.id === 1)).toBe(false);
   });

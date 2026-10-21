@@ -48,6 +48,7 @@ mod live;
 mod logging;
 mod menu;
 mod native_feel;
+mod notes;
 mod notification_centre;
 mod notify;
 mod opener;
@@ -344,6 +345,14 @@ command_table! {
     Mutation [WINDOW] => ai::knowledge::commands::ai_knowledge_export,
     Query [WINDOW] => ai::knowledge::commands::ai_knowledge_project_record,
     Mutation [WINDOW] limit 16 * MIB => ai::knowledge::commands::ai_knowledge_project_restore,
+    Query [WINDOW] => notes::commands::notes_list,
+    Mutation [WINDOW] limit MIB => notes::commands::notes_add,
+    Mutation [WINDOW] limit MIB => notes::commands::notes_update,
+    Mutation [WINDOW] => notes::commands::notes_remove,
+    Query [WINDOW] => notes::commands::notes_record,
+    Mutation [WINDOW] limit 16 * MIB => notes::commands::notes_restore,
+    Mutation [WINDOW] => notes::commands::notes_image_open,
+    Query [WINDOW] => notes::commands::notes_image_get,
     Mutation [WINDOW] => ai::vision::ai_image_open,
     Mutation [WINDOW] limit 48 * MIB => ai::vision::ai_image_paste,
     Mutation [WINDOW] => ai::vision::ai_image_close,

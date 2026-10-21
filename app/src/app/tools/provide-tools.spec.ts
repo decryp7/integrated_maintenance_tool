@@ -50,10 +50,10 @@ describe('provideTools', () => {
     const commands = TestBed.inject(CommandRegistry);
     const ids = commands.all().map((c) => c.id);
     expect(ids).toEqual(
-      expect.arrayContaining(['tools.perfmon.show', 'tools.monitor.show', 'tools.health.show', 'tools.collect', 'app.restartElevated', 'project.new', 'project.open', 'project.save', 'project.saveAs', 'project.recent', 'bookmarks.show']),
+      expect.arrayContaining(['tools.perfmon.show', 'tools.monitor.show', 'tools.health.show', 'tools.collect', 'app.restartElevated', 'project.new', 'project.open', 'project.save', 'project.saveAs', 'project.recent', 'savedQueries.show']),
     );
     await settle();
-    expect(Object.keys(TestBed.inject(UiStateRegistry).serialize())).toEqual(expect.arrayContaining(['query', 'layout', 'selection', 'bookmarks', 'savedQueries', 'highlightRules']));
+    expect(Object.keys(TestBed.inject(UiStateRegistry).serialize())).toEqual(expect.arrayContaining(['query', 'layout', 'selection', 'savedQueries', 'highlightRules']));
   });
 
   it('opens views and the collector dialog from commands', async () => {

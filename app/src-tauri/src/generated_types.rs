@@ -93,6 +93,24 @@ fn files() -> Vec<(&'static str, String)> {
             ),
         ),
         ("plugins.ts", crate::plugin_packages::dto::generated(header)),
+        ("notes.ts", {
+            use imt_notes::*;
+            let decls = [
+                Region::decl(),
+                ImageRef::decl(),
+                Anchor::decl(),
+                NoteSeverity::decl(),
+                Note::decl(),
+                NoteDraft::decl(),
+                NoteChange::decl(),
+                NoteRecord::decl(),
+                crate::notes::commands::NoteItem::decl(),
+                crate::notes::commands::NotesList::decl(),
+                crate::notes::commands::NotesRestore::decl(),
+                crate::notes::images::NoteImage::decl(),
+            ];
+            format!("{header}{}", decls.into_iter().map(decl).collect::<Vec<_>>().join("\n"))
+        }),
     ]
 }
 
