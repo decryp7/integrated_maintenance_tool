@@ -55,6 +55,12 @@ zip = { version = "9", default-features = false, features = ["deflate-flate2-zli
 [profile.dev.package."*"]
 opt-level = 2
 
+# Line tables only (file:line in backtraces and debugger stepping, no variable info): build folders about half the
+# size and much less memory when linking test binaries. CI used this already. For full debug info in one session:
+# `CARGO_PROFILE_DEV_DEBUG=full`.
+[profile.dev]
+debug = "line-tables-only"
+
 # Shipped builds (tag builds and installers: `cargo build --profile dist`, `tauri build -- --profile dist`):
 # release plus cross-crate inlining, one codegen unit and no symbols. Slower to build, so day-to-day
 # `--release` builds keep the defaults.
