@@ -5,7 +5,7 @@
 //!   `hang` → never answers; `panic` → panics in the handler; `big <n>` → n bytes; `stream <n>` → n items;
 //!   `write <path>` → tries to create the file, answers `ok` or the error; `spawn` → tries to start a program;
 //!   `ask <text>` → calls the host back with `<text>` and answers with the host's reply; `read <path>` → `ok <bytes>`
-//! or the error; `connect <ip:port>` → opens a TCP connection, `ok` or the error.
+//!   or the error; `connect <ip:port>` → opens a TCP connection, `ok` or the error.
 //!
 //! Flags: `--exit-now` (dies before connecting), `--no-connect` (reads the bootstrap, never connects),
 //! `--bad-token` (connects with a wrong token), `--relay` (starts a copy of itself that connects instead: a
