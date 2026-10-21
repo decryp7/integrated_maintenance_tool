@@ -189,7 +189,7 @@ with "session not created"); pass a version to pin one.
 Build and run (from `app/`):
 
 ```sh
-npm run e2e:tauri:build      # tauri build --debug --no-bundle: frontend + debug binary in <target>/debug
+npm run e2e:tauri:build      # sidecars (imt-ai-worker, imt-plugins) + tauri build --debug --no-bundle, in <target>/debug
 npm run e2e:tauri            # Windows
 xvfb-run -a npm run e2e:tauri   # Linux (CI also wraps it in dbus-run-session)
 ```

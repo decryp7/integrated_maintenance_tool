@@ -72,8 +72,9 @@ pub fn connect_and_lock_down(
         .map_err(|e| io::Error::other(e.to_string()))?;
     // Nothing has been read from the host yet but the handshake: lock down before the first request.
     let notes = crate::sandbox::lockdown(&bootstrap.sandbox, elevated).map_err(|e| io::Error::other(format!("cannot lock down: {e}")))?;
+    // On stderr, so the child's log has them (a gap as a Warning): never less sandboxed without saying so.
     for n in notes {
-        eprintln!("sandbox: {n}");
+        eprintln!("{}", n.log_line());
     }
     let handler = make(bootstrap);
     let mut opts = PeerOptions::new(label);

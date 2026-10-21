@@ -27,7 +27,7 @@ pub enum FsAccess {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct SandboxSpec {
-    /// Committed memory cap in bytes (Windows job object; `RLIMIT_AS` on Unix).
+    /// Memory cap in bytes (Windows: committed memory, job object; Linux: `RLIMIT_DATA`; macOS: `RLIMIT_AS`).
     pub memory_limit: Option<u64>,
     /// CPU share cap in percent of the machine (Windows job object; not enforced on Unix).
     pub cpu_rate_percent: Option<u8>,
@@ -72,16 +72,64 @@ impl SandboxSpec {
     }
 }
 
+/// What part of a [`SandboxSpec`] this system could not enforce.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Gap {
+    /// File-system restrictions (Linux: landlock missing, e.g. an old kernel or a container that filters its
+    /// system calls).
+    Files,
+    /// System-call restrictions (Linux: seccomp unavailable): network sockets and program starts are allowed.
+    Syscalls,
+    /// Resource limits (memory, CPU) or the job of an elevated process.
+    Limits,
+    /// Not a gap: how this platform enforces the spec (e.g. Windows does not filter network access).
+    Info,
+}
+
+/// A note about the lockdown of this process.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Note {
+    pub gap: Gap,
+    pub message: String,
+}
+
+impl Note {
+    pub fn new(gap: Gap, message: impl Into<String>) -> Note {
+        Note {
+            gap,
+            message: message.into(),
+        }
+    }
+
+    /// The line for the child's log: gaps are warnings ("sandbox degraded"), so they are never silent.
+    pub fn log_line(&self) -> String {
+        match self.gap {
+            Gap::Info => format!("sandbox: {}", self.message),
+            _ => format!("warning: sandbox degraded: {}", self.message),
+        }
+    }
+}
+
+static APPLIED: std::sync::OnceLock<Vec<Note>> = std::sync::OnceLock::new();
+
+/// The notes of this process' lockdown (empty before it, or when nothing was restricted).
+pub fn applied_notes() -> &'static [Note] {
+    APPLIED.get().map_or(&[], Vec::as_slice)
+}
+
 /// Applies `spec` to the current process (the child side; irreversible). `elevated`: the child was started
 /// through the administrator prompt, so IMT could neither clear its environment nor put it into a job: it does
-/// both itself. Returns notes about what could not be applied on this system (an old kernel without landlock);
-/// fails when a restriction that must hold could not be applied.
-pub fn lockdown(spec: &SandboxSpec, elevated: bool) -> Result<Vec<String>, String> {
+/// both itself. Returns notes about what this system could not enforce (a kernel without landlock, a container
+/// without seccomp): the restriction degrades and the note says so, so a plugin still runs; fails only when a
+/// restriction that must hold could not be applied (lowering the integrity level on Windows, resource limits).
+pub fn lockdown(spec: &SandboxSpec, elevated: bool) -> Result<Vec<Note>, String> {
     let mut notes = Vec::new();
     if elevated {
         clear_env(crate::process::KEPT_ENV);
     }
     platform::lockdown(spec, elevated, &mut notes)?;
+    let _ = APPLIED.set(notes.clone());
     Ok(notes)
 }
 
@@ -98,7 +146,7 @@ fn clear_env(keep: &[&str]) {
 
 #[cfg(windows)]
 mod platform {
-    use super::SandboxSpec;
+    use super::{Gap, Note, SandboxSpec};
     use windows::core::w;
     use windows::Win32::Foundation::{CloseHandle, LocalFree, HANDLE, HLOCAL};
     use windows::Win32::Security::Authorization::ConvertStringSidToSidW;
@@ -111,20 +159,23 @@ mod platform {
     /// `SE_GROUP_INTEGRITY`.
     const SE_GROUP_INTEGRITY: u32 = 0x20;
 
-    pub fn lockdown(spec: &SandboxSpec, elevated: bool, notes: &mut Vec<String>) -> Result<(), String> {
+    pub fn lockdown(spec: &SandboxSpec, elevated: bool, notes: &mut Vec<Note>) -> Result<(), String> {
         if elevated {
             // IMT could not put an elevated child into a job: it joins one itself (killed with its last handle,
             // which this process holds until it exits).
             match crate::job::JobGuard::assign_self(&crate::job::JobLimits::from_sandbox(spec)) {
                 Some(job) => std::mem::forget(job),
-                None => notes.push("could not apply the job limits".into()),
+                None => notes.push(Note::new(Gap::Limits, "could not apply the job limits")),
             }
         }
         if spec.low_integrity {
             lower_integrity()?;
         }
         if !spec.network {
-            notes.push("network access is not restricted on Windows (low integrity still applies)".into());
+            notes.push(Note::new(
+                Gap::Info,
+                "network access is not restricted on Windows (low integrity still applies)",
+            ));
         }
         Ok(())
     }
@@ -159,13 +210,21 @@ mod platform {
 
 #[cfg(target_os = "linux")]
 mod platform {
-    use super::{FsAccess, SandboxSpec};
+    use super::{FsAccess, Gap, Note, SandboxSpec};
 
-    pub fn lockdown(spec: &SandboxSpec, _elevated: bool, notes: &mut Vec<String>) -> Result<(), String> {
-        set_limit(libc::RLIMIT_AS, spec.memory_limit)?;
+    pub fn lockdown(spec: &SandboxSpec, _elevated: bool, notes: &mut Vec<Note>) -> Result<(), String> {
+        // RLIMIT_DATA, not RLIMIT_AS: since Linux 4.7 it counts the private writable memory a process uses, while
+        // the address space also counts reservations (glibc reserves 64 MiB per malloc arena, one per busy thread),
+        // so an address-space cap made a plugin process fail allocations long before it used its memory.
+        set_limit(libc::RLIMIT_DATA, spec.memory_limit)?;
         set_limit(libc::RLIMIT_CPU, spec.cpu_seconds)?;
         landlock(&spec.fs, notes)?;
-        seccomp(!spec.network, !spec.children)?;
+        if let Err(e) = seccomp(!spec.network, !spec.children) {
+            notes.push(Note::new(
+                Gap::Syscalls,
+                format!("seccomp is not available ({e}): network sockets and program starts are not restricted"),
+            ));
+        }
         Ok(())
     }
 
@@ -182,7 +241,7 @@ mod platform {
         Ok(())
     }
 
-    fn landlock(fs: &FsAccess, notes: &mut Vec<String>) -> Result<(), String> {
+    fn landlock(fs: &FsAccess, notes: &mut Vec<Note>) -> Result<(), String> {
         use landlock::{Access, AccessFs, PathBeneath, PathFd, Ruleset, RulesetAttr, RulesetCreatedAttr, RulesetStatus, ABI};
         let (read, write) = match fs {
             FsAccess::Unrestricted => return Ok(()),
@@ -191,23 +250,38 @@ mod platform {
         };
         let abi = ABI::V3;
         let fail = |e: landlock::RulesetError| format!("landlock: {e}");
-        let mut ruleset = Ruleset::default()
-            .handle_access(AccessFs::from_all(abi))
-            .map_err(fail)?
-            .create()
-            .map_err(fail)?;
+        let unavailable = |notes: &mut Vec<Note>, why: String| {
+            notes.push(Note::new(
+                Gap::Files,
+                format!("landlock is not available ({why}): file access is not restricted"),
+            ))
+        };
+        let mut ruleset = match Ruleset::default().handle_access(AccessFs::from_all(abi)).and_then(|r| r.create()) {
+            Ok(r) => r,
+            Err(e) => {
+                unavailable(notes, fail(e));
+                return Ok(());
+            }
+        };
         for (paths, access) in [(read, AccessFs::from_read(abi)), (write, AccessFs::from_all(abi))] {
             for p in paths {
                 match PathFd::new(&p) {
                     Ok(fd) => ruleset = ruleset.add_rule(PathBeneath::new(fd, access)).map_err(fail)?,
-                    Err(e) => notes.push(format!("{}: {e}", p.display())),
+                    // A path that does not exist grants nothing: the restriction only gets stricter.
+                    Err(e) => notes.push(Note::new(Gap::Info, format!("{}: {e}", p.display()))),
                 }
             }
         }
-        match ruleset.restrict_self().map_err(fail)?.ruleset {
-            RulesetStatus::FullyEnforced => {}
-            RulesetStatus::PartiallyEnforced => notes.push("landlock is only partly supported by this kernel".into()),
-            RulesetStatus::NotEnforced => notes.push("landlock is not supported by this kernel: file access is not restricted".into()),
+        match ruleset.restrict_self() {
+            Ok(status) => match status.ruleset {
+                RulesetStatus::FullyEnforced => {}
+                RulesetStatus::PartiallyEnforced => notes.push(Note::new(
+                    Gap::Files,
+                    "landlock is only partly supported by this kernel: some file operations are not restricted",
+                )),
+                RulesetStatus::NotEnforced => unavailable(notes, "not supported by this kernel or filtered by its container".into()),
+            },
+            Err(e) => unavailable(notes, fail(e)),
         }
         Ok(())
     }
@@ -364,7 +438,7 @@ mod platform {
         fn sandbox_free_error(errorbuf: *mut c_char);
     }
 
-    pub fn lockdown(spec: &SandboxSpec, _elevated: bool, _notes: &mut Vec<String>) -> Result<(), String> {
+    pub fn lockdown(spec: &SandboxSpec, _elevated: bool, _notes: &mut Vec<super::Note>) -> Result<(), String> {
         set_limit(libc::RLIMIT_AS, spec.memory_limit)?;
         set_limit(libc::RLIMIT_CPU, spec.cpu_seconds)?;
         let Some(profile) = super::macos_profile(spec) else { return Ok(()) };
@@ -406,8 +480,8 @@ mod platform {
 mod platform {
     use super::SandboxSpec;
 
-    pub fn lockdown(_spec: &SandboxSpec, _elevated: bool, notes: &mut Vec<String>) -> Result<(), String> {
-        notes.push("no sandbox on this platform".into());
+    pub fn lockdown(_spec: &SandboxSpec, _elevated: bool, notes: &mut Vec<super::Note>) -> Result<(), String> {
+        notes.push(super::Note::new(super::Gap::Files, "no sandbox on this platform"));
         Ok(())
     }
 }
@@ -489,5 +563,14 @@ mod tests {
     #[test]
     fn an_unrestricted_lockdown_changes_nothing() {
         assert!(lockdown(&SandboxSpec::unrestricted(), false).unwrap().is_empty());
+    }
+
+    #[test]
+    fn gaps_are_logged_as_warnings_and_information_is_not() {
+        let gap = Note::new(Gap::Files, "landlock is not available");
+        assert_eq!(gap.log_line(), "warning: sandbox degraded: landlock is not available");
+        assert!(Note::new(Gap::Info, "x").log_line().starts_with("sandbox: "));
+        // The child log reads "warning" as a Warning line.
+        assert!(gap.log_line().to_ascii_lowercase().contains("warn"));
     }
 }
