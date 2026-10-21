@@ -38,6 +38,31 @@ fn queries(p: &Pair) -> Vec<(&'static str, Filter)> {
             },
         ),
         (
+            "smart search: words, the last a prefix",
+            Filter {
+                text: "timeout req".into(),
+                text_mode: imt_core::query::TextMode::Words,
+                ..Filter::default()
+            },
+        ),
+        (
+            "smart search: words or substrings",
+            Filter {
+                text: "imeout".into(),
+                text_mode: imt_core::query::TextMode::WordsOrSubstring,
+                ..Filter::default()
+            },
+        ),
+        (
+            "smart search: a phrase",
+            Filter {
+                text: "\"timed out\" ".into(),
+                text_mode: imt_core::query::TextMode::Words,
+                levels: vec![Level::Warning, Level::Error],
+                ..Filter::default()
+            },
+        ),
+        (
             "text, case-sensitive",
             Filter {
                 text: "Order".into(),

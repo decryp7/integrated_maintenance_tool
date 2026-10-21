@@ -83,6 +83,8 @@ pub fn pair(profile: Profile) -> Pair {
     let dir = TempDir::new("diff");
     let (duck, report) = store_with(&dir, profile, &paths).unwrap();
     assert!(report.events > 10_000, "{} events", report.events);
+    // Smart search answers from the index once it caught up (before, it matches substrings of the words).
+    assert!(duck.wait_for_index(std::time::Duration::from_secs(120)).unwrap().ready);
     let ws_paths = ws.sources().iter().map(|s| (s.id, s.path.clone())).collect();
     let summary = duck.summary().unwrap();
     let duck_paths = summary.sources.iter().map(|s| (s.id, s.path.clone())).collect();

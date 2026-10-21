@@ -10,6 +10,7 @@ mod compact;
 mod context;
 mod diag;
 mod fts;
+mod hits;
 mod parsers;
 mod pos;
 mod profiles;
@@ -107,6 +108,8 @@ pub(crate) struct Inner {
     /// fails with the reason, everything else works).
     fts: Option<fts::FtsService>,
     fts_error: Option<String>,
+    /// Word-search hits handed to SQL (smart search).
+    pub(crate) hits: hits::HitsCache,
     options: RwLock<StoreOptions>,
     pub(crate) progress: Arc<ImportProgress>,
     pub(crate) derived: Mutex<Option<(u64, Arc<read::Derived>)>>,
@@ -497,6 +500,7 @@ impl DuckStore {
                 write_lock,
                 fts,
                 fts_error,
+                hits: hits::HitsCache::new(&dir.join("tmp").join("hits")),
                 options: RwLock::new(opts),
                 progress: Arc::new(ImportProgress::default()),
                 derived: Mutex::new(None),
@@ -535,7 +539,6 @@ impl DuckStore {
         self.inner.preaggregate_above.store(events, Ordering::Relaxed);
     }
 
-    /// Progress of the running (or last) import.
     /// Runs `f` with `control` interrupting every statement the store runs for it on this thread: a cancelled
     /// analysis, export or preview stops at once and fails with [`StoreError::Cancelled`].
     pub fn with_control<R>(control: &imt_core::ql::QueryControl, f: impl FnOnce() -> StoreResult<R>) -> StoreResult<R> {
@@ -545,6 +548,7 @@ impl DuckStore {
         }
     }
 
+    /// Progress of the running (or last) import.
     pub fn progress(&self) -> Arc<ImportProgress> {
         self.inner.progress.clone()
     }
@@ -792,11 +796,11 @@ impl DuckStore {
 }
 
 impl Search for DuckStore {
-    /// Words of `text` (all required), case-insensitive and split on punctuation; the first `limit` hits
-    /// (default 1,000, at most 10,000) in time order. A quoted phrase must also appear as written (ignoring
-    /// case) in the message, raw text or exception; up to 1,000 candidates are checked, beyond that the
-    /// total is not exact. Only indexed segments are searched ([`Search::index_status`] tells how far
-    /// indexing is).
+    /// Words of `text` ([`imt_core::words`]: all required, the last a prefix, case-insensitive, split on
+    /// punctuation and inside `camelCase`); the first `limit` hits (default 1,000, at most 10,000) in time
+    /// order. A quoted phrase must also appear as written (ignoring case) in the message, exception or
+    /// template; up to 1,000 candidates are checked, beyond that the total is not exact. Only indexed
+    /// segments are searched ([`Search::index_status`] tells how far indexing is).
     fn search(&self, req: &SearchRequest) -> StoreResult<SearchReply> {
         let limit = if req.limit == 0 {
             fts::DEFAULT_HITS
@@ -804,7 +808,8 @@ impl Search for DuckStore {
             req.limit.min(fts::MAX_HITS)
         };
         let index = &self.fts()?.shared.fts;
-        let (words, phrases) = fts::split_phrases(&req.text);
+        let words = imt_core::words::WordQuery::parse(&req.text);
+        let phrases = &words.phrases;
         if phrases.is_empty() {
             let (total, ids) = index.search(&words, limit).map_err(|e| engine(format!("{e:#}")))?;
             return Ok(SearchReply { total, ids, exact: true });
@@ -832,6 +837,54 @@ impl Search for DuckStore {
             total: if exact { verified } else { candidates },
             ids: matched,
             exact,
+        })
+    }
+
+    /// Counts the events matching `filter` with its text as a substring but not as words: one SQL count when
+    /// SQL expresses the filter, else a scan of at most the analysis limit of events (then `complete` is
+    /// false). Interrupted by a cancelled [`imt_core::ql::QueryControl`].
+    fn partial_matches(&self, filter: &imt_core::ports::Filter) -> StoreResult<imt_core::ports::PartialMatches> {
+        use imt_core::query::TextMode;
+        if filter.text.trim().is_empty() || filter.regex || filter.case_sensitive {
+            return Ok(imt_core::ports::PartialMatches { added: 0, complete: true });
+        }
+        let with = |mode| imt_core::ports::Filter {
+            text_mode: mode,
+            ..filter.clone()
+        };
+        let (substring, words) = (with(TextMode::Substring), with(TextMode::Words));
+        let inner = &self.inner;
+        let conn = inner.conn()?;
+        let ctx = inner.ctx(&conn)?;
+        let (fs, _) = inner.compile(&ctx, &substring)?;
+        let (fw, cw) = inner.compile(&ctx, &words)?;
+        if fs.exact && fw.exact {
+            let sql = format!(
+                "SELECT count(*) FROM {} WHERE {} AND NOT coalesce({}, FALSE)",
+                sql::FROM,
+                fs.all_sql(),
+                fw.content_sql()
+            );
+            let cancelled = || imt_core::ql::QueryControl::current().is_some_and(|c| c.is_cancelled());
+            let added = match read::count(&conn, &sql) {
+                Err(_) if cancelled() => return Err(StoreError::Cancelled),
+                other => other?,
+            };
+            return Ok(imt_core::ports::PartialMatches {
+                added: added as u64,
+                complete: true,
+            });
+        }
+        drop(conn);
+        let mut added = 0u64;
+        let coverage = inner.stream_rows(&substring, analysis::MAX_ANALYSED, &mut |r| {
+            if !cw.content(&r.rec, &r.source) {
+                added += 1;
+            }
+        })?;
+        Ok(imt_core::ports::PartialMatches {
+            added,
+            complete: coverage.complete(),
         })
     }
 

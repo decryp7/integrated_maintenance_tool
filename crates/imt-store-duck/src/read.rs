@@ -321,7 +321,30 @@ impl Inner {
     }
 
     pub(crate) fn compile(&self, ctx: &Ctx, q: &Filter) -> StoreResult<(SqlFilter, CompiledQuery)> {
-        sql::compile(q, &ctx.default_group_by, &ctx.marker_kinds, &ctx.fields)
+        let source = WithHits {
+            fields: &ctx.fields,
+            inner: self,
+            keep: std::cell::RefCell::new(Vec::new()),
+        };
+        let (mut f, cq) = sql::compile(q, &ctx.default_group_by, &ctx.marker_kinds, &source)?;
+        f.keep = source.keep.into_inner();
+        Ok((f, cq))
+    }
+
+    /// The hits file of a word search, or `None` when the index cannot answer it exactly (unavailable, not
+    /// caught up with the segments, or too many hits).
+    fn word_hits(&self, words: &imt_core::words::WordQuery) -> anyhow::Result<Option<Arc<crate::hits::HitsFile>>> {
+        let Some(fts) = self.fts.as_ref() else { return Ok(None) };
+        let conn = self.conn().map_err(|e| anyhow::anyhow!("{e}"))?;
+        let pending: u64 = conn.query_row("SELECT count(*) FROM segments WHERE NOT indexed", [], |r| r.get(0))?;
+        if pending > 0 {
+            return Ok(None);
+        }
+        let index = &fts.shared.fts;
+        let key = format!("{:?}|{:?}|{}", words.terms, words.prefixes, index.docs());
+        let generation = self.generation.load(std::sync::atomic::Ordering::SeqCst);
+        self.hits
+            .get_or_write(&key, generation, || index.all_ids(words, crate::fts::MAX_FILTER_HITS))
     }
 
     fn view(&self, ctx: &Ctx, row: &BatchRow<'_>, group_by: &[String]) -> EventView {
@@ -342,6 +365,7 @@ impl Inner {
             source_name,
             line: row.line(),
             byte_offset: row.byte_offset(),
+            search_match: None,
         }
     }
 
@@ -1335,7 +1359,9 @@ impl Query for DuckStore {
     }
 
     fn page(&self, req: &PageQuery) -> StoreResult<PageReply> {
-        self.inner.page(req)
+        let mut page = self.inner.page(req)?;
+        imt_core::ports::mark_search_matches(&mut page.rows, &req.query);
+        Ok(page)
     }
 
     fn events(&self, req: &imt_core::ports::EventsRequest) -> StoreResult<Vec<EventView>> {
@@ -1380,5 +1406,35 @@ impl Query for DuckStore {
 
     fn export(&self, req: &ExportRequest) -> StoreResult<ExportResult> {
         self.inner.export(req)
+    }
+}
+
+/// The fields of a statement plus the word hits of its smart search (kept alive with the filter).
+struct WithHits<'a> {
+    fields: &'a sql::Fields,
+    inner: &'a Inner,
+    keep: std::cell::RefCell<Vec<Arc<crate::hits::HitsFile>>>,
+}
+
+impl sql::FieldSource for WithHits<'_> {
+    fn events(&self) -> &imt_core::batch::EventSchema {
+        self.fields.events()
+    }
+    fn promoted_text(&self, key: &str) -> bool {
+        self.fields.promoted_text(key)
+    }
+    fn word_hits(&self, words: &imt_core::words::WordQuery) -> Option<String> {
+        match self.inner.word_hits(words) {
+            Ok(Some(file)) => {
+                let path = sql::lit(&file.path.to_string_lossy().replace('\\', "/"))?;
+                self.keep.borrow_mut().push(file);
+                Some(format!("e.id IN (SELECT id FROM read_parquet({path}))"))
+            }
+            Ok(None) => None,
+            Err(e) => {
+                log::warn!("word search falls back to substrings: {e:#}");
+                None
+            }
+        }
     }
 }

@@ -80,7 +80,7 @@ impl DuckStore {
         Ok((!files.is_empty()).then_some((files, ids)))
     }
 
-    /// The lower-cased text (message, raw text and exception) of the visible events with these ids, for
+    /// The lower-cased text (message, exception and template) of the visible events with these ids, for
     /// checking phrases; at most [`MAX_PAGE_ROWS`] ids.
     pub(crate) fn texts(&self, ids: &[EventId]) -> StoreResult<Vec<(EventId, String)>> {
         let conn = self.inner.conn()?;
@@ -89,7 +89,7 @@ impl DuckStore {
         };
         let list: Vec<String> = ids.iter().map(|i| i.to_string()).collect();
         let sql = format!(
-            "SELECT id, lower(concat_ws(chr(10), message, raw, exception)) FROM {} WHERE id IN ({}) AND {READY}",
+            "SELECT id, lower(concat_ws(chr(10), message, exception, template)) FROM {} WHERE id IN ({}) AND {READY}",
             parquet_from(&files),
             list.join(", ")
         );

@@ -742,6 +742,9 @@ impl Search for RemoteStore {
     fn index_status(&self) -> StoreResult<IndexStatus> {
         self.call(StoreOp::IndexStatus, &())
     }
+    fn partial_matches(&self, filter: &imt_core::ports::Filter) -> StoreResult<imt_core::ports::PartialMatches> {
+        self.analysis(StoreOp::PartialMatches, filter)
+    }
 }
 
 #[cfg(test)]

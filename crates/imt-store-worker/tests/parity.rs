@@ -113,6 +113,8 @@ fn ask<S: Query + Analysis + Profiles + Diagnostics + Search + Positions>(s: &S,
         ),
         ("evaluateFix".into(), text(s.evaluate_fix(&req(json!({"profileOverride": "[parse]\n"}))).map(j))),
         ("search".into(), text(s.search(&req(json!({"text": "timeout", "limit": 20}))).map(j))),
+        ("wordPage".into(), text(s.page(&req(json!({"query": {"text": "time", "textMode": "wordsOrSubstring"}, "limit": 20}))).map(j))),
+        ("partialMatches".into(), text(s.partial_matches(&req(json!({"text": "imeout", "textMode": "words"}))).map(j))),
     ];
     let exported = s.export(&req(
         json!({"query": errors, "format": "csv", "path": export_to.to_string_lossy(), "overwrite": true}),

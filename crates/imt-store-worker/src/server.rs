@@ -308,6 +308,7 @@ impl Worker {
             StoreOp::EvaluateFix => run!(s.evaluate_fix(&body(b)?)),
             StoreOp::Search => reply(&s.search(&body(b)?)?),
             StoreOp::IndexStatus => reply(&s.index_status()?),
+            StoreOp::PartialMatches => run!(s.partial_matches(&body(b)?)),
             StoreOp::SaveProject => reply(&Projects::save_project(&s, &body::<ProjectManifest>(b)?)?),
             StoreOp::ExportProject => {
                 let r: ExportProject = body(b)?;

@@ -17,6 +17,10 @@ pub struct Query {
     pub text: String,
     pub regex: bool,
     pub case_sensitive: bool,
+    /// How a plain search box text matches (smart search; a regex or case-sensitive search is always a
+    /// substring search).
+    #[serde(skip_serializing_if = "TextMode::is_substring")]
+    pub text_mode: TextMode,
     pub filters: Vec<FieldFilter>,
     pub group_by: Vec<String>,
     pub groups: Vec<String>,
@@ -32,6 +36,25 @@ pub struct Query {
     /// sources. Unknown ids simply match nothing; at most [`MAX_QUERY_SOURCES`].
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub sources: Vec<u32>,
+}
+
+/// How the search box text matches events.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TextMode {
+    /// The text anywhere in the message, exception or template, ignoring case.
+    #[default]
+    Substring,
+    /// Every word of the text (see [`crate::words`]): answered from the full-text index.
+    Words,
+    /// Word matches and substring matches (after the background scan found partial matches).
+    WordsOrSubstring,
+}
+
+impl TextMode {
+    pub fn is_substring(&self) -> bool {
+        *self == TextMode::Substring
+    }
 }
 
 /// Upper bound on [`Query::sources`], so a hostile request cannot make every
@@ -101,7 +124,13 @@ impl CompiledQuery {
             let literal = (!q.regex).then(|| q.text.trim().to_string());
             let pattern = literal.as_deref().map_or_else(|| q.text.clone(), regex::escape);
             let re = crate::user_regex::compile(&pattern, !q.case_sensitive).context("invalid search regex")?;
+            let words = (!q.regex && !q.case_sensitive && !q.text_mode.is_substring())
+                .then(|| crate::words::WordQuery::parse(&q.text))
+                .filter(|w| !w.is_empty())
+                .map(Arc::new);
             content.push(Expr::Search(TextSearch {
+                substring: words.is_none() || q.text_mode == TextMode::WordsOrSubstring,
+                words,
                 re,
                 literal,
                 case_sensitive: q.case_sensitive,
@@ -372,6 +401,39 @@ mod tests {
             &[]
         )
         .is_err());
+    }
+
+    #[test]
+    fn smart_search_matches_words_then_substrings() {
+        let mut r = rec(10, "Order failed -- retry");
+        r.exception = Some("System.TimeoutException".into());
+        let c = |text: &str, text_mode: TextMode| {
+            let q = Query {
+                text: text.into(),
+                text_mode,
+                ..Default::default()
+            };
+            CompiledQuery::new(&q, &[], &[]).unwrap().content(&r, "s")
+        };
+        assert!(c("timeout ord", TextMode::Words), "words in any order, the last a prefix");
+        assert!(!c("imeoutExc", TextMode::Words), "a partial match is not a word");
+        assert!(c("imeoutExc", TextMode::WordsOrSubstring), "until partial matches are added");
+        assert!(!c("timeout ord", TextMode::Substring));
+        assert!(
+            c("--", TextMode::Words) && !c("++", TextMode::Words),
+            "no words: a substring search"
+        );
+        // A regex or case-sensitive search is always a substring search.
+        let q = Query {
+            text: "Order f".into(),
+            case_sensitive: true,
+            text_mode: TextMode::Words,
+            ..Default::default()
+        };
+        assert!(CompiledQuery::new(&q, &[], &[]).unwrap().content(&r, "s"));
+        assert_eq!(serde_json::to_value(Query::default()).unwrap().get("textMode"), None);
+        let q: Query = serde_json::from_str(r#"{"text": "x", "textMode": "wordsOrSubstring"}"#).unwrap();
+        assert_eq!(q.text_mode, TextMode::WordsOrSubstring);
     }
 
     #[test]

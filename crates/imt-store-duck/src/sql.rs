@@ -26,6 +26,12 @@ pub trait FieldSource {
     fn promoted_text(&self, _key: &str) -> bool {
         false
     }
+    /// A SQL condition on `e.id` holding the events with every word of a smart search (from the full-text
+    /// index), or `None` when the index cannot answer (then SQL narrows by substrings of the words and the scan
+    /// checks the words).
+    fn word_hits(&self, _words: &imt_core::words::WordQuery) -> Option<String> {
+        None
+    }
 }
 
 impl FieldSource for EventSchema {
@@ -174,6 +180,36 @@ fn contains_pattern(text: &str) -> String {
     }
     p.push('%');
     p
+}
+
+/// Finds `text` anywhere in the message, exception or template.
+fn substring_sql(text: &str, case_sensitive: bool) -> Option<String> {
+    let p = lit(&contains_pattern(text))?;
+    let op = if case_sensitive { "LIKE" } else { "ILIKE" };
+    Some(format!(
+        "(coalesce(e.message {op} {p} ESCAPE '\\', FALSE) OR coalesce(e.exception {op} {p} ESCAPE '\\', FALSE) OR coalesce(e.template {op} {p} ESCAPE '\\', FALSE))"
+    ))
+}
+
+/// For a smart search the index cannot answer (still indexing, unavailable, too many hits): a SQL condition
+/// every match passes (each word as a substring, or the whole text as one), so SQL narrows the events and the
+/// scan checks the words exactly.
+fn search_superset(e: &Expr) -> Option<String> {
+    let Expr::Search(s) = e else { return None };
+    let words = s.words.as_ref()?;
+    let parts = words
+        .terms
+        .iter()
+        .chain(&words.prefixes)
+        .chain(&words.phrases)
+        .map(|w| substring_sql(w, false))
+        .collect::<Option<Vec<_>>>()?;
+    let words = and(&parts);
+    if s.substring {
+        Some(format!("({words}) OR {}", substring_sql(s.literal.as_deref()?, s.case_sensitive)?))
+    } else {
+        Some(words)
+    }
 }
 
 /// SQL text of a field or pseudo-field, as `RowRef::text` gives it (NULL when missing); `None` when it
@@ -363,11 +399,19 @@ pub fn expr_sql(e: &Expr, schema: &dyn FieldSource, group_by: &[String]) -> Opti
             }
         }
         Expr::Search(s) => {
-            let p = lit(&contains_pattern(s.literal.as_deref()?))?;
-            let op = if s.case_sensitive { "LIKE" } else { "ILIKE" };
-            format!(
-                "(coalesce(e.message {op} {p} ESCAPE '\\', FALSE) OR coalesce(e.exception {op} {p} ESCAPE '\\', FALSE) OR coalesce(e.template {op} {p} ESCAPE '\\', FALSE))"
-            )
+            let text = substring_sql(s.literal.as_deref()?, s.case_sensitive)?;
+            let Some(words) = &s.words else { return Some(text) };
+            // Word hits from the index (else not expressible: see `search_superset`); phrases as written.
+            let mut parts = vec![schema.word_hits(words)?];
+            for p in &words.phrases {
+                parts.push(substring_sql(p, false)?);
+            }
+            let words = and(&parts);
+            if s.substring {
+                format!("({words}) OR {text}")
+            } else {
+                words
+            }
         }
         Expr::Levels(mask) => {
             let codes: Vec<String> = (0u8..6).filter(|i| mask & (1 << i) != 0).map(|i| i.to_string()).collect();
@@ -422,6 +466,8 @@ pub struct SqlFilter {
     /// True when the SQL is the whole filter; otherwise matching rows must also pass the
     /// [`CompiledQuery`] on a batch scan.
     pub exact: bool,
+    /// Files the SQL reads (word hits), kept while the filter is in use.
+    pub keep: Vec<std::sync::Arc<crate::hits::HitsFile>>,
 }
 
 fn and(parts: &[String]) -> String {
@@ -456,7 +502,7 @@ pub fn compile_query(cq: &CompiledQuery, schema: &dyn FieldSource) -> SqlFilter 
             .filter_map(|e| {
                 let sql = expr_sql(e, schema, &cq.group_by);
                 exact &= sql.is_some();
-                sql
+                sql.or_else(|| search_superset(e))
             })
             .collect()
     };
@@ -466,6 +512,7 @@ pub fn compile_query(cq: &CompiledQuery, schema: &dyn FieldSource) -> SqlFilter 
         structural,
         content,
         exact,
+        keep: Vec::new(),
     }
 }
 
@@ -504,6 +551,51 @@ mod tests {
         );
         assert_eq!(double(f64::NAN), None);
         assert_eq!(double(2.5).unwrap(), "CAST('2.5' AS DOUBLE)");
+    }
+
+    struct Hits;
+    impl FieldSource for Hits {
+        fn events(&self) -> &EventSchema {
+            static S: std::sync::OnceLock<EventSchema> = std::sync::OnceLock::new();
+            S.get_or_init(EventSchema::plain)
+        }
+        fn word_hits(&self, _words: &imt_core::words::WordQuery) -> Option<String> {
+            Some("e.id IN (1, 2)".into())
+        }
+    }
+
+    #[test]
+    fn smart_search_reads_index_hits_or_narrows_for_the_scan() {
+        use imt_core::query::TextMode;
+        let q = |text: &str, text_mode| Filter {
+            text: text.into(),
+            text_mode,
+            ..Filter::default()
+        };
+        // The index answers: exact SQL, phrases checked as written, substrings added on request.
+        let (f, _) = compile(&q("timeout \"timed out\"", TextMode::Words), &[], &[], &Hits).unwrap();
+        assert!(f.exact);
+        let sql = f.content_sql();
+        assert!(
+            sql.contains("e.id IN (1, 2)") && sql.contains("'%timed out%'") && !sql.contains("'%timeout%'"),
+            "{sql}"
+        );
+        let (f, _) = compile(&q("imeout", TextMode::WordsOrSubstring), &[], &[], &Hits).unwrap();
+        assert!(
+            f.exact && f.content_sql().contains(") OR (coalesce(e.message ILIKE '%imeout%'"),
+            "{}",
+            f.content_sql()
+        );
+        // It cannot: SQL narrows by substrings of the words and the scan checks them.
+        let (f, _) = compile(&q("timeout req", TextMode::Words), &[], &[], &plain()).unwrap();
+        assert!(!f.exact);
+        let sql = f.content_sql();
+        assert!(sql.contains("'%timeout%'") && sql.contains("'%req%'"), "{sql}");
+        let (f, _) = compile(&q("x", TextMode::WordsOrSubstring), &[], &[], &plain()).unwrap();
+        assert!(!f.exact && f.content_sql().contains(") OR (coalesce"));
+        // A substring search is unchanged.
+        let (f, _) = compile(&q("timeout req", TextMode::Substring), &[], &[], &plain()).unwrap();
+        assert!(f.exact && f.content_sql().contains("'%timeout req%'"));
     }
 
     #[test]

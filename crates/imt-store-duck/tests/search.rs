@@ -81,3 +81,76 @@ fn finds_words_across_punctuation_and_follows_the_data() {
     store.clear().unwrap();
     assert_eq!(search(&store, "handled"), 0);
 }
+
+#[test]
+fn smart_search_filters_by_words_and_counts_partial_matches() {
+    use imt_core::ports::{Filter, PageQuery};
+    use imt_core::query::TextMode;
+    let logs = TempDir::new("smart-logs");
+    std::fs::write(
+        logs.0.join("a.log"),
+        [
+            "2026-10-14 10:00:00 INFO time out waiting",
+            "2026-10-14 10:00:01 ERROR runtime error in Graphic.Builder",
+            "2026-10-14 10:00:02 ERROR System.TimeoutException at Foo",
+            "2026-10-14 10:00:03 INFO timeouts are counted",
+        ]
+        .join("\n"),
+    )
+    .unwrap();
+    let dir = TempDir::new("smart-store");
+    let store = DuckStore::create(&dir.0, Profile::default_profile(), PluginRegistry::new()).unwrap();
+    store.open(std::slice::from_ref(&logs.0)).unwrap().wait().unwrap();
+    assert!(store.wait_for_index(Duration::from_secs(60)).unwrap().ready);
+    let filter = |text: &str, text_mode| Filter {
+        text: text.into(),
+        text_mode,
+        ..Filter::default()
+    };
+    let page = |f: Filter| {
+        store
+            .page(&PageQuery {
+                query: f,
+                ..PageQuery::default()
+            })
+            .unwrap()
+    };
+    let messages = |f: Filter| page(f).rows.into_iter().map(|r| r.message).collect::<Vec<_>>();
+    // The last word is a prefix; whole words only, so "runtime" is not "time".
+    assert_eq!(
+        messages(filter("time", TextMode::Words)),
+        ["time out waiting", "System.TimeoutException at Foo", "timeouts are counted"]
+    );
+    assert_eq!(
+        messages(filter("timeout exception", TextMode::Words)),
+        ["System.TimeoutException at Foo"]
+    );
+    assert_eq!(
+        messages(filter("graphic builder", TextMode::Words)),
+        ["runtime error in Graphic.Builder"]
+    );
+    // Partial matches: "untime" is only a substring.
+    assert!(page(filter("untime", TextMode::Words)).rows.is_empty());
+    let partial = store.partial_matches(&filter("untime", TextMode::Words)).unwrap();
+    assert_eq!((partial.added, partial.complete), (1, true));
+    let rows = page(filter("time", TextMode::WordsOrSubstring)).rows;
+    let kinds: Vec<_> = rows.iter().map(|r| r.search_match).collect();
+    use imt_core::ports::SearchMatch::{Partial, Words};
+    assert_eq!(
+        kinds,
+        [Some(Words), Some(Partial), Some(Words), Some(Words)],
+        "the runtime line is a partial match"
+    );
+    assert_eq!(store.partial_matches(&filter("time", TextMode::Words)).unwrap().added, 1);
+    assert_eq!(store.partial_matches(&filter("", TextMode::Words)).unwrap().added, 0);
+    // A plain substring search is unmarked.
+    assert!(page(filter("time", TextMode::Substring))
+        .rows
+        .iter()
+        .all(|r| r.search_match.is_none()));
+    // Cancelled: stops with a typed error.
+    let control = imt_core::ql::QueryControl::new();
+    control.cancel();
+    let cancelled = control.scope(|| store.partial_matches(&filter("time", TextMode::Words)));
+    assert!(matches!(cancelled, Err(imt_core::ports::StoreError::Cancelled)), "{cancelled:?}");
+}

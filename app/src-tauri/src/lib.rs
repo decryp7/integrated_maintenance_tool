@@ -62,6 +62,7 @@ mod services;
 mod settings;
 mod share;
 mod skew_commands;
+mod smart_search;
 mod snapshots;
 mod storage;
 mod sync;
@@ -148,6 +149,7 @@ command_table! {
     Mutation [WINDOW] => live::open_paths_live,
     Query [WINDOW] => insights::run_query,
     Query [WINDOW] => query_cancel::run_query_stream,
+    Query [WINDOW] => smart_search::search_partial,
     Query [WINDOW] => insights::check_query,
     Query [WINDOW] => insights::complete_query,
     Query [WINDOW] => insights::query_patterns,

@@ -856,9 +856,7 @@ mod tests {
         let dir = TempDir::new("problems");
         std::fs::write(
             dir.0.join("odd.log"),
-            "14.10.2026 10:00:00 INFO first
-14.10.2026 10:00:01 INFO second
-",
+            "14.10.2026 10:00:00 INFO first\n14.10.2026 10:00:01 INFO second\n",
         )
         .unwrap();
         let app = test_app(None);
@@ -874,10 +872,8 @@ mod tests {
         .unwrap();
         let problems = block(import_problems(main_window(&app))).unwrap();
         assert!(!problems.is_empty(), "the unreadable timestamps are a problem");
-        let fix: imt_core::ports::QuickFix = serde_json::from_value(json!({"profileOverride": "[parse]
-timestamp_formats = ['%d.%m.%Y %H:%M:%S']
-"}))
-        .unwrap();
+        let fix: imt_core::ports::QuickFix =
+            serde_json::from_value(json!({"profileOverride": "[parse]\ntimestamp_formats = ['%d.%m.%Y %H:%M:%S']\n"})).unwrap();
         let e = block(evaluate_fix(main_window(&app), fix)).unwrap();
         assert!(
             e.fixed <= e.checked && (e.checked > 0 || !e.notes.is_empty()),

@@ -47,6 +47,7 @@ pub mod template;
 pub mod templates;
 pub mod tiles;
 pub mod timestamp_issue;
+pub mod words;
 pub mod workspace;
 
 // The values plugins build live in the plugin contract (ADR 0017); the engine uses the same definitions.

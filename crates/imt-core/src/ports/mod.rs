@@ -14,9 +14,9 @@ mod dto;
 mod session;
 
 pub use dto::{
-    content_hash, profile_toml, Analyzed, Coverage, DiagnosticFix, DiagnosticRow, EventView, EventsRequest, FixEvaluation, ImportReport,
-    IndexStatus, PageQuery, PageReply, ParserChange, ParserDef, ParserRef, ParserUse, QuickFix, SearchReply, SearchRequest, SummaryReply,
-    MAX_PAGE_ROWS,
+    content_hash, mark_search_matches, profile_toml, Analyzed, Coverage, DiagnosticFix, DiagnosticRow, EventView, EventsRequest,
+    FixEvaluation, ImportReport, IndexStatus, PageQuery, PageReply, ParserChange, ParserDef, ParserRef, ParserUse, PartialMatches,
+    QuickFix, SearchMatch, SearchReply, SearchRequest, SummaryReply, MAX_PAGE_ROWS,
 };
 pub use session::ImportSession;
 
@@ -199,8 +199,12 @@ pub trait Diagnostics: Send + Sync {
 
 /// Full-text search (Tantivy), returning event ids.
 pub trait Search: Send + Sync {
+    /// Word search (smart search, see [`crate::words`]): the hits in time order.
     fn search(&self, req: &SearchRequest) -> StoreResult<SearchReply>;
     fn index_status(&self) -> StoreResult<IndexStatus>;
+    /// The background scan of a smart search: how many events matching `filter` with the search box text as
+    /// a substring are not word matches. Cancelled through [`QueryControl::current`]; bounded.
+    fn partial_matches(&self, filter: &Filter) -> StoreResult<PartialMatches>;
 }
 
 /// The store's folder as a project (ADR 0014 §6): `project.toml` and the `.imtz` export.

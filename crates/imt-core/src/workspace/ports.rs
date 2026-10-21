@@ -19,8 +19,8 @@ use crate::exceptions::ExceptionGroup;
 use crate::patterns::Pattern;
 use crate::ports::{
     Analysis, Analyzed, Coverage, DiagnosticRow, Diagnostics, EventView, EventsRequest, Filter, FixEvaluation, ImportReport, ImportSession,
-    IndexStatus, Ingest, PageQuery, PageReply, Positions, Profiles, Projects, Query, QuickFix, Search, SearchReply, SearchRequest,
-    StoreError, StoreResult, SummaryReply,
+    IndexStatus, Ingest, PageQuery, PageReply, PartialMatches, Positions, Profiles, Projects, Query, QuickFix, Search, SearchReply,
+    SearchRequest, StoreError, StoreResult, SummaryReply,
 };
 use crate::ql::{Completion, QlError, QlResult, QueryControl, RunError};
 use crate::store::LogStore;
@@ -128,6 +128,7 @@ pub fn event_view(r: &RecordView<'_>) -> EventView {
         byte_offset: 0,
         group: r.group.clone(),
         markers: r.markers.iter().map(|m| m.to_string()).collect(),
+        search_match: None,
     }
 }
 
@@ -182,7 +183,11 @@ impl Query for WorkspaceStore {
         Ok(PageReply {
             total: page.total,
             offset: page.offset,
-            rows: page.rows.iter().map(event_view).collect(),
+            rows: {
+                let mut rows: Vec<EventView> = page.rows.iter().map(event_view).collect();
+                crate::ports::mark_search_matches(&mut rows, &req.query);
+                rows
+            },
             anchor_index: page.anchor_index,
         })
     }
@@ -214,6 +219,7 @@ impl Query for WorkspaceStore {
                     byte_offset: 0,
                     group: cq.group_key(r, source_name),
                     markers: Vec::new(),
+                    search_match: None,
                 })
             })
             .collect())
@@ -373,8 +379,45 @@ impl Diagnostics for WorkspaceStore {
 }
 
 impl Search for WorkspaceStore {
-    fn search(&self, _req: &SearchRequest) -> StoreResult<SearchReply> {
-        Err(unsupported("full-text search"))
+    fn search(&self, req: &SearchRequest) -> StoreResult<SearchReply> {
+        let ws = self.read();
+        let words = crate::words::WordQuery::parse(&req.text);
+        let limit = if req.limit == 0 { 1000 } else { req.limit.min(10_000) };
+        let mut total = 0u64;
+        let mut ids = Vec::new();
+        for r in ws.records() {
+            let texts: Vec<&str> = [Some(r.message.as_str()), r.exception.as_deref(), r.template.as_deref()]
+                .into_iter()
+                .flatten()
+                .collect();
+            if words.matches(&texts) {
+                total += 1;
+                if ids.len() < limit {
+                    ids.push(EventId(u64::from(r.id)));
+                }
+            }
+        }
+        Ok(SearchReply { total, ids, exact: true })
+    }
+    fn partial_matches(&self, filter: &Filter) -> StoreResult<PartialMatches> {
+        let ws = self.read();
+        let mut sub = filter.clone();
+        sub.text_mode = crate::query::TextMode::Substring;
+        let mut words = filter.clone();
+        words.text_mode = crate::query::TextMode::Words;
+        let (sub, words) = (ws.compile(&sub).map_err(invalid)?, ws.compile(&words).map_err(invalid)?);
+        let control = crate::ql::QueryControl::current();
+        let mut added = 0;
+        for r in ws.records() {
+            if control.as_ref().is_some_and(|c| c.is_cancelled()) {
+                return Err(StoreError::Cancelled);
+            }
+            let name = ws.source_name(r.source);
+            if sub.matches(r, name) && !words.matches(r, name) {
+                added += 1;
+            }
+        }
+        Ok(PartialMatches { added, complete: true })
     }
     fn index_status(&self) -> StoreResult<IndexStatus> {
         let total = self.read().records().len() as u64;
@@ -438,12 +481,25 @@ mod tests {
                 .analysed
                 > 0
         );
+        let first = page.rows[0].message.split_whitespace().next().unwrap_or_default().to_string();
+        let hits = store
+            .search(&SearchRequest {
+                text: first.clone(),
+                limit: 1,
+            })
+            .unwrap();
+        assert!(hits.total >= 1 && hits.ids.len() == 1 && hits.exact, "{first}: {hits:?}");
+        let words = Filter {
+            text: first,
+            text_mode: crate::query::TextMode::Words,
+            ..Filter::default()
+        };
+        assert!(store.partial_matches(&words).unwrap().complete);
+        let control = QueryControl::new();
+        control.cancel();
         assert!(matches!(
-            store.search(&SearchRequest {
-                text: "x".into(),
-                limit: 1
-            }),
-            Err(StoreError::Unsupported { .. })
+            control.scope(|| store.partial_matches(&words)),
+            Err(StoreError::Cancelled)
         ));
         assert!(matches!(store.remove_source(SourceId(999)), Err(StoreError::NotFound(_))));
         let bad = QueryRequest {

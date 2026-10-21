@@ -130,6 +130,52 @@ pub struct EventView {
     /// The instance key (the query's group-by fields).
     pub group: String,
     pub markers: Vec<String>,
+    /// How the event matched a smart search (set on pages of a word search; see [`mark_search_matches`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub search_match: Option<SearchMatch>,
+}
+
+/// How an event matched the search box's text (smart search).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SearchMatch {
+    /// It holds every word of the text.
+    Words,
+    /// It holds the text only as a substring (added by the background scan).
+    Partial,
+}
+
+/// Marks how each row matched the filter's search box text when it is a word search (rows of a substring,
+/// regex or case-sensitive search, or without text, stay unmarked).
+pub fn mark_search_matches(rows: &mut [EventView], filter: &crate::ports::Filter) {
+    if filter.text_mode.is_substring() || filter.regex || filter.case_sensitive || filter.text.trim().is_empty() {
+        return;
+    }
+    let words = crate::words::WordQuery::parse(&filter.text);
+    if words.is_empty() {
+        return;
+    }
+    for r in rows {
+        let texts: Vec<&str> = [Some(r.message.as_str()), r.exception.as_deref(), r.template.as_deref()]
+            .into_iter()
+            .flatten()
+            .collect();
+        r.search_match = Some(if words.matches(&texts) {
+            SearchMatch::Words
+        } else {
+            SearchMatch::Partial
+        });
+    }
+}
+
+/// What the background scan of a smart search found: events holding the text only as a substring.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PartialMatches {
+    /// Matching events that are not word matches ("N more partial matches").
+    pub added: u64,
+    /// False when the scan looked at only part of the events (a limit stopped it).
+    pub complete: bool,
 }
 
 impl EventView {
@@ -352,8 +398,37 @@ mod tests {
             byte_offset: 4,
             group: "g".into(),
             markers: vec![],
+            search_match: None,
         };
         let json = serde_json::to_value(&view).unwrap();
+        assert!(json.get("searchMatch").is_none());
+        let mut rows = vec![
+            view.clone(),
+            EventView {
+                message: "runtime".into(),
+                ..view.clone()
+            },
+            EventView {
+                message: "Time out".into(),
+                ..view.clone()
+            },
+        ];
+        let filter = |text: &str, text_mode| crate::ports::Filter {
+            text: text.into(),
+            text_mode,
+            ..Default::default()
+        };
+        mark_search_matches(&mut rows, &filter("time", crate::query::TextMode::Substring));
+        assert!(rows.iter().all(|r| r.search_match.is_none()), "a substring search is not marked");
+        mark_search_matches(&mut rows, &filter("time", crate::query::TextMode::WordsOrSubstring));
+        assert_eq!(
+            rows.iter().map(|r| r.search_match).collect::<Vec<_>>(),
+            [Some(SearchMatch::Partial), Some(SearchMatch::Partial), Some(SearchMatch::Words)]
+        );
+        let mut fresh = vec![view.clone()];
+        mark_search_matches(&mut fresh, &filter("--", crate::query::TextMode::Words));
+        assert_eq!(fresh[0].search_match, None, "no words: nothing to mark");
+        assert_eq!(serde_json::to_value(SearchMatch::Partial).unwrap(), "partial");
         assert_eq!(json["tsState"], "untimed");
         assert_eq!(json["byteOffset"], 4);
         assert_eq!(json["source"], 2);

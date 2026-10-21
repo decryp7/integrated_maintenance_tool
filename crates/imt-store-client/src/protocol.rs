@@ -120,6 +120,8 @@ ops! {
     ClassifyParser,
     /// [`AssignParser`] → [`Session`]
     AssignParser,
+    /// [`imt_core::ports::Filter`] → [`imt_core::ports::PartialMatches`] (cancellable)
+    PartialMatches,
 }
 
 /// Reads one source with another parser (ADR 0026).
