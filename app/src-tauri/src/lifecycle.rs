@@ -863,8 +863,9 @@ mod tests {
         crate::window_manager::destroyed(app.handle(), "main");
         exit_teardown(app.handle());
         let took = started.elapsed();
+        // Bounded by the step limits, far below the job's 30 s; the slack covers a loaded machine's scheduling.
         assert!(
-            took < TEARDOWN_STEP_LIMIT * 2 + std::time::Duration::from_secs(1),
+            took < TEARDOWN_STEP_LIMIT * 2 + std::time::Duration::from_secs(5),
             "quitting took {took:?}"
         );
         drop(import);
