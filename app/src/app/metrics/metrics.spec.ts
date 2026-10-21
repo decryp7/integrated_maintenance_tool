@@ -154,7 +154,8 @@ describe('ChartTheme', () => {
     prefs.setScheme('dark');
     expect(theme.tokens().series).toHaveLength(4);
     expect(theme.tokens().text).toBe('#e7e8eb');
-    expect(theme.tokens().fontSans).toContain('Inter');
+    // The interface font defaults to the operating system's (native feel, ADR 0028).
+    expect(theme.tokens().fontSans).toContain('system-ui');
     prefs.setScheme('light');
     expect(theme.tokens().text).toBe('#1a1c20');
     prefs.setTheme('console');
