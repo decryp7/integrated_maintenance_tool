@@ -21,22 +21,7 @@ fn samples() -> Vec<PathBuf> {
     files
 }
 
-/// The importers as the app gets them: contributions of the installed plugin.
-#[cfg(feature = "plugin")]
-fn registered() -> Vec<Arc<dyn CaptureImporter>> {
-    use imt_core::PluginRegistry;
-    let mut registry = PluginRegistry::new();
-    registry.install(&imt_plugin_profiling::ProfilingPlugin).unwrap();
-    registry.resolve();
-    let services = registry.contributions::<dyn CaptureImporter>(imt_profile::IMPORTERS_POINT);
-    let ids: Vec<&str> = services.iter().map(|s| s.call(|i| i.id()).unwrap()).collect();
-    // The registered importers are the built-in ones, in order.
-    let builtin = builtin_importers();
-    assert_eq!(ids, builtin.iter().map(|i| i.id()).collect::<Vec<_>>());
-    builtin
-}
-
-#[cfg(not(feature = "plugin"))]
+/// The importers (in IMT they run in the profiling plugin's process; `imt-plugins`' tests cover that path).
 fn registered() -> Vec<Arc<dyn CaptureImporter>> {
     builtin_importers()
 }

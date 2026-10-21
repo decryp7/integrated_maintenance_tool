@@ -19,17 +19,11 @@ tauri-build = { version = "2.7.3", features = [] }
 [dependencies]
 imt-core = { path = "../../crates/imt-core" }
 imt-pdf = { path = "../../crates/imt-pdf" }
-imt-plugin-registry = { path = "../../crates/imt-plugin-registry" }
-imt-plugin-otel = { path = "../../crates/imt-plugin-otel" }
-imt-plugin-syslog = { path = "../../crates/imt-plugin-syslog" }
-imt-plugin-windows = { path = "../../crates/imt-plugin-windows" }
-imt-plugin-web = { path = "../../crates/imt-plugin-web" }
-imt-plugin-profiling = { path = "../../crates/imt-plugin-profiling" }
 imt-profile = { path = "../../crates/imt-profile" }
-imt-plugin-tools = { path = "../../crates/imt-plugin-tools" }
 imt-agent = { path = "../../crates/imt-agent" }
+# Plugins run out of process (ADR 0017): the host side only; no plugin is linked into the app.
 imt-plugin-host = { path = "../../crates/imt-plugin-host" }
-imt-plugin-sdk = { path = "../../crates/imt-plugin-sdk" }
+imt-plugin-api = { path = "../../crates/imt-plugin-api" }
 imt-ai = { path = "../../crates/imt-ai" }
 imt-collect = { path = "../../crates/imt-collect" }
 # Child-process logs (`imt_ipc::child_log`) for problem reports.
@@ -63,6 +57,8 @@ sysinfo = { workspace = true, features = ["system"] }
 zip.workspace = true
 
 [dev-dependencies]
+# The profile importers as a library, for the profiling store's tests (in IMT they run in the profiling plugin's process).
+imt-plugin-profiling = { path = "../../crates/imt-plugin-profiling", default-features = false }
 # TypeScript bindings of the wire types (`generated_types` test; ADR 0016).
 ts-rs = "11.1"
 # The base64 that tauri-plugin-updater's `Error::Base64` wraps, to build that error in the updater tests.

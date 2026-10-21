@@ -1,6 +1,6 @@
 use super::*;
 use evtx::{EvtxParser, ParserSettings};
-use imt_core::model::Level;
+use imt_plugin_api::model::Level;
 use serde_json::json;
 
 macro_rules! fixture {

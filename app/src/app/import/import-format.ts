@@ -1,34 +1,8 @@
 import { ImportProgress } from '../core/api.types';
-import { localizeDecimal, plural } from '../i18n/locale';
+import { plural } from '../i18n/locale';
+import { formatBytes, formatEta } from '../shared/format/units';
 
-/** 1536 -> "1.5 KB" (decimal units, as file managers show them). */
-export function formatBytes(n: number): string {
-  if (n < 1000) return `${n} B`;
-  const units = ['KB', 'MB', 'GB', 'TB'];
-  let v = n;
-  let i = -1;
-  do {
-    v /= 1000;
-    i++;
-  } while (v >= 1000 && i < units.length - 1);
-  return `${localizeDecimal(v < 10 ? v.toFixed(1) : Math.round(v))} ${units[i]}`;
-}
-
-/** "about 12 s left", "about 3 min left"; empty while unknown. */
-export function formatEta(ms: number | null): string {
-  if (ms === null || !Number.isFinite(ms) || ms < 0) return '';
-  if (ms < 1000) return $localize`:@@import.format.eta.almostDone:almost done`;
-  if (ms < 60_000) {
-    const s = Math.ceil(ms / 1000);
-    return $localize`:@@import.format.eta.seconds:about ${s}:seconds: s left`;
-  }
-  if (ms < 3_600_000) {
-    const min = Math.ceil(ms / 60_000);
-    return $localize`:@@import.format.eta.minutes:about ${min}:minutes: min left`;
-  }
-  const h = localizeDecimal((ms / 3_600_000).toFixed(1));
-  return $localize`:@@import.format.eta.hours:about ${h}:hours: h left`;
-}
+export { formatBytes };
 
 /** The file name of a path (both separators). */
 export function fileName(path: string | null): string {
@@ -57,7 +31,7 @@ export function progressLine(p: ImportProgress): string {
     const totalBytes = formatBytes(p.bytesTotal);
     parts.push($localize`:@@import.format.bytes:${doneBytes}:done: of ${totalBytes}:total:`);
   }
-  const eta = formatEta(p.etaMs);
+  const eta = p.etaMs === null ? '' : formatEta(p.etaMs / 1000);
   if (eta) parts.push(eta);
   return parts.join(' · ');
 }

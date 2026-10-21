@@ -72,7 +72,7 @@ describe('locale', () => {
     expect(formatCount(12345)).toBe('12,345');
     expect(formatCompact(2_500_000)).toBe('2.5M');
     expect(formatNumber(12345)).toBe('12k');
-    expect(formatDuration(90_000)).toBe('1.5 min');
+    expect(formatDuration(90_000)).toBe('1 min 30 s');
     expect(formatDateTime(Date.UTC(2026, 9, 14, 10, 41, 22), 'utc')).toBe('14 Oct 10:41:22');
   });
 });

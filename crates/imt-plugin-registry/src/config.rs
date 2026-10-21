@@ -4,7 +4,7 @@
 //! `"name"=-`) are null.
 
 use crate::{parse_reg, RegData, RegEntry};
-use imt_core::config::{ConfigError, ConfigParser, ConfigTree, ConfigValue, Limits, PathSeg, TreeBuilder};
+use imt_plugin_api::config::{ConfigError, ConfigParser, ConfigTree, ConfigValue, Limits, PathSeg, TreeBuilder};
 
 pub struct RegConfigParser;
 
@@ -25,7 +25,7 @@ impl ConfigParser for RegConfigParser {
         let first = head.trim_start_matches('\u{feff}').trim_start().lines().next().unwrap_or("").trim();
         if first.starts_with("Windows Registry Editor Version") || first == "REGEDIT4" {
             100
-        } else if imt_core::config::extension_of(file_name) == "reg" {
+        } else if imt_plugin_api::config::extension_of(file_name) == "reg" {
             80
         } else {
             0
@@ -77,8 +77,6 @@ fn value(data: RegData) -> ConfigValue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_core::config::{diff, CompareOptions, ConfigParsers};
-    use imt_core::PluginRegistry;
 
     const LEFT: &str = "Windows Registry Editor Version 5.00\r\n\r\n\
         [HKEY_LOCAL_MACHINE\\SOFTWARE\\Contoso]\r\n\
@@ -121,32 +119,6 @@ mod tests {
         );
         assert_eq!(get("HKEY_CURRENT_USER/Software/Old"), Some(ConfigValue::Null));
         assert_eq!(value(RegData::Delete), ConfigValue::Null);
-    }
-
-    #[test]
-    fn diffs_case_insensitively_through_the_extension_point() {
-        let mut registry = PluginRegistry::new();
-        registry.install(&crate::RegistryPlugin).unwrap();
-        registry.resolve();
-        let parsers = ConfigParsers::with_registry(&registry);
-        assert!(parsers.formats().iter().any(|f| f.id == "registry"));
-        let right = LEFT
-            .replace("HKEY_LOCAL_MACHINE\\SOFTWARE\\Contoso", "hkey_local_machine\\Software\\CONTOSO")
-            .replace("00001388", "00001770")
-            .replace("00000001", "00000002");
-        let l = parsers.parse("left.reg", LEFT, &Limits::default()).unwrap();
-        let r = parsers.parse("right.reg", &right, &Limits::default()).unwrap();
-        assert_eq!(l.format, "registry");
-        let d = diff(&l, &r, &CompareOptions::default()).unwrap();
-        let changed: Vec<&str> = d
-            .entries
-            .iter()
-            .filter(|e| e.kind == imt_core::config::ChangeKind::Changed)
-            .map(|e| e.display.as_str())
-            .collect();
-        // Case differences are not changes; the install date is ignored by default.
-        assert_eq!(changed, ["hkey_local_machine/Software/CONTOSO/Timeout"]);
-        assert_eq!(d.counts.ignored, 2);
     }
 
     #[test]

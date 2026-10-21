@@ -218,6 +218,9 @@ fn missing(error: ToolError, safe_mode: bool) -> crate::CmdError {
         )),
         e @ ToolError::UnknownOp { .. } => CmdError::not_found(e.to_string()),
         e @ ToolError::InvalidArgs { .. } => CmdError::invalid(e.to_string()).field("args"),
+        e @ ToolError::PathRefused { .. } => {
+            CmdError::new(ErrorCode::NotGranted, e.to_string()).hint("Choose the file or folder with the dialog first.")
+        }
         ToolError::Unsupported(m) => CmdError::new(ErrorCode::Unsupported, m),
         ToolError::Denied(m) => CmdError::new(ErrorCode::Denied, m).hint("Restart IMT as administrator, then try again."),
         ToolError::Missing(m) => CmdError::new(ErrorCode::Missing, m),
@@ -242,7 +245,9 @@ pub(crate) async fn invoke<R: Runtime>(
         log_failure(tool, op, &e);
         return Err(missing(e, safe_mode));
     };
-    let ctx = ShellTasks::context(app, &host);
+    // Path arguments must be what this window's user chose (ADR 0016 grants, checked by the tool host).
+    let grants = crate::paths::WindowGrants::of(app, window.label());
+    let ctx = ShellTasks::context(app, &host).with_paths(Arc::new(grants));
     let (tool, op) = (tool.to_string(), op.to_string());
     tauri::async_runtime::spawn_blocking(move || {
         host.invoke(&tool, &op, args, &ctx).map_err(|e| {
@@ -281,6 +286,7 @@ fn log_failure(tool: &str, op: &str, e: &ToolError) {
         ToolError::UnknownOp { .. } => "unknown-op",
         ToolError::Unsupported(_) => "unsupported",
         ToolError::InvalidArgs { .. } => "invalid-args",
+        ToolError::PathRefused { .. } => "path-refused",
         ToolError::Failed(_) => "failed",
         ToolError::Denied(_) => "denied",
         ToolError::Missing(_) => "missing",
@@ -548,6 +554,7 @@ pub(crate) mod tests {
         let app = test_app_with_commands(None);
         let main = window(&app, "main");
         let dir = crate::test_support::TempDir::new("tool-monitor");
+        crate::paths::grant(&app, "main", &dir.0, crate::paths::Access::Read, crate::paths::GrantSource::Dialog).unwrap();
         let started = ipc(
             &main,
             "tool_invoke",
@@ -638,6 +645,12 @@ pub(crate) mod tests {
         assert!(presets[0]["counters"][0]["guidance"].is_string());
         let dir = TempDir::new("tool-perfmon");
         let path = dir.0.join("t.xml").to_string_lossy().into_owned();
+        // The user chose the file and the folders with the dialogs (ADR 0017: path arguments need a grant).
+        let grant = |p: &std::path::Path, access| {
+            crate::paths::grant(&app, "main", p, access, crate::paths::GrantSource::Dialog).unwrap();
+        };
+        grant(std::path::Path::new(&path), crate::paths::Access::Write);
+        grant(&dir.0, crate::paths::Access::Read);
         let template = json!({ "name": "IMT-test", "processes": ["OrderService"] });
         let gen = |args: Value| call(&main, "perfmon.templates", "generate", args);
         let out = gen(json!({ "template": template, "xmlPath": path })).unwrap();
@@ -659,6 +672,8 @@ pub(crate) mod tests {
         assert!(e["message"].is_string() && e["code"] == "failed");
         // A bundle of the same name is replaced only when confirmed (the name has a one-second stamp).
         let out = dir.0.join("bundles");
+        std::fs::create_dir(&out).unwrap();
+        grant(&out, crate::paths::Access::Read);
         let plan = json!({ "name": "tool", "eventLogs": [], "environment": false }).to_string();
         let first = call(&main, "diagnostics", "collect", json!({ "plan": plan, "outDir": out })).unwrap();
         let bundle = first["bundle"].as_str().unwrap().to_string();
@@ -699,6 +714,7 @@ pub(crate) mod tests {
         let app = test_app_with_commands(None);
         let (a, b) = (window(&app, "main"), window(&app, "w-2"));
         let dir = crate::test_support::TempDir::new("tool-monitor-shared");
+        crate::paths::grant(&app, "main", &dir.0, crate::paths::Access::Read, crate::paths::GrantSource::Dialog).unwrap();
         let config = json!({ "targets": [{ "pid": std::process::id() }] });
         let started = call(&a, "process-monitor", "start", json!({ "config": config, "dir": dir.0 })).unwrap();
         assert_eq!(call(&b, "process-monitor", "status", json!({})).unwrap()["running"], true);

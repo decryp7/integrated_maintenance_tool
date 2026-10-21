@@ -958,9 +958,11 @@ pub(crate) mod tests {
     #[test]
     fn commands_against_a_mock_app() {
         let _g = crate::activity::test_capture();
-        log::info!(target: super::super::SOURCE_CONTEXT, SourceContext = super::super::SOURCE_CONTEXT, Operation = "report.test", Trigger = "menu", Window = "main"; "User report.test via menu");
+        // The app first: starting it (and its plugin processes) takes a while, and the breadcrumb ring is shared
+        // with tests running at the same time, so the step is logged right before the preview reads it.
         let app = crate::test_support::test_app(None);
         let handle = app.handle().clone();
+        log::info!(target: super::super::SOURCE_CONTEXT, SourceContext = super::super::SOURCE_CONTEXT, Operation = "report.test", Trigger = "menu", Window = "main"; "User report.test via menu");
         let p = tauri::async_runtime::block_on(problem_report_preview(handle.clone(), Some("d".into()))).unwrap();
         assert!(p.steps.iter().any(|s| s.contains("report.test")), "{:?}", p.steps);
         assert!(!p.system_info["plugins"].as_array().unwrap().is_empty());

@@ -22,14 +22,12 @@ pub mod icons;
 pub mod importers;
 pub mod ingest;
 pub mod instance;
-pub mod model;
 pub mod overwrite;
 pub mod package;
 pub mod patterns;
 pub mod pipeline;
 pub mod plugin;
 pub mod ports;
-pub mod process;
 pub mod profile;
 pub mod profile_change;
 pub mod project;
@@ -49,10 +47,11 @@ pub mod survey;
 pub mod svg;
 pub mod template;
 pub mod templates;
-pub mod time;
 pub mod timestamp_issue;
-pub mod user_regex;
 pub mod workspace;
+
+// The values plugins build live in the plugin contract (ADR 0017); the engine uses the same definitions.
+pub use imt_plugin_api::{model, process, time, user_regex};
 
 /// The event batch of ADR 0014 §3 ([`imt_batch`]).
 pub use imt_batch as batch;

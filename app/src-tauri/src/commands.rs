@@ -304,6 +304,71 @@ mod tests {
         }
     }
 
+    /// The production code of `text`: everything before its first inline test module (`#[cfg(test)]` followed by a
+    /// `mod … {`); a `#[cfg(test)] mod x;` declaration does not end it.
+    fn production_part(text: &str) -> Vec<(usize, &str)> {
+        let lines: Vec<&str> = text.lines().collect();
+        let end = (0..lines.len())
+            .find(|&i| {
+                lines[i].trim() == "#[cfg(test)]" && lines.get(i + 1).is_some_and(|n| n.contains("mod ") && n.trim_end().ends_with('{'))
+            })
+            .unwrap_or(lines.len());
+        lines[..end].iter().enumerate().map(|(i, l)| (i + 1, *l)).collect()
+    }
+
+    /// The `.rs` files under `src`, without test-only files.
+    fn production_sources() -> Vec<(std::path::PathBuf, String)> {
+        let mut out = Vec::new();
+        let mut stack = vec![std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src")];
+        while let Some(dir) = stack.pop() {
+            for entry in std::fs::read_dir(&dir).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    if path.file_name().is_none_or(|n| n != "tests") {
+                        stack.push(path);
+                    }
+                    continue;
+                }
+                let name = path.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+                if !name.ends_with(".rs") || name == "tests.rs" || name.ends_with("_tests.rs") {
+                    continue;
+                }
+                let text = std::fs::read_to_string(&path).unwrap();
+                out.push((path, text));
+            }
+        }
+        out
+    }
+
+    /// An IMT window that hosts the browser's page has two webviews, and Tauri then no longer counts it as a
+    /// "webview window" (ADR 0024): `get_webview_window`, `webview_windows` and a `WebviewWindow` command argument
+    /// miss it. Production code looks IMT windows up with `get_window` / `windows()` (and their webview with
+    /// `get_webview`). Only `native_feel` may name `WebviewWindow`: it applies settings to a window it just built.
+    #[test]
+    fn imt_windows_are_never_looked_up_as_webview_windows() {
+        let mut found = Vec::new();
+        for (path, text) in production_sources() {
+            let allowed = path.file_name().is_some_and(|n| n == "native_feel.rs");
+            for (n, line) in production_part(&text) {
+                let code = line.split("//").next().unwrap_or_default();
+                let lookup = code.contains("get_webview_window(") || code.contains("webview_windows()");
+                let typed = !allowed && code.contains("WebviewWindow<");
+                if lookup || typed {
+                    found.push(format!("{}:{n}: {}", path.display(), line.trim()));
+                }
+            }
+        }
+        assert!(
+            found.is_empty(),
+            "use get_window / windows() / get_webview for IMT windows:\n{}",
+            found.join("\n")
+        );
+        // The scan sees through to test modules only where they start.
+        let sample =
+            "fn a() { x.get_window(\"main\"); }\n#[cfg(test)]\nmod t;\n#[cfg(test)]\nmod tests {\n  get_webview_window(\"main\")\n}";
+        assert_eq!(production_part(sample).len(), 3);
+    }
+
     /// Every command is async: a sync one runs on the main thread (window creation deadlocks there, and a
     /// wait for a lock or a file freezes every window).
     #[test]

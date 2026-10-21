@@ -5,7 +5,7 @@
  */
 import { AiRuntimeDevice, AiRuntimeEntry, AiRuntimeEvent, AiRuntimeOverview } from '../ai.types';
 import { formatBytes, formatEta, formatRate, percent } from '../ai-format';
-import { localizeDecimal } from '../../i18n/locale';
+import { TransferSpeed } from '../../shared/format/transfer-speed';
 
 export type RuntimeTerminal = Extract<AiRuntimeEvent, { stage: 'ready' | 'failed' | 'cancelled' }>;
 export type RuntimeRunning = Exclude<AiRuntimeEvent, RuntimeTerminal>;
@@ -38,14 +38,12 @@ export function runtimePercent(e: RuntimeRunning | null): number | null {
 }
 
 /** "12 MB of 32 MB · 24 MB/s · 1 s left". */
-export function runtimeProgressText(e: RuntimeRunning | null): string {
+export function runtimeProgressText(e: RuntimeRunning | null, speed?: TransferSpeed): string {
   if (e?.stage !== 'progress') return '';
   const base = $localize`:@@ai.runtime.progress.of:${formatBytes(e.bytes)}:done: of ${formatBytes(e.total)}:total:`;
   if (e.verifying) return base;
-  const eta = formatEta(e.etaSecs);
-  return [base, e.bytesPerSec > 0 ? formatRate(e.bytesPerSec) : '', eta && $localize`:@@ai.runtime.progress.left:${eta}:eta: left`]
-    .filter(Boolean)
-    .join(' · ');
+  const { rate, etaSecs } = speed ?? { rate: e.bytesPerSec, etaSecs: e.etaSecs };
+  return [base, formatRate(rate), formatEta(etaSecs)].filter(Boolean).join(' · ');
 }
 
 export type EntryState = 'active' | 'ready' | 'problem' | 'unchecked' | 'available';
@@ -73,11 +71,10 @@ export function entryStateLabel(e: AiRuntimeEntry): string {
   }
 }
 
-/** "NVIDIA GeForce RTX 4060 (CUDA0, 7.4 of 8.0 GB free)". */
+/** "NVIDIA GeForce RTX 4060 (CUDA0, 7.4 GB of 8 GB free)". */
 export function deviceLine(d: AiRuntimeDevice): string {
-  const gb = (mib: number) => localizeDecimal((mib / 1024).toFixed(1));
-  return $localize`:@@ai.runtime.device:${d.description}:description: (${d.name}:name:, ${gb(d.freeMib)}:free: of ${gb(d.totalMib)}:total: GB free)`;
-
+  const size = (mib: number) => formatBytes(mib * 1024 * 1024);
+  return $localize`:@@ai.runtime.device:${d.description}:description: (${d.name}:name:, ${size(d.freeMib)}:free: of ${size(d.totalMib)}:total: free)`;
 }
 
 /** The suggested build, when the user should be offered it first (nothing usable is installed yet). */

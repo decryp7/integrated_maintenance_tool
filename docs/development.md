@@ -44,8 +44,7 @@ and `imt-plugin-windows`); `cargo xtask help` lists the tasks.
 
 Open the **repository root** (not `app/`) and accept the recommended extensions
 (`.vscode/extensions.json`: rust-analyzer, Tauri, C/C++ for debugging on Windows, CodeLLDB for
-macOS and Linux, Angular, ESLint, Prettier, Playwright, draw.io, Buf for `proto/` (it needs the
-[`buf` CLI](https://buf.build/docs/cli/installation/)), ...).
+macOS and Linux, Angular, ESLint, Prettier, Playwright, draw.io, ...).
 
 1. Install the prerequisites above. On macOS: `xcode-select --install`, Rust from
    [rustup.rs](https://rustup.rs), Node.js 24 (for example `brew install node@24`). On Windows: the
@@ -181,7 +180,7 @@ cargo deny --workspace check
 - **Property tests (proptest)** assert that parsers never panic and that invariants hold;
   **fuzzers (cargo-fuzz)** cover every parser and run nightly in CI. See [docs/fuzzing.md](fuzzing.md).
 - **Benchmarks (criterion)** for the engine live in `crates/imt-core/benches` (`cargo bench -p imt-core`);
-  `crates/imt-plugin-host` compares in-process and out-of-process work.
+  the plugin tests over the real IPC are in `crates/imt-plugins/tests`.
 - **Mutation testing (cargo-mutants)** measures how many injected bugs the engine tests catch.
 
 ### UI responsiveness rules

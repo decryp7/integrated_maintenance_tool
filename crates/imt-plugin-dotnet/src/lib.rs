@@ -14,8 +14,9 @@
 //! `imt-plugin-profiling` opens. The [`Collector`] / [`Recording`] interface
 //! hides which backend records a process.
 //!
-//! With feature `plugin` (default) the crate also contributes the
-//! `dotnet-profiler` tool and the `.etl` importer through the plugin registry.
+//! With feature `plugin` (default) the crate is also a plugin on `imt-plugin-api` (ADR 0017): the
+//! `dotnet-profiler` tool and the `.etl` importer, served in its own process by `imt-plugins`; ETW
+//! recordings run in the plugin's elevated process.
 
 pub mod clr;
 pub mod etw;
@@ -83,8 +84,8 @@ pub enum DotnetError {
     NotFound { pid: u32 },
     #[error("{why}")]
     Unsupported { why: String },
-    /// Missing rights: the UI offers "Restart as administrator".
-    #[error("recording this process needs administrator rights (ETW); restart IMT as administrator")]
+    /// Missing rights: the administrator prompt for the plugin's elevated process was declined (or there is none).
+    #[error("recording this process needs administrator rights (ETW); allow IMT's administrator prompt when you start recording")]
     Denied,
     #[error("the target did not answer in time")]
     Timeout,

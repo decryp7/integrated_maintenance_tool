@@ -3,8 +3,8 @@
 //!
 //! Run more cases with `PROPTEST_CASES=5000 cargo test -p imt-plugin-formats --test properties`.
 
-use imt_core::importers::{self, ImportCtx, Importer};
-use imt_core::profile::{CompiledProfile, Profile};
+use imt_plugin_api::importer::{ImportCtx, TextImporter};
+use imt_plugin_api::time::TimestampParser;
 use proptest::prelude::*;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
@@ -111,18 +111,14 @@ fn input() -> impl Strategy<Value = Vec<u8>> {
     ]
 }
 
-fn profile() -> &'static CompiledProfile {
-    static P: OnceLock<CompiledProfile> = OnceLock::new();
-    P.get_or_init(|| CompiledProfile::compile(Profile::default_profile()).unwrap())
+fn timestamps() -> &'static TimestampParser {
+    static P: OnceLock<TimestampParser> = OnceLock::new();
+    P.get_or_init(TimestampParser::default)
 }
 
-fn exercise_text(imp: &dyn Importer, bytes: &[u8]) {
-    let Some(text) = importers::decode(bytes) else { return };
-    let c = ImportCtx {
-        profile: profile(),
-        path: Path::new("/var/log/pods/ns_pod_uid/c/0.log"),
-        file_date: None,
-    };
+fn exercise_text(imp: &dyn TextImporter, bytes: &[u8]) {
+    let Some(text) = imt_plugin_api::text::decode(bytes) else { return };
+    let c = ImportCtx::new(Path::new("/var/log/pods/ns_pod_uid/c/0.log"), timestamps());
     let head: String = text.chars().take(64 * 1024).collect();
     let score = imp.sniff(&c, &head);
     assert!(score <= 100, "{} sniff score {score}", imp.id());
@@ -133,7 +129,7 @@ fn exercise_text(imp: &dyn Importer, bytes: &[u8]) {
         }
     }
     if let Some(Ok(tail)) = imp.import_tail(&c, &head, &text) {
-        assert!(tail.records.iter().all(|r| r.message.len() <= importers::MAX_LINE_LEN));
+        assert!(tail.records.iter().all(|r| r.message.len() <= imt_plugin_api::text::MAX_LINE_LEN));
     }
 }
 

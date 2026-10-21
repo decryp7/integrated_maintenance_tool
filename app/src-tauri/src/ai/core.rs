@@ -16,7 +16,7 @@ use imt_ai::recommend::{assess, recommend, Assessment, Recommendation, Recommend
 use imt_ai::runtime::{check_memory, effective_context, load_with_fallback, LoadRequest, ModelRuntime};
 use imt_ai::settings::AiSettings;
 use imt_ai::setup::{Setup, SetupPlan, SetupStage};
-use imt_ai::worker::{GrpcLauncher, Health, WorkerConfig, WorkerRuntime};
+use imt_ai::worker::{FramesLauncher, Health, WorkerConfig, WorkerRuntime};
 use imt_ai::AiError;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -59,7 +59,7 @@ impl AiDeps {
         let settings = Arc::new(RwLock::new(AiSettings::default()));
         let runtimes = RuntimeDeps::system(data_dir.join("ai").join("runtimes"), worker.clone());
         let env = runtimes.worker_env_source(settings.clone());
-        let cfg = WorkerConfig::new(Arc::new(GrpcLauncher {
+        let cfg = WorkerConfig::new(Arc::new(FramesLauncher {
             exe: worker.clone(),
             args: vec![],
             env,

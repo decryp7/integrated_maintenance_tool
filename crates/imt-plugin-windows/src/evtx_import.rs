@@ -2,8 +2,8 @@
 
 use anyhow::{Context, Result};
 use evtx::{EvtxParser, ParserSettings};
-use imt_core::importers::{BinaryImporter, ImportCtx, Imported};
-use imt_core::model::{Level, Record};
+use imt_plugin_api::importer::{BinaryImporter, ImportCtx, Imported};
+use imt_plugin_api::model::{Level, Record};
 use serde_json::Value;
 
 const MAGIC: &[u8] = b"ElfFile\0";
@@ -102,7 +102,7 @@ fn level_of(n: i64) -> Level {
 /// 1601-01-01T00:00:00Z, the FILETIME epoch, in Unix milliseconds.
 const FILETIME_ZERO_MS: i64 = -11_644_473_600_000;
 
-pub(crate) fn to_record(data: &Value, record_id: u64, line: u32) -> Record {
+pub fn to_record(data: &Value, record_id: u64, line: u32) -> Record {
     let mut r = Record::new(line);
     let event = data.get("Event").unwrap_or(data);
     let system = event.get("System").unwrap_or(&Value::Null);
@@ -164,7 +164,7 @@ pub(crate) fn to_record(data: &Value, record_id: u64, line: u32) -> Record {
 }
 
 fn v_auto(s: &str) -> Value {
-    imt_core::model::auto_value(s)
+    imt_plugin_api::model::auto_value(s)
 }
 
 /// Flattens EventData / UserData: named entries become key=value, anonymous
@@ -201,25 +201,23 @@ fn truncate(mut s: String) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_core::profile::{CompiledProfile, Profile};
+    use imt_plugin_api::time::TimestampParser;
     use serde_json::json;
     use std::path::Path;
 
     const SAMPLE: &[u8] = include_bytes!("../tests/fixtures/security.evtx");
 
     fn ctx_run<T>(f: impl FnOnce(&ImportCtx) -> T) -> T {
-        let p = CompiledProfile::compile(Profile::default_profile()).unwrap();
-        f(&ImportCtx {
-            profile: &p,
-            path: Path::new("x.evtx"),
-            file_date: None,
-        })
+        let ts = TimestampParser::default();
+        let mut ctx = ImportCtx::new(Path::new("x.evtx"), &ts);
+        ctx.file_date = None;
+        f(&ctx)
     }
 
     #[test]
     fn declares_identity_fields() {
         assert_eq!(
-            imt_core::importers::BinaryImporter::identity_fields(&EvtxImporter),
+            imt_plugin_api::BinaryImporter::identity_fields(&EvtxImporter),
             ["Computer", "ProcessId"]
         );
     }

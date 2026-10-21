@@ -1,4 +1,4 @@
-//! Which plugins run (ADR 0002): `plugins.json` (through [`crate::config_store`]) is the one place their
+//! Which plugins run (ADR 0002, ADR 0017: each in its own process): `plugins.json` (through [`crate::config_store`]) is the one place their
 //! enablement is kept, read when a window's registry is built and changed by the Plugins settings section
 //! and `plugin_set_enabled` alike; `plugin_reset` lifts a quarantine. Split out of `lifecycle.rs`.
 
@@ -30,43 +30,6 @@ pub(crate) fn save_plugin_settings(dir: &Path, s: &PluginSettings) -> anyhow::Re
     Ok(crate::config_store::ConfigStore::new(Some(dir.to_path_buf())).save(PLUGINS_FILE, PLUGINS_VERSION, s)?)
 }
 
-/// Every compiled-in plugin. Add new plugins here; install order does not
-/// matter (activation follows the dependency graph).
-pub fn builtin_plugins() -> Vec<Arc<dyn Plugin>> {
-    // One list for the app and the `imt-plugin-host` binary that runs them isolated.
-    imt_plugin_host::builtins::all()
-}
-
-/// The engine's plugins: none in safe mode, else every compiled-in plugin
-/// except those the user disabled, resolved (dependencies checked, activation
-/// hooks run in dependency order).
-// The app installs `plugins_with` (it shares the tools plugin); tests use this.
-#[cfg_attr(not(test), allow(dead_code))]
-pub fn plugins(safe_mode: bool, disabled: &[String]) -> anyhow::Result<PluginRegistry> {
-    plugins_with(safe_mode, disabled, &[])
-}
-
-/// [`plugins`] plus `shared`: plugins whose state is app-wide, so one value
-/// is installed in every window's registry (the tools plugin, see `AppState`).
-// The app installs `plugins_from` (isolated plugins replaced by their process); tests use this.
-#[cfg_attr(not(test), allow(dead_code))]
-pub fn plugins_with(safe_mode: bool, disabled: &[String], shared: &[Arc<dyn Plugin>]) -> anyhow::Result<PluginRegistry> {
-    plugins_from(safe_mode, disabled, builtin_plugins(), shared)
-}
-
-/// [`plugins_with`] with the built-in plugins given (some may be plugin processes, see
-/// `plugin_isolation`).
-pub fn plugins_from(
-    safe_mode: bool,
-    disabled: &[String],
-    builtins: Vec<Arc<dyn Plugin>>,
-    shared: &[Arc<dyn Plugin>],
-) -> anyhow::Result<PluginRegistry> {
-    let mut all = builtins;
-    all.extend(shared.iter().cloned());
-    install(all, safe_mode, disabled)
-}
-
 /// Installs `all` and resolves them. A plugin that fails to install does not
 /// stop IMT: the error is logged, and a plugin whose registration failed is
 /// listed as inactive with the reason (so are its dependents).
@@ -77,9 +40,9 @@ pub(crate) fn install(all: Vec<Arc<dyn Plugin>>, safe_mode: bool, disabled: &[St
     }
     registry.disable(disabled.iter().cloned());
     for plugin in all {
-        let id = plugin.id();
+        let id = plugin.id().to_string();
         if let Err(e) = registry.install_shared(plugin) {
-            log::error!(Plugin = id; "Plugin not installed: {e:#}");
+            log::error!(Plugin = id.as_str(); "Plugin not installed: {e:#}");
         }
     }
     registry.resolve();
@@ -97,8 +60,10 @@ pub(crate) fn install(all: Vec<Arc<dyn Plugin>>, safe_mode: bool, disabled: &[St
 /// Lifts a plugin's quarantine (after repeated crashes) immediately, in every window.
 #[tauri::command]
 pub async fn plugin_reset(windows: State<'_, Windows>, state: State<'_, AppState>, op: crate::activity::OpId, id: String) -> CmdResult<()> {
-    // An isolated plugin's process may be quarantined too.
-    state.isolation.isolation.reset(&id);
+    // Its process may be quarantined too.
+    if let Some(p) = state.plugins.process(&id) {
+        p.reset();
+    }
     for w in windows.all() {
         w.store_read().reset_plugin(&id);
     }

@@ -7,7 +7,7 @@
 use crate::command::{CommandRunner, SystemRunner};
 use crate::perfmon::parse_perfmon;
 use anyhow::{anyhow, bail, Context, Result};
-use imt_core::importers::{decode, BinaryImporter, ImportCtx, Imported};
+use imt_plugin_api::importer::{decode, BinaryImporter, ImportCtx, Imported};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -94,7 +94,7 @@ impl BinaryImporter for BlgImporter {
         }
         let csv = self.relog(ctx.path)?;
         let text = decode(&csv).ok_or_else(|| anyhow!("relog produced an unreadable CSV"))?;
-        parse_perfmon(&text, &ctx.profile.timestamps)
+        parse_perfmon(&text, ctx.timestamps)
     }
 }
 
@@ -103,13 +103,13 @@ mod tests {
     use super::*;
     use crate::command::fake::{fail, ok, FakeRunner};
     use crate::command::CommandOutput;
-    use imt_core::profile::{CompiledProfile, Profile};
+    use imt_plugin_api::time::TimestampParser;
     use std::sync::Arc;
 
     const CSV: &str = "\"(PDH-CSV 4.0) (UTC)(0)\",\"\\\\M\\Memory\\Pages/sec\"\n\"10/14/2026 09:00:00.000\",\"3.5\"\n";
 
-    fn profile() -> CompiledProfile {
-        CompiledProfile::compile(Profile::from_toml("").unwrap()).unwrap()
+    fn profile() -> TimestampParser {
+        TimestampParser::default()
     }
 
     /// A fake relog that writes `csv` to the `-o` path.
@@ -136,11 +136,7 @@ mod tests {
     #[test]
     fn sniffs_by_extension_and_binary_content() {
         let p = profile();
-        let ctx = |name: &'static str| ImportCtx {
-            profile: &p,
-            path: Path::new(name),
-            file_date: None,
-        };
+        let ctx = |name: &'static str| ImportCtx::new(Path::new(name), &p);
         let blg = BlgImporter::default();
         assert_eq!(blg.id(), "blg");
         let binary = [0u8, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 1, 2, 3, 0xFF];
@@ -153,11 +149,7 @@ mod tests {
     fn converts_with_relog_and_parses_the_csv() {
         let fake = relog_writing(CSV);
         let p = profile();
-        let ctx = ImportCtx {
-            profile: &p,
-            path: Path::new("C:\\logs\\a.blg"),
-            file_date: None,
-        };
+        let ctx = ImportCtx::new(Path::new("C:\\logs\\a.blg"), &p);
         let out = importer(&fake, true).import(&ctx, &[0, 1, 2]).unwrap();
         assert_eq!(out.records.len(), 1);
         assert_eq!(out.records[0].fields["Value"].as_f64(), Some(3.5));
@@ -174,11 +166,7 @@ mod tests {
     #[test]
     fn reports_relog_problems() {
         let p = profile();
-        let ctx = ImportCtx {
-            profile: &p,
-            path: Path::new("a.blg"),
-            file_date: None,
-        };
+        let ctx = ImportCtx::new(Path::new("a.blg"), &p);
         let run = |fake: Arc<FakeRunner>| importer(&fake, true).import(&ctx, &[]).err().unwrap().to_string();
         let msg = run(Arc::new(FakeRunner::new(|_, _| fail(1, "", "Error: file is corrupt"))));
         assert!(msg.contains("relog failed (1): Error: file is corrupt"), "{msg}");
@@ -200,11 +188,7 @@ mod tests {
     fn explains_the_limitation_off_windows() {
         let fake = Arc::new(FakeRunner::new(|_, _| ok("")));
         let p = profile();
-        let ctx = ImportCtx {
-            profile: &p,
-            path: Path::new("a.blg"),
-            file_date: None,
-        };
+        let ctx = ImportCtx::new(Path::new("a.blg"), &p);
         let msg = importer(&fake, false).import(&ctx, &[]).err().unwrap().to_string();
         assert_eq!(
             msg,

@@ -12,7 +12,6 @@ import { RunsStore } from './runs.store';
 import { RunsView } from './runs-view';
 import {
   defaultsOf,
-  formatBytes,
   issueIndex,
   listToText,
   newAction,
@@ -88,9 +87,6 @@ describe('schedule model', () => {
     expect(parseJsonObject('{"msinfo": true}')).toEqual({ value: { msinfo: true } });
     expect(parseJsonObject('[1]')).toEqual({ error: expect.stringContaining('JSON object') });
     expect(parseJsonObject('{nope')).toEqual({ error: expect.stringContaining('Not valid JSON') });
-    expect(formatBytes(512)).toBe('512 B');
-    expect(formatBytes(12_582_912)).toBe('12.0 MB');
-    expect(formatBytes(5 * 1024 ** 5)).toBe('5120.0 TB');
   });
 });
 
@@ -558,7 +554,7 @@ describe('RunsView', () => {
     expect(all(fixture, 'tbody tr')).toHaveLength(3);
     expect(text(fixture)).toContain('/demo/agent/runs');
     expect(text(fixture)).toContain('Partial');
-    expect(text(fixture)).toContain('12.0 MB');
+    expect(text(fixture)).toContain('12 MB');
     const id = '20261017-020000-nightly';
     el<HTMLButtonElement>(fixture, `[aria-label="Details of ${id}"]`).click();
     await settle(fixture);

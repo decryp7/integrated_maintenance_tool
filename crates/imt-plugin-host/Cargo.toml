@@ -6,47 +6,23 @@ version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 publish = false
-description = "Out-of-process plugins for IMT: the adapter that makes a plugin process look like an in-process plugin, isolation settings, and the imt-plugin-host binary that serves the built-in plugins over imt.plugin.v1"
+description = "Out-of-process plugins for IMT (ADR 0017), host side: plugin processes as ordinary engine plugins, supervised, sandboxed by their manifest's permissions, with an elevated process for operations that need administrator rights"
 
-[[bin]]
-name = "imt-plugin-host"
-path = "src/bin/imt_plugin_host.rs"
-
-# Test plugin processes (crash, hang, OOM, permissions, every capability). Never bundled.
+# A plugin process that misbehaves on demand, for the supervision tests. Never bundled.
 [[bin]]
 name = "imt-plugin-host-fake"
 path = "src/bin/fake_plugin.rs"
 test = false
 
-[[bench]]
-name = "transport"
-path = "benches/transport.rs"
-harness = false
-
 [dependencies]
 imt-core = { path = "../imt-core" }
 imt-ipc = { path = "../imt-ipc" }
-imt-plugin-sdk = { path = "../imt-plugin-sdk" }
-imt-plugin-registry = { path = "../imt-plugin-registry" }
-imt-plugin-otel = { path = "../imt-plugin-otel" }
-imt-plugin-syslog = { path = "../imt-plugin-syslog" }
-imt-plugin-windows = { path = "../imt-plugin-windows" }
-imt-plugin-web = { path = "../imt-plugin-web" }
-imt-plugin-formats = { path = "../imt-plugin-formats" }
-imt-plugin-profiling = { path = "../imt-plugin-profiling" }
-imt-plugin-dotnet = { path = "../imt-plugin-dotnet" }
+imt-plugin-api = { path = "../imt-plugin-api" }
+imt-profile = { path = "../imt-profile" }
 anyhow.workspace = true
-bytes.workspace = true
 log.workspace = true
 serde.workspace = true
 serde_json = { workspace = true, features = ["preserve_order"] }
-tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
-tokio-stream.workspace = true
-tonic.workspace = true
 
 [dev-dependencies]
-proptest.workspace = true
 tempfile.workspace = true
-chrono.workspace = true
-prost.workspace = true
-imt-ipc = { path = "../imt-ipc" }

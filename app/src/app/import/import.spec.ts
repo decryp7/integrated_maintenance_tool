@@ -4,7 +4,7 @@ import { ImportProgress, WorkspaceSummary } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { WorkspaceStore } from '../core/workspace.store';
 import { UxBackend } from '../core/ux-backend';
-import { fileName, formatBytes, formatEta, percent, progressLine } from './import-format';
+import { fileName, percent, progressLine } from './import-format';
 import { ImportProgressService, LONG_IMPORT_MS, POLL_MS } from './import-progress.service';
 import { WorkspaceStatusStore } from '../core/workspace/status.store';
 import { ImportStatus, ImportToast, PartialImportBanner } from './import-ui';
@@ -24,24 +24,13 @@ const p = (patch: Partial<ImportProgress> = {}): ImportProgress => ({
 
 describe('import formatting', () => {
   it('formats bytes, ETA, file names, percent and the line', () => {
-    expect(formatBytes(999)).toBe('999 B');
-    expect(formatBytes(1500)).toBe('1.5 KB');
-    expect(formatBytes(24_000_000)).toBe('24 MB');
-    expect(formatBytes(5e15)).toBe('5000 TB');
-    expect(formatEta(null)).toBe('');
-    expect(formatEta(-1)).toBe('');
-    expect(formatEta(Infinity)).toBe('');
-    expect(formatEta(500)).toBe('almost done');
-    expect(formatEta(12_000)).toBe('about 12 s left');
-    expect(formatEta(150_000)).toBe('about 3 min left');
-    expect(formatEta(7_200_000)).toBe('about 2.0 h left');
     expect(fileName(null)).toBe('');
     expect(fileName('C:\\logs\\a.log')).toBe('a.log');
     expect(fileName('/')).toBe('/');
     expect(percent(p())).toBe(30);
     expect(percent(p({ bytesTotal: 0 }))).toBe(25);
     expect(percent(p({ bytesTotal: 0, total: 0 }))).toBe(0);
-    expect(progressLine(p())).toBe('3 of 12 files · 24 MB of 80 MB · about 12 s left');
+    expect(progressLine(p())).toBe('3 of 12 files · 23 MB of 76 MB · less than a minute left');
     expect(progressLine(p({ total: 1, done: 0, bytesTotal: 0, etaMs: null }))).toBe('0 of 1 file');
   });
 
@@ -100,7 +89,7 @@ describe('ImportProgressService and its widgets', () => {
     expect(svc.active()).toBe(true);
     await vi.advanceTimersByTimeAsync(POLL_MS);
     status.detectChanges();
-    expect(text(status)).toContain('Importing 3 of 12 files · 24 MB of 80 MB · about 12 s left');
+    expect(text(status)).toContain('Importing 3 of 12 files · 23 MB of 76 MB · less than a minute left');
     expect(text(status)).toContain('app.log');
     const bar = status.nativeElement.querySelector('[role=progressbar]') as HTMLElement;
     expect(bar.getAttribute('aria-valuenow')).toBe('30');

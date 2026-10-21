@@ -3,7 +3,7 @@ import { RunStatus } from '../core/agent.types';
 import { formatDuration } from '../core/format';
 import { Icon } from '../shared/icon';
 import { RunsStore } from './runs.store';
-import { formatBytes } from './schedule-model';
+import { formatBytes, formatExactBytes } from '../shared/format/units';
 
 const STATUS_LABEL: Record<RunStatus, string> = {
   running: $localize`:@@schedules.runs.status.running:Running`,
@@ -44,7 +44,7 @@ const STATUS_LABEL: Record<RunStatus, string> = {
                 <td><span class="badge" [attr.data-status]="r.status">{{ label[r.status] }}</span></td>
                 <td class="why" [title]="r.error ?? r.reason">{{ r.reason }}@if (r.error) {<br /><span class="problem">{{ r.error }}</span>}</td>
                 <td>{{ duration(r.durationMs) }}</td>
-                <td>{{ bytes(r.totalBytes) }}</td>
+                <td [title]="exact(r.totalBytes)">{{ bytes(r.totalBytes) }}</td>
                 <td class="acts">
                   <button type="button" class="btn" [attr.aria-expanded]="store.selected() === r.id" [attr.aria-label]="detailsLabel(r.id)" (click)="store.toggle(r.id)" i18n="@@schedules.runs.details">Details</button>
                   <button type="button" class="btn" [attr.aria-label]="openLabel(r.id)" (click)="store.open(r.id)" i18n="open a run|@@schedules.runs.open">Open</button>
@@ -122,4 +122,5 @@ export class RunsView implements OnInit {
 
   protected duration = formatDuration;
   protected bytes = formatBytes;
+  protected exact = formatExactBytes;
 }

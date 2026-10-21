@@ -35,7 +35,7 @@ test('lists what IMT stores, clears the cache after a confirmation and reports w
   await expect(result).toContainText('Freed 267 MB.');
   await expect(result).toContainText('Web view cache: freed 45 MB, kept 1 (in use by a running program).');
   await expect(row(page, 'webview-cache')).toContainText('3 MB');
-  await expect(row(page, 'ai-runtimes-outdated')).toContainText('0 B');
+  await expect(row(page, 'ai-runtimes-outdated')).toContainText('0 bytes');
   await expect(settingsDialog(page).getByRole('button', { name: 'Clear cache…' })).toBeDisabled();
   // Data is untouched by "Clear cache".
   await expect(row(page, 'ai-models')).toContainText('4.3 GB');
@@ -55,7 +55,7 @@ test('a data category asks on its own; cancelling keeps it, confirming clears it
   await clear.click();
   await page.getByRole('dialog', { name: 'Remove Error snapshots?' }).getByRole('button', { name: 'Remove' }).click();
   await expect(settingsDialog(page).getByTestId('storage-result')).toContainText('Error snapshots: freed 3 MB.');
-  await expect(row(page, 'error-snapshots')).toContainText('0 B');
+  await expect(row(page, 'error-snapshots')).toContainText('0 bytes');
   await expect(clear).toBeDisabled();
 });
 

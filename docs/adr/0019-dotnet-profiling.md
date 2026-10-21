@@ -101,3 +101,25 @@ disallowed in many production environments.
 - NetTrace V6 (.NET 10) is read as well as V4/V5; IMT itself writes V5.
 - The test-only nettrace writer in `imt-plugin-profiling` stays for malformed-input tests; production writing lives in
   `imt-plugin-dotnet` (different jobs: one builds arbitrary, also broken, files; the other streams valid ones within limits).
+
+## Implementation notes (R3, 2026-10-21)
+
+The plugin moved onto `imt-plugin-api` and is served by `imt-plugins` in its own process (ADR 0017), with the
+`WriteFolders` permission (normal integrity: EventPipe connects to the target's diagnostics channel, captures go to
+the data folder) and a 3 GiB memory cap. Its tool and the `.etl` importer cross the contract (the importer as a
+profile importer whose capture crosses encoded with `imt_profile::wire`; `.etl` paths are typed path arguments
+checked against the window's grants).
+
+ETW is the first **elevated plugin process**: the tool's `start` keeps the capture list in the normal process, and
+for a .NET Framework target asks the host to run the tool's elevated operations `etw-start` / `etw-poll` /
+`etw-stop` / `etw-cancel` in the plugin's elevated process (`HostRequest::InvokeElevated`; the host accepts only
+operations the manifest declares elevated). The host starts that process through the administrator prompt on first
+use instead of restarting IMT; a declined prompt is the typed `denied` failure. The elevated process writes only into
+`<data folder>/captures/dotnet` (the data folder comes from the host, the file name is checked), records only .NET
+processes and exits with IMT. EventPipe, process listing and `.etl` conversion stay unelevated.
+
+The manual ETW test is unchanged (it exercises the recorder directly):
+`IMT_ETW_TESTS=1 cargo test -p imt-plugin-dotnet --test real_runtime -- --ignored --nocapture` from an elevated prompt.
+The elevated route itself is tested with the elevated role started as an ordinary process
+(`imt-plugin-host`'s `the_normal_process_runs_only_declared_elevated_operations_through_the_host`, and the
+`etw-*` operations against a fake recorder in `imt-plugin-dotnet`); the prompt is a manual check.

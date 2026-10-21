@@ -7,13 +7,13 @@ use crate::container::{path_fields, Joiner, Stream};
 use crate::first_line;
 use anyhow::Result;
 use chrono::DateTime;
-use imt_core::importers::{ImportCtx, Imported, Importer, MAX_LINE_LEN};
-use imt_core::model::Fields;
+use imt_plugin_api::importer::{ImportCtx, Imported, TextImporter, MAX_LINE_LEN};
+use imt_plugin_api::model::Fields;
 use serde_json::{Map, Value};
 
 pub struct DockerJsonImporter;
 
-impl Importer for DockerJsonImporter {
+impl TextImporter for DockerJsonImporter {
     fn id(&self) -> &'static str {
         "docker-json"
     }
@@ -84,7 +84,7 @@ fn import(ctx: &ImportCtx, content: &str) -> Imported {
         let ts = DateTime::parse_from_rfc3339(e.time)
             .ok()
             .map(|d| d.timestamp_millis())
-            .or_else(|| ctx.profile.timestamps.parse(e.time));
+            .or_else(|| ctx.timestamps.parse(e.time));
         let (text, last) = match e.log.strip_suffix('\n') {
             Some(t) => (t.strip_suffix('\r').unwrap_or(t), true),
             None => (e.log, false),
@@ -113,7 +113,7 @@ fn attrs(obj: &Map<String, Value>) -> Fields {
 mod tests {
     use super::*;
     use crate::testutil::{garbage, ms, with_ctx, with_path};
-    use imt_core::model::Level;
+    use imt_plugin_api::model::Level;
 
     const LOG: &str = concat!(
         r#"{"log":"Listening on :8080\n","stream":"stdout","time":"2026-10-17T12:00:00.123456789Z"}"#,
@@ -134,7 +134,7 @@ mod tests {
     #[test]
     fn declares_identity_fields() {
         assert_eq!(
-            imt_core::importers::Importer::identity_fields(&DockerJsonImporter),
+            imt_plugin_api::TextImporter::identity_fields(&DockerJsonImporter),
             ["Namespace", "Pod", "Container", "ContainerId"]
         );
     }

@@ -20,7 +20,7 @@ use std::time::Duration;
 
 /// Largest single SSE line accepted (one event carries one token or the final statistics).
 const MAX_LINE: usize = 1024 * 1024;
-/// Largest answer text (well below the gRPC message limit).
+/// Largest answer text (well below the frame limit).
 const MAX_TEXT: usize = 8 * 1024 * 1024;
 
 /// Timeouts, adjustable for tests.

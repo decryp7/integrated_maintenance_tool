@@ -65,7 +65,7 @@ pub struct FilePlan {
     /// Offset of the first byte after the byte-order mark.
     pub data_start: u64,
     /// Id of the importer that reads the file.
-    pub importer: &'static str,
+    pub importer: String,
     pub kind: PlanKind,
     /// Whether an event can span several lines.
     pub multiline: bool,
@@ -131,7 +131,7 @@ pub fn plan(importers: &Importers, ctx: &ImportCtx, head: &[u8], whole: bool) ->
         return Ok(FilePlan {
             encoding: Encoding::Utf8,
             data_start: 0,
-            importer: binary.id(),
+            importer: binary.id().to_string(),
             kind: PlanKind::Binary,
             multiline: false,
             splittable: false,
@@ -165,7 +165,7 @@ pub fn plan(importers: &Importers, ctx: &ImportCtx, head: &[u8], whole: bool) ->
     Ok(FilePlan {
         encoding,
         data_start,
-        importer: importer.id(),
+        importer: importer.id().to_string(),
         kind,
         multiline: importer.multiline(),
         splittable,
@@ -290,7 +290,7 @@ mod tests {
         let lines = plan_of(&p, b"{\"@t\":\"2026-10-14T10:00:00Z\",\"@m\":\"a\"}\n", true).unwrap();
         assert_eq!(
             (lines.importer, lines.kind, lines.splittable),
-            ("json", PlanKind::Json(JsonShape::Lines), true)
+            ("json".to_string(), PlanKind::Json(JsonShape::Lines), true)
         );
         let array = plan_of(&p, b"[{\"@t\":\"2026-10-14T10:00:00Z\"}]", true).unwrap();
         assert_eq!(array.kind, PlanKind::Json(JsonShape::Array));
@@ -306,7 +306,7 @@ mod tests {
     fn plans_other_importers_and_refuses_unknown_files() {
         let p = compiled("");
         let csv = plan_of(&p, b"a,b\n1,2\n", true).unwrap();
-        assert_eq!((csv.importer, csv.kind), ("csv", PlanKind::Legacy));
+        assert_eq!((csv.importer.as_str(), csv.kind), ("csv", PlanKind::Legacy));
         assert_eq!(plan_of(&p, b"", true).unwrap_err(), "empty file");
         assert_eq!(plan_of(&p, b"just words", true).unwrap_err(), "no importer recognises this format");
         assert_eq!(
@@ -334,7 +334,10 @@ mod tests {
         let mut bom16: Vec<u8> = vec![0xFF, 0xFE];
         bom16.extend("2026-10-14 10:00:00 INFO a\n".encode_utf16().flat_map(|u| u.to_le_bytes()));
         let plan = plan_of(&p, &bom16, true).unwrap();
-        assert_eq!((plan.encoding, plan.data_start, plan.importer), (Encoding::Utf16Le, 2, "text"));
+        assert_eq!(
+            (plan.encoding, plan.data_start, plan.importer.as_str()),
+            (Encoding::Utf16Le, 2, "text")
+        );
     }
 
     #[test]

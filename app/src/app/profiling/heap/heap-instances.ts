@@ -1,3 +1,4 @@
+import { formatExactBytes } from '../../shared/format/units';
 import { ChangeDetectionStrategy, Component, effect, inject, input, untracked } from '@angular/core';
 import { HeapObjectsPage, HeapPaths } from '../../core/api.types';
 import { formatCount } from '../../core/format';
@@ -34,8 +35,8 @@ import { HeapSelection } from './heap-selection';
                   @for (r of list.data()?.rows ?? []; track r.object) {
                     <tr [class.sel]="sel.object() === r.object">
                       <td><button class="link" type="button" [attr.aria-label]="whyLabel(r.typeName, r.object)" (click)="sel.showPaths(r.object)">&#64;{{ r.object }}</button></td>
-                      <td class="num">{{ bytes(r.retained) }}</td>
-                      <td class="num">{{ bytes(r.shallow) }}</td>
+                      <td class="num" [title]="exact(r.retained)">{{ bytes(r.retained) }}</td>
+                      <td class="num" [title]="exact(r.shallow)">{{ bytes(r.shallow) }}</td>
                     </tr>
                   }
                 </tbody>
@@ -97,6 +98,7 @@ export class HeapInstances {
   protected readonly paths = new AsyncResource<HeapPaths>();
   protected readonly count = formatCount;
   protected readonly bytes = formatBytes;
+  protected readonly exact = formatExactBytes;
 
   constructor() {
     effect(() => {

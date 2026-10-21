@@ -52,7 +52,6 @@ mod opener;
 mod panel_windows;
 mod paths;
 mod plugin_config;
-mod plugin_isolation;
 mod pointer;
 mod profile;
 mod profiling;
@@ -233,7 +232,6 @@ command_table! {
     Mutation [MAIN] => lifecycle::restart_app,
     Mutation [MAIN] => plugin_config::plugin_reset,
     Mutation [MAIN] => plugin_config::plugin_set_enabled,
-    Query [WINDOW] => plugin_isolation::plugin_isolation_status,
     Quiet [MAIN] limit 16 * MIB => lifecycle::save_session,
     Query [MAIN] => lifecycle::last_session,
     Mutation [MAIN] => lifecycle::restore_windows,
@@ -443,6 +441,11 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
 
     // ---- managed state (app-wide) ----
     let shared = AppState::new(ctx.config.as_ref().map(|d| d.join("profiles")), ctx.safe_mode);
+    if let Some(problem) = shared.plugins.problem() {
+        log::error!("Plugins are unavailable: {problem}");
+    }
+    // Plugin processes start in the background, so the first import does not wait for one.
+    shared.plugins.warm_up();
     app_context::install(app.handle(), ctx);
     let windows = windows::Windows::new(shared.factory());
     // The startup window opens the paths given on the command line.
@@ -460,12 +463,6 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
 
     // ---- settings ----
     settings::init(app.handle());
-    settings::register(
-        app.handle(),
-        std::sync::Arc::new(plugin_isolation::IsolationSection::new()),
-        settings::SectionGroup::Plugins,
-    )?;
-    plugin_isolation::install(app.handle());
     window_prefs::register(app.handle())?;
     updater::init(app.handle());
     ai::init(app.handle(), safe_mode);

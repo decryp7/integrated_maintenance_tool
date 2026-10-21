@@ -1,0 +1,5 @@
+2024/03/02,09:15:00.013+01:00,INFO,0x4000000000000001,alpha.exe,1200,6,(3300),,unit:10,"<ALPHA>:""Started job 41"""
+2024/03/02,09:15:02.500+01:00,WARN,0x4000000000000003,alpha.exe,1200,6,(3300),,unit:12,"<ALPHA> Queue is getting long: 140 items"
+2024/03/02,09:15:02.510+01:00,ERROR,0xc000000000000002,beta.exe,2400,6,(4400),,worker:22,"<BETA> Connection lost:0x10:retry:3:""Timeout"""
+2024/03/02,09:15:02.511+01:00,ERROR,0xc000000000000004,beta.exe,2400,6,(4400),,worker:30,"<BETA>:0x20:worker:30:""Retry failed"""
+2024/03/02,23:59:59.999+01:00,INFO,0x4000000000000001,alpha.exe,1200,6,(3300),,unit:10,"<ALPHA>:""Stopped job 41"""

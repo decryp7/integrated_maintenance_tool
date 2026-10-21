@@ -4,13 +4,13 @@
 use crate::level_for_status;
 use anyhow::Result;
 use chrono::NaiveDateTime;
-use imt_core::importers::{ImportCtx, Imported, Importer};
-use imt_core::model::{auto_value, Record};
+use imt_plugin_api::importer::{ImportCtx, Imported, TextImporter};
+use imt_plugin_api::model::{auto_value, Record};
 use serde_json::Value;
 
 pub struct W3cImporter;
 
-impl Importer for W3cImporter {
+impl TextImporter for W3cImporter {
     fn id(&self) -> &'static str {
         "w3c"
     }
@@ -106,7 +106,7 @@ fn record(line: u32, columns: &[&str], values: &[&str]) -> Record {
             .map(|d| d.and_utc().timestamp_millis()),
         dt => chrono::DateTime::parse_from_rfc3339(dt).ok().map(|d| d.timestamp_millis()),
     };
-    let text = |k: &str| r.fields.get(k).map(|v| imt_core::model::value_text(v).into_owned());
+    let text = |k: &str| r.fields.get(k).map(|v| imt_plugin_api::model::value_text(v).into_owned());
     let status = r.fields.get("sc-status").and_then(Value::as_i64);
     let mut msg = format!(
         "{} {}",
@@ -126,7 +126,11 @@ fn record(line: u32, columns: &[&str], values: &[&str]) -> Record {
     r.message = msg.trim().to_string();
     if r.message.is_empty() {
         // Not a web request (Exchange, firewall): the row's values.
-        let parts: Vec<String> = r.fields.values().map(|v| imt_core::model::value_text(v).into_owned()).collect();
+        let parts: Vec<String> = r
+            .fields
+            .values()
+            .map(|v| imt_plugin_api::model::value_text(v).into_owned())
+            .collect();
         r.message = parts.join(", ");
     }
     if let Some(s) = status {
@@ -139,7 +143,7 @@ fn record(line: u32, columns: &[&str], values: &[&str]) -> Record {
 mod tests {
     use super::*;
     use crate::testutil::{garbage, with_ctx};
-    use imt_core::model::Level;
+    use imt_plugin_api::model::Level;
 
     const IIS: &str = include_str!("../tests/fixtures/iis.log");
 

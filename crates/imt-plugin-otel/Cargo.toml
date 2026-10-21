@@ -8,7 +8,7 @@ rust-version.workspace = true
 publish = false
 
 [dependencies]
-imt-core = { path = "../imt-core" }
+imt-plugin-api = { path = "../imt-plugin-api" }
 anyhow.workspace = true
 serde_json = { workspace = true, features = ["preserve_order"] }
 

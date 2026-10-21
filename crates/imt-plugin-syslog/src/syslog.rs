@@ -3,8 +3,8 @@
 use super::{facility_name, severity_level, severity_name};
 use anyhow::Result;
 use chrono::{Datelike, NaiveDate, Utc};
-use imt_core::importers::{ImportCtx, Imported, Importer, MAX_LINE_LEN};
-use imt_core::model::{auto_value, Level, Record};
+use imt_plugin_api::importer::{ImportCtx, Imported, TextImporter, MAX_LINE_LEN};
+use imt_plugin_api::model::{auto_value, Level, Record};
 use serde_json::Value;
 
 pub struct SyslogImporter;
@@ -12,7 +12,7 @@ pub struct SyslogImporter;
 /// How many non-empty lines `sniff` inspects, and the share that must parse.
 const SNIFF_LINES: usize = 50;
 
-impl Importer for SyslogImporter {
+impl TextImporter for SyslogImporter {
     fn id(&self) -> &'static str {
         "syslog"
     }
@@ -46,7 +46,7 @@ impl Importer for SyslogImporter {
     }
 
     fn import(&self, ctx: &ImportCtx, content: &str) -> Result<Imported> {
-        let ts = &ctx.profile.timestamps;
+        let ts = &ctx.timestamps;
         let mut years = YearTracker::new(ctx.file_date);
         let mut out = Imported::default();
         for (i, line) in content.lines().enumerate() {
@@ -368,20 +368,17 @@ fn parse_3164(pri: Option<u8>, rest: &str) -> Option<Parsed<'_>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_core::profile::{CompiledProfile, Profile};
-    use serde_json::json;
+    use imt_plugin_api::time::TimestampParser;
     use std::path::Path;
 
     const RFC5424: &str = include_str!("../tests/fixtures/rfc5424.log");
     const BSD: &str = include_str!("../tests/fixtures/auth.log");
 
     fn with_ctx<T>(date: Option<NaiveDate>, f: impl FnOnce(&ImportCtx) -> T) -> T {
-        let p = CompiledProfile::compile(Profile::default_profile()).unwrap();
-        f(&ImportCtx {
-            profile: &p,
-            path: Path::new("syslog"),
-            file_date: date,
-        })
+        let ts = TimestampParser::default();
+        let mut ctx = ImportCtx::new(Path::new("syslog"), &ts);
+        ctx.file_date = date;
+        f(&ctx)
     }
 
     fn ymd(y: i32, m: u32, d: u32) -> Option<NaiveDate> {
@@ -576,7 +573,7 @@ mod tests {
                     stack.push(path);
                     continue;
                 }
-                let Some(text) = std::fs::read(&path).ok().and_then(|b| imt_core::importers::decode(&b)) else {
+                let Some(text) = std::fs::read(&path).ok().and_then(|b| imt_plugin_api::text::decode(&b)) else {
                     continue;
                 };
                 let head: String = text.chars().take(8192).collect();
@@ -629,30 +626,5 @@ mod tests {
                 }
             }
         }
-    }
-
-    fn workspace() -> imt_core::Workspace {
-        let mut registry = imt_core::PluginRegistry::new();
-        registry.install(&crate::SyslogPlugin).unwrap();
-        imt_core::Workspace::with_registry(Profile::default_profile(), registry).unwrap()
-    }
-
-    #[test]
-    fn opens_fixtures_through_a_workspace() {
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
-        let mut ws = workspace();
-        ws.open(&[dir.join("rfc5424.log"), dir.join("auth.log"), dir.join("journal.json")])
-            .unwrap();
-        let s = ws.summary();
-        let importer = |name: &str| s.sources.iter().find(|x| x.name.contains(name)).map(|x| x.importer.clone());
-        assert_eq!(importer("rfc5424").as_deref(), Some("syslog"));
-        assert_eq!(importer("auth").as_deref(), Some("syslog"));
-        assert_eq!(importer("journal").as_deref(), Some("journald"));
-        assert!(s.plugins.iter().any(|p| p.id == "net.decryptology.syslog"));
-        assert!(ws
-            .records()
-            .iter()
-            .any(|r| r.fields.get("App") == Some(&json!("sshd")) && r.fields.get("ProcId") == Some(&json!(4242))));
-        assert!(ws.records().iter().any(|r| r.message == "Started OrderService."));
     }
 }

@@ -47,7 +47,7 @@
 //!   `ACCESS DENIED`, `SHARING VIOLATION` and `PRIVILEGE NOT HELD` are the NTSTATUS
 //!   names ProcMon shows for permission, locking and privilege failures.
 
-use imt_core::plugin::markers::{MarkerRole, PluginMarkerKind};
+use imt_plugin_api::markers::{MarkerRole, PluginMarkerKind};
 
 pub const APPLICATION_ERROR: &str = "Application Error";
 pub const WER: &str = "Windows Error Reporting";
@@ -172,6 +172,3 @@ pub fn kinds() -> Vec<PluginMarkerKind> {
             .describe("A service between entering the running state and stopping or crashing (SCM 7036/7031/7034)."),
     ]
 }
-
-#[cfg(test)]
-mod tests;

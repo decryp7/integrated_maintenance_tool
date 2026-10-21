@@ -421,14 +421,8 @@ pub struct ParsePreview {
     pub error: Option<String>,
 }
 
-/// How urgent a finding of the health check is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum Severity {
-    Critical,
-    Warning,
-    Info,
-}
+/// How urgent a finding of the health check is (shared with import problems, `imt_plugin_api::problems`).
+pub use imt_plugin_api::problems::Severity;
 
 /// What the UI should do when the user follows a finding.
 #[derive(Debug, Clone, PartialEq, Serialize)]

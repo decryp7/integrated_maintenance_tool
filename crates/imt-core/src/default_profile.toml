@@ -79,8 +79,15 @@ default_level = "Information"
 [parse.csv]
 # "auto" sniffs , ; tab and |
 delimiter = "auto"
+# A header row may be there. A first row holding a timestamp or a date is an event, not a header, so files
+# without a header (most logs, e.g. log4net's CSV layouts) need no setting; `false` never reads a header.
 has_header = true
-# Column names, or "auto" to guess from the header.
+# Names for the columns of a file without a header, in order (the rest are col1, col2, …), e.g.
+# columns = ["Date", "Time", "Level", "Code", "Process", "Pid"]
+columns = []
+# Column names, or "auto" to guess from the header. Without a header, "auto" finds the timestamp (also a date and
+# a time in two columns, as in `2026/10/14,10:00:00.123+01:00` with "," as the delimiter), the column of level
+# names and the longest text as the message. Two columns joined: timestamp = "Date+Time".
 timestamp = "auto"
 level = "auto"
 message = "auto"

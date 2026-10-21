@@ -122,6 +122,13 @@ describe('HeapView', () => {
     expect(text(fixture)).not.toContain('no object graph');
   });
 
+  it('keeps exact byte counts in the tooltips of humanized sizes', async () => {
+    const { fixture } = await mount();
+    const titles = all<HTMLElement>(fixture, 'td.num[title]').map((e) => e.title);
+    expect(titles.length).toBeGreaterThan(0);
+    expect(titles.every((t) => /bytes?$/.test(t))).toBe(true);
+  });
+
   it('switches snapshot, re-querying the types and showing its import notes', async () => {
     const { fixture, state, spies } = await mount();
     expect(text(fixture)).not.toContain('Weak and shortcut edges');

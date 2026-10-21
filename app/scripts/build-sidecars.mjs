@@ -2,7 +2,7 @@
 // Builds IMT's helper processes and puts them where Tauri bundles them as sidecars
 // (src-tauri/binaries/<name>-<target-triple>[.exe], listed in src-tauri/tauri.sidecars.conf.json):
 //   imt-ai-worker    the AI assistant's engine process
-//   imt-plugin-host  serves built-in plugins out of process when they run isolated
+//   imt-plugins      serves every built-in plugin, each in its own sandboxed process (ADR 0017)
 // At run time IMT finds them next to its executable.
 //
 // Run by the release build (`npx tauri build --config src-tauri/tauri.sidecars.conf.json` chains it after the
@@ -15,7 +15,7 @@ import { chmodSync, copyFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const SIDECARS = ['imt-ai-worker', 'imt-plugin-host'];
+export const SIDECARS = ['imt-ai-worker', 'imt-plugins'];
 
 /**
  * What to build and where cargo puts it. A build for the host itself runs without `--target`, into

@@ -212,3 +212,12 @@ tell products apart (or `@source` after routing); there are no per-product profi
   `profiles/logserver.imtprofile.toml` (an extractor and two routes), and `linux/logserver01/syslog-20261014.log`
   (RFC 5424 from three hosts, four apps, six processes). Tests: `crates/imt-core/tests/mixed_sources.rs`, the
   syslog plugin's samples test, property tests for the line parser and routes.
+
+## Note (R3, ADR 0017)
+
+Plugins now run out of process over `imt-ipc` frames, not gRPC. The plugin-facing additions live in
+`imt-plugin-api`: `TextImporter::identity_fields` / `BinaryImporter::identity_fields`, carried in the manifest's
+`ImporterCap.identity_fields` (at most 8 names of 1–64 characters, checked by `Manifest::check`), and
+`Imported::problems` (`imt_plugin_api::problems`, which `imt_core::ingest` re-exports), sent with the end of an
+import (`ImportDone` / `TailDone`). The host's importer proxies return both, so the syslog, journald, EVTX and
+Docker/CRI identity fields work as before.

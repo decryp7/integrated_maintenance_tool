@@ -2,29 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { fitLabel, formatBytes, formatEta, formatRate, gpuLabel, hardwareLines, percent, speedLabel } from './ai-format';
 
 describe('ai-format', () => {
-  it('formats sizes', () => {
-    expect(formatBytes(0)).toBe('0 B');
-    expect(formatBytes(Number.NaN)).toBe('0 B');
-    expect(formatBytes(512)).toBe('512 B');
-    expect(formatBytes(12 * 1024)).toBe('12 KB');
+  it('shares the common unit formatters', () => {
     expect(formatBytes(812 * 1024 ** 2)).toBe('812 MB');
-    expect(formatBytes(5.6 * 1024 ** 3)).toBe('5.6 GB');
-  });
-
-  it('formats rates and times', () => {
-    expect(formatRate(0)).toBe('');
-    expect(formatRate(48 * 1024 ** 2)).toBe('48.0 MB/s');
-    expect(formatEta(null)).toBe('');
-    expect(formatEta(-1)).toBe('');
-    expect(formatEta(0.2)).toBe('less than a second');
-    expect(formatEta(40)).toBe('about 40 s');
-    expect(formatEta(130)).toBe('about 2 min');
-    expect(formatEta(3600)).toBe('about 1 h');
-    expect(formatEta(5400)).toBe('about 1 h 30 min');
-    expect(percent(1, 0)).toBe(0);
-    expect(percent(0, 10)).toBe(0);
+    expect(formatRate(48 * 1024 ** 2)).toBe('48 MB/s');
+    expect(formatEta(130)).toBe('about 2 min left');
     expect(percent(5, 10)).toBe(50);
-    expect(percent(20, 10)).toBe(100);
   });
 
   it('labels fit, speed and hardware', () => {

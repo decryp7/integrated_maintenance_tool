@@ -1,7 +1,7 @@
 # cargo-nextest settings (CI runs `cargo nextest run --workspace`).
 #
 # Tests that start real child processes and time how a crash, hang or restart is detected (fake workers, fake
-# plugin hosts, the IPC fake child) are sensitive to a busy machine. They run one at a time in their own group,
+# plugins, the IPC fake child, the built-in plugins' processes) are sensitive to a busy machine. They run one at a time in their own group,
 # and get two retries: nextest reports a test that only passed on a retry as FLAKY, so flakiness stays visible.
 # Everything else runs in parallel as usual.
 
@@ -12,9 +12,9 @@ child-processes = { max-threads = 1 }
 filter = '''
     (package(imt-ai) & binary(worker))
     | (package(imt-ai-worker) & binary(server_backend))
-    | (package(imt-ipc) & (binary(transport) | binary(child_log)))
-    | (package(imt-plugin-host) & (binary(builtins) | binary(remote)))
-    | (package(imt-plugin-sdk) & binary(toy))
+    | (package(imt-ipc) & (binary(launch) | binary(child_log)))
+    | (package(imt-plugin-host) & binary(remote))
+    | (package(imt-plugins) & kind(test))
     | (package(imt-plugin-windows) & test(eventlog::follower::))
 '''
 test-group = 'child-processes'

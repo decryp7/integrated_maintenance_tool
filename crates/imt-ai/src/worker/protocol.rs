@@ -1,19 +1,14 @@
-//! The typed vocabulary of the worker protocol. The wire is gRPC (`proto/llm.proto`, see `grpc_client` and
-//! `grpc_server`); these are the plain-Rust forms the supervisor and the backends work with, and the
-//! typed error that travels in the `x-imt-error-bin` trailer.
+//! The typed vocabulary of the worker protocol: the requests and replies that cross the wire (`frames`), as the
+//! supervisor and the backends work with them, and the worker's typed error.
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 pub const PROTOCOL_VERSION: u32 = 1;
-/// Largest gRPC message accepted in either direction.
+/// Largest frame accepted in either direction.
 pub const MAX_MESSAGE_BYTES: usize = 16 * 1024 * 1024;
-/// Metadata key carrying the per-launch token on every call.
-pub const TOKEN_HEADER: &str = imt_ipc::auth::TOKEN_HEADER;
-/// Binary trailer carrying the typed error (JSON).
-pub const ERROR_TRAILER: &str = imt_ipc::error::ERROR_TRAILER;
 
-/// The calls of the `Worker` service, by the names the transport trait uses.
+/// The calls of the worker, by the names the transport trait uses.
 pub mod method {
     pub const HELLO: &str = "hello";
     pub const LOAD: &str = "load";
@@ -118,7 +113,7 @@ pub fn context_overflow(prompt: usize, limit: usize) -> RpcError {
     RpcError {
         code: code::CONTEXT_OVERFLOW,
         message: format!("the prompt ({prompt} tokens) does not fit the context ({limit})"),
-        data: Some(json!({"prompt": prompt, "limit": limit})),
+        data: Some(json!({"prompt": prompt, "limit": limit}).into()),
     }
 }
 

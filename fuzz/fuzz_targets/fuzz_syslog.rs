@@ -7,8 +7,8 @@ use libfuzzer_sys::fuzz_target;
 fuzz_target!(|data: &[u8]| {
     let Some((&sel, rest)) = data.split_first() else { return };
     if sel % 2 == 0 {
-        common::text_importer(&imt_plugin_syslog::SyslogImporter, rest)
+        common::plugin_text(&imt_plugin_syslog::SyslogImporter, rest)
     } else {
-        common::text_importer(&imt_plugin_syslog::JournaldImporter, rest)
+        common::plugin_text(&imt_plugin_syslog::JournaldImporter, rest)
     }
 });

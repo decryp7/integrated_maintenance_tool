@@ -8,18 +8,13 @@
 //! The same parser ([`parse_reg`]) also feeds the configuration diff: the
 //! plugin contributes [`config::RegConfigParser`] to `config.parsers`.
 //!
-//! Register it with:
-//! ```
-//! let mut registry = imt_core::PluginRegistry::new();
-//! registry.install(&imt_plugin_registry::RegistryPlugin).unwrap();
-//! ```
+//! It runs in its own process (`imt-plugins --plugin net.decryptology.registry`, ADR 0017).
 
 use anyhow::Result;
-use imt_core::importers::{ImportCtx, Imported, Importer};
-use imt_core::model::Record;
-use imt_core::{Plugin, PluginRegistry};
+use imt_plugin_api::importer::{ImportCtx, Imported, TextImporter};
+use imt_plugin_api::model::Record;
+use imt_plugin_api::{Contributions, Plugin};
 use serde_json::Value;
-use std::sync::Arc;
 
 pub mod config;
 
@@ -38,21 +33,15 @@ impl Plugin for RegistryPlugin {
         env!("CARGO_PKG_VERSION")
     }
 
-    /// Stand-alone: no dependencies, no services.
-    fn manifest(&self) -> imt_core::plugin::Manifest {
-        imt_core::plugin::Manifest::new(self.id(), self.version())
-    }
-
-    fn register(&self, registry: &mut PluginRegistry) -> Result<()> {
-        registry.add_importer(Box::new(RegistryImporter));
-        registry.contribute::<dyn imt_core::config::ConfigParser>(imt_core::config::PARSERS_POINT, Arc::new(config::RegConfigParser));
+    fn register(&self, c: &mut Contributions) -> Result<()> {
+        c.add_importer(RegistryImporter).add_config_parser(config::RegConfigParser);
         Ok(())
     }
 }
 
 pub struct RegistryImporter;
 
-impl Importer for RegistryImporter {
+impl TextImporter for RegistryImporter {
     fn id(&self) -> &'static str {
         "registry"
     }
@@ -321,17 +310,13 @@ fn utf16(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_core::profile::{CompiledProfile, Profile};
+    use imt_plugin_api::time::TimestampParser;
     use serde_json::json;
     use std::path::Path;
 
     fn import(content: &str) -> Imported {
-        let p = CompiledProfile::compile(Profile::default_profile()).unwrap();
-        let ctx = ImportCtx {
-            profile: &p,
-            path: Path::new("x.reg"),
-            file_date: None,
-        };
+        let ts = TimestampParser::default();
+        let ctx = ImportCtx::new(Path::new("x.reg"), &ts);
         assert_eq!(RegistryImporter.sniff(&ctx, content), 100);
         RegistryImporter.import(&ctx, content).unwrap()
     }
@@ -398,42 +383,21 @@ mod tests {
         assert_eq!(out.records[0].fields["Key"], "");
         assert_eq!(out.records[1].fields["Data"], "01");
         assert_eq!(out.skipped, 4);
-        let p = CompiledProfile::compile(Profile::default_profile()).unwrap();
-        let ctx = ImportCtx {
-            profile: &p,
-            path: Path::new("x"),
-            file_date: None,
-        };
+        let ts = TimestampParser::default();
+        let ctx = ImportCtx::new(Path::new("x"), &ts);
         assert_eq!(RegistryImporter.sniff(&ctx, "2026-10-14 log line"), 0);
         assert_eq!(display(&Value::Null), "");
     }
 
     #[test]
-    fn plugin_registers_the_importer() {
-        let mut registry = PluginRegistry::new();
-        registry.install(&RegistryPlugin).unwrap();
-        let info = &registry.plugins()[0];
-        assert_eq!(info.id, "net.decryptology.registry");
-        assert_eq!(info.contributes, ["importer:registry", "contribution:config.parsers"]);
-        assert!(info.warnings.is_empty(), "{:?}", info.warnings);
+    fn the_plugin_contributes_the_importer_and_the_config_parser() {
+        let mut c = Contributions::default();
+        RegistryPlugin.register(&mut c).unwrap();
+        let m = c.manifest(&RegistryPlugin);
+        m.check().unwrap();
+        assert_eq!(m.id.as_ref(), "net.decryptology.registry");
+        assert_eq!(m.contributions(), ["importer:registry", "config-parser:registry"]);
         assert_eq!(RegistryPlugin.name(), "Windows registry exports");
         assert_eq!(RegistryPlugin.version(), env!("CARGO_PKG_VERSION"));
-    }
-
-    #[test]
-    fn imports_the_utf16_sample_through_a_workspace() {
-        let mut registry = PluginRegistry::new();
-        registry.install(&RegistryPlugin).unwrap();
-        let mut ws = imt_core::Workspace::with_registry(Profile::default_profile(), registry).unwrap();
-        let sample = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/windows/registry-export.reg");
-        ws.open(&[sample]).unwrap();
-        let s = ws.summary();
-        assert_eq!(s.sources.len(), 1);
-        assert_eq!(s.sources[0].importer, "registry");
-        assert!(s.plugins.iter().any(|p| p.id == "net.decryptology.registry"));
-        assert!(ws
-            .records()
-            .iter()
-            .any(|r| r.fields.get("ValueName") == Some(&json!("PaymentTimeoutMs")) && r.fields["Data"] == 5000));
     }
 }
