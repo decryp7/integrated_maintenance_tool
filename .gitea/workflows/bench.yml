@@ -12,6 +12,8 @@ on:
     branches: [main]
     paths:
       - "crates/imt-core/**"
+      - "crates/imt-store-duck/**"
+      - "crates/imt-store-worker/**"
   schedule:
     - cron: "47 3 * * *"
   workflow_dispatch:
@@ -47,6 +49,26 @@ jobs:
           key: bench-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: bench-${{ runner.os }}-
 
+      # The store crates link the official prebuilt libduckdb (ADR 0014): fetched once per version, SHA-256 pinned,
+      # so every job that builds the workspace links it (a test that is skipped still has to link).
+      - uses: actions/cache@v4
+        if: runner.os != 'Windows'
+        with:
+          path: ~/.cache/imt-libduckdb
+          key: libduckdb-${{ runner.os }}-${{ hashFiles('crates/imt-store-duck/scripts/fetch-libduckdb.sh') }}
+
+      - name: libduckdb (prebuilt, pinned SHA-256)
+        shell: bash
+        run: |
+          eval "$(crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+          echo "DUCKDB_LIB_DIR=$DUCKDB_LIB_DIR" >> "$GITHUB_ENV"
+          echo "DUCKDB_INCLUDE_DIR=$DUCKDB_INCLUDE_DIR" >> "$GITHUB_ENV"
+          case "$RUNNER_OS" in
+            Linux) echo "LD_LIBRARY_PATH=$DUCKDB_LIB_DIR:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV" ;;
+            macOS) echo "DYLD_LIBRARY_PATH=$DUCKDB_LIB_DIR:${DYLD_LIBRARY_PATH:-}" >> "$GITHUB_ENV" ;;
+            Windows) cygpath -w "$DUCKDB_LIB_DIR" >> "$GITHUB_PATH" ;;
+          esac
+
       - name: Benchmarks (quick)
         run: cargo bench -p imt-core --bench engine -- --quick
 
@@ -66,3 +88,57 @@ jobs:
           name: criterion-report
           path: target/criterion
           if-no-files-found: warn
+
+  # The store at 10M events (ADR 0014 budgets): import, indexing, reads and the worker's memory. Nightly and on
+  # demand only (about 15 minutes); the corpus (3.7 GB of CLEF) is generated once into a cached folder.
+  store-bench:
+    name: store benchmarks (10M events)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    container:
+      image: catthehacker/ubuntu:act-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # The store crates link the official prebuilt libduckdb (ADR 0014): fetched once per version, SHA-256 pinned,
+      # so every job that builds the workspace links it (a test that is skipped still has to link).
+      - uses: actions/cache@v4
+        if: runner.os != 'Windows'
+        with:
+          path: ~/.cache/imt-libduckdb
+          key: libduckdb-${{ runner.os }}-${{ hashFiles('crates/imt-store-duck/scripts/fetch-libduckdb.sh') }}
+
+      - name: libduckdb (prebuilt, pinned SHA-256)
+        shell: bash
+        run: |
+          eval "$(crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+          echo "DUCKDB_LIB_DIR=$DUCKDB_LIB_DIR" >> "$GITHUB_ENV"
+          echo "DUCKDB_INCLUDE_DIR=$DUCKDB_INCLUDE_DIR" >> "$GITHUB_ENV"
+          case "$RUNNER_OS" in
+            Linux) echo "LD_LIBRARY_PATH=$DUCKDB_LIB_DIR:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV" ;;
+            macOS) echo "DYLD_LIBRARY_PATH=$DUCKDB_LIB_DIR:${DYLD_LIBRARY_PATH:-}" >> "$GITHUB_ENV" ;;
+            Windows) cygpath -w "$DUCKDB_LIB_DIR" >> "$GITHUB_PATH" ;;
+          esac
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/imt-bench-corpus
+          key: store-bench-corpus-v1
+
+      - name: Import, index and reads at 10M events (budgets asserted)
+        env:
+          IMT_BENCH_EVENTS: "10000000"
+        # The import benchmark asserts the import budgets; the read benchmark reports every operation against the
+        # 0.5 s / 300 MB budgets (IMT_BENCH_STRICT=1 enforces them once the known misses in ADR 0014 are fixed).
+        run: |
+          export IMT_BENCH_DIR="$HOME/.cache/imt-bench-corpus" IMT_BENCH_STORE="${RUNNER_TEMP:-/tmp}/imt-bench-store"
+          cargo test --release -p imt-store-duck --test bench -- --nocapture
+          cargo test --release -p imt-store-duck --test bench_reads -- --nocapture
+
+      - name: The worker's memory budgets (20 copies of the samples)
+        env:
+          IMT_BENCH_COPIES: "20"
+        run: cargo test --release -p imt-store-worker --test worker -- --nocapture

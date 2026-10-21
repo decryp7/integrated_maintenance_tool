@@ -23,6 +23,8 @@ import { formatCount } from '../../core/format';
           <div class="mono after" title="After" i18n-title="@@share.redactionSummary.after">{{ x.after }}</div>
         </div>
       }
+    } @else if (unavailable()) {
+      <p class="line faint" role="status" i18n="@@share.redactionSummary.unavailable">A preview of what will be redacted is not available yet. The rules are still applied when the file is written.</p>
     } @else {
       <p class="line" i18n="@@share.redactionSummary.checking">Checking what will be redacted…</p>
     }
@@ -30,6 +32,7 @@ import { formatCount } from '../../core/format';
   styles: `
     :host { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-sm); }
     .line { margin: 0; color: var(--text-2); }
+    .line.faint { color: var(--muted); }
     .sample { display: grid; gap: 2px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--code-bg); }
     .before, .after { font-size: var(--fs-xs); white-space: pre-wrap; word-break: break-word; max-height: 3.2em; overflow: hidden; }
     .before { color: var(--muted); text-decoration: line-through; }
@@ -38,6 +41,8 @@ import { formatCount } from '../../core/format';
 })
 export class RedactionSummaryView {
   readonly summary = input<RedactionSummary | null>(null);
+  /** The engine cannot preview the redaction (yet): say so instead of "Checking…". */
+  readonly unavailable = input(false);
   protected readonly hits = computed(() => (this.summary()?.hits ?? []).filter((h) => h.count > 0));
   protected readonly fmt = formatCount;
 }

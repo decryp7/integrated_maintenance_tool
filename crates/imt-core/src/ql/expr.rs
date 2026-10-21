@@ -127,17 +127,37 @@ pub enum NumOp {
     Lt,
 }
 
-/// The search box: a regex (escaped text when not in regex mode) over message, exception and template.
+/// The search box over message, exception and template: its words (smart search) and/or a regex (escaped
+/// text when not in regex mode) found anywhere.
 #[derive(Debug, Clone)]
 pub struct TextSearch {
     pub re: Regex,
     /// The trimmed text when the search is not a regex (lets SQL use `LIKE`).
     pub literal: Option<String>,
     pub case_sensitive: bool,
+    /// The words an event may hold to match (smart search).
+    pub words: Option<std::sync::Arc<crate::words::WordQuery>>,
+    /// Whether the text found anywhere (`re`) also matches.
+    pub substring: bool,
 }
 
 impl TextSearch {
     pub fn matches(&self, row: &dyn RowRef) -> bool {
+        self.word_match(row) || (self.substring && self.substring_match(row))
+    }
+
+    /// Whether the event holds the search's words (false without words).
+    pub fn word_match(&self, row: &dyn RowRef) -> bool {
+        self.words.as_ref().is_some_and(|w| {
+            let texts: Vec<&str> = [Some(row.message()), row.exception(), row.template()]
+                .into_iter()
+                .flatten()
+                .collect();
+            w.matches(&texts)
+        })
+    }
+
+    fn substring_match(&self, row: &dyn RowRef) -> bool {
         self.re.is_match(row.message())
             || row.exception().is_some_and(|x| self.re.is_match(x))
             || row.template().is_some_and(|t| self.re.is_match(t))

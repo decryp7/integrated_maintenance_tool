@@ -9,23 +9,25 @@ import { AnalysisState } from './analysis-state';
 import { ANALYSIS_STYLES } from './analysis-styles';
 import { AnalysisTargets } from './analysis-targets';
 import { AnalysisTime } from './analysis-time';
-import { AsyncResource } from './async-resource';
+import { AnalysisResource } from './async-resource';
+import { CoverageNote } from './coverage-note';
 
 /** Message templates ranked by frequency, with a level bar; clicking one filters the workspace by it. */
 @Component({
   selector: 'imt-patterns-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AnalysisState],
+  imports: [AnalysisState, CoverageNote],
   template: `
     <div class="bar">
       <span class="section-title" i18n="@@analysis.patterns.title">Patterns</span>
-      @if (res.data(); as list) { <span class="faint" i18n="@@analysis.patterns.templates">{{ list.length }} templates</span> }
+      @if (res.result(); as list) { <span class="faint" i18n="@@analysis.patterns.templates">{{ list.length }} templates</span> }
       <span class="spacer"></span>
       <button class="btn" type="button" (click)="res.retry()" i18n="@@analysis.patterns.refresh">Refresh</button>
     </div>
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No events to group." i18n-emptyText="@@analysis.patterns.emptyText" emptyHint="Patterns group the matching events by message template, most frequent first." i18n-emptyHint="@@analysis.patterns.emptyHint" suggest (retry)="res.retry()">
+    <imt-coverage-note [coverage]="res.coverage()" />
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="res.result()?.length === 0" emptyText="No events to group." i18n-emptyText="@@analysis.patterns.emptyText" emptyHint="Patterns group the matching events by message template, most frequent first." i18n-emptyHint="@@analysis.patterns.emptyHint" suggest (retry)="res.retry()">
       <ul class="list body" aria-label="Patterns" i18n-aria-label="@@analysis.patterns.listLabel">
-        @for (p of res.data() ?? []; track p.id) {
+        @for (p of res.result() ?? []; track p.id) {
           <li>
             <button class="row" type="button" (click)="filter(p)" title="Filter by this pattern" i18n-title="@@analysis.patterns.filter">
               <span class="num count">{{ count(p.count) }}</span>
@@ -63,7 +65,7 @@ export class PatternsView {
   protected exampleLabel(template: string): string {
     return $localize`:@@analysis.patterns.exampleLabel:Show an example event of ${template}:template:`;
   }
-  protected readonly res = new AsyncResource<Pattern[]>();
+  protected readonly res = new AnalysisResource<Pattern[]>();
   protected readonly time = inject(AnalysisTime);
   protected readonly count = formatCount;
   private readonly backend = inject(AnalysisBackend);
@@ -83,7 +85,7 @@ export class PatternsView {
 
   /** Bar length relative to the most frequent pattern (90px), at least 4px so rare patterns stay visible. */
   protected barPx(p: Pattern): number {
-    const max = Math.max(0, ...(this.res.data() ?? []).map((x) => x.count));
+    const max = Math.max(0, ...(this.res.result() ?? []).map((x) => x.count));
     return max > 0 ? Math.max(4, Math.round((90 * p.count) / max)) : 4;
   }
 

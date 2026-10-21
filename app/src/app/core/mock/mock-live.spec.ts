@@ -124,7 +124,7 @@ describe('MockLiveSim', () => {
 
 describe('MockBackend live tail', () => {
   it('emits realistic reports and alerts, rotates, records set_live calls and reports tail status', async () => {
-    const b = new MockBackend({ latency: false, dataset: tinyDataset, liveMs: 20, liveRate: 200, liveRotateMs: 40, liveAlertMs: 40, exposeLiveCalls: true });
+    const b = new MockBackend({ latency: false, dataset: tinyDataset, liveMs: 20, liveRate: 200, liveRotateMs: 40, liveAlertMs: 40, exposeLiveCalls: true, memoryStoreFeatures: true });
     const reports: (TailReport | null)[] = [];
     const alerts: LiveAlert[] = [];
     const off = await b.onWorkspaceChanged((r) => reports.push(r));

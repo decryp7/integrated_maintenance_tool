@@ -5,10 +5,8 @@ import { WorkspaceStore } from '../../core/workspace.store';
 import { UiStateRegistry } from '../../lifecycle/ui-state';
 import { ProjectService } from '../../projects/project.service';
 import { baseName, errorMessage } from '../../tools/tool-errors';
-import { DialogService } from '../../ui/dialog.service';
 import { ReportStore } from '../report/report.store';
 import { ShareBackend } from '../share-backend';
-import { BundleDialog } from './bundle-dialog';
 
 export const BUNDLE_EXTENSION = '.imtz';
 export const BUNDLE_FILTERS = [{ name: $localize`:@@share.bundle.filterName:IMT bundle`, extensions: ['imtz'] }];
@@ -24,7 +22,10 @@ export interface OpenedBundle {
   manifest: BundleManifest | null;
 }
 
-/** Shareable `.imtz` bundles: create (dialog), open read-only, and leave. */
+/**
+ * Sharing: a saved project (`.imtz`) is self-contained and opens anywhere, so "share" saves the project. Old share
+ * bundles still open read-only, and can be left or saved as a project.
+ */
 @Injectable({ providedIn: 'root' })
 export class BundleService {
   private readonly injector = inject(Injector);
@@ -37,14 +38,14 @@ export class BundleService {
   private readonly reports = inject(ReportStore);
   private readonly projects = inject(ProjectService);
   private readonly platform = inject(Platform);
-  private readonly dialogs = inject(DialogService);
 
   /** The open bundle; null when the window shows a normal project. */
   readonly opened = signal<OpenedBundle | null>(null);
   readonly busy = signal(false);
 
+  /** Shares the workspace: saves it as a project file (Save As), which opens anywhere without the original files. */
   async create(): Promise<void> {
-    await this.dialogs.open(BundleDialog, { title: $localize`:@@share.bundleService.dialogTitle:Share as bundle`, width: 560 }).closed;
+    await this.projects.saveAs();
   }
 
   async openFromDialog(): Promise<void> {

@@ -3,7 +3,7 @@ import { checkMockQl, fieldValue, lex, MockQlError, mockCompletions, mockQlFilte
 import { at } from '../../../testing/must';
 
 const rec = (id: number, level: RecordView['level'], message: string, fields: Record<string, unknown> = {}): RecordView => ({
-  id, ts: id * 1000, level, message, template: id === 1 ? 'T {x}' : null, exception: id === 2 ? 'Boom: x' : null, fields, source: 0, sourceName: 'a.log', line: id, group: 'g', markers: [],
+  id, ts: id * 1000, tsState: 'parsed', level, message, template: id === 1 ? 'T {x}' : null, exception: id === 2 ? 'Boom: x' : null, fields, source: 0, sourceName: 'a.log', line: id, byteOffset: 0, group: 'g', markers: [],
 });
 const data: RecordView[] = [
   rec(1, 'Information', 'started ok', { Ms: 10, Host: 'a' }),

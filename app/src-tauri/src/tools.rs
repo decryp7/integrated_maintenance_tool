@@ -240,11 +240,7 @@ pub(crate) async fn invoke<R: Runtime>(
     if tool.len() > MAX_ID_LEN || op.len() > MAX_ID_LEN {
         return Err("tool and operation names are at most 64 characters".into());
     }
-    let Some(host) = window.tools.clone() else {
-        let e = ToolError::UnknownTool(tool.into());
-        log_failure(tool, op, &e);
-        return Err(missing(e, safe_mode));
-    };
+    let host = window.tools();
     // Path arguments must be what this window's user chose (ADR 0016 grants, checked by the tool host).
     let grants = crate::paths::WindowGrants::of(app, window.label());
     let ctx = ShellTasks::context(app, &host).with_paths(Arc::new(grants));
@@ -339,16 +335,14 @@ pub(crate) fn tool_outputs(result: &Value) -> Vec<PathBuf> {
 /// Empty in safe mode.
 #[tauri::command]
 pub async fn tools_list(window: CurrentWindow) -> Vec<ToolEntry> {
-    window.tools.as_ref().map(ToolHost::list).unwrap_or_default()
+    window.tools().list()
 }
 
 /// Whether `tool`'s `op` is declared a pollable status operation.
 fn is_poll_op(window: &CurrentWindow, tool: &str, op: &str) -> bool {
     window
-        .tools
-        .as_ref()
-        .map(ToolHost::list)
-        .unwrap_or_default()
+        .tools()
+        .list()
         .iter()
         .find(|t| t.info.id == tool)
         .is_some_and(|t| t.info.ops.iter().any(|o| o.name == op && o.poll))
@@ -580,7 +574,7 @@ pub(crate) mod tests {
     #[test]
     fn collections_are_collection_jobs_one_at_a_time() {
         let app = test_app_with_commands(None);
-        let host = crate::test_support::main_window(&app).tools.clone().expect("the tools host");
+        let host = crate::test_support::main_window(&app).tools();
         let sink = ShellTasks {
             app: app.handle().clone(),
             host,

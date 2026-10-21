@@ -22,7 +22,7 @@ import {
 function record(patch: Partial<RecordView> = {}): RecordView {
   return {
     id: 1,
-    ts: 1,
+    ts: 1, tsState: 'parsed',
     level: 'Warning',
     message: 'Slow request /api/orders took 1500 ms',
     template: 'Slow request {Path} took {Elapsed} ms',
@@ -30,7 +30,7 @@ function record(patch: Partial<RecordView> = {}): RecordView {
     fields: { SourceContext: 'Web.Requests', Elapsed: 1500, Nested: { a: 1 } },
     source: 0,
     sourceName: 'app.clef',
-    line: 7,
+    line: 7, byteOffset: 0,
     group: 'g',
     markers: [],
     ...patch,

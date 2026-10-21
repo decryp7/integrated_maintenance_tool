@@ -148,9 +148,15 @@ fn dropping_a_stream_cancels_the_call() {
 fn a_callee_that_ignores_the_deadline_and_the_cancel_is_a_timeout() {
     let slow: Arc<dyn Handler> = Arc::new(|ctx: &CallCtx, body: &[u8]| -> Result<Vec<u8>, RemoteError> {
         if body == b"polite" {
-            while !ctx.is_cancelled() {
-                std::thread::sleep(Duration::from_millis(5));
-            }
+            // The probe sees the cancel from another thread (e.g. a watcher interrupting a statement).
+            let probe = ctx.cancel_probe();
+            let watcher = std::thread::spawn(move || {
+                while !probe.is_cancelled() {
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+            });
+            let _ = watcher.join();
+            assert!(ctx.is_cancelled());
             return Err(CallCtx::cancelled_error());
         }
         std::thread::sleep(Duration::from_secs(4));

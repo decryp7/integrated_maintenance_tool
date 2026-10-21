@@ -135,8 +135,8 @@ describe('ExportDialog', () => {
 });
 
 describe('ExportDialog redaction', () => {
-  async function setup(onExport: boolean) {
-    const backend = tinyBackend();
+  async function setup(onExport: boolean, memoryStoreFeatures = true) {
+    const backend = tinyBackend({ memoryStoreFeatures });
     if (onExport) await mockJobs().wait(await backend.saveProfile((await backend.getProfile()).toml.replace('on_export = false', 'on_export = true')));
     const pick = vi.fn(async () => '/out/events.csv');
     TestBed.configureTestingModule({
@@ -150,6 +150,13 @@ describe('ExportDialog redaction', () => {
   }
 
   const redactBox = (fixture: { nativeElement: HTMLElement }) => fixture.nativeElement.querySelector<HTMLInputElement>('input[type=checkbox]')!;
+
+  it('says the preview is not available yet when the log store cannot summarise the redaction', async () => {
+    const { fixture } = await setup(true, false);
+    await settle(fixture);
+    expect(text(fixture)).toContain('A preview of what will be redacted is not available yet');
+    expect(fixture.nativeElement.querySelector('[role=alert]')).toBeNull();
+  });
 
   it('starts from the profile default and previews what will be masked', async () => {
     const { fixture } = await setup(true);

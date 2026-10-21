@@ -1,7 +1,7 @@
 import type { MockBackendOptions } from './mock-backend';
 
 /** Commands that `mockFail` may name (the mock rejects their first N calls). */
-export const FAILABLE = ['workspaceSummary', 'queryPage', 'queryTimeline', 'queryFacet', 'sourceContext', 'readFileHead', 'previewParse', 'annotations', 'queryRuns', 'previewSpans'] as const;
+export const FAILABLE = ['workspaceSummary', 'queryPage', 'queryTimeline', 'queryFacet', 'sourceContext', 'readFileHead', 'previewParse', 'annotations', 'queryRuns', 'previewSpans', 'searchPartial'] as const;
 export type Failable = (typeof FAILABLE)[number];
 
 function positiveInt(v: string | null): number | undefined {
@@ -19,6 +19,7 @@ function nonNegativeInt(v: string | null): number | undefined {
  *   ?mockTotal=50000000       synthetic result of that many events (lazily generated)
  *   ?mockFacet=10000          every field has that many distinct values
  *   ?mockFail=queryPage:2     the first N calls of a command reject (comma separated)
+ *   ?mockMemoryFeatures=1     also offer what only the old in-memory store did (clock skew, alert mutes, tail state, redacted view)
  *   ?mockCorrupt=markers      page rows arrive without `markers`, as a buggy backend would send them
  *   ?mockLiveMs=300           interval of the live tail events (default 1500; 250 with mockLive)
  *   ?mockLive=1               realistic live simulation: records across files, rotations, alerts (implies the switches below)
@@ -55,5 +56,6 @@ export function mockOptionsFromSearch(search: string): MockBackendOptions {
     if (name !== undefined && (FAILABLE as readonly string[]).includes(name)) fail[name as Failable] = n;
   }
   if (Object.keys(fail).length) options.fail = fail;
+  if (p.get('mockMemoryFeatures') === '1') options.memoryStoreFeatures = true;
   return options;
 }

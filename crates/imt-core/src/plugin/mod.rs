@@ -785,6 +785,18 @@ impl PluginRegistry {
         self.runtime.health.reset(id);
     }
 
+    /// The export formats (for the UI's export dialog).
+    pub fn exporter_infos(&self) -> Vec<crate::api::ExporterInfo> {
+        self.exporters
+            .iter()
+            .map(|e| crate::api::ExporterInfo {
+                id: e.id().into(),
+                name: e.name().into(),
+                extension: e.extension().into(),
+            })
+            .collect()
+    }
+
     pub fn exporter(&self, id: &str) -> Option<&Arc<dyn Exporter>> {
         self.exporters.iter().find(|e| e.id() == id)
     }

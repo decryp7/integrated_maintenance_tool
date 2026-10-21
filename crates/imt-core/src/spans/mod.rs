@@ -19,6 +19,7 @@ pub mod draft;
 pub mod dto;
 pub mod infer;
 pub mod pairing;
+pub mod preview;
 
 pub use config::{OneOrMany, Per, SpanCfg, SpanField, SpanIssue, SpanRule, MAX_SPAN_RULES};
 pub use dto::{

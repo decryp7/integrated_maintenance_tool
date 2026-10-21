@@ -36,6 +36,81 @@ impl PageQuery {
     }
 }
 
+/// The parser a source was read with (ADR 0026: parsers are individual TOML files matched per file; until
+/// then the workspace's one profile is the parser of every source, id [`ParserRef::PROFILE`]).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserRef {
+    pub id: String,
+    pub version: String,
+    /// Content hash of the parser's TOML (canonical form): a source is re-read when its parser's hash changed.
+    pub hash: String,
+}
+
+impl ParserRef {
+    /// The id of the interim parser: the workspace's profile.
+    pub const PROFILE: &'static str = "profile";
+
+    /// The workspace's profile as the parser of every source (the interim before ADR 0026).
+    pub fn of_profile(profile: &crate::Profile) -> ParserRef {
+        ParserRef {
+            id: Self::PROFILE.into(),
+            version: profile.name.clone(),
+            hash: content_hash(&profile_toml(profile)),
+        }
+    }
+}
+
+/// A profile's canonical TOML (what its parser hash and the embedded copy are made of).
+pub fn profile_toml(profile: &crate::Profile) -> String {
+    toml::to_string(profile).unwrap_or_default()
+}
+
+/// Hex SHA-256 (the first 16 bytes) of a parser's TOML.
+pub fn content_hash(text: &str) -> String {
+    use sha2::Digest;
+    let d = sha2::Sha256::digest(text.as_bytes());
+    d.iter().take(16).map(|b| format!("{b:02x}")).collect()
+}
+
+/// A parser's definition: its id and version and its TOML (ADR 0026; until then a profile's TOML).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserDef {
+    pub id: String,
+    pub version: String,
+    pub toml: String,
+}
+
+/// Which sources a parser reads.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserUse {
+    pub parser: ParserRef,
+    pub sources: Vec<SourceId>,
+}
+
+/// What changing a parser would cost: the class of the change and the sources it touches.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserChange {
+    pub class: crate::profile_change::ChangeClass,
+    /// Changed sections, e.g. `parse`, `extract`.
+    pub sections: Vec<String>,
+    /// The sources that would be re-derived or re-read.
+    pub sources: Vec<SourceId>,
+}
+
+/// Events by id (a report's events, bookmarks, AI citations), at most [`MAX_PAGE_ROWS`]; ids that do not
+/// exist (any more) are left out.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct EventsRequest {
+    pub ids: Vec<EventId>,
+    /// The instance key's fields (empty: the engine's default key).
+    pub group_by: Vec<String>,
+}
+
 /// One event as the grid shows it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,6 +130,71 @@ pub struct EventView {
     /// The instance key (the query's group-by fields).
     pub group: String,
     pub markers: Vec<String>,
+    /// How the event matched a smart search (set on pages of a word search; see [`mark_search_matches`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub search_match: Option<SearchMatch>,
+}
+
+/// How an event matched the search box's text (smart search).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SearchMatch {
+    /// It holds every word of the text.
+    Words,
+    /// It holds the text only as a substring (added by the background scan).
+    Partial,
+}
+
+/// Marks how each row matched the filter's search box text when it is a word search (rows of a substring,
+/// regex or case-sensitive search, or without text, stay unmarked).
+pub fn mark_search_matches(rows: &mut [EventView], filter: &crate::ports::Filter) {
+    if filter.text_mode.is_substring() || filter.regex || filter.case_sensitive || filter.text.trim().is_empty() {
+        return;
+    }
+    let words = crate::words::WordQuery::parse(&filter.text);
+    if words.is_empty() {
+        return;
+    }
+    for r in rows {
+        let texts: Vec<&str> = [Some(r.message.as_str()), r.exception.as_deref(), r.template.as_deref()]
+            .into_iter()
+            .flatten()
+            .collect();
+        r.search_match = Some(if words.matches(&texts) {
+            SearchMatch::Words
+        } else {
+            SearchMatch::Partial
+        });
+    }
+}
+
+/// What the background scan of a smart search found: events holding the text only as a substring.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PartialMatches {
+    /// Matching events that are not word matches ("N more partial matches").
+    pub added: u64,
+    /// False when the scan looked at only part of the events (a limit stopped it).
+    pub complete: bool,
+}
+
+impl EventView {
+    /// The event as a record (for code written over records: redaction, reports). Ids beyond `u32` saturate
+    /// until records carry `EventId`s.
+    pub fn to_record(&self) -> crate::model::Record {
+        crate::model::Record {
+            id: u32::try_from(self.id.0).unwrap_or(u32::MAX),
+            ts: self.ts,
+            level: self.level,
+            message: self.message.clone(),
+            template: self.template.clone(),
+            exception: self.exception.clone(),
+            fields: self.fields.clone(),
+            source: self.source.0,
+            line: self.line,
+            markers: 0,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -258,8 +398,37 @@ mod tests {
             byte_offset: 4,
             group: "g".into(),
             markers: vec![],
+            search_match: None,
         };
         let json = serde_json::to_value(&view).unwrap();
+        assert!(json.get("searchMatch").is_none());
+        let mut rows = vec![
+            view.clone(),
+            EventView {
+                message: "runtime".into(),
+                ..view.clone()
+            },
+            EventView {
+                message: "Time out".into(),
+                ..view.clone()
+            },
+        ];
+        let filter = |text: &str, text_mode| crate::ports::Filter {
+            text: text.into(),
+            text_mode,
+            ..Default::default()
+        };
+        mark_search_matches(&mut rows, &filter("time", crate::query::TextMode::Substring));
+        assert!(rows.iter().all(|r| r.search_match.is_none()), "a substring search is not marked");
+        mark_search_matches(&mut rows, &filter("time", crate::query::TextMode::WordsOrSubstring));
+        assert_eq!(
+            rows.iter().map(|r| r.search_match).collect::<Vec<_>>(),
+            [Some(SearchMatch::Partial), Some(SearchMatch::Partial), Some(SearchMatch::Words)]
+        );
+        let mut fresh = vec![view.clone()];
+        mark_search_matches(&mut fresh, &filter("--", crate::query::TextMode::Words));
+        assert_eq!(fresh[0].search_match, None, "no words: nothing to mark");
+        assert_eq!(serde_json::to_value(SearchMatch::Partial).unwrap(), "partial");
         assert_eq!(json["tsState"], "untimed");
         assert_eq!(json["byteOffset"], 4);
         assert_eq!(json["source"], 2);

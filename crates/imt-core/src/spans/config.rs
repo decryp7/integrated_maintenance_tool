@@ -110,7 +110,7 @@ pub struct SpanRule {
 }
 
 /// Which key of a `[[span]]` an error is about (for its profile line).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum SpanField {
     Kind,
@@ -140,7 +140,7 @@ impl SpanField {
 }
 
 /// One problem with a span rule.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpanIssue {
     pub field: SpanField,

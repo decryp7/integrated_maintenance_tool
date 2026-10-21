@@ -50,7 +50,7 @@ pub enum RunStatus {
 }
 
 /// The start or stop event of a run.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunEvent {
     pub id: u32,

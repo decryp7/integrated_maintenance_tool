@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
-import { all, buttonByText, el, settle, text, typeInto } from '../../../testing/helpers';
+import { all, buttonByText, el, settle, text, tinyBackend, typeInto } from '../../../testing/helpers';
 import { ImtBackend } from '../../core/backend';
+import { mockUnsupported } from '../../core/mock/mock-unsupported';
 import { RedactionSummary } from '../../core/api.types';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { ProfileEdits } from '../../profile/profile-edits';
@@ -21,7 +22,7 @@ const closed = vi.fn();
 async function setup() {
   closed.mockClear();
   TestBed.configureTestingModule({
-    providers: [...provideToolsTesting(), provideMockShare(), { provide: DIALOG_REF, useValue: { close: closed, closed: Promise.resolve(undefined) } }],
+    providers: [...provideToolsTesting(), { provide: ImtBackend, useValue: tinyBackend({ memoryStoreFeatures: true }) }, provideMockShare(), { provide: DIALOG_REF, useValue: { close: closed, closed: Promise.resolve(undefined) } }],
   });
   const store = TestBed.inject(WorkspaceStore);
   await settle();
@@ -66,6 +67,14 @@ describe('RedactionService and commands', () => {
     expect(await service.set(true)).toBe(false);
     expect(store.error()).toContain('no redaction rules');
     expect(service.busy()).toBe(false);
+  });
+
+  it('says calmly that the redacted view is not available yet with the log store', async () => {
+    const { service, store } = await setup();
+    vi.spyOn(TestBed.inject(ShareBackend), 'setRedactedView').mockRejectedValueOnce(mockUnsupported('the redacted view is not available with the new log store yet', 'Exports can still be redacted.'));
+    expect(await service.set(true)).toBe(false);
+    expect(store.error()).toBeNull();
+    expect(store.notice()).toBe('The redacted view is not available with the new log store yet. Exports can still be redacted.');
   });
 
   it('reads the export default from the profile', async () => {

@@ -6,10 +6,11 @@ use super::citations::Citation;
 use super::proposals::Proposal;
 use crate::access::StoreRef;
 use crate::llm::ToolSpec;
-use imt_core::api::{ContextRequest, FieldStatsRequest, MomentRequest, PageRequest, QueryRequest};
+use imt_core::api::{ContextRequest, FieldStatsRequest, MomentRequest, QueryRequest};
+use imt_core::ports::Store;
+use imt_core::ports::{EventsRequest, StoreError};
 use imt_core::ql::QlResult;
 use imt_core::query::Query;
-use imt_core::LogStore;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::cell::RefCell;
@@ -334,7 +335,7 @@ impl<'a> EngineTools<'a> {
         self.store.with(|s| self.summary_in(s, id))
     }
 
-    fn summary_in(&self, s: &dyn LogStore, id: u32) -> Option<String> {
+    fn summary_in(&self, s: &dyn Store, id: u32) -> Option<String> {
         let v = self.event_in(s, id)?;
         let level = v.get("level").and_then(Value::as_str).unwrap_or("?");
         let ts = v
@@ -369,19 +370,15 @@ impl<'a> EngineTools<'a> {
         })
     }
 
-    fn event_in(&self, s: &dyn LogStore, id: u32) -> Option<Value> {
-        let req = PageRequest {
-            query: Query::default(),
-            offset: 0,
-            limit: 1,
-            descending: false,
-            anchor: Some(id),
+    fn event_in(&self, s: &dyn Store, id: u32) -> Option<Value> {
+        let req = EventsRequest {
+            ids: vec![imt_core::batch::EventId(u64::from(id))],
+            group_by: Vec::new(),
         };
-        let page = s.page(&req).ok()?;
-        let row = page.rows.first().filter(|r| r.id == id)?;
-        let mut v = serde_json::to_value(row).ok()?;
+        let row = s.events(&req).ok()?.into_iter().next()?;
+        let mut v = serde_json::to_value(&row).ok()?;
         if let Some(o) = v.as_object_mut() {
-            for k in ["template", "group", "source"] {
+            for k in ["template", "group", "source", "tsState", "byteOffset"] {
                 o.remove(k);
             }
         }
@@ -389,13 +386,14 @@ impl<'a> EngineTools<'a> {
         Some(v)
     }
 
-    fn run_query(&self, s: &dyn LogStore, a: QlArg) -> ToolOutcome {
+    fn run_query(&self, s: &dyn Store, a: QlArg) -> ToolOutcome {
         let limit = a.limit.unwrap_or(20).clamp(1, 50);
         match s.run_query(&QueryRequest { query: query_of(&a.ql) }) {
-            Err(e) => ToolOutcome::err(format!(
+            Err(StoreError::Query(e)) => ToolOutcome::err(format!(
                 "query error: {} (at byte {}); fix the query and try again",
                 e.message, e.offset
             )),
+            Err(e) => ToolOutcome::err(format!("the query cannot run: {e}")),
             Ok(QlResult::Events { ids, .. }) => {
                 let shown: Vec<u32> = ids.iter().copied().take(limit).collect();
                 let sample: Vec<Value> = shown
@@ -421,7 +419,7 @@ impl<'a> EngineTools<'a> {
         }
     }
 
-    fn get_events(&self, s: &dyn LogStore, a: IdsArg) -> ToolOutcome {
+    fn get_events(&self, s: &dyn Store, a: IdsArg) -> ToolOutcome {
         let mut ids = a.ids;
         ids.dedup();
         ids.truncate(50);
@@ -466,7 +464,7 @@ impl ToolHost for EngineTools<'_> {
 }
 
 impl EngineTools<'_> {
-    fn call_in(&self, s: &dyn LogStore, name: &str, input: &Value) -> ToolOutcome {
+    fn call_in(&self, s: &dyn Store, name: &str, input: &Value) -> ToolOutcome {
         macro_rules! parse {
             ($t:ty) => {
                 match args::<$t>(input) {
@@ -480,16 +478,17 @@ impl EngineTools<'_> {
             "check_query" => {
                 let a = parse!(QlArg);
                 match s.check_query(&a.ql) {
-                    None => ToolOutcome::ok(json!({"valid": true}).to_string(), "valid"),
-                    Some(e) => ToolOutcome::ok(
+                    Ok(None) => ToolOutcome::ok(json!({"valid": true}).to_string(), "valid"),
+                    Ok(Some(e)) => ToolOutcome::ok(
                         json!({"valid": false, "error": e.message, "offset": e.offset}).to_string(),
                         "invalid",
                     ),
+                    Err(e) => ToolOutcome::err(format!("the query cannot be checked: {e}")),
                 }
             }
             "patterns" => {
                 let a = parse!(OptQl);
-                match s.patterns(&QueryRequest { query: query_of(&a.ql) }) {
+                match s.patterns(&QueryRequest { query: query_of(&a.ql) }).map(|a| a.result) {
                     Ok(p) => {
                         let n = p.len();
                         let top: Vec<_> = p.into_iter().take(a.limit.unwrap_or(15).clamp(1, 30)).collect();
@@ -504,7 +503,7 @@ impl EngineTools<'_> {
             }
             "exception_groups" => {
                 let a = parse!(OptQl);
-                match s.exception_groups(&QueryRequest { query: query_of(&a.ql) }) {
+                match s.exception_groups(&QueryRequest { query: query_of(&a.ql) }).map(|a| a.result) {
                     Ok(g) => {
                         let n = g.len();
                         self.finish(json!({"total": n, "groups": g}), format!("{n} exception groups"), vec![])
@@ -512,7 +511,7 @@ impl EngineTools<'_> {
                     Err(e) => ToolOutcome::err(format!("{e:#}")),
                 }
             }
-            "overview" => match s.overview(&QueryRequest { query: Query::default() }) {
+            "overview" => match s.overview(&QueryRequest { query: Query::default() }).map(|a| a.result) {
                 Ok(f) => {
                     let n = f.len();
                     self.finish(json!({"findings": f}), format!("{n} findings"), vec![])
@@ -521,11 +520,14 @@ impl EngineTools<'_> {
             },
             "moment" => {
                 let a = parse!(MomentArg);
-                match s.moment(&MomentRequest {
-                    query: Query::default(),
-                    from: a.from,
-                    to: a.to,
-                }) {
+                match s
+                    .moment(&MomentRequest {
+                        query: Query::default(),
+                        from: a.from,
+                        to: a.to,
+                    })
+                    .map(|a| a.result)
+                {
                     Ok(m) => {
                         let total = m.total;
                         self.finish(

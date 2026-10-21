@@ -178,7 +178,9 @@ impl<P: LlmProvider> Assistant<P> {
                 file_name: file_name.to_string(),
                 limit: 200,
             };
-            let pv = store.with(|s| s.preview_parse(&req));
+            let pv = store
+                .with(|s| s.preview_parse(&req))
+                .map_err(|e| AiError::Invalid(format!("the engine cannot preview this profile: {e}")))?;
             let with_ts = pv.records.iter().filter(|r| r.ts.is_some()).count();
             // A delimited file is only trusted when its first line looks like a header (no digits).
             let header_ok =
@@ -243,7 +245,7 @@ impl<P: LlmProvider> Assistant<P> {
             profile.instance.key = a.instance_key.iter().map(|f| f.trim().to_string()).filter(|f| !f.is_empty()).collect();
             let toml = toml::to_string(&profile).map_err(|e| format!("the profile cannot be written: {e}"))?;
             let preview =
-                store.with(|s| s.preview_parse(&ParsePreviewRequest { toml: toml.clone(), sample: sample.to_string(), file_name: file_name.to_string(), limit: 200 }));
+                store.with(|s| s.preview_parse(&ParsePreviewRequest { toml: toml.clone(), sample: sample.to_string(), file_name: file_name.to_string(), limit: 200 })).map_err(|e| format!("the engine cannot preview this profile: {e}"))?;
             if let Some(e) = preview.error {
                 return Err(format!("the engine cannot use this profile: {e}"));
             }

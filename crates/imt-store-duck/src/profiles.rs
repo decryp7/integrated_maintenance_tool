@@ -13,6 +13,7 @@ use imt_core::ports::{ImportReport, ImportSession, Profiles, StoreError, StoreRe
 use imt_core::profile::{CompiledProfile, Profile};
 use imt_core::profile_change::{classify, ChangeClass};
 use imt_core::workspace::{preview_parse, preview_profile, ExtractPreviewer};
+use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
@@ -122,17 +123,54 @@ impl Profiles for DuckStore {
                 if missing.len() > shown.len() { ", ..." } else { "" }
             )));
         }
-        let guard = self.begin_job()?;
+        // Only the sources read with another parser are read again (ADR 0026: per parser; today every source
+        // shares the profile, so all of them).
+        let stale: Vec<PathBuf> = self
+            .inner
+            .sources_not_read_with(&imt_core::ports::ParserRef::of_profile(&compiled.profile))?
+            .into_iter()
+            .map(|(_, path)| PathBuf::from(path.split(imt_core::archive::ENTRY_SEPARATOR).next().unwrap_or(&path)))
+            .collect();
         self.inner.swap_profile(compiled);
-        let inner = self.inner.clone();
-        ImportSession::spawn(self.inner.progress.clone(), move |progress| {
-            let _guard = guard;
-            inner.reimport(progress)
-        })
+        if stale.is_empty() {
+            return ImportSession::spawn(self.inner.progress.clone(), |_| Ok(ImportReport::default()));
+        }
+        let all = {
+            let conn = self.inner.conn()?;
+            let n: u64 = conn
+                .query_row("SELECT count(*) FROM sources WHERE ready", [], |r| r.get(0))
+                .map_err(engine)?;
+            n as usize <= stale.len()
+        };
+        if all {
+            let guard = self.begin_job()?;
+            let inner = self.inner.clone();
+            return ImportSession::spawn(self.inner.progress.clone(), move |progress| {
+                let _guard = guard;
+                inner.reimport(progress)
+            });
+        }
+        imt_core::ports::Ingest::refresh(self, &stale)
     }
 
     fn preview_parse(&self, req: &ParsePreviewRequest) -> StoreResult<ParsePreview> {
         Ok(preview_parse(self.inner.registry(), req))
+    }
+
+    fn parsers(&self) -> StoreResult<Vec<imt_core::ports::ParserUse>> {
+        self.inner.parser_uses()
+    }
+
+    fn classify_parser(&self, parser: &imt_core::ports::ParserDef) -> StoreResult<imt_core::ports::ParserChange> {
+        self.classify_parser_change(parser)
+    }
+
+    fn assign_parser(&self, _source: imt_core::batch::SourceId, _parser: &imt_core::ports::ParserDef) -> StoreResult<ImportSession> {
+        Err(StoreError::unsupported("assigning a parser to a source", "ADR 0026"))
+    }
+
+    fn preview_spans(&self, req: &imt_core::spans::SpanPreviewRequest) -> StoreResult<imt_core::spans::SpanPreview> {
+        self.inner.preview_spans(req)
     }
 
     fn propose_span_rule(&self, req: &imt_core::spans::infer::SpanRuleRequest) -> StoreResult<imt_core::spans::infer::SpanProposal> {

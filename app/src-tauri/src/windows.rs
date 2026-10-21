@@ -5,21 +5,20 @@
 //!
 //! Commands get the calling window's state with the [`CurrentWindow`]
 //! extractor (resolved from the window label of the invoking webview), so a
-//! command looks like `async fn query_page(state: CurrentWindow, request: PageRequest)`.
+//! command looks like `async fn query_page(state: CurrentWindow, request: PageQuery)`.
 //! A window's state is created on its first use and dropped when the window
-//! is destroyed (see `window_manager`), which frees its workspace and stops its
-//! live tail.
+//! is destroyed (see `window_manager`), which closes its store (in the store
+//! worker) and stops its live tail.
 
+use crate::engine::{Engine, Host};
 use crate::live::LiveSlot;
 use crate::profile::ProfileDoc;
 use crate::{err, CmdResult};
-use imt_core::workspace::ImportProgress;
-use imt_core::LogStore;
 use serde::Serialize;
 use std::collections::{BTreeMap, HashSet};
 use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, Mutex, RwLock};
 use tauri::ipc::{CommandArg, CommandItem, InvokeError};
 use tauri::{Emitter, EventTarget, Manager, Runtime};
 
@@ -33,25 +32,24 @@ pub const OPEN_EVENT: &str = "imt://open";
 /// One window's workspace and everything that belongs to it.
 pub struct WindowState {
     label: String,
-    pub(crate) workspace: Arc<RwLock<Box<dyn LogStore>>>,
+    /// The window's store (in the store worker), opened on first use.
+    pub(crate) engine: Engine,
+    /// The window's plugin registry and compiled profile (tools, marker kinds, plugin status).
+    pub(crate) host: Host,
     pub(crate) profile: RwLock<ProfileDoc>,
     /// Paths to open that arrived outside the UI (launch arguments, files
     /// opened from the OS, restored sessions); the UI takes them after `imt://open`.
     pending: Mutex<Vec<String>>,
     /// Paths waiting for the user's answer to "open here or in a new window?".
     pending_ask: Mutex<Vec<String>>,
-    /// Import progress, shared with the store (no lock needed to read or cancel).
-    pub(crate) progress: Arc<ImportProgress>,
-    /// The store's event bus (no lock needed to publish or read metrics).
-    pub(crate) events: Option<Arc<imt_core::events::EventBus>>,
-    /// The tools of the store's plugins (no lock needed to list or invoke them).
-    pub(crate) tools: Option<imt_core::plugin::tools::ToolHost>,
     /// The running live tail session, if any.
     pub(crate) live: LiveSlot,
     /// The window title the UI set (project name), for the tray's window list.
     title: Mutex<String>,
-    /// The `.imtproj` this window last opened or saved.
+    /// The project this window last opened or saved.
     project: Mutex<Option<String>>,
+    /// Something was imported or a project opened (and not cleared since).
+    loaded: AtomicBool,
     /// "Close" was asked of the UI and not answered yet.
     pub(crate) close_asked: AtomicBool,
     /// Open profiles and heap snapshots (see `profiling`).
@@ -63,19 +61,18 @@ pub struct WindowState {
 }
 
 impl WindowState {
-    pub fn new(label: &str, store: Box<dyn LogStore>, progress: Arc<ImportProgress>, profile: ProfileDoc) -> WindowState {
+    pub fn new(label: &str, engine: Engine, host: Host, profile: ProfileDoc) -> WindowState {
         WindowState {
             label: label.to_string(),
-            events: store.event_bus(),
-            tools: store.tool_host(),
-            workspace: Arc::new(RwLock::new(store)),
+            engine,
+            host,
             profile: RwLock::new(profile),
             pending: Mutex::default(),
             pending_ask: Mutex::default(),
-            progress,
             live: LiveSlot::default(),
             title: Mutex::new(String::new()),
             project: Mutex::default(),
+            loaded: AtomicBool::new(false),
             close_asked: AtomicBool::new(false),
             profiling: crate::profiling::ProfilingSlot::default(),
             dumps: crate::dumps::DumpsSlot::default(),
@@ -87,43 +84,26 @@ impl WindowState {
         &self.label
     }
 
-    /// The store for reading. A panic during an earlier command must not make
-    /// every later command fail, so a poisoned lock is recovered.
-    pub(crate) fn store_read(&self) -> RwLockReadGuard<'_, Box<dyn LogStore>> {
-        self.workspace.read().unwrap_or_else(|p| {
-            log::warn!("recovering the workspace lock after a crash");
-            p.into_inner()
-        })
-    }
-
-    pub(crate) fn store_write(&self) -> RwLockWriteGuard<'_, Box<dyn LogStore>> {
-        self.workspace.write().unwrap_or_else(|p| {
-            log::warn!("recovering the workspace lock after a crash");
-            p.into_inner()
-        })
-    }
-
-    /// Deactivates the workspace's plugins (window closed, app exiting).
-    /// Never waits: a store busy with an import is skipped (its process or
-    /// window is going away anyway).
-    pub(crate) fn shutdown_plugins(&self) {
-        match self.workspace.try_read() {
-            Ok(store) => store.shutdown_plugins(),
-            Err(std::sync::TryLockError::Poisoned(p)) => p.into_inner().shutdown_plugins(),
-            Err(std::sync::TryLockError::WouldBlock) => log::info!("Plugins not shut down: the workspace is busy"),
-        }
+    /// Deactivates the window's plugins and closes its store (window closed, app exiting). `keep` keeps a
+    /// scratch store's folder (IMT is quitting: the session reopens it).
+    pub(crate) fn shutdown(&self, keep: bool) {
+        self.host.registry.shutdown();
+        self.engine.shutdown(keep);
     }
 
     /// Publishes a host event to the workspace's plugins.
     pub(crate) fn publish<E: Send + Sync + 'static>(&self, event: E) {
-        if let Some(bus) = &self.events {
-            bus.publish(event);
-        }
+        self.host.registry.events().publish(event);
     }
 
     /// Delivery counters of every event subscriber of the workspace's plugins.
     pub(crate) fn event_metrics(&self) -> Vec<imt_core::events::SubscriberMetrics> {
-        self.events.as_ref().map(|b| b.metrics()).unwrap_or_default()
+        self.host.registry.events().metrics()
+    }
+
+    /// The tools of the window's plugins.
+    pub(crate) fn tools(&self) -> imt_core::plugin::tools::ToolHost {
+        self.host.registry.tools()
     }
 
     pub(crate) fn profile_doc(&self) -> ProfileDoc {
@@ -166,14 +146,18 @@ impl WindowState {
         *crate::sync::lock(&self.project) = path;
     }
 
+    /// Something was imported (or nothing is any more, after `clear`).
+    pub(crate) fn set_loaded(&self, loaded: bool) {
+        self.loaded.store(loaded, Ordering::SeqCst);
+    }
+
     /// Nothing is open or about to open: files from other apps can go here
-    /// instead of into a new window. A busy workspace is not pristine.
+    /// instead of into a new window. An importing window is not pristine.
     pub fn is_pristine(&self) -> bool {
-        let empty = match self.workspace.try_read() {
-            Ok(store) => store.summary().sources.is_empty(),
-            Err(_) => false,
-        };
-        empty && self.project().is_none() && self.pending.lock().map(|p| p.is_empty()).unwrap_or(false)
+        !self.loaded.load(Ordering::SeqCst)
+            && !self.engine.progress().running
+            && self.project().is_none()
+            && self.pending.lock().map(|p| p.is_empty()).unwrap_or(false)
     }
 }
 
@@ -240,7 +224,8 @@ impl Windows {
         }
         let removed = crate::sync::write(&self.map).remove(label);
         if let Some(w) = &removed {
-            w.shutdown_plugins();
+            // Quitting keeps scratch stores for the session; closing a window deletes them.
+            w.shutdown(self.exiting());
             log::info!("Window workspace freed");
         }
         removed
@@ -253,10 +238,11 @@ impl Windows {
         all
     }
 
-    /// Deactivates the plugins of every window's workspace (on exit).
+    /// Deactivates the plugins of every window and lets go of their stores (on exit; scratch stores stay for
+    /// the session).
     pub fn shutdown_plugins(&self) {
         for w in self.all() {
-            w.shutdown_plugins();
+            w.shutdown(true);
         }
     }
 
@@ -385,85 +371,26 @@ pub fn queue_open<R: Runtime>(app: &tauri::AppHandle<R>, label: &str, paths: Vec
     }
 }
 
-/// Runs read-only work on the blocking pool so large scans never stall the UI thread.
-pub(crate) async fn read<T: Send + 'static>(
-    win: &WindowState,
-    f: impl FnOnce(&dyn LogStore) -> anyhow::Result<T> + Send + 'static,
-) -> CmdResult<T> {
-    let ws = win.workspace.clone();
-    crate::error::lift(
-        tauri::async_runtime::spawn_blocking(move || f(crate::sync::read(&ws).as_ref()).map_err(err))
-            .await
-            .map_err(err)?,
-    )
-}
-
-pub(crate) async fn write<T: Send + 'static>(
-    win: &WindowState,
-    f: impl FnOnce(&mut dyn LogStore) -> anyhow::Result<T> + Send + 'static,
-) -> CmdResult<T> {
-    let ws = win.workspace.clone();
-    crate::error::lift(
-        tauri::async_runtime::spawn_blocking(move || f(crate::sync::write(&ws).as_mut()).map_err(err))
-            .await
-            .map_err(err)?,
-    )
-}
-
-/// Like [`write`], and tells the window (`imt://error`) about plugin crashes,
-/// quarantines and import crashes the engine contained meanwhile.
-pub(crate) async fn write_reporting<R: Runtime, T: Send + 'static>(
-    app: &tauri::AppHandle<R>,
-    win: &WindowState,
-    f: impl FnOnce(&mut dyn LogStore) -> anyhow::Result<T> + Send + 'static,
-) -> CmdResult<T> {
-    let (out, errors) = write(win, move |ws| {
-        let before = crate::engine_errors::HealthSnapshot::of(&ws.summary());
-        let out = f(ws);
-        let errors = crate::engine_errors::new_errors(&before, &crate::engine_errors::HealthSnapshot::of(&ws.summary()));
-        Ok((out, errors))
-    })
-    .await?;
-    for e in &errors {
-        crate::snapshots::emit_engine_error(app, win.label(), e);
-    }
-    crate::error::lift(out.map_err(err))
-}
-
-/// Like [`write_reporting`], on the calling thread (a job's).
-pub(crate) fn write_reporting_blocking<R: Runtime, T>(
-    app: &tauri::AppHandle<R>,
-    win: &WindowState,
-    f: impl FnOnce(&mut dyn LogStore) -> anyhow::Result<T>,
-) -> anyhow::Result<T> {
-    let ws = win.workspace.clone();
-    let (out, errors) = {
-        let mut guard = crate::sync::write(&ws);
-        let store = guard.as_mut();
-        let before = crate::engine_errors::HealthSnapshot::of(&store.summary());
-        let out = f(store);
-        let errors = crate::engine_errors::new_errors(&before, &crate::engine_errors::HealthSnapshot::of(&store.summary()));
-        (out, errors)
-    };
-    for e in &errors {
-        crate::snapshots::emit_engine_error(app, win.label(), e);
-    }
-    out
-}
-
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use imt_core::{Profile, Workspace};
+    use imt_core::{PluginRegistry, Profile};
+
+    /// A window's state with the store in process (scratch folders under the system temp folder).
+    pub(crate) fn window_state(label: &str, registry: PluginRegistry) -> WindowState {
+        let root = std::env::temp_dir().join(format!("imt-test-stores-{}", std::process::id()));
+        let engine = Engine::new(crate::engine::local::host(), root, label, Profile::default_profile());
+        registry.resolve();
+        let host = Host::new(registry, Profile::default_profile()).unwrap();
+        WindowState::new(label, engine, host, ProfileDoc::default())
+    }
 
     pub(crate) fn factory() -> WindowFactory {
         Box::new(|label| {
             if label == "broken" {
                 anyhow::bail!("no workspace for you");
             }
-            let ws = Workspace::new(Profile::default_profile())?;
-            let progress = ws.progress();
-            Ok(WindowState::new(label, Box::new(ws), progress, ProfileDoc::default()))
+            Ok(window_state(label, PluginRegistry::new()))
         })
     }
 
@@ -541,14 +468,13 @@ pub(crate) mod tests {
         assert!(w.take_pending_ask().is_empty());
         w.set_title("Incident — IMT");
         assert_eq!(w.title(), "Incident — IMT");
-        w.set_project(Some("/p.imtproj".into()));
+        w.set_project(Some("/p.imtz".into()));
         assert!(!w.is_pristine());
-        assert_eq!(w.project().as_deref(), Some("/p.imtproj"));
+        assert_eq!(w.project().as_deref(), Some("/p.imtz"));
         w.set_project(None);
-        {
-            let _busy = w.store_write();
-            assert!(!w.is_pristine(), "a busy workspace is not reused");
-        }
+        w.set_loaded(true);
+        assert!(!w.is_pristine(), "a window with data is not reused");
+        w.set_loaded(false);
         assert!(w.is_pristine());
         w.set_profile_doc(ProfileDoc {
             name: "x".into(),
@@ -578,21 +504,14 @@ pub(crate) mod tests {
         }
     }
 
-    fn counting_window(label: &str, count: &Arc<std::sync::atomic::AtomicUsize>) -> Arc<WindowState> {
-        let mut registry = imt_core::PluginRegistry::new();
-        registry.install_shared(Arc::new(Counting(count.clone()))).unwrap();
-        let ws = Workspace::with_registry(Profile::default_profile(), registry).unwrap();
-        let progress = ws.progress();
-        Arc::new(WindowState::new(label, Box::new(ws), progress, ProfileDoc::default()))
-    }
-
     #[test]
     fn plugins_shut_down_when_a_window_closes_or_the_app_exits() {
         let count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let c = count.clone();
         let windows = Windows::new(Box::new(move |label| {
-            let w = counting_window(label, &c);
-            Ok(Arc::try_unwrap(w).ok().unwrap())
+            let mut registry = PluginRegistry::new();
+            registry.install_shared(Arc::new(Counting(c.clone()))).unwrap();
+            Ok(window_state(label, registry))
         }));
         windows.get_or_create(MAIN).unwrap();
         windows.get_or_create("w-2").unwrap();
@@ -602,22 +521,13 @@ pub(crate) mod tests {
         assert_eq!(count.load(Ordering::SeqCst), 2);
         windows.shutdown_plugins();
         assert_eq!(count.load(Ordering::SeqCst), 2, "already inactive");
-
-        // A busy store is skipped instead of blocking the exit.
-        let busy = counting_window("busy", &count);
-        let guard = busy.store_write();
-        busy.shutdown_plugins();
-        drop(guard);
-        assert_eq!(count.load(Ordering::SeqCst), 2);
-        busy.shutdown_plugins();
-        assert_eq!(count.load(Ordering::SeqCst), 3);
     }
 
     #[test]
     fn host_events_reach_plugin_subscribers_and_are_counted() {
         let windows = Windows::new(factory());
         let w = windows.get_or_create(MAIN).unwrap();
-        let bus = w.events.clone().unwrap();
+        let bus = w.host.registry.events();
         let (tx, rx) = std::sync::mpsc::channel();
         bus.subscribe::<imt_core::events::SnapshotTaken>("test.listener", move |e| {
             let _ = tx.send(e.id.clone());
@@ -628,20 +538,5 @@ pub(crate) mod tests {
         let m = w.event_metrics();
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].plugin, "test.listener");
-    }
-
-    #[test]
-    fn poisoned_locks_are_recovered() {
-        let windows = Windows::new(factory());
-        let w = windows.get_or_create(MAIN).unwrap();
-        let w2 = w.clone();
-        let _ = std::thread::spawn(move || {
-            let _g = w2.store_write();
-            panic!("crash while holding the workspace");
-        })
-        .join();
-        assert!(w.workspace.is_poisoned());
-        assert_eq!(w.store_read().summary().total, 0);
-        drop(w.store_write());
     }
 }

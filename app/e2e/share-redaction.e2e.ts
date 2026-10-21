@@ -1,5 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
-import { openApp } from './app';
+import { openAppWith } from './tools-support';
 import { expectNoSeriousViolations } from './axe';
 
 async function runCommand(page: Page, title: string): Promise<void> {
@@ -12,7 +12,7 @@ async function runCommand(page: Page, title: string): Promise<void> {
 }
 
 test('the redacted view masks the grid until it is turned off', async ({ page }, testInfo) => {
-  await openApp(page);
+  await openAppWith(page, '?mockMemoryFeatures=1');
   await page.getByPlaceholder(/Search messages/).fill('listening');
   const row = page.locator('imt-events-grid [role=row].row').first();
   await expect(row).toContainText('0.0.0.0');
@@ -41,7 +41,7 @@ test('the redacted view masks the grid until it is turned off', async ({ page },
 });
 
 test('redaction settings preview the profile rules live', async ({ page }, testInfo) => {
-  await openApp(page);
+  await openAppWith(page, '?mockMemoryFeatures=1');
   await runCommand(page, 'Redaction settings');
   const dialog = page.getByRole('dialog', { name: 'Redaction settings' });
   const preview = dialog.getByTestId('redaction-preview');
@@ -56,7 +56,7 @@ test('redaction settings preview the profile rules live', async ({ page }, testI
 });
 
 test('exports can be redacted with a preview of what is masked', async ({ page }) => {
-  await openApp(page);
+  await openAppWith(page, '?mockMemoryFeatures=1');
   await page.keyboard.press('ControlOrMeta+Shift+e');
   const dialog = page.getByRole('dialog', { name: 'Export events' });
   await dialog.getByLabel("Redact with the profile's rules").check();

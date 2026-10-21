@@ -1,12 +1,12 @@
-//! Bounded sampling through the [`LogStore`]: sources are grouped by importer and logical log, and each
+//! Bounded sampling through the [`SurveyStore`]: sources are grouped by importer and logical log, and each
 //! group contributes events spread over its whole time range (not only its first lines).
 
 use super::dto::SourceGroup;
+use super::SurveyStore;
 use super::{SurveyControl, SurveyError, SurveyLimits, SurveyStage};
-use crate::api::{PageRequest, WorkspaceSummary};
 use crate::model::Record;
+use crate::ports::{PageQuery, SummaryReply};
 use crate::query::Query;
-use crate::LogStore;
 use std::collections::BTreeMap;
 use std::time::Instant;
 
@@ -44,9 +44,9 @@ struct GroupAcc {
     to: Option<i64>,
 }
 
-pub(super) fn collect<S: LogStore + ?Sized>(
+pub(super) fn collect<S: SurveyStore + ?Sized>(
     store: &S,
-    summary: &WorkspaceSummary,
+    summary: &SummaryReply,
     limits: &SurveyLimits,
     control: &SurveyControl,
     started: Instant,
@@ -102,7 +102,7 @@ pub(super) fn collect<S: LogStore + ?Sized>(
     Ok(out)
 }
 
-fn read_group<S: LogStore + ?Sized>(
+fn read_group<S: SurveyStore + ?Sized>(
     store: &S,
     ids: &[u32],
     events: usize,
@@ -123,7 +123,7 @@ fn read_group<S: LogStore + ?Sized>(
         let mut taken = 0;
         let per_slice = base + usize::from(i < want % slices);
         while taken < per_slice {
-            let req = PageRequest {
+            let req = PageQuery {
                 query: query.clone(),
                 offset: offset + taken,
                 limit: (per_slice - taken).min(PAGE),
@@ -136,19 +136,10 @@ fn read_group<S: LogStore + ?Sized>(
             }
             taken += page.rows.len();
             for v in page.rows {
-                let mut rec = Record::new(v.line);
-                rec.id = v.id;
-                rec.ts = v.ts;
-                rec.level = v.level;
-                rec.message = v.message.into_owned();
-                rec.template = v.template.map(|t| t.into_owned());
-                rec.exception = v.exception.map(|x| x.into_owned());
-                rec.fields = v.fields.into_owned();
-                rec.source = v.source;
                 out.push(Sample {
-                    rec,
-                    source_name: v.source_name.to_string(),
-                    markers: v.markers.iter().map(|m| m.to_string()).collect(),
+                    rec: v.to_record(),
+                    source_name: v.source_name,
+                    markers: v.markers,
                     lane: v.group,
                     group,
                 });

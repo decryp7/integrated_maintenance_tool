@@ -3,7 +3,10 @@
 // (src-tauri/binaries/<name>-<target-triple>[.exe], listed in src-tauri/tauri.sidecars.conf.json):
 //   imt-ai-worker    the AI assistant's engine process
 //   imt-plugins      serves every built-in plugin, each in its own sandboxed process (ADR 0017)
-// At run time IMT finds them next to its executable.
+//   imt-store-worker hosts every window's DuckDB store and full-text index (ADR 0014)
+// At run time IMT finds them next to its executable. The store worker links libduckdb (duckdb.dll / libduckdb.so /
+// libduckdb.dylib): it is copied from DUCKDB_LIB_DIR (crates/imt-store-duck/scripts/fetch-libduckdb.sh) into
+// src-tauri/binaries/lib/, which the installers ship as the resource folder `lib/` (tauri.sidecars.conf.json).
 //
 // Run by the release build (`npx tauri build --config src-tauri/tauri.sidecars.conf.json` chains it after the
 // UI build). Tauri passes the target in TAURI_ENV_TARGET_TRIPLE; `universal-apple-darwin` builds both macOS
@@ -15,7 +18,14 @@ import { chmodSync, copyFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const SIDECARS = ['imt-ai-worker', 'imt-plugins'];
+export const SIDECARS = ['imt-ai-worker', 'imt-plugins', 'imt-store-worker'];
+
+/** The file name of the prebuilt libduckdb for a target triple. */
+export function libduckdbFile(target) {
+  if (target.includes('-windows-')) return 'duckdb.dll';
+  if (target.includes('-apple-')) return 'libduckdb.dylib';
+  return 'libduckdb.so';
+}
 
 /**
  * What to build and where cargo puts it. A build for the host itself runs without `--target`, into
@@ -68,6 +78,16 @@ function main() {
     if (!ext) chmodSync(out, 0o755);
     console.log(`sidecar: ${out}`);
   }
+  // The store worker's database library, shipped as the resource folder `lib/`.
+  const libDir = process.env.DUCKDB_LIB_DIR;
+  if (!libDir) {
+    throw new Error('DUCKDB_LIB_DIR is not set: run eval "$(crates/imt-store-duck/scripts/fetch-libduckdb.sh)" first');
+  }
+  const lib = libduckdbFile(target);
+  const libOut = join(outDir, 'lib');
+  mkdirSync(libOut, { recursive: true });
+  copyFileSync(join(libDir, lib), join(libOut, lib));
+  console.log(`library: ${join(libOut, lib)}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

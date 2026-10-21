@@ -19,10 +19,12 @@ use imt_ai::llm::{ChatRequest, ChatResponse, LlmProvider};
 use imt_ai::runtime::{GpuMode, LoadRequest, ModelRuntime};
 use imt_ai::worker::{default_worker_path, FramesLauncher, WorkerConfig, WorkerRuntime};
 use imt_ai::AiError;
-use imt_core::api::{PageRequest, QueryRequest};
+use imt_core::api::QueryRequest;
+use imt_core::ports::Store;
 use imt_core::ql::QlResult;
 use imt_core::query::Query;
-use imt_core::{LogStore, Profile, Workspace};
+use imt_core::workspace::WorkspaceStore;
+use imt_core::{Profile, Workspace};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -254,7 +256,7 @@ struct Report {
 
 struct Ctx {
     samples: PathBuf,
-    store: Box<dyn LogStore>,
+    store: Box<dyn Store>,
     assistant: Assistant<Measured>,
     meter: Arc<Mutex<Meter>>,
     rss_peak: Arc<AtomicU64>,
@@ -268,18 +270,18 @@ fn ms_of(hms: &str) -> i64 {
     DAY + (p.first().copied().unwrap_or(0) * 3600 + p.get(1).copied().unwrap_or(0) * 60 + p.get(2).copied().unwrap_or(0)) * 1000
 }
 
-fn open_store(samples: &Path, profile: &Profile, paths: &[String]) -> Box<dyn LogStore> {
-    let mut ws: Box<dyn LogStore> = Box::new(Workspace::new(profile.clone()).expect("workspace"));
+fn open_store(samples: &Path, profile: &Profile, paths: &[String]) -> Box<dyn Store> {
+    let mut ws = Workspace::new(profile.clone()).expect("workspace");
     let list: Vec<PathBuf> = if paths.is_empty() {
         vec![samples.to_path_buf()]
     } else {
         paths.iter().map(|p| samples.join(p)).collect()
     };
     ws.open(&list).expect("open samples");
-    ws
+    Box::new(WorkspaceStore::new(ws))
 }
 
-fn event_ids(store: &dyn LogStore, ql: &str) -> Result<Vec<u32>, String> {
+fn event_ids(store: &dyn Store, ql: &str) -> Result<Vec<u32>, String> {
     match store.run_query(&QueryRequest {
         query: Query {
             ql: ql.into(),
@@ -303,7 +305,7 @@ fn event_ids(store: &dyn LogStore, ql: &str) -> Result<Vec<u32>, String> {
     }
 }
 
-fn table_signature(store: &dyn LogStore, ql: &str) -> Option<Vec<String>> {
+fn table_signature(store: &dyn Store, ql: &str) -> Option<Vec<String>> {
     match store.run_query(&QueryRequest {
         query: Query {
             ql: ql.into(),
@@ -322,20 +324,16 @@ fn table_signature(store: &dyn LogStore, ql: &str) -> Option<Vec<String>> {
     }
 }
 
-fn event_exists(store: &dyn LogStore, id: u32) -> bool {
+fn event_exists(store: &dyn Store, id: u32) -> bool {
     store
-        .page(&PageRequest {
-            query: Query::default(),
-            offset: 0,
-            limit: 1,
-            descending: false,
-            anchor: Some(id),
+        .events(&imt_core::ports::EventsRequest {
+            ids: vec![imt_core::batch::EventId(u64::from(id))],
+            group_by: Vec::new(),
         })
-        .map(|p| p.rows.first().is_some_and(|r| r.id == id))
-        .unwrap_or(false)
+        .is_ok_and(|e| !e.is_empty())
 }
 
-fn first_match(store: &dyn LogStore, ql: &str) -> Option<u32> {
+fn first_match(store: &dyn Store, ql: &str) -> Option<u32> {
     event_ids(store, ql).ok().and_then(|v| v.first().copied())
 }
 
@@ -344,7 +342,7 @@ fn has_fact(text: &str, facts: &[String]) -> bool {
     facts.is_empty() || facts.iter().any(|f| t.contains(&f.to_lowercase()))
 }
 
-fn grounded(store: &dyn LogStore, citations: &[Citation]) -> Result<usize, String> {
+fn grounded(store: &dyn Store, citations: &[Citation]) -> Result<usize, String> {
     let mut n = 0;
     for c in citations {
         if let Citation::Record { id, .. } = c {
@@ -510,7 +508,7 @@ fn extractors_case(cx: &Ctx, c: &SampleGoalCase) -> imt_ai::Result<Verdict> {
     })
 }
 
-fn narrative_verdict(store: &dyn LogStore, n: imt_ai::assistant::Narrative, facts: &[String]) -> Verdict {
+fn narrative_verdict(store: &dyn Store, n: imt_ai::assistant::Narrative, facts: &[String]) -> Verdict {
     grounded(store, &n.citations)?;
     if !has_fact(&n.text, facts) {
         return Err(format!(

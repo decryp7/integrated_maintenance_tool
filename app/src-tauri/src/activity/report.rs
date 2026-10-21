@@ -515,9 +515,9 @@ fn inputs<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> ReportInputs {
         .try_state::<crate::windows::Windows>()
         .and_then(|w| w.all().into_iter().next())
         .map(|w| {
-            w.store_read()
-                .summary()
-                .plugins
+            w.host
+                .registry
+                .plugins()
                 .into_iter()
                 .map(|p| PluginLine {
                     id: p.id,

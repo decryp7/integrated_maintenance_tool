@@ -41,7 +41,7 @@ pub struct SpanHints {
 }
 
 /// How a candidate finds the key.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum KeySource {
     /// A field the events already carry.
@@ -59,7 +59,7 @@ impl KeySource {
 }
 
 /// One proposed rule.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpanCandidate {
     /// In words: what pairs the events and what starts and ends them.
@@ -76,7 +76,7 @@ pub struct SpanCandidate {
 }
 
 /// What a rule does on the data.
-#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpanEvaluation {
     /// Runs with a start and a stop.
@@ -101,7 +101,7 @@ pub struct SpanEvaluation {
     pub dropped: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpanSample {
     pub key: String,
@@ -138,7 +138,7 @@ pub struct SpanRuleCheck {
 }
 
 /// A candidate with its evaluation.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EvaluatedCandidate {
     #[serde(flatten)]
@@ -147,7 +147,7 @@ pub struct EvaluatedCandidate {
 }
 
 /// The proposal: candidates, best first, each evaluated on the data.
-#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpanProposal {
     pub candidates: Vec<EvaluatedCandidate>,

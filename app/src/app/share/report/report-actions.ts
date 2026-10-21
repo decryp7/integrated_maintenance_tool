@@ -116,7 +116,7 @@ export class ReportActions {
   /** The anomalies of the current results, most severe first, as findings. */
   async addAnomalies(): Promise<boolean> {
     try {
-      const found = await this.analysis.queryAnomalies(this.store.effectiveQuery());
+      const { result: found } = await this.analysis.queryAnomalies(this.store.effectiveQuery());
       if (!found.length) {
         this.store.setNotice($localize`:@@share.reportActions.noAnomalies:No anomalies in the current results`);
         return false;
@@ -142,7 +142,7 @@ export class ReportActions {
   /** The health check's findings for the current results (most severe first), each as a finding block. */
   async addFindings(): Promise<boolean> {
     try {
-      const found = await this.share().overview(this.store.effectiveQuery());
+      const { result: found } = await this.share().overview(this.store.effectiveQuery());
       if (!found.length) {
         this.store.setNotice($localize`:@@share.reportActions.noHealth:The health check found nothing to report`);
         return false;

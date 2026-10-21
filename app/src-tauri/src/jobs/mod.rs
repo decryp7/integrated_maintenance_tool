@@ -303,14 +303,28 @@ where
         .map_err(E::from)?
 }
 
-/// Reads the window's store on the calling (job) thread.
-pub(crate) fn read_store<T>(
+/// Runs `f` with the window's store on the calling (job) thread, under `control`: the store work `f` does is
+/// cancelled with it (the worker interrupts its statements).
+pub(crate) fn with_store<T>(
     win: &crate::windows::WindowState,
-    f: impl FnOnce(&dyn imt_core::LogStore) -> anyhow::Result<T>,
-) -> anyhow::Result<T> {
-    let ws = win.workspace.clone();
-    let guard = crate::sync::read(&ws);
-    f(guard.as_ref())
+    control: &imt_core::ql::QueryControl,
+    f: impl FnOnce(&dyn imt_core::ports::Store) -> CmdResult<T>,
+) -> CmdResult<T> {
+    let store = win.engine.store()?;
+    control.scope(|| f(store.as_ref()))
+}
+
+/// `controls` with Cancel also cancelling `control` (the store work of the job).
+fn cancelling(mut controls: Controls, control: &imt_core::ql::QueryControl) -> Controls {
+    let c = control.clone();
+    let previous = controls.cancel.take();
+    controls.cancel = Some(Arc::new(move || {
+        c.cancel();
+        if let Some(p) = &previous {
+            p();
+        }
+    }));
+    controls
 }
 
 /// A read-only analysis of the window's logs as an analysis job (limited to the cores, minus one). Its
@@ -322,7 +336,7 @@ pub(crate) async fn analysis<R: Runtime, T: Send + 'static>(
     view: &str,
     ql: Option<String>,
     controls: Controls,
-    f: impl FnOnce(&dyn imt_core::LogStore, &JobCtx) -> anyhow::Result<T> + Send + 'static,
+    f: impl FnOnce(&dyn imt_core::ports::Store, &JobCtx) -> CmdResult<T> + Send + 'static,
 ) -> CmdResult<T> {
     analysis_announced(app, win, title, view, ql, controls, |_| {}, f).await
 }
@@ -337,7 +351,7 @@ pub(crate) async fn analysis_announced<R: Runtime, T: Send + 'static>(
     ql: Option<String>,
     controls: Controls,
     announce: impl FnOnce(JobId),
-    f: impl FnOnce(&dyn imt_core::LogStore, &JobCtx) -> anyhow::Result<T> + Send + 'static,
+    f: impl FnOnce(&dyn imt_core::ports::Store, &JobCtx) -> CmdResult<T> + Send + 'static,
 ) -> CmdResult<T> {
     let mut spec = JobSpec::new(JobKind::Analysis, title).window(win.label());
     let ql = ql.filter(|q| !q.trim().is_empty());
@@ -349,14 +363,12 @@ pub(crate) async fn analysis_announced<R: Runtime, T: Send + 'static>(
         ql,
     };
     let w = win.arc().clone();
-    crate::error::lift(
-        run_announced(app, spec, controls, announce, move |ctx| {
-            read_store(&w, |ws| f(ws, ctx))
-                .map(|v| Done::new(v).with_result(result))
-                .map_err(crate::err)
-        })
-        .await,
-    )
+    let control = imt_core::ql::QueryControl::new();
+    let controls = cancelling(controls, &control);
+    run_announced(app, spec, controls, announce, move |ctx| {
+        with_store(&w, &control, |store| f(store, ctx)).map(|v| Done::new(v).with_result(result))
+    })
+    .await
 }
 
 /// The spec of an export to `path` by the window (or the app).
@@ -402,11 +414,23 @@ pub(crate) fn export<R: Runtime>(
     win: &CurrentWindow,
     title: &str,
     path: &std::path::Path,
-    f: impl FnOnce(&dyn imt_core::LogStore) -> anyhow::Result<String> + Send + 'static,
+    f: impl FnOnce(&dyn imt_core::ports::Store) -> CmdResult<String> + Send + 'static,
 ) -> CmdResult<u64> {
     let spec = export_spec(title, Some(win.label()), path);
     let w = win.arc().clone();
-    start_file(app, spec, path, move |_| read_store(&w, f).map_err(crate::err))
+    let control = imt_core::ql::QueryControl::new();
+    let result = JobResult::File {
+        path: path.display().to_string(),
+    };
+    let controls = cancelling(Controls::default(), &control);
+    crate::error::lift(
+        spawn(app, spec, controls, move |ctx: &JobCtx| -> CmdResult<Done<()>> {
+            let summary = with_store(&w, &control, f)?;
+            ctx.message(&summary);
+            Ok(Done::new(()).with_result(result))
+        })
+        .map(|id| id.0),
+    )
 }
 
 /// Queues `f` as a job nobody waits for (Retry, background starts). Returns its id.

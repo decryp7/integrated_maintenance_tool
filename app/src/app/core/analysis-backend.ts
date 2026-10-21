@@ -1,6 +1,6 @@
 import { invoke } from './activity/ipc';
 import {
-  AnalysisCoverage,
+  Analyzed,
   Anomaly,
   Comparison,
   Completion,
@@ -36,17 +36,18 @@ export abstract class AnalysisBackend {
   abstract checkQuery(text: string): Promise<QlError | null>;
   /** `cursor` is a UTF-8 byte offset into `text`. */
   abstract completeQuery(text: string, cursor: number): Promise<Completion[]>;
-  abstract queryPatterns(query: QlQuery): Promise<Pattern[]>;
-  abstract queryExceptions(query: QlQuery): Promise<ExceptionGroup[]>;
-  abstract queryAnomalies(query: QlQuery): Promise<Anomaly[]>;
-  abstract compareWindows(a: QlQuery, b: QlQuery): Promise<Comparison>;
+  // The analyses resolve with their result and how much of the matching data they looked at (`Analyzed`).
+  abstract queryPatterns(query: QlQuery): Promise<Analyzed<Pattern[]>>;
+  abstract queryExceptions(query: QlQuery): Promise<Analyzed<ExceptionGroup[]>>;
+  abstract queryAnomalies(query: QlQuery): Promise<Analyzed<Anomaly[]>>;
+  abstract compareWindows(a: QlQuery, b: QlQuery): Promise<Analyzed<Comparison>>;
   abstract fieldStats(query: QlQuery, field: string, buckets: number): Promise<FieldStats>;
   /** Ids of the events whose `field` equals `value`. */
-  abstract correlate(field: string, value: string): Promise<number[]>;
-  /** The trace list, plus the waterfall of `traceId` when it is not empty. */
+  abstract correlate(field: string, value: string): Promise<Analyzed<number[]>>;
+  /** The trace list, plus the waterfall of `traceId` when it is not empty, with the coverage. */
   abstract queryTraces(query: QlQuery, traceId: string): Promise<TracesResult>;
-  abstract queryRequests(query: QlQuery, idField: string): Promise<RequestSpan[]>;
-  abstract queryMoment(query: QlQuery, from: number, to: number): Promise<MomentSummary>;
+  abstract queryRequests(query: QlQuery, idField: string): Promise<Analyzed<RequestSpan[]>>;
+  abstract queryMoment(query: QlQuery, from: number, to: number): Promise<Analyzed<MomentSummary>>;
 
   /**
    * Like `runQuery`, reporting progress and cancellable with `cancelQuery(queryId)`; a cancelled run resolves to
@@ -58,10 +59,6 @@ export abstract class AnalysisBackend {
   /** Asks the run `queryId` to stop; false when it is not running (any more). */
   cancelQuery(_queryId: string): Promise<boolean> {
     return Promise.resolve(false);
-  }
-  /** How many of the matching events the analyses look at, of how many; null when the backend cannot say. */
-  analysisCoverage(_query: QlQuery): Promise<AnalysisCoverage | null> {
-    return Promise.resolve(null);
   }
 }
 
@@ -117,33 +114,30 @@ export class TauriAnalysisBackend extends AnalysisBackend {
     return this.call<Completion[]>('complete_query', { request: { text, cursor } });
   }
   queryPatterns(query: QlQuery) {
-    return this.call<Pattern[]>('query_patterns', { request: { query } });
+    return this.call<Analyzed<Pattern[]>>('query_patterns', { request: { query } });
   }
   queryExceptions(query: QlQuery) {
-    return this.call<ExceptionGroup[]>('query_exceptions', { request: { query } });
-  }
-  override analysisCoverage(query: QlQuery) {
-    return this.call<AnalysisCoverage>('analysis_coverage', { request: { query } });
+    return this.call<Analyzed<ExceptionGroup[]>>('query_exceptions', { request: { query } });
   }
   queryAnomalies(query: QlQuery) {
-    return this.call<Anomaly[]>('query_anomalies', { request: { query } });
+    return this.call<Analyzed<Anomaly[]>>('query_anomalies', { request: { query } });
   }
   compareWindows(a: QlQuery, b: QlQuery) {
-    return this.call<Comparison>('compare_windows', { request: { a, b } });
+    return this.call<Analyzed<Comparison>>('compare_windows', { request: { a, b } });
   }
   fieldStats(query: QlQuery, field: string, buckets: number) {
     return this.call<FieldStats>('field_stats', { request: { query, field, buckets } });
   }
   correlate(field: string, value: string) {
-    return this.call<number[]>('correlate', { request: { field, value } });
+    return this.call<Analyzed<number[]>>('correlate', { request: { field, value } });
   }
   queryTraces(query: QlQuery, traceId: string) {
     return this.call<TracesResult>('query_traces', { request: { query, traceId } });
   }
   queryRequests(query: QlQuery, idField: string) {
-    return this.call<RequestSpan[]>('query_requests', { request: { query, idField } });
+    return this.call<Analyzed<RequestSpan[]>>('query_requests', { request: { query, idField } });
   }
   queryMoment(query: QlQuery, from: number, to: number) {
-    return this.call<MomentSummary>('query_moment', { request: { query, from, to } });
+    return this.call<Analyzed<MomentSummary>>('query_moment', { request: { query, from, to } });
   }
 }

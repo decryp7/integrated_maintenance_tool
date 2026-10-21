@@ -9,6 +9,7 @@
 
 pub mod html;
 pub mod markdown;
+pub mod resolve;
 #[cfg(test)]
 mod tests;
 

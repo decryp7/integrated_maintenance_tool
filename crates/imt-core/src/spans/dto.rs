@@ -14,7 +14,7 @@ pub const MAX_REQUEST_INSTANCES: usize = 10_000;
 pub const PREVIEW_RUNS: usize = 20;
 
 /// What a run annotation adds to [`AnnotationDto`].
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunInfo {
     /// The `[[span]]` kind.
@@ -33,7 +33,7 @@ pub struct RunInfo {
 }
 
 /// Counts and durations of one span kind's runs.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpanSummary {
     pub kind: String,
@@ -92,7 +92,7 @@ impl SpanSummary {
 }
 
 /// Column the Runs table sorts by.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum RunSort {
     #[default]
@@ -104,7 +104,7 @@ pub enum RunSort {
 }
 
 /// Which runs `query_runs` returns; every key is optional.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct RunsRequest {
     /// Overlapping `[from, to]` (inclusive); open-ended when absent.
@@ -124,7 +124,7 @@ pub struct RunsRequest {
 }
 
 /// A page of runs plus the summaries of every span kind over the selection.
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunsReply {
     pub summaries: Vec<SpanSummary>,
@@ -152,7 +152,7 @@ pub enum Trigger {
 }
 
 /// A candidate `[[span]]` rule from the guided editor.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpanDraft {
     pub kind: String,
@@ -175,7 +175,7 @@ fn instance() -> String {
     "instance".into()
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpanPreviewRequest {
     pub draft: SpanDraft,
@@ -185,7 +185,7 @@ pub struct SpanPreviewRequest {
 /// the whole new `[[span]]` list (the draft replacing a rule of the same kind,
 /// else added last; the profile's other rules kept) and the `[[marker]]`
 /// rules its text patterns need (each replacing one of the same kind).
-#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpanPlan {
     /// The draft's `[[span]]` table.
@@ -196,7 +196,7 @@ pub struct SpanPlan {
 }
 
 /// The guided editor's live preview of a draft over the loaded data.
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpanPreview {
     /// Problems that prevent saving, by form field.

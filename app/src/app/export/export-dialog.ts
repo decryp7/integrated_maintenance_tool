@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ExporterInfo, Query, RedactionSummary } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
+import { isUnsupported } from '../core/cmd-error';
 import { formatCount } from '../core/format';
 import { Platform } from '../core/platform';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
@@ -61,7 +62,7 @@ export function exportQuery(current: Query, scope: ExportScope): Query {
       <legend><ng-container i18n="@@export.dialog.privacy">Privacy</ng-container> <imt-help label="Redaction" i18n-label="@@export.dialog.redactionHelpLabel" i18n-text="@@export.dialog.redactionHelpText" text="Masks secrets and personal data (e-mail and IP addresses, tokens, passwords…) with the profile's [redact] rules. Hashes use a new salt for every export." /></legend>
       <label class="opt" i18n="@@export.dialog.redact"><input type="checkbox" [checked]="redact()" (change)="chooseRedact($any($event.target).checked)" /> Redact with the profile's rules</label>
       @if (redact()) {
-        <imt-redaction-summary [summary]="redaction()" />
+        <imt-redaction-summary [summary]="redaction()" [unavailable]="redactionUnavailable()" />
       }
     </fieldset>
 
@@ -112,6 +113,8 @@ export class ExportDialog {
   /** The user ticked or unticked Redact: the profile default (loaded asynchronously) no longer applies. */
   private redactChosen = false;
   protected readonly redaction = signal<RedactionSummary | null>(null);
+  /** The engine cannot preview the redaction (yet): the export is still redacted. */
+  protected readonly redactionUnavailable = signal(false);
   private redactionSeq = 0;
 
   private readonly query = computed(() => exportQuery(this.store.effectiveQuery(), this.scope()));
@@ -137,7 +140,9 @@ export class ExportDialog {
       const summary = await this.share.redactionSummary({ query, samples: 2 });
       if (mine === this.redactionSeq) this.redaction.set(summary);
     } catch (e) {
-      if (mine === this.redactionSeq) this.error.set(e instanceof Error ? e.message : String(e));
+      if (mine !== this.redactionSeq) return;
+      if (isUnsupported(e)) this.redactionUnavailable.set(true);
+      else this.error.set(e instanceof Error ? e.message : String(e));
     }
   }
 

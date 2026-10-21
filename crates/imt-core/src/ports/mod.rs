@@ -8,14 +8,15 @@
 //! - errors are a typed [`StoreError`]; an operation an adapter does not offer yet fails with
 //!   [`StoreError::Unsupported`] naming the phase that adds it, never with a panic.
 //!
-//! The in-memory `Workspace` keeps serving the app through `LogStore` until phase 6c switches to these.
+//! [`Store`] is all of them together (plus [`Projects`]): what one window of the app holds.
 
 mod dto;
 mod session;
 
 pub use dto::{
-    Analyzed, Coverage, DiagnosticFix, DiagnosticRow, EventView, FixEvaluation, ImportReport, IndexStatus, PageQuery, PageReply, QuickFix,
-    SearchReply, SearchRequest, SummaryReply, MAX_PAGE_ROWS,
+    content_hash, mark_search_matches, profile_toml, Analyzed, Coverage, DiagnosticFix, DiagnosticRow, EventView, EventsRequest,
+    FixEvaluation, ImportReport, IndexStatus, PageQuery, PageReply, ParserChange, ParserDef, ParserRef, ParserUse, PartialMatches,
+    QuickFix, SearchMatch, SearchReply, SearchRequest, SummaryReply, MAX_PAGE_ROWS,
 };
 pub use session::ImportSession;
 
@@ -65,6 +66,13 @@ pub enum StoreError {
     /// The database engine failed.
     #[error("store: {0}")]
     Engine(String),
+    /// The store's files are damaged (a segment missing or unreadable): retrying cannot help; the message says
+    /// how to recover (open the logs again, or the project's `.imtz`).
+    #[error("{0}")]
+    Damaged(String),
+    /// The store is open in another process (its database file is locked); retry after closing it there.
+    #[error("{0}")]
+    Locked(String),
 }
 
 impl StoreError {
@@ -77,7 +85,10 @@ impl StoreError {
 
     /// Whether repeating the request later can succeed.
     pub fn is_retryable(&self) -> bool {
-        matches!(self, StoreError::Busy(_) | StoreError::Io(_) | StoreError::Engine(_))
+        matches!(
+            self,
+            StoreError::Busy(_) | StoreError::Io(_) | StoreError::Engine(_) | StoreError::Locked(_)
+        )
     }
 }
 
@@ -114,6 +125,8 @@ pub trait Query: Send + Sync {
     fn summary(&self) -> StoreResult<SummaryReply>;
     /// One page of matching events, in time order (untimed last).
     fn page(&self, req: &PageQuery) -> StoreResult<PageReply>;
+    /// Events by id, in the order asked (missing ids left out).
+    fn events(&self, req: &EventsRequest) -> StoreResult<Vec<EventView>>;
     /// Instance lanes and the level histogram (timed events only).
     fn timeline(&self, req: &TimelineRequest) -> StoreResult<Timeline>;
     /// Value counts of one field.
@@ -168,12 +181,21 @@ pub trait Profiles: Send + Sync {
     fn active_profile(&self) -> StoreResult<Profile>;
     /// Checks that a profile compiles (with the installed plugins).
     fn validate_profile(&self, profile: &Profile) -> StoreResult<()>;
-    /// Switches profile: a job that re-derives or re-reads what the change needs.
+    /// Switches profile: a job that re-derives or re-reads what the change needs (only the sources whose parser
+    /// changed).
     fn set_profile(&self, profile: Profile) -> StoreResult<ImportSession>;
+    /// Which parser each source was read with (ADR 0026; until then one parser, the profile, for all).
+    fn parsers(&self) -> StoreResult<Vec<ParserUse>>;
+    /// What changing `parser` would do: the change's class and the sources using it (ADR 0026: per parser).
+    fn classify_parser(&self, parser: &ParserDef) -> StoreResult<ParserChange>;
+    /// Reads one source with another parser (ADR 0026; refused until the parser library exists).
+    fn assign_parser(&self, source: SourceId, parser: &ParserDef) -> StoreResult<ImportSession>;
     fn preview_parse(&self, req: &ParsePreviewRequest) -> StoreResult<ParsePreview>;
     fn preview_extractor(&self, req: &ExtractPreviewRequest) -> StoreResult<ExtractPreview>;
     /// Proposes `[[span]]` rules that pair the example start/end events, each evaluated on the data.
     fn propose_span_rule(&self, req: &crate::spans::infer::SpanRuleRequest) -> StoreResult<crate::spans::infer::SpanProposal>;
+    /// The Runs editor's preview of a draft rule: checked against the profile and paired over the events.
+    fn preview_spans(&self, req: &crate::spans::SpanPreviewRequest) -> StoreResult<crate::spans::SpanPreview>;
     /// What a rule (a profile override adding a `[[span]]`) does on the data; verifies AI-proposed rules.
     fn evaluate_span_rule(&self, req: &crate::spans::infer::SpanRuleCheck) -> StoreResult<Analyzed<crate::spans::infer::SpanEvaluation>>;
 }
@@ -187,9 +209,32 @@ pub trait Diagnostics: Send + Sync {
 
 /// Full-text search (Tantivy), returning event ids.
 pub trait Search: Send + Sync {
+    /// Word search (smart search, see [`crate::words`]): the hits in time order.
     fn search(&self, req: &SearchRequest) -> StoreResult<SearchReply>;
     fn index_status(&self) -> StoreResult<IndexStatus>;
+    /// The background scan of a smart search: how many events matching `filter` with the search box text as
+    /// a substring are not word matches. Cancelled through [`QueryControl::current`]; bounded.
+    fn partial_matches(&self, filter: &Filter) -> StoreResult<PartialMatches>;
 }
+
+/// The store's folder as a project (ADR 0014 §6): `project.toml` and the `.imtz` export.
+pub trait Projects: Send + Sync {
+    /// The folder holding the store (and its `project.toml`).
+    fn store_dir(&self) -> PathBuf;
+    /// Writes `project.toml` with `manifest` and the store's opened roots; returns what was written.
+    fn save_project(&self, manifest: &crate::package::ProjectManifest) -> StoreResult<crate::package::ProjectManifest>;
+    /// Saves the project and writes it as an `.imtz` to `out` (no caches); returns the bytes written.
+    fn export_project(&self, manifest: &crate::package::ProjectManifest, out: &std::path::Path) -> StoreResult<u64>;
+    /// Lets go of the store's files (its window closed or opened another store); a later call opens them
+    /// again. A store that holds nothing it could let go of does nothing.
+    fn close(&self) {}
+}
+
+/// Every port of a store: what one window of the app holds (the DuckDB store in the store worker; in process
+/// in tests).
+pub trait Store: Ingest + Query + Positions + Analysis + Profiles + Diagnostics + Search + Projects {}
+
+impl<T: Ingest + Query + Positions + Analysis + Profiles + Diagnostics + Search + Projects> Store for T {}
 
 #[cfg(test)]
 mod tests {

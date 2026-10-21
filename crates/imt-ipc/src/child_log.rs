@@ -50,6 +50,8 @@ pub enum ChildKind {
     LlamaServer,
     PluginHost,
     Plugin,
+    /// The store worker (DuckDB and the full-text indexes of every window, ADR 0014).
+    StoreWorker,
 }
 
 impl ChildKind {
@@ -59,6 +61,7 @@ impl ChildKind {
             ChildKind::LlamaServer => "llama-server",
             ChildKind::PluginHost => "plugin-host",
             ChildKind::Plugin => "plugin",
+            ChildKind::StoreWorker => "store-worker",
         }
     }
 
@@ -69,6 +72,7 @@ impl ChildKind {
             ChildKind::LlamaServer => "llama-server",
             ChildKind::PluginHost => "Isolated plugin",
             ChildKind::Plugin => "Plugin process",
+            ChildKind::StoreWorker => "Store worker",
         }
     }
 }

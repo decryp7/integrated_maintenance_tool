@@ -40,7 +40,7 @@ export interface ReportManifest {
 }
 
 /** Kind of a child process IMT supervises. */
-export type ChildKind = 'ai-worker' | 'llama-server' | 'plugin-host' | 'plugin';
+export type ChildKind = 'ai-worker' | 'llama-server' | 'plugin-host' | 'plugin' | 'store-worker';
 
 /** `running`: alive when the report was made; `unknown`: the log ended without an exit line (IMT itself stopped). */
 export type ChildRunState = 'running' | 'exited' | 'stopped' | 'crashed' | 'quarantined' | 'unknown';

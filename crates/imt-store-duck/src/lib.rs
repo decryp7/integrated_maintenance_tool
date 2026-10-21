@@ -10,6 +10,8 @@ mod compact;
 mod context;
 mod diag;
 mod fts;
+mod hits;
+mod parsers;
 mod pos;
 mod profiles;
 mod project;
@@ -77,8 +79,37 @@ pub const DB_FILE: &str = "data.duckdb";
 const POOL: usize = 8;
 
 pub(crate) fn engine(e: impl std::fmt::Display) -> StoreError {
-    StoreError::Engine(e.to_string())
+    classify(e.to_string())
 }
+
+/// A database failure as the typed error it is: a lock held by another process, a damaged data file, or an
+/// engine failure.
+fn classify(message: String) -> StoreError {
+    let lower = message.to_lowercase();
+    // Linux/macOS (a POSIX lock) and Windows (a sharing violation).
+    if lower.contains("could not set lock on file") || lower.contains("conflicting lock") || lower.contains("file is already open in") {
+        StoreError::Locked(format!("this project is open in another IMT window or program ({message})"))
+    } else if lower.contains("no magic bytes found")
+        || lower.contains("too small to be a parquet file")
+        || (lower.contains("parquet") && (lower.contains("corrupt") || lower.contains("invalid footer")))
+    {
+        StoreError::Damaged(format!("a data file of this project is damaged ({message})"))
+    } else {
+        StoreError::Engine(message)
+    }
+}
+
+/// A segment the catalog lists is not in the folder.
+#[derive(Debug)]
+struct MissingSegment(String);
+
+impl std::fmt::Display for MissingSegment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "the data file {} of this project is missing", self.0)
+    }
+}
+
+impl std::error::Error for MissingSegment {}
 
 /// What the store was opened with and what was opened in it.
 pub(crate) struct State {
@@ -106,6 +137,8 @@ pub(crate) struct Inner {
     /// fails with the reason, everything else works).
     fts: Option<fts::FtsService>,
     fts_error: Option<String>,
+    /// Word-search hits handed to SQL (smart search).
+    pub(crate) hits: hits::HitsCache,
     options: RwLock<StoreOptions>,
     pub(crate) progress: Arc<ImportProgress>,
     pub(crate) derived: Mutex<Option<(u64, Arc<read::Derived>)>>,
@@ -118,6 +151,8 @@ pub(crate) struct Inner {
 pub(crate) struct Conn<'a> {
     inner: &'a Inner,
     conn: Option<Connection>,
+    /// Interrupts this connection's statement when the thread's current control (`QueryControl::scope`) is cancelled.
+    _interrupt: Option<imt_core::ql::HookGuard>,
 }
 
 impl std::ops::Deref for Conn<'_> {
@@ -182,9 +217,18 @@ impl Inner {
             Some(c) => c,
             None => lock(&self.db).try_clone().map_err(engine)?,
         };
+        let interrupt = match imt_core::ql::QueryControl::current() {
+            Some(control) if control.is_cancelled() => return Err(StoreError::Cancelled),
+            Some(control) => {
+                let handle = conn.interrupt_handle();
+                Some(control.on_cancel(Box::new(move || handle.interrupt())))
+            }
+            None => None,
+        };
         Ok(Conn {
             inner: self,
             conn: Some(conn),
+            _interrupt: interrupt,
         })
     }
 
@@ -288,6 +332,8 @@ impl Inner {
         let outcomes = ingest::import_files_parallel(&env, &files, &removed, progress, &opts, &sink);
         let t1 = t0.elapsed();
         sink.finish().map_err(|e| engine(format!("{e:#}")))?;
+        // Every source of this import was read with the active profile, the interim parser (ADR 0026).
+        parsers::record(&conn, &profile.profile).map_err(engine)?;
         let t2 = t0.elapsed();
         self.maintain(&conn);
         self.bump_version(&conn)?;
@@ -352,10 +398,9 @@ fn recover(conn: &Connection, dir: &Path, schema: &EventSchema) -> anyhow::Resul
     let seg_dir = dir.join(segments::SEGMENTS_DIR);
     std::fs::create_dir_all(&seg_dir)?;
     for f in &listed {
-        anyhow::ensure!(
-            seg_dir.join(f).is_file(),
-            "the segment {f} of this project is missing; open its log files again"
-        );
+        if !seg_dir.join(f).is_file() {
+            return Err(MissingSegment(f.clone()).into());
+        }
     }
     for left in segments::sweep(&seg_dir, &listed) {
         log::warn!("could not delete {}", left.display());
@@ -439,7 +484,10 @@ impl DuckStore {
                 "this project was saved by an older preview of IMT (store format {version}); open its log files again"
             )));
         }
-        recover(&conn, dir, &schema).map_err(|e| engine(format!("{e:#}")))?;
+        recover(&conn, dir, &schema).map_err(|e| match e.downcast_ref::<MissingSegment>() {
+            Some(m) => StoreError::Damaged(m.to_string()),
+            None => engine(format!("{e:#}")),
+        })?;
         // Added after the format was first written; created on open so older stores gain it.
         conn.execute_batch(schema::CACHE_DDL).map_err(engine)?;
         Ok(Self::with(dir, conn, schema, compiled, registry, opts))
@@ -483,6 +531,7 @@ impl DuckStore {
                 write_lock,
                 fts,
                 fts_error,
+                hits: hits::HitsCache::new(&dir.join("tmp").join("hits")),
                 options: RwLock::new(opts),
                 progress: Arc::new(ImportProgress::default()),
                 derived: Mutex::new(None),
@@ -521,6 +570,15 @@ impl DuckStore {
         self.inner.preaggregate_above.store(events, Ordering::Relaxed);
     }
 
+    /// Runs `f` with `control` interrupting every statement the store runs for it on this thread: a cancelled
+    /// analysis, export or preview stops at once and fails with [`StoreError::Cancelled`].
+    pub fn with_control<R>(control: &imt_core::ql::QueryControl, f: impl FnOnce() -> StoreResult<R>) -> StoreResult<R> {
+        match control.scope(f) {
+            Err(_) if control.is_cancelled() => Err(StoreError::Cancelled),
+            other => other,
+        }
+    }
+
     /// Progress of the running (or last) import.
     pub fn progress(&self) -> Arc<ImportProgress> {
         self.inner.progress.clone()
@@ -553,6 +611,9 @@ impl DuckStore {
         }
     }
 }
+
+/// How long live tail waits for a running import before it gives up for this change.
+const TAIL_WAIT: std::time::Duration = std::time::Duration::from_secs(30);
 
 impl Ingest for DuckStore {
     fn open(&self, paths: &[PathBuf]) -> StoreResult<ImportSession> {
@@ -674,12 +735,72 @@ impl Ingest for DuckStore {
         Ok(())
     }
 
-    fn restore(&self, _state: &WorkspaceState) -> StoreResult<ImportSession> {
-        Err(StoreError::unsupported("restore", "R2c"))
+    /// Forgets everything and imports the state's roots (files it removed stay out). Clock offsets are kept
+    /// in the project, not applied to the events yet.
+    fn restore(&self, state: &WorkspaceState) -> StoreResult<ImportSession> {
+        self.clear()?;
+        write_lock(&self.inner.state).removed = state.removed.iter().map(PathBuf::from).collect();
+        let roots: Vec<PathBuf> = state.roots.iter().map(PathBuf::from).collect();
+        self.open(&roots)
     }
 
-    fn append_tail(&self, _changed: &[PathBuf]) -> StoreResult<usize> {
-        Err(StoreError::unsupported("live tail", "6c"))
+    /// Live tail: the changed files are read again (new segments; the full-text index follows) and new files
+    /// under the opened folders read; returns how many events were added. Waits for a running import first
+    /// (at most [`TAIL_WAIT`]).
+    fn append_tail(&self, changed: &[PathBuf]) -> StoreResult<usize> {
+        let started = std::time::Instant::now();
+        while self.inner.is_importing() {
+            if started.elapsed() > TAIL_WAIT {
+                return Err(StoreError::Busy(
+                    "an import is running; live tail reads the changes afterwards".into(),
+                ));
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        let count = |conn: &Connection| -> StoreResult<u64> {
+            conn.query_row("SELECT count(*) FROM events", [], |r| r.get::<_, u64>(0))
+                .map_err(engine)
+        };
+        let before = count(&*self.inner.conn()?)?;
+        let grown = self.inner.grown_sources(changed)?;
+        self.refresh(&grown)?.wait()?;
+        let after = count(&*self.inner.conn()?)?;
+        Ok(usize::try_from(after.saturating_sub(before)).unwrap_or(usize::MAX))
+    }
+}
+
+impl Inner {
+    /// The files of sources at or under `paths` (a watcher may name a folder) whose size differs from what was
+    /// imported (appended, truncated, rewritten) or that are gone.
+    fn grown_sources(&self, paths: &[PathBuf]) -> StoreResult<Vec<PathBuf>> {
+        let conn = self.conn()?;
+        let mut stmt = conn.prepare("SELECT path, bytes FROM sources WHERE ready").map_err(engine)?;
+        let sources = stmt
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, u64>(1)?)))
+            .map_err(engine)?
+            .collect::<duckdb::Result<Vec<_>>>()
+            .map_err(engine)?;
+        let sep = imt_core::archive::ENTRY_SEPARATOR;
+        let mut out = Vec::new();
+        for p in paths {
+            let canonical = std::fs::canonicalize(p).unwrap_or_else(|_| p.clone());
+            let under = canonical.to_string_lossy().into_owned();
+            for (path, bytes) in &sources {
+                let file = path.split(sep).next().unwrap_or(path);
+                let inside = file == under || Path::new(file).starts_with(&canonical);
+                if !inside {
+                    continue;
+                }
+                let changed = match std::fs::metadata(file) {
+                    Ok(m) => m.len() != *bytes,
+                    Err(_) => true,
+                };
+                if changed && !out.iter().any(|o: &PathBuf| o.as_path() == Path::new(file)) {
+                    out.push(PathBuf::from(file));
+                }
+            }
+        }
+        Ok(out)
     }
 }
 
@@ -706,11 +827,11 @@ impl DuckStore {
 }
 
 impl Search for DuckStore {
-    /// Words of `text` (all required), case-insensitive and split on punctuation; the first `limit` hits
-    /// (default 1,000, at most 10,000) in time order. A quoted phrase must also appear as written (ignoring
-    /// case) in the message, raw text or exception; up to 1,000 candidates are checked, beyond that the
-    /// total is not exact. Only indexed segments are searched ([`Search::index_status`] tells how far
-    /// indexing is).
+    /// Words of `text` ([`imt_core::words`]: all required, the last a prefix, case-insensitive, split on
+    /// punctuation and inside `camelCase`); the first `limit` hits (default 1,000, at most 10,000) in time
+    /// order. A quoted phrase must also appear as written (ignoring case) in the message, exception or
+    /// template; up to 1,000 candidates are checked, beyond that the total is not exact. Only indexed
+    /// segments are searched ([`Search::index_status`] tells how far indexing is).
     fn search(&self, req: &SearchRequest) -> StoreResult<SearchReply> {
         let limit = if req.limit == 0 {
             fts::DEFAULT_HITS
@@ -718,7 +839,8 @@ impl Search for DuckStore {
             req.limit.min(fts::MAX_HITS)
         };
         let index = &self.fts()?.shared.fts;
-        let (words, phrases) = fts::split_phrases(&req.text);
+        let words = imt_core::words::WordQuery::parse(&req.text);
+        let phrases = &words.phrases;
         if phrases.is_empty() {
             let (total, ids) = index.search(&words, limit).map_err(|e| engine(format!("{e:#}")))?;
             return Ok(SearchReply { total, ids, exact: true });
@@ -749,6 +871,54 @@ impl Search for DuckStore {
         })
     }
 
+    /// Counts the events matching `filter` with its text as a substring but not as words: one SQL count when
+    /// SQL expresses the filter, else a scan of at most the analysis limit of events (then `complete` is
+    /// false). Interrupted by a cancelled [`imt_core::ql::QueryControl`].
+    fn partial_matches(&self, filter: &imt_core::ports::Filter) -> StoreResult<imt_core::ports::PartialMatches> {
+        use imt_core::query::TextMode;
+        if filter.text.trim().is_empty() || filter.regex || filter.case_sensitive {
+            return Ok(imt_core::ports::PartialMatches { added: 0, complete: true });
+        }
+        let with = |mode| imt_core::ports::Filter {
+            text_mode: mode,
+            ..filter.clone()
+        };
+        let (substring, words) = (with(TextMode::Substring), with(TextMode::Words));
+        let inner = &self.inner;
+        let conn = inner.conn()?;
+        let ctx = inner.ctx(&conn)?;
+        let (fs, _) = inner.compile(&ctx, &substring)?;
+        let (fw, cw) = inner.compile(&ctx, &words)?;
+        if fs.exact && fw.exact {
+            let sql = format!(
+                "SELECT count(*) FROM {} WHERE {} AND NOT coalesce({}, FALSE)",
+                sql::FROM,
+                fs.all_sql(),
+                fw.content_sql()
+            );
+            let cancelled = || imt_core::ql::QueryControl::current().is_some_and(|c| c.is_cancelled());
+            let added = match read::count(&conn, &sql) {
+                Err(_) if cancelled() => return Err(StoreError::Cancelled),
+                other => other?,
+            };
+            return Ok(imt_core::ports::PartialMatches {
+                added: added as u64,
+                complete: true,
+            });
+        }
+        drop(conn);
+        let mut added = 0u64;
+        let coverage = inner.stream_rows(&substring, analysis::MAX_ANALYSED, &mut |r| {
+            if !cw.content(&r.rec, &r.source) {
+                added += 1;
+            }
+        })?;
+        Ok(imt_core::ports::PartialMatches {
+            added,
+            complete: coverage.complete(),
+        })
+    }
+
     fn index_status(&self) -> StoreResult<IndexStatus> {
         let f = self.fts()?;
         let conn = self.inner.conn()?;
@@ -767,5 +937,40 @@ impl Search for DuckStore {
             total,
             ready: pending == 0,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn database_failures_become_typed_errors() {
+        let locked = classify("IO Error: Could not set lock on file \"x/catalog.duckdb\": Conflicting lock is held".into());
+        assert!(
+            matches!(&locked, StoreError::Locked(m) if m.contains("another IMT window")),
+            "{locked:?}"
+        );
+        assert!(locked.is_retryable());
+        let windows = classify(
+            "IO Error: Cannot open file \"data.duckdb\": The process cannot access the file because it is being used by another \
+             process.\r\n\nFile is already open in \nimt-store-worker.exe (PID 1)"
+                .into(),
+        );
+        assert!(matches!(windows, StoreError::Locked(_)), "{windows:?}");
+        for damaged in [
+            "Invalid Input Error: No magic bytes found at end of file 'seg.parquet'",
+            "Invalid Input Error: File 'seg.parquet' too small to be a Parquet file",
+            "IO Error: Parquet file is corrupt",
+        ] {
+            let e = classify(damaged.into());
+            assert!(matches!(&e, StoreError::Damaged(m) if m.contains("damaged")), "{e:?}");
+            assert!(!e.is_retryable());
+        }
+        assert!(matches!(classify("Out of Memory Error".into()), StoreError::Engine(_)));
+        assert_eq!(
+            MissingSegment("seg-1.parquet".into()).to_string(),
+            "the data file seg-1.parquet of this project is missing"
+        );
     }
 }

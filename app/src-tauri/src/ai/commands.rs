@@ -15,7 +15,6 @@ use imt_ai::recommend::{Recommendation, Recommendations};
 use imt_ai::setup::{SetupPlan, SetupStage};
 use imt_ai::{StoreAccess, StoreRef};
 use imt_core::api::ContextRequest;
-use imt_core::LogStore;
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -51,12 +50,23 @@ fn check_session_id(id: &str) -> Ai<&str> {
     Ok(id)
 }
 
-/// A window's workspace for the assistant: every visit is one short read lock (see `imt_ai::StoreAccess`).
+/// A window's store for the assistant: each visit reaches the window's current store (a project opened
+/// meanwhile is seen at the next tool call; see `imt_ai::StoreAccess`).
 pub(crate) struct WindowStore(pub(crate) Arc<WindowState>);
 
 impl StoreAccess for WindowStore {
-    fn visit(&self, f: &mut dyn FnMut(&dyn LogStore)) {
-        f(self.0.store_read().as_ref())
+    fn visit(&self, f: &mut dyn FnMut(&dyn imt_core::ports::Store)) {
+        match self.0.engine.store() {
+            Ok(store) => f(store.as_ref()),
+            Err(e) => {
+                // The store cannot start: the assistant sees no events (and says so) instead of failing the turn.
+                log::warn!("the AI sees no events: {}", e.message);
+                let empty = imt_core::Workspace::new(imt_core::Profile::default_profile()).map(imt_core::workspace::WorkspaceStore::new);
+                if let Ok(empty) = empty {
+                    f(&empty);
+                }
+            }
+        }
     }
 }
 

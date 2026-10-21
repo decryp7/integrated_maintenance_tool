@@ -1,14 +1,15 @@
-//! The active profile on disk: checking a text against a store, saving it with version history,
+//! The active profile on disk: checking a text against the window's plugins, saving it with version history,
 //! listing and reading versions, loading the saved one.
 //!
 //! One source of truth: a window's profile is what its store applied. `save_profile` checks the text,
 //! re-imports with it as a job, and only after the swap succeeded writes it to disk and makes it the
 //! window's profile; a cancelled or failed apply leaves both as they were.
 
+use crate::engine::Host;
 use crate::error::{CmdError, CmdResult};
 use crate::profile::ProfileDoc;
 use crate::ErrorCode;
-use imt_core::{LogStore, Profile};
+use imt_core::Profile;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 
@@ -36,10 +37,11 @@ impl ProfileFiles {
         self.dir.as_ref().map(|d| d.join("history"))
     }
 
-    /// `toml` as a profile that compiles against `store`'s plugins, or why not (field `toml`, with the line).
-    pub fn check(store: &dyn LogStore, toml: &str) -> CmdResult<Profile> {
+    /// `toml` as a profile that compiles with the window's plugins, or why not (field `toml`, with the line).
+    /// The store checks it again when it applies it.
+    pub fn check(host: &Host, toml: &str) -> CmdResult<Profile> {
         let profile = Profile::from_toml(toml).map_err(|e| CmdError::invalid(e.message).field("toml").line(e.line))?;
-        store.validate_profile(profile.clone()).map_err(|e| {
+        host.compile(profile.clone()).map_err(|e| {
             let line = imt_core::profile::RuleContext::of(&e).and_then(|r| r.line_in(toml));
             CmdError::invalid(format!("{e:#}")).field("toml").line(line)
         })?;
@@ -115,12 +117,12 @@ impl ProfileFiles {
         Ok(ProfileDoc { name, path: None, toml })
     }
 
-    /// The saved profile if it still compiles against `store`'s plugins, else the built-in default.
-    pub fn load(&self, store: &dyn LogStore) -> (Profile, ProfileDoc) {
+    /// The saved profile if it still compiles with `registry`'s plugins, else the built-in default.
+    pub fn load(&self, registry: &imt_core::PluginRegistry) -> (Profile, ProfileDoc) {
         if let Some(path) = self.active() {
             if let Ok(toml) = std::fs::read_to_string(&path) {
                 match Profile::from_toml(&toml) {
-                    Ok(p) if store.validate_profile(p.clone()).is_ok() => {
+                    Ok(p) if registry.compile_profile(p.clone()).is_ok() => {
                         let doc = ProfileDoc {
                             name: p.name.clone(),
                             path: Some(path.to_string_lossy().into_owned()),

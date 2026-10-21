@@ -1,7 +1,7 @@
 import { Provider } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { AnalysisBackend } from '../../core/analysis-backend';
-import { Anomaly, ChartDef } from '../../core/api.types';
+import { Anomaly, ChartDef, fullCoverage } from '../../core/api.types';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { ProfileEdits } from '../../profile/profile-edits';
 import { QuerySession } from '../../analysis/query-session';
@@ -97,7 +97,7 @@ describe('ReportActions', () => {
     const { reports, actions, store } = await setup();
     const analysis = TestBed.inject(AnalysisBackend);
     const many: Anomaly[] = Array.from({ length: 12 }, (_, i) => ({ kind: i === 0 ? 'crash' : 'errorSpike', instance: i % 2 ? 'WEB01' : null, from: 0, to: 1000, score: i, message: `a${i}`, sampleIds: [] }));
-    vi.spyOn(analysis, 'queryAnomalies').mockResolvedValueOnce(many).mockResolvedValueOnce([]).mockRejectedValueOnce('engine down');
+    vi.spyOn(analysis, 'queryAnomalies').mockResolvedValueOnce({ result: many, coverage: fullCoverage(12) }).mockResolvedValueOnce({ result: [], coverage: fullCoverage(0) }).mockRejectedValueOnce('engine down');
     expect(await actions.addAnomalies()).toBe(true);
     const findings = blocksOf(reports.active()!);
     expect(findings).toHaveLength(MAX_FINDINGS);
@@ -136,7 +136,7 @@ describe('ReportCommands', () => {
     await byId('report.addBookmarks').run(c);
     await byId('report.addQueryTable').run(c);
     await byId('report.addAnnotations').run(c);
-    vi.spyOn(TestBed.inject(AnalysisBackend), 'queryAnomalies').mockResolvedValue([]);
+    vi.spyOn(TestBed.inject(AnalysisBackend), 'queryAnomalies').mockResolvedValue({ result: [], coverage: fullCoverage(0) });
     await byId('report.addAnomalies').run(c);
     expect(shown).toEqual(['report', 'report', 'report']);
     expect(byId('report.export').when!(c)).toBe(true);

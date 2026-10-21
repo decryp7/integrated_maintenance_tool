@@ -89,6 +89,7 @@ import { confidenceLabel, formatConfidence, formatOffset, parseOffset } from './
       }
     </section>
 
+    @if (skew.unavailable(); as u) { <p class="small faint" role="status">{{ u }}</p> }
     @if (skew.error(); as e) { <p class="err" role="alert">{{ e }}</p> }
     <div class="foot">
       <button type="button" class="btn ghost" (click)="ref.close()" i18n="@@skew.dialog.close">Close</button>

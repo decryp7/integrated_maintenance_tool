@@ -9,7 +9,7 @@
 //! folding do not re-read the files.
 
 use crate::paths::WindowGrants;
-use crate::windows::{read, CurrentWindow};
+use crate::windows::CurrentWindow;
 use crate::{err, CmdResult};
 use imt_core::config::export::{parse_format, write_diff, Sides};
 use imt_core::config::snapshot::{diff_folders, SnapshotDiff};
@@ -88,7 +88,7 @@ fn sides(grants: &WindowGrants, left: &str, right: &str) -> CmdResult<(PathBuf, 
 }
 
 async fn parsers(state: &CurrentWindow) -> CmdResult<ConfigParsers> {
-    read(state, |ws| Ok(ws.config_parsers())).await
+    Ok(ConfigParsers::with_registry(&state.host.registry))
 }
 
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> anyhow::Result<T> + Send + 'static) -> CmdResult<T> {

@@ -1,9 +1,9 @@
 [workspace]
-members = ["crates/imt-core", "crates/imt-alloc", "crates/imt-plugin-api", "crates/imt-batch", "crates/imt-plugin-registry", "crates/imt-plugin-windows", "crates/imt-plugin-web", "crates/imt-plugin-formats", "crates/imt-plugin-otel", "crates/imt-plugin-syslog", "crates/imt-plugin-tools", "crates/imt-monitor", "crates/imt-collect", "crates/imt-pdf", "crates/imt-agent", "crates/imt-profile", "crates/imt-plugin-profiling", "crates/imt-plugin-dotnet", "crates/imt-etw", "crates/imt-symbols", "crates/imt-plugin-native", "crates/imt-dump", "crates/imt-plugin-dumps", "crates/imt-ai", "crates/imt-ai-worker", "crates/imt-ipc", "crates/imt-plugin-host", "crates/imt-plugins", "crates/imt-plugin-package", "crates/imt-plugin-test", "examples/plugins/*", "crates/cargo-imt-plugin", "crates/imt-plugin-e2e", "app/src-tauri", "xtask"]
-# The persistent-store spike (docs/store-spike.md) builds on its own: it needs DataFusion and a prebuilt
-# libduckdb, which no shipped crate uses. imt-store-duck (ADR 0014) also links the prebuilt libduckdb and
-# builds on its own until CI fetches it.
-exclude = ["crates/imt-store-spike", "crates/imt-store-duck"]
+members = ["crates/imt-core", "crates/imt-alloc", "crates/imt-plugin-api", "crates/imt-batch", "crates/imt-plugin-registry", "crates/imt-plugin-windows", "crates/imt-plugin-web", "crates/imt-plugin-formats", "crates/imt-plugin-otel", "crates/imt-plugin-syslog", "crates/imt-plugin-tools", "crates/imt-monitor", "crates/imt-collect", "crates/imt-pdf", "crates/imt-agent", "crates/imt-profile", "crates/imt-plugin-profiling", "crates/imt-plugin-dotnet", "crates/imt-etw", "crates/imt-symbols", "crates/imt-plugin-native", "crates/imt-dump", "crates/imt-plugin-dumps", "crates/imt-ai", "crates/imt-ai-worker", "crates/imt-ipc", "crates/imt-plugin-host", "crates/imt-plugins", "crates/imt-plugin-package", "crates/imt-plugin-test", "examples/plugins/*", "crates/cargo-imt-plugin", "crates/imt-plugin-e2e", "app/src-tauri", "xtask", "crates/imt-store-duck", "crates/imt-store-client", "crates/imt-store-worker"]
+# The persistent-store spike (docs/store-spike.md) builds on its own: it needs DataFusion, which no shipped crate
+# uses. The store crates (imt-store-duck, imt-store-worker) link the official prebuilt libduckdb: every build needs
+# `DUCKDB_LIB_DIR`/`DUCKDB_INCLUDE_DIR` from `crates/imt-store-duck/scripts/fetch-libduckdb.sh` (docs/development.md).
+exclude = ["crates/imt-store-spike"]
 resolver = "2"
 
 # Shared by every member: `edition.workspace = true` etc.
@@ -19,10 +19,19 @@ repository = "https://dev.decryptology.net/decryp7/integrated_maintenance_tool"
 # `default-features = false` here can't turn the defaults back on in a member.
 [workspace.dependencies]
 anyhow = "1.0"
+# Arrow 58: the version duckdb-rs 1.10506 (DuckDB 1.5.6) links, so event batches reach the store without a
+# conversion; `arrow-ipc` carries batches between the store worker and IMT (ADR 0014 6c).
+arrow-array = { version = "58", default-features = false }
+arrow-buffer = { version = "58", default-features = false }
+arrow-ipc = { version = "58", default-features = false }
+arrow-schema = { version = "58", default-features = false }
 base64 = "0.23"
 bytes = "1"
 chrono = "0.4.45"
 csv = "1.4"
+# DuckDB 1.5.6 (MIT), pinned to the prebuilt library the fetch script verifies; never `bundled` (several GB of RAM
+# to compile).
+duckdb = { version = "=1.10506.1", default-features = false }
 ctrlc = "3"
 flate2 = "1.1"
 getrandom = "0.4"
@@ -30,6 +39,9 @@ globset = "0.4.20"
 insta = { version = "1", features = ["yaml"] }
 libc = "0.2"
 log = "0.4"
+memory-stats = "1.2"
+# Event segments of the store: zstd Parquet (Apache-2.0), the Arrow version of duckdb-rs.
+parquet = { version = "58", default-features = false }
 # The global allocator of the binaries that parse and analyse (MIT), v3 (user decision 2026-10-21): through
 # `imt-alloc`, which also tunes it; measurements in ADR 0014's performance notes.
 mimalloc = { version = "0.1", default-features = false }
@@ -39,12 +51,14 @@ proptest = "1.12"
 # The pprof file format (profile.proto) in the profiling plugin; not used for IPC (ADR 0017).
 prost = "0.14"
 quick-xml = "0.42"
+rayon = "1.12"
 regex = "1.13"
 semver = "1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.11"
 sysinfo = { version = "0.39", default-features = false }
+tantivy = { version = "0.27", default-features = false }
 tempfile = "3"
 thiserror = "2.0"
 tokio = { version = "1", default-features = false }

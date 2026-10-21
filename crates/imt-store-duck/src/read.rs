@@ -14,7 +14,7 @@ use imt_core::api::{
 use imt_core::batch::{BatchRow, EventBatch, EventSchema, BATCH_ROWS};
 use imt_core::ingest::SourceReport;
 use imt_core::model::Level;
-use imt_core::ports::{EventView, Filter, PageQuery, PageReply, Query, StoreError, StoreResult, SummaryReply};
+use imt_core::ports::{EventView, Filter, PageQuery, PageReply, Query, StoreResult, SummaryReply};
 use imt_core::ql::{Completion, QlError, QlResult};
 use imt_core::query::{group_key, CompiledQuery};
 use imt_core::row::{to_record, ArrowRow, BatchSlots, FieldKeys, RowRef};
@@ -388,7 +388,48 @@ impl Inner {
     }
 
     pub(crate) fn compile(&self, ctx: &Ctx, q: &Filter) -> StoreResult<(SqlFilter, CompiledQuery)> {
-        sql::compile(q, &ctx.default_group_by, &ctx.marker_kinds, &ctx.fields)
+        let resolved = self.resolve_window(q)?;
+        let q = resolved.as_ref();
+        let source = WithHits {
+            fields: &ctx.fields,
+            inner: self,
+            keep: std::cell::RefCell::new(Vec::new()),
+        };
+        let (mut f, cq) = sql::compile(q, &ctx.default_group_by, &ctx.marker_kinds, &source)?;
+        f.keep = source.keep.into_inner();
+        Ok((f, cq))
+    }
+
+    /// The query with a live window ("the last 5 minutes") resolved into `from`: before the newest event, or
+    /// the system clock with `[live] clock = "wall"`.
+    pub(crate) fn resolve_window<'q>(&self, q: &'q Filter) -> StoreResult<std::borrow::Cow<'q, Filter>> {
+        if q.window.is_none() {
+            return Ok(std::borrow::Cow::Borrowed(q));
+        }
+        let now = if imt_core::query::live_clock_is_wall(&self.profile().profile) {
+            imt_core::query::wall_ms()
+        } else {
+            let conn = self.conn()?;
+            let newest: Option<i64> = conn.query_row("SELECT max(ts) FROM events", [], |r| r.get(0)).map_err(engine)?;
+            newest.unwrap_or_else(imt_core::query::wall_ms)
+        };
+        Ok(imt_core::query::resolve_live_window(q, now))
+    }
+
+    /// The hits file of a word search, or `None` when the index cannot answer it exactly (unavailable, not
+    /// caught up with the segments, or too many hits).
+    fn word_hits(&self, words: &imt_core::words::WordQuery) -> anyhow::Result<Option<crate::hits::Hits>> {
+        let Some(fts) = self.fts.as_ref() else { return Ok(None) };
+        let conn = self.conn().map_err(|e| anyhow::anyhow!("{e}"))?;
+        let pending: u64 = conn.query_row("SELECT count(*) FROM segments WHERE NOT indexed", [], |r| r.get(0))?;
+        if pending > 0 {
+            return Ok(None);
+        }
+        let index = &fts.shared.fts;
+        let key = format!("{:?}|{:?}|{}", words.terms, words.prefixes, index.docs());
+        let generation = self.generation.load(std::sync::atomic::Ordering::SeqCst);
+        self.hits
+            .get_or_write(&key, generation, || index.all_ids(words, crate::fts::MAX_FILTER_HITS))
     }
 
     fn view(&self, ctx: &Ctx, row: &BatchRow<'_>, group_by: &[String]) -> EventView {
@@ -409,6 +450,7 @@ impl Inner {
             source_name,
             line: row.line(),
             byte_offset: row.byte_offset(),
+            search_match: None,
         }
     }
 
@@ -541,6 +583,25 @@ impl Inner {
             rows,
             anchor_index,
         })
+    }
+
+    /// [`Query::events`]: the grid rows of the ids, in the order asked.
+    pub(crate) fn events(&self, req: &imt_core::ports::EventsRequest) -> StoreResult<Vec<EventView>> {
+        if req.ids.len() > imt_core::ports::MAX_PAGE_ROWS {
+            return Err(imt_core::ports::StoreError::Invalid(format!(
+                "at most {} events at once",
+                imt_core::ports::MAX_PAGE_ROWS
+            )));
+        }
+        let conn = self.conn()?;
+        let ctx = self.ctx(&conn)?;
+        let q = Filter {
+            group_by: req.group_by.clone(),
+            ..Filter::default()
+        };
+        let (_, cq) = self.compile(&ctx, &q)?;
+        let ids: Vec<u64> = req.ids.iter().map(|i| i.0).collect();
+        self.rows_by_id(&conn, &ctx, &ids, &cq.group_by)
     }
 
     /// The grid rows of `ids` (at most a page), in that order.
@@ -1143,8 +1204,10 @@ impl Inner {
         buckets: usize,
         lifecycle: u64,
     ) -> StoreResult<Timeline> {
-        // No window functions and no wide columns: one pass for the bounds, one GROUP BY for lanes, density,
-        // histogram and first sources, and one over the (few) marked events for the clusters.
+        // No window functions and no wide columns: one pass for the bounds, one GROUP BY for lanes, density and
+        // histogram, one for each lane's sources (bounds and first events), and one over the (few) marked events
+        // for the clusters. Lanes × buckets and lanes × sources are grouped apart: their product (thousands of
+        // sources × hundreds of buckets) exceeded the memory limit at 10M events.
         let filter = format!("e.ts IS NOT NULL AND {}", f.structural_sql());
         let (min, max) = conn
             .query_row(&format!("SELECT min(e.ts), max(e.ts) FROM {FROM} WHERE {filter}"), [], |r| {
@@ -1160,34 +1223,8 @@ impl Inner {
         let mut lanes: Vec<Lane> = Vec::new();
         let mut index: HashMap<String, usize> = HashMap::new();
         let mut histogram = vec![[0u32; 6]; buckets];
-        // The first event of each (lane, source), to order the lane's sources.
-        let mut firsts: HashMap<(usize, u32), OrderKey> = HashMap::new();
-        let mut stmt = conn
-            .prepare(&format!(
-                "SELECT k, b, level, m, source, n, tmin, tmax, struct_extract(f, 'ts'), struct_extract(f, 'line'), struct_extract(f, 'id') FROM (
-                   SELECT {key} AS k, {bucket} AS b, e.level AS level, ({content}) AS m, e.source AS source, count(*) AS n,
-                          min(e.ts) AS tmin, max(e.ts) AS tmax, min(struct_pack(ts := e.ts, line := e.line, id := e.id)) AS f
-                   FROM {FROM} WHERE {filter} GROUP BY ALL)"
-            ))
-            .map_err(engine)?;
-        let rows = stmt
-            .query_map([], |r| {
-                Ok((
-                    r.get::<_, String>(0)?,
-                    r.get::<_, i64>(1)?,
-                    r.get::<_, u8>(2)?,
-                    r.get::<_, bool>(3)?,
-                    r.get::<_, u32>(4)?,
-                    r.get::<_, u64>(5)?,
-                    r.get::<_, i64>(6)?,
-                    r.get::<_, i64>(7)?,
-                    (r.get::<_, i64>(8)?, r.get::<_, u32>(9)?, r.get::<_, u64>(10)?),
-                ))
-            })
-            .map_err(engine)?;
-        for row in rows {
-            let (k, b, level, m, source, n, tmin, tmax, (fts, fline, fid)) = row.map_err(engine)?;
-            let i = *index.entry(k).or_insert_with_key(|k| {
+        let mut lane_of = |k: String, lanes: &mut Vec<Lane>| -> usize {
+            *index.entry(k).or_insert_with_key(|k| {
                 lanes.push(Lane {
                     key: k.clone(),
                     first: i64::MAX,
@@ -1199,17 +1236,63 @@ impl Inner {
                     sources: Vec::new(),
                 });
                 lanes.len() - 1
-            });
+            })
+        };
+        let mut stmt = conn
+            .prepare(&format!(
+                "SELECT {key} AS k, {bucket} AS b, e.level AS level, ({content}) AS m, count(*) AS n FROM {FROM} WHERE {filter} GROUP BY ALL"
+            ))
+            .map_err(engine)?;
+        let rows = stmt
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, u8>(2)?,
+                    r.get::<_, bool>(3)?,
+                    r.get::<_, u64>(4)?,
+                ))
+            })
+            .map_err(engine)?;
+        for row in rows {
+            let (k, b, level, m, n) = row.map_err(engine)?;
+            let i = lane_of(k, &mut lanes);
             let lane = &mut lanes[i];
             let b = (b.max(0) as usize).min(buckets - 1);
-            lane.first = lane.first.min(tmin);
-            lane.last = lane.last.max(tmax);
             lane.total += n as usize;
             if m {
                 lane.matched += n as usize;
                 lane.density[b] += n as u32;
                 histogram[b][(level as usize).min(5)] += n as u32;
             }
+        }
+        // The first event of each (lane, source), to order the lane's sources.
+        let mut firsts: HashMap<(usize, u32), OrderKey> = HashMap::new();
+        let mut stmt = conn
+            .prepare(&format!(
+                "SELECT k, source, tmin, tmax, struct_extract(f, 'ts'), struct_extract(f, 'line'), struct_extract(f, 'id') FROM (
+                   SELECT {key} AS k, e.source AS source, min(e.ts) AS tmin, max(e.ts) AS tmax,
+                          min(struct_pack(ts := e.ts, line := e.line, id := e.id)) AS f
+                   FROM {FROM} WHERE {filter} GROUP BY ALL)"
+            ))
+            .map_err(engine)?;
+        let rows = stmt
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, u32>(1)?,
+                    r.get::<_, i64>(2)?,
+                    r.get::<_, i64>(3)?,
+                    (r.get::<_, i64>(4)?, r.get::<_, u32>(5)?, r.get::<_, u64>(6)?),
+                ))
+            })
+            .map_err(engine)?;
+        for row in rows {
+            let (k, source, tmin, tmax, (fts, fline, fid)) = row.map_err(engine)?;
+            let i = lane_of(k, &mut lanes);
+            let lane = &mut lanes[i];
+            lane.first = lane.first.min(tmin);
+            lane.last = lane.last.max(tmax);
             let key = (fts, source, fline, fid);
             firsts.entry((i, source)).and_modify(|k| *k = (*k).min(key)).or_insert(key);
         }
@@ -1386,11 +1469,19 @@ impl Query for DuckStore {
     }
 
     fn page(&self, req: &PageQuery) -> StoreResult<PageReply> {
-        self.inner.page(req)
+        let mut page = self.inner.page(req)?;
+        imt_core::ports::mark_search_matches(&mut page.rows, &req.query);
+        Ok(page)
+    }
+
+    fn events(&self, req: &imt_core::ports::EventsRequest) -> StoreResult<Vec<EventView>> {
+        self.inner.events(req)
     }
 
     fn timeline(&self, req: &TimelineRequest) -> StoreResult<Timeline> {
-        self.inner.timeline(req)
+        // A live window bounds the timeline like a time range does.
+        let query = self.inner.resolve_window(&req.query)?.into_owned();
+        self.inner.timeline(&TimelineRequest { query, ..req.clone() })
     }
 
     fn facet(&self, req: &FacetRequest) -> StoreResult<Facet> {
@@ -1402,7 +1493,8 @@ impl Query for DuckStore {
     }
 
     fn chart(&self, req: &ChartRequest) -> StoreResult<ChartData> {
-        self.inner.chart(req)
+        let query = self.inner.resolve_window(&req.query)?.into_owned();
+        self.inner.chart(&ChartRequest { query, ..req.clone() })
     }
 
     fn field_stats(&self, req: &FieldStatsRequest) -> StoreResult<FieldStats> {
@@ -1425,8 +1517,38 @@ impl Query for DuckStore {
         self.inner.complete_query(req)
     }
 
-    fn export(&self, _req: &ExportRequest) -> StoreResult<ExportResult> {
-        Err(StoreError::unsupported("export", "R2c"))
+    fn export(&self, req: &ExportRequest) -> StoreResult<ExportResult> {
+        self.inner.export(req)
+    }
+}
+
+/// The fields of a statement plus the word hits of its smart search (kept alive with the filter).
+struct WithHits<'a> {
+    fields: &'a sql::Fields,
+    inner: &'a Inner,
+    keep: std::cell::RefCell<Vec<Arc<crate::hits::HitsFile>>>,
+}
+
+impl sql::FieldSource for WithHits<'_> {
+    fn events(&self) -> &imt_core::batch::EventSchema {
+        self.fields.events()
+    }
+    fn promoted_text(&self, key: &str) -> bool {
+        self.fields.promoted_text(key)
+    }
+    fn word_hits(&self, words: &imt_core::words::WordQuery) -> Option<String> {
+        match self.inner.word_hits(words) {
+            Ok(Some(hits)) => {
+                let (sql, file) = hits.condition()?;
+                self.keep.borrow_mut().extend(file);
+                Some(sql)
+            }
+            Ok(None) => None,
+            Err(e) => {
+                log::warn!("word search falls back to substrings: {e:#}");
+                None
+            }
+        }
     }
 }
 

@@ -4,9 +4,7 @@
 //! the result, with what was removed, and can edit it before the browser opens.
 
 use crate::web::{compose_query, private_terms_in, QueryIntent, SafeQuery};
-use imt_core::api::PageRequest;
-use imt_core::query::Query;
-use imt_core::LogStore;
+use imt_core::ports::Store;
 use regex::Regex;
 use std::sync::OnceLock;
 
@@ -77,25 +75,21 @@ pub fn event_query(e: &EventText, private_terms: &[String]) -> Result<SafeQuery,
 }
 
 /// The text parts of event `id` in the loaded logs (`None` when there is no such event).
-pub fn event_text_of(store: &dyn LogStore, id: u32) -> Option<EventText> {
-    let req = PageRequest {
-        query: Query::default(),
-        offset: 0,
-        limit: 1,
-        descending: false,
-        anchor: Some(id),
+pub fn event_text_of(store: &dyn Store, id: u32) -> Option<EventText> {
+    let req = imt_core::ports::EventsRequest {
+        ids: vec![imt_core::batch::EventId(u64::from(id))],
+        group_by: Vec::new(),
     };
-    let page = store.page(&req).ok()?;
-    let row = page.rows.iter().find(|r| r.id == id)?;
+    let row = store.events(&req).ok()?.into_iter().next()?;
     Some(EventText {
-        message: row.message.to_string(),
-        template: row.template.as_ref().map(|t| t.to_string()),
-        exception: row.exception.as_ref().map(|e| e.to_string()),
+        message: row.message,
+        template: row.template,
+        exception: row.exception,
     })
 }
 
 /// "Search the web for this error" for event `id`: the redacted search text, or why there is none.
-pub fn search_for_event(store: &dyn LogStore, id: u32) -> Result<SafeQuery, String> {
+pub fn search_for_event(store: &dyn Store, id: u32) -> Result<SafeQuery, String> {
     let e = event_text_of(store, id).ok_or_else(|| format!("there is no event #{id} in the loaded logs"))?;
     event_query(&e, &private_terms_in(store))
 }

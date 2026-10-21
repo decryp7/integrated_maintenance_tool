@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { Finding } from '../../core/api.types';
+import { Finding, fullCoverage } from '../../core/api.types';
 import { loadWorkspace } from '../../analysis/test-setup';
 import { IMT_RECORD_MENU_ITEMS, RecordActions } from '../../context/record-actions';
 import { settle } from '../../../testing/helpers';
@@ -25,8 +25,8 @@ describe('health-check findings and events in reports', () => {
     const { store, reports, actions, share } = await setup();
     const finding = (i: number): Finding => ({ severity: i ? 'warning' : 'critical', title: `f${i}`, detail: 'd', action: null });
     vi.spyOn(share, 'overview')
-      .mockResolvedValueOnce(Array.from({ length: 12 }, (_, i) => finding(i)))
-      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({ result: Array.from({ length: 12 }, (_, i) => finding(i)), coverage: fullCoverage(12) })
+      .mockResolvedValueOnce({ result: [], coverage: fullCoverage(0) })
       .mockRejectedValueOnce('engine down');
     expect(await actions.addFindings()).toBe(true);
     const blocks = blocksOf(reports.active()!);
@@ -41,7 +41,7 @@ describe('health-check findings and events in reports', () => {
 
   it('the mock health check derives findings from anomalies, most severe first', async () => {
     const { share, store } = await setup();
-    const found = await share.overview(store.effectiveQuery());
+    const { result: found } = await share.overview(store.effectiveQuery());
     expect(found.length).toBeGreaterThan(0);
     const rank = { critical: 0, warning: 1, info: 2 };
     expect(found.map((f) => rank[f.severity])).toEqual([...found.map((f) => rank[f.severity])].sort());

@@ -2,12 +2,12 @@
 //! actions use them to keep workspace data from leaving the machine.
 
 use imt_core::api::FacetRequest;
-use imt_core::LogStore;
+use imt_core::ports::Store;
 
 /// Names the logs themselves identify as private, in one short borrow of the store: values of host, user and
 /// address fields, and identifier-like parts of file paths (those with digits, hyphens or underscores; plain
 /// words are not private).
-pub fn private_terms_in(store: &dyn LogStore) -> Vec<String> {
+pub fn private_terms_in(store: &dyn Store) -> Vec<String> {
     const HOSTISH: &[&str] = &[
         "machinename",
         "host",
@@ -24,7 +24,7 @@ pub fn private_terms_in(store: &dyn LogStore) -> Vec<String> {
         "instanceid",
     ];
     let mut terms: Vec<String> = Vec::new();
-    let summary = store.summary();
+    let Ok(summary) = store.summary() else { return Vec::new() };
     for f in summary.fields.iter().filter(|f| HOSTISH.contains(&f.name.to_lowercase().as_str())) {
         if let Ok(facet) = store.facet(&FacetRequest {
             query: Default::default(),

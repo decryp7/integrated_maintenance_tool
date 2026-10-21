@@ -6,7 +6,7 @@
 
 use imt_core::api::{FacetRequest, TimelineRequest};
 use imt_core::batch::SourceId;
-use imt_core::ports::{Ingest, PageQuery, Positions, Query, Search, SearchRequest, StoreError};
+use imt_core::ports::{Analysis, Ingest, PageQuery, Positions, Projects, Query, Search, SearchRequest, StoreError};
 use imt_core::Profile;
 use imt_store_worker::{StoreWorker, WorkerConfig};
 use std::path::{Path, PathBuf};
@@ -236,7 +236,19 @@ fn errors_pass_through_and_a_crash_is_recovered() {
     assert_eq!(store.summary().unwrap().total, 2);
     // Typed errors come back as they were.
     assert!(matches!(store.remove_source(SourceId(999)), Err(StoreError::NotFound(_))));
-    assert!(matches!(store.restore(&Default::default()), Err(StoreError::Unsupported { .. })));
+    let bad_regex = PageQuery {
+        query: imt_core::ports::Filter {
+            text: "(".into(),
+            regex: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert!(
+        matches!(store.page(&bad_regex), Err(StoreError::Invalid(_))),
+        "{:?}",
+        store.page(&bad_regex)
+    );
     // The worker dies: the next call fails (retryable) or already runs on a new worker; then all is back.
     let pid = w.status().pid.unwrap();
     let mut sys = sysinfo::System::new();
@@ -258,4 +270,129 @@ fn errors_pass_through_and_a_crash_is_recovered() {
     assert_eq!(second.summary().unwrap().total, 0);
     assert_eq!(w.worker_status().unwrap().stores, 2);
     w.shutdown();
+}
+
+#[test]
+fn a_project_exported_through_the_worker_opens_without_its_logs() {
+    let logs = TempDir::new("project-logs");
+    std::fs::write(
+        logs.0.join("a.log"),
+        "2026-10-14 10:00:00 INFO first
+2026-10-14 10:00:01 ERROR second
+2026-10-14 10:00:02 WARN third
+",
+    )
+    .unwrap();
+    let home = TempDir::new("project-home");
+    let dir = home.0.join("incident.imt");
+    let w = worker();
+    let store = w.open_store(&dir, Profile::default_profile(), true, None).unwrap();
+    store.open(std::slice::from_ref(&logs.0)).unwrap().wait().unwrap();
+    let manifest = imt_core::package::ProjectManifest {
+        name: "Incident".into(),
+        ..Default::default()
+    };
+    let saved = store.save_project(&manifest).unwrap();
+    assert_eq!(saved.roots.len(), 1, "the opened folder is remembered for refresh");
+    let archive = home.0.join("incident.imtz");
+    assert!(store.export_project(&saved, &archive).unwrap() > 0);
+    store.close();
+    drop(logs);
+    // The archive opens in a new folder, without the log files.
+    let unpacked = TempDir::new("project-open");
+    let (opened, m) = w.open_project(&archive, &unpacked.0, Profile::default_profile(), None).unwrap();
+    assert_eq!(m.name, "Incident");
+    assert!(opened.store_dir().starts_with(std::fs::canonicalize(&unpacked.0).unwrap()));
+    assert_eq!(opened.summary().unwrap().total, 3);
+    // The folder opens in place too.
+    let (in_place, _) = w.open_project(&dir, &unpacked.0, Profile::default_profile(), None).unwrap();
+    assert_eq!(in_place.summary().unwrap().total, 3);
+    // Something that is not a project is refused with a message.
+    let bogus = home.0.join("bogus.imtz");
+    std::fs::write(&bogus, b"not a zip").unwrap();
+    assert!(matches!(
+        w.open_project(&bogus, &unpacked.0, Profile::default_profile(), None),
+        Err(StoreError::Invalid(_))
+    ));
+    w.shutdown();
+}
+
+/// Kills the worker process (as a crash would).
+fn kill(w: &StoreWorker) -> u32 {
+    let pid = w.status().pid.unwrap();
+    let mut sys = sysinfo::System::new();
+    let p = sysinfo::Pid::from_u32(pid);
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[p]), true);
+    assert!(sys.process(p).unwrap().kill());
+    pid
+}
+
+#[test]
+fn a_worker_killed_mid_import_or_mid_query_fails_the_call_and_recovers() {
+    let logs = TempDir::new("killed-logs");
+    for (i, from) in log_samples().iter().enumerate() {
+        copy_dir(from, &logs.0.join(format!("s{i}")));
+    }
+    let dir = TempDir::new("killed-store");
+    let w = worker();
+    let store = w.open_store(&dir.0, Profile::default_profile(), true, None).unwrap();
+    // Mid-import: the import job fails (retryable), it never hangs.
+    let session = store.open(std::slice::from_ref(&logs.0)).unwrap();
+    std::thread::sleep(Duration::from_millis(50));
+    let pid = kill(&w);
+    match session.wait() {
+        Ok(_) => {} // finished before the kill landed
+        Err(e) => assert!(e.is_retryable(), "{e}"),
+    }
+    // The store reopens on the new worker, with whatever the import had committed (or nothing).
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let summary = loop {
+        match store.summary() {
+            Ok(s) => break s,
+            Err(e) if e.is_retryable() && Instant::now() < deadline => std::thread::sleep(Duration::from_millis(100)),
+            Err(e) => panic!("{e}"),
+        }
+    };
+    assert_ne!(w.status().pid, Some(pid));
+    // Importing again completes.
+    store.open(std::slice::from_ref(&logs.0)).unwrap().wait().unwrap();
+    let total = store.summary().unwrap().total;
+    assert!(total > 10_000 && total >= summary.total, "{total}");
+    // Mid-query: a long analysis on another thread fails (retryable) or finishes; the next call works.
+    let s2 = store.clone();
+    let running = std::thread::spawn(move || s2.patterns(&imt_core::api::QueryRequest { query: Default::default() }).map(|_| ()));
+    std::thread::sleep(Duration::from_millis(30));
+    kill(&w);
+    match running.join().unwrap() {
+        Ok(()) => {}
+        Err(e) => assert!(e.is_retryable(), "{e}"),
+    }
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        match store.summary() {
+            Ok(s) => {
+                assert_eq!(s.total, total, "nothing lost");
+                break;
+            }
+            Err(e) if e.is_retryable() && Instant::now() < deadline => std::thread::sleep(Duration::from_millis(100)),
+            Err(e) => panic!("{e}"),
+        }
+    }
+    w.shutdown();
+}
+
+#[test]
+fn a_store_open_in_another_worker_is_locked_with_a_typed_error() {
+    let dir = TempDir::new("locked-store");
+    let first = worker();
+    let _held = first.open_store(&dir.0, Profile::default_profile(), true, None).unwrap();
+    let second = worker();
+    let failure = second
+        .open_store(&dir.0, Profile::default_profile(), false, None)
+        .err()
+        .expect("the catalog is locked");
+    assert!(matches!(&failure, StoreError::Locked(_)), "{failure:?}");
+    assert!(failure.is_retryable());
+    second.shutdown();
+    first.shutdown();
 }

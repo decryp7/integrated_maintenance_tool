@@ -5,7 +5,8 @@ import { Finding } from '../core/api.types';
 import { formatCount, formatDateTime, formatDuration } from '../core/format';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { AnalysisState } from '../analysis/analysis-state';
-import { AsyncResource } from '../analysis/async-resource';
+import { AnalysisResource } from '../analysis/async-resource';
+import { CoverageNote } from '../analysis/coverage-note';
 import { ShareBackend } from '../share/share-backend';
 import { Icon } from '../shared/icon';
 import { HelpHint } from '../ui/help-hint';
@@ -17,7 +18,7 @@ import { OverviewPrefs } from './overview-prefs';
 @Component({
   selector: 'imt-overview-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AnalysisState, Icon, HelpHint, AiButton],
+  imports: [AnalysisState, Icon, HelpHint, AiButton, CoverageNote],
   template: `
     <div class="bar">
       <h2 class="section-title" i18n="@@overview.view.title">Overview</h2>
@@ -60,14 +61,15 @@ import { OverviewPrefs } from './overview-prefs';
         <p class="muted pad" i18n="@@overview.view.empty">Open files or a folder to see a health check here.</p>
       }
 
+      <imt-coverage-note [coverage]="res.coverage()" />
       <imt-analysis-state
         [loading]="res.loading()"
         [error]="res.error()" [retryable]="res.retryable()"
-        [hasData]="!!res.data()"
+        [hasData]="!!res.result()"
         [empty]="false"
         (retry)="res.retry()"
       >
-        @if (res.data(); as findings) {
+        @if (res.result(); as findings) {
           @if (!findings.length) {
             <div class="none" role="status">
               <imt-icon name="check" [size]="16" />
@@ -151,13 +153,13 @@ export class OverviewView {
   protected readonly prefs = inject(OverviewPrefs);
   private readonly share = inject(ShareBackend);
   private readonly actions = inject(OverviewActions);
-  protected readonly res = new AsyncResource<Finding[]>();
+  protected readonly res = new AnalysisResource<Finding[]>();
   protected readonly count = formatCount;
 
-  protected readonly groups = computed(() => groupBySeverity(this.res.data() ?? []));
+  protected readonly groups = computed(() => groupBySeverity(this.res.result() ?? []));
   protected readonly stats = computed(() => {
     const summary = this.store.summary();
-    return summary && summary.sources.length + summary.unrecognized.length > 0 ? overviewStats(summary, this.store.instanceCount(), this.res.data() ?? []) : null;
+    return summary && summary.sources.length + summary.unrecognized.length > 0 ? overviewStats(summary, this.store.instanceCount(), this.res.result() ?? []) : null;
   });
   protected readonly span = computed(() => {
     const s = this.stats();

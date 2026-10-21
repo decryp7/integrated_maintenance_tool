@@ -20,6 +20,7 @@ import {
   LiveState,
   Page,
   PageRequest,
+  PartialMatches,
   ParsePreview,
   ParsePreviewRequest,
   PluginInfo,
@@ -59,6 +60,7 @@ import { FileOpened, ImportProgress, OpenFileRequest, ProfileVersionInfo } from 
 import { mockFileKind, mockOpenSourceFile } from './mock-files';
 import { mockNotifications } from '../../notifications/mock-notifications';
 import { timestampNotice, withTimestampIssue } from './mock-timestamps';
+import { mockUnsupported } from './mock-unsupported';
 import { isImagePath } from '../../ai/vision/image-files';
 import { IDLE_PROGRESS, isMockDemoPath, MockFiles, MockImportSim, MockProfileHistory, NOT_IMPORTED_REASON, slowImportFiles } from './mock-import';
 
@@ -92,7 +94,15 @@ export interface MockBackendOptions {
   pluginMarkerKinds?: readonly MockPluginKind[];
   /** Opening paths is slow and cancellable: each path stands for a folder of files read this many ms apart. */
   slowImportMs?: number;
+  /**
+   * Also offer what only the old in-memory store did: clock-skew correction, alert mutes, per-file tail state and the
+   * redacted view. By default the mock answers like the log store does for now (`unsupported`, an empty tail status).
+   */
+  memoryStoreFeatures?: boolean;
 }
+
+/** The log store's empty tail status (it keeps no per-file tail state yet). */
+const EMPTY_TAIL_STATUS: TailStatus = { files: [], totals: { files: 0, tailing: 0, errors: 0, bytes: 0, linesPerSec: 0, evicted: 0, records: 0 } };
 
 /** One recorded `setLive` call. */
 export interface MockLiveCall {
@@ -240,6 +250,7 @@ export class MockBackend implements ImtBackend {
       pipeline: e.pipelineStats,
       dashboards: mockDashboards(this.profile),
       redactedView: this.redactor !== null,
+      untimed: synthetic !== null ? 0 : e.records.filter((r) => r.ts === null).length,
     };
   }
 
@@ -341,11 +352,31 @@ export class MockBackend implements ImtBackend {
     this.dataset.records.push(...demo.records.filter((r) => ids.has(r.source)).map((r) => ({ ...r, source: ids.get(r.source)! })));
   }
 
-  /** A slow, cancellable import: the files not read before a cancel are listed as not imported. */
+  /**
+   * A slow, cancellable import, run as an import job whose progress carries the files, bytes and current file (like
+   * the engine's): the files not read before a cancel are listed as not imported.
+   */
   private async openSlowly(paths: string[]): Promise<WorkspaceSummary> {
     const sim = this.importSim!;
     const files = slowImportFiles(paths);
-    const { skipped } = await sim.run(files, (file) => this.addExtra(file));
+    const job = mockJobs().start({ kind: 'import', title: `Open ${paths.length === 1 ? (paths[0] ?? '') : `${paths.length} items`}`, cancellable: false }, async (ctx) => {
+      const value = await sim.run(
+        files,
+        (file) => this.addExtra(file),
+        (p) =>
+          ctx.progress({
+            fraction: p.bytesTotal ? p.bytesDone / p.bytesTotal : null,
+            done: p.done,
+            total: p.total,
+            etaMs: p.etaMs,
+            bytesDone: p.bytesDone,
+            bytesTotal: p.bytesTotal,
+            ...(p.current ? { current: p.current } : {}),
+          }),
+      );
+      return { value, result: { type: 'workspace' } };
+    });
+    const { skipped } = await job.done;
     for (const file of skipped) {
       if (!this.dataset.unrecognized.some((u) => u.path === file)) this.dataset.unrecognized.push({ path: file, name: file.split('/').pop() ?? file, reason: NOT_IMPORTED_REASON });
     }
@@ -416,6 +447,10 @@ export class MockBackend implements ImtBackend {
         return this.options.corruptMarkers ? { ...page, rows: page.rows.map((r) => ({ ...r, markers: undefined as never })) } : page;
       }, 20)
     );
+  }
+
+  searchPartial(query: Query): Promise<PartialMatches | null> {
+    return this.failing('searchPartial') ?? this.delay(() => this.engine.partialMatches(query), 60);
   }
 
   queryTimeline(request: TimelineRequest): Promise<Timeline> {
@@ -581,7 +616,18 @@ export class MockBackend implements ImtBackend {
     return Promise.resolve(() => void this.alertHandlers.delete(handler));
   }
 
+  /** Whether the features only the old in-memory store had are on (see `MockBackendOptions.memoryStoreFeatures`). */
+  get memoryStoreFeatures(): boolean {
+    return this.options.memoryStoreFeatures === true;
+  }
+
+  /** The log store's rejection of an operation it does not offer yet, or null when the mock offers it. */
+  private notYet(message: string, hint?: string): Promise<never> | null {
+    return this.memoryStoreFeatures ? null : Promise.reject(mockUnsupported(message, hint));
+  }
+
   tailStatus(): Promise<TailStatus> {
+    if (!this.memoryStoreFeatures) return this.delay(() => structuredClone(EMPTY_TAIL_STATUS), 15);
     return this.delay(() => {
       const counts = new Map<number, number>();
       for (const r of this.engine.records) counts.set(r.source, (counts.get(r.source) ?? 0) + 1);
@@ -594,11 +640,11 @@ export class MockBackend implements ImtBackend {
   }
 
   muteAlerts(target: AlertTarget, untilMs: number): Promise<void> {
-    return this.delay(() => this.mutes.mute(target, untilMs), 5);
+    return this.notYet(NO_ALERTS) ?? this.delay(() => this.mutes.mute(target, untilMs), 5);
   }
 
   unmuteAlerts(target: AlertTarget): Promise<void> {
-    return this.delay(() => this.mutes.unmute(target), 5);
+    return this.notYet(NO_ALERTS) ?? this.delay(() => this.mutes.unmute(target), 5);
   }
 
   openPathsLive(paths: string[], startAtEnd: boolean): Promise<WorkspaceSummary> {
@@ -737,6 +783,8 @@ export class MockBackend implements ImtBackend {
 
   /** Clock-skew correction (`set_source_offset`); see mock-skew.ts. */
   setSourceOffset(request: SetOffsetRequest): Promise<OffsetChange> {
+    const refused = this.notYet(NO_SKEW, NO_SKEW_HINT);
+    if (refused) return refused;
     return this.delay(() => {
       const before = this.engine.records;
       const { source, offsetMs } = resolveOffset(request, before, this.dataset.sources);
@@ -756,7 +804,7 @@ export class MockBackend implements ImtBackend {
 
   /** Offset suggestions from shared correlation ids (`suggest_offsets`). */
   suggestOffsets(request: SuggestRequest = {}): Promise<SuggestResult> {
-    return this.delay(() => mockSuggest(this.engine.records, this.dataset.sources, request));
+    return this.notYet(NO_SKEW, NO_SKEW_HINT) ?? this.delay(() => mockSuggest(this.engine.records, this.dataset.sources, request));
   }
 
   pluginEvents(): Promise<SubscriberMetrics[]> {
@@ -775,6 +823,11 @@ export class MockBackend implements ImtBackend {
     });
   }
 }
+
+// What the log store says for the operations it does not offer yet (app/src-tauri/src/{live,skew_commands}.rs).
+const NO_ALERTS = 'live alerts are not available with the new log store yet';
+const NO_SKEW = 'clock-skew correction is not available with the new log store yet';
+const NO_SKEW_HINT = "Shift a source's times with a shift_time step in the profile's [[pipeline]] meanwhile.";
 
 /** The simulation settings for the backend options (legacy: one event per tick). */
 function liveConfig(options: MockBackendOptions): MockLiveConfig {

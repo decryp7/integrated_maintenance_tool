@@ -6,6 +6,9 @@
  *   workspace_summary      {}                              -> WorkspaceSummary
  *   open_paths             { paths: string[] }             -> WorkspaceSummary
  *   remove_source          { sourceId: number }            -> WorkspaceSummary
+ *   import_problems        {}                              -> DiagnosticRow[]
+ *   evaluate_fix           { fix: QuickFix }               -> FixEvaluation
+ *   index_status           {}                              -> IndexStatus
  *   clear_workspace        {}                              -> WorkspaceSummary
  *   reload_workspace       {}                              -> WorkspaceSummary
  *   query_page             { request: PageRequest }        -> Page
@@ -278,6 +281,8 @@ export interface WorkspaceSummary {
   dashboards: DashboardCfg[];
   /** Pages, facets and source context are redacted (the window's "Redacted view"). */
   redactedView: boolean;
+  /** Events without a timestamp (counted in `total`; in the grid, not on the timeline). */
+  untimed: number;
 }
 
 export interface PipelineStat {
@@ -402,6 +407,8 @@ export interface Query {
   text: string;
   regex: boolean;
   caseSensitive: boolean;
+  /** How a plain `text` matches (smart search); absent = `substring`. A regex or case-sensitive search is a substring search. */
+  textMode?: TextMode;
   filters: FieldFilter[];
   /** Fields forming the instance key; empty = WorkspaceSummary.defaultGroupBy. */
   groupBy: string[];
@@ -415,6 +422,23 @@ export interface Query {
   window?: TimeWindow | null;
   /** Only events from these source ids (`SourceInfo.id`); absent or empty = all sources. Unknown ids match nothing. */
   sources?: number[];
+}
+
+/**
+ * How the search box text matches (Rust `query::TextMode`): `words` = every word, the last a prefix, answered from the
+ * full-text index; `wordsOrSubstring` = also the text inside words (after `search_partial` found such partial matches).
+ */
+export type TextMode = 'substring' | 'words' | 'wordsOrSubstring';
+
+/** How a row matched a smart search (Rust `ports::SearchMatch`). */
+export type SearchMatch = 'words' | 'partial';
+
+/** `search_partial({ query })` → the events holding the text only as a substring (Rust `ports::PartialMatches`); null when cancelled. */
+export interface PartialMatches {
+  /** "N more partial matches". */
+  added: number;
+  /** False when a limit stopped the scan. */
+  complete: boolean;
 }
 
 /**
@@ -432,9 +456,16 @@ export interface PageRequest {
   anchor?: number | null;
 }
 
+/**
+ * Where an event's timestamp comes from: read from the event (`parsed`), taken over from the event before it in the
+ * same file (`inherited`), or none at all (`untimed`: `ts` is null; the event is in the grid, not on the timeline).
+ */
+export type TsState = 'parsed' | 'inherited' | 'untimed';
+
 export interface RecordView {
   id: number;
   ts: number | null;
+  tsState: TsState;
   level: Level;
   message: string;
   template: string | null;
@@ -443,12 +474,14 @@ export interface RecordView {
   source: number;
   sourceName: string;
   line: number;
+  /** Byte offset of the event's first line in its file. */
+  byteOffset: number;
   /** Instance key under the query's groupBy, values joined with " · ". */
   group: string;
   /** Marker kinds, highest priority first. */
   markers: string[];
-  /** Clock-skew offset already applied to `ts` (the original is `ts - skewMs`); absent when none. */
-  skewMs?: number;
+  /** Set on pages of a smart search: a word match or a partial (substring) match. */
+  searchMatch?: SearchMatch;
 }
 
 export interface Page {
@@ -678,16 +711,17 @@ export interface InferredRegex {
  *   run_query        { request: { query } }                 -> { result: QlResult } | { error: QlError }
  *   check_query      { text }                               -> QlError | null
  *   complete_query   { request: { text, cursor } }          -> Completion[]
- *   query_patterns   { request: { query } }                 -> Pattern[]
- *   query_exceptions { request: { query } }                 -> ExceptionGroup[]
- *   analysis_coverage { request: { query } }                -> AnalysisCoverage
- *   query_anomalies  { request: { query } }                 -> Anomaly[]
- *   compare_windows  { request: { a, b } }                  -> Comparison
+ *   query_patterns   { request: { query } }                 -> Analyzed<Pattern[]>
+ *   query_exceptions { request: { query } }                 -> Analyzed<ExceptionGroup[]>
+ *   query_anomalies  { request: { query } }                 -> Analyzed<Anomaly[]>
+ *   compare_windows  { request: { a, b } }                  -> Analyzed<Comparison>
  *   field_stats      { request: { query, field, buckets } } -> FieldStats
- *   correlate        { request: { field, value } }          -> number[]
- *   query_traces     { request: { query, traceId } }        -> { traces, waterfall }
- *   query_requests   { request: { query, idField } }        -> RequestSpan[]
- *   query_moment     { request: { query, from, to } }       -> MomentSummary
+ *   correlate        { request: { field, value } }          -> Analyzed<number[]>
+ *   query_traces     { request: { query, traceId } }        -> { traces, waterfall, coverage }
+ *   query_requests   { request: { query, idField } }        -> Analyzed<RequestSpan[]>
+ *   query_moment     { request: { query, from, to } }       -> Analyzed<MomentSummary>
+ *
+ * Analyses return how much of the matching data they looked at with their result (`Analyzed`, `Coverage`).
  *
  * Offsets in `QlError` and the `cursor` of `complete_query` are UTF-8 byte offsets.
  */
@@ -873,6 +907,7 @@ export interface WaterfallRow {
 export interface TracesResult {
   traces: TraceSummary[];
   waterfall: WaterfallRow[];
+  coverage: Coverage;
 }
 
 export interface RequestSpan {
@@ -2154,16 +2189,15 @@ export interface HeapPaths {
 // ---------------------------------------------------------------------------------------------
 // Explain and share: redaction, dashboards, reports, images, bundles
 // (crates/imt-core/src/{redact,dashboard,report,bundle}, app/src-tauri/src/share.rs)
-//   overview           { request: { query } }    -> Finding[]   (the health check)
-//   set_redacted_view  { enabled }               -> WorkspaceSummary
+//   overview           { request: { query } }    -> Analyzed<Finding[]>   (the health check)
+//   set_redacted_view  { enabled }               -> WorkspaceSummary   (enabled: true is `unsupported` with the current store)
 //   preview_redaction  { request }               -> RedactionPreview
-//   redaction_summary  { request }               -> RedactionSummary
+//   redaction_summary  { request }               -> RedactionSummary   (`unsupported` with the current store)
 //   dashboard_tile     { request: TileRequest }  -> TileData
 //   export_report      { request }               -> number (the export job)
 //   save_visual        { request }               -> VisualSaved
-//   estimate_bundle    { options }               -> BundleEstimate
-//   create_bundle      { options, path }         -> number (the export job)
-//   open_bundle        { path }                  -> BundleOpened
+//   open_bundle        { path }                  -> BundleOpened   (an old share bundle; sharing is `save_project` now:
+//                                                  estimate_bundle and create_bundle always reject with `unsupported`)
 // ---------------------------------------------------------------------------------------------
 
 /** What the UI does when the user follows a health-check finding (Rust `FindingAction`). */
@@ -2400,29 +2434,9 @@ export interface VisualSaved {
 /** Raw files as they are, or the events matching a query (as CLEF). */
 export type BundleContent = 'raw' | 'events';
 
-export interface BundleOptions {
-  name: string;
-  content: BundleContent;
-  /** The events to include (for `events`). */
-  query: Query;
-  redact: boolean;
-  /** UI state saved in the bundle's project. */
-  ui: unknown;
-  reports: Report[];
-}
-
 export interface SkippedSource {
   path: string;
   reason: string;
-}
-
-export interface BundleEstimate {
-  files: number;
-  /** Uncompressed bytes (zip compresses text well). */
-  bytes: number;
-  events: number;
-  parts: { name: string; bytes: number }[];
-  skipped: SkippedSource[];
 }
 
 export interface BundleEntry {
@@ -2472,7 +2486,7 @@ export interface BundleOpened {
 //
 // Every command that writes a file the user chose takes `overwrite` (default false): export_events
 // (`request.overwrite`), export_profile, save_project, export_report (`request.overwrite`), save_visual
-// (`request.overwrite`), create_bundle, export_config_diff, export_settings, export_diagnostics. Without it an
+// (`request.overwrite`), export_config_diff, export_settings, export_diagnostics. Without it an
 // existing file is never replaced: the command fails with `"<path> already exists; confirm to replace it"`.
 // ---------------------------------------------------------------------------------------------
 
@@ -2556,10 +2570,85 @@ export type StreamedQueryOutcome = QueryOutcome | { cancelled: true };
 // What a native dialog asks for (`pick_paths`, see core/native-dialog.ts): generated from `paths::PickRequest`.
 export type { PickFilter, PickKind, PickRequest } from './generated/paths';
 
-/** How many of a query's matching events the analyses look at (`analysis_coverage`); `analysed < total`: partial results. */
-export interface AnalysisCoverage {
-  analysed: number;
+/** What went wrong while reading a source (Rust `ingest::ProblemKind`). */
+export type ProblemKind =
+  | 'lineTooLong'
+  | 'eventTooLarge'
+  | 'lineNotParsed'
+  | 'timestampUnparsed'
+  | 'fieldInvalid'
+  | 'encoding'
+  | 'unknownFormat'
+  | 'truncatedArchive'
+  | 'eventSplit';
+
+/** An engine-proposed fix of an import problem (Rust `ports::DiagnosticFix`). */
+export interface DiagnosticFix {
+  title: string;
+  /** TOML merged over the active profile. */
+  profileOverride: string;
+  timestamp?: TimestampSuggestion;
+}
+
+/** One kind of import problem in one source, or a file that was not imported (`import_problems`). */
+export interface DiagnosticRow {
+  source: number | null;
+  sourceName: string;
+  path: string;
+  kind: ProblemKind;
+  severity: Severity;
+  count: number;
+  /** At most 20 1-based line numbers of the first occurrences. */
+  sampleLines: number[];
+  detail?: string;
+  fix?: DiagnosticFix;
+}
+
+/** A proposed profile override for some sources (`evaluate_fix` argument `fix`). */
+export interface QuickFix {
+  profileOverride: string;
+  sources?: number[];
+}
+
+/** How a quick fix does on the stored events it applies to: "fixes `fixed` of `checked`". */
+export interface FixEvaluation {
+  fixed: number;
+  checked: number;
+  unchecked: number;
+  notes?: string[];
+}
+
+/** Progress of the full-text index (`index_status`). */
+export interface IndexStatus {
+  indexed: number;
   total: number;
+  ready: boolean;
+}
+
+/** How much of the matching data an analysis looked at (Rust `ports::Coverage`); see `isPartial`. */
+export interface Coverage {
+  /** Events the analysis's query matched. */
+  matched: number;
+  /** Events it looked at (fewer than `matched` when a limit stopped it). */
+  analysed: number;
+  /** The limits that bounded the result, in words (shown as they are). */
+  limits: string[];
+}
+
+/** An analysis result with its coverage (Rust `ports::Analyzed`). */
+export interface Analyzed<T> {
+  result: T;
+  coverage: Coverage;
+}
+
+/** Whether an analysis did not look at every matching event, or a limit bounded its result. */
+export function isPartial(c: Coverage): boolean {
+  return c.analysed < c.matched || c.limits.length > 0;
+}
+
+/** Coverage of an analysis that looked at all `n` matching events. */
+export function fullCoverage(n: number): Coverage {
+  return { matched: n, analysed: n, limits: [] };
 }
 
 // ---- .NET profiling (plugin net.decryptology.dotnet, tool `dotnet-profiler`; Rust: crates/imt-plugin-dotnet) ----

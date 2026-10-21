@@ -1,8 +1,10 @@
 //! Full-text index (ADR 0014 §1 `Search`): Tantivy in the store's `index/` folder, a rebuildable cache.
 //!
-//! - Words: Tantivy's default tokenizer splits on everything that is not a letter or digit and lower-cases,
-//!   so `graphic builder` finds `GRAPHIC.BUILDER` and `System.TimeoutException` is `system` + `timeoutexception`.
-//!   An event's text is its raw text, plus the message and exception where raw does not contain them.
+//! - Words: [`imt_core::words`] (smart search) as a Tantivy tokenizer, so the index and the in-memory oracle
+//!   agree: runs of letters and digits, lower-cased, and their `camelCase`/`HTTPServer`/digit parts, so
+//!   `System.TimeoutException` is `system`, `timeoutexception`, `timeout` and `exception`. An event's text is
+//!   its message, exception and template (what the search box looks at).
+//! - A search asks for every word, the last as a prefix ([`imt_core::words::WordQuery`]).
 //! - Indexing runs on a background thread from the registered segments of ready sources, one segment at a
 //!   time under the store's write lock (imports and compaction wait for at most one segment), so the grid is
 //!   usable at once and import speed does not depend on indexing speed. A segment is indexed by deleting
@@ -17,6 +19,7 @@ use crate::writer::{meta_u64, set_meta};
 use anyhow::{Context, Result};
 use duckdb::{params, Connection};
 use imt_core::batch::EventId;
+use imt_core::words::WordQuery;
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use parquet::arrow::ProjectionMask;
 use std::collections::HashSet;
@@ -24,10 +27,11 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
-use tantivy::collector::{Count, TopDocs};
-use tantivy::query::QueryParser;
+use tantivy::collector::{Collector, Count, SegmentCollector, TopDocs};
+use tantivy::query::{BooleanQuery, EmptyQuery, Occur, Query, RegexQuery, TermQuery};
 use tantivy::schema::{Field, IndexRecordOption, Schema, TextFieldIndexing, TextOptions, FAST, INDEXED};
-use tantivy::{doc, Index, IndexReader, IndexWriter, Order, ReloadPolicy, Term};
+use tantivy::tokenizer::{Token, TokenStream, Tokenizer};
+use tantivy::{doc, DocId, Index, IndexReader, IndexWriter, Order, ReloadPolicy, Score, SegmentReader, Term};
 
 /// Folder of the index in a store folder.
 pub const INDEX_DIR: &str = "index";
@@ -36,36 +40,101 @@ pub const INDEX_DIR: &str = "index";
 pub const WRITER_HEAP: usize = 64 << 20;
 const WRITER_THREADS: usize = 2;
 
-/// Phrases (`"..."`) of a search and the words to ask the index for: every word of the text, the phrases'
-/// included, so the index returns a superset that the phrases are then checked on.
-pub fn split_phrases(text: &str) -> (String, Vec<String>) {
-    let mut words = String::with_capacity(text.len());
-    let mut phrases = Vec::new();
-    let mut rest = text;
-    while let Some(open) = rest.find('"') {
-        let after = &rest[open + 1..];
-        let Some(close) = after.find('"') else { break };
-        words.push_str(&rest[..open]);
-        words.push(' ');
-        let phrase = after[..close].trim();
-        words.push_str(phrase);
-        words.push(' ');
-        if !phrase.is_empty() {
-            phrases.push(phrase.to_lowercase());
-        }
-        rest = &after[close + 1..];
-    }
-    // An unbalanced quote is just a character.
-    words.push_str(&rest.replace('"', " "));
-    (words.trim().to_string(), phrases)
-}
-
 /// Candidates checked for phrases at most; beyond, the total is the candidate count (not exact).
 pub const MAX_VERIFY: usize = 1_000;
 
 /// Hits returned by default and at most.
 pub const DEFAULT_HITS: usize = 1000;
 pub const MAX_HITS: usize = 10_000;
+
+/// Most ids a word search hands to SQL as the search box's filter; beyond, the filter falls back to substrings
+/// of the words (16 MB of ids).
+pub const MAX_FILTER_HITS: usize = 2_000_000;
+
+/// The name the words tokenizer is registered under.
+const TOKENIZER: &str = "imt_words";
+
+/// [`imt_core::words::words`] as a Tantivy tokenizer.
+#[derive(Clone, Default)]
+struct WordsTokenizer;
+
+struct WordsStream {
+    tokens: Vec<Token>,
+    at: usize,
+}
+
+impl Tokenizer for WordsTokenizer {
+    type TokenStream<'a> = WordsStream;
+    fn token_stream<'a>(&'a mut self, text: &'a str) -> WordsStream {
+        let mut tokens = Vec::new();
+        imt_core::words::words(text, &mut |w| {
+            tokens.push(Token {
+                offset_from: 0,
+                offset_to: 0,
+                position: tokens.len(),
+                text: w,
+                position_length: 1,
+            })
+        });
+        WordsStream { tokens, at: 0 }
+    }
+}
+
+impl TokenStream for WordsStream {
+    fn advance(&mut self) -> bool {
+        self.at += 1;
+        self.at <= self.tokens.len()
+    }
+    fn token(&self) -> &Token {
+        &self.tokens[self.at - 1]
+    }
+    fn token_mut(&mut self) -> &mut Token {
+        &mut self.tokens[self.at - 1]
+    }
+}
+
+/// Collects the `id` fast field of every hit, up to a cap (one more than the cap tells it was exceeded).
+struct Ids(usize);
+
+struct SegmentIds {
+    col: tantivy::fastfield::Column<u64>,
+    ids: Vec<u64>,
+    cap: usize,
+}
+
+impl Collector for Ids {
+    type Fruit = Vec<u64>;
+    type Child = SegmentIds;
+    fn for_segment(&self, _ord: u32, segment: &SegmentReader) -> tantivy::Result<SegmentIds> {
+        Ok(SegmentIds {
+            col: segment.fast_fields().u64("id")?,
+            ids: Vec::new(),
+            cap: self.0,
+        })
+    }
+    fn requires_scoring(&self) -> bool {
+        false
+    }
+    fn merge_fruits(&self, fruits: Vec<Vec<u64>>) -> tantivy::Result<Vec<u64>> {
+        let mut all: Vec<u64> = fruits.into_iter().flatten().take(self.0 + 1).collect();
+        all.sort_unstable();
+        Ok(all)
+    }
+}
+
+impl SegmentCollector for SegmentIds {
+    type Fruit = Vec<u64>;
+    fn collect(&mut self, doc: DocId, _score: Score) {
+        if self.ids.len() <= self.cap {
+            if let Some(id) = self.col.first(doc) {
+                self.ids.push(id);
+            }
+        }
+    }
+    fn harvest(self) -> Vec<u64> {
+        self.ids
+    }
+}
 
 #[derive(Clone, Copy)]
 struct Fields {
@@ -84,7 +153,7 @@ fn schema() -> (Schema, Fields) {
     // Words and their counts, no positions (half the size): phrases are checked on the rows.
     let words = TextOptions::default().set_indexing_options(
         TextFieldIndexing::default()
-            .set_tokenizer("default")
+            .set_tokenizer(TOKENIZER)
             .set_index_option(IndexRecordOption::WithFreqs),
     );
     let text = b.add_text_field("text", words);
@@ -107,8 +176,9 @@ pub fn segment_key(file: &str) -> u64 {
         .fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ b as u64).wrapping_mul(0x0100_0000_01b3))
 }
 
-/// Layout version of the index (2: no positions); an index of another version is rebuilt.
-const LAYOUT: u32 = 2;
+/// Layout version of the index (2: no positions; 3: smart-search words of message, exception and template);
+/// an index of another version is rebuilt.
+const LAYOUT: u32 = 3;
 
 fn payload(epoch: u64) -> String {
     format!("fts_epoch={epoch};layout={LAYOUT}")
@@ -129,6 +199,7 @@ impl Fts {
             let current = index.load_metas().ok().and_then(|m| m.payload).is_some_and(|p| p == payload(epoch));
             if current {
                 if let Ok(f) = fields(&index) {
+                    index.tokenizers().register(TOKENIZER, WordsTokenizer);
                     let reader = index.reader_builder().reload_policy(ReloadPolicy::Manual).try_into()?;
                     return Ok((Fts { index, reader, f }, false));
                 }
@@ -140,6 +211,7 @@ impl Fts {
         std::fs::create_dir_all(dir)?;
         let (schema, f) = schema();
         let index = Index::create_in_dir(dir, schema).context("creating the full-text index")?;
+        index.tokenizers().register(TOKENIZER, WordsTokenizer);
         {
             let mut w: IndexWriter = index.writer_with_num_threads(1, 15 << 20)?;
             let mut prepared = w.prepare_commit()?;
@@ -167,15 +239,31 @@ impl Fts {
         self.reader.searcher().num_docs()
     }
 
-    /// Hits of `text` (every word required, lenient syntax) and the ids of the first `limit` (at most
+    /// The index query of a word search: every term, and every prefix as the start of a word.
+    fn query(&self, q: &WordQuery) -> Result<Box<dyn Query>> {
+        if q.is_empty() {
+            return Ok(Box::new(EmptyQuery));
+        }
+        let mut clauses: Vec<(Occur, Box<dyn Query>)> = Vec::new();
+        for t in &q.terms {
+            let term = Term::from_field_text(self.f.text, t);
+            clauses.push((Occur::Must, Box::new(TermQuery::new(term, IndexRecordOption::Basic))));
+        }
+        for p in &q.prefixes {
+            // Words are letters and digits only: nothing in them needs escaping.
+            let re = RegexQuery::from_pattern(&format!("{p}.*"), self.f.text)?;
+            clauses.push((Occur::Must, Box::new(re)));
+        }
+        Ok(Box::new(BooleanQuery::new(clauses)))
+    }
+
+    /// Hits of a word search (phrases are not checked) and the ids of the first `limit` (at most
     /// [`MAX_VERIFY`]), in time order.
-    pub fn search(&self, text: &str, limit: usize) -> Result<(u64, Vec<EventId>)> {
+    pub fn search(&self, q: &WordQuery, limit: usize) -> Result<(u64, Vec<EventId>)> {
         let searcher = self.reader.searcher();
-        let mut qp = QueryParser::for_index(&self.index, vec![self.f.text]);
-        qp.set_conjunction_by_default();
-        let (query, _errors) = qp.parse_query_lenient(text);
+        let query = self.query(q)?;
         let top = TopDocs::with_limit(limit.clamp(1, MAX_HITS.max(MAX_VERIFY))).order_by_fast_field::<i64>("ts", Order::Asc);
-        let (count, hits) = searcher.search(&query, &(Count, top))?;
+        let (count, hits) = searcher.search(&*query, &(Count, top))?;
         let mut ids = Vec::with_capacity(hits.len());
         for (_ts, addr) in hits {
             let col = searcher.segment_reader(addr.segment_ord).fast_fields().u64("id")?;
@@ -186,12 +274,19 @@ impl Fts {
         Ok((count as u64, ids))
     }
 
+    /// The ids (sorted) of every hit of a word search (phrases not checked), or `None` beyond `cap`.
+    pub fn all_ids(&self, q: &WordQuery, cap: usize) -> Result<Option<Vec<u64>>> {
+        let searcher = self.reader.searcher();
+        let ids = searcher.search(&*self.query(q)?, &Ids(cap))?;
+        Ok((ids.len() <= cap).then_some(ids))
+    }
+
     /// Indexes the rows of ready sources in one segment file.
     fn index_segment(&self, w: &mut IndexWriter, path: &Path, file: &str, ready: &HashSet<u32>) -> Result<u64> {
         let key = segment_key(file);
         w.delete_term(Term::from_field_u64(self.f.seg, key));
         let builder = ParquetRecordBatchReaderBuilder::try_new(std::fs::File::open(path)?)?;
-        let names = ["id", "ts", "source", "message", "exception", "raw"];
+        let names = ["id", "ts", "source", "message", "exception", "template"];
         let schema = builder.parquet_schema();
         let roots: Vec<usize> = names
             .iter()
@@ -216,25 +311,23 @@ impl Fts {
             let src = col("source")?.as_primitive_opt::<UInt32Type>().context("source type")?;
             let msg = col("message")?.as_string_opt::<i32>().context("message type")?;
             let exc = col("exception")?.as_string_opt::<i32>().context("exception type")?;
-            let raw = col("raw")?.as_string_opt::<i32>().context("raw type")?;
+            let tpl = col("template")?.as_string_opt::<i32>().context("template type")?;
             for i in 0..rb.num_rows() {
                 if !ready.contains(&src.value(i)) {
                     continue;
                 }
-                let r = raw.value(i);
                 let mut d = doc!(
                     self.f.id => ids.value(i),
                     self.f.source => src.value(i) as u64,
                     self.f.seg => key,
                     ts_field => if ts.is_null(i) { i64::MAX } else { ts.value(i) },
-                    self.f.text => r,
+                    self.f.text => msg.value(i),
                 );
-                let m = msg.value(i);
-                if !r.contains(m) {
-                    d.add_text(self.f.text, m);
-                }
-                if !exc.is_null(i) && !r.contains(exc.value(i)) {
+                if !exc.is_null(i) {
                     d.add_text(self.f.text, exc.value(i));
+                }
+                if !tpl.is_null(i) {
+                    d.add_text(self.f.text, tpl.value(i));
                 }
                 w.add_document(d)?;
                 n += 1;
@@ -415,12 +508,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn phrases_are_split_from_words() {
-        assert_eq!(split_phrases("a b"), ("a b".to_string(), vec![]));
-        let (w, p) = split_phrases("x \"Builder  Failed\" y \"\"");
-        assert_eq!(p, ["builder  failed"]);
-        assert!(w.contains("Builder  Failed") && w.starts_with('x') && w.ends_with('y'), "{w}");
-        assert_eq!(split_phrases("unbalanced \"quote"), ("unbalanced  quote".to_string(), vec![]));
+    fn segment_keys_differ_and_the_tokenizer_gives_the_words() {
         assert_ne!(segment_key("a"), segment_key("b"));
+        let mut t = WordsTokenizer;
+        let mut stream = t.token_stream("System.TimeoutException");
+        let mut words = Vec::new();
+        while stream.advance() {
+            assert!(!stream.token().text.is_empty());
+            words.push(std::mem::take(&mut stream.token_mut().text));
+        }
+        assert_eq!(words, ["system", "timeoutexception", "timeout", "exception"]);
+        assert!(!WordsTokenizer.token_stream("").advance());
     }
 }

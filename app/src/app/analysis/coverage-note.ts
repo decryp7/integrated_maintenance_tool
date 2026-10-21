@@ -1,46 +1,45 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, signal, untracked } from '@angular/core';
-import { AnalysisCoverage, QlQuery } from '../core/api.types';
-import { AnalysisBackend } from '../core/analysis-backend';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { Coverage, isPartial } from '../core/api.types';
 import { formatCount } from '../core/format';
 
 /**
- * Says when an analysis covers only part of the selection: the engine looks at a bounded number of the
- * matching events (the first in time order) and reports how many of how many (`analysis_coverage`).
- * Shows nothing when everything was analysed or the engine cannot say.
+ * Says when an analysis covers only part of the selection: the engine reports with each result how many of the
+ * matching events it looked at and which limits bounded it (`Coverage`). Shows nothing when everything was
+ * analysed or there is no result yet.
  */
 @Component({
   selector: 'imt-coverage-note',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (partial(); as c) {
-      <p class="note" role="note" i18n="@@analysis.coverage.partial">Analysed the first {{ count(c.analysed) }} of {{ count(c.total) }} matching events. Narrow the query to analyse all of them.</p>
+      <div class="note" role="note">
+        @if (c.analysed < c.matched) {
+          <p i18n="@@analysis.coverage.partial">Analysed the first {{ count(c.analysed) }} of {{ count(c.matched) }} matching events. Narrow the query to analyse all of them.</p>
+        } @else {
+          <p i18n="@@analysis.coverage.limited">The result was limited:</p>
+        }
+        @if (c.limits.length) {
+          <ul aria-label="Limits" i18n-aria-label="@@analysis.coverage.limits">
+            @for (l of c.limits; track $index) { <li>{{ l }}</li> }
+          </ul>
+        }
+      </div>
     }
   `,
-  styles: [`.note { margin: 0; padding: 4px 12px; font-size: var(--fs-sm); color: var(--warn-text); background: color-mix(in srgb, var(--warn-text) 8%, transparent); border-bottom: 1px solid var(--border); }`],
+  styles: [
+    `
+      .note { margin: 0; padding: 4px 12px; font-size: var(--fs-sm); color: var(--warn-text); background: color-mix(in srgb, var(--warn-text) 8%, transparent); border-bottom: 1px solid var(--border); }
+      p, ul { margin: 0; }
+      ul { padding-left: 18px; }
+    `,
+  ],
 })
 export class CoverageNote {
-  readonly query = input.required<QlQuery>();
-  protected readonly partial = signal<AnalysisCoverage | null>(null);
+  /** The coverage of the analysis reply shown next to the note; null while there is none. */
+  readonly coverage = input<Coverage | null>(null);
+  protected readonly partial = computed(() => {
+    const c = this.coverage();
+    return c && isPartial(c) ? c : null;
+  });
   protected readonly count = formatCount;
-  private readonly backend = inject(AnalysisBackend);
-  private asked = 0;
-
-  constructor() {
-    effect(() => {
-      const query = this.query();
-      untracked(() => void this.load(query));
-    });
-  }
-
-  private async load(query: QlQuery): Promise<void> {
-    const ask = ++this.asked;
-    let coverage: AnalysisCoverage | null;
-    try {
-      coverage = await this.backend.analysisCoverage(query);
-    } catch {
-      coverage = null; // The note is a hint: without an answer it stays hidden.
-    }
-    if (ask !== this.asked) return;
-    this.partial.set(coverage && coverage.analysed < coverage.total ? coverage : null);
-  }
 }

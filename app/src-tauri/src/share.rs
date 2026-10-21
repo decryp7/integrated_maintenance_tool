@@ -6,10 +6,10 @@
 
 use crate::activity::{domain_event, privacy, OpId};
 use crate::paths::WindowGrants;
-use crate::windows::{read, write, CurrentWindow};
-use crate::{err, CmdResult};
+use crate::windows::CurrentWindow;
+use crate::{err, CmdError, CmdResult, ErrorCode};
 use base64::Engine;
-use imt_core::bundle::{BundleEstimate, BundleManifest, BundleOptions};
+use imt_core::bundle::{BundleEstimate, BundleOptions};
 use imt_core::dashboard::{TileData, TileRequest};
 use imt_core::overwrite::check_overwrite;
 use imt_core::redact::RedactionPreview;
@@ -56,38 +56,61 @@ fn parse_report(value: Value) -> CmdResult<Report> {
     crate::error::lift(Report::parse(value).map_err(err))
 }
 
-/// Switches the window's redacted view on or off; returns the new summary.
+/// Switches the window's redacted view on or off; returns the new summary. The store does not redact its
+/// pages yet (ADR 0014 6c follow-up): switching it on is refused with a message; exports, reports and the AI
+/// still redact.
 #[tauri::command]
-pub(crate) async fn set_redacted_view(state: CurrentWindow, op: OpId, enabled: bool) -> CmdResult<Value> {
-    write(&state, move |ws| {
-        ws.set_view_redaction(enabled)?;
-        log::info!(Enabled = enabled; "Redacted view switched");
-        domain_event(
-            "redaction.toggled",
-            op.as_deref(),
-            &[("Enabled", if enabled { "true" } else { "false" })],
-        );
-        Ok(serde_json::to_value(ws.summary())?)
-    })
-    .await
+pub(crate) async fn set_redacted_view(state: CurrentWindow, op: OpId, enabled: bool) -> CmdResult<imt_core::api::WorkspaceSummary> {
+    if enabled {
+        return Err(CmdError::new(
+            ErrorCode::Unsupported,
+            "the redacted view is not available with the new log store yet",
+        )
+        .hint("Exports, reports and shared projects can still be redacted."));
+    }
+    log::info!(Enabled = enabled; "Redacted view switched");
+    domain_event("redaction.toggled", op.as_deref(), &[("Enabled", "false")]);
+    crate::workspace_commands::summary_of(&state).await
 }
 
 /// A sample redacted with the active profile's `[redact]` rules, or an unsaved profile's.
 #[tauri::command]
 pub(crate) async fn preview_redaction(state: CurrentWindow, request: RedactionPreviewRequest) -> CmdResult<RedactionPreview> {
-    read(&state, move |ws| Ok(ws.preview_redaction(&request))).await
+    let cfg = match &request.toml {
+        None => state.host.compiled().profile.redact.clone(),
+        Some(t) => match imt_core::Profile::from_toml(t) {
+            Ok(p) => p.redact,
+            Err(e) => {
+                return Ok(RedactionPreview {
+                    before: request.sample.clone(),
+                    after: request.sample.clone(),
+                    hits: Vec::new(),
+                    error: Some(e.to_string()),
+                })
+            }
+        },
+    };
+    Ok(imt_core::redact::preview(&cfg, &request.sample))
 }
 
-/// What redaction would change in the events of a query (shown before exporting).
+/// What redaction would change in the events of a query (shown before exporting). Not over the store yet.
 #[tauri::command]
 pub(crate) async fn redaction_summary(state: CurrentWindow, request: RedactionSummaryRequest) -> CmdResult<RedactionSummary> {
-    read(&state, move |ws| ws.redaction_summary(&request)).await
+    let _ = (state, request);
+    Err(CmdError::new(
+        ErrorCode::Unsupported,
+        "the redaction summary is not available with the new log store yet",
+    ))
 }
 
-/// One dashboard tile evaluated over the window's query.
+/// One dashboard tile evaluated over the window's query (in the store; annotation tiles from the plugins).
 #[tauri::command]
 pub(crate) async fn dashboard_tile(state: CurrentWindow, request: TileRequest) -> CmdResult<TileData> {
-    read(&state, move |ws| ws.dashboard_tile(&request)).await
+    let registry = state.host.registry.clone();
+    crate::engine::with_store(&state, move |s| {
+        imt_core::tiles::evaluate(s, &|r| registry.annotations(r), &request)
+    })
+    .await
 }
 
 #[derive(Debug, Deserialize)]
@@ -141,12 +164,18 @@ pub(crate) async fn export_report<R: Runtime>(
     let report = parse_report(request.report)?;
     let (redact, theme) = (request.redact, request.theme);
     let shown = target.clone();
-    crate::jobs::export(&app, &state, "Export report", &shown, move |ws| {
-        let resolved = ws.resolve_report(&report, redact)?;
-        let mut out = std::io::BufWriter::new(std::fs::File::create(&target)?);
-        renderer.render(&resolved, theme, &mut out)?;
+    let redact_cfg = state.host.compiled().profile.redact.clone();
+    crate::jobs::export(&app, &state, "Export report", &shown, move |store| {
+        let redactor = if redact {
+            Some(imt_core::redact::Redactor::from_config(&redact_cfg, imt_core::redact::Salt::random()).map_err(err)?)
+        } else {
+            None
+        };
+        let resolved = imt_core::report::resolve::resolve_in(store, &report, redactor.as_ref()).map_err(err)?;
+        let mut out = std::io::BufWriter::new(std::fs::File::create(&target).map_err(err)?);
+        renderer.render(&resolved, theme, &mut out).map_err(err)?;
         drop(out);
-        let bytes = std::fs::metadata(&target)?.len();
+        let bytes = std::fs::metadata(&target).map_err(err)?.len();
         log::info!(Format = renderer.id(), Bytes = bytes, Redacted = redact; "Report exported");
         written(
             op.as_deref(),
@@ -239,14 +268,21 @@ pub(crate) async fn save_visual(grants: WindowGrants, op: OpId, request: VisualR
     .map_err(err)?
 }
 
+/// Share bundles of the log files are replaced by projects (`.imtz` of the store, ADR 0014 §6): saving the
+/// project is how a workspace is shared now.
+fn bundles_replaced() -> CmdError {
+    CmdError::new(ErrorCode::Unsupported, "share bundles of the log files are replaced by projects")
+        .hint("Save the project (File ▸ Save Project): the .imtz opens anywhere, without the original files.")
+}
+
 /// What a bundle with `options` would contain (sizes before compression).
 #[tauri::command]
 pub(crate) async fn estimate_bundle(state: CurrentWindow, options: BundleOptions) -> CmdResult<BundleEstimate> {
-    let profile = state.profile_doc().toml;
-    read(&state, move |ws| ws.estimate_bundle(&options, &profile)).await
+    let _ = (state, options);
+    Err(bundles_replaced())
 }
 
-/// Writes a shareable `.imtz` bundle of the window's workspace.
+/// Writes a shareable `.imtz` bundle of the window's workspace (replaced by projects).
 #[tauri::command]
 pub(crate) async fn create_bundle<R: Runtime>(
     app: AppHandle<R>,
@@ -256,27 +292,8 @@ pub(crate) async fn create_bundle<R: Runtime>(
     path: String,
     overwrite: Option<bool>,
 ) -> CmdResult<u64> {
-    let target = WindowGrants::of(&app, state.label()).write(&path, &["imtz"])?.path().to_path_buf();
-    check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
-    parse_reports(options.reports.clone())?;
-    let profile = state.profile_doc().toml;
-    let shown = target.clone();
-    crate::jobs::export(&app, &state, "Share bundle", &shown, move |ws| {
-        let m = ws.write_bundle(&options, &profile, &target)?;
-        log::info!(Entries = m.entries.len() as u64, Redacted = m.redacted; "Bundle written");
-        written(op.as_deref(), "bundle", &target, &[("Entries", &m.entries.len().to_string())]);
-        Ok(bundle_line(&m))
-    })
-}
-
-/// "Bundle written, redacted (5 values)": the line the bundle's message shows.
-fn bundle_line(m: &BundleManifest) -> String {
-    let masked: usize = m.redaction.values().sum();
-    match (m.redacted, masked) {
-        (true, 1) => "Bundle written, redacted (1 value).".into(),
-        (true, n) => format!("Bundle written, redacted ({n} values)."),
-        (false, _) => "Bundle written.".into(),
-    }
+    let _ = (app, state, op, options, path, overwrite);
+    Err(bundles_replaced())
 }
 
 /// Opens a `.imtz`: extracts it into its own temporary folder (archive
@@ -289,7 +306,7 @@ pub(crate) async fn open_bundle<R: Runtime>(
     grants: WindowGrants,
     op: OpId,
     path: String,
-) -> CmdResult<Value> {
+) -> CmdResult<crate::services::project::OpenedProject> {
     let source = grants.read_file(&path, &["imtz"])?.path().to_path_buf();
     // Unpacking is part of the import: an import job of its own, listed with the files it opens next.
     let spec = crate::jobs::JobSpec::new(crate::jobs::JobKind::Import, "Unpack the bundle")
@@ -312,15 +329,26 @@ pub(crate) async fn open_bundle<R: Runtime>(
         None => {
             let dir = extracted.dir.to_string_lossy().into_owned();
             let summary = crate::workspace_commands::open_granted(&app, &state, vec![dir]).await?;
-            serde_json::json!({ "name": "", "summary": summary, "ui": Value::Null, "missing": [], "reports": [] })
+            crate::services::project::OpenedProject {
+                path: String::new(),
+                name: String::new(),
+                summary,
+                profile: state.profile_doc(),
+                ui: Value::Null,
+                reports: Vec::new(),
+                missing: Vec::new(),
+                read_only: true,
+                bundle: None,
+                folder: None,
+            }
         }
     };
     // Read-only: no project file to save over; Save asks for a new place.
     state.set_project(None);
-    opened["path"] = Value::from(path);
-    opened["readOnly"] = Value::Bool(true);
-    opened["bundle"] = serde_json::to_value(&extracted.manifest).map_err(err)?;
-    opened["folder"] = Value::from(extracted.dir.to_string_lossy().into_owned());
+    opened.path = path;
+    opened.read_only = true;
+    opened.bundle = Some(serde_json::to_value(&extracted.manifest).map_err(err)?);
+    opened.folder = Some(extracted.dir.to_string_lossy().into_owned());
     log::info!(Manifest = extracted.manifest.is_some(); "Bundle opened");
     Ok(opened)
 }
@@ -459,14 +487,15 @@ mod tests {
         let (app, _d) = opened("share-view");
         let st = || main_window(&app);
         let _log = crate::activity::test_capture();
-        let summary = block(set_redacted_view(st(), OpId(Some("op-redact".into())), true)).unwrap();
-        assert_eq!(
-            crate::tools::tests::domain_event("redaction.toggled", "op-redact").props["Enabled"],
-            "true"
-        );
-        assert_eq!(summary["redactedView"], true);
-        let summary = block(set_redacted_view(st(), OpId::default(), false)).unwrap();
+        // The store has no redacted view yet: switching it on is refused with a message, off is fine.
+        let e = block(set_redacted_view(st(), OpId(Some("op-redact".into())), true)).unwrap_err();
+        assert_eq!(e.code, crate::ErrorCode::Unsupported);
+        let summary = block(set_redacted_view(st(), OpId(Some("op-off".into())), false)).unwrap().json();
         assert_eq!(summary["redactedView"], false);
+        assert_eq!(
+            crate::tools::tests::domain_event("redaction.toggled", "op-off").props["Enabled"],
+            "false"
+        );
         let p = block(preview_redaction(
             st(),
             RedactionPreviewRequest {
@@ -477,7 +506,7 @@ mod tests {
         .unwrap();
         assert_eq!(p.after, "<email>");
         let s: RedactionSummaryRequest = serde_json::from_value(json!({})).unwrap();
-        assert!(block(redaction_summary(st(), s)).unwrap().scanned > 0);
+        assert_eq!(block(redaction_summary(st(), s)).unwrap_err().code, crate::ErrorCode::Unsupported);
         let t: TileRequest = serde_json::from_value(json!({"tile": {"id": "t", "type": "stat", "query": "| stats count()"}})).unwrap();
         let data = serde_json::to_value(block(dashboard_tile(st(), t)).unwrap()).unwrap();
         assert_eq!(data["kind"], "stat");
@@ -495,13 +524,6 @@ mod tests {
         assert_eq!(report_line(&[], false), "Report written.");
         assert_eq!(report_line(&[hit(1)], true), "Report written (1 value redacted).");
         assert_eq!(report_line(&[hit(2), hit(3)], true), "Report written (5 values redacted).");
-        let mut m: BundleManifest = serde_json::from_value(json!({"format": "imt-share", "schema": 1})).unwrap();
-        assert_eq!(bundle_line(&m), "Bundle written.");
-        m.redacted = true;
-        m.redaction.insert("email".into(), 1);
-        assert_eq!(bundle_line(&m), "Bundle written, redacted (1 value).");
-        m.redaction.insert("ipv4".into(), 4);
-        assert_eq!(bundle_line(&m), "Bundle written, redacted (5 values).");
     }
 
     #[test]
@@ -592,79 +614,35 @@ mod tests {
     }
 
     #[test]
-    fn bundles_round_trip_and_open_read_only() {
+    fn share_bundles_are_replaced_by_projects_and_old_bundles_open_read_only() {
         let (app, d) = opened("share-bundle");
         let st = || main_window(&app);
-        let options = |redact: bool| -> BundleOptions {
+        let options = || -> BundleOptions {
             serde_json::from_value(
-                json!({"name": "Case", "content": "events", "redact": redact, "ui": {"x": 1}, "reports": [report_json()]}),
+                json!({"name": "Case", "content": "events", "redact": false, "ui": {"x": 1}, "reports": [report_json()]}),
             )
             .unwrap()
         };
-        let est = block(estimate_bundle(st(), options(true))).unwrap();
-        assert!(est.events > 0 && est.bytes > 0);
-        let path = d.0.join("case.imtz").to_string_lossy().into_owned();
-        let _log = crate::activity::test_capture();
-        let job = block(create_bundle(
-            app.handle().clone(),
-            st(),
-            OpId(Some("op-bundle".into())),
-            options(true),
-            path.clone(),
-            None,
-        ))
-        .unwrap();
-        let line = job_done(&app, job);
-        assert!(line.starts_with("Bundle written, redacted ("), "{line}");
         assert_eq!(
-            crate::tools::tests::domain_event("export.written", "op-bundle").props["Export"],
-            "bundle"
+            block(estimate_bundle(st(), options())).unwrap_err().code,
+            crate::ErrorCode::Unsupported
         );
-        let again = block(create_bundle(
+        let path = d.0.join("case.imtz").to_string_lossy().into_owned();
+        let e = block(create_bundle(
             app.handle().clone(),
             st(),
             OpId::default(),
-            options(true),
+            options(),
             path.clone(),
             None,
         ))
         .unwrap_err();
-        assert_eq!(
-            again,
-            crate::error::file_exists(format!("{path} already exists; confirm to replace it"))
-        );
-        let replaced = block(create_bundle(
-            app.handle().clone(),
-            st(),
-            OpId::default(),
-            options(true),
-            path.clone(),
-            Some(true),
-        ))
-        .unwrap();
-        job_done(&app, replaced);
-        assert!(block(create_bundle(
-            app.handle().clone(),
-            st(),
-            OpId::default(),
-            options(false),
-            d.0.join("x.zip").to_string_lossy().into_owned(),
-            None
-        ))
-        .unwrap_err()
-        .contains(".imtz"));
-        let mut bad = options(false);
-        bad.reports = vec![json!({})];
-        assert!(block(create_bundle(
-            app.handle().clone(),
-            st(),
-            OpId::default(),
-            bad,
-            path.clone(),
-            Some(true)
-        ))
-        .is_err());
-
+        assert!(e.hint.unwrap().contains("Save the project"));
+        // A bundle written by an earlier IMT (the engine's writer) still opens, read-only.
+        let mut ws = imt_core::Workspace::new(imt_core::Profile::default_profile()).unwrap();
+        ws.open(&[samples().join("log4net")]).unwrap();
+        ws.write_bundle(&options(), imt_core::DEFAULT_PROFILE_TOML, std::path::Path::new(&path))
+            .unwrap();
         let total = block(crate::workspace_commands::workspace_summary(st())).unwrap().json()["total"].clone();
         let opened = block(open_bundle(
             app.handle().clone(),
@@ -673,16 +651,18 @@ mod tests {
             OpId::default(),
             path.clone(),
         ))
-        .unwrap();
+        .unwrap()
+        .json();
         assert_eq!(opened["readOnly"], true);
         assert_eq!(opened["name"], "Case");
         assert_eq!(opened["ui"]["x"], 1);
         assert_eq!(opened["reports"][0]["id"], "r1");
         assert_eq!(opened["bundle"]["format"], "imt-share");
-        assert_eq!(opened["summary"]["total"], total);
+        assert!(opened["summary"]["total"].as_u64().unwrap() > 0);
+        let _ = total;
         assert!(st().project().is_none());
         // Saving into the bundle's folder is refused.
-        let inside = PathBuf::from(opened["folder"].as_str().unwrap()).join("p.imtproj");
+        let inside = PathBuf::from(opened["folder"].as_str().unwrap()).join("p.imtz");
         assert!(block(crate::workspace_commands::save_project(
             app.handle().clone(),
             st(),
@@ -713,7 +693,8 @@ mod tests {
             OpId::default(),
             plain.to_string_lossy().into_owned(),
         ))
-        .unwrap();
+        .unwrap()
+        .json();
         assert_eq!(opened["bundle"], Value::Null);
         assert!(block(open_bundle(
             app.handle().clone(),

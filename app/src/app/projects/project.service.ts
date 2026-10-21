@@ -9,16 +9,20 @@ import { ReportStore } from '../share/report/report.store';
 import { OverwriteGuard } from '../ui/overwrite-guard';
 import { plural } from '../i18n/locale';
 
-export const PROJECT_EXTENSION = '.imtproj';
+/** A saved project: one self-contained file (events, sources, profile, UI state and reports). */
+export const PROJECT_EXTENSION = '.imtz';
 export const UNTITLED = $localize`:Name of a project that was not saved yet|@@projects.untitled:Untitled`;
 
+/** What `open_project` opens: an `.imtz` project, a `.imt` project folder, or IMT's own `.imtproj` workspace file. */
+const PROJECT_PATH = /\.(imtz|imt|imtproj)$/i;
+
 export function isProjectPath(path: string): boolean {
-  return path.toLowerCase().endsWith(PROJECT_EXTENSION);
+  return PROJECT_PATH.test(path);
 }
 
 /** Project name suggested for a file: its name without the extension. */
 export function projectNameFor(path: string): string {
-  return baseName(path).replace(/\.imtproj$/i, '') || UNTITLED;
+  return baseName(path).replace(PROJECT_PATH, '') || UNTITLED;
 }
 
 /**
@@ -88,7 +92,11 @@ export class ProjectService {
       this.registry.restore(opened.ui);
       this.reports.replace(opened.reports ?? []);
       this.missing.set(opened.missing);
-      if (!options.session) {
+      if (opened.readOnly) {
+        // Nothing to save back to: Save asks for a new project file.
+        this.path.set(null);
+        this.name.set(opened.name || projectNameFor(path));
+      } else if (!options.session) {
         this.path.set(opened.path);
         this.name.set(opened.name);
         this.remember(opened.path, opened.name);
@@ -128,7 +136,7 @@ export class ProjectService {
   }
 
   /**
-   * Shows what was just opened from a read-only source (a shared bundle) as an unsaved project with
+   * Shows what was just opened from a read-only source (an old share bundle) as an unsaved project with
    * this name: there is no project file, so Save asks where to save it.
    */
   adoptReadOnly(name: string, missing: string[] = []): void {

@@ -191,7 +191,9 @@ pub fn blob(len: usize) -> Vec<u8> {
 
 // ---- the sample workspace ----
 
-use imt_core::{LogStore, Profile, Workspace};
+use imt_core::ports::Store;
+use imt_core::workspace::WorkspaceStore;
+use imt_core::{Profile, Workspace};
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
@@ -199,15 +201,15 @@ pub fn samples() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../samples")
 }
 
-/// The generated incident in /samples, opened once through the `LogStore` abstraction.
-pub fn store() -> &'static (dyn LogStore + 'static) {
-    static STORE: OnceLock<Box<dyn LogStore>> = OnceLock::new();
+/// The generated incident in /samples, opened once behind the store ports.
+pub fn store() -> &'static (dyn Store + 'static) {
+    static STORE: OnceLock<Box<dyn Store>> = OnceLock::new();
     STORE
         .get_or_init(|| {
             let text = std::fs::read_to_string(samples().join("profiles/orderservice.imtprofile.toml")).unwrap();
-            let mut ws: Box<dyn LogStore> = Box::new(Workspace::new(Profile::from_toml(&text).unwrap()).unwrap());
+            let mut ws = Workspace::new(Profile::from_toml(&text).unwrap()).unwrap();
             ws.open(&[samples()]).unwrap();
-            ws
+            Box::new(WorkspaceStore::new(ws))
         })
         .as_ref()
 }

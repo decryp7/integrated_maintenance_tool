@@ -38,7 +38,7 @@ impl Default for CompareConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LevelCount {
     pub level: Level,
@@ -46,7 +46,7 @@ pub struct LevelCount {
     pub per_minute: f64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SideStats {
     pub count: u64,
@@ -58,7 +58,7 @@ pub struct SideStats {
     pub levels: Vec<LevelCount>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ValueShare {
     pub value: String,
@@ -68,7 +68,7 @@ pub struct ValueShare {
     pub share_b: f64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FieldShift {
     pub field: String,
@@ -77,7 +77,7 @@ pub struct FieldShift {
     pub top: Vec<ValueShare>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NumberSummary {
     pub count: usize,
@@ -85,7 +85,7 @@ pub struct NumberSummary {
     pub p95: f64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NumericShift {
     pub field: String,
@@ -96,14 +96,14 @@ pub struct NumericShift {
     pub p95_change_pct: Option<f64>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ValueAppearance {
     pub field: String,
     pub values: Vec<ValueCount>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Comparison {
     pub a: SideStats,

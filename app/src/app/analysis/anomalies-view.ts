@@ -7,7 +7,7 @@ import { AnalysisState } from './analysis-state';
 import { ANALYSIS_STYLES } from './analysis-styles';
 import { AnalysisTargets } from './analysis-targets';
 import { AnalysisTime } from './analysis-time';
-import { AsyncResource } from './async-resource';
+import { AnalysisResource } from './async-resource';
 import { CoverageNote } from './coverage-note';
 import { TimeCursor } from './time-cursor';
 
@@ -19,14 +19,14 @@ import { TimeCursor } from './time-cursor';
   template: `
     <div class="bar">
       <span class="section-title" i18n="@@analysis.anomalies.title">Anomalies</span>
-      @if (res.data(); as list) { <span class="faint" i18n="@@analysis.anomalies.found">{{ list.length }} found</span> }
+      @if (res.result(); as list) { <span class="faint" i18n="@@analysis.anomalies.found">{{ list.length }} found</span> }
       <span class="spacer"></span>
       <button class="btn" type="button" (click)="res.retry()" i18n="@@analysis.anomalies.refresh">Refresh</button>
     </div>
-    <imt-coverage-note [query]="targets.query()" />
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No anomalies detected in the current query." i18n-emptyText="@@analysis.anomalies.emptyText" emptyHint="IMT looks for crashes, error spikes, silences, slow outliers, rate changes and memory growth in the events the query matches." i18n-emptyHint="@@analysis.anomalies.emptyHint" suggest (retry)="res.retry()">
+    <imt-coverage-note [coverage]="res.coverage()" />
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="res.result()?.length === 0" emptyText="No anomalies detected in the current query." i18n-emptyText="@@analysis.anomalies.emptyText" emptyHint="IMT looks for crashes, error spikes, silences, slow outliers, rate changes and memory growth in the events the query matches." i18n-emptyHint="@@analysis.anomalies.emptyHint" suggest (retry)="res.retry()">
       <ul class="list body" aria-label="Anomalies" i18n-aria-label="@@analysis.anomalies.listLabel">
-        @for (a of res.data() ?? []; track a.kind + ':' + a.instance + ':' + a.from + ':' + a.to) {
+        @for (a of res.result() ?? []; track a.kind + ':' + a.instance + ':' + a.from + ':' + a.to) {
           <li>
             <button class="row" type="button" (click)="open(a)" (mouseenter)="cursor.hover(a.from)" (focus)="cursor.hover(a.from)" (mouseleave)="cursor.hover(null)" (blur)="cursor.hover(null)">
               <span class="kind" aria-hidden="true">{{ icon(a.kind) }}</span>
@@ -54,7 +54,7 @@ import { TimeCursor } from './time-cursor';
   ],
 })
 export class AnomaliesView {
-  protected readonly res = new AsyncResource<Anomaly[]>();
+  protected readonly res = new AnalysisResource<Anomaly[]>();
   protected readonly time = inject(AnalysisTime);
   protected readonly cursor = inject(TimeCursor);
   protected readonly allInstances = $localize`:@@analysis.anomalies.allInstances:all instances`;

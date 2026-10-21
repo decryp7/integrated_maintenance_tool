@@ -34,6 +34,7 @@ mod demo;
 mod dev_overrides;
 mod diagnostics;
 mod dumps;
+mod engine;
 mod engine_errors;
 mod error;
 mod file_commands;
@@ -63,6 +64,7 @@ mod services;
 mod settings;
 mod share;
 mod skew_commands;
+mod smart_search;
 mod snapshots;
 mod storage;
 mod sync;
@@ -137,6 +139,9 @@ command_table! {
     Query [WINDOW] => workspace_commands::query_runs,
     Query [WINDOW] => workspace_commands::preview_spans,
     Query [WINDOW] => workspace_commands::plugin_events,
+    Query [WINDOW] => workspace_commands::import_problems,
+    Query [WINDOW] limit MIB => workspace_commands::evaluate_fix,
+    Query [WINDOW] => workspace_commands::index_status,
     Mutation [WINDOW] limit 16 * MIB => workspace_commands::save_project,
     Mutation [WINDOW] => workspace_commands::open_project,
     Query [WINDOW] => live::tail_status,
@@ -146,11 +151,11 @@ command_table! {
     Mutation [WINDOW] => live::open_paths_live,
     Query [WINDOW] => insights::run_query,
     Query [WINDOW] => query_cancel::run_query_stream,
+    Query [WINDOW] => smart_search::search_partial,
     Query [WINDOW] => insights::check_query,
     Query [WINDOW] => insights::complete_query,
     Query [WINDOW] => insights::query_patterns,
     Query [WINDOW] => insights::query_exceptions,
-    Query [WINDOW] => insights::analysis_coverage,
     Query [WINDOW] => insights::query_anomalies,
     Query [WINDOW] => insights::compare_windows,
     Query [WINDOW] => insights::field_stats,
@@ -467,16 +472,25 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     log::info!(Version = env!("CARGO_PKG_VERSION"), SafeMode = safe_mode, PreviousCrash = previous_crash, SingleInstance = single; "Application starting — IMT {}", env!("CARGO_PKG_VERSION"));
 
     // ---- managed state (app-wide) ----
-    let shared = AppState::new_in(
+    // The store worker's libduckdb ships in the resource folder `lib/` (tauri.sidecars.conf.json).
+    let lib_dir = tauri::Manager::path(app).resource_dir().ok().map(|d| d.join("lib"));
+    let shared = AppState::new(
         ctx.config.as_ref().map(|d| d.join("profiles")),
-        ctx.safe_mode,
+        ctx.data.clone(),
+        lib_dir,
         ctx.data.as_ref().map(|d| d.join("plugins")),
-    );
+        ctx.safe_mode,
+    )?;
     if let Some(problem) = shared.plugins.problem() {
         log::error!("Plugins are unavailable: {problem}");
     }
     // Plugin processes start in the background, so the first import does not wait for one.
     shared.plugins.warm_up();
+    // Scratch stores no window or session will use again (left by a crash) are removed in the background.
+    {
+        let (root, keep) = (shared.store_root.clone(), life.session_stores());
+        std::thread::spawn(move || engine::sweep_scratch(&root, &keep));
+    }
     app_context::install(app.handle(), ctx);
     let windows = windows::Windows::new(shared.factory());
     // The startup window opens the paths given on the command line.
@@ -645,6 +659,19 @@ pub(crate) mod test_support {
 
     impl<T: serde::Serialize> Json for T {}
 
+    /// Imports `paths` into the window's store and waits for it (tests set up a window without the UI).
+    pub fn import(win: &windows::WindowState, paths: &[PathBuf]) -> imt_core::ports::ImportReport {
+        let store = win.engine.store().unwrap();
+        let report = store.open(paths).unwrap().wait().unwrap();
+        win.set_loaded(true);
+        report
+    }
+
+    /// The window's store summary (what the store has, without the host's parts).
+    pub fn store_summary(win: &windows::WindowState) -> imt_core::ports::SummaryReply {
+        win.engine.store().unwrap().summary().unwrap()
+    }
+
     /// Waits for the test app's job `id` to end; how it ended.
     pub fn job_end(app: &tauri::App<MockRuntime>, id: u64) -> jobs::service::JobOutcome {
         use tauri::Manager;
@@ -661,12 +688,26 @@ pub(crate) mod test_support {
     /// The clock of the test app's jobs and notification centre.
     pub struct TestClock(pub std::sync::Arc<jobs::ManualClock>);
 
+    static NEXT_TEST_APP: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
     fn manage(app: tauri::App<MockRuntime>, profile_dir: Option<PathBuf>) -> tauri::App<MockRuntime> {
         manage_in(app, profile_dir, false)
     }
 
     fn manage_in(app: tauri::App<MockRuntime>, profile_dir: Option<PathBuf>, safe_mode: bool) -> tauri::App<MockRuntime> {
-        let shared = AppState::new(profile_dir, safe_mode);
+        let plugins = std::sync::Arc::new(if safe_mode {
+            imt_plugin_host::Builtins::none()
+        } else {
+            imt_plugin_host::Builtins::load(&imt_plugin_host::builtins::default_binary())
+        });
+        // The store in process, scratch stores under the system temp folder (one folder per test app).
+        let root = std::env::temp_dir().join(format!(
+            "imt-test-stores-{}-{}",
+            std::process::id(),
+            NEXT_TEST_APP.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+        ));
+        let stores = engine::local::with_plugins(plugins.clone(), safe_mode);
+        let shared = AppState::with(profile_dir, safe_mode, plugins, stores, root);
         let windows = windows::Windows::new(shared.factory());
         windows.get_or_create(windows::MAIN).unwrap();
         app.manage(shared);

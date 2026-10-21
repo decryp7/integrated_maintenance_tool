@@ -13,7 +13,7 @@ import { tinyDataset } from '../../../testing/helpers';
 import { at } from '../../../testing/must';
 
 const row = (fields: Record<string, unknown>, id = 0): RecordView =>
-  ({ id, ts: null, level: 'Information', message: '', template: null, exception: null, fields, source: 5, sourceName: 'r.reg', line: id, group: '', markers: [] }) as RecordView;
+  ({ id, ts: null, tsState: 'untimed', level: 'Information', message: '', template: null, exception: null, fields, source: 5, sourceName: 'r.reg', line: id, byteOffset: 0, group: '', markers: [] }) as RecordView;
 
 const sample = (): RecordView[] => [
   row({ Hive: 'HKLM', Key: 'SOFTWARE\\Contoso', ValueType: 'KEY' }, 1),

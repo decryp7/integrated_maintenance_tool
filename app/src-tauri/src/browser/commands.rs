@@ -124,7 +124,7 @@ pub async fn browser_event_query<R: Runtime>(app: AppHandle<R>, win: CurrentWind
     let w = win.arc().clone();
     blocking(move || {
         let engine = || {
-            let store = w.store_read();
+            let store = w.engine.store()?;
             search_for_event(store.as_ref(), record_id)
                 .map(|q| EventQueryDto {
                     query: q.query,

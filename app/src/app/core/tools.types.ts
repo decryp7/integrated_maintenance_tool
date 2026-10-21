@@ -21,8 +21,8 @@
  *   plugin_package_set_permissions { id, granted }       -> InstalledPluginDto (the plugin restarts with them)
  *   save_session      { ui }                      -> void
  *   last_session      {}                          -> string | null
- *   save_project      { path, name, ui, reports? } -> { path, name }
- *   open_project      { path }                    -> ProjectOpened
+ *   save_project      { path, name, ui, reports?, overwrite? } -> { path, name }   (a self-contained `.imtz`)
+ *   open_project      { path }                    -> ProjectOpened  (`.imtz`, a `.imt` folder, or IMT's own `.imtproj`)
  *   set_live          { enabled }                 -> number (watched paths)
  *   take_pending_open {}                          -> string[]
  * Event Log follower (`tool_invoke { tool: 'event-log-follower', op, args }`, imt-plugin-tools `eventlog_tool`):
@@ -33,7 +33,7 @@
  *   pause / resume / status {}                    -> EventLogStatus
  * Events: "imt://open" (take_pending_open has paths), "imt://workspace-changed" (live tail refreshed).
  */
-import { Level, Report, WorkspaceSummary } from './api.types';
+import { BundleManifest, Level, Report, WorkspaceSummary } from './api.types';
 
 // ---- Performance Monitor -------------------------------------------------------------------
 
@@ -407,6 +407,12 @@ export interface ProjectOpened {
   missing: string[];
   /** Incident reports saved in the project (absent from older shells). */
   reports?: Report[];
+  /** What was opened cannot be saved back (an unpacked share bundle): Save asks for a new file. */
+  readOnly: boolean;
+  /** An old share bundle's manifest (`open_bundle`); absent or null otherwise. */
+  bundle?: BundleManifest | null;
+  /** Where a bundle was unpacked; absent or null otherwise. */
+  folder?: string | null;
 }
 
 /**

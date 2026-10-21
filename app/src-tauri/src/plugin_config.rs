@@ -65,7 +65,7 @@ pub async fn plugin_reset(windows: State<'_, Windows>, state: State<'_, AppState
         p.reset();
     }
     for w in windows.all() {
-        w.store_read().reset_plugin(&id);
+        w.host.registry.reset_plugin(&id);
     }
     log::info!(Plugin = id.as_str(); "Plugin re-enabled after quarantine");
     crate::activity::domain_event("plugin.reset", op.as_deref(), &[("Plugin", &id)]);

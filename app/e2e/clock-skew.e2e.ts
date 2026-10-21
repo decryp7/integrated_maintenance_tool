@@ -18,7 +18,7 @@ async function selectFirst(page: Page, text: string): Promise<void> {
 
 test.describe('clock-skew correction', () => {
   test('a manual offset shifts the source, shows a badge and the original time in the inspector', async ({ page }, testInfo) => {
-    await openAppWith(page);
+    await openAppWith(page, '?mockMemoryFeatures=1');
     const row = sourceRow(page, 'gateway/gateway-20261014.json');
     await row.click({ button: 'right' });
     await page.getByRole('menuitem', { name: 'Adjust clock…' }).click();
@@ -49,7 +49,7 @@ test.describe('clock-skew correction', () => {
   });
 
   test('aligns a source on a reference event of another source', async ({ page }) => {
-    await openAppWith(page);
+    await openAppWith(page, '?mockMemoryFeatures=1');
     await selectFirst(page, 'Proxying');
     await page.locator('imt-inspector').getByRole('button', { name: 'Use as clock reference' }).click();
     await expect(page.getByTestId('is-reference')).toBeVisible();
@@ -64,7 +64,7 @@ test.describe('clock-skew correction', () => {
   });
 
   test('suggests an offset from shared correlation ids', async ({ page }, testInfo) => {
-    await openAppWith(page);
+    await openAppWith(page, '?mockMemoryFeatures=1');
     const row = sourceRow(page, 'web02/orders-20261014.clef');
     await row.click({ button: 'right' });
     await page.getByRole('menuitem', { name: 'Adjust clock…' }).click();
@@ -84,7 +84,7 @@ test.describe('clock-skew correction', () => {
   });
 
   test('palette commands work on the selected event', async ({ page }) => {
-    await openAppWith(page);
+    await openAppWith(page, '?mockMemoryFeatures=1');
     await page.locator('imt-events-grid [role=row].row').nth(3).click();
     await runCommand(page, 'Use selected event as clock reference');
     await expect(page.getByTestId('is-reference')).toBeVisible();

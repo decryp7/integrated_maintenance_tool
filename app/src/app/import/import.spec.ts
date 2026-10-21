@@ -5,7 +5,9 @@ import { ImtBackend } from '../core/backend';
 import { WorkspaceStore } from '../core/workspace.store';
 import { UxBackend } from '../core/ux-backend';
 import { fileName, percent, progressLine } from './import-format';
-import { ImportProgressService, LONG_IMPORT_MS, POLL_MS } from './import-progress.service';
+import { ImportProgressService, jobImportProgress, LONG_IMPORT_MS } from './import-progress.service';
+import { JobsStore } from '../jobs/jobs.store';
+import { JobInfo } from '../jobs/jobs.types';
 import { WorkspaceStatusStore } from '../core/workspace/status.store';
 import { ImportStatus, ImportToast, PartialImportBanner } from './import-ui';
 
@@ -47,7 +49,7 @@ describe('import formatting', () => {
   });
 });
 
-/** A UxBackend whose progress the test sets. */
+/** A UxBackend whose final progress the test sets. */
 class FakeUx {
   progress: ImportProgress = p();
   fail = false;
@@ -63,6 +65,41 @@ class FakeUx {
   });
 }
 
+/** A running import job as `imt://jobs` reports it. */
+function importJob(id: number, progress: Partial<JobInfo['progress']> = {}, patch: Partial<JobInfo> = {}): JobInfo {
+  return {
+    id,
+    kind: 'import',
+    title: 'Open /big',
+    source: { window: 'main', link: null },
+    state: 'running',
+    progress: { fraction: 0.3, done: 3, total: 12, etaMs: 12_000, unit: 'items', bytesDone: 24_000_000, bytesTotal: 80_000_000, current: '/logs/web01/app.log', ...progress },
+    message: null,
+    queuedAt: 0,
+    startedAt: 0,
+    finishedAt: null,
+    elapsedMs: 3000,
+    etaMs: 11_000,
+    cancellable: true,
+    retryable: false,
+    movable: false,
+    position: null,
+    resultType: null,
+    error: null,
+    unseen: false,
+    retryOf: null,
+    ...patch,
+  };
+}
+
+describe('jobImportProgress', () => {
+  it('reads files, bytes and the current file from the job, with defaults for what it does not report', () => {
+    expect(jobImportProgress(importJob(1))).toEqual(p());
+    const bare = importJob(2, { done: null, total: null, etaMs: null, bytesDone: undefined, bytesTotal: undefined, current: undefined }, { elapsedMs: 10 });
+    expect(jobImportProgress(bare)).toEqual({ running: true, done: 0, total: 0, cancelled: false, bytesDone: 0, bytesTotal: 0, current: null, elapsedMs: 10, etaMs: 11_000 });
+  });
+});
+
 describe('ImportProgressService and its widgets', () => {
   let ux: FakeUx;
   let release: (s: WorkspaceSummary) => void;
@@ -72,13 +109,13 @@ describe('ImportProgressService and its widgets', () => {
     TestBed.configureTestingModule({ providers: [provideTinyBackend(), { provide: UxBackend, useValue: ux }] });
     const backend = TestBed.inject(ImtBackend);
     vi.spyOn(backend, 'openPaths').mockImplementation(() => new Promise<WorkspaceSummary>((r) => (release = r)));
-    return { svc: TestBed.inject(ImportProgressService), store: TestBed.inject(WorkspaceStore), backend };
+    return { svc: TestBed.inject(ImportProgressService), store: TestBed.inject(WorkspaceStore), backend, jobs: TestBed.inject(JobsStore) };
   }
 
   afterEach(() => vi.useRealTimers());
 
-  it('polls while opening, shows the status and the toast for long imports, and cancels', async () => {
-    const { svc, store } = setup();
+  it('follows the import job, shows the status and the toast for long imports, and cancels', async () => {
+    const { svc, store, jobs } = setup();
     await settle();
     const summary = store.summary()!;
     vi.useFakeTimers();
@@ -87,12 +124,15 @@ describe('ImportProgressService and its widgets', () => {
     const done = store.openPaths(['/big']);
     TestBed.tick();
     expect(svc.active()).toBe(true);
-    await vi.advanceTimersByTimeAsync(POLL_MS);
+    expect(svc.progress()?.total).toBe(0);
+    // The job's progress (imt://jobs) drives the widgets: no import_progress polling while it runs.
+    jobs.apply({ jobs: [importJob(5, { done: 1 }, { kind: 'export', title: 'Export' }), importJob(7)], paused: [] });
     status.detectChanges();
     expect(text(status)).toContain('Importing 3 of 12 files · 23 MB of 76 MB · less than a minute left');
     expect(text(status)).toContain('app.log');
     const bar = status.nativeElement.querySelector('[role=progressbar]') as HTMLElement;
     expect(bar.getAttribute('aria-valuenow')).toBe('30');
+    expect(ux.importProgress).not.toHaveBeenCalled();
     toast.detectChanges();
     expect(text(toast)).toBe('');
     await vi.advanceTimersByTimeAsync(LONG_IMPORT_MS);
@@ -105,13 +145,14 @@ describe('ImportProgressService and its widgets', () => {
     expect(text(status)).toContain('Cancelling…');
     await svc.cancel();
     expect(ux.cancelled).toBe(1);
-    // Finished with only some files read: the banner says so.
+    // Finished with only some files read: one final read, and the banner says so.
     ux.progress = p({ running: false, done: 5, total: 12, cancelled: true, current: null });
     release(summary);
     await done;
     TestBed.tick();
     await vi.advanceTimersByTimeAsync(0);
     expect(svc.active()).toBe(false);
+    expect(ux.importProgress).toHaveBeenCalledTimes(1);
     expect(svc.partial()).toEqual({ done: 5, total: 12 });
     vi.useRealTimers();
     const banner = TestBed.createComponent(PartialImportBanner);
@@ -119,6 +160,23 @@ describe('ImportProgressService and its widgets', () => {
     expect(text(banner)).toContain('Partially imported: 5 of 12 files were read');
     buttonByText(banner, 'Dismiss').click();
     expect(svc.partial()).toBeNull();
+  });
+
+  it('follows the job of the busy state when it is known', async () => {
+    const { svc, jobs } = setup();
+    await settle();
+    const status = TestBed.inject(WorkspaceStatusStore);
+    status.setBusy({ kind: 'import', label: 'Applying the profile…', jobId: 3 });
+    TestBed.tick();
+    jobs.apply({ jobs: [importJob(3, { done: 2, current: '/logs/a.log' }), importJob(4, { done: 9 })], paused: [] });
+    expect(svc.progress()).toMatchObject({ done: 2, current: '/logs/a.log' });
+    // Its job is not listed (yet): the newest running import.
+    status.setBusy({ kind: 'import', label: 'Applying the profile…', jobId: 99 });
+    expect(svc.progress()?.done).toBe(9);
+    status.setBusy(null);
+    TestBed.tick();
+    await settle();
+    expect(svc.progress()).toBeNull();
   });
 
   it('re-imports all from the banner and shows no banner after a complete import', async () => {
@@ -141,7 +199,7 @@ describe('ImportProgressService and its widgets', () => {
     expect(svc.partial()).toBeNull();
   });
 
-  it('keeps going when progress cannot be read, reports a failed cancel and ignores cancel when idle', async () => {
+  it('keeps going when the final progress cannot be read, reports a failed cancel and ignores cancel when idle', async () => {
     const { svc, store } = setup();
     await settle();
     await svc.cancel();
@@ -162,17 +220,5 @@ describe('ImportProgressService and its widgets', () => {
     await settle();
     expect(svc.active()).toBe(false);
     expect(svc.partial()).toBeNull();
-  });
-
-  it('ignores a progress reply that arrives after the import ended', async () => {
-    const { svc, store } = setup();
-    await settle();
-    ux.progress = p({ running: false });
-    const done = store.openPaths(['/a']);
-    await settle();
-    expect(svc.progress()?.total).toBe(0);
-    release(store.summary()!);
-    await done;
-    TestBed.resetTestingModule();
   });
 });

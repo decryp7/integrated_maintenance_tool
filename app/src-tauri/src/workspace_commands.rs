@@ -1,96 +1,60 @@
 //! Workspace commands: open/reload/clear/remove, queries, export, projects,
-//! import progress and live tail. Each acts on the calling window's workspace
-//! ([`CurrentWindow`]); the names and payloads are documented in
+//! import progress and live tail. Each acts on the calling window's store
+//! ([`CurrentWindow`], in the store worker); the names and payloads are documented in
 //! app/src/app/core/api.types.ts.
 
 use crate::activity::{domain_event, privacy, OpId};
-use crate::jobs::{Controls, Done, JobKind, JobLink, JobProgress, JobResult, JobSpec};
+use crate::engine::{with_store, StoreKind};
+use crate::jobs::{JobKind, JobLink, JobSpec};
 use crate::live;
 use crate::profile::ProfileDoc;
-use crate::windows::{read, write, write_reporting, CurrentWindow};
-use crate::{err, CmdResult};
+use crate::services::project::OpenedProject;
+use crate::windows::CurrentWindow;
+use crate::{err, CmdError, CmdResult};
+use imt_core::api::{
+    ChartData, ChartRequest, ContextRequest, ExportRequest, ExtractPreview, ExtractPreviewRequest, Facet, FacetRequest, Finding,
+    SourceContext, Timeline, TimelineRequest, WorkspaceSummary,
+};
+use imt_core::batch::SourceId;
 use imt_core::events::SubscriberMetrics;
+use imt_core::package::ProjectManifest;
 use imt_core::plugin::annotate::{AnnotationDto, AnnotationsRequest};
-use imt_core::project::ProjectFile;
-use imt_core::workspace::{ChartRequest, ContextRequest, ExportRequest, ExtractPreviewRequest, FacetRequest, PageRequest, TimelineRequest};
+use imt_core::ports::{Analyzed, ImportReport, PageQuery, PageReply};
 use imt_core::Profile;
 use serde_json::Value;
 use std::path::PathBuf;
 use tauri::{AppHandle, Runtime};
 
+/// The window's summary: the store's (when one is open) with the host's profile and plugins.
+pub(crate) async fn summary_of(state: &CurrentWindow) -> CmdResult<WorkspaceSummary> {
+    let win = state.arc().clone();
+    let reply = match win.engine.opened() {
+        Some(store) => crate::sync::blocking("the log store", move || store.summary().map_err(CmdError::from)).await?,
+        // Nothing opened yet: an empty summary without starting the store worker.
+        None => imt_core::ports::SummaryReply {
+            total: 0,
+            untimed: 0,
+            from: None,
+            to: None,
+            levels: imt_core::model::Level::ALL.iter().map(|l| (*l, 0)).collect(),
+            sources: vec![],
+            unrecognized: vec![],
+            fields: vec![],
+            default_group_by: vec![],
+            marker_kinds: win.host.compiled().markers.iter().map(|m| m.kind.clone()).collect(),
+            profile_name: win.host.compiled().profile.name.clone(),
+        },
+    };
+    Ok(crate::engine::summary::compose(
+        reply,
+        &state.host,
+        state.engine.last_report().as_ref(),
+    ))
+}
+
 #[tauri::command]
-pub(crate) async fn workspace_summary(state: CurrentWindow) -> CmdResult<imt_core::api::WorkspaceSummary> {
-    read(&state, |ws| Ok(ws.summary())).await
-}
-
-/// Runs an import (open, reload, project) as the window's import job: one at a time per window, with the
-/// import's progress and Cancel; View opens the workspace.
-pub(crate) async fn import_job<R: Runtime, T: Send + 'static>(
-    app: &AppHandle<R>,
-    state: &CurrentWindow,
-    spec: JobSpec,
-    f: impl FnOnce(&mut dyn imt_core::LogStore) -> anyhow::Result<T> + Send + 'static,
-) -> CmdResult<T> {
-    crate::error::lift(crate::jobs::run(app, spec.window(state.label()), import_controls(state), import_work(app, state, f)).await)
-}
-
-/// Starts an import job without waiting (returns the job at once; applying a profile re-imports in the
-/// background while the status bar shows its progress), then `then` with the value once the workspace swapped (outside its lock); a failure of
-/// `then` fails the job.
-pub(crate) fn start_import_then<R: Runtime, T: Send + 'static>(
-    app: &AppHandle<R>,
-    state: &CurrentWindow,
-    spec: JobSpec,
-    f: impl FnOnce(&mut dyn imt_core::LogStore) -> anyhow::Result<T> + Send + 'static,
-    then: impl FnOnce(T) -> CmdResult<()> + Send + 'static,
-) -> CmdResult<u64> {
-    let work = import_work(app, state, f);
-    crate::error::lift(
-        crate::jobs::spawn(
-            app,
-            spec.window(state.label()),
-            import_controls(state),
-            move |ctx: &crate::jobs::JobCtx| {
-                let done = work(ctx)?;
-                then(done.value).map_err(|e| e.message)?;
-                Ok::<_, String>(Done::new(()).with_result(JobResult::Workspace))
-            },
-        )
-        .map(|id| id.0),
-    )
-}
-
-/// An import's Cancel and progress (the window's import progress).
-fn import_controls(state: &CurrentWindow) -> Controls {
-    let (cancel, probe) = (state.progress.clone(), state.progress.clone());
-    Controls::cancel(move || {
-        log::info!("Import cancelled by the user");
-        cancel.cancel();
-    })
-    .with_probe(move || {
-        let p = probe.snapshot();
-        p.running.then(|| JobProgress {
-            fraction: (p.bytes_total > 0).then(|| (p.bytes_done as f64 / p.bytes_total as f64) as f32),
-            done: Some(p.done as u64),
-            total: Some(p.total as u64),
-            eta_ms: p.eta_ms,
-            ..JobProgress::default()
-        })
-    })
-}
-
-fn import_work<R: Runtime, T: Send + 'static>(
-    app: &AppHandle<R>,
-    state: &CurrentWindow,
-    f: impl FnOnce(&mut dyn imt_core::LogStore) -> anyhow::Result<T> + Send + 'static,
-) -> impl FnOnce(&crate::jobs::JobCtx) -> Result<Done<T>, String> + Send + 'static {
-    let (handle, win) = (app.clone(), state.arc().clone());
-    move |ctx| {
-        ctx.message("Reading the files");
-        crate::windows::write_reporting_blocking(&handle, &win, f)
-            .map(|v| Done::new(v).with_result(JobResult::Workspace))
-            .map_err(err)
-    }
+pub(crate) async fn workspace_summary(state: CurrentWindow) -> CmdResult<WorkspaceSummary> {
+    summary_of(&state).await
 }
 
 /// The spec of an import of `paths` (Retry opens them again).
@@ -131,16 +95,11 @@ pub(crate) fn retry_import<R: Runtime>(app: &AppHandle<R>, job: &crate::jobs::mo
 
 /// Files of an import that IMT could not use (not crashed: those are engine errors) become one message
 /// with "Set up format".
-fn report_not_imported<R: Runtime>(
-    app: &AppHandle<R>,
-    label: &str,
-    files: &[imt_core::api::UnrecognizedFile],
-    before: &std::collections::HashSet<String>,
-) {
+fn report_not_imported<R: Runtime>(app: &AppHandle<R>, label: &str, files: &[imt_core::api::UnrecognizedFile]) {
     use crate::notification_centre::centre::{NewNotice, NoticeAction, NoticeLink, NoticeScope, NoticeSeverity, NoticeSource};
     let new: Vec<_> = files
         .iter()
-        .filter(|u| !before.contains(&u.path) && !u.reason.contains(" crashed: "))
+        .filter(|u| !u.crashed && u.reason != imt_core::workspace::NOT_IMPORTED)
         .collect();
     let Some(first) = new.first() else { return };
     let title = match new.len() {
@@ -227,11 +186,7 @@ pub(crate) fn open_request<R: Runtime>(app: &AppHandle<R>, window: &str, paths: 
 }
 
 #[tauri::command]
-pub(crate) async fn open_paths<R: Runtime>(
-    app: AppHandle<R>,
-    state: CurrentWindow,
-    paths: Vec<String>,
-) -> CmdResult<imt_core::api::WorkspaceSummary> {
+pub(crate) async fn open_paths<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, paths: Vec<String>) -> CmdResult<WorkspaceSummary> {
     let paths: Vec<String> = open_request(&app, state.label(), paths)?
         .into_iter()
         .map(|p| p.to_string_lossy().into_owned())
@@ -241,188 +196,193 @@ pub(crate) async fn open_paths<R: Runtime>(
     Ok(summary)
 }
 
-/// Opens paths that were checked already (granted, or IMT's own): see [`open_request`].
-pub(crate) async fn open_granted<R: Runtime>(
+/// What an import reported to the user and the logs: files not imported, crashes (typed engine errors),
+/// unreadable timestamps.
+fn after_import<R: Runtime>(
     app: &AppHandle<R>,
     state: &CurrentWindow,
-    paths: Vec<String>,
-) -> CmdResult<imt_core::api::WorkspaceSummary> {
-    let (app, state) = (app.clone(), state.clone());
-    let paths = crate::activity::report::open::divert(&app, state.label(), paths).await;
-    if paths.is_empty() {
-        return write_reporting(&app, &state, |ws| Ok(ws.summary())).await;
+    before: &crate::engine_errors::HealthSnapshot,
+    report: &ImportReport,
+) {
+    let after = crate::engine_errors::HealthSnapshot::new(&state.host.registry.plugins(), &report.unrecognized);
+    for e in crate::engine_errors::new_errors(before, &after) {
+        crate::snapshots::emit_engine_error(app, state.label(), &e);
     }
-    let (handle, label) = (app.clone(), state.label().to_string());
-    let summary = import_job(&app, &state, open_spec(&paths), move |ws| {
-        let before = unrecognized_paths(&ws.summary());
-        ws.open(&paths.into_iter().map(PathBuf::from).collect::<Vec<_>>())?;
-        let summary = ws.summary();
-        log_unrecognized(&summary.unrecognized, &before);
-        report_not_imported(&handle, &label, &summary.unrecognized, &before);
-        report_timestamp_issues(&handle, &label, &summary.sources);
-        // Counts only: file names and contents stay out of the logs.
-        log::info!(
-            Sources = summary.sources.len() as u64,
-            Unrecognized = summary.unrecognized.len() as u64,
-            Events = summary.total as u64,
-            ElapsedMs = summary.load_ms;
-            "Workspace opened"
-        );
-        Ok(summary)
-    })
-    .await?;
-    crate::window_manager::import_finished(&app, state.label(), summary.total as u64);
+    log_unrecognized(&report.unrecognized);
+    report_not_imported(app, state.label(), &report.unrecognized);
+    report_timestamp_issues(app, state.label(), &report.sources);
+    // Counts only: file names and contents stay out of the logs.
+    log::info!(
+        Sources = report.sources.len() as u64,
+        Unrecognized = report.unrecognized.len() as u64,
+        Events = report.events as u64,
+        ElapsedMs = report.elapsed_ms;
+        "Workspace opened"
+    );
+    state.set_loaded(true);
+}
+
+/// Opens paths that were checked already (granted, or IMT's own): see [`open_request`].
+pub(crate) async fn open_granted<R: Runtime>(app: &AppHandle<R>, state: &CurrentWindow, paths: Vec<String>) -> CmdResult<WorkspaceSummary> {
+    let paths = crate::activity::report::open::divert(app, state.label(), paths).await;
+    if paths.is_empty() {
+        return summary_of(state).await;
+    }
+    let before = crate::engine_errors::HealthSnapshot::new(&state.host.registry.plugins(), &[]);
+    let files: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
+    let report = crate::engine::import::run(app, state, open_spec(&paths), Box::new(move |store| store.open(&files))).await?;
+    after_import(app, state, &before, &report);
+    let summary = summary_of(state).await?;
+    crate::window_manager::import_finished(app, state.label(), summary.total as u64);
     Ok(summary)
 }
 
 /// Files logged per import as not imported (the rest are counted).
 const MAX_LOGGED_FILES: usize = 20;
 
-fn unrecognized_paths(summary: &imt_core::api::WorkspaceSummary) -> std::collections::HashSet<String> {
-    summary.unrecognized.iter().map(|u| u.path.clone()).collect()
-}
-
-/// Logs each file an import could not use (not in `before`), with why: a crashed importer at Error, an
-/// unknown format or unreadable file at Warning. The path as the privacy settings allow; the reason is
-/// redacted and capped (it never carries file contents, but may quote a path or a value).
-pub(crate) fn log_unrecognized(files: &[imt_core::api::UnrecognizedFile], before: &std::collections::HashSet<String>) {
-    let new: Vec<_> = files.iter().filter(|u| !before.contains(&u.path)).collect();
-    for u in new.iter().take(MAX_LOGGED_FILES) {
+/// Logs each file an import could not use, with why: a crashed importer at Error, an unknown format or
+/// unreadable file at Warning. The path as the privacy settings allow; the reason is redacted and capped (it
+/// never carries file contents, but may quote a path or a value).
+pub(crate) fn log_unrecognized(files: &[imt_core::api::UnrecognizedFile]) {
+    for u in files.iter().take(MAX_LOGGED_FILES) {
         let file = privacy::safe_path(std::path::Path::new(&u.path));
         let reason: String = privacy::redact(&u.reason).chars().take(300).collect();
-        if u.reason.contains(" crashed: ") {
+        if u.crashed {
             log::error!(File = file.as_str(), Reason = reason.as_str(); "Importer crashed on a file");
         } else {
             log::warn!(File = file.as_str(), Reason = reason.as_str(); "File not imported");
         }
     }
-    if new.len() > MAX_LOGGED_FILES {
-        log::warn!(More = (new.len() - MAX_LOGGED_FILES) as u64; "More files not imported");
+    if files.len() > MAX_LOGGED_FILES {
+        log::warn!(More = (files.len() - MAX_LOGGED_FILES) as u64; "More files not imported");
     }
 }
 
 #[tauri::command]
-pub(crate) async fn remove_source(state: CurrentWindow, source_id: u32) -> CmdResult<imt_core::api::WorkspaceSummary> {
-    write(&state, move |ws| {
-        ws.remove_source(source_id);
-        Ok(ws.summary())
-    })
-    .await
+pub(crate) async fn remove_source(state: CurrentWindow, source_id: u32) -> CmdResult<WorkspaceSummary> {
+    with_store(&state, move |s| s.remove_source(SourceId(source_id))).await?;
+    summary_of(&state).await
 }
 
 #[tauri::command]
-pub(crate) async fn clear_workspace(state: CurrentWindow) -> CmdResult<imt_core::api::WorkspaceSummary> {
+pub(crate) async fn clear_workspace(state: CurrentWindow) -> CmdResult<WorkspaceSummary> {
     state.set_project(None);
-    write(&state, |ws| {
-        ws.clear();
-        Ok(ws.summary())
-    })
-    .await
+    if state.engine.opened().is_some() {
+        with_store(&state, |s| s.clear()).await?;
+    }
+    state.set_loaded(false);
+    summary_of(&state).await
 }
 
 #[tauri::command]
-pub(crate) async fn reload_workspace<R: Runtime>(app: AppHandle<R>, state: CurrentWindow) -> CmdResult<imt_core::api::WorkspaceSummary> {
-    let (handle, label) = (app.clone(), state.label().to_string());
-    let summary = import_job(&app, &state, JobSpec::new(JobKind::Import, "Reload the files"), move |ws| {
-        ws.reload()?;
-        let summary = ws.summary();
-        log_unrecognized(&summary.unrecognized, &Default::default());
-        report_timestamp_issues(&handle, &label, &summary.sources);
-        Ok(summary)
-    })
-    .await?;
+pub(crate) async fn reload_workspace<R: Runtime>(app: AppHandle<R>, state: CurrentWindow) -> CmdResult<WorkspaceSummary> {
+    let before = crate::engine_errors::HealthSnapshot::new(&state.host.registry.plugins(), &[]);
+    let spec = JobSpec::new(JobKind::Import, "Reload the files");
+    let report = crate::engine::import::run(&app, &state, spec, Box::new(|store| store.reload())).await?;
+    after_import(&app, &state, &before, &report);
+    let summary = summary_of(&state).await?;
     crate::window_manager::import_finished(&app, state.label(), summary.total as u64);
     Ok(summary)
 }
 
 #[tauri::command]
-pub(crate) async fn query_page(state: CurrentWindow, request: PageRequest) -> CmdResult<Value> {
-    read(&state, move |ws| {
-        serde_json::to_value(ws.page(&request)?).map_err(anyhow::Error::from)
-    })
-    .await
+pub(crate) async fn query_page(state: CurrentWindow, request: PageQuery) -> CmdResult<PageReply> {
+    with_store(&state, move |s| s.page(&request)).await
 }
 
 #[tauri::command]
-pub(crate) async fn query_timeline(state: CurrentWindow, request: TimelineRequest) -> CmdResult<Value> {
-    read(&state, move |ws| {
-        serde_json::to_value(ws.timeline(&request)?).map_err(anyhow::Error::from)
-    })
-    .await
+pub(crate) async fn query_timeline(state: CurrentWindow, request: TimelineRequest) -> CmdResult<Timeline> {
+    with_store(&state, move |s| s.timeline(&request)).await
 }
 
 #[tauri::command]
-pub(crate) async fn query_facet(state: CurrentWindow, request: FacetRequest) -> CmdResult<Value> {
-    read(&state, move |ws| {
-        serde_json::to_value(ws.facet(&request)?).map_err(anyhow::Error::from)
-    })
-    .await
+pub(crate) async fn query_facet(state: CurrentWindow, request: FacetRequest) -> CmdResult<Facet> {
+    with_store(&state, move |s| s.facet(&request)).await
 }
 
 #[tauri::command]
-pub(crate) async fn query_chart(state: CurrentWindow, request: ChartRequest) -> CmdResult<Value> {
-    read(&state, move |ws| {
-        serde_json::to_value(ws.chart(&request)?).map_err(anyhow::Error::from)
-    })
-    .await
+pub(crate) async fn query_chart(state: CurrentWindow, request: ChartRequest) -> CmdResult<ChartData> {
+    with_store(&state, move |s| s.chart(&request)).await
 }
 
 #[tauri::command]
-pub(crate) async fn preview_extractor(state: CurrentWindow, request: ExtractPreviewRequest) -> CmdResult<Value> {
-    read(&state, move |ws| {
-        serde_json::to_value(ws.preview_extractor(&request)).map_err(anyhow::Error::from)
-    })
-    .await
+pub(crate) async fn preview_extractor(state: CurrentWindow, request: ExtractPreviewRequest) -> CmdResult<ExtractPreview> {
+    with_store(&state, move |s| s.preview_extractor(&request)).await
 }
 
-/// Progress of the running import (readable while the import holds the workspace).
+/// Progress of the running import (the import job's, which the Jobs pane also shows).
 #[tauri::command]
 pub(crate) async fn import_progress(state: CurrentWindow) -> imt_core::workspace::ProgressSnapshot {
-    state.progress.snapshot()
+    state.engine.progress()
 }
 
-/// The automatic health check: findings, most severe first.
+/// The automatic health check: findings, most severe first, with how much of the data it covered.
 #[tauri::command]
-pub(crate) async fn overview(state: CurrentWindow, request: imt_core::api::QueryRequest) -> CmdResult<Value> {
-    read(&state, move |ws| {
-        serde_json::to_value(ws.overview(&request)?).map_err(anyhow::Error::from)
-    })
-    .await
+pub(crate) async fn overview(state: CurrentWindow, request: imt_core::api::QueryRequest) -> CmdResult<Analyzed<Vec<Finding>>> {
+    with_store(&state, move |s| s.overview(&request)).await
 }
 
-/// Ranges and points found by plugin annotators (reboots, service uptime, ...)
-/// overlapping the request, by start time.
+/// Ranges and points found by plugin annotators (reboots, service uptime, ...) overlapping the request, by
+/// start time. Annotators do not run over the store yet (ADR 0014 6c follow-up): what plugins stored.
 #[tauri::command]
 pub(crate) async fn annotations(state: CurrentWindow, request: AnnotationsRequest) -> CmdResult<Vec<AnnotationDto>> {
-    read(&state, move |ws| Ok(ws.annotations(&request))).await
+    Ok(state.host.registry.annotations(&request))
 }
 
-/// Runs between lifecycle markers (`[[span]]`): a sorted page for the Runs
-/// view plus every span kind's summary over the selection. The request is
-/// bounded in the engine (page size, lane list).
+/// Runs between lifecycle markers (`[[span]]`): a sorted page for the Runs view plus every span kind's
+/// summary over the selection. The request is bounded in the engine (page size, lane list).
 #[tauri::command]
 pub(crate) async fn query_runs(state: CurrentWindow, request: imt_core::spans::RunsRequest) -> CmdResult<imt_core::spans::RunsReply> {
-    read(&state, move |ws| Ok(ws.runs(&request))).await
+    with_store(&state, move |s| s.runs(&request)).await
 }
 
-/// The Runs editor's preview of a candidate rule over the loaded data: field
-/// errors, warnings, counts, the first runs and anomalies, and what saving writes.
+/// The Runs editor's preview of a candidate rule over the loaded data: field errors, warnings, counts, the
+/// first runs and anomalies, and what saving writes (the store pairs it like the Runs table).
 #[tauri::command]
 pub(crate) async fn preview_spans(
     state: CurrentWindow,
     request: imt_core::spans::SpanPreviewRequest,
 ) -> CmdResult<imt_core::spans::SpanPreview> {
-    read(&state, move |ws| ws.preview_spans(&request)).await
+    with_store(&state, move |s| s.preview_spans(&request)).await
+}
+
+/// Import problems of the window's sources (ADR 0014 §5): unreadable timestamps, lines too long, files no
+/// importer reads... counted per source and kind, with sample lines and a checked fix where there is one.
+#[tauri::command]
+pub(crate) async fn import_problems(state: CurrentWindow) -> CmdResult<Vec<imt_core::ports::DiagnosticRow>> {
+    if state.engine.opened().is_none() {
+        return Ok(Vec::new());
+    }
+    with_store(&state, |s| s.problems()).await
+}
+
+/// How many affected events a proposed fix (a profile override, from the engine or the AI) would repair,
+/// checked on the stored events before the user applies it.
+#[tauri::command]
+pub(crate) async fn evaluate_fix(state: CurrentWindow, fix: imt_core::ports::QuickFix) -> CmdResult<imt_core::ports::FixEvaluation> {
+    with_store(&state, move |s| s.evaluate_fix(&fix)).await
+}
+
+/// How far the full-text index is (search covers indexed events only).
+#[tauri::command]
+pub(crate) async fn index_status(state: CurrentWindow) -> CmdResult<imt_core::ports::IndexStatus> {
+    if state.engine.opened().is_none() {
+        return Ok(imt_core::ports::IndexStatus {
+            indexed: 0,
+            total: 0,
+            ready: true,
+        });
+    }
+    with_store(&state, |s| s.index_status()).await
 }
 
 /// Delivery counters of the plugins' event subscribers (plugin health).
-/// Reads the event bus only, so it answers while an import runs.
 #[tauri::command]
 pub(crate) async fn plugin_events(state: CurrentWindow) -> Vec<SubscriberMetrics> {
     state.event_metrics()
 }
 
-/// Writes the events matching the query to a file chosen by the user.
+/// Writes the events matching the query to a file chosen by the user (an export job; Cancel stops it).
 #[tauri::command]
 pub(crate) async fn export_events<R: Runtime>(
     app: AppHandle<R>,
@@ -434,12 +394,12 @@ pub(crate) async fn export_events<R: Runtime>(
         .write(&request.path, &[])?
         .path()
         .to_path_buf();
-    // Checked now, so the dialog can ask to replace the file; the engine checks again when it writes.
+    // Checked now, so the dialog can ask to replace the file; the store checks again when it writes.
     imt_core::overwrite::check_overwrite(std::path::Path::new(&request.path), request.overwrite)?;
     request.path = target.to_string_lossy().into_owned();
     let redact = request.redact;
-    crate::jobs::export(&app, &state, "Export events to", &target, move |ws| {
-        let result = ws.export(&request)?;
+    crate::jobs::export(&app, &state, "Export events to", &target, move |store| {
+        let result = store.export(&request).map_err(CmdError::from)?;
         log::info!(Format = result.format.as_str(), Events = result.events as u64; "Events exported");
         let path = privacy::safe_path(std::path::Path::new(&result.path));
         let rows = result.events.to_string();
@@ -463,20 +423,30 @@ fn exported_line(result: &imt_core::api::ExportResult, redacted: bool) -> String
 }
 
 #[tauri::command]
-pub(crate) async fn source_context(state: CurrentWindow, request: ContextRequest) -> CmdResult<Value> {
-    read(&state, move |ws| {
-        serde_json::to_value(ws.source_context(&request)?).map_err(anyhow::Error::from)
-    })
-    .await
+pub(crate) async fn source_context(state: CurrentWindow, request: ContextRequest) -> CmdResult<SourceContext> {
+    with_store(&state, move |s| s.source_context(&request)).await
 }
 
-/// The calling window's open files, profile and UI state as a project file.
-pub(crate) fn project_of(state: &CurrentWindow, name: String, ui: Value) -> ProjectFile {
-    let ws = state.store_read().state();
-    crate::services::project::snapshot(name, state.profile_doc().toml, ws, ui, Vec::new())
+/// The calling window's workspace as a workspace file (its session): the store folder to reopen, the opened
+/// roots, the profile and the UI state.
+pub(crate) async fn session_of(state: &CurrentWindow, name: String, ui: Value) -> CmdResult<imt_core::project::ProjectFile> {
+    let (roots, store) = match state.engine.opened() {
+        Some(s) => {
+            let dir = s.store_dir().to_string_lossy().into_owned();
+            let saved = crate::sync::blocking("the log store", move || {
+                s.save_project(&ProjectManifest::default()).map_err(CmdError::from)
+            })
+            .await?;
+            (saved.roots, Some(dir))
+        }
+        None => (Vec::new(), None),
+    };
+    Ok(crate::services::project::session(name, state.profile_doc().toml, roots, store, ui))
 }
 
-/// Saves the open files, the active profile and the UI's state to a `.imtproj`.
+/// Saves the window's store as a project: `<name>.imtz`, self-contained (events, sources, diagnostics, the
+/// profile, the UI state and reports) and shareable; it opens without the original log files. Written by a
+/// file job (it can take a while for a large store); returns the path and name at once.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)] // the command's arguments are its wire contract
 pub(crate) async fn save_project<R: Runtime>(
@@ -489,31 +459,39 @@ pub(crate) async fn save_project<R: Runtime>(
     ui: Value,
     reports: Option<Vec<Value>>,
     overwrite: Option<bool>,
-) -> CmdResult<Value> {
+) -> CmdResult<crate::services::project::SavedProject> {
     crate::share::refuse_bundle_folder(&path)?;
-    let target = grants.write(&path, &["imtproj"])?;
-    let mut project = project_of(&state, name, ui);
-    project.reports = crate::share::parse_reports(reports.unwrap_or_default())?;
+    let target = grants.write(&path, &[imt_core::package::ARCHIVE_EXTENSION])?;
+    let reports = crate::share::parse_reports(reports.unwrap_or_default())?;
     let file = target.path().to_path_buf();
-    let project = tauri::async_runtime::spawn_blocking(move || -> CmdResult<ProjectFile> {
-        // "Save" to the project's own file passes `overwrite`; "Save As" over another file asks first.
-        crate::services::project::save(&file, &project, overwrite.unwrap_or(false))?;
-        Ok(project)
+    // "Save" to the project's own file passes `overwrite`; "Save As" over another file asks first.
+    imt_core::overwrite::check_overwrite(&file, overwrite.unwrap_or(false))?;
+    let store = state.engine.store()?;
+    let manifest = ProjectManifest {
+        name: name.clone(),
+        profile_overrides: state.profile_doc().toml,
+        ..ProjectManifest::default()
+    };
+    let (n, out) = (name.clone(), file.clone());
+    crate::sync::blocking("saving the project", move || {
+        crate::services::project::write_ui(&store.store_dir(), &ui, &reports)?;
+        let bytes = store.export_project(&manifest, &out).map_err(CmdError::from)?;
+        log::info!(Bytes = bytes; "Project saved");
+        Ok::<_, CmdError>(())
     })
-    .await
-    .map_err(err)??;
+    .await?;
     // "Save" writes here again without a dialog.
     grants.grant(target.path(), crate::paths::Access::Write, crate::paths::GrantSource::Project)?;
     state.set_project(Some(path.clone()));
-    crate::recent::opened_project(&app, &path, &project.name);
-    log::info!(Sources = project.sources.len() as u64; "Project saved");
-    let (safe, sources) = (privacy::safe_path(std::path::Path::new(&path)), project.sources.len().to_string());
-    domain_event("project.saved", op.as_deref(), &[("Path", &safe), ("Sources", &sources)]);
-    Ok(serde_json::json!({ "path": path, "name": project.name }))
+    crate::recent::opened_project(&app, &path, &n);
+    let safe = privacy::safe_path(std::path::Path::new(&path));
+    domain_event("project.saved", op.as_deref(), &[("Path", &safe)]);
+    Ok(crate::services::project::SavedProject { path, name })
 }
 
-/// Opens a `.imtproj` the user chose (or one from the recent list): applies its profile, reopens its
-/// files and returns the UI state. The autosaved session opens the same way (it is IMT's own file).
+/// Opens a project the user chose (or one from the recent list): an `.imtz` (extracted into IMT's stores
+/// folder) or a `.imt` project folder; its events open without the original log files. IMT's own workspace
+/// files (`.imtproj`: the autosaved session, the activity log) reopen their store or import their files.
 #[tauri::command]
 pub(crate) async fn open_project<R: Runtime>(
     app: AppHandle<R>,
@@ -521,53 +499,156 @@ pub(crate) async fn open_project<R: Runtime>(
     grants: crate::paths::WindowGrants,
     op: OpId,
     path: String,
-) -> CmdResult<Value> {
+) -> CmdResult<OpenedProject> {
     let recents = crate::recent::recents(&app);
-    let file = grants.read_or_listed(&path, &["imtproj"], |p| recents.has_project(p))?;
+    let file = grants.read_or_listed(
+        &path,
+        &[
+            imt_core::package::ARCHIVE_EXTENSION,
+            "imtproj",
+            imt_core::package::PROJECT_EXTENSION,
+        ],
+        |p| recents.has_project(p),
+    )?;
+    let is_workspace_file = file.path().extension().is_some_and(|e| e == "imtproj");
     let session = crate::lifecycle::is_session_file(file.path());
-    let opened = open_project_file(&app, &state, op, file.path().to_path_buf(), path.clone()).await?;
+    let opened = if is_workspace_file {
+        open_project_file(&app, &state, op, file.path().to_path_buf(), path.clone()).await?
+    } else {
+        open_store_project(&app, &state, op, file.path().to_path_buf(), path.clone()).await?
+    };
     if !session {
         // The project's own file: "Save" writes it back without a dialog.
         if let Err(e) = grants.grant(file.path(), crate::paths::Access::Write, crate::paths::GrantSource::Project) {
             log::debug!("the project file is not writable from this window: {e}");
         }
         state.set_project(Some(path.clone()));
-        crate::recent::opened_project(&app, &path, opened["name"].as_str().unwrap_or_default());
+        crate::recent::opened_project(&app, &path, &opened.name);
     }
     Ok(opened)
 }
 
-/// Opens a project file that was checked already (granted, or IMT's own: an unpacked bundle's). `shown`
-/// is the path as the UI names it. Grants the window the captures the project's UI state reopens.
+/// Opens a saved project (`.imtz` or `.imt`) as the window's store.
+async fn open_store_project<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &CurrentWindow,
+    op: OpId,
+    file: PathBuf,
+    shown: String,
+) -> CmdResult<OpenedProject> {
+    let win = state.arc().clone();
+    let spec = JobSpec::new(JobKind::Import, "Open the project")
+        .window(state.label())
+        .link(JobLink::Path { path: shown.clone() });
+    let (store, manifest) = crate::jobs::run(app, spec, Default::default(), move |ctx: &crate::jobs::JobCtx| -> CmdResult<_> {
+        ctx.message("Opening the project");
+        let base = win.engine.profile();
+        let dest = win.engine.unpack_root();
+        let opened = win.engine.host().open_project(&file, &dest, &base).map_err(CmdError::from)?;
+        Ok(crate::jobs::Done::new(opened).with_result(crate::jobs::JobResult::Workspace))
+    })
+    .await?;
+    let (ui, reports) = crate::services::project::read_ui(&store.store_dir());
+    // The project's profile: its overrides merged over the window's (what the store applied).
+    let profile = {
+        let s = store.clone();
+        crate::sync::blocking("the log store", move || s.active_profile().map_err(CmdError::from)).await?
+    };
+    let doc = if manifest.profile_overrides.trim().is_empty() {
+        state.profile_doc()
+    } else {
+        ProfileDoc {
+            name: profile.name.clone(),
+            path: None,
+            toml: manifest.profile_overrides.clone(),
+        }
+    };
+    apply_window_profile(state, profile)?;
+    state.set_profile_doc(doc.clone());
+    state.engine.replace(store, StoreKind::Project);
+    state.set_loaded(true);
+    let captures = crate::services::project::captures(&ui);
+    crate::paths::grant_read_all(app, state.label(), &captures, crate::paths::GrantSource::Output);
+    let summary = summary_of(state).await?;
+    log::info!(Sources = summary.sources.len() as u64; "Project opened");
+    let safe = privacy::safe_path(std::path::Path::new(&shown));
+    domain_event("project.opened", op.as_deref(), &[("Path", &safe)]);
+    crate::window_manager::import_finished(app, state.label(), summary.total as u64);
+    Ok(OpenedProject {
+        path: shown,
+        name: manifest.name,
+        summary,
+        profile: doc,
+        ui,
+        reports,
+        missing: Vec::new(),
+        read_only: false,
+        bundle: None,
+        folder: None,
+    })
+}
+
+/// The window's host and new stores follow `profile`.
+fn apply_window_profile(state: &CurrentWindow, profile: Profile) -> CmdResult<()> {
+    let compiled = state.host.compile(profile.clone()).map_err(err)?;
+    state.host.set_compiled(compiled);
+    state.engine.set_profile(profile);
+    Ok(())
+}
+
+/// Opens a workspace file that was checked already (granted, or IMT's own: a session, an unpacked bundle's).
+/// `shown` is the path as the UI names it. Its store folder is reopened when it is still there; otherwise its
+/// files are imported. Grants the window the captures the project's UI state reopens.
 pub(crate) async fn open_project_file<R: Runtime>(
     app: &AppHandle<R>,
     state: &CurrentWindow,
     op: OpId,
     file: PathBuf,
     shown: String,
-) -> CmdResult<Value> {
-    let project = tauri::async_runtime::spawn_blocking(move || crate::services::project::load(&file))
-        .await
-        .map_err(err)??;
-    let profile = Profile::from_toml(&project.profile).map_err(err)?;
+) -> CmdResult<OpenedProject> {
+    let project = crate::sync::blocking("reading the project", move || crate::services::project::load(&file)).await?;
+    let profile = Profile::from_toml(&project.profile).map_err(|e| CmdError::invalid(e.message).line(e.line))?;
     let doc = ProfileDoc {
         name: profile.name.clone(),
         path: None,
         toml: project.profile.clone(),
     };
-    let ws_state = crate::services::project::workspace_state(&project);
-    let spec = JobSpec::new(JobKind::Import, format!("Open project {}", project.name)).link(JobLink::Path { path: shown.clone() });
-    let (handle, label) = (app.clone(), state.label().to_string());
-    let (summary, missing) = import_job(app, state, spec, move |ws| {
-        let missing = ws.restore(profile, &ws_state)?;
-        let summary = ws.summary();
-        report_timestamp_issues(&handle, &label, &summary.sources);
-        Ok((summary, missing))
-    })
-    .await?;
+    apply_window_profile(state, profile)?;
     state.set_profile_doc(doc.clone());
+    let reopened = match project.store.as_deref().map(PathBuf::from).filter(|d| d.is_dir()) {
+        Some(dir) => {
+            let win = state.arc().clone();
+            let kind = if dir.starts_with(win.engine.scratch_root()) {
+                StoreKind::Scratch
+            } else {
+                StoreKind::Project
+            };
+            match crate::sync::blocking("reopening the session", move || win.engine.reopen(&dir, kind)).await {
+                Ok(_) => true,
+                Err(e) => {
+                    log::warn!("the session's store could not be reopened ({e}); importing its files again");
+                    false
+                }
+            }
+        }
+        None => false,
+    };
+    let mut missing = Vec::new();
+    if !reopened {
+        let existing: Vec<String> = project.sources.iter().filter(|p| source_exists(p)).cloned().collect();
+        missing = project.sources.iter().filter(|p| !source_exists(p)).cloned().collect();
+        if !existing.is_empty() {
+            let before = crate::engine_errors::HealthSnapshot::new(&state.host.registry.plugins(), &[]);
+            let spec = JobSpec::new(JobKind::Import, format!("Open {}", project.name)).link(JobLink::Path { path: shown.clone() });
+            let files: Vec<PathBuf> = existing.iter().map(PathBuf::from).collect();
+            let report = crate::engine::import::run(app, state, spec, Box::new(move |store| store.open(&files))).await?;
+            after_import(app, state, &before, &report);
+        }
+    }
+    state.set_loaded(true);
     let captures = crate::services::project::captures(&project.ui);
     crate::paths::grant_read_all(app, state.label(), &captures, crate::paths::GrantSource::Output);
+    let summary = summary_of(state).await?;
     log::info!(Sources = project.sources.len() as u64, Missing = missing.len() as u64; "Project opened");
     let safe = privacy::safe_path(std::path::Path::new(&shown));
     let (sources, missing_n) = (project.sources.len().to_string(), missing.len().to_string());
@@ -577,26 +658,31 @@ pub(crate) async fn open_project_file<R: Runtime>(
         &[("Path", &safe), ("Sources", &sources), ("Missing", &missing_n)],
     );
     crate::window_manager::import_finished(app, state.label(), summary.total as u64);
-    Ok(serde_json::json!({
-        "path": shown,
-        "name": project.name,
-        "summary": summary,
-        "profile": doc,
-        "ui": project.ui,
-        "reports": project.reports,
-        "missing": missing,
-    }))
+    Ok(OpenedProject {
+        path: shown,
+        name: project.name,
+        summary,
+        profile: doc,
+        ui: project.ui,
+        reports: project.reports.into_iter().filter_map(|r| serde_json::to_value(r).ok()).collect(),
+        missing,
+        read_only: false,
+        bundle: None,
+        folder: None,
+    })
+}
+
+/// Whether a project's source still exists (an archive member: its archive).
+fn source_exists(p: &str) -> bool {
+    let file = p.split("!/").next().unwrap_or(p);
+    std::path::Path::new(file).exists()
 }
 
 /// Turns live tail on or off for the calling window. While on, the opened
 /// files and folders are watched (OS events, or polling for network shares
-/// and after a watcher error); appended lines are read incrementally,
-/// rotations and truncations followed, and `imt://workspace-changed` is
-/// emitted to this window with a [`imt_core::workspace::TailReport`] payload
-/// (at most about four per second); live alerts are emitted as
-/// `imt://live-alert`. Call again after opening more files to watch them too.
-/// Returns how many folders are watched.
-/// Async and off the main thread: starting a session touches the workspace, which an import may hold.
+/// and after a watcher error); appended lines are read by the store and
+/// `imt://workspace-changed` is emitted to this window (at most about four per
+/// second). Returns how many folders are watched.
 #[tauri::command]
 pub(crate) async fn set_live<R: Runtime>(
     app: AppHandle<R>,
@@ -611,7 +697,7 @@ pub(crate) async fn set_live<R: Runtime>(
 }
 
 /// Paths waiting to be opened in the calling window (launch arguments, files
-/// opened from the OS, a restored session). `.imtproj` files should be opened
+/// opened from the OS, a restored session). Projects and workspace files should be opened
 /// with `open_project`, others with `open_paths`. Only Rust queues them, so they are granted to the
 /// window as they are handed over.
 #[tauri::command]
@@ -651,8 +737,8 @@ mod tests {
         app
     }
 
-    fn page(limit: usize, query: Query) -> PageRequest {
-        PageRequest {
+    fn page(limit: usize, query: Query) -> PageQuery {
+        PageQuery {
             query,
             offset: 0,
             limit,
@@ -699,7 +785,7 @@ mod tests {
             .unwrap_err()
             .contains("does/not/exist"));
 
-        let p = block(query_page(st(), page(5, Query::default()))).unwrap();
+        let p = block(query_page(st(), page(5, Query::default()))).unwrap().json();
         assert_eq!(p["rows"].as_array().unwrap().len(), 5);
         assert!(p["rows"][0]["sourceName"].is_string());
         let bad = Query {
@@ -710,13 +796,16 @@ mod tests {
         assert!(block(query_page(st(), page(5, bad))).is_err());
 
         let tl: TimelineRequest = serde_json::from_value(json!({"buckets": 50})).unwrap();
-        assert!(!block(query_timeline(st(), tl)).unwrap()["lanes"].as_array().unwrap().is_empty());
+        assert!(!block(query_timeline(st(), tl)).unwrap().json()["lanes"]
+            .as_array()
+            .unwrap()
+            .is_empty());
         let facet: FacetRequest = serde_json::from_value(json!({"field": "MachineName"})).unwrap();
-        assert_eq!(block(query_facet(st(), facet)).unwrap()["distinct"], 2);
+        assert_eq!(block(query_facet(st(), facet)).unwrap().json()["distinct"], 2);
         let chart: ChartRequest = serde_json::from_value(json!({"chartId": "events-by-level"})).unwrap();
-        assert!(block(query_chart(st(), chart)).unwrap()["series"].is_array());
+        assert!(block(query_chart(st(), chart)).unwrap().json()["series"].is_array());
         let preview: ExtractPreviewRequest = serde_json::from_value(json!({"toml": DEFAULT_PROFILE_TOML, "extractor": "x"})).unwrap();
-        assert!(block(preview_extractor(st(), preview)).unwrap()["error"].is_string());
+        assert!(block(preview_extractor(st(), preview)).unwrap().json()["error"].is_string());
 
         let id = summary["sources"][0]["id"].as_u64().unwrap() as u32;
         let summary = block(remove_source(st(), id)).unwrap().json();
@@ -757,91 +846,58 @@ mod tests {
         assert_eq!(first["run"]["start"]["message"], "Application started");
         assert_eq!(first["instance"], "1");
         assert_eq!(reply["runs"][1]["run"]["status"], "open");
-        // Runs are annotations too.
-        let anns = block(annotations(main_window(&app), AnnotationsRequest::default())).unwrap();
-        assert_eq!(anns.iter().filter(|a| a.run.is_some()).count(), 2);
-
-        let draft: imt_core::spans::SpanPreviewRequest = serde_json::from_value(json!({"draft": {
-            "kind": "work", "label": "Work",
-            "start": {"type": "pattern", "pattern": "working"},
-            "stop": {"type": "markers", "kinds": ["stop"]},
-            "per": "field:ProcessId"
-        }}))
-        .unwrap();
-        let preview = serde_json::to_value(block(preview_spans(main_window(&app), draft)).unwrap()).unwrap();
-        assert_eq!(preview["errors"], json!([]));
-        assert_eq!(preview["summary"]["runs"], 2);
-        assert_eq!(preview["plan"]["span"]["start"], "work-start");
-        assert_eq!(preview["plan"]["markers"][0]["kind"], "work-start");
-        let bad: imt_core::spans::SpanPreviewRequest = serde_json::from_value(
-            json!({"draft": {"kind": "a b", "start": {"type": "markers", "kinds": []}, "stop": {"type": "pattern", "pattern": "("}}}),
-        )
-        .unwrap();
-        let preview = serde_json::to_value(block(preview_spans(main_window(&app), bad)).unwrap()).unwrap();
-        let fields: Vec<&str> = preview["errors"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|e| e["field"].as_str().unwrap())
-            .collect();
-        assert_eq!(fields, ["kind", "start", "stop"]);
-        assert!(preview["plan"].is_null());
         // Another window has its own (empty) workspace.
         window(&app, "w-2");
         let other = crate::windows::CurrentWindow::of(app.handle(), "w-2").unwrap();
         assert_eq!(block(query_runs(other, Default::default())).unwrap().total, 0);
     }
     #[test]
-    fn annotations_and_event_metrics_of_the_calling_window() {
-        let dir = TempDir::new("annotations");
-        let line = |t: &str, provider: &str, id: u32| {
-            format!("{{\"@t\":\"2026-10-14T{t}Z\",\"@mt\":\"{provider} {id}\",\"Provider\":\"{provider}\",\"EventId\":{id},\"Computer\":\"WEB01\"}}\n")
-        };
-        let text = [
-            line("10:00:00", "App", 1),
-            line("10:05:00", "EventLog", 6006),
-            line("10:08:05", "EventLog", 6005),
-            line("11:00:00", "App", 2),
-        ]
-        .concat();
-        std::fs::write(dir.0.join("system.clef"), text).unwrap();
-        let app = opened(None, std::slice::from_ref(&dir.0));
-
-        let all = block(annotations(main_window(&app), AnnotationsRequest::default())).unwrap();
-        let reboot = all.iter().find(|a| a.annotator == "windows.reboots").expect("a reboot span");
-        assert_eq!(reboot.owner, "net.decryptology.windows");
-        // The wire shape the UI reads (api.types.ts AnnotationDto).
-        let json = serde_json::to_value(reboot).unwrap();
-        for key in [
-            "annotator",
-            "owner",
-            "kind",
-            "from",
-            "to",
-            "instance",
-            "on",
-            "label",
-            "severity",
-            "evidenceQuery",
-        ] {
-            assert!(json.get(key).is_some(), "missing {key} in {json}");
-        }
-        assert_eq!(json["on"], json!({"field": "Computer", "value": "WEB01"}));
-        assert!(json["severity"].is_string());
-
-        let req: AnnotationsRequest = serde_json::from_value(json!({"to": 0})).unwrap();
+    fn problems_fixes_and_the_index_of_the_calling_window() {
+        let dir = TempDir::new("problems");
+        std::fs::write(
+            dir.0.join("odd.log"),
+            "14.10.2026 10:00:00 INFO first\n14.10.2026 10:00:01 INFO second\n",
+        )
+        .unwrap();
+        let app = test_app(None);
+        // Nothing opened: nothing to report, without starting the store.
+        assert!(block(import_problems(main_window(&app))).unwrap().is_empty());
+        assert!(block(index_status(main_window(&app))).unwrap().ready);
+        crate::paths::allow_under(app.handle(), "main", &dir.0);
+        block(open_paths(
+            app.handle().clone(),
+            main_window(&app),
+            vec![dir.0.to_string_lossy().into_owned()],
+        ))
+        .unwrap();
+        let problems = block(import_problems(main_window(&app))).unwrap();
+        assert!(!problems.is_empty(), "the unreadable timestamps are a problem");
+        let fix: imt_core::ports::QuickFix =
+            serde_json::from_value(json!({"profileOverride": "[parse]\ntimestamp_formats = ['%d.%m.%Y %H:%M:%S']\n"})).unwrap();
+        let e = block(evaluate_fix(main_window(&app), fix)).unwrap();
         assert!(
-            block(annotations(main_window(&app), req)).unwrap().is_empty(),
-            "nothing before the epoch"
+            e.fixed <= e.checked && (e.checked > 0 || !e.notes.is_empty()),
+            "the store says what it checked: {e:?}"
         );
-        // Another window has its own (empty) workspace.
-        window(&app, "w-2");
-        let other = crate::windows::CurrentWindow::of(app.handle(), "w-2").unwrap();
-        assert!(block(annotations(other, AnnotationsRequest::default())).unwrap().is_empty());
+        let bad: imt_core::ports::QuickFix = serde_json::from_value(json!({"profileOverride": "[parse"})).unwrap();
+        assert_eq!(
+            block(evaluate_fix(main_window(&app), bad)).unwrap_err().code,
+            crate::ErrorCode::Invalid
+        );
+        let index = block(index_status(main_window(&app))).unwrap();
+        assert!(index.indexed <= index.total, "{index:?}");
+    }
 
+    #[test]
+    fn event_metrics_and_annotations_of_the_calling_window() {
+        let app = test_app(None);
         // The built-in plugins subscribe to nothing yet; metrics are a list either way.
         let metrics = plugin_events(main_window(&app)).now();
         assert!(metrics.iter().all(|m| !m.plugin.is_empty()));
+        // Annotators do not run over the store yet: nothing is stored, nothing fails.
+        assert!(block(annotations(main_window(&app), AnnotationsRequest::default()))
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
@@ -878,12 +934,63 @@ mod tests {
         assert!(end.error.unwrap_or_default().contains("unknown export format"));
     }
 
+    fn save(
+        app: &tauri::App<MockRuntime>,
+        label: &str,
+        path: &str,
+        name: &str,
+        ui: Value,
+        reports: Option<Vec<Value>>,
+        overwrite: Option<bool>,
+    ) -> CmdResult<crate::services::project::SavedProject> {
+        let st = crate::windows::CurrentWindow::of(app.handle(), label).unwrap();
+        block(save_project(
+            app.handle().clone(),
+            st,
+            crate::paths::WindowGrants::of(app.handle(), label),
+            OpId::default(),
+            path.to_string(),
+            name.to_string(),
+            ui,
+            reports,
+            overwrite,
+        ))
+    }
+
+    fn open(app: &tauri::App<MockRuntime>, label: &str, path: &str) -> CmdResult<OpenedProject> {
+        let st = crate::windows::CurrentWindow::of(app.handle(), label).unwrap();
+        block(open_project(
+            app.handle().clone(),
+            st,
+            crate::paths::WindowGrants::of(app.handle(), label),
+            OpId::default(),
+            path.to_string(),
+        ))
+    }
+
+    /// A project is the store saved as an `.imtz`: it opens without the log files, with its profile, view and
+    /// reports.
     #[test]
-    fn projects_and_context() {
+    fn projects_are_self_contained_and_open_without_their_files() {
         let dir = TempDir::new("project");
-        let app = opened(Some(dir.0.clone()), &[samples().join("log4net")]);
-        let st = || main_window(&app);
+        let logs = dir.0.join("logs");
+        std::fs::create_dir_all(&logs).unwrap();
+        fn copy_dir(from: &std::path::Path, to: &std::path::Path) {
+            std::fs::create_dir_all(to).unwrap();
+            for f in std::fs::read_dir(from).unwrap().flatten() {
+                if f.path().is_dir() {
+                    copy_dir(&f.path(), &to.join(f.file_name()));
+                } else {
+                    std::fs::copy(f.path(), to.join(f.file_name())).unwrap();
+                }
+            }
+        }
+        copy_dir(&samples().join("log4net"), &logs);
+        let app = test_app(Some(dir.0.join("profiles")));
         crate::paths::allow_under(app.handle(), "main", &dir.0);
+        let st = || main_window(&app);
+        let opened = block(open_paths(app.handle().clone(), st(), vec![logs.to_string_lossy().into_owned()])).unwrap();
+        assert!(opened.total > 0, "{:?}", opened.unrecognized);
         let shared = || app.state::<crate::AppState>();
         crate::test_support::job_done(
             &app,
@@ -897,124 +1004,81 @@ mod tests {
             .now()
             .unwrap(),
         );
-        let file = dir.0.join("incident.imtproj").to_string_lossy().into_owned();
-        let saved = block(save_project(
-            app.handle().clone(),
-            st(),
-            crate::paths::WindowGrants::of(app.handle(), "main"),
-            OpId::default(),
-            file.clone(),
-            "Incident".into(),
-            json!({"bookmarks": [3]}),
-            Some(vec![json!({"id": "r1", "title": "R"})]),
-            None,
-        ))
-        .unwrap();
-        assert_eq!(saved["name"], "Incident");
+        let total = block(workspace_summary(st())).unwrap().total;
+        assert!(total > 0);
+        let file = dir.0.join("incident.imtz").to_string_lossy().into_owned();
+        let report = || Some(vec![json!({"id": "r1", "title": "R"})]);
+        let saved = save(&app, "main", &file, "Incident", json!({"bookmarks": [3]}), report(), None).unwrap();
+        assert_eq!(saved.name, "Incident");
         // "Save As" over an existing file is refused until confirmed; "Save" to it passes `overwrite`.
-        let again = block(save_project(
-            app.handle().clone(),
-            st(),
-            crate::paths::WindowGrants::of(app.handle(), "main"),
-            OpId::default(),
-            file.clone(),
-            "Incident".into(),
-            json!({"bookmarks": [3]}),
-            None,
-            None,
-        ));
-        assert_eq!(
-            again.unwrap_err(),
-            crate::error::file_exists(format!("{file} already exists; confirm to replace it"))
-        );
-        block(save_project(
-            app.handle().clone(),
-            st(),
-            crate::paths::WindowGrants::of(app.handle(), "main"),
-            OpId::default(),
-            file.clone(),
-            "Incident".into(),
-            json!({"bookmarks": [3]}),
-            Some(vec![json!({"id": "r1", "title": "R"})]),
-            Some(true),
-        ))
-        .unwrap();
+        let again = save(&app, "main", &file, "Incident", json!({}), None, None);
+        assert_eq!(again.unwrap_err().code, crate::ErrorCode::FileExists);
+        save(&app, "main", &file, "Incident", json!({"bookmarks": [3]}), report(), Some(true)).unwrap();
         assert_eq!(st().project().as_deref(), Some(file.as_str()));
+        // Only projects are written, and reports must be valid.
+        assert!(save(
+            &app,
+            "main",
+            &dir.0.join("x.imtproj").to_string_lossy(),
+            "x",
+            Value::Null,
+            None,
+            None
+        )
+        .is_err());
+        assert!(save(&app, "main", &file, "x", Value::Null, Some(vec![json!({})]), Some(true)).is_err());
 
         let ctx: ContextRequest = serde_json::from_value(json!({"recordId": 5, "before": 1, "after": 1})).unwrap();
-        assert_eq!(block(source_context(st(), ctx)).unwrap()["lines"].as_array().unwrap().len(), 3);
+        assert!(!block(source_context(st(), ctx)).unwrap().lines.is_empty());
 
-        block(clear_workspace(st())).unwrap().json();
-        assert!(st().project().is_none());
-        crate::test_support::job_done(
-            &app,
-            crate::profile::save_profile(app.handle().clone(), shared(), st(), OpId::default(), "name = 'Other'".into())
-                .now()
-                .unwrap(),
-        );
-        let opened = block(open_project(
-            app.handle().clone(),
-            st(),
-            crate::paths::WindowGrants::of(app.handle(), "main"),
-            OpId::default(),
-            file.clone(),
-        ))
-        .unwrap();
-        assert_eq!(opened["name"], "Incident");
-        assert_eq!(opened["ui"]["bookmarks"][0], 3);
-        assert_eq!(opened["reports"][0]["title"], "R");
-        assert_eq!(opened["profile"]["name"], "Project profile");
-        assert_eq!(opened["summary"]["profileName"], "Project profile");
-        assert!(opened["summary"]["total"].as_u64().unwrap() > 0);
-        assert_eq!(opened["missing"].as_array().unwrap().len(), 0);
-        assert_eq!(crate::profile::get_profile(st()).now().unwrap().name, "Project profile");
-        let missing = dir.0.join("nope.imtproj").to_string_lossy().into_owned();
-        assert!(block(open_project(
-            app.handle().clone(),
-            st(),
-            crate::paths::WindowGrants::of(app.handle(), "main"),
-            OpId::default(),
-            missing
-        ))
-        .is_err());
+        // The log files go away; the project opens in another window all the same.
+        std::fs::remove_dir_all(&logs).unwrap();
+        crate::paths::allow_under(app.handle(), "w-2", &dir.0);
+        let opened = open(&app, "w-2", &file).unwrap();
+        assert_eq!(opened.name, "Incident");
+        assert_eq!(opened.ui["bookmarks"][0], 3);
+        assert_eq!(opened.reports[0]["title"], "R");
+        assert_eq!(opened.profile.name, "Project profile");
+        assert_eq!(opened.summary.total, total);
+        assert!(opened.missing.is_empty());
+        let w2 = crate::windows::CurrentWindow::of(app.handle(), "w-2").unwrap();
+        assert_eq!(crate::profile::get_profile(w2).now().unwrap().name, "Project profile");
+        // Missing and damaged projects are refused with a message.
+        assert!(open(&app, "w-2", &dir.0.join("nope.imtz").to_string_lossy()).is_err());
+        std::fs::write(dir.0.join("bad.imtz"), "not a zip").unwrap();
+        assert!(open(&app, "w-2", &dir.0.join("bad.imtz").to_string_lossy()).is_err());
         std::fs::write(
             dir.0.join("bad.imtproj"),
             r#"{"version":1,"name":"x","sources":[],"profile":"[parse"}"#,
         )
         .unwrap();
-        let bad = dir.0.join("bad.imtproj").to_string_lossy().into_owned();
-        assert!(block(open_project(
-            app.handle().clone(),
-            st(),
-            crate::paths::WindowGrants::of(app.handle(), "main"),
-            OpId::default(),
-            bad
-        ))
-        .is_err());
-        assert!(block(save_project(
-            app.handle().clone(),
-            st(),
-            crate::paths::WindowGrants::of(app.handle(), "main"),
-            OpId::default(),
-            "/no/such/dir/x.imtproj".into(),
-            "x".into(),
-            Value::Null,
-            None,
-            None
-        ))
-        .is_err());
-        assert!(block(save_project(
-            app.handle().clone(),
-            st(),
-            crate::paths::WindowGrants::of(app.handle(), "main"),
-            OpId::default(),
-            file.clone(),
-            "x".into(),
-            Value::Null,
-            Some(vec![json!({})]),
-            Some(true)
-        ))
-        .is_err());
+        assert!(open(&app, "w-2", &dir.0.join("bad.imtproj").to_string_lossy()).is_err());
+        block(clear_workspace(st())).unwrap();
+        assert!(st().project().is_none());
+    }
+
+    /// The autosaved session names the store folder: reopening it reopens the store instead of importing again.
+    #[test]
+    fn a_session_reopens_its_store() {
+        let dir = TempDir::new("session-store");
+        let app = opened(None, &[samples().join("log4net")]);
+        let st = || main_window(&app);
+        let total = block(workspace_summary(st())).unwrap().total;
+        let session = block(session_of(&st(), "Last session".into(), json!({"zoom": 1}))).unwrap();
+        assert!(session.store.is_some() && !session.sources.is_empty());
+        let file = dir.0.join("session.imtproj");
+        session.save(&file).unwrap();
+        let w2 = crate::windows::CurrentWindow::of(app.handle(), "w-2").unwrap();
+        let opened = block(open_project_file(app.handle(), &w2, OpId::default(), file.clone(), String::new())).unwrap();
+        assert_eq!(opened.summary.total, total);
+        assert_eq!(opened.ui["zoom"], 1);
+        // Its store gone, the session imports its files again.
+        let mut gone = session.clone();
+        gone.store = Some(dir.0.join("no-store").to_string_lossy().into_owned());
+        gone.save(&file).unwrap();
+        let w3 = crate::windows::CurrentWindow::of(app.handle(), "w-3").unwrap();
+        let opened = block(open_project_file(app.handle(), &w3, OpId::default(), file, String::new())).unwrap();
+        assert_eq!(opened.summary.total, total);
     }
 
     #[test]
@@ -1037,7 +1101,7 @@ mod tests {
             e.props
         );
         assert!(e.props["Rows"].parse::<u64>().unwrap() > 0);
-        let file = dir.0.join("p.imtproj").to_string_lossy().into_owned();
+        let file = dir.0.join("p.imtz").to_string_lossy().into_owned();
         block(save_project(
             app.handle().clone(),
             st(),
@@ -1050,7 +1114,7 @@ mod tests {
             None,
         ))
         .unwrap();
-        assert_eq!(crate::tools::tests::domain_event("project.saved", "op-save").props["Sources"], "1");
+        assert!(crate::tools::tests::domain_event("project.saved", "op-save").props["Path"].starts_with("<dir#"));
         block(open_project(
             app.handle().clone(),
             st(),
@@ -1060,10 +1124,7 @@ mod tests {
         ))
         .unwrap();
         let opened = crate::tools::tests::domain_event("project.opened", "op-open");
-        assert_eq!(
-            (opened.props["Path"].starts_with("<dir#"), opened.props["Missing"].as_str()),
-            (true, "0")
-        );
+        assert!(opened.props["Path"].starts_with("<dir#"));
         // Nothing of the files' content or folders is logged.
         let all = format!("{:?}", crate::activity::captured());
         assert!(!all.contains(&dir.0.to_string_lossy().to_string()));
@@ -1079,20 +1140,16 @@ mod tests {
                 path: "/secret/a.bin".into(),
                 name: "a.bin".into(),
                 reason: "not a recognised format".into(),
+                crashed: false,
             },
             imt_core::api::UnrecognizedFile {
                 path: "/secret/b.log".into(),
                 name: "b.log".into(),
-                reason: "importer x crashed: index out of bounds".into(),
-            },
-            imt_core::api::UnrecognizedFile {
-                path: "/secret/old.log".into(),
-                name: "old.log".into(),
-                reason: "not a recognised format".into(),
+                reason: "importer x failed: index out of bounds".into(),
+                crashed: true,
             },
         ];
-        let before: std::collections::HashSet<String> = ["/secret/old.log".to_string()].into();
-        log_unrecognized(&files, &before);
+        log_unrecognized(&files);
         let logged: Vec<_> = crate::activity::captured()
             .into_iter()
             .filter(|c| c.props.contains_key("File"))
@@ -1112,9 +1169,10 @@ mod tests {
                 path: format!("/x/{i}"),
                 name: i.to_string(),
                 reason: "r".into(),
+                crashed: false,
             })
             .collect();
-        log_unrecognized(&many, &Default::default());
+        log_unrecognized(&many);
         assert!(crate::activity::captured()
             .iter()
             .any(|c| c.message == "More files not imported" && c.props["More"] == "3"));
@@ -1315,7 +1373,7 @@ mod tests {
         assert!(block(open_paths(app.handle().clone(), w2, vec![s(&capture)])).is_err());
 
         // A project: saved where the user chose, listed, reopened from the list by another window.
-        let project = dir.0.join("p.imtproj");
+        let project = dir.0.join("p.imtz");
         crate::paths::grant(
             app.handle(),
             "main",
@@ -1343,12 +1401,12 @@ mod tests {
         let g3 = || crate::paths::WindowGrants::of(app.handle(), "w-3");
         assert!(g3().read_file(&s(&capture), &[]).is_err());
         let opened = block(open_project(app.handle().clone(), w3.clone(), g3(), OpId::default(), s(&project))).unwrap();
-        assert_eq!(opened["name"], "P");
+        assert_eq!(opened.name, "P");
         assert!(g3().read_file(&s(&capture), &[]).is_ok(), "the project's captures may be reopened");
-        assert!(g3().write(&s(&project), &["imtproj"]).is_ok(), "Save writes the project back");
+        assert!(g3().write(&s(&project), &["imtz"]).is_ok(), "Save writes the project back");
         assert_eq!(w3.project().as_deref(), Some(s(&project).as_str()));
         // A project nobody chose is refused.
-        let other = dir.0.join("other.imtproj");
+        let other = dir.0.join("other.imtz");
         std::fs::copy(&project, &other).unwrap();
         let e = block(open_project(app.handle().clone(), w3, g3(), OpId::default(), s(&other))).unwrap_err();
         assert!(e.contains("only reads files you choose"), "{e}");

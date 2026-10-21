@@ -2,7 +2,7 @@ import { ImtBackend } from '../../core/backend';
 import { EMPTY_QUERY } from '../../core/workspace.store';
 import { RecordView } from '../../core/api.types';
 import { AnalysisBackend } from '../../core/analysis-backend';
-import { QlQuery, QueryOutcome, QueryProgress, StreamedQueryOutcome } from '../../core/api.types';
+import { Analyzed, fullCoverage, QlQuery, QueryOutcome, QueryProgress, StreamedQueryOutcome } from '../../core/api.types';
 import {
   filterRecords,
   mockAnomalies,
@@ -24,6 +24,11 @@ function newestTs(records: readonly RecordView[]): number | null {
   let newest: number | null = null;
   for (const r of records) if (r.ts !== null && (newest === null || r.ts > newest)) newest = r.ts;
   return newest;
+}
+
+/** The demo data is small: an analysis looks at every one of the `matched` events. */
+function analysed<T>(result: T, matched: number): Analyzed<T> {
+  return { result, coverage: fullCoverage(matched) };
 }
 
 /** Loads every record of the (mock) workspace through the regular backend, so ids match the grid. */
@@ -96,36 +101,38 @@ export class MockAnalysisBackend extends AnalysisBackend {
     return mockCompletions(text, cursor, names);
   }
   async queryPatterns(query: QlQuery) {
-    return mockPatterns(await this.matched(query));
+    const m = await this.matched(query);
+    return analysed(mockPatterns(m), m.length);
   }
   async queryExceptions(query: QlQuery) {
-    return mockExceptions(await this.matched(query));
-  }
-  /** The demo data is small: everything is analysed. */
-  override async analysisCoverage(query: QlQuery) {
-    const total = (await this.matched(query)).length;
-    return { analysed: total, total };
+    const m = await this.matched(query);
+    return analysed(mockExceptions(m), m.length);
   }
   async queryAnomalies(query: QlQuery) {
-    return mockAnomalies(await this.matched(query));
+    const m = await this.matched(query);
+    return analysed(mockAnomalies(m), m.length);
   }
   async compareWindows(a: QlQuery, b: QlQuery) {
-    return mockCompare(await this.matched(a), await this.matched(b));
+    const [ma, mb] = [await this.matched(a), await this.matched(b)];
+    return analysed(mockCompare(ma, mb), ma.length + mb.length);
   }
   async fieldStats(query: QlQuery, field: string, buckets: number) {
     return mockFieldStats(await this.matched(query), field, buckets);
   }
   async correlate(field: string, value: string) {
-    return mockCorrelate(await this.records(), field, value);
+    const all = await this.records();
+    return analysed(mockCorrelate(all, field, value), all.length);
   }
   async queryTraces(query: QlQuery, traceId: string) {
-    return mockTraces(await this.matched(query), traceId);
+    const m = await this.matched(query);
+    return { ...mockTraces(m, traceId), coverage: fullCoverage(m.length) };
   }
   async queryRequests(query: QlQuery, idField: string) {
-    return mockRequests(await this.matched(query), idField);
+    const m = await this.matched(query);
+    return analysed(mockRequests(m, idField), m.length);
   }
   async queryMoment(query: QlQuery, from: number, to: number) {
     const r = await this.resolved(query);
-    return mockMoment(r.all, r.query, from, to);
+    return analysed(mockMoment(r.all, r.query, from, to), filterRecords(r.all, { ...r.query, from, to }).length);
   }
 }

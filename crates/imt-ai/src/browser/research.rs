@@ -112,12 +112,12 @@ pub fn check_query(query: &str, terms: &[String], in_logs: &dyn Fn(&str) -> bool
 
 /// Whether an event of the loaded logs contains `value` in its message or a field (one bounded search): the
 /// leak guard's look-up.
-pub fn value_in_logs(store: &dyn imt_core::LogStore, value: &str) -> bool {
+pub fn value_in_logs(store: &dyn imt_core::ports::Store, value: &str) -> bool {
     let needle = value.trim().to_lowercase();
     if needle.chars().count() < 3 {
         return false;
     }
-    let req = imt_core::api::PageRequest {
+    let req = imt_core::ports::PageQuery {
         query: imt_core::query::Query {
             text: value.trim().to_string(),
             ..imt_core::query::Query::default()

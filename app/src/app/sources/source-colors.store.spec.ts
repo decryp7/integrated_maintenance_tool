@@ -14,7 +14,7 @@ import { swatchAt } from './source-colors';
 
 const row = (source: number, group: string): RecordView => ({
   id: 1,
-  ts: 0,
+  ts: 0, tsState: 'parsed',
   level: 'Information',
   message: 'm',
   template: null,
@@ -22,7 +22,7 @@ const row = (source: number, group: string): RecordView => ({
   fields: {},
   source,
   sourceName: 's',
-  line: 1,
+  line: 1, byteOffset: 0,
   group,
   markers: [],
 });

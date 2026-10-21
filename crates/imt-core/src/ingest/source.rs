@@ -41,6 +41,7 @@ fn unrecognized(path: &str, name: &str, reason: impl Into<String>) -> Outcome {
         path: path.to_string(),
         name: name.to_string(),
         reason: reason.into(),
+        crashed: false,
     })
 }
 
@@ -204,11 +205,18 @@ fn import_source<R: Read + Seek>(
         };
         Ok(read())
     });
+    let mut crashed = false;
     let result = match caught {
         Ok(Ok(r)) => Ok(r),
         Ok(Err(e)) if e.is::<ImportCancelled>() => Err(NOT_IMPORTED.to_string()),
-        Ok(Err(e)) => Err(format!("{e:#}")),
-        Err(panic) => Err(format!("{panic:#} (please report this file)")),
+        Ok(Err(e)) => {
+            crashed = crate::guard::Crashed::is_in(&e);
+            Err(format!("{e:#}"))
+        }
+        Err(panic) => {
+            crashed = true;
+            Err(format!("{panic:#} (please report this file)"))
+        }
     };
     let reason = match result {
         Ok((batched, skipped)) if batched.parsed > 0 => {
@@ -248,7 +256,12 @@ fn import_source<R: Read + Seek>(
     if let Err(e) = sink.abort_source(id) {
         log::warn!(source = src.path.as_str(); "could not remove a partly imported source: {e:#}");
     }
-    unrecognized(&src.path, &src.name, reason)
+    Outcome::Unrecognized(UnrecognizedFile {
+        path: src.path.clone(),
+        name: src.name.clone(),
+        reason,
+        crashed,
+    })
 }
 
 /// Streams the events of one planned source into the sink; returns them and the importer's skipped count.

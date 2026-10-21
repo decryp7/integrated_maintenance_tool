@@ -2,7 +2,8 @@
 //! composing the selected proposals into a profile that the workspace accepts.
 
 use imt_core::survey::{self, Fragment, KeyOrigin, LifecycleRole, ProposalGroup, ProposalPreview, SurveyControl, SurveyRequest};
-use imt_core::{LogStore, Profile, Workspace, DEFAULT_PROFILE_TOML};
+use imt_core::workspace::WorkspaceStore;
+use imt_core::{Profile, Workspace, DEFAULT_PROFILE_TOML};
 use std::path::PathBuf;
 
 fn samples() -> PathBuf {
@@ -10,7 +11,7 @@ fn samples() -> PathBuf {
 }
 
 /// The log samples (profiler captures are not logs; the profile file is not a log either).
-fn workspace() -> Workspace {
+fn workspace() -> WorkspaceStore {
     let mut paths: Vec<PathBuf> = std::fs::read_dir(samples())
         .unwrap()
         .map(|e| e.unwrap().path())
@@ -22,12 +23,11 @@ fn workspace() -> Workspace {
     paths.sort();
     let mut ws = Workspace::new(Profile::default_profile()).unwrap();
     ws.open(&paths).unwrap();
-    ws
+    WorkspaceStore::new(ws)
 }
 
-fn setup(ws: &Workspace) -> survey::FolderSetup {
-    ws.survey_folder(DEFAULT_PROFILE_TOML, &SurveyRequest::default(), &SurveyControl::new())
-        .unwrap()
+fn setup(ws: &WorkspaceStore) -> survey::FolderSetup {
+    survey::run(ws, DEFAULT_PROFILE_TOML, &SurveyRequest::default(), &SurveyControl::new()).unwrap()
 }
 
 #[test]
@@ -95,15 +95,16 @@ fn heuristic_proposals_on_the_samples_are_valid_and_previewed() {
 
 #[test]
 fn composing_the_recommended_proposals_gives_a_profile_the_workspace_applies() {
-    let mut ws = workspace();
-    let setup = setup(&ws);
+    let store = workspace();
+    let setup = setup(&store);
     let fragments: Vec<Fragment> = setup
         .proposals
         .iter()
         .filter(|p| p.recommended)
         .flat_map(|p| p.fragments.iter().cloned())
         .collect();
-    let composed = survey::compose(&ws, DEFAULT_PROFILE_TOML, &fragments).unwrap();
+    let composed = survey::compose(&store, DEFAULT_PROFILE_TOML, &fragments).unwrap();
+    let mut ws = store.write();
     assert!(composed.added > 0);
     assert!(composed.toml.contains("key = [\"MachineName\"]"), "{}", composed.toml);
     assert!(composed.toml.contains("[[span]]") && composed.toml.contains("svc-start"));
@@ -119,10 +120,8 @@ fn composing_the_recommended_proposals_gives_a_profile_the_workspace_applies() {
 
 #[test]
 fn survey_without_files_says_so() {
-    let ws = Workspace::new(Profile::default_profile()).unwrap();
-    let err = ws
-        .survey_folder(DEFAULT_PROFILE_TOML, &SurveyRequest::default(), &SurveyControl::new())
-        .unwrap_err();
+    let ws = WorkspaceStore::new(Workspace::new(Profile::default_profile()).unwrap());
+    let err = survey::run(&ws, DEFAULT_PROFILE_TOML, &SurveyRequest::default(), &SurveyControl::new()).unwrap_err();
     assert_eq!(err, survey::SurveyError::NothingOpened);
 }
 
@@ -131,9 +130,7 @@ fn a_cancelled_survey_stops() {
     let ws = workspace();
     let control = SurveyControl::new();
     control.cancel();
-    let err = ws
-        .survey_folder(DEFAULT_PROFILE_TOML, &SurveyRequest::default(), &control)
-        .unwrap_err();
+    let err = survey::run(&ws, DEFAULT_PROFILE_TOML, &SurveyRequest::default(), &control).unwrap_err();
     assert_eq!(err, survey::SurveyError::Cancelled);
 }
 
@@ -145,7 +142,7 @@ fn limits_bound_the_sample() {
         max_events: Some(120),
         max_millis: None,
     };
-    let s = ws.survey_folder(DEFAULT_PROFILE_TOML, &req, &SurveyControl::new()).unwrap().survey;
+    let s = survey::run(&ws, DEFAULT_PROFILE_TOML, &req, &SurveyControl::new()).unwrap().survey;
     assert!(s.sampled_events <= 120, "{}", s.sampled_events);
     assert!(s.groups.iter().all(|g| g.sampled <= 50));
     assert!(s.truncated);

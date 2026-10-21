@@ -195,8 +195,8 @@ pub enum ProgressUnit {
     Bytes,
 }
 
-/// How far a job is. Either part may be unknown.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+/// How far a job is. Any part may be unknown.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JobProgress {
     /// 0..=1.
@@ -208,6 +208,14 @@ pub struct JobProgress {
     /// What `done` and `total` count (absent in older payloads = items).
     #[serde(default)]
     pub unit: ProgressUnit,
+    /// Bytes read so far and in all (imports).
+    #[serde(default)]
+    pub bytes_done: Option<u64>,
+    #[serde(default)]
+    pub bytes_total: Option<u64>,
+    /// What it works on now (an import: the file's name; never a path).
+    #[serde(default)]
+    pub current: Option<String>,
 }
 
 impl JobProgress {
@@ -223,8 +231,7 @@ impl JobProgress {
             fraction: (total > 0).then(|| (done as f64 / total as f64) as f32),
             done: Some(done),
             total: (total > 0).then_some(total),
-            eta_ms: None,
-            unit: ProgressUnit::Items,
+            ..JobProgress::default()
         }
     }
 
@@ -240,10 +247,7 @@ impl JobProgress {
     pub fn sanitized(self) -> JobProgress {
         JobProgress {
             fraction: self.fraction.filter(|f| f.is_finite()).map(|f| f.clamp(0.0, 1.0)),
-            done: self.done,
-            total: self.total,
-            eta_ms: self.eta_ms,
-            unit: self.unit,
+            ..self
         }
     }
 }
@@ -507,7 +511,7 @@ mod tests {
             (ProgressUnit::Bytes, Some(512), Some(2048), Some(0.25))
         );
         assert_eq!(JobProgress::counts(1, 2).unit, ProgressUnit::Items);
-        assert_eq!(p.sanitized().unit, ProgressUnit::Bytes);
+        assert_eq!(p.clone().sanitized().unit, ProgressUnit::Bytes);
         assert_eq!(serde_json::to_value(p).unwrap()["unit"], "bytes");
         let old: JobProgress = serde_json::from_value(serde_json::json!({"fraction": 0.5, "done": 1, "total": 2, "etaMs": null})).unwrap();
         assert_eq!(old.unit, ProgressUnit::Items);

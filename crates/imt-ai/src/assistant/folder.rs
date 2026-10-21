@@ -126,8 +126,8 @@ impl<P: LlmProvider> Assistant<P> {
         let control = SurveyControl::new();
         let (survey, sampled) = store.with(|s| survey::survey_only(s, req, &control)).map_err(survey_error)?;
         let heuristic_kinds: HashSet<String> = store.with(|s| {
-            let p = s.profile();
-            survey::propose(&survey, p)
+            let p = s.active_profile().unwrap_or_else(|_| imt_core::Profile::default_profile());
+            survey::propose(&survey, &p)
                 .iter()
                 .flat_map(|c| c.fragments.iter())
                 .filter_map(|f| match f {
@@ -414,15 +414,17 @@ mod tests {
     use super::*;
     use crate::assistant::AssistantConfig;
     use crate::llm::ScriptedProvider;
-    use imt_core::{LogStore, Profile, Workspace, DEFAULT_PROFILE_TOML};
+    use imt_core::ports::Store;
+    use imt_core::workspace::WorkspaceStore;
+    use imt_core::{Profile, Workspace, DEFAULT_PROFILE_TOML};
     use std::path::PathBuf;
 
-    fn store() -> Workspace {
+    fn store() -> WorkspaceStore {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../samples");
         let mut ws = Workspace::new(Profile::default_profile()).unwrap();
         ws.open(&[root.join("serilog-text"), root.join("kubernetes"), root.join("log4net")])
             .unwrap();
-        ws
+        WorkspaceStore::new(ws)
     }
 
     const MARKERS: &str = r##"{"markers":[{"kind":"pod-crash","label":"Pod crash","color":"#FF4FA3","when":[{"field":"@message","op":"contains","value":"panic:"}]}],"rationale":"The consumer panics."}"##;
@@ -439,7 +441,7 @@ mod tests {
         let ws = store();
         let a = assistant(&[MARKERS, EXTRACT, QUERY_OK, QUERY_EMPTY]);
         let r = a
-            .refine_folder_setup(&ws as &dyn LogStore, DEFAULT_PROFILE_TOML, &SurveyRequest::default())
+            .refine_folder_setup(&ws as &dyn Store, DEFAULT_PROFILE_TOML, &SurveyRequest::default())
             .unwrap();
         let ids: Vec<&str> = r.proposals.iter().map(|p| p.id.as_str()).collect();
         assert!(ids.contains(&"ai:marker:pod-crash"), "{ids:?} {:?} {:?}", r.skipped, r.notes);
@@ -465,19 +467,19 @@ mod tests {
         let ws = store();
         let a = assistant(&["not json", "still not json", EXTRACT, QUERY_OK, QUERY_OK]);
         let r = a
-            .refine_folder_setup(&ws as &dyn LogStore, DEFAULT_PROFILE_TOML, &SurveyRequest::default())
+            .refine_folder_setup(&ws as &dyn Store, DEFAULT_PROFILE_TOML, &SurveyRequest::default())
             .unwrap();
         assert!(r.notes.iter().any(|n| n.starts_with("Markers:")), "{:?}", r.notes);
         assert!(r.proposals.iter().any(|p| p.id == "ai:extract:outbox-dispatched"));
         let cancelled = assistant(&[]);
         cancelled.cancel();
         assert!(matches!(
-            cancelled.refine_folder_setup(&ws as &dyn LogStore, DEFAULT_PROFILE_TOML, &SurveyRequest::default()),
+            cancelled.refine_folder_setup(&ws as &dyn Store, DEFAULT_PROFILE_TOML, &SurveyRequest::default()),
             Err(AiError::Cancelled)
         ));
-        let empty = Workspace::new(Profile::default_profile()).unwrap();
+        let empty = WorkspaceStore::new(Workspace::new(Profile::default_profile()).unwrap());
         assert!(matches!(
-            assistant(&[]).refine_folder_setup(&empty as &dyn LogStore, DEFAULT_PROFILE_TOML, &SurveyRequest::default()),
+            assistant(&[]).refine_folder_setup(&empty as &dyn Store, DEFAULT_PROFILE_TOML, &SurveyRequest::default()),
             Err(AiError::Invalid(_))
         ));
     }
@@ -490,7 +492,7 @@ mod tests {
             AssistantConfig::default(),
         );
         assert!(matches!(
-            a.refine_folder_setup(&ws as &dyn LogStore, DEFAULT_PROFILE_TOML, &SurveyRequest::default()),
+            a.refine_folder_setup(&ws as &dyn Store, DEFAULT_PROFILE_TOML, &SurveyRequest::default()),
             Err(AiError::NoModel)
         ));
     }

@@ -577,9 +577,9 @@ fn build<R: Runtime>(app: &AppHandle<R>) -> SettingsService {
     // Every window has the same plugins (one factory); any window can tell.
     let installed = app.try_state::<Windows>().and_then(|w| w.any()).map_or_else(Vec::new, |state| {
         state
-            .store_read()
-            .summary()
-            .plugins
+            .host
+            .registry
+            .plugins()
             .into_iter()
             .map(|p| (p.id, p.name, p.version))
             .collect()
@@ -600,12 +600,8 @@ fn build<R: Runtime>(app: &AppHandle<R>) -> SettingsService {
             return Vec::new();
         };
         let mut last = crate::sync::lock(&last_known);
-        // Never wait for a long import: while the workspace is busy, the last known list is shown.
-        match state.workspace.try_read() {
-            Ok(store) => *last = store.plugin_settings(),
-            Err(std::sync::TryLockError::Poisoned(p)) => *last = p.into_inner().plugin_settings(),
-            Err(std::sync::TryLockError::WouldBlock) => {}
-        }
+        // The window's registry answers at once (imports run in the store worker).
+        *last = state.host.registry.plugin_settings();
         last.clone()
     });
     let debounce = Arc::new(AtomicU64::new(DEFAULT_LIVE_TAIL_DEBOUNCE.as_millis() as u64));
@@ -1461,12 +1457,8 @@ pub(crate) mod tests {
         assert!(import_settings(h.clone(), grants(), bad.to_string_lossy().into_owned())
             .now()
             .is_err());
-        // While an import holds the workspace, the status is read without waiting for it.
-        {
-            let state = crate::test_support::main_window(&app);
-            let _busy = state.workspace.write().unwrap();
-            assert!(!settings_sections(h.clone()).now().unwrap().sections.is_empty());
-        }
+        // The status is read from the window's registry (imports run in the store worker).
+        assert!(!settings_sections(h.clone()).now().unwrap().sections.is_empty());
         // The plugin sections come from the workspace's registry (nothing is quarantined here).
         let web = settings_sections(h.clone()).now().unwrap();
         assert_eq!(view(&web, "net.decryptology.windows").status, SectionStatus::Active);

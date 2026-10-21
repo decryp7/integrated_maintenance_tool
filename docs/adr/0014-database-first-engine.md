@@ -643,6 +643,111 @@ Phase R2c ("read side") gives the DuckDB store the rest of the read ports; the a
 - Span rule inference: `SpanRuleRequest`, `SpanProposal { candidates: [{ description, key, exampleKeys, start, stop,
   kind, profileOverride, evaluation }], notes }`, `SpanRuleCheck`, `SpanEvaluation`.
 
+## Implementation notes (6c, 2026-10-21)
+
+Batch 6c switches the app to the new engine: every window runs on the DuckDB store in the store worker; the
+in-memory `Workspace` stays in `imt-core` only as the test oracle (differential tests) and for what is listed under
+"Not on the store yet".
+
+### What switched
+
+- **One store per window, out of process.** A window's engine slot holds a `RemoteStore` (crate
+  `imt-store-client`, no DuckDB link) on a supervised `imt-store-worker` child (`ChildKind::StoreWorker`, its own
+  child log, a 2 GB memory cap, restart and reopen of its stores after a crash). The store folder of a window is a
+  scratch folder (`<data>/stores/<label>-<pid>-<n>`, swept at start unless its process is alive) until the user
+  saves it as a project. Tests use the same store in process (`LocalHost`), so command tests run without the
+  worker binary.
+- **Every command through typed port calls.** The worker protocol is a typed operation table (`StoreOp`, wire
+  order = declaration order, new operations at the end) with JSON bodies of the port DTOs; scans stream Arrow IPC
+  items; calls are cancellable (a `Cancel` frame interrupts DuckDB through the `QueryControl` scope of the call).
+  No command passes `serde_json::Value` through any more; the parity test asks every operation in process and
+  over the worker and compares the JSON (export file bytes included).
+- **Ports.** `Store` = `Ingest + Query + Positions + Analysis + Profiles + Diagnostics + Search + Projects`.
+  Added: `Query::events` (by id: bookmarks, reports, AI citations), `Projects` (save, export, close),
+  `Profiles::preview_spans`, `Profiles::{parsers, classify_parser, assign_parser}` (ADR 0026, below),
+  `Search::partial_matches`, `Diagnostics` reached from new commands (`import_problems`, `evaluate_fix`,
+  `index_status`). `StoreError` gained `Damaged` (a segment missing or unreadable: not retryable, the hint says to
+  open the logs or the `.imtz` again) and `Locked` (the catalog is open in another process: retryable after
+  closing it there).
+- **Projects.** A saved project is the store folder: `.imtz` (zip of `project.toml`, catalog and segments, no
+  index; the index is rebuilt in the background) and opens without the original logs; the UI layout goes in
+  `ui.json` beside it. `.imt`/`.imtproj` files of the old format still open (their logs are imported again).
+- **Live tail** is append ingest: the watcher's changed files are read from their last offset into new segments
+  (`append_tail`; truncation reads the file again, new files under an opened folder are added) and the index
+  refreshes. Live windows (`window: { kind: "live" }`) resolve into `from` in the store ("now" = the newest event,
+  or the wall clock with `[live] clock = "wall"`), shared with the oracle (`query::resolve_live_window`).
+- **Import progress** comes from the import job (`JobProgress` with the current file and bytes); opening returns
+  the job id and the UI follows the job instead of polling `import_progress`.
+- **Smart search.** The full-text index tokenizes with `imt_core::words` (one pure tokenizer for the index and the
+  oracle): runs of letters and digits, lower-cased, plus their `camelCase`/`HTTPServer`/digit parts; a search asks
+  for every word, the last one as a prefix (unless the text ends in a space or quote); phrases are checked as
+  written. The search box (`Query.textMode: "words"`) filters by the index's hits (handed to SQL as a small
+  Parquet id list, cached per search and store generation, at most 2M ids); while the index is catching up, SQL
+  narrows by substrings of the words and the scan checks them exactly. Then a cancellable background job
+  (`search_partial`, superseded by the next search) counts the events that hold the text only inside words; when
+  there are some the UI switches to `textMode: "wordsOrSubstring"` and shows "+N" ("N more partial matches
+  added"), and pages mark each row `searchMatch: "words" | "partial"`. The query language's `contains` keeps its
+  substring meaning.
+- **Bundling and CI.** `imt-store-duck`, `imt-store-client` and `imt-store-worker` are workspace members (their own
+  `[workspace]` and lock files are gone; duckdb, parquet, arrow and tantivy are workspace dependencies). Every Rust
+  CI job fetches the pinned libduckdb (by SHA-256, cached) and puts it on the library path; installers ship
+  `imt-store-worker` as a sidecar and libduckdb under `lib/` (`build-sidecars.mjs`). A missing or unloadable
+  libduckdb is a clear message naming the file and where it was looked for. The nightly `bench` workflow runs the
+  10M-event store benchmark.
+
+### Prepared for ADR 0026 (parsers as individual files)
+
+The `sources` table records each source's parser (`parser_id`, `parser_version`, `parser_hash`, the hash being
+the SHA-256 of the parser's canonical TOML) and the `parsers` table keeps a copy of every parser's TOML, so a
+project names and carries what read it (`project.toml` lists the parser refs; the `.imtz` embeds the TOML through
+the catalog). Until ADR 0026 lands, the workspace's profile is the one parser of every source (id `profile`).
+Changing the profile re-reads only the sources whose parser hash changed (and re-derives the rest by the
+profile-change classes). The port API already has the shape the parser library needs: `parsers()` (which parser
+reads which sources), `classify_parser(def)` (the change class and the sources it touches, per parser) and
+`assign_parser(source, def)` (refused with `Unsupported` until the library exists), so per-file matching adds
+implementations, not port changes. The worker compiles each parser once (today: one).
+
+### Not on the store yet (typed `Unsupported` with a hint, or still on the old path)
+
+- Redacted views and the redaction summary, clock skew correction, live alerts and per-file tail status, plugin
+  annotators over the store, starting a tail at the end, run-query progress over the worker.
+- Share bundles of the log files (replaced by projects: `.imtz`).
+- `imt-agent` (the headless agent) still runs `Workspace` in process.
+- The old `ProjectFile` remains for session files (autosave/restore), the activity report sample and opening old
+  `.imt` files; projects themselves are `project.toml` + store.
+- Golden JSON fixtures and ts-rs generation of the engine DTOs (the TS mirror is kept by hand and checked by the
+  parity and command tests).
+
+### Measured (6c, release, the shared Windows VM, 10M events = 360 copies of the samples)
+
+`tests/bench_reads.rs` on a store of 10,137,960 events in 11,160 sources (360 copies of `/samples`), queries in
+a process that did not import. The VM was shared with four other agents' builds (load around 80%), so times vary
+up to 3x between runs (one run had `page text` at 45 s, the next at 1.1 s); read them as orders of magnitude.
+
+- **Import**: 113 s (90k events/s) to the store, then 73 s for the full-text index in the background.
+- **Interactive (budget 0.5 s)**: summary 0.25 s; pages 0.03-0.33 s unfiltered, 0.7 s errors, 1.1-1.5 s text
+  and word search; facets of levels and sources 0.12-0.19 s, of `MachineName` 0.8 s (not promoted in every
+  segment); timelines 3.4-4.3 s (instance lanes: the events are grouped, the histogram path needs one lane per
+  source); chart 1.5 s; field stats 2.8 s; QL `stats` 0.35 s; problems 0.7 s (was 69 s); correlate 1.9 s; Moment
+  23 s (it detects anomalies over all events); cached analyses 1 ms.
+- **Jobs (no interactive budget; cancellable, cached per query and generation)**: partial-match scan 0.3 s;
+  patterns 23 s, exception groups 2.3 s, anomalies 38 s, compare 18 s, traces 29 s, requests 28 s, runs 150 s.
+- **Memory (budget 300 MB while querying)**: 75-230 MB for every operation except compare (309 MB), Moment
+  (316 MB) and anomalies (424 MB, was 943 MB: the slim events now keep only the fields they have and share
+  repeated texts). Timelines with thousands of sources ran out of DuckDB's memory limit (183 MB) before lanes x
+  buckets and lanes x sources were grouped apart; now 180 MB.
+- **Over budget, open**: timelines with instance lanes, filtered pages and word-search pages above 0.5 s,
+  charts, field stats, correlate, Moment (should reuse cached anomalies of the window only), and runs (150 s:
+  every timed event in time order through the span pairers).
+
+### Deviations and open points
+
+- Promotion is still decided per segment from its first batch; sticky promotion (keep a key promoted once the store
+  promoted it) and re-promotion on compaction are open.
+- Slow analyses run as jobs with coverage; results are cached per query and generation in the catalog. Anomalies'
+  peak memory and timeline instance lanes at 10M are measured above; see the open points there.
+- Mixed sources on the DuckDB path (ADR 0020) wait for the merge of main.
+
 ## Performance notes (perf/rust, 2026-10-21)
 
 Measured on the shared Windows VM (24 cores, other builds running: single runs vary by 2-3x, so every number

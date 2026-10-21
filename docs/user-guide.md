@@ -22,6 +22,10 @@ the inspector sliding out from the right when you select an event.
 - **Filter bar** (one row): search (`.*` regex, `Aa` match case), level chips, the time range (click to
   reset a zoom), UTC/local, *+ Add filter*, *Clear all* and **View options** with *Group by*, *Marked only*
   and *Always show start / stop*.
+- **Search** finds words first: every word you type, in any order, the last one as the start of a word
+  (`timeout exc` finds `System.TimeoutException`; `camelCase`, dots, underscores and digits split words). A
+  moment later IMT adds events that contain the text only inside a word; *+N* in the search box says how many,
+  and those rows are marked *partial*. `.*` (regex) and `Aa` (match case) search the text as written.
 - **Timeline header**: the health check's headline, e.g. "⚠ 2 crashes · 287 errors · 1 went silent —
   Review". *N crashes* jumps to the next crash, *N errors* shows the errors and fatal events, *N went silent*
   shows the next silence, *Review* opens the Overview. The line is hidden when nothing is notable.

@@ -42,6 +42,21 @@ test.describe('filters', () => {
     await expect(total).toHaveText(all);
   });
 
+  test('smart search finds words first, then adds partial matches', async ({ page }) => {
+    await initialTotal(page);
+    const search = page.getByRole('textbox', { name: 'Search messages and exceptions' });
+    // "imeout" is never a whole word: every hit is a partial match the background scan adds.
+    await search.fill('imeout');
+    const note = page.getByTestId('partial-note');
+    await expect(note).toBeVisible();
+    await expect(note).toHaveAttribute('title', /more partial match(es)? added/);
+    await expect.poll(async () => parseCount(await gridTotal(page).innerText())).toBeGreaterThan(0);
+    await expect(page.locator('imt-events-grid [role=row].row').first().getByTestId('partial-match')).toBeVisible();
+    // A cleared search clears the note.
+    await search.fill('');
+    await expect(note).toBeHidden();
+  });
+
   test('search with no hits shows the empty state', async ({ page }) => {
     await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('zzzz-no-such-text-zzzz');
     await expect(gridTotal(page)).toHaveText('0');

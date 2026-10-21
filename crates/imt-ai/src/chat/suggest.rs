@@ -17,7 +17,7 @@ const GENERIC: &[&str] = &[
 pub fn suggested_prompts<'s>(store: impl Into<StoreRef<'s>>) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     if let Ok(findings) = store.into().with(|s| s.overview(&QueryRequest { query: Query::default() })) {
-        for f in findings.iter().take(4) {
+        for f in findings.result.iter().take(4) {
             let q = match &f.action {
                 Some(FindingAction::Zoom { from, .. }) => format!("What happened around {} ({})?", format_hm(*from), f.title),
                 Some(FindingAction::Exception { .. }) => format!("Why is \"{}\" happening and what should I do?", f.title),

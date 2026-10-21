@@ -15,62 +15,124 @@ use std::path::PathBuf;
 /// Largest frame either way (a page of 5,000 rows with long messages fits).
 pub const MAX_MESSAGE_BYTES: usize = 64 << 20;
 
-/// An operation on one open store.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum StoreOp {
+/// Initial credit of a streamed scan (batches of at most 8,192 rows in flight).
+pub const SCAN_CREDIT: u32 = 4;
+
+macro_rules! ops {
+    ($($(#[$doc:meta])* $op:ident),* $(,)?) => {
+        /// An operation on one open store; its request and reply are the port method's DTOs (as JSON, see the
+        /// module documentation). The order is the wire encoding: add new operations at the end.
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+        pub enum StoreOp {
+            $($(#[$doc])* $op),*
+        }
+
+        impl StoreOp {
+            /// Every operation (tests: each one is dispatched).
+            pub const ALL: &'static [StoreOp] = &[$(StoreOp::$op),*];
+
+            /// The operation's name (logs).
+            pub fn name(self) -> &'static str {
+                match self {
+                    $(StoreOp::$op => stringify!($op)),*
+                }
+            }
+        }
+    };
+}
+
+ops! {
+    // Ingest
+    /// [`Paths`] → [`Session`]
     Open,
+    /// → [`Session`]
     Reload,
+    /// [`Paths`] → [`Session`]
     Refresh,
+    /// [`Source`] → ()
     RemoveSource,
     Clear,
+    /// [`imt_core::api::WorkspaceState`] → [`Session`]
+    Restore,
+    /// [`Paths`] → events appended
     AppendTail,
+    /// [`Session`] → [`imt_core::workspace::ProgressSnapshot`] of the store's running (or last) import
     SessionProgress,
+    /// [`Session`] → ()
     SessionCancel,
+    /// [`Session`] → [`imt_core::ports::ImportReport`]
     SessionWait,
+    // Query
     Summary,
     Page,
     Timeline,
     Facet,
+    Chart,
+    FieldStats,
+    SourceContext,
+    /// Cancellable (the caller's cancel interrupts the statement).
+    RunQuery,
+    CheckQuery,
+    CompleteQuery,
+    Export,
+    // Positions
     IdsAt,
     PositionOf,
     Positioned,
+    // Analysis (cancellable)
+    Patterns,
+    ExceptionGroups,
+    Anomalies,
+    Compare,
+    Correlate,
+    Traces,
+    Requests,
+    Moment,
+    Overview,
+    Runs,
+    // Profiles
     ActiveProfile,
     ValidateProfile,
+    /// [`Profile`] → [`Session`]
+    SetProfile,
+    PreviewParse,
+    PreviewExtractor,
+    ProposeSpanRule,
+    EvaluateSpanRule,
+    // Diagnostics
     Problems,
+    EvaluateFix,
+    // Search
     Search,
     IndexStatus,
+    // Projects
+    /// [`imt_core::package::ProjectManifest`] → the manifest as saved (with the store's roots)
+    SaveProject,
+    /// [`ExportProject`] → bytes written
+    ExportProject,
+    /// [`imt_core::ports::EventsRequest`] → the events
+    Events,
+    /// [`imt_core::spans::SpanPreviewRequest`] → [`imt_core::spans::SpanPreview`]
+    PreviewSpans,
+    /// → [`imt_core::ports::ParserUse`]s
+    Parsers,
+    /// [`imt_core::ports::ParserDef`] → [`imt_core::ports::ParserChange`]
+    ClassifyParser,
+    /// [`AssignParser`] → [`Session`]
+    AssignParser,
+    /// [`imt_core::ports::Filter`] → [`imt_core::ports::PartialMatches`] (cancellable)
+    PartialMatches,
 }
 
-impl StoreOp {
-    /// The method name (logs, the worker's dispatch).
-    pub fn method(self) -> &'static str {
-        match self {
-            StoreOp::Open => method::OPEN,
-            StoreOp::Reload => method::RELOAD,
-            StoreOp::Refresh => method::REFRESH,
-            StoreOp::RemoveSource => method::REMOVE_SOURCE,
-            StoreOp::Clear => method::CLEAR,
-            StoreOp::AppendTail => method::APPEND_TAIL,
-            StoreOp::SessionProgress => method::SESSION_PROGRESS,
-            StoreOp::SessionCancel => method::SESSION_CANCEL,
-            StoreOp::SessionWait => method::SESSION_WAIT,
-            StoreOp::Summary => method::SUMMARY,
-            StoreOp::Page => method::PAGE,
-            StoreOp::Timeline => method::TIMELINE,
-            StoreOp::Facet => method::FACET,
-            StoreOp::IdsAt => method::IDS_AT,
-            StoreOp::PositionOf => method::POSITION_OF,
-            StoreOp::Positioned => method::POSITIONED,
-            StoreOp::ActiveProfile => method::ACTIVE_PROFILE,
-            StoreOp::ValidateProfile => method::VALIDATE_PROFILE,
-            StoreOp::Problems => method::PROBLEMS,
-            StoreOp::Search => method::SEARCH,
-            StoreOp::IndexStatus => method::INDEX_STATUS,
-        }
-    }
+/// Reads one source with another parser (ADR 0026).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AssignParser {
+    pub source: SourceId,
+    pub parser: imt_core::ports::ParserDef,
 }
 
-/// What the app asks the worker; the reply is the operation's DTO as JSON ([`imt_ipc::Json`]).
+/// What the app asks the worker.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum StoreRequest {
     /// An [`OpenStore`] → [`Handle`].
@@ -80,50 +142,49 @@ pub enum StoreRequest {
     },
     /// → [`WorkerStatus`].
     Status,
-    /// `op` on the open store `store`, with its request DTO.
+    /// `op` on the open store `store`, with its request DTO; the reply is the operation's DTO as JSON.
     Call {
         store: u64,
         op: StoreOp,
         body: imt_ipc::Json,
     },
+    /// A streamed `Query::scan` of the events matching a filter (JSON): items are Arrow IPC streams of one
+    /// event batch each ([`crate::arrow_wire`]), the answer `()`.
+    Scan {
+        store: u64,
+        filter: imt_ipc::Json,
+    },
+    /// An [`OpenProject`] → [`OpenedProject`].
+    OpenProject(imt_ipc::Json),
+}
+
+/// Opens a project folder `<name>.imt` in place, or an exported `.imtz` extracted into a new folder under
+/// `dest_root`; the project's profile overrides are merged over `profile`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenProject {
+    pub path: PathBuf,
+    pub dest_root: PathBuf,
+    pub profile: Profile,
+    #[serde(default)]
+    pub disabled_plugins: Vec<String>,
+    #[serde(default)]
+    pub safe_mode: bool,
+    #[serde(default)]
+    pub limits: Option<Limits>,
+}
+
+/// An opened project: its store's handle and folder, and its manifest.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenedProject {
+    pub store: u64,
+    pub dir: PathBuf,
+    pub manifest: imt_core::package::ProjectManifest,
 }
 
 /// Error code of every store error (the kind is in [`WireError`]).
 pub const STORE_ERROR: i32 = -32050;
-
-pub mod method {
-    pub const OPEN_STORE: &str = "open_store";
-    pub const CLOSE_STORE: &str = "close_store";
-    // Ingest
-    pub const OPEN: &str = "open";
-    pub const RELOAD: &str = "reload";
-    pub const REFRESH: &str = "refresh";
-    pub const REMOVE_SOURCE: &str = "remove_source";
-    pub const CLEAR: &str = "clear";
-    pub const APPEND_TAIL: &str = "append_tail";
-    pub const SESSION_PROGRESS: &str = "session_progress";
-    pub const SESSION_CANCEL: &str = "session_cancel";
-    pub const SESSION_WAIT: &str = "session_wait";
-    // Query
-    pub const SUMMARY: &str = "summary";
-    pub const PAGE: &str = "page";
-    pub const TIMELINE: &str = "timeline";
-    pub const FACET: &str = "facet";
-    // Positions
-    pub const IDS_AT: &str = "ids_at";
-    pub const POSITION_OF: &str = "position_of";
-    pub const POSITIONED: &str = "positioned";
-    // Profiles
-    pub const ACTIVE_PROFILE: &str = "active_profile";
-    pub const VALIDATE_PROFILE: &str = "validate_profile";
-    // Diagnostics
-    pub const PROBLEMS: &str = "problems";
-    // Search
-    pub const SEARCH: &str = "search";
-    pub const INDEX_STATUS: &str = "index_status";
-    // The worker itself
-    pub const STATUS: &str = "worker_status";
-}
 
 /// Opens (or creates) the store in a folder.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -133,6 +194,12 @@ pub struct OpenStore {
     pub profile: Profile,
     /// A new, empty store (an existing one there is replaced).
     pub create: bool,
+    /// Plugins the user turned off (their importers are not installed in the worker's registry).
+    #[serde(default)]
+    pub disabled_plugins: Vec<String>,
+    /// Safe mode: no plugin is started; only the built-in importers read files.
+    #[serde(default)]
+    pub safe_mode: bool,
     /// DuckDB memory limit and threads, parse threads (defaults when absent).
     #[serde(default)]
     pub limits: Option<Limits>,
@@ -164,6 +231,14 @@ pub struct Paths {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Source {
     pub id: SourceId,
+}
+
+/// Saves the project and writes it as an `.imtz` to `out`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportProject {
+    pub manifest: imt_core::package::ProjectManifest,
+    pub out: PathBuf,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -212,6 +287,12 @@ pub enum WireError {
     Engine {
         message: String,
     },
+    Damaged {
+        message: String,
+    },
+    Locked {
+        message: String,
+    },
 }
 
 impl From<&StoreError> for WireError {
@@ -233,6 +314,8 @@ impl From<&StoreError> for WireError {
             StoreError::Cancelled => WireError::Cancelled,
             StoreError::Io(m) => WireError::Io { message: m.clone() },
             StoreError::Engine(m) => WireError::Engine { message: m.clone() },
+            StoreError::Damaged(m) => WireError::Damaged { message: m.clone() },
+            StoreError::Locked(m) => WireError::Locked { message: m.clone() },
         }
     }
 }
@@ -261,6 +344,8 @@ impl From<WireError> for StoreError {
             WireError::Cancelled => StoreError::Cancelled,
             WireError::Io { message } => StoreError::Io(message),
             WireError::Engine { message } => StoreError::Engine(message),
+            WireError::Damaged { message } => StoreError::Damaged(message),
+            WireError::Locked { message } => StoreError::Locked(message),
         }
     }
 }

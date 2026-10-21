@@ -1,6 +1,8 @@
 import { clearMocks, mockIPC } from '@tauri-apps/api/mocks';
 import { invoke } from './activity/ipc';
-import { CmdError, failureText, fromRejection, isCmdErrorDto, isRetryable } from './cmd-error';
+import { CmdError, failureText, fromRejection, isCmdErrorDto, isRetryable, isUnsupported, sentenceText } from './cmd-error';
+import { errorText as workspaceErrorText } from './workspace/workspace-data.store';
+import { mockUnsupported } from './mock/mock-unsupported';
 import { errorText } from '../analysis/async-resource';
 import { errorMessage } from '../tools/tool-errors';
 import { toAiError } from '../ai/ai-backend';
@@ -41,5 +43,26 @@ describe('CmdError', () => {
     expect(toAiError(new CmdError({ code: 'noModel', message: 'set up first', retryable: false }))).toMatchObject({ code: 'noModel', message: 'set up first' });
     expect(toUpdateError(new CmdError({ code: 'offline', message: 'o', retryable: true, hint: 'Check the network.' }))).toEqual({ kind: 'offline', message: 'o', nextStep: 'Check the network.', detail: null });
     expect(profilingErrorCode(new CmdError({ code: 'notACapture', message: 'no', retryable: false }))).toBe('notACapture');
+  });
+});
+
+describe('operations the log store does not offer yet, and the next step', () => {
+  it('tells an unsupported operation apart and says so as a sentence of its own', () => {
+    const refused = mockUnsupported('the redacted view is not available with the new log store yet', 'Exports can still be redacted.');
+    expect(refused).toMatchObject({ code: 'unsupported', retryable: false });
+    expect(isUnsupported(refused)).toBe(true);
+    expect(isUnsupported(new CmdError({ code: 'failed', message: 'x', retryable: true }))).toBe(false);
+    expect(isUnsupported(new Error('unsupported'))).toBe(false);
+    expect(sentenceText(refused)).toBe('The redacted view is not available with the new log store yet. Exports can still be redacted.');
+    expect(sentenceText(mockUnsupported('done already.'))).toBe('Done already.');
+    expect(sentenceText('plain')).toBe('Plain.');
+    expect(mockUnsupported('no hint').hint).toBeUndefined();
+  });
+
+  it('shows the hint of an unavailable log store in the workspace error banner', () => {
+    const e = new CmdError({ code: 'unavailable', message: 'The log store could not start.', retryable: false, hint: 'Reinstall IMT.' });
+    expect(workspaceErrorText(e)).toBe('The log store could not start. Reinstall IMT.');
+    expect(workspaceErrorText('text')).toBe('text');
+    expect(workspaceErrorText({ a: 1 })).toBe('{"a":1}');
   });
 });

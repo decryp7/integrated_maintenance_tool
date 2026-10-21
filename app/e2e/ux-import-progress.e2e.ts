@@ -6,7 +6,7 @@ test.describe('import progress', () => {
   test('a long import shows progress with Cancel; cancelling leaves a partially imported banner', async ({ page }, testInfo) => {
     // Each opened path stands for six files read 1.5 s apart: long enough that the axe scan of the toast never
     // outlasts the import (Cancel would then have nothing left to cancel); cancelling early keeps the test quick.
-    await openAppWith(page, '?mockSlowImport=1500');
+    await openAppWith(page, '?mockSlowImport=1500&mockJobsVisibleMs=0');
     await page.locator('imt-sidebar').getByRole('button', { name: 'Open files' }).click();
 
     const status = page.getByTestId('import-status');
@@ -36,7 +36,7 @@ test.describe('import progress', () => {
   test('the status bar Cancel works too, and Dismiss hides the banner', async ({ page }) => {
     // 1.5 s per file and Cancel while at most half is read: on a slow runner the import must still be running
     // when the click lands, or there is nothing left to cancel.
-    await openAppWith(page, '?mockSlowImport=1500');
+    await openAppWith(page, '?mockSlowImport=1500&mockJobsVisibleMs=0');
     await page.locator('imt-sidebar').getByRole('button', { name: 'Open folder' }).click();
     const status = page.getByTestId('import-status');
     await expect(status).toContainText(/Importing [1-3] of 6 files/, { timeout: 5_000 });

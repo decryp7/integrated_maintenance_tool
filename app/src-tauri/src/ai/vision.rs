@@ -14,7 +14,7 @@ use imt_ai::llm::LlmProvider;
 use imt_ai::vision::image::{sanitize, ImageLimits, SanitizedImage, SourceFormat};
 use imt_ai::vision::{RelatedOutcome, RelatedStage};
 use imt_ai::{AiError, StoreAccess, StoreRef};
-use imt_core::related::{find_related, ExifStamp, LogStoreSource, RelatedRequest, RelatedResult, TimeEvidence};
+use imt_core::related::{find_related, ExifStamp, QuerySource, RelatedRequest, RelatedResult, TimeEvidence};
 use serde::Serialize;
 use std::collections::VecDeque;
 use std::path::Path;
@@ -157,8 +157,9 @@ fn open_bytes(win: &WindowState, bytes: &[u8], name: &str, path: Option<String>,
 /// Whether `raw` is a file the window's workspace listed (an opened source or an unrecognised file of an opened
 /// folder), so an image shown in the Explorer opens without choosing it again.
 fn listed_in_workspace(win: &WindowState, raw: &str) -> bool {
-    let store = win.store_read();
-    let s = store.summary();
+    let Some(s) = win.engine.opened().and_then(|store| store.summary().ok()) else {
+        return false;
+    };
     s.unrecognized.iter().any(|u| u.path == raw) || s.sources.iter().any(|x| x.path == raw)
 }
 
@@ -299,14 +300,19 @@ pub async fn ai_model_add_projector<R: Runtime>(
 pub(crate) fn search_in(store: StoreRef<'_>) -> impl FnMut(&RelatedRequest) -> imt_ai::Result<RelatedResult> + '_ {
     move |req| {
         store
-            .with(|s| find_related(&LogStoreSource(s), req))
+            .with(|s| find_related(&QuerySource(s), req))
             .map_err(|e| AiError::Engine(format!("the search failed: {e}")))
     }
 }
 
 /// The profile's time zone for times without one.
 pub(crate) fn timezone(store: StoreRef<'_>) -> String {
-    store.with(|s| s.profile().parse.assume_timezone.clone())
+    store.with(|s| {
+        s.active_profile()
+            .unwrap_or_else(|_| imt_core::Profile::default_profile())
+            .parse
+            .assume_timezone
+    })
 }
 
 /// "Explain with AI" on an image.

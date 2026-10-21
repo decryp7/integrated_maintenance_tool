@@ -20,6 +20,17 @@ contributors are in [AGENTS.md](../AGENTS.md); the design is in [architecture.md
   - *macOS:* Xcode Command Line Tools.
   - *Windows:* Microsoft C++ Build Tools and the WebView2 runtime. The installer is NSIS only (`tauri build`
     fetches NSIS itself).
+- **libduckdb 1.5.6** (the store, ADR 0014), prebuilt and checksum-verified by
+  `crates/imt-store-duck/scripts/fetch-libduckdb.sh` (never compiled: the `bundled` feature needs several GB of
+  RAM). Every cargo build of the workspace needs it; in each shell, before cargo:
+
+  ```sh
+  eval "$(crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+  ```
+
+  It sets `DUCKDB_LIB_DIR`/`DUCKDB_INCLUDE_DIR` and puts the library on `PATH` / `LD_LIBRARY_PATH` /
+  `DYLD_LIBRARY_PATH`, where the store worker (`imt-store-worker`) finds it in development builds; installers
+  ship it next to the worker.
 
 ### Develop
 
@@ -293,6 +304,9 @@ scope). Dependencies are updated by Renovate, which also pins CI actions to comm
 │   ├── imt-collect/               diagnostics collector (library and `imt-collect` CLI)
 │   ├── imt-agent/                 headless scheduled/triggered collection (library, CLI and service)
 │   ├── imt-pdf/                   PDF output of incident reports (pdf-writer + svg2pdf, embedded fonts)
+│   ├── imt-store-duck/            the store (ADR 0014): Parquet segments, DuckDB catalog and SQL, Tantivy search
+│   ├── imt-store-client/          IMT's side of the store worker: protocol, supervision, `RemoteStore` (no DuckDB)
+│   ├── imt-store-worker/          the store worker process hosting every window's store
 │   └── imt-store-spike/           persistent-store spike (DuckDB, DataFusion); excluded from the workspace
 ├── docs/                          architecture, roadmap, backlog, plugins, fuzzing, ADRs, draw.io diagrams, screenshots
 ├── fuzz/                          cargo-fuzz targets

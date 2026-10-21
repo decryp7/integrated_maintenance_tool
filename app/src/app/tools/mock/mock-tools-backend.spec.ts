@@ -270,21 +270,21 @@ describe('MockToolsBackend', () => {
 
   it('round-trips projects and the session', async () => {
     const b = make();
-    await b.saveProject('/p/a.imtproj', 'A', { bookmarks: [1] });
-    const opened = await b.openProject('/p/a.imtproj');
+    await b.saveProject('/p/a.imtz', 'A', { bookmarks: [1] });
+    const opened = await b.openProject('/p/a.imtz');
     expect(opened).toMatchObject({ name: 'A', ui: { bookmarks: [1] }, missing: [] });
-    expect(await b.openProject('/p/missing.imtproj').catch(() => null)).toBeNull();
-    await b.saveProject('/p/missing.imtproj', 'M', {});
-    expect((await b.openProject('/p/missing.imtproj')).missing).toHaveLength(1);
+    expect(await b.openProject('/p/missing.imtz').catch(() => null)).toBeNull();
+    await b.saveProject('/p/missing.imtz', 'M', {});
+    expect((await b.openProject('/p/missing.imtz')).missing).toHaveLength(1);
     await b.saveSession({ q: 1 });
     expect((await b.openProject('/x/last-session.imtproj')).ui).toEqual({ q: 1 });
-    await expect(b.openProject('/nope.imtproj')).rejects.toThrow('not an IMT project');
+    await expect(b.openProject('/nope.imtz')).rejects.toThrow('not an IMT project');
     expect(await b.takePendingOpen()).toEqual([]);
     (await b.onOpenRequested())();
   });
 
   it('keeps clock offsets in projects and the session, by source path, like the engine', async () => {
-    const imt = new MockBackend({ latency: false, dataset: tinyDataset, pluginMarkerKinds: [] });
+    const imt = new MockBackend({ latency: false, dataset: tinyDataset, pluginMarkerKinds: [], memoryStoreFeatures: true });
     const b = new MockToolsBackend(
       { ...MOCK_DEFAULTS },
       () => imt.workspaceSummary(),
@@ -294,12 +294,12 @@ describe('MockToolsBackend', () => {
     const first = at(sources, 0);
     const second = at(sources, 1);
     await imt.setSourceOffset({ kind: 'manual', source: first.id, offsetMs: 2350 });
-    await b.saveProject('/p/skew.imtproj', 'Skew', {});
+    await b.saveProject('/p/skew.imtz', 'Skew', {});
     await b.saveSession({});
     // Changed after saving: reopening restores the saved offsets (and clears ones the project did not have).
     await imt.setSourceOffset({ kind: 'manual', source: first.id, offsetMs: 0 });
     await imt.setSourceOffset({ kind: 'manual', source: second.id, offsetMs: -100 });
-    const opened = await b.openProject('/p/skew.imtproj');
+    const opened = await b.openProject('/p/skew.imtz');
     const offsets = (s: { sources: { path: string; offsetMs?: number }[] }) =>
       Object.fromEntries(s.sources.map((x) => [x.path, x.offsetMs ?? 0]));
     expect(offsets(opened.summary)[first.path]).toBe(2350);
@@ -309,24 +309,24 @@ describe('MockToolsBackend', () => {
       2350,
     );
     // Nothing to change: the summary is returned as is; without an offset setter offsets are left alone.
-    expect(offsets((await b.openProject('/p/skew.imtproj')).summary)[first.path]).toBe(2350);
+    expect(offsets((await b.openProject('/p/skew.imtz')).summary)[first.path]).toBe(2350);
     const plain = new MockToolsBackend({ ...MOCK_DEFAULTS }, () => imt.workspaceSummary());
-    await plain.saveProject('/p/plain.imtproj', 'P', {});
+    await plain.saveProject('/p/plain.imtz', 'P', {});
     await imt.setSourceOffset({ kind: 'manual', source: first.id, offsetMs: 7 });
-    expect(offsets((await plain.openProject('/p/plain.imtproj')).summary)[first.path]).toBe(7);
+    expect(offsets((await plain.openProject('/p/plain.imtz')).summary)[first.path]).toBe(7);
   });
 
   it('saves projects without offsets when the workspace summary fails', async () => {
     const b = new MockToolsBackend({ ...MOCK_DEFAULTS });
-    await expect(b.saveProject('/p/x.imtproj', 'X', {})).resolves.toEqual({
-      path: '/p/x.imtproj',
+    await expect(b.saveProject('/p/x.imtz', 'X', {})).resolves.toEqual({
+      path: '/p/x.imtz',
       name: 'X',
     });
   });
 
   it('rejects open_project when no workspace summary source is wired', async () => {
     const b = new MockToolsBackend({ ...MOCK_DEFAULTS });
-    await b.saveProject('/p.imtproj', 'P', {});
-    await expect(b.openProject('/p.imtproj')).rejects.toThrow('no workspace summary');
+    await b.saveProject('/p.imtz', 'P', {});
+    await expect(b.openProject('/p.imtz')).rejects.toThrow('no workspace summary');
   });
 });

@@ -113,7 +113,7 @@ describe('AlertsStore', () => {
 
   it('a muted kind is not raised by the (mock) engine', async () => {
     vi.useFakeTimers();
-    const sim = new MockBackend({ latency: false, dataset: tinyDataset, liveRate: 4, liveAlertMs: 250, liveMs: 250 });
+    const sim = new MockBackend({ latency: false, dataset: tinyDataset, liveRate: 4, liveAlertMs: 250, liveMs: 250, memoryStoreFeatures: true });
     const got: LiveAlert[] = [];
     await sim.onLiveAlert((a) => got.push(a));
     await sim.muteAlerts({ kind: 'errorSpike' }, Date.now() + 60_000);

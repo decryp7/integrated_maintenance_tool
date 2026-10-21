@@ -46,7 +46,8 @@ impl<P: LlmProvider> Assistant<P> {
         }
         let fields: Vec<String> = store.with(|s| {
             s.summary()
-                .fields
+                .map(|s| s.fields)
+                .unwrap_or_default()
                 .iter()
                 .take(40)
                 .map(|f| format!("{}{}", f.name, if f.numeric { " (number)" } else { "" }))
@@ -64,11 +65,12 @@ impl<P: LlmProvider> Assistant<P> {
                 return Err("the query is empty".into());
             }
             match store.with(|s| s.check_query(&ql)) {
-                Some(e) => Err(format!(
+                Ok(Some(e)) => Err(format!(
                     "`{ql}` is not valid: {} (at byte {}). Fix the syntax; use only the available fields.",
                     e.message, e.offset
                 )),
-                None => Ok((ql, a.explanation.trim().to_string())),
+                Ok(None) => Ok((ql, a.explanation.trim().to_string())),
+                Err(e) => Err(format!("`{ql}` cannot be checked: {e}")),
             }
         })?;
         // Read-only: running a query never changes anything.

@@ -158,17 +158,17 @@ fn unknown_tools_and_helpers() {
 }
 
 /// A store that can be swapped between tool calls, like a workspace that live tail updates.
-struct Swappable(std::sync::Mutex<Box<dyn imt_core::LogStore>>);
+struct Swappable(std::sync::Mutex<Box<dyn imt_core::ports::Store>>);
 impl imt_ai::StoreAccess for Swappable {
-    fn visit(&self, f: &mut dyn FnMut(&dyn imt_core::LogStore)) {
+    fn visit(&self, f: &mut dyn FnMut(&dyn imt_core::ports::Store)) {
         f(self.0.lock().unwrap().as_ref())
     }
 }
 
-fn workspace(dir: &str) -> Box<dyn imt_core::LogStore> {
+fn workspace(dir: &str) -> Box<dyn imt_core::ports::Store> {
     let mut ws = imt_core::Workspace::new(imt_core::Profile::default_profile()).unwrap();
     ws.open(&[samples().join(dir)]).unwrap();
-    Box::new(ws)
+    Box::new(imt_core::workspace::WorkspaceStore::new(ws))
 }
 
 #[test]

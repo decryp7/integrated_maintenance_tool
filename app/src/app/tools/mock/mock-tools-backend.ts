@@ -641,6 +641,8 @@ export class MockToolsBackend implements ToolsBackend {
     reports?: Report[],
     overwrite = false,
   ): Promise<ProjectSaved> {
+    // Like the engine: a project is one self-contained `.imtz` file.
+    if (!path.toLowerCase().endsWith('.imtz')) throw new Error('a project must be saved as an .imtz file');
     this.files.write(path, overwrite);
     this.projects.set(path, {
       name,
@@ -672,6 +674,7 @@ export class MockToolsBackend implements ToolsBackend {
       ui: structuredClone(found.ui),
       missing: path.includes('missing') ? ['/demo/gone/app.log'] : [],
       reports: structuredClone(found.reports ?? []),
+      readOnly: false,
     };
   }
 

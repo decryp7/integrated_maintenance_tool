@@ -37,6 +37,8 @@ imt-ai = { path = "../../crates/imt-ai" }
 imt-collect = { path = "../../crates/imt-collect" }
 # Child-process logs (`imt_ipc::child_log`) for problem reports.
 imt-ipc = { path = "../../crates/imt-ipc" }
+# The store worker's client (ADR 0014): every window's store over the worker; links no database.
+imt-store-client = { path = "../../crates/imt-store-client" }
 # IMT's folders for `--export-diagnostics` without starting Tauri (the same crate Tauri resolves them with).
 dirs = "7"
 open = "5"
@@ -66,6 +68,8 @@ sysinfo = { workspace = true, features = ["system"] }
 zip.workspace = true
 
 [dev-dependencies]
+# The store in process for the shell's tests (the real adapter on a temp folder).
+imt-store-duck = { path = "../../crates/imt-store-duck" }
 # The profile importers as a library, for the profiling store's tests (in IMT they run in the profiling plugin's process).
 imt-plugin-profiling = { path = "../../crates/imt-plugin-profiling", default-features = false }
 # The dump readers as a library, for the dumps store's tests (in IMT they run in the dumps plugin's process).

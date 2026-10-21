@@ -157,6 +157,47 @@ impl EventSchema {
         })
     }
 
+    /// The event schema an Arrow schema of event batches describes (the declared columns between the fixed
+    /// ones and `extra`), e.g. of batches read back from another process. A schema that is not an event schema
+    /// is refused; [`crate::EventBatch::try_new`] still checks every batch against the result.
+    pub fn from_arrow(schema: &Schema) -> Result<EventSchema, BatchError> {
+        let fields = schema.fields();
+        let declared_count = fields.len().checked_sub(FIXED + 1).ok_or_else(|| BatchError::ColumnCount {
+            expected: FIXED + 1,
+            found: fields.len(),
+        })?;
+        let mut declared = Vec::with_capacity(declared_count);
+        for f in &fields[FIXED..FIXED + declared_count] {
+            let name = f.name().strip_prefix(DECLARED_PREFIX).ok_or_else(|| {
+                BatchError::Declared(
+                    f.name().chars().take(64).collect(),
+                    format!("declared columns start with {DECLARED_PREFIX}"),
+                )
+            })?;
+            let ty = match f.data_type() {
+                DataType::Utf8 => ColumnType::Utf8,
+                DataType::Int64 => ColumnType::Int64,
+                DataType::Float64 => ColumnType::Float64,
+                DataType::Boolean => ColumnType::Boolean,
+                other => {
+                    return Err(BatchError::Declared(
+                        name.chars().take(64).collect(),
+                        format!("unsupported column type {other}"),
+                    ))
+                }
+            };
+            declared.push((name.to_string(), ty));
+        }
+        let built = EventSchema::new(declared)?;
+        if built.declared().len() != declared_count {
+            return Err(BatchError::Declared(
+                "(declared columns)".into(),
+                "names must be unique ignoring case and at most MAX_DECLARED".into(),
+            ));
+        }
+        Ok(built)
+    }
+
     /// The full Arrow schema, `id` first.
     pub fn arrow(&self) -> &SchemaRef {
         &self.arrow
@@ -248,6 +289,24 @@ mod tests {
         assert_eq!(s.extra_index(), 14);
         assert_eq!(s.declared_index("Status"), Some(1));
         assert_eq!(s.declared_index("status"), None);
+    }
+
+    #[test]
+    fn a_schema_is_read_back_from_its_arrow_form() {
+        let s = EventSchema::new([("Elapsed", ColumnType::Float64), ("Ok", ColumnType::Boolean)]).unwrap();
+        let back = EventSchema::from_arrow(s.arrow()).unwrap();
+        assert!(back.same_columns(&s));
+        assert_eq!(back.arrow().fields(), s.arrow().fields());
+        assert!(EventSchema::from_arrow(EventSchema::plain().arrow()).unwrap().declared().is_empty());
+        assert!(EventSchema::from_arrow(&Schema::new(vec![Field::new("id", DataType::UInt64, false)])).is_err());
+        let mut fields: Vec<Field> = EventSchema::plain().arrow().fields().iter().map(|f| f.as_ref().clone()).collect();
+        fields.insert(FIXED, Field::new("nope", DataType::Utf8, true));
+        assert!(EventSchema::from_arrow(&Schema::new(fields.clone())).is_err());
+        fields[FIXED] = Field::new("f_x", DataType::Date32, true);
+        assert!(EventSchema::from_arrow(&Schema::new(fields.clone())).is_err());
+        fields[FIXED] = Field::new("f_x", DataType::Utf8, true);
+        fields.insert(FIXED, Field::new("f_X", DataType::Utf8, true));
+        assert!(EventSchema::from_arrow(&Schema::new(fields)).is_err(), "case-folded duplicates");
     }
 
     #[test]

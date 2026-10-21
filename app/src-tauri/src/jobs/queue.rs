@@ -514,7 +514,7 @@ impl JobQueue {
             title: j.title.clone(),
             source: j.source.clone(),
             state: j.state(),
-            progress: j.progress,
+            progress: j.progress.clone(),
             message: j.message.clone(),
             queued_at: j.queued_at,
             started_at: j.started_at,

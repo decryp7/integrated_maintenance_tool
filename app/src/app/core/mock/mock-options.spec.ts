@@ -16,6 +16,11 @@ describe('mockOptionsFromSearch', () => {
     });
   });
 
+  it('offers the old in-memory store features only when asked', () => {
+    expect(mockOptionsFromSearch('?mockMemoryFeatures=1')).toEqual({ memoryStoreFeatures: true });
+    expect(mockOptionsFromSearch('?mockMemoryFeatures=yes')).toEqual({});
+  });
+
   it('ignores malformed values', () => {
     expect(mockOptionsFromSearch('?mockTotal=-5&mockFacet=abc&mockLiveMs=0&mockCorrupt=other&mockFail=queryPage:x')).toEqual({ fail: { queryPage: 1 } });
   });

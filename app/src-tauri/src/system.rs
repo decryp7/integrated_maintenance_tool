@@ -149,8 +149,8 @@ fn quoted(args: &[std::ffi::OsString]) -> String {
 #[tauri::command]
 pub async fn read_file_head(state: CurrentWindow, path: String, max_bytes: Option<usize>) -> CmdResult<String> {
     // Async (off the main thread): the workspace lock may be held by an import, and the file read may be slow.
-    crate::windows::read(&state, move |store| {
-        let summary = store.summary();
+    let summary = crate::workspace_commands::summary_of(&state).await?;
+    crate::sync::blocking_anyhow("reading the file", move || {
         let known = summary
             .sources
             .iter()

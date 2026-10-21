@@ -3,25 +3,25 @@
 //! store across generation: every tool execution and every validation step borrows it briefly through
 //! [`StoreAccess`], and the app implements that port with a short read lock per call.
 
-use imt_core::LogStore;
+use imt_core::ports::Store;
 
 /// The port to the workspace. Contract: `visit` calls `f` exactly once, with a store that stays valid for that
 /// call only; it may block briefly (a lock), and must never be called re-entrantly from inside `f`.
 pub trait StoreAccess {
-    fn visit(&self, f: &mut dyn FnMut(&dyn LogStore));
+    fn visit(&self, f: &mut dyn FnMut(&dyn Store));
 }
 
 /// A store, borrowed for the whole lifetime of the caller (tests, tools) or reached through a [`StoreAccess`]
-/// port (the app). `&dyn LogStore` and `&dyn StoreAccess` both convert into it, so existing call sites that
+/// port (the app). `&dyn Store` and `&dyn StoreAccess` both convert into it, so existing call sites that
 /// pass a store keep working.
 #[derive(Clone, Copy)]
 pub enum StoreRef<'a> {
-    Direct(&'a dyn LogStore),
+    Direct(&'a dyn Store),
     Access(&'a dyn StoreAccess),
 }
 
-impl<'a> From<&'a dyn LogStore> for StoreRef<'a> {
-    fn from(s: &'a dyn LogStore) -> Self {
+impl<'a> From<&'a dyn Store> for StoreRef<'a> {
+    fn from(s: &'a dyn Store) -> Self {
         StoreRef::Direct(s)
     }
 }
@@ -34,7 +34,7 @@ impl<'a> From<&'a dyn StoreAccess> for StoreRef<'a> {
 
 impl StoreRef<'_> {
     /// Runs `f` with the store, holding it only for this call. Never nest `with` calls.
-    pub fn with<R>(&self, f: impl FnOnce(&dyn LogStore) -> R) -> R {
+    pub fn with<R>(&self, f: impl FnOnce(&dyn Store) -> R) -> R {
         match self {
             StoreRef::Direct(s) => f(*s),
             StoreRef::Access(a) => {
@@ -54,12 +54,13 @@ impl StoreRef<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use imt_core::workspace::WorkspaceStore;
     use imt_core::{Profile, Workspace};
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    struct Counting(Workspace, AtomicUsize);
+    struct Counting(WorkspaceStore, AtomicUsize);
     impl StoreAccess for Counting {
-        fn visit(&self, f: &mut dyn FnMut(&dyn LogStore)) {
+        fn visit(&self, f: &mut dyn FnMut(&dyn Store)) {
             self.1.fetch_add(1, Ordering::SeqCst);
             f(&self.0)
         }
@@ -67,12 +68,12 @@ mod tests {
 
     #[test]
     fn both_forms_reach_the_store() {
-        let ws = Workspace::new(Profile::default_profile()).unwrap();
-        let direct: StoreRef = (&ws as &dyn LogStore).into();
-        assert_eq!(direct.with(|s| s.summary().total), 0);
+        let ws = WorkspaceStore::new(Workspace::new(Profile::default_profile()).unwrap());
+        let direct: StoreRef = (&ws as &dyn Store).into();
+        assert_eq!(direct.with(|s| s.summary().unwrap().total), 0);
         let c = Counting(ws, AtomicUsize::new(0));
         let access: StoreRef = (&c as &dyn StoreAccess).into();
-        assert_eq!(access.with(|s| s.summary().total), 0);
+        assert_eq!(access.with(|s| s.summary().unwrap().total), 0);
         access.with(|_| ());
         assert_eq!(c.1.load(Ordering::SeqCst), 2);
     }

@@ -348,10 +348,10 @@ fn use_cases_route_through_ipc_to_the_model_and_the_engine() {
 
 #[test]
 fn proposal_samples_come_from_the_ui_or_the_selected_event() {
-    let ws = imt_core::Workspace::new(imt_core::Profile::default_profile()).unwrap();
-    let mut ws = ws;
+    let mut ws = imt_core::Workspace::new(imt_core::Profile::default_profile()).unwrap();
     ws.open(&[samples().join("serilog-text")]).unwrap();
-    let direct: &dyn imt_core::LogStore = &ws;
+    let ws = imt_core::workspace::WorkspaceStore::new(ws);
+    let direct: &dyn imt_core::ports::Store = &ws;
     let store: imt_ai::StoreRef = direct.into();
     let (s, f) = sample_of(store, None, Some("a\nb".into()), Some("x.log".into())).unwrap();
     assert_eq!((s.as_str(), f.as_str()), ("a\nb", "x.log"));
@@ -666,6 +666,7 @@ fn chat_streams_to_its_window_and_history_round_trips_through_the_project() {
         profile: String::new(),
         ui: json!({ "version": 1, "chats": history }),
         clock: Default::default(),
+        store: None,
         reports: vec![],
     };
     file.save(&project).unwrap();
@@ -869,17 +870,11 @@ fn imports_do_not_wait_for_a_slow_turn_and_changed_citations_are_flagged() {
         .iter()
         .find(|c| c["kind"] == "record")
         .unwrap();
+    // Event ids are stable in the store (they are never renumbered when files interleave), so the citation
+    // still names the same event and stays verified.
     assert_eq!(
         (cited["id"].as_u64(), cited["verified"].as_bool()),
-        (Some(10), Some(false)),
-        "{done}"
-    );
-    assert!(
-        done["notes"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|n| n.as_str().unwrap().contains("changed")),
+        (Some(10), Some(true)),
         "{done}"
     );
 }

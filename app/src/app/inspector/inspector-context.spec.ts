@@ -6,7 +6,7 @@ import { Inspector } from './inspector';
 
 const record = (patch: Partial<RecordView> = {}): RecordView => ({
   id: 10,
-  ts: null,
+  ts: null, tsState: 'untimed',
   level: 'Information',
   message: 'line without a timestamp',
   template: null,
@@ -14,7 +14,7 @@ const record = (patch: Partial<RecordView> = {}): RecordView => ({
   fields: {},
   source: 1,
   sourceName: 'app.log',
-  line: 3,
+  line: 3, byteOffset: 0,
   group: 'WEB02 · 300',
   markers: [],
   ...patch,

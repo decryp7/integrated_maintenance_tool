@@ -18,7 +18,7 @@ static GLOBAL: imt_alloc::MiMalloc = imt_alloc::MiMalloc;
 use common::{log_samples, TempDir};
 use imt_core::api::{QueryRequest, TimelineRequest};
 use imt_core::model::Level;
-use imt_core::ports::{Analysis, Diagnostics, Filter, PageQuery, Query};
+use imt_core::ports::{Analysis, Diagnostics, Filter, PageQuery, Query, Search};
 use imt_core::{PluginRegistry, Profile};
 use imt_store_duck::DuckStore;
 use serde_json::json;
@@ -88,6 +88,9 @@ fn read_operations_meet_the_budget() {
             let store = DuckStore::create(&target, Profile::default_profile(), PluginRegistry::new()).unwrap();
             let report = imt_core::ports::Ingest::open(&store, &paths).unwrap().wait().unwrap();
             eprintln!("imported {} events in {:.1} s", report.events, started.elapsed().as_secs_f64());
+            let indexing = Instant::now();
+            let status = store.wait_for_index(Duration::from_secs(3600));
+            eprintln!("indexed in {:.1} s: {status:?}", indexing.elapsed().as_secs_f64());
             if existing.is_some() {
                 eprintln!("store written to {}; run again to measure the queries", target.display());
                 return;
@@ -121,6 +124,14 @@ fn read_operations_meet_the_budget() {
     };
     let text = Filter {
         text: "timeout".into(),
+        ..Filter::default()
+    };
+    // Smart search answers from the index: wait until it caught up (a fresh import indexes in the background).
+    let index = store.wait_for_index(Duration::from_secs(3600)).map_err(|e| eprintln!("{e}"));
+    eprintln!("full-text index: {index:?}");
+    let words = Filter {
+        text: "timeout req".into(),
+        text_mode: imt_core::query::TextMode::Words,
         ..Filter::default()
     };
     let window = Filter {
@@ -170,6 +181,22 @@ fn read_operations_meet_the_budget() {
     });
     time("page text", true, &mut || {
         store.page(&page(&text, 0)).map_err(|e| eprintln!("{e}")).is_ok()
+    });
+    time("page words (smart search)", true, &mut || {
+        store.page(&page(&words, 0)).map_err(|e| eprintln!("{e}")).is_ok()
+    });
+    time("timeline words (smart search)", true, &mut || {
+        store
+            .timeline(&TimelineRequest {
+                query: words.clone(),
+                buckets: 400,
+                always_show_lifecycle: true,
+            })
+            .map_err(|e| eprintln!("{e}"))
+            .is_ok()
+    });
+    time("partial matches (background scan)", false, &mut || {
+        store.partial_matches(&words).map_err(|e| eprintln!("{e}")).is_ok()
     });
     time("page one hour", true, &mut || {
         store.page(&page(&window, 0)).map_err(|e| eprintln!("{e}")).is_ok()

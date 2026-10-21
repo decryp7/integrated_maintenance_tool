@@ -302,6 +302,16 @@ impl Lifecycle {
         self.sessions.as_ref().and_then(|s| s.last_session(label))
     }
 
+    /// The store folders the autosaved sessions (this run's and the recovered ones) reopen.
+    pub fn session_stores(&self) -> Vec<PathBuf> {
+        let Some(s) = &self.sessions else { return Vec::new() };
+        s.all_files()
+            .into_iter()
+            .filter_map(|f| ProjectFile::load(&f).ok())
+            .filter_map(|p| p.store.map(PathBuf::from))
+            .collect()
+    }
+
     /// A window was closed by the user: it is not restored after a crash.
     pub fn forget_session(&self, label: &str) {
         if let Some(s) = &self.sessions {
@@ -427,6 +437,23 @@ impl SessionStore {
         if windows.len() != before {
             let _ = self.write_manifest(SESSIONS_DIR, windows);
         }
+    }
+
+    /// Every session file there is (this run's and the recovered ones).
+    pub fn all_files(&self) -> Vec<PathBuf> {
+        [SESSIONS_DIR, RECOVERED_DIR]
+            .iter()
+            .flat_map(|folder| {
+                std::fs::read_dir(self.dir.join(folder))
+                    .map(|r| {
+                        r.flatten()
+                            .map(|e| e.path().join(SESSION_FILE))
+                            .filter(|f| f.is_file())
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default()
+            })
+            .collect()
     }
 
     /// The previous run's sessions, `main` first.
@@ -698,7 +725,7 @@ pub async fn restart_app<R: tauri::Runtime>(
 #[tauri::command]
 pub async fn save_session(state: CurrentWindow, lifecycle: State<'_, Lifecycle>, ui: Value, reports: Option<Vec<Value>>) -> CmdResult<()> {
     let Some(store) = &lifecycle.sessions else { return Ok(()) };
-    let mut project = crate::workspace_commands::project_of(&state, "Last session".into(), ui);
+    let mut project = crate::workspace_commands::session_of(&state, "Last session".into(), ui).await?;
     // Autosave never fails over a report: one that does not parse is left out.
     project.reports = reports
         .unwrap_or_default()
@@ -855,7 +882,6 @@ mod tests {
         )
         .unwrap();
         running.recv_timeout(std::time::Duration::from_secs(5)).unwrap();
-        let import = state.store_write();
         std::fs::write(&log, "2026-10-14 10:00:00 INFO first\n2026-10-14 10:00:01 INFO second\n").unwrap();
         std::thread::sleep(std::time::Duration::from_millis(300));
         let started = std::time::Instant::now();
@@ -868,7 +894,6 @@ mod tests {
             took < TEARDOWN_STEP_LIMIT * 2 + std::time::Duration::from_secs(5),
             "quitting took {took:?}"
         );
-        drop(import);
     }
 
     #[test]

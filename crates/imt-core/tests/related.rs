@@ -99,9 +99,13 @@ impl Query for Port {
                     byte_offset: 0,
                     group: r.group,
                     markers: vec![],
+                    search_match: None,
                 })
                 .collect(),
         })
+    }
+    fn events(&self, _: &imt_core::ports::EventsRequest) -> StoreResult<Vec<EventView>> {
+        unsupported()
     }
     fn timeline(&self, _: &TimelineRequest) -> StoreResult<Timeline> {
         unsupported()

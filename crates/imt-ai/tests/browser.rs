@@ -10,7 +10,6 @@ use imt_ai::browser::*;
 use imt_ai::chat::*;
 use imt_ai::llm::{Reply, ScriptedProvider};
 use imt_ai::web::{CLOSE_TAG, OPEN_TAG};
-use imt_core::api::PageRequest;
 use imt_core::query::Query;
 use serde_json::{json, Value};
 use std::sync::Mutex;
@@ -168,7 +167,7 @@ fn agent_on(limit: u32) -> ChatBrowser {
 /// A message from the loaded logs with a few words (a "log line" a page may ask the AI to send away).
 fn a_log_line() -> String {
     let page = store()
-        .page(&PageRequest {
+        .page(&imt_core::ports::PageQuery {
             query: Query {
                 text: "Payment gateway call exceeded".into(),
                 ..Query::default()
@@ -483,7 +482,7 @@ fn typing_into_a_password_field_hands_back() {
 #[test]
 fn an_event_becomes_a_redacted_search() {
     let page = store()
-        .page(&PageRequest {
+        .page(&imt_core::ports::PageQuery {
             query: Query {
                 text: "Payment gateway call exceeded".into(),
                 ..Query::default()
@@ -494,7 +493,7 @@ fn an_event_becomes_a_redacted_search() {
             anchor: None,
         })
         .unwrap();
-    let id = page.rows[0].id;
+    let id = u32::try_from(page.rows[0].id.0).unwrap();
     let q = query::search_for_event(store(), id).unwrap();
     assert!(
         q.query.contains("Payment") && q.query.contains("exceeded") && !q.query.contains('{'),

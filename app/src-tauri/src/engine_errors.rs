@@ -1,18 +1,16 @@
 //! Finds the failures the engine contained during a workspace command (plugin
 //! crashes, quarantines, files whose import crashed) so the UI can be told
-//! about each new one once, via `imt://error`.
+//! about each new one once, via `imt://error`. Typed: plugin health from the
+//! registry and `UnrecognizedFile::crashed` from the import (never the text).
 
 use crate::snapshots::{EngineError, EngineErrorKind};
-use imt_core::api::WorkspaceSummary;
-use imt_core::plugin::PluginStatus;
+use imt_core::api::UnrecognizedFile;
+use imt_core::plugin::{PluginInfo, PluginStatus};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// At most this many errors are reported per command (a folder of broken files
 /// must not flood the UI with snapshots).
 pub const MAX_REPORTED: usize = 5;
-
-/// What the guard text of a contained panic contains (see `imt_core::guard::catch`).
-const CRASH_MARK: &str = " crashed: ";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct PluginHealth {
@@ -32,10 +30,10 @@ pub struct HealthSnapshot {
 }
 
 impl HealthSnapshot {
-    pub fn of(summary: &WorkspaceSummary) -> HealthSnapshot {
+    /// The health of `plugins` and the files of an import that crashed.
+    pub fn new(plugins: &[PluginInfo], unrecognized: &[UnrecognizedFile]) -> HealthSnapshot {
         HealthSnapshot {
-            plugins: summary
-                .plugins
+            plugins: plugins
                 .iter()
                 .map(|p| {
                     (
@@ -50,10 +48,9 @@ impl HealthSnapshot {
                     )
                 })
                 .collect(),
-            crashed_files: summary
-                .unrecognized
+            crashed_files: unrecognized
                 .iter()
-                .filter(|u| u.reason.contains(CRASH_MARK))
+                .filter(|u| u.crashed)
                 .map(|u| (u.name.clone(), u.reason.clone()))
                 .collect(),
         }
@@ -106,8 +103,6 @@ pub fn new_errors(before: &HealthSnapshot, after: &HealthSnapshot) -> Vec<Engine
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_core::api::UnrecognizedFile;
-    use imt_core::plugin::PluginInfo;
 
     fn plugin(id: &str, status: PluginStatus, failures: u32, last_error: Option<&str>) -> PluginInfo {
         PluginInfo {
@@ -132,14 +127,12 @@ mod tests {
             path: format!("/x/{name}"),
             name: name.into(),
             reason: reason.into(),
+            crashed: reason.contains(" crashed: "),
         }
     }
 
     fn snap(plugins: Vec<PluginInfo>, unrecognized: Vec<UnrecognizedFile>) -> HealthSnapshot {
-        let mut s = imt_core::Workspace::new(imt_core::Profile::default_profile()).unwrap().summary();
-        s.plugins = plugins;
-        s.unrecognized = unrecognized;
-        HealthSnapshot::of(&s)
+        HealthSnapshot::new(&plugins, &unrecognized)
     }
 
     #[test]

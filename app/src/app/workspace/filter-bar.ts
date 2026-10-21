@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, injec
 import { FilterOp, LEVELS, Level } from '../core/api.types';
 import { formatCompact, formatDateTime, formatDuration, tzLabel } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
+import { SmartSearchStore } from '../core/workspace/smart-search.store';
+import { plural } from '../i18n/locale';
 import { ClickOutside } from '../shared/click-outside';
 import { LEVEL_CODES, LEVEL_VARS } from '../shared/colors';
 import { Icon } from '../shared/icon';
@@ -38,6 +40,9 @@ const OP_LABELS: Record<FilterOp, string> = {
           (input)="store.setTextInput($any($event.target).value)"
           (keydown.escape)="store.setTextInput('')"
         />
+        @if (smart.added() > 0) {
+          <span class="partial-note mono" role="status" data-testid="partial-note" [title]="partialNote()">+{{ smart.added() }}</span>
+        }
         <button class="toggle mono" [class.on]="q().regex" (click)="store.setRegex(!q().regex)" title="Regular expression" i18n-title="@@workspace.filterBar.regex" [attr.aria-pressed]="q().regex">.*</button>
         <button class="toggle mono" [class.on]="q().caseSensitive" (click)="store.setCaseSensitive(!q().caseSensitive)" title="Match case" i18n-title="@@workspace.filterBar.matchCase" [attr.aria-pressed]="q().caseSensitive">Aa</button>
       </label>
@@ -155,6 +160,7 @@ const OP_LABELS: Record<FilterOp, string> = {
     .search { flex: 1; min-width: 200px; height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 6px 0 10px; border-radius: 6px; background: var(--bg-3); border: 1px solid var(--border-2); }
     .search:focus-within { border-color: var(--accent); }
     .search.invalid { border-color: var(--lvl-error); }
+    .partial-note { flex: none; font-size: var(--fs-xs); color: var(--text-2); padding: 1px 6px; border-radius: 999px; border: 1px dashed var(--border-2); }
     .search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; font-size: var(--fs-sm); color: var(--text); }
     .toggle { height: 20px; padding: 0 5px; font-size: var(--fs-2xs); border-radius: 4px; color: var(--muted); border: 1px solid var(--border-3); background: transparent; cursor: pointer; }
     .toggle.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
@@ -192,6 +198,15 @@ const OP_LABELS: Record<FilterOp, string> = {
 })
 export class FilterBar {
   protected readonly store = inject(WorkspaceStore);
+  protected readonly smart = inject(SmartSearchStore);
+  /** What the "+N" in the search box means: the engine added partial matches to the word matches. */
+  protected readonly partialNote = computed(() => {
+    const n = this.smart.added();
+    return plural(n, {
+      one: $localize`:@@workspace.filterBar.partialOne:${n}:count: more partial match added: the text appears inside a word`,
+      other: $localize`:@@workspace.filterBar.partialMany:${n}:count: more partial matches added: the text appears inside words`,
+    });
+  });
   protected readonly zoom = inject(TimelineZoom);
   protected readonly levels = LEVELS;
   protected readonly ops: FilterOp[] = ['eq', 'ne', 'contains', 'notContains', 'matches', 'exists', 'missing', 'gt', 'lt'];

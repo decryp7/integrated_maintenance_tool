@@ -3,7 +3,6 @@
 
 use super::dto::{LifecycleCandidate, LifecycleRole, MarkerCoverage, NoiseCandidate, NoiseReason, TemplateKind, TemplateSummary};
 use super::sample::Sample;
-use crate::api::MarkerKind;
 use crate::model::Level;
 use crate::patterns::{MinerConfig, PatternMiner, TemplateSource, WILDCARD};
 use regex::Regex;
@@ -287,8 +286,9 @@ pub fn noise(mined: &Mined, events: &[Sample]) -> Vec<NoiseCandidate> {
         .collect()
 }
 
-/// How many sampled events each existing marker kind matches.
-pub fn coverage(kinds: &[MarkerKind], events: &[Sample]) -> Vec<MarkerCoverage> {
+/// How many sampled events each existing marker kind matches (`kinds` as the store numbers them; label and
+/// lifecycle from the profile's `[[marker]]`, the kind itself for plugin kinds).
+pub fn coverage(kinds: &[String], profile: &crate::Profile, events: &[Sample]) -> Vec<MarkerCoverage> {
     let mut counts: HashMap<&str, usize> = HashMap::new();
     for e in events {
         for m in &e.markers {
@@ -297,11 +297,14 @@ pub fn coverage(kinds: &[MarkerKind], events: &[Sample]) -> Vec<MarkerCoverage> 
     }
     kinds
         .iter()
-        .map(|k| MarkerCoverage {
-            kind: k.kind.clone(),
-            label: k.label.clone(),
-            lifecycle: k.lifecycle,
-            matches: counts.get(k.kind.as_str()).copied().unwrap_or(0),
+        .map(|k| {
+            let cfg = profile.marker.iter().find(|m| &m.kind == k);
+            MarkerCoverage {
+                kind: k.clone(),
+                label: cfg.and_then(|m| m.label.clone()).unwrap_or_else(|| k.clone()),
+                lifecycle: cfg.is_some_and(|m| m.lifecycle),
+                matches: counts.get(k.as_str()).copied().unwrap_or(0),
+            }
         })
         .collect()
 }

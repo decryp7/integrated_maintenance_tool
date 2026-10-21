@@ -5,7 +5,7 @@ import { isMockDemoPath, MOCK_DEMO_PATHS, MockFiles, MockImportSim, MockProfileH
 import { mockOptionsFromSearch } from './mock-options';
 
 import { at } from '../../../testing/must';
-import { mockJobs } from '../../jobs/mock-jobs';
+import { MockJobs, mockJobs, resetMockJobs } from '../../jobs/mock-jobs';
 describe('mock import, files and profile history', () => {
   it('a slow import reports progress file by file and stops after a cancel', async () => {
     const sim = new MockImportSim(5);
@@ -80,6 +80,25 @@ describe('mock import, files and profile history', () => {
       const merged = await tiny.openPaths([at(MOCK_DEMO_PATHS, 0)]);
       expect(merged.sources.length).toBe(2 + demo.sources.length);
       expect((await tiny.openPaths([at(MOCK_DEMO_PATHS, 0)])).sources.length).toBe(merged.sources.length);
+    });
+
+    it('a slow open runs as an import job whose progress carries files, bytes and the current file', async () => {
+      const jobs = new MockJobs({ visibleMs: 0, attentionMs: 0, failOnce: new Set() });
+      resetMockJobs(jobs);
+      try {
+        const b = new MockBackend({ latency: false, dataset: tinyDataset, pluginMarkerKinds: [], slowImportMs: 5 });
+        const open = b.openPaths(['/big']);
+        await new Promise((r) => setTimeout(r, 12));
+        const running = (await jobs.list()).jobs.find((j) => j.kind === 'import' && j.state === 'running');
+        expect(running?.title).toBe('Open /big');
+        expect(running?.progress).toMatchObject({ total: SLOW_FILES_PER_PATH, bytesTotal: SLOW_FILES_PER_PATH * SLOW_FILE_BYTES, current: expect.stringContaining('/big/part-') });
+        await open;
+        const done = (await jobs.list()).jobs.find((j) => j.kind === 'import');
+        expect(done?.state).toBe('done');
+        expect(done?.progress).toMatchObject({ done: SLOW_FILES_PER_PATH, bytesDone: SLOW_FILES_PER_PATH * SLOW_FILE_BYTES });
+      } finally {
+        resetMockJobs();
+      }
     });
 
     it('a slow open is cancellable: unread files are listed as not imported', async () => {

@@ -161,7 +161,7 @@ fn run<R: Runtime>(app: &AppHandle<R>, out: &Path, query: &str) -> Result<(), St
     std::fs::create_dir_all(out).map_err(|e| format!("cannot create {}: {e}", out.display()))?;
     // The main window and its UI first (the Browser panel places the page webview).
     let deadline = Instant::now() + Duration::from_secs(90);
-    while app.get_webview_window(OWNER).is_none_or(|w| !w.is_visible().unwrap_or(false)) {
+    while app.get_window(OWNER).is_none_or(|w| !w.is_visible().unwrap_or(false)) {
         if Instant::now() > deadline {
             return Err("the main window did not show".into());
         }

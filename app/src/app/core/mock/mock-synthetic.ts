@@ -11,6 +11,7 @@ export function syntheticRow(i: number): RecordView {
   return {
     id: i,
     ts: DEMO_START + i * 1000,
+    tsState: 'parsed',
     level,
     message: `Synthetic event ${i}`,
     template: null,
@@ -19,6 +20,7 @@ export function syntheticRow(i: number): RecordView {
     source: 0,
     sourceName: 'synthetic.log',
     line: i + 1,
+    byteOffset: i * 64,
     group: 'synthetic',
     markers: [],
   };

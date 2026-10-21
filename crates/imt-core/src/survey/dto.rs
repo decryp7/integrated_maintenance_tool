@@ -74,7 +74,7 @@ pub enum FieldKind {
     Mixed,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ValueCount {
     pub value: String,

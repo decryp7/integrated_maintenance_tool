@@ -10,14 +10,14 @@ pub const MAX_DISTINCT: usize = 10_000;
 /// Most frequent values listed.
 pub const TOP: usize = 20;
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ValueCount {
     pub value: String,
     pub count: u64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HistogramBin {
     pub from: f64,
@@ -25,7 +25,7 @@ pub struct HistogramBin {
     pub count: u64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NumericStats {
     pub min: f64,
@@ -39,7 +39,7 @@ pub struct NumericStats {
     pub histogram: Vec<HistogramBin>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FieldStats {
     /// Events that carry the field.

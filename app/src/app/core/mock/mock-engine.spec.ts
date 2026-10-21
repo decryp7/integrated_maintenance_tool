@@ -1,7 +1,7 @@
 import { parse } from 'smol-toml';
 import { query, SEC, T0, tinyDataset } from '../../../testing/helpers';
 import { ProfileModel } from '../profile.model';
-import { compileConditions, MockEngine, safeRegex } from './mock-engine';
+import { compileConditions, MockEngine, mockWords, safeRegex } from './mock-engine';
 import { MOCK_PROFILE_TOML } from './mock-profile';
 import { at, must } from '../../../testing/must';
 
@@ -13,6 +13,27 @@ function engine(profile: ProfileModel = parse(MOCK_PROFILE_TOML) as ProfileModel
 }
 
 describe('MockEngine', () => {
+  describe('smart search', () => {
+    it('matches words (the last a prefix), adds partial matches on request and marks rows', () => {
+      const e = engine();
+      const page = (text: string, textMode: 'substring' | 'words' | 'wordsOrSubstring') =>
+        e.page({ query: { ...query(), text, textMode }, offset: 0, limit: 100, descending: false });
+      expect(page('imeout', 'words').total).toBe(0);
+      expect(page('imeout', 'substring').total).toBe(2);
+      const both = page('imeout', 'wordsOrSubstring');
+      expect(both.total).toBe(2);
+      expect(both.rows.map((r) => r.searchMatch)).toEqual(['partial', 'partial']);
+      expect(page('time', 'words').rows.every((r) => r.searchMatch === 'words')).toBe(true);
+      expect(page('time', 'substring').rows.every((r) => r.searchMatch === undefined)).toBe(true);
+      expect(e.partialMatches({ ...query(), text: 'imeout', textMode: 'words' })).toEqual({ added: 2, complete: true });
+      expect(e.partialMatches({ ...query(), text: 'imeout', regex: true })).toEqual({ added: 0, complete: true });
+      const words = mockWords('payment fail');
+      expect(words?.('Failed to capture payment')).toBe(true);
+      expect(mockWords('payment fail ')?.('Failed to capture payment')).toBe(false);
+      expect(mockWords('--')).toBeNull();
+    });
+  });
+
   describe('query language (Query.ql)', () => {
     it('filters page, facet, timeline and chart like the other content filters', () => {
       const e = engine();

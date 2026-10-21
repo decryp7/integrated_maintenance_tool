@@ -104,6 +104,9 @@ pub struct UnrecognizedFile {
     pub path: String,
     pub name: String,
     pub reason: String,
+    /// Its importer crashed (contained): a bug to report, not an unknown format.
+    #[serde(default)]
+    pub crashed: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -147,6 +150,8 @@ pub struct WorkspaceSummary {
     pub sources: Vec<SourceInfo>,
     pub unrecognized: Vec<UnrecognizedFile>,
     pub total: usize,
+    /// Events without a timestamp: in the grid (marked), not on the timeline or in time filters.
+    pub untimed: usize,
     pub from: Option<i64>,
     pub to: Option<i64>,
     pub levels: BTreeMap<Level, usize>,
@@ -172,7 +177,7 @@ pub struct WorkspaceSummary {
     pub redacted_view: bool,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ContextRequest {
     pub record_id: u32,
@@ -186,13 +191,13 @@ fn default_radius() -> usize {
     10
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, serde::Deserialize)]
 pub struct SourceLine {
     pub line: u32,
     pub text: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceContext {
     pub source_name: String,
@@ -204,28 +209,28 @@ pub struct SourceContext {
     pub note: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryRequest {
     #[serde(default)]
     pub query: Query,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletionRequest {
     pub text: String,
     pub cursor: usize,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompareRequest {
     pub a: Query,
     pub b: Query,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FieldStatsRequest {
     #[serde(default)]
@@ -239,14 +244,14 @@ fn default_histogram() -> usize {
     20
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CorrelateRequest {
     pub field: String,
     pub value: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TraceRequest {
     #[serde(default)]
@@ -256,7 +261,7 @@ pub struct TraceRequest {
     pub trace_id: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TraceSummary {
     pub trace_id: String,
@@ -267,7 +272,7 @@ pub struct TraceSummary {
     pub root: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestsRequest {
     #[serde(default)]
@@ -281,7 +286,7 @@ fn default_request_field() -> String {
     "RequestId|CorrelationId|TraceId".into()
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MomentRequest {
     /// Structural filters (instances, fields) applied to every section; its
@@ -315,7 +320,7 @@ impl AnalysisCoverage {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MomentSummary {
     pub from: i64,
@@ -331,7 +336,7 @@ pub struct MomentSummary {
 }
 
 /// How many events in a moment came from one user, and the field that named them.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserCount {
     /// The `activity.user` field the value was read from (the first one present on the event).
@@ -340,7 +345,7 @@ pub struct UserCount {
     pub count: u64,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MomentInstance {
     pub key: String,
@@ -352,7 +357,7 @@ pub struct MomentInstance {
     pub first_error: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MetricWindow {
     /// Instance key, or machine · process for PerfMon counters.
@@ -369,7 +374,7 @@ pub struct MetricWindow {
     pub change_pct: Option<f64>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActivityItem {
     pub id: u32,
@@ -380,7 +385,7 @@ pub struct ActivityItem {
     pub level: Level,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ParsePreviewRequest {
     /// Candidate profile (may be unsaved).
@@ -398,7 +403,7 @@ fn default_preview_records() -> usize {
     50
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ParsedPreview {
     pub line: u32,
@@ -410,7 +415,7 @@ pub struct ParsedPreview {
     pub markers: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ParsePreview {
     pub importer: Option<String>,
@@ -425,7 +430,7 @@ pub struct ParsePreview {
 pub use imt_plugin_api::problems::Severity;
 
 /// What the UI should do when the user follows a finding.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum FindingAction {
     /// Zoom to a time range and select an event.
@@ -439,7 +444,7 @@ pub enum FindingAction {
 }
 
 /// What a finding of the health check is about (the UI picks an icon and counts crashes by it).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum FindingKind {
     Crash,
@@ -457,7 +462,7 @@ pub enum FindingKind {
 }
 
 /// One line of the automatic health check, in plain English.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Finding {
     pub kind: FindingKind,
@@ -468,7 +473,7 @@ pub struct Finding {
 }
 
 /// Opened paths, removed files and clock offsets, enough to rebuild the workspace.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct WorkspaceState {
     pub roots: Vec<String>,
     pub removed: Vec<String>,
@@ -493,7 +498,7 @@ pub struct ExporterInfo {
     pub extension: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportRequest {
     #[serde(default)]
@@ -510,7 +515,7 @@ pub struct ExportRequest {
     pub overwrite: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct ExportResult {
     pub format: String,
     pub path: String,
@@ -654,7 +659,7 @@ pub struct Facet {
     pub total: usize,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ChartRequest {
     #[serde(default)]
@@ -667,13 +672,13 @@ pub struct ChartRequest {
     pub buckets: usize,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct ChartSeries {
     pub key: String,
     pub points: Vec<(i64, Option<f64>)>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct LifecycleEvent {
     pub kind: String,
     pub ts: i64,
@@ -681,7 +686,7 @@ pub struct LifecycleEvent {
     pub id: u32,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ChartData {
     pub def: ChartDef,
@@ -692,7 +697,7 @@ pub struct ChartData {
     pub lifecycle: Vec<LifecycleEvent>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExtractPreviewRequest {
     pub toml: String,
@@ -707,14 +712,14 @@ fn default_preview_limit() -> usize {
     20
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct ExtractSpan {
     pub name: String,
     pub start: usize,
     pub end: usize,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExtractSample {
     pub record_id: u32,
@@ -723,7 +728,7 @@ pub struct ExtractSample {
     pub values: Map<String, Value>,
 }
 
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Default, serde::Deserialize)]
 pub struct ExtractPreview {
     pub candidates: usize,
     pub matches: usize,

@@ -18,7 +18,7 @@ import { at } from '../../testing/must';
 const VIEWPORT_H = 260;
 
 function fakeRow(i: number): RecordView {
-  return { id: i, ts: 1_700_000_000_000 + i, level: 'Information', message: `row ${i}`, template: null, exception: null, fields: { n: i }, source: 0, sourceName: 's.log', line: i + 1, group: 'g', markers: [] };
+  return { id: i, ts: 1_700_000_000_000 + i, tsState: 'parsed', level: 'Information', message: `row ${i}`, template: null, exception: null, fields: { n: i }, source: 0, sourceName: 's.log', line: i + 1, byteOffset: 0, group: 'g', markers: [] };
 }
 
 /** Backend with a huge synthetic result to exercise paging and scroll compression. */
@@ -69,6 +69,10 @@ describe('EventsGrid', () => {
     expect(store.matchTotal()).toBe(11);
     expect(at(rows(fixture), 0).textContent).toContain('Application starting');
     expect(all(fixture, '.row imt-marker-icon').length).toBeGreaterThan(0);
+    // The event without a timestamp stays in the grid, marked in its time cell.
+    const untimed = all(fixture, '.time.untimed');
+    expect(untimed).toHaveLength(1);
+    expect(at(untimed, 0).textContent?.trim()).toBe('no time');
   });
 
   it('follows the density and date format settings', async () => {

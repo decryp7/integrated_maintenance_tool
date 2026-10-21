@@ -154,7 +154,7 @@ pub fn spans<R: RowRef>(records: impl IntoIterator<Item = R>) -> Vec<Span> {
     out
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WaterfallRow {
     pub span_id: String,
@@ -214,7 +214,7 @@ pub fn waterfall(spans: &[Span], trace_id: &str) -> Vec<WaterfallRow> {
     rows
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestSpan {
     pub id: String,

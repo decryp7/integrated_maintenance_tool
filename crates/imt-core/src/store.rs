@@ -304,18 +304,6 @@ pub trait LogStore: Send + Sync {
         let _ = req;
         crate::skew::SuggestResult::default()
     }
-
-    /// "Set up analysis for this folder": a bounded survey of what is loaded and validated heuristic
-    /// proposals merged over `base_toml` (see [`crate::survey`]). Built on the other methods, so every
-    /// store has it; a store may override it with a native sampler.
-    fn survey_folder(
-        &self,
-        base_toml: &str,
-        req: &crate::survey::SurveyRequest,
-        control: &crate::survey::SurveyControl,
-    ) -> std::result::Result<crate::survey::FolderSetup, crate::survey::SurveyError> {
-        crate::survey::run(self, base_toml, req, control)
-    }
 }
 
 impl LogStore for Workspace {

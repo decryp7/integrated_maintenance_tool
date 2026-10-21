@@ -17,8 +17,8 @@ import { parseSavedQueries, SavedQueryStore } from './saved-query.store';
 import { at } from '../../../testing/must';
 
 const record = (over: Partial<RecordView> = {}): RecordView => ({
-  id: 7, ts: 1_700_000_000_000, level: 'Error', message: 'Failed to capture payment', template: null, exception: 'TimeoutException', fields: { ElapsedMs: 5000, Machine: 'WEB01', Empty: '' },
-  source: 0, sourceName: 'app.clef', line: 4, group: 'g', markers: [], ...over,
+  id: 7, ts: 1_700_000_000_000, tsState: 'parsed', level: 'Error', message: 'Failed to capture payment', template: null, exception: 'TimeoutException', fields: { ElapsedMs: 5000, Machine: 'WEB01', Empty: '' },
+  source: 0, sourceName: 'app.clef', line: 4, byteOffset: 0, group: 'g', markers: [], ...over,
 });
 const rule = (over: Partial<HighlightRule>): HighlightRule => ({ id: 'r', field: '@level', op: 'eq', value: 'Error', color: '#f00', enabled: true, ...over });
 

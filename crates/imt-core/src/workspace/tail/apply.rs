@@ -5,8 +5,7 @@
 use super::alerts::{Batch, InstanceSeen};
 use super::index::{same_record, sort_key};
 use super::{
-    group_key, wall_ms, Change, Delta, Mode, PatternCache, TailFileStatus, TailReport, TailStatus, TailTotals, TimeWindow, WatchMode,
-    Workspace,
+    group_key, wall_ms, Change, Delta, Mode, PatternCache, TailFileStatus, TailReport, TailStatus, TailTotals, WatchMode, Workspace,
 };
 use crate::model::Record;
 use crate::patterns::Pattern;
@@ -240,7 +239,7 @@ impl Workspace {
 
     /// "Now" for live windows: the newest record, or the wall clock with `[live] clock = "wall"`.
     pub fn live_now(&self) -> i64 {
-        if self.profile.profile.live.clock.eq_ignore_ascii_case("wall") {
+        if crate::query::live_clock_is_wall(&self.profile.profile) {
             return wall_ms();
         }
         self.newest_ts().unwrap_or_else(wall_ms)
@@ -248,17 +247,10 @@ impl Workspace {
 
     /// The query with a sliding window resolved into `from`.
     pub fn resolve_window<'q>(&self, q: &'q Query) -> Cow<'q, Query> {
-        match q.window {
-            None => Cow::Borrowed(q),
-            Some(TimeWindow::Live { last_ms }) => {
-                let since = self.live_now().saturating_sub(last_ms.max(0));
-                Cow::Owned(Query {
-                    from: Some(q.from.map_or(since, |f| f.max(since))),
-                    window: None,
-                    ..q.clone()
-                })
-            }
+        if q.window.is_none() {
+            return Cow::Borrowed(q);
         }
+        crate::query::resolve_live_window(q, self.live_now())
     }
 
     /// Message patterns of the matching records; after an append only the new

@@ -16,6 +16,7 @@ import {
   MarkerKind,
   Page,
   PageRequest,
+  PartialMatches,
   PipelineStat,
   Query,
   RecordView,
@@ -219,7 +220,12 @@ export class MockEngine {
         text = re ? (s) => re.test(s) : () => false;
       } else {
         const needle = q.caseSensitive ? q.text : q.text.toLowerCase();
-        text = q.caseSensitive ? (s) => s.includes(needle) : (s) => s.toLowerCase().includes(needle);
+        const substring = q.caseSensitive ? (s: string) => s.includes(needle) : (s: string) => s.toLowerCase().includes(needle);
+        const words = q.caseSensitive ? null : mockWords(q.text);
+        const mode = q.textMode ?? 'substring';
+        if (words && mode === 'words') text = words;
+        else if (words && mode === 'wordsOrSubstring') text = (s) => words(s) || substring(s);
+        else text = substring;
       }
     }
     const ql = compileQl(q.ql ?? '');
@@ -257,6 +263,7 @@ export class MockEngine {
     return {
       id: r.id,
       ts: r.ts,
+      tsState: r.ts === null ? 'untimed' : 'parsed',
       level: r.level,
       message: r.message,
       template: r.template,
@@ -265,16 +272,18 @@ export class MockEngine {
       source: r.source,
       sourceName: this.sourceById.get(r.source)?.name ?? '',
       line: r.line,
+      byteOffset: mockByteOffset(r.line),
       group: this.groupKey(r, groupBy),
       markers: r.markers,
-      ...this.skewOf(r),
     };
   }
 
-  /** `skewMs` of a timed record whose source has a clock offset (like the engine's page rows). */
-  private skewOf(r: MockRecord): { skewMs?: number } {
-    const off = this.sourceById.get(r.source)?.offsetMs ?? 0;
-    return off !== 0 && r.ts !== null ? { skewMs: off } : {};
+  /** The mock's background scan of a smart search: substring matches that are not word matches. */
+  partialMatches(q: Query): PartialMatches {
+    if (!q.text.trim() || q.regex || q.caseSensitive) return { added: 0, complete: true };
+    const substring = this.matching({ ...q, textMode: 'substring' }).length;
+    const words = this.matching({ ...q, textMode: 'words' }).length;
+    return { added: Math.max(0, substring - words), complete: true };
   }
 
   page(req: PageRequest): Page {
@@ -298,6 +307,9 @@ export class MockEngine {
       const rec = id === undefined ? undefined : this.records[id];
       if (rec) rows.push(this.view(rec, groupBy));
     }
+    const q = req.query;
+    const words = q.text.trim() && !q.regex && !q.caseSensitive && (q.textMode ?? 'substring') !== 'substring' ? mockWords(q.text) : null;
+    if (words) for (const r of rows) r.searchMatch = [r.message, r.exception, r.template].some((t) => t !== null && words(t)) ? 'words' : 'partial';
     return { total, offset, rows, anchorIndex };
   }
 
@@ -473,6 +485,23 @@ export class MockEngine {
     }
     return { candidates, matches, failed: candidates - matches, samples, error: null };
   }
+}
+
+/** A plausible byte offset for a line of a mock file (the demo data has no bytes). */
+/**
+ * The mock's word search: every word of the text starts a word of the event's text, and all but the last end one
+ * (a plausible stand-in for the engine's tokenizer, which also splits camelCase).
+ */
+export function mockWords(text: string): ((s: string) => boolean) | null {
+  const terms = text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  if (!terms.length) return null;
+  const open = !/[\s"]$/.test(text);
+  const res = terms.map((t, i) => new RegExp(`(^|[^\\p{L}\\p{N}])${t}${i === terms.length - 1 && open ? '' : '($|[^\\p{L}\\p{N}])'}`, 'iu'));
+  return (s) => res.every((re) => re.test(s));
+}
+
+function mockByteOffset(line: number): number {
+  return Math.max(0, line - 1) * 128;
 }
 
 export function safeRegex(pattern: string, flags = ''): RegExp | null {
