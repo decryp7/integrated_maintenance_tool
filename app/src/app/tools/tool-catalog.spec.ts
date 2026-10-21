@@ -46,7 +46,7 @@ describe('ToolCatalog', () => {
     expect(catalog.entry('nope')).toBeNull();
     expect(catalog.usable('process-monitor')).toBe(true);
     expect(catalog.problem('process-monitor')).toBeNull();
-    expect(viewIds(views)).toEqual(expect.arrayContaining(['perfmon', 'process-monitor', 'plugin-health', 'bookmarks']));
+    expect(viewIds(views)).toEqual(expect.arrayContaining(['perfmon', 'process-monitor', 'plugin-health', 'saved-queries']));
     expect(commandIds(commands)).toEqual(expect.arrayContaining(['tools.perfmon.show', 'tools.monitor.show', 'tools.collect', 'tools.health.show']));
   });
 

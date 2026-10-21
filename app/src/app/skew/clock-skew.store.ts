@@ -5,7 +5,6 @@ import { isUnsupported, sentenceText } from '../core/cmd-error';
 import { describeError } from '../core/logger';
 import { SkewBackend } from '../core/skew-backend';
 import { WorkspaceStore } from '../core/workspace.store';
-import { BookmarkStore } from '../projects/bookmarks/bookmark.store';
 import { formatOffset } from './skew-format';
 
 /** The event another source is aligned to: what the user marked with "Use as clock reference". */
@@ -32,12 +31,12 @@ const initial: ClockSkewState = { reference: null, busy: false, error: null, una
 
 /**
  * Clock-skew correction state: the reference event, suggestions and applying offsets. The engine
- * computes and applies offsets; this store keeps the selection and bookmarks on the moved records.
+ * computes and applies offsets; this store keeps the selection and the reference on the moved records.
  */
 export const ClockSkewStore = signalStore(
   { providedIn: 'root' },
   withState<ClockSkewState>(initial),
-  withMethods((store, backend = inject(SkewBackend), workspace = inject(WorkspaceStore), bookmarks = inject(BookmarkStore)) => ({
+  withMethods((store, backend = inject(SkewBackend), workspace = inject(WorkspaceStore)) => ({
     /** Marks a timed event as the reference other sources are aligned to. Returns false for an untimed one. */
     setReference(record: RecordView | null): boolean {
       if (!record || record.ts === null) return false;
@@ -49,19 +48,17 @@ export const ClockSkewStore = signalStore(
 
     /**
      * Applies an offset. The engine moves the source's records; the summary is fetched again (every
-     * view reloads) and the selection and bookmarks follow their records. Resolves with the change, or
+     * view reloads) and the selection and the reference follow their records. Resolves with the change, or
      * null after a failure (shown as `error`).
      */
     async apply(spec: OffsetSpec): Promise<OffsetChange | null> {
       patchState(store, { busy: true, error: null });
       const selected = workspace.selected();
-      const marked = bookmarks.items().flatMap((b) => (b.kind === 'record' && b.recordId !== undefined ? [b.recordId] : []));
       const reference = store.reference();
-      const track = [...new Set([...(selected ? [selected.id] : []), ...(reference ? [reference.id] : []), ...marked])];
+      const track = [...new Set([...(selected ? [selected.id] : []), ...(reference ? [reference.id] : [])])];
       try {
         const change = await backend.setSourceOffset({ ...spec, track });
         const moved = new Map<number, number | null>(track.map((id, i) => [id, change.tracked[i] ?? null]));
-        bookmarks.remapRecords(new Map([...moved].filter(([a, b]) => b !== null && a !== b)));
         if (reference) {
           const id = moved.get(reference.id);
           patchState(store, { reference: id == null ? null : { ...reference, id, ts: reference.source === change.source ? reference.ts + change.offsetMs - change.previousMs : reference.ts } });

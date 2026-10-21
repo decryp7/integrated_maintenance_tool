@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject } from '@angular/core';
 import { WorkspaceStore } from '../../core/workspace.store';
-import { BookmarkStore } from '../../projects/bookmarks/bookmark.store';
+import { NotesStore } from '../../notes/notes.store';
 import { QuerySession } from '../../analysis/query-session';
 import { TimelineAnnotations } from '../../timeline/annotations.store';
 import { Icon } from '../../shared/icon';
@@ -50,7 +50,7 @@ import { ReportStore } from './report.store';
           <span class="faint" i18n="@@share.reportView.addLabel">Add:</span>
           <button type="button" class="btn" (click)="actions.addText()" i18n="@@share.reportView.addText">Text</button>
           <button type="button" class="btn" [disabled]="!ws.selected()" (click)="actions.addSelectedEvent()" i18n="@@share.reportView.addSelected">Selected event</button>
-          <button type="button" class="btn" [disabled]="!bookmarks.items().length" (click)="actions.addBookmarks()" i18n="@@share.reportView.addBookmarks">Bookmarks</button>
+          <button type="button" class="btn" [disabled]="!notes.items().length" (click)="actions.addNotes()" i18n="@@share.reportView.addNotes">Notes</button>
           <button type="button" class="btn" [disabled]="!ws.timeline()" (click)="actions.addTimeline()" i18n="@@share.reportView.addTimeline">Timeline</button>
           <button type="button" class="btn" [disabled]="!ws.summary()?.total" (click)="actions.addAnomalies()" i18n="@@share.reportView.addAnomalies">Anomalies as findings</button>
           <button type="button" class="btn" [disabled]="!session.table()" (click)="actions.addQueryTable()" i18n="@@share.reportView.addQuery">Query result</button>
@@ -76,7 +76,7 @@ import { ReportStore } from './report.store';
         <button type="button" class="btn add-section" (click)="reports.addSection()" i18n="@@share.reportView.addSection"><imt-icon name="plus" [size]="13" /> Add section</button>
       } @else {
         <div class="empty-next">
-          <p class="faint" i18n="@@share.reportView.none">No report yet. Create one, or use “Add to report” on an event, a bookmark, a chart or the timeline.</p>
+          <p class="faint" i18n="@@share.reportView.none">No report yet. Create one, or use “Add to report” on an event, a note, a chart or the timeline.</p>
           <button type="button" class="btn primary" (click)="reports.create()" i18n="@@share.reportView.create"><imt-icon name="plus" [size]="13" /> Create a report</button>
         </div>
       }
@@ -105,7 +105,7 @@ export class ReportView {
   protected readonly activeId = computed(() => this.reports.active()?.id ?? '');
   protected readonly actions = inject(ReportActions);
   protected readonly ws = inject(WorkspaceStore);
-  protected readonly bookmarks = inject(BookmarkStore);
+  protected readonly notes = inject(NotesStore);
   protected readonly session = inject(QuerySession);
   protected readonly annotations = inject(TimelineAnnotations);
   private readonly dialogs = inject(DialogService);

@@ -58,6 +58,8 @@ pub struct WindowState {
     pub(crate) dumps: crate::dumps::DumpsSlot,
     /// The window's AI chats and running AI use cases.
     pub(crate) ai: crate::ai::WindowAi,
+    /// The window's notes (ADR 0021), saved with the project.
+    pub(crate) notes: crate::notes::WindowNotes,
 }
 
 impl WindowState {
@@ -77,6 +79,7 @@ impl WindowState {
             profiling: crate::profiling::ProfilingSlot::default(),
             dumps: crate::dumps::DumpsSlot::default(),
             ai: crate::ai::WindowAi::default(),
+            notes: crate::notes::WindowNotes::default(),
         }
     }
 

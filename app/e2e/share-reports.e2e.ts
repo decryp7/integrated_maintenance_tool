@@ -9,11 +9,13 @@ async function written(page: Page): Promise<{ path: string; kind: string; bytes:
 }
 
 test.describe('incident report builder', () => {
-  test('builds a report from a bookmark and a chart and exports it as HTML', async ({ page }, testInfo) => {
+  test('builds a report from a note and a chart and exports it as HTML', async ({ page }, testInfo) => {
     await openAppWith(page);
     await page.locator('imt-events-grid [role=row].row').nth(2).click();
-    await runCommand(page, 'Bookmark selected event');
-    await runCommand(page, 'Add bookmarks to report');
+    await runCommand(page, 'Add note to the selected event…');
+    await page.getByTestId('note-text').fill('Start of the failure');
+    await page.getByTestId('note-save').click();
+    await runCommand(page, 'Add notes to report');
 
     const view = page.locator('imt-report-view');
     await expect(view.getByRole('group', { name: /^Events block/ })).toBeVisible();
@@ -31,8 +33,9 @@ test.describe('incident report builder', () => {
     await view.getByRole('textbox', { name: 'Report title' }).fill('Checkout outage');
     await view.getByRole('textbox', { name: 'Report title' }).press('Tab');
 
-    // Keyboard reordering: the chart moves above the events.
+    // Keyboard reordering: the chart moves above the events and the note's finding.
     await chart.focus();
+    await page.keyboard.press('Alt+ArrowUp');
     await page.keyboard.press('Alt+ArrowUp');
     await expect(view.locator('imt-report-block').first()).toHaveAttribute('aria-label', /^Chart block/);
     await expect(view.locator('imt-report-block').first()).toBeFocused();

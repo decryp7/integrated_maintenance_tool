@@ -6,13 +6,11 @@ import { WorkspaceStore } from '../../core/workspace.store';
 import { UI_STATE_CONTRIBUTIONS, UiStateRegistry } from '../../lifecycle/ui-state';
 import { provideToolsTesting } from '../../tools/mock/test-support';
 import { ProjectUiState } from '../project-ui-state';
-import { BookmarkList } from './bookmark-list';
-import { BookmarkStore, parseBookmarks } from './bookmark.store';
-import { BookmarksView } from './bookmarks-view';
 import { fieldValue, HighlightRules, matchesRule, parseHighlightRules } from './highlight';
 import { HighlightEditor } from './highlight-editor';
 import { newId } from './ids';
 import { SavedQueries } from './saved-queries';
+import { SavedQueriesView } from './saved-queries-view';
 import { parseSavedQueries, SavedQueryStore } from './saved-query.store';
 import { at } from '../../../testing/must';
 
@@ -27,68 +25,12 @@ async function setup() {
     providers: [...provideToolsTesting(), { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => TestBed.inject(ProjectUiState).contributions }],
   });
   await settle();
-  return { store: TestBed.inject(WorkspaceStore), bookmarks: TestBed.inject(BookmarkStore), queries: TestBed.inject(SavedQueryStore), highlights: TestBed.inject(HighlightRules), registry: TestBed.inject(UiStateRegistry) };
+  return { store: TestBed.inject(WorkspaceStore), queries: TestBed.inject(SavedQueryStore), highlights: TestBed.inject(HighlightRules), registry: TestBed.inject(UiStateRegistry) };
 }
 
 describe('ids', () => {
   it('are unique', () => {
     expect(new Set(Array.from({ length: 50 }, () => newId('x'))).size).toBe(50);
-  });
-});
-
-describe('BookmarkStore', () => {
-  it('bookmarks the selected record and the current range, with notes', async () => {
-    const { store, bookmarks } = await setup();
-    expect(bookmarks.addSelected()).toBe(false);
-    expect(bookmarks.addRange()).toBe(false);
-    store.select(record({ message: 'x'.repeat(100) }));
-    store.setRange(10, 20);
-    expect(bookmarks.addSelected('look here')).toBe(true);
-    expect(bookmarks.addRange()).toBe(true);
-    const items = bookmarks.items();
-    const a = at(items, 0);
-    const b = at(items, 1);
-    expect(a).toMatchObject({ kind: 'record', recordId: 7, note: 'look here', level: 'Error' });
-    expect(a.label).toHaveLength(81);
-    expect(b).toMatchObject({ kind: 'range', from: 10, to: 20 });
-    bookmarks.setNote(b.id, 'window');
-    expect(bookmarks.items()[1]?.note).toBe('window');
-    bookmarks.remove(a.id);
-    expect(bookmarks.items()).toHaveLength(1);
-  });
-
-  it('jumps to a record or applies a range', async () => {
-    const { store, bookmarks } = await setup();
-    store.select(record());
-    store.setRange(5, 9);
-    bookmarks.addSelected();
-    bookmarks.addRange();
-    store.resetRange();
-    bookmarks.jump(at(bookmarks.items(), 0));
-    expect(store.anchor()?.id).toBe(7);
-    bookmarks.jump(at(bookmarks.items(), 1));
-    expect(store.query()).toMatchObject({ from: 5, to: 9 });
-    bookmarks.jump({ id: 'x', kind: 'record', note: '', label: '', createdAt: 0 });
-    bookmarks.jump({ id: 'y', kind: 'range', note: '', label: '', createdAt: 0 });
-    expect(store.query()).toMatchObject({ from: 5, to: 9 });
-  });
-
-  it('parses saved bookmarks defensively', () => {
-    expect(parseBookmarks('x')).toEqual([]);
-    expect(
-      parseBookmarks([
-        null,
-        { id: 1 },
-        { id: 'a', kind: 'zzz' },
-        { id: 'b', kind: 'record' },
-        { id: 'c', kind: 'range', from: 1 },
-        { id: 'd', kind: 'record', recordId: 3, note: 5, label: 'l', createdAt: 'x' },
-        { id: 'e', kind: 'range', from: 1, to: 2, note: 'n', label: 'r', createdAt: 9 },
-      ]),
-    ).toEqual([
-      { id: 'd', kind: 'record', recordId: 3, note: '', label: 'l', createdAt: 0, ts: null, level: undefined },
-      { id: 'e', kind: 'range', from: 1, to: 2, note: 'n', label: 'r', createdAt: 9 },
-    ]);
   });
 });
 
@@ -185,53 +127,24 @@ describe('highlight rules', () => {
 });
 
 describe('ProjectUiState', () => {
-  it('saves and restores bookmarks, queries and highlight rules, and clears them when absent', async () => {
-    const { registry, bookmarks, queries, highlights, store } = await setup();
-    store.select(record());
-    bookmarks.addSelected('n');
+  it('saves and restores saved queries and highlight rules, and clears them when absent', async () => {
+    const { registry, queries, highlights } = await setup();
     queries.saveCurrent('q');
     highlights.add({ field: 'f', op: 'exists', value: '', color: '#1' });
     const ui = JSON.parse(JSON.stringify(registry.serialize()));
-    expect(Object.keys(ui)).toEqual(expect.arrayContaining(['bookmarks', 'savedQueries', 'highlightRules']));
-    bookmarks.replace([]);
+    expect(Object.keys(ui)).toEqual(expect.arrayContaining(['savedQueries', 'highlightRules']));
     queries.replace([]);
     highlights.replace([]);
     registry.restore(ui);
-    expect(bookmarks.items()).toHaveLength(1);
     expect(queries.items()).toHaveLength(1);
     expect(highlights.items()).toHaveLength(1);
     registry.restore({ version: 1 });
-    expect(bookmarks.items()).toEqual([]);
     expect(queries.items()).toEqual([]);
     expect(highlights.items()).toEqual([]);
   });
 });
 
-describe('bookmark views', () => {
-  it('lists bookmarks with notes and jumps, deletes and adds from the toolbar', async () => {
-    const { store, bookmarks } = await setup();
-    const f = TestBed.createComponent(BookmarkList);
-    await settle(f);
-    expect(buttonByText(f, 'Bookmark selected event').disabled).toBe(true);
-    expect(buttonByText(f, 'Bookmark time range').disabled).toBe(true);
-    expect(text(f)).toContain('No bookmarks yet');
-    store.select(record());
-    store.setRange(1_700_000_000_000, 1_700_000_060_000);
-    await settle(f);
-    buttonByText(f, 'Bookmark selected event').click();
-    buttonByText(f, 'Bookmark time range').click();
-    await settle(f);
-    expect(all(f, '.item')).toHaveLength(2);
-    expect(text(f)).toContain('→');
-    typeInto(el(f, 'input[aria-label="Note for Failed to capture payment"]'), 'root cause', 'change');
-    expect(bookmarks.items()[0]?.note).toBe('root cause');
-    el<HTMLButtonElement>(f, 'button[aria-label="Jump to bookmark Failed to capture payment"]').click();
-    expect(store.anchor()?.id).toBe(7);
-    el<HTMLButtonElement>(f, 'button[aria-label="Delete bookmark Failed to capture payment"]').click();
-    await settle(f);
-    expect(all(f, '.item')).toHaveLength(1);
-  });
-
+describe('saved query views', () => {
   it('saves and applies queries from the panel', async () => {
     const { store, queries } = await setup();
     const f = TestBed.createComponent(SavedQueries);
@@ -287,10 +200,10 @@ describe('bookmark views', () => {
     expect(highlights.items()).toHaveLength(1);
   });
 
-  it('composes the three sections', async () => {
+  it('composes the two sections', async () => {
     await setup();
-    const f = TestBed.createComponent(BookmarksView);
+    const f = TestBed.createComponent(SavedQueriesView);
     await settle(f);
-    expect(all(f, 'h2').map((h) => h.textContent)).toEqual(['Bookmarks and notes', 'Saved queries', 'Highlight rules']);
+    expect(all(f, 'h2').map((h) => h.textContent)).toEqual(['Saved queries', 'Highlight rules']);
   });
 });

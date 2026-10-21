@@ -321,14 +321,14 @@ there works as described under [Troubleshooting](#behind-a-corporate-proxy-zscal
 |---|---|
 | `Mod+K` | Command palette (every action is in it) |
 | `F1` | Keyboard shortcuts (searchable, printable; generated from the commands) |
-| `Mod+Z` / `Mod+Shift+Z` | Undo / redo the last edit (filters, marker and highlight rules, bookmarks, profile edits, dashboards, reports) |
+| `Mod+Z` / `Mod+Shift+Z` | Undo / redo the last edit (filters, marker and highlight rules, profile edits, dashboards, reports) |
 | `Mod+O` / `Mod+Shift+O` | Open files / open folder |
 | `Mod+/` | Focus the query bar |
 | `Mod+Enter` | Run the query (in the query bar) |
 | `Mod+Shift+M` | Analyse this moment |
 | `Mod+Shift+N` | New window |
 | `Mod+S` / `Mod+Shift+S` | Save project / save project as |
-| `Mod+D` | Bookmark the selected event |
+| `Mod+D` | Add a note to the selected event |
 | `Mod+Shift+E` | Export events |
 | `Mod+Shift+X` | Toggle the redacted view |
 | `Mod+B` | Toggle the sidebar |

@@ -5,7 +5,8 @@ import { AnalysisBackend } from '../../core/analysis-backend';
 import { formatFull } from '../../core/format';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { QuerySession } from '../../analysis/query-session';
-import { BookmarkStore } from '../../projects/bookmarks/bookmark.store';
+import { NotesStore } from '../../notes/notes.store';
+import { anchorSpan, anchorText, firstLine, kindLabel } from '../../notes/notes-model';
 import { TimelineAnnotations } from '../../timeline/annotations.store';
 import { plural } from '../../i18n/locale';
 import { errorMessage } from '../../tools/tool-errors';
@@ -17,6 +18,8 @@ import { ReportStore } from './report.store';
 export const MAX_TABLE_ROWS = 200;
 /** Most anomalies added as findings at once. */
 export const MAX_FINDINGS = 10;
+/** Most notes added as findings at once. */
+export const MAX_NOTES = 50;
 
 /** How urgent an anomaly reads in a report. */
 export function anomalySeverity(a: Anomaly): 'critical' | 'warning' | 'info' {
@@ -34,7 +37,7 @@ export function anomalySeverity(a: Anomaly): 'critical' | 'warning' | 'info' {
 export class ReportActions {
   private readonly reports = inject(ReportStore);
   private readonly store = inject(WorkspaceStore);
-  private readonly bookmarks = inject(BookmarkStore);
+  private readonly notes = inject(NotesStore);
   private readonly visuals = inject(VisualExportService);
   private readonly analysis = inject(AnalysisBackend);
   private readonly session = inject(QuerySession);
@@ -75,20 +78,25 @@ export class ReportActions {
     return this.added($localize`:@@share.reportActions.addedSelected:Added the selected event to the report`);
   }
 
-  /** Event bookmarks become one events block; range bookmarks an annotations block. */
-  addBookmarks(): boolean {
-    const items = this.bookmarks.items();
-    const ids = items.filter((b) => b.kind === 'record' && b.recordId !== undefined).map((b) => b.recordId!);
-    const ranges = items.filter((b) => b.kind === 'range' && b.from !== undefined && b.to !== undefined);
-    if (!ids.length && !ranges.length) return false;
-    if (ids.length) this.reports.add({ type: 'events', caption: $localize`:@@share.reportActions.bookmarkedEvents:Bookmarked events`, ids });
-    if (ranges.length) {
-      this.reports.add({ type: 'annotations', caption: $localize`:@@share.reportActions.bookmarkedRanges:Bookmarked time ranges`, items: ranges.map((b) => ({ from: b.from!, to: b.to!, label: b.note || b.label, kind: 'bookmark' })) });
+  /** One finding per note (the first MAX_NOTES), then the noted events and the noted times. */
+  addNotes(): boolean {
+    const items = this.notes.items();
+    if (!items.length) return false;
+    const severity = { problem: 'critical', warning: 'warning', info: 'info' } as const;
+    for (const n of items.slice(0, MAX_NOTES)) {
+      this.reports.add({ type: 'finding', severity: severity[n.severity], title: `${kindLabel(n.anchor.kind)}: ${anchorText(n.anchor)}`, detail: n.text });
     }
+    const ids = items.flatMap((n) => (n.anchor.kind === 'event' ? [n.anchor.eventId] : []));
+    if (ids.length) this.reports.add({ type: 'events', caption: $localize`:@@share.reportActions.notedEvents:Noted events`, ids });
+    const times = items.flatMap((n) => {
+      const span = n.anchor.kind === 'event' ? null : anchorSpan(n.anchor);
+      return span ? [{ from: span[0], to: span[1] === span[0] ? null : span[1], label: firstLine(n.text), kind: 'note' }] : [];
+    });
+    if (times.length) this.reports.add({ type: 'annotations', caption: $localize`:@@share.reportActions.notedTimes:Noted times`, items: times });
     return this.added(
       plural(items.length, {
-        one: $localize`:@@share.reportActions.addedBookmark:Added ${items.length}:count: bookmark to the report`,
-        other: $localize`:@@share.reportActions.addedBookmarks:Added ${items.length}:count: bookmarks to the report`,
+        one: $localize`:@@share.reportActions.addedNote:Added ${items.length}:count: note to the report`,
+        other: $localize`:@@share.reportActions.addedNotes:Added ${items.length}:count: notes to the report`,
       }),
     );
   }

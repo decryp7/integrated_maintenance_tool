@@ -6,7 +6,9 @@ import { WorkspaceStore } from '../../core/workspace.store';
 import { ProfileEdits } from '../../profile/profile-edits';
 import { QuerySession } from '../../analysis/query-session';
 import { loadWorkspace } from '../../analysis/test-setup';
-import { BookmarkStore } from '../../projects/bookmarks/bookmark.store';
+import { NotesBackend } from '../../notes/notes-backend';
+import { MockNotesBackend } from '../../notes/mock/mock-notes-backend';
+import { NotesStore } from '../../notes/notes.store';
 import { TimelineAnnotations } from '../../timeline/annotations.store';
 import { DIALOG_REF, DialogService } from '../../ui/dialog.service';
 import { all, buttonByText, el, settle, text, typeInto } from '../../../testing/helpers';
@@ -33,26 +35,29 @@ const ctx = () => {
 };
 
 async function setup(extra: Provider[] = []) {
-  const v = setupVisuals(undefined, extra);
+  const v = setupVisuals(undefined, [{ provide: NotesBackend, useValue: new MockNotesBackend() }, ...extra]);
   const store = await loadWorkspace();
   await settle(undefined, 6);
   return { ...v, store, reports: TestBed.inject(ReportStore), actions: TestBed.inject(ReportActions) };
 }
 
 describe('ReportActions', () => {
-  it('adds the selected event, bookmarks, a chart, the timeline, a query table and annotations', async () => {
+  it('adds the selected event, notes, a chart, the timeline, a query table and annotations', async () => {
     const { store, reports, actions } = await setup();
     expect(actions.addSelectedEvent()).toBe(false);
-    expect(actions.addBookmarks()).toBe(false);
+    expect(actions.addNotes()).toBe(false);
     const page = await (TestBed.inject(ShareBackend) as MockShareBackend)['imt'].queryPage({ query: store.query(), offset: 0, limit: 3, descending: false, anchor: null });
     store.select(at(page.rows, 1));
     expect(actions.addSelectedEvent()).toBe(true);
     expect(store.notice()).toBe('Added the selected event to the report');
-    const bookmarks = TestBed.inject(BookmarkStore);
-    bookmarks.addSelected('look');
-    store.setRange(1, 2);
-    bookmarks.addRange('window');
-    expect(actions.addBookmarks()).toBe(true);
+    const notes = TestBed.inject(NotesStore);
+    const eventId = at(page.rows, 1).id;
+    await notes.add({ anchor: { kind: 'event', eventId, ts: null, source: 's', excerpt: 'look' }, text: 'look here', severity: 'problem' });
+    await notes.add({ anchor: { kind: 'range', from: 1, to: 2 }, text: 'window\nmore' });
+    await notes.add({ anchor: { kind: 'instant', at: 5 }, text: 'moment' });
+    await notes.add({ anchor: { kind: 'project' }, text: 'overall', severity: 'warning' });
+    expect(actions.addNotes()).toBe(true);
+    expect(store.notice()).toBe('Added 4 notes to the report');
     expect(await actions.addChart(def, { series: [] })).toBe(true);
     expect(await actions.addChart(def, null)).toBe(true);
     store.resetRange();
@@ -73,17 +78,20 @@ describe('ReportActions', () => {
     expect(actions.addAnnotations()).toBe(true);
 
     const blocks = blocksOf(reports.active()!);
-    expect(blocks.map((b) => b.type)).toEqual(['events', 'events', 'annotations', 'chart', 'chart', 'timeline', 'text', 'table', 'annotations']);
+    expect(blocks.map((b) => b.type)).toEqual(['events', 'finding', 'finding', 'finding', 'finding', 'events', 'annotations', 'chart', 'chart', 'timeline', 'text', 'table', 'annotations']);
     expect(blocks[0]).toMatchObject({ ids: [at(page.rows, 1).id] });
-    expect(blocks[1]).toMatchObject({ caption: 'Bookmarked events', ids: [at(page.rows, 1).id] });
-    expect(blocks[2]).toMatchObject({ items: [{ from: 1, to: 2, label: 'window', kind: 'bookmark' }] });
-    expect(blocks[3]).toMatchObject({ title: 'CPU %', spec: def });
-    expect((blocks[3] as { svg: string }).svg).toContain('<text>chart</text>');
-    expect((blocks[4] as { svg: string | null }).svg).toBeNull();
-    expect((blocks[5] as { svg: string }).svg).toContain('<svg');
-    expect(blocks[7]).toMatchObject({ query: '| stats count() by k' });
-    expect((blocks[7] as { rows: unknown[] }).rows).toHaveLength(200);
-    expect(blocks[8]).toMatchObject({ items: [{ label: 'reboot', kind: 'k' }] });
+    expect(blocks[1]).toMatchObject({ severity: 'critical', title: 'Event: look', detail: 'look here' });
+    expect(blocks[2]).toMatchObject({ severity: 'info', title: 'Time range: Time range', detail: 'window\nmore' });
+    expect(blocks[4]).toMatchObject({ severity: 'warning', title: 'Project: The whole project' });
+    expect(blocks[5]).toMatchObject({ caption: 'Noted events', ids: [eventId] });
+    expect(blocks[6]).toMatchObject({ caption: 'Noted times', items: [{ from: 1, to: 2, label: 'window', kind: 'note' }, { from: 5, to: null, label: 'moment', kind: 'note' }] });
+    expect(blocks[7]).toMatchObject({ title: 'CPU %', spec: def });
+    expect((blocks[7] as { svg: string }).svg).toContain('<text>chart</text>');
+    expect((blocks[8] as { svg: string | null }).svg).toBeNull();
+    expect((blocks[9] as { svg: string }).svg).toContain('<svg');
+    expect(blocks[11]).toMatchObject({ query: '| stats count() by k' });
+    expect((blocks[11] as { rows: unknown[] }).rows).toHaveLength(200);
+    expect(blocks[12]).toMatchObject({ items: [{ label: 'reboot', kind: 'k' }] });
   });
 
   it('keeps a chart without a snapshot when rendering fails', async () => {
@@ -122,7 +130,7 @@ describe('ReportCommands', () => {
     const byId = (id: string) => commands.find((c) => c.id === id)!;
     const { shown, c } = ctx();
     expect(byId('report.addSelected').when!(c)).toBe(false);
-    expect(byId('report.addBookmarks').when!(c)).toBe(false);
+    expect(byId('report.addNotes').when!(c)).toBe(false);
     expect(byId('report.addQueryTable').when!(c)).toBe(false);
     expect(byId('report.export').when!(c)).toBe(false);
     expect(byId('report.addTimeline').when!(c)).toBe(true);
@@ -133,7 +141,7 @@ describe('ReportCommands', () => {
     await byId('report.new').run(c);
     await byId('report.addTimeline').run(c);
     await byId('report.addSelected').run(c);
-    await byId('report.addBookmarks').run(c);
+    await byId('report.addNotes').run(c);
     await byId('report.addQueryTable').run(c);
     await byId('report.addAnnotations').run(c);
     vi.spyOn(TestBed.inject(AnalysisBackend), 'queryAnomalies').mockResolvedValue({ result: [], coverage: fullCoverage(0) });

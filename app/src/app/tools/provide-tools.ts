@@ -7,10 +7,10 @@ import { LifecycleCommands } from '../lifecycle/lifecycle-commands';
 import { LifecycleService } from '../lifecycle/lifecycle.service';
 import { SessionService } from '../lifecycle/session.service';
 import { UI_STATE_CONTRIBUTIONS } from '../lifecycle/ui-state';
-import { BookmarkCommands } from '../projects/bookmark-commands';
 import { OpenRequests } from '../projects/open-requests';
 import { ProjectCommands } from '../projects/project-commands';
 import { ProjectUiState } from '../projects/project-ui-state';
+import { SavedQueryCommands } from '../projects/saved-query-commands';
 import { pluginPackageDropHandler } from '../plugins-panel/package-drop';
 import { ToolCatalog } from './tool-catalog.store';
 import { toolsActivityItems } from './tools-activity';
@@ -19,7 +19,7 @@ import { ToolsCommands, toolsViews } from './tools-commands';
 /**
  * Registers the tools (Performance Monitor, process monitor, diagnostics collector, plugin
  * health), app lifecycle (administrator badge, safe mode and crash banners, session autosave),
- * projects and bookmarks. One line in `app.config.ts`.
+ * projects and saved queries. One line in `app.config.ts`.
  */
 export function provideTools(): EnvironmentProviders {
   return makeEnvironmentProviders([
@@ -29,7 +29,7 @@ export function provideTools(): EnvironmentProviders {
     { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: toolsActivityItems },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(LifecycleCommands).commands },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(ProjectCommands).commands },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(BookmarkCommands).commands },
+    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(SavedQueryCommands).commands },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => inject(CoreUiState).contributions },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => inject(ProjectUiState).contributions },
     // `.imtplugin` files dropped on the window are reviewed for installing, never opened as logs.

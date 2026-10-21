@@ -39,6 +39,11 @@ const firstPath = (args: unknown[]): ActivityParams => {
 };
 const stringArg = (i: number, key: string) => (args: unknown[]) => (typeof args[i] === 'string' ? { [key]: safePath(args[i] as string, detail()) } : {});
 
+const NOTE_KINDS = ['event', 'instant', 'range', 'source', 'marker', 'chartPoint', 'project', 'image'];
+const noteKind = (v: unknown) => {
+  const k = (v as { anchor?: { kind?: unknown } } | null)?.anchor?.kind;
+  return typeof k === 'string' && NOTE_KINDS.includes(k) ? k : undefined;
+};
 const scopeArg = (v: unknown) => (v === 'project' || v === 'global' ? v : undefined);
 
 /** Domain operations for backend methods (operation name and safe parameters from the arguments). */
@@ -74,6 +79,14 @@ const DOMAIN: Record<string, (args: unknown[]) => { operation: string; params: A
   }),
   removeKnowledge: (a) => ({ operation: 'ai.knowledge.remove', params: { Scope: scopeArg(a[0]) } }),
   exportKnowledge: (a) => ({ operation: 'file.export', params: { Scope: scopeArg(a[0]), ...stringArg(2, 'Path')(a) } }),
+  // Notes (ADR 0021): the anchor's kind and which fields changed, never note text.
+  addNote: (a) => ({ operation: 'notes.add', params: { Kind: noteKind(a[0]) } }),
+  updateNote: (a) => ({
+    operation: 'notes.change',
+    params: { Fields: a[1] && typeof a[1] === 'object' ? Object.keys(a[1] as object).filter((k) => ['text', 'tags', 'severity', 'regions'].includes(k)).join(',') : undefined },
+  }),
+  removeNote: () => ({ operation: 'notes.remove', params: {} }),
+  openNoteImage: (a) => ({ operation: 'file.open', params: stringArg(0, 'Path')(a) }),
   start: (a) => {
     const r = (a[0] ?? {}) as { op?: unknown; question?: unknown };
     if (r.op === 'query' && typeof r.question === 'string') return { operation: 'ai.ask', params: safeText('Question', r.question, 'normal') };

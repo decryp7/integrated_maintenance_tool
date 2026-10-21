@@ -190,7 +190,8 @@ describe('TimelinePanel', () => {
     el(fixture, '.axis').dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
     const items = menu.menu()!.items;
-    expect(items.map((i) => i.label)).toEqual(['Analyse this moment']);
+    // A note on the moment, and on the selected range once there is one (ADR 0021).
+    expect(items.map((i) => i.label)).toEqual(['Analyse this moment', 'Add note at this moment…']);
     at(items, 0).run();
     const mid = t.from + (t.to - t.from) / 2;
     expect(targets.moment()).toEqual(momentAt(mid, null, at(WIDTHS, 1).ms));
