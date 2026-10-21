@@ -12,7 +12,7 @@ use imt_plugin_api::manifest::Manifest;
 use imt_plugin_api::model::Record;
 use imt_plugin_api::problems::{ProblemKind, Problems};
 use imt_plugin_api::settings::{Configurable, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
-use imt_plugin_api::tools::{OpSpec, PathAccess, PathKind, Schema, Tool, ToolCtx, ToolInfo};
+use imt_plugin_api::tools::{OpSpec, PathAccess, PathKind, Schema, Tool, ToolCtx, ToolInfo, ToolTask};
 use imt_plugin_api::{Contributions, Plugin};
 use serde_json::{json, Value};
 use std::sync::atomic::{AtomicI64, Ordering};
@@ -103,6 +103,7 @@ impl Tool for FakeTool {
             .op(OpSpec::new("pid", "Process id"))
             .op(OpSpec::new("write", "Write a file").args(Schema::object().field("path", Schema::path(PathKind::File, PathAccess::Write))))
             .op(OpSpec::new("admin", "Needs administrator rights").elevated())
+            .op(OpSpec::new("admin-steps", "Reports progress in the elevated process").elevated())
             .op(OpSpec::new("via-admin", "Runs an operation in the elevated process").args(Schema::object().open()))
     }
 
@@ -121,6 +122,20 @@ impl Tool for FakeTool {
                 "dataDir": ctx.data_dir().map(|d| d.to_string_lossy().into_owned()),
                 "canElevate": ctx.elevated().is_some(),
             })),
+            "admin-steps" => {
+                // Progress while it works, then a pause before the answer: the host must see it before the reply.
+                ctx.task_started(ToolTask {
+                    id: "steps".into(),
+                    label: "Steps".into(),
+                    kind: "fake".into(),
+                    stoppable: false,
+                });
+                ctx.task_progress("steps", Some(0.5));
+                std::thread::sleep(std::time::Duration::from_millis(600));
+                ctx.task_progress("steps", Some(1.0));
+                ctx.task_finished("steps");
+                Ok(json!("done"))
+            }
             "via-admin" => {
                 let ops = ctx.elevated().ok_or_else(|| anyhow::anyhow!("no elevated process"))?;
                 let target = args["op"].as_str().unwrap_or("admin");

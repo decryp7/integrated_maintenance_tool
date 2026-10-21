@@ -5,7 +5,7 @@
 
 use imt_core::guard::Budgets;
 use imt_core::plugin::annotate::AnnotationsRequest;
-use imt_core::plugin::tools::{NoTasks, PathAccess, PathKind, PathPolicy, ToolCtx, ToolError};
+use imt_core::plugin::tools::{NoTasks, PathAccess, PathKind, PathPolicy, TaskSink, ToolCtx, ToolError, ToolTask};
 use imt_core::plugin::PluginStatus;
 use imt_core::{PluginRegistry, Profile, Workspace};
 use imt_ipc::IpcError;
@@ -13,8 +13,8 @@ use imt_plugin_api::protocol::PluginRequest;
 use imt_plugin_host::Builtins;
 use serde_json::json;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::time::Duration;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 const ID: &str = "test.fake";
 
@@ -247,5 +247,70 @@ fn the_normal_process_runs_only_declared_elevated_operations_through_the_host() 
         .unwrap_err()
         .to_string();
     assert!(e.contains("not an elevated operation"), "{e}");
+    process.shutdown();
+}
+
+/// Task reports with the time they arrived.
+#[derive(Default)]
+struct Reports(Mutex<Vec<(String, Instant)>>);
+
+impl TaskSink for Reports {
+    fn started(&self, tool: &str, task: &ToolTask) {
+        self.0.lock().unwrap().push((format!("started {tool} {}", task.id), Instant::now()));
+    }
+    fn progress(&self, tool: &str, task: &str, fraction: Option<f32>) {
+        self.0
+            .lock()
+            .unwrap()
+            .push((format!("progress {tool} {task} {fraction:?}"), Instant::now()));
+    }
+    fn finished(&self, tool: &str, task: &str) {
+        self.0.lock().unwrap().push((format!("finished {tool} {task}"), Instant::now()));
+    }
+}
+
+#[test]
+fn an_elevated_operation_reports_progress_while_it_runs_not_with_its_answer() {
+    // The elevated role as an ordinary process (the administrator prompt cannot run in tests).
+    let exe = Path::new(env!("CARGO_BIN_EXE_imt-plugin-host-fake"));
+    let manifest = imt_plugin_host::builtins::load_manifests(exe)
+        .unwrap()
+        .into_iter()
+        .find(|m| &*m.id == ID)
+        .unwrap();
+    let mut spec = imt_plugin_host::PluginSpec::new(exe, ID);
+    spec.elevate = false;
+    let process = imt_plugin_host::PluginProcess::new(manifest, spec);
+    let mut r = PluginRegistry::new();
+    r.install_shared(Arc::new(imt_plugin_host::RemotePlugin::new(process.clone())))
+        .unwrap();
+    r.resolve();
+    let reports = Arc::new(Reports::default());
+    let ctx = ToolCtx::new(None, reports.clone());
+    for op in [json!({"op": "admin-steps"}), json!(null)] {
+        // Through the normal process (`ToolCtx::elevated`), and called directly in the elevated process.
+        reports.0.lock().unwrap().clear();
+        let out = if op.is_null() {
+            r.tools().invoke("fake.tool", "admin-steps", json!({}), &ctx).unwrap()
+        } else {
+            r.tools().invoke("fake.tool", "via-admin", op, &ctx).unwrap()
+        };
+        let answered = Instant::now();
+        assert_eq!(out, json!("done"));
+        let got = reports.0.lock().unwrap().clone();
+        let names: Vec<&str> = got.iter().map(|(n, _)| n.as_str()).collect();
+        assert_eq!(
+            names,
+            [
+                "started fake.tool steps",
+                "progress fake.tool steps Some(0.5)",
+                "progress fake.tool steps Some(1.0)",
+                "finished fake.tool steps"
+            ]
+        );
+        // The first progress arrived while the operation was still working (it pauses 600 ms before answering).
+        let early = answered.duration_since(got[1].1);
+        assert!(early >= Duration::from_millis(400), "progress arrived {early:?} before the answer");
+    }
     process.shutdown();
 }
