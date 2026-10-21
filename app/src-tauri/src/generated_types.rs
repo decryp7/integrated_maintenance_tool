@@ -44,6 +44,14 @@ fn files() -> Vec<(&'static str, String)> {
                 decl(crate::paths::PickRequest::decl())
             ),
         ),
+        (
+            "browser.ts",
+            format!(
+                "{header}{}\n{}",
+                decl(crate::browser::geometry::CssRect::decl()),
+                decl(crate::browser::geometry::Placement::decl())
+            ),
+        ),
     ]
 }
 

@@ -220,7 +220,7 @@ pub fn popout_url(view_id: &str, host: &str, label: &str) -> String {
 }
 
 fn info<R: Runtime>(app: &AppHandle<R>, label: &str, e: &Entry) -> PopoutInfo {
-    let window = app.get_webview_window(label);
+    let window = app.get_window(label);
     let bounds = window.as_ref().and_then(|w| {
         let scale = w.scale_factor().ok()?;
         let pos = w.outer_position().ok()?.to_logical::<f64>(scale);
@@ -262,12 +262,10 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, host: &str, request: PopoutRequest) 
     if request.params.as_ref().is_some_and(|p| p.to_string().len() > MAX_PARAMS_BYTES) {
         anyhow::bail!("the view parameters are larger than {MAX_PARAMS_BYTES} bytes");
     }
-    let host_window = app
-        .get_webview_window(host)
-        .ok_or_else(|| anyhow::anyhow!("the window was closed"))?;
+    let host_window = app.get_window(host).ok_or_else(|| anyhow::anyhow!("the window was closed"))?;
     let popouts = app.try_state::<Popouts>().ok_or_else(|| anyhow::anyhow!("IMT is not ready yet"))?;
     if let Some(existing) = popouts.find(host, &request.view_id) {
-        if let Some(w) = app.get_webview_window(&existing) {
+        if let Some(w) = app.get_window(&existing) {
             let _ = w.unminimize();
             let _ = w.set_focus();
         }
@@ -332,7 +330,7 @@ fn frameless<'a, R: Runtime, M: Manager<R>>(b: WebviewWindowBuilder<'a, R, M>) -
 }
 
 /// Right of the host's top-right corner, when the UI gave no bounds.
-fn fallback_place<R: Runtime>(host: &tauri::WebviewWindow<R>) -> (f64, f64, f64, f64) {
+fn fallback_place<R: Runtime>(host: &Window<R>) -> (f64, f64, f64, f64) {
     let (w, h) = DEFAULT_SIZE;
     let place = || {
         let scale = host.scale_factor().ok()?;
@@ -352,7 +350,7 @@ pub fn on_destroyed<R: Runtime>(app: &AppHandle<R>, label: &str) {
     };
     let exiting = app.try_state::<Windows>().is_some_and(|w| w.exiting());
     log::info!(Popout = label, Host = entry.host.as_str(); "Pop-out closed");
-    if exiting || app.get_webview_window(&entry.host).is_none() {
+    if exiting || app.get_window(&entry.host).is_none() {
         return;
     }
     let _ = app.emit_to(
@@ -372,7 +370,7 @@ pub fn close_all_of<R: Runtime>(app: &AppHandle<R>, host: &str) -> usize {
     let labels = popouts.of_host(host);
     for label in &labels {
         popouts.remove(label);
-        if let Some(w) = app.get_webview_window(label) {
+        if let Some(w) = app.get_window(label) {
             let _ = w.destroy();
         }
     }
@@ -386,7 +384,7 @@ pub fn close_all_of<R: Runtime>(app: &AppHandle<R>, host: &str) -> usize {
 pub fn set_visible<R: Runtime>(app: &AppHandle<R>, host: &str, visible: bool) {
     let Some(popouts) = app.try_state::<Popouts>() else { return };
     for label in popouts.of_host(host) {
-        if let Some(w) = app.get_webview_window(&label) {
+        if let Some(w) = app.get_window(&label) {
             let _ = if visible { w.show() } else { w.hide() };
         }
     }
@@ -406,7 +404,7 @@ pub fn dragged<R: Runtime>(app: &AppHandle<R>, label: &str) {
         return;
     };
     let Some(entry) = popouts.get(label) else { return };
-    let scale = app.get_webview_window(host).and_then(|w| w.scale_factor().ok()).unwrap_or(1.0);
+    let scale = app.get_window(host).and_then(|w| w.scale_factor().ok()).unwrap_or(1.0);
     let Some((x, y)) = app.cursor_position().ok().and_then(|p| to_logical(p.x, p.y, scale)) else {
         return;
     };
@@ -435,7 +433,7 @@ pub async fn dock_panel<R: Runtime>(app: AppHandle<R>, window: Window<R>, popout
     if host_of(&popout_label) != Some(resolve(window.label())) {
         return Err("that is not a pop-out of this window".into());
     }
-    let w = app.get_webview_window(&popout_label).ok_or("the pop-out was already closed")?;
+    let w = app.get_window(&popout_label).ok_or("the pop-out was already closed")?;
     crate::error::lift(w.close().map_err(err))
 }
 

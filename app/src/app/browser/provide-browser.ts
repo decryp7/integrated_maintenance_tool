@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EnvironmentProviders, inject, Injectable, input, makeEnvironmentProviders, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EnvironmentProviders, inject, Injectable, input, makeEnvironmentProviders, provideEnvironmentInitializer, signal } from '@angular/core';
 import { AiLauncher } from '../ai/ai-launcher';
 import { IMT_RECORD_MENU_ITEMS, RecordMenuContribution } from '../context/record-actions';
 import { RecordView } from '../core/api.types';
@@ -6,10 +6,13 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { DockService } from '../dock/dock.service';
 import { IMT_COMMANDS, IMT_INSPECTOR_SECTIONS, IMT_VIEWS, ImtCommand, ImtInspectorSection, ImtView } from '../extensions/tokens';
 import { DialogService } from '../ui/dialog.service';
+import { POPOUT_ROUTE } from '../popout/popout-route';
+import { BrowserBackend } from './browser-backend';
+import { BrowserEvent } from './browser.types';
 
 export const WEB_VIEW = 'web';
 
-/** Opens the Web panel and "Search the web for this error" from anywhere (menus, inspector, chat, palette). */
+/** Opens the Browser panel and "Search the web for this error" from anywhere (menus, inspector, chat, palette). */
 @Injectable({ providedIn: 'root' })
 export class BrowserLauncher {
   private readonly dialogs = inject(DialogService);
@@ -19,7 +22,7 @@ export class BrowserLauncher {
     this.dock.show(WEB_VIEW);
   }
 
-  /** The engine builds the search text from the event; the user edits it, then the browser opens. */
+  /** The AI drafts the search text from the event (the engine without a model); the user edits it, then the page opens. */
   async searchEvent(recordId: number): Promise<void> {
     const { SearchWebDialog } = await import('./search-web-dialog');
     const ref = this.dialogs.open<boolean>(SearchWebDialog, {
@@ -28,6 +31,30 @@ export class BrowserLauncher {
       inputs: { recordId },
     });
     if (await ref.closed) this.showPanel();
+  }
+}
+
+/**
+ * Shows the Browser panel when the browser opens or loads a page (`reveal` events): the user's own pages bring it to the
+ * front, the AI's (agent mode, research) only open it without taking the focus. The IMT window does it, not its
+ * pop-outs (they hear the same events).
+ */
+@Injectable({ providedIn: 'root' })
+export class BrowserReveal {
+  private readonly dock = inject(DockService);
+  private readonly backend = inject(BrowserBackend);
+  private readonly popout = inject(POPOUT_ROUTE);
+  private started = false;
+
+  start(): void {
+    if (this.started || this.popout) return;
+    this.started = true;
+    void this.backend.onEvent((e) => this.onEvent(e)).catch(() => undefined);
+  }
+
+  onEvent(e: BrowserEvent): void {
+    if (e.type !== 'reveal') return;
+    if (e.activate || !this.dock.isOpen(WEB_VIEW)) this.dock.show(WEB_VIEW, { inactive: !e.activate });
   }
 }
 
@@ -86,7 +113,7 @@ export function browserViews(): ImtView[] {
   return [
     {
       id: WEB_VIEW,
-      title: $localize`:View title@@browser.view.title:Web`,
+      title: $localize`:View title@@browser.view.title:Browser`,
       icon: 'globe',
       category: 'Tools',
       defaultPosition: 'right',
@@ -120,12 +147,14 @@ export function browserRecordMenu(launcher: BrowserLauncher, ai?: AiLauncher): R
   ];
 }
 
-/** One line in `app.config.ts`: the Web view (Tools ▸ and View ▸ Tools), its commands and menu entries. */
+/** One line in `app.config.ts`: the Browser view (Tools ▸ and View ▸ Tools), its commands and menu entries, and the
+ * browser's requests to show it. */
 export function provideBrowser(): EnvironmentProviders {
   return makeEnvironmentProviders([
     { provide: IMT_VIEWS, multi: true, useFactory: browserViews },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => browserCommands(inject(BrowserLauncher), inject(WorkspaceStore)) },
     { provide: IMT_RECORD_MENU_ITEMS, multi: true, useFactory: () => browserRecordMenu(inject(BrowserLauncher), inject(AiLauncher)) },
     { provide: IMT_INSPECTOR_SECTIONS, multi: true, useValue: [WEB_INSPECTOR_SECTION] },
+    provideEnvironmentInitializer(() => inject(BrowserReveal).start()),
   ]);
 }

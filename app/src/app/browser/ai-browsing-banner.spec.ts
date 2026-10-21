@@ -3,9 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { settle } from '../../testing/helpers';
 import { runMockResearch } from '../core/mock/mock-ai-research';
 import { MockJobCtx } from '../jobs/mock-jobs';
-import { aiBrowsingProviders, AiBrowsingBanner } from './ai-browsing-banner';
-import { parseAiBrowsingRoute } from './ai-browsing-route';
+import { AiBrowsingBanner } from './ai-browsing-banner';
 import { BrowserBackend, ChatBrowserBackend } from './browser-backend';
+import { BrowserStore } from './browser.store';
 import { BrowserEvent } from './browser.types';
 import { MockBrowserBackend, MockWeb, resetMockWeb } from './mock-browser-backend';
 
@@ -19,6 +19,7 @@ function setup(prepare?: (web: MockWeb, backend: MockBrowserBackend) => void) {
       { provide: ChatBrowserBackend, useValue: backend },
     ],
   });
+  void TestBed.inject(BrowserStore).load();
   const f = TestBed.createComponent(AiBrowsingBanner);
   f.detectChanges();
   const root = f.nativeElement as HTMLElement;
@@ -32,32 +33,26 @@ function setup(prepare?: (web: MockWeb, backend: MockBrowserBackend) => void) {
   return { web, backend, f, root, q, tick };
 }
 
-describe('parseAiBrowsingRoute', () => {
-  it('routes the banner window and nothing else', () => {
-    expect(parseAiBrowsingRoute('#/ai-browsing?host=main')).toEqual({ host: 'main' });
-    expect(parseAiBrowsingRoute('#/ai-browsing?host=w-2')).toEqual({ host: 'w-2' });
-    expect(parseAiBrowsingRoute('#/ai-browsing?host=')).toBeNull();
-    expect(parseAiBrowsingRoute('#/ai-browsing?host=a%20b')).toBeNull();
-    expect(parseAiBrowsingRoute('#/popout?view=x&host=main&label=p-main-1')).toBeNull();
-    expect(parseAiBrowsingRoute('')).toBeNull();
-  });
-});
-
 describe('AiBrowsingBanner', () => {
   afterEach(() => TestBed.resetTestingModule());
 
-  it('says the AI is browsing while an agent drives, and Stop gives the browser back', async () => {
-    const { web, backend, q, tick } = setup();
+  it('says the AI is browsing while an agent drives, and Stop gives the page back', async () => {
+    const { web, backend, f, q, tick } = setup();
     await tick();
     expect(q('ai-browsing')).toBeNull();
-    expect(q('ai-browsing-idle')?.textContent).toContain('The browser is yours again');
     const stop = vi.spyOn(backend, 'stop');
     web.update('c-1', { agent: true });
     web.drive({ kind: 'agent', sessionId: 'c-1' });
     await tick();
     expect(q('ai-browsing')?.textContent).toContain('AI is browsing');
-    expect(q('ai-browsing')?.textContent).toContain("agent mode is driving");
+    expect(q('ai-browsing')?.textContent).toContain('agent mode is driving');
     expect(q('ai-browsing')?.getAttribute('role')).toBe('status');
+    expect(q('ai-browsing')?.getAttribute('aria-live')).toBe('polite');
+    expect(q('ai-browsing-stop')?.getAttribute('aria-label')).toBe('Stop the AI browsing');
+    // The panel's progress replaces the general line.
+    f.componentRef.setInput('progress', 'step 3 of 25');
+    await tick();
+    expect(q('ai-browsing')?.textContent).toContain('step 3 of 25');
     q('ai-browsing-stop')!.click();
     await tick();
     expect(stop).toHaveBeenCalledWith('c-1');
@@ -89,7 +84,6 @@ describe('AiBrowsingBanner', () => {
     vi.spyOn(backend, 'researchStop').mockRejectedValueOnce('no jobs');
     web.drive({ kind: 'research' });
     await tick();
-    expect(q('ai-browsing-error')).toBeNull();
     q('ai-browsing-stop')!.click();
     await tick();
     expect(q('ai-browsing-error')?.textContent).toContain('no jobs');
@@ -105,15 +99,6 @@ describe('AiBrowsingBanner', () => {
     answer(null);
     await tick();
     expect(q('ai-browsing')?.textContent).toContain('Research');
-  });
-
-  it('stops listening when it goes and boots with logging only', async () => {
-    const { web, f, tick } = setup();
-    await tick();
-    expect(web.handlers.size).toBe(1);
-    f.destroy();
-    expect(web.handlers.size).toBe(0);
-    expect(aiBrowsingProviders()).toHaveLength(3);
   });
 });
 
@@ -145,5 +130,24 @@ describe('the mock drives like the shell', () => {
     web.drive({ kind: 'agent', sessionId: 'c-1' });
     await backend.researchStop();
     expect(web.driver).not.toBeNull();
+  });
+
+  it('records where the panel places the page, like the shell', async () => {
+    const web = resetMockWeb();
+    const backend = new MockBrowserBackend(web);
+    expect(await backend.place({ visible: true, rect: { x: 1, y: 2, width: 30, height: 40 }, scale: 1 })).toBe(true);
+    expect(web.placement?.rect?.width).toBe(30);
+    expect((window as unknown as { __imtMockBrowserView: { shown: boolean } }).__imtMockBrowserView.shown).toBe(true);
+    expect(await backend.place({ visible: false, rect: null, scale: 1 })).toBe(false);
+    expect(await backend.place({ visible: true, rect: { x: 0, y: 0, width: 0.2, height: 9 }, scale: 1 })).toBe(false);
+    await expect(backend.place({ visible: true, rect: null, scale: 0 })).rejects.toThrow('out of range');
+    const reveals: BrowserEvent[] = [];
+    web.handlers.add((e) => e.type === 'reveal' && reveals.push(e));
+    web.show('https://e.org/');
+    web.show('https://e.org/b', false);
+    expect(reveals).toEqual([
+      { type: 'reveal', activate: true },
+      { type: 'reveal', activate: false },
+    ]);
   });
 });

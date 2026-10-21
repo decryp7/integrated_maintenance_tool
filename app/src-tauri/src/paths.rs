@@ -507,7 +507,7 @@ impl PickRequest {
 /// Shows a native open or save dialog for the calling window and grants what the user chose to it.
 /// Returns the chosen paths (empty when cancelled). The only way the webview gets a path it may use.
 #[tauri::command]
-pub async fn pick_paths<R: Runtime>(app: AppHandle<R>, window: tauri::WebviewWindow<R>, request: PickRequest) -> CmdResult<Vec<String>> {
+pub async fn pick_paths<R: Runtime>(app: AppHandle<R>, window: tauri::Window<R>, request: PickRequest) -> CmdResult<Vec<String>> {
     let request = request.validated()?;
     let chosen = show(&app, &window, &request).await?;
     let access = request.access();
@@ -525,7 +525,7 @@ pub async fn pick_paths<R: Runtime>(app: AppHandle<R>, window: tauri::WebviewWin
 }
 
 /// Runs the dialog; the answer comes back through a callback (the dialog runs on the main thread).
-async fn show<R: Runtime>(app: &AppHandle<R>, window: &tauri::WebviewWindow<R>, request: &PickRequest) -> CmdResult<Vec<PathBuf>> {
+async fn show<R: Runtime>(app: &AppHandle<R>, window: &tauri::Window<R>, request: &PickRequest) -> CmdResult<Vec<PathBuf>> {
     use tauri_plugin_dialog::{DialogExt, FilePath};
     let mut dialog = app.dialog().file().set_parent(window);
     if !request.title.is_empty() {

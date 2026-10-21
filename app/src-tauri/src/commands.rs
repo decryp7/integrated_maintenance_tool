@@ -1,8 +1,8 @@
 //! The command table (ADR 0016): every command the UI can invoke, declared once in [`crate::command_table!`]
 //! with its kind (query, mutation, quiet), the windows that may call it and its largest request. The table
 //! generates the invoke handler, gives the activity log its classification ([`kind_of`]) and drives the
-//! runtime checks of [`guard`]: a pop-out panel gets a smaller set than its host window, the "AI is browsing"
-//! banner only its own commands, and an oversized request is refused before its arguments are parsed.
+//! runtime checks of [`guard`]: a pop-out panel gets a smaller set than its host window, a page webview of the
+//! browser (`browser-*`) none, and an oversized request is refused before its arguments are parsed.
 //!
 //! Every command is `async` (a test fails on a sync one): a sync command runs on the main thread, where
 //! window creation deadlocks and file or lock waits freeze every window.
@@ -28,8 +28,6 @@ pub type Windows = u8;
 pub const MAIN: Windows = 1;
 /// Panels popped out of a window (`p-<host>-<n>`).
 pub const POPOUT: Windows = 2;
-/// The "AI is browsing" banner over a browser window (`aib-<owner>`).
-pub const BANNER: Windows = 4;
 /// A window and its pop-outs.
 pub const WINDOW: Windows = MAIN | POPOUT;
 
@@ -87,8 +85,6 @@ pub fn class_of(label: &str) -> Option<Windows> {
         Some(MAIN)
     } else if crate::panel_windows::is_popout(label) {
         Some(POPOUT)
-    } else if crate::browser::is_banner_label(label) {
-        Some(BANNER)
     } else {
         None
     }
@@ -203,19 +199,24 @@ mod tests {
         assert_eq!(class_of("main"), Some(MAIN));
         assert_eq!(class_of("w-3"), Some(MAIN));
         assert_eq!(class_of("p-main-1"), Some(POPOUT));
-        assert_eq!(class_of("aib-main"), Some(BANNER));
         assert_eq!(class_of("bw-main"), None);
         assert!(check("query_page", "p-main-1", 10).is_ok());
         // A pop-out panel cannot restart IMT or answer its host's prompts.
         let e = check("restart_app", "p-main-1", 10).unwrap_err();
         assert_eq!(e.code, ErrorCode::Denied);
         assert!(check("restart_app", "main", 10).is_ok());
-        // The banner only stops what drives its browser.
-        assert!(check("browser_driving", "aib-main", 10).is_ok());
-        assert!(check("jobs_cancel", "aib-main", 10).is_ok());
-        assert_eq!(check("open_paths", "aib-main", 10).unwrap_err().code, ErrorCode::Denied);
+        // A page webview of the browser is no window class: nothing of the table is callable from it.
+        assert_eq!(class_of("browser-main"), None);
+        for s in crate::COMMANDS {
+            assert_eq!(
+                check(s.name(), "browser-main", 10).unwrap_err().code,
+                ErrorCode::Denied,
+                "{}",
+                s.name()
+            );
+        }
         assert!(check("query_page", "unknown-window", 10).is_err());
-        assert!(check("plugin:log|log", "aib-main", 10).is_ok());
+        assert!(check("plugin:log|log", "main", 10).is_ok());
         assert!(check("no_such_command", "main", 10).is_ok());
         let e = check("query_page", "main", DEFAULT_LIMIT + 1).unwrap_err();
         assert_eq!(e.code, ErrorCode::Limit);
@@ -248,13 +249,58 @@ mod tests {
         for cap in [
             include_str!("../capabilities/default.json"),
             include_str!("../capabilities/popout.json"),
-            include_str!("../capabilities/ai-browsing.json"),
         ] {
             let v: serde_json::Value = serde_json::from_str(cap).unwrap();
             for p in v["permissions"].as_array().unwrap() {
                 let p = p.as_str().unwrap_or_default();
                 assert!(p != "core:default" && !p.ends_with(":*"), "{p} is too broad");
             }
+        }
+    }
+
+    /// Capabilities name IMT's webviews, never windows: the browser's page webview lives in an IMT window (ADR 0024),
+    /// and a window pattern would grant it that window's permissions. No capability allows remote origins.
+    #[test]
+    fn capabilities_are_scoped_to_imt_webviews_and_never_reach_the_page() {
+        // A capability label pattern: a literal, or a prefix ending in `*`.
+        let matches = |pattern: &str, label: &str| match pattern.strip_suffix('*') {
+            Some(prefix) => label.starts_with(prefix),
+            None => pattern == label,
+        };
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("capabilities");
+        let mut seen = 0;
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().is_none_or(|e| e != "json") {
+                continue;
+            }
+            seen += 1;
+            let v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+            let name = path.display();
+            assert!(v.get("windows").is_none(), "{name}: scope by `webviews`, not `windows`");
+            assert!(v.get("remote").is_none(), "{name}: no remote origins");
+            let webviews = v["webviews"].as_array().unwrap_or_else(|| panic!("{name}: no webviews"));
+            for p in webviews.iter().filter_map(|p| p.as_str()) {
+                assert!(
+                    !p.contains('?') && !p.contains('[') && p.find('*').is_none_or(|i| i == p.len() - 1),
+                    "{name}: {p}"
+                );
+                for page in ["browser-main", "browser-w-2", "browser-p-main-1"] {
+                    assert!(!matches(p, page), "{name}: {p} reaches the page webview {page}");
+                }
+            }
+        }
+        assert!(seen >= 2);
+        let default: serde_json::Value = serde_json::from_str(include_str!("../capabilities/default.json")).unwrap();
+        for imt in ["main", "w-2", "p-main-1"] {
+            assert!(
+                default["webviews"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|p| matches(p.as_str().unwrap(), imt)),
+                "IMT's own webview {imt}"
+            );
         }
     }
 

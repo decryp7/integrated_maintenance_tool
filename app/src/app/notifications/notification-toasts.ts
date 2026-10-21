@@ -18,7 +18,7 @@ import { titleWithCount } from './notifications-text';
   template: `
     <div class="stack" role="region" aria-label="New notifications" i18n-aria-label="@@notifications.toasts.region" aria-live="polite">
       @for (t of store.toasts(); track t.id) {
-        <div class="toast" [attr.data-severity]="t.severity" data-testid="notice-toast" (mouseenter)="store.holdToast(t.id)" (focusin)="store.holdToast(t.id)" (mouseleave)="leave(t.id, $event)" (focusout)="leave(t.id, $event)">
+        <div class="toast" data-imt-overlay [attr.data-severity]="t.severity" data-testid="notice-toast" (mouseenter)="store.holdToast(t.id)" (focusin)="store.holdToast(t.id)" (mouseleave)="leave(t.id, $event)" (focusout)="leave(t.id, $event)">
           <strong class="title">{{ titleWithCount(t) }}</strong>
           @if (t.body) {
             <div class="body">{{ t.body }}</div>

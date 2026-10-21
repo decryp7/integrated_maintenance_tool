@@ -24,7 +24,9 @@ import {
   SetupEvent,
   SetupPlan,
   AiStartRequest,
+  DraftArgs,
   ResearchArgs,
+  ResearchDraft,
   ResearchStarted,
 } from './ai.types';
 
@@ -111,6 +113,9 @@ export abstract class AiBackend {
   /** Web research ("Research this", the chat's "Research…"): a research job whose answer becomes a chat turn, or a
    * search text with workspace data to confirm first. */
   abstract research(args: ResearchArgs): Promise<ResearchStarted>;
+  /** "Research this": the model drafts the search text from the question and the event (the engine's text without a
+   * model); the leak guard checks it. Nothing is searched: the user sees and edits it first. */
+  abstract researchDraft(args: DraftArgs): Promise<ResearchDraft>;
   /** Stops this window's running use cases. */
   abstract cancel(): Promise<number>;
 
