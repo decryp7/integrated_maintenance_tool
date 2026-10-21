@@ -23,6 +23,7 @@ pub struct ScriptedProvider {
     context: usize,
     /// Bytes per streamed delta.
     chunk: usize,
+    vision: bool,
 }
 
 impl ScriptedProvider {
@@ -32,6 +33,7 @@ impl ScriptedProvider {
             requests: Mutex::new(vec![]),
             context: 8192,
             chunk: 6,
+            vision: false,
         }
     }
 
@@ -41,6 +43,12 @@ impl ScriptedProvider {
 
     pub fn with_context(mut self, n: usize) -> Self {
         self.context = n;
+        self
+    }
+
+    /// A scripted model that reads images (requests with images are accepted and recorded).
+    pub fn with_vision(mut self) -> Self {
+        self.vision = true;
         self
     }
 
@@ -66,9 +74,16 @@ impl LlmProvider for ScriptedProvider {
         self.context
     }
 
+    fn vision(&self) -> bool {
+        self.vision
+    }
+
     fn chat(&self, req: &ChatRequest, on_delta: &mut dyn FnMut(&str)) -> Result<ChatResponse> {
         if let Ok(mut r) = self.requests.lock() {
             r.push(req.clone());
+        }
+        if !self.vision && req.messages.iter().any(|m| !m.images.is_empty()) {
+            return Err(AiError::NoVision);
         }
         let reply = self.replies.lock().ok().and_then(|mut q| q.pop_front());
         let (text, calls) = match reply {

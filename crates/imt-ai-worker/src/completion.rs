@@ -22,10 +22,20 @@ pub fn token_count(v: &Value) -> Option<usize> {
     v.get("tokens")?.as_array().map(Vec::len)
 }
 
+/// The `prompt` of `/completion`: the text, or with images llama-server's multimodal form (the text with one
+/// media marker per image, and the images' base64 in the same order).
+fn prompt_of(p: &ChatParams) -> Value {
+    if p.images.is_empty() {
+        return json!(p.prompt);
+    }
+    let data: Vec<&str> = p.images.iter().map(|i| i.data.as_str()).collect();
+    json!({"prompt_string": p.prompt, "multimodal_data": data})
+}
+
 /// The body of `POST /completion` for a streamed answer of at most `n_predict` tokens.
 pub fn completion_body(p: &ChatParams, n_predict: usize) -> Value {
     let mut body = json!({
-        "prompt": p.prompt,
+        "prompt": prompt_of(p),
         "n_predict": n_predict,
         "stream": true,
         "cache_prompt": true,
@@ -139,6 +149,7 @@ mod tests {
             max_tokens: 100,
             temperature: temp,
             json_schema: schema,
+            images: vec![],
         }
     }
 
@@ -158,6 +169,18 @@ mod tests {
         assert!((s["top_p"].as_f64().unwrap() - 0.95).abs() < 1e-6);
         assert_eq!(s["json_schema"], json!({"type": "object"}));
         assert_eq!(tokenize_body("x")["parse_special"], true);
+        assert_eq!(g["prompt"], "<|im_start|>user\nhi");
+        let mut with_image = params(0.0, None);
+        with_image.prompt = "<__media__>\nwhat is this?".into();
+        with_image.images = vec![imt_ai::worker::protocol::WireImage {
+            mime: "image/png".into(),
+            data: "iVBORw0KGgo=".into(),
+            width: 2,
+            height: 2,
+        }];
+        let m = completion_body(&with_image, 8);
+        assert_eq!(m["prompt"]["prompt_string"], "<__media__>\nwhat is this?");
+        assert_eq!(m["prompt"]["multimodal_data"], json!(["iVBORw0KGgo="]));
         assert_eq!(token_count(&json!({"tokens": [1, 2, 3]})), Some(3));
         assert_eq!(token_count(&json!({})), None);
     }

@@ -39,6 +39,24 @@ pub fn model_file(m: &CatalogModel, endpoint: &str, revision: &str) -> ManualFil
     }
 }
 
+/// The image projector of a catalog entry that reads images (ADR 0025), from the same repository; it is added with
+/// "Add projector file…" in the model manager once downloaded.
+pub fn projector_file(m: &CatalogModel, endpoint: &str, revision: &str) -> Option<ManualFile> {
+    let p = m.projector.as_ref()?;
+    Some(ManualFile {
+        name: p.file.clone(),
+        url: format!(
+            "{}/{}/resolve/{}/{}?download=true",
+            endpoint.trim_end_matches('/'),
+            m.hf_repo,
+            revision,
+            p.file
+        ),
+        size_bytes: p.size_bytes,
+        sha256: sha(&p.sha256),
+    })
+}
+
 /// The archives of a runtime build, from the pinned GitHub release.
 pub fn runtime_files(b: &RuntimeBuild) -> Vec<ManualFile> {
     b.assets
@@ -72,6 +90,13 @@ mod tests {
         );
         assert_eq!((f.name.as_str(), f.size_bytes), (m.file.as_str(), m.size_bytes));
         assert_eq!(f.sha256.as_deref(), Some(m.sha256.to_ascii_lowercase().as_str()));
+        let p = projector_file(m, "https://huggingface.co", "main").unwrap();
+        assert_eq!(
+            p.url,
+            "https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/main/mmproj-F16.gguf?download=true"
+        );
+        assert_eq!(p.size_bytes, m.projector.as_ref().unwrap().size_bytes);
+        assert!(projector_file(c.find("qwen3.5-2b-q4km").unwrap(), "https://huggingface.co", "main").is_none());
         let mut odd = m.clone();
         odd.sha256 = "unknown".into();
         assert_eq!(model_file(&odd, "https://mirror.corp", "v1").sha256, None);

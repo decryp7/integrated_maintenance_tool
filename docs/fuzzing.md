@@ -60,6 +60,8 @@ inputs only to the first directory, so `fuzz/corpus/` stays small (seeds copied 
 | `fuzz_perfmon_csv` | PerfMon CSV and `.nfo` importers, counter path parser |
 | `fuzz_prof_speedscope`, `fuzz_prof_folded`, `fuzz_prof_cpuprofile`, `fuzz_prof_chrome_trace`, `fuzz_prof_pprof`, `fuzz_prof_perf_script`, `fuzz_prof_nettrace`, `fuzz_prof_nettrace_heap`, `fuzz_prof_heapsnapshot` | profiling importers (`imt-plugin-profiling`, built without the plugin feature), then every view over what they produced (`imt_profile::fuzz_views`) |
 | `fuzz_dotnet_etw`, `fuzz_dotnet_ipc` | .NET capture (`imt-plugin-dotnet`, without the plugin feature): ETW event payloads through the NetTrace converter, the `.etl` process scanner and back through the nettrace importer; diagnostics IPC replies |
+| `fuzz_image` | The AI's image sanitiser (ADR 0025): any bytes through signature sniffing, the claimed-size guard, the decoders (PNG, JPEG, BMP, GIF, WebP) and the re-encoding, within small limits |
+| `fuzz_vision_facts` | What a model writes about a screenshot (strict JSON, bounded) and the EXIF capture-time reader |
 
 CI (`.gitea/workflows/fuzz.yml`) runs every target for 5 minutes each night (and on demand
 through `workflow_dispatch`, with a configurable duration) and uploads crash inputs as the

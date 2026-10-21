@@ -71,6 +71,7 @@ impl Lab {
     fn load_params(&self, gpu_layers: i32) -> LoadParams {
         LoadParams {
             model_path: self.model().to_string_lossy().into_owned(),
+            mmproj_path: None,
             gpu_layers,
             context: 8192,
             threads: 2,
@@ -104,6 +105,7 @@ fn chat_params(prompt: &str) -> ChatParams {
         max_tokens: 256,
         temperature: 0.0,
         json_schema: None,
+        images: vec![],
     }
 }
 
@@ -540,6 +542,7 @@ fn the_real_llama_server_answers() {
     let loaded = b
         .load(&LoadParams {
             model_path: model,
+            mmproj_path: None,
             gpu_layers: -1,
             context: 2048,
             threads: 0,
@@ -551,6 +554,7 @@ fn the_real_llama_server_answers() {
         max_tokens: 32,
         temperature: 0.0,
         json_schema: None,
+        images: vec![],
     };
     let (r, deltas) = chat(&mut b, &p);
     let r = r.unwrap();
@@ -621,4 +625,140 @@ fn the_worker_binary_lists_builds_for_imt() {
     let none = imt_ai::runtimes::list_builds(worker, &[], Duration::from_secs(60)).unwrap();
     assert_eq!(none.source, "missing");
     assert!(none.problem.unwrap().contains("download"));
+}
+
+fn image_params(prompt: &str, n: usize) -> ChatParams {
+    ChatParams {
+        images: vec![
+            WireImage {
+                mime: "image/png".into(),
+                data: "iVBORw0KGgo=".into(),
+                width: 64,
+                height: 32,
+            };
+            n
+        ],
+        ..chat_params(prompt)
+    }
+}
+
+#[test]
+fn the_model_reads_images_with_its_projector_in_the_same_server() {
+    let lab = Lab::new();
+    lab.build("cpu", &[]);
+    let proj = lab.dir.path().join("m.mmproj.gguf");
+    std::fs::write(&proj, imt_ai::testing::gguf::projector_like(2560)).unwrap();
+    let mut b = lab.backend(BuildChoice::Auto);
+    let loaded = b
+        .load(&LoadParams {
+            mmproj_path: Some(proj.to_string_lossy().into_owned()),
+            ..lab.load_params(0)
+        })
+        .unwrap();
+    assert!(loaded.vision);
+    let args = lab.args();
+    assert_eq!(arg_after(&args, "--mmproj"), Some(proj.to_string_lossy().as_ref()));
+    assert!(
+        args.iter().any(|a| a == "--no-mmproj-offload"),
+        "CPU only: the projector stays on the CPU"
+    );
+    let (r, _) = chat(&mut b, &image_params("<__media__>\nwhat is on the screen?", 1));
+    assert!(r.unwrap().text.starts_with("I see 1 image(s)."));
+    let sent = lab.requests("/completion");
+    assert_eq!(sent[0]["prompt"]["multimodal_data"], json!(["iVBORw0KGgo="]));
+    assert_eq!(sent[0]["prompt"]["prompt_string"], "<__media__>\nwhat is on the screen?");
+    // Markers and images that disagree, and images over the limits, are refused (never a crash).
+    assert_eq!(
+        chat(&mut b, &image_params("no marker", 1)).0.unwrap_err().code,
+        code::INVALID_PARAMS
+    );
+    assert_eq!(
+        chat(&mut b, &image_params("x", MAX_IMAGES + 1)).0.unwrap_err().code,
+        code::INVALID_PARAMS
+    );
+    // The images count toward the context: a huge one overflows instead of being cut.
+    let mut huge = image_params("<__media__>", 1);
+    huge.images[0].width = 20_000;
+    huge.images[0].height = 20_000;
+    assert_eq!(chat(&mut b, &huge).0.unwrap_err().code, code::CONTEXT_OVERFLOW);
+    b.unload();
+}
+
+#[test]
+fn images_need_the_projector_and_the_projector_must_fit_the_model() {
+    let lab = Lab::new();
+    lab.build("cpu", &[]);
+    let mut b = lab.backend(BuildChoice::Auto);
+    let loaded = b.load(&lab.load_params(0)).unwrap();
+    assert!(!loaded.vision);
+    assert!(!lab.args().iter().any(|a| a == "--mmproj"));
+    let e = chat(&mut b, &image_params("<__media__>\nx", 1)).0.unwrap_err();
+    assert_eq!(e.code, code::INVALID_PARAMS);
+    assert!(e.message.contains("projector"), "{}", e.message);
+    // A projector of another model (another embedding width) and a model given as projector fail the load.
+    let other = lab.dir.path().join("other.mmproj.gguf");
+    std::fs::write(&other, imt_ai::testing::gguf::projector_like(4096)).unwrap();
+    for p in [other, lab.model()] {
+        let e = b
+            .load(&LoadParams {
+                mmproj_path: Some(p.to_string_lossy().into_owned()),
+                ..lab.load_params(0)
+            })
+            .unwrap_err();
+        assert_eq!(e.code, code::LOAD_FAILED);
+        assert!(e.message.contains("projector"), "{}", e.message);
+    }
+}
+
+/// The real llama-server reading a real screenshot-like image with a real model and its projector (ADR 0025).
+/// Never downloads anything. Opt in with IMT_VISION_TESTS=1 and
+///   IMT_LLAMA_SERVER=/path/llama-server IMT_TEST_GGUF=/path/model.gguf IMT_TEST_MMPROJ=/path/mmproj.gguf:
+///     cargo test -p imt-ai-worker --test server_backend -- --ignored the_real_model_reads_an_image --nocapture
+#[test]
+#[ignore]
+fn the_real_model_reads_an_image() {
+    if std::env::var("IMT_VISION_TESTS").as_deref() != Ok("1") {
+        eprintln!("skipped: set IMT_VISION_TESTS=1 (and IMT_LLAMA_SERVER, IMT_TEST_GGUF, IMT_TEST_MMPROJ)");
+        return;
+    }
+    let var = |k: &str| std::env::var(k).unwrap_or_else(|_| panic!("set {k}"));
+    let mut b = ServerBackend::new(LlamaConfig {
+        custom: Some(PathBuf::from(var("IMT_LLAMA_SERVER"))),
+        roots: vec![],
+        choice: BuildChoice::Auto,
+    });
+    let loaded = b
+        .load(&LoadParams {
+            model_path: var("IMT_TEST_GGUF"),
+            mmproj_path: Some(var("IMT_TEST_MMPROJ")),
+            gpu_layers: -1,
+            context: 8192,
+            threads: 0,
+        })
+        .unwrap();
+    assert!(loaded.vision, "{loaded:?}");
+    let clean = imt_ai::vision::image::sanitize(
+        &imt_ai::vision::image::testing::screenshot_png(640, 400),
+        1 << 20,
+        &imt_ai::vision::image::ImageLimits::default(),
+    )
+    .unwrap();
+    use base64::Engine as _;
+    let p = ChatParams {
+        prompt: "<|im_start|>user\n<__media__>\nWhat colour is the block in the middle of this image? One word.<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n".into(),
+        max_tokens: 16,
+        temperature: 0.0,
+        json_schema: None,
+        images: vec![WireImage {
+            mime: "image/png".into(),
+            data: base64::engine::general_purpose::STANDARD.encode(clean.image.bytes()),
+            width: clean.image.width(),
+            height: clean.image.height(),
+        }],
+    };
+    let started = Instant::now();
+    let (r, _) = chat(&mut b, &p);
+    let r = r.unwrap();
+    println!("answer in {:.1}s: {:?}", started.elapsed().as_secs_f64(), r.text);
+    assert!(r.text.to_lowercase().contains("red"), "{}", r.text);
 }

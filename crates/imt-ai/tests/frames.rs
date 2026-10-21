@@ -23,6 +23,7 @@ impl WorkerBackend for Backend {
                     context: p.context,
                     name: "m".into(),
                     rss_bytes: 7,
+                    vision: p.mmproj_path.is_some(),
                 })
             }
         }
@@ -95,6 +96,7 @@ fn hello() -> serde_json::Value {
 fn load(model: &str) -> serde_json::Value {
     json!(LoadParams {
         model_path: model.into(),
+        mmproj_path: None,
         gpu_layers: 0,
         context: 2048,
         threads: 0
@@ -106,7 +108,8 @@ fn chat(prompt: &str) -> serde_json::Value {
         prompt: prompt.into(),
         max_tokens: 100,
         temperature: 0.0,
-        json_schema: None
+        json_schema: None,
+        images: vec![]
     })
 }
 
@@ -139,7 +142,8 @@ fn a_full_conversation_streams_deltas_and_ends_with_a_result() {
                 prompt: "schema".into(),
                 max_tokens: 5,
                 temperature: 0.0,
-                json_schema: Some(schema)
+                json_schema: Some(schema),
+                images: vec![]
             }),
             opts(),
             None,
