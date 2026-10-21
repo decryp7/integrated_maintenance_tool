@@ -37,6 +37,8 @@ run fails while the committed file is stale:
 ```sh
 # windows/WEB02/OrderService.exe.4120.dmp (synthetic minidump builder in tests/support)
 IMT_REGENERATE_SAMPLES=1 cargo test -p imt-plugin-windows --test samples -- --ignored
+# dumps/*.dmp and the dump fuzz seeds (synthetic minidump builder, imt_plugin_dumps::synth)
+IMT_REGENERATE_SAMPLES=1 cargo test -p imt-plugin-dumps --test samples -- --ignored regenerate_
 # profiling/: see docs/profiling.md
 ```
 
@@ -64,6 +66,8 @@ without it the file is listed as unrecognised.
 | `windows/WEB02/procmon-OrderService.csv` | Process Monitor “Save as CSV” (BOM, CRLF, `Date & Time`, `TID`, `Duration`) | Windows plugin (`procmon-csv`) | The process exit at 10:41:24, WerFault writing the dump, ACCESS DENIED / SHARING VIOLATION markers, the new process starting |
 | `windows/WEB02/perfmon-OrderService_000001.csv` | PerfMon PDH-CSV (what `relog` makes of a `.blg`) | Windows plugin (`perfmon-csv`) | Process counters that follow the PID across the restart and are blank while it is down; machine counters |
 | `windows/WEB02/OrderService.exe.4120.dmp` | Windows minidump (synthetic, from the Rust builder) | Windows plugin (`minidump`) | Crash dump summary: CLR exception 0xE0434352 in KERNELBASE.dll, stack scan, modules (coreclr, CoreLib) |
+| `dumps/OrderService.exe.4120.full.dmp`, `dumps/Billing.exe.900.hang.dmp` | Full dump (x64, `Memory64List`) and a hang dump of a 32-bit .NET Framework process (synthetic, from the Rust builder) | dumps plugin (`minidump`) | Dump view: access violation, culprit frame, threads waiting on a lock; a dump without an exception, the .NET runtime |
+| `dumps/umdh/OrderService-4120-snap-{1030,1035,1040}.txt`, `…-diff-1030-1040.txt` | UMDH heap snapshots (`umdh -p -f`) and UMDH's own diff (written by `generate.py`) | dumps plugin (`umdh`) | UMDH view: the order cache grows in every snapshot (leak), payment retries grow, a 32 MB single allocation, PdfLib frames without symbols |
 | `windows/registry-export.reg`, `windows/msinfo32.nfo` | regedit export (UTF-16), msinfo32 report | registry plugin (`registry`), Windows plugin (`msinfo`) | Configuration as records (no timestamps) |
 | `monitor/BILL01/process-monitor.clef` | IMT process monitor (`imt-monitor`) output, CLEF | `json` | “Process stats” with the .NET Framework runtime counters (`Dotnet*`: GC per generation, heap sizes, % time in GC, exceptions/s, contention), an app pool recycle detected as exit + restart (`RestartedAs`, `Restarted`) |
 | `web/iis/WEB01/W3SVC1/u_ex261014.log`, `web/iis/WEB02/…` | IIS W3C extended log; WEB02's has a second header block after the restart | web plugin (`w3c`) | `time-taken` growing on WEB02, 502.3 while the app is down, 4xx/5xx levels |
