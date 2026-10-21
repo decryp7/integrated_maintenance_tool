@@ -52,6 +52,14 @@ describe('Inspector', () => {
     expect(text(fixture)).toContain('Select an event');
   });
 
+  it('lets the event text be selected and copied, but not its buttons (ADR 0028)', async () => {
+    const { fixture } = await render(5);
+    for (const sel of ['.ts', '.inst', '.message', '.prop .v', '.src-line']) expect(el(fixture, sel).classList, sel).toContain('imt-selectable');
+    // The exception is a code block: selectable by nature.
+    expect(el(fixture, '.exc').tagName).toBe('PRE');
+    expect(all(fixture, 'button.imt-selectable')).toEqual([]);
+  });
+
   it('shows the event with badges, template holes, properties and exception', async () => {
     const { fixture } = await render(5);
     expect(text(fixture)).toContain('Host terminated unexpectedly');

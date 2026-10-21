@@ -60,6 +60,7 @@ export class BuiltinCommands {
     { id: 'view.resetLayout', title: $localize`:@@builtin.cmd.view.resetLayout:Reset layout`, category: $localize`:@@builtin.category.view:View`, run: () => this.dock.reset() },
     { id: 'view.theme.calm', title: $localize`:@@builtin.cmd.view.theme.calm:Theme: Calm`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setTheme('calm') },
     { id: 'view.theme.console', title: $localize`:@@builtin.cmd.view.theme.console:Theme: Console`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setTheme('console') },
+    { id: 'view.theme.precision', title: $localize`:@@builtin.cmd.view.theme.precision:Theme: Precision`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setTheme('precision') },
     { id: 'view.scheme.system', title: $localize`:@@builtin.cmd.view.scheme.system:Colour scheme: system`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setScheme('system') },
     { id: 'view.scheme.dark', title: $localize`:@@builtin.cmd.view.scheme.dark:Colour scheme: dark`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setScheme('dark') },
     { id: 'view.scheme.light', title: $localize`:@@builtin.cmd.view.scheme.light:Colour scheme: light`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setScheme('light') },

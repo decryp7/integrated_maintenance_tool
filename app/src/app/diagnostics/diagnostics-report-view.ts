@@ -141,7 +141,7 @@ const SYSTEM_KEYS = ['appVersion', 'commit', 'os', 'osVersion', 'arch', 'cpuCore
                   <div class="meta">
                     <span class="when">{{ when(s.createdAt) }}</span>
                     <span class="reason">{{ s.reason }}</span>
-                    <span class="text" [title]="s.message">{{ s.message }}</span>
+                    <span class="text imt-selectable" [title]="s.message">{{ s.message }}</span>
                   </div>
                 </li>
               }
@@ -150,7 +150,7 @@ const SYSTEM_KEYS = ['appVersion', 'commit', 'os', 'osVersion', 'arch', 'cpuCore
             <p class="muted" i18n="@@diagnostics.reportView.noSnapshots">The report has no error snapshots.</p>
           }
           @if (store.current(); as c) {
-            <section class="detail" aria-label="Snapshot details" i18n-aria-label="@@diagnostics.reportView.details" data-testid="diag-snapshot-detail">
+            <section class="detail imt-selectable" aria-label="Snapshot details" i18n-aria-label="@@diagnostics.reportView.details" data-testid="diag-snapshot-detail">
               <div class="dhead">
                 <strong>{{ when(c.createdAt) }}</strong>
                 <span class="grow"></span>

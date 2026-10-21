@@ -72,7 +72,7 @@ import { DropTargets } from '../../core/dropped-files';
       }
       @for (t of store.activeTurns(); track $index; let ti = $index) {
         <div class="turn">
-          <p class="user"><span class="sr-only" i18n="@@ai.chat.you">You: </span>{{ t.user }}</p>
+          <p class="user imt-selectable"><span class="sr-only" i18n="@@ai.chat.you">You: </span>{{ t.user }}</p>
           @let shown = store.imagesOf(ti);
           @if (shown.length) {
             <div class="user-images" role="group" aria-label="Images with this question" i18n-aria-label="@@ai.vision.chat.turnImages" data-testid="ai-turn-images">
@@ -107,7 +107,7 @@ import { DropTargets } from '../../core/dropped-files';
               <imt-agent-paused [paused]="p" [canContinue]="!t.running && $last" (continue)="continueTask()" />
             }
             @if (t.text) {
-              <imt-ai-rich-text [text]="t.text" [citations]="t.citations" (record)="jump($event)" (query)="applyQuery($event)" (link)="openWeb($event.url, $event.title)" />
+              <imt-ai-rich-text class="imt-selectable" [text]="t.text" [citations]="t.citations" (record)="jump($event)" (query)="applyQuery($event)" (link)="openWeb($event.url, $event.title)" />
             } @else if (t.running && !hasPendingApproval(t)) {
               @if (queuedTurn(); as q) {
                 <p class="muted thinking" role="status" data-testid="ai-chat-queued">{{ queuedText(q.position) }}</p>
@@ -125,7 +125,7 @@ import { DropTargets } from '../../core/dropped-files';
               </p>
             }
             @for (n of t.notes; track $index) {
-              <p class="note muted">{{ n }}</p>
+              <p class="note muted imt-selectable">{{ n }}</p>
             }
             @if (t.cancelled) {
               <p class="note muted" i18n="@@ai.chat.stopped">Stopped.</p>

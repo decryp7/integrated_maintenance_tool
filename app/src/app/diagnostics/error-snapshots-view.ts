@@ -47,7 +47,7 @@ export const SETTINGS_COMMAND = SETTINGS_DIAGNOSTICS_COMMAND;
               <div class="meta">
                 <span class="when">{{ when(s) }}</span>
                 <span class="reason">{{ s.reason }}</span>
-                <span class="text" [title]="s.message">{{ s.message }}</span>
+                <span class="text imt-selectable" [title]="s.message">{{ s.message }}</span>
               </div>
             </li>
           } @empty {
@@ -55,7 +55,7 @@ export const SETTINGS_COMMAND = SETTINGS_DIAGNOSTICS_COMMAND;
           }
         </ul>
         @if (store.current(); as c) {
-          <section class="detail" aria-label="Snapshot details" i18n-aria-label="@@diagnostics.snapshotsView.details">
+          <section class="detail imt-selectable" aria-label="Snapshot details" i18n-aria-label="@@diagnostics.snapshotsView.details">
             <div class="dhead">
               <strong>{{ when(c) }}</strong>
               <span class="grow"></span>

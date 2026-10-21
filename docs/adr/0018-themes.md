@@ -61,4 +61,8 @@ runs, neutral vs source-coloured vs barcode lane density, comfortable vs compact
   so both themes keep the four validated source colours (then patterns), as before.
 - Overlapping runs on a lane are stacked on labelled sub-tracks (`timeline/sub-tracks.ts`, greedy interval
   packing) below the lane's markers.
-- `precision` still waits for per-lane error counts and source line numbers from the engine.
+- `precision` (2026-10-21, `themes/precision.theme.ts`) ships the Precision tokens and traits (flat, bracket runs,
+  barcode lanes, tabular numerals) with IBM Plex Sans + Plex Mono; like the other themes it keeps the four
+  validated source and series colours (see above). The table-style label column (PID, events, errors
+  per lane) and the grid's LINE column still wait for per-lane error counts from the engine.
+- ADR 0028 adds an *Interface font* setting: the operating system's font by default, the theme's face on request.

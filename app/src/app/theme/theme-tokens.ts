@@ -1,4 +1,4 @@
-import { Density, Scheme, ThemeDef, ThemeTraits, TokenSet, TRAIT_VALUES, TraitName } from './theme.types';
+import { Density, Scheme, ThemeDef, ThemeTraits, TokenSet, TRAIT_VALUES, TraitName, UiFont } from './theme.types';
 
 /** Tokens every theme defines once for both schemes. */
 export const COMMON_TOKENS = [
@@ -143,6 +143,19 @@ export function missingTokens(theme: ThemeDef): string[] {
   for (const [scheme, set] of Object.entries(theme.schemes)) check(set, COLOR_TOKENS, scheme);
   for (const [density, set] of Object.entries(theme.densities)) check(set, DENSITY_TOKENS, density);
   return out;
+}
+
+/**
+ * The operating system's UI font (ADR 0028): Segoe UI Variable / Segoe UI on Windows, San Francisco on macOS, and the
+ * desktop's font on Linux (`system-ui`, then GNOME's Cantarell, Ubuntu, Noto Sans). Only installed faces match, so the
+ * order picks the right one on each system.
+ */
+export const SYSTEM_FONT_SANS =
+  "'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, Cantarell, Ubuntu, 'Noto Sans', 'Liberation Sans', sans-serif";
+
+/** The tokens with the interface font applied: `system` swaps the theme's sans face for the system one. */
+export function withUiFont(tokens: TokenSet, font: UiFont): TokenSet {
+  return font === 'system' ? { ...tokens, 'font-sans': SYSTEM_FONT_SANS } : tokens;
 }
 
 /** User choices that override a theme's traits (null keeps the theme's own). */

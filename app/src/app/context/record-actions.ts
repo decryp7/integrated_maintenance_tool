@@ -12,6 +12,7 @@ import { MarkDialog } from './mark-dialog';
 import { MaskDialog } from './mask-dialog';
 import { fieldValueConditions, likeThisConditions, recordFieldText } from './rule-builders';
 import { SourceFileActions } from '../sources/source-file-actions';
+import { copyText } from '../tools/clipboard';
 
 /** A field and value the user pointed at (inspector property row). */
 export interface FieldRef {
@@ -34,6 +35,16 @@ export interface ActionTarget {
 }
 
 const LABEL_MAX = 40;
+
+/**
+ * What the record menu's Copy puts on the clipboard (ADR 0028): the text the user selected (in the inspector message,
+ * else anywhere in the window), otherwise the messages of the selected records, one per line. Pure.
+ */
+export function copyTextFor(record: RecordView, target: ActionTarget, windowSelection: string): string {
+  const selected = target.selection?.text.trim() ? target.selection.text : windowSelection;
+  if (selected.trim()) return selected;
+  return (target.records?.length ? target.records : [record]).map((r) => r.message).join('\n');
+}
 
 /**
  * Extra entries for the record context menu, contributed by features (multi provider; each returns
@@ -77,6 +88,8 @@ export class RecordActions {
     }
     items.push(...this.files.itemsForRecord(record));
     for (const contribute of this.contributions) items.push(...contribute(record, target));
+    const text = copyTextFor(record, target, typeof window === 'undefined' ? '' : (window.getSelection()?.toString() ?? ''));
+    items.push({ label: $localize`:Context menu item that copies the selected text, else the messages@@context.recordActions.menu.copy:Copy`, run: () => void copyText(text) });
     return items;
   }
 

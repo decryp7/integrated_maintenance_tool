@@ -44,6 +44,66 @@ test.describe('native feel', () => {
     await expect.poll(async () => (await prevented(page, 'contextmenu')).at(-1)).toBe(false);
   });
 
+  test('log text can be selected; chrome cannot', async ({ page }) => {
+    const userSelect = (sel: string) =>
+      page
+        .locator(sel)
+        .first()
+        .evaluate((el) => {
+          const cs = getComputedStyle(el) as CSSStyleDeclaration & { webkitUserSelect?: string };
+          return cs.userSelect || cs.webkitUserSelect || '';
+        });
+    const selected = () => page.evaluate(() => window.getSelection()?.toString().trim() ?? '');
+    // Near the start of the message: selecting a row opens the inspector over the right of the grid.
+    const message = page.locator('imt-events-grid [role=row].row .msg').first();
+    await message.dblclick({ position: { x: 12, y: 6 } });
+    await expect.poll(selected).not.toBe('');
+    expect(await userSelect('imt-events-grid [role=row].row .msg')).toBe('text');
+    // The toolbar and the status bar are chrome: double-clicking their text selects nothing.
+    // (WebKit reports an inherited `none` as `auto`, so what counts is that nothing gets selected.)
+    for (const chrome of ['imt-status-bar', 'imt-title-bar', 'imt-events-grid .bar']) {
+      await page.evaluate(() => window.getSelection()?.removeAllRanges());
+      await page.locator(chrome).first().dblclick({ position: { x: 40, y: 8 } });
+      expect(await selected()).toBe('');
+    }
+  });
+
+  test("right-clicking selected text opens IMT's menu with Copy instead of the browser menu", async ({ page }) => {
+    await page.locator('imt-events-grid [role=row].row').first().click();
+    const message = page.locator('imt-inspector .message');
+    await expect(message).not.toBeEmpty();
+    expect(await message.evaluate((el) => getComputedStyle(el).userSelect || (getComputedStyle(el) as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect)).toBe('text');
+    await message.dblclick({ position: { x: 12, y: 6 } });
+    await expect.poll(() => page.evaluate(() => window.getSelection()?.toString().trim() ?? '')).not.toBe('');
+    await watch(page, ['contextmenu']);
+    await message.click({ button: 'right', position: { x: 12, y: 6 } });
+    await expect.poll(() => prevented(page, 'contextmenu')).toEqual([true]);
+    const menu = page.getByRole('menu');
+    await expect(menu.getByRole('menuitem', { name: 'Copy', exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+  });
+
+  test('middle-click does not start autoscroll on chrome, and files dropped outside drop targets do not navigate', async ({ page }) => {
+    await watch(page, ['mousedown']);
+    const box = (await page.locator('imt-status-bar').boundingBox())!;
+    await page.mouse.move(box.x + 40, box.y + box.height / 2);
+    await page.mouse.down({ button: 'middle' });
+    await page.mouse.up({ button: 'middle' });
+    await expect.poll(() => prevented(page, 'mousedown')).toEqual([true]);
+    const dropped = await page.evaluate(() => {
+      const data = new DataTransfer();
+      data.items.add(new File(['x'], 'app.log', { type: 'text/plain' }));
+      const target = document.querySelector('imt-status-bar')!;
+      const over = new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: data });
+      target.dispatchEvent(over);
+      const drop = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: data });
+      target.dispatchEvent(drop);
+      return [over.defaultPrevented, drop.defaultPrevented];
+    });
+    expect(dropped).toEqual([true, true]);
+  });
+
   test('reload keys do not reload the window', async ({ page }) => {
     await page.evaluate(() => ((window as unknown as { __marker: number }).__marker = 42));
     await watch(page, ['keydown']);

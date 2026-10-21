@@ -4,8 +4,8 @@
  * code that draws (timeline, charts). Components read only tokens and traits, never a theme id.
  */
 
-/** The built-in themes. `precision` follows when the engine provides per-lane error counts (ADR 0018). */
-export const THEME_IDS = ['calm', 'console'] as const;
+/** The built-in themes, in menu order. */
+export const THEME_IDS = ['calm', 'console', 'precision'] as const;
 export type ThemeId = (typeof THEME_IDS)[number];
 
 /** A resolved colour scheme. */
@@ -15,6 +15,10 @@ export type Scheme = (typeof SCHEMES)[number];
 /** The user's scheme choice: follow the operating system, or a fixed scheme. */
 export const SCHEME_MODES = ['system', 'light', 'dark'] as const;
 export type SchemeMode = (typeof SCHEME_MODES)[number];
+
+/** The face of the interface text (ADR 0028): the operating system's UI font, or the theme's own. Log text stays mono. */
+export const UI_FONTS = ['system', 'theme'] as const;
+export type UiFont = (typeof UI_FONTS)[number];
 
 /** Row, lane and padding sizes, orthogonal to the theme. */
 export const DENSITIES = ['comfortable', 'compact'] as const;

@@ -1,7 +1,8 @@
-import { effectiveTraits, missingTokens, px, resolveTokens, traitAttribute, traitAttributes } from './theme-tokens';
+import { effectiveTraits, missingTokens, px, resolveTokens, SYSTEM_FONT_SANS, traitAttribute, traitAttributes, withUiFont } from './theme-tokens';
 import { BUILT_IN_THEMES, DEFAULT_THEME_ID, isThemeId, themeById } from './themes';
 import { CALM } from './themes/calm.theme';
 import { CONSOLE } from './themes/console.theme';
+import { PRECISION } from './themes/precision.theme';
 import { THEME_IDS, TRAIT_VALUES, TraitName } from './theme.types';
 
 describe('theme tokens', () => {
@@ -39,6 +40,17 @@ describe('theme tokens', () => {
     expect(Object.fromEntries(attrs)['data-runs']).toBe('pill');
   });
 
+  it('use the operating system font for the interface unless the user keeps the theme font; mono stays', () => {
+    const tokens = resolveTokens(PRECISION, 'light', 'compact');
+    const system = withUiFont(tokens, 'system');
+    expect(system['font-sans']).toBe(SYSTEM_FONT_SANS);
+    expect(system['font-mono']).toBe(tokens['font-mono']);
+    expect(withUiFont(tokens, 'theme')).toBe(tokens);
+    // Windows, macOS and Linux desktop faces, then the generic family.
+    for (const face of ["'Segoe UI Variable Text'", "'Segoe UI'", '-apple-system', 'system-ui', 'Cantarell', 'Ubuntu']) expect(SYSTEM_FONT_SANS).toContain(face);
+    expect(SYSTEM_FONT_SANS.endsWith('sans-serif')).toBe(true);
+  });
+
   it('read pixel tokens', () => {
     expect(px('24px')).toBe(24);
     expect(px(' 10.5px ')).toBe(10.5);
@@ -58,9 +70,11 @@ describe('built-in theme registry', () => {
 
   it('narrows ids and falls back to the default for unknown ones', () => {
     expect(isThemeId('console')).toBe(true);
-    expect(isThemeId('precision')).toBe(false);
+    expect(isThemeId('precision')).toBe(true);
+    expect(isThemeId('neon')).toBe(false);
     expect(isThemeId(3)).toBe(false);
     expect(themeById('console')).toBe(CONSOLE);
+    expect(themeById('precision')).toBe(PRECISION);
     expect(themeById('neon')).toBe(CALM);
   });
 
@@ -68,5 +82,9 @@ describe('built-in theme registry', () => {
     expect(CALM.traits.runs).not.toBe(CONSOLE.traits.runs);
     expect(CALM.traits.surface).not.toBe(CONSOLE.traits.surface);
     expect(CALM.common['font-sans']).not.toBe(CONSOLE.common['font-sans']);
+    expect(PRECISION.traits.runs).toBe('bracket');
+    expect(PRECISION.traits.laneFill).toBe('barcode');
+    expect(PRECISION.common['font-sans']).toContain('IBM Plex Sans');
+    expect(PRECISION.common['font-mono']).toContain('IBM Plex Mono');
   });
 });

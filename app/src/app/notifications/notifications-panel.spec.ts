@@ -116,6 +116,7 @@ describe('NotificationsPanel', () => {
     expect(ai.getAttribute('data-severity')).toBe('warning');
     expect(ai.getAttribute('aria-label')).toBe('AI paused, unread');
     expect(ai.querySelector('.body')?.textContent).toBe('The model crashed');
+    expect(ai.querySelector('.body')?.classList).toContain('imt-selectable');
     expect(ai.querySelector('.time')?.textContent).toContain('2 Jan');
     expect(el(f, '[data-testid=notice-4]').getAttribute('aria-label')).toBe('Finished: Export, read');
     expect(el(f, '[data-testid=notice-4]').querySelector('.body')).toBeNull();

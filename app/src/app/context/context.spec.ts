@@ -13,7 +13,7 @@ import { InferDialog } from '../markers/regex/infer-dialog';
 import { MarkDialog } from './mark-dialog';
 import { applyMask, MaskDialog } from './mask-dialog';
 import { MatchCounter } from './match-count';
-import { RecordActions } from './record-actions';
+import { copyTextFor, RecordActions } from './record-actions';
 import { GridSelection } from '../grid/grid-selection';
 import { selectionWithin } from './selection';
 import { at } from '../../testing/must';
@@ -277,7 +277,7 @@ describe('RecordActions and the context menu', () => {
   it('offers row actions and opens the drop dialog prefilled from the record', async () => {
     const { rec, actions, dialogs } = await setup();
     const labels = actions.itemsFor(rec).map((i) => i.label);
-    expect(labels).toEqual(['Drop events like this (pipeline)…', 'Mark events like this…', 'Highlight lines…', 'Infer pattern from lines…', 'Open file', `Open at line ${rec.line}`, 'Show in folder']);
+    expect(labels).toEqual(['Drop events like this (pipeline)…', 'Mark events like this…', 'Highlight lines…', 'Infer pattern from lines…', 'Open file', `Open at line ${rec.line}`, 'Show in folder', 'Copy']);
     at(actions.itemsFor(rec), 0).run();
     expect(dialogs.stack()[0]?.component).toBe(DropDialog);
     expect(dialogs.stack()[0]?.options.inputs?.['initial']).toEqual([{ field: '@message', op: 'eq', value: rec.message }]);
@@ -300,6 +300,7 @@ describe('RecordActions and the context menu', () => {
       'Open file',
       `Open at line ${rec.line}`,
       'Show in folder',
+      'Copy',
     ]);
     at(items, 0).run();
     at(items, 1).run();
@@ -314,7 +315,7 @@ describe('RecordActions and the context menu', () => {
     at(items, 7).run();
     expect(dialogs.stack().map((d) => d.component)).toEqual([DropDialog, MarkDialog, MarkDialog, InferDialog, MaskDialog, ExtractDialog]);
     expect(dialogs.stack()[2]?.options.inputs?.['initial']).toEqual([{ field: '@message', op: 'matches', value: '\\d+' }]);
-    expect(actions.itemsFor(rec, { selection: { text: '  ', start: 0, end: 2 } })).toHaveLength(7);
+    expect(actions.itemsFor(rec, { selection: { text: '  ', start: 0, end: 2 } })).toHaveLength(8);
   });
 
   it('infers from every selected record, or from the record alone', async () => {
@@ -412,5 +413,26 @@ describe('RecordActions and the context menu', () => {
     expect(menu.menu()).toBeNull();
     row.remove();
     button.remove();
+  });
+});
+
+describe('copyTextFor', () => {
+  const rec = (message: string) => ({ message, fields: {} }) as unknown as RecordView;
+
+  it('copies the selected text, else the messages of the selected records', () => {
+    const one = rec('first line');
+    expect(copyTextFor(one, { selection: { text: '1500', start: 0, end: 4 } }, 'elsewhere')).toBe('1500');
+    expect(copyTextFor(one, {}, 'grid text')).toBe('grid text');
+    expect(copyTextFor(one, { selection: { text: '  ', start: 0, end: 2 } }, '')).toBe('first line');
+    expect(copyTextFor(one, { records: [one, rec('second line')] }, ' \n')).toBe('first line\nsecond line');
+  });
+
+  it('puts Copy on the record menu and copies through the clipboard', () => {
+    TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const items = TestBed.inject(RecordActions).itemsFor(rec('copied message'));
+    items.find((i) => i.label === 'Copy')?.run();
+    expect(writeText).toHaveBeenCalledWith('copied message');
   });
 });

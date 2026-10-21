@@ -1,13 +1,15 @@
 import { TestBed } from '@angular/core/testing';
+import { ContextMenuService } from '../ui/context-menu.service';
 import { EnvironmentInjector, createEnvironmentInjector } from '@angular/core';
 import {
   browserKeyAction,
+  contextMenuAction,
   installNativeFeel,
   isEditable,
   KeyLike,
   provideNativeFeel,
-  shouldBlockContextMenu,
   shouldBlockDrag,
+  shouldBlockFileDrop,
   shouldBlockKey,
   shouldBlockMouseButton,
   shouldBlockWheel,
@@ -91,19 +93,28 @@ describe('native feel: key decisions', () => {
 });
 
 describe('native feel: pointer, menu and drag decisions', () => {
-  it('blocks the back and forward mouse buttons and Ctrl+wheel only', () => {
-    expect([0, 1, 2, 3, 4].map(shouldBlockMouseButton)).toEqual([false, false, false, true, true]);
+  it('blocks the back and forward mouse buttons, middle-click outside text fields and Ctrl+wheel only', () => {
+    expect([0, 1, 2, 3, 4].map((b) => shouldBlockMouseButton(b))).toEqual([false, true, false, true, true]);
+    expect([0, 1, 2, 3, 4].map((b) => shouldBlockMouseButton(b, true))).toEqual([false, false, false, true, true]);
     expect(shouldBlockWheel({ ctrlKey: true })).toBe(true);
     expect(shouldBlockWheel({ ctrlKey: false })).toBe(false);
   });
 
-  it('keeps the native context menu only where it helps', () => {
+  it('keeps the native context menu only in text fields, offers Copy on selected text and blocks it elsewhere', () => {
     const none = { handled: false, editable: false, onSelection: false, developer: false };
-    expect(shouldBlockContextMenu(none)).toBe(true);
-    expect(shouldBlockContextMenu({ ...none, handled: true })).toBe(false);
-    expect(shouldBlockContextMenu({ ...none, editable: true })).toBe(false);
-    expect(shouldBlockContextMenu({ ...none, onSelection: true })).toBe(false);
-    expect(shouldBlockContextMenu({ ...none, developer: true })).toBe(false);
+    expect(contextMenuAction(none)).toBe('block');
+    expect(contextMenuAction({ ...none, handled: true })).toBe('leave');
+    expect(contextMenuAction({ ...none, handled: true, editable: true, onSelection: true })).toBe('leave');
+    expect(contextMenuAction({ ...none, editable: true })).toBe('native');
+    expect(contextMenuAction({ ...none, editable: true, onSelection: true })).toBe('native');
+    expect(contextMenuAction({ ...none, onSelection: true })).toBe('copy');
+    expect(contextMenuAction({ ...none, developer: true })).toBe('native');
+  });
+
+  it('stops files dropped where no IMT target takes them from navigating the window', () => {
+    expect(shouldBlockFileDrop({ files: true, handled: false })).toBe(true);
+    expect(shouldBlockFileDrop({ files: true, handled: true })).toBe(false);
+    expect(shouldBlockFileDrop({ files: false, handled: false })).toBe(false);
   });
 
   it('blocks dragging images and links but not IMT drag sources or text', () => {
@@ -139,12 +150,14 @@ describe('native feel: pointer, menu and drag decisions', () => {
 describe('native feel: the installed guard', () => {
   let host: HTMLElement;
   let remove: () => void;
+  let copied: { x: number; y: number; text: string }[];
 
   beforeEach(() => {
+    copied = [];
     host = document.createElement('div');
     host.innerHTML = '<button id="b">Tab</button><input id="i"><a id="a" href="#x"><img id="img" alt=""></a><p id="p">some log text</p><div id="d" draggable="true">tab</div>';
     document.body.appendChild(host);
-    remove = installNativeFeel(window, RELEASE);
+    remove = installNativeFeel(window, RELEASE, { copyMenu: (x, y, text) => copied.push({ x, y, text }) });
   });
   afterEach(() => {
     remove();
@@ -172,15 +185,17 @@ describe('native feel: the installed guard', () => {
     expect(seen).toEqual(['F5', 'r', 'r']);
   });
 
-  it('suppresses the browser menu on chrome, keeps it in fields and on selected text, and leaves IMT menus alone', () => {
+  it('suppresses the browser menu on chrome, keeps it in fields, offers Copy on selected text, and leaves IMT menus alone', () => {
     const menu = (target: HTMLElement, init: MouseEventInit = {}) => fire(target, new MouseEvent('contextmenu', { bubbles: true, cancelable: true, ...init }));
     expect(menu(el('b')).defaultPrevented).toBe(true);
     expect(menu(el('i')).defaultPrevented).toBe(false);
     const range = document.createRange();
     range.selectNodeContents(el('p'));
     window.getSelection()?.addRange(range);
-    expect(menu(el('p')).defaultPrevented).toBe(false);
+    expect(menu(el('p'), { clientX: 12, clientY: 34 }).defaultPrevented).toBe(true);
+    expect(copied).toEqual([{ x: 12, y: 34, text: 'some log text' }]);
     expect(menu(el('b')).defaultPrevented).toBe(true);
+    expect(copied).toHaveLength(1);
     window.getSelection()?.removeAllRanges();
     // IMT's own menu: its handler prevents the default and the guard does not interfere.
     let opened = false;
@@ -205,6 +220,33 @@ describe('native feel: the installed guard', () => {
     expect(fire(el('b'), new MouseEvent('mouseup', { button: 3, bubbles: true, cancelable: true })).defaultPrevented).toBe(true);
     expect(fire(el('b'), new MouseEvent('mousedown', { button: 4, bubbles: true, cancelable: true })).defaultPrevented).toBe(true);
     expect(fire(el('b'), new MouseEvent('mouseup', { button: 0, bubbles: true, cancelable: true })).defaultPrevented).toBe(false);
+    // Middle-click: no autoscroll on chrome; a text field keeps it (Linux pastes the primary selection).
+    expect(fire(el('b'), new MouseEvent('mousedown', { button: 1, bubbles: true, cancelable: true })).defaultPrevented).toBe(true);
+    expect(fire(el('i'), new MouseEvent('mousedown', { button: 1, bubbles: true, cancelable: true })).defaultPrevented).toBe(false);
+  });
+
+  it('keeps files dropped outside IMT drop targets from navigating, and leaves handled drops alone', () => {
+    const drag = (type: string, types: string[], handle = false) => {
+      const e = new Event(type, { bubbles: true, cancelable: true }) as DragEvent;
+      const dataTransfer = { types, dropEffect: 'copy' };
+      Object.defineProperty(e, 'dataTransfer', { value: dataTransfer });
+      if (handle) el('b').addEventListener(type, (x) => x.preventDefault(), { once: true });
+      fire(el('b'), e);
+      return { prevented: e.defaultPrevented, effect: dataTransfer.dropEffect };
+    };
+    expect(drag('dragover', ['Files'])).toEqual({ prevented: true, effect: 'none' });
+    expect(drag('drop', ['Files']).prevented).toBe(true);
+    expect(drag('dragover', ['text/plain'])).toEqual({ prevented: false, effect: 'copy' });
+    expect(drag('dragover', ['Files'], true)).toEqual({ prevented: true, effect: 'copy' });
+  });
+
+  it('keeps the native menu on selected text when the app gives no copy menu', () => {
+    remove();
+    remove = installNativeFeel(window, RELEASE);
+    const range = document.createRange();
+    range.selectNodeContents(el('p'));
+    window.getSelection()?.addRange(range);
+    expect(fire(el('p'), new MouseEvent('contextmenu', { bubbles: true, cancelable: true })).defaultPrevented).toBe(false);
   });
 
   it('blocks dragging images and links out but not IMT drag sources', () => {
@@ -234,5 +276,28 @@ describe('provideNativeFeel', () => {
     expect(press()).toBe(true);
     env.destroy();
     expect(press()).toBe(false);
+  });
+
+  it('opens IMT\'s menu with Copy on selected text', () => {
+    const env = createEnvironmentInjector([provideNativeFeel()], TestBed.inject(EnvironmentInjector));
+    const p = document.createElement('p');
+    p.textContent = 'copy me';
+    document.body.appendChild(p);
+    const range = document.createRange();
+    range.selectNodeContents(p);
+    window.getSelection()?.addRange(range);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const e = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 6 });
+    p.dispatchEvent(e);
+    const menu = TestBed.inject(ContextMenuService).menu();
+    expect(e.defaultPrevented).toBe(true);
+    expect(menu?.items.map((i) => i.label)).toEqual(['Copy']);
+    expect([menu?.x, menu?.y]).toEqual([5, 6]);
+    menu?.items[0]?.run();
+    expect(writeText).toHaveBeenCalledWith('copy me');
+    window.getSelection()?.removeAllRanges();
+    p.remove();
+    env.destroy();
   });
 });

@@ -1,6 +1,6 @@
 import { computed, DestroyRef, DOCUMENT, effect, inject, Injectable, Injector, signal } from '@angular/core';
 import { SettingsStore } from '../../settings/settings.store';
-import { effectiveTraits, resolveTokens, traitAttributes } from '../../theme/theme-tokens';
+import { effectiveTraits, resolveTokens, traitAttributes, withUiFont } from '../../theme/theme-tokens';
 import { themeById } from '../../theme/themes';
 import { Density, Scheme, ThemeDef, ThemeTraits, TokenSet } from '../../theme/theme.types';
 import { UiPrefsStore } from './ui-prefs.store';
@@ -32,8 +32,8 @@ export class ThemeService {
   readonly density = computed<Density>(() => this.settings.density());
   /** The theme's traits with the user's overrides ("Colour lanes by source"). */
   readonly traits = computed<ThemeTraits>(() => effectiveTraits(this.theme(), { lanesBySource: this.prefs.lanesBySource() }));
-  /** The token values in effect. */
-  readonly tokens = computed<TokenSet>(() => resolveTokens(this.theme(), this.scheme(), this.density()));
+  /** The token values in effect, with the interface font the user chose. */
+  readonly tokens = computed<TokenSet>(() => withUiFont(resolveTokens(this.theme(), this.scheme(), this.density()), this.prefs.uiFont()));
 
   constructor() {
     const media = this.media;

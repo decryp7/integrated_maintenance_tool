@@ -2,7 +2,7 @@ import { Injector } from '@angular/core';
 import { Query, RecordView } from '../core/api.types';
 import { DateFormat, TimeZoneMode } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
-import { isSchemeMode } from '../core/workspace/ui-prefs.store';
+import { isSchemeMode, isUiFont } from '../core/workspace/ui-prefs.store';
 import { isThemeId } from '../theme/themes';
 import { TimeCursor } from '../analysis/time-cursor';
 import { sanitizeQuery } from '../lifecycle/core-ui-state';
@@ -62,6 +62,7 @@ export function sharedUiState(injector: Injector): SyncedValue[] {
     },
     { key: 'theme', read: () => store.theme(), apply: (v) => isThemeId(v) && store.setTheme(v) },
     { key: 'scheme', read: () => store.scheme(), apply: (v) => isSchemeMode(v) && store.setScheme(v) },
+    { key: 'uiFont', read: () => store.uiFont(), apply: (v) => isUiFont(v) && store.setUiFont(v) },
     { key: 'lanesBySource', read: () => store.lanesBySource(), apply: (v) => (v === null || typeof v === 'boolean') && store.setLanesBySource(v) },
     { key: 'timezone', read: () => store.timezone(), apply: (v) => ZONES.includes(v as TimeZoneMode) && store.setTimezone(v as TimeZoneMode) },
     { key: 'lifecycle', read: () => store.alwaysShowLifecycle(), apply: (v) => typeof v === 'boolean' && store.setAlwaysShowLifecycle(v) },

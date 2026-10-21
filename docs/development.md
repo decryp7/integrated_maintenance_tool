@@ -66,7 +66,10 @@ rust-analyzer checks into its own target folder, so it never blocks a build in t
 IMT's windows switch off browser behaviour (`app/src-tauri/src/native_feel.rs` for WebView2's
 browser keys, `app/src/app/core/native-feel.ts` for the rest). Debug builds and `ng serve` keep the
 developer tools (`F12`, `Ctrl+Shift+I`, or Shift+right-click for the browser menu with *Inspect*)
-and hard reload (`Ctrl+Shift+R`, `Ctrl+F5`); `F5` and `Ctrl+R` are blocked everywhere.
+and hard reload (`Ctrl+Shift+R`, `Ctrl+F5`); `F5` and `Ctrl+R` are blocked everywhere. The UI is not
+text-selectable by default (ADR 0028): content users copy opts in with the `imt-selectable` class (text fields,
+grid cells, `pre`/`code`, `role=alert` and `role=note` select by nature), and right-clicking selected text opens
+IMT's own menu with *Copy*.
 
 ### Package
 

@@ -517,8 +517,13 @@ Settings ▸ Appearance (or *View ▸ Theme*, or the command palette) chooses ho
 - **Theme.** *Calm* (the default) is quiet and neutral: graphite surfaces, one blue accent, 1 px structure, and
   colour only where the data is. *Console* has soft cards on a tinted canvas, a violet accent and richer severity
   colour: findings as chips, lanes filled in their source colour, labelled run pills, a band behind each crash and
-  a floating summary while you brush a range. Themes differ in shape as well as colour (Inter + JetBrains Mono for
-  Calm, Geist + Geist Mono for Console; the fonts are bundled).
+  a floating summary while you brush a range. *Precision* is paper and ink for experts: hairlines instead of
+  shadows, one cobalt accent, 2 px corners, mono figures, barcode lane density, bracket runs and the tightest rows.
+  Themes differ in shape as well as colour (Inter + JetBrains Mono for Calm, Geist + Geist Mono for Console, IBM
+  Plex Sans + Plex Mono for Precision; the fonts are bundled).
+- **Interface font.** *System* (the default) uses the operating system's font for menus, panels and dialogs (Segoe
+  UI on Windows, San Francisco on macOS, the desktop's font on Linux), like other desktop apps; *Theme* uses the
+  theme's own face. Log text is always monospaced.
 - **Colour scheme.** Light, dark, or *System* (the default), which follows the operating system as it changes.
 - **Density.** *Comfortable* or *Compact* row and lane heights, in every theme.
 - **Colour lanes by source.** Draws each lane's volume in its source colour instead of neutral grey; each theme

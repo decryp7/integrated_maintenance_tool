@@ -45,6 +45,11 @@ describe('shared UI state of a window group', () => {
     apply('theme', 'console');
     apply('theme', 'neon');
     expect(store.theme()).toBe('console');
+    apply('theme', 'precision');
+    expect(store.theme()).toBe('precision');
+    apply('uiFont', 'theme');
+    apply('uiFont', 'comic');
+    expect(read('uiFont')).toBe('theme');
     apply('lanesBySource', true);
     apply('lanesBySource', 'yes');
     expect(read('lanesBySource')).toBe(true);

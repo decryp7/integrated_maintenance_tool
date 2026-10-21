@@ -57,6 +57,19 @@ describe('ThemeService', () => {
     await settle();
     expect(root.getAttribute('data-lane-fill')).toBe('neutral');
     expect(theme.traits().laneFill).toBe('neutral');
+
+    // Precision: barcode lanes and bracket runs; the interface font is the system one unless the user keeps the theme's.
+    prefs.setTheme('precision');
+    prefs.setLanesBySource(null);
+    await settle();
+    expect(root.getAttribute('data-theme')).toBe('precision');
+    expect(root.getAttribute('data-runs')).toBe('bracket');
+    expect(root.getAttribute('data-lane-fill')).toBe('barcode');
+    expect(root.style.getPropertyValue('--font-sans')).toContain('Segoe UI');
+    expect(root.style.getPropertyValue('--font-mono')).toContain('IBM Plex Mono');
+    prefs.setUiFont('theme');
+    await settle();
+    expect(root.style.getPropertyValue('--font-sans')).toContain('IBM Plex Sans');
   });
 
   it('follows the operating system live while the scheme is "system"', async () => {
