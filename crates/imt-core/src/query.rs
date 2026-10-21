@@ -57,6 +57,34 @@ impl TextMode {
     }
 }
 
+/// The query with its sliding window resolved into `from` for "now" = `now` (ms): the last `last_ms` before
+/// it, narrowing a `from` the query already has. A query without a window is returned as it is.
+pub fn resolve_live_window(q: &Query, now: i64) -> std::borrow::Cow<'_, Query> {
+    match q.window {
+        None => std::borrow::Cow::Borrowed(q),
+        Some(TimeWindow::Live { last_ms }) => {
+            let since = now.saturating_sub(last_ms.max(0));
+            std::borrow::Cow::Owned(Query {
+                from: Some(q.from.map_or(since, |f| f.max(since))),
+                window: None,
+                ..q.clone()
+            })
+        }
+    }
+}
+
+/// Whether "now" for live windows is the system clock (`[live] clock = "wall"`) rather than the newest event.
+pub fn live_clock_is_wall(profile: &crate::Profile) -> bool {
+    profile.live.clock.eq_ignore_ascii_case("wall")
+}
+
+/// The system clock in ms since the epoch.
+pub fn wall_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .map_or(0, |d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX))
+}
+
 /// Upper bound on [`Query::sources`], so a hostile request cannot make every
 /// evaluation allocate an unbounded set.
 pub const MAX_QUERY_SOURCES: usize = 10_000;
@@ -401,6 +429,36 @@ mod tests {
             &[]
         )
         .is_err());
+    }
+
+    #[test]
+    fn live_windows_resolve_into_from() {
+        let q = Query {
+            window: Some(TimeWindow::Live { last_ms: 1_000 }),
+            ..Default::default()
+        };
+        let r = resolve_live_window(&q, 10_000);
+        assert_eq!((r.from, r.window), (Some(9_000), None));
+        let narrower = Query {
+            from: Some(9_500),
+            ..q.clone()
+        };
+        assert_eq!(
+            resolve_live_window(&narrower, 10_000).from,
+            Some(9_500),
+            "an existing from that is later stays"
+        );
+        let negative = Query {
+            window: Some(TimeWindow::Live { last_ms: -5 }),
+            ..Default::default()
+        };
+        assert_eq!(resolve_live_window(&negative, 10_000).from, Some(10_000));
+        assert!(matches!(resolve_live_window(&Query::default(), 1), std::borrow::Cow::Borrowed(_)));
+        assert!(wall_ms() > 1_700_000_000_000);
+        let mut p = crate::Profile::default_profile();
+        assert!(!live_clock_is_wall(&p));
+        p.live.clock = "Wall".into();
+        assert!(live_clock_is_wall(&p));
     }
 
     #[test]

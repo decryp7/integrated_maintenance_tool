@@ -321,6 +321,8 @@ impl Inner {
     }
 
     pub(crate) fn compile(&self, ctx: &Ctx, q: &Filter) -> StoreResult<(SqlFilter, CompiledQuery)> {
+        let resolved = self.resolve_window(q)?;
+        let q = resolved.as_ref();
         let source = WithHits {
             fields: &ctx.fields,
             inner: self,
@@ -329,6 +331,22 @@ impl Inner {
         let (mut f, cq) = sql::compile(q, &ctx.default_group_by, &ctx.marker_kinds, &source)?;
         f.keep = source.keep.into_inner();
         Ok((f, cq))
+    }
+
+    /// The query with a live window ("the last 5 minutes") resolved into `from`: before the newest event, or
+    /// the system clock with `[live] clock = "wall"`.
+    pub(crate) fn resolve_window<'q>(&self, q: &'q Filter) -> StoreResult<std::borrow::Cow<'q, Filter>> {
+        if q.window.is_none() {
+            return Ok(std::borrow::Cow::Borrowed(q));
+        }
+        let now = if imt_core::query::live_clock_is_wall(&self.profile().profile) {
+            imt_core::query::wall_ms()
+        } else {
+            let conn = self.conn()?;
+            let newest: Option<i64> = conn.query_row("SELECT max(ts) FROM events", [], |r| r.get(0)).map_err(engine)?;
+            newest.unwrap_or_else(imt_core::query::wall_ms)
+        };
+        Ok(imt_core::query::resolve_live_window(q, now))
     }
 
     /// The hits file of a word search, or `None` when the index cannot answer it exactly (unavailable, not
@@ -1369,7 +1387,9 @@ impl Query for DuckStore {
     }
 
     fn timeline(&self, req: &TimelineRequest) -> StoreResult<Timeline> {
-        self.inner.timeline(req)
+        // A live window bounds the timeline like a time range does.
+        let query = self.inner.resolve_window(&req.query)?.into_owned();
+        self.inner.timeline(&TimelineRequest { query, ..req.clone() })
     }
 
     fn facet(&self, req: &FacetRequest) -> StoreResult<Facet> {
@@ -1381,7 +1401,8 @@ impl Query for DuckStore {
     }
 
     fn chart(&self, req: &ChartRequest) -> StoreResult<ChartData> {
-        self.inner.chart(req)
+        let query = self.inner.resolve_window(&req.query)?.into_owned();
+        self.inner.chart(&ChartRequest { query, ..req.clone() })
     }
 
     fn field_stats(&self, req: &FieldStatsRequest) -> StoreResult<FieldStats> {

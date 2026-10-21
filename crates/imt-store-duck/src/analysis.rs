@@ -799,11 +799,9 @@ impl Inner {
     }
 
     fn moment(&self, req: &MomentRequest) -> StoreResult<Analyzed<MomentSummary>> {
-        if req.query.window.is_some() {
-            return Err(StoreError::unsupported("live time windows", "6c"));
-        }
+        let query = self.resolve_window(&req.query)?;
         let (from, to) = (req.from.min(req.to), req.from.max(req.to));
-        let [window, previous, all] = moment_queries(&req.query, from, to);
+        let [window, previous, all] = moment_queries(&query, from, to);
         let profile = self.profile();
         let cfg = &profile.profile.activity;
         let metric_fields = || {
@@ -1068,9 +1066,6 @@ impl Inner {
             (None, None) => return Err(StoreError::Invalid("a chart request needs chartId or def".into())),
         };
         let (agg, field) = parse_y(&def.y).map_err(|e| StoreError::Invalid(format!("{e:#}")))?;
-        if req.query.window.is_some() {
-            return Err(StoreError::unsupported("live time windows", "6c"));
-        }
         let conn = self.conn()?;
         let ctx = self.ctx(&conn)?;
         let (sf, cq) = self.compile(&ctx, &req.query)?;

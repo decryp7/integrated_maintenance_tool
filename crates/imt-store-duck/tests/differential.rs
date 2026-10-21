@@ -38,6 +38,13 @@ fn queries(p: &Pair) -> Vec<(&'static str, Filter)> {
             },
         ),
         (
+            "live window: the last hour before the newest event",
+            Filter {
+                window: Some(imt_core::query::TimeWindow::Live { last_ms: 3_600_000 }),
+                ..Filter::default()
+            },
+        ),
+        (
             "smart search: words, the last a prefix",
             Filter {
                 text: "timeout req".into(),
