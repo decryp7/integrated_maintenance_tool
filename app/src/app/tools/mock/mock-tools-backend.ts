@@ -92,6 +92,15 @@ const PLUGIN_REASONS: Record<'quarantined' | 'inactive', string> = {
 const ANY_ARGS: ToolSchema = { type: 'object', fields: [], additional: false };
 
 /** The tools the engine's tools plugin contributes, as `tools_list` reports them (availability added per call). */
+/** The processes the mock capture tool lists. */
+const MOCK_PROCESSES = [
+  { pid: 4, name: 'System', parent: 0, threads: 180 },
+  { pid: 620, name: 'lsass.exe', parent: 512, threads: 12 },
+  { pid: 4120, name: 'OrderService.exe', parent: 700, threads: 46 },
+  { pid: 5532, name: 'OrderService.exe', parent: 700, threads: 22 },
+  { pid: 7810, name: 'w3wp.exe', parent: 700, threads: 61 },
+];
+
 const MOCK_TOOLS: Omit<ToolEntry, 'availability'>[] = [
   {
     id: TOOL_IDS.perfmonTemplates,
@@ -151,6 +160,18 @@ const MOCK_TOOLS: Omit<ToolEntry, 'availability'>[] = [
       budgetMs: 60_000,
     })),
     plugin: TOOLS_PLUGIN,
+  },
+  {
+    id: TOOL_IDS.dumpCapture,
+    title: 'Create dump of process',
+    description: 'Writes a minidump, a minidump with heap or a full dump of a running process with MiniDumpWriteDump.',
+    platforms: ['windows'],
+    needsElevation: false,
+    ops: [
+      { name: 'processes', title: 'List processes', args: ANY_ARGS, budgetMs: 30_000 },
+      { name: 'create', title: 'Create dump', args: ANY_ARGS, budgetMs: 1_800_000 },
+    ],
+    plugin: 'net.decryptology.dumps.capture',
   },
 ];
 
@@ -377,10 +398,23 @@ export class MockToolsBackend implements ToolsBackend {
       [`${log}/pause`]: () => this.eventLog.pause(),
       [`${log}/resume`]: () => this.eventLog.resume(),
       [`${log}/status`]: () => this.eventLog.status(),
+      [`${TOOL_IDS.dumpCapture}/processes`]: async () => MOCK_PROCESSES,
+      [`${TOOL_IDS.dumpCapture}/create`]: async () => this.createDump(args as { pid: number; kind: string; folder: string }),
     };
     const run = ops[`${tool}/${op}`];
     if (!run) throw new Error(`tool "${tool}" has no operation "${op}"`);
     return (await run()) as T;
+  }
+
+  /** Like the capture tool: the System process and, without rights, elevated processes are refused. */
+  private createDump(a: { pid: number; kind: string; folder: string }): { file: string; bytes: number } {
+    const p = MOCK_PROCESSES.find((x) => x.pid === a.pid);
+    if (!p) throw new Error(`process ${a.pid} is not running (any more)`);
+    if (p.pid === 4 || (this.options.denied && !this.options.elevated && p.name === 'lsass.exe')) {
+      throw new Error(`Access to process ${a.pid} was denied: it runs as another user or as administrator. Restart IMT as administrator to dump it.`);
+    }
+    const sep = a.folder.includes('/') ? '/' : String.fromCharCode(92);
+    return { file: `${a.folder}${sep}${p.name}.${p.pid}.${a.kind}.20261014-104124.dmp`, bytes: a.kind === 'full' ? 412 << 20 : 2 << 20 };
   }
 
   private async slow<T>(value: T): Promise<T> {

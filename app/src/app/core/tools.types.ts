@@ -328,6 +328,8 @@ export const TOOL_IDS = {
   eventLog: 'event-log-follower',
   diagnostics: 'diagnostics',
   elevation: 'elevation',
+  /** "Create dump of process…" (the dumps capture plugin, ADR 0023). */
+  dumpCapture: 'dumps.capture',
 } as const;
 
 /** The shape of a tool operation's arguments (checked by the engine before the tool runs). */

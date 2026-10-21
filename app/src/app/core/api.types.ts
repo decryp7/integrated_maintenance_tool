@@ -35,7 +35,8 @@
  *   preview_spans          { request: SpanPreviewRequest } -> SpanPreview   (the Runs editor's preview of a candidate rule)
  *   plugin_events          {}                              -> SubscriberMetrics[] (event-bus delivery counters per subscriber)
  *
- * Analysis commands: see the "Analysis" section below. Error snapshot commands: see "Error snapshots".
+ * Analysis commands: see the "Analysis" section below. Error snapshot commands: see "Error snapshots". Dump and UMDH
+ * commands (`dumps_*`): see "Dumps".
  *
  * Events (Tauri): "imt://workspace-changed" (payload `TailReport`; listeners must accept none) after live tail changed the workspace
  * (at most about four per second); "imt://live-alert" (`LiveAlert`) for each alert a live refresh raised;
@@ -2500,3 +2501,57 @@ export type { RecentKind, RecentLists, RecentProject } from './generated/recent'
 
 // What every command rejects with, and its codes: generated from `error::CmdError` and `error::ErrorCode`.
 export type { CmdErrorDto, ErrorCode } from './generated/errors';
+
+// ---- Dumps and UMDH heap logs (app/src-tauri/src/dumps.rs; ADR 0023) ----
+// Generated from `imt_dump::api`. Commands (invoke name -> args -> result):
+//   dumps_sniff     { paths: string[] }                    -> DumpSniffResult[]   (first 64 KiB; nothing is opened)
+//   dumps_open      { path: string }                       -> DumpDocSummary      (a path the user chose)
+//   dumps_list      {}                                     -> DumpDocSummary[]
+//   dumps_close     { id: number }                         -> boolean
+//   dumps_overview  { id: number }                         -> DumpOverview
+//   dumps_threads   { request: ThreadsRequest }            -> ThreadsPage
+//   dumps_stack     { request: StackRequest }              -> StackDto
+//   dumps_modules   { request: ModulesRequest }            -> ModulesPage
+//   dumps_findings  { request: DumpFindingsRequest }       -> DumpFinding[]       (one dump, or UMDH logs of one process)
+//   dumps_umdh_diff { request: UmdhDiffRequest }           -> UmdhDiffPage
+//   dumps_umdh_stack { request: UmdhStackRequest }         -> UmdhStackDto
+//   dumps_umdh_tree { request: UmdhTreeRequest }           -> UmdhTreeNode[]
+//   dumps_markers   {}                                     -> DumpMarker[]        (documents with a time, for the timeline)
+//   dumps_explain   { request: DumpFindingsRequest }       -> string              (the compact, redacted AI question)
+// "Create dump of process…" is the plugin tool `dumps.capture` (`tool_invoke`: `processes`, `create`).
+export type {
+  DocKind,
+  DumpDocSummary,
+  DumpFinding,
+  DumpFindingKind,
+  DumpFindingsRequest,
+  DumpMarker,
+  DumpOverview,
+  DumpSeverity,
+  DumpSniffKind,
+  DumpSniffResult,
+  ExceptionCard,
+  FindingEvidence,
+  FrameRow,
+  FrameTrust,
+  HandlesDto,
+  HandleTypeDto,
+  MemoryDto,
+  ModuleRow,
+  ModulesPage,
+  ModulesRequest,
+  StackDto,
+  StackRequest,
+  ThreadRow,
+  ThreadsPage,
+  ThreadsRequest,
+  ThreadState,
+  UmdhDiffPage,
+  UmdhDiffRequest,
+  UmdhGroup,
+  UmdhRow,
+  UmdhStackDto,
+  UmdhStackRequest,
+  UmdhTreeNode,
+  UmdhTreeRequest,
+} from './generated/dumps';

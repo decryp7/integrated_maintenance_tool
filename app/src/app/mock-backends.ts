@@ -5,6 +5,7 @@
  */
 export { MockAnalysisBackend, recordsFrom } from './analysis/mock/mock-analysis-backend';
 export { MockConfigDiffBackend } from './config-diff/mock/mock-config-diff-backend';
+export { MOCK_DUMP_PATHS, MOCK_UMDH_PATHS, MockDumpsBackend } from './dumps/mock/mock-dumps-backend';
 export { MockBackend } from './core/mock/mock-backend';
 export { mockOptionsFromSearch } from './core/mock/mock-options';
 export { MOCK_CAPTURE_PATHS } from './core/mock/mock-profiling-data';
