@@ -296,7 +296,7 @@ impl ResearchEnv<'_> {
 }
 
 fn browser_error(e: BrowserError) -> AiError {
-    AiError::Engine(format!("the browser: {e}"))
+    AiError::Browser(format!("The browser could not finish: {e}"))
 }
 
 /// Searches `query` with the engine of `env` in the browser (the engine's ordinary results page) and returns its
@@ -1305,7 +1305,7 @@ mod tests {
         let empty = FakeWeb::default();
         let (r, _) = run(&empty, &model(), 5, &AtomicBool::new(false), &log);
         assert!(
-            matches!(r, Err(AiError::Engine(m)) if m.contains("browser")),
+            matches!(&r, Err(AiError::Browser(m)) if m.starts_with("The browser could not")),
             "the results page did not load"
         );
         let mut no_links = FakeWeb::default();

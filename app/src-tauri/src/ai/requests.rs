@@ -374,7 +374,7 @@ fn use_case_work(
         let flag = ctx.cancel_flag();
         win.ai.track_op(flag.clone());
         let r = (|| {
-            let assistant = core.assistant(flag.clone())?;
+            let assistant = core.assistant(&win.ai.knowledge.snapshot(), flag.clone())?;
             if let Some(id) = req.image_id() {
                 let img = win
                     .ai

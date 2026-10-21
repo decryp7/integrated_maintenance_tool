@@ -1878,5 +1878,6 @@ fn a_runtime_is_installed_from_archives_downloaded_by_hand() {
     }
 }
 
+mod knowledge;
 mod update_checks;
 mod vision;

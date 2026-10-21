@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { DIALOG_REF } from '../ui/dialog.service';
 import { AiSettingsExtras } from '../ai/settings/ai-settings-extras';
+import { KnowledgeSettings } from '../ai/knowledge/knowledge-settings';
 import { EngineSettingsStore } from './engine-settings.store';
 import { AppearanceSettings } from './appearance-settings';
 import { GeneralSettings } from './general-settings';
@@ -19,7 +20,7 @@ import { SettingField, SettingsSection } from './settings.types';
 @Component({
   selector: 'imt-settings-screen',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, StorageSettings],
+  imports: [GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, KnowledgeSettings, StorageSettings],
   host: { '(keydown.escape)': 'onEscape($event)' },
   template: `
     <div class="top">
@@ -123,6 +124,7 @@ import { SettingField, SettingsSection } from './settings.types';
           @if (s.id === 'ai') {
             @defer {
               <imt-ai-settings-extras />
+              <imt-knowledge-settings />
             }
           }
           @for (e of sectionErrors(s.id); track $index) {

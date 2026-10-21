@@ -299,7 +299,9 @@ The set-up wizard checks your hardware and, only when you ask, downloads a model
 llama.cpp `llama-server` build for your platform (CPU, Vulkan, CUDA, Metal and others); downloads
 are resumable and checked against pinned SHA-256 hashes. Builds are not bundled and nothing needs
 compiling ([ADR 0009](adr/0009-prebuilt-llama-server-runtimes.md)). Settings ▸ AI chooses the
-build, or a `llama-server` of your own.
+build, or a `llama-server` of your own. *Knowledge files* (Settings ▸ AI ▸ Knowledge, [ADR 0029](adr/0029-knowledge-files.md))
+are Markdown notes about your systems that every AI feature reads as background: per project (saved with it) and
+global, each enabled or disabled, within size limits relative to the model's context window.
 
 Downloads trust the operating system's certificate store (the same roots as your browser), so they work
 behind TLS-inspecting corporate proxies such as Zscaler once IT has installed the proxy's root
