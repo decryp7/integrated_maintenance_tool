@@ -16,6 +16,7 @@ pub mod limits;
 pub mod model;
 pub mod ops;
 pub mod store;
+pub mod wire;
 
 pub use builder::{FrameSpec, ProfileBuilder};
 pub use error::{ProfileError, Result};

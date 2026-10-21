@@ -3,8 +3,8 @@
 use crate::level_for_status;
 use anyhow::Result;
 use chrono::DateTime;
-use imt_core::importers::{ImportCtx, Imported, Importer};
-use imt_core::model::Record;
+use imt_plugin_api::importer::{ImportCtx, Imported, TextImporter};
+use imt_plugin_api::model::Record;
 use regex::Regex;
 use serde_json::Value;
 use std::sync::OnceLock;
@@ -24,7 +24,7 @@ fn line_re() -> &'static Regex {
 
 pub struct AccessLogImporter;
 
-impl Importer for AccessLogImporter {
+impl TextImporter for AccessLogImporter {
     fn id(&self) -> &'static str {
         "access-log"
     }
@@ -123,7 +123,7 @@ fn record(line: u32, c: &regex::Captures) -> Record {
 mod tests {
     use super::*;
     use crate::testutil::{garbage, with_ctx};
-    use imt_core::model::Level;
+    use imt_plugin_api::model::Level;
     use serde_json::json;
 
     const LOG: &str = include_str!("../tests/fixtures/access.log");

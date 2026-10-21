@@ -3,7 +3,7 @@
 //! ([`crate::ProfileError::LimitExceeded`]) instead of an out-of-memory abort.
 
 /// Caps applied while importing and building a capture.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Limits {
     /// Bytes of input an importer accepts (after decompression).
     pub max_input_bytes: u64,

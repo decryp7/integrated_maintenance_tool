@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/imt-core", "crates/imt-batch", "crates/imt-plugin-registry", "crates/imt-plugin-windows", "crates/imt-plugin-web", "crates/imt-plugin-formats", "crates/imt-plugin-otel", "crates/imt-plugin-syslog", "crates/imt-plugin-tools", "crates/imt-monitor", "crates/imt-collect", "crates/imt-pdf", "crates/imt-agent", "crates/imt-profile", "crates/imt-plugin-profiling", "crates/imt-plugin-dotnet", "crates/imt-ai", "crates/imt-ai-worker", "crates/imt-ipc", "crates/imt-plugin-sdk", "crates/imt-plugin-host", "app/src-tauri", "xtask"]
+members = ["crates/imt-core", "crates/imt-plugin-api", "crates/imt-batch", "crates/imt-plugin-registry", "crates/imt-plugin-windows", "crates/imt-plugin-web", "crates/imt-plugin-formats", "crates/imt-plugin-otel", "crates/imt-plugin-syslog", "crates/imt-plugin-tools", "crates/imt-monitor", "crates/imt-collect", "crates/imt-pdf", "crates/imt-agent", "crates/imt-profile", "crates/imt-plugin-profiling", "crates/imt-plugin-dotnet", "crates/imt-ai", "crates/imt-ai-worker", "crates/imt-ipc", "crates/imt-plugin-host", "crates/imt-plugins", "app/src-tauri", "xtask"]
 # The persistent-store spike (docs/store-spike.md) builds on its own: it needs DataFusion and a prebuilt
 # libduckdb, which no shipped crate uses. imt-store-duck (ADR 0014) also links the prebuilt libduckdb and
 # builds on its own until CI fetches it.
@@ -27,13 +27,14 @@ ctrlc = "3"
 flate2 = "1.1"
 getrandom = "0.4"
 globset = "0.4.20"
-hyper-util = { version = "0.1", default-features = false, features = ["tokio"] }
 insta = { version = "1", features = ["yaml"] }
 libc = "0.2"
 log = "0.4"
+# The frame codec of every IPC connection (ADR 0017): serde, compact, no schema compiler.
+postcard = { version = "1.1", default-features = false, features = ["use-std"] }
 proptest = "1.12"
+# The pprof file format (profile.proto) in the profiling plugin; not used for IPC (ADR 0017).
 prost = "0.14"
-protox = "0.9"
 quick-xml = "0.42"
 regex = "1.13"
 semver = "1"
@@ -44,12 +45,7 @@ sysinfo = { version = "0.39", default-features = false }
 tempfile = "3"
 thiserror = "2.0"
 tokio = { version = "1", default-features = false }
-tokio-stream = { version = "0.1", default-features = false }
 toml = "1"
-tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
-tonic-prost = "0.14"
-tonic-prost-build = "0.14"
-tower = { version = "0.5", default-features = false, features = ["util"] }
 # Every Windows API user needs these; members add the API areas they call.
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Threading"] }
 zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }

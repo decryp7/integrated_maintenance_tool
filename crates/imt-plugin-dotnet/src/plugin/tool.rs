@@ -9,11 +9,13 @@
 //! | `stop` | `{ id }` | `DotnetCaptureStatus` (kept; cancel is the Job's: `jobs_cancel`) |
 //! | `etl-processes` | `{ path }` | `EtlProcess[]` (Windows) |
 //! | `etl-convert` | `{ path, pid }` | `{ path, notes }`: a NetTrace to open with `profiling_open` |
+//! | `etw-start`, `etw-poll`, `etw-stop`, `etw-cancel` | see [`super::elevated`] | elevated: ETW recordings, called by this tool's `start` through the host |
 
 use super::captures::{Captures, Request};
+use super::elevated::{self, EtwHost, Router};
 use crate::Limits;
 use anyhow::{anyhow, bail, Context, Result};
-use imt_core::plugin::tools::{OpSpec, Schema, Tool, ToolCtx, ToolFailure, ToolInfo, ToolTask};
+use imt_plugin_api::tools::{OpSpec, PathAccess, PathKind, Schema, Tool, ToolCtx, ToolFailure, ToolInfo, ToolTask};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -27,18 +29,23 @@ pub const TOOL_ID: &str = "dotnet-profiler";
 pub const TASK_KIND: &str = "capture";
 /// Largest `.etl` file converted.
 pub const MAX_ETL_BYTES: u64 = 8 << 30;
-const MAX_PATH: usize = 4096;
 
 pub(crate) struct DotnetTool {
     captures: Arc<Captures>,
+    /// Where ETW recordings go (the elevated process); `None` with a test collector.
+    router: Option<Arc<Router>>,
+    /// The ETW recordings when this is the elevated process (created on its first operation).
+    etw: std::sync::OnceLock<EtwHost>,
     limits: Limits,
     conversions: Mutex<HashMap<String, Arc<AtomicBool>>>,
 }
 
 impl DotnetTool {
-    pub fn new(captures: Arc<Captures>, limits: Limits) -> DotnetTool {
+    pub fn new(captures: Arc<Captures>, router: Option<Arc<Router>>, limits: Limits) -> DotnetTool {
         DotnetTool {
             captures,
+            router,
+            etw: std::sync::OnceLock::new(),
             limits,
             conversions: Mutex::new(HashMap::new()),
         }
@@ -54,10 +61,14 @@ impl DotnetTool {
 
     fn start(&self, args: Value, ctx: &ToolCtx) -> Result<Value> {
         let req: Request = serde_json::from_value(args).context("invalid capture request")?;
+        if let Some(router) = &self.router {
+            router.connect(ctx.elevated());
+        }
         let dir = Self::out_dir(ctx, "dotnet")?;
         let status = self.captures.start(req, &dir, self.limits).map_err(|e| anyhow!(e))?;
         if status.needs_elevation {
-            // Typed, so the shell answers with the "denied" code and the restart-as-administrator hint.
+            // The administrator prompt was declined (or there is no elevated process). Typed, so the shell answers
+            // with the "denied" code.
             return Err(anyhow!(ToolFailure::denied(status.error.clone().unwrap_or_default())));
         }
         if self.captures.is_running(&status.id) {
@@ -84,6 +95,7 @@ impl DotnetTool {
         Ok(serde_json::to_value(status)?)
     }
 
+    /// The `.etl` file (the host checked that the user chose it).
     fn etl_path(args: &Value) -> Result<PathBuf> {
         let raw = args.get("path").and_then(Value::as_str).unwrap_or_default();
         let path = Path::new(raw).canonicalize().with_context(|| format!("cannot open {raw}"))?;
@@ -180,6 +192,10 @@ mod etl {
     }
 }
 
+fn etl_file() -> Schema {
+    Schema::path(PathKind::File, PathAccess::Read)
+}
+
 fn id_arg() -> Schema {
     Schema::object().field("id", Schema::text(64))
 }
@@ -207,15 +223,35 @@ impl Tool for DotnetTool {
             .op(OpSpec::new("status", "List captures").args(Schema::object()).polling())
             .op(OpSpec::new("stop", "Stop a capture").args(id_arg()).budget(long))
             .op(OpSpec::new("etl-processes", "List the processes in an .etl trace")
-                .args(Schema::object().field("path", Schema::text(MAX_PATH)))
+                .args(Schema::object().field("path", etl_file()))
                 .budget(Some(Duration::from_secs(1800))))
             .op(OpSpec::new("etl-convert", "Convert one process of an .etl trace")
                 .args(
                     Schema::object()
-                        .field("path", Schema::text(MAX_PATH))
+                        .field("path", etl_file())
                         .field("pid", Schema::int(1, i64::from(u32::MAX))),
                 )
                 .budget(Some(Duration::from_secs(3600))))
+            .op(OpSpec::new(elevated::START, "Start an ETW recording (elevated)")
+                .args(
+                    Schema::object()
+                        .field("pid", Schema::int(1, i64::from(u32::MAX)))
+                        .field("kind", Schema::one_of(["cpu", "allocations", "heap"]))
+                        .field("name", Schema::text(255))
+                        .field("maxBytes", Schema::int(1, i64::MAX))
+                        .field("maxDurationMs", Schema::int(1, i64::MAX)),
+                )
+                .elevated())
+            .op(OpSpec::new(elevated::POLL, "ETW recording status (elevated)")
+                .args(id_arg())
+                .elevated())
+            .op(OpSpec::new(elevated::STOP, "Stop an ETW recording (elevated)")
+                .args(id_arg())
+                .budget(Some(elevated::STOP_TIMEOUT))
+                .elevated())
+            .op(OpSpec::new(elevated::CANCEL, "Cancel an ETW recording (elevated)")
+                .args(id_arg())
+                .elevated())
     }
 
     fn invoke(&self, op: &str, args: Value, ctx: &ToolCtx) -> Result<Value> {
@@ -235,6 +271,9 @@ impl Tool for DotnetTool {
             }
             "etl-processes" => self.etl_processes(args),
             "etl-convert" => self.etl_convert(args, ctx),
+            elevated::START | elevated::POLL | elevated::STOP | elevated::CANCEL => {
+                self.etw.get_or_init(EtwHost::default).invoke(op, args, ctx.data_dir())
+            }
             other => bail!("unknown operation {other}"),
         }
     }
@@ -254,7 +293,7 @@ impl Tool for DotnetTool {
 mod tests {
     use super::super::captures::tests::fake;
     use super::*;
-    use imt_core::plugin::tools::{NoTasks, TaskSink};
+    use imt_plugin_api::tools::{NoTasks, TaskSink};
 
     #[derive(Default)]
     struct Sink(Mutex<Vec<String>>);
@@ -270,14 +309,16 @@ mod tests {
     }
 
     fn tool(ends: Option<Duration>) -> DotnetTool {
-        DotnetTool::new(Captures::new(fake(ends)), Limits::default())
+        DotnetTool::new(Captures::new(fake(ends)), None, Limits::default())
     }
 
     #[test]
     fn describes_valid_ops() {
         let info = tool(None).describe();
         assert!(info.check().is_ok(), "{:?}", info.check());
-        assert_eq!(info.ops.len(), 6);
+        assert_eq!(info.ops.len(), 10);
+        assert_eq!(info.ops.iter().filter(|o| o.elevated).count(), 4);
+        assert!(info.ops.iter().filter(|o| o.name.starts_with("etl-")).all(|o| o.args.has_paths()));
         assert!(info.ops.iter().any(|o| o.name == "status" && o.poll));
         assert!(info.ops.iter().filter(|o| o.poll).count() == 1);
     }
@@ -353,7 +394,7 @@ mod tests {
         let ctx = ToolCtx::new(Some(dir.path().to_path_buf()), Arc::new(NoTasks));
         let f = fake(None);
         f.deny.store(true, std::sync::atomic::Ordering::SeqCst);
-        let t = DotnetTool::new(Captures::new(f), Limits::default());
+        let t = DotnetTool::new(Captures::new(f), None, Limits::default());
         let e = t.invoke("start", json!({"pid": 10, "kind": "cpu"}), &ctx).unwrap_err();
         let failure = e.downcast_ref::<ToolFailure>().expect("a typed failure");
         assert_eq!(*failure, ToolFailure::denied(failure.message.clone()));

@@ -19,8 +19,8 @@
 //! modules, string lengths), so time and memory stay bounded on hostile input.
 
 use anyhow::{anyhow, bail, Result};
-use imt_core::importers::{BinaryImporter, ImportCtx, Imported};
-use imt_core::model::{Level, Record};
+use imt_plugin_api::importer::{BinaryImporter, ImportCtx, Imported};
+use imt_plugin_api::model::{Level, Record};
 use minidump::{
     Error as DumpError, Minidump, MinidumpException, MinidumpMiscInfo, MinidumpModuleList, MinidumpSystemInfo, MinidumpThreadList, Module,
     UnifiedMemoryList,

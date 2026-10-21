@@ -18,9 +18,9 @@
 //! time of day jumps back by more than 12 hours.
 
 use anyhow::{bail, Result};
-use imt_core::importers::{ImportCtx, Imported, Importer, MAX_LINE_LEN};
-use imt_core::model::{Level, Record};
-use imt_core::time::{detect_day_first, utc_date_of, TimestampParser};
+use imt_plugin_api::importer::{ImportCtx, Imported, TextImporter, MAX_LINE_LEN};
+use imt_plugin_api::model::{Level, Record};
+use imt_plugin_api::time::{detect_day_first, utc_date_of, TimestampParser};
 use serde_json::Value;
 
 /// Columns that identify a ProcMon export; all must be in the header.
@@ -34,7 +34,7 @@ const DAY_MS: i64 = 24 * 3_600_000;
 
 pub struct ProcmonCsvImporter;
 
-impl Importer for ProcmonCsvImporter {
+impl TextImporter for ProcmonCsvImporter {
     fn id(&self) -> &'static str {
         "procmon-csv"
     }
@@ -50,7 +50,7 @@ impl Importer for ProcmonCsvImporter {
     }
 
     fn import(&self, ctx: &ImportCtx, content: &str) -> Result<Imported> {
-        parse_procmon(content, &ctx.profile.timestamps, ctx.file_date)
+        parse_procmon(content, ctx.timestamps, ctx.file_date)
     }
 
     /// Rows never span lines in practice, but `Command Line` and `Detail` may be quoted
@@ -342,7 +342,7 @@ pub fn parse_procmon(content: &str, zone: &TimestampParser, file_date: Option<ch
 mod tests {
     use super::*;
     use chrono::NaiveDate;
-    use imt_core::profile::{CompiledProfile, Profile};
+    use imt_plugin_api::time::TimestampParser;
     use std::path::Path;
 
     const DEFAULT_EXPORT: &str = "\u{feff}\"Time of Day\",\"Process Name\",\"PID\",\"Operation\",\"Path\",\"Result\",\"Detail\"\r\n\
@@ -350,16 +350,15 @@ mod tests {
 \"11:59:59.5000000 PM\",\"OrderService.exe\",\"4120\",\"RegOpenKey\",\"HKLM\\Software\\Orders\",\"NAME NOT FOUND\",\"Desired Access: Read\"\r\n\
 \"12:00:01.0000000 AM\",\"svchost.exe\",\"1,024\",\"Process Exit\",\"\",\"SUCCESS\",\"Exit Status: 0\"\r\n";
 
-    fn profile(toml: &str) -> CompiledProfile {
-        CompiledProfile::compile(Profile::from_toml(toml).unwrap()).unwrap()
+    /// The timestamp settings of a profile with the given `[parse]` zone and day order.
+    fn profile(zone: &str, day_first: Option<bool>) -> TimestampParser {
+        TimestampParser::new(&[], zone, day_first).unwrap()
     }
 
-    fn ctx<'a>(p: &'a CompiledProfile, date: Option<NaiveDate>) -> ImportCtx<'a> {
-        ImportCtx {
-            profile: p,
-            path: Path::new("Logfile.CSV"),
-            file_date: date,
-        }
+    fn ctx<'a>(p: &'a TimestampParser, date: Option<NaiveDate>) -> ImportCtx<'a> {
+        let mut c = ImportCtx::new(Path::new("Logfile.CSV"), p);
+        c.file_date = date;
+        c
     }
 
     fn utc(y: i32, mo: u32, d: u32, h: u32, mi: u32, s: u32, ms: u32) -> i64 {
@@ -373,7 +372,7 @@ mod tests {
 
     #[test]
     fn sniffs_the_header_above_generic_csv() {
-        let p = profile("");
+        let p = profile("UTC", None);
         let c = ctx(&p, None);
         assert_eq!(ProcmonCsvImporter.sniff(&c, DEFAULT_EXPORT), 95);
         assert_eq!(
@@ -387,14 +386,11 @@ mod tests {
         assert_eq!(ProcmonCsvImporter.sniff(&c, "\"unterminated"), 0);
         assert_eq!(ProcmonCsvImporter.id(), "procmon-csv");
         assert!(ProcmonCsvImporter.multiline());
-        let mut importers = imt_core::importers::Importers::new();
-        importers.register(Box::new(ProcmonCsvImporter));
-        assert_eq!(importers.select(&c, DEFAULT_EXPORT).unwrap().id(), "procmon-csv");
     }
 
     #[test]
     fn default_columns_with_the_file_date_and_midnight_rollover() {
-        let p = profile("");
+        let p = profile("UTC", None);
         let out = ProcmonCsvImporter
             .import(&ctx(&p, NaiveDate::from_ymd_opt(2026, 10, 14)), DEFAULT_EXPORT)
             .unwrap();
@@ -423,14 +419,14 @@ mod tests {
 
     #[test]
     fn without_a_file_date_time_of_day_has_no_timestamp() {
-        let p = profile("");
+        let p = profile("UTC", None);
         let out = ProcmonCsvImporter.import(&ctx(&p, None), DEFAULT_EXPORT).unwrap();
         assert!(out.records.iter().all(|r| r.ts.is_none()));
     }
 
     #[test]
     fn date_and_time_gives_the_date_and_time_of_day_the_precision() {
-        let p = profile("[parse]\nassume_timezone = '+02:00'");
+        let p = profile("+02:00", None);
         let csv = "Sequence,Date & Time,Time of Day,Process Name,PID,TID,Operation,Path,Result,Duration,Parent PID,Integrity,Event Class\n\
 7,14/10/2026 9:00:00 AM,9:00:00.2500000 AM,a.exe,10,11,ReadFile,C:\\x,SUCCESS,0.0000123,4,High,File System\n\
 8,14/10/2026 9:00:01 AM,,a.exe,10,11,WriteFile,C:\\x,DISK FULL,n/a,4,High,File System\n\
@@ -459,7 +455,7 @@ mod tests {
 
     #[test]
     fn unknown_columns_bad_rows_and_errors() {
-        let p = profile("[parse]\nday_first = false");
+        let p = profile("UTC", Some(false));
         let csv = "Time of Day,Process Name,Operation,Path,Result,Date & Time,Weird (col),***\n\
 1:02:03 PM,a,Load Image,C:\\a.dll,SUCCESS,10/11/2026 1:02:03 PM,v,w\n\
 \"bad\"row\",a\n";

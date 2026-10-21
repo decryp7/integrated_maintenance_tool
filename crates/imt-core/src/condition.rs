@@ -9,26 +9,8 @@ use crate::ql::{Expr, NumOp};
 use crate::row::{FieldKeys, RecordRow, RowRef};
 use anyhow::{anyhow, Result};
 use regex::Regex;
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ConditionCfg {
-    pub field: String,
-    pub op: String,
-    #[serde(default)]
-    pub value: Option<CondValue>,
-}
-
-/// Lets TOML write `value = 5`, `value = true`, `value = "x"` or `value = ["a", "b"]`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum CondValue {
-    Text(String),
-    Number(f64),
-    Bool(bool),
-    List(Vec<String>),
-}
+pub use imt_plugin_api::condition::{CondValue, ConditionCfg};
 
 /// What a condition checks: one variant per operator, with operands of the right type.
 #[derive(Debug, Clone)]

@@ -875,10 +875,6 @@ mod tests {
         let end = crate::test_support::job_end(&app, job);
         assert_eq!(end.state, crate::jobs::JobState::Failed);
         assert!(end.error.unwrap_or_default().contains("unknown export format"));
-        assert_eq!(
-            crate::plugin_config::plugins(false, &[]).unwrap().plugins().len(),
-            crate::plugin_config::builtin_plugins().len()
-        );
     }
 
     #[test]

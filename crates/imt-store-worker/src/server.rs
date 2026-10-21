@@ -1,7 +1,7 @@
 //! The worker side: the stores this process hosts (one per project folder; handles are per process), the
-//! import sessions they run, and the gRPC service that dispatches calls to them. Calls run on the blocking
-//! pool, so a long one (an import's wait, a big query) never holds up the others; a panic in a call is an
-//! engine error for that call, not a crash of the worker.
+//! import sessions they run, and the handler that dispatches IMT's calls to them (ADR 0017 frames). Calls run on
+//! blocking threads, so a long one (an import's wait, a big query) never holds up the others; a panic in a call
+//! is an engine error for that call, not a crash of the worker.
 
 use crate::protocol::{self, method, Handle, IdsAt, OpenStore, Paths, Session, Source, WorkerStatus};
 use imt_core::api::{FacetRequest, TimelineRequest};
@@ -17,13 +17,6 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
-use tonic::{Request, Response, Status};
-
-/// Generated code of `proto/store.proto`.
-#[allow(clippy::all, missing_docs)]
-pub mod pb {
-    tonic::include_proto!("imt.store.v1");
-}
 
 fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|p| p.into_inner())
@@ -111,7 +104,7 @@ impl Worker {
             }
             method::STATUS => reply(&WorkerStatus {
                 pid: std::process::id(),
-                rss_bytes: imt_ipc::server::current_rss_bytes(),
+                rss_bytes: imt_ipc::process::current_rss_bytes(),
                 stores: lock(&self.stores).len(),
             }),
             method::OPEN => {
@@ -164,43 +157,41 @@ impl Worker {
     }
 }
 
-struct Service {
+/// Answers IMT's [`protocol::StoreRequest`]s.
+pub struct StoreHandler {
     worker: Arc<Worker>,
 }
 
-#[tonic::async_trait]
-impl pb::store_server::Store for Service {
-    async fn call(&self, req: Request<pb::CallRequest>) -> Result<Response<pb::CallReply>, Status> {
-        let r = req.into_inner();
-        let w = self.worker.clone();
-        let out = tokio::task::spawn_blocking(move || w.call(&r.method, r.store, &r.body))
-            .await
-            .map_err(|e| Status::internal(format!("the call stopped: {e}")))?;
-        match out {
-            Ok(body) => Ok(Response::new(pb::CallReply { body })),
-            Err(e) => Err(imt_ipc::error::to_status(tonic::Code::FailedPrecondition, &protocol::to_remote(&e))),
+impl StoreHandler {
+    pub fn new(worker: Arc<Worker>) -> StoreHandler {
+        StoreHandler { worker }
+    }
+
+    fn handle(&self, req: protocol::StoreRequest) -> StoreResult<Vec<u8>> {
+        let json = |v: imt_ipc::Json| serde_json::to_vec(&v.0).map_err(|e| StoreError::Invalid(e.to_string()));
+        match req {
+            protocol::StoreRequest::OpenStore(body) => self.worker.call(method::OPEN_STORE, 0, &json(body)?),
+            protocol::StoreRequest::CloseStore { store } => self.worker.call(method::CLOSE_STORE, store, b""),
+            protocol::StoreRequest::Status => self.worker.call(method::STATUS, 0, b""),
+            protocol::StoreRequest::Call { store, op, body } => self.worker.call(op.method(), store, &json(body)?),
         }
     }
 }
 
-/// The routes of a worker serving `worker`.
-pub fn routes(worker: Arc<Worker>) -> tonic::service::Routes {
-    let svc = pb::store_server::StoreServer::new(Service { worker })
-        .max_decoding_message_size(protocol::MAX_MESSAGE_BYTES)
-        .max_encoding_message_size(protocol::MAX_MESSAGE_BYTES);
-    tonic::service::Routes::new(svc)
+impl imt_ipc::Handler for StoreHandler {
+    fn call(&self, _ctx: &imt_ipc::CallCtx, body: &[u8]) -> Result<Vec<u8>, imt_ipc::RemoteError> {
+        let req: protocol::StoreRequest = imt_ipc::peer::decode_request(body)?;
+        let reply = self.handle(req).map_err(|e| protocol::to_remote(&e))?;
+        let value: serde_json::Value = serde_json::from_slice(&reply)
+            .map_err(|e| protocol::to_remote(&StoreError::Engine(format!("cannot encode the reply: {e}"))))?;
+        imt_ipc::peer::encode_reply(&imt_ipc::Json(value))
+    }
 }
 
-/// The worker's `main`: reads the handshake (address and token) from stdin, serves, and exits when asked to
-/// or when stdin closes (IMT is gone).
+/// The worker's `main`: reads its bootstrap, connects to IMT and serves until IMT closes the connection (or
+/// stdin closes: IMT is gone).
 pub fn run() -> std::io::Result<()> {
-    let opts = imt_ipc::server::ServeOptions {
-        name: format!("imt-store-worker {}", env!("CARGO_PKG_VERSION")),
-        max_message_bytes: protocol::MAX_MESSAGE_BYTES,
-    };
-    imt_ipc::server::child_main(imt_ipc::server::RuntimeKind::MultiThread, opts, |_stop| {
-        routes(Arc::new(Worker::default()))
-    })
+    imt_ipc::child::child_main("IMT", |_| Arc::new(StoreHandler::new(Arc::new(Worker::default()))))
 }
 
 #[cfg(test)]

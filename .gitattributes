@@ -7,7 +7,6 @@ samples/** -text
 fuzz/corpus/** -text
 crates/*/tests/fixtures/** -text
 crates/*/templates/samples/** -text
-sdk/dotnet/**/fixtures/** -text
 
 # Shell scripts must keep LF to run on macOS and Linux.
 *.sh text eol=lf

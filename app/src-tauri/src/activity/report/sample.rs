@@ -139,24 +139,9 @@ fn imt_log() -> String {
         imt_line(9, "Information", "imt_app::workspace_commands", "Workspace opened"),
         activity(70, "query.change", "keyboard", json!({ "QueryKind": "ql", "DurationMs": 38 })),
         activity(115, "ai.chat.send", "button", json!({ "View": "AI assistant" })),
-        imt_line(
-            180,
-            "Warning",
-            "imt_app::plugin_isolation",
-            "Plugin process crashed and was restarted",
-        ),
-        imt_line(
-            220,
-            "Warning",
-            "imt_app::plugin_isolation",
-            "Plugin process crashed and was restarted",
-        ),
-        imt_line(
-            250,
-            "Error",
-            "imt_app::plugin_isolation",
-            "Plugin quarantined after repeated failures",
-        ),
+        imt_line(180, "Warning", "imt_app::plugin_config", "Plugin process crashed and was restarted"),
+        imt_line(220, "Warning", "imt_app::plugin_config", "Plugin process crashed and was restarted"),
+        imt_line(250, "Error", "imt_app::plugin_config", "Plugin quarantined after repeated failures"),
         imt_line(
             332,
             "Error",

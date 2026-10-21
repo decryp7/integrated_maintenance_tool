@@ -81,7 +81,7 @@ fn unquote(v: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::tree::display_path;
+    use crate::config::display_path;
 
     #[test]
     fn reads_sections_and_values() {

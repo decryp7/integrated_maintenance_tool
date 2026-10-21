@@ -16,11 +16,11 @@ profile, and it never leaves your machine.
 
 ## At a glance
 
-![IMT at a glance: many sources and collectors feed importers contributed by plugins in Rust, C# or any gRPC language; the Rust engine imports, transforms, stores, queries and analyses; the Angular and Tauri workbench investigates and shares](docs/diagrams/imt-overview.svg)
+![IMT at a glance: many sources and collectors feed importers contributed by Rust plugins, each running out of process in a sandbox; the Rust engine imports, transforms, stores, queries and analyses; the Angular and Tauri workbench investigates and shares](docs/diagrams/imt-overview.svg)
 
-Many inputs, one engine, any plugin language: logs, Windows diagnostics, profiler captures and
-built-in collectors flow through importers (built in, or plugins in Rust, C#/.NET or any gRPC
-language) into one Rust engine that parses, cleans, stores, queries and analyses them. The
+Many inputs, one engine, sandboxed plugins: logs, Windows diagnostics, profiler captures and
+built-in collectors flow through importers (built in, or Rust plugins that each run out of process in a sandbox)
+into one Rust engine that parses, cleans, stores, queries and analyses them. The
 workbench only shows and shares what the engine computes. Details: [architecture](docs/architecture.md)
 and every design diagram in [docs/design.md](docs/design.md). How IMT compares with other log tools: [docs/comparison.md](docs/comparison.md).
 
@@ -47,7 +47,7 @@ Every feature, with screenshots, is in [docs/features.md](docs/features.md).
 - **Timeline per instance.** One lane per process on a shared time axis, with lifecycle markers and drag-to-zoom ([details](docs/features.md#timeline-per-instance-with-lifecycle-markers)).
 - **Events grid.** A virtualised grid with an inspector for every property ([grid](docs/features.md#events-grid-with-virtualisation), [inspector](docs/features.md#inspector)).
 - **Filters and query language.** Facets, chips and a pipe query language with `stats` ([details](docs/features.md#filters-facets-and-the-query-language)).
-- **Many formats, extensible by plugins.** Detected from content; add more with profiles, Rust plugins or any gRPC language ([details](docs/features.md#many-formats-extensible-by-plugins)).
+- **Many formats, extensible by plugins.** Detected from content; add more with profiles or Rust plugins that run out of process in a sandbox ([details](docs/features.md#many-formats-extensible-by-plugins)).
 - **Profiles and pipelines.** Extractors, cleanup steps, markers and badges in editable TOML ([details](docs/features.md#profiles-extractors-pipelines-markers-and-badges)).
 - **Charts and analysis.** Anomalies, patterns, exceptions, comparisons, clock-skew correction and configuration diff ([charts](docs/features.md#charts), [analysis](docs/features.md#analysis)).
 - **Live tail and alerts.** Follow growing files and raise alerts as events arrive ([details](docs/features.md#live-tail-and-alerts)).
@@ -136,9 +136,9 @@ tests and CI are in [docs/development.md](docs/development.md).
 
 ## Plugins and roadmap
 
-Extend IMT with profiles (TOML), Rust engine plugins, Angular UI plugins or out-of-process plugins in
-any language that speaks gRPC: see [docs/plugins.md](docs/plugins.md) and
-[ADR 0004](docs/adr/0004-stable-plugin-abi.md). Planned work is in [docs/roadmap.md](docs/roadmap.md).
+Extend IMT with profiles (TOML), Rust plugins (each runs in its own sandboxed process) or Angular UI plugins:
+see [docs/plugins.md](docs/plugins.md) and
+[ADR 0017](docs/adr/0017-one-ipc-out-of-process-plugins.md). Planned work is in [docs/roadmap.md](docs/roadmap.md).
 
 ## Contributing
 

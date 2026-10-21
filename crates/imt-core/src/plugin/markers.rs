@@ -14,11 +14,9 @@
 //! Kinds of a plugin that is quarantined, disabled or inactive are hidden
 //! (their bits are masked out of query results) until it runs again.
 
-use crate::condition::{CondValue, ConditionCfg};
 use crate::model::{MarkerMask, MAX_MARKER_KINDS};
 use crate::profile::{compile_marker, CompiledProfile, Marker, MarkerCfg, Profile};
 use anyhow::{anyhow, Result};
-use serde::Serialize;
 use std::cell::{Cell, RefCell};
 use std::sync::OnceLock;
 
@@ -27,122 +25,32 @@ pub const OWNER_PROFILE: &str = "profile";
 /// Owner of the built-in default rules (those of the default profile).
 pub const OWNER_BUILTIN: &str = "builtin";
 
-/// Lifecycle meaning of a marker kind; such kinds are always shown on the
-/// timeline and in charts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum MarkerRole {
-    Start,
-    Stop,
-    Crash,
+pub use imt_plugin_api::markers::{MarkerRole, PluginMarkerKind};
+
+/// The rule of a plugin kind as a profile `[[marker]]` entry, under its full name.
+fn to_cfg(k: &PluginMarkerKind, owner: &str) -> MarkerCfg {
+    MarkerCfg {
+        kind: format!("{owner}/{}", k.kind),
+        label: Some(k.label.clone()),
+        lifecycle: k.role.is_some(),
+        color: k.color.clone(),
+        icon: k.icon.clone(),
+        badge: k.badge.clone(),
+        shape: k.shape.clone(),
+        description: k.description.clone(),
+        when: k.when.clone(),
+    }
 }
 
-/// A marker kind a plugin contributes.
-#[derive(Debug, Clone)]
-pub struct PluginMarkerKind {
-    /// Short id (`app-crash`); shown as `<plugin-id>/app-crash`.
-    pub kind: String,
-    pub label: String,
-    pub description: Option<String>,
-    /// #RGB or #RRGGBB.
-    pub color: Option<String>,
-    /// One of [`crate::profile::MARKER_ICONS`].
-    pub icon: Option<String>,
-    /// 1–3 characters; takes precedence over `icon`.
-    pub badge: Option<String>,
-    /// circle, square, diamond or hexagon.
-    pub shape: Option<String>,
-    pub role: Option<MarkerRole>,
-    /// Default rules (all must match); empty = only marked programmatically.
-    pub when: Vec<ConditionCfg>,
-}
-
-impl PluginMarkerKind {
-    pub fn new(kind: &str, label: &str) -> Self {
-        PluginMarkerKind {
-            kind: kind.into(),
-            label: label.into(),
-            description: None,
-            color: None,
-            icon: None,
-            badge: None,
-            shape: None,
-            role: None,
-            when: Vec::new(),
-        }
+/// Checks a kind as `owner` would contribute it.
+pub(crate) fn check(k: &PluginMarkerKind, owner: &str) -> Result<()> {
+    if !k.valid_id() {
+        return Err(anyhow!(
+            "marker kind \"{}\": use 1–64 characters from A–Z, a–z, 0–9, '.', '_' and '-'",
+            k.kind
+        ));
     }
-
-    pub fn describe(mut self, text: &str) -> Self {
-        self.description = Some(text.into());
-        self
-    }
-
-    pub fn color(mut self, color: &str) -> Self {
-        self.color = Some(color.into());
-        self
-    }
-
-    pub fn icon(mut self, icon: &str) -> Self {
-        self.icon = Some(icon.into());
-        self
-    }
-
-    pub fn badge(mut self, badge: &str, shape: &str) -> Self {
-        self.badge = Some(badge.into());
-        self.shape = Some(shape.into());
-        self
-    }
-
-    pub fn role(mut self, role: MarkerRole) -> Self {
-        self.role = Some(role);
-        self
-    }
-
-    /// Adds a condition (`field`, `op`, `value`) to the default rule.
-    pub fn when(mut self, field: &str, op: &str, value: &str) -> Self {
-        self.when.push(ConditionCfg {
-            field: field.into(),
-            op: op.into(),
-            value: Some(CondValue::Text(value.into())),
-        });
-        self
-    }
-
-    /// Adds an `in` condition: `field` is one of `values`.
-    pub fn when_in(mut self, field: &str, values: &[&str]) -> Self {
-        self.when.push(ConditionCfg {
-            field: field.into(),
-            op: "in".into(),
-            value: Some(CondValue::List(values.iter().map(|v| v.to_string()).collect())),
-        });
-        self
-    }
-
-    /// The rule as a profile `[[marker]]` entry, under its full name.
-    fn to_cfg(&self, owner: &str) -> MarkerCfg {
-        MarkerCfg {
-            kind: format!("{owner}/{}", self.kind),
-            label: Some(self.label.clone()),
-            lifecycle: self.role.is_some(),
-            color: self.color.clone(),
-            icon: self.icon.clone(),
-            badge: self.badge.clone(),
-            shape: self.shape.clone(),
-            description: self.description.clone(),
-            when: self.when.clone(),
-        }
-    }
-
-    /// Checks the kind as `owner` would contribute it.
-    pub(crate) fn check(&self, owner: &str) -> Result<()> {
-        if self.kind.is_empty() || self.kind.len() > 64 || !self.kind.chars().all(|c| c.is_ascii_alphanumeric() || "._-".contains(c)) {
-            return Err(anyhow!(
-                "marker kind \"{}\": use 1–64 characters from A–Z, a–z, 0–9, '.', '_' and '-'",
-                self.kind
-            ));
-        }
-        compile_marker(&self.to_cfg(owner), &[], owner).map(|_| ())
-    }
+    compile_marker(&to_cfg(k, owner), &[], owner).map(|_| ())
 }
 
 fn builtin_rules() -> &'static [serde_json::Value] {
@@ -177,7 +85,7 @@ pub(crate) fn apply(compiled: &mut CompiledProfile, plugin_kinds: &[(String, Plu
         }
     }
     let mut entries: Vec<(String, MarkerCfg, Option<MarkerRole>)> = user;
-    entries.extend(plugin_kinds.iter().map(|(owner, k)| (owner.clone(), k.to_cfg(owner), k.role)));
+    entries.extend(plugin_kinds.iter().map(|(owner, k)| (owner.clone(), to_cfg(k, owner), k.role)));
     entries.extend(defaults);
 
     for o in &compiled.profile.marker_override {

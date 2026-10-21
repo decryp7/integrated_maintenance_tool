@@ -1,17 +1,9 @@
-//! Where a child process listens and how it is told: a per-launch token and a private local address. Never
+//! A private local address the host listens on, and random tokens. Never
 //! TCP. Unix: a socket inside a freshly created directory with mode 0700. Windows: a randomly named pipe
 //! that only the current user can open (see `winpipe`).
 
-use serde::{Deserialize, Serialize};
 use std::io;
 use std::path::PathBuf;
-
-/// What the supervisor writes to the child's stdin (one JSON line) right after starting it.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Handshake {
-    pub address: String,
-    pub token: String,
-}
 
 /// `bytes` random bytes as lowercase hex.
 pub fn random_hex(bytes: usize) -> io::Result<String> {
@@ -90,6 +82,13 @@ impl PrivateEndpoint {
     }
 }
 
+impl PrivateEndpoint {
+    /// The private directory holding the socket (Unix); `None` for a named pipe.
+    pub fn dir(&self) -> Option<&std::path::Path> {
+        self.dir.as_deref()
+    }
+}
+
 impl Drop for PrivateEndpoint {
     fn drop(&mut self) {
         if let Some(d) = self.dir.take() {
@@ -126,14 +125,5 @@ mod tests {
         assert_ne!(e.address, other.address);
         drop(e);
         assert!(!dir.exists());
-    }
-
-    #[test]
-    fn the_handshake_roundtrips() {
-        let h = Handshake {
-            address: "a".into(),
-            token: "t".into(),
-        };
-        assert_eq!(serde_json::from_str::<Handshake>(&serde_json::to_string(&h).unwrap()).unwrap(), h);
     }
 }

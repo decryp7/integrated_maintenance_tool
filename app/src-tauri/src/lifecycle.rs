@@ -524,6 +524,10 @@ pub fn exit_teardown<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
         if let Some(w) = a.try_state::<Windows>() {
             w.shutdown_plugins();
         }
+        // The plugin processes (they would also exit when IMT does: their connection closes).
+        if let Some(s) = a.try_state::<crate::AppState>() {
+            s.plugins.shutdown();
+        }
     });
     let a = app.clone();
     teardown_step("jobs", TEARDOWN_STEP_LIMIT, move || crate::jobs::shutdown(&a));
@@ -1332,12 +1336,29 @@ mod tests {
         )
         .unwrap();
         let s = load_plugin_settings(Some(&d));
-        let registry = plugins(false, &s.disabled).unwrap();
+        // Stand-ins for two plugin processes (installed like `RemotePlugin`s).
+        struct Named(&'static str);
+        impl Plugin for Named {
+            fn id(&self) -> &str {
+                self.0
+            }
+            fn name(&self) -> &str {
+                self.0
+            }
+            fn version(&self) -> &str {
+                "1.0.0"
+            }
+            fn register(&self, _: &mut PluginRegistry) -> anyhow::Result<()> {
+                Ok(())
+            }
+        }
+        let two = || -> Vec<Arc<dyn Plugin>> { vec![Arc::new(Named("net.decryptology.web")), Arc::new(Named("net.decryptology.windows"))] };
+        let registry = install(two(), false, &s.disabled).unwrap();
         let web = registry.plugins().into_iter().find(|p| p.id == "net.decryptology.web").unwrap();
         assert_eq!(web.status, imt_core::plugin::PluginStatus::Disabled);
-        assert!(plugins(true, &[]).unwrap().plugins().is_empty());
-        let all = plugins(false, &[]).unwrap().plugins();
-        assert_eq!(all.len(), builtin_plugins().len());
+        assert!(install(two(), true, &[]).unwrap().plugins().is_empty(), "safe mode installs none");
+        let all = install(two(), false, &[]).unwrap().plugins();
+        assert_eq!(all.len(), 2);
         assert!(all
             .iter()
             .all(|p| p.status == imt_core::plugin::PluginStatus::Active && p.inactive_reason.is_none()));

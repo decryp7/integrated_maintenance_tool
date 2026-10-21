@@ -125,7 +125,7 @@ pub trait Connection: Send + Sync {
     fn kill(&self);
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct SupervisorConfig {
     /// Names the child in messages ("plugin \"x\"").
     pub label: String,
@@ -172,6 +172,8 @@ pub struct ChildStatus {
 }
 
 type Launch<C> = Box<dyn Fn() -> Result<C, IpcError> + Send + Sync>;
+/// Restores a child's state after it started: given the connection and whether it is a restart.
+type Restore<C> = Box<dyn Fn(&C, bool) -> Result<(), IpcError> + Send + Sync>;
 
 /// A connection handed to a caller, tagged with the generation it belongs to.
 pub struct Lease<C> {
@@ -185,6 +187,7 @@ pub struct Supervisor<C: Connection> {
     cfg: SupervisorConfig,
     ledger: Arc<CrashLedger>,
     launch: Launch<C>,
+    restore: Option<Restore<C>>,
     current: Mutex<Option<(u64, Arc<C>)>>,
     generation: AtomicU64,
 }
@@ -196,9 +199,18 @@ impl<C: Connection> Supervisor<C> {
             cfg,
             ledger,
             launch: Box::new(launch),
+            restore: None,
             current: Mutex::new(None),
             generation: AtomicU64::new(0),
         }
+    }
+
+    /// Runs `restore` on every child right after it started (`restarted` is false for the first one): the AI
+    /// worker reloads its model, the store worker reopens its stores, a plugin gets its settings again. A failing
+    /// restore counts as a failed start.
+    pub fn with_restore(mut self, restore: impl Fn(&C, bool) -> Result<(), IpcError> + Send + Sync + 'static) -> Self {
+        self.restore = Some(Box::new(restore));
+        self
     }
 
     pub fn ledger(&self) -> &Arc<CrashLedger> {
@@ -228,7 +240,20 @@ impl<C: Connection> Supervisor<C> {
         }
         self.ledger.wait_backoff(self.cfg.backoff_base, self.cfg.backoff_max);
         self.quarantined()?;
-        match (self.launch)() {
+        let launched = (self.launch)().and_then(|conn| {
+            let restarted = self.generation.load(Ordering::Relaxed) > 0;
+            match &self.restore {
+                Some(restore) => match restore(&conn, restarted) {
+                    Ok(()) => Ok(conn),
+                    Err(e) => {
+                        conn.kill();
+                        Err(e)
+                    }
+                },
+                None => Ok(conn),
+            }
+        });
+        match launched {
             Ok(conn) => {
                 let generation = self.generation.fetch_add(1, Ordering::Relaxed) + 1;
                 let conn = Arc::new(conn);
@@ -425,6 +450,41 @@ mod tests {
         assert!(sup.call(|_| Ok(())).is_ok());
         sup.shutdown();
         assert_eq!(sup.status().state, ChildState::Stopped);
+    }
+
+    #[test]
+    fn the_restore_hook_runs_after_every_start_and_can_fail_it() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let (s2, fail) = (seen.clone(), Arc::new(AtomicBool::new(false)));
+        let f2 = fail.clone();
+        let killed = Arc::new(AtomicBool::new(false));
+        let k2 = killed.clone();
+        let sup = Supervisor::new(cfg(), move || {
+            Ok(Fake {
+                pid: 1,
+                killed: k2.clone(),
+            })
+        })
+        .with_restore(move |_c, restarted| {
+            s2.lock().unwrap().push(restarted);
+            if f2.load(Ordering::SeqCst) {
+                Err(IpcError::Protocol("cannot reload".into()))
+            } else {
+                Ok(())
+            }
+        });
+        sup.call(|_| Ok(())).unwrap();
+        let _ = sup.call(|_| Err::<(), _>(IpcError::Died("x".into())));
+        sup.call(|_| Ok(())).unwrap();
+        assert_eq!(*seen.lock().unwrap(), [false, true]);
+        // A failing restore is a failed start: the child is killed and the failure counts.
+        sup.shutdown();
+        killed.store(false, Ordering::SeqCst);
+        fail.store(true, Ordering::SeqCst);
+        assert_eq!(sup.call(|_| Ok(())).unwrap_err(), IpcError::Protocol("cannot reload".into()));
+        assert!(killed.load(Ordering::SeqCst));
+        assert_eq!(sup.status().state, ChildState::Stopped);
+        assert_eq!(sup.status().crashes_in_window, 2);
     }
 
     #[test]

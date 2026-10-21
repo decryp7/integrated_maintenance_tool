@@ -15,10 +15,7 @@
 //! The level follows the HTTP status: 5xx Error, 4xx Warning, otherwise
 //! Information (a HAR status of 0 is a failed request: Error).
 //!
-//! ```
-//! let mut registry = imt_core::PluginRegistry::new();
-//! registry.install(&imt_plugin_web::WebPlugin).unwrap();
-//! ```
+//! It runs in its own process (`imt-plugins --plugin net.decryptology.web`, ADR 0017).
 
 mod access;
 mod har;
@@ -29,8 +26,8 @@ pub use har::HarImporter;
 pub use w3c::W3cImporter;
 
 use anyhow::Result;
-use imt_core::model::Level;
-use imt_core::{Plugin, PluginRegistry};
+use imt_plugin_api::model::Level;
+use imt_plugin_api::{Contributions, Plugin};
 
 pub struct WebPlugin;
 
@@ -47,15 +44,10 @@ impl Plugin for WebPlugin {
         env!("CARGO_PKG_VERSION")
     }
 
-    /// Stand-alone: no dependencies, no services.
-    fn manifest(&self) -> imt_core::plugin::Manifest {
-        imt_core::plugin::Manifest::new(self.id(), self.version())
-    }
-
-    fn register(&self, registry: &mut PluginRegistry) -> Result<()> {
-        registry.add_importer(Box::new(W3cImporter));
-        registry.add_importer(Box::new(AccessLogImporter));
-        registry.add_importer(Box::new(HarImporter));
+    fn register(&self, c: &mut Contributions) -> Result<()> {
+        c.add_importer(W3cImporter);
+        c.add_importer(AccessLogImporter);
+        c.add_importer(HarImporter);
         Ok(())
     }
 }
@@ -71,17 +63,15 @@ pub(crate) fn level_for_status(status: i64) -> Level {
 
 #[cfg(test)]
 pub(crate) mod testutil {
-    use imt_core::importers::ImportCtx;
-    use imt_core::profile::{CompiledProfile, Profile};
+    use imt_plugin_api::importer::ImportCtx;
+    use imt_plugin_api::time::TimestampParser;
     use std::path::Path;
 
     pub fn with_ctx<T>(f: impl FnOnce(&ImportCtx) -> T) -> T {
-        let p = CompiledProfile::compile(Profile::default_profile()).unwrap();
-        f(&ImportCtx {
-            profile: &p,
-            path: Path::new("x"),
-            file_date: None,
-        })
+        let ts = TimestampParser::default();
+        let mut ctx = ImportCtx::new(Path::new("x"), &ts);
+        ctx.file_date = None;
+        f(&ctx)
     }
 
     /// Deterministic junk built from format-relevant fragments.
@@ -103,57 +93,19 @@ pub(crate) mod testutil {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_core::profile::Profile;
-    use std::path::Path;
 
     #[test]
     fn plugin_registers_its_importers() {
-        let mut registry = PluginRegistry::new();
-        registry.install(&WebPlugin).unwrap();
-        let info = &registry.plugins()[0];
-        assert_eq!(info.id, "net.decryptology.web");
-        assert_eq!(info.contributes.len(), 3);
+        let mut c = Contributions::default();
+        WebPlugin.register(&mut c).unwrap();
+        let info = c.manifest(&WebPlugin);
+        assert_eq!(&*info.id, "net.decryptology.web");
+        assert_eq!(info.contributions().len(), 3);
         assert_eq!(WebPlugin.name(), "Web server logs");
         assert_eq!(WebPlugin.version(), env!("CARGO_PKG_VERSION"));
         assert_eq!(level_for_status(503), Level::Error);
         assert_eq!(level_for_status(404), Level::Warning);
         assert_eq!(level_for_status(200), Level::Information);
         assert_eq!(level_for_status(0), Level::Information);
-    }
-
-    #[test]
-    fn workspace_opens_the_fixtures_and_samples() {
-        let mut registry = PluginRegistry::new();
-        registry.install(&WebPlugin).unwrap();
-        let mut ws = imt_core::Workspace::with_registry(Profile::default_profile(), registry).unwrap();
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
-        ws.open(&[dir]).unwrap();
-        let s = ws.summary();
-        let mut ids: Vec<&str> = s.sources.iter().map(|x| x.importer.as_str()).collect();
-        ids.sort();
-        assert_eq!(ids, vec!["access-log", "har", "w3c"]);
-        assert!(ws.records().iter().any(|r| r.fields.contains_key("cs-uri-stem")));
-        assert!(ws.records().iter().any(|r| r.fields.contains_key("ClientIp")));
-        assert!(ws.records().iter().any(|r| r.fields.contains_key("Url")));
-
-        // In the repository samples these importers claim the files under samples/web and nothing else.
-        let mut registry = PluginRegistry::new();
-        registry.install(&WebPlugin).unwrap();
-        let mut ws = imt_core::Workspace::with_registry(Profile::default_profile(), registry).unwrap();
-        let samples = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples");
-        let _ = ws.open(&[samples]);
-        let summary = ws.summary();
-        let mut claimed: Vec<&str> = Vec::new();
-        for src in &summary.sources {
-            let in_web = src.path.replace('\\', "/").contains("/samples/web/");
-            let ours = ["w3c", "access-log", "har"].contains(&src.importer.as_str());
-            assert_eq!(ours, in_web, "{} claimed by {}", src.path, src.importer);
-            if ours {
-                claimed.push(src.importer.as_str());
-            }
-        }
-        claimed.sort();
-        claimed.dedup();
-        assert_eq!(claimed, vec!["access-log", "har", "w3c"]);
     }
 }

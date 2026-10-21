@@ -8,9 +8,9 @@
 //! when the capture includes `\Process(x)\ID Process`, `ProcessId`.
 
 use anyhow::{bail, Result};
-use imt_core::importers::{ImportCtx, Imported, Importer};
-use imt_core::model::Record;
-use imt_core::time::TimestampParser;
+use imt_plugin_api::importer::{ImportCtx, Imported, TextImporter};
+use imt_plugin_api::model::Record;
+use imt_plugin_api::time::TimestampParser;
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -18,7 +18,7 @@ const SIGNATURES: [&str; 2] = ["(PDH-CSV 4.0)", "(PDH-TSV 4.0)"];
 
 pub struct PerfmonCsvImporter;
 
-impl Importer for PerfmonCsvImporter {
+impl TextImporter for PerfmonCsvImporter {
     fn id(&self) -> &'static str {
         "perfmon-csv"
     }
@@ -32,7 +32,7 @@ impl Importer for PerfmonCsvImporter {
     }
 
     fn import(&self, ctx: &ImportCtx, content: &str) -> Result<Imported> {
-        parse_perfmon(content, &ctx.profile.timestamps)
+        parse_perfmon(content, ctx.timestamps)
     }
 }
 
@@ -209,15 +209,11 @@ pub fn parse_perfmon(content: &str, fallback: &TimestampParser) -> Result<Import
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_core::profile::{CompiledProfile, Profile};
+    use imt_plugin_api::time::TimestampParser;
     use std::path::Path;
 
-    fn ctx_for<'a>(p: &'a CompiledProfile, path: &'a Path) -> ImportCtx<'a> {
-        ImportCtx {
-            profile: p,
-            path,
-            file_date: None,
-        }
+    fn ctx_for<'a>(p: &'a TimestampParser, path: &'a Path) -> ImportCtx<'a> {
+        ImportCtx::new(path, p)
     }
 
     const SAMPLE: &str = "\"(PDH-CSV 4.0) (W. Europe Daylight Time)(-120)\",\"\\\\WEB02\\Process(OrderService#1)\\Private Bytes\",\"\\\\WEB02\\Process(OrderService#1)\\ID Process\",\"\\\\WEB02\\Memory\\Available MBytes\",\"\\\\WEB02\\Processor(_Total)\\% Processor Time\"\r\n\
@@ -271,20 +267,17 @@ mod tests {
 
     #[test]
     fn sniffs_with_priority_over_csv() {
-        let profile = CompiledProfile::compile(Profile::from_toml("").unwrap()).unwrap();
+        let profile = TimestampParser::default();
         let ctx = ctx_for(&profile, Path::new("a.csv"));
         assert_eq!(PerfmonCsvImporter.sniff(&ctx, SAMPLE), 99);
         assert_eq!(PerfmonCsvImporter.sniff(&ctx, "\u{feff}\"(PDH-TSV 4.0) (UTC)(0)\"\tx"), 99);
         assert_eq!(PerfmonCsvImporter.sniff(&ctx, "time,value\n1,2"), 0);
         assert_eq!(PerfmonCsvImporter.id(), "perfmon-csv");
-        let mut importers = imt_core::importers::Importers::new();
-        importers.register(Box::new(PerfmonCsvImporter));
-        assert_eq!(importers.select(&ctx, SAMPLE).unwrap().id(), "perfmon-csv");
     }
 
     #[test]
     fn tsv_without_bias_uses_the_profile_zone_and_errors_are_clear() {
-        let profile = CompiledProfile::compile(Profile::from_toml("[parse]\nassume_timezone = '+02:00'").unwrap()).unwrap();
+        let profile = TimestampParser::new(&[], "+02:00", None).unwrap();
         let ctx = ctx_for(&profile, Path::new("a.tsv"));
         let tsv = "\"(PDH-TSV 4.0)\"\t\"\\\\M\\Process(a)\\Thread Count\"\n\"10/14/2026 09:00:00.000\"\t\"7.5\"\n";
         let out = PerfmonCsvImporter.import(&ctx, tsv).unwrap();
@@ -307,7 +300,7 @@ mod tests {
 
     #[test]
     fn long_format_records() {
-        let profile = CompiledProfile::compile(Profile::from_toml("").unwrap()).unwrap();
+        let profile = TimestampParser::default();
         let out = PerfmonCsvImporter.import(&ctx_for(&profile, Path::new("a.csv")), SAMPLE).unwrap();
         // Row 1: 3 values (blank " " skipped); row 2: 3 values (empty skipped); bad date skipped.
         assert_eq!(out.records.len(), 6);
@@ -316,7 +309,7 @@ mod tests {
         // 09:00:00.250 local with bias -120 => UTC = local - 2 h.
         assert_eq!(r.ts, Some(1_791_968_400_000 - 2 * 3_600_000 + 250));
         assert_eq!(r.message, "Process(OrderService)\\Private Bytes = 600000000");
-        assert_eq!(r.level, imt_core::model::Level::Information);
+        assert_eq!(r.level, imt_plugin_api::model::Level::Information);
         let f = |k: &str| r.fields.get(k).cloned().unwrap();
         assert_eq!(f("MachineName"), "WEB02");
         assert_eq!(f("Object"), "Process");

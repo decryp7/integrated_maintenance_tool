@@ -1,9 +1,9 @@
 //! msinfo32 `.nfo` export (XML).
 
 use anyhow::Result;
-use imt_core::config::{ConfigError, ConfigParser, ConfigTree, ConfigValue, Limits, PathSeg, TreeBuilder};
-use imt_core::importers::{ImportCtx, Imported, Importer};
-use imt_core::model::{auto_value, Record};
+use imt_plugin_api::config::{ConfigError, ConfigParser, ConfigTree, ConfigValue, Limits, PathSeg, TreeBuilder};
+use imt_plugin_api::importer::{ImportCtx, Imported, TextImporter};
+use imt_plugin_api::model::{auto_value, Record};
 use quick_xml::events::Event;
 use quick_xml::{Reader, XmlVersion};
 use serde_json::Value;
@@ -14,7 +14,7 @@ const MAX_DEPTH: usize = 64;
 
 pub struct NfoImporter;
 
-impl Importer for NfoImporter {
+impl TextImporter for NfoImporter {
     fn id(&self) -> &'static str {
         "msinfo"
     }
@@ -206,7 +206,7 @@ impl ConfigParser for NfoConfigParser {
         let score = sniff_text(head);
         if score > 0 {
             score
-        } else if imt_core::config::extension_of(file_name) == "nfo" {
+        } else if imt_plugin_api::config::extension_of(file_name) == "nfo" {
             80
         } else {
             0
@@ -267,26 +267,18 @@ fn typed(v: &str) -> ConfigValue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_core::profile::{CompiledProfile, Profile};
+    use imt_plugin_api::time::TimestampParser;
     use std::path::Path;
 
     fn run(content: &str) -> Imported {
-        let p = CompiledProfile::compile(Profile::default_profile()).unwrap();
-        let ctx = ImportCtx {
-            profile: &p,
-            path: Path::new("x.nfo"),
-            file_date: None,
-        };
+        let ts = TimestampParser::default();
+        let ctx = ImportCtx::new(Path::new("x.nfo"), &ts);
         NfoImporter.import(&ctx, content).unwrap()
     }
 
     fn sniff(s: &str) -> u8 {
-        let p = CompiledProfile::compile(Profile::default_profile()).unwrap();
-        let ctx = ImportCtx {
-            profile: &p,
-            path: Path::new("x"),
-            file_date: None,
-        };
+        let ts = TimestampParser::default();
+        let ctx = ImportCtx::new(Path::new("x"), &ts);
         NfoImporter.sniff(&ctx, s)
     }
 
@@ -363,7 +355,6 @@ mod tests {
 
     #[test]
     fn config_tree_of_the_fixture() {
-        use imt_core::config::{diff, CompareOptions};
         let content = include_str!("../tests/fixtures/msinfo.nfo");
         let t = NfoConfigParser.parse(content, &Limits::default()).unwrap();
         let shown: Vec<String> = t
@@ -388,14 +379,10 @@ mod tests {
             ]
         );
         assert_eq!(t.nodes[4].value, ConfigValue::Integer(8192));
-        let other = content.replace("8192", "4096.5");
-        let d = diff(
-            &t,
-            &NfoConfigParser.parse(&other, &Limits::default()).unwrap(),
-            &CompareOptions::default(),
-        )
-        .unwrap();
-        assert_eq!(d.counts.changed, 1);
+        let other = NfoConfigParser
+            .parse(&content.replace("8192", "4096.5"), &Limits::default())
+            .unwrap();
+        assert_eq!(other.nodes[4].value, ConfigValue::Float(4096.5));
     }
 
     #[test]

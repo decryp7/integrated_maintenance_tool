@@ -26,7 +26,7 @@ environment. It does not replace fleet-wide monitoring.
 | **Analysis** | Patterns, anomalies, exceptions, comparisons, traces, the Moment view, metrics | Histograms, SQL | Search | Filters, highlights | Charts, dashboards, alerts | Dashboards, alerts, machine learning (product-dependent) |
 | **Windows diagnostics** | Event logs (EVTX), registry exports, Performance Monitor, IIS | Text formats | Text | Text and common formats | Through log shippers | Through agents |
 | **AI** | Optional local model, runs offline, you choose the runtime | No | No | No | Not a focus | Cloud AI add-ons (product-dependent) |
-| **Extending** | Plugins in any language that speaks gRPC (Rust and C# SDKs) | Format files, scripts | Limited | Limited | Apps | Apps, plugins, pipelines |
+| **Extending** | Rust plugins, each in its own sandboxed process | Format files, scripts | Limited | Limited | Apps | Apps, plugins, pipelines |
 | **Where data goes** | Stays on your machine | Stays on your machine | Stays on your machine | Stays on your machine | The Seq server | The platform's servers or cloud |
 | **When the tool itself fails** | One-click problem report that IMT can open and analyse | Usual bug reports | Usual bug reports | Usual bug reports | Server logs | Platform support |
 

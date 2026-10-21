@@ -12,7 +12,7 @@ pub trait WorkerBackend {
     fn unload(&mut self);
 }
 
-pub use imt_ipc::server::current_rss_bytes;
+pub use imt_ipc::process::current_rss_bytes;
 
 #[cfg(test)]
 mod tests {

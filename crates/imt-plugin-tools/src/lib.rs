@@ -1,5 +1,5 @@
 //! IMT tools plugin (`net.decryptology.tools`): the system tools the shell
-//! used to call directly, contributed as [`imt_core::plugin::tools::Tool`]s so
+//! used to call directly, contributed as [`imt_plugin_api::tools::Tool`]s so
 //! they can be disabled, quarantined and left out in safe mode (ADR 0002).
 //!
 //! | Tool id | Platforms | Operations |
@@ -32,10 +32,11 @@ mod perfmon_tools;
 mod settings;
 
 use anyhow::Result;
-use imt_core::plugin::tools::Tool;
-use imt_core::plugin::{Collector, Manifest};
-use imt_core::settings::Configurable;
-use imt_core::{Plugin, PluginRegistry};
+use imt_core::plugin::Collector;
+use imt_plugin_api::manifest::{Permission, PermissionRequest};
+use imt_plugin_api::settings::Configurable;
+use imt_plugin_api::tools::Tool;
+use imt_plugin_api::{Contributions, Plugin};
 use std::sync::Arc;
 
 /// Runs external programs (with a timeout, never through a shell).
@@ -117,33 +118,39 @@ impl ToolsPlugin {
 }
 
 impl Plugin for ToolsPlugin {
-    fn id(&self) -> &'static str {
+    fn id(&self) -> &str {
         PLUGIN_ID
     }
 
-    fn name(&self) -> &'static str {
+    fn name(&self) -> &str {
         "System tools"
     }
 
-    fn version(&self) -> &'static str {
+    fn version(&self) -> &str {
         env!("CARGO_PKG_VERSION")
     }
 
-    /// Optionally uses the Windows plugin (it imports the `.blg` logs a
-    /// collector set writes).
-    fn manifest(&self) -> Manifest {
-        Manifest::new(self.id(), self.version()).optionally("net.decryptology.windows", ">=0.1")
-    }
-
-    fn register(&self, registry: &mut PluginRegistry) -> Result<()> {
+    fn register(&self, c: &mut Contributions) -> Result<()> {
         for tool in &self.shared.tools {
-            registry.add_tool(tool.clone())?;
+            c.add_tool(tool.clone());
         }
+        c.set_settings(Arc::new(settings::ToolsSettings(self.shared.knobs.clone())) as Arc<dyn Configurable>);
         Ok(())
     }
 
-    fn configurable(&self) -> Option<Arc<dyn Configurable>> {
-        Some(Arc::new(settings::ToolsSettings(self.shared.knobs.clone())))
+    /// The tools run system programs (`logman`, `wevtutil`, ...) and write their output (collector sets, the
+    /// process monitor's and event-log follower's rolling files, bundles) into folders the user chose.
+    fn permissions(&self) -> Vec<PermissionRequest> {
+        vec![
+            PermissionRequest {
+                permission: Permission::RunPrograms,
+                reason: "Performance Monitor, the Event Log and the diagnostics collector are driven by system programs".into(),
+            },
+            PermissionRequest {
+                permission: Permission::WriteFolders,
+                reason: "collectors write their logs and bundles into the folders you choose".into(),
+            },
+        ]
     }
 }
 

@@ -3,7 +3,7 @@
 use crate::ids::DIAGNOSTICS;
 use crate::Runner;
 use anyhow::{bail, Result};
-use imt_core::plugin::tools::{OpSpec, Schema, Tool, ToolCtx, ToolInfo, ToolTask};
+use imt_plugin_api::tools::{OpSpec, PathAccess, PathKind, Schema, Tool, ToolCtx, ToolInfo, ToolTask};
 use serde_json::{json, Value};
 use std::path::Path;
 use std::time::Duration;
@@ -68,7 +68,7 @@ impl Tool for DiagnosticsTool {
                 .args(
                     Schema::object()
                         .field("plan", Schema::text(MAX_PLAN))
-                        .field("outDir", Schema::text(4096))
+                        .field("outDir", Schema::path(PathKind::Dir, PathAccess::Write))
                         .optional("overwrite", Schema::Bool),
                 )
                 // Each external program has its own timeout; the whole run gets an hour.
@@ -89,7 +89,7 @@ mod tests {
     use super::*;
     use crate::fake::FakeRunner;
     use imt_collect::CommandError;
-    use imt_core::plugin::tools::TaskSink;
+    use imt_plugin_api::tools::TaskSink;
     use std::sync::{Arc, Mutex};
 
     #[derive(Default)]

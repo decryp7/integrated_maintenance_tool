@@ -21,8 +21,8 @@ use super::query::{build_xpath, Backfill, Channel, EventLevel, LevelSet, XPathFi
 use super::xml::record_from_xml;
 use super::{Batch, EventLog, EventLogError, EventStream, RawEvent};
 use anyhow::{anyhow, bail, Result};
-use imt_core::export::EventSink;
-use imt_core::model::{Level, Record};
+use imt_plugin_api::clef::EventSink;
+use imt_plugin_api::model::{Level, Record};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::VecDeque;
@@ -426,7 +426,7 @@ impl Follower {
         };
         let ended = shared.clone();
         let writer = std::thread::Builder::new().name("imt-eventlog-writer".into()).spawn(move || {
-            let result = imt_core::guard::catch("the event log writer", || writer.run());
+            let result = imt_plugin_api::clef::catch("the event log writer", || writer.run());
             if !ended.stop.swap(true, Ordering::SeqCst) {
                 // Ended on its own (a write failure): the readers stop too.
                 on_end();
@@ -539,7 +539,7 @@ impl Reader {
         let shared = self.shared.clone();
         let index = self.index;
         let channel = self.channel.clone();
-        if let Err(e) = imt_core::guard::catch(&what, || {
+        if let Err(e) = imt_plugin_api::clef::catch(&what, || {
             self.follow();
             Ok(())
         }) {
@@ -741,7 +741,7 @@ impl Writer {
             if let (Some(store), Some(id), Some(channel)) = (self.bookmarks.as_mut(), item.record_id, self.channels.get(item.channel)) {
                 store.set(channel, id);
             }
-            let text = |k: &str| item.record.fields.get(k).map(|v| imt_core::model::value_text(v).into_owned());
+            let text = |k: &str| item.record.fields.get(k).map(|v| imt_plugin_api::model::value_text(v).into_owned());
             s.last = Some(LastEvent {
                 ts: item.record.ts,
                 channel: text("Channel").unwrap_or_default(),

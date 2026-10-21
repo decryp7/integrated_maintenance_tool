@@ -93,9 +93,9 @@ Source: [uml-class-domain.drawio](diagrams/uml-class-domain.drawio)
 ### Plugin API
 
 The plugin contract, the registry with its guarded adapters and quarantine, the extension traits
-(importers, transforms, markers, annotators, tools, config parsers), and out-of-process plugins over
-gRPC `imt.plugin.v1`. See ADR [0003](adr/0003-plugin-dependencies-services-events.md) and
-[0004](adr/0004-stable-plugin-abi.md).
+(importers, transforms, markers, annotators, tools, config parsers),
+and, since ADR 0017, plugins that each run in their own sandboxed process over one IPC (`imt-plugin-api`, `imt-plugins`). See ADR [0003](adr/0003-plugin-dependencies-services-events.md) (engine-internal since 0017) and
+[0017](adr/0017-one-ipc-out-of-process-plugins.md).
 
 ![Plugin API classes](diagrams/svg/uml-class-plugin-api.svg)
 

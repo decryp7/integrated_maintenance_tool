@@ -4,10 +4,11 @@
 
 use crate::markers::{DOWNTIME, EVENTLOG, KERNEL_GENERAL, KERNEL_POWER, SCM, SERVICE_UP};
 use anyhow::Result;
-use imt_core::api::Severity;
-use imt_core::condition::{CondValue, ConditionCfg};
-use imt_core::plugin::annotate::{Annotation, AnnotationView, Annotator, FieldMatch, RecordCursor, ViewFilter, ViewRecord};
-use imt_core::query::{FieldFilter, Query};
+use imt_plugin_api::annotate::Severity;
+use imt_plugin_api::annotate::{
+    Annotation, AnnotationView, Annotator, Evidence, EvidenceFilter, FieldMatch, RecordCursor, ViewFilter, ViewRecord,
+};
+use imt_plugin_api::condition::{CondValue, ConditionCfg};
 use std::collections::BTreeMap;
 
 /// Most events each annotator reads per kind of event.
@@ -40,7 +41,7 @@ fn text(r: &ViewRecord, field: &str) -> String {
     r.record
         .fields
         .get(field)
-        .map(|v| imt_core::model::value_text(v).into_owned())
+        .map(|v| imt_plugin_api::model::value_text(v).into_owned())
         .unwrap_or_default()
 }
 
@@ -51,20 +52,20 @@ fn on_computer(computer: &str) -> Option<FieldMatch> {
     })
 }
 
-fn evidence(from: i64, to: i64, computer: &str) -> Query {
-    Query {
+fn evidence(from: i64, to: i64, computer: &str) -> Evidence {
+    Evidence {
         from: Some(from),
         to: Some(to),
         filters: if computer.is_empty() {
             Vec::new()
         } else {
-            vec![FieldFilter {
+            vec![EvidenceFilter {
                 field: "Computer".into(),
                 op: "eq".into(),
                 value: Some(computer.into()),
             }]
         },
-        ..Query::default()
+        ..Evidence::default()
     }
 }
 
@@ -150,7 +151,7 @@ impl Annotator for RebootAnnotator {
                             on: on_computer(&computer),
                             label: format!("{label} of {}", if computer.is_empty() { "the computer" } else { &computer }),
                             severity,
-                            evidence_query: evidence(from, ts, &computer),
+                            evidence: evidence(from, ts, &computer),
                         });
                     }
                     Boot::WasUnexpected => {
@@ -220,7 +221,7 @@ impl Annotator for ServiceAnnotator {
                 format!("{service} running")
             },
             severity: if crashed { Severity::Warning } else { Severity::Info },
-            evidence_query: Query {
+            evidence: Evidence {
                 text: service.to_string(),
                 ..evidence(from, to, computer)
             },

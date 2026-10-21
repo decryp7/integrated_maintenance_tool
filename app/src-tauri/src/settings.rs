@@ -789,6 +789,69 @@ pub(crate) mod tests {
         }
     }
 
+    /// Stands in for the Windows plugin (its process): a plugin with a `relogTimeout` duration, applied to
+    /// [`relog_timeout`].
+    struct WindowsLike;
+    struct WindowsLikeSettings;
+    static RELOG_MS: AtomicU64 = AtomicU64::new(120_000);
+    fn relog_timeout() -> Duration {
+        Duration::from_millis(RELOG_MS.load(std::sync::atomic::Ordering::SeqCst))
+    }
+    impl Configurable for WindowsLikeSettings {
+        fn settings_section(&self) -> SettingsSection {
+            SettingsSection::new("windows", "Windows diagnostics", SectionOwner::Core).field(SettingField::new(
+                "relogTimeout",
+                "relog timeout",
+                FieldKind::Duration {
+                    min_ms: 5_000,
+                    max_ms: 3_600_000,
+                },
+                120_000,
+            ))
+        }
+        fn apply_settings(&self, values: &ValidValues) -> anyhow::Result<()> {
+            let ms = values
+                .duration("relogTimeout")
+                .ok_or_else(|| anyhow::anyhow!("missing setting relogTimeout"))?;
+            RELOG_MS.store(ms.as_millis() as u64, std::sync::atomic::Ordering::SeqCst);
+            Ok(())
+        }
+    }
+    impl Plugin for WindowsLike {
+        fn id(&self) -> &str {
+            "net.decryptology.windows"
+        }
+        fn name(&self) -> &str {
+            "Windows diagnostics"
+        }
+        fn version(&self) -> &str {
+            "1"
+        }
+        fn register(&self, _r: &mut PluginRegistry) -> anyhow::Result<()> {
+            Ok(())
+        }
+        fn configurable(&self) -> Option<Arc<dyn Configurable>> {
+            Some(Arc::new(WindowsLikeSettings))
+        }
+    }
+
+    /// Stands in for a plugin without settings.
+    struct WebLike;
+    impl Plugin for WebLike {
+        fn id(&self) -> &str {
+            "net.decryptology.web"
+        }
+        fn name(&self) -> &str {
+            "Web server logs"
+        }
+        fn version(&self) -> &str {
+            "1"
+        }
+        fn register(&self, _r: &mut PluginRegistry) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
     struct Fixture {
         service: SettingsService,
         debounce: Arc<AtomicU64>,
@@ -813,8 +876,8 @@ pub(crate) mod tests {
         let mut plugins = PluginRegistry::empty();
         plugins.disable(disabled.iter().map(|s| s.to_string()));
         if !safe_mode {
-            plugins.install(&imt_plugin_windows::WindowsPlugin).unwrap();
-            plugins.install(&imt_plugin_web::WebPlugin).unwrap();
+            plugins.install(&WindowsLike).unwrap();
+            plugins.install(&WebLike).unwrap();
             plugins.install(&Fragile).unwrap();
         }
         let installed = plugins.plugins().into_iter().map(|p| (p.id, p.name, p.version)).collect();
@@ -1076,7 +1139,7 @@ pub(crate) mod tests {
             .set("net.decryptology.windows", &json!({ "relogTimeout": 300_000 }))
             .unwrap();
         assert!(r.applied);
-        assert_eq!(imt_plugin_windows::settings::relog_timeout(), Duration::from_secs(300));
+        assert_eq!(relog_timeout(), Duration::from_secs(300));
         fx.service.reset("net.decryptology.windows").unwrap();
         assert_eq!(t.file()["sections"]["net.decryptology.windows"]["relogTimeout"], 120_000);
 
@@ -1132,7 +1195,7 @@ pub(crate) mod tests {
         let fx = fixture(Some(&t.0), false, &[]);
         fx.service.start();
         assert_eq!(fx.service.live_tail_debounce(), Duration::from_millis(1500));
-        assert_eq!(imt_plugin_windows::settings::relog_timeout(), Duration::from_secs(60));
+        assert_eq!(relog_timeout(), Duration::from_secs(60));
         assert_eq!(view(&fx.service.overview(), "t.fragile").values["n"], 1);
         fx.service.reset("net.decryptology.windows").unwrap();
         // A crash at startup is contained too.

@@ -2,13 +2,13 @@
 
 use super::{facility_name, severity_level, severity_name};
 use anyhow::Result;
-use imt_core::importers::{ImportCtx, Imported, Importer, MAX_LINE_LEN};
-use imt_core::model::{auto_value, Level, Record};
+use imt_plugin_api::importer::{ImportCtx, Imported, TextImporter, MAX_LINE_LEN};
+use imt_plugin_api::model::{auto_value, Level, Record};
 use serde_json::{Map, Value};
 
 pub struct JournaldImporter;
 
-impl Importer for JournaldImporter {
+impl TextImporter for JournaldImporter {
     fn id(&self) -> &'static str {
         "journald"
     }
@@ -119,19 +119,17 @@ fn field_value(v: Value) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_core::profile::{CompiledProfile, Profile};
+    use imt_plugin_api::time::TimestampParser;
     use serde_json::json;
     use std::path::Path;
 
     const JOURNAL: &str = include_str!("../tests/fixtures/journal.json");
 
     fn with_ctx<T>(f: impl FnOnce(&ImportCtx) -> T) -> T {
-        let p = CompiledProfile::compile(Profile::default_profile()).unwrap();
-        f(&ImportCtx {
-            profile: &p,
-            path: Path::new("journal.json"),
-            file_date: None,
-        })
+        let ts = TimestampParser::default();
+        let mut ctx = ImportCtx::new(Path::new("journal.json"), &ts);
+        ctx.file_date = None;
+        f(&ctx)
     }
 
     fn import(content: &str) -> Imported {

@@ -1,8 +1,8 @@
 //! Shared by the Docker and CRI importers: the output stream, the level
 //! heuristic, metadata from the standard log paths and partial-line joining.
 
-use imt_core::importers::MAX_LINE_LEN;
-use imt_core::model::{Fields, Level, Record};
+use imt_plugin_api::model::{Fields, Level, Record};
+use imt_plugin_api::text::MAX_LINE_LEN;
 use regex::Regex;
 use serde_json::Value;
 use std::path::Path;

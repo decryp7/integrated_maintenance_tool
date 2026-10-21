@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { sidecarPlan } from './build-sidecars.mjs';
 
-const select = ['-p', 'imt-ai-worker', '--bin', 'imt-ai-worker', '-p', 'imt-plugin-host', '--bin', 'imt-plugin-host'];
+const select = ['-p', 'imt-ai-worker', '--bin', 'imt-ai-worker', '-p', 'imt-plugins', '--bin', 'imt-plugins'];
 const host = 'x86_64-pc-windows-msvc';
 const targetDir = join('ci', 'target');
 
@@ -15,7 +15,7 @@ test('a host build runs without --target and reads target/<profile>, where tauri
     plan.binaries.map((b) => [b.file, b.built]),
     [
       ['imt-ai-worker-x86_64-pc-windows-msvc.exe', [join(targetDir, 'release', 'imt-ai-worker.exe')]],
-      ['imt-plugin-host-x86_64-pc-windows-msvc.exe', [join(targetDir, 'release', 'imt-plugin-host.exe')]],
+      ['imt-plugins-x86_64-pc-windows-msvc.exe', [join(targetDir, 'release', 'imt-plugins.exe')]],
     ],
   );
 });
@@ -36,8 +36,8 @@ test('a custom profile (dist) passes --profile and reads target/<profile>', () =
 test('a cross build keeps --target and its own folder', () => {
   const plan = sidecarPlan({ target: 'aarch64-pc-windows-msvc', host, profile: 'release', targetDir });
   assert.deepEqual(plan.builds, [['build', ...select, '--target', 'aarch64-pc-windows-msvc', '--release']]);
-  assert.deepEqual(plan.binaries[1].built, [join(targetDir, 'aarch64-pc-windows-msvc', 'release', 'imt-plugin-host.exe')]);
-  assert.equal(plan.binaries[1].file, 'imt-plugin-host-aarch64-pc-windows-msvc.exe');
+  assert.deepEqual(plan.binaries[1].built, [join(targetDir, 'aarch64-pc-windows-msvc', 'release', 'imt-plugins.exe')]);
+  assert.equal(plan.binaries[1].file, 'imt-plugins-aarch64-pc-windows-msvc.exe');
 });
 
 test('universal macOS builds both architectures with --target, like tauri build does, for lipo', () => {

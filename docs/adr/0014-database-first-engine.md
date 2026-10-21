@@ -238,7 +238,8 @@ Phase R2a ("foundations") adds the new engine next to `Workspace`; the app keeps
 - **Paging uses `ORDER BY … LIMIT/OFFSET`** (the scan fallback collects matching ids); R2b adds a time-order `pos`
   column so deep pages and anchors become range lookups.
 - **Arrow 58 here, Arrow 60 in the plugin SDK**: duckdb-rs 1.10506 links Arrow 58; R3 must pick one (upgrade
-  duckdb-rs when it moves, or convert at the plugin edge).
+  duckdb-rs when it moves, or convert at the plugin edge). Resolved by ADR 0017: Arrow does not cross the plugin
+  boundary (plugins send postcard wire events) and the plugin SDK is gone, so only Arrow 58 remains.
 - **`extra` is text**: JSON numbers and booleans in undeclared fields come back as strings (`value_number` still
   reads numbers; a JSON `true` is no longer numeric). In SQL, floats of declared columns are rendered by DuckDB
   (`1e+20` where serde writes `1e20`), and plain-text search folds case with `ILIKE`, not with Unicode regex folding.
@@ -354,9 +355,10 @@ compression of it is the native writer's bottleneck; zstd Parquet is 8.7× small
 - **`refresh(changed)`**: drops the sources of changed or deleted files (and their archive members), forgets them
   as unrecognised, and imports the opened roots again, which reads the changed and the new files.
 - **Store worker** (`crates/imt-store-worker`): a binary hosting all stores of the app (handles per process) behind
-  one gRPC call `Call(method, store, JSON body)` (the transport R3 replaces; the envelope keeps that change local);
+  one gRPC call `Call(method, store, JSON body)` (replaced in R3, ADR 0017: `StoreRequest` frames over `imt_ipc`,
+  `Call { store, op: StoreOp, body }` with the body still JSON until 6c);
   `StoreWorker` supervises it with `imt_ipc::Supervisor` (lazy start, backoff, quarantine, killed with IMT) and a
-  1 GiB job-object memory cap on Windows (`SpawnSpec::memory_limit`, new; not enforced on Linux/macOS yet);
+  1 GiB memory cap (since R3 the launcher's `SandboxSpec::memory_limit`: a job object on Windows, `RLIMIT_AS` on Unix);
   `RemoteStore` implements Ingest, Query (summary, page, timeline, facet), Positions, Profiles (active, validate),
   Diagnostics (problems) and Search; it reopens its store after a restart, and a call that saw a crash fails with a
   retryable `StoreError::Engine`. `scan` and the other Query/Analysis operations answer `Unsupported` over the worker

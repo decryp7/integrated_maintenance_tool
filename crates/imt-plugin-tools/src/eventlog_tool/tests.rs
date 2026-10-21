@@ -1,5 +1,5 @@
 use super::*;
-use imt_core::plugin::tools::TaskSink;
+use imt_plugin_api::tools::TaskSink;
 use imt_plugin_windows::eventlog::{Batch, Channel, EventLogError, EventStream, RawEvent};
 
 fn xml(channel: &str, id: u64) -> String {

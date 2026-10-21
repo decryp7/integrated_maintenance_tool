@@ -19,10 +19,7 @@
 //!   or else from the stream (stderr Warning, stdout Information). Pod,
 //!   namespace and container come from the standard log paths.
 //!
-//! ```
-//! let mut registry = imt_core::PluginRegistry::new();
-//! registry.install(&imt_plugin_formats::FormatsPlugin).unwrap();
-//! ```
+//! It runs in its own process (`imt-plugins --plugin net.decryptology.formats`, ADR 0017).
 
 mod container;
 mod cri;
@@ -36,7 +33,7 @@ pub use errorlog::SqlErrorLogImporter;
 pub use log4j::Log4jXmlImporter;
 
 use anyhow::Result;
-use imt_core::{Plugin, PluginRegistry};
+use imt_plugin_api::{Contributions, Plugin};
 
 /// Most fields one record keeps from properties or unknown elements, so a
 /// hostile file cannot make one record arbitrarily wide.
@@ -57,16 +54,11 @@ impl Plugin for FormatsPlugin {
         env!("CARGO_PKG_VERSION")
     }
 
-    /// Stand-alone: no dependencies, no services.
-    fn manifest(&self) -> imt_core::plugin::Manifest {
-        imt_core::plugin::Manifest::new(self.id(), self.version())
-    }
-
-    fn register(&self, registry: &mut PluginRegistry) -> Result<()> {
-        registry.add_importer(Box::new(Log4jXmlImporter));
-        registry.add_importer(Box::new(SqlErrorLogImporter));
-        registry.add_importer(Box::new(DockerJsonImporter));
-        registry.add_importer(Box::new(CriImporter));
+    fn register(&self, c: &mut Contributions) -> Result<()> {
+        c.add_importer(Log4jXmlImporter);
+        c.add_importer(SqlErrorLogImporter);
+        c.add_importer(DockerJsonImporter);
+        c.add_importer(CriImporter);
         Ok(())
     }
 }
@@ -81,8 +73,8 @@ pub(crate) fn first_line(head: &str) -> Option<&str> {
 
 #[cfg(test)]
 pub(crate) mod testutil {
-    use imt_core::importers::ImportCtx;
-    use imt_core::profile::{CompiledProfile, Profile};
+    use imt_plugin_api::importer::ImportCtx;
+    use imt_plugin_api::time::TimestampParser;
     use std::path::Path;
 
     pub fn with_ctx<T>(f: impl FnOnce(&ImportCtx) -> T) -> T {
@@ -90,12 +82,10 @@ pub(crate) mod testutil {
     }
 
     pub fn with_path<T>(path: &str, f: impl FnOnce(&ImportCtx) -> T) -> T {
-        let p = CompiledProfile::compile(Profile::default_profile()).unwrap();
-        f(&ImportCtx {
-            profile: &p,
-            path: Path::new(path),
-            file_date: None,
-        })
+        let ts = TimestampParser::default();
+        let mut ctx = ImportCtx::new(Path::new(path), &ts);
+        ctx.file_date = None;
+        f(&ctx)
     }
 
     /// Epoch milliseconds of an RFC 3339 time.
@@ -125,11 +115,11 @@ mod tests {
 
     #[test]
     fn plugin_registers_its_importers() {
-        let mut registry = PluginRegistry::new();
-        registry.install(&FormatsPlugin).unwrap();
-        let info = &registry.plugins()[0];
-        assert_eq!(info.id, "net.decryptology.formats");
-        assert_eq!(info.contributes.len(), 4);
+        let mut c = Contributions::default();
+        FormatsPlugin.register(&mut c).unwrap();
+        let info = c.manifest(&FormatsPlugin);
+        assert_eq!(&*info.id, "net.decryptology.formats");
+        assert_eq!(info.contributions().len(), 4);
         assert_eq!(FormatsPlugin.name(), "Application and container log formats");
         assert_eq!(FormatsPlugin.version(), env!("CARGO_PKG_VERSION"));
         assert_eq!(first_line("\u{feff}\n  \n a \nb"), Some(" a"));

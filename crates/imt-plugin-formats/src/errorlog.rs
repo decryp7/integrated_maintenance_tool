@@ -13,8 +13,8 @@
 use crate::first_line;
 use anyhow::Result;
 use chrono::{FixedOffset, NaiveDateTime, TimeZone};
-use imt_core::importers::{ImportCtx, Imported, Importer, MAX_LINE_LEN};
-use imt_core::model::{Level, Record};
+use imt_plugin_api::importer::{ImportCtx, Imported, TextImporter, MAX_LINE_LEN};
+use imt_plugin_api::model::{Level, Record};
 use regex::{Captures, Regex};
 use serde_json::Value;
 use std::sync::OnceLock;
@@ -41,7 +41,7 @@ fn known_source(s: &str) -> bool {
     matches!(s, "Server" | "Logon" | "Backup") || spid_re().is_match(s)
 }
 
-impl Importer for SqlErrorLogImporter {
+impl TextImporter for SqlErrorLogImporter {
     fn id(&self) -> &'static str {
         "sql-errorlog"
     }
@@ -133,7 +133,7 @@ impl Builder<'_> {
                 .ok()
                 .and_then(|n| off.from_local_datetime(&n).single())
                 .map(|d| d.timestamp_millis()),
-            None => self.ctx.profile.timestamps.parse(&c[1]),
+            None => self.ctx.timestamps.parse(&c[1]),
         };
         let source = &c[2];
         r.fields.insert("Source".into(), Value::from(source));

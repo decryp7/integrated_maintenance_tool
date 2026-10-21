@@ -91,7 +91,7 @@ pub(super) struct Resume {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Mode {
     /// Text that grows by appending, read incrementally by this importer.
-    Append { importer: &'static str },
+    Append { importer: String },
     /// Read only as a whole (binary formats, archives, importers without tail support).
     Whole,
 }
@@ -114,7 +114,7 @@ pub(super) struct TailSeed {
 
 /// What an importer reported about the end of a file it read.
 pub(super) struct AppendInfo {
-    pub importer: &'static str,
+    pub importer: String,
     pub multiline: bool,
     /// Line of the importer's last record (before the pipeline).
     pub last_line: Option<u32>,
@@ -163,7 +163,9 @@ impl TailSeed {
             })
         });
         seed.next_line = newlines + 1;
-        seed.mode = Mode::Append { importer: info.importer };
+        seed.mode = Mode::Append {
+            importer: info.importer.clone(),
+        };
         seed
     }
 }
@@ -660,7 +662,7 @@ impl Workspace {
                     Step::Unchanged
                 });
             }
-            Mode::Append { importer } => *importer,
+            Mode::Append { importer } => importer.clone(),
         };
         if len < seed.offset {
             return Ok(Step::Truncated);
@@ -731,7 +733,7 @@ impl Workspace {
         let parsed = self
             .registry
             .importers
-            .find(importer)
+            .find(&importer)
             .and_then(|imp| imp.import_tail(&ctx, &head_text, &text).map(|r| (imp, r)));
         let Some((imp, parsed)) = parsed else {
             return Ok(Step::Reimport(format!("the {importer} importer cannot append")));

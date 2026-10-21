@@ -4,7 +4,7 @@ use crate::ids::ELEVATION;
 #[cfg(not(windows))]
 use crate::Runner;
 use anyhow::{bail, Result};
-use imt_core::plugin::tools::{OpSpec, Platform, Tool, ToolCtx, ToolInfo};
+use imt_plugin_api::tools::{OpSpec, Platform, Tool, ToolCtx, ToolInfo};
 use serde_json::{json, Value};
 use std::time::Duration;
 
@@ -89,7 +89,7 @@ mod tests {
     #[cfg(not(windows))]
     use crate::fake::fail;
     use crate::fake::{ok, FakeRunner};
-    use imt_core::plugin::tools::NoTasks;
+    use imt_plugin_api::tools::NoTasks;
     use std::sync::Arc;
 
     fn info(fake: FakeRunner) -> Value {

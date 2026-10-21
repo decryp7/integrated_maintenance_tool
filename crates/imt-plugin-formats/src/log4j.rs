@@ -20,8 +20,8 @@
 use crate::MAX_FIELDS;
 use anyhow::Result;
 use chrono::DateTime;
-use imt_core::importers::{ImportCtx, Imported, Importer, MAX_LINE_LEN};
-use imt_core::model::{Level, Record};
+use imt_plugin_api::importer::{ImportCtx, Imported, TextImporter, MAX_LINE_LEN};
+use imt_plugin_api::model::{Level, Record};
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::{Reader, XmlVersion};
 use regex::Regex;
@@ -39,7 +39,7 @@ fn start_re() -> &'static Regex {
     RE.get_or_init(|| Regex::new(r"<(?:[A-Za-z_][\w.-]{0,31}:)?event[\s/>]").expect("static regex"))
 }
 
-impl Importer for Log4jXmlImporter {
+impl TextImporter for Log4jXmlImporter {
     fn id(&self) -> &'static str {
         "log4j-xml"
     }
@@ -311,7 +311,7 @@ fn parse_timestamp(ctx: &ImportCtx, s: &str) -> Option<i64> {
     DateTime::parse_from_rfc3339(s)
         .ok()
         .map(|d| d.timestamp_millis())
-        .or_else(|| ctx.profile.timestamps.parse(s))
+        .or_else(|| ctx.timestamps.parse(s))
 }
 
 #[cfg(test)]

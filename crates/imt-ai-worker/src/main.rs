@@ -1,6 +1,6 @@
 //! The IMT inference worker. IMT starts it and tells it, on stdin, a private local address and a one-time
-//! token; it then serves gRPC (`proto/llm.proto`) on that Unix socket or named pipe and runs inference in a
-//! child `llama-server` (the official prebuilt llama.cpp build, ADR 0009) on 127.0.0.1. It exits when stdin
+//! token; it connects back over that Unix socket or named pipe, serves the frame protocol (`imt_ipc`, ADR 0017)
+//! and runs inference in a child `llama-server` (the official prebuilt llama.cpp build, ADR 0009) on 127.0.0.1. It exits when stdin
 //! closes (IMT is gone), taking llama-server with it, and only reads the model file it is told to load.
 //!
 //! `imt-ai-worker --list-builds` prints the installed inference builds and whether each works here (JSON).
