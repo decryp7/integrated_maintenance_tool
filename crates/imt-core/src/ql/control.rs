@@ -72,9 +72,34 @@ impl Drop for HookGuard {
 #[derive(Debug, Clone, Default)]
 pub struct QueryControl(Arc<Shared>);
 
+thread_local! {
+    /// The control of the work this thread runs on behalf of a cancellable job (see [`QueryControl::scope`]).
+    static CURRENT: std::cell::RefCell<Option<QueryControl>> = const { std::cell::RefCell::new(None) };
+}
+
 impl QueryControl {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Runs `f` with this control as the thread's current one: store operations `f` calls (analyses,
+    /// exports, previews, scans) are cancelled with it, wherever the store runs (a database statement in
+    /// process is interrupted; a call to the store worker is cancelled and the worker interrupts it).
+    pub fn scope<R>(&self, f: impl FnOnce() -> R) -> R {
+        struct Restore(Option<QueryControl>);
+        impl Drop for Restore {
+            fn drop(&mut self) {
+                let previous = self.0.take();
+                CURRENT.with(|c| *c.borrow_mut() = previous);
+            }
+        }
+        let _restore = Restore(CURRENT.with(|c| c.replace(Some(self.clone()))));
+        f()
+    }
+
+    /// The thread's current control (inside [`QueryControl::scope`]).
+    pub fn current() -> Option<QueryControl> {
+        CURRENT.with(|c| c.borrow().clone())
     }
 
     /// Asks the query to stop at its next check, and runs the registered cancel hooks (once).
@@ -251,6 +276,24 @@ impl<I: Iterator> Iterator for Watched<'_, I> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_scope_sets_the_current_control_on_its_thread_only() {
+        let control = QueryControl::new();
+        assert!(QueryControl::current().is_none());
+        let inner = control.scope(|| {
+            let seen = QueryControl::current();
+            let other_thread = std::thread::spawn(|| QueryControl::current().is_none()).join().unwrap();
+            (seen.is_some(), other_thread)
+        });
+        assert_eq!(inner, (true, true));
+        assert!(QueryControl::current().is_none(), "restored after the scope");
+        let nested = QueryControl::new();
+        control.scope(|| {
+            nested.scope(|| assert!(QueryControl::current().is_some()));
+            assert!(QueryControl::current().is_some(), "the outer control is back");
+        });
+    }
 
     #[test]
     fn watch_counts_progress_and_stops_after_cancel() {

@@ -196,7 +196,7 @@ fn every_operation_over_the_worker_answers_like_the_store() {
     // Analyses run under a job's control are cancellable too.
     let control = QueryControl::new();
     control.cancel();
-    let r = imt_store_worker::RemoteStore::with_control(&control, || remote_store.patterns(&req(json!({"query": {}}))));
+    let r = control.scope(|| remote_store.patterns(&req(json!({"query": {}}))));
     assert_eq!(r.unwrap_err(), StoreError::Cancelled);
 
     // A closed store reopens on the next call.

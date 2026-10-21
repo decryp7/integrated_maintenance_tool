@@ -118,17 +118,8 @@ pub(crate) struct Inner {
 pub(crate) struct Conn<'a> {
     inner: &'a Inner,
     conn: Option<Connection>,
-    /// Interrupts this connection's statement when the thread's [`DuckStore::with_control`] control is cancelled.
+    /// Interrupts this connection's statement when the thread's current control (`QueryControl::scope`) is cancelled.
     _interrupt: Option<imt_core::ql::HookGuard>,
-}
-
-thread_local! {
-    /// The control of the call this thread runs (see [`DuckStore::with_control`]).
-    static CONTROL: std::cell::RefCell<Option<imt_core::ql::QueryControl>> = const { std::cell::RefCell::new(None) };
-}
-
-fn current_control() -> Option<imt_core::ql::QueryControl> {
-    CONTROL.with(|c| c.borrow().clone())
 }
 
 impl std::ops::Deref for Conn<'_> {
@@ -193,7 +184,7 @@ impl Inner {
             Some(c) => c,
             None => lock(&self.db).try_clone().map_err(engine)?,
         };
-        let interrupt = match current_control() {
+        let interrupt = match imt_core::ql::QueryControl::current() {
             Some(control) if control.is_cancelled() => return Err(StoreError::Cancelled),
             Some(control) => {
                 let handle = conn.interrupt_handle();
@@ -545,10 +536,7 @@ impl DuckStore {
     /// Runs `f` with `control` interrupting every statement the store runs for it on this thread: a cancelled
     /// analysis, export or preview stops at once and fails with [`StoreError::Cancelled`].
     pub fn with_control<R>(control: &imt_core::ql::QueryControl, f: impl FnOnce() -> StoreResult<R>) -> StoreResult<R> {
-        let previous = CONTROL.with(|c| c.replace(Some(control.clone())));
-        let out = f();
-        CONTROL.with(|c| *c.borrow_mut() = previous);
-        match out {
+        match control.scope(f) {
             Err(_) if control.is_cancelled() => Err(StoreError::Cancelled),
             other => other,
         }

@@ -413,9 +413,9 @@ impl RemoteStore {
         result
     }
 
-    /// An analysis: cancellable through the control installed by [`RemoteStore::with_control`] (none: not).
+    /// An analysis: cancellable through the thread's current control (`QueryControl::scope`; none: not).
     fn analysis<T: DeserializeOwned>(&self, op: StoreOp, body: &impl Serialize) -> StoreResult<T> {
-        match current_control() {
+        match QueryControl::current() {
             Some(control) => self.call_controlled(op, body, &control),
             None => self.call_with(op, body, LONG_TIMEOUT),
         }
@@ -440,14 +440,6 @@ impl RemoteStore {
         &self.dir
     }
 
-    /// Runs `f` with `control` cancelling the analyses and long reads it calls on this thread (a job's Cancel).
-    pub fn with_control<R>(control: &QueryControl, f: impl FnOnce() -> R) -> R {
-        let previous = CONTROL.with(|c| c.replace(Some(control.clone())));
-        let out = f();
-        CONTROL.with(|c| *c.borrow_mut() = previous);
-        out
-    }
-
     /// Closes the store in the worker (the folder stays). Later calls reopen it.
     pub fn close(&self) {
         let Ok(lease) = self.worker.inner.sup.lease() else { return };
@@ -461,14 +453,6 @@ impl RemoteStore {
     fn remember_profile(&self, profile: &Profile) {
         *lock(&self.profile) = profile.clone();
     }
-}
-
-thread_local! {
-    static CONTROL: std::cell::RefCell<Option<QueryControl>> = const { std::cell::RefCell::new(None) };
-}
-
-fn current_control() -> Option<QueryControl> {
-    CONTROL.with(|c| c.borrow().clone())
 }
 
 impl Projects for RemoteStore {
@@ -693,14 +677,6 @@ mod tests {
                 assert_eq!(value, format!("/opt/imt/lib{sep}{rest}"));
             }
         }
-    }
-
-    #[test]
-    fn a_control_is_seen_by_the_calls_on_its_thread_only_inside_the_closure() {
-        let control = QueryControl::new();
-        assert!(current_control().is_none());
-        assert!(RemoteStore::with_control(&control, || current_control().is_some()));
-        assert!(current_control().is_none(), "restored after the closure");
     }
 
     #[test]
