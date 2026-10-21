@@ -468,6 +468,23 @@ mod tests {
         assert_eq!(out.records[0].message, "disk almost full");
     }
 
+    /// Messages with backslash paths, doubled quotes and dates of their own, a summer-time offset (invented values).
+    #[test]
+    fn headerless_messages_with_paths_quotes_and_dates_inside() {
+        let content = "2024/06/01,08:30:15.250+02:00,INFO,0x4000000000000007,gamma.exe,3100,2,(700),,copier:42,\":\"\"MSG:[Changed]\\srv01\\data\\unit7\\a_b.cfg    Src:Sat Jun  1 08:29:59 2024    Dest:Fri May 31 08:29:58 2024\"\"\"\n\
+            2024/06/01,08:30:15.300+02:00,INFO,0x4000000000000007,gamma.exe,3100,2,(700),,copier:42,\":\"\"MSG:[Changed]\\srv01\\data\\unit7\\c_d.cfg    Src:Sat Jun  1 08:30:01 2024    Dest:Fri May 31 08:30:00 2024\"\"\"\n";
+        let out = run("", content).unwrap();
+        assert_eq!(out.records.len(), 2);
+        let r = &out.records[0];
+        assert_eq!(r.ts, Some(utc_ms(2024, 6, 1, 6, 30, 15, 250)), "+02:00 is two hours ahead of UTC");
+        assert_eq!(r.level, Level::Information);
+        assert_eq!(
+            r.message,
+            ":\"MSG:[Changed]\\srv01\\data\\unit7\\a_b.cfg    Src:Sat Jun  1 08:29:59 2024    Dest:Fri May 31 08:29:58 2024\""
+        );
+        assert_eq!(r.fields["col10"], "copier:42");
+    }
+
     #[test]
     fn dates_and_times_on_their_own() {
         assert!(is_date("2024/03/02") && is_date("2024-03-02") && is_date("02.03.2024"));
