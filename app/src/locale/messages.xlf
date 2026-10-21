@@ -9930,6 +9930,22 @@
           <context context-type="linenumber">60</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="dock.overflow.one" datatype="html">
+        <source>1 more tab</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dock/dock-dom.ts</context>
+          <context context-type="linenumber">35</context>
+        </context-group>
+        <note priority="1" from="description">Tab strip overflow chip, one hidden tab</note>
+      </trans-unit>
+      <trans-unit id="dock.overflow.many" datatype="html">
+        <source><x id="count" equiv-text="hidden"/> more tabs</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dock/dock-dom.ts</context>
+          <context context-type="linenumber">36</context>
+        </context-group>
+        <note priority="1" from="description">Tab strip overflow chip, several hidden tabs</note>
+      </trans-unit>
       <trans-unit id="dock.host.pinTitle" datatype="html">
         <source>Pin (dock it again)</source>
         <context-group purpose="location">

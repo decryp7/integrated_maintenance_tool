@@ -460,6 +460,8 @@ textarea.input {
   --dv-active-sash-color: var(--accent);
   --dv-floating-box-shadow: var(--shadow);
   --dv-floating-border: 1px solid var(--border-3);
+  /* dockview's own themes set it; without it its popovers (the tab overflow list) have no z-index and open under the tabs. */
+  --dv-overlay-z-index: 999;
   --dv-tab-font-size: var(--fs-md);
   --dv-tabs-container-scrollbar-color: var(--border-3);
   --dv-context-menu-background-color: var(--tooltip-bg);

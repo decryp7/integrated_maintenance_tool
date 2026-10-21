@@ -7,7 +7,7 @@ import { AngularContentRenderer, MissingViewRenderer } from './angular-panel';
 import { AutoHideEvent, EMPTY_AUTO_HIDE } from './auto-hide';
 import { DockAutoHide } from './dock-auto-hide';
 import { DockContext } from './dock-context';
-import { keepGroupsUnscrolled, observeFloatingAria } from './dock-dom';
+import { keepGroupsUnscrolled, labelTabOverflow, observeFloatingAria } from './dock-dom';
 import { DockSlot, isLayoutTarget, Point, Rect, resolveGuideDrop } from './dock-geometry';
 import { DockPersistence } from './dock-persistence';
 import { DockPlacement } from './dock-placement';
@@ -224,6 +224,7 @@ export class DockService {
       guides,
       observeFloatingAria(container),
       keepGroupsUnscrolled(container),
+      labelTabOverflow(container),
       api.onDidAddPanel(() => this.ctx.refreshOpen()),
       api.onDidRemovePanel(() => this.ctx.refreshOpen()),
       api.onDidLayoutFromJSON(() => this.ctx.refreshOpen()),
