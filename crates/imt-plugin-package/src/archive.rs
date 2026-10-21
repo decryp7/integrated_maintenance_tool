@@ -273,6 +273,12 @@ impl Package {
                 expected.path
             )));
         }
+        // The program runs: on Unix it needs its execute bit (only for the user; Windows has none).
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(dest, std::fs::Permissions::from_mode(0o700))?;
+        }
         Ok(sha256)
     }
 }
@@ -442,6 +448,12 @@ pub(crate) mod tests {
         let sha = pkg.extract(&p, "x86_64-pc-windows-msvc", &dest).unwrap();
         assert_eq!(std::fs::read(&dest).unwrap(), b"MZ windows program");
         assert_eq!(sha, pkg.program("x86_64-pc-windows-msvc").unwrap().sha256);
+        // Regression (Linux CI): installed programs had no execute bit and failed with "Permission denied".
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(std::fs::metadata(&dest).unwrap().permissions().mode() & 0o777, 0o700);
+        }
         assert_eq!(pkg.extract(&p, "aarch64-apple-darwin", &dest).unwrap_err().code(), "wrongTarget");
         // Deterministic: the same inputs give the same bytes.
         let first = std::fs::read(&p).unwrap();

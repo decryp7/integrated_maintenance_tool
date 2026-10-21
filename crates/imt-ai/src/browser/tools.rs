@@ -105,7 +105,7 @@ pub fn browser_specs(read: bool, agent: bool, research: ResearchTool) -> Vec<Too
         ResearchTool::Auto => v.push(spec(
             "web_research",
             "Research the web: search with the user's search engine, read the top results and get a cited summary. Write query yourself as one line: keep the exception type, the decisive words of the message, error codes and the framework with its version; drop ids, GUIDs, host, machine and user names, paths, ports, timestamps and instance numbers.",
-            json!({"question": {"type": "string", "description": "what to find out"}, "query": {"type": "string", "description": "the search text you drafted (one line)"}, "max_results": {"type": "integer", "minimum": 1, "maximum": 10, "description": "results to read (default from the settings)"}}),
+            json!({"question": {"type": "string", "description": "what to find out"}, "query": {"type": "string", "description": "the search text you drafted (one line)"}, "max_results": {"type": "integer", "enum": [10, 20, 30], "description": "results to read: 10, 20 or 30 (default from the settings)"}}),
             &["question"],
         )),
         ResearchTool::Offer => v.push(spec(
