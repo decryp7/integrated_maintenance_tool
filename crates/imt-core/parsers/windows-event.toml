@@ -1,0 +1,12 @@
+# Windows event logs (.evtx), read by the Windows plugin: Provider, EventId, Channel, Computer, ProcessId and the
+# event data as fields; the event level sets the level.
+schema = 1
+id = "windows-event"
+name = "Windows Event Log (EVTX)"
+version = "1.0.0"
+category = "System"
+description = "Windows event logs (.evtx) read by the Windows plugin: provider, event id, channel, computer and event data as fields."
+
+[format]
+kind = "evtx"
+identity = ["Computer", "Provider"]

@@ -453,8 +453,11 @@ fn binary_importers_get_raw_bytes_first() {
     // Forcing a format selects that binary importer even without its magic.
     let mut registry = PluginRegistry::new();
     registry.install(&BinPlugin).unwrap();
-    let forced = Profile::from_toml("[parse]\nformat = 'bin1'").unwrap();
-    let mut ws = Workspace::with_registry(forced, registry).unwrap();
+    let forced = imt_core::parser::Parser::from_toml(
+        "schema = 1\nid = \"bin\"\nname = \"Bin\"\nversion = \"1.0.0\"\n[match]\nfiles = ['*.dat']\n[format]\nkind = 'bin1'",
+    )
+    .unwrap();
+    let mut ws = Workspace::with_parsers(Profile::default_profile(), registry, &imt_core::parser::ParserSetup::of(&[forced])).unwrap();
     std::fs::write(dir.join("d.dat"), [0u8, 0, 0, 0, 2]).unwrap();
     ws.open(&[dir.join("d.dat")]).unwrap();
     assert_eq!(ws.summary().total, 2);

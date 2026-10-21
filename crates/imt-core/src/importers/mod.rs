@@ -13,6 +13,7 @@ use chrono::NaiveDate;
 use std::path::Path;
 
 pub use self::csv::CsvImporter;
+pub(crate) use self::csv::{count_outside_quotes as csv_count_outside_quotes, delimiter as csv_delimiter};
 pub use self::json::JsonImporter;
 pub use self::text::TextImporter;
 // Shared with the streaming importers (`crate::ingest`).
@@ -32,7 +33,7 @@ pub struct ImportCtx<'a> {
 pub use imt_plugin_api::importer::Imported;
 
 pub trait Importer: Send + Sync {
-    /// Stable id shown in the UI and used by `parse.format`.
+    /// Stable id shown in the UI and used by a parser's `[format] kind`.
     fn id(&self) -> &str;
 
     /// How confident the importer is that it can read this file, 0 (not at
@@ -70,7 +71,7 @@ pub trait Importer: Send + Sync {
 /// are asked first, with the raw bytes; text importers only see files that
 /// decode as text.
 pub trait BinaryImporter: Send + Sync {
-    /// Stable id shown in the UI and usable in `parse.format`.
+    /// Stable id shown in the UI and usable in a parser's `[format] kind`.
     fn id(&self) -> &str;
 
     /// Confidence 0..=100 from the first bytes (usually a magic number).
@@ -141,10 +142,10 @@ impl Importers {
         self.list.iter().find(|i| i.id() == id).map(|b| b.as_ref())
     }
 
-    /// The binary importer for these bytes: the one forced by `parse.format`,
+    /// The binary importer for these bytes: the one forced by the parser's `[format] kind`,
     /// else the most confident one (earliest registered on ties).
     pub fn select_binary(&self, ctx: &ImportCtx, head: &[u8]) -> Option<&dyn BinaryImporter> {
-        let forced = ctx.profile.profile.parse.format.as_str();
+        let forced = ctx.profile.format.kind.as_str();
         if forced != "auto" {
             return self.binary.iter().find(|i| i.id() == forced).map(|b| b.as_ref());
         }
@@ -156,10 +157,10 @@ impl Importers {
             .map(|(_, i)| i.as_ref())
     }
 
-    /// Picks the importer for a file: the one forced by `parse.format`, else
+    /// Picks the importer for a file: the one forced by the parser's `[format] kind`, else
     /// the most confident one.
     pub fn select(&self, ctx: &ImportCtx, head: &str) -> Option<&dyn Importer> {
-        let forced = ctx.profile.profile.parse.format.as_str();
+        let forced = ctx.profile.format.kind.as_str();
         if forced != "auto" {
             return self.list.iter().find(|i| i.id() == forced).map(|b| b.as_ref());
         }
@@ -187,10 +188,10 @@ mod tests {
         assert!(decode(&[0u8, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 1, 2, 3]).is_none());
     }
 
-    use crate::profile::{CompiledProfile, Profile};
+    use crate::profile::CompiledProfile;
 
     fn ctx_profile(toml: &str) -> CompiledProfile {
-        CompiledProfile::compile(Profile::from_toml(toml).unwrap()).unwrap()
+        crate::parser::testing::compiled(toml)
     }
 
     #[test]
@@ -206,14 +207,14 @@ mod tests {
         assert_eq!(importers.select(&ctx, "a,b\n1,2\n").unwrap().id(), "csv");
         assert_eq!(importers.select(&ctx, "2026-10-14 10:00:00 INFO x").unwrap().id(), "text");
         assert!(importers.select(&ctx, "just words").is_none());
-        let forced = ctx_profile("[parse]\nformat = 'text'");
+        let forced = ctx_profile("[format]\nkind = 'text'");
         let ctx = ImportCtx {
             profile: &forced,
             path: Path::new("x"),
             file_date: None,
         };
         assert_eq!(importers.select(&ctx, "{}").unwrap().id(), "text");
-        let unknown = ctx_profile("[parse]\nformat = 'xml'");
+        let unknown = ctx_profile("[format]\nkind = 'xml'");
         let ctx = ImportCtx {
             profile: &unknown,
             path: Path::new("x"),

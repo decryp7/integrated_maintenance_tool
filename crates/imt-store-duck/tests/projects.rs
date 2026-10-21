@@ -58,34 +58,54 @@ fn problems_come_with_fixes_the_engine_checks() {
     assert!(ts.count >= 4 && ts.sample_lines.len() <= 20 && ts.path.ends_with("ctime.csv"));
     let fix = ts.fix.clone().expect("a verified timestamp format");
     assert_eq!(fix.timestamp.as_ref().unwrap().format, "%a %b %d %H:%M:%S %Y");
-    assert!(fix.profile_override.contains("timestamp_formats"), "{}", fix.profile_override);
+    assert!(fix.parser_override.contains("timestamp_formats"), "{}", fix.parser_override);
     let unknown = problems.iter().find(|p| p.kind == ProblemKind::UnknownFormat).expect("blob.bin");
     assert!(unknown.source.is_none() && unknown.path.ends_with("blob.bin") && unknown.detail.is_some());
     // The fix repairs the stored events; a useless override repairs none.
     let quick = QuickFix {
-        profile_override: fix.profile_override.clone(),
+        parser_override: fix.parser_override.clone(),
         sources: vec![ts.source.unwrap()],
     };
     let good = store.evaluate_fix(&quick).unwrap();
     assert!(good.checked > 0 && good.fixed == good.checked, "{good:?}");
     let useless = store
         .evaluate_fix(&QuickFix {
-            profile_override: "name = \"same\"".into(),
+            parser_override: "[format]\nidentity = [\"Same\"]".into(),
             sources: vec![],
         })
         .unwrap();
     assert_eq!(useless.fixed, 0, "{useless:?}");
     assert!(useless.checked > 0);
     let bad = store.evaluate_fix(&QuickFix {
-        profile_override: "[parse".into(),
+        parser_override: "[format".into(),
         sources: vec![],
     });
     assert!(matches!(bad, Err(StoreError::Invalid(_))), "{bad:?}");
 
-    // Applying it is a parsing change: the files are read again and the timestamps are read.
+    // Applying it changes the source's parser (ADR 0026): that source is stale and read again.
     let before = store.summary().unwrap();
-    let profile = store.active_profile().unwrap().with_override(&fix.profile_override).unwrap();
-    store.set_profile(profile).unwrap().wait().unwrap();
+    let parser_id = before
+        .sources
+        .iter()
+        .find(|s| s.name.ends_with("ctime.csv"))
+        .unwrap()
+        .parser
+        .clone()
+        .unwrap();
+    let mut setup = imt_core::parser::ParserSetup::builtins();
+    let changed = imt_core::parser::builtin::find(&parser_id)
+        .unwrap()
+        .with_override(&fix.parser_override)
+        .unwrap();
+    for p in &mut setup.parsers {
+        if p.toml.contains(&format!("id = \"{parser_id}\"")) {
+            p.toml = changed.canonical_toml();
+            p.user = true;
+        }
+    }
+    let stale = store.set_parsers(&setup).unwrap();
+    assert!(stale.contains(&ts.source.unwrap()), "{stale:?}");
+    store.reread_parsers().unwrap().wait().unwrap();
     let after = store.summary().unwrap();
     assert!(after.untimed < before.untimed, "{} -> {}", before.untimed, after.untimed);
     assert!(!store
@@ -107,7 +127,11 @@ fn problems_come_with_fixes_the_engine_checks() {
     assert_eq!(reloaded.events, after.total);
     // Without the files, a parsing change is refused with a message naming them.
     std::fs::remove_file(logs.join("ctime.csv")).unwrap();
-    let day_first = store.active_profile().unwrap().with_override("[parse]\nday_first = true").unwrap();
+    let day_first = store
+        .active_profile()
+        .unwrap()
+        .with_override("[[extract]]\nname = \"n\"\nregex = '(?P<n>\\d+)'")
+        .unwrap();
     match store.set_profile(day_first).map(|_| ()) {
         Err(StoreError::Invalid(m)) => assert!(m.contains("ctime.csv") && m.contains("missing"), "{m}"),
         other => panic!("{other:?}"),

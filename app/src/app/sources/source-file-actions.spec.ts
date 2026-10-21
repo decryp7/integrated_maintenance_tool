@@ -150,7 +150,7 @@ describe('file actions in the inspector and the Explorer', () => {
     const menu = TestBed.inject(ContextMenuService);
     at(all(fixture, '[data-testid=source-actions]'), 0).click();
     await settle(host);
-    expect(menu.menu()?.items.map((i) => i.label)).toEqual(['Open file', 'Show in folder', 'Adjust clock…', 'Remove']);
+    expect(menu.menu()?.items.map((i) => i.label)).toEqual(['Open file', 'Show in folder', 'Parse with…', 'Adjust clock…', 'Remove']);
     menu.close();
     at(all(fixture, '.src'), 1).dispatchEvent(new MouseEvent('contextmenu', { clientX: 20, clientY: 30, bubbles: true }));
     expect(menu.menu()).toMatchObject({ x: 20, y: 30 });

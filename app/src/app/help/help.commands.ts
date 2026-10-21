@@ -1,6 +1,7 @@
 import { EnvironmentProviders, inject, Injectable, makeEnvironmentProviders } from '@angular/core';
 import { IMT_COMMANDS, ImtCommand } from '../extensions/tokens';
-import { TemplatesService } from '../templates/templates.service';
+import { SettingsDialogService } from '../settings/settings-dialog';
+import { MANAGE_PARSERS_COMMAND, PARSERS_ID } from '../settings/parsers/parsers.types';
 import { DialogService } from '../ui/dialog.service';
 
 /**
@@ -9,11 +10,11 @@ import { DialogService } from '../ui/dialog.service';
  */
 export const SHORTCUTS_KEY = 'F1';
 
-/** Help and onboarding commands of the UX pass: the keyboard cheat sheet and the templates gallery. */
+/** Help and onboarding commands of the UX pass: the keyboard cheat sheet and the parser library (Settings ▸ Parsers). */
 @Injectable({ providedIn: 'root' })
 export class HelpCommands {
   private readonly dialogs = inject(DialogService);
-  private readonly templates = inject(TemplatesService);
+  private readonly settings = inject(SettingsDialogService);
 
   readonly commands: ImtCommand[] = [
     {
@@ -27,7 +28,7 @@ export class HelpCommands {
         if (!this.dialogs.stack().some((d) => d.component === CheatSheet)) this.dialogs.open(CheatSheet, { title: $localize`:@@help.command.shortcuts:Keyboard shortcuts`, width: 640 });
       },
     },
-    { id: 'profile.newFromTemplate', title: $localize`:@@help.command.newFromTemplate:New profile from template…`, category: $localize`:@@help.command.profileCategory:Profile`, run: () => void this.templates.open() },
+    { id: MANAGE_PARSERS_COMMAND, title: $localize`:@@help.command.manageParsers:Manage parsers…`, category: $localize`:@@help.command.profileCategory:Profile`, run: () => this.settings.open(PARSERS_ID) },
   ];
 }
 

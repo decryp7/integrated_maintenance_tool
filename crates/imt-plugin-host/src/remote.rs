@@ -112,9 +112,9 @@ impl Ctx {
     }
 
     /// What an importer learns about the file: its name, the tail of its path (the full path only with
-    /// [`Permission::OpenedFilePaths`]), its date and the profile's timestamp settings.
+    /// [`Permission::OpenedFilePaths`]), its date and the parser's timestamp settings.
     fn file_info(&self, ctx: &ImportCtx) -> FileInfo {
-        let parse = &ctx.profile.profile.parse;
+        let parse = &ctx.profile.format;
         FileInfo {
             name: ctx.path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
             path: if self.process.granted(Permission::OpenedFilePaths) {

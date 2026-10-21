@@ -90,9 +90,20 @@ fn unreadable_timestamps_are_flagged_with_a_verified_format() {
     assert_eq!(issue.example_lines, [2, 3, 4]);
     assert_eq!((suggestion.parsed_samples, suggestion.checked_samples), (4, 4));
 
-    // The suggestion's snippet, merged into the profile, reads the file: the issue is gone.
-    let profile = Profile::from_toml(&suggestion.profile_snippet).unwrap();
-    let ws = open(&["ctime.csv"], profile);
+    // The suggestion's snippet, merged into the source's parser, reads the file: the issue is gone.
+    let parser_id = source(&ws, "ctime.csv").parser.unwrap();
+    let changed = imt_core::parser::builtin::find(&parser_id)
+        .unwrap()
+        .with_override(&suggestion.parser_snippet)
+        .unwrap();
+    let mut setup = imt_core::parser::ParserSetup::builtins();
+    for p in &mut setup.parsers {
+        if p.toml.contains(&format!("id = \"{parser_id}\"")) {
+            p.toml = changed.canonical_toml();
+        }
+    }
+    let mut ws = Workspace::with_parsers(Profile::default_profile(), imt_core::PluginRegistry::new(), &setup).unwrap();
+    ws.open(&[fixture("ctime.csv")]).unwrap();
     let s = source(&ws, "ctime.csv");
     assert_eq!(s.timestamp_issue, None);
     assert_eq!(s.from, Some(utc(2025, 11, 8, 0, 4, 37, 0)));
@@ -107,10 +118,7 @@ fn unreadable_timestamps_are_flagged_with_a_verified_format() {
     assert_eq!(issue["suggestion"]["parsedSamples"], 4);
     assert_eq!(issue["suggestion"]["checkedSamples"], 4);
     assert_eq!(issue["suggestion"]["format"], "%a %b %d %H:%M:%S %Y");
-    assert!(issue["suggestion"]["profileSnippet"]
-        .as_str()
-        .unwrap()
-        .contains("timestamp_formats"));
+    assert!(issue["suggestion"]["parserSnippet"].as_str().unwrap().contains("timestamp_formats"));
     let fine = open(&["comma-offset.log"], Profile::default_profile());
     assert!(serde_json::to_value(fine.summary()).unwrap()["sources"][0]["timestampIssue"].is_null());
 }

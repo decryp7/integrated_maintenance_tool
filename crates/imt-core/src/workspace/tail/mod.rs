@@ -56,6 +56,7 @@ use super::{display_name, import_file, source_file, Workspace};
 use crate::importers::{ImportCtx, MAX_LINE_LEN};
 use crate::model::Record;
 use crate::pipeline::StepStats;
+use crate::profile::CompiledProfile;
 use crate::query::group_key;
 use alerts::{AlertState, InstanceSeen};
 use anyhow::Result;
@@ -640,7 +641,8 @@ impl Workspace {
     fn guarded_step(&self, id: u32, st: &mut TailState, src: &dyn ByteSource, now: Instant) -> Step {
         let name = self.source_name(id).to_string();
         let mut work = st.clone();
-        match crate::guard::catch("IMT", || self.step(&mut work, src, now, &name)) {
+        let profile = self.profile_of_source(id);
+        match crate::guard::catch("IMT", || self.step(&mut work, src, now, &name, &profile)) {
             Ok(step) => {
                 *st = work;
                 step
@@ -650,7 +652,7 @@ impl Workspace {
     }
 
     /// One read of new bytes; updates `st` to describe what was consumed.
-    fn step(&self, st: &mut TailState, src: &dyn ByteSource, now: Instant, source_name: &str) -> Result<Step> {
+    fn step(&self, st: &mut TailState, src: &dyn ByteSource, now: Instant, source_name: &str, profile: &CompiledProfile) -> Result<Step> {
         let len = src.len();
         let seed = &st.seed;
         let importer = match &seed.mode {
@@ -726,7 +728,7 @@ impl Workspace {
             .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
             .and_then(|d| crate::time::utc_date_of(d.as_millis() as i64));
         let ctx = ImportCtx {
-            profile: &self.profile,
+            profile,
             path: &st.path,
             file_date,
         };
@@ -761,13 +763,12 @@ impl Workspace {
             enc.line_start(region, line - base + 1).map(|s| Resume {
                 start: region_start + s as u64,
                 line,
-                stats: self
-                    .profile
+                stats: profile
                     .ingest(imported.records.iter().filter(|r| r.line >= line).cloned().collect(), source_name)
                     .1,
             })
         });
-        let (records, stats_add) = self.profile.ingest(std::mem::take(&mut imported.records), source_name);
+        let (records, stats_add) = profile.ingest(std::mem::take(&mut imported.records), source_name);
         let lines = enc.line_ends(&data[min_end..end]).count() as u64;
 
         let offset = region_start + end as u64;

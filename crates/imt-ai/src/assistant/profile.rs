@@ -1,5 +1,6 @@
-//! propose_profile: format, timestamp format, instance key and parse regex for an unknown log file.
-//! The engine builds the candidate profile, compiles it and parses the sample with it.
+//! propose_profile: format, timestamp format, identity fields and parse regex for an unknown log file, as a
+//! parser for the library (formats are parsers, ADR 0026). The engine builds the candidate parser, compiles
+//! it and parses the sample with it.
 
 use super::proposals::ProfileProposal;
 use super::tools::truncate_chars;
@@ -8,7 +9,8 @@ use crate::access::StoreRef;
 use crate::error::{AiError, Result};
 use crate::llm::LlmProvider;
 use imt_core::api::ParsePreviewRequest;
-use imt_core::{regex_assist, user_regex, Profile};
+use imt_core::parser::Parser;
+use imt_core::{regex_assist, user_regex};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -169,11 +171,13 @@ impl<P: LlmProvider> Assistant<P> {
         let expected = record_starts(sample.lines().take(400).collect::<Vec<_>>().join("\n").as_str());
         // IMT's built-in settings read many formats already: use them when they cope, without asking the model.
         // (Without its last, generic pattern: that one reads any line starting with a date, level and all.)
-        let mut builtin = Profile::default_profile();
-        builtin.parse.regexes.pop();
-        if let Ok(toml) = toml::to_string(&builtin) {
+        let mut builtin = imt_core::parser::builtin::generic();
+        builtin.format.regexes.pop();
+        {
+            let toml = builtin.canonical_toml();
             let req = ParsePreviewRequest {
                 toml: toml.clone(),
+                profile: String::new(),
                 sample: sample.to_string(),
                 file_name: file_name.to_string(),
                 limit: 200,
@@ -187,14 +191,16 @@ impl<P: LlmProvider> Assistant<P> {
                 pv.importer.as_deref() != Some("csv") || !sample.lines().next().unwrap_or("").chars().any(|c| c.is_ascii_digit());
             if pv.error.is_none() && header_ok && pv.total > 0 && pv.total * 100 >= expected * 95 && with_ts * 100 >= pv.records.len() * 95
             {
+                // Nothing to add to the library: the proposal carries no parser.
+                let _ = toml;
                 return Ok(ProfileProposal {
-                    name: "Built-in profile".into(),
-                    toml,
+                    name: "Built-in parsers".into(),
+                    toml: String::new(),
                     importer: pv.importer,
                     parsed: pv.total,
                     with_timestamp: with_ts,
                     preview: pv.records.into_iter().take(5).collect(),
-                    rationale: "IMT's built-in settings already read this file; no changes are needed.".into(),
+                    rationale: "IMT's built-in parsers already read this file; no changes are needed.".into(),
                 });
             }
         }
@@ -202,9 +208,14 @@ impl<P: LlmProvider> Assistant<P> {
         let entry_lines = entry_lines(sample, 400);
         let engine_regex = assemble_regex(&entry_lines.iter().map(|(_, l)| *l).take(60).collect::<Vec<_>>());
         let (p, _) = self.generate_validated::<Answer, ProfileProposal>(SYSTEM, &user, schema, |a| {
-            let mut profile = Profile::default_profile();
-            profile.name = if a.name.trim().is_empty() { "Proposed profile".into() } else { truncate_chars(a.name.trim(), 60) };
-            profile.parse.format = a.format.clone();
+            let base = format!(
+                "schema = 1\nid = \"{}\"\nname = {}\nversion = \"1.0.0\"\ncategory = \"Custom\"\ndescription = \"Proposed by the local AI model from a sample of {}.\"\n",
+                imt_core::parser::draft::id_for(file_name),
+                toml::Value::String(if a.name.trim().is_empty() { "Proposed parser".into() } else { truncate_chars(a.name.trim(), 60) }),
+                truncate_chars(file_name, 80).replace(['"', '\\'], "")
+            );
+            let mut parser = Parser::from_toml(&base).map_err(|e| format!("the parser cannot be written: {e}"))?;
+            parser.format.kind = a.format.clone();
             if a.format == "text" {
                 // The model's regex is checked against the sample here, so the feedback can quote a line it misses. If it
                 // does not work but the engine could assemble a working one from the sample, that one is used.
@@ -238,16 +249,26 @@ impl<P: LlmProvider> Assistant<P> {
                         None => return Err(why),
                     },
                 };
-                profile.parse.output_templates = vec![];
-                profile.parse.regexes = vec![regex_text];
+                parser.format.output_templates = vec![];
+                parser.format.regexes = vec![regex_text];
             }
-            profile.parse.timestamp_formats = a.timestamp_formats.iter().map(|f| f.trim().to_string()).filter(|f| !f.is_empty()).collect();
-            profile.instance.key = a.instance_key.iter().map(|f| f.trim().to_string()).filter(|f| !f.is_empty()).collect();
-            let toml = toml::to_string(&profile).map_err(|e| format!("the profile cannot be written: {e}"))?;
-            let preview =
-                store.with(|s| s.preview_parse(&ParsePreviewRequest { toml: toml.clone(), sample: sample.to_string(), file_name: file_name.to_string(), limit: 200 })).map_err(|e| format!("the engine cannot preview this profile: {e}"))?;
+            parser.format.timestamp_formats = a.timestamp_formats.iter().map(|f| f.trim().to_string()).filter(|f| !f.is_empty()).collect();
+            // Fields that identify an instance are the parser's identity fields (instance-key candidates).
+            parser.format.identity = a.instance_key.iter().map(|f| f.trim().to_string()).filter(|f| !f.is_empty()).collect();
+            let toml = parser.canonical_toml();
+            let preview = store
+                .with(|s| {
+                    s.preview_parse(&ParsePreviewRequest {
+                        toml: toml.clone(),
+                        profile: String::new(),
+                        sample: sample.to_string(),
+                        file_name: file_name.to_string(),
+                        limit: 200,
+                    })
+                })
+                .map_err(|e| format!("the engine cannot preview this parser: {e}"))?;
             if let Some(e) = preview.error {
-                return Err(format!("the engine cannot use this profile: {e}"));
+                return Err(format!("the engine cannot use this parser: {e}"));
             }
             let parsed = preview.total;
             if parsed == 0 || (a.format != "csv" && parsed * 100 < expected * 95) {
@@ -265,7 +286,7 @@ impl<P: LlmProvider> Assistant<P> {
                 ));
             }
             Ok(ProfileProposal {
-                name: profile.name.clone(),
+                name: parser.name.clone(),
                 toml,
                 importer: preview.importer,
                 parsed,

@@ -93,6 +93,7 @@ fn files() -> Vec<(&'static str, String)> {
             ),
         ),
         ("plugins.ts", crate::plugin_packages::dto::generated(header)),
+        ("parsers.ts", crate::parsers::dto::generated(header)),
     ]
 }
 

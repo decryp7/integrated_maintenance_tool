@@ -1,0 +1,15 @@
+# Serilog console/file sink text with the default output template (optionally followed by {Properties:j});
+# exceptions on the following lines.
+schema = 1
+id = "serilog-text"
+name = "Serilog text"
+version = "1.0.0"
+category = ".NET"
+description = "Text from the Serilog console or file sink with the default output template ({Timestamp} [{Level:u3}] {Message}), properties as JSON and exceptions on the next lines."
+
+[format]
+kind = "text"
+output_templates = [
+  "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
+  "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
+]

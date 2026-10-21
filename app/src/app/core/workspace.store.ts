@@ -46,6 +46,7 @@ export class WorkspaceStore {
   readonly applySummary = this.data.applySummary;
   readonly profileSaved = this.data.profileSaved;
   readonly applyProfile = this.data.applyProfile;
+  readonly followReread = this.data.followReread;
   readonly init = this.data.init;
   readonly refreshSummary = this.data.refreshSummary;
   readonly openPaths = this.data.openPaths;

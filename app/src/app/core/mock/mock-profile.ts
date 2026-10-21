@@ -1,10 +1,11 @@
 /* Demo profile used by the mock backend: the built-in default plus an example extractor and charts. */
 
-export const MOCK_PROFILE_TOML = String.raw`# IMT parsing profile.
+export const MOCK_PROFILE_TOML = String.raw`# IMT analysis profile.
 #
-# A profile is a pipeline: which files to read, how to parse them into events,
-# what identifies an instance, which values to extract, which events are
-# important (markers) and which charts to draw. Everything an extractor
+# A profile is a pipeline: which files to read, what identifies an instance,
+# which values to extract, which events are important (markers) and which
+# charts to draw. How a file becomes events is its parser's business (Settings ▸
+# Parsers). Everything an extractor
 # produces becomes a field on the event, usable like any Serilog property.
 #
 # Field names in conditions/split_by/key may be any property, an extracted
@@ -14,60 +15,9 @@ name = "OrderService (Serilog) — demo"
 
 [files]
 # Globs matched against the path relative to the opened folder. Extensions do
-# not matter: the format is detected from the file content.
+# not matter: the parser of each file is chosen from its content (Settings ▸ Parsers).
 include = ["**/*"]
 exclude = ["**/*-filtered.*", "**/*.imtprofile.toml", "**/*.gz", "**/*.zip", "**/*.exe", "**/*.dll", "**/.*"]
-
-[parse]
-# auto | json | text | csv
-format = "auto"
-# Serilog output templates (as written in appsettings.json), tried in order for
-# plain-text files. Named holes other than Timestamp/Level/Message/NewLine/
-# Exception/Properties become fields.
-output_templates = [
-  "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
-  "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
-]
-# Raw regexes with named groups (timestamp, level, message; others become
-# fields), tried after the templates.
-regexes = [
-  # log4net / NLog: %date [%thread] %-5level %logger [%ndc] - %message
-  '^(?P<timestamp>\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?: ?(?:Z|[+-]\d{2}:?\d{2}))?)\s+\[(?P<Thread>[^\]]+)\]\s+(?P<level>[A-Za-z]+)\s+(?P<Logger>\S+)\s+(?:\[?(?P<Ndc>[^\]\s]*)\]?\s+)?-\s(?P<message>.*)$',
-  # Generic: timestamp, optional level, message
-  '^(?P<timestamp>\d{4}[-/.]\d{2}[-/.]\d{2}[ T,]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?: ?(?:Z|[+-]\d{2}:?\d{2}))?)\s+(?:\[?(?P<level>VRB|DBG|INF|WRN|ERR|FTL|TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|CRITICAL|Verbose|Debug|Information|Warning|Error|Fatal)\]?\s*[:|-]?\s+)?(?P<message>.*)$',
-]
-# Extra timestamp formats, .NET style ("dd/MM/yyyy HH:mm:ss.fff") or strftime
-# ("%d/%m/%Y %H:%M:%S%.f"). Common ISO/RFC/Serilog/epoch formats are always
-# recognised.
-timestamp_formats = []
-# Timezone for timestamps without an offset: "UTC", "local" or "+08:00".
-assume_timezone = "UTC"
-# For ambiguous dates like 03/04/2026: "auto" (decided per file), "true", "false".
-day_first = "auto"
-
-[parse.json]
-# JSON lines (one object per line) or a whole-file JSON array. Keys are tried in
-# order; nested keys use dots ("log.level"). Covers Serilog CLEF (@t/@mt/@l/@x),
-# Serilog JsonFormatter, NLog/ECS-style and most JSON loggers.
-timestamp = ["@t", "Timestamp", "timestamp", "@timestamp", "time", "ts", "date", "datetime"]
-level = ["@l", "Level", "level", "log.level", "severity", "lvl", "loglevel"]
-message = ["@m", "RenderedMessage", "Message", "message", "msg", "text"]
-template = ["@mt", "MessageTemplate"]
-exception = ["@x", "Exception", "exception", "error.stack_trace", "stack_trace", "error"]
-# Objects whose members are lifted to top-level fields; other nested objects
-# are flattened with dotted names.
-properties = ["Properties", "properties", "fields", "context"]
-# CLEF omits @l for Information.
-default_level = "Information"
-
-[parse.csv]
-# "auto" sniffs , ; tab and |
-delimiter = "auto"
-has_header = true
-# Column names, or "auto" to guess from the header.
-timestamp = "auto"
-level = "auto"
-message = "auto"
 
 [instance]
 # Fields forming the instance key. Empty = the candidates present on at least

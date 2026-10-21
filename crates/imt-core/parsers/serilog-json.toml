@@ -1,0 +1,23 @@
+# Serilog JsonFormatter / RenderedCompactJsonFormatter output: Timestamp, Level, MessageTemplate,
+# RenderedMessage and a Properties object.
+schema = 1
+id = "serilog-json"
+name = "Serilog JSON"
+version = "1.0.0"
+category = ".NET"
+description = "JSON from Serilog's JsonFormatter: Timestamp, Level, MessageTemplate or RenderedMessage, Exception, and the Properties object as fields."
+
+[match]
+json_keys = ["Timestamp", "Level"]
+
+[format]
+kind = "json"
+
+[format.json]
+timestamp = ["Timestamp", "@t"]
+level = ["Level", "@l"]
+message = ["RenderedMessage", "@m", "MessageTemplate"]
+template = ["MessageTemplate", "@mt"]
+exception = ["Exception", "@x"]
+properties = ["Properties"]
+default_level = "Information"

@@ -10,6 +10,7 @@ import { toAiError } from '../ai-backend';
 import { FolderSetupBackend } from './folder-setup-backend';
 import { ComposedProfile, FolderRefinement, FolderSurvey, PROPOSAL_GROUPS, ProposalGroup, SetupProposal, SkippedProposal, SurveyOutcome, SurveyProgress } from './folder-setup.types';
 import { JobsBackend } from '../../jobs/jobs-backend';
+import { ParsersBackend } from '../../settings/parsers/parsers-backend';
 
 /** Where the wizard is: survey → proposals → review → applied (or failed / cancelled on the way). */
 export type SetupPhase = 'idle' | 'surveying' | 'proposals' | 'review' | 'applying' | 'applied' | 'failed' | 'cancelled';
@@ -137,6 +138,7 @@ export const FolderSetupStore = signalStore(
       workspace = inject(WorkspaceStore),
       savedQueries = inject(SavedQueryStore),
       undo = inject(UndoStack),
+      parsers = inject(ParsersBackend),
     ) => ({
       /**
        * Starts a survey of the open files (from any phase) as a background analysis job and follows it while the
@@ -241,7 +243,8 @@ export const FolderSetupStore = signalStore(
       },
       /**
        * Saves the combined profile through the normal profile save (validated, archived, re-imported) and adds
-       * the saved queries, as one undoable change.
+       * the saved queries, as one undoable change; new format parsers go to the library (replacing one with the same
+       * id) and the files are read again with them (ADR 0026; the library is not part of the undo).
        */
       async apply(): Promise<boolean> {
         const composed = s.composed();
@@ -250,6 +253,8 @@ export const FolderSetupStore = signalStore(
         try {
           const before = (await imt.getProfile()).toml;
           void workspace.applyProfile(await imt.saveProfile(composed.toml));
+          for (const toml of composed.parsers) await parsers.save(toml, { overwrite: true });
+          if (composed.parsers.length) void workspace.followReread(await parsers.reread());
           const queriesBefore = savedQueries.items();
           const queriesAfter = [
             ...queriesBefore,

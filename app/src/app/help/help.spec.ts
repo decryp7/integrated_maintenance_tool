@@ -6,7 +6,7 @@ import { DialogService } from '../ui/dialog.service';
 import { CheatSheet, PRINT_CLASS } from './cheat-sheet';
 import { HelpCommands, provideHelp, SHORTCUTS_KEY } from './help.commands';
 import { FIXED_KEYS, shortcutGroups } from './shortcuts';
-import { TemplatesService } from '../templates/templates.service';
+import { SettingsDialogService } from '../settings/settings-dialog';
 import { at } from '../../testing/must';
 
 const cmd = (id: string, title: string, extra: Partial<ImtCommand> = {}): ImtCommand => ({ id, title, run: () => undefined, ...extra });
@@ -49,7 +49,7 @@ describe('cheat sheet and help commands', () => {
     return TestBed.inject(CommandRegistry);
   }
 
-  it('opens the sheet with F1 (once), and the templates gallery from a command', async () => {
+  it('opens the sheet with F1 (once), and Settings ▸ Parsers from a command', async () => {
     const registry = setup();
     expect(SHORTCUTS_KEY).toBe('F1');
     expect(registry.runForKey(new KeyboardEvent('keydown', { key: 'F1' }))).toBe(true);
@@ -58,10 +58,10 @@ describe('cheat sheet and help commands', () => {
     expect(at(dialogs.stack(), 0).options.title).toBe('Keyboard shortcuts');
     await registry.run('help.shortcuts');
     expect(dialogs.stack().length).toBe(1);
-    const open = vi.spyOn(TestBed.inject(TemplatesService), 'open').mockResolvedValue(false);
-    expect(await registry.run('profile.newFromTemplate')).toBe(true);
-    expect(open).toHaveBeenCalledWith();
-    expect(TestBed.inject(HelpCommands).commands.map((c) => c.id)).toEqual(['help.shortcuts', 'profile.newFromTemplate']);
+    const open = vi.spyOn(TestBed.inject(SettingsDialogService), 'open').mockReturnValue(undefined);
+    expect(await registry.run('parsers.manage')).toBe(true);
+    expect(open).toHaveBeenCalledWith('@parsers');
+    expect(TestBed.inject(HelpCommands).commands.map((c) => c.id)).toEqual(['help.shortcuts', 'parsers.manage']);
   });
 
   it('lists registered bindings and fixed keys, searches, clears and prints only the sheet', async () => {

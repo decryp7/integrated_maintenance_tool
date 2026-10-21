@@ -21,7 +21,7 @@ pub fn import_json(ctx: &ImportCtx, shape: JsonShape, size: u64, lines: &mut Lin
 }
 
 fn json_lines(ctx: &ImportCtx, size: u64, lines: &mut LineReader, sink: &mut dyn EventSink) -> Result<usize> {
-    let cfg = &ctx.profile.profile.parse.json;
+    let cfg = &ctx.profile.format.json;
     let ts = &ctx.profile.timestamps;
     let default_level = Level::parse(&cfg.default_level).unwrap_or(Level::Information);
     let mut budget = usize::try_from(size)
@@ -101,7 +101,7 @@ fn multiline_object(first: &str, lines: &mut LineReader, budget: &mut usize) -> 
 
 /// A top-level array (one event per object item, numbered by position) or a single object.
 fn whole(ctx: &ImportCtx, shape: JsonShape, lines: &mut LineReader, sink: &mut dyn EventSink) -> Result<usize> {
-    let cfg = &ctx.profile.profile.parse.json;
+    let cfg = &ctx.profile.format.json;
     let ts = &ctx.profile.timestamps;
     let default_level = Level::parse(&cfg.default_level).unwrap_or(Level::Information);
     let mut content = String::new();

@@ -7,7 +7,7 @@
 //! 1. the **first text format in profile order** that matches starts an event; the file's dominant format
 //!    (the one matching most of its first lines) is tried first as a shortcut, and only the formats listed
 //!    before it are checked to keep the profile order;
-//! 2. else a one-line **JSON object** with a timestamp key (`[parse.json] timestamp`) is a JSON event;
+//! 2. else a one-line **JSON object** with a timestamp key (`[format.json] timestamp`) is a JSON event;
 //! 3. else a line that does **not look like an event start** (indented, a stack frame, `Caused by`, a brace of
 //!    a pretty-printed object, plain text...) continues the event above it;
 //! 4. else the line looks like an event (it starts with a date, a time, a syslog priority or month) but no
@@ -96,14 +96,14 @@ fn month_day(b: &[u8]) -> bool {
         && (b[4].is_ascii_digit() || (b[4] == b' ' && b[5].is_ascii_digit()))
 }
 
-/// A JSON object on one line that has a timestamp key of `[parse.json] timestamp`: a JSON event.
+/// A JSON object on one line that has a timestamp key of `[format.json] timestamp`: a JSON event.
 pub fn json_event(profile: &CompiledProfile, line: &str) -> Option<Map<String, Value>> {
     let t = line.trim();
     if !(t.starts_with('{') && t.ends_with('}')) {
         return None;
     }
     let obj: Map<String, Value> = serde_json::from_str(t).ok()?;
-    let keys = &profile.profile.parse.json.timestamp;
+    let keys = &profile.format.json.timestamp;
     keys.iter()
         .any(|k| obj.get(k).is_some_and(|v| !v.is_null()) || k.split_once('.').is_some_and(|(head, _)| obj.contains_key(head)))
         .then_some(obj)
@@ -211,7 +211,7 @@ impl<'p> LineParser<'p> {
                 .iter()
                 .map(|f| f.regex.capture_names().flatten().collect())
                 .collect(),
-            default_level: Level::parse(&profile.profile.parse.json.default_level).unwrap_or(Level::Information),
+            default_level: Level::parse(&profile.format.json.default_level).unwrap_or(Level::Information),
             clock: Clock {
                 date: file_date,
                 last_ts: None,
@@ -226,7 +226,7 @@ impl<'p> LineParser<'p> {
         }
         if line.trim_start().starts_with('{') {
             if let Some(obj) = json_event(self.profile, line) {
-                let cfg = &self.profile.profile.parse.json;
+                let cfg = &self.profile.format.json;
                 let rec = json_to_record(obj, cfg, &self.parser, self.default_level, number);
                 self.clock.saw(rec.ts);
                 return Line::Event(rec);
@@ -274,10 +274,9 @@ impl<'p> LineParser<'p> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::profile::Profile;
 
     fn profile(toml: &str) -> CompiledProfile {
-        CompiledProfile::compile(Profile::from_toml(toml).unwrap()).unwrap()
+        crate::parser::testing::compiled(toml)
     }
 
     #[test]
@@ -341,7 +340,7 @@ mod tests {
         assert!(json_event(&p, r#"{"order":1}"#).is_none(), "a payload, not an event");
         assert!(json_event(&p, r#"{"broken": "#).is_none());
         assert!(json_event(&p, "[1,2]").is_none());
-        let nested = profile("[parse.json]\ntimestamp = ['event.created']");
+        let nested = profile("[format.json]\ntimestamp = ['event.created']");
         assert!(json_event(&nested, r#"{"event":{"created":"2026-10-14T10:00:00Z"}}"#).is_some());
     }
 
@@ -441,7 +440,7 @@ mod tests {
     #[test]
     fn time_only_formats_roll_over_midnight() {
         let p =
-            profile("[parse]\noutput_templates = [\"[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}\"]\nregexes = []");
+            profile("[format]\noutput_templates = [\"[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}\"]\nregexes = []");
         let mut parser = LineParser::new(&p, LineFormat::Text(0), None, NaiveDate::from_ymd_opt(2026, 10, 14));
         let ts = |l: Line| match l {
             Line::Event(r) => r.ts.unwrap(),

@@ -305,14 +305,9 @@ pub(crate) fn search_in(store: StoreRef<'_>) -> impl FnMut(&RelatedRequest) -> i
     }
 }
 
-/// The profile's time zone for times without one.
-pub(crate) fn timezone(store: StoreRef<'_>) -> String {
-    store.with(|s| {
-        s.active_profile()
-            .unwrap_or_else(|_| imt_core::Profile::default_profile())
-            .parse
-            .assume_timezone
-    })
+/// The time zone for times without one: the generic parser's (formats are parsers, ADR 0026).
+pub(crate) fn timezone(_store: StoreRef<'_>) -> String {
+    imt_core::parser::builtin::generic().format.assume_timezone
 }
 
 /// "Explain with AI" on an image.

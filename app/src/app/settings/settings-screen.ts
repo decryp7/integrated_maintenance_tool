@@ -8,6 +8,8 @@ import { SettingFieldControl } from './setting-field';
 import { SettingsFiles } from './settings-files';
 import { StorageSettings } from './storage/storage-settings';
 import { STORAGE_ID } from './storage/storage.types';
+import { ParsersSettings } from './parsers/parsers-settings';
+import { PARSERS_ID } from './parsers/parsers.types';
 import { APPEARANCE_ID, fieldMatches, GENERAL_ID, GROUPS, statusLabel } from './settings-model';
 import { SettingField, SettingsSection } from './settings.types';
 
@@ -19,7 +21,7 @@ import { SettingField, SettingsSection } from './settings.types';
 @Component({
   selector: 'imt-settings-screen',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, StorageSettings],
+  imports: [GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, StorageSettings, ParsersSettings],
   host: { '(keydown.escape)': 'onEscape($event)' },
   template: `
     <div class="top">
@@ -52,6 +54,7 @@ import { SettingField, SettingsSection } from './settings.types';
         <button class="nav" type="button" [attr.aria-current]="isSelected(general) ? 'page' : null" (click)="store.select(general)" i18n="Settings section|Name of the first settings section@@settings.screen.general">General</button>
         <button class="nav" type="button" [attr.aria-current]="isSelected(appearance) ? 'page' : null" (click)="store.select(appearance)" data-testid="settings-nav-appearance" i18n="Settings section|Theme, colour scheme and density@@settings.screen.appearance">Appearance</button>
         <button class="nav" type="button" [attr.aria-current]="isSelected(storage) ? 'page' : null" (click)="store.select(storage)" i18n="Settings section|What IMT keeps on disk@@settings.storage.nav">Storage</button>
+        <button class="nav" type="button" [attr.aria-current]="isSelected(parsers) ? 'page' : null" (click)="store.select(parsers)" data-testid="settings-nav-parsers" i18n="Settings section|The log formats IMT reads@@settings.parsers.nav">Parsers</button>
         @for (g of navGroups(); track g.id) {
           <div class="group" role="presentation">{{ g.title }}</div>
           @for (s of g.sections; track s.id) {
@@ -103,6 +106,8 @@ import { SettingField, SettingsSection } from './settings.types';
           <imt-appearance-settings />
         } @else if (isSelected(storage)) {
           <imt-storage-settings />
+        } @else if (isSelected(parsers)) {
+          <imt-parsers-settings />
         } @else if (store.current(); as s) {
           <div class="section-head">
             <h3>{{ s.title }}</h3>
@@ -197,6 +202,7 @@ export class SettingsScreen {
   private readonly ref = inject(DIALOG_REF, { optional: true });
   protected readonly general = GENERAL_ID;
   protected readonly storage = STORAGE_ID;
+  protected readonly parsers = PARSERS_ID;
   protected readonly appearance = APPEARANCE_ID;
   protected readonly cancelLabel = $localize`:@@settings.screen.cancel:Cancel`;
   protected readonly closeLabel = $localize`:Button that closes the settings dialog@@settings.screen.close:Close`;

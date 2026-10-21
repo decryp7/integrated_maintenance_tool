@@ -707,6 +707,9 @@ reads which sources), `classify_parser(def)` (the change class and the sources i
 `assign_parser(source, def)` (refused with `Unsupported` until the library exists), so per-file matching adds
 implementations, not port changes. The worker compiles each parser once (today: one).
 
+ADR 0026 implemented it: the interim profile parser is gone, `assign_parser` takes a parser id, and the port
+gained `set_parsers` (the library from the app) and `reread_parsers` (the stale sources and unread files).
+
 ### Not on the store yet (typed `Unsupported` with a hint, or still on the old path)
 
 - Redacted views and the redaction summary, clock skew correction, live alerts and per-file tail status, plugin

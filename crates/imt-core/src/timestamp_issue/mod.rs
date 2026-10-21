@@ -28,11 +28,11 @@ pub const MAX_EXAMPLE_CHARS: usize = 120;
 const SUGGEST_SAMPLES: usize = 20;
 /// Characters of a line the suggestion looks at.
 const MAX_SAMPLE_CHARS: usize = 512;
-/// The importers whose timestamps come from the profile (`[parse]`).
+/// The importers whose timestamps come from the parser (`[format]`).
 pub const CHECKED_IMPORTERS: [&str; 3] = ["text", "csv", "json"];
 
 /// The issue of a source read by `importer` from `content` into `records` (after the pipeline), or None
-/// when its timestamps are fine. `parser` is the profile's, which the suggestion must extend.
+/// when its timestamps are fine. `parser` is the source parser's, which the suggestion must extend.
 pub fn assess(importer: &str, records: &[Record], content: &str, parser: &TimestampParser) -> Option<TimestampIssue> {
     if !CHECKED_IMPORTERS.contains(&importer) {
         return None;
@@ -59,7 +59,7 @@ pub fn assess(importer: &str, records: &[Record], content: &str, parser: &Timest
     }
     let suggestion = suggest::propose(&refs, parser).and_then(|p| {
         Some(TimestampSuggestion {
-            profile_snippet: snippet(&p.format),
+            parser_snippet: snippet(&p.format),
             parsed_samples: p.texts.len(),
             checked_samples: refs.len(),
             sample: p.texts.into_iter().next()?,
@@ -106,10 +106,10 @@ fn cut(s: &str, max: usize, ellipsis: bool) -> String {
     out
 }
 
-/// The profile lines that add `format` (TOML-quoted).
+/// The parser lines that add `format` (TOML-quoted).
 fn snippet(format: &str) -> String {
     let quoted = toml::Value::String(format.to_string()).to_string();
-    format!("[parse]\ntimestamp_formats = [{quoted}]\n")
+    format!("[format]\ntimestamp_formats = [{quoted}]\n")
 }
 
 #[cfg(test)]
@@ -168,9 +168,9 @@ mod tests {
         assert_eq!(s.format, "%a %b %d %H:%M:%S %Y");
         assert_eq!(s.sample, "Sat Nov 08 00:04:00 2025");
         assert_eq!((s.parsed_samples, s.checked_samples), (20, 20));
-        assert_eq!(s.profile_snippet, "[parse]\ntimestamp_formats = [\"%a %b %d %H:%M:%S %Y\"]\n");
-        let parsed: toml::Value = toml::from_str(&s.profile_snippet).unwrap();
-        assert_eq!(parsed["parse"]["timestamp_formats"][0].as_str(), Some(s.format.as_str()));
+        assert_eq!(s.parser_snippet, "[format]\ntimestamp_formats = [\"%a %b %d %H:%M:%S %Y\"]\n");
+        let parsed: toml::Value = toml::from_str(&s.parser_snippet).unwrap();
+        assert_eq!(parsed["format"]["timestamp_formats"][0].as_str(), Some(s.format.as_str()));
         // Lines without anything timestamp-like next to readable ones: examples but no suggestion.
         let ts = [None, None, None, Some(1)];
         let issue = assess("text", &records(&ts), "alpha\nbeta\ngamma\n2025-11-08 x\n", &p).unwrap();

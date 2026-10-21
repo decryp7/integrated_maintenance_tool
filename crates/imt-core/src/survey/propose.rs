@@ -81,7 +81,10 @@ fn formats(survey: &FolderSurvey) -> Vec<Candidate> {
                     g.sample_file.as_deref().unwrap_or("?"),
                     g.reason
                 ),
-                fragments: vec![Fragment::ParseRegex { regex: (*regex).to_string() }],
+                fragments: vec![Fragment::ParseRegex {
+                    regex: (*regex).to_string(),
+                    file_name: g.sample_file.clone().unwrap_or_else(|| format!("sample.{}", g.extension)),
+                }],
                 requires: vec![],
                 recommended: true,
             })

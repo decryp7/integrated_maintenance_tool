@@ -32,6 +32,7 @@ use duckdb::{params, Config, Connection};
 use imt_core::api::{UnrecognizedFile, WorkspaceState};
 use imt_core::batch::{EventId, EventSchema, SourceId};
 use imt_core::ingest::{self, ImportEnv, Outcome, ParallelOptions};
+use imt_core::parser::{ParserSet, ParserSetup};
 use imt_core::ports::{ImportReport, ImportSession, IndexStatus, Ingest, Search, SearchReply, SearchRequest, StoreError, StoreResult};
 use imt_core::profile::{CompiledProfile, Profile};
 use imt_core::workspace::{ImportProgress, NOT_IMPORTED};
@@ -113,7 +114,10 @@ impl std::error::Error for MissingSegment {}
 
 /// What the store was opened with and what was opened in it.
 pub(crate) struct State {
+    /// The profile with the generic parser (format-independent analysis).
     pub(crate) profile: Arc<CompiledProfile>,
+    /// The parser library compiled with the profile, with this store's per-source choices (ADR 0026).
+    pub(crate) parsers: Arc<ParserSet>,
     pub(crate) roots: Vec<PathBuf>,
     removed: HashSet<PathBuf>,
     unrecognized: Vec<UnrecognizedFile>,
@@ -292,9 +296,9 @@ impl Inner {
     /// Reads `paths` (canonical) into the database.
     pub(crate) fn import(&self, paths: &[PathBuf], progress: &ImportProgress) -> StoreResult<ImportReport> {
         let started = std::time::Instant::now();
-        let (profile, roots, removed) = {
+        let (profile, parser_set, roots, removed) = {
             let s = read_lock(&self.state);
-            (s.profile.clone(), s.roots.clone(), s.removed.clone())
+            (s.profile.clone(), s.parsers.clone(), s.roots.clone(), s.removed.clone())
         };
         let conn = self.conn()?;
         let mut known: HashSet<String> = HashSet::new();
@@ -310,7 +314,7 @@ impl Inner {
         let files = ingest::files_to_read(paths, &roots, &profile, &removed, &known);
         let env = ImportEnv {
             importers: self.registry.importers(),
-            profile: &profile,
+            parsers: &parser_set,
             schema: self.schema.clone(),
             cancel: progress.cancel_flag(),
         };
@@ -332,8 +336,8 @@ impl Inner {
         let outcomes = ingest::import_files_parallel(&env, &files, &removed, progress, &opts, &sink);
         let t1 = t0.elapsed();
         sink.finish().map_err(|e| engine(format!("{e:#}")))?;
-        // Every source of this import was read with the active profile, the interim parser (ADR 0026).
-        parsers::record(&conn, &profile.profile).map_err(engine)?;
+        // Each source recorded its parser; the catalog keeps a copy of every parser's TOML (ADR 0026).
+        parsers::record(&conn, &parser_set).map_err(engine)?;
         let t2 = t0.elapsed();
         self.maintain(&conn);
         self.bump_version(&conn)?;
@@ -423,7 +427,8 @@ impl DuckStore {
     /// [`DuckStore::create`] with chosen limits.
     pub fn create_with(dir: &Path, profile: Profile, registry: PluginRegistry, opts: StoreOptions) -> StoreResult<DuckStore> {
         registry.resolve();
-        let compiled = registry.compile_profile(profile).map_err(invalid)?;
+        let parsers = registry.compile_parsers(&profile, &ParserSetup::builtins()).map_err(invalid)?;
+        let compiled = parsers.base().clone();
         std::fs::create_dir_all(dir)?;
         for f in [DB_FILE.to_string(), format!("{DB_FILE}.wal")] {
             match std::fs::remove_file(dir.join(f)) {
@@ -451,7 +456,7 @@ impl DuckStore {
             conn.execute("INSERT INTO marker_kinds VALUES (0, ?, ?, ?)", params![bit as u8, m.kind, m.owner])
                 .map_err(engine)?;
         }
-        Ok(Self::with(dir, conn, schema, compiled, registry, opts))
+        Ok(Self::with(dir, conn, schema, parsers, registry, opts))
     }
 
     /// Reopens the store in `dir`. A database written by a newer IMT is refused with a message.
@@ -465,7 +470,7 @@ impl DuckStore {
             return Err(StoreError::NotFound(format!("no store in {}", dir.display())));
         }
         registry.resolve();
-        let compiled = registry.compile_profile(profile).map_err(invalid)?;
+        let parsers = registry.compile_parsers(&profile, &ParserSetup::builtins()).map_err(invalid)?;
         let conn = open_db(dir, &opts)?;
         let meta = |key: &str| -> StoreResult<String> {
             conn.query_row("SELECT value FROM meta WHERE key = ?", params![key], |r| r.get(0))
@@ -490,17 +495,33 @@ impl DuckStore {
         })?;
         // Added after the format was first written; created on open so older stores gain it.
         conn.execute_batch(schema::CACHE_DDL).map_err(engine)?;
-        Ok(Self::with(dir, conn, schema, compiled, registry, opts))
+        Ok(Self::with(dir, conn, schema, parsers, registry, opts))
     }
 
     fn with(
         dir: &Path,
         conn: Connection,
         schema: EventSchema,
-        profile: CompiledProfile,
+        parsers: ParserSet,
         registry: PluginRegistry,
         opts: StoreOptions,
     ) -> DuckStore {
+        // The store keeps its own "Parse with…" choices (ADR 0026); the library comes from the app.
+        let overrides = parsers::overrides(&conn);
+        let parsers = if overrides.is_empty() {
+            parsers
+        } else {
+            let mut setup = parsers.setup().clone();
+            setup.overrides = overrides;
+            match registry.compile_parsers(&parsers.base().profile, &setup) {
+                Ok(p) => p,
+                Err(e) => {
+                    log::warn!("the parser choices of this store cannot be applied: {e:#}");
+                    parsers
+                }
+            }
+        };
+        let parsers = Arc::new(parsers);
         let write_lock = Arc::new(Mutex::new(()));
         let started = conn
             .try_clone()
@@ -521,7 +542,8 @@ impl DuckStore {
                 registry,
                 schema: Arc::new(schema),
                 state: RwLock::new(State {
-                    profile: Arc::new(profile),
+                    profile: parsers.base().clone(),
+                    parsers,
                     roots: Vec::new(),
                     removed: HashSet::new(),
                     unrecognized: Vec::new(),

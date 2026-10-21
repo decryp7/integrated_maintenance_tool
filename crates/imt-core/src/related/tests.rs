@@ -24,6 +24,7 @@ pub(super) fn source(id: u32, name: &str, offset_ms: i64, from: Option<i64>, to:
         routed_from: None,
         problems: vec![],
         identity: vec![],
+        parser: None,
     }
 }
 

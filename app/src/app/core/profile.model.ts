@@ -152,33 +152,6 @@ export type SpanRuleToml = SpanCfgToml;
 export interface ProfileModel {
   name?: string;
   files?: { include?: string[]; exclude?: string[]; [key: string]: unknown };
-  parse?: {
-    format?: string;
-    output_templates?: string[];
-    regexes?: string[];
-    timestamp_formats?: string[];
-    assume_timezone?: string;
-    day_first?: string | boolean;
-    json?: {
-      timestamp?: string[];
-      level?: string[];
-      message?: string[];
-      template?: string[];
-      exception?: string[];
-      properties?: string[];
-      default_level?: string;
-      [key: string]: unknown;
-    };
-    csv?: {
-      delimiter?: string;
-      has_header?: boolean;
-      timestamp?: string;
-      level?: string;
-      message?: string;
-      [key: string]: unknown;
-    };
-    [key: string]: unknown;
-  };
   instance?: { key?: string[]; candidates?: string[]; [key: string]: unknown };
   extract?: ExtractRule[];
   marker?: MarkerRule[];

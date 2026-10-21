@@ -1,0 +1,18 @@
+# Apache Spark and Hadoop with their default log4j layouts: "%d{yy/MM/dd HH:mm:ss} %p %c{1}: %m" (Spark, YARN
+# containers) and the older HDFS "%d{yyMMdd HHmmss} <thread> %p %c: %m". Two-digit years 00-68 are 20yy, 69-99
+# 19yy. Hadoop's ISO dates ("2026-10-14 10:00:00,123 INFO [main]") are read by the generic parser.
+schema = 1
+id = "hadoop-spark"
+name = "Hadoop / Spark (log4j)"
+version = "1.0.0"
+category = "Java"
+description = "Spark and Hadoop with their default log4j layouts (\"yy/MM/dd HH:mm:ss LEVEL Logger: message\", and HDFS's \"yyMMdd HHmmss\"); logger as a field, stack traces kept with their event."
+
+[format]
+kind = "text"
+identity = ["Logger"]
+regexes = [
+  '^(?P<timestamp>\d{2}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})\s+(?P<level>[A-Z]+)\s+(?P<Logger>[^:\s]+):\s(?P<message>.*)$',
+  '^(?P<timestamp>\d{6} \d{6})\s+(?P<Thread>\d+)\s+(?P<level>[A-Z]+)\s+(?P<Logger>[^:\s]+):\s(?P<message>.*)$',
+]
+timestamp_formats = ["%y/%m/%d %H:%M:%S", "%y%m%d %H%M%S"]

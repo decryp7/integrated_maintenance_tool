@@ -159,11 +159,28 @@ export function mockRegexProposal(lines: string[]): RegexProposal {
   };
 }
 
+/** The parser the mock AI proposes for the demo's worker log (invented). */
+const MOCK_PROPOSED_PARSER = String.raw`schema = 1
+id = "worker-text"
+name = "Worker text logs"
+version = "1.0.0"
+description = "Plain text with an ISO timestamp and a bracketed level, proposed by the local model."
+category = "Custom"
+
+[match]
+files = ["worker-*.log"]
+
+[format]
+kind = "text"
+regexes = ['^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?(?: [+-]\d{2}:\d{2})?) \[(?P<level>[A-Z]{3})\] (?P<message>.*)$']
+`;
+
 export function mockProfileProposal(): ProfileProposal {
   return {
     kind: 'profile',
     name: 'Worker text logs',
-    toml: MOCK_PROFILE_TOML,
+    // A parser for the library (ADR 0026); empty when the library already reads the file.
+    toml: MOCK_PROPOSED_PARSER,
     importer: 'text',
     parsed: 58,
     withTimestamp: 58,

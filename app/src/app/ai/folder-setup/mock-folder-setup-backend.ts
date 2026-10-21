@@ -6,6 +6,7 @@
 import { Injector } from '@angular/core';
 import { ImtBackend } from '../../core/backend';
 import { spanRules } from '../../core/mock/mock-runs';
+import { MockParserLibrary } from '../../core/mock/mock-parsers';
 import { EMPTY_QUERY } from '../../core/workspace.store';
 import { parseProfile, stringifyProfile } from '../../profile/toml';
 import { AiError } from '../ai-backend';
@@ -53,7 +54,7 @@ export function snippet(fragments: Fragment[]): string {
   for (const f of fragments) {
     switch (f.kind) {
       case 'parseRegex':
-        model['parse'] = { regexes: [f.regex] };
+        comments.push(`# New parser for ${f.fileName}: ${f.regex}`);
         break;
       case 'instanceKey':
         model['instance'] = { key: f.key };
@@ -295,17 +296,17 @@ export class MockFolderSetupBackend extends FolderSetupBackend {
     const model = parseProfile(before) as unknown as Record<string, unknown>;
     const list = (key: string) => ((model[key] as unknown[] | undefined) ??= []) as unknown[];
     const savedQueries: { name: string; ql: string }[] = [];
+    const parsers: string[] = [];
     const newMarkers: unknown[] = [];
     for (const f of fragments) {
       switch (f.kind) {
         case 'instanceKey':
           model['instance'] = { ...((model['instance'] as object) ?? {}), key: f.key };
           break;
-        case 'parseRegex': {
-          const parse = ((model['parse'] as Record<string, unknown>) ??= {});
-          parse['regexes'] = [...((parse['regexes'] as string[]) ?? []), f.regex];
+        case 'parseRegex':
+          // Formats are parsers (ADR 0026): a new parser for the library, the profile is unchanged.
+          parsers.push(new MockParserLibrary().draft({ fileName: f.fileName, base: null, regex: f.regex, template: null, timestampFormat: null }).toml);
           break;
-        }
         case 'savedQuery':
           savedQueries.push({ name: f.name, ql: f.ql });
           break;
@@ -341,7 +342,7 @@ export class MockFolderSetupBackend extends FolderSetupBackend {
     const normalisedBefore = stringifyProfile(parseProfile(before));
     const toml = stringifyProfile(model as never);
     const diff = naiveDiff(normalisedBefore, toml);
-    return { toml, diff, added: diff.filter((d) => d.op === 'add').length, removed: diff.filter((d) => d.op === 'remove').length, savedQueries };
+    return { toml, diff, added: diff.filter((d) => d.op === 'add').length, removed: diff.filter((d) => d.op === 'remove').length, savedQueries, parsers };
   }
 
   /** Like the engine: an AI job, returned at once; its result is a `folderSetup` proposal. */

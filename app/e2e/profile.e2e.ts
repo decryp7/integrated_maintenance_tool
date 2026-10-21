@@ -19,7 +19,9 @@ test.describe('profile editor', () => {
     await page.getByRole('tab', { name: 'TOML', exact: true }).click();
     const toml = page.getByRole('textbox', { name: 'Profile TOML' });
     await expect(toml).toBeVisible();
-    await expect(toml).toHaveValue(/\[parse\]/);
+    await expect(toml).toHaveValue(/\[instance\]/);
+    // Formats are parsers (ADR 0026): the profile has no [parse] section.
+    await expect(toml).not.toHaveValue(/\[parse\]/);
     await expect(page.locator('imt-profile-form')).toHaveCount(0);
 
     await page.getByRole('tab', { name: 'Form', exact: true }).click();

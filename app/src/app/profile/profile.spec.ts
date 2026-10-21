@@ -14,6 +14,7 @@ import { ProfileEditor } from './profile-editor';
 import { ProfileForm } from './profile-form';
 import { StringList } from './string-list';
 import { TomlEditor } from './toml-editor';
+import { SettingsDialogService } from '../settings/settings-dialog';
 import { at } from '../../testing/must';
 
 /** A profile save re-imports as a job: waits for it to finish and for the view to follow. */
@@ -76,7 +77,7 @@ describe('ProfileDraft', () => {
     expect(reparsed.name).toBe('Edited');
     expect(reparsed.custom_key).toEqual({ keep: true });
     expect(reparsed.marker).toEqual([{ kind: 'k', when: [] }]);
-    expect(reparsed.parse?.json?.timestamp?.[0]).toBe('@t');
+    expect(reparsed.instance?.candidates?.[0]).toBe('Application');
     expect(draft.dirty()).toBe(true);
   });
 
@@ -291,7 +292,7 @@ describe('ProfileForm', () => {
     return { ...ctx, fixture, go, m: () => ctx.draft.model() };
   }
 
-  it('edits general, files, instance and parsing settings', async () => {
+  it('edits general, files and instance settings, and points to Settings ▸ Parsers for formats', async () => {
     const { fixture, go, m } = await render();
     typeInto(el<HTMLInputElement>(fixture, '.body input'), 'Renamed');
     expect(m().name).toBe('Renamed');
@@ -299,49 +300,16 @@ describe('ProfileForm', () => {
     await go('Files');
     buttonByText(fixture, '+ Add glob').click();
     expect(m().files?.include?.at(-1)).toBe('');
+    expect(el(fixture, '[data-testid=profile-parsers-hint]').textContent).toContain('Formats are parsers');
+    const open = vi.spyOn(TestBed.inject(SettingsDialogService), 'open').mockReturnValue(undefined);
+    buttonByText(fixture, 'Settings ▸ Parsers').click();
+    expect(open).toHaveBeenCalledWith('@parsers');
+    expect(all(fixture, '.nav-item').map((b) => b.textContent?.trim())).not.toContain('Parsing');
 
-    await go('Parsing');
-    const selects = all<HTMLSelectElement>(fixture, '.body select');
-    typeInto(at(selects, 0), 'csv', 'change');
-    typeInto(at(selects, 1), 'true', 'change');
-    typeInto(at(all<HTMLInputElement>(fixture, '.grid3 input'), 0), 'local');
-    expect(m().parse).toMatchObject({ format: 'csv', day_first: 'true', assume_timezone: 'local' });
-    await settle(fixture);
-    while (all(fixture, '[aria-label^="Remove regex"]').length) {
-      at(all<HTMLButtonElement>(fixture, '[aria-label^="Remove regex"]'), 0).click();
-      await settle(fixture);
-    }
-    expect(m().parse?.regexes).toBeUndefined();
-
-    await go('JSON');
-    typeInto(at(all<HTMLInputElement>(fixture, 'imt-string-list .input'), 0), '@ts');
-    expect(m().parse?.json?.timestamp?.[0]).toBe('@ts');
-    typeInto(el<HTMLSelectElement>(fixture, '.narrow select'), 'Debug', 'change');
-    expect(m().parse?.json?.default_level).toBe('Debug');
-
-    await go('CSV');
-    typeInto(el<HTMLSelectElement>(fixture, '.body select'), ';', 'change');
-    el<HTMLInputElement>(fixture, 'input[type=checkbox]').click();
-    const cols = all<HTMLInputElement>(fixture, '.grid3 input.input');
-    typeInto(at(cols, 0), 'When');
-    typeInto(at(cols, 1), '');
-    expect(m().parse?.csv).toMatchObject({ delimiter: ';', has_header: false, timestamp: 'When', level: 'auto' });
-    await settle(fixture);
-    expect(all<HTMLInputElement>(fixture, '.grid3 input.input')[0]?.value).toBe('When');
 
     await go('Instance');
     buttonByText(fixture, '+ Add field').click();
     expect(m().instance?.key).toEqual(['']);
-  });
-
-  it('creates parse tables when missing', async () => {
-    const { draft, fixture, go, m } = await render();
-    draft.setText('name = "bare"');
-    await settle(fixture);
-    await go('CSV');
-    typeInto(el<HTMLSelectElement>(fixture, '.body select'), ',', 'change');
-    expect(m().parse?.csv?.delimiter).toBe(',');
-    expect(fixture.componentInstance).toBeTruthy();
   });
 
   it('manages extractors with live preview', async () => {

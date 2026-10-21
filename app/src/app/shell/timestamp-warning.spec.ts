@@ -10,7 +10,7 @@ const ISSUE: TimestampIssue = {
   totalLines: 1300,
   examples: ['Sat Nov 08 00:04:37 2025,INFO,started'],
   exampleLines: [2],
-  suggestion: { format: '%a %b %d %H:%M:%S %Y', sample: 'Sat Nov 08 00:04:37 2025', profileSnippet: '', parsedSamples: 20, checkedSamples: 20 },
+  suggestion: { format: '%a %b %d %H:%M:%S %Y', sample: 'Sat Nov 08 00:04:37 2025', parserSnippet: '', parsedSamples: 20, checkedSamples: 20 },
 };
 
 function source(timestampIssue: TimestampIssue | null | undefined): SourceInfo {

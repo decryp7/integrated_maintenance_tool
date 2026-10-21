@@ -31,19 +31,32 @@ files ──▶ archive expansion (.gz/.zip) ──▶ importer (binary first, t
 
 Every extension point sits on one of these arrows, so a plugin never needs to know about the others.
 
-## Level 1: profiles (no code)
+## Level 1: parsers and profiles (no code)
 
-A profile is a TOML file describing how files are parsed and enriched. The built-in default,
-`crates/imt-core/src/default_profile.toml`, documents every key, and
+A **parser** is a TOML file describing one log format: how IMT recognises its files and how their lines
+become events (ADR 0026). Parsers live in the library (Settings ▸ Parsers), can be shared as files, and IMT
+picks one per file. The built-in `crates/imt-core/parsers/generic.toml` documents every key:
+
+```toml
+schema = 1
+id = "orders"
+name = "Order service"
+version = "1.0.0"
+[match]
+files = ["orders-*.log"]
+[format]                              # teach IMT a text layout (Serilog outputTemplate or regex)
+kind = "text"
+output_templates = ["{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{MachineName}] {Message:lj}{NewLine}{Exception}"]
+```
+
+A **profile** is a TOML file describing how events are analysed and enriched, whatever their format. The
+built-in default, `crates/imt-core/src/default_profile.toml`, documents every key, and
 `samples/profiles/orderservice.imtprofile.toml` is a worked example. In the app, the Profile panel
 edits profiles as a form or TOML, with live previews.
 
 Common tasks:
 
 ```toml
-[parse]                               # teach IMT a text layout (Serilog outputTemplate or regex)
-output_templates = ["{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{MachineName}] {Message:lj}{NewLine}{Exception}"]
-
 [[extract]]                           # numbers out of text, usable in charts and filters
 name = "latency"
 regex = 'took (?P<ElapsedMs>[\d.]+) ?ms'

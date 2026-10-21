@@ -112,6 +112,7 @@ mod tests {
             routed_from: None,
             problems: Vec::new(),
             identity: Vec::new(),
+            parser: None,
         }
     }
 
