@@ -287,8 +287,22 @@ doc = false
 bench = false
 
 [[bin]]
+name = "fuzz_image"
+path = "fuzz_targets/fuzz_image.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "fuzz_native_pe"
 path = "fuzz_targets/fuzz_native_pe.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_vision_facts"
+path = "fuzz_targets/fuzz_vision_facts.rs"
 test = false
 doc = false
 bench = false

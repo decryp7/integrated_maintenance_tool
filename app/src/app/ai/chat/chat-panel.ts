@@ -19,6 +19,12 @@ import { queuedLabel } from '../../jobs/jobs-text';
 import { AiCitations } from './citation-actions';
 import { isNotFound } from './markdown';
 import { AiRichText } from './rich-text';
+import { Icon } from '../../shared/icon';
+import { AiImage } from '../ai.types';
+import { AiImageStore } from '../vision/ai-image.store';
+import { dragHasFiles, imageFilesOf, imageFilter, MAX_IMAGES_PER_QUESTION } from '../vision/image-files';
+import { AiNoVisionCard } from '../vision/no-vision-card';
+import { DropTargets } from '../../core/dropped-files';
 
 /**
  * The AI assistant chat (a dock view). Answers stream in with the tools the model used, proposals to
@@ -28,7 +34,7 @@ import { AiRichText } from './rich-text';
 @Component({
   selector: 'imt-ai-chat-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AiRichText, AiProposalCard, AgentApprovalCard, LinkCard, AgentPaused, ChatBrowserBar, ResearchOfferCard],
+  imports: [AiRichText, AiProposalCard, AgentApprovalCard, LinkCard, AgentPaused, ChatBrowserBar, ResearchOfferCard, Icon, AiNoVisionCard],
   template: `
     <div class="bar" role="toolbar" aria-label="Chat" i18n-aria-label="@@ai.chat.toolbar.label">
       <label class="sr-only" for="ai-chat-session" i18n="@@ai.chat.session.label">Chat</label>
@@ -67,6 +73,14 @@ import { AiRichText } from './rich-text';
       @for (t of store.activeTurns(); track $index; let ti = $index) {
         <div class="turn">
           <p class="user"><span class="sr-only" i18n="@@ai.chat.you">You: </span>{{ t.user }}</p>
+          @let shown = store.imagesOf(ti);
+          @if (shown.length) {
+            <div class="user-images" role="group" aria-label="Images with this question" i18n-aria-label="@@ai.vision.chat.turnImages" data-testid="ai-turn-images">
+              @for (im of shown; track im.id) {
+                <img class="thumb" [src]="im.dataUrl" [alt]="im.name" [title]="im.name" />
+              }
+            </div>
+          }
           <div class="answer" [class.neutral]="notFound(t)" [attr.data-testid]="'ai-answer-' + ti">
             @if (t.tools.length) {
               <ul class="tools" aria-label="Assistant activity" i18n-aria-label="@@ai.chat.tools.label">
@@ -127,7 +141,7 @@ import { AiRichText } from './rich-text';
     @if (store.error(); as e) {
       <p class="err banner" role="alert">{{ e }} <button type="button" class="link" (click)="store.dismissError()" i18n="@@ai.chat.dismiss">Dismiss</button></p>
     }
-    @if (notice(); as n) {
+    @if (notice() ?? store.notice(); as n) {
       <p class="ok banner" role="status">{{ n }}</p>
     }
 
@@ -153,7 +167,37 @@ import { AiRichText } from './rich-text';
       }
     </div>
 
-    <form class="composer" (submit)="$event.preventDefault(); submit()">
+    @if (images.noVision()) {
+      <imt-ai-no-vision class="no-vision" />
+    }
+    @if (attachError(); as e) {
+      <p class="err banner" role="alert" data-testid="ai-attach-error">{{ e }} <button type="button" class="link" (click)="retryAttach()" i18n="@@ai.vision.retry">Retry</button> <button type="button" class="link" (click)="attachError.set(null)" i18n="@@ai.vision.dismiss">Dismiss</button></p>
+    }
+    @if (store.attachments().length) {
+      <ul class="attachments" aria-label="Attached images" i18n-aria-label="@@ai.vision.chat.attachments">
+        @for (a of store.attachments(); track a.id) {
+          <li class="attachment chip" data-testid="ai-attachment">
+            <img class="thumb" [src]="a.dataUrl" [alt]="a.name" />
+            <span class="att-name" [title]="a.name">{{ a.name }}</span>
+            <button type="button" class="link small" [disabled]="store.running() || !status.hasModel()" (click)="store.sendRelated(a)" i18n="@@ai.vision.chat.related">Find related logs</button>
+            <button type="button" class="icon-btn" [attr.aria-label]="removeLabel(a.name)" [attr.title]="removeLabel(a.name)" (click)="store.detach(a.id)"><imt-icon name="close" [size]="12" /></button>
+          </li>
+        }
+      </ul>
+    }
+
+    <form #composer class="composer" [class.dropping]="dropping()" (submit)="$event.preventDefault(); submit()" (dragover)="onDragOver($event)" (dragleave)="dropping.set(false)" (drop)="onDrop($event)">
+      <button
+        type="button"
+        class="icon-btn attach"
+        aria-label="Attach an image"
+        i18n-aria-label="@@ai.vision.chat.attach"
+        title="Attach an image (or paste or drop one)"
+        i18n-title="@@ai.vision.chat.attachTitle"
+        data-testid="ai-attach"
+        [disabled]="!status.hasModel() || images.opening() || store.attachments().length >= maxImages"
+        (click)="attachFile()"
+      ><imt-icon name="image" [size]="16" /></button>
       <label class="sr-only" for="ai-chat-input" i18n="@@ai.chat.input.label">Ask about the logs</label>
       <textarea
         id="ai-chat-input"
@@ -166,6 +210,7 @@ import { AiRichText } from './rich-text';
         [disabled]="!status.hasModel()"
         (input)="draft.set(asValue($event))"
         (keydown.enter)="onEnter($event)"
+        (paste)="onPaste($event)"
       ></textarea>
       @if (store.running()) {
         <button type="button" class="btn" (click)="store.cancel()" i18n="@@ai.chat.stop">Stop</button>
@@ -209,6 +254,14 @@ import { AiRichText } from './rich-text';
     .small { margin: 4px 0 0; font-size: var(--fs-xs); }
     .composer { display: flex; gap: 6px; padding: 8px; align-items: flex-end; }
     .composer textarea { flex: 1; resize: vertical; min-height: 38px; font-family: inherit; }
+    .composer.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; }
+    .attach { align-self: center; }
+    .attachments { list-style: none; margin: 0; padding: 6px 8px 0; display: flex; flex-wrap: wrap; gap: 6px; }
+    .attachment { display: flex; align-items: center; gap: 6px; max-width: 100%; font-size: var(--fs-xs); }
+    .att-name { max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .thumb { width: 40px; height: 28px; object-fit: cover; border-radius: 3px; border: 1px solid var(--border); background: var(--bg-1); }
+    .user-images { align-self: flex-end; display: flex; gap: 4px; }
+    .no-vision { display: block; margin: 6px 8px 0; }
   `,
 })
 export class AiChatPanel {
@@ -233,6 +286,15 @@ export class AiChatPanel {
   private readonly workspace = inject(WorkspaceStore);
   private readonly browser = inject(ChatBrowserStore);
   private readonly logEl = viewChild<ElementRef<HTMLElement>>('log');
+  private readonly composerEl = viewChild<ElementRef<HTMLElement>>('composer');
+  private readonly dropTargets = inject(DropTargets);
+
+  protected readonly images = inject(AiImageStore);
+  protected readonly maxImages = MAX_IMAGES_PER_QUESTION;
+  /** Why the last attach failed (Retry repeats it). */
+  protected readonly attachError = signal<string | null>(null);
+  protected readonly dropping = signal(false);
+  private lastAttach: (() => Promise<void>) | null = null;
 
   protected readonly draft = signal('');
   protected readonly contextOpen = signal(false);
@@ -255,6 +317,12 @@ export class AiChatPanel {
   });
 
   constructor() {
+    // The composer takes images dropped from the desktop (the shell routes OS drops by target, ADR 0025).
+    effect((onCleanup) => {
+      const el = this.composerEl()?.nativeElement;
+      if (!el) return;
+      onCleanup(this.dropTargets.register({ kind: 'aiImages', element: el, accept: (paths) => this.acceptDroppedPaths(paths) }));
+    });
     void this.store.init();
     let first = true;
     effect(() => {
@@ -346,6 +414,104 @@ export class AiChatPanel {
     if (k.shiftKey || k.isComposing) return;
     k.preventDefault();
     void this.submit();
+  }
+
+  protected removeLabel(name: string): string {
+    return $localize`:@@ai.vision.chat.remove:Remove ${name}:name:`;
+  }
+
+  /** A text-only model is not given images: the no-vision message says what to do instead. */
+  private canAttach(): boolean {
+    if (this.status.status()?.vision === false) {
+      this.images.refuseNoVision();
+      return false;
+    }
+    return true;
+  }
+
+  /** Opens an image through the engine (it decodes it) and attaches the clean copy. */
+  private async attachVia(open: () => Promise<AiImage | null>): Promise<void> {
+    const run = async () => {
+      this.attachError.set(null);
+      const img = await open();
+      if (img) {
+        this.store.attach(img);
+        return;
+      }
+      // Shown here, with its own Retry, rather than in the image view.
+      this.attachError.set(this.images.openError());
+      this.images.dismissOpenError();
+    };
+    this.lastAttach = run;
+    await run();
+  }
+
+  protected async retryAttach(): Promise<void> {
+    await this.lastAttach?.();
+  }
+
+  /** The attach button: the platform's file picker (Rust reads the path the user chose). */
+  async attachFile(): Promise<void> {
+    if (!this.canAttach()) return;
+    const path = await this.platform.pickOpenPath($localize`:@@ai.vision.chat.pickTitle:Attach an image`, imageFilter());
+    if (path) await this.attachVia(() => this.images.openPath(path, false));
+  }
+
+  /**
+   * Files dropped from the desktop onto the composer (the OS drop, routed here by the shell as an `aiImages` target):
+   * each is opened by the engine, which recognises images by their content; what it refuses is not claimed and opens
+   * as logs. With a text-only model the drop is claimed and the offer to add image support is shown.
+   */
+  async acceptDroppedPaths(paths: readonly string[]): Promise<readonly string[]> {
+    if (!this.canAttach()) return paths;
+    const room = Math.max(0, MAX_IMAGES_PER_QUESTION - this.store.attachments().length);
+    const claimed: string[] = [];
+    for (const path of paths.slice(0, room)) {
+      const img = await this.images.openPath(path, false);
+      if (img) {
+        this.store.attach(img);
+        claimed.push(path);
+      } else {
+        this.images.dismissOpenError();
+      }
+    }
+    if (paths.length > room) this.store.setNotice($localize`:@@ai.vision.chat.tooMany:At most ${MAX_IMAGES_PER_QUESTION}:max: images go with one question.`);
+    return claimed;
+  }
+
+  /** Pasted or dropped image files: their bytes go to the engine as they are (never decoded here). */
+  private async attachFiles(files: File[]): Promise<void> {
+    if (!this.canAttach()) return;
+    const room = Math.max(0, MAX_IMAGES_PER_QUESTION - this.store.attachments().length);
+    if (files.length > room) this.store.setNotice($localize`:@@ai.vision.chat.tooMany:At most ${MAX_IMAGES_PER_QUESTION}:max: images go with one question.`);
+    for (const f of files.slice(0, room)) await this.attachVia(() => this.images.pasteFile(f, false));
+  }
+
+  protected onPaste(e: ClipboardEvent): void {
+    const files = imageFilesOf(e.clipboardData);
+    if (!files.length) return; // text: the textarea pastes it
+    e.preventDefault();
+    void this.attachFiles(files);
+  }
+
+  protected onDragOver(e: DragEvent): void {
+    if (!dragHasFiles(e.dataTransfer)) return;
+    e.preventDefault();
+    this.dropping.set(true);
+  }
+
+  protected onDrop(e: DragEvent): void {
+    this.dropping.set(false);
+    if (!dragHasFiles(e.dataTransfer)) return;
+    // Never let the browser open a dropped file.
+    e.preventDefault();
+    e.stopPropagation();
+    const files = imageFilesOf(e.dataTransfer);
+    if (!files.length) {
+      this.store.setNotice($localize`:@@ai.vision.chat.notImage:Only PNG, JPEG, BMP, GIF and WebP images can be attached.`);
+      return;
+    }
+    void this.attachFiles(files);
   }
 
   async submit(): Promise<void> {

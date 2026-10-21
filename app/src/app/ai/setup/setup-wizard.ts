@@ -20,6 +20,7 @@ import {
   hardwareLines,
   percent,
   speedLabel,
+  visionLabel,
 } from '../ai-format';
 import { AiStatusStore } from '../ai-status.store';
 import { Recommendation, SetupEvent } from '../ai.types';
@@ -127,6 +128,7 @@ import {
                     <span>{{ size(r.model.sizeBytes) }}</span>
                     <span i18n="@@ai.setup.licence">Licence: {{ r.model.license }}</span>
                     <span>{{ toolCalling(r) }}</span>
+                    <span data-testid="ai-model-vision">{{ vision(!!r.model.projector) }}</span>
                   </span>
                   @if (r.model.notes) {
                     <span class="notes muted">{{ r.model.notes }}</span>
@@ -473,6 +475,8 @@ export class AiSetupWizard implements OnInit {
       ? $localize`:@@ai.setup.progress.download:Download progress`
       : $localize`:@@ai.setup.progress.verify:Verification progress`,
   );
+
+  protected readonly vision = visionLabel;
 
   protected toolCalling(r: Recommendation): string {
     return r.model.toolCalling ? $localize`:@@ai.setup.toolCalling:Tool calling` : $localize`:@@ai.setup.noToolCalling:No tool calling`;

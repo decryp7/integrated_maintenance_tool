@@ -62,6 +62,9 @@ inputs only to the first directory, so `fuzz/corpus/` stays small (seeds copied 
 | `fuzz_dotnet_ipc` | .NET diagnostics IPC replies (`imt-plugin-dotnet`, without the plugin feature); its ETW events are `imt-etw`'s and fuzzed by `fuzz_native_etw` |
 | `fuzz_native_etw` | ETW events of a native capture (kernel, stack walks, context switches, images, heap provider, CLR) through `imt-etw`'s converter and `.etl` scanner, symbols for the collected addresses, then the nettrace importer (ADR 0022) |
 | `fuzz_native_pe` | PE headers and the CodeView PDB identity (`imt_symbols::pe`), and the symbol-cache path a PDB name becomes |
+| `fuzz_dotnet_etw`, `fuzz_dotnet_ipc` | .NET capture (`imt-plugin-dotnet`, without the plugin feature): ETW event payloads through the NetTrace converter, the `.etl` process scanner and back through the nettrace importer; diagnostics IPC replies |
+| `fuzz_image` | The AI's image sanitiser (ADR 0025): any bytes through signature sniffing, the claimed-size guard, the decoders (PNG, JPEG, BMP, GIF, WebP) and the re-encoding, within small limits |
+| `fuzz_vision_facts` | What a model writes about a screenshot (strict JSON, bounded) and the EXIF capture-time reader |
 
 CI (`.gitea/workflows/fuzz.yml`) runs every target for 5 minutes each night (and on demand
 through `workflow_dispatch`, with a configurable duration) and uploads crash inputs as the

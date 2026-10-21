@@ -252,6 +252,8 @@ pub enum JobResult {
     FolderSurvey { outcome: Value },
     /// What clearing IMT's storage freed and kept: View opens Settings ▸ Storage with it.
     Storage { result: Value },
+    /// The logs related to an image (ADR 0025): View opens the image with its links.
+    RelatedLogs { result: Value },
 }
 
 impl JobResult {
@@ -263,7 +265,8 @@ impl JobResult {
             JobResult::Narrative { narrative: v }
             | JobResult::Proposal { proposal: v }
             | JobResult::FolderSurvey { outcome: v }
-            | JobResult::Storage { result: v } => v.to_string().len(),
+            | JobResult::Storage { result: v }
+            | JobResult::RelatedLogs { result: v } => v.to_string().len(),
             _ => 0,
         };
         (size <= Self::MAX_PAYLOAD_BYTES).then_some(self)

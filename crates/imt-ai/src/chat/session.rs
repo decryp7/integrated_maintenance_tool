@@ -12,7 +12,7 @@ use crate::assistant::{
 use crate::browser::tools::{browser_specs, AGENT_RULES, BROWSER_RULES, READ_RULES};
 use crate::browser::{ApprovalRequest, BrowserEnv, BrowserTools, HandOff, PageCapture, PauseReason, Segment};
 use crate::error::{AiError, Result};
-use crate::llm::{ChatMessage, LlmProvider, Usage};
+use crate::llm::{ChatMessage, ImageInput, LlmProvider, Usage};
 use serde::Serialize;
 use serde_json::Value;
 use std::cell::RefCell;
@@ -142,6 +142,8 @@ pub struct ChatEnv<'a, P: LlmProvider> {
     pub browser: Option<&'a BrowserEnv<'a>>,
     /// Pages the user added to this question ("Add page to AI context"): quoted as untrusted, always cited.
     pub pages: Vec<PageCapture>,
+    /// Images attached to this question (sanitised; the model must read images, ADR 0025). Not kept in history.
+    pub images: Vec<ImageInput>,
 }
 
 impl<'a, P: LlmProvider> ChatEnv<'a, P> {
@@ -151,7 +153,13 @@ impl<'a, P: LlmProvider> ChatEnv<'a, P> {
             store,
             browser: None,
             pages: vec![],
+            images: vec![],
         }
+    }
+
+    pub fn with_images(mut self, images: Vec<ImageInput>) -> Self {
+        self.images = images;
+        self
     }
 
     pub fn with_browser(mut self, browser: &'a BrowserEnv<'a>) -> Self {
@@ -272,6 +280,84 @@ impl ChatSession {
         });
     }
 
+    /// A turn that asks for the logs related to the attached image ("find the logs related to this screenshot"):
+    /// `run` reads the image and lets the engine search (`vision::assist`); the answer lists the links with their
+    /// reasons and cites them. The turn is kept like any other (the image is not).
+    pub fn send_related(
+        &mut self,
+        text: &str,
+        images: usize,
+        run: impl FnOnce() -> Result<crate::vision::RelatedOutcome>,
+        on_event: &mut dyn FnMut(&Envelope),
+    ) -> Result<()> {
+        let user = with_image_note(&truncate_chars(text.trim(), MAX_USER_CHARS), images);
+        let mut em = Emitter {
+            next_seq: self.next_seq,
+            replay: std::mem::take(&mut self.replay),
+            sink: on_event,
+        };
+        em.emit(ChatEvent::ToolStarted {
+            name: "find_related_logs".into(),
+            args: String::new(),
+        });
+        let result = match run() {
+            Ok(o) => {
+                let evidence = Evidence {
+                    record_ids: o.explanation.evidence.record_ids.clone(),
+                    queries: vec![],
+                };
+                em.emit(ChatEvent::ToolFinished {
+                    name: "find_related_logs".into(),
+                    summary: format!("{} events linked", o.result.links.len()),
+                    error: false,
+                    evidence: evidence.clone(),
+                });
+                let text = crate::vision::assist::answer_text(&o);
+                let mut citations = o.explanation.citations.clone();
+                for id in &evidence.record_ids {
+                    if !citations.iter().any(|c| matches!(c, Citation::Record { id: i, .. } if i == id)) {
+                        citations.push(Citation::Record { id: *id, verified: true });
+                    }
+                }
+                em.emit(ChatEvent::Done {
+                    text: text.clone(),
+                    citations: citations.clone(),
+                    usage: o.explanation.usage,
+                    notes: vec![],
+                });
+                if self.title.is_empty() {
+                    self.title = truncate_chars(&user, 60);
+                }
+                self.turns.push(TurnRecord {
+                    user,
+                    assistant: text,
+                    citations,
+                    proposals: vec![],
+                    web: vec![],
+                    cancelled: false,
+                    usage: o.explanation.usage,
+                });
+                Ok(())
+            }
+            Err(e) => {
+                em.emit(ChatEvent::ToolFinished {
+                    name: "find_related_logs".into(),
+                    summary: e.to_string(),
+                    error: true,
+                    evidence: Evidence::default(),
+                });
+                em.emit(ChatEvent::Error {
+                    message: e.to_string(),
+                    cancelled: matches!(e, AiError::Cancelled),
+                });
+                Err(e)
+            }
+        };
+        self.next_seq = em.next_seq;
+        self.replay = em.replay;
+        result
+    }
+
     pub fn send<P: LlmProvider>(
         &mut self,
         env: &ChatEnv<'_, P>,
@@ -279,10 +365,11 @@ impl ChatSession {
         ctx: &ChatContext,
         on_event: &mut dyn FnMut(&Envelope),
     ) -> Result<()> {
-        let user = truncate_chars(text.trim(), MAX_USER_CHARS);
-        if user.is_empty() {
+        let question = truncate_chars(text.trim(), MAX_USER_CHARS);
+        if question.is_empty() {
             return Err(AiError::Invalid("write a question first".into()));
         }
+        let user = with_image_note(&question, env.images.len());
         env.assistant.cfg.cancel.store(false, std::sync::atomic::Ordering::Relaxed);
         let em = RefCell::new(Emitter {
             next_seq: self.next_seq,
@@ -290,10 +377,10 @@ impl ChatSession {
             sink: on_event,
         });
         let partial = RefCell::new(String::new());
-        let mut outcome = self.attempt(env, &user, ctx, &em, &partial, false);
+        let mut outcome = self.attempt(env, &question, ctx, &em, &partial, false);
         if matches!(outcome, Err(AiError::ContextOverflow { .. })) {
             partial.borrow_mut().clear();
-            outcome = self.attempt(env, &user, ctx, &em, &partial, true);
+            outcome = self.attempt(env, &question, ctx, &em, &partial, true);
         }
         let result = match outcome {
             Ok(o) => {
@@ -428,7 +515,7 @@ impl ChatSession {
             }
         }
         block.push_str(&format!("Question: {user}"));
-        messages.push(ChatMessage::user(block));
+        messages.push(ChatMessage::user_with_images(block, env.images.clone()));
         let mut notes = resolved.notes.clone();
         let r = a.run_tool_loop(&system, messages, &mut host, &mut |ev| match ev {
             LoopEvent::Delta(d) => {
@@ -487,6 +574,15 @@ impl ChatSession {
             usage: r.usage,
             notes,
         })
+    }
+}
+
+/// The question as the history keeps it: images are not kept, a note says they were there.
+fn with_image_note(question: &str, images: usize) -> String {
+    match images {
+        0 => question.to_string(),
+        1 => format!("{question} [image]"),
+        n => format!("{question} [{n} images]"),
     }
 }
 

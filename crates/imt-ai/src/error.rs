@@ -18,6 +18,9 @@ pub enum AiError {
     Engine(String),
     #[error("the conversation does not fit the model's context window ({prompt} of {limit} tokens)")]
     ContextOverflow { prompt: usize, limit: usize },
+    /// Images were given to a model that cannot read them (no image projector installed for it).
+    #[error("the active model cannot read images: install its image support (projector) or choose a model marked \"Text + images\"")]
+    NoVision,
     #[error("the model produced an unusable answer: {0}")]
     Malformed(String),
     #[error("the assistant stopped after {0} tool rounds without an answer")]

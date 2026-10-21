@@ -557,3 +557,100 @@ fn provider_trait_objects_work_with_chat() {
     s.send(&env, "hi", &ChatContext::default(), &mut |_| {}).unwrap();
     assert_eq!(s.turns()[0].assistant, "fine");
 }
+
+fn screenshot() -> imt_ai::llm::ImageInput {
+    imt_ai::vision::image::sanitize(
+        &imt_ai::vision::image::testing::screenshot_png(200, 120),
+        1 << 20,
+        &imt_ai::vision::image::ImageLimits::default(),
+    )
+    .unwrap()
+    .image
+}
+
+#[test]
+fn an_image_goes_with_its_question_only_and_the_history_keeps_a_note() {
+    let a = Assistant::new(
+        ScriptedProvider::new(vec![text("An error dialog."), text("Still the dialog.")]).with_vision(),
+        AssistantConfig::default(),
+    );
+    let mut s = ChatSession::new("c");
+    let env = ChatEnv::new(&a, store().into()).with_images(vec![screenshot()]);
+    s.send(&env, "what is this?", &ChatContext::default(), &mut |_| {}).unwrap();
+    let first = a.provider().requests()[0].clone();
+    assert_eq!(first.messages.last().unwrap().images.len(), 1);
+    assert_eq!(s.turns()[0].user, "what is this? [image]");
+    // The next question without an image: the earlier image is not sent again.
+    send(&mut s, &a, "and now?", &ChatContext::default()).0.unwrap();
+    let second = a.provider().requests()[1].clone();
+    assert!(second.messages.iter().all(|m| m.images.is_empty()));
+    // A model that cannot read images fails the turn with the typed error.
+    let blind = assistant(vec![text("unused")]);
+    let mut s = ChatSession::new("d");
+    let env = ChatEnv::new(&blind, store().into()).with_images(vec![screenshot()]);
+    let mut events = vec![];
+    assert_eq!(
+        s.send(&env, "what is this?", &ChatContext::default(), &mut |e| events.push(e.clone())),
+        Err(AiError::NoVision)
+    );
+    assert_eq!(kinds(&events).last(), Some(&"error"));
+}
+
+#[test]
+fn a_related_logs_turn_lists_the_links_with_reasons_and_cites_them() {
+    use imt_core::related::{Reason, RelatedEvent, RelatedLink, RelatedNote, RelatedResult};
+    let link = RelatedLink {
+        event: RelatedEvent {
+            id: 42,
+            ts: Some(0),
+            level: imt_core::model::Level::Error,
+            message: "Payment failed".into(),
+            exception: None,
+            source: 1,
+            source_name: "orders.clef".into(),
+            group: String::new(),
+            fields: Default::default(),
+        },
+        score: 6.0,
+        reasons: vec![Reason::Time { delta_ms: 1400 }],
+    };
+    let outcome = imt_ai::vision::RelatedOutcome {
+        facts: Default::default(),
+        result: RelatedResult {
+            time: None,
+            links: vec![link],
+            notes: vec![RelatedNote::NoTime],
+            examined: 3,
+        },
+        explanation: imt_ai::assistant::Narrative {
+            text: "Event #42 is the failure.".into(),
+            citations: vec![],
+            evidence: imt_ai::assistant::Evidence {
+                record_ids: vec![42],
+                queries: vec![],
+            },
+            usage: Default::default(),
+        },
+    };
+    let mut s = ChatSession::new("r");
+    let mut events = vec![];
+    s.send_related("find the logs related to this screenshot", 1, || Ok(outcome), &mut |e| {
+        events.push(e.clone())
+    })
+    .unwrap();
+    assert_eq!(kinds(&events), ["toolStarted", "toolFinished", "done"]);
+    let ChatEvent::Done { text, citations, .. } = &events[2].event else {
+        panic!()
+    };
+    assert!(text.contains("- #42 orders.clef: Payment failed (time +1.4 s)"), "{text}");
+    assert!(text.contains("matched by text and title only"));
+    assert!(citations.contains(&Citation::Record { id: 42, verified: true }));
+    assert_eq!(s.turns()[0].user, "find the logs related to this screenshot [image]");
+    // A failure is the turn's error, attributed to the search.
+    let mut events = vec![];
+    let e = s
+        .send_related("/related", 1, || Err(AiError::NoVision), &mut |e| events.push(e.clone()))
+        .unwrap_err();
+    assert_eq!(e, AiError::NoVision);
+    assert_eq!(kinds(&events), ["toolStarted", "toolFinished", "error"]);
+}

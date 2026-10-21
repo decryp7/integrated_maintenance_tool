@@ -383,6 +383,8 @@ pub(crate) fn chat_emitter<R: Runtime>(app: &AppHandle<R>, label: &str) -> Emit 
 
 /// Starts a turn as an AI job and returns the job's id at once. The answer streams as `imt://ai-chat`
 /// events to this window once the job runs (while it waits, the Jobs pane shows its place in the queue).
+/// `images` are open images (`ai_image_open`, `ai_image_paste`) shown to the model with the question; a question
+/// that asks for their related logs runs the engine's search (ADR 0025).
 #[tauri::command]
 pub async fn ai_chat_send<R: Runtime>(
     app: AppHandle<R>,
@@ -390,11 +392,13 @@ pub async fn ai_chat_send<R: Runtime>(
     session_id: String,
     text: String,
     context: Option<ChatContext>,
+    images: Option<Vec<u32>>,
 ) -> Ai<u64> {
     core(&app)?;
     let sid = check_session_id(&session_id)?.to_string();
+    let images = win.arc().ai.images.get_all(&images.unwrap_or_default())?;
     let emit = chat_emitter(&app, win.label());
-    requests::start_turn(&app, win.arc(), &sid, text, context.unwrap_or_default(), emit).map(|id| id.0)
+    requests::start_turn_with_images(&app, win.arc(), &sid, text, context.unwrap_or_default(), images, emit).map(|id| id.0)
 }
 
 pub(crate) type Emit = Arc<dyn Fn(&str, &Envelope) + Send + Sync>;
@@ -405,7 +409,7 @@ pub(crate) fn run_turn(
     core: &AiCore,
     win: &Arc<WindowState>,
     sid: &str,
-    (text, ctx): (&str, &ChatContext),
+    (text, ctx, images): (&str, &ChatContext, &[Arc<super::vision::OpenImage>]),
     turn: super::chats::TurnHandle,
     emit: &Emit,
     browser: Option<&crate::browser::TurnBrowser>,
@@ -428,14 +432,25 @@ pub(crate) fn run_turn(
             env = env.with_browser(e).with_pages(b.pages.clone());
         }
         let mut s = crate::sync::lock(&session);
-        s.send(&env, text, ctx, &mut |e| {
+        let mut on_event = |e: &Envelope| {
             if let (Some(b), ChatEvent::LinkSuggestion { url, .. }) = (browser, &e.event) {
                 b.note_suggested(url);
             }
             chats.push_event(sid, e);
             emit(sid, e);
-        })
-        .map_err(|e| TurnError::Streamed(e.into()))
+        };
+        if let Some(first) = images.first().filter(|_| imt_ai::vision::intent::asks_for_related_logs(text)) {
+            // "Find the logs related to this screenshot": the model reads, the engine searches.
+            let store: StoreRef<'_> = (&access as &dyn StoreAccess).into();
+            let tz = super::vision::timezone(store);
+            let mut search = super::vision::search_in(store);
+            let run = || assistant.find_related_logs(&first.image.image, first.evidence.clone(), &tz, &mut search, &mut |_| {});
+            return s
+                .send_related(text, images.len(), run, &mut on_event)
+                .map_err(|e| TurnError::Streamed(e.into()));
+        }
+        let env = env.with_images(images.iter().map(|i| i.image.image.clone()).collect());
+        s.send(&env, text, ctx, &mut on_event).map_err(|e| TurnError::Streamed(e.into()))
     }));
     let outcome = match result {
         Ok(Ok(())) => Ok(()),

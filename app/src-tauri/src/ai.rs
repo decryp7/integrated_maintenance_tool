@@ -24,6 +24,7 @@ mod settings_section;
 mod tests;
 pub(crate) mod update_commands;
 pub(crate) mod updates;
+pub(crate) mod vision;
 
 pub use self::core::{AiCore, AiDeps};
 pub use chats::WindowChats;
@@ -49,6 +50,8 @@ pub struct AiState(pub Arc<AiCore>);
 pub struct WindowAi {
     pub chats: WindowChats,
     ops: Mutex<Vec<Arc<AtomicBool>>>,
+    /// Images the window opened for the AI (clean copies, bounded; ADR 0025).
+    pub images: vision::ImageCache,
 }
 
 impl WindowAi {

@@ -10,6 +10,7 @@ import {
   AI_UPDATES_EVENT,
   AiRuntimeEvent,
   AiRuntimeOverview,
+  AiImage,
   AiStatus,
   AiUpdateKind,
   AiUpdatesStatus,
@@ -102,6 +103,21 @@ export class TauriAiBackend extends AiBackend {
   addLocalModel(path: string) {
     return this.run<InstalledModel>('ai_model_add_local', { path });
   }
+  installProjector(fileName: string) {
+    return this.run<number>('ai_model_install_projector', { fileName });
+  }
+  addProjector(fileName: string, path: string) {
+    return this.run<InstalledModel>('ai_model_add_projector', { fileName, path });
+  }
+  imageOpen(path: string) {
+    return this.run<AiImage>('ai_image_open', { path });
+  }
+  imagePaste(data: string, name?: string | null) {
+    return this.run<AiImage>('ai_image_paste', { data, name: name ?? null });
+  }
+  imageClose(id: number) {
+    return this.run<boolean>('ai_image_close', { id });
+  }
   reset() {
     return this.run<AiStatus>('ai_reset');
   }
@@ -175,8 +191,8 @@ export class TauriAiBackend extends AiBackend {
   chatDelete(sessionId: string) {
     return this.run<boolean>('ai_chat_delete', { sessionId });
   }
-  chatSend(sessionId: string, text: string, context: ChatContext) {
-    return this.run<number>('ai_chat_send', { sessionId, text, context });
+  chatSend(sessionId: string, text: string, context: ChatContext, images?: number[]) {
+    return this.run<number>('ai_chat_send', { sessionId, text, context, images: images?.length ? images : null });
   }
   chatCancel(sessionId: string) {
     return this.run<boolean>('ai_chat_cancel', { sessionId });

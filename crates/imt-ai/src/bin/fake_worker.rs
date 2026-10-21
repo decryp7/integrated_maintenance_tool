@@ -31,6 +31,7 @@ impl WorkerBackend for Fake {
             context: p.context,
             name: "fake-model".into(),
             rss_bytes: 1 << 20,
+            vision: p.mmproj_path.is_some(),
         })
     }
 
@@ -55,7 +56,10 @@ impl WorkerBackend for Fake {
         let slow: u64 = self.value("--slow-ms").and_then(|v| v.parse().ok()).unwrap_or(0);
         let ignore_cancel = self.has("--ignore-cancel");
         let tail: String = p.prompt.chars().rev().take(30).collect::<Vec<_>>().into_iter().rev().collect();
-        let full = format!("echo:{tail}");
+        let full = match p.images.len() {
+            0 => format!("echo:{tail}"),
+            n => format!("images:{n} echo:{tail}"),
+        };
         let mut sent = String::new();
         let steps = if slow > 0 { 40 } else { 1 };
         let chunk = full.len().div_ceil(steps).max(1);

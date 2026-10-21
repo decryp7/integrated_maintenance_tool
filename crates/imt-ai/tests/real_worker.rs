@@ -64,6 +64,7 @@ fn the_real_worker_loads_a_model_and_answers() {
     let loaded = rt
         .load(&LoadRequest {
             path,
+            projector: None,
             info,
             context: 4096,
             gpu: GpuMode::Auto,

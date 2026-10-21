@@ -99,6 +99,17 @@ pub enum AiRequest {
         session_id: String,
         text: String,
     },
+    /// "Explain with AI" on an open image (`ai_image_open` / `ai_image_paste`).
+    #[serde(rename_all = "camelCase")]
+    ExplainImage {
+        image_id: u32,
+        question: Option<String>,
+    },
+    /// "Find related logs" for an open image (ADR 0025).
+    #[serde(rename_all = "camelCase")]
+    RelatedLogs {
+        image_id: u32,
+    },
 }
 
 /// What a use case answered.
@@ -107,6 +118,7 @@ pub enum AiOutcome {
     Narrative(Narrative),
     Proposal(Proposal),
     Folder(FolderRefinement),
+    Related(Box<imt_ai::vision::RelatedOutcome>),
 }
 
 impl AiOutcome {
@@ -120,6 +132,9 @@ impl AiOutcome {
                 }
                 JobResult::Proposal { proposal }
             }),
+            AiOutcome::Related(r) => serde_json::to_value(r.as_ref())
+                .ok()
+                .map(|result| JobResult::RelatedLogs { result }),
         };
         v
     }
@@ -239,6 +254,13 @@ impl AiRequest {
                     text: bounded("the question", &text, MAX_TEXT_CHARS)?,
                 }
             }
+            ExplainImage { image_id, question } => ExplainImage {
+                image_id,
+                question: match question {
+                    Some(q) if !q.trim().is_empty() => Some(bounded("the question", &q, MAX_TEXT_CHARS)?),
+                    _ => None,
+                },
+            },
             other => other,
         })
     }
@@ -257,6 +279,8 @@ impl AiRequest {
             Query { question } => format!("Write a query: {}", snippet(question)),
             FolderSetup { .. } => "Improve the folder set-up with AI".into(),
             Chat { text, .. } => format!("Chat: {}", snippet(text)),
+            ExplainImage { .. } => "Explain an image".into(),
+            RelatedLogs { .. } => "Find the logs related to an image".into(),
         }
     }
 
@@ -326,7 +350,16 @@ impl AiRequest {
                 AiOutcome::Folder(a.refine_folder_setup(store, base_profile, &req)?)
             }
             Chat { .. } => return Err(AiCmdError::invalid("a chat turn is not a use case")),
+            ExplainImage { .. } | RelatedLogs { .. } => return Err(AiCmdError::invalid("an image request needs the image")),
         })
+    }
+
+    /// The open image an image request is about.
+    fn image_id(&self) -> Option<u32> {
+        match self {
+            AiRequest::ExplainImage { image_id, .. } | AiRequest::RelatedLogs { image_id } => Some(*image_id),
+            _ => None,
+        }
     }
 }
 
@@ -342,6 +375,19 @@ fn use_case_work(
         win.ai.track_op(flag.clone());
         let r = (|| {
             let assistant = core.assistant(flag.clone())?;
+            if let Some(id) = req.image_id() {
+                let img = win
+                    .ai
+                    .images
+                    .get(id)
+                    .ok_or_else(|| AiCmdError::not_found("the image is no longer open: open it again"))?;
+                return match &req {
+                    AiRequest::ExplainImage { question, .. } => {
+                        super::vision::explain(&assistant, &img, question.as_deref()).map(AiOutcome::Narrative)
+                    }
+                    _ => super::vision::related(&assistant, &win, &img, ctx).map(|o| AiOutcome::Related(Box::new(o))),
+                };
+            }
             let base = win.profile_doc().toml;
             // The store is borrowed per engine step, never across the model's generation.
             let access = WindowStore(win.clone());
@@ -368,8 +414,24 @@ pub(crate) fn start_turn<R: Runtime>(
     context: imt_ai::chat::ChatContext,
     emit: Emit,
 ) -> AiResult<JobId> {
+    start_turn_with_images(app, win, sid, text, context, vec![], emit)
+}
+
+/// [`start_turn`] with open images shown to the model with the question (ADR 0025).
+pub(crate) fn start_turn_with_images<R: Runtime>(
+    app: &AppHandle<R>,
+    win: &Arc<WindowState>,
+    sid: &str,
+    text: String,
+    context: imt_ai::chat::ChatContext,
+    images: Vec<Arc<super::vision::OpenImage>>,
+    emit: Emit,
+) -> AiResult<JobId> {
     let core = core(app)?;
-    core.provider()?;
+    let provider = core.provider()?;
+    if !images.is_empty() && !provider.vision() {
+        return Err(imt_ai::AiError::NoVision.into());
+    }
     let req = AiRequest::Chat {
         session_id: sid.to_string(),
         text,
@@ -401,7 +463,7 @@ pub(crate) fn start_turn<R: Runtime>(
         let Some(turn) = pending.turn.take() else {
             return Err(AiCmdError::invalid("the turn already ended"));
         };
-        super::commands::run_turn(&core, &w, &session, (&text, &context), turn, &emit, browser.as_ref())?;
+        super::commands::run_turn(&core, &w, &session, (&text, &context, &images), turn, &emit, browser.as_ref())?;
         Ok(Done::new(()).with_result(JobResult::Chat {
             session_id: session.clone(),
         }))
@@ -467,7 +529,21 @@ pub(crate) fn start_use_case<R: Runtime>(app: &AppHandle<R>, win: &Arc<WindowSta
     // Fail fast (no model, AI off) instead of queueing a request that cannot run.
     core.provider()?;
     let req = req.validated()?;
-    let spec = req.spec(win.label());
+    let mut spec = req.spec(win.label());
+    if let Some(id) = req.image_id() {
+        // Fail fast: the image must be open and the model must read images (never an automatic download).
+        let img = win
+            .ai
+            .images
+            .get(id)
+            .ok_or_else(|| AiCmdError::not_found("the image is no longer open: open it again"))?;
+        if !core.provider()?.vision() {
+            return Err(imt_ai::AiError::NoVision.into());
+        }
+        if let Some(l) = super::vision::link_of(&img) {
+            spec = spec.link(l);
+        }
+    }
     jobs::spawn(app, spec, Controls::default(), use_case_work(core, win.clone(), req)).map_err(AiCmdError::busy)
 }
 
