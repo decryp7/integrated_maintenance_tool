@@ -56,7 +56,7 @@ import { TourOverlay } from './onboarding/tour-overlay';
       </div>
     }
     @if (store.notice(); as notice) {
-      <div class="toast info" data-imt-overlay role="status">
+      <div class="toast info" data-imt-overlay role="status" (mouseenter)="store.holdNotice()" (focusin)="store.holdNotice()" (mouseleave)="store.releaseNotice()" (focusout)="store.releaseNotice()">
         <imt-icon name="check" [size]="15" />
         <span class="ellipsis">{{ notice }}</span>
         <button class="icon-btn" aria-label="Dismiss" title="Dismiss" i18n-aria-label="@@app.toast.dismissNotice" i18n-title="@@app.toast.dismissNoticeTitle" (click)="store.setNotice(null)"><imt-icon name="close" [size]="14" /></button>
