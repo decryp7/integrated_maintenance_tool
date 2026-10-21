@@ -10,6 +10,7 @@ use imt_plugin_api::annotate::{Annotation, AnnotationView, Annotator, Evidence, 
 use imt_plugin_api::importer::{ImportCtx, Imported, TextImporter};
 use imt_plugin_api::manifest::Manifest;
 use imt_plugin_api::model::Record;
+use imt_plugin_api::problems::{ProblemKind, Problems};
 use imt_plugin_api::settings::{Configurable, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
 use imt_plugin_api::tools::{OpSpec, PathAccess, PathKind, Schema, Tool, ToolCtx, ToolInfo};
 use imt_plugin_api::{Contributions, Plugin};
@@ -24,6 +25,10 @@ struct Fake;
 impl TextImporter for Fake {
     fn id(&self) -> &str {
         "fake"
+    }
+
+    fn identity_fields(&self) -> Vec<String> {
+        vec!["Host".into(), "App".into()]
     }
 
     fn sniff(&self, _: &ImportCtx, head: &str) -> u8 {
@@ -55,20 +60,31 @@ impl TextImporter for Fake {
                         })
                         .collect(),
                     skipped: 0,
+                    ..Default::default()
                 })
             }
-            _ => Ok(Imported {
-                records: body
+            _ => {
+                // Lines starting with `?` are problems, not events.
+                let mut problems = Problems::default();
+                let records = body
                     .iter()
                     .enumerate()
-                    .map(|(i, l)| {
+                    .filter_map(|(i, l)| {
+                        if l.starts_with('?') {
+                            problems.add(ProblemKind::LineNotParsed, i as u32 + 2);
+                            return None;
+                        }
                         let mut r = Record::new(i as u32 + 2);
                         r.message = l.to_string();
-                        r
+                        Some(r)
                     })
-                    .collect(),
-                skipped: 0,
-            }),
+                    .collect();
+                Ok(Imported {
+                    records,
+                    skipped: 0,
+                    problems,
+                })
+            }
         }
     }
 }

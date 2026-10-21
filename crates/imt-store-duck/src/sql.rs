@@ -231,23 +231,36 @@ pub fn number_expr(name: &str, schema: &dyn FieldSource) -> Option<String> {
     })
 }
 
-/// SQL of the instance key (as `imt_core::query::group_key`): the fields' values joined with " · "
-/// ("–" for a missing one), or the source name when none is present; "all" without fields.
+/// SQL of the instance key, as `imt_core::query::group_key`: the values from the first present field to the
+/// last present one joined with " · " ("–" for a missing one in between), led by the source name when the
+/// first field is missing; the source name when none is present; "all" without fields.
 pub fn group_key_expr(fields: &[String], schema: &dyn FieldSource) -> Option<String> {
     if fields.is_empty() {
         return Some("'all'".into());
     }
-    let mut parts = Vec::new();
-    let mut present = Vec::new();
-    for f in fields {
-        let t = text_expr(f, schema)?;
-        parts.push(format!("CASE WHEN coalesce({t}, '') = '' THEN '–' ELSE {t} END"));
-        present.push(format!("coalesce({t}, '') <> ''"));
+    let texts: Vec<String> = fields.iter().map(|f| text_expr(f, schema)).collect::<Option<_>>()?;
+    let present: Vec<String> = texts.iter().map(|t| format!("coalesce({t}, '') <> ''")).collect();
+    let any = |range: &[String]| {
+        if range.is_empty() {
+            "FALSE".to_string()
+        } else {
+            format!("({})", range.join(" OR "))
+        }
+    };
+    let mut parts = vec![format!("CASE WHEN NOT {} THEN concat(s.name, ' · ') ELSE '' END", present[0])];
+    for (i, t) in texts.iter().enumerate() {
+        // Between the first and the last present value; a separator unless it is the first one written.
+        let inside = format!("{} AND {}", any(&present[..=i]), any(&present[i..]));
+        parts.push(format!(
+            "CASE WHEN {inside} THEN concat(CASE WHEN {} THEN ' · ' ELSE '' END, CASE WHEN {} THEN {t} ELSE '–' END) ELSE '' END",
+            any(&present[..i]),
+            present[i]
+        ));
     }
     Some(format!(
         "CASE WHEN {} THEN concat({}) ELSE s.name END",
-        present.join(" OR "),
-        parts.join(", ' · ', ")
+        any(&present),
+        parts.join(", ")
     ))
 }
 
@@ -648,7 +661,34 @@ mod tests {
         }
         assert_eq!(group_key_expr(&[], &schema).unwrap(), "'all'");
         let k = group_key_expr(&["Host".into(), "Ms".into()], &schema).unwrap();
-        assert!(k.starts_with("CASE WHEN coalesce(e.extra['Host'], '') <> '' OR"), "{k}");
+        assert!(k.starts_with("CASE WHEN (coalesce(e.extra['Host'], '') <> '' OR"), "{k}");
         assert!(k.ends_with("ELSE s.name END"), "{k}");
+    }
+
+    /// The SQL key equals `imt_core::query::group_key` for every combination of present and missing fields.
+    #[test]
+    fn group_key_sql_matches_the_engine() {
+        let schema = EventSchema::plain();
+        let names: Vec<String> = ["A", "B", "C"].map(String::from).to_vec();
+        let expr = group_key_expr(&names, &schema).unwrap();
+        let conn = duckdb::Connection::open_in_memory().unwrap();
+        for mask in 0u8..8 {
+            let mut rec = imt_core::model::Record::new(1);
+            let (mut keys, mut values) = (Vec::new(), Vec::new());
+            for (i, n) in names.iter().enumerate() {
+                if mask & (1 << i) != 0 {
+                    rec.fields.insert(n.clone(), format!("v{i}").into());
+                    keys.push(format!("'{n}'"));
+                    values.push(format!("'v{i}'"));
+                }
+            }
+            let sql = format!(
+                "SELECT {expr} FROM (SELECT MAP([{}]::VARCHAR[], [{}]::VARCHAR[]) AS extra) e, (SELECT 'src' AS name) s",
+                keys.join(", "),
+                values.join(", ")
+            );
+            let got: String = conn.query_row(&sql, [], |r| r.get(0)).unwrap();
+            assert_eq!(got, imt_core::query::group_key(&names, &rec, "src"), "mask {mask:03b}");
+        }
     }
 }

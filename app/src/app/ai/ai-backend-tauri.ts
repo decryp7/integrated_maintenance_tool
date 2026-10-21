@@ -30,7 +30,9 @@ import {
   SessionInfo,
   SetupEvent,
   SetupPlan,
+  DraftArgs,
   ResearchArgs,
+  ResearchDraft,
   ResearchStarted,
 } from './ai.types';
 
@@ -167,6 +169,9 @@ export class TauriAiBackend extends AiBackend {
   }
   start(request: AiStartRequest) {
     return this.run<number>('ai_start', { request });
+  }
+  researchDraft(args: DraftArgs) {
+    return this.run<ResearchDraft>('ai_research_draft', { args });
   }
   research(args: ResearchArgs) {
     return this.run<ResearchStarted>('ai_research', { args });

@@ -13,17 +13,9 @@ import { ReportStore } from '../report/report.store';
 import { ShareBackend } from '../share-backend';
 import { OverwriteGuard } from '../../ui/overwrite-guard';
 import { JobFollow } from '../../jobs/job-follow';
-import { localizeDecimal } from '../../i18n/locale';
+import { formatBytes } from '../../shared/format/units';
 
 const ESTIMATE_MS = 200;
-
-/** 1.2 MB, 340 KB, 12 B. */
-export function formatBytes(n: number): string {
-  if (n >= 1 << 30) return `${localizeDecimal((n / (1 << 30)).toFixed(1))} GB`;
-  if (n >= 1 << 20) return `${localizeDecimal((n / (1 << 20)).toFixed(1))} MB`;
-  if (n >= 1024) return `${Math.round(n / 1024)} KB`;
-  return `${n} B`;
-}
 
 /** A name usable as a file name. */
 export function bundleFileName(name: string): string {

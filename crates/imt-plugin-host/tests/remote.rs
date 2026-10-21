@@ -60,6 +60,25 @@ fn imports_stream_back_and_annotators_read_through_the_host() {
     ws.open(&[file(dir.path(), "a.log", "hello\nworld")]).unwrap();
     assert_eq!(ws.records().len(), 2);
     assert_eq!(ws.summary().sources[0].importer, "fake");
+    // Identity fields and problems cross the contract (ADR 0020).
+    assert_eq!(ws.registry().importers().find("fake").unwrap().identity_fields(), ["Host", "App"]);
+    let mut ws = workspace(&b);
+    ws.open(&[file(
+        dir.path(),
+        "p.log",
+        "one
+?bad
+?worse
+two",
+    )])
+    .unwrap();
+    assert_eq!(ws.records().len(), 2);
+    let problems = &ws.summary().sources[0].problems;
+    let p = problems
+        .iter()
+        .find(|p| p.kind == imt_plugin_api::problems::ProblemKind::LineNotParsed)
+        .expect("the plugin's problems");
+    assert_eq!((p.count, p.sample_lines.clone()), (2, vec![3, 4]));
     // More records than one item holds, over several credits.
     let mut ws = workspace(&b);
     ws.open(&[file(dir.path(), "many.log", "many 20000")]).unwrap();

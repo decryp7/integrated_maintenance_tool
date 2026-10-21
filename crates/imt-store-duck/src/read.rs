@@ -62,6 +62,9 @@ pub(crate) fn report_source(r: &SourceReport) -> SourceInfo {
         offset_ms: 0,
         file_kind: r.file_kind,
         timestamp_issue: None,
+        routed_from: None,
+        problems: r.problems.clone(),
+        identity: Vec::new(),
     }
 }
 
@@ -307,8 +310,7 @@ impl Inner {
             })
             .collect();
         infos.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.name.cmp(&b.name)));
-        let sources = count(conn, "SELECT count(*) FROM sources WHERE ready")?;
-        let default_group_by = imt_core::query::default_group_by(&profile.profile.instance, &infos, total, sources);
+        let default_group_by = self.instance_key(conn, &profile, &infos)?;
         let d = Arc::new(Derived {
             fields: infos,
             default_group_by,
@@ -318,6 +320,71 @@ impl Inner {
         }
         *crate::lock(&self.derived) = Some((generation, d.clone()));
         Ok(d)
+    }
+
+    /// The automatic instance key, its candidates checked per source as the workspace checks them
+    /// (`imt_core::instance`, ADR 0020): one grouped count over the events of the candidate fields present.
+    fn instance_key(
+        &self,
+        conn: &Connection,
+        profile: &imt_core::profile::CompiledProfile,
+        infos: &[FieldInfo],
+    ) -> StoreResult<Vec<String>> {
+        let cfg = &profile.profile.instance;
+        if !cfg.key.is_empty() {
+            return Ok(cfg.key.clone());
+        }
+        // The identity fields the sources' importers declare.
+        let mut identity: Vec<String> = Vec::new();
+        {
+            let mut stmt = conn.prepare("SELECT DISTINCT importer FROM sources WHERE ready").map_err(engine)?;
+            let ids = stmt.query_map([], |r| r.get::<_, Option<String>>(0)).map_err(engine)?;
+            let importers = self.registry().importers();
+            for id in ids {
+                let Some(id) = id.map_err(engine)? else { continue };
+                let declared = match importers.find(&id) {
+                    Some(i) => i.identity_fields(),
+                    None => importers
+                        .binary_importers()
+                        .find(|b| b.id() == id)
+                        .map(|b| b.identity_fields())
+                        .unwrap_or_default(),
+                };
+                for f in declared {
+                    if !identity.contains(&f) {
+                        identity.push(f);
+                    }
+                }
+            }
+        }
+        let candidates = imt_core::instance::candidates(cfg, &identity);
+        let fields = self.fields(conn)?;
+        // Every field a candidate names (any case variant), at most 64.
+        let counted: Vec<(&str, String)> = infos
+            .iter()
+            .filter(|f| candidates.iter().any(|c| c.eq_ignore_ascii_case(&f.name)))
+            .filter_map(|f| text_expr(&f.name, &fields).map(|x| (f.name.as_str(), x)))
+            .take(64)
+            .collect();
+        let mut events: Vec<usize> = Vec::new();
+        let mut presence = Presence::default();
+        if !counted.is_empty() {
+            let select: String = counted.iter().map(|(_, x)| format!(", count(nullif({x}, ''))")).collect();
+            let sql = format!("SELECT e.source, count(*){select} FROM {FROM} GROUP BY e.source ORDER BY e.source");
+            let mut stmt = conn.prepare(&sql).map_err(engine)?;
+            let mut rows = stmt.query([]).map_err(engine)?;
+            while let Some(r) = rows.next().map_err(engine)? {
+                let i = events.len();
+                events.push(r.get::<_, u64>(1).map_err(engine)? as usize);
+                for (k, (name, _)) in counted.iter().enumerate() {
+                    let n = r.get::<_, u64>(k + 2).map_err(engine)? as usize;
+                    presence.0.insert(((*name).to_string(), i), n);
+                }
+            }
+        } else {
+            events = vec![0; count(conn, "SELECT count(*) FROM sources WHERE ready")?];
+        }
+        Ok(imt_core::instance::instance_key(cfg, &identity, infos, &events, &presence))
     }
 
     pub(crate) fn compile(&self, ctx: &Ctx, q: &Filter) -> StoreResult<(SqlFilter, CompiledQuery)> {
@@ -572,6 +639,9 @@ impl Inner {
                     to: r.get(9)?,
                     offset_ms: 0,
                     timestamp_issue: None,
+                    routed_from: None,
+                    problems: Vec::new(),
+                    identity: Vec::new(),
                 })
             })
             .map_err(engine)?;
@@ -1357,5 +1427,15 @@ impl Query for DuckStore {
 
     fn export(&self, _req: &ExportRequest) -> StoreResult<ExportResult> {
         Err(StoreError::unsupported("export", "R2c"))
+    }
+}
+
+/// Events carrying a field, by (field, source position).
+#[derive(Default)]
+struct Presence(HashMap<(String, usize), usize>);
+
+impl imt_core::instance::FieldPresence for Presence {
+    fn count_in(&self, field: &str, source: usize) -> usize {
+        self.0.get(&(field.to_string(), source)).copied().unwrap_or(0)
     }
 }

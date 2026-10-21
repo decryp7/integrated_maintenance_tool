@@ -288,6 +288,7 @@ pub fn parse_procmon(content: &str, zone: &TimestampParser, file_date: Option<ch
     let mut out = Imported {
         records: Vec::with_capacity(rows.len()),
         skipped,
+        ..Default::default()
     };
     // 1-based line of each row's start, counted from byte offsets (rows may hold quoted newlines).
     let (mut at, mut line_no) = (0usize, 1usize);

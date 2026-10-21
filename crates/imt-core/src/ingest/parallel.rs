@@ -217,7 +217,7 @@ pub fn import_files_parallel(
 /// Whether `line` begins an event of the planned format.
 fn begins_event(plan: &FilePlan, ctx: &ImportCtx, line: &str) -> bool {
     match plan.kind {
-        PlanKind::Text { format, .. } => ctx.profile.text_formats.get(format).is_some_and(|f| f.regex.is_match(line)),
+        PlanKind::Text { format, .. } => crate::importers::lines::begins_event(ctx.profile, format, line),
         // Top-level objects start at the first column; nested lines of pretty-printed objects are indented.
         PlanKind::Json(_) => line.starts_with('{'),
         PlanKind::Binary | PlanKind::Legacy => false,
@@ -286,14 +286,7 @@ fn read_chunk(
     let mut shared = SharedRef(sink);
     let mut batcher = RecordBatcher::new(env.profile, env.schema.clone(), id, name, &mut shared, env.cancel);
     let skipped = match plan.kind {
-        PlanKind::Text { format, day_first, .. } => {
-            let fmt = ctx
-                .profile
-                .text_formats
-                .get(format)
-                .ok_or_else(|| anyhow!("text format {format} is not in the profile"))?;
-            text::import_text(ctx, fmt, day_first, &mut lines, &mut batcher)?
-        }
+        PlanKind::Text { format, day_first, .. } => text::import_text(ctx, format, day_first, &mut lines, &mut batcher)?,
         PlanKind::Json(shape) => json::import_json(ctx, shape, len, &mut lines, &mut batcher)?,
         PlanKind::Binary | PlanKind::Legacy => return Err(anyhow!("{} files are not read in chunks", plan.importer)),
     };

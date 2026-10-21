@@ -14,13 +14,14 @@ import {
   EventQuery,
   NavCommand,
   OpenTarget,
+  Placement,
   SourceInfo,
 } from './browser.types';
 
 export const BROWSER_EVENT = 'imt://browser';
 
 /**
- * The browser window of this IMT window, as the Web panel drives it. Injected as a class token: the Tauri
+ * The browser of this IMT window, as the Browser panel drives it. Injected as a class token: the Tauri
  * commands in the desktop app, the mock in the browser build (dev and UI tests).
  */
 @Injectable({ providedIn: 'root', useFactory: () => createBrowserBackends().browser })
@@ -31,7 +32,9 @@ export abstract class BrowserBackend {
   /** The engine-built, redacted search text for an event of the loaded logs. */
   abstract eventQuery(recordId: number): Promise<EventQuery>;
   abstract nav(command: NavCommand): Promise<void>;
-  /** Closes the browser window; false when it was not open. */
+  /** Where the Browser panel's page area is and whether the page may show (ADR 0024); resolves with whether it shows. */
+  abstract place(placement: Placement): Promise<boolean>;
+  /** Closes the page (the panel stays); false when none was open. */
   abstract close(): Promise<boolean>;
   /** Stops the research reading pages in this window's browser; resolves with how many stopped. */
   abstract researchStop(): Promise<number>;
@@ -81,6 +84,9 @@ export class TauriBrowserBackend implements BrowserBackend, ChatBrowserBackend {
   }
   eventQuery(recordId: number) {
     return this.call<EventQuery>('browser_event_query', { recordId });
+  }
+  place(placement: Placement) {
+    return this.call<boolean>('browser_place', { placement });
   }
   nav(command: NavCommand) {
     return this.call<void>('browser_nav', { command });

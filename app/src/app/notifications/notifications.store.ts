@@ -214,6 +214,16 @@ export const NotificationsStore = signalStore(
         timers.delete(id);
       },
 
+      /** The pointer and focus left the toast: it goes after the usual time again. */
+      releaseToast(id: number): void {
+        if (!store.toasts().some((t) => t.id === id)) return;
+        clearTimeout(timers.get(id));
+        timers.set(
+          id,
+          setTimeout(() => dismissToast(id), TOAST_MS),
+        );
+      },
+
       toggleSource(source: NoticeSource): void {
         const s = store.sources();
         patchState(store, { sources: s.includes(source) ? s.filter((x) => x !== source) : [...s, source] });

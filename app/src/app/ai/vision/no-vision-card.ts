@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@angular/core';
-import { formatBytes } from '../ai-format';
+import { formatBytes } from '../../shared/format/units';
 import { AiLauncher } from '../ai-launcher';
 import { JobsStore } from '../../jobs/jobs.store';
 import { AiImageStore } from './ai-image.store';

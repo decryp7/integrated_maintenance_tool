@@ -1663,6 +1663,82 @@ fn research_with_workspace_data_in_the_search_asks_to_confirm_first() {
 }
 
 #[test]
+fn the_model_drafts_the_search_text_and_the_leak_guard_still_checks_it() {
+    let f = Fixture::new("research-draft");
+    let core = f.core();
+    core.set_fixed_provider(scripted(vec![
+        // "Research this" on an event: the model kept a host name despite the instructions.
+        text("\"System.TimeoutException The operation has timed out WEB01\""),
+        // "Search the web for this error": the flagged part is taken out.
+        text("TimeoutException WEB01 operation timed out"),
+        // A chatty reply is not a query: the engine's text is used.
+        text("Sure! Here is a query:\nTimeoutException"),
+        // A question without an event.
+        text("Query: E_ACCESSDENIED IIS app pool"),
+    ]));
+    let app = f.app(core);
+    let main = window(&app, "main");
+    open_samples(&main);
+    let page = ipc(
+        &main,
+        "query_page",
+        json!({"request": {"query": {"text": "timed out"}, "offset": 0, "limit": 1, "descending": false}}),
+    )
+    .unwrap();
+    let id = page["rows"][0]["id"].as_u64().unwrap();
+    let d = ipc(&main, "ai_research_draft", json!({"args": {"recordId": id}})).unwrap();
+    assert_eq!(d["source"], "model", "{d}");
+    assert_eq!(d["checked"]["query"], "System.TimeoutException The operation has timed out WEB01");
+    assert_eq!(d["checked"]["needsConfirm"], true, "WEB01 is a name from the logs: {d}");
+    assert!(d["question"].as_str().unwrap().starts_with("What does this error mean"), "{d}");
+    assert!(
+        jobs_of(&app).find_active(|j| j.kind == crate::jobs::JobKind::Research).is_empty(),
+        "drafting never searches"
+    );
+    let q = ipc(&main, "browser_event_query", json!({"recordId": id})).unwrap();
+    assert_eq!(
+        (q["source"].as_str(), q["query"].as_str()),
+        (Some("model"), Some("TimeoutException operation timed out")),
+        "{q}"
+    );
+    assert_eq!(q["removed"], json!(["1 value from your logs"]));
+    let q = ipc(&main, "browser_event_query", json!({"recordId": id})).unwrap();
+    assert_eq!(q["source"], "engine", "{q}");
+    assert!(!q["query"].as_str().unwrap().contains("WEB0"), "{q}");
+    let d = ipc(
+        &main,
+        "ai_research_draft",
+        json!({"args": {"question": "what does E_ACCESSDENIED mean for IIS?"}}),
+    )
+    .unwrap();
+    assert_eq!(
+        (d["source"].as_str(), d["checked"]["query"].as_str()),
+        (Some("model"), Some("E_ACCESSDENIED IIS app pool"))
+    );
+    // The model has no more replies: the question is the search text, as before drafting.
+    let d = ipc(
+        &main,
+        "ai_research_draft",
+        json!({"args": {"question": "what is HRESULT 0x80070005?"}}),
+    )
+    .unwrap();
+    assert_eq!(
+        (d["source"].as_str(), d["checked"]["query"].as_str()),
+        (Some("engine"), Some("what is HRESULT 0x80070005?"))
+    );
+    assert_eq!(code(ipc(&main, "ai_research_draft", json!({"args": {}})).unwrap_err()), "invalid");
+    assert_eq!(
+        code(ipc(&main, "ai_research_draft", json!({"args": {"recordId": u32::MAX}})).unwrap_err()),
+        "notFound"
+    );
+    let long = "x".repeat(2000);
+    assert_eq!(
+        code(ipc(&main, "ai_research_draft", json!({"args": {"question": long}})).unwrap_err()),
+        "invalid"
+    );
+}
+
+#[test]
 fn a_manual_download_is_checked_against_the_catalog_before_it_is_added() {
     let f = Fixture::new("manual-model");
     let app = f.app(f.core());

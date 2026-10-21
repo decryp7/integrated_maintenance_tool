@@ -36,7 +36,7 @@ serde_json.workspace = true
 anyhow.workspace = true
 log = { workspace = true, features = ["kv"] }
 chrono.workspace = true
-tauri = { version = "2.12.4", features = ["tray-icon", "image-png"] }
+tauri = { version = "2.12.4", features = ["tray-icon", "image-png", "unstable"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-window-state = "2"
@@ -63,7 +63,7 @@ imt-plugin-profiling = { path = "../../crates/imt-plugin-profiling", default-fea
 ts-rs = "11.1"
 # The base64 that tauri-plugin-updater's `Error::Base64` wraps, to build that error in the updater tests.
 updater-base64 = { package = "base64", version = "0.22" }
-tauri = { version = "2.12.4", features = ["test", "tray-icon", "image-png"] }
+tauri = { version = "2.12.4", features = ["test", "tray-icon", "image-png", "unstable"] }
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = "2"
@@ -73,4 +73,4 @@ objc2-app-kit = { version = "0.3", default-features = false, features = ["std", 
 
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.39"
-windows = { workspace = true, features = ["Win32_Graphics_Dwm", "Win32_System_Console", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+windows = { workspace = true, features = ["Win32_System_Console", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }

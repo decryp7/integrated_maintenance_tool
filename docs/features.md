@@ -12,6 +12,11 @@ covers inputs, profiles, the query language and shortcuts, and [development](dev
 
 - One lane per instance (by default machine + process; configurable with `[instance] key`), each
   with an event-density histogram and markers for start, stop, crash, exception, error and warning.
+- **Mixed and shared files.** A file several products write (a log server, a shared log) is read line
+  by line with each line's own format, JSON lines included; lines no format reads are reported instead
+  of silently joining another product's events. Each product gets lanes from its own fields (syslog
+  hosts, apps and process ids included), and profile routes (`[[route]]`) split the file into logical
+  sources listed under it in the Explorer.
 - Drag to zoom, `Zoom in`/`Zoom out`/`Fit`, and previous/next range history (`Alt+←` / `Alt+→`).
 - Lifecycle markers (start/stop) can be kept visible at any zoom level.
 - **Runs.** Each start → stop on a lane is drawn as a band, even when many instances share one log
@@ -314,38 +319,44 @@ and title only; when the clocks disagree it says by how much and offers the cloc
 
 ## Internal web browser
 
-*Search the web for this error* (the event's context menu, the inspector, the chat, the palette) opens
-IMT's own browser window: the engine builds the search from the event without names from your logs or
-other private details, and you can edit it first. You browse in a separate window with its own cookies
-and history; the **Web** panel (Tools ▸ Web) has back and forward, the address box with your search engine
-(Google by default; DuckDuckGo, Bing, Stack Overflow or your own URL template with `{q}`, chosen in
-Settings ▸ Web browser and per search), *Add page to AI context*
-and *Open in your browser*. The AI never searches the web by itself. It sees a page only when you add it
+*Search the web for this error* (the event's context menu, the inspector, the chat, the palette) opens the
+page in IMT's **Browser** panel (Tools ▸ Browser), which docks like Timeline or Events: tabs, splits,
+maximise, pop-out. The AI writes the search from the event (the exception type, the decisive words of the
+message, error codes, the framework and its version, without ids, names, paths, ports or timestamps);
+whatever looks private or comes from your logs is taken out, and you can edit it before anything opens
+(without a model, IMT builds it). The page has its own cookies and history; the panel has back and
+forward, the address box (Ctrl+L) with your search engine (Google by default; DuckDuckGo, Bing, Stack
+Overflow or your own URL template with `{q}`, chosen in Settings ▸ Web browser and per search), *Add page
+to AI context* and *Open in your browser*. While a menu, dialog or message is open over the page, the page
+steps aside for that moment. The AI never searches the web by itself. It sees a page only when you add it
 to a chat (as cited, untrusted web content it must not take instructions from), when you turn on *Let AI
 read the browser* for a chat, or in **agent mode**: then it drives the visible browser one step at a time,
 asks before new sites, typing and forms, highlights data from your logs headed into an address or a field,
 stops for logins, payments and CAPTCHAs, and logs every step; *Stop* takes the browser back at once. It
 can also suggest a search or a page as a card that opens only when you click it; *Open and let AI read
 it* opens it and the chat goes on with the page. Pages get no access to IMT at all; downloads and popups
-are blocked. See [ADR 0011](adr/0011-internal-browser.md).
+are blocked. On Linux the page shows in a window of its own next to the panel. See
+[ADR 0011](adr/0011-internal-browser.md) and [ADR 0024](adr/0024-docked-browser.md).
 
-**"AI is browsing" on the browser window:** while agent mode or research drives the browser, the browser
-window itself says so: an amber banner of IMT's own across its top (never put into the page) reads *AI is
-browsing* with a *Stop* button, the window title starts with "AI browsing —", and on Windows 11 the window
-frame turns amber. It all clears as soon as the AI lets go: Stop (there, in the chat or in the Web panel),
-the answer or the research is done, cancelled or failed, agent mode is turned off, or the browser or its IMT
-window is closed. See [ADR 0013](adr/0013-ai-browsing-banner.md).
+**"AI is browsing" in the Browser panel:** while agent mode or research drives the browser, the panel's
+header says *AI is browsing* with what the AI does (the step, or the result page it reads) and a *Stop*
+button, and its tab reads "Browser · AI is browsing"; nothing is ever put into the page. It clears as soon
+as the AI lets go: Stop (there or in the chat), the answer or the research is done, cancelled or failed,
+agent mode is turned off, or the page or its IMT window is closed. See
+[ADR 0013](adr/0013-ai-browsing-banner.md) and [ADR 0024](adr/0024-docked-browser.md).
 
 **Research mode:** when a question needs outside information (an error code, an exception, how a product
-behaves), or you say "search" or "look up", the AI researches by itself, read-only: it searches with your
-engine in the visible browser, takes the result links of that results page once and reads up to five of
-them by their address, in order ("Reading result 2 of 5: example.org"; 1–10 in Settings ▸ Web browser, or
-"read 10 results"), never follows links further, types nothing and fills no forms, skips
-logins, payments and CAPTCHAs, and answers with a summary, likely causes and fixes as steps, a citation per
-claim, and the pages it read or skipped. If the search text contains data from your logs, you confirm or
-edit it first. *Research this* (an event, the inspector, the chat's *Research…*) does the same on demand,
-with a 3/5/10 picker; turn automatic research off and the AI only offers the button. Research runs as a
-job you can stop from the Jobs pane or the Web panel.
+behaves), or you say "search" or "look up", the AI researches by itself, read-only: it writes the search
+text, searches with your engine in the visible browser, takes the result links of that results page once
+and reads up to five of them by their address, in order ("Reading result 2 of 5: example.org"; 1–10 in
+Settings ▸ Web browser, or "read 10 results"), never follows links further, types nothing and fills no
+forms, skips logins, payments and CAPTCHAs, and answers with a summary, likely causes and fixes as steps, a
+citation per claim, and the pages it read or skipped. If the search text contains data from your logs, you
+confirm or edit it first. *Research this* (an event, the inspector, the chat's *Research…*) does the same on
+demand, with a 3/5/10 picker: the AI drafts the search text from your question and the event and shows it to
+you first (edit it, or *Let the AI write it* again); nothing is searched until you press *Research*. Turn
+automatic research off and the AI only offers the button. Research runs as a job you can stop from the Jobs
+pane or the Browser panel.
 
 ## Jobs and notifications
 

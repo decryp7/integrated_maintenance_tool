@@ -79,6 +79,41 @@ export interface SourceInfo {
   fileKind: FileKind;
   /** Many events without a readable timestamp (the engine sends null when the timestamps are fine). */
   timestampIssue?: TimestampIssue | null;
+  /**
+   * Display name of the file a profile `[[route]]` split this logical source from (ADR 0020); null for a file's
+   * own source. Logical sources of one file share its `path`; removing one removes the file.
+   */
+  routedFrom?: string | null;
+  /** Import problems of this source, one entry per kind (the engine always sends it, maybe empty). */
+  problems?: SourceProblem[];
+}
+
+/**
+ * What went wrong while reading a source (Rust `ingest::ProblemKind`): a line over the size limit, an event over the
+ * size limit, a line that is not an event, events without a readable timestamp, a field value that does not fit its
+ * declared type, bytes invalid in the file's encoding, a format no importer recognises, a damaged archive, an event
+ * split at a parallel chunk boundary, a line that looks like an event but matches no format (kept with the event
+ * above), events past the logical-source limit of `[[route]]`.
+ */
+export type SourceProblemKind =
+  | 'lineTooLong'
+  | 'eventTooLarge'
+  | 'lineNotParsed'
+  | 'timestampUnparsed'
+  | 'fieldInvalid'
+  | 'encoding'
+  | 'unknownFormat'
+  | 'truncatedArchive'
+  | 'eventSplit'
+  | 'unmatchedLine'
+  | 'routeLimit';
+
+/** One kind of import problem in one source (Rust `ingest::Problem`). */
+export interface SourceProblem {
+  kind: SourceProblemKind;
+  count: number;
+  /** 1-based line numbers of the first occurrences (at most 20). */
+  sampleLines: number[];
 }
 
 /**

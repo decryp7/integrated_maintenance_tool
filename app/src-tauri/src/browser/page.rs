@@ -1,8 +1,8 @@
-//! The browser ports on the real window: scripts evaluated with `eval_with_callback`, replies checked by a
+//! The browser ports on the real page webview: scripts evaluated with `eval_with_callback`, replies checked by a
 //! one-shot `ReplyGate` (nonce, origin, size). Thin on purpose: what the scripts return is parsed, classified
 //! and judged in `imt_ai::browser`, where it is tested.
 
-use super::window::{browser_label, open};
+use super::view::{open, page_webview};
 use imt_ai::browser::policy::ScrollDirection;
 use imt_ai::browser::{
     capture_from, scripts, snapshot_from, BrowserError, DomSnapshot, Element, Nonce, PageCapture, PageDriver, PageReader, ReplyError,
@@ -11,7 +11,7 @@ use imt_ai::browser::{
 use serde_json::{Map, Value};
 use std::sync::mpsc::sync_channel;
 use std::time::Duration;
-use tauri::{AppHandle, Manager, Runtime, WebviewWindow};
+use tauri::{AppHandle, Manager, Runtime, Webview};
 
 /// How long a page may take to answer a script.
 const EVAL_TIMEOUT: Duration = Duration::from_secs(8);
@@ -34,10 +34,8 @@ impl<R: Runtime> TauriPage<R> {
         self.app.try_state::<super::BrowserState>().ok_or(BrowserError::NotOpen)
     }
 
-    fn window(&self) -> Result<WebviewWindow<R>, BrowserError> {
-        self.app
-            .get_webview_window(&browser_label(&self.owner))
-            .ok_or(BrowserError::NotOpen)
+    fn window(&self) -> Result<Webview<R>, BrowserError> {
+        page_webview(&self.app, &self.owner).ok_or(BrowserError::NotOpen)
     }
 
     /// Evaluates one script and checks its reply.

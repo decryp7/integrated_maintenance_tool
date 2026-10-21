@@ -14,7 +14,7 @@ const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select
   host: { '(document:keydown.escape)': 'onEscape($event)' },
   template: `
     @for (d of dialogs.stack(); track d.id) {
-      <div class="backdrop" (mousedown)="d.ref.close()"></div>
+      <div class="backdrop" data-imt-overlay (mousedown)="d.ref.close()"></div>
       <div
         #box
         class="dialog"

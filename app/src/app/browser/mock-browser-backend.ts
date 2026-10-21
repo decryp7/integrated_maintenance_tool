@@ -15,6 +15,7 @@ import {
   EventQuery,
   NavCommand,
   OpenTarget,
+  Placement,
   PageState,
   SearchEngine,
   SourceInfo,
@@ -65,6 +66,10 @@ export class MockWeb {
   /** "Open and let AI read it" hands the page to the chat; the mock AI backend sets this to ask the follow-up. */
   continueChat: ((sessionId: string, title: string) => Promise<number>) | null = null;
 
+  /** The Browser panel's last `browser_place` (the page webview's place in the desktop app); e2e tests read it from
+   * `window.__imtMockBrowserView`. */
+  placement: Placement | null = null;
+
   /** Who drives the pretend browser (`?mockDriving=agent` or `research` starts with one, for the banner's e2e). */
   driver: AiDriver | null = mockDrivingParam();
 
@@ -79,11 +84,13 @@ export class MockWeb {
     this.emit({ type: 'driving', by });
   }
 
-  show(url: string): void {
+  /** Loads a page and asks the window to show the Browser panel (`activate`: the user's own; the AI's do not). */
+  show(url: string, activate = true): void {
     this.history.splice(this.at + 1);
     this.history.push(url);
     this.at = this.history.length - 1;
     this.setPage(url);
+    this.emit({ type: 'reveal', activate });
   }
 
   setPage(url: string): void {
@@ -170,7 +177,7 @@ export class MockBrowserBackend implements BrowserBackend, ChatBrowserBackend {
   constructor(private readonly w: MockWeb = mockWeb()) {}
 
   state() {
-    return later((): BrowserStateDto => ({ page: { ...this.w.page }, engine: this.w.engine, customEngine: false }));
+    return later((): BrowserStateDto => ({ page: { ...this.w.page }, engine: this.w.engine, customEngine: false, docked: true }));
   }
   open(target: OpenTarget) {
     return later(() => {
@@ -192,7 +199,18 @@ export class MockBrowserBackend implements BrowserBackend, ChatBrowserBackend {
   eventQuery(recordId: number) {
     return later((): EventQuery => {
       if (recordId < 0) throw new Error('nothing to search for: there is no such event');
-      return { query: 'System.TimeoutException The operation has timed out', removed: ['1 names from your logs'] };
+      return { query: 'System.TimeoutException The operation has timed out', removed: ['1 value from your logs'], source: 'model' };
+    });
+  }
+  /** Like the shell: the page shows while the panel says it may and its area has a size (there is no native page here). */
+  place(placement: Placement) {
+    return later(() => {
+      const { rect } = placement;
+      if (!Number.isFinite(placement.scale) || placement.scale < 0.25 || placement.scale > 8) throw new Error(`the scale ${placement.scale} is out of range`);
+      const shown = placement.visible && !!rect && rect.width * placement.scale >= 1 && rect.height * placement.scale >= 1;
+      this.w.placement = placement;
+      if (typeof window !== 'undefined') (window as unknown as { __imtMockBrowserView?: unknown }).__imtMockBrowserView = { ...placement, shown };
+      return shown;
     });
   }
   nav(command: NavCommand) {
@@ -219,7 +237,7 @@ export class MockBrowserBackend implements BrowserBackend, ChatBrowserBackend {
   }
   capture(sessionId: string) {
     return later(() => {
-      if (!this.w.page.open) throw new Error('the browser is not open; open it from the Web panel first');
+      if (!this.w.page.open) throw new Error('the browser is not open; open it from the Browser panel first');
       const list = (this.w.sources.get(sessionId) ?? []).filter((s) => s.url !== this.w.page.url);
       list.push({ title: this.w.page.title, url: this.w.page.url, chars: 1834, truncated: false, removed: [] });
       this.w.sources.set(sessionId, list.slice(-3));

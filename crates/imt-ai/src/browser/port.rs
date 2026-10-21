@@ -12,7 +12,7 @@ use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum BrowserError {
-    #[error("the browser is not open; open it from the Web panel first")]
+    #[error("the browser is not open; open it from the Browser panel first")]
     NotOpen,
     #[error("the page did not answer in time")]
     Timeout,

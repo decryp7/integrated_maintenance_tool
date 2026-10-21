@@ -95,3 +95,9 @@ types (they need the derive in `imt-core` and ADR 0014's owned replies); a `Shar
 (async commands now take `op: OpId`, but domain events lose their window); engine health from engine events
 (review #12; `engine_errors.rs` still reads a crash marker in the import reason until R2's events exist); and plugin
 tools with path arguments (their outputs are granted, their inputs are not yet checked against grants).
+
+## Amendment (2026-10-21, ADR 0024)
+
+The `BANNER` window class (`aib-*`) is gone with the banner window; the table's classes are `MAIN` and `POPOUT`.
+The internal browser's page webview (`browser-*`) is no window class: nothing of the table is callable from it.
+Capabilities are scoped by webview label (`webviews`), since the page is a child webview of an IMT window.

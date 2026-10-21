@@ -49,21 +49,21 @@ import { TourOverlay } from './onboarding/tour-overlay';
     <imt-tour-overlay />
 
     @if (store.error(); as error) {
-      <div class="toast" role="alert">
+      <div class="toast" data-imt-overlay role="alert">
         <imt-icon name="alert" [size]="15" />
         <span class="ellipsis">{{ error }}</span>
         <button class="icon-btn" aria-label="Dismiss" title="Dismiss" i18n-aria-label="@@app.toast.dismissError" i18n-title="@@app.toast.dismissErrorTitle" (click)="store.dismissError()"><imt-icon name="close" [size]="14" /></button>
       </div>
     }
     @if (store.notice(); as notice) {
-      <div class="toast info" role="status">
+      <div class="toast info" data-imt-overlay role="status">
         <imt-icon name="check" [size]="15" />
         <span class="ellipsis">{{ notice }}</span>
         <button class="icon-btn" aria-label="Dismiss" title="Dismiss" i18n-aria-label="@@app.toast.dismissNotice" i18n-title="@@app.toast.dismissNoticeTitle" (click)="store.setNotice(null)"><imt-icon name="close" [size]="14" /></button>
       </div>
     }
     @if (store.dropHover()) {
-      <div class="drop" i18n="@@app.drop">Drop files or folders to add them to the workspace</div>
+      <div class="drop" data-imt-overlay i18n="@@app.drop">Drop files or folders to add them to the workspace</div>
     }
   `,
   styles: `

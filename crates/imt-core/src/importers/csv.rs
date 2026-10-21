@@ -65,7 +65,8 @@ impl Importer for CsvImporter {
     fn import(&self, ctx: &ImportCtx, content: &str) -> Result<Imported> {
         let cfg = &ctx.profile.profile.parse.csv;
         let delim = delimiter(&cfg.delimiter, content).ok_or_else(|| anyhow!("could not detect the column delimiter"))?;
-        let (headers, rows) = read_rows(delim, cfg.has_header, content)?;
+        let has_header = cfg.has_header && !first_row_is_data(ctx, delim, content);
+        let (headers, rows) = read_rows(delim, has_header, content)?;
         let layout = Layout::new(ctx, headers, &rows);
         Ok(layout.records(rows))
     }
@@ -74,10 +75,49 @@ impl Importer for CsvImporter {
         let cfg = &ctx.profile.profile.parse.csv;
         let delim = delimiter(&cfg.delimiter, head)?;
         // The header (and the column roles) come from the file's start.
-        let layout = read_rows(delim, cfg.has_header, head).map(|(headers, rows)| Layout::new(ctx, headers, &rows));
+        let has_header = cfg.has_header && !first_row_is_data(ctx, delim, head);
+        let layout = read_rows(delim, has_header, head).map(|(headers, rows)| Layout::new(ctx, headers, &rows));
         Some(layout.and_then(|layout| read_rows(delim, false, tail).map(|(_, rows)| layout.records(rows))))
     }
 }
+
+/// Whether the first row is an event rather than a header: a header names its columns, it never holds a timestamp
+/// or a date. Many tools write no header at all (`has_header = true` only says a header may be there).
+fn first_row_is_data(ctx: &ImportCtx, delim: u8, content: &str) -> bool {
+    let Ok((_, rows)) = read_rows(delim, false, first_lines(content, 1).next().unwrap_or("")) else {
+        return false;
+    };
+    let Some((_, first)) = rows.first() else { return false };
+    let parser = &ctx.profile.timestamps;
+    first.iter().any(|cell| parser.parse(cell).is_some() || is_date(cell))
+}
+
+/// A date on its own (`2026/10/14`, `2026-10-14`, `14.10.2026`): a timestamp whose time is in the next column.
+fn is_date(s: &str) -> bool {
+    let parts: Vec<&str> = s.split(['/', '-', '.']).collect();
+    parts.len() == 3
+        && parts
+            .iter()
+            .all(|p| !p.is_empty() && p.len() <= 4 && p.bytes().all(|b| b.is_ascii_digit()))
+        && parts.iter().any(|p| p.len() == 4)
+}
+
+/// A time of day, optionally with a fraction and an offset (`00:04:37.759+01:00`, `10:00`, `10:00:00Z`).
+fn is_time(s: &str) -> bool {
+    let (clock, _) = s.split_once(['Z', '+']).unwrap_or((s, ""));
+    // A minus sign after the seconds starts an offset; the clock itself has none.
+    let clock = clock.rsplit_once('-').map_or(clock, |(c, _)| c);
+    let (hms, fraction) = clock.split_once(['.', ',']).unwrap_or((clock, ""));
+    let parts: Vec<&str> = hms.split(':').collect();
+    (2..=3).contains(&parts.len())
+        && parts
+            .iter()
+            .all(|p| (1..=2).contains(&p.len()) && p.bytes().all(|b| b.is_ascii_digit()))
+        && fraction.bytes().all(|b| b.is_ascii_digit())
+}
+
+/// Most rows looked at to find the level and message columns of a file without a header.
+const SAMPLE_ROWS: usize = 50;
 
 type Rows = Vec<(u32, csv::StringRecord)>;
 
@@ -106,6 +146,8 @@ fn read_rows(delim: u8, has_header: bool, content: &str) -> Result<(Option<Vec<S
 struct Layout {
     headers: Vec<String>,
     ts_col: Option<usize>,
+    /// The time of a timestamp split over two columns (`2026/10/14,10:00:00` with `,` as the delimiter).
+    time_col: Option<usize>,
     level_col: Option<usize>,
     message_col: Option<usize>,
     parser: crate::time::TimestampParser,
@@ -114,25 +156,86 @@ struct Layout {
 impl Layout {
     fn new(ctx: &ImportCtx, headers: Option<Vec<String>>, rows: &Rows) -> Layout {
         let cfg = &ctx.profile.profile.parse.csv;
+        let has_header = headers.is_some();
         let headers: Vec<String> = headers.unwrap_or_else(|| {
             let width = rows.iter().map(|(_, r)| r.len()).max().unwrap_or(0);
-            (1..=width).map(|i| format!("col{i}")).collect()
+            // Names from the profile for a file without a header, then col<N> for the rest.
+            (1..=width)
+                .map(|i| {
+                    cfg.columns
+                        .get(i - 1)
+                        .filter(|n| !n.trim().is_empty())
+                        .cloned()
+                        .unwrap_or_else(|| format!("col{i}"))
+                })
+                .collect()
         });
 
+        let named = |name: &str| headers.iter().position(|h| h.eq_ignore_ascii_case(name.trim()));
         let find = |wanted: &str, names: &[&str]| -> Option<usize> {
             if wanted != "auto" {
-                return headers.iter().position(|h| h.eq_ignore_ascii_case(wanted));
+                return named(wanted);
             }
             headers.iter().position(|h| names.contains(&h.to_ascii_lowercase().as_str()))
         };
         let parser = &ctx.profile.timestamps;
-        let ts_col = find(&cfg.timestamp, TS_NAMES).or_else(|| {
-            // No recognisable header: the first column whose values parse as timestamps.
-            let first = rows.first()?;
-            (0..first.1.len()).find(|&i| parser.parse(&first.1[i]).is_some())
+        let sample: Vec<&csv::StringRecord> = rows.iter().take(SAMPLE_ROWS).map(|(_, r)| r).collect();
+        let joined = |r: &csv::StringRecord, d: usize, t: usize| format!("{},{}", r.get(d).unwrap_or(""), r.get(t).unwrap_or(""));
+
+        // `timestamp = "Date+Time"` joins two named columns.
+        let (ts_col, time_col) = match cfg.timestamp.split_once('+') {
+            Some((d, t)) if cfg.timestamp != "auto" => (named(d), named(t)),
+            _ => {
+                let single = find(&cfg.timestamp, TS_NAMES);
+                match single {
+                    Some(c) => (Some(c), None),
+                    // No recognisable header: a date column followed by a time column, else the first column whose
+                    // values parse as timestamps.
+                    None => sample
+                        .first()
+                        .and_then(|first| {
+                            (0..first.len().saturating_sub(1))
+                                .find(|&i| is_date(&first[i]) && is_time(&first[i + 1]) && parser.parse(&joined(first, i, i + 1)).is_some())
+                                .map(|i| (Some(i), Some(i + 1)))
+                                .or_else(|| {
+                                    (0..first.len())
+                                        .find(|&i| parser.parse(&first[i]).is_some())
+                                        .map(|i| (Some(i), None))
+                                })
+                        })
+                        .unwrap_or((None, None)),
+                }
+            }
+        };
+        let taken = |i: usize| Some(i) == ts_col || Some(i) == time_col;
+        let width = headers.len();
+        let level_col = find(&cfg.level, LEVEL_NAMES).or_else(|| {
+            // Without a header: the column whose values are all level names (INFO, Warning, ERR…).
+            (!has_header && cfg.level == "auto")
+                .then(|| {
+                    (0..width).find(|&i| {
+                        !taken(i)
+                            && !sample.is_empty()
+                            && sample.iter().all(|r| {
+                                r.get(i)
+                                    .is_some_and(|v| Level::parse(v).is_some() && v.bytes().any(|b| b.is_ascii_alphabetic()))
+                            })
+                    })
+                })
+                .flatten()
         });
-        let level_col = find(&cfg.level, LEVEL_NAMES);
-        let message_col = find(&cfg.message, MESSAGE_NAMES);
+        let message_col = find(&cfg.message, MESSAGE_NAMES).or_else(|| {
+            // Without a header: the column with the longest text (a message reads as words, not codes or numbers).
+            (!has_header && cfg.message == "auto")
+                .then(|| {
+                    let avg = |i: usize| sample.iter().map(|r| r.get(i).map_or(0, str::len)).sum::<usize>() / sample.len().max(1);
+                    (0..width)
+                        .filter(|&i| !taken(i) && Some(i) != level_col)
+                        .max_by_key(|&i| (avg(i), i))
+                        .filter(|&i| avg(i) >= 12)
+                })
+                .flatten()
+        });
 
         let parser = match (ts_col, parser.day_first()) {
             (Some(c), None) => parser.with_day_first(detect_day_first(rows.iter().take(2000).filter_map(|(_, r)| r.get(c)))),
@@ -141,6 +244,7 @@ impl Layout {
         Layout {
             headers,
             ts_col,
+            time_col,
             level_col,
             message_col,
             parser,
@@ -151,11 +255,12 @@ impl Layout {
         let Layout {
             headers,
             ts_col,
+            time_col,
             level_col,
             message_col,
             parser,
         } = self;
-        let (ts_col, level_col, message_col) = (*ts_col, *level_col, *message_col);
+        let (ts_col, time_col, level_col, message_col) = (*ts_col, *time_col, *level_col, *message_col);
         let mut out = Imported::default();
         for (line, row) in rows {
             if row.iter().all(|c| c.is_empty()) {
@@ -164,7 +269,12 @@ impl Layout {
             let mut rec = Record::new(line);
             for (i, value) in row.iter().enumerate() {
                 if Some(i) == ts_col {
-                    rec.ts = parser.parse(value);
+                    rec.ts = match time_col.and_then(|t| row.get(t)) {
+                        Some(time) => parser.parse(&format!("{value},{time}")),
+                        None => parser.parse(value),
+                    };
+                } else if Some(i) == time_col {
+                    // Part of the timestamp.
                 } else if Some(i) == level_col {
                     rec.level = Level::parse(value).unwrap_or(Level::Information);
                     if Level::parse(value).is_none() && !value.is_empty() {
@@ -182,7 +292,7 @@ impl Layout {
                 rec.message = row
                     .iter()
                     .enumerate()
-                    .filter(|(i, v)| Some(*i) != ts_col && Some(*i) != level_col && !v.is_empty())
+                    .filter(|(i, v)| Some(*i) != ts_col && Some(*i) != time_col && Some(*i) != level_col && !v.is_empty())
                     .map(|(_, v)| v)
                     .collect::<Vec<_>>()
                     .join(" · ");
@@ -309,6 +419,78 @@ mod tests {
         assert_eq!(pipes.records[0].message, "a");
         let tabs = run("[parse.csv]\ndelimiter = '\\t'", "time\tmsg\n2026-10-14 10:00:00\tb\n").unwrap();
         assert_eq!(tabs.records[0].message, "b");
+    }
+
+    fn utc_ms(y: i32, mo: u32, d: u32, h: u32, mi: u32, s: u32, milli: u32) -> i64 {
+        chrono::NaiveDate::from_ymd_opt(y, mo, d)
+            .unwrap()
+            .and_hms_milli_opt(h, mi, s, milli)
+            .unwrap()
+            .and_utc()
+            .timestamp_millis()
+    }
+
+    /// A log4net-style CSV without a header whose date and time are split by the delimiter (invented values).
+    const SPLIT_TS: &str = "2024/03/02,09:15:00.013+01:00,INFO,0x4000000000000001,alpha.exe,1200,6,(3300),,unit:10,\"<ALPHA>:\"\"Started job 41\"\"\"\n\
+        2024/03/02,09:15:02.500+01:00,ERROR,0xc000000000000002,beta.exe,2400,6,(4400),,worker:22,\"<BETA> Connection lost:0x10:retry:3:\"\"Timeout\"\"\"\n";
+
+    // Regression: the first event was read as a header and only the date column became the timestamp.
+    #[test]
+    fn a_headerless_file_with_date_and_time_in_two_columns() {
+        let out = run("", SPLIT_TS).unwrap();
+        assert_eq!(out.records.len(), 2, "the first row is an event, not a header");
+        let first = &out.records[0];
+        // 09:15:00.013 at +01:00 is 08:15:00.013 UTC.
+        assert_eq!(first.ts, Some(utc_ms(2024, 3, 2, 8, 15, 0, 13)));
+        assert_eq!(first.level, Level::Information);
+        assert_eq!(first.message, "<ALPHA>:\"Started job 41\"");
+        assert_eq!(first.fields["col5"], "alpha.exe");
+        assert!(!first.fields.contains_key("col2"), "the time is part of the timestamp");
+        let second = &out.records[1];
+        assert_eq!(second.level, Level::Error);
+        assert_eq!(second.message, "<BETA> Connection lost:0x10:retry:3:\"Timeout\"");
+    }
+
+    #[test]
+    fn headerless_columns_are_named_by_the_profile_and_two_columns_can_be_joined() {
+        let profile =
+            "[parse.csv]\ncolumns = ['Date', 'Time', 'Severity', 'Code', 'Process', 'Pid']\ntimestamp = 'Date+Time'\nlevel = 'Severity'";
+        let out = run(profile, SPLIT_TS).unwrap();
+        let first = &out.records[0];
+        assert_eq!(first.ts, Some(utc_ms(2024, 3, 2, 8, 15, 0, 13)));
+        assert_eq!(first.level, Level::Information);
+        assert_eq!(first.fields["Process"], "alpha.exe");
+        assert_eq!(first.fields["Pid"], 1200);
+        assert_eq!(first.fields["col10"], "unit:10", "columns past the named ones keep col<N>");
+        // A real header still wins: a header never holds a timestamp.
+        let out = run("", "Time,Level,Message\n2024-03-02 09:15:00,Warning,disk almost full\n").unwrap();
+        assert_eq!(out.records.len(), 1);
+        assert_eq!(out.records[0].message, "disk almost full");
+    }
+
+    /// Messages with backslash paths, doubled quotes and dates of their own, a summer-time offset (invented values).
+    #[test]
+    fn headerless_messages_with_paths_quotes_and_dates_inside() {
+        let content = "2024/06/01,08:30:15.250+02:00,INFO,0x4000000000000007,gamma.exe,3100,2,(700),,copier:42,\":\"\"MSG:[Changed]\\srv01\\data\\unit7\\a_b.cfg    Src:Sat Jun  1 08:29:59 2024    Dest:Fri May 31 08:29:58 2024\"\"\"\n\
+            2024/06/01,08:30:15.300+02:00,INFO,0x4000000000000007,gamma.exe,3100,2,(700),,copier:42,\":\"\"MSG:[Changed]\\srv01\\data\\unit7\\c_d.cfg    Src:Sat Jun  1 08:30:01 2024    Dest:Fri May 31 08:30:00 2024\"\"\"\n";
+        let out = run("", content).unwrap();
+        assert_eq!(out.records.len(), 2);
+        let r = &out.records[0];
+        assert_eq!(r.ts, Some(utc_ms(2024, 6, 1, 6, 30, 15, 250)), "+02:00 is two hours ahead of UTC");
+        assert_eq!(r.level, Level::Information);
+        assert_eq!(
+            r.message,
+            ":\"MSG:[Changed]\\srv01\\data\\unit7\\a_b.cfg    Src:Sat Jun  1 08:29:59 2024    Dest:Fri May 31 08:29:58 2024\""
+        );
+        assert_eq!(r.fields["col10"], "copier:42");
+    }
+
+    #[test]
+    fn dates_and_times_on_their_own() {
+        assert!(is_date("2024/03/02") && is_date("2024-03-02") && is_date("02.03.2024"));
+        assert!(!is_date("0x4000") && !is_date("12/34") && !is_date("1/2/3") && !is_date("2024/03/02 10:00"));
+        assert!(is_time("09:15:00.013+01:00") && is_time("09:15") && is_time("09:15:00Z") && is_time("09:15:00,5-05:00"));
+        assert!(!is_time("unit:10") && !is_time("(3300)") && !is_time("9:15:00:00") && !is_time(""));
     }
 
     #[test]

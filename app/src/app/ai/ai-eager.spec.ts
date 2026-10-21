@@ -86,6 +86,34 @@ describe('AiLauncher', () => {
     return { l: TestBed.inject(AiLauncher), open, status, dialogs };
   }
 
+  it('has the AI draft the search text of "Research this" and shows it before anything is searched', async () => {
+    const { l, open } = await launcher();
+    const backend = TestBed.inject(AiBackend);
+    const research = vi.spyOn(backend, 'research');
+    open.mockReturnValue({ closed: Promise.resolve(undefined), close: () => undefined } as never);
+    expect(await l.research({ recordId: 4, maxResults: 3 })).toBeNull();
+    expect(research).not.toHaveBeenCalled();
+    expect(open.mock.calls.at(-1)?.[1].inputs).toMatchObject({
+      query: 'System.UnauthorizedAccessException Access is denied 0x80070005',
+      source: 'model',
+      recordId: 4,
+      maxResults: 3,
+      segments: [],
+    });
+    // Workspace data in the draft: shown highlighted.
+    await l.research({ question: 'why is WEB01 slow?' });
+    expect(open.mock.calls.at(-1)?.[1].inputs).toMatchObject({ query: 'WEB01 slow', source: 'model' });
+    expect((open.mock.calls.at(-1)?.[1].inputs as { segments: unknown[] }).segments.length).toBeGreaterThan(0);
+    // A text the user saw on the chat's card starts at once.
+    const opened = open.mock.calls.length;
+    expect(await l.research({ question: 'q', query: 'E_ACCESSDENIED IIS' })).toBeNull();
+    expect(research).toHaveBeenCalledTimes(1);
+    expect(open.mock.calls.length).toBe(opened);
+    // A draft that fails is reported.
+    vi.spyOn(backend, 'researchDraft').mockRejectedValueOnce(new AiError('engine', 'the model is busy'));
+    expect(await l.research({ question: 'q' })).toBe('the model is busy');
+  });
+
   it('opens each dialog with its inputs', async () => {
     const { l, open } = await launcher();
     await l.openSetup();

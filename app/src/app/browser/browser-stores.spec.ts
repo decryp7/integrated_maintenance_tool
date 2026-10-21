@@ -53,6 +53,7 @@ describe('TauriBrowserBackend', () => {
       [() => b.open({ kind: 'search', query: 'x' }), 'browser_open', { target: { kind: 'search', query: 'x' } }],
       [() => b.eventQuery(4), 'browser_event_query', { recordId: 4 }],
       [() => b.nav('back'), 'browser_nav', { command: 'back' }],
+      [() => b.place({ visible: true, rect: { x: 1, y: 2, width: 3, height: 4 }, scale: 2 }), 'browser_place', { placement: { visible: true, rect: { x: 1, y: 2, width: 3, height: 4 }, scale: 2 } }],
       [() => b.close(), 'browser_close', undefined],
       [() => b.driving(), 'browser_driving', undefined],
       [() => b.openExternal('https://e.org/'), 'browser_open_external', { url: 'https://e.org/' }],
@@ -145,6 +146,27 @@ describe('BrowserStore', () => {
     expect(browser.notices()).toHaveLength(MAX_NOTICES - 1);
     web.emit({ type: 'sources', sessionId: 'x', sources: [] });
     expect(browser.notices()).toHaveLength(MAX_NOTICES - 1);
+  });
+
+  it('knows who drives, whether the page is docked, and numbers the keys taken from the page', async () => {
+    const { browser, web, backend } = setup();
+    web.driver = { kind: 'research' };
+    vi.spyOn(backend, 'state').mockResolvedValueOnce({ page: web.page, engine: 'google', customEngine: false, docked: false });
+    await browser.load();
+    expect(browser.docked()).toBe(false);
+    expect(browser.driver()).toEqual({ kind: 'research' });
+    web.drive({ kind: 'agent', sessionId: 'c-1' });
+    expect(browser.driver()).toEqual({ kind: 'agent', sessionId: 'c-1' });
+    // A load after an event keeps what the event said.
+    web.driver = null;
+    await browser.load();
+    expect(browser.driver()).toEqual({ kind: 'agent', sessionId: 'c-1' });
+    expect(browser.key()).toBeNull();
+    web.emit({ type: 'key', action: 'focusAddress' });
+    web.emit({ type: 'key', action: 'focusAddress' });
+    expect(browser.key()).toEqual({ seq: 2, key: { action: 'focusAddress' } });
+    web.emit({ type: 'key', action: 'shortcut', key: 'p', ctrl: true, shift: true, alt: false, meta: false });
+    expect(browser.key()?.key).toEqual({ action: 'shortcut', key: 'p', ctrl: true, shift: true, alt: false, meta: false });
   });
 });
 

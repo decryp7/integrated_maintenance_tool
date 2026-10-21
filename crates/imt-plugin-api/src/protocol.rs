@@ -125,17 +125,20 @@ pub enum PluginRequest {
 }
 
 /// The end of an import.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImportDone {
     pub skipped: u64,
+    /// The importer's aggregated problems ([`crate::importer::Imported::problems`]).
+    pub problems: Vec<crate::problems::Problem>,
 }
 
 /// The end of a live-tail import.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TailDone {
     /// `false`: the importer cannot append; the host re-imports the whole file.
     pub supported: bool,
     pub skipped: u64,
+    pub problems: Vec<crate::problems::Problem>,
 }
 
 /// The end of a profile import: the capture's encoded size and whether it is a heap snapshot.

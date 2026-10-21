@@ -202,7 +202,7 @@ pub(crate) fn emit_report<R: Runtime>(app: &AppHandle<R>, label: &str, report: &
     let label = label.to_string();
     crate::ui_dispatch::run(app, move |app| {
         let seen = app
-            .get_webview_window(&label)
+            .get_window(&label)
             .is_some_and(|w| w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(false));
         notify(app, NotificationKind::LiveAlert, seen, "IMT live alert", &body);
     });

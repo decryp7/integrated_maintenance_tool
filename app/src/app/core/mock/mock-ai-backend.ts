@@ -54,8 +54,8 @@ import { MockAiUpdates, MockUpdatesMode } from './mock-ai-updates';
 import { mockBrowserTurn } from './mock-ai-browser';
 import { MockJobCancelled, mockJobs, mockSteps } from '../../jobs/mock-jobs';
 import { JobLink, JobResult } from '../../jobs/jobs.types';
-import { mockLeaks, runMockResearch, startMockResearch, wantsResearch, webCitations } from './mock-ai-research';
-import { AiStartRequest, ResearchArgs, ResearchStarted } from '../../ai/ai.types';
+import { mockDraft, mockLeaks, runMockResearch, startMockResearch, wantsResearch, webCitations } from './mock-ai-research';
+import { AiStartRequest, DraftArgs, ResearchArgs, ResearchDraft, ResearchStarted } from '../../ai/ai.types';
 
 /** Operations `mockAiFail` may name: their calls reject with an engine error. */
 export const AI_FAILABLE = [
@@ -711,6 +711,19 @@ export class MockAiBackend extends AiBackend {
       };
     }, narrative, 'Root causes ready');
   }
+  /** "Research this": the mock model drafts the search text (it keeps a sample host name when the question has one, so
+   * the leak guard has something to flag). */
+  async researchDraft(args: DraftArgs): Promise<ResearchDraft> {
+    this.needModel('chat');
+    const event = args.recordId !== null && args.recordId !== undefined;
+    if (event && (args.recordId ?? 0) < 0) throw new AiError('notFound', `there is no event #${args.recordId} in the loaded logs`);
+    const question = (args.question ?? '').trim() || (event ? 'What does this error mean and how can it be fixed: System.UnauthorizedAccessException 0x80070005' : '');
+    if (!question) throw new AiError('invalid', 'give the question to research');
+    const query = event && !args.question ? 'System.UnauthorizedAccessException Access is denied 0x80070005' : mockDraft(question);
+    const segments = query.split(/(\bWEB0\d\b)/i).filter((t) => t).map((t) => ({ text: t, leak: mockLeaks(t) ? ('logValue' as const) : null }));
+    return { question, checked: { query, needsConfirm: mockLeaks(query), segments }, source: 'model' };
+  }
+
   /** "Research this" / "Research…": a research job whose answer becomes a chat turn, or a search text to confirm. */
   async research(args: ResearchArgs): Promise<ResearchStarted> {
     this.needModel('chat');

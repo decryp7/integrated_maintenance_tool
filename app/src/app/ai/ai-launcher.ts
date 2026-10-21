@@ -10,6 +10,7 @@ import { imageFilter } from './vision/image-files';
 
 /** The image view's id (ADR 0025). */
 export const AI_IMAGE_VIEW = 'ai-image';
+import type { QuerySource, Segment } from '../browser/browser.types';
 
 /** What a "Propose …" entry point asks for. */
 export type ProposeKind = ProfileChangeKind | 'profile';
@@ -80,28 +81,45 @@ export class AiLauncher {
   }
 
   /**
-   * "Research this": starts web research (the answer becomes a chat turn); with workspace data in the search text the
-   * user confirms or edits it first. Resolves with an error message when it did not start.
+   * "Research this": the AI drafts the search text from the question and the event, and the Research dialog shows it
+   * (with what the leak guard found) for the user to edit before anything is searched. A search text the user already
+   * saw (the chat's offer card) starts the research at once, unless it has workspace data in it. Resolves with an error
+   * message when nothing could start.
    */
   async research(args: ResearchArgs): Promise<string | null> {
     if (!(await this.ensureModel())) return null;
+    const backend = this.injector.get(AiBackend);
     try {
-      const r = await this.injector.get(AiBackend).research({ ...args, confirmed: false });
-      if (r.status === 'confirm') await this.askResearch({ ...args, question: r.question, query: r.checked.query, segments: r.checked.segments });
+      if (args.query?.trim()) {
+        const r = await backend.research({ ...args, confirmed: false });
+        if (r.status === 'confirm') await this.askResearch({ ...args, question: r.question, query: r.checked.query, segments: r.checked.segments });
+        return null;
+      }
+      const d = await backend.researchDraft({ question: args.question ?? null, recordId: args.recordId ?? null });
+      await this.askResearch({ ...args, question: d.question, query: d.checked.query, segments: d.checked.needsConfirm ? d.checked.segments : [], source: d.source });
       return null;
     } catch (e) {
       return toAiError(e).message;
     }
   }
 
-  /** The Research dialog: the question, the search text (with what the leak guard found) and how many results to read. */
-  async askResearch(args: ResearchArgs & { segments?: import('../browser/browser.types').Segment[] }): Promise<void> {
+  /** The Research dialog: the question, the search text (with what the leak guard found and who wrote it) and how many
+   * results to read. */
+  async askResearch(args: ResearchArgs & { segments?: Segment[]; source?: QuerySource | null }): Promise<void> {
     if (!(await this.ensureModel())) return;
     const { ResearchDialog } = await import('../browser/research-dialog');
     this.dialogs.open(ResearchDialog, {
       title: $localize`:@@ai.launcher.title.research:Research the web`,
       width: 600,
-      inputs: { question: args.question ?? '', query: args.query ?? '', segments: args.segments ?? [], sessionId: args.sessionId ?? null, recordId: args.recordId ?? null, maxResults: args.maxResults ?? null },
+      inputs: {
+        question: args.question ?? '',
+        query: args.query ?? '',
+        segments: args.segments ?? [],
+        source: args.source ?? null,
+        sessionId: args.sessionId ?? null,
+        recordId: args.recordId ?? null,
+        maxResults: args.maxResults ?? null,
+      },
     });
   }
 

@@ -4,7 +4,7 @@ import { WorkspaceStore } from '../../core/workspace.store';
 import { liveOption } from '../../metrics/chart-card';
 import { ChartTheme } from '../../metrics/chart-theme';
 import { EChart } from '../../metrics/echart';
-import { MONITOR_WINDOWS, monitorOption, MonitorWindow } from './monitor-charts-model';
+import { isAutoUnit, MONITOR_WINDOWS, monitorOption, MonitorWindow } from './monitor-charts-model';
 import { MonitorChartsStore } from './monitor-charts.store';
 
 /**
@@ -70,7 +70,7 @@ import { MonitorChartsStore } from './monitor-charts.store';
               <div class="grid">
                 @for (m of g.metrics; track m.metric.id) {
                   <figure class="card" [attr.data-metric]="m.metric.id" [attr.aria-label]="chartLabel(m.metric.title, m.metric.unit)">
-                    <figcaption><span class="title">{{ m.metric.title }}</span>@if (m.metric.unit) { <span class="faint mono small">{{ m.metric.unit }}</span> }</figcaption>
+                    <figcaption><span class="title">{{ m.metric.title }}</span>@if (m.metric.unit && !autoUnit(m.metric.unit)) { <span class="faint mono small">{{ m.metric.unit }}</span> }</figcaption>
                     @if (options()[m.index]; as o) {
                       <imt-echart class="chart" [options]="o" [merge]="store.following()" />
                     } @else {
@@ -135,9 +135,11 @@ export class MonitorLiveCharts {
     return this.store.hiddenSet().has(key) ? $localize`:@@tools.monitor.live.show:Show ${key}:key:` : $localize`:@@tools.monitor.live.hide:Hide ${key}:key:`;
   }
 
+  protected readonly autoUnit = isAutoUnit;
+
   protected chartLabel(title: string, unit: string): string {
     const minutes = this.store.windowMin();
-    return unit
+    return unit && !isAutoUnit(unit)
       ? $localize`:@@tools.monitor.live.chartUnit:${title}:title: (${unit}:unit:), last ${minutes}:minutes: minutes`
       : $localize`:@@tools.monitor.live.chart:${title}:title:, last ${minutes}:minutes: minutes`;
   }

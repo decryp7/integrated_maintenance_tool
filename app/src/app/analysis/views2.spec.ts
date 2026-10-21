@@ -51,7 +51,7 @@ describe('FieldStatsView', () => {
     expect(el(fixture, '[role=img]').getAttribute('aria-label')).toBe('Histogram of ElapsedMs from 1 to 100');
     expect(charts.instances.length).toBeGreaterThan(0);
     const pcts = all(fixture, '.pcts div').map((d) => d.textContent?.replace(/\s+/g, ' ').trim());
-    expect(pcts).toEqual(expect.arrayContaining(['min1', 'p5035.0', 'p9590.0', 'max100']));
+    expect(pcts).toEqual(expect.arrayContaining(['min1', 'p5035', 'p9590', 'max100']));
     expect(all(fixture, '.top .val').map((v) => v.textContent)).toEqual(['42', '7']);
   });
 

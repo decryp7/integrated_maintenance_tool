@@ -5,7 +5,7 @@
  * `imt://ai-runtime` (`AiRuntimeEvent`, all windows), `imt://ai-updates` (`AiUpdatesStatus`, all windows).
  * Every command rejects with `{ code, message }` (`AiErrorPayload`).
  */
-import { AgentApprovalRequest, HandOff, PauseReason, Segment } from '../browser/browser.types';
+import { AgentApprovalRequest, HandOff, PauseReason, QuerySource, Segment } from '../browser/browser.types';
 import { ExplainNode, InferredGroup, Level, ParsedPreview } from '../core/api.types';
 
 export const AI_SETUP_EVENT = 'imt://ai-setup';
@@ -646,6 +646,20 @@ export interface CheckedQuery {
 
 /** `ai_research` answer: the research job started, or the search text needs the user's confirmation first. */
 export type ResearchStarted = { status: 'started'; jobId: number } | { status: 'confirm'; checked: CheckedQuery; question: string };
+
+/** `ai_research_draft` arguments: the question (one about the event when absent) and the event. */
+export interface DraftArgs {
+  question?: string | null;
+  recordId?: number | null;
+}
+
+/** `ai_research_draft` answer: the question and the search text the model drafted (or the engine built), checked by the
+ * leak guard. The user sees and edits it before `ai_research` runs it. */
+export interface ResearchDraft {
+  question: string;
+  checked: CheckedQuery;
+  source: QuerySource;
+}
 
 // ---- update checks (app/src-tauri/src/ai/updates.rs, crates/imt-ai/src/updates) ----
 

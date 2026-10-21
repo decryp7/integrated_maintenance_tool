@@ -6,19 +6,12 @@ import { OverwriteGuard } from '../ui/overwrite-guard';
 import { JobFollow } from '../jobs/job-follow';
 import { ExportTarget } from './export-target';
 import { SnapshotBackend } from './snapshot-backend';
-import { localizeDecimal } from '../i18n/locale';
+import { formatBytes } from '../shared/format/units';
 
 /** Name the save dialog suggests. */
 export const REPORT_FILE_NAME = 'imt-problem-report.zip';
 /** Longest description the engine keeps (bytes); the field stops there. */
 export const MAX_DESCRIPTION = 10 * 1024;
-
-/** Human-readable size. */
-export function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${localizeDecimal((n / 1024).toFixed(1))} KB`;
-  return `${localizeDecimal((n / (1024 * 1024)).toFixed(1))} MB`;
-}
 
 /**
  * Help ▸ Report a problem: lists what the zip will contain (activity, logs, snapshots, steps to reproduce,

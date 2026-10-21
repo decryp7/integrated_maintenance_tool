@@ -19,9 +19,16 @@ exclude = ["**/*-filtered.*", "**/*.imtprofile.toml", "**/*.imtproj", "**/*.exe"
 [parse]
 # auto | json | text | csv
 format = "auto"
-# Serilog output templates (as written in appsettings.json), tried in order for
-# plain-text files. Named holes other than Timestamp/Level/Message/NewLine/
-# Exception/Properties become fields.
+# Serilog output templates (as written in appsettings.json) for plain-text
+# files. Named holes other than Timestamp/Level/Message/NewLine/Exception/
+# Properties become fields.
+#
+# Every line is read with the first template or regex (templates first, in
+# order) that matches it, so one file may mix formats (a log server writing
+# several products) and JSON lines with a [parse.json] timestamp key. A line
+# that matches none continues the event above; when it looks like an event
+# (starts with a date, a time, a syslog priority or month), it is reported as
+# an unmatched line in the source's problems.
 output_templates = [
   "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
   "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
@@ -72,17 +79,49 @@ default_level = "Information"
 [parse.csv]
 # "auto" sniffs , ; tab and |
 delimiter = "auto"
+# A header row may be there. A first row holding a timestamp or a date is an event, not a header, so files
+# without a header (most logs, e.g. log4net's CSV layouts) need no setting; `false` never reads a header.
 has_header = true
-# Column names, or "auto" to guess from the header.
+# Names for the columns of a file without a header, in order (the rest are col1, col2, …), e.g.
+# columns = ["Date", "Time", "Level", "Code", "Process", "Pid"]
+columns = []
+# Column names, or "auto" to guess from the header. Without a header, "auto" finds the timestamp (also a date and
+# a time in two columns, as in `2026/10/14,10:00:00.123+01:00` with "," as the delimiter), the column of level
+# names and the longest text as the message. Two columns joined: timestamp = "Date+Time".
 timestamp = "auto"
 level = "auto"
 message = "auto"
 
 [instance]
-# Fields forming the instance key. Empty = the candidates present on at least
-# half of the events, falling back to the source file.
+# Fields forming the instance key (one timeline lane per value). Empty = the
+# candidates present on at least half of the events of some source (so a field
+# only one product writes still counts) that have more than one value,
+# falling back to the source file. Candidates match field names ignoring case;
+# importers add the fields that identify their writers (syslog: Host, App,
+# ProcId; Windows event logs: Computer, ProcessId; containers: Namespace, Pod,
+# Container, ContainerId).
 key = []
-candidates = ["Application", "ApplicationName", "MachineName", "EnvironmentName", "ProcessName", "ProcessId", "InstanceId"]
+candidates = ["Application", "ApplicationName", "MachineName", "EnvironmentName", "ProcessName", "ProcessId", "InstanceId", "Host", "HostName", "App", "AppName", "ProcId", "Pid"]
+
+# Routes split one file into logical sources by the fields of its events, for
+# files several products or hosts write into (a log server, a shared log). The
+# first route whose `when` conditions hold (same conditions as extractors and
+# markers; empty = every event) and whose `source` fields are all present
+# names the event's logical source: `{Field}` is a field or pseudo-field
+# (`{@level}`), `{{`/`}}` are braces. Logical sources are listed under their
+# file in the Explorer and get their own instance key; events no route names
+# stay in the file's own source. At most 64 routes and 256 logical sources per
+# file (further events stay in the file's source, reported as a problem). A
+# split file is re-read whole when it changes. Routes run after extractors and
+# the pipeline, so they can use extracted fields.
+#
+# [[route]]
+# when = [{ field = "App", op = "exists" }]
+# source = "{App}@{Host}"
+#
+# [[route]]
+# when = [{ field = "@message", op = "contains", value = "[billing]" }]
+# source = "Billing"
 
 [activity]
 # What users were doing, for the Moment view: who (first present field) and
