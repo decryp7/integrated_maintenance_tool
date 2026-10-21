@@ -640,3 +640,58 @@ Phase R2c ("read side") gives the DuckDB store the rest of the read ports; the a
 - Project open/export use `ProjectManifest` (`project.toml`) and `.imtz`.
 - Span rule inference: `SpanRuleRequest`, `SpanProposal { candidates: [{ description, key, exampleKeys, start, stop,
   kind, profileOverride, evaluation }], notes }`, `SpanRuleCheck`, `SpanEvaluation`.
+
+## Performance notes (perf/rust, 2026-10-21)
+
+Measured on the shared Windows VM (24 cores, other builds running: single runs vary by 2-3x, so every number
+below is from interleaved A/B runs, at least two each).
+
+- **Segment listing**: closed segments are listed together, at most once a second, by whichever parse thread
+  finds the catalog free (`writer::LIST_EVERY`). Listing each segment at once rebound the views over every
+  segment file (quadratic in segments) under the catalog lock; it was 53% of the import's on-CPU samples.
+  10M import: 72-43k events/s before, 105k events/s after (same period).
+- **Allocator** (user decision 2026-10-21: mimalloc v3): the store worker, the app, the plugins process and
+  the benches that stand for them use mimalloc v3 as the global allocator through `imt-alloc`, which sets
+  its purge timing at start-up (`mi_option_set`; the workers clear their environment): v3's default keeps
+  freed memory for 1 s, `imt_alloc::tune` sets v2's 10 ms (arenas 10x).
+
+  | | worker, 20 copies (asserts 600 MB importing) | 10M import, in process | 10M reads, peak |
+  |---|---|---|---|
+  | system allocator | 49-82k ev/s, peak 283-314 MB | 28-79k ev/s, peak 524-553 MB | 980-986 MB |
+  | mimalloc v2 | 50-85k ev/s, peak 454-501 MB | 99-254k ev/s, peak 597-682 MB | 841-872 MB |
+  | v3, default (1 s) | 58-98k ev/s, peak 643-690 MB | 107-187k ev/s, peak 727-815 MB | 954 MB |
+  | v3, purge 0 ms | 47-68k ev/s, peak 288-349 MB | 52-134k ev/s, peak 410-566 MB | 918-945 MB |
+  | **v3, purge 10 ms** (shipped) | 55-65k ev/s, peak 494-577 MB | 151-207k ev/s, peak 691-756 MB | 920-962 MB |
+
+  (v2, v3 at 0 ms and v3 at 10 ms in the same interleaved rounds, three each.) v3 at 10 ms imports as fast
+  as v2 and stays under the worker's 600 MB budget, with less margin (577 MB at worst); purging at once
+  halves the peak but costs 20-40% of the import speed. Read times are the same with every variant; the
+  read peak is anomaly detection's (over the 300 MB query budget with any allocator, see below).
+- **The app** (in-memory engine until 6c) uses the same allocator: `benches/engine.rs` import, mimalloc (v2,
+  before the switch to v3) vs the system allocator, two rounds: clef +81/+83%, serilog-text +60/+98%, log4net +118/+88%, csv +175/+73%.
+- Tried and dropped (no difference beyond the VM's noise): seeded foldhash / FxHash for the per-event maps of
+  facets, timelines, charts, patterns, exception groups, QL `stats` and span pairing (criterion: changes of
+  -50% to +74% in either direction between rounds, including benchmarks that do not use those maps; the
+  store's analyses are bound by DuckDB reads); moving the JSON importer's message and template instead of
+  cloning them and reusing the batcher's field-text buffer (worker bench within noise); listing the import's
+  files' sizes and archive slots in parallel (one quiet pair 95 s vs 90 s).
+- **JSON events keep their parsed map** as their fields (`importers::json::fields_of`) unless keys need
+  renaming, flattening or repeat; the old path re-inserted every key into a second map. Engine bench
+  import/clef +19% / +16%; 10M CLEF import 269-276k -> 279-291k events/s in quiet pairs (the ADR's 218k
+  target is met end to end in process when the VM is quiet; the 20-copy worker run stays at 52-60k, its
+  fixed costs dominate). Identical output, field order included (tested against the old path on /samples).
+- Not changed, still hot (10M import profile, on-CPU samples of the parse threads): `serde_json::Value` maps
+  per event (parsing, `IndexMap` inserts with SipHash, dropping records: ~30%) and Parquet encoding and zstd
+  (~20%).
+- **To do after 6c lands** (in files 6c rewrites, so left alone here):
+  - `fsync` of every closed segment on the parse thread (`segments.rs`, `SegmentWriter::close`; 12% of the
+    parse threads' samples): sync in the listing step or a background thread instead;
+  - `SegmentStats::add` on the parse threads (`stats.rs`, 3.5%): move it off them, or allow more than 8
+    parse threads within the memory budget (R2b measured 16 threads at 428 MB);
+  - time-ordered analyses issue one statement per ~100k-event window (`analysis.rs`, `EventStream::ordered`),
+    each rebinding the view over every segment and scanning every row group's `ts` (segments overlap in time,
+    so pruning skips little): runs 26-80 s, compare 11-33 s, anomalies 8-40 s, patterns 5-25 s at 10M;
+  - anomaly detection's peak (840-990 MB at 10M, `Slim` per event).
+- The worker benchmark (`IMT_BENCH_COPIES=20 … --test worker`) fails at `summary()` already at 2ba7e00 (DuckDB
+  out of memory at its 183 MB limit); it now prints the import line before the queries so the import is still
+  measured.

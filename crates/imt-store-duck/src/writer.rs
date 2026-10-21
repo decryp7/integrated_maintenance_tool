@@ -2,10 +2,14 @@
 //! writer to wait for), and one catalog connection records sources, diagnostics and finished segments.
 //!
 //! - Ids: a segment reserves a block of [`SEGMENT_ROWS`] ids when it opens; the next free id is kept in
-//!   `meta`, so ids are never reused, even after a crash.
+//!   `meta` with every listing (and as soon as a block is reserved when batches are observed, since the
+//!   observer sees ids before they are listed), so listed ids are never reused, even after a crash.
 //! - Visibility: a source becomes ready (visible through the `events` view) when it is finished and every
-//!   segment holding its rows has been registered; a segment is registered when it is full, when it has
-//!   been open for [`SEGMENT_AGE`](crate::segments::SEGMENT_AGE), or at the end of the import.
+//!   segment holding its rows has been listed. A segment is closed when it is full, when it has been open
+//!   for [`SEGMENT_AGE`](crate::segments::SEGMENT_AGE), or at the end of the import; closed segments are
+//!   listed together at most every [`LIST_EVERY`] (rebinding the view reads every segment's footer, so
+//!   listing each segment at once made imports quadratic in the number of segments), by whichever parse
+//!   thread finds the catalog free (the others go on parsing), and all at the end of the import.
 //! - An aborted source is deleted from `sources` at once (its rows stay in segments as garbage, hidden by
 //!   the view, until compaction rewrites those segments).
 //! - Every batch with its final ids is also handed to `observe` (the full-text indexer).
@@ -20,7 +24,11 @@ use imt_core::ingest::{NewSource, SharedSink, SourceReport};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, TryLockError};
+use std::time::{Duration, Instant};
+
+/// Closed segments are listed (and the view rebound) at most this often while importing.
+pub const LIST_EVERY: Duration = Duration::from_secs(1);
 
 pub(crate) fn meta_u64(conn: &Connection, key: &str) -> u64 {
     conn.query_row("SELECT value FROM meta WHERE key = ?", params![key], |r| r.get::<_, String>(0))
@@ -108,22 +116,28 @@ fn write_ready(conn: &Connection, r: &SourceReport) -> Result<()> {
     Ok(())
 }
 
-/// Lists the finished sources whose rows are all in registered segments.
-fn write_completed(conn: &Connection, sources: &mut HashMap<SourceId, SourceState>) -> Result<()> {
-    for st in sources.values_mut() {
-        if st.open == 0 && !st.aborted {
-            if let Some(r) = st.finished.take() {
-                write_ready(conn, &r)?;
+/// Counts `segs` as listed and takes the reports of the finished sources whose rows are now all listed.
+fn completed(sources: &mut HashMap<SourceId, SourceState>, segs: &[Segment]) -> Vec<SourceReport> {
+    for seg in segs {
+        for s in &seg.sources {
+            if let Some(st) = sources.get_mut(&SourceId(*s)) {
+                st.open = st.open.saturating_sub(1);
             }
         }
     }
-    Ok(())
+    let mut ready: Vec<SourceReport> = sources
+        .values_mut()
+        .filter(|st| st.open == 0 && !st.aborted)
+        .filter_map(|st| st.finished.take())
+        .collect();
+    ready.sort_by_key(|r| r.id.0);
+    ready
 }
 
 /// A source of the running import.
 #[derive(Default)]
 struct SourceState {
-    /// Open segments holding its rows.
+    /// Segments holding its rows that are not listed yet.
     open: usize,
     /// Its report, once it is finished, until it is written.
     finished: Option<SourceReport>,
@@ -149,6 +163,10 @@ pub struct SegmentSink {
     /// One open segment per parse thread (the last slot serves threads outside the pool).
     slots: Vec<Mutex<Option<SegmentWriter>>>,
     sources: Mutex<HashMap<SourceId, SourceState>>,
+    /// Closed segments waiting to be listed, and when segments were last listed.
+    pending: Mutex<(Vec<Segment>, Option<Instant>)>,
+    /// [`LIST_EVERY`] (tests change it).
+    list_every: Duration,
     generation: Arc<AtomicU64>,
     /// Distinguishes the files of rewritten segments.
     file_generation: u64,
@@ -186,6 +204,8 @@ impl SegmentSink {
             ids: Mutex::new(ids),
             slots: (0..threads.max(1) + 1).map(|_| Mutex::new(None)).collect(),
             sources: Mutex::new(HashMap::new()),
+            pending: Mutex::new((Vec::new(), None)),
+            list_every: LIST_EVERY,
             generation,
             file_generation,
             observe,
@@ -203,39 +223,56 @@ impl SegmentSink {
         let mut ids = lock(&self.ids);
         let first = ids.event;
         let end = first + SEGMENT_ROWS.max(rows);
-        set_meta(&lock(&self.catalog), "next_id", end)?;
+        if self.observe.is_some() {
+            set_meta(&lock(&self.catalog), "next_id", end)?;
+        }
         ids.event = end;
         drop(ids);
         SegmentWriter::create(&self.seg_dir, &self.schema, first, end, self.file_generation)
     }
 
-    /// Closes a segment, lists it and makes the sources it completes ready.
+    /// Closes a segment and lists the closed segments when they are due and the catalog is free.
     fn register(&self, w: SegmentWriter) -> Result<()> {
-        self.list(vec![w.close()?], false)
+        let seg = w.close()?;
+        lock(&self.pending).0.push(seg);
+        let conn = match self.catalog.try_lock() {
+            Ok(c) => c,
+            Err(TryLockError::Poisoned(p)) => p.into_inner(),
+            // Another thread is listing: this segment goes with a later listing.
+            Err(TryLockError::WouldBlock) => return Ok(()),
+        };
+        let segs = {
+            let mut pending = lock(&self.pending);
+            if pending.1.is_some_and(|t| t.elapsed() < self.list_every) {
+                return Ok(());
+            }
+            pending.1 = Some(Instant::now());
+            std::mem::take(&mut pending.0)
+        };
+        self.list(&conn, segs, false)
     }
 
     /// Lists closed segments and makes the sources they complete ready, in one catalog transaction (a
-    /// commit costs tens of milliseconds); `last` also persists the next ids.
-    fn list(&self, segs: Vec<Segment>, last: bool) -> Result<()> {
-        let mut sources = lock(&self.sources);
-        let conn = lock(&self.catalog);
+    /// commit costs tens of milliseconds); `last` also persists the next source id.
+    fn list(&self, conn: &Connection, segs: Vec<Segment>, last: bool) -> Result<()> {
+        let ready = completed(&mut lock(&self.sources), &segs);
         conn.execute_batch("BEGIN TRANSACTION")?;
         let done = (|| -> Result<()> {
             for seg in &segs {
-                insert_segment(&conn, seg, seg.rows, false)?;
-                for s in &seg.sources {
-                    if let Some(st) = sources.get_mut(&SourceId(*s)) {
-                        st.open = st.open.saturating_sub(1);
-                    }
-                }
+                insert_segment(conn, seg, seg.rows, false)?;
             }
-            write_completed(&conn, &mut sources)?;
-            if last {
+            for r in &ready {
+                write_ready(conn, r)?;
+            }
+            let (event, source) = {
                 let ids = lock(&self.ids);
-                set_meta(&conn, "next_id", ids.event)?;
-                set_meta(&conn, "next_source", ids.source as u64)?;
+                (ids.event, ids.source)
+            };
+            set_meta(conn, "next_id", event)?;
+            if last {
+                set_meta(conn, "next_source", source as u64)?;
             }
-            refresh_view(&conn, &self.dir, &self.schema)
+            refresh_view(conn, &self.dir, &self.schema)
         })();
         match done {
             Ok(()) => conn.execute_batch("COMMIT")?,
@@ -271,7 +308,7 @@ impl SegmentSink {
                 })
                 .collect()
         });
-        let mut segs = Vec::new();
+        let mut segs = std::mem::take(&mut lock(&self.pending).0);
         for seg in closed {
             match seg {
                 Ok(s) => segs.push(s),
@@ -280,7 +317,7 @@ impl SegmentSink {
                 }
             }
         }
-        if let Err(e) = self.list(segs, true) {
+        if let Err(e) = self.list(&lock(&self.catalog), segs, true) {
             first_err.get_or_insert(e);
         }
         match first_err {
@@ -364,6 +401,10 @@ impl Drop for SegmentSink {
             if let Some(w) = lock(slot).take() {
                 w.discard();
             }
+        }
+        // Closed but never listed: no reader knows them (opening the store would sweep them too).
+        for seg in std::mem::take(&mut lock(&self.pending).0) {
+            let _ = std::fs::remove_file(self.seg_dir.join(&seg.file));
         }
     }
 }
@@ -500,6 +541,48 @@ mod tests {
             .filter(|e| e.as_ref().unwrap().path().extension().is_some_and(|x| x == "tmp"))
             .count();
         assert_eq!(tmp, 0);
+        drop(c);
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[test]
+    fn closed_segments_wait_for_the_next_listing() {
+        let (dir, c) = store();
+        let mut w = sink(&c, &dir, None);
+        w.list_every = Duration::from_secs(3600);
+        let src = NewSource {
+            path: "a".into(),
+            name: "a".into(),
+        };
+        let a = w.begin_source(&src, None).unwrap();
+        let per = 8192;
+        let full = SEGMENT_ROWS as usize / per;
+        // The first closed segment is listed at once, the second waits (listed less than an hour ago).
+        for _ in 0..2 * full + 1 {
+            w.write(batch(a, per)).unwrap();
+        }
+        assert_eq!(count(&c, "SELECT count(*) FROM segments"), 1);
+        let files = || std::fs::read_dir(dir.join(SEGMENTS_DIR)).unwrap().count();
+        assert_eq!(files(), 3, "two closed segments and an open one");
+        w.finish_source(&report(a, per * (2 * full + 1))).unwrap();
+        w.finish().unwrap();
+        assert_eq!(count(&c, "SELECT count(*) FROM segments"), 3, "the rest is listed at the end");
+        assert_eq!(count(&c, "SELECT count(*) FROM events"), (per * (2 * full + 1)) as u64);
+        assert_eq!(
+            count(&c, "SELECT CAST(value AS BIGINT) FROM meta WHERE key = 'next_id'"),
+            count(&c, "SELECT max(end_id) FROM segments")
+        );
+        // A writer dropped with a closed segment that was never listed deletes it.
+        let mut w = sink(&c, &dir, None);
+        w.list_every = Duration::from_secs(3600);
+        let b = w.begin_source(&src, None).unwrap();
+        for _ in 0..2 * full + 1 {
+            w.write(batch(b, per)).unwrap();
+        }
+        assert_eq!(files(), 6);
+        drop(w);
+        assert_eq!(files(), 4, "the listed segment stays until compaction");
+        assert_eq!(count(&c, &format!("SELECT count(*) FROM events WHERE source = {}", b.0)), 0);
         drop(c);
         std::fs::remove_dir_all(dir).ok();
     }

@@ -17,6 +17,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.7.3", features = [] }
 
 [dependencies]
+imt-alloc = { path = "../../crates/imt-alloc" }
 imt-core = { path = "../../crates/imt-core" }
 imt-pdf = { path = "../../crates/imt-pdf" }
 imt-profile = { path = "../../crates/imt-profile" }
