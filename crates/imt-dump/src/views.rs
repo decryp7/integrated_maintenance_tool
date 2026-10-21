@@ -236,13 +236,15 @@ pub fn exception_card(d: &Dump) -> Option<ExceptionCard> {
 }
 
 /// The one-line headline of a dump.
-pub fn headline(d: &Dump) -> String {
+pub fn headline(d: &Dump) -> DumpHeadline {
     match exception_card(d) {
-        Some(c) => match &c.location {
-            Some(l) => format!("{} in {l}", c.name),
-            None => c.name,
+        Some(c) => DumpHeadline::Exception {
+            name: c.name,
+            location: c.location,
         },
-        None => format!("{} threads, no exception", d.threads.len()),
+        None => DumpHeadline::NoException {
+            threads: u32::try_from(d.threads.len()).unwrap_or(u32::MAX),
+        },
     }
 }
 
@@ -366,7 +368,13 @@ mod tests {
         assert_eq!(c.name, "ACCESS_VIOLATION");
         assert_eq!(c.access.as_deref(), Some("writing 0x10"));
         assert_eq!(c.location.as_deref(), Some("ntdll.dll!RtlFreeHeap+0x1d"));
-        assert_eq!(headline(&d), "ACCESS_VIOLATION in ntdll.dll!RtlFreeHeap+0x1d");
+        assert_eq!(
+            headline(&d),
+            DumpHeadline::Exception {
+                name: "ACCESS_VIOLATION".into(),
+                location: Some("ntdll.dll!RtlFreeHeap+0x1d".into())
+            }
+        );
         let page = threads(
             &d,
             &ThreadsRequest {
@@ -409,6 +417,6 @@ mod tests {
         assert_eq!(o.dotnet, None);
         let mut no_ex = sample_dump();
         no_ex.exception = None;
-        assert_eq!(headline(&no_ex), "4 threads, no exception");
+        assert_eq!(headline(&no_ex), DumpHeadline::NoException { threads: 4 });
     }
 }
