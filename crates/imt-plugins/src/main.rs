@@ -39,7 +39,12 @@ fn manifests() -> Result<String, String> {
     serde_json::to_string(&out).map_err(|e| e.to_string())
 }
 
+/// mimalloc v3, tuned (see `imt-alloc`): plugins parse files per event like the engine.
+#[global_allocator]
+static GLOBAL: imt_alloc::MiMalloc = imt_alloc::MiMalloc;
+
 fn main() {
+    imt_alloc::tune();
     let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|a| a == "--manifests") {
         match manifests() {

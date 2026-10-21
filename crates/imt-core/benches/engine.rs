@@ -9,7 +9,7 @@
 
 // The app's allocator (`app/src-tauri/src/main.rs`), so the numbers are the shipped ones.
 #[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+static GLOBAL: imt_alloc::MiMalloc = imt_alloc::MiMalloc;
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use imt_core::importers::{ImportCtx, Importers};
@@ -68,6 +68,7 @@ fn scaled(rel: &str, header: usize, lines: usize) -> (String, usize) {
 }
 
 fn import(c: &mut Criterion) {
+    imt_alloc::tune();
     let lines = env_lines("IMT_BENCH_IMPORT_LINES", 250_000);
     let profile = CompiledProfile::compile(Profile::default_profile()).expect("default profile compiles");
     let importers = Importers::new();
@@ -125,6 +126,7 @@ impl Drop for ScaledFiles {
 }
 
 fn queries(c: &mut Criterion) {
+    imt_alloc::tune();
     let lines = env_lines("IMT_BENCH_WORKSPACE_LINES", 100_000);
     let files = ScaledFiles::write(lines);
     let mut ws = Workspace::new(Profile::default_profile()).expect("default profile");

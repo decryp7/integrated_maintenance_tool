@@ -3,9 +3,10 @@
 //! the connection or stdin (IMT is gone).
 
 #[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+static GLOBAL: imt_alloc::MiMalloc = imt_alloc::MiMalloc;
 
 fn main() {
+    imt_alloc::tune();
     if let Err(e) = imt_store_worker::server::run() {
         eprintln!("imt-store-worker: {e}");
         std::process::exit(1);

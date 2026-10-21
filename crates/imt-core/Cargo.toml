@@ -43,7 +43,7 @@ zip.workspace = true
 
 [dev-dependencies]
 # The app's allocator, so benches/engine.rs measures what ships.
-mimalloc.workspace = true
+imt-alloc = { path = "../imt-alloc" }
 # Benchmarks (benches/engine.rs) with HTML reports under target/criterion.
 criterion = { version = "0.8", features = ["html_reports"] }
 # Snapshot tests of importer output (tests/importer_snapshots.rs, snapshots in tests/snapshots/).

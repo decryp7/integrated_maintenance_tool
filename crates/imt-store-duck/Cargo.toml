@@ -30,7 +30,7 @@ tantivy = { version = "0.27", default-features = false, features = ["mmap", "lz4
 
 [dev-dependencies]
 # The store worker's allocator, so the benchmarks measure what ships (tests/bench.rs, tests/bench_reads.rs).
-mimalloc = { version = "0.1", default-features = false, features = ["v2"] }
+imt-alloc = { path = "../imt-alloc" }
 # Current resident set size on Windows, macOS and Linux (MIT OR Apache-2.0), for the memory budget test.
 memory-stats = "1.2"
 getrandom = "0.3"

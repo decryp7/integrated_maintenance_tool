@@ -13,6 +13,7 @@ name = "imt-plugins"
 path = "src/main.rs"
 
 [dependencies]
+imt-alloc = { path = "../imt-alloc" }
 imt-plugin-api = { path = "../imt-plugin-api" }
 imt-plugin-registry = { path = "../imt-plugin-registry" }
 imt-plugin-otel = { path = "../imt-plugin-otel" }

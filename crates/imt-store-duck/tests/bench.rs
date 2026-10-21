@@ -7,7 +7,7 @@ mod common;
 
 // The store worker's allocator (`imt-store-worker`), so the numbers are the shipped ones.
 #[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+static GLOBAL: imt_alloc::MiMalloc = imt_alloc::MiMalloc;
 
 use common::rss::{current, Sampler};
 use common::TempDir;
@@ -47,6 +47,7 @@ fn dir_mb(p: &std::path::Path) -> f64 {
 
 #[test]
 fn interactive_operations_at_scale() {
+    imt_alloc::tune();
     let Some(events) = std::env::var("IMT_BENCH_EVENTS").ok().and_then(|v| v.parse::<u64>().ok()) else {
         eprintln!("skipped: set IMT_BENCH_EVENTS (e.g. 10000000) to run the benchmark");
         return;
