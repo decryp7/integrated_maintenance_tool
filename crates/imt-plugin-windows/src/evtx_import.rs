@@ -21,6 +21,11 @@ impl BinaryImporter for EvtxImporter {
         "evtx"
     }
 
+    /// The computer and the process that logged the event.
+    fn identity_fields(&self) -> Vec<String> {
+        ["Computer", "ProcessId"].map(String::from).to_vec()
+    }
+
     fn sniff(&self, _ctx: &ImportCtx, head: &[u8]) -> u8 {
         if is_evtx(head) {
             100
@@ -31,7 +36,11 @@ impl BinaryImporter for EvtxImporter {
 
     fn import(&self, _ctx: &ImportCtx, bytes: &[u8]) -> Result<Imported> {
         let (records, skipped) = read_evtx_counted(bytes)?;
-        Ok(Imported { records, skipped })
+        Ok(Imported {
+            records,
+            skipped,
+            ..Default::default()
+        })
     }
 }
 
@@ -203,6 +212,14 @@ mod tests {
         let mut ctx = ImportCtx::new(Path::new("x.evtx"), &ts);
         ctx.file_date = None;
         f(&ctx)
+    }
+
+    #[test]
+    fn declares_identity_fields() {
+        assert_eq!(
+            imt_plugin_api::BinaryImporter::identity_fields(&EvtxImporter),
+            ["Computer", "ProcessId"]
+        );
     }
 
     #[test]

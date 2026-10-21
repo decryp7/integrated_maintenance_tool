@@ -4,6 +4,7 @@ import { DockService } from '../dock/dock.service';
 import { COMMAND_CONTEXT, CommandRegistry } from './command-registry';
 import { CommandContext, flattenContributions, IMT_ACTIVITY_ITEMS, ImtActivityItem, ImtActivityMenuItem, ImtActivityTarget, ViewCategory } from './tokens';
 import { ViewRegistry } from './view-registry';
+import { WelcomeService } from '../welcome/welcome';
 
 const LOG = 'ui.activity';
 
@@ -48,6 +49,7 @@ export class ActivityItems {
   private readonly commands = inject(CommandRegistry);
   private readonly views = inject(ViewRegistry);
   private readonly dock = inject(DockService);
+  private readonly welcome = inject(WelcomeService);
   /** `<item id>:<what>` already reported, so a function that keeps throwing logs once. */
   private readonly reported = new Set<string>();
 
@@ -122,7 +124,11 @@ export class ActivityItems {
 
   /** Shows the view or runs the command. Unavailable commands are ignored by the registry. */
   run(target: ImtActivityTarget): void {
-    if ('view' in target) this.dock.show(target.view);
+    if ('view' in target) {
+      // The welcome screen covers the dock while nothing is open: the view asked for must be visible.
+      this.welcome.stepAside();
+      this.dock.show(target.view);
+    }
     else void this.commands.run(target.command, 'button');
   }
 

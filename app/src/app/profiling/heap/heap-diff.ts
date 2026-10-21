@@ -5,7 +5,8 @@ import { AnalysisState } from '../../analysis/analysis-state';
 import { AsyncResource } from '../../analysis/async-resource';
 import { CapturesStore } from '../captures.store';
 import { ProfilingBackend } from '../profiling-backend';
-import { formatBytes, formatDelta } from '../profiling-format';
+import { formatBytes, formatDelta, formatExactDelta } from '../profiling-format';
+import { formatExactBytes } from '../../shared/format/units';
 import { PROFILING_STYLES } from '../profiling-styles';
 import { HeapSelection } from './heap-selection';
 
@@ -38,7 +39,7 @@ export function byTaken(heaps: readonly HeapSummary[]): HeapSummary[] {
           <option value="name" [selected]="sort() === 'name'" i18n="@@profiling.heapDiff.sort.name">Name</option>
         </select>
       </label>
-      @if (res.data(); as d) { <span class="muted">{{ bytes(d.bytesBefore) }} → {{ bytes(d.bytesAfter) }} ({{ delta(d.bytesAfter - d.bytesBefore, 'bytes') }})</span> }
+      @if (res.data(); as d) { <span class="muted" [title]="exact(d.bytesBefore) + ' → ' + exact(d.bytesAfter)">{{ bytes(d.bytesBefore) }} → {{ bytes(d.bytesAfter) }} ({{ delta(d.bytesAfter - d.bytesBefore, 'bytes') }})</span> }
     </div>
     @if (heaps().length < 2) {
       <div class="state" role="status" i18n="@@profiling.heapDiff.openSecond">Open a second heap snapshot to compare.</div>
@@ -54,8 +55,8 @@ export function byTaken(heaps: readonly HeapSummary[]): HeapSummary[] {
                   <td>@if (r.isNew) { <span class="tag new" i18n="@@profiling.heapDiff.new">new</span> } @else if (r.isGone) { <span class="tag gone" i18n="@@profiling.heapDiff.gone">gone</span> }</td>
                   <td class="num">{{ count(r.countBefore) }} → {{ count(r.countAfter) }}</td>
                   <td class="num" [class.up]="r.countDelta > 0" [class.down]="r.countDelta < 0">{{ delta(r.countDelta, 'count') }}</td>
-                  <td class="num">{{ bytes(r.bytesBefore) }} → {{ bytes(r.bytesAfter) }}</td>
-                  <td class="num" [class.up]="r.bytesDelta > 0" [class.down]="r.bytesDelta < 0"><span aria-hidden="true">{{ r.bytesDelta > 0 ? '▲' : r.bytesDelta < 0 ? '▼' : '' }}</span> {{ delta(r.bytesDelta, 'bytes') }}</td>
+                  <td class="num" [title]="exact(r.bytesBefore) + ' → ' + exact(r.bytesAfter)">{{ bytes(r.bytesBefore) }} → {{ bytes(r.bytesAfter) }}</td>
+                  <td class="num" [class.up]="r.bytesDelta > 0" [class.down]="r.bytesDelta < 0" [title]="exactDelta(r.bytesDelta)"><span aria-hidden="true">{{ r.bytesDelta > 0 ? '▲' : r.bytesDelta < 0 ? '▼' : '' }}</span> {{ delta(r.bytesDelta, 'bytes') }}</td>
                 </tr>
               }
             </tbody>
@@ -77,6 +78,8 @@ export class HeapDiff {
   protected readonly heaps = computed(() => byTaken(this.captures.heaps()));
   protected readonly count = formatCount;
   protected readonly bytes = formatBytes;
+  protected readonly exact = formatExactBytes;
+  protected readonly exactDelta = formatExactDelta;
   protected readonly delta = formatDelta;
 
   /** Defaults: the two newest snapshots. */

@@ -46,6 +46,9 @@ pub struct Imported {
     pub records: Vec<Record>,
     /// Lines or entries skipped (not records).
     pub skipped: usize,
+    /// Problems met while reading, aggregated per kind (e.g. lines that look like events but match no
+    /// format). Importers that find none leave it empty (`..Default::default()`).
+    pub problems: crate::problems::Problems,
 }
 
 /// A text format. The host decodes the file (UTF-8, UTF-16, BOMs) and refuses binary files before it asks.
@@ -70,6 +73,13 @@ pub trait TextImporter: Send + Sync {
     fn multiline(&self) -> bool {
         true
     }
+
+    /// Fields this importer writes that identify who wrote an event (host, application, process), from the
+    /// widest to the narrowest, e.g. syslog's `Host`, `App`, `ProcId` (ADR 0020). They join the profile's
+    /// `[instance] candidates` for the automatic instance key of this importer's sources. The default is none.
+    fn identity_fields(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 /// A binary format (e.g. Windows `.evtx`). Binary importers are asked first, with the raw bytes.
@@ -81,6 +91,11 @@ pub trait BinaryImporter: Send + Sync {
     fn sniff(&self, ctx: &ImportCtx, head: &[u8]) -> u8;
 
     fn import(&self, ctx: &ImportCtx, bytes: &[u8]) -> Result<Imported>;
+
+    /// As [`TextImporter::identity_fields`] (e.g. EVTX `Computer`, `ProcessId`). The default is none.
+    fn identity_fields(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 /// The trailing [`PATH_TAIL_COMPONENTS`] components of `path`.

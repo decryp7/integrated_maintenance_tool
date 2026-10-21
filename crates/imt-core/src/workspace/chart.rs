@@ -1,14 +1,12 @@
 //! Time-bucket aggregation for charts.
 
-use super::{ChartData, ChartRequest, ChartSeries, LifecycleEvent, Workspace};
-use crate::chart::{nice_bucket, parse_bucket, parse_y, Acc, Agg};
-use crate::model::{Level, Record};
+use super::{ChartData, ChartRequest, LifecycleEvent, Workspace};
+use crate::chart::{chart_value, parse_y, Buckets, SeriesBuilder};
+use crate::model::Record;
 use crate::profile::compile_conditions;
 use crate::query::group_key;
+use crate::row::RecordRow;
 use anyhow::{anyhow, Result};
-use std::collections::HashMap;
-
-const MAX_SERIES: usize = 8;
 
 impl Workspace {
     pub fn chart(&self, req: &ChartRequest) -> Result<ChartData> {
@@ -36,78 +34,26 @@ impl Workspace {
         let query = self.resolve_window(&req.query);
         let from = query.from.or_else(|| rows.first().and_then(|r| r.ts)).unwrap_or(0);
         let to = query.to.or_else(|| rows.last().and_then(|r| r.ts)).unwrap_or(from);
-        let span = (to - from).max(1);
-        let bucket_ms = match parse_bucket(&def.bucket)? {
-            Some(b) => b.max(span / 5000),
-            None => nice_bucket(span, req.buckets.clamp(10, 2000)),
-        };
-        let start = from - from.rem_euclid(bucket_ms);
-        let n = ((to - start) / bucket_ms + 1) as usize;
-
-        let mut series: HashMap<String, Vec<Acc>> = HashMap::new();
-        let mut totals: HashMap<String, Acc> = HashMap::new();
+        let buckets = Buckets::of(&def, from, to, req.buckets)?;
+        let bucket_ms = buckets.bucket_ms;
+        let mut builder = SeriesBuilder::new(buckets);
         for r in &rows {
-            let source = self.source_name(r.source);
+            let row = RecordRow {
+                rec: r,
+                source: self.source_name(r.source),
+            };
             // `parse_y` gives a field to every aggregate except count().
-            let value = match &field {
-                None => 1.0,
-                Some(f) => match r.field_number(f) {
-                    Some(v) => v,
-                    None => continue,
-                },
+            let Some(value) = chart_value(&row, field.as_deref()) else {
+                continue;
             };
             let key = if def.split_by.is_empty() {
                 def.title.clone()
             } else {
-                group_key(&def.split_by, r, source)
+                group_key(&def.split_by, r, row.source)
             };
-            let b = ((r.ts.unwrap() - start) / bucket_ms) as usize;
-            if b >= n {
-                continue;
-            }
-            series.entry(key.clone()).or_insert_with(|| vec![Acc::default(); n])[b].add(value);
-            totals.entry(key).or_default().add(value);
+            builder.add(r.ts.unwrap_or_default(), value, key);
         }
-
-        // Keep the biggest series; fold the rest into "Other".
-        let mut keys: Vec<String> = series.keys().cloned().collect();
-        if def.split_by.len() == 1 && def.split_by[0] == "@level" {
-            keys.sort_by_key(|k| Level::parse(k).map(|l| l.index()).unwrap_or(99));
-        } else {
-            keys.sort_by(|a, b| totals[b].count.cmp(&totals[a].count).then_with(|| a.cmp(b)));
-        }
-        let mut out = Vec::new();
-        let mut other: Option<Vec<Acc>> = None;
-        for (i, k) in keys.into_iter().enumerate() {
-            let accs = series.remove(&k).unwrap();
-            if i < MAX_SERIES - 1 || totals.len() <= MAX_SERIES {
-                out.push((k, accs));
-            } else {
-                let o = other.get_or_insert_with(|| vec![Acc::default(); n]);
-                for (a, b) in o.iter_mut().zip(&accs) {
-                    a.merge(b);
-                }
-            }
-        }
-        if let Some(o) = other {
-            out.push(("Other".into(), o));
-        }
-        let series = out
-            .into_iter()
-            .map(|(key, accs)| ChartSeries {
-                key,
-                points: accs
-                    .iter()
-                    .enumerate()
-                    .map(|(i, a)| {
-                        (
-                            start + i as i64 * bucket_ms,
-                            a.value(agg).or(if agg == Agg::Count { Some(0.0) } else { None }),
-                        )
-                    })
-                    .collect(),
-            })
-            .collect();
+        let series = builder.finish(&def, agg);
 
         let lifecycle_mask = (self.profile.lifecycle_mask | self.fatal_mask()) & self.visible_markers();
         let lifecycle = self

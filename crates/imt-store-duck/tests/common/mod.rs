@@ -5,9 +5,11 @@
 pub mod corpus;
 pub mod rss;
 
-use imt_core::ports::{Ingest, StoreResult};
+use imt_core::ports::{Filter, Ingest, Query, StoreResult};
+use imt_core::Workspace;
 use imt_core::{PluginRegistry, Profile};
 use imt_store_duck::DuckStore;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 pub fn samples() -> PathBuf {
@@ -61,4 +63,45 @@ pub fn store_with(dir: &TempDir, profile: Profile, paths: &[PathBuf]) -> StoreRe
     let store = DuckStore::create_with(&dir.0, profile, PluginRegistry::new(), opts)?;
     let report = store.open(paths)?.wait()?;
     Ok((store, report))
+}
+
+pub struct Pair {
+    pub ws: Workspace,
+    pub duck: DuckStore,
+    _dir: TempDir,
+    /// Source id → path, per store.
+    pub ws_paths: HashMap<u32, String>,
+    pub duck_paths: HashMap<u32, String>,
+    /// The time range of all timed events.
+    pub range: (i64, i64),
+}
+
+pub fn pair(profile: Profile) -> Pair {
+    let paths = log_samples();
+    let mut ws = Workspace::new(profile.clone()).unwrap();
+    ws.open(&paths).unwrap();
+    let dir = TempDir::new("diff");
+    let (duck, report) = store_with(&dir, profile, &paths).unwrap();
+    assert!(report.events > 10_000, "{} events", report.events);
+    let ws_paths = ws.sources().iter().map(|s| (s.id, s.path.clone())).collect();
+    let summary = duck.summary().unwrap();
+    let duck_paths = summary.sources.iter().map(|s| (s.id, s.path.clone())).collect();
+    let s = ws.summary();
+    let range = (s.from.unwrap(), s.to.unwrap());
+    Pair {
+        ws,
+        duck,
+        _dir: dir,
+        ws_paths,
+        duck_paths,
+        range,
+    }
+}
+
+pub fn ranged(p: &Pair, q: Filter) -> Filter {
+    Filter {
+        from: q.from.or(Some(p.range.0)),
+        to: q.to.or(Some(p.range.1)),
+        ..q
+    }
 }

@@ -46,6 +46,22 @@ describe('Welcome', () => {
     expect(welcome.visible()).toBe(true);
   });
 
+  // Regression: with no files open, Jobs, Notifications and AI set-up opened behind the welcome screen.
+  it('steps aside for a view opened over the empty workspace, and comes back when the workspace changes', async () => {
+    const { store, welcome } = setup();
+    await settle();
+    await store.clearWorkspace();
+    expect(welcome.visible()).toBe(true);
+    welcome.stepAside();
+    expect(welcome.visible()).toBe(false);
+    welcome.show(); // asked for again
+    expect(welcome.visible()).toBe(true);
+    welcome.stepAside();
+    await store.openPaths(['/logs/web01/a.log']);
+    await store.clearWorkspace(); // the workspace emptied again: the welcome is back
+    expect(welcome.visible()).toBe(true);
+  });
+
   it('offers open buttons, how-it-works and recent paths that reopen', async () => {
     const { fixture, store, welcome } = setup();
     await settle(fixture);

@@ -169,6 +169,37 @@ split_by = ["MachineName", "ProcessId"]
 - Profiles are checked by the engine (user regexes are length- and size-limited); an invalid profile
   is rejected with a message that says what to fix.
 
+### Files several products write (log servers)
+
+A file may mix formats: IMT reads every line with the first output template or regex that matches it
+(templates first, in profile order), and one-line JSON objects with a timestamp key (`@t`, `timestamp`...)
+as JSON events. A line no format reads continues the event above; when it looks like an event (it starts
+with a date, a time or a syslog header), the Explorer's tooltip for the file reports it ("12 lines look like
+events but match no format, first on line 40"): add a template or regex for that product.
+
+Lanes follow each product's own fields: the instance key takes the fields a source writes on most of its
+events, even when that product writes few of the folder's events, and importers add the fields that name
+their writers (syslog `Host`/`App`/`ProcId`, Windows event logs `Computer`/`ProcessId`, containers
+`Namespace`/`Pod`/`Container`).
+
+To give each product or host of a shared file its own source, add routes. The first route whose `when`
+conditions hold names the event's logical source; the Explorer lists the logical sources under the file:
+
+```toml
+[[route]]
+when = [{ field = "Application", op = "exists" }]
+source = "{Application}@{MachineName}"        # fields or @pseudo-fields in braces
+
+[[route]]
+when = [{ field = "Logger", op = "contains", value = "Inventory" }]
+source = "Inventory@{Host}"                   # Host may come from an [[extract]] rule
+```
+
+Events no route names stay in the file's own source. Removing a logical source removes the file; a split
+file is re-read whole when it changes. A worked example is
+[`samples/profiles/logserver.imtprofile.toml`](../samples/profiles/logserver.imtprofile.toml) for
+`samples/linux/logserver01/apps-20261014.log`. Design: [ADR 0020](adr/0020-mixed-sources.md).
+
 ## Query language
 
 Press `Ctrl/⌘+/` to focus the query bar and `Ctrl/⌘+Enter` to run. Keywords are case-insensitive.

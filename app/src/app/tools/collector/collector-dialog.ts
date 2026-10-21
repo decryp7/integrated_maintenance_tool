@@ -12,7 +12,8 @@ import { TOOL_IDS } from '../../core/tools.types';
 import { ToolCatalog } from '../tool-catalog.store';
 import { ToolUnavailable } from '../tool-unavailable';
 import { errorMessage } from '../tool-errors';
-import { DEFAULT_PLAN, formatBytes, joinLines, ManifestSummary, newLogSpec, optionalNumber, parsePlan, splitLines, stringifyPlan, summarize } from './plan-model';
+import { formatBytes } from '../../shared/format/units';
+import { DEFAULT_PLAN, joinLines, ManifestSummary, newLogSpec, optionalNumber, parsePlan, splitLines, stringifyPlan, summarize } from './plan-model';
 
 /** Opens the diagnostics collector ("Collect diagnostics bundle…"). */
 @Injectable({ providedIn: 'root' })

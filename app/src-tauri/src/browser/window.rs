@@ -150,13 +150,12 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, owner: &str, url: &WebUrl, focus: bo
     let window = builder.build().map_err(|e| format!("could not open the browser: {e}"))?;
     // The "AI is browsing" banner stays over the top of the window; the agent may be what opened it.
     let (a6, o6) = (app.clone(), owner.to_string());
-    window.on_window_event(move |e| {
-        if matches!(
-            e,
-            tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) | tauri::WindowEvent::ScaleFactorChanged { .. }
-        ) {
+    window.on_window_event(move |e| match e {
+        tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) | tauri::WindowEvent::ScaleFactorChanged { .. } => {
             driving::follow(&a6, &o6);
         }
+        tauri::WindowEvent::Focused(_) => driving::focus_changed(&a6, &o6),
+        _ => {}
     });
     driving::reapply(app, owner);
     if let Some(hub) = hub(app) {

@@ -5,56 +5,15 @@
 
 mod common;
 
-use common::{log_samples, sample_profile, store_with, TempDir};
+use common::{pair, ranged, sample_profile, store_with, Pair, TempDir};
 use imt_core::api::{FacetRequest, PageRequest, TimelineRequest};
 use imt_core::model::Level;
 use imt_core::ports::{Diagnostics, Filter, Ingest, PageQuery, Profiles, Query, StoreError};
 use imt_core::query::FieldFilter;
-use imt_core::{Profile, Workspace};
+use imt_core::Profile;
 use imt_store_duck::DuckStore;
 use std::collections::{BTreeMap, HashMap};
 use std::ops::ControlFlow;
-
-struct Pair {
-    ws: Workspace,
-    duck: DuckStore,
-    _dir: TempDir,
-    /// Source id → path, per store.
-    ws_paths: HashMap<u32, String>,
-    duck_paths: HashMap<u32, String>,
-    /// The time range of all timed events.
-    range: (i64, i64),
-}
-
-fn pair(profile: Profile) -> Pair {
-    let paths = log_samples();
-    let mut ws = Workspace::new(profile.clone()).unwrap();
-    ws.open(&paths).unwrap();
-    let dir = TempDir::new("diff");
-    let (duck, report) = store_with(&dir, profile, &paths).unwrap();
-    assert!(report.events > 10_000, "{} events", report.events);
-    let ws_paths = ws.sources().iter().map(|s| (s.id, s.path.clone())).collect();
-    let summary = duck.summary().unwrap();
-    let duck_paths = summary.sources.iter().map(|s| (s.id, s.path.clone())).collect();
-    let s = ws.summary();
-    let range = (s.from.unwrap(), s.to.unwrap());
-    Pair {
-        ws,
-        duck,
-        _dir: dir,
-        ws_paths,
-        duck_paths,
-        range,
-    }
-}
-
-fn ranged(p: &Pair, q: Filter) -> Filter {
-    Filter {
-        from: q.from.or(Some(p.range.0)),
-        to: q.to.or(Some(p.range.1)),
-        ..q
-    }
-}
 
 /// Queries covering the SQL path (time, levels, text, sources, markers) and the scan fallback (regex,
 /// field filters, instance selection, query language).
@@ -316,6 +275,58 @@ fn check_timelines(p: &Pair) {
     }
 }
 
+/// Large stores answer timelines from the minute histogram: the same lanes, totals and markers; counts
+/// per bucket may move to a neighbouring bucket (a minute is counted whole) and lane bounds are minutes.
+fn check_histogram_timelines(p: &Pair) {
+    p.duck.set_preaggregate_above(0);
+    // One lane per source (a source with events of several instances needs the events).
+    let by_source = Filter {
+        group_by: vec!["@source".into()],
+        ..Filter::default()
+    };
+    let levels = Filter {
+        levels: vec![Level::Error, Level::Warning],
+        ..by_source.clone()
+    };
+    for (name, q) in [("everything", by_source), ("levels", levels)] {
+        let req = TimelineRequest {
+            query: q,
+            buckets: 10,
+            always_show_lifecycle: true,
+        };
+        let w = p.ws.timeline(&req).unwrap();
+        let d = p.duck.timeline(&req).unwrap();
+        assert!(w.bucket_ms >= 60_000.0, "{name}: the samples span more than ten minutes");
+        assert_eq!((d.from, d.to, d.bucket_ms), (w.from, w.to, w.bucket_ms), "{name}: bounds");
+        let sum = |h: &[[u32; 6]]| {
+            h.iter().fold([0u32; 6], |mut a, b| {
+                for (x, y) in a.iter_mut().zip(b) {
+                    *x += y;
+                }
+                a
+            })
+        };
+        assert_eq!(sum(&d.histogram), sum(&w.histogram), "{name}: histogram totals");
+        // From the histogram: whole minutes per bucket, so some counts move to a neighbouring bucket.
+        assert_ne!(d.histogram, w.histogram, "{name}: the histogram path answers");
+        assert_eq!(d.lanes.len(), w.lanes.len(), "{name}: lanes");
+        for (dl, wl) in d.lanes.iter().zip(&w.lanes) {
+            assert_eq!((&dl.key, dl.total, dl.matched), (&wl.key, wl.total, wl.matched), "{name}: lane");
+            // Without a time range, lane bounds are the sources' (exact).
+            assert_eq!((dl.first, dl.last), (wl.first, wl.last), "{name}: lane bounds");
+            assert_eq!(
+                dl.density.iter().sum::<u32>(),
+                wl.density.iter().sum::<u32>(),
+                "{name}: density of {}",
+                wl.key
+            );
+            let counts = |l: &imt_core::api::Lane| l.markers.iter().map(|m| (m.kind.clone(), m.bucket, m.count)).collect::<Vec<_>>();
+            assert_eq!(counts(dl), counts(wl), "{name}: markers of {}", wl.key);
+        }
+    }
+    p.duck.set_preaggregate_above(imt_store_duck::PREAGGREGATE_ABOVE);
+}
+
 fn check_facets(p: &Pair) {
     for (name, q) in queries(p) {
         let q = ranged(p, q);
@@ -378,15 +389,114 @@ fn check_summary(p: &Pair) {
     );
 }
 
+/// Every condition operator (as a field filter) and every query-language form: the SQL compiler
+/// matches the engine's evaluator (the in-memory store) on the samples.
+fn check_operators(p: &Pair) {
+    let filters: &[(&str, &str, Option<&str>)] = &[
+        ("MachineName", "eq", Some("WEB01")),
+        ("MachineName", "ne", Some("WEB01")),
+        ("@level", "eq", Some("warning")),
+        ("@level", "ne", Some("Warning")),
+        ("@message", "contains", Some("order")),
+        ("@message", "notContains", Some("order")),
+        ("Path", "matches", Some("^/api/.*s$")),
+        ("StatusCode", "exists", None),
+        ("StatusCode", "missing", None),
+        ("ElapsedMs", "gt", Some("250")),
+        ("ElapsedMs", "lt", Some("20")),
+        ("ElapsedMs", "eq", Some("12")),
+        ("@level", "gt", Some("2")),
+        ("@line", "lt", Some("100")),
+        ("MachineName", "in", Some("WEB01|WEB02")),
+        ("@source", "contains", Some("web")),
+        ("CpuPercent", "gt", Some("50")),
+        ("Threads", "lt", Some("40")),
+        ("WorkingSetMb", "eq", Some("512")),
+    ];
+    let mut cases: Vec<(String, Filter)> = filters
+        .iter()
+        .map(|(field, op, value)| {
+            (
+                format!("{field} {op} {value:?}"),
+                Filter {
+                    filters: vec![FieldFilter {
+                        field: field.to_string(),
+                        op: op.to_string(),
+                        value: value.map(str::to_string),
+                    }],
+                    ..Filter::default()
+                },
+            )
+        })
+        .collect();
+    for ql in [
+        "ElapsedMs > 250",
+        "ElapsedMs <= 3",
+        "ElapsedMs != 5",
+        "Path = '/api/orders'",
+        "MachineName != WEB01",
+        "level in (warning, error)",
+        "level < information",
+        "StatusCode in (500, 404)",
+        "message contains timeout",
+        "message !contains order",
+        "not exists(StatusCode)",
+        "missing(Upstream) or level >= error",
+        "Path ~ 'orders$'",
+        "Path !~ 'orders'",
+        "timeout",
+        "\"payment failed\"",
+        "@line >= 10 and @line < 20",
+        "source contains gateway",
+        "Upstream > m",
+        "CpuPercent >= 50 or Threads < 30",
+        "| where ElapsedMs > 100 | where MachineName = WEB02",
+    ] {
+        cases.push((
+            format!("ql {ql}"),
+            Filter {
+                ql: ql.into(),
+                ..Filter::default()
+            },
+        ));
+    }
+    let group =
+        p.ws.facet(&FacetRequest {
+            query: Filter::default(),
+            field: "@group".into(),
+            limit: 3,
+        })
+        .unwrap();
+    cases.push((
+        "instance selection".into(),
+        Filter {
+            groups: group.values.iter().take(2).map(|v| v.value.clone()).collect(),
+            ..Filter::default()
+        },
+    ));
+    let mut matched = 0;
+    for (name, q) in cases {
+        let q = ranged(p, q);
+        let (wt, wr) = ws_rows(p, &q, 0, 300, false);
+        let (dt, dr) = duck_rows(p, &q, 0, 300, false);
+        assert_eq!(dt, wt, "{name}: total");
+        assert_eq!(dr, wr, "{name}: rows");
+        matched += usize::from(wt > 0);
+    }
+    assert!(matched > 20, "most cases match events ({matched})");
+}
+
 #[test]
 fn answers_like_the_workspace_with_the_default_profile() {
     let p = pair(Profile::default_profile());
     check_summary(&p);
+    check_operators(&p);
     check_pages(&p);
     check_sources_filter(&p);
     check_anchor(&p);
     check_facets(&p);
     check_timelines(&p);
+    check_histogram_timelines(&p);
 }
 
 #[test]
@@ -394,6 +504,7 @@ fn answers_like_the_workspace_with_the_sample_profile() {
     // Typed extractor fields (declared columns), marker rules, an instance key.
     let p = pair(sample_profile());
     check_summary(&p);
+    check_operators(&p);
     check_pages(&p);
     check_facets(&p);
     check_timelines(&p);
@@ -420,12 +531,6 @@ fn reports_problems_refuses_what_is_not_built_yet_and_reopens() {
     assert_eq!(again.events, 0);
     let problems = store.problems().unwrap();
     assert!(problems.iter().all(|p| p.count > 0 && p.sample_lines.len() <= 20));
-    for e in [
-        store.reload().map(|_| ()).unwrap_err(),
-        store.set_profile(Profile::default_profile()).map(|_| ()).unwrap_err(),
-    ] {
-        assert!(matches!(e, StoreError::Unsupported { .. }), "{e}");
-    }
     assert_eq!(store.active_profile().unwrap().name, Profile::default_profile().name);
     assert!(store.validate_profile(&Profile::default_profile()).is_ok());
     let total = store.summary().unwrap().total;

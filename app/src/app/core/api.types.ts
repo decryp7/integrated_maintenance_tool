@@ -79,6 +79,41 @@ export interface SourceInfo {
   fileKind: FileKind;
   /** Many events without a readable timestamp (the engine sends null when the timestamps are fine). */
   timestampIssue?: TimestampIssue | null;
+  /**
+   * Display name of the file a profile `[[route]]` split this logical source from (ADR 0020); null for a file's
+   * own source. Logical sources of one file share its `path`; removing one removes the file.
+   */
+  routedFrom?: string | null;
+  /** Import problems of this source, one entry per kind (the engine always sends it, maybe empty). */
+  problems?: SourceProblem[];
+}
+
+/**
+ * What went wrong while reading a source (Rust `ingest::ProblemKind`): a line over the size limit, an event over the
+ * size limit, a line that is not an event, events without a readable timestamp, a field value that does not fit its
+ * declared type, bytes invalid in the file's encoding, a format no importer recognises, a damaged archive, an event
+ * split at a parallel chunk boundary, a line that looks like an event but matches no format (kept with the event
+ * above), events past the logical-source limit of `[[route]]`.
+ */
+export type SourceProblemKind =
+  | 'lineTooLong'
+  | 'eventTooLarge'
+  | 'lineNotParsed'
+  | 'timestampUnparsed'
+  | 'fieldInvalid'
+  | 'encoding'
+  | 'unknownFormat'
+  | 'truncatedArchive'
+  | 'eventSplit'
+  | 'unmatchedLine'
+  | 'routeLimit';
+
+/** One kind of import problem in one source (Rust `ingest::Problem`). */
+export interface SourceProblem {
+  kind: SourceProblemKind;
+  count: number;
+  /** 1-based line numbers of the first occurrences (at most 20). */
+  sampleLines: number[];
 }
 
 /**
@@ -2524,6 +2559,70 @@ export type { PickFilter, PickKind, PickRequest } from './generated/paths';
 export interface AnalysisCoverage {
   analysed: number;
   total: number;
+}
+
+// ---- .NET profiling (plugin net.decryptology.dotnet, tool `dotnet-profiler`; Rust: crates/imt-plugin-dotnet) ----
+
+/** A process that can be recorded (Rust `ProcessInfo`). */
+export interface DotnetProcess {
+  pid: number;
+  name: string;
+  commandLine: string | null;
+  runtimeVersion: string | null;
+  /** `x86`, `x64`, `arm64` when known. */
+  arch: string | null;
+  /** .NET Framework processes are recorded with ETW (administrator), .NET Core with EventPipe. */
+  runtime: 'framework' | 'core';
+  /** Recording it needs administrator rights IMT does not have. */
+  needsElevation: boolean;
+}
+
+export type DotnetCaptureKind = 'cpu' | 'allocations' | 'heap';
+
+/** `start` (Rust `Request`). */
+export interface DotnetCaptureRequest {
+  pid: number;
+  kind: DotnetCaptureKind;
+  /** null = until stopped (a heap snapshot ends by itself). 1..3600. */
+  durationSec: number | null;
+}
+
+export type DotnetCaptureState = 'recording' | 'stopping' | 'done' | 'failed' | 'cancelled';
+
+/** A capture (Rust `Status`). */
+export interface DotnetCaptureStatus {
+  id: string;
+  pid: number;
+  processName: string;
+  kind: DotnetCaptureKind;
+  state: DotnetCaptureState;
+  elapsedMs: number;
+  bytes: number;
+  /** The NetTrace file once done; open it with `profiling_open`. */
+  path: string | null;
+  error: string | null;
+  /** The error is missing rights: offer "Restart as administrator". */
+  needsElevation: boolean;
+  /** It stopped at the size limit. */
+  truncated: boolean;
+  notes: string[];
+}
+
+/** A process in an `.etl` trace (Rust `EtlProcess`). */
+export interface EtlProcess {
+  pid: number;
+  name: string;
+  commandLine: string | null;
+  samples: number;
+  /** CLR events (0: not .NET or not recorded). */
+  clrEvents: number;
+  pointerSize: number;
+}
+
+/** `etl-convert` result. */
+export interface EtlConverted {
+  path: string;
+  notes: string[];
 }
 
 // ---- Recent files and projects (`recent_list`, `recent_remove`, `recent_clear`; event `imt://recent-changed`) ----

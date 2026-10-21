@@ -9,7 +9,9 @@ use crate::plugin::{Contributions, Plugin, TransformCtx, Verdict};
 use crate::protocol::*;
 use crate::settings::validate;
 use crate::time::TimestampParser;
-use crate::tools::{failure_reason, PathAccess, PathKind, PathPolicy, TaskSink, ToolCtx, ToolTask};
+use crate::tools::{
+    failure_reason, ElevatedOps, FailureReason, PathAccess, PathKind, PathPolicy, TaskSink, ToolCtx, ToolFailure, ToolTask,
+};
 use anyhow::{anyhow, Result};
 use imt_ipc::peer::{code, decode_request, encode_reply, CallCtx, Handler};
 use imt_ipc::{Peer, RemoteError};
@@ -68,10 +70,11 @@ impl PluginHandler {
         d.as_deref().and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())
     }
 
-    fn send_imported(ctx: &CallCtx, imported: Imported) -> Result<u64, RemoteError> {
+    /// Streams the records; returns what the end of the call carries (skipped lines, problems).
+    fn send_imported(ctx: &CallCtx, imported: Imported) -> Result<(u64, Vec<crate::problems::Problem>), RemoteError> {
         let skipped = imported.skipped as u64;
         chunk_events(imported.records.iter().map(WireEvent::of), |item| ctx.send(&item))?;
-        Ok(skipped)
+        Ok((skipped, imported.problems.into_vec()))
     }
 
     fn dispatch(&self, ctx: &CallCtx, req: PluginRequest) -> Result<Vec<u8>, RemoteError> {
@@ -118,8 +121,8 @@ impl PluginHandler {
                 } else {
                     return Err(invalid(format!("no importer \"{importer}\"")));
                 };
-                let skipped = Self::send_imported(ctx, imported)?;
-                encode_reply(&ImportDone { skipped })
+                let (skipped, problems) = Self::send_imported(ctx, imported)?;
+                encode_reply(&ImportDone { skipped, problems })
             }
             PluginRequest::ImportTail {
                 importer,
@@ -147,10 +150,15 @@ impl PluginHandler {
                     None => encode_reply(&TailDone {
                         supported: false,
                         skipped: 0,
+                        problems: Vec::new(),
                     }),
                     Some(r) => {
-                        let skipped = Self::send_imported(ctx, r.map_err(failed)?)?;
-                        encode_reply(&TailDone { supported: true, skipped })
+                        let (skipped, problems) = Self::send_imported(ctx, r.map_err(failed)?)?;
+                        encode_reply(&TailDone {
+                            supported: true,
+                            skipped,
+                            problems,
+                        })
                     }
                 }
             }
@@ -299,9 +307,14 @@ impl PluginHandler {
     }
 
     fn tool_ctx(&self, peer: &Peer, tool: &str, data_dir: Option<String>) -> ToolCtx {
-        ToolCtx::new(data_dir.map(PathBuf::from), Arc::new(HostTasks(peer.clone())))
-            .with_paths(Arc::new(CheckedByHost))
-            .for_tool(tool)
+        let ctx = ToolCtx::new(data_dir.map(PathBuf::from), Arc::new(HostTasks(peer.clone()))).with_paths(Arc::new(CheckedByHost));
+        // The elevated process runs elevated operations itself; it never asks for another one.
+        let ctx = if self.elevated {
+            ctx
+        } else {
+            ctx.with_elevated(Arc::new(HostElevated(peer.clone())))
+        };
+        ctx.for_tool(tool)
     }
 
     /// The plugin this handler serves.
@@ -354,6 +367,33 @@ impl TaskSink for HostTasks {
         );
     }
 }
+
+/// The plugin's elevated operations, run by the host in the plugin's elevated process.
+struct HostElevated(Peer);
+
+impl ElevatedOps for HostElevated {
+    fn invoke(&self, tool: &str, op: &str, args: serde_json::Value, timeout: Duration) -> anyhow::Result<serde_json::Value> {
+        let req = HostRequest::InvokeElevated {
+            tool: tool.into(),
+            op: op.into(),
+            args: imt_ipc::Json(args),
+            timeout_ms: u64::try_from(timeout.as_millis()).unwrap_or(u64::MAX),
+        };
+        // The host may first show the administrator prompt: wait for the operation's time and the prompt's.
+        let reply: Result<imt_ipc::Json, ToolFail> = self
+            .0
+            .request(&req, Some(timeout + ELEVATION_PROMPT_WAIT))
+            .map_err(|e| anyhow::anyhow!("{tool} {op} (elevated): {e}"))?;
+        reply.map(imt_ipc::Json::into_inner).map_err(|f| match f.reason {
+            Some(FailureReason::Denied) => anyhow::Error::new(ToolFailure::denied(f.message)),
+            Some(FailureReason::Missing) => anyhow::Error::new(ToolFailure::missing(f.message)),
+            None => anyhow::anyhow!(f.message),
+        })
+    }
+}
+
+/// How long the user may take to answer the administrator prompt.
+pub const ELEVATION_PROMPT_WAIT: Duration = Duration::from_secs(120);
 
 /// Paths reach the plugin already checked by the host.
 struct CheckedByHost;

@@ -151,6 +151,146 @@ impl Acc {
     }
 }
 
+/// The profile's charts (`[[chart]]`), with ids (`chart-N` when the profile names none).
+pub fn chart_defs(profile: &crate::profile::Profile) -> Vec<ChartDef> {
+    profile
+        .chart
+        .iter()
+        .enumerate()
+        .map(|(i, c)| ChartDef {
+            id: c.id.clone().unwrap_or_else(|| format!("chart-{}", i + 1)),
+            title: c.title.clone(),
+            y: c.y.clone(),
+            bucket: c.bucket.clone(),
+            split_by: c.split_by.clone(),
+            kind: c.kind.clone(),
+            unit: c.unit.clone(),
+        })
+        .collect()
+}
+
+/// Series kept per chart; the rest fold into "Other".
+pub const MAX_SERIES: usize = 8;
+
+/// The time buckets of a chart over `from..=to`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Buckets {
+    pub start: i64,
+    pub bucket_ms: i64,
+    pub n: usize,
+}
+
+impl Buckets {
+    /// Buckets of `def` (its fixed bucket, kept to at most 5,000 buckets, or a nice one for `buckets`).
+    pub fn of(def: &ChartDef, from: i64, to: i64, buckets: usize) -> Result<Buckets> {
+        let span = (to - from).max(1);
+        let bucket_ms = match parse_bucket(&def.bucket)? {
+            Some(b) => b.max(span / 5000),
+            None => nice_bucket(span, buckets.clamp(10, 2000)),
+        };
+        let start = from - from.rem_euclid(bucket_ms);
+        Ok(Buckets {
+            start,
+            bucket_ms,
+            n: ((to - start) / bucket_ms + 1) as usize,
+        })
+    }
+
+    fn index(&self, ts: i64) -> Option<usize> {
+        let b = (ts - self.start) / self.bucket_ms;
+        (b >= 0 && (b as usize) < self.n).then_some(b as usize)
+    }
+}
+
+/// Aggregates the values of a chart per series and bucket.
+pub struct SeriesBuilder {
+    buckets: Buckets,
+    series: std::collections::HashMap<String, Vec<Acc>>,
+    totals: std::collections::HashMap<String, Acc>,
+}
+
+impl SeriesBuilder {
+    pub fn new(buckets: Buckets) -> SeriesBuilder {
+        SeriesBuilder {
+            buckets,
+            series: Default::default(),
+            totals: Default::default(),
+        }
+    }
+
+    /// Adds one value of series `key` at `ts` (outside the buckets: ignored).
+    pub fn add(&mut self, ts: i64, value: f64, key: String) {
+        let Some(b) = self.buckets.index(ts) else { return };
+        let n = self.buckets.n;
+        self.series.entry(key.clone()).or_insert_with(|| vec![Acc::default(); n])[b].add(value);
+        self.totals.entry(key).or_default().add(value);
+    }
+
+    /// Merges an aggregate computed elsewhere (e.g. by SQL) into bucket `bucket` of series `key`.
+    pub fn add_acc(&mut self, bucket: usize, key: String, acc: &Acc) {
+        if bucket >= self.buckets.n {
+            return;
+        }
+        let n = self.buckets.n;
+        self.series.entry(key.clone()).or_insert_with(|| vec![Acc::default(); n])[bucket].merge(acc);
+        self.totals.entry(key).or_default().merge(acc);
+    }
+
+    /// The biggest series (levels in severity order when split by `@level`), the rest as "Other".
+    pub fn finish(mut self, def: &ChartDef, agg: Agg) -> Vec<crate::api::ChartSeries> {
+        let n = self.buckets.n;
+        let mut keys: Vec<String> = self.series.keys().cloned().collect();
+        if def.split_by.len() == 1 && def.split_by[0] == "@level" {
+            keys.sort_by_key(|k| crate::model::Level::parse(k).map(|l| l.index()).unwrap_or(99));
+        } else {
+            let totals = &self.totals;
+            keys.sort_by(|a, b| totals[b].count.cmp(&totals[a].count).then_with(|| a.cmp(b)));
+        }
+        let total_series = self.totals.len();
+        let mut out = Vec::new();
+        let mut other: Option<Vec<Acc>> = None;
+        for (i, k) in keys.into_iter().enumerate() {
+            let Some(accs) = self.series.remove(&k) else { continue };
+            if i < MAX_SERIES - 1 || total_series <= MAX_SERIES {
+                out.push((k, accs));
+            } else {
+                let o = other.get_or_insert_with(|| vec![Acc::default(); n]);
+                for (a, b) in o.iter_mut().zip(&accs) {
+                    a.merge(b);
+                }
+            }
+        }
+        if let Some(o) = other {
+            out.push(("Other".into(), o));
+        }
+        let Buckets { start, bucket_ms, .. } = self.buckets;
+        out.into_iter()
+            .map(|(key, accs)| crate::api::ChartSeries {
+                key,
+                points: accs
+                    .iter()
+                    .enumerate()
+                    .map(|(i, a)| {
+                        (
+                            start + i as i64 * bucket_ms,
+                            a.value(agg).or(if agg == Agg::Count { Some(0.0) } else { None }),
+                        )
+                    })
+                    .collect(),
+            })
+            .collect()
+    }
+}
+
+/// The value a chart aggregates for one event: 1 for `count()`, else the field's number (`None`: the
+/// event is skipped).
+pub fn chart_value(row: &dyn crate::row::RowRef, field: Option<&str>) -> Option<f64> {
+    match field {
+        None => Some(1.0),
+        Some(f) => row.number_of(f),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

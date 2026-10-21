@@ -1,3 +1,4 @@
+import { transferSpeed } from '../../shared/format/transfer-speed';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -427,6 +428,10 @@ export class AiSetupWizard implements OnInit {
       ? percent(st.bytes, st.total)
       : 0;
   });
+  private readonly transfer = transferSpeed(() => {
+    const st = this.running()?.stage;
+    return st?.stage === 'downloading' ? st : null;
+  });
   protected readonly progressText = computed(() => {
     const st = this.running()?.stage;
     if (!st || (st.stage !== 'downloading' && st.stage !== 'verifying')) return '';
@@ -434,8 +439,8 @@ export class AiSetupWizard implements OnInit {
     if (st.stage === 'verifying') return base;
     return [
       base,
-      formatRate(st.bytesPerSec),
-      formatEta(st.etaSecs) && $localize`:@@ai.runtime.progress.left:${formatEta(st.etaSecs)}:eta: left`,
+      formatRate(this.transfer().rate),
+      formatEta(this.transfer().etaSecs),
     ]
       .filter(Boolean)
       .join(' · ');

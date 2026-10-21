@@ -301,9 +301,46 @@ fn is_ad(url: &WebUrl) -> bool {
     HOSTS.iter().any(|h| host == *h || host.ends_with(&format!(".{h}"))) || path.contains("/aclk") || path.ends_with("/y.js")
 }
 
+/// Whether `url` belongs to the search engine itself rather than to a result: any host of the engine's brand
+/// (`maps.google.com`, `accounts.google.com`, `www.google.de` for a `www.google.com` search) and the brand's
+/// static, cache and image hosts. A results page links to these for maps, images, sign-in and settings.
+fn is_engine_property(url: &WebUrl, engine: &super::url::Site) -> bool {
+    let host = url.site().as_str().to_ascii_lowercase();
+    let labels: Vec<&str> = engine.as_str().split('.').collect();
+    // The brand is the label before the public suffix: google (www.google.co.uk), bing, duckduckgo.
+    let brand = match labels.as_slice() {
+        [.., b, "co" | "com", _] if b.len() > 2 => *b,
+        [.., b, _] => *b,
+        _ => return false,
+    };
+    const EXTRA: &[(&str, &[&str])] = &[
+        (
+            "google",
+            &[
+                "gstatic.com",
+                "googleusercontent.com",
+                "googleapis.com",
+                "g.co",
+                "goo.gl",
+                "googleadservices.com",
+            ],
+        ),
+        ("bing", &["bing.net", "msn.com", "microsoft.com", "live.com"]),
+        ("duckduckgo", &["duck.com", "duckduckgo.co"]),
+    ];
+    let host_labels: Vec<&str> = host.split('.').collect();
+    let same_brand = host_labels.len() >= 2 && host_labels[..host_labels.len() - 1].contains(&brand);
+    let extra = EXTRA
+        .iter()
+        .filter(|(b, _)| *b == brand)
+        .flat_map(|(_, hosts)| hosts.iter())
+        .any(|h| host == *h || host.ends_with(&format!(".{h}")));
+    same_brand || extra
+}
+
 /// The result links of a search results page: web links (http(s), no private or IMT origins), with the engine's
-/// redirect links unwrapped and its own pages and ads dropped, without duplicates, in page order, at most `max`.
-/// Only these are ever opened, each directly by its address.
+/// redirect links unwrapped and its own pages (any host of its brand: maps, images, accounts) and ads dropped,
+/// without duplicates, in page order, at most `max`. Only these are ever opened, each directly by its address.
 pub fn result_links(page: &DomSnapshot, search: &WebUrl, max: usize) -> Vec<(WebUrl, String)> {
     let engine = search.site();
     let mut seen = HashSet::new();
@@ -315,7 +352,7 @@ pub fn result_links(page: &DomSnapshot, search: &WebUrl, max: usize) -> Vec<(Web
             continue;
         }
         let Some(url) = unwrap_redirect(&raw, &engine) else { continue };
-        if url.is_private() || is_ad(&url) {
+        if url.is_private() || is_ad(&url) || is_engine_property(&url, &engine) {
             continue;
         }
         let mut key = url.url().clone();
@@ -475,6 +512,7 @@ fn wait_for_site(env: &ResearchEnv<'_>, site: &super::url::Site) -> Result<Optio
 /// The results page's links, read once the browser shows the results page.
 fn collect_results(env: &ResearchEnv<'_>, search: &WebUrl, max: usize) -> Result<Vec<(WebUrl, String)>> {
     let mut last_err = None;
+    let mut best: Vec<(WebUrl, String)> = Vec::new();
     for i in 0..PAGE_POLLS {
         if i > 0 {
             env.wait(PAGE_POLL)?;
@@ -482,15 +520,22 @@ fn collect_results(env: &ResearchEnv<'_>, search: &WebUrl, max: usize) -> Result
         match env.reader.snapshot() {
             Ok(p) if WebUrl::parse(&p.url).is_ok_and(|u| u.site() == search.site()) => {
                 let links = result_links(&p, search, max);
-                // Results pages may fill in after the load: look again while there is nothing yet.
-                if !links.is_empty() {
+                // Results pages fill in after the load (a map or an answer box first, the results later): take
+                // the list once it is full, or once it stopped growing between two looks.
+                if links.len() >= max || (!links.is_empty() && links.len() == best.len()) {
                     return Ok(links);
+                }
+                if links.len() > best.len() {
+                    best = links;
                 }
                 last_err = None;
             }
             Ok(_) => last_err = None,
             Err(e) => last_err = Some(e),
         }
+    }
+    if !best.is_empty() {
+        return Ok(best);
     }
     match last_err {
         Some(e) => Err(browser_error(e)),
@@ -1054,5 +1099,47 @@ mod tests {
         assert_eq!(links.len(), 1);
         assert_eq!(links[0].1, "a.example", "an unnamed link is named by its site");
         assert_eq!(ResearchStep::Writing.describe(), "writing the answer");
+    }
+
+    #[test]
+    fn the_engines_own_properties_are_not_results() {
+        // Regression: a Google results page led with a Maps link, and research read maps.google.com as result 1.
+        let search = WebUrl::parse("https://www.google.com/search?q=System.Net.Http.HttpRequestException+504").unwrap();
+        let page = DomSnapshot {
+            url: search.url().to_string(),
+            title: String::new(),
+            elements: vec![
+                link(1, "Maps", "https://maps.google.com/maps?q=x"),
+                link(2, "Google Maps", "https://www.google.com/maps/place/x"),
+                link(3, "Images", "https://www.google.de/search?tbm=isch&q=x"),
+                link(4, "Sign in", "https://accounts.google.com/ServiceLogin"),
+                link(5, "logo", "https://www.gstatic.com/images/x.png"),
+                link(6, "cache", "https://webcache.googleusercontent.com/search?q=cache:x"),
+                link(
+                    7,
+                    "HttpRequestException Class",
+                    "https://learn.microsoft.com/dotnet/api/system.net.http.httprequestexception",
+                ),
+                link(8, "504 Gateway Timeout", "https://stackoverflow.com/questions/1/504"),
+                link(9, "Googlebot docs", "https://developers.example/googlebot"),
+            ],
+            text: String::new(),
+            hand_off: None,
+        };
+        let sites: Vec<String> = result_links(&page, &search, 10)
+            .into_iter()
+            .map(|(u, _)| u.site().to_string())
+            .collect();
+        assert_eq!(sites, ["learn.microsoft.com", "stackoverflow.com", "developers.example"]);
+
+        let bing = WebUrl::parse("https://www.bing.com/search?q=x").unwrap();
+        let mut page = page;
+        page.url = bing.url().to_string();
+        page.elements = vec![
+            link(1, "maps", "https://www.bing.com/maps?q=x"),
+            link(2, "msn", "https://www.msn.com/x"),
+            link(3, "r", "https://a.example/"),
+        ];
+        assert_eq!(result_links(&page, &bing, 10).len(), 1);
     }
 }

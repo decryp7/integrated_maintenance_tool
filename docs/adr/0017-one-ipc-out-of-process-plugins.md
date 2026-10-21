@@ -299,6 +299,14 @@ What landed, and where it differs from the text above:
   (`sandbox_init` profile) are implemented behind `cfg` and type-checked with clippy for
   `x86_64-unknown-linux-gnu` and `x86_64-apple-darwin`; they run in CI on those runners.
 
+- **Elevated operations** (§7, first user: `imt-plugin-dotnet`'s ETW recordings, ADR 0019): the host runs an
+  operation declared `elevated` in the plugin's elevated process when the UI calls it, or when the plugin's normal
+  process asks with `HostRequest::InvokeElevated` (`ToolCtx::elevated()`), which lets a plugin keep its state in the
+  normal process and use the elevated one only for what needs the rights. The host accepts only operations the
+  manifest declares elevated and passes its own data folder. Instead of streaming capture bytes back (§7), the
+  elevated .NET process writes into the captures folder of that host-given data folder under a file name it
+  checks; it never writes at a path it receives.
+
 Deferred (tracked in `docs/redesign-2026-10.md`, R3):
 
 - Splitting `imt-ai` into `imt-ai-proto` / `imt-ai-runtime` / `imt-ai` / `imt-browser-agent`, one `SafeHttp`, the
@@ -309,5 +317,3 @@ Deferred (tracked in `docs/redesign-2026-10.md`, R3):
   `imt-collect` and `imt-monitor`); its process is sandboxed like any other plugin.
 - Importer plugins streaming to the store worker directly (§5): needs the store worker in the workspace and its
   imports (ADR 0014 6c).
-- `imt-plugin-dotnet` on the contract with ETW capture as the first elevated operation (§7, ADR 0019): the
-  elevated launch and channel exist; the operation is migrated when that crate lands on `main`.

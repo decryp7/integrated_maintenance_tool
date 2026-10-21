@@ -27,6 +27,7 @@ imt-profile = { path = "../crates/imt-profile" }
 imt-plugin-profiling = { path = "../crates/imt-plugin-profiling", default-features = false }
 imt-etw = { path = "../crates/imt-etw" }
 imt-symbols = { path = "../crates/imt-symbols", default-features = false }
+imt-plugin-dotnet = { path = "../crates/imt-plugin-dotnet", default-features = false }
 serde_json = "1"
 chrono = "0.4"
 
@@ -237,8 +238,22 @@ doc = false
 bench = false
 
 [[bin]]
+name = "fuzz_dotnet_etw"
+path = "fuzz_targets/fuzz_dotnet_etw.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "fuzz_plugin_request"
 path = "fuzz_targets/fuzz_plugin_request.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_dotnet_ipc"
+path = "fuzz_targets/fuzz_dotnet_ipc.rs"
 test = false
 doc = false
 bench = false

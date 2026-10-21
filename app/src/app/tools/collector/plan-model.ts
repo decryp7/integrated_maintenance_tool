@@ -1,5 +1,4 @@
 import { CollectPlan, LogSpec, Manifest } from '../../core/tools.types';
-import { localizeDecimal } from '../../i18n/locale';
 
 /** Mirrors the engine's defaults; used by the mock and as the base when a pasted plan omits keys. */
 export const DEFAULT_PLAN: CollectPlan = {
@@ -93,14 +92,3 @@ export function summarize(manifest: Manifest): ManifestSummary {
   };
 }
 
-const UNITS = ['B', 'KB', 'MB', 'GB'];
-
-export function formatBytes(n: number): string {
-  let v = n;
-  let i = 0;
-  while (v >= 1024 && i < UNITS.length - 1) {
-    v /= 1024;
-    i++;
-  }
-  return `${localizeDecimal(i === 0 ? v : v.toFixed(1))} ${UNITS[i]}`;
-}

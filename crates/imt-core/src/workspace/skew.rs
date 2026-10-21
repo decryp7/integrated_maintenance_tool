@@ -65,6 +65,8 @@ impl Workspace {
             .ok_or(SkewError::UnknownSource(source))?;
         let previous = self.offsets.set(&path, offset)?;
         let delta = offset - previous;
+        // Offsets belong to files: the logical sources a route split from the file move together.
+        let moved: Vec<u32> = self.sources.iter().filter(|s| s.path == path).map(|s| s.id).collect();
         // Where each tracked record will sort after the move.
         let keys: Vec<Option<(i64, u32, u32)>> = req
             .track
@@ -72,7 +74,7 @@ impl Workspace {
             .take(MAX_TRACKED)
             .map(|id| {
                 self.records.get(*id as usize).map(|r| {
-                    let ts = if r.source == source {
+                    let ts = if moved.contains(&r.source) {
                         crate::skew::shift(r.ts, delta)
                     } else {
                         r.ts
@@ -84,7 +86,7 @@ impl Workspace {
         for s in self.sources.iter_mut().filter(|s| s.path == path) {
             s.offset_ms = offset;
         }
-        let ids_changed_from = self.reshift(source, delta);
+        let ids_changed_from = moved.iter().filter_map(|&s| self.reshift(s, delta)).min();
         if delta != 0 {
             self.run_annotators(None);
         }

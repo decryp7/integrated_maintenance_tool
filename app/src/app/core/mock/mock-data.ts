@@ -1,4 +1,4 @@
-import { Level, TimestampIssue } from '../api.types';
+import { Level, SourceProblem, TimestampIssue } from '../api.types';
 
 /** A raw imported event, before the profile pipeline (extractors, markers) runs. */
 export interface MockRecord {
@@ -24,6 +24,10 @@ export interface MockSource {
   offsetMs?: number;
   /** The engine's timestamp diagnosis, mimicked (see `mock-timestamps.ts`). */
   timestampIssue?: TimestampIssue | null;
+  /** The file a profile route split this logical source from (see `SourceInfo.routedFrom`). */
+  routedFrom?: string | null;
+  /** Import problems, as the engine reports them. */
+  problems?: SourceProblem[];
 }
 
 export interface MockDataset {

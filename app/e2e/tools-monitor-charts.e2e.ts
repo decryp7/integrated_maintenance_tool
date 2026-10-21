@@ -34,7 +34,7 @@ test.describe('Process monitor live charts', () => {
     await cpu.scrollIntoViewIfNeeded();
     await cpu.locator('canvas').first().hover({ position: { x: 150, y: 80 } });
     await expect(cpu).toContainText('OrderService.exe · 4120');
-    await expect(cpu).toContainText(/\d %/);
+    await expect(cpu).toContainText(/\d%/);
 
     // Legend toggle switches the process off in every chart.
     const worker = legend.getByRole('button', { name: /Worker\.exe/ });

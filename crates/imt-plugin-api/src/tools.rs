@@ -382,6 +382,12 @@ impl OpSpec {
         }
     }
 
+    /// Marks a read-only status operation that may be polled (see [`OpSpec::poll`]).
+    pub fn polling(mut self) -> OpSpec {
+        self.poll = true;
+        self
+    }
+
     pub fn args(mut self, schema: Schema) -> OpSpec {
         self.args = schema;
         self
@@ -395,12 +401,6 @@ impl OpSpec {
     /// Runs in the plugin's elevated process.
     pub fn elevated(mut self) -> OpSpec {
         self.elevated = true;
-        self
-    }
-
-    /// Marks a read-only status operation that may be polled (see [`OpSpec::poll`]).
-    pub fn polling(mut self) -> OpSpec {
-        self.poll = true;
         self
     }
 }
@@ -541,6 +541,13 @@ impl PathPolicy for NoPaths {
     }
 }
 
+/// Runs the calling plugin's own elevated operations ([`OpSpec::elevated`]) in its elevated process, through the
+/// host (ADR 0017 §7): the host starts that process (the administrator prompt on Windows) and accepts only
+/// operations the plugin declared elevated. A prompt the user declines is a [`ToolFailure::denied`].
+pub trait ElevatedOps: Send + Sync {
+    fn invoke(&self, tool: &str, op: &str, args: Value, timeout: Duration) -> Result<Value>;
+}
+
 /// What the host gives a tool for one call. Cheap to clone; a tool may keep a clone to report the end of
 /// background work it started.
 #[derive(Clone)]
@@ -549,6 +556,7 @@ pub struct ToolCtx {
     data_dir: Option<PathBuf>,
     sink: Arc<dyn TaskSink>,
     paths: Arc<dyn PathPolicy>,
+    elevated: Option<Arc<dyn ElevatedOps>>,
 }
 
 impl ToolCtx {
@@ -560,7 +568,20 @@ impl ToolCtx {
             data_dir,
             sink,
             paths: Arc::new(NoPaths),
+            elevated: None,
         }
+    }
+
+    /// The same context able to run the plugin's elevated operations through `elevated`.
+    pub fn with_elevated(mut self, elevated: Arc<dyn ElevatedOps>) -> ToolCtx {
+        self.elevated = Some(elevated);
+        self
+    }
+
+    /// How to run the plugin's elevated operations; `None` where there is no elevated process (in the
+    /// elevated process itself, in tests, in hosts without one).
+    pub fn elevated(&self) -> Option<&Arc<dyn ElevatedOps>> {
+        self.elevated.as_ref()
     }
 
     /// The same context checking path arguments with `paths`.
@@ -729,12 +750,11 @@ mod tests {
             .op(OpSpec::new("generate", "Generate")
                 .args(Schema::object().field("n", Schema::int(1, 5)).open())
                 .budget(None)
-                .elevated()
-                .polling());
+                .elevated());
         info.check().unwrap();
         let back: ToolInfo = serde_json::from_value(serde_json::to_value(&info).unwrap()).unwrap();
         assert_eq!(back, info);
-        assert!(back.ops[0].elevated && back.ops[0].poll && back.ops[0].budget.is_none());
+        assert!(back.ops[0].elevated && back.ops[0].budget.is_none());
         assert!(info.unsupported_on(Platform::Linux).unwrap().contains("only available on Windows"));
         assert_eq!(info.unsupported_on(Platform::Windows), None);
         assert!(ToolInfo::new("x", "X").check().is_err());
