@@ -15,6 +15,12 @@ and the process runs with the fewest rights the plugin asked for (see
 plugin language, no in-process plugin linking and no plugin protocol to implement by hand
 ([ADR 0017](adr/0017-one-ipc-out-of-process-plugins.md)).
 
+**Writing a plugin outside IMT's repository** (a third-party plugin): start with `cargo imt-plugin new`, test with
+the `imt-plugin-test` harness, ship a signed `.imtplugin` package that users install from the Plugins view. The
+walkthrough is [plugin-sdk.md](plugin-sdk.md); the design is [ADR 0027](adr/0027-plugin-sdk.md). Third-party
+plugins run contained by the launcher (an AppContainer on Windows) and may ask only for `network` and
+`runPrograms`.
+
 ## How data flows
 
 ```
@@ -81,7 +87,7 @@ pub trait Plugin: Send + Sync + 'static {
 
 `Contributions::manifest` turns what a plugin registered into its `Manifest` (see
 [Manifests and permissions](#manifests-and-permissions)). The host refuses a plugin built for another
-contract version, with an invalid manifest, or with a duplicate contribution id; a plugin whose `register`
+plugin protocol (`imt_plugin_api::PROTOCOL`, checked in the handshake), with an invalid manifest, or with a duplicate contribution id; a plugin whose `register`
 fails is listed as inactive with the reason.
 
 Exporters, collectors, workspace hooks, services, events, extension points declared by plugins and plugin
@@ -311,8 +317,8 @@ App modules (for example the AI assistant, section id `ai`) register the same tr
 ### Manifests and permissions
 
 `Contributions::manifest(plugin)` builds the `Manifest` the host reads before it runs any plugin code:
-id, name, semver version, `contract` (`imt_plugin_api::CONTRACT`; a plugin built for another contract is
-refused with a message), the permissions it asks for, an optional `memory_limit` (bytes, at most 4 GiB;
+id, name, semver version, `protocol` (`imt_plugin_api::PROTOCOL`, `major.minor`; a plugin built for another
+major or a newer minor is refused with a message saying whether the plugin or IMT needs an update), the permissions it asks for, an optional `memory_limit` (bytes, at most 4 GiB;
 default 1 GiB) and the list of its contributions (importers, configuration parsers, marker kinds,
 annotators, transforms, tools, settings, profile importers). `Manifest::check` rejects invalid ids and
 duplicate contributions. Plugins do not depend on each other: a plugin is self-contained.
@@ -326,7 +332,8 @@ fn permissions(&self) -> Vec<PermissionRequest> {
 ```
 
 A plugin gets a right only when it asked for it **and** it is granted. The built-ins are first-party and are granted
-what they ask for; there is no UI to grant or revoke permissions yet (no third-party plugins are installable).
+what they ask for. A third-party plugin is granted what the user approved when installing it, and the Plugins view
+revokes a permission later (the process restarts with fewer rights); see [plugin-sdk.md](plugin-sdk.md).
 Everything else is locked down. What each one widens in the plugin's sandbox (`sandbox_for` in
 `crates/imt-plugin-host/src/sandbox.rs`):
 
@@ -502,9 +509,9 @@ The details are in [ADR 0017](adr/0017-one-ipc-out-of-process-plugins.md); what 
   each; streamed answers use credits so a slow reader is never flooded. The host listens on a private
   endpoint and the child connects with a 256-bit token, and the host checks the peer's process id.
   Descriptive types (the manifest) cross as JSON, event rows and file chunks as postcard.
-- **Handshake.** `Hello` carries the protocol version and the token; the host answers `Welcome`, then reads
-  the manifest and checks the plugin contract version. A wrong token, process id or version closes the
-  connection.
+- **Handshake.** `Hello` carries the frame version, the plugin protocol version and the token; the host answers
+  `Welcome` with its own protocol version, then reads the manifest. A wrong token or process id closes the
+  connection; a protocol it cannot serve is refused with a message saying which side to update.
 - **Sandbox.** The launcher starts the child with a cleared environment inside the sandbox of `sandbox_for`:
   Windows runs it under a job object (memory, CPU and child-process limits) at low integrity; Linux uses
   rlimits, landlock and a seccomp filter that denies network sockets and `execve`; macOS uses a sandbox
@@ -525,7 +532,8 @@ The details are in [ADR 0017](adr/0017-one-ipc-out-of-process-plugins.md); what 
 - Follow `AGENTS.md`: no panics on user data, typed errors at the edges, tests with high
   coverage, permissive licences only (`cargo deny check`).
 - Keep ids stable: users reference transform and marker ids from their profiles.
-- Bump `version` for behaviour changes; `CONTRACT` changes only when the plugin contract changes.
+- Bump `version` for behaviour changes; `PROTOCOL` changes only when the plugin protocol changes (minor: something
+  added at the end; major: anything else).
 
 ## Level 3: UI plugins (Angular)
 
