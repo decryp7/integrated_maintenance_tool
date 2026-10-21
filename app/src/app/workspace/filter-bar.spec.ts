@@ -131,6 +131,8 @@ describe('FilterBar', () => {
     expect(store.markedOnly()).toBe(true);
     switchFor(/Always show start/).click();
     expect(store.alwaysShowLifecycle()).toBe(false);
+    store.setTimezone('utc');
+    await settle(fixture);
     buttonByText(fixture, 'UTC').click();
     expect(store.timezone()).toBe('local');
     await settle(fixture);
