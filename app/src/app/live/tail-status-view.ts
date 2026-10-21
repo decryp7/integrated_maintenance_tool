@@ -1,3 +1,4 @@
+import { formatBytes, formatRelativeTime } from '../shared/format/units';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { DeletedFiles, LiveOptions, MAX_DETECT_EVERY_MS, TailFileStatus, WatchPreference } from '../core/api.types';
 import { formatCount } from '../core/format';
@@ -9,29 +10,6 @@ import { localizeDecimal } from '../i18n/locale';
 
 /** The status table refreshes this often while the panel is open and live tail runs. */
 export const STATUS_POLL_MS = 2000;
-
-/** "1.2 MB" */
-export function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  const units = ['KB', 'MB', 'GB', 'TB'];
-  let v = n / 1024;
-  let i = 0;
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024;
-    i++;
-  }
-  return `${localizeDecimal(v.toFixed(v < 10 ? 1 : 0))} ${units[i]}`;
-}
-
-/** "just now", "12 s ago", "3 min ago", "2 h ago" */
-export function formatAgo(ts: number | null, now: number): string {
-  if (ts === null) return '—';
-  const s = Math.max(0, Math.round((now - ts) / 1000));
-  if (s < 2) return $localize`:@@live.tailStatus.justNow:just now`;
-  if (s < 60) return $localize`:@@live.tailStatus.secondsAgo:${s}:seconds: s ago`;
-  if (s < 3600) return $localize`:@@live.tailStatus.minutesAgo:${Math.floor(s / 60)}:minutes: min ago`;
-  return $localize`:@@live.tailStatus.hoursAgo:${Math.floor(s / 3600)}:hours: h ago`;
-}
 
 /** A positive whole number from an input, or null for empty / invalid ("off"). */
 export function parseLimit(text: string): number | null {
@@ -195,7 +173,7 @@ export class TailStatusView {
   }
 
   protected ago(ts: number | null): string {
-    return formatAgo(ts, this.now());
+    return formatRelativeTime(ts, this.now());
   }
 
   protected rate(v: number): string {

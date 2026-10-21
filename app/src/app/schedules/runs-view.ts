@@ -3,7 +3,7 @@ import { RunStatus } from '../core/agent.types';
 import { formatDuration } from '../core/format';
 import { Icon } from '../shared/icon';
 import { RunsStore } from './runs.store';
-import { formatBytes } from './schedule-model';
+import { formatBytes } from '../shared/format/units';
 
 const STATUS_LABEL: Record<RunStatus, string> = {
   running: $localize`:@@schedules.runs.status.running:Running`,

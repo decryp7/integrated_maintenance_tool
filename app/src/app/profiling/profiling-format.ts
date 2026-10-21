@@ -1,6 +1,9 @@
 import { CaptureSummary, HeapSummary, Measurement, MetricDto, MetricId, MetricUnit, ProfileSummary } from '../core/api.types';
 import { formatCount } from '../core/format';
 import { localizeDecimal } from '../i18n/locale';
+import { formatBytes } from '../shared/format/units';
+
+export { formatBytes };
 
 /** Pure presentation helpers of the profiling views (units, labels, measurement tags). */
 
@@ -29,16 +32,6 @@ export function formatNs(ns: number | null | undefined): string {
   if (a < 60_000_000_000) return `${localizeDecimal((ns / 1_000_000_000).toFixed(2))} s`;
   const s = Math.round(ns / 1_000_000_000);
   return `${Math.floor(s / 60)} min ${s % 60} s`;
-}
-
-/** "512 B", "4.0 KB", "1.5 MB", "2.00 GB". */
-export function formatBytes(bytes: number | null | undefined): string {
-  if (bytes === null || bytes === undefined || !Number.isFinite(bytes)) return '—';
-  const a = Math.abs(bytes);
-  if (a < 1024) return `${Math.round(bytes)} B`;
-  if (a < 1024 ** 2) return `${localizeDecimal((bytes / 1024).toFixed(1))} KB`;
-  if (a < 1024 ** 3) return `${localizeDecimal((bytes / 1024 ** 2).toFixed(1))} MB`;
-  return `${localizeDecimal((bytes / 1024 ** 3).toFixed(2))} GB`;
 }
 
 export function formatValue(value: number | null | undefined, unit: MetricUnit): string {

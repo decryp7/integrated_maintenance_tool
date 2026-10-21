@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, effect, inject, signal, untracked } from '@angular/core';
 import { AiBackend } from '../ai/ai-backend';
 import { formatDuration } from '../core/format';
+import { formatCount, formatEta } from '../shared/format/units';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { Icon } from '../shared/icon';
 import { JobViewer } from './job-viewer';
@@ -77,7 +78,7 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
                   <span>{{ etaText(j.etaMs) }}</span>
                 }
                 @if (j.progress.done !== null && j.progress.total !== null) {
-                  <span>{{ j.progress.done }} / {{ j.progress.total }}</span>
+                  <span>{{ count(j.progress.done) }} / {{ count(j.progress.total) }}</span>
                 }
                 @if (j.message) {
                   <span class="msg">{{ j.message }}</span>
@@ -190,8 +191,10 @@ export class JobsPanel {
   }
 
   protected etaText(ms: number): string {
-    return $localize`:@@jobs.panel.eta:about ${formatDuration(ms)}:time: left`;
+    return formatEta(ms / 1000);
   }
+
+  protected readonly count = formatCount;
 
   protected progressLabel(j: JobInfo): string {
     return $localize`:@@jobs.panel.progress:${j.title}:job: progress`;

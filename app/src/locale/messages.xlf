@@ -121,116 +121,81 @@
           <context context-type="linenumber">54</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="ai.format.eta.underSecond" datatype="html">
-        <source>less than a second</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/ai/ai-format.ts</context>
-          <context context-type="linenumber">27</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="ai.format.eta.seconds" datatype="html">
-        <source>about <x id="seconds" equiv-text="Math.ceil(secs)"/> s</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/ai/ai-format.ts</context>
-          <context context-type="linenumber">28</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="ai.format.eta.minutes" datatype="html">
-        <source>about <x id="minutes" equiv-text="Math.round(secs / 60)"/> min</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/ai/ai-format.ts</context>
-          <context context-type="linenumber">29</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="ai.format.eta.hoursMinutes" datatype="html">
-        <source>about <x id="hours" equiv-text="h"/> h <x id="minutes" equiv-text="m"/> min</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/ai/ai-format.ts</context>
-          <context context-type="linenumber">33</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="ai.format.eta.hours" datatype="html">
-        <source>about <x id="hours" equiv-text="h"/> h</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/ai/ai-format.ts</context>
-          <context context-type="linenumber">34</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="ai.format.fit.comfortable" datatype="html">
         <source>Fits comfortably</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-format.ts</context>
-          <context context-type="linenumber">45</context>
+          <context context-type="linenumber">7</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.format.fit.tight" datatype="html">
         <source>Tight fit</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-format.ts</context>
-          <context context-type="linenumber">46</context>
+          <context context-type="linenumber">8</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.format.fit.tooLarge" datatype="html">
         <source>Too large</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-format.ts</context>
-          <context context-type="linenumber">47</context>
+          <context context-type="linenumber">9</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.format.speed.fast" datatype="html">
         <source>Fast</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-format.ts</context>
-          <context context-type="linenumber">53</context>
+          <context context-type="linenumber">15</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.format.speed.moderate" datatype="html">
         <source>Moderate speed</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-format.ts</context>
-          <context context-type="linenumber">54</context>
+          <context context-type="linenumber">16</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.format.speed.slow" datatype="html">
         <source>Slow</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-format.ts</context>
-          <context context-type="linenumber">55</context>
+          <context context-type="linenumber">17</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.format.gpu.shared" datatype="html">
         <source><x id="name" equiv-text="gpu.name"/> (shared memory)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-format.ts</context>
-          <context context-type="linenumber">60</context>
+          <context context-type="linenumber">22</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.format.gpu.vram" datatype="html">
         <source><x id="name" equiv-text="gpu.name"/> · <x id="gb" equiv-text="Math.round(gpu.vramGb)"/> GB video memory</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-format.ts</context>
-          <context context-type="linenumber">61</context>
+          <context context-type="linenumber">23</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.format.hardware.noGpu" datatype="html">
         <source>No GPU detected (the model runs on the CPU)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-format.ts</context>
-          <context context-type="linenumber">66</context>
+          <context context-type="linenumber">28</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.format.hardware.ram" datatype="html">
         <source><x id="total" equiv-text="Math.round(hw.totalRamGb)"/> GB RAM (<x id="free" equiv-text="Math.round(hw.availableRamGb)"/> GB free)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-format.ts</context>
-          <context context-type="linenumber">69</context>
+          <context context-type="linenumber">31</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.format.hardware.cpu" datatype="html">
         <source><x id="cores" equiv-text="hw.cpuCores"/> CPU cores</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-format.ts</context>
-          <context context-type="linenumber">70</context>
+          <context context-type="linenumber">32</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.launcher.title.proposePipeline" datatype="html">
@@ -2112,11 +2077,11 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">62,63</context>
+          <context context-type="linenumber">63,64</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">225,226</context>
+          <context context-type="linenumber">226,227</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.models.installed" datatype="html">
@@ -2829,21 +2794,21 @@
         <source>The model runs in llama.cpp&apos;s <x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;mono&quot;&gt;"/>llama-server<x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/>, downloaded once from github.com/ggml-org/llama.cpp </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">39,40</context>
+          <context context-type="linenumber">40,41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.intro.release" datatype="html">
         <source>(release <x id="INTERPOLATION" equiv-text="{{ o.release }}"/>) </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">41,42</context>
+          <context context-type="linenumber">42,43</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.intro.end" datatype="html">
         <source>and checked against its pinned checksum.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">43,45</context>
+          <context context-type="linenumber">44,46</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.custom" datatype="html">
@@ -2851,133 +2816,133 @@
         &gt;"/>); the downloaded builds are not used. </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">48,51</context>
+          <context context-type="linenumber">49,52</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.problem" datatype="html">
         <source> The builds could not be checked: <x id="INTERPOLATION" equiv-text="{{ problem }}"/> </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">54,56</context>
+          <context context-type="linenumber">55,57</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.retry" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">60,63</context>
+          <context context-type="linenumber">61,64</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.progress.label" datatype="html">
         <source>Runtime download progress</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">70,71</context>
+          <context context-type="linenumber">71,72</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.suggested.text" datatype="html">
         <source><x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ s.label }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> is recommended for this computer (<x id="INTERPOLATION_1" equiv-text="{{ size(s.downloadBytes) }}"/> download). </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">95,96</context>
+          <context context-type="linenumber">96,97</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.suggested.needs" datatype="html">
         <source>The assistant needs an inference runtime before it can load a model.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">97,99</context>
+          <context context-type="linenumber">98,100</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.suggested.download" datatype="html">
         <source> Download <x id="INTERPOLATION" equiv-text="{{ s.label }}"/> </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">107,108</context>
+          <context context-type="linenumber">108,109</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.failed" datatype="html">
         <source><x id="INTERPOLATION" equiv-text="{{ labelOf(out.id) }}"/> was not installed: <x id="INTERPOLATION_1" equiv-text="{{ out.message }}"/> </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">115,116</context>
+          <context context-type="linenumber">116,117</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.tryAgain" datatype="html">
         <source> Try again </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">117,118</context>
+          <context context-type="linenumber">118,119</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.cancelled" datatype="html">
         <source> The download of <x id="INTERPOLATION" equiv-text="{{ labelOf(out.id) }}"/> was cancelled. It resumes where it stopped next time. </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">123,125</context>
+          <context context-type="linenumber">124,126</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.installed" datatype="html">
         <source> <x id="INTERPOLATION" equiv-text="{{ labelOf(out.id) }}"/> is installed. </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">129,131</context>
+          <context context-type="linenumber">130,132</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.choice.auto" datatype="html">
         <source>Automatic choice</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">141,142</context>
+          <context context-type="linenumber">142,143</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.choice.fixed" datatype="html">
         <source>Fixed to <x id="INTERPOLATION" equiv-text="{{ labelOf(o.choice) }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">146,147</context>
+          <context context-type="linenumber">147,148</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.choice.fallback" datatype="html">
         <source> (falls back to the next build if it cannot start).</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">147,149</context>
+          <context context-type="linenumber">148,150</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.choice.useAuto" datatype="html">
         <source> Use automatic </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">157,159</context>
+          <context context-type="linenumber">158,160</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.checking" datatype="html">
         <source>Checking the inference runtimes…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">163,165</context>
+          <context context-type="linenumber">164,166</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.list.label" datatype="html">
         <source>Inference runtimes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">165</context>
+          <context context-type="linenumber">166</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.badge.suggested" datatype="html">
         <source>Suggested</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">172,174</context>
+          <context context-type="linenumber">173,175</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.badge.active" datatype="html">
         <source>Active</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">175,177</context>
+          <context context-type="linenumber">176,178</context>
         </context-group>
         <note priority="1" from="meaning">runtime build in use</note>
       </trans-unit>
@@ -2985,244 +2950,233 @@
         <source><x id="INTERPOLATION" equiv-text="{{ size(b.installedBytes ?? 0) }}"/> on disk</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">181,182</context>
+          <context context-type="linenumber">182,183</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.downloadSize" datatype="html">
         <source><x id="INTERPOLATION" equiv-text="{{ size(b.downloadBytes) }}"/> download</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">183,184</context>
+          <context context-type="linenumber">184,185</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.download" datatype="html">
         <source>Download</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">202,203</context>
+          <context context-type="linenumber">203,204</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.useThis" datatype="html">
         <source>Use this</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">213,214</context>
+          <context context-type="linenumber">214,215</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.delete" datatype="html">
         <source>Delete</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">223,224</context>
+          <context context-type="linenumber">224,225</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">249,250</context>
+          <context context-type="linenumber">250,251</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">496</context>
+          <context context-type="linenumber">499</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.older.title" datatype="html">
         <source>Older releases on disk</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">231,232</context>
+          <context context-type="linenumber">232,233</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.older.label" datatype="html">
         <source>Older inference runtimes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">232</context>
+          <context context-type="linenumber">233</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.older.facts" datatype="html">
         <source><x id="INTERPOLATION" equiv-text="{{ size(r.bytes) }}"/> on disk · no longer offered</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">239,240</context>
+          <context context-type="linenumber">240,241</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.starting" datatype="html">
         <source>Starting the download of <x id="label" equiv-text="this.labelOf(i.id)"/>…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">408</context>
+          <context context-type="linenumber">411</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.live.downloading" datatype="html">
         <source>Downloading <x id="label" equiv-text="this.labelOf(this.store.job()!.id)"/>.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">413</context>
+          <context context-type="linenumber">416</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.live.installed" datatype="html">
         <source><x id="label" equiv-text="this.labelOf(out.id)"/> is installed.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">416</context>
+          <context context-type="linenumber">419</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.live.cancelled" datatype="html">
         <source>The download was cancelled.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">418</context>
+          <context context-type="linenumber">421</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.live.failed" datatype="html">
         <source>The download failed: <x id="message" equiv-text="out.message"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">419</context>
+          <context context-type="linenumber">422</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.cancelling" datatype="html">
         <source>Cancelling…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">442</context>
+          <context context-type="linenumber">445</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">477</context>
+          <context context-type="linenumber">482</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.cancel" datatype="html">
         <source>Cancel download</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">442</context>
+          <context context-type="linenumber">445</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.choice.autoActive" datatype="html">
         <source> — the best installed build that works here: <x id="label" equiv-text="this.labelOf(active)"/>.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">447</context>
+          <context context-type="linenumber">450</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.choice.autoNone" datatype="html">
         <source> — the best installed build that works here.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">448</context>
+          <context context-type="linenumber">451</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.download.label" datatype="html">
         <source>Download <x id="label" equiv-text="b.label"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">452</context>
+          <context context-type="linenumber">455</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.useThis.label" datatype="html">
         <source>Use this: <x id="label" equiv-text="b.label"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">456</context>
+          <context context-type="linenumber">459</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.delete.label" datatype="html">
         <source>Delete <x id="label" equiv-text="b.label"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">460</context>
+          <context context-type="linenumber">463</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.deleteOutdated.label" datatype="html">
         <source>Delete <x id="label" equiv-text="this.labelOf(r.id)"/> <x id="tag" equiv-text="r.tag"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">464</context>
+          <context context-type="linenumber">467</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.confirm.deleteActive" datatype="html">
         <source>Delete the <x id="label" equiv-text="b.label"/> runtime? Its files (<x id="size" equiv-text="size"/>) are removed from this computer; the engine stops and uses the next working build, or asks for a download.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">477</context>
+          <context context-type="linenumber">480</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.confirm.delete" datatype="html">
         <source>Delete the <x id="label" equiv-text="b.label"/> runtime? Its files (<x id="size" equiv-text="size"/>) are removed from this computer.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">478</context>
+          <context context-type="linenumber">481</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.confirm.deleteOutdated" datatype="html">
         <source>Delete the <x id="label" equiv-text="this.labelOf(r.id)"/> runtime of release <x id="tag" equiv-text="r.tag"/> (<x id="size" equiv-text="formatBytes(r.bytes)"/>)?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">486</context>
+          <context context-type="linenumber">489</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.confirm.title" datatype="html">
         <source>Delete inference runtime?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-panel.ts</context>
-          <context context-type="linenumber">494</context>
+          <context context-type="linenumber">497</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.stage.downloadingFile" datatype="html">
         <source>Downloading <x id="label" equiv-text="label"/> (file <x id="index" equiv-text="e.index"/> of <x id="count" equiv-text="e.count"/>)…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">22</context>
+          <context context-type="linenumber">23</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.stage.downloading" datatype="html">
         <source>Downloading <x id="label" equiv-text="label"/>…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">23</context>
+          <context context-type="linenumber">24</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">27</context>
+          <context context-type="linenumber">28</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.stage.verifying" datatype="html">
         <source>Verifying <x id="label" equiv-text="label"/>…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">26</context>
+          <context context-type="linenumber">27</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.stage.unpacking" datatype="html">
         <source>Unpacking <x id="label" equiv-text="label"/>…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">29</context>
+          <context context-type="linenumber">30</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.stage.finishing" datatype="html">
         <source>Finishing <x id="label" equiv-text="label"/>…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">31</context>
+          <context context-type="linenumber">32</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.progress.of" datatype="html">
         <source><x id="done" equiv-text="formatBytes(e.bytes)"/> of <x id="total" equiv-text="formatBytes(e.total)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">43</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">433</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="ai.runtime.progress.left" datatype="html">
-        <source><x id="eta" equiv-text="eta"/> left</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">46</context>
+          <context context-type="linenumber">44</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
@@ -3233,42 +3187,42 @@
         <source>In use</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">64</context>
+          <context context-type="linenumber">63</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.state.ready" datatype="html">
         <source>Installed, works here</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">66</context>
+          <context context-type="linenumber">65</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.state.problem" datatype="html">
         <source>Installed, does not work here</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">68</context>
+          <context context-type="linenumber">67</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.state.unchecked" datatype="html">
         <source>Installed</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">70</context>
+          <context context-type="linenumber">69</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.state.available" datatype="html">
         <source>Not installed</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">72</context>
+          <context context-type="linenumber">71</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.device" datatype="html">
         <source><x id="description" equiv-text="d.description"/> (<x id="name" equiv-text="d.name"/>, <x id="free" equiv-text="gb(d.freeMib)"/> of <x id="total" equiv-text="gb(d.totalMib)"/> GB free)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">79</context>
+          <context context-type="linenumber">78</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.setup" datatype="html">
@@ -3331,222 +3285,222 @@
         <source> The assistant runs <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/>fully on this computer<x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/>. Nothing about your logs leaves it: only the model file is downloaded, once, from Hugging Face (and, if none is installed yet, the inference runtime from llama.cpp&apos;s GitHub releases). </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">51,54</context>
+          <context context-type="linenumber">52,55</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.checking" datatype="html">
         <source>Checking this computer…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">58,60</context>
+          <context context-type="linenumber">59,61</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.runtime.intro" datatype="html">
         <source> First, download the engine that runs the model on this computer. The suggested build suits its hardware; you can switch later in the model manager. </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">64,66</context>
+          <context context-type="linenumber">65,67</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.notNow" datatype="html">
         <source>Not now</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">70,72</context>
+          <context context-type="linenumber">71,73</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">150,151</context>
+          <context context-type="linenumber">151,153</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.continue" datatype="html">
         <source> Continue </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">79,80</context>
+          <context context-type="linenumber">80,82</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.thisComputer" datatype="html">
         <source>This computer</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">86,87</context>
+          <context context-type="linenumber">87,88</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.chooseModel" datatype="html">
         <source>Choose a model</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">95,96</context>
+          <context context-type="linenumber">96,97</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.badge.best" datatype="html">
         <source>Best</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">114,116</context>
+          <context context-type="linenumber">115,117</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.badge.fastest" datatype="html">
         <source>Fastest</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">117,119</context>
+          <context context-type="linenumber">118,120</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.badge.installed" datatype="html">
         <source>Installed</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">120,122</context>
+          <context context-type="linenumber">121,123</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.licence" datatype="html">
         <source>Licence: <x id="INTERPOLATION" equiv-text="{{ r.model.license }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">127,128</context>
+          <context context-type="linenumber">128,129</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.summary.installed" datatype="html">
         <source><x id="INTERPOLATION" equiv-text="{{ r.model.name }}"/> is already downloaded; it will be loaded and checked.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">140,141</context>
+          <context context-type="linenumber">141,142</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.summary.download" datatype="html">
         <source><x id="INTERPOLATION" equiv-text="{{ r.model.name }}"/>: <x id="INTERPOLATION_1" equiv-text="{{ size(r.model.sizeBytes) }}"/> will be downloaded from huggingface.co/<x id="INTERPOLATION_2" equiv-text="{{ r.model.hfRepo }}"/> (licence <x id="INTERPOLATION_3" equiv-text="{{ r.model.license }}"/>).</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">142,143</context>
+          <context context-type="linenumber">143,144</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.step" datatype="html">
         <source>Step <x id="INTERPOLATION" equiv-text="{{ step() }}"/> of 5 · <x id="INTERPOLATION_1" equiv-text="{{ label() }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">165,166</context>
+          <context context-type="linenumber">166,167</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.ready" datatype="html">
         <source>Ready: <x id="INTERPOLATION" equiv-text="{{ r.model }}"/> runs on <x id="INTERPOLATION_1" equiv-text="{{ r.backend }}"/>.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">198,199</context>
+          <context context-type="linenumber">199,200</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.close" datatype="html">
         <source>Close</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">204,205</context>
+          <context context-type="linenumber">205,206</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">230,231</context>
+          <context context-type="linenumber">231,232</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">240,241</context>
+          <context context-type="linenumber">241,242</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.openChat" datatype="html">
         <source> Open the assistant </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">212,213</context>
+          <context context-type="linenumber">213,214</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.retry" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">231,233</context>
+          <context context-type="linenumber">232,234</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.cancelled" datatype="html">
         <source> The set-up was cancelled. Nothing was changed. </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">237,239</context>
+          <context context-type="linenumber">238,240</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.startAgain" datatype="html">
         <source>Start again</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">241,243</context>
+          <context context-type="linenumber">242,245</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.live.ready" datatype="html">
         <source>The AI assistant is ready.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">450</context>
+          <context context-type="linenumber">455</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.live.failed" datatype="html">
         <source>The set-up failed: <x id="message" equiv-text="s.message"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">452</context>
+          <context context-type="linenumber">457</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.live.cancelled" datatype="html">
         <source>The set-up was cancelled.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">454</context>
+          <context context-type="linenumber">459</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.start.installed" datatype="html">
         <source>Set up</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">464</context>
+          <context context-type="linenumber">469</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.start.download" datatype="html">
         <source>Download and set up</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">464</context>
+          <context context-type="linenumber">469</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.progress.download" datatype="html">
         <source>Download progress</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">468</context>
+          <context context-type="linenumber">473</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.progress.verify" datatype="html">
         <source>Verification progress</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">469</context>
+          <context context-type="linenumber">474</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.toolCalling" datatype="html">
         <source>Tool calling</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">473</context>
+          <context context-type="linenumber">478</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.noToolCalling" datatype="html">
         <source>No tool calling</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">473</context>
+          <context context-type="linenumber">478</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.cancel" datatype="html">
         <source>Cancel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">477</context>
+          <context context-type="linenumber">482</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.stage.probing" datatype="html">
@@ -6246,38 +6200,18 @@
         <source>Show all commands</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">33</context>
+          <context context-type="linenumber">38</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.category.view" datatype="html">
         <source>View</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">33</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">50</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">52</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">53</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">54</context>
+          <context context-type="linenumber">38</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
           <context context-type="linenumber">55</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">56</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
@@ -6317,250 +6251,250 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">85</context>
+          <context context-type="linenumber">66</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
+          <context context-type="linenumber">67</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
+          <context context-type="linenumber">68</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
+          <context context-type="linenumber">69</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
+          <context context-type="linenumber">70</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
+          <context context-type="linenumber">90</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.file.openFiles" datatype="html">
         <source>Open files…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">34</context>
+          <context context-type="linenumber">39</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.category.file" datatype="html">
         <source>File</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">34</context>
+          <context context-type="linenumber">39</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">35</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">36</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">37</context>
+          <context context-type="linenumber">40</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
           <context context-type="linenumber">41</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
+          <context context-type="linenumber">42</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
+          <context context-type="linenumber">46</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.file.openFolder" datatype="html">
         <source>Open folder…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">35</context>
+          <context context-type="linenumber">40</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.file.reimport" datatype="html">
         <source>Re-import all</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">36</context>
+          <context context-type="linenumber">41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.file.close" datatype="html">
         <source>Close workspace</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">37</context>
+          <context context-type="linenumber">42</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.file.export" datatype="html">
         <source>Export events…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">40</context>
+          <context context-type="linenumber">45</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.help.welcome" datatype="html">
         <source>Show welcome</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">46</context>
+          <context context-type="linenumber">51</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.category.help" datatype="html">
         <source>Help</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">46</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">47</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">49</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
           <context context-type="linenumber">51</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
+          <context context-type="linenumber">52</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
+          <context context-type="linenumber">54</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
+          <context context-type="linenumber">56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.help.about" datatype="html">
         <source>About IMT</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">47</context>
+          <context context-type="linenumber">52</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.help.notices" datatype="html">
         <source>Third-party notices</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">49</context>
+          <context context-type="linenumber">54</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.settings.open" datatype="html">
         <source>Open settings</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">50</context>
+          <context context-type="linenumber">55</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.storage.cmd.clearCache" datatype="html">
         <source>Clear cache…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">51</context>
+          <context context-type="linenumber">56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.settings.appearance" datatype="html">
         <source>Open settings: Appearance</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">52</context>
+          <context context-type="linenumber">57</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.settings.diagnostics" datatype="html">
         <source>Open settings: Diagnostics</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">53</context>
+          <context context-type="linenumber">58</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.view.toggleSidebar" datatype="html">
         <source>Toggle sidebar</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">54</context>
+          <context context-type="linenumber">59</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.view.resetLayout" datatype="html">
         <source>Reset layout</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">55</context>
+          <context context-type="linenumber">60</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.view.theme.calm" datatype="html">
         <source>Theme: Calm</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">56</context>
+          <context context-type="linenumber">61</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.view.theme.console" datatype="html">
         <source>Theme: Console</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">57</context>
+          <context context-type="linenumber">62</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.view.scheme.system" datatype="html">
         <source>Colour scheme: system</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">58</context>
+          <context context-type="linenumber">63</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.view.scheme.dark" datatype="html">
         <source>Colour scheme: dark</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">59</context>
+          <context context-type="linenumber">64</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.view.scheme.light" datatype="html">
         <source>Colour scheme: light</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">60</context>
+          <context context-type="linenumber">65</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.view.layout.focused" datatype="html">
         <source>Layout: focused</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">61</context>
+          <context context-type="linenumber">66</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.view.layout.full" datatype="html">
         <source>Layout: full</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">62</context>
+          <context context-type="linenumber">67</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.view.sourceColors.source" datatype="html">
         <source>Source colours: by file</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">63</context>
+          <context context-type="linenumber">68</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.view.sourceColors.instance" datatype="html">
         <source>Source colours: by instance</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">64</context>
+          <context context-type="linenumber">69</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.view.sourceColors.off" datatype="html">
         <source>Source colours: off</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">65</context>
+          <context context-type="linenumber">70</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.analyze.search" datatype="html">
         <source>Search events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">66</context>
+          <context context-type="linenumber">71</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.category.analyze" datatype="html">
         <source>Analyze</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">66</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">67</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">68</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">69</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">70</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
           <context context-type="linenumber">71</context>
         </context-group>
         <context-group purpose="location">
@@ -6573,70 +6507,90 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
+          <context context-type="linenumber">74</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
+          <context context-type="linenumber">75</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
+          <context context-type="linenumber">76</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
           <context context-type="linenumber">77</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
+          <context context-type="linenumber">78</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
+          <context context-type="linenumber">82</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.analyze.markedOnly" datatype="html">
         <source>Marked events only</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">67</context>
+          <context context-type="linenumber">72</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.analyze.fit" datatype="html">
         <source>Fit time range</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">68</context>
+          <context context-type="linenumber">73</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.analyze.back" datatype="html">
         <source>Previous time range</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">69</context>
+          <context context-type="linenumber">74</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.analyze.forward" datatype="html">
         <source>Next time range</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">70</context>
+          <context context-type="linenumber">75</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.analyze.clearFilters" datatype="html">
         <source>Clear all filters</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">71</context>
+          <context context-type="linenumber">76</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.analyze.utc" datatype="html">
         <source>Time in UTC</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">72</context>
+          <context context-type="linenumber">77</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.analyze.local" datatype="html">
         <source>Time in local zone</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">73</context>
+          <context context-type="linenumber">78</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.analyze.toggleUtc" datatype="html">
         <source>Toggle UTC / local time</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">76</context>
+          <context context-type="linenumber">81</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.toggleView" datatype="html">
         <source>Toggle <x id="view" equiv-text="view.title"/> panel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
-          <context context-type="linenumber">84</context>
+          <context context-type="linenumber">89</context>
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.view.timeline" datatype="html">
@@ -7702,67 +7656,11 @@
           <context context-type="linenumber">38</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="core.format.unit.ms" datatype="html">
-        <source>ms</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/core/format.ts</context>
-          <context context-type="linenumber">38</context>
-        </context-group>
-        <note priority="1" from="description">Abbreviation for milliseconds, after a duration</note>
-      </trans-unit>
-      <trans-unit id="core.format.unit.s" datatype="html">
-        <source>s</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/core/format.ts</context>
-          <context context-type="linenumber">39</context>
-        </context-group>
-        <note priority="1" from="description">Abbreviation for seconds, after a duration</note>
-      </trans-unit>
-      <trans-unit id="core.format.unit.min" datatype="html">
-        <source>min</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/core/format.ts</context>
-          <context context-type="linenumber">40</context>
-        </context-group>
-        <note priority="1" from="description">Abbreviation for minutes, after a duration</note>
-      </trans-unit>
-      <trans-unit id="core.format.unit.h" datatype="html">
-        <source>h</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/core/format.ts</context>
-          <context context-type="linenumber">41</context>
-        </context-group>
-        <note priority="1" from="description">Abbreviation for hours, after a duration</note>
-      </trans-unit>
-      <trans-unit id="core.format.unit.d" datatype="html">
-        <source>d</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/core/format.ts</context>
-          <context context-type="linenumber">42</context>
-        </context-group>
-        <note priority="1" from="description">Abbreviation for days, after a duration</note>
-      </trans-unit>
-      <trans-unit id="core.format.suffix.thousand" datatype="html">
-        <source>k</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/core/format.ts</context>
-          <context context-type="linenumber">43</context>
-        </context-group>
-        <note priority="1" from="description">Suffix for thousands in compact numbers, as in 1.2k</note>
-      </trans-unit>
-      <trans-unit id="core.format.suffix.million" datatype="html">
-        <source>M</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/core/format.ts</context>
-          <context context-type="linenumber">44</context>
-        </context-group>
-        <note priority="1" from="description">Suffix for millions in compact numbers, as in 2.5M</note>
-      </trans-unit>
       <trans-unit id="core.format.noTimestamp" datatype="html">
         <source>No timestamp</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/core/format.ts</context>
-          <context context-type="linenumber">103</context>
+          <context context-type="linenumber">82</context>
         </context-group>
       </trans-unit>
       <trans-unit id="core.dialog.openFolder" datatype="html">
@@ -8582,63 +8480,63 @@
         <source>IMT puts what is needed to diagnose the problem into one zip file that you save and attach to your report. Nothing is sent anywhere.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/report-problem-dialog.ts</context>
-          <context context-type="linenumber">32,34</context>
+          <context context-type="linenumber">25,27</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportDialog.whatHappened" datatype="html">
         <source>What happened? What did you expect?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/report-problem-dialog.ts</context>
-          <context context-type="linenumber">34,37</context>
+          <context context-type="linenumber">27,30</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportDialog.descriptionHint" datatype="html">
         <source>Optional. Do not paste passwords or keys.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/report-problem-dialog.ts</context>
-          <context context-type="linenumber">43,46</context>
+          <context context-type="linenumber">36,39</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportDialog.collecting" datatype="html">
         <source>Collecting…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/report-problem-dialog.ts</context>
-          <context context-type="linenumber">46,49</context>
+          <context context-type="linenumber">39,42</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportDialog.contents" datatype="html">
         <source>Contents (<x id="INTERPOLATION" equiv-text="{{ entries().length }}"/> files, <x id="INTERPOLATION_1" equiv-text="{{ total() }}"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/report-problem-dialog.ts</context>
-          <context context-type="linenumber">50,51</context>
+          <context context-type="linenumber">43,44</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportDialog.steps" datatype="html">
         <source>Steps to reproduce</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/report-problem-dialog.ts</context>
-          <context context-type="linenumber">58,60</context>
+          <context context-type="linenumber">51,53</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportDialog.noActivity" datatype="html">
         <source>No recent activity was recorded.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/report-problem-dialog.ts</context>
-          <context context-type="linenumber">66,70</context>
+          <context context-type="linenumber">59,63</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportDialog.save" datatype="html">
         <source>Save report…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/report-problem-dialog.ts</context>
-          <context context-type="linenumber">78,82</context>
+          <context context-type="linenumber">71,75</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportDialog.close" datatype="html">
         <source>Close</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/report-problem-dialog.ts</context>
-          <context context-type="linenumber">106</context>
+          <context context-type="linenumber">99</context>
         </context-group>
         <note priority="1" from="description">Button</note>
         <note priority="1" from="meaning">Close the dialog</note>
@@ -8647,56 +8545,56 @@
         <source>Cancel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/report-problem-dialog.ts</context>
-          <context context-type="linenumber">107</context>
+          <context context-type="linenumber">100</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportDialog.yourDescription" datatype="html">
         <source>Your description</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/report-problem-dialog.ts</context>
-          <context context-type="linenumber">119</context>
+          <context context-type="linenumber">112</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportDialog.noDescription" datatype="html">
         <source>No description</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/report-problem-dialog.ts</context>
-          <context context-type="linenumber">119</context>
+          <context context-type="linenumber">112</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportDialog.collectFailed" datatype="html">
         <source>Could not collect the report: <x id="error" equiv-text="describeError(e)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/report-problem-dialog.ts</context>
-          <context context-type="linenumber">133</context>
+          <context context-type="linenumber">126</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportDialog.saveTitle" datatype="html">
         <source>Save problem report</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/report-problem-dialog.ts</context>
-          <context context-type="linenumber">144</context>
+          <context context-type="linenumber">137</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportDialog.started" datatype="html">
         <source>Saving the problem report — running in Jobs</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/report-problem-dialog.ts</context>
-          <context context-type="linenumber">149</context>
+          <context context-type="linenumber">142</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportDialog.saving" datatype="html">
         <source>Saving to <x id="path" equiv-text="path"/>. You can close this dialog; a message tells you when the file is ready to attach.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/report-problem-dialog.ts</context>
-          <context context-type="linenumber">150</context>
+          <context context-type="linenumber">143</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportDialog.saveFailed" datatype="html">
         <source>Could not save the report: <x id="error" equiv-text="describeError(e)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/report-problem-dialog.ts</context>
-          <context context-type="linenumber">154</context>
+          <context context-type="linenumber">147</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.toast.captured" datatype="html">
@@ -10166,53 +10064,25 @@
         </context-group>
         <note priority="1" from="description">Keep the current language until the next start</note>
       </trans-unit>
-      <trans-unit id="import.format.eta.almostDone" datatype="html">
-        <source>almost done</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/import/import-format.ts</context>
-          <context context-type="linenumber">20</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="import.format.eta.seconds" datatype="html">
-        <source>about <x id="seconds" equiv-text="s"/> s left</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/import/import-format.ts</context>
-          <context context-type="linenumber">23</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="import.format.eta.minutes" datatype="html">
-        <source>about <x id="minutes" equiv-text="min"/> min left</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/import/import-format.ts</context>
-          <context context-type="linenumber">27</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="import.format.eta.hours" datatype="html">
-        <source>about <x id="hours" equiv-text="h"/> h left</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/import/import-format.ts</context>
-          <context context-type="linenumber">30</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="import.format.files.one" datatype="html">
         <source><x id="done" equiv-text="done"/> of <x id="total" equiv-text="total"/> file</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/import/import-format.ts</context>
-          <context context-type="linenumber">51</context>
+          <context context-type="linenumber">25</context>
         </context-group>
       </trans-unit>
       <trans-unit id="import.format.files.other" datatype="html">
         <source><x id="done" equiv-text="done"/> of <x id="total" equiv-text="total"/> files</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/import/import-format.ts</context>
-          <context context-type="linenumber">52</context>
+          <context context-type="linenumber">26</context>
         </context-group>
       </trans-unit>
       <trans-unit id="import.format.bytes" datatype="html">
         <source><x id="done" equiv-text="doneBytes"/> of <x id="total" equiv-text="totalBytes"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/import/import-format.ts</context>
-          <context context-type="linenumber">58</context>
+          <context context-type="linenumber">32</context>
         </context-group>
       </trans-unit>
       <trans-unit id="import.progress.cancelFailed" datatype="html">
@@ -10600,168 +10470,161 @@
         <source>Job filters</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">21</context>
+          <context context-type="linenumber">22</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.show" datatype="html">
         <source>Show</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">22,23</context>
+          <context context-type="linenumber">23,24</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.clear" datatype="html">
         <source>Clear finished</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">27,29</context>
+          <context context-type="linenumber">28,30</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.resetAi" datatype="html">
         <source>Reset AI</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">34,36</context>
+          <context context-type="linenumber">35,37</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.retryRequest" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">41,42</context>
+          <context context-type="linenumber">42,43</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.dismissError" datatype="html">
         <source>Dismiss</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">42</context>
+          <context context-type="linenumber">43</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.empty" datatype="html">
         <source>No jobs. Long work (AI answers, imports, analyses, exports, downloads) shows here while it runs and after it finished.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">50,52</context>
+          <context context-type="linenumber">51,53</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.cancel" datatype="html">
         <source>Cancel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">98,100</context>
+          <context context-type="linenumber">99,101</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.retry" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">101,103</context>
+          <context context-type="linenumber">102,104</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.view" datatype="html">
         <source>View</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">104,106</context>
+          <context context-type="linenumber">105,107</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.running" datatype="html">
         <source>Running</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">159</context>
+          <context context-type="linenumber">160</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.queued" datatype="html">
         <source>Queued</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">160</context>
+          <context context-type="linenumber">161</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.finished" datatype="html">
         <source>Finished</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">161</context>
+          <context context-type="linenumber">162</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.pausedAi" datatype="html">
         <source>AI requests are paused: <x id="reason" equiv-text="reason"/>. Waiting requests stay queued.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">180</context>
+          <context context-type="linenumber">181</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.paused" datatype="html">
         <source><x id="kind" equiv-text="kindLabel(kind)"/> jobs are paused: <x id="reason" equiv-text="reason"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">181</context>
+          <context context-type="linenumber">182</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.elapsed" datatype="html">
         <source><x id="time" equiv-text="formatDuration(j.elapsedMs)"/> elapsed</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">189</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="jobs.panel.eta" datatype="html">
-        <source>about <x id="time" equiv-text="formatDuration(ms)"/> left</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">193</context>
+          <context context-type="linenumber">190</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.progress" datatype="html">
         <source><x id="job" equiv-text="j.title"/> progress</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">197</context>
+          <context context-type="linenumber">200</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.source" datatype="html">
         <source>Started from <x id="source" equiv-text="l"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">201</context>
+          <context context-type="linenumber">204</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.moveUp" datatype="html">
         <source>Move <x id="job" equiv-text="j.title"/> up</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">205</context>
+          <context context-type="linenumber">208</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.moveDown" datatype="html">
         <source>Move <x id="job" equiv-text="j.title"/> down</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">205</context>
+          <context context-type="linenumber">208</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.cancelLabel" datatype="html">
         <source>Cancel <x id="job" equiv-text="j.title"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">209</context>
+          <context context-type="linenumber">212</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.retryLabel" datatype="html">
         <source>Retry <x id="job" equiv-text="j.title"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">213</context>
+          <context context-type="linenumber">216</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.panel.viewLabel" datatype="html">
         <source>View the result of <x id="job" equiv-text="j.title"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/jobs/jobs-panel.ts</context>
-          <context context-type="linenumber">217</context>
+          <context context-type="linenumber">220</context>
         </context-group>
       </trans-unit>
       <trans-unit id="jobs.kind.ai" datatype="html">
@@ -12034,316 +11897,288 @@
           <context context-type="linenumber">80</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="live.tailStatus.justNow" datatype="html">
-        <source>just now</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">30</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="live.tailStatus.secondsAgo" datatype="html">
-        <source><x id="seconds" equiv-text="s"/> s ago</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">31</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="live.tailStatus.minutesAgo" datatype="html">
-        <source><x id="minutes" equiv-text="Math.floor(s / 60)"/> min ago</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">32</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="live.tailStatus.hoursAgo" datatype="html">
-        <source><x id="hours" equiv-text="Math.floor(s / 3600)"/> h ago</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">33</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="live.tailStatus.settingsAria" datatype="html">
         <source>Live tail settings</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">50</context>
+          <context context-type="linenumber">28</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.watch" datatype="html">
         <source>Watch</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">59,60</context>
+          <context context-type="linenumber">37,38</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.watchAuto" datatype="html">
         <source>Auto</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">61,62</context>
+          <context context-type="linenumber">39,40</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.watchEvents" datatype="html">
         <source>File events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">62,63</context>
+          <context context-type="linenumber">40,41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.watchPolling" datatype="html">
         <source>Polling</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">63,65</context>
+          <context context-type="linenumber">41,44</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.pollEvery" datatype="html">
         <source>Poll every (ms)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">66,67</context>
+          <context context-type="linenumber">44,45</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.keepEvents" datatype="html">
         <source>Keep at most (events)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">69,70</context>
+          <context context-type="linenumber">47,48</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.noLimit" datatype="html">
         <source>no limit</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">70</context>
+          <context context-type="linenumber">48</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">73</context>
+          <context context-type="linenumber">51</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.keepMinutes" datatype="html">
         <source>Keep at most (minutes)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">72,73</context>
+          <context context-type="linenumber">50,51</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.deletedFiles" datatype="html">
         <source>Deleted files</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">75,76</context>
+          <context context-type="linenumber">53,54</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.deletedKeep" datatype="html">
         <source>Keep their events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">77,78</context>
+          <context context-type="linenumber">55,56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.deletedDrop" datatype="html">
         <source>Drop their events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">78,80</context>
+          <context context-type="linenumber">56,58</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.flush" datatype="html">
         <source>Flush partial line after (ms)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">81,82</context>
+          <context context-type="linenumber">59,60</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.detectTitle" datatype="html">
         <source>The live anomaly detectors (error spikes, crashes, slow outliers...) run at most this often. 0 runs them after every batch.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">84</context>
+          <context context-type="linenumber">62</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.detectEvery" datatype="html">
         <source>Run detectors every (ms)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">84,86</context>
+          <context context-type="linenumber">62,64</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.totalFiles" datatype="html">
         <source><x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ st.totals.files }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> files</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">101,102</context>
+          <context context-type="linenumber">79,80</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.totalTailing" datatype="html">
         <source><x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ st.totals.tailing }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> tailing</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">102,103</context>
+          <context context-type="linenumber">80,81</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.totalErrors" datatype="html">
         <source><x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ st.totals.errors }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> with errors</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">103,104</context>
+          <context context-type="linenumber">81,82</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.totalRate" datatype="html">
         <source><x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ rate(st.totals.linesPerSec) }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> lines/s</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">105,106</context>
+          <context context-type="linenumber">83,84</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.totalEvents" datatype="html">
         <source><x id="INTERPOLATION" equiv-text="{{ count(st.totals.records) }}"/> events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">106,107</context>
+          <context context-type="linenumber">84,85</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.evictedTitle" datatype="html">
         <source>Events removed by the retention limit since the workspace was opened</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">107</context>
+          <context context-type="linenumber">85</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.totalEvicted" datatype="html">
         <source><x id="INTERPOLATION" equiv-text="{{ count(st.totals.evicted) }}"/> evicted</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">107,108</context>
+          <context context-type="linenumber">85,86</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.filesAria" datatype="html">
         <source>Tailed files</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">109</context>
+          <context context-type="linenumber">87</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.colFile" datatype="html">
         <source>File</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">113</context>
+          <context context-type="linenumber">91</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.colGroup" datatype="html">
         <source>Group</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">113</context>
+          <context context-type="linenumber">91</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.colMode" datatype="html">
         <source>Mode</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">113</context>
+          <context context-type="linenumber">91</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.colOffset" datatype="html">
         <source>Offset / size</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">113,114</context>
+          <context context-type="linenumber">91,92</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.colRate" datatype="html">
         <source>Lines/s</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">114</context>
+          <context context-type="linenumber">92</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.colLast" datatype="html">
         <source>Last change</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">114</context>
+          <context context-type="linenumber">92</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.colState" datatype="html">
         <source>State</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">114,116</context>
+          <context context-type="linenumber">92,94</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.noFiles" datatype="html">
         <source>No files are open. <x id="START_TAG_IMT_NEXT_STEPS" ctype="x-imt_next_steps" equiv-text="&lt;imt-next-steps /&gt;"/><x id="CLOSE_TAG_IMT_NEXT_STEPS" ctype="x-imt_next_steps" equiv-text="&lt;imt-next-steps /&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">129,131</context>
+          <context context-type="linenumber">107,109</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.loadFailed" datatype="html">
         <source>The tail status could not be loaded: <x id="INTERPOLATION" equiv-text="{{ e }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">135</context>
+          <context context-type="linenumber">113</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.retry" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">135,137</context>
+          <context context-type="linenumber">113,115</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.loading" datatype="html">
         <source>Loading…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">137,141</context>
+          <context context-type="linenumber">115,119</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.liveOn" datatype="html">
         <source>Live tail on</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">172</context>
+          <context context-type="linenumber">150</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.liveOff" datatype="html">
         <source>Live tail off</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">172</context>
+          <context context-type="linenumber">150</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.modeWhole" datatype="html">
         <source>Whole file</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">206</context>
+          <context context-type="linenumber">184</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.modeEvents" datatype="html">
         <source>Events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">207</context>
+          <context context-type="linenumber">185</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.modePolling" datatype="html">
         <source>Polling</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">208</context>
+          <context context-type="linenumber">186</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.modeOff" datatype="html">
         <source>Off</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">209</context>
+          <context context-type="linenumber">187</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tail.state.tailing" datatype="html">
@@ -12543,38 +12378,38 @@
         </context-group>
       </trans-unit>
       <trans-unit id="markers.iconImport.tooBig" datatype="html">
-        <source>Icons are limited to <x id="limit" equiv-text="MAX_ICON_BYTES / 1024"/> KB; this file is <x id="size" equiv-text="Math.ceil(file.size / 1024)"/> KB.</source>
+        <source>Icons are limited to <x id="limit" equiv-text="formatBytes(MAX_ICON_BYTES)"/>; this file is <x id="size" equiv-text="formatBytes(file.size)"/>.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/icon-import.ts</context>
-          <context context-type="linenumber">19</context>
+          <context context-type="linenumber">20</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.iconImport.notPng" datatype="html">
         <source>That file is not a PNG image.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/icon-import.ts</context>
-          <context context-type="linenumber">24</context>
+          <context context-type="linenumber">25</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.iconImport.notSvg" datatype="html">
         <source>That file is not an SVG image.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/icon-import.ts</context>
-          <context context-type="linenumber">30</context>
+          <context context-type="linenumber">31</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.iconImport.unreadable" datatype="html">
         <source>The file could not be read.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/icon-import.ts</context>
-          <context context-type="linenumber">34</context>
+          <context context-type="linenumber">35</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.iconImport.wrongType" datatype="html">
         <source>Choose an .svg or .png file.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/icon-import.ts</context>
-          <context context-type="linenumber">36</context>
+          <context context-type="linenumber">37</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.editor.label" datatype="html">
@@ -20992,63 +20827,63 @@
         <source>Sampled</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-format.ts</context>
-          <context context-type="linenumber">78</context>
+          <context context-type="linenumber">71</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.format.measurement.exact" datatype="html">
         <source>Exact</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-format.ts</context>
-          <context context-type="linenumber">78</context>
+          <context context-type="linenumber">71</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.format.measurement.sampledHelp" datatype="html">
         <source>Sampled (≈): a statistical estimate from periodic stack samples. Small values are noisy; compare shares rather than exact numbers.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-format.ts</context>
-          <context context-type="linenumber">84</context>
+          <context context-type="linenumber">77</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.format.measurement.exactHelp" datatype="html">
         <source>Exact (=): every occurrence was recorded (instrumentation or events), so the value is a count, not an estimate.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-format.ts</context>
-          <context context-type="linenumber">85</context>
+          <context context-type="linenumber">78</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.format.kind.cpu" datatype="html">
         <source>CPU</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-format.ts</context>
-          <context context-type="linenumber">102</context>
+          <context context-type="linenumber">95</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.format.kind.alloc" datatype="html">
         <source>Allocations</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-format.ts</context>
-          <context context-type="linenumber">103</context>
+          <context context-type="linenumber">96</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.format.kind.wall" datatype="html">
         <source>Wall clock</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-format.ts</context>
-          <context context-type="linenumber">104</context>
+          <context context-type="linenumber">97</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.format.kind.mixed" datatype="html">
         <source>Mixed</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-format.ts</context>
-          <context context-type="linenumber">105</context>
+          <context context-type="linenumber">98</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.format.kind.heap" datatype="html">
         <source>Heap snapshot</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-format.ts</context>
-          <context context-type="linenumber">109</context>
+          <context context-type="linenumber">102</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.measurement.srSampled" datatype="html">
@@ -22675,14 +22510,14 @@
         <source>Enter a JSON object, e.g. {&quot;msinfo&quot;: true}</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/schedules/schedule-model.ts</context>
-          <context context-type="linenumber">90</context>
+          <context context-type="linenumber">89</context>
         </context-group>
       </trans-unit>
       <trans-unit id="schedules.model.notJson" datatype="html">
         <source>Not valid JSON: <x id="detail" equiv-text="e as Error).message"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/schedules/schedule-model.ts</context>
-          <context context-type="linenumber">92</context>
+          <context context-type="linenumber">91</context>
         </context-group>
       </trans-unit>
       <trans-unit id="schedules.region" datatype="html">
@@ -24282,105 +24117,105 @@
         <source>Name</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/bundle/bundle-dialog.ts</context>
-          <context context-type="linenumber">38</context>
+          <context context-type="linenumber">30</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.bundleDialog.nameAria" datatype="html">
         <source>Bundle name</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/bundle/bundle-dialog.ts</context>
-          <context context-type="linenumber">38</context>
+          <context context-type="linenumber">30</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.bundleDialog.logs" datatype="html">
         <source>Logs</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/bundle/bundle-dialog.ts</context>
-          <context context-type="linenumber">40,41</context>
+          <context context-type="linenumber">32,33</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.bundleDialog.contentRaw" datatype="html">
         <source>The opened files as they are</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/bundle/bundle-dialog.ts</context>
-          <context context-type="linenumber">41,42</context>
+          <context context-type="linenumber">33,34</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.bundleDialog.contentEvents" datatype="html">
         <source>Only the events matching the current filter (CLEF)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/bundle/bundle-dialog.ts</context>
-          <context context-type="linenumber">42,44</context>
+          <context context-type="linenumber">34,36</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.bundleDialog.redact" datatype="html">
         <source>Redact with the profile&apos;s rules</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/bundle/bundle-dialog.ts</context>
-          <context context-type="linenumber">44,45</context>
+          <context context-type="linenumber">36,37</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.bundleDialog.includeReports" datatype="html">
         <source>Include reports (<x id="INTERPOLATION" equiv-text="{{ reportCount() }}"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/bundle/bundle-dialog.ts</context>
-          <context context-type="linenumber">45</context>
+          <context context-type="linenumber">37</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.bundleDialog.binaryNote" datatype="html">
         <source>Binary files and archives cannot be redacted and are left out; bundle the filtered events to keep them.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/bundle/bundle-dialog.ts</context>
-          <context context-type="linenumber">47,49</context>
+          <context context-type="linenumber">39,41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.bundleDialog.estimate" datatype="html">
         <source>About <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ bytes(e.bytes) }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> before compression · <x id="INTERPOLATION_1" equiv-text="{{ fmt(e.files) }}"/> files · <x id="INTERPOLATION_2" equiv-text="{{ fmt(e.events) }}"/> events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/bundle/bundle-dialog.ts</context>
-          <context context-type="linenumber">51,52</context>
+          <context context-type="linenumber">43,44</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.bundleDialog.estimating" datatype="html">
         <source>Estimating…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/bundle/bundle-dialog.ts</context>
-          <context context-type="linenumber">58,61</context>
+          <context context-type="linenumber">50,53</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.bundleDialog.cancel" datatype="html">
         <source>Cancel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/bundle/bundle-dialog.ts</context>
-          <context context-type="linenumber">63,64</context>
+          <context context-type="linenumber">55,56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.bundleDialog.writing" datatype="html">
         <source>Writing…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/bundle/bundle-dialog.ts</context>
-          <context context-type="linenumber">95</context>
+          <context context-type="linenumber">87</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.bundleDialog.save" datatype="html">
         <source>Save bundle…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/bundle/bundle-dialog.ts</context>
-          <context context-type="linenumber">95</context>
+          <context context-type="linenumber">87</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.bundleDialog.pickTitle" datatype="html">
         <source>Share bundle</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/bundle/bundle-dialog.ts</context>
-          <context context-type="linenumber">144</context>
+          <context context-type="linenumber">136</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.bundle.filterName" datatype="html">
         <source>IMT bundle</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/bundle/bundle-dialog.ts</context>
-          <context context-type="linenumber">145</context>
+          <context context-type="linenumber">137</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/bundle/bundle.service.ts</context>
@@ -24391,7 +24226,7 @@
         <source>Writing the bundle <x id="file" equiv-text="baseName(path)"/> — running in Jobs</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/bundle/bundle-dialog.ts</context>
-          <context context-type="linenumber">151</context>
+          <context context-type="linenumber">143</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.bundleCommands.create" datatype="html">
@@ -26418,6 +26253,125 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/visuals/visual.commands.ts</context>
           <context context-type="linenumber">14</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="core.format.unit.ms" datatype="html">
+        <source>ms</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/format/units.ts</context>
+          <context context-type="linenumber">29</context>
+        </context-group>
+        <note priority="1" from="description">Abbreviation for milliseconds, after a duration</note>
+      </trans-unit>
+      <trans-unit id="core.format.unit.s" datatype="html">
+        <source>s</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/format/units.ts</context>
+          <context context-type="linenumber">30</context>
+        </context-group>
+        <note priority="1" from="description">Abbreviation for seconds, after a duration</note>
+      </trans-unit>
+      <trans-unit id="core.format.unit.min" datatype="html">
+        <source>min</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/format/units.ts</context>
+          <context context-type="linenumber">31</context>
+        </context-group>
+        <note priority="1" from="description">Abbreviation for minutes, after a duration</note>
+      </trans-unit>
+      <trans-unit id="core.format.unit.h" datatype="html">
+        <source>h</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/format/units.ts</context>
+          <context context-type="linenumber">32</context>
+        </context-group>
+        <note priority="1" from="description">Abbreviation for hours, after a duration</note>
+      </trans-unit>
+      <trans-unit id="core.format.unit.d" datatype="html">
+        <source>d</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/format/units.ts</context>
+          <context context-type="linenumber">33</context>
+        </context-group>
+        <note priority="1" from="description">Abbreviation for days, after a duration</note>
+      </trans-unit>
+      <trans-unit id="core.format.suffix.thousand" datatype="html">
+        <source>k</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/format/units.ts</context>
+          <context context-type="linenumber">34</context>
+        </context-group>
+        <note priority="1" from="description">Suffix for thousands in compact numbers, as in 1.2k</note>
+      </trans-unit>
+      <trans-unit id="core.format.suffix.million" datatype="html">
+        <source>M</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/format/units.ts</context>
+          <context context-type="linenumber">35</context>
+        </context-group>
+        <note priority="1" from="description">Suffix for millions in compact numbers, as in 2.5M</note>
+      </trans-unit>
+      <trans-unit id="core.units.bytes.one" datatype="html">
+        <source><x id="count" equiv-text="n"/> byte</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/format/units.ts</context>
+          <context context-type="linenumber">87</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="core.units.bytes.other" datatype="html">
+        <source><x id="count" equiv-text="groupedNumber(n)"/> bytes</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/format/units.ts</context>
+          <context context-type="linenumber">88</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="core.units.perSecond" datatype="html">
+        <source><x id="size" equiv-text="size"/>/s</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/format/units.ts</context>
+          <context context-type="linenumber">122</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="core.units.eta.underMinute" datatype="html">
+        <source>less than a minute left</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/format/units.ts</context>
+          <context context-type="linenumber">138</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="core.units.eta.minutes" datatype="html">
+        <source>about <x id="minutes" equiv-text="minutes"/> min left</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/format/units.ts</context>
+          <context context-type="linenumber">140</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="core.units.eta.days" datatype="html">
+        <source>about <x id="days" equiv-text="d"/> d left</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/format/units.ts</context>
+          <context context-type="linenumber">145</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="core.units.eta.hoursMinutes" datatype="html">
+        <source>about <x id="hours" equiv-text="h"/> h <x id="minutes" equiv-text="m"/> min left</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/format/units.ts</context>
+          <context context-type="linenumber">148</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="core.units.eta.hours" datatype="html">
+        <source>about <x id="hours" equiv-text="h"/> h left</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/format/units.ts</context>
+          <context context-type="linenumber">149</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="core.units.justNow" datatype="html">
+        <source>just now</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/format/units.ts</context>
+          <context context-type="linenumber">187</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.activityBar.more" datatype="html">
@@ -29161,529 +29115,529 @@
         <source>Collect diagnostics bundle</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">22</context>
+          <context context-type="linenumber">23</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.intro" datatype="html">
         <source>Gather logs, system information and counters into one bundle (.imtz) you can open here or send to support. Secrets are masked before anything is written.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">34,35</context>
+          <context context-type="linenumber">35,36</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.editAsJson" datatype="html">
         <source>Edit as JSON</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">39,42</context>
+          <context context-type="linenumber">40,43</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.planJson.label" datatype="html">
         <source>Plan (JSON)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">43,44</context>
+          <context context-type="linenumber">44,45</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.planJson.aria" datatype="html">
         <source>Plan JSON</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">44</context>
+          <context context-type="linenumber">45</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.bundleName.label" datatype="html">
         <source>Bundle name</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">49,50</context>
+          <context context-type="linenumber">50,51</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.bundleName.aria" datatype="html">
         <source>Bundle name</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">50</context>
+          <context context-type="linenumber">51</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.logFolders" datatype="html">
         <source>Log folders</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">53,54</context>
+          <context context-type="linenumber">54,55</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.remove.title" datatype="html">
         <source>Remove</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">58</context>
+          <context context-type="linenumber">59</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">120</context>
+          <context context-type="linenumber">121</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.include.label" datatype="html">
         <source>Include (globs, comma separated)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">61,62</context>
+          <context context-type="linenumber">62,63</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.maxAge.label" datatype="html">
         <source>Max age (days)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">64,65</context>
+          <context context-type="linenumber">65,66</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.maxAge.placeholder" datatype="html">
         <source>any</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">65</context>
+          <context context-type="linenumber">66</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.maxSize.label" datatype="html">
         <source>Max size (MB)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">67,68</context>
+          <context context-type="linenumber">68,69</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.maxSize.placeholder" datatype="html">
         <source>no limit</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">68</context>
+          <context context-type="linenumber">69</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.addLogFolder" datatype="html">
         <source>Add log folder</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">73,75</context>
+          <context context-type="linenumber">74,76</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.systemInfo" datatype="html">
         <source>System information</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">75,77</context>
+          <context context-type="linenumber">76,78</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.check.environment" datatype="html">
         <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;plan().environment&quot; (change)=&quot;patch({ environment: checked($event) })&quot; /&gt;"/> Environment (OS, CPU, memory, disks)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">77,78</context>
+          <context context-type="linenumber">78,79</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.check.msinfo" datatype="html">
         <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;plan().msinfo&quot; (change)=&quot;patch({ msinfo: checked($event) })&quot; /&gt;"/> System information (msinfo32, Windows)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">78,79</context>
+          <context context-type="linenumber">79,80</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.check.counters" datatype="html">
         <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;plan().counters&quot; (change)=&quot;patch({ counters: checked($event) })&quot; /&gt;"/> Performance counter sample (Windows)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">79,80</context>
+          <context context-type="linenumber">80,81</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.check.macosLog" datatype="html">
         <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;plan().macosUnifiedLog&quot; (change)=&quot;patch({ macosUnifiedLog: checked($event) })&quot; /&gt;"/> macOS unified log</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">80,81</context>
+          <context context-type="linenumber">81,82</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.check.linuxJournal" datatype="html">
         <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;plan().linuxJournal&quot; (change)=&quot;patch({ linuxJournal: checked($event) })&quot; /&gt;"/> Linux journal</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">81,82</context>
+          <context context-type="linenumber">82,83</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.eventLogs.label" datatype="html">
         <source>Event logs (Windows, one per line)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">84,85</context>
+          <context context-type="linenumber">85,86</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.eventLogs.aria" datatype="html">
         <source>Event logs</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">85</context>
+          <context context-type="linenumber">86</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.registry.label" datatype="html">
         <source>Registry keys (Windows, one per line)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">87,88</context>
+          <context context-type="linenumber">88,89</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.registry.aria" datatype="html">
         <source>Registry keys</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">88</context>
+          <context context-type="linenumber">89</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.eventLogDays" datatype="html">
         <source>Event log days</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">92,93</context>
+          <context context-type="linenumber">93,94</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.recentLogHours" datatype="html">
         <source>Recent system log hours</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">95,96</context>
+          <context context-type="linenumber">96,97</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.counters.label" datatype="html">
         <source>Counters (one per line)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">100,101</context>
+          <context context-type="linenumber">101,102</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.counters.aria" datatype="html">
         <source>Counter paths</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">101</context>
+          <context context-type="linenumber">102</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.envVars.label" datatype="html">
         <source>Environment variables to include (one per line)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">105,106</context>
+          <context context-type="linenumber">106,107</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.envVars.aria" datatype="html">
         <source>Environment variables</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">106</context>
+          <context context-type="linenumber">107</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.redaction" datatype="html">
         <source>Redaction <x id="START_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Redaction&quot; i18n-label=&quot;@@tools.collector.redaction.helpLabel&quot; text=&quot;Text files are scanned and matches are replaced before they enter the bundle. The manifest lists how many values each rule masked.&quot; i18n-text=&quot;@@tools.collector.redaction.helpText&quot; /&gt;"/><x id="CLOSE_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Redaction&quot; i18n-label=&quot;@@tools.collector.redaction.helpLabel&quot; text=&quot;Text files are scanned and matches are replaced before they enter the bundle. The manifest lists how many values each rule masked.&quot; i18n-text=&quot;@@tools.collector.redaction.helpText&quot; /&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">110,111</context>
+          <context context-type="linenumber">111,112</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.redaction.helpLabel" datatype="html">
         <source>Redaction</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">110</context>
+          <context context-type="linenumber">111</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.redaction.helpText" datatype="html">
         <source>Text files are scanned and matches are replaced before they enter the bundle. The manifest lists how many values each rule masked.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">110</context>
+          <context context-type="linenumber">111</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.mask.builtIn" datatype="html">
         <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;plan().redact.builtIn&quot; (change)=&quot;patchRedact({ builtIn: checked($event) })&quot; /&gt;"/> Mask e-mail addresses, tokens, passwords and card numbers</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">112,113</context>
+          <context context-type="linenumber">113,114</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.mask.ip" datatype="html">
         <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;plan().redact.ipAddresses&quot; (change)=&quot;patchRedact({ ipAddresses: checked($event) })&quot; /&gt;"/> Mask IP addresses</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">113,114</context>
+          <context context-type="linenumber">114,115</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.pattern.namePlaceholder" datatype="html">
         <source>name</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">117</context>
+          <context context-type="linenumber">118</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.pattern.regexPlaceholder" datatype="html">
         <source>regular expression</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">118</context>
+          <context context-type="linenumber">119</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.addPattern" datatype="html">
         <source>Add custom pattern</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">123,125</context>
+          <context context-type="linenumber">124,126</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.limits" datatype="html">
         <source>Limits</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">125,126</context>
+          <context context-type="linenumber">126,128</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.maxBundle" datatype="html">
         <source>Maximum bundle size (MB)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">127,128</context>
+          <context context-type="linenumber">128,129</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.toolTimeout" datatype="html">
         <source>Tool timeout (seconds)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">130,131</context>
+          <context context-type="linenumber">131,132</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.outputFolder.label" datatype="html">
         <source>Output folder</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">137,139</context>
+          <context context-type="linenumber">138,140</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.outputFolder.aria" datatype="html">
         <source>Output folder</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">139</context>
+          <context context-type="linenumber">140</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.outputFolder.placeholder" datatype="html">
         <source>Where to write the bundle</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">139</context>
+          <context context-type="linenumber">140</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.browse" datatype="html">
         <source>Browse…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">140,142</context>
+          <context context-type="linenumber">141,144</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.collecting" datatype="html">
         <source><x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;spinner&quot; aria-hidden=&quot;true&quot;&gt;"/><x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/> Collecting… this can take a minute on large log folders.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">145,146</context>
+          <context context-type="linenumber">146,147</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.closeHint" datatype="html">
         <source>You can close this dialog: the collection goes on and is listed in Jobs.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">146,149</context>
+          <context context-type="linenumber">147,151</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.bundleCreated" datatype="html">
         <source>Bundle created</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">151,152</context>
+          <context context-type="linenumber">152,153</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.facts.items" datatype="html">
         <source><x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ s.items }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> <x id="ICU" equiv-text="{s.items, plural, =1 {item} other {items}}" xid="1706649808023993732"/> · <x id="INTERPOLATION_1" equiv-text="{{ bytes(s.bytes) }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">155,156</context>
+          <context context-type="linenumber">156,157</context>
         </context-group>
       </trans-unit>
       <trans-unit id="1706649808023993732" datatype="html">
         <source>{VAR_PLURAL, plural, =1 {item} other {items}}</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">155</context>
+          <context context-type="linenumber">156</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.facts.masked" datatype="html">
         <source><x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ s.redactionTotal }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> <x id="ICU" equiv-text="{s.redactionTotal, plural, =1 {value} other {values}}" xid="2457709214577498846"/> masked</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">156,157</context>
+          <context context-type="linenumber">157,158</context>
         </context-group>
       </trans-unit>
       <trans-unit id="2457709214577498846" datatype="html">
         <source>{VAR_PLURAL, plural, =1 {value} other {values}}</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">156</context>
+          <context context-type="linenumber">157</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.facts.skipped" datatype="html">
         <source><x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ s.skipped.length }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> skipped</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">159,160</context>
+          <context context-type="linenumber">160,161</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.facts.errors" datatype="html">
         <source><x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ s.errors.length }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> <x id="ICU" equiv-text="{s.errors.length, plural, =1 {error} other {errors}}" xid="4048331307221773143"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">160,162</context>
+          <context context-type="linenumber">161,163</context>
         </context-group>
       </trans-unit>
       <trans-unit id="4048331307221773143" datatype="html">
         <source>{VAR_PLURAL, plural, =1 {error} other {errors}}</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">160</context>
+          <context context-type="linenumber">161,162</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.skipped" datatype="html">
         <source>Skipped</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">163,164</context>
+          <context context-type="linenumber">164,165</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.errors" datatype="html">
         <source>Errors</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">168,169</context>
+          <context context-type="linenumber">169,170</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.close" datatype="html">
         <source>Close</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">177,179</context>
+          <context context-type="linenumber">178,180</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.openBundle" datatype="html">
         <source>Open bundle</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">179,181</context>
+          <context context-type="linenumber">180,182</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.collectAgain" datatype="html">
         <source>Collect again</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">238</context>
+          <context context-type="linenumber">239</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.collect" datatype="html">
         <source>Collect</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">238</context>
+          <context context-type="linenumber">239</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.logFolderN" datatype="html">
         <source>Log folder <x id="n" equiv-text="i + 1"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">241</context>
+          <context context-type="linenumber">242</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.removeLogFolderN" datatype="html">
         <source>Remove log folder <x id="n" equiv-text="i + 1"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">242</context>
+          <context context-type="linenumber">243</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.includeGlobsN" datatype="html">
         <source>Include globs <x id="n" equiv-text="i + 1"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">243</context>
+          <context context-type="linenumber">244</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.maxAgeN" datatype="html">
         <source>Max age <x id="n" equiv-text="i + 1"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">244</context>
+          <context context-type="linenumber">245</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.maxSizeN" datatype="html">
         <source>Max size <x id="n" equiv-text="i + 1"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">245</context>
+          <context context-type="linenumber">246</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.patternNameN" datatype="html">
         <source>Pattern name <x id="n" equiv-text="i + 1"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">246</context>
+          <context context-type="linenumber">247</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.patternRegexN" datatype="html">
         <source>Pattern regex <x id="n" equiv-text="i + 1"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">247</context>
+          <context context-type="linenumber">248</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.patternReplaceN" datatype="html">
         <source>Pattern replacement <x id="n" equiv-text="i + 1"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">248</context>
+          <context context-type="linenumber">249</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.removePatternN" datatype="html">
         <source>Remove pattern <x id="n" equiv-text="i + 1"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">249</context>
+          <context context-type="linenumber">250</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.error.defaultPlan" datatype="html">
         <source>Could not load the default plan: <x id="detail" equiv-text="errorMessage(e)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">257</context>
+          <context context-type="linenumber">258</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.error.chooseFolder" datatype="html">
         <source>Choose an output folder for the bundle.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">334</context>
+          <context context-type="linenumber">335</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.planModel.notJson" datatype="html">
         <source>Not valid JSON: <x id="detail" equiv-text="e instanceof Error ? e.message : String(e)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/plan-model.ts</context>
-          <context context-type="linenumber">41</context>
+          <context context-type="linenumber">40</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.planModel.notObject" datatype="html">
         <source>The plan must be a JSON object.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/plan-model.ts</context>
-          <context context-type="linenumber">43</context>
+          <context context-type="linenumber">42</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.elevation.restart" datatype="html">
@@ -31973,184 +31927,184 @@
         <source><x id="done" equiv-text="formatBytes(downloaded)"/> of <x id="total" equiv-text="formatBytes(total)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">14</context>
+          <context context-type="linenumber">15</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.current" datatype="html">
         <source>You have IMT <x id="INTERPOLATION" equiv-text="{{ store.status()?.currentVersion ?? &apos;…&apos; }}"/>.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">32,33</context>
+          <context context-type="linenumber">34,35</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.unavailable.title" datatype="html">
         <source>Updates are not available in this build.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">35,36</context>
+          <context context-type="linenumber">37,38</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.unavailable.next" datatype="html">
         <source> This build was made without an update signing key, so it cannot verify updates. Download new versions from the releases page. </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">37,39</context>
+          <context context-type="linenumber">39,41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.openReleases" datatype="html">
         <source>Open releases page</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">39,41</context>
+          <context context-type="linenumber">41,43</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">84,86</context>
+          <context context-type="linenumber">86,89</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.checking" datatype="html">
         <source>Checking for updates…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">42,44</context>
+          <context context-type="linenumber">44,46</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">88,91</context>
+          <context context-type="linenumber">90,93</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.upToDate" datatype="html">
         <source>IMT is up to date.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">45,46</context>
+          <context context-type="linenumber">47,48</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.checkAgain" datatype="html">
         <source>Check again</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">46,48</context>
+          <context context-type="linenumber">48,50</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">82,84</context>
+          <context context-type="linenumber">84,86</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.download" datatype="html">
         <source>Download</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">51,52</context>
+          <context context-type="linenumber">53,54</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.later" datatype="html">
         <source>Later</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">52,54</context>
+          <context context-type="linenumber">54,56</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">70,72</context>
+          <context context-type="linenumber">72,74</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.downloading" datatype="html">
         <source>Downloading IMT <x id="INTERPOLATION" equiv-text="{{ info()?.version }}"/>…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">56,57</context>
+          <context context-type="linenumber">58,59</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.downloading.label" datatype="html">
         <source>Download progress</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">57</context>
+          <context context-type="linenumber">59</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.cancel" datatype="html">
         <source>Cancel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">59,61</context>
+          <context context-type="linenumber">61,63</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.ready" datatype="html">
         <source>IMT <x id="INTERPOLATION" equiv-text="{{ info()?.version }}"/> is downloaded and its signature verified.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">62,63</context>
+          <context context-type="linenumber">64,65</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.installOnQuit" datatype="html">
         <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;installOnQuit()&quot; (change)=&quot;store.setInstallOnQuit($any($event.target).checked)&quot; /&gt;"/> Install when IMT quits instead </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">64,66</context>
+          <context context-type="linenumber">66,68</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.restart" datatype="html">
         <source>Restart to update</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">68,69</context>
+          <context context-type="linenumber">70,71</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.discard" datatype="html">
         <source>Discard</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">69,70</context>
+          <context context-type="linenumber">71,72</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.installing" datatype="html">
         <source>Restarting to install IMT <x id="INTERPOLATION" equiv-text="{{ info()?.version }}"/>…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">74,76</context>
+          <context context-type="linenumber">76,78</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.retryDownload" datatype="html">
         <source>Try the download again</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">80,82</context>
+          <context context-type="linenumber">82,84</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.available" datatype="html">
         <source>IMT <x id="INTERPOLATION" equiv-text="{{ info.version }}"/> is available.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">101,102</context>
+          <context context-type="linenumber">103,104</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.released" datatype="html">
         <source>Released <x id="INTERPOLATION" equiv-text="{{ date(info) }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">104,105</context>
+          <context context-type="linenumber">106,107</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.notes.label" datatype="html">
         <source>Release notes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">111</context>
+          <context context-type="linenumber">113</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.auto.on" datatype="html">
         <source>Automatic checks are on (Settings ▸ Updates). A check contacts only <x id="host" equiv-text="host"/> and sends no identifier or usage data.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">166</context>
+          <context context-type="linenumber">168</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.auto.off" datatype="html">
         <source>Automatic checks are off (Settings ▸ Updates). A check contacts only <x id="host" equiv-text="host"/> and sends no identifier or usage data.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">167</context>
+          <context context-type="linenumber">169</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.toast.text" datatype="html">
@@ -32206,140 +32160,140 @@
         <source>Welcome to IMT</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">39,40</context>
+          <context context-type="linenumber">51,52</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.lead" datatype="html">
         <source>Open log files or a whole folder and explore what happened, instance by instance.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">40,41</context>
+          <context context-type="linenumber">52,53</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.openFolder" datatype="html">
         <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;folder&quot; [size]=&quot;15&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;folder&quot; [size]=&quot;15&quot; /&gt;"/> Open folder…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">42,43</context>
+          <context context-type="linenumber">54,55</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.openFiles" datatype="html">
         <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;file&quot; [size]=&quot;15&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;file&quot; [size]=&quot;15&quot; /&gt;"/> Open files…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">43,44</context>
+          <context context-type="linenumber">55,56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.safe.helpLabel" datatype="html">
         <source>Your files are safe</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">46</context>
+          <context context-type="linenumber">58</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.hint" datatype="html">
         <source>Or drag and drop files or folders anywhere in the window. The format is detected from the content, not the extension.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">47,49</context>
+          <context context-type="linenumber">59,61</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.recent" datatype="html">
         <source>Recent</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">51,53</context>
+          <context context-type="linenumber">63,65</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.how.title" datatype="html">
         <source>How IMT works</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">60,61</context>
+          <context context-type="linenumber">72,73</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.how.label" datatype="html">
         <source>How IMT works</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">61</context>
+          <context context-type="linenumber">73</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.how.open.title" datatype="html">
         <source>1 · Open</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">62</context>
+          <context context-type="linenumber">74</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.how.open.text" datatype="html">
         <source>Add log files or a folder.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">62,63</context>
+          <context context-type="linenumber">74,75</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.how.filter.title" datatype="html">
         <source>2 · Filter</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">63</context>
+          <context context-type="linenumber">75</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.how.filter.text" datatype="html">
         <source>Search, pick levels, add field filters.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">63,64</context>
+          <context context-type="linenumber">75,76</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.how.timeline.title" datatype="html">
         <source>3 · Timeline</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">64</context>
+          <context context-type="linenumber">76</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.how.timeline.text" datatype="html">
         <source>See instances over time; drag to zoom.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">64,65</context>
+          <context context-type="linenumber">76,77</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.how.inspect.title" datatype="html">
         <source>4 · Inspect</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">65</context>
+          <context context-type="linenumber">77</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.how.inspect.text" datatype="html">
         <source>Click an event to see every property.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">65,67</context>
+          <context context-type="linenumber">77,79</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.back" datatype="html">
         <source>Back to workspace</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">68,70</context>
+          <context context-type="linenumber">80,82</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.demo.opening" datatype="html">
         <source>Opening the demo…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">99</context>
+          <context context-type="linenumber">111</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.demo" datatype="html">
         <source>Try a demo</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
-          <context context-type="linenumber">99</context>
+          <context context-type="linenumber">111</context>
         </context-group>
       </trans-unit>
       <trans-unit id="windowing.backgroundWork.trigger" datatype="html">

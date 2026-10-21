@@ -63,19 +63,19 @@ describe('profiling-format', () => {
     expect(formatBytes(null)).toBe('—');
     expect(formatBytes(undefined)).toBe('—');
     expect(formatBytes(NaN)).toBe('—');
-    expect(formatBytes(512)).toBe('512 B');
-    expect(formatBytes(4096)).toBe('4.0 KB');
+    expect(formatBytes(512)).toBe('512 bytes');
+    expect(formatBytes(4096)).toBe('4 KB');
     expect(formatBytes(1.5 * 1024 ** 2)).toBe('1.5 MB');
-    expect(formatBytes(2 * 1024 ** 3)).toBe('2.00 GB');
+    expect(formatBytes(2 * 1024 ** 3)).toBe('2 GB');
   });
 
   it('formatValue / formatMetric dispatch on the unit', () => {
     expect(formatValue(null, 'count')).toBe('—');
     expect(formatValue(undefined, 'bytes')).toBe('—');
     expect(formatValue(1500, 'nanoseconds')).toBe('1.5 µs');
-    expect(formatValue(2048, 'bytes')).toBe('2.0 KB');
+    expect(formatValue(2048, 'bytes')).toBe('2 KB');
     expect(formatValue(1234.6, 'count')).toBe('1,235');
-    expect(formatMetric(2048, 'allocBytes')).toBe('2.0 KB');
+    expect(formatMetric(2048, 'allocBytes')).toBe('2 KB');
     expect(formatMetric(5, 'samples', [{ id: 'samples', measurement: 'sampled', unit: 'nanoseconds', label: 's' }])).toBe('5 ns');
   });
 
@@ -90,10 +90,10 @@ describe('profiling-format', () => {
     expect(formatPp(0)).toBe('0.0 pp');
     expect(formatPp(0.001)).toBe('0.0 pp');
     expect(formatPp(-0.001)).toBe('0.0 pp');
-    expect(formatDelta(4096, 'bytes')).toBe('+4.0 KB');
+    expect(formatDelta(4096, 'bytes')).toBe('+4 KB');
     expect(formatDelta(-3, 'count')).toBe('−3');
     expect(formatDelta(0, 'count')).toBe('0');
-    expect(formatDelta(-2048, 'bytes')).toBe('−2.0 KB');
+    expect(formatDelta(-2048, 'bytes')).toBe('−2 KB');
   });
 
   it('measurement helpers distinguish sampled from exact', () => {
