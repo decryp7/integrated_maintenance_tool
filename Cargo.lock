@@ -591,6 +591,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "cargo-imt-plugin"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "imt-plugin-api",
+ "imt-plugin-package",
+ "imt-plugin-test",
+ "semver",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "toml 1.1.8+spec-1.1.0",
+]
+
+[[package]]
 name = "cargo-platform"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2904,10 +2919,12 @@ dependencies = [
  "imt-core",
  "imt-ipc",
  "imt-plugin-api",
+ "imt-plugin-package",
  "imt-profile",
  "log",
  "serde",
  "serde_json",
+ "sha2 0.11.1",
  "tempfile",
 ]
 
