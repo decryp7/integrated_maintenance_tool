@@ -269,6 +269,23 @@ press it. When the AI opens a page, the Browser panel opens without taking the f
 On Linux the page opens in a window of its own (the system's web view cannot be placed inside the panel there);
 the panel keeps the address box, the notices and *AI is browsing* with Stop.
 
+## Knowledge files: teach the AI your systems
+
+Like `AGENTS.md` for coding assistants, **knowledge files** are Markdown notes the AI reads with every question
+(chat, research, explanations, folder set-up, query drafting, images): the names of your products and services,
+what each log source is, known errors and their fixes, facts about your environments. Manage them in
+*Settings ▸ AI ▸ Knowledge*:
+
+- **This project** holds files saved with the project (and the autosaved session), so a shared project carries
+  them. **Every project** holds files kept in IMT's settings folder on this computer.
+- **New…** writes a file in the editor (with a *Preview*), **Import…** adds an existing `.md` or `.txt` file
+  (named after it), **Edit…** renames it or changes its text, **Export…** saves it as a `.md` file to share, and
+  **Remove…** deletes it after asking. The checkbox turns a file off without deleting it.
+- A file holds at most 64 KiB, a scope at most 32 files. The AI reads the project's files first, then the global
+  ones, within about a quarter of the model's context window; when they do not all fit, the rest is cut and the AI
+  is told which files were left out, so shorten or turn off what it does not need. They are background facts for
+  the AI: they never replace IMT's own rules, and their text is never written to IMT's logs.
+
 ## AI runtime and model updates
 
 IMT checks for newer **inference runtimes** (the llama.cpp builds that run the model) and newer revisions or

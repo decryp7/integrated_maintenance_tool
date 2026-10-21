@@ -15,6 +15,7 @@ export { MockSnapshotBackend } from './diagnostics/mock/mock-snapshot-backend';
 export { MockSchedulesBackend } from './schedules/mock/mock-schedules-backend';
 export { MockSettingsBackend } from './settings/mock-settings-backend';
 export { MockStorageBackend } from './settings/storage/mock-storage-backend';
+export { MockKnowledgeBackend } from './ai/knowledge/mock-knowledge-backend';
 export { MockShareBackend } from './share/mock/mock-share-backend';
 export { MockMonitorCharts, mockMonitorChartsOptions } from './tools/monitor/mock/mock-monitor-charts';
 export { MockPluginPackagesBackend } from './plugins-panel/mock/mock-plugin-packages-backend';

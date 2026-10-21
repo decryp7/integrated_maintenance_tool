@@ -1862,6 +1862,289 @@
         </context-group>
         <note priority="1" from="description">Activity bar button</note>
       </trans-unit>
+      <trans-unit id="ai.knowledge.editor.name" datatype="html">
+        <source>Name</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-editor.ts</context>
+          <context context-type="linenumber">21,22</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.editor.mode" datatype="html">
+        <source>Editor mode</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-editor.ts</context>
+          <context context-type="linenumber">24</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.editor.write" datatype="html">
+        <source>Write</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-editor.ts</context>
+          <context context-type="linenumber">25,26</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.editor.preview" datatype="html">
+        <source>Preview</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-editor.ts</context>
+          <context context-type="linenumber">26,27</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.editor.text" datatype="html">
+        <source>Markdown text</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-editor.ts</context>
+          <context context-type="linenumber">37,38</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.editor.cancel" datatype="html">
+        <source>Cancel</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-editor.ts</context>
+          <context context-type="linenumber">52,53</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.editor.save" datatype="html">
+        <source>Save</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-editor.ts</context>
+          <context context-type="linenumber">53,57</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.editor.placeholder" datatype="html">
+        <source># Glossary
+
+- **ACME-GW**: the payment gateway (logs: gateway-*.log)
+- **E1042**: card declined by the bank; no action needed</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-editor.ts</context>
+          <context context-type="linenumber">87,90</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.editor.emptyPreview" datatype="html">
+        <source>Nothing to preview yet.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-editor.ts</context>
+          <context context-type="linenumber">91</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.editor.size" datatype="html">
+        <source><x id="size" equiv-text="formatBytes(this.bytes())"/> of <x id="max" equiv-text="formatBytes(this.maxBytes())"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-editor.ts</context>
+          <context context-type="linenumber">95</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.title" datatype="html">
+        <source>Knowledge</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">23,24</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.desc" datatype="html">
+        <source> Markdown notes the AI reads with every question: the names of your products and services, what log sources mean, known errors and their fixes, facts about your environments. Project files are saved with the project, so a shared project carries them. </source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">25,28</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.loadError" datatype="html">
+        <source>The knowledge files could not be listed: <x id="INTERPOLATION" equiv-text="{{ e }}"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">30,31</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.retry" datatype="html">
+        <source>Retry</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">31,34</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.dismiss" datatype="html">
+        <source>Dismiss</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">43,46</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.new" datatype="html">
+        <source>New…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">54,55</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.import" datatype="html">
+        <source>Import…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">55,57</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.edit" datatype="html">
+        <source>Edit…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">67,68</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.export" datatype="html">
+        <source>Export…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">68,69</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.remove" datatype="html">
+        <source>Remove…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">69,71</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.empty" datatype="html">
+        <source>No knowledge files yet.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">72,75</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.scope.project" datatype="html">
+        <source>This project</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">108</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.scope.projectHint" datatype="html">
+        <source>Saved with the project; the AI reads these first.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">109</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.scope.global" datatype="html">
+        <source>Every project</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">113</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.scope.globalHint" datatype="html">
+        <source>Kept in IMT&apos;s settings folder on this computer.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">114</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.disabledSize" datatype="html">
+        <source><x id="size" equiv-text="formatBytes(f.bytes)"/> · not read by the AI</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">138</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.enableLabel" datatype="html">
+        <source>The AI reads <x id="name" equiv-text="f.name"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">146</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.editLabel" datatype="html">
+        <source>Edit <x id="name" equiv-text="f.name"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">149</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.exportLabel" datatype="html">
+        <source>Export <x id="name" equiv-text="f.name"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">152</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.removeLabel" datatype="html">
+        <source>Remove <x id="name" equiv-text="f.name"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">155</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.editor.editTitle" datatype="html">
+        <source>Edit knowledge file</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">160</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.editor.newTitle" datatype="html">
+        <source>New knowledge file</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">160</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.importTitle" datatype="html">
+        <source>Import a knowledge file</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">175</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.exportTitle" datatype="html">
+        <source>Export knowledge file</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">181</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.exported" datatype="html">
+        <source>Exported to <x id="path" equiv-text="written"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">185</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.notExported" datatype="html">
+        <source>Not exported: <x id="error" equiv-text="toAiError(e).message"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">187</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.confirm.title" datatype="html">
+        <source>Remove knowledge file?</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">193</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.confirm.project" datatype="html">
+        <source>Remove <x id="name" equiv-text="f.name"/> from this project? The AI no longer reads it once you save the project.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">198</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.confirm.global" datatype="html">
+        <source>Remove <x id="name" equiv-text="f.name"/>? It is deleted from this computer and the AI no longer reads it in any project.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">199</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.knowledge.confirm.remove" datatype="html">
+        <source>Remove</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
+          <context context-type="linenumber">200</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="ai.manual.kind.tls" datatype="html">
         <source>Certificate problem: a proxy or security tool on your network intercepts HTTPS</source>
         <context-group purpose="location">
@@ -2861,31 +3144,27 @@
         <source>AI assistant</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">22</context>
+          <context context-type="linenumber">23</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.vision.view.title" datatype="html">
         <source>Image</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">31</context>
+          <context context-type="linenumber">32</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.provide.cmd.chat" datatype="html">
         <source>AI: Open the assistant chat</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">62</context>
+          <context context-type="linenumber">63</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.provide.category" datatype="html">
         <source>AI</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">62</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
           <context context-type="linenumber">63</context>
         </context-group>
         <context-group purpose="location">
@@ -2898,19 +3177,19 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">69</context>
+          <context context-type="linenumber">66</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">76</context>
+          <context context-type="linenumber">70</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">86</context>
+          <context context-type="linenumber">77</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">93</context>
+          <context context-type="linenumber">87</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
@@ -2918,106 +3197,110 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">98</context>
+          <context context-type="linenumber">95</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">105</context>
+          <context context-type="linenumber">99</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">112</context>
+          <context context-type="linenumber">106</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
+          <context context-type="linenumber">113</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.provide.cmd.setup" datatype="html">
         <source>Set up AI assistant</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">63</context>
+          <context context-type="linenumber">64</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.provide.cmd.models" datatype="html">
         <source>AI: Manage models…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">64</context>
+          <context context-type="linenumber">65</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.vision.cmd.open" datatype="html">
         <source>AI: Open an image…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">65</context>
+          <context context-type="linenumber">66</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.vision.cmd.related" datatype="html">
         <source>AI: Find logs related to an image…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">68</context>
+          <context context-type="linenumber">69</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.provide.cmd.explain" datatype="html">
         <source>AI: Explain the selected event</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">75</context>
+          <context context-type="linenumber">76</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.provide.cmd.summarize" datatype="html">
         <source>AI: Summarize this range</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">85</context>
+          <context context-type="linenumber">86</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.provide.cmd.query" datatype="html">
         <source>AI: Ask AI to write a query…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">93</context>
+          <context context-type="linenumber">94</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.provide.cmd.rootCauses" datatype="html">
         <source>AI: Find likely root causes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">94</context>
+          <context context-type="linenumber">95</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.provide.cmd.pipeline" datatype="html">
         <source>AI: Propose pipeline steps…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">97</context>
+          <context context-type="linenumber">98</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.provide.cmd.markers" datatype="html">
         <source>AI: Propose markers…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">104</context>
+          <context context-type="linenumber">105</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.provide.cmd.extractors" datatype="html">
         <source>AI: Propose extractors…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">111</context>
+          <context context-type="linenumber">112</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.provide.menu.explain" datatype="html">
         <source>Explain this event (AI)…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">125</context>
+          <context context-type="linenumber">126</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.provide.menu.regex" datatype="html">
         <source>Suggest a regex for these lines (AI)…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/provide-ai.ts</context>
-          <context context-type="linenumber">126</context>
+          <context context-type="linenumber">127</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.intro.start" datatype="html">
@@ -17311,7 +17594,7 @@
         <source>This plugin asks for no permissions.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/package-review-dialog.ts</context>
-          <context context-type="linenumber">60,63</context>
+          <context context-type="linenumber">60,62</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/plugin-permissions-dialog.ts</context>
@@ -25997,92 +26280,92 @@
         <source>Search settings</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">26</context>
+          <context context-type="linenumber">27</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.search.label" datatype="html">
         <source>Search settings</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">26</context>
+          <context context-type="linenumber">27</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.showAdvancedToggle" datatype="html">
         <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;store.showAdvanced()&quot; (change)=&quot;store.setShowAdvanced($any($event.target).checked)&quot; /&gt;"/> Show advanced</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">27,28</context>
+          <context context-type="linenumber">28,29</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.restartBanner" datatype="html">
         <source>Some changes take effect after IMT restarts.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">32,33</context>
+          <context context-type="linenumber">33,34</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.restart" datatype="html">
         <source>Restart</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">33,36</context>
+          <context context-type="linenumber">34,37</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.discard.label" datatype="html">
         <source>Unapplied changes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">37</context>
+          <context context-type="linenumber">38</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.discard.text" datatype="html">
         <source>You have changes that were not applied.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">38,39</context>
+          <context context-type="linenumber">39,40</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.discard.discard" datatype="html">
         <source>Discard changes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">39,40</context>
+          <context context-type="linenumber">40,41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.discard.keepEditing" datatype="html">
         <source>Keep editing</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">40,43</context>
+          <context context-type="linenumber">41,44</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.dismiss" datatype="html">
         <source>Dismiss</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">44,46</context>
+          <context context-type="linenumber">45,47</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">47,50</context>
+          <context context-type="linenumber">48,51</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.nav.label" datatype="html">
         <source>Settings sections</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">51</context>
+          <context context-type="linenumber">52</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.general" datatype="html">
         <source>General</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">52,53</context>
+          <context context-type="linenumber">53,54</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">97,98</context>
+          <context context-type="linenumber">98,99</context>
         </context-group>
         <note priority="1" from="description">Name of the first settings section</note>
         <note priority="1" from="meaning">Settings section</note>
@@ -26091,11 +26374,11 @@
         <source>Appearance</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">53,54</context>
+          <context context-type="linenumber">54,55</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">101,102</context>
+          <context context-type="linenumber">102,103</context>
         </context-group>
         <note priority="1" from="description">Theme, colour scheme and density</note>
         <note priority="1" from="meaning">Settings section</note>
@@ -26104,7 +26387,7 @@
         <source>Storage</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">54,56</context>
+          <context context-type="linenumber">55,57</context>
         </context-group>
         <note priority="1" from="description">What IMT keeps on disk</note>
         <note priority="1" from="meaning">Settings section</note>
@@ -26113,133 +26396,133 @@
         <source>unapplied changes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">64</context>
+          <context context-type="linenumber">65</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.dirtyDot.title" datatype="html">
         <source>Unapplied changes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">64</context>
+          <context context-type="linenumber">65</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.content.label" datatype="html">
         <source>Settings</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">71</context>
+          <context context-type="linenumber">72</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.loadError" datatype="html">
         <source>Could not load the settings: <x id="INTERPOLATION" equiv-text="{{ e }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">74,75</context>
+          <context context-type="linenumber">75,76</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.retry" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">75,77</context>
+          <context context-type="linenumber">76,78</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.loading" datatype="html">
         <source>Loading settings…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">78,80</context>
+          <context context-type="linenumber">79,81</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.noMatch" datatype="html">
         <source>No settings match “<x id="INTERPOLATION" equiv-text="{{ store.query() }}"/>”.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">94,95</context>
+          <context context-type="linenumber">95,97</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.general.desc" datatype="html">
         <source>Display preferences of this window. They apply immediately.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">98,99</context>
+          <context context-type="linenumber">99,100</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.appearance.desc" datatype="html">
         <source>Theme, colour scheme and density of every window. They apply immediately.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">102,104</context>
+          <context context-type="linenumber">103,105</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.resetSection" datatype="html">
         <source>Reset section</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">114,116</context>
+          <context context-type="linenumber">115,118</context>
         </context-group>
       </trans-unit>
       <trans-unit id="3868108601110605590" datatype="html">
         <source>{VAR_PLURAL, plural, =1 {<x id="INTERPOLATION"/> advanced setting hidden.} other {<x id="INTERPOLATION"/> advanced settings hidden.}}</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">142</context>
+          <context context-type="linenumber">144</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.hiddenAdvanced" datatype="html">
         <source><x id="ICU" equiv-text="{n, plural, =1 {{{ n }} advanced setting hidden.} other {{{ n }} advanced settings hidden.}}" xid="2266298815211162863"/> <x id="START_TAG_BUTTON" ctype="x-button" equiv-text="&lt;button class=&quot;link&quot; type=&quot;button&quot; (click)=&quot;store.setShowAdvanced(true)&quot;&gt;"/>Show advanced<x id="CLOSE_TAG_BUTTON" ctype="x-button" equiv-text="&lt;/button&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">142,144</context>
+          <context context-type="linenumber">144,146</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.emptySection" datatype="html">
         <source>This section has no settings.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">145,148</context>
+          <context context-type="linenumber">147,150</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.export" datatype="html">
         <source>Export…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">152,153</context>
+          <context context-type="linenumber">154,155</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.import" datatype="html">
         <source>Import…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">153,154</context>
+          <context context-type="linenumber">155,156</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.unappliedIn" datatype="html">
         <source>{VAR_PLURAL, plural, =1 {Unapplied changes in <x id="INTERPOLATION"/> section} other {Unapplied changes in <x id="INTERPOLATION"/> sections}}</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">156</context>
+          <context context-type="linenumber">158</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.apply" datatype="html">
         <source>Apply</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">159,162</context>
+          <context context-type="linenumber">161,164</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.cancel" datatype="html">
         <source>Cancel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">201</context>
+          <context context-type="linenumber">203</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.close" datatype="html">
         <source>Close</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">202</context>
+          <context context-type="linenumber">204</context>
         </context-group>
         <note priority="1" from="description">Button that closes the settings dialog</note>
       </trans-unit>

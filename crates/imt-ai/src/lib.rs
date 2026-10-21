@@ -13,6 +13,7 @@ mod dxgi;
 pub mod error;
 pub mod gguf;
 pub mod hardware;
+pub mod knowledge;
 pub mod llm;
 pub mod manual;
 pub mod models;

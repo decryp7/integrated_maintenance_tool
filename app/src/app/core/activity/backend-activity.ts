@@ -39,6 +39,8 @@ const firstPath = (args: unknown[]): ActivityParams => {
 };
 const stringArg = (i: number, key: string) => (args: unknown[]) => (typeof args[i] === 'string' ? { [key]: safePath(args[i] as string, detail()) } : {});
 
+const scopeArg = (v: unknown) => (v === 'project' || v === 'global' ? v : undefined);
+
 /** Domain operations for backend methods (operation name and safe parameters from the arguments). */
 const DOMAIN: Record<string, (args: unknown[]) => { operation: string; params: ActivityParams }> = {
   openPaths: (a) => ({ operation: 'file.open', params: firstPath(a) }),
@@ -63,6 +65,15 @@ const DOMAIN: Record<string, (args: unknown[]) => { operation: string; params: A
   }),
   reset: (a) => ({ operation: typeof a[0] === 'string' ? 'settings.reset' : 'backend.reset', params: { Section: typeof a[0] === 'string' ? a[0] : undefined } }),
   chatSend: () => ({ operation: 'ai.ask', params: {} }),
+  // Knowledge files: the scope and which fields changed, never names or text (ADR 0029).
+  createKnowledge: (a) => ({ operation: 'ai.knowledge.add', params: { Scope: scopeArg(a[0]) } }),
+  importKnowledge: (a) => ({ operation: 'ai.knowledge.import', params: { Scope: scopeArg(a[0]), ...stringArg(1, 'Path')(a) } }),
+  updateKnowledge: (a) => ({
+    operation: 'ai.knowledge.change',
+    params: { Scope: scopeArg(a[0]), Fields: a[2] && typeof a[2] === 'object' ? Object.keys(a[2] as object).filter((k) => ['name', 'enabled', 'text'].includes(k)).join(',') : undefined },
+  }),
+  removeKnowledge: (a) => ({ operation: 'ai.knowledge.remove', params: { Scope: scopeArg(a[0]) } }),
+  exportKnowledge: (a) => ({ operation: 'file.export', params: { Scope: scopeArg(a[0]), ...stringArg(2, 'Path')(a) } }),
   start: (a) => {
     const r = (a[0] ?? {}) as { op?: unknown; question?: unknown };
     if (r.op === 'query' && typeof r.question === 'string') return { operation: 'ai.ask', params: safeText('Question', r.question, 'normal') };

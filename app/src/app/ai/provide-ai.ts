@@ -9,6 +9,7 @@ import { UI_STATE_CONTRIBUTIONS } from '../lifecycle/ui-state';
 import { aiActivityItems } from './ai-activity';
 import { AiBackend, provideAiBackend } from './ai-backend';
 import { AiChatPersistence } from './ai-chat-persistence';
+import { KnowledgePersistence } from './knowledge/knowledge-persistence';
 import { AI_IMAGE_VIEW, AiLauncher } from './ai-launcher';
 import { AiStatusStore } from './ai-status.store';
 
@@ -168,7 +169,7 @@ export function provideAi(): EnvironmentProviders {
     { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: () => aiActivityItems(inject(AiStatusStore), AI_CHAT_VIEW) },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => aiCommands(inject(AiLauncher), inject(AiStatusStore), inject(WorkspaceStore), inject(TimeCursor)) },
     { provide: IMT_RECORD_MENU_ITEMS, multi: true, useFactory: () => aiRecordMenu(inject(AiLauncher), inject(AiStatusStore)) },
-    { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => [inject(AiChatPersistence).contribution] },
+    { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => [inject(AiChatPersistence).contribution, inject(KnowledgePersistence).contribution] },
     provideEnvironmentInitializer(() => offerSetupOnFirstRun(inject(AiStatusStore), inject(AiLauncher), inject(Injector))),
   ]);
 }

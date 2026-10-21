@@ -48,7 +48,11 @@ export type AiErrorCode =
   | 'disk'
   | 'refused'
   | 'io'
-  | 'fileExists';
+  | 'fileExists'
+  /** A path the user did not choose in a dialog (imports and exports). */
+  | 'notGranted'
+  /** A bounded resource ran out (a knowledge file too large to import). */
+  | 'limit';
 
 export interface AiErrorPayload {
   code: AiErrorCode;
@@ -708,4 +712,56 @@ export interface AiUpdateKindStatus {
 export interface AiUpdatesStatus {
   intervalHours: number;
   kinds: AiUpdateKindStatus[];
+}
+
+/**
+ * Knowledge files (ADR 0029; `app/src-tauri/src/ai/knowledge/commands.rs`, `imt_ai::knowledge`): Markdown notes the AI
+ * reads with every request. `project` files are saved with the project (UI state key `knowledge`), `global` ones in
+ * IMT's configuration folder.
+ */
+export type KnowledgeScope = 'project' | 'global';
+
+/** A knowledge file in a list (no text). */
+export interface KnowledgeInfo {
+  id: string;
+  scope: KnowledgeScope;
+  name: string;
+  enabled: boolean;
+  /** Size of the text in bytes. */
+  bytes: number;
+}
+
+/** A knowledge file with its Markdown text (`ai_knowledge_get`). */
+export interface KnowledgeText extends KnowledgeInfo {
+  text: string;
+}
+
+/** A change to a file: only the fields given change. */
+export interface KnowledgeChange {
+  name?: string;
+  enabled?: boolean;
+  text?: string;
+}
+
+/** Both scopes' files, problems reading the global ones, and the engine's limits (`ai_knowledge_list`). */
+export interface KnowledgeList {
+  project: KnowledgeInfo[];
+  global: KnowledgeInfo[];
+  warnings: string[];
+  /** The global files were saved by a newer IMT: they cannot be changed here. */
+  globalReadOnly: boolean;
+  maxFileBytes: number;
+  maxFiles: number;
+}
+
+/** The project's knowledge as saved in projects and sessions (v1, owned by the engine). */
+export interface KnowledgeRecord {
+  version: number;
+  files: { id: string; name: string; enabled: boolean; text: string }[];
+}
+
+/** The project's files after `ai_knowledge_project_restore`, and why saved ones were not loaded. */
+export interface KnowledgeRestore {
+  files: KnowledgeInfo[];
+  warning: string | null;
 }

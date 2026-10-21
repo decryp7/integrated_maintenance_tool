@@ -9,7 +9,7 @@ mod session;
 mod suggest;
 mod time;
 
-pub use budget::{kept_turns, running_summary, ChatBudget, Turn};
+pub use budget::{kept_turns, running_summary, ChatBudget, Turn, CHARS_PER_TOKEN};
 pub use context::{resolve, ChatContext, ResolvedContext, MAX_SELECTED};
 pub use host::{propose_specs, ChatHost};
 pub use persist::{export_markdown, ChatHistoryRecord, ChatRecord, TurnRecord, CHAT_RECORD_VERSION};
