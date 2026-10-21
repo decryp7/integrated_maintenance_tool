@@ -3310,14 +3310,14 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">151,153</context>
+          <context context-type="linenumber">151,152</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.continue" datatype="html">
         <source> Continue </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">80,82</context>
+          <context context-type="linenumber">80,81</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.thisComputer" datatype="html">
@@ -3430,7 +3430,7 @@
         <source>Start again</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">242,245</context>
+          <context context-type="linenumber">242,244</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.live.ready" datatype="html">
@@ -11929,7 +11929,7 @@
         <source>Polling</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">41,44</context>
+          <context context-type="linenumber">41,43</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.pollEvery" datatype="html">
@@ -19665,7 +19665,7 @@
         <source>Name</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">39,42</context>
+          <context context-type="linenumber">39,41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.openSecond" datatype="html">
@@ -20225,7 +20225,7 @@
         <source>Share</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">34,37</context>
+          <context context-type="linenumber">34,36</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.loadMore" datatype="html">
@@ -27271,7 +27271,7 @@
         <source><x id="INTERPOLATION" equiv-text="{{ fmt(store.matchTotal()!) }}"/> matching</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">18,20</context>
+          <context context-type="linenumber">18,19</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.instances" datatype="html">
@@ -27292,7 +27292,7 @@
         <source><x id="INTERPOLATION" equiv-text="{{ fmt(s.dropped) }}"/> dropped by pipeline</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">22,24</context>
+          <context context-type="linenumber">22,23</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.group" datatype="html">
@@ -27411,7 +27411,7 @@
         <source>Indexed · <x id="INTERPOLATION" equiv-text="{{ loadTime(s.loadMs) }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/title-bar.ts</context>
-          <context context-type="linenumber">37,39</context>
+          <context context-type="linenumber">37,38</context>
         </context-group>
       </trans-unit>
       <trans-unit id="skew.dialog.intro" datatype="html">
@@ -29392,7 +29392,7 @@
         <source>Limits</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">126,128</context>
+          <context context-type="linenumber">126,127</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.maxBundle" datatype="html">
@@ -29434,7 +29434,7 @@
         <source>Browse…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">141,144</context>
+          <context context-type="linenumber">141,143</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.collecting" datatype="html">
@@ -29448,7 +29448,7 @@
         <source>You can close this dialog: the collection goes on and is listed in Jobs.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">147,151</context>
+          <context context-type="linenumber">147,150</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.bundleCreated" datatype="html">
@@ -29504,7 +29504,7 @@
         <source>{VAR_PLURAL, plural, =1 {error} other {errors}}</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
-          <context context-type="linenumber">161,162</context>
+          <context context-type="linenumber">161</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.skipped" datatype="html">
@@ -30672,7 +30672,7 @@
         <source> No samples in the last <x id="INTERPOLATION" equiv-text="{{ store.windowMin() }}"/> minutes yet. They appear here as the monitor writes them. </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-live-charts.ts</context>
-          <context context-type="linenumber">64,66</context>
+          <context context-type="linenumber">64,65</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.live.notRecorded" datatype="html">
@@ -31966,7 +31966,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">86,89</context>
+          <context context-type="linenumber">86,88</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.checking" datatype="html">
