@@ -219,6 +219,9 @@ impl<T: LlmProvider + ?Sized> LlmProvider for Arc<T> {
     fn context_length(&self) -> usize {
         (**self).context_length()
     }
+    fn vision(&self) -> bool {
+        (**self).vision()
+    }
     fn chat(&self, req: &ChatRequest, on_delta: &mut dyn FnMut(&str)) -> Result<ChatResponse> {
         (**self).chat(req, on_delta)
     }
@@ -233,6 +236,9 @@ impl<T: LlmProvider + ?Sized> LlmProvider for &T {
     }
     fn context_length(&self) -> usize {
         (**self).context_length()
+    }
+    fn vision(&self) -> bool {
+        (**self).vision()
     }
     fn chat(&self, req: &ChatRequest, on_delta: &mut dyn FnMut(&str)) -> Result<ChatResponse> {
         (**self).chat(req, on_delta)

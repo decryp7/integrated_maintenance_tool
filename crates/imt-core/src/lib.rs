@@ -35,6 +35,7 @@ pub mod ql;
 pub mod query;
 pub mod redact;
 pub mod regex_assist;
+pub mod related;
 pub mod report;
 pub mod route;
 pub mod row;

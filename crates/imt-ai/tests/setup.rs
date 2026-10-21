@@ -11,7 +11,7 @@ use imt_ai::models::*;
 use imt_ai::runtime::*;
 use imt_ai::settings::{AiSettings, GpuOffload};
 use imt_ai::setup::*;
-use imt_ai::testing::gguf::qwen_like;
+use imt_ai::testing::gguf::{projector_like, qwen_like};
 use imt_ai::AiError;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -55,6 +55,9 @@ impl DiskSpace for Disk {
 struct FakeSource {
     data: Vec<u8>,
     sha: String,
+    /// Served for files named like a projector (`mmproj`).
+    projector: Vec<u8>,
+    projector_sha: String,
     fetches: AtomicUsize,
     describe_fails: bool,
     slow: bool,
@@ -63,9 +66,12 @@ struct FakeSource {
 impl FakeSource {
     fn new() -> FakeSource {
         let data = qwen_like();
+        let projector = projector_like(2560);
         FakeSource {
             sha: sha256_hex(&data),
             data,
+            projector_sha: sha256_hex(&projector),
+            projector,
             fetches: AtomicUsize::new(0),
             describe_fails: false,
             slow: false,
@@ -78,11 +84,16 @@ impl ModelSource for FakeSource {
         if self.describe_fails {
             return Err(AiError::Network("offline".into()));
         }
+        let (size, sha256) = if file.contains("mmproj") {
+            (self.projector.len() as u64, self.projector_sha.clone())
+        } else {
+            (self.data.len() as u64, self.sha.clone())
+        };
         Ok(RemoteFile {
             repo: repo.into(),
             file: file.into(),
-            size: self.data.len() as u64,
-            sha256: self.sha.clone(),
+            size,
+            sha256,
             license: Some("apache-2.0".into()),
             gated: false,
         })
@@ -95,7 +106,8 @@ impl ModelSource for FakeSource {
         cancel: &AtomicBool,
     ) -> imt_ai::Result<()> {
         self.fetches.fetch_add(1, Ordering::SeqCst);
-        for chunk in self.data[offset as usize..r.size as usize].chunks(16 * 1024) {
+        let data = if r.file.contains("mmproj") { &self.projector } else { &self.data };
+        for chunk in data[offset as usize..r.size as usize].chunks(16 * 1024) {
             if cancel.load(Ordering::SeqCst) {
                 return Err(AiError::Cancelled);
             }
@@ -117,7 +129,20 @@ fn entry(src: &FakeSource) -> CatalogModel {
     c.sha256 = src.sha.clone();
     c.size_bytes = src.data.len() as u64;
     c.params_b = 4.0;
+    c.projector = None;
     c
+}
+
+/// The same entry, able to read images: its projector is `mmproj-F16.gguf` in the repository.
+fn vision_entry(src: &FakeSource) -> CatalogModel {
+    CatalogModel {
+        projector: Some(imt_ai::catalog::CatalogProjector {
+            file: "mmproj-F16.gguf".into(),
+            sha256: src.projector_sha.clone(),
+            size_bytes: src.projector.len() as u64,
+        }),
+        ..entry(src)
+    }
 }
 
 fn catalog(src: &FakeSource) -> Catalog {
@@ -140,6 +165,7 @@ enum Engine {
 struct FakeRuntime {
     mode: Engine,
     loads: Mutex<Vec<GpuMode>>,
+    projectors: Mutex<Vec<Option<std::path::PathBuf>>>,
 }
 
 impl FakeRuntime {
@@ -147,6 +173,7 @@ impl FakeRuntime {
         FakeRuntime {
             mode,
             loads: Mutex::new(vec![]),
+            projectors: Mutex::new(vec![]),
         }
     }
 }
@@ -154,6 +181,7 @@ impl FakeRuntime {
 impl ModelRuntime for FakeRuntime {
     fn load(&self, req: &LoadRequest) -> imt_ai::Result<Loaded> {
         self.loads.lock().unwrap().push(req.gpu);
+        self.projectors.lock().unwrap().push(req.projector.clone());
         match (self.mode, req.gpu) {
             (Engine::NeverLoads, _) | (Engine::GpuFails, GpuMode::Auto | GpuMode::Layers(_)) => Err(AiError::Engine("device lost".into())),
             (m, gpu) => {
@@ -621,4 +649,65 @@ fn the_installed_model_loader_validates_checks_memory_and_loads() {
         32768
     );
     assert_eq!(GpuMode::from(GpuOffload::Layers(7)), GpuMode::Layers(7));
+}
+
+#[test]
+fn a_model_that_reads_images_is_installed_with_its_projector() {
+    let mut f = fixture(Engine::Works);
+    f.catalog.models[0] = vision_entry(&f.source);
+    let plan = f.setup().plan().unwrap();
+    assert_eq!(plan.download_bytes, (f.source.data.len() + f.source.projector.len()) as u64);
+    let (r, stages) = run(&f);
+    r.unwrap();
+    // One install downloads both, each verified; the projector is kept next to the model under its own name.
+    assert_eq!(f.source.fetches.load(Ordering::SeqCst), 2);
+    assert!(stages
+        .iter()
+        .any(|s| matches!(s, SetupStage::Downloading { total, .. } if *total == f.source.projector.len() as u64)));
+    let p = f.store.dir().join("fake-4b.mmproj.gguf");
+    assert!(p.is_file() && !f.store.dir().join("mmproj-F16.gguf").exists());
+    let list = f.store.list();
+    assert_eq!(list.len(), 1);
+    assert!(list[0].vision());
+    // The one model is loaded with its projector.
+    assert_eq!(f.runtime.projectors.lock().unwrap().last().unwrap().as_deref(), Some(p.as_path()));
+    assert_eq!(f.setup().plan().unwrap().download_bytes, 0);
+}
+
+#[test]
+fn the_projector_of_an_installed_model_is_added_on_its_own() {
+    let mut f = fixture(Engine::Works);
+    std::fs::create_dir_all(f.store.dir()).unwrap();
+    std::fs::write(f.store.dir().join("fake-4b.gguf"), &f.source.data).unwrap();
+    let m = vision_entry(&f.source);
+    f.catalog.models[0] = m.clone();
+    let plan = f.setup().plan().unwrap();
+    assert!(plan.already_installed);
+    assert_eq!(
+        plan.download_bytes,
+        f.source.projector.len() as u64,
+        "only the projector is missing"
+    );
+    f.setup().download_projector(&m, &Progress::new(), &mut |_| {}).unwrap();
+    assert_eq!(f.source.fetches.load(Ordering::SeqCst), 1);
+    assert!(f.store.list()[0].vision());
+    // Again: nothing to do. A model without a projector: nothing either.
+    f.setup().download_projector(&m, &Progress::new(), &mut |_| {}).unwrap();
+    f.setup()
+        .download_projector(&entry(&f.source), &Progress::new(), &mut |_| {})
+        .unwrap();
+    assert_eq!(f.source.fetches.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn a_projector_that_differs_from_the_catalog_is_refused_and_the_model_kept() {
+    let mut f = fixture(Engine::Works);
+    let m = vision_entry(&f.source);
+    f.catalog.models[0] = m;
+    f.source.projector_sha = "0".repeat(64);
+    let (r, _) = run(&f);
+    assert!(matches!(r, Err(AiError::Integrity(_))));
+    assert!(f.store.dir().join("fake-4b.gguf").is_file());
+    assert!(!f.store.dir().join("fake-4b.mmproj.gguf").exists());
+    assert!(!f.settings_file().exists());
 }

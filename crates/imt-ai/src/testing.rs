@@ -26,6 +26,10 @@ pub mod gguf {
                     b.extend(10u32.to_le_bytes());
                     b.extend(n.to_le_bytes());
                 }
+                Kv::Bool(v) => {
+                    b.extend(7u32.to_le_bytes());
+                    b.push(u8::from(v));
+                }
                 Kv::StrArr(items) => {
                     b.extend(9u32.to_le_bytes());
                     b.extend(8u32.to_le_bytes());
@@ -52,6 +56,7 @@ pub mod gguf {
         S(String),
         U32(u32),
         U64(u64),
+        Bool(bool),
         StrArr(Vec<String>),
         I32Arr(usize),
     }
@@ -70,6 +75,24 @@ pub mod gguf {
                 ("qwen3.attention.head_count_kv", Kv::U32(8)),
                 ("tokenizer.ggml.tokens", Kv::StrArr(vec!["a".into(), "bb".into()])),
                 ("tokenizer.ggml.token_type", Kv::I32Arr(10)),
+            ],
+            1 << 17,
+        )
+    }
+
+    /// A Qwen3-VL-like image projector (`mmproj`) producing `dim`-wide embeddings.
+    pub fn projector_like(dim: u32) -> Vec<u8> {
+        build(
+            "clip",
+            &[
+                ("general.type", Kv::S("mmproj".into())),
+                ("general.name", Kv::S("Qwen3 Test".into())),
+                ("clip.has_vision_encoder", Kv::Bool(true)),
+                ("clip.projector_type", Kv::S("qwen3vl_merger".into())),
+                ("clip.vision.projection_dim", Kv::U32(dim)),
+                ("clip.vision.image_size", Kv::U32(768)),
+                ("clip.vision.patch_size", Kv::U32(16)),
+                ("clip.vision.spatial_merge_size", Kv::U32(2)),
             ],
             1 << 17,
         )

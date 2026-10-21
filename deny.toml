@@ -58,6 +58,7 @@ skip = [
   { crate = "core-foundation@0.9.4", reason = "system-configuration (macOS)" },
   { crate = "bitflags@1.3.2", reason = "webkit2gtk, javascriptcore-rs, png 0.17, winstructs (evtx)" },
   { crate = "thiserror@1.0.69", reason = "gtk-rs 0.18, jni 0.21, ndk, winstructs (evtx)" },
+  { crate = "scroll@0.11.0", reason = "pdb 0.8 (the dumps plugin's PDB symbols); minidump 0.27 uses scroll 0.13" },
   { crate = "thiserror-impl@1.0.69", reason = "thiserror 1" },
   { crate = "heck@0.4.1", reason = "glib-macros 0.18" },
   { crate = "proc-macro-crate@1.3.1", reason = "gtk3-macros 0.18" },

@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "updated": "2026-10-17",
-  "note": "Recommended models. This file is data: names, repositories and checksums change, so IMT lets you replace it (models-catalog.json in the app data folder). Every entry was checked against the Hugging Face API (repo, file, size, LFS sha256, licence) on the date above. IMT downloads a file only after you confirm.",
+  "updated": "2026-10-21",
+  "note": "Recommended models. This file is data: names, repositories and checksums change, so IMT lets you replace it (models-catalog.json in the app data folder). Every entry was checked against the Hugging Face API (repo, file, size, LFS sha256, licence) on the date above, and every image projector (mmproj, same repository) by its header too. IMT downloads a file only after you confirm.",
   "models": [
     {
       "id": "qwen3.5-9b-q4km",
@@ -22,9 +22,15 @@
         "default",
         "gpu-8gb",
         "structured-output",
-        "tool-calling"
+        "tool-calling",
+        "vision"
       ],
-      "notes": "Best quality that fits an 8 GB GPU at 8k context."
+      "notes": "Best quality that fits an 8 GB GPU at 8k context; reads screenshots too (text + images).",
+      "projector": {
+        "file": "mmproj-F16.gguf",
+        "sha256": "f70dc3509053962b0d0d3ee8a7eacebf5d60aa560cad78254ae8698516ae029f",
+        "sizeBytes": 918166080
+      }
     },
     {
       "id": "qwen3.5-4b-q4km",
@@ -45,9 +51,15 @@
         "fast",
         "gpu-6gb",
         "cpu-16gb",
-        "tool-calling"
+        "tool-calling",
+        "vision"
       ],
-      "notes": "Fast option; default for 6 GB GPUs and 16 GB CPU-only machines."
+      "notes": "Fast option; default for 6 GB GPUs and 16 GB CPU-only machines.",
+      "projector": {
+        "file": "mmproj-F16.gguf",
+        "sha256": "cd88edcf8d031894960bb0c9c5b9b7e1fea6ebee02b9f7ce925a00d12891f864",
+        "sizeBytes": 672423616
+      }
     },
     {
       "id": "qwen3-4b-instruct-2507-q4km",
@@ -152,13 +164,19 @@
       "recommendedFor": [
         "large",
         "gpu-24gb",
-        "tool-calling"
+        "tool-calling",
+        "vision"
       ],
-      "notes": "For 24 GB GPUs or Apple Silicon with 32 GB or more."
+      "notes": "For 24 GB GPUs or Apple Silicon with 32 GB or more.",
+      "projector": {
+        "file": "mmproj-F16.gguf",
+        "sha256": "458bc46d8f275866fde5d88c9c554d9d462a6e8e3a028090d9850e17ab6a1217",
+        "sizeBytes": 927607040
+      }
     },
     {
       "id": "qwen3.6-35b-a3b-ud-q4km",
-      "name": "Qwen3.6 35B-A3B (MoE)",
+      "name": "Qwen3.6 35B-A3B (MoE, best quality)",
       "family": "qwen",
       "paramsB": 35,
       "quant": "Q4_K_M",
@@ -172,13 +190,20 @@
       "minVramGb": 6,
       "minRamGb": 32,
       "recommendedFor": [
+        "best-quality",
         "advanced",
         "moe",
-        "tool-calling"
+        "tool-calling",
+        "vision"
       ],
-      "notes": "Advanced: expert layers stay in system RAM (needs 32 GB or more), attention runs on the GPU.",
+      "notes": "Best quality, text + images: about 3B parameters are active per token, so it runs on modest GPUs, but the expert layers stay in system RAM (needs 32 GB or more).",
       "moe": true,
-      "activeParamsB": 3
+      "activeParamsB": 3,
+      "projector": {
+        "file": "mmproj-F16.gguf",
+        "sha256": "8971ee4f331ff0a4c609374f32984b3d4e6dc086c0aa35f1d637fad1829e887f",
+        "sizeBytes": 899283680
+      }
     }
   ]
 }

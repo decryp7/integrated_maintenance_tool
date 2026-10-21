@@ -150,6 +150,7 @@ import { PopoutBackend } from '../../popout/popout-backend';
 import { ProfilingBackend } from '../../profiling/profiling-backend';
 import { DotnetBackend } from '../../profiling/dotnet/dotnet-backend';
 import { NativeBackend } from '../../profiling/native/native-backend';
+import { DumpsBackend } from '../../dumps/dumps-backend';
 import { SchedulesBackend } from '../../schedules/schedules-backend';
 import { SettingsBackend } from '../../settings/settings-backend';
 import { StorageBackend } from '../../settings/storage/storage-backend';
@@ -187,6 +188,7 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   ProfilingBackend,
   DotnetBackend,
   NativeBackend,
+  DumpsBackend,
   SchedulesBackend,
   SettingsBackend,
   StorageBackend,

@@ -312,6 +312,19 @@ files…* checks what you downloaded against that SHA-256 before using it, as a 
 progress. A model added with *Add local GGUF…* that is named like a catalog model, or has its exact size,
 is checked the same way.
 
+**Images (text + images, one model).** A model marked *Text + images* reads screenshots too: its multimodal
+projector (the `mmproj` file of the same repository, made for that model) is downloaded and verified with it and
+loaded into the same engine, so there is never a second model in memory ([ADR 0025](adr/0025-vision-one-model.md)).
+The default Qwen3.5 9B reads images; Qwen3.6 35B-A3B is the best-quality choice (needs 32 GB RAM). *Add image
+support* installs the projector of a model you already have; nothing is downloaded without asking. Attach an image
+in the chat (button, drag and drop, paste) or open one from the Explorer: IMT decodes it itself, within limits, and
+sends the model a clean, downscaled copy without metadata. **Find related logs** reads the screenshot into facts
+(window title, times, error texts and codes, exception names, machine and user names, ids, versions), lets the engine
+find the events around its time (from the screen, the photo's EXIF time, the file name or the file time, in the
+profile's time zone) and with the same text, and lists them with a reason for each link (*time +1.4 s*, *title
+matches lane OrderWorker*, *text 'HttpRequestException'*). Without a readable time it says the links come from text
+and title only; when the clocks disagree it says by how much and offers the clock-offset correction.
+
 ## Internal web browser
 
 *Search the web for this error* (the event's context menu, the inspector, the chat, the palette) opens the

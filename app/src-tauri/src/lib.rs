@@ -33,6 +33,7 @@ mod config_store;
 mod demo;
 mod dev_overrides;
 mod diagnostics;
+mod dumps;
 mod engine_errors;
 mod error;
 mod file_commands;
@@ -188,6 +189,20 @@ command_table! {
     Query [WINDOW] => profiling::profiling_heap_instances,
     Query [WINDOW] => profiling::profiling_heap_paths,
     Query [WINDOW] limit 4 * 1024 => profiling::profiling_heap_findings,
+    Query [WINDOW] => dumps::dumps_sniff,
+    Mutation [WINDOW] => dumps::dumps_open,
+    Query [WINDOW] => dumps::dumps_list,
+    Mutation [WINDOW] => dumps::dumps_close,
+    Query [WINDOW] => dumps::dumps_overview,
+    Query [WINDOW] => dumps::dumps_threads,
+    Query [WINDOW] => dumps::dumps_stack,
+    Query [WINDOW] => dumps::dumps_modules,
+    Query [WINDOW] => dumps::dumps_findings,
+    Query [WINDOW] => dumps::dumps_umdh_diff,
+    Query [WINDOW] => dumps::dumps_umdh_stack,
+    Query [WINDOW] => dumps::dumps_umdh_tree,
+    Query [WINDOW] => dumps::dumps_markers,
+    Query [WINDOW] => dumps::dumps_explain,
     Query [WINDOW] => profile::get_profile,
     Query [WINDOW] limit MIB => profile::validate_profile,
     Mutation [WINDOW] limit MIB => profile::save_profile,
@@ -308,6 +323,11 @@ command_table! {
     Mutation [WINDOW] => ai::commands::ai_chat_export_markdown,
     Query [WINDOW] => ai::commands::ai_suggested_prompts,
     Mutation [WINDOW] => ai::commands::ai_open_link,
+    Mutation [WINDOW] => ai::vision::ai_image_open,
+    Mutation [WINDOW] limit 48 * MIB => ai::vision::ai_image_paste,
+    Mutation [WINDOW] => ai::vision::ai_image_close,
+    Mutation [WINDOW] => ai::vision::ai_model_install_projector,
+    Mutation [WINDOW] => ai::vision::ai_model_add_projector,
     Query [WINDOW] => browser::commands::browser_state,
     Mutation [WINDOW] => browser::commands::browser_open,
     Query [WINDOW] => browser::commands::browser_event_query,

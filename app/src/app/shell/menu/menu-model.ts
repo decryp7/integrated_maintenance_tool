@@ -217,6 +217,8 @@ export function buildMenus(state: MenuState): TopMenu[] {
         cmd('file.openFolder'),
         cmd('live.open'),
         cmd('profiling.open'),
+        cmd('dumps.open'),
+        cmd('dumps.openUmdh'),
         cmd('project.open'),
         cmd('project.recent', $localize`:@@shell.menu.file.openRecentProject:Open recent project…`),
         SEP,
@@ -295,6 +297,7 @@ export function buildMenus(state: MenuState): TopMenu[] {
       label: $localize`:Top-level menu@@shell.menu.top.tools:Tools`,
       items: tidy([
         cmd('tools.collect'),
+        cmd('dumps.capture'),
         cmd('diagnostics.capture'),
         SEP,
         cmd('profile.newFromTemplate'),

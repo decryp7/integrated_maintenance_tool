@@ -7,6 +7,7 @@
 import { AiBackend, AiError, Unlisten } from '../../ai/ai-backend';
 import {
   AiErrorCode,
+  AiImage,
   AiRuntimeEvent,
   AiStatus,
   AiUpdateKind,
@@ -41,8 +42,11 @@ import {
   mockPipelineProposal,
   mockProfileProposal,
   mockRecommendations,
+  mockProjectorInfo,
   mockRegexProposal,
+  textOnly,
 } from './mock-ai-data';
+import { mockAsksForRelated, mockExplainImage, mockFormatOf, mockFormatOfPath, mockImage, mockRelatedOutcome } from './mock-ai-vision';
 import { FILE_EXISTS_SUFFIX } from '../api.types';
 import { MOCK_NET_FAILURES, MockNetFailure, mockNetError, MockRuntimeMode, MockRuntimes } from './mock-ai-runtimes';
 import { mockWeb } from '../../browser/mock-browser-backend';
@@ -64,6 +68,7 @@ export const AI_FAILABLE = [
   'propose',
   'models',
   'runtime',
+  'image',
 ] as const;
 export type AiFailable = (typeof AI_FAILABLE)[number];
 
@@ -79,7 +84,12 @@ export interface MockAiOptions {
   net?: MockNetFailure;
   /** Runtime and model update checks: `available` (an update with the Ask policy), `automatic`, `manual`. */
   updates?: MockUpdatesMode;
+  /** Image support of the active model (ADR 0025): `on` (default), `missing` (text only, the catalog projector can be
+   * added), `none` (text only, nothing to add: choose another model). */
+  vision?: MockVisionMode;
 }
+
+export type MockVisionMode = 'on' | 'missing' | 'none';
 
 /**
  * Browser-demo switches (never used inside Tauri):
@@ -88,6 +98,7 @@ export interface MockAiOptions {
  *   ?mockAiRuntime=none|broken  no inference runtime installed, or one that finds no GPU
  *   ?mockAiNet=tls|proxyAuth|proxy|offline|timeout|httpStatus  downloads fail like behind a corporate proxy
  *   ?mockAiUpdates=available|automatic|manual  a runtime update to find (Ask, or that policy)
+ *   ?mockAiVision=missing|none  the active model reads text only (its image support can be added, or not)
  *   ?mockAiStepMs=5          streaming speed
  */
 export function mockAiOptionsFromSearch(search: string): MockAiOptions {
@@ -107,6 +118,8 @@ export function mockAiOptionsFromSearch(search: string): MockAiOptions {
   if ((MOCK_NET_FAILURES as readonly (string | null)[]).includes(net)) o.net = net as MockNetFailure;
   const updates = p.get('mockAiUpdates');
   if (updates === 'available' || updates === 'automatic' || updates === 'manual' || updates === 'none') o.updates = updates;
+  const vision = p.get('mockAiVision');
+  if (vision === 'on' || vision === 'missing' || vision === 'none') o.vision = vision;
   return o;
 }
 
@@ -142,7 +155,10 @@ export class MockAiBackend extends AiBackend {
   private readonly chatHandlers = new Set<(e: ChatEventEnvelope) => void>();
   private readonly continueHook = (mockWeb().continueChat = (sessionId: string, title: string) => this.chatSend(sessionId, `I opened "${title}" for you: read it and go on with my question.`, {} as ChatContext));
   /** Every chat send, for tests. */
-  readonly sent: { sessionId: string; text: string; context: ChatContext }[] = [];
+  readonly sent: { sessionId: string; text: string; context: ChatContext; images: number[] }[] = [];
+  /** Open images (the engine's per-window cache of clean copies, at most 8). */
+  private readonly images = new Map<number, AiImage>();
+  private imageCounter = 0;
 
   constructor(options: MockAiOptions = {}) {
     super();
@@ -151,7 +167,9 @@ export class MockAiBackend extends AiBackend {
     this.fails = new Set(options.fail ?? []);
     this.net = options.net ?? null;
     const ready = this.mode === 'ready';
-    this.installed = ready ? [installedFrom(catalogModel(1), true)] : [];
+    const active = installedFrom(catalogModel(1), true);
+    const vision = options.vision ?? 'on';
+    this.installed = ready ? [vision === 'on' ? active : textOnly(active, vision === 'missing' ? catalogModel(1) : undefined)] : [];
     this.activeFile = ready ? catalogModel(1).file : null;
     this.rt = new MockRuntimes(
       options.runtime ?? 'installed',
@@ -218,6 +236,7 @@ export class MockAiBackend extends AiBackend {
         notes: [],
         safeMode: false,
         setupRunning: false,
+        vision: false,
       };
     }
     return {
@@ -230,6 +249,7 @@ export class MockAiBackend extends AiBackend {
       notes: [],
       safeMode: false,
       setupRunning: this.setupRunning,
+      vision: !!this.installed.find((m) => m.fileName === this.activeFile)?.vision,
     };
   }
 
@@ -419,8 +439,101 @@ export class MockAiBackend extends AiBackend {
     });
   }
 
+  /** "Add image support": the catalog projector of an installed model, downloaded as an app-wide download job. */
+  async installProjector(fileName: string): Promise<number> {
+    this.check('models');
+    const m = this.installed.find((i) => i.fileName === fileName);
+    if (!m) throw new AiError('notFound', `${fileName} is not installed`);
+    if (m.vision) throw new AiError('invalid', `${m.name} already reads images`);
+    const size = m.projectorDownloadBytes;
+    if (size === null) throw new AiError('notFound', `the model list has no image projector for ${m.name}`);
+    const job = mockJobs().start({ kind: 'download', title: `Image support for ${m.name}`, link: { type: 'model', id: m.catalogId ?? fileName }, appWide: true }, async (ctx) => {
+      for (let i = 1; i <= 8; i++) {
+        if (ctx.cancelled()) throw new MockJobCancelled();
+        await sleep(this.stepMs * 2);
+        ctx.progress({ fraction: i / 8, done: Math.round((size * i) / 8), total: size });
+      }
+      if (this.net) throw mockNetError(this.net, 'huggingface.co');
+      this.withProjector(fileName, size);
+      return { value: undefined, result: { type: 'model', fileName } };
+    });
+    job.done.catch(() => undefined);
+    return job.id;
+  }
+
+  /** A projector file the user chose (checked like a download: an `mmproj` GGUF that fits the model). */
+  addProjector(fileName: string, path: string) {
+    return this.later(() => {
+      this.check('models');
+      const m = this.installed.find((i) => i.fileName === fileName);
+      if (!m) throw new AiError('notFound', `${fileName} is not installed`);
+      if (!/\.gguf$/i.test(path)) throw new AiError('invalid', 'projector files end in .gguf');
+      if (!/mmproj/i.test(path)) throw new AiError('modelFile', 'this file is a model, not an image projector (mmproj): choose the mmproj file of the same model');
+      return structuredClone(this.withProjector(fileName, m.projectorDownloadBytes ?? 640 * 1024 * 1024));
+    });
+  }
+
+  private withProjector(fileName: string, size: number): InstalledModel {
+    const before = this.installed.find((i) => i.fileName === fileName);
+    if (!before) throw new AiError('notFound', `${fileName} is not installed`);
+    const out: InstalledModel = { ...before, vision: true, projectorDownloadBytes: null, projector: { fileName: `${before.fileName.replace(/\.gguf$/i, '')}.mmproj.gguf`, sizeBytes: size, info: mockProjectorInfo(size), problem: null } };
+    this.installed = this.installed.map((i) => (i.fileName === fileName ? out : i));
+    this.emitStatus();
+    return out;
+  }
+
   reset() {
     return this.later(() => this.currentStatus(), 0);
+  }
+
+  // ---- images (ADR 0025) ----
+
+  private addImage(name: string, path: string | null, format: NonNullable<ReturnType<typeof mockFormatOf>>): AiImage {
+    const img = mockImage(++this.imageCounter, name, path, format);
+    this.images.set(img.id, img);
+    // The engine keeps 8 clean copies per window; the oldest goes first.
+    for (const id of this.images.keys()) {
+      if (this.images.size <= 8) break;
+      this.images.delete(id);
+    }
+    return structuredClone(img);
+  }
+
+  imageOpen(path: string) {
+    return this.later(() => {
+      this.check('image');
+      const format = mockFormatOfPath(path);
+      if (!format) throw new AiError('invalid', 'IMT reads PNG, JPEG, BMP, GIF and WebP images');
+      return this.addImage(path.split(/[\\/]/).pop() || 'image', path, format);
+    });
+  }
+
+  imagePaste(data: string, name?: string | null) {
+    return this.later(() => {
+      this.check('image');
+      if (!data) throw new AiError('invalid', 'the image is empty');
+      // Base64 of 32 MB (the engine's file limit).
+      if (data.length > Math.ceil((32 * 1024 * 1024) / 3) * 4) throw new AiError('invalid', 'the image is larger than 32 MB');
+      const format = mockFormatOf(data);
+      if (!format) throw new AiError('invalid', 'this is not a PNG, JPEG, BMP, GIF or WebP image');
+      return this.addImage((name ?? '').trim() || 'Pasted image', null, format);
+    });
+  }
+
+  imageClose(id: number) {
+    return this.later(() => this.images.delete(id), 0);
+  }
+
+  private image(id: number): AiImage {
+    const img = this.images.get(id);
+    if (!img) throw new AiError('notFound', 'the image is no longer open: open it again');
+    return img;
+  }
+
+  /** The engine fails an image request of a text-only model (typed `NoVision`). */
+  private needVision(): void {
+    if (!this.currentStatus().vision)
+      throw new AiError('noVision', 'The active model reads text only: add its image support or choose a model marked "Text + images".');
   }
 
   // ---- inference runtimes ----
@@ -676,6 +789,18 @@ export class MockAiBackend extends AiBackend {
         return this.nlToQuery(r.question);
       case 'folderSetup':
         return Promise.reject(new AiError('invalid', 'the folder set-up starts its own AI job'));
+      case 'explainImage':
+        return this.aiJob('image', 'Explain an image', null, (): Narrative => {
+          const img = this.image(r.imageId);
+          this.needVision();
+          return mockExplainImage(img.name, r.question);
+        }, narrative, 'Image explained');
+      case 'relatedLogs':
+        return this.aiJob('image', 'Find the logs related to an image', null, () => {
+          const img = this.image(r.imageId);
+          this.needVision();
+          return mockRelatedOutcome(img.name);
+        }, (o): JobResult => ({ type: 'relatedLogs', result: o }), 'Related logs found');
     }
   }
 
@@ -735,13 +860,16 @@ export class MockAiBackend extends AiBackend {
   }
 
   /** Starts the turn as an AI job (it may wait behind other AI requests); resolves with the job's id. */
-  async chatSend(sessionId: string, text: string, context: ChatContext): Promise<number> {
+  async chatSend(sessionId: string, text: string, context: ChatContext, images: number[] = []): Promise<number> {
     this.needModel('chat');
     const c = this.chat(sessionId);
     if (c.running)
       throw new AiError('busy', 'This chat is still answering; wait for it or stop it first.');
     if (!text.trim()) throw new AiError('invalid', 'the question is empty');
-    this.sent.push({ sessionId, text, context });
+    if (images.length > 4) throw new AiError('invalid', 'at most 4 images per question');
+    const shown = images.map((id) => this.image(id));
+    if (shown.length) this.needVision();
+    this.sent.push({ sessionId, text, context, images: [...images] });
     c.running = true;
     c.cancel = false;
     const question = text.trim();
@@ -750,7 +878,7 @@ export class MockAiBackend extends AiBackend {
         if (ctx.cancelled()) c.cancel = true;
       }, 20);
       try {
-        await this.runTurn(c, question);
+        await this.runTurn(c, question, shown);
       } finally {
         clearInterval(stop);
       }
@@ -782,7 +910,7 @@ export class MockAiBackend extends AiBackend {
     return !c.cancel;
   }
 
-  private async runTurn(c: MockChat, text: string): Promise<void> {
+  private async runTurn(c: MockChat, text: string, images: AiImage[] = []): Promise<void> {
     const q = text.toLowerCase();
     const ids = demoRecordIds();
     let answer = '';
@@ -819,7 +947,8 @@ export class MockAiBackend extends AiBackend {
           notes: [],
         });
         c.record.turns.push({
-          user: text,
+          // History never keeps the images (ADR 0025): the question says "[image]".
+          user: images.length ? `${images.map(() => '[image]').join(' ')} ${text}` : text,
           assistant: answer,
           citations,
           proposals,
@@ -843,7 +972,7 @@ export class MockAiBackend extends AiBackend {
     };
     try {
       await sleep(this.stepMs);
-      const browsed = await mockBrowserTurn({
+      const browsed = images.length ? null : await mockBrowserTurn({
         sessionId: c.record.id,
         question: text,
         web: mockWeb(),
@@ -853,7 +982,19 @@ export class MockAiBackend extends AiBackend {
         citations,
         sources: web,
       });
-      if (browsed !== null) {
+      const first = images[0];
+      if (first && mockAsksForRelated(text)) {
+        // "Find the logs related to this screenshot": the engine runs the related search as this turn.
+        await tool('related_logs', JSON.stringify({ image: first.name }), 'Read the image and searched the logs');
+        const { result, explanation } = mockRelatedOutcome(first.name);
+        answer = `${explanation.text}\n\nLinked events:\n${result.links.map((l) => `- event ${l.event.id}: ${l.event.message.slice(0, 60)}`).join('\n')}`;
+        citations.push(...result.links.map((l) => ({ kind: 'record' as const, id: l.event.id, verified: true })));
+      } else if (first) {
+        await tool('read_image', JSON.stringify({ images: images.length }), `Read ${images.length} image${images.length === 1 ? '' : 's'}`);
+        const n = mockExplainImage(first.name, text);
+        answer = n.text;
+        citations.push(...n.citations);
+      } else if (browsed !== null) {
         answer = browsed;
       } else if (wantsResearch(text) && mockWeb().researchAuto) {
         // Research mode: the model calls web_research; the research runs as a job (Jobs pane) and the turn waits.

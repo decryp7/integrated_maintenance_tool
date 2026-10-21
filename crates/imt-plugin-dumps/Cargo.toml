@@ -1,0 +1,40 @@
+[package]
+name = "imt-plugin-dumps"
+license.workspace = true
+repository.workspace = true
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+description = "IMT plugin (ADR 0023): crash/memory dump and UMDH heap log readers (minidump, full dumps read by ranges, x86/x64 stack walks, PDB symbols from local folders, .NET runtime detection) and the Create dump tool (MiniDumpWriteDump, Windows)"
+
+[dependencies]
+imt-dump = { path = "../imt-dump" }
+imt-plugin-api = { path = "../imt-plugin-api", optional = true }
+anyhow = { workspace = true, optional = true }
+serde.workspace = true
+serde_json.workspace = true
+# rust-minidump (MIT): stream parsing and stack walking (CFI from breakpad symbols when given, frame pointers, scans).
+minidump = "0.27"
+minidump-unwind = "0.27"
+# PDB public symbols for frame names (MIT OR Apache-2.0).
+pdb = "0.8"
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, optional = true, features = [
+  "Win32_Storage_FileSystem",
+  "Win32_System_Diagnostics_Debug",
+  "Win32_System_Diagnostics_ToolHelp",
+  "Win32_System_Kernel",
+  "Win32_System_Memory",
+] }
+
+[dev-dependencies]
+proptest.workspace = true
+tempfile.workspace = true
+
+[features]
+# The plugin adapter (imt-plugin-api) and the Windows capture. Without it the crate is the pure readers, which is
+# what the fuzz targets build.
+default = ["plugin"]
+plugin = ["dep:imt-plugin-api", "dep:anyhow", "dep:windows"]

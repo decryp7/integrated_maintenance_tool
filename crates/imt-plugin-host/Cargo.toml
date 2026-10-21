@@ -19,6 +19,7 @@ imt-core = { path = "../imt-core" }
 imt-ipc = { path = "../imt-ipc" }
 imt-plugin-api = { path = "../imt-plugin-api" }
 imt-profile = { path = "../imt-profile" }
+imt-dump = { path = "../imt-dump" }
 anyhow.workspace = true
 log.workspace = true
 serde.workspace = true

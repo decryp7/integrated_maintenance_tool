@@ -86,6 +86,12 @@ describe('activity privacy', () => {
     expect(isUserError('invalid regex')).toBe(true);
     expect(isUserError(new Error('No such file or directory'))).toBe(true);
     expect(isUserError(new DOMException('x', 'AbortError'))).toBe(true);
+    // Typed engine errors are decided by their code, whatever the wording (regression: a cleared job's "this job is
+    // no longer listed" was reported as an app failure with a screenshot).
+    expect(isUserError({ code: 'notFound', message: 'this job is no longer listed' })).toBe(true);
+    expect(isUserError({ code: 'cancelled', message: 'stopped' })).toBe(true);
+    expect(isUserError({ code: 'internal', message: 'invalid state' })).toBe(false);
+    expect(isUserError({ code: 'engine', message: 'not found' })).toBe(false);
     expect(isUserError(new Error('index out of bounds'))).toBe(false);
     expect(isUserError({ circular: true })).toBe(false);
   });

@@ -213,7 +213,15 @@ fn one_etl_importer_and_picker_for_dotnet_and_native_processes() {
     let etl = dir.path().join("t.etl");
     std::fs::write(&etl, [0u8; 128]).unwrap();
     let refused = tools.invoke("native-profiler", "etl-processes", json!({"path": etl.to_string_lossy()}), &ctx);
-    assert!(matches!(refused, Err(ToolError::PathRefused { .. })), "{refused:?}");
+    if cfg!(windows) {
+        assert!(matches!(refused, Err(ToolError::PathRefused { .. })), "{refused:?}");
+    } else {
+        // ADR 0022 §9: the native tool (ETW, DbgHelp) is Windows-only; the importer still claims .etl files and says so.
+        assert!(
+            matches!(&refused, Err(ToolError::Unsupported(m)) if m.contains("only available on Windows")),
+            "{refused:?}"
+        );
+    }
     let importers = registry.contributions::<dyn CaptureImporter>(imt_profile::IMPORTERS_POINT);
     let ids: Vec<String> = importers.iter().filter_map(|i| i.call(|i| i.id().to_string()).ok()).collect();
     assert_eq!(ids.iter().filter(|id| *id == "etl").count(), 1, "{ids:?}");
@@ -225,5 +233,8 @@ fn one_etl_importer_and_picker_for_dotnet_and_native_processes() {
     let bad = etl_importer
         .call(|i| i.import("t.etl", &[0x11; 4096], &imt_profile::Limits::default()))
         .unwrap();
-    assert!(bad.is_err());
+    let e = bad.unwrap_err().to_string();
+    if !cfg!(windows) {
+        assert!(e.contains("ETL import needs Windows"), "{e}");
+    }
 }

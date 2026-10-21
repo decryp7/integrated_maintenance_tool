@@ -272,6 +272,11 @@ mod platform {
                 }
             }
         }
+        // Landlock restricts this thread and the threads it starts from now on, not those already running.
+        let earlier = std::fs::read_dir("/proc/self/task")
+            .map(|d| d.count().saturating_sub(1))
+            .unwrap_or(0);
+        notes.extend(super::earlier_threads_note(earlier));
         match ruleset.restrict_self() {
             Ok(status) => match status.ruleset {
                 RulesetStatus::FullyEnforced => {}
@@ -286,7 +291,8 @@ mod platform {
         Ok(())
     }
 
-    /// Installs [`super::bpf::filter`].
+    /// Installs [`super::bpf::filter`] on every thread of the process (`SECCOMP_FILTER_FLAG_TSYNC`; `prctl` would
+    /// filter only the calling thread).
     fn seccomp(deny_network: bool, deny_exec: bool) -> Result<(), String> {
         if !deny_network && !deny_exec {
             return Ok(());
@@ -302,12 +308,32 @@ mod platform {
             if libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0 {
                 return Err(format!("no_new_privs: {}", std::io::Error::last_os_error()));
             }
-            if libc::prctl(libc::PR_SET_SECCOMP, libc::SECCOMP_MODE_FILTER, &fprog as *const libc::sock_fprog) != 0 {
+            let r = libc::syscall(
+                libc::SYS_seccomp,
+                libc::SECCOMP_SET_MODE_FILTER,
+                libc::SECCOMP_FILTER_FLAG_TSYNC,
+                &fprog as *const libc::sock_fprog,
+            );
+            if r < 0 {
                 return Err(format!("seccomp: {}", std::io::Error::last_os_error()));
+            }
+            if r > 0 {
+                return Err(format!("seccomp: thread {r} could not be synchronised"));
             }
         }
         Ok(())
     }
+}
+
+/// The gap when `earlier` other threads were running when landlock was applied: they keep their file access.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn earlier_threads_note(earlier: usize) -> Option<Note> {
+    (earlier > 0).then(|| {
+        Note::new(
+            Gap::Files,
+            format!("{earlier} thread(s) started before the lockdown: landlock does not restrict their file access"),
+        )
+    })
 }
 
 /// The seccomp program (pure, so it is unit-tested on every platform): `socket(AF_INET | AF_INET6, ..)` fails
@@ -563,6 +589,18 @@ mod tests {
     #[test]
     fn an_unrestricted_lockdown_changes_nothing() {
         assert!(lockdown(&SandboxSpec::unrestricted(), false).unwrap().is_empty());
+    }
+
+    #[test]
+    fn threads_started_before_the_lockdown_are_a_gap() {
+        assert_eq!(earlier_threads_note(0), None);
+        let note = earlier_threads_note(2).unwrap();
+        assert_eq!(note.gap, Gap::Files);
+        assert!(
+            note.message.starts_with("2 thread(s) started before the lockdown"),
+            "{}",
+            note.message
+        );
     }
 
     #[test]

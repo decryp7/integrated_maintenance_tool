@@ -125,7 +125,7 @@ pub(crate) fn start_install_with<R: Runtime>(
                 if let RuntimeEvent::Progress { bytes, total, .. } = &ev {
                     if *total > 0 && last != Some((*bytes, *total)) {
                         last = Some((*bytes, *total));
-                        ctx.progress(JobProgress::counts(*bytes, *total));
+                        ctx.progress(JobProgress::bytes(*bytes, *total));
                         let _ = app.emit(RUNTIME_EVENT, ev);
                     }
                 }

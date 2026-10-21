@@ -18,6 +18,8 @@ pub const WEB: &str = "net.decryptology.web";
 pub const FORMATS: &str = "net.decryptology.formats";
 pub const PROFILING: &str = "net.decryptology.profiling";
 pub const TOOLS: &str = "net.decryptology.tools";
+pub const DUMPS: &str = "net.decryptology.dumps";
+pub const DUMP_CAPTURE: &str = "net.decryptology.dumps.capture";
 pub const DOTNET: &str = "net.decryptology.dotnet";
 pub const NATIVE: &str = "net.decryptology.native";
 

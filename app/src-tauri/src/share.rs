@@ -49,8 +49,8 @@ pub(crate) fn parse_reports(values: Vec<Value>) -> CmdResult<Vec<Report>> {
 fn parse_report(value: Value) -> CmdResult<Report> {
     if value.to_string().len() > MAX_REPORT_JSON {
         return Err(crate::CmdError::from(format!(
-            "a report is limited to {} MB",
-            MAX_REPORT_JSON >> 20
+            "a report is limited to {}",
+            imt_plugin_api::units::bytes(MAX_REPORT_JSON as u64)
         )));
     }
     crate::error::lift(Report::parse(value).map_err(err))
@@ -194,7 +194,7 @@ fn visual_bytes(kind: &str, data: &str) -> anyhow::Result<Vec<u8>> {
                 .strip_prefix("data:image/png;base64,")
                 .ok_or_else(|| anyhow::anyhow!("not a PNG image"))?;
             if b64.len() > MAX_VISUAL_BYTES / 3 * 4 + 4 {
-                anyhow::bail!("images are limited to {} MB", MAX_VISUAL_BYTES >> 20);
+                anyhow::bail!("images are limited to {}", imt_plugin_api::units::bytes(MAX_VISUAL_BYTES as u64));
             }
             let bytes = base64::engine::general_purpose::STANDARD
                 .decode(b64)
@@ -206,7 +206,7 @@ fn visual_bytes(kind: &str, data: &str) -> anyhow::Result<Vec<u8>> {
         }
         "svg" => {
             if data.len() > MAX_VISUAL_BYTES {
-                anyhow::bail!("images are limited to {} MB", MAX_VISUAL_BYTES >> 20);
+                anyhow::bail!("images are limited to {}", imt_plugin_api::units::bytes(MAX_VISUAL_BYTES as u64));
             }
             let clean = imt_core::svg::sanitize(data, &imt_core::svg::FIGURE)?;
             Ok(format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n{clean}\n").into_bytes())

@@ -2,6 +2,11 @@
 import { Fit, Gpu, Hardware, Speed } from './ai.types';
 export { formatBytes, formatEta, formatRate, percent } from '../shared/format/units';
 
+/** "Text + images" or "Text only": whether a model reads images (ADR 0025). */
+export function visionLabel(vision: boolean): string {
+  return vision ? $localize`:@@ai.vision.models.textImages:Text + images` : $localize`:@@ai.vision.models.textOnly:Text only`;
+}
+
 export function fitLabel(fit: Fit): string {
   return {
     comfortable: $localize`:@@ai.format.fit.comfortable:Fits comfortably`,

@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, effect, inject, signal, untracked } from '@angular/core';
 import { AiBackend } from '../ai/ai-backend';
 import { formatDuration } from '../core/format';
-import { formatCount, formatEta } from '../shared/format/units';
+import { formatBytes, formatCount, formatEta, formatRate, TransferMeter } from '../shared/format/units';
+import { TransferSpeed } from '../shared/format/transfer-speed';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { Icon } from '../shared/icon';
 import { JobViewer } from './job-viewer';
@@ -74,11 +75,8 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
                 @if (j.state !== 'queued') {
                   <span>{{ elapsedText(j) }}</span>
                 }
-                @if (j.etaMs !== null) {
-                  <span>{{ etaText(j.etaMs) }}</span>
-                }
-                @if (j.progress.done !== null && j.progress.total !== null) {
-                  <span>{{ count(j.progress.done) }} / {{ count(j.progress.total) }}</span>
+                @if (progressText(j); as p) {
+                  <span [attr.data-testid]="'job-progress-' + j.id">{{ p }}</span>
                 }
                 @if (j.message) {
                   <span class="msg">{{ j.message }}</span>
@@ -163,11 +161,27 @@ export class JobsPanel {
     ];
   }
 
+  /** Smoothed speed and time left of the running byte jobs; one meter per job, fed from each snapshot. */
+  protected readonly speeds = signal<ReadonlyMap<number, TransferSpeed>>(new Map());
+
   constructor() {
     let seen = new Map<number, JobState>();
+    const meters = new Map<number, TransferMeter>();
     effect(() => {
       const jobs = this.store.snapshot().jobs;
       untracked(() => {
+        const now = Date.now();
+        const next = new Map<number, TransferSpeed>();
+        for (const j of jobs) {
+          const { done, total, unit } = j.progress;
+          if (j.state !== 'running' || unit !== 'bytes' || done === null) continue;
+          const meter = meters.get(j.id) ?? new TransferMeter();
+          meters.set(j.id, meter);
+          meter.sample(done, now);
+          next.set(j.id, { rate: meter.rate, etaSecs: total === null ? null : meter.etaSecs(total) });
+        }
+        for (const id of [...meters.keys()]) if (!next.has(id)) meters.delete(id);
+        this.speeds.set(next);
         const changed = jobs.filter((j) => seen.has(j.id) && seen.get(j.id) !== j.state);
         const last = changed.at(-1);
         if (last) this.announcement.set(`${last.title}: ${stateLabel(last.state)}`);
@@ -190,11 +204,20 @@ export class JobsPanel {
     return $localize`:@@jobs.panel.elapsed:${formatDuration(j.elapsedMs)}:time: elapsed`;
   }
 
-  protected etaText(ms: number): string {
-    return formatEta(ms / 1000);
+  /**
+   * "1.2 GB of 4 GB · 12 MB/s · about 3 min left" for byte progress (speed and time left from the job's meter),
+   * "3 / 12 · about 2 min left" for counted items; '' when there is nothing to say.
+   */
+  protected progressText(j: JobInfo): string {
+    const { done, total, unit } = j.progress;
+    if (unit === 'bytes' && done !== null) {
+      const speed = this.speeds().get(j.id);
+      const base = total !== null ? $localize`:@@jobs.panel.bytesOf:${formatBytes(done)}:done: of ${formatBytes(total)}:total:` : formatBytes(done);
+      return [base, formatRate(speed?.rate), formatEta(speed?.etaSecs)].filter(Boolean).join(' · ');
+    }
+    const counted = done !== null && total !== null ? `${formatCount(done)} / ${formatCount(total)}` : '';
+    return [counted, j.etaMs !== null ? formatEta(j.etaMs / 1000) : ''].filter(Boolean).join(' · ');
   }
-
-  protected readonly count = formatCount;
 
   protected progressLabel(j: JobInfo): string {
     return $localize`:@@jobs.panel.progress:${j.title}:job: progress`;
