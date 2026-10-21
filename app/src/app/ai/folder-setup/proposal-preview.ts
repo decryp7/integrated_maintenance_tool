@@ -1,3 +1,4 @@
+import { formatCount } from '../../shared/format/units';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { LanePreview, ProposalPreview } from './folder-setup.types';
 
@@ -18,7 +19,7 @@ const LANES_SHOWN = 8;
             <li>
               <span class="lane-name mono" [title]="l.name">{{ l.name }}</span>
               <span class="bar" aria-hidden="true"><span class="fill" [style.width.%]="share(l)"></span></span>
-              <span class="count">{{ l.count }}</span>
+              <span class="count">{{ fmt(l.count) }}</span>
             </li>
           }
         </ul>
@@ -62,7 +63,7 @@ const LANES_SHOWN = 8;
         <p class="facts" i18n="@@ai.folderSetup.preview.query">Finds {p.matches, plural, =1 {1 event} other {{{ p.matches }} events}} now</p>
       }
       @case ('parse') {
-        <p class="facts" i18n="@@ai.folderSetup.preview.parse">Reads {{ p.parsed }} events from {{ p.lines }} sample lines, {{ p.withTimestamp }} with a timestamp</p>
+        <p class="facts" i18n="@@ai.folderSetup.preview.parse">Reads {{ fmt(p.parsed) }} events from {{ fmt(p.lines) }} sample lines, {{ fmt(p.withTimestamp) }} with a timestamp</p>
         <ul class="examples">@for (e of p.examples; track $index) {<li class="mono">{{ e }}</li>}</ul>
       }
     }
@@ -82,6 +83,7 @@ const LANES_SHOWN = 8;
   `,
 })
 export class FolderSetupPreview {
+  protected readonly fmt = formatCount;
   readonly preview = input.required<ProposalPreview>();
 
   protected readonly lanes = computed(() => {

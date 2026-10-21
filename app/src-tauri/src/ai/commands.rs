@@ -141,7 +141,7 @@ fn spawn_setup<R: Runtime>(app: AppHandle<R>, core: Arc<AiCore>, job: SetupJob, 
             let a = app.clone();
             let mut on_stage = |st: SetupStage| {
                 if let SetupStage::Downloading { bytes, total, .. } = &st {
-                    on_progress(JobProgress::counts(*bytes, *total));
+                    on_progress(JobProgress::bytes(*bytes, *total));
                 }
                 let _ = a.emit(SETUP_EVENT, SetupEvent::Stage(st));
             };
@@ -269,7 +269,7 @@ pub async fn ai_model_add_local<R: Runtime>(app: AppHandle<R>, grants: crate::pa
     let (p, q) = (progress.clone(), progress.clone());
     let controls = Controls::cancel(move || p.cancel()).with_probe(move || {
         let s = q.snapshot();
-        (s.total > 0).then(|| JobProgress::counts(s.bytes, s.total))
+        (s.total > 0).then(|| JobProgress::bytes(s.bytes, s.total))
     });
     let spec = JobSpec::new(JobKind::Download, format!("Checking the model file {name}")).link(JobLink::Path { path: path.clone() });
     jobs::run(&app, spec, controls, move |_ctx: &jobs::JobCtx| -> Ai<Done<ModelDto>> {

@@ -211,7 +211,7 @@ export class MockJobs implements JobsBackend {
       title: spec.title,
       source: { window: spec.appWide ? null : 'main', link: spec.link ?? null },
       state: 'queued',
-      progress: { fraction: null, done: null, total: null, etaMs: null },
+      progress: { fraction: null, done: null, total: null, etaMs: null, unit: 'items' },
       message: null,
       queuedAt: Date.now(),
       startedAt: null,
