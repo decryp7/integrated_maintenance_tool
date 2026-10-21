@@ -1,6 +1,7 @@
 # 10. Large workspaces use a persistent DuckDB store in a worker process, with a Tantivy index
 
-- Status: accepted (2026-10-18, after the spike in [store-spike.md](../store-spike.md))
+- Status: amended by [ADR 0014](0014-database-first-engine.md) (2026-10-20): DuckDB is the only store, not an option for large
+  workspaces; accepted 2026-10-18 after the spike in [store-spike.md](../store-spike.md)
 - Date: 2026-10-18
 
 ## Context
