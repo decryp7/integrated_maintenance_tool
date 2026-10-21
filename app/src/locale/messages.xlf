@@ -3137,46 +3137,46 @@
         <source>Downloading <x id="label" equiv-text="label"/> (file <x id="index" equiv-text="e.index"/> of <x id="count" equiv-text="e.count"/>)…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">23</context>
+          <context context-type="linenumber">22</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.stage.downloading" datatype="html">
         <source>Downloading <x id="label" equiv-text="label"/>…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">24</context>
+          <context context-type="linenumber">23</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">28</context>
+          <context context-type="linenumber">27</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.stage.verifying" datatype="html">
         <source>Verifying <x id="label" equiv-text="label"/>…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">27</context>
+          <context context-type="linenumber">26</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.stage.unpacking" datatype="html">
         <source>Unpacking <x id="label" equiv-text="label"/>…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">30</context>
+          <context context-type="linenumber">29</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.stage.finishing" datatype="html">
         <source>Finishing <x id="label" equiv-text="label"/>…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">32</context>
+          <context context-type="linenumber">31</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.progress.of" datatype="html">
         <source><x id="done" equiv-text="formatBytes(e.bytes)"/> of <x id="total" equiv-text="formatBytes(e.total)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">44</context>
+          <context context-type="linenumber">43</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
@@ -3187,42 +3187,42 @@
         <source>In use</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">63</context>
+          <context context-type="linenumber">62</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.state.ready" datatype="html">
         <source>Installed, works here</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">65</context>
+          <context context-type="linenumber">64</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.state.problem" datatype="html">
         <source>Installed, does not work here</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">67</context>
+          <context context-type="linenumber">66</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.state.unchecked" datatype="html">
         <source>Installed</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">69</context>
+          <context context-type="linenumber">68</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.state.available" datatype="html">
         <source>Not installed</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">71</context>
+          <context context-type="linenumber">70</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.device" datatype="html">
-        <source><x id="description" equiv-text="d.description"/> (<x id="name" equiv-text="d.name"/>, <x id="free" equiv-text="gb(d.freeMib)"/> of <x id="total" equiv-text="gb(d.totalMib)"/> GB free)</source>
+        <source><x id="description" equiv-text="d.description"/> (<x id="name" equiv-text="d.name"/>, <x id="free" equiv-text="size(d.freeMib)"/> of <x id="total" equiv-text="size(d.totalMib)"/> free)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">78</context>
+          <context context-type="linenumber">77</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.setup" datatype="html">
@@ -12157,28 +12157,28 @@
         <source>Whole file</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">184</context>
+          <context context-type="linenumber">185</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.modeEvents" datatype="html">
         <source>Events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">185</context>
+          <context context-type="linenumber">186</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.modePolling" datatype="html">
         <source>Polling</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">186</context>
+          <context context-type="linenumber">187</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.modeOff" datatype="html">
         <source>Off</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">187</context>
+          <context context-type="linenumber">188</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tail.state.tailing" datatype="html">
@@ -19609,273 +19609,273 @@
         <source>Before</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">24,25</context>
+          <context context-type="linenumber">25,26</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.beforeLabel" datatype="html">
         <source>Before snapshot</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">25</context>
+          <context context-type="linenumber">26</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.after" datatype="html">
         <source>After</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">29,30</context>
+          <context context-type="linenumber">30,31</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.afterLabel" datatype="html">
         <source>After snapshot</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">30</context>
+          <context context-type="linenumber">31</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.sort" datatype="html">
         <source>Sort</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">34,35</context>
+          <context context-type="linenumber">35,36</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.sortLabel" datatype="html">
         <source>Sort by</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">35</context>
+          <context context-type="linenumber">36</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.sort.bytes" datatype="html">
         <source>Bytes growth</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">36,37</context>
+          <context context-type="linenumber">37,38</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.sort.count" datatype="html">
         <source>Count growth</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">37,38</context>
+          <context context-type="linenumber">38,39</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.sort.name" datatype="html">
         <source>Name</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">38,40</context>
+          <context context-type="linenumber">39,42</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.openSecond" datatype="html">
         <source>Open a second heap snapshot to compare.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">44,46</context>
+          <context context-type="linenumber">45,47</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.rowsRegion" datatype="html">
         <source>Comparison rows</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">47</context>
+          <context context-type="linenumber">48</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.tableLabel" datatype="html">
         <source>Snapshot comparison, sorted by growth</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">48</context>
+          <context context-type="linenumber">49</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.col.type" datatype="html">
         <source>Type</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">49</context>
+          <context context-type="linenumber">50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.col.status" datatype="html">
         <source>Status</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">49</context>
+          <context context-type="linenumber">50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.col.count" datatype="html">
         <source>Count</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">49</context>
+          <context context-type="linenumber">50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.col.deltaCount" datatype="html">
         <source>Δ count</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">49</context>
+          <context context-type="linenumber">50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.col.bytes" datatype="html">
         <source>Bytes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">49</context>
+          <context context-type="linenumber">50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.col.deltaBytes" datatype="html">
         <source>Δ bytes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">49,51</context>
+          <context context-type="linenumber">50,52</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.new" datatype="html">
         <source>new</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">54</context>
+          <context context-type="linenumber">55</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.gone" datatype="html">
         <source>gone</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">54,55</context>
+          <context context-type="linenumber">55,56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDominators.retry" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-dominators.ts</context>
-          <context context-type="linenumber">49,50</context>
+          <context context-type="linenumber">50,51</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDominators.loading" datatype="html">
         <source>Loading…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-dominators.ts</context>
-          <context context-type="linenumber">51,53</context>
+          <context context-type="linenumber">52,54</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDominators.rowsRegion" datatype="html">
         <source>Dominator tree rows</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-dominators.ts</context>
-          <context context-type="linenumber">53</context>
+          <context context-type="linenumber">54</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDominators.tableLabel" datatype="html">
         <source>Dominator tree</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-dominators.ts</context>
-          <context context-type="linenumber">54</context>
+          <context context-type="linenumber">55</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDominators.col.object" datatype="html">
         <source>Object</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-dominators.ts</context>
-          <context context-type="linenumber">55</context>
+          <context context-type="linenumber">56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDominators.col.retained" datatype="html">
         <source>Retained</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-dominators.ts</context>
-          <context context-type="linenumber">55</context>
+          <context context-type="linenumber">56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDominators.col.shallow" datatype="html">
         <source>Shallow</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-dominators.ts</context>
-          <context context-type="linenumber">55</context>
+          <context context-type="linenumber">56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDominators.col.dominates" datatype="html">
         <source>Dominates</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-dominators.ts</context>
-          <context context-type="linenumber">55</context>
+          <context context-type="linenumber">56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDominators.col.actions" datatype="html">
         <source>Actions</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-dominators.ts</context>
-          <context context-type="linenumber">55,57</context>
+          <context context-type="linenumber">56,58</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDominators.paths" datatype="html">
         <source>Paths to roots</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-dominators.ts</context>
-          <context context-type="linenumber">66,68</context>
+          <context context-type="linenumber">67,69</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDominators.loadingChildren" datatype="html">
         <source>Loading children of @<x id="object" equiv-text="k"/>…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-dominators.ts</context>
-          <context context-type="linenumber">109</context>
+          <context context-type="linenumber">111</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDominators.whyLabel" datatype="html">
         <source>Why is <x id="type" equiv-text="typeName"/> @<x id="object" equiv-text="object"/> alive?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-dominators.ts</context>
-          <context context-type="linenumber">124</context>
+          <context context-type="linenumber">126</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapFindings.action.types" datatype="html">
         <source>Show the type</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-findings.ts</context>
-          <context context-type="linenumber">16</context>
+          <context context-type="linenumber">17</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapFindings.action.dominators" datatype="html">
         <source>Show what it retains</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-findings.ts</context>
-          <context context-type="linenumber">17</context>
+          <context context-type="linenumber">18</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapFindings.action.paths" datatype="html">
         <source>Show paths to roots</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-findings.ts</context>
-          <context context-type="linenumber">18</context>
+          <context context-type="linenumber">19</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapFindings.action.diff" datatype="html">
         <source>Compare snapshots</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-findings.ts</context>
-          <context context-type="linenumber">19</context>
+          <context context-type="linenumber">20</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapFindings.empty" datatype="html">
         <source>No findings: nothing in this snapshot crosses a threshold.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-findings.ts</context>
-          <context context-type="linenumber">28</context>
+          <context context-type="linenumber">29</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapFindings.listLabel" datatype="html">
         <source>Memory findings</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-findings.ts</context>
-          <context context-type="linenumber">29</context>
+          <context context-type="linenumber">30</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapFindings.actionLabel" datatype="html">
         <source><x id="action" equiv-text="ACTION[f.view]"/> for <x id="title" equiv-text="f.title"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-findings.ts</context>
-          <context context-type="linenumber">81</context>
+          <context context-type="linenumber">83</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapGrowth.snapshots" datatype="html">
@@ -19973,168 +19973,168 @@
         <source>Growth needs at least three heap snapshots: open <x id="count" equiv-text="missing"/> more.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-growth.ts</context>
-          <context context-type="linenumber">94</context>
+          <context context-type="linenumber">95</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapGrowth.need" datatype="html">
         <source>Growth needs at least three heap snapshots.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-growth.ts</context>
-          <context context-type="linenumber">95</context>
+          <context context-type="linenumber">96</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapGrowth.trendLabel" datatype="html">
         <source>Trend of <x id="name" equiv-text="name"/>: <x id="series" equiv-text="series"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-growth.ts</context>
-          <context context-type="linenumber">100</context>
+          <context context-type="linenumber">101</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.type" datatype="html">
         <source>Type</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">19</context>
+          <context context-type="linenumber">20</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.typeLabel" datatype="html">
         <source>Type name</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">19</context>
+          <context context-type="linenumber">20</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.typePlaceholder" datatype="html">
         <source>e.g. Shop.Orders.Order</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">19</context>
+          <context context-type="linenumber">20</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.show" datatype="html">
         <source>Show instances</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">20,22</context>
+          <context context-type="linenumber">21,23</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.summary" datatype="html">
         <source><x id="INTERPOLATION" equiv-text="{{ count(d.totalRows) // i18n(ph: &quot;count&quot;) }}"/> instances · <x id="INTERPOLATION_1" equiv-text="{{ bytes(d.totalBytes) // i18n(ph: &quot;bytes&quot;) }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">22,23</context>
+          <context context-type="linenumber">23,24</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.section" datatype="html">
         <source>Instances</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">25</context>
+          <context context-type="linenumber">26</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.pick" datatype="html">
         <source>Pick a type (in the Types tab, or type its name) to list its instances.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">27,29</context>
+          <context context-type="linenumber">28,30</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.empty" datatype="html">
         <source>No instances of this type.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">29</context>
+          <context context-type="linenumber">30</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.rowsRegion" datatype="html">
         <source>Instance rows</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">30</context>
+          <context context-type="linenumber">31</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.tableLabel" datatype="html">
         <source>Instances by retained size</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">31</context>
+          <context context-type="linenumber">32</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.col.object" datatype="html">
         <source>Object</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">32</context>
+          <context context-type="linenumber">33</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.col.retained" datatype="html">
         <source>Retained</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">32</context>
+          <context context-type="linenumber">33</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.col.shallow" datatype="html">
         <source>Shallow</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">32,34</context>
+          <context context-type="linenumber">33,35</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.pathsSection" datatype="html">
         <source>Paths to GC roots</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">47</context>
+          <context context-type="linenumber">48</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.why" datatype="html">
         <source>Why is this alive?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">48,49</context>
+          <context context-type="linenumber">49,50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.choose" datatype="html">
         <source>Choose an object to see the references that keep it alive.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">50,52</context>
+          <context context-type="linenumber">51,53</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.unreachable" datatype="html">
         <source>Unreachable: nothing on a path from a GC root keeps it alive (it is garbage).</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">54,55</context>
+          <context context-type="linenumber">55,56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.truncated" datatype="html">
         <source>More paths exist; the shortest are shown.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">55,56</context>
+          <context context-type="linenumber">56,57</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.gcRoot" datatype="html">
         <source>GC root</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">61,62</context>
+          <context context-type="linenumber">62,63</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.whyLabel" datatype="html">
         <source>Why is <x id="type" equiv-text="typeName"/> @<x id="object" equiv-text="object"/> alive?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">115</context>
+          <context context-type="linenumber">117</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapInstances.pathLabel" datatype="html">
         <source>Path <x id="n" equiv-text="n"/> from a GC root, <x id="steps" equiv-text="steps"/> steps</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-instances.ts</context>
-          <context context-type="linenumber">119</context>
+          <context context-type="linenumber">121</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heap.tab.findings" datatype="html">
@@ -20183,91 +20183,91 @@
         <source>Search types…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">20</context>
+          <context context-type="linenumber">21</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.searchLabel" datatype="html">
         <source>Search types</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">20</context>
+          <context context-type="linenumber">21</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.summary" datatype="html">
         <source><x id="INTERPOLATION" equiv-text="{{ count(d.totalRows) // i18n(ph: &quot;types&quot;) }}"/> types · <x id="INTERPOLATION_1" equiv-text="{{ count(d.totalCount) // i18n(ph: &quot;objects&quot;) }}"/> objects · <x id="INTERPOLATION_2" equiv-text="{{ bytes(d.totalBytes) // i18n(ph: &quot;bytes&quot;) }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">21,22</context>
+          <context context-type="linenumber">22,23</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.empty" datatype="html">
         <source>No types match.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">23</context>
+          <context context-type="linenumber">24</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.rowsRegion" datatype="html">
         <source>Type rows</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">24</context>
+          <context context-type="linenumber">25</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.tableLabel" datatype="html">
         <source>Types</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">25</context>
+          <context context-type="linenumber">26</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.col.share" datatype="html">
         <source>Share</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">33,35</context>
+          <context context-type="linenumber">34,37</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.loadMore" datatype="html">
         <source>Load <x id="INTERPOLATION" equiv-text="{{ more() // i18n(ph: &quot;count&quot;) }}"/> more</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">48,49</context>
+          <context context-type="linenumber">49,50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.col.type" datatype="html">
         <source>Type</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">68</context>
+          <context context-type="linenumber">69</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.col.count" datatype="html">
         <source>Count</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">69</context>
+          <context context-type="linenumber">70</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.col.bytes" datatype="html">
         <source>Bytes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">70</context>
+          <context context-type="linenumber">71</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.col.retained" datatype="html">
         <source>Retained</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">71</context>
+          <context context-type="linenumber">72</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.instancesOf" datatype="html">
         <source>Instances of <x id="name" equiv-text="name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">89</context>
+          <context context-type="linenumber">91</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heap.title" datatype="html">
@@ -20827,63 +20827,63 @@
         <source>Sampled</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-format.ts</context>
-          <context context-type="linenumber">71</context>
+          <context context-type="linenumber">77</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.format.measurement.exact" datatype="html">
         <source>Exact</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-format.ts</context>
-          <context context-type="linenumber">71</context>
+          <context context-type="linenumber">77</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.format.measurement.sampledHelp" datatype="html">
         <source>Sampled (≈): a statistical estimate from periodic stack samples. Small values are noisy; compare shares rather than exact numbers.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-format.ts</context>
-          <context context-type="linenumber">77</context>
+          <context context-type="linenumber">83</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.format.measurement.exactHelp" datatype="html">
         <source>Exact (=): every occurrence was recorded (instrumentation or events), so the value is a count, not an estimate.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-format.ts</context>
-          <context context-type="linenumber">78</context>
+          <context context-type="linenumber">84</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.format.kind.cpu" datatype="html">
         <source>CPU</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-format.ts</context>
-          <context context-type="linenumber">95</context>
+          <context context-type="linenumber">101</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.format.kind.alloc" datatype="html">
         <source>Allocations</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-format.ts</context>
-          <context context-type="linenumber">96</context>
+          <context context-type="linenumber">102</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.format.kind.wall" datatype="html">
         <source>Wall clock</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-format.ts</context>
-          <context context-type="linenumber">97</context>
+          <context context-type="linenumber">103</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.format.kind.mixed" datatype="html">
         <source>Mixed</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-format.ts</context>
-          <context context-type="linenumber">98</context>
+          <context context-type="linenumber">104</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.format.kind.heap" datatype="html">
         <source>Heap snapshot</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-format.ts</context>
-          <context context-type="linenumber">102</context>
+          <context context-type="linenumber">108</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.measurement.srSampled" datatype="html">
@@ -27271,11 +27271,11 @@
         <source><x id="INTERPOLATION" equiv-text="{{ fmt(store.matchTotal()!) }}"/> matching</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">18,19</context>
+          <context context-type="linenumber">18,20</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.instances" datatype="html">
-        <source><x id="INTERPOLATION" equiv-text="{{ store.instanceCount() }}"/> instances</source>
+        <source><x id="INTERPOLATION" equiv-text="{{ fmt(store.instanceCount()) }}"/> instances</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
           <context context-type="linenumber">20,21</context>
@@ -27292,7 +27292,7 @@
         <source><x id="INTERPOLATION" equiv-text="{{ fmt(s.dropped) }}"/> dropped by pipeline</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">22,23</context>
+          <context context-type="linenumber">22,24</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.group" datatype="html">
@@ -27408,10 +27408,10 @@
         </context-group>
       </trans-unit>
       <trans-unit id="shell.titleBar.indexed" datatype="html">
-        <source>Indexed · <x id="INTERPOLATION" equiv-text="{{ seconds(s.loadMs) }}"/> s</source>
+        <source>Indexed · <x id="INTERPOLATION" equiv-text="{{ loadTime(s.loadMs) }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/title-bar.ts</context>
-          <context context-type="linenumber">37,38</context>
+          <context context-type="linenumber">37,39</context>
         </context-group>
       </trans-unit>
       <trans-unit id="skew.dialog.intro" datatype="html">
@@ -30510,91 +30510,98 @@
         <source>Process</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-charts-model.ts</context>
-          <context context-type="linenumber">28</context>
+          <context context-type="linenumber">29</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.group.dotnet" datatype="html">
         <source>.NET runtime</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-charts-model.ts</context>
-          <context context-type="linenumber">29</context>
+          <context context-type="linenumber">30</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.metric.cpu" datatype="html">
         <source>CPU</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-charts-model.ts</context>
-          <context context-type="linenumber">43</context>
+          <context context-type="linenumber">44</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.metric.workingSet" datatype="html">
         <source>Working set</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-charts-model.ts</context>
-          <context context-type="linenumber">44</context>
+          <context context-type="linenumber">45</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.metric.privateBytes" datatype="html">
         <source>Private bytes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-charts-model.ts</context>
-          <context context-type="linenumber">45</context>
+          <context context-type="linenumber">46</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.metric.handles" datatype="html">
         <source>Handles</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-charts-model.ts</context>
-          <context context-type="linenumber">46</context>
+          <context context-type="linenumber">47</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.metric.threads" datatype="html">
         <source>Threads</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-charts-model.ts</context>
-          <context context-type="linenumber">47</context>
+          <context context-type="linenumber">48</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.metric.ioRead" datatype="html">
         <source>IO read</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-charts-model.ts</context>
-          <context context-type="linenumber">48</context>
+          <context context-type="linenumber">49</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.metric.ioWrite" datatype="html">
         <source>IO write</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-charts-model.ts</context>
-          <context context-type="linenumber">49</context>
+          <context context-type="linenumber">50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.metric.gcHeap" datatype="html">
         <source>GC heap</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-charts-model.ts</context>
-          <context context-type="linenumber">50</context>
+          <context context-type="linenumber">51</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.metric.timeInGc" datatype="html">
         <source>% time in GC</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-charts-model.ts</context>
-          <context context-type="linenumber">51</context>
+          <context context-type="linenumber">52</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.metric.exceptions" datatype="html">
         <source>Exceptions</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-charts-model.ts</context>
-          <context context-type="linenumber">52</context>
+          <context context-type="linenumber">53</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.metric.lockContention" datatype="html">
         <source>Lock contention</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-charts-model.ts</context>
-          <context context-type="linenumber">53</context>
+          <context context-type="linenumber">54</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="tools.monitor.noRate" datatype="html">
+        <source>0 bytes/s</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/tools/monitor/monitor-charts-model.ts</context>
+          <context context-type="linenumber">129</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.live" datatype="html">
@@ -30665,7 +30672,7 @@
         <source> No samples in the last <x id="INTERPOLATION" equiv-text="{{ store.windowMin() }}"/> minutes yet. They appear here as the monitor writes them. </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-live-charts.ts</context>
-          <context context-type="linenumber">64,65</context>
+          <context context-type="linenumber">64,66</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.live.notRecorded" datatype="html">
@@ -30721,14 +30728,14 @@
         <source><x id="title" equiv-text="title"/> (<x id="unit" equiv-text="unit"/>), last <x id="minutes" equiv-text="minutes"/> minutes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-live-charts.ts</context>
-          <context context-type="linenumber">141</context>
+          <context context-type="linenumber">143</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.live.chart" datatype="html">
         <source><x id="title" equiv-text="title"/>, last <x id="minutes" equiv-text="minutes"/> minutes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-live-charts.ts</context>
-          <context context-type="linenumber">142</context>
+          <context context-type="linenumber">144</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.problem.badPid" datatype="html">

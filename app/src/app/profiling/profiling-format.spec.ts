@@ -5,6 +5,7 @@ import {
   combineMeasurements,
   formatBytes,
   formatDelta,
+  formatExactDelta,
   formatMetric,
   formatNs,
   formatPct,
@@ -145,5 +146,13 @@ describe('profiling-format', () => {
     expect(shortName('A.B')).toBe('A.B');
     expect(shortName('main')).toBe('main');
     expect(shortName('libc.so!malloc')).toBe('malloc');
+  });
+});
+
+describe('exact byte tooltips', () => {
+  it('writes signed exact deltas', () => {
+    expect(formatExactDelta(4096)).toBe('+4,096 bytes');
+    expect(formatExactDelta(-1)).toBe('−1 byte');
+    expect(formatExactDelta(0)).toBe('0 bytes');
   });
 });

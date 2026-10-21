@@ -1,7 +1,7 @@
 import { CaptureSummary, HeapSummary, Measurement, MetricDto, MetricId, MetricUnit, ProfileSummary } from '../core/api.types';
 import { formatCount } from '../core/format';
 import { localizeDecimal } from '../i18n/locale';
-import { formatBytes } from '../shared/format/units';
+import { formatBytes, formatExactBytes } from '../shared/format/units';
 
 export { formatBytes };
 
@@ -60,6 +60,12 @@ export function formatPp(pp: number): string {
 export function formatDelta(value: number, unit: 'bytes' | 'count'): string {
   const sign = value > 0 ? '+' : value < 0 ? '−' : '';
   return sign + (unit === 'bytes' ? formatBytes(Math.abs(value)) : formatCount(Math.abs(value)));
+}
+
+/** The exact signed byte delta for a tooltip: "+4,096 bytes". */
+export function formatExactDelta(value: number): string {
+  const sign = value > 0 ? '+' : value < 0 ? '−' : '';
+  return sign + formatExactBytes(Math.abs(value));
 }
 
 /** The short glyph shown next to a value: ≈ for estimates, = for exact counts. */

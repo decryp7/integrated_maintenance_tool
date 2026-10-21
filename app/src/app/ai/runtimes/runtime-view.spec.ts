@@ -81,7 +81,7 @@ describe('runtime view helpers', () => {
     expect(entryStateLabel(entry({ installed: true }))).toBe('Installed');
     expect(
       deviceLine({ name: 'CUDA0', description: 'RTX 4060', totalMib: 8192, freeMib: 7577 }),
-    ).toBe('RTX 4060 (CUDA0, 7.4 of 8.0 GB free)');
+    ).toBe('RTX 4060 (CUDA0, 7.4 GB of 8 GB free)');
   });
 
   it('offers the suggested build first while nothing usable is installed', () => {

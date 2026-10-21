@@ -1,4 +1,4 @@
-import { formatBytes, formatRelativeTime } from '../shared/format/units';
+import { formatBytes, formatExactBytes, formatRelativeTime } from '../shared/format/units';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { DeletedFiles, LiveOptions, MAX_DETECT_EVERY_MS, TailFileStatus, WatchPreference } from '../core/api.types';
 import { formatCount } from '../core/format';
@@ -79,7 +79,7 @@ export function parseLimit(text: string): number | null {
         <span i18n="@@live.tailStatus.totalFiles"><strong>{{ st.totals.files }}</strong> files</span>
         <span i18n="@@live.tailStatus.totalTailing"><strong>{{ st.totals.tailing }}</strong> tailing</span>
         @if (st.totals.errors) { <span class="bad" i18n="@@live.tailStatus.totalErrors"><strong>{{ st.totals.errors }}</strong> with errors</span> }
-        <span>{{ bytes(st.totals.bytes) }}</span>
+        <span [title]="exact(st.totals.bytes)">{{ bytes(st.totals.bytes) }}</span>
         <span i18n="@@live.tailStatus.totalRate"><strong>{{ rate(st.totals.linesPerSec) }}</strong> lines/s</span>
         <span i18n="@@live.tailStatus.totalEvents">{{ count(st.totals.records) }} events</span>
         <span title="Events removed by the retention limit since the workspace was opened" i18n-title="@@live.tailStatus.evictedTitle" i18n="@@live.tailStatus.totalEvicted">{{ count(st.totals.evicted) }} evicted</span>
@@ -98,7 +98,7 @@ export function parseLimit(text: string): number | null {
                 <td class="mono" [title]="f.path">{{ f.name }}</td>
                 <td class="mono faint" [title]="f.group">{{ shortGroup(f) }}</td>
                 <td>{{ modeLabel(f) }}</td>
-                <td class="mono r">{{ bytes(f.offset) }} / {{ bytes(f.size) }}</td>
+                <td class="mono r" [title]="exact(f.offset) + ' / ' + exact(f.size)">{{ bytes(f.offset) }} / {{ bytes(f.size) }}</td>
                 <td class="mono r">{{ rate(f.linesPerSec) }}</td>
                 <td class="nowrap">{{ ago(f.lastEvent) }}</td>
                 <td [title]="hint(f)"><span class="state" [class]="f.state.kind">{{ label(f) }}</span>@if (f.state.kind === 'error') { <span class="err-msg">{{ errorOf(f) }}</span> }</td>
@@ -151,6 +151,7 @@ export class TailStatusView {
   protected readonly maxDetect = MAX_DETECT_EVERY_MS;
   protected readonly count = formatCount;
   protected readonly bytes = formatBytes;
+  protected readonly exact = formatExactBytes;
   protected readonly label = (f: TailFileStatus) => stateLabel(f.state);
   protected readonly hint = (f: TailFileStatus) => stateHint(f.state);
 
