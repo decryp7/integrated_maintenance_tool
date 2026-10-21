@@ -90,8 +90,8 @@ impl UpdateError {
             UpdateError::InvalidManifest { .. } => "The update information from the server is invalid, so IMT ignored it.".into(),
             UpdateError::SignatureInvalid { .. } => "The update's signature is not valid, so IMT refused to install it.".into(),
             UpdateError::TooLarge { limit } => format!(
-                "The update is larger than {} MB, so IMT did not download it.",
-                limit / (1024 * 1024)
+                "The update is larger than {}, so IMT did not download it.",
+                imt_plugin_api::units::bytes(*limit)
             ),
             UpdateError::DiskFull => "There is not enough disk space to install the update.".into(),
             UpdateError::InstallFailed { .. } => "The update could not be installed.".into(),

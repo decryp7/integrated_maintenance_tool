@@ -249,13 +249,16 @@ pub async fn storage_clear<R: Runtime>(app: AppHandle<R>, op: OpId, ids: Vec<Str
     )
 }
 
-/// "Freed 12.4 MB; 3 items stayed": the line the job's message shows.
+/// "Freed 12 MB; 3 items stayed": the line the job's message shows.
 fn cleared_line(freed: u64, skipped: u64) -> String {
-    let mb = freed as f64 / (1024.0 * 1024.0);
+    let freed = imt_plugin_api::units::bytes(freed);
     match skipped {
-        0 => format!("Freed {mb:.1} MB."),
-        1 => format!("Freed {mb:.1} MB; 1 item stayed (in use or not allowed)."),
-        n => format!("Freed {mb:.1} MB; {n} items stayed (in use or not allowed)."),
+        0 => format!("Freed {freed}."),
+        1 => format!("Freed {freed}; 1 item stayed (in use or not allowed)."),
+        n => format!(
+            "Freed {freed}; {} items stayed (in use or not allowed).",
+            imt_plugin_api::units::count(n)
+        ),
     }
 }
 

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { setActiveLocale, SOURCE_LOCALE } from '../../i18n/locale';
 import {
@@ -215,5 +216,20 @@ describe('TransferMeter', () => {
     m.sample(MB, 3000);
     m.reset();
     expect(m.rate).toBe(0);
+  });
+});
+
+describe('the table shared with Rust (imt-plugin-api units)', () => {
+  const table = JSON.parse(readFileSync('../crates/imt-plugin-api/units-cases.json', 'utf8')) as Record<string, { in: unknown; out: string }[]>;
+  const each = (key: string, f: (v: never) => string) => {
+    expect((table[key] ?? []).length).toBeGreaterThan(0);
+    for (const c of table[key] ?? []) expect(f(c.in as never), ).toBe(c.out);
+  };
+
+  it('formats every case exactly as the Rust side does', () => {
+    each('bytes', (v: number) => formatBytes(v));
+    each('durationMs', (v: number) => formatDuration(v));
+    each('count', (v: number) => formatCount(v));
+    each('percent', (v: [number, number]) => formatPercent(v[0], v[1]));
   });
 });

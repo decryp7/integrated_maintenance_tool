@@ -1,3 +1,4 @@
+import { formatCount } from '../../shared/format/units';
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { plural } from '../../i18n/locale';
 import { toAiError } from '../ai-backend';
@@ -66,7 +67,7 @@ const APPLY: Record<Proposal['kind'], string> = {
         }
         @case ('pipeline') {
           @if (pipeline(); as r) {
-            <p class="facts" i18n="@@ai.proposalCard.pipeline.facts">On {{ r.sampleTotal }} sample events: keeps {{ r.kept }}, drops {{ r.dropped }}, changes {{ r.changed }}</p>
+            <p class="facts" i18n="@@ai.proposalCard.pipeline.facts">On {{ fmt(r.sampleTotal) }} sample events: keeps {{ fmt(r.kept) }}, drops {{ fmt(r.dropped) }}, changes {{ fmt(r.changed) }}</p>
             <ul class="steps">@for (s of r.steps; track s.index) {<li><span class="mono">{{ s.step }}</span> <span class="muted">{{ s.input }} → {{ s.output }}</span></li>}</ul>
             @for (ex of r.examples.slice(0, 3); track $index) {
               <p class="example mono"><span class="before">{{ ex.before }}</span> → <span>{{ ex.after }}</span></p>
@@ -134,6 +135,7 @@ const APPLY: Record<Proposal['kind'], string> = {
   `,
 })
 export class AiProposalCard {
+  protected readonly fmt = formatCount;
   private readonly applier = inject(ProposalApply);
   readonly proposal = input.required<Proposal>();
   readonly state = input<'open' | 'applied' | 'dismissed'>('open');

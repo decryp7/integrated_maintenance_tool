@@ -29,6 +29,7 @@ pub mod settings;
 pub mod text;
 pub mod time;
 pub mod tools;
+pub mod units;
 pub mod user_regex;
 
 pub use importer::{BinaryImporter, ImportCtx, Imported, TextImporter};

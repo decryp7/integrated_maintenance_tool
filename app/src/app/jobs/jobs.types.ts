@@ -23,12 +23,17 @@ export interface JobSource {
   link: JobLink | null;
 }
 
+/** What `done` and `total` count: bytes are shown as sizes with speed and time left, items as plain numbers. */
+export type ProgressUnit = 'items' | 'bytes';
+
 export interface JobProgress {
   /** 0..1. */
   fraction: number | null;
   done: number | null;
   total: number | null;
   etaMs: number | null;
+  /** What done and total count. */
+  unit: ProgressUnit;
 }
 
 /** Where a finished job's result is (`jobs_result`). */

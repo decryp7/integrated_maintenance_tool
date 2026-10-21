@@ -1,3 +1,4 @@
+import { formatCount } from '../shared/format/units';
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { formatDateTime, formatDuration } from '../core/format';
 import { UiPrefsStore } from '../core/workspace/ui-prefs.store';
@@ -23,7 +24,7 @@ import { MarkerHover } from './timeline-lanes';
         <div class="tip-head">
           <imt-marker-glyph [kind]="h.marker.cluster.kind" [size]="18" />
           <strong>{{ h.marker.label }}</strong>
-          <span class="faint" i18n="@@timeline.tip.count">{h.marker.cluster.count, plural, =1 {1 event} other {{{ h.marker.cluster.count }} events in this interval}}</span>
+          <span class="faint" i18n="@@timeline.tip.count">{h.marker.cluster.count, plural, =1 {1 event} other {{{ fmt(h.marker.cluster.count) // i18n(ph: "count") }} events in this interval}}</span>
           <span class="spacer"></span>
           <span class="mono faint">{{ time(h.marker.cluster.ts) }}</span>
         </div>
@@ -91,6 +92,7 @@ import { MarkerHover } from './timeline-lanes';
   `,
 })
 export class TimelineTooltips {
+  protected readonly fmt = formatCount;
   readonly marker = input<MarkerHover | null>(null);
   readonly run = input<RunHover | null>(null);
   readonly annotation = input<AnnotationHover | null>(null);

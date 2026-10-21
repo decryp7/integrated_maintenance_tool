@@ -18,7 +18,7 @@ function queuedJob(sessionId: string, position: number | null, state: JobInfo['s
     title: 'Chat turn',
     source: { window: 'main', link: { type: 'chat', sessionId } },
     state,
-    progress: { fraction: null, done: null, total: null, etaMs: null },
+    progress: { fraction: null, done: null, total: null, etaMs: null, unit: 'items' },
     message: null,
     queuedAt: 0,
     startedAt: null,

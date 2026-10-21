@@ -1,3 +1,4 @@
+import { formatCount } from '../../shared/format/units';
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, signal, untracked, viewChild } from '@angular/core';
 import { ProfileEventDto, ProfileEventKind, ThreadLane, ThreadTimeline } from '../../core/api.types';
 import { formatDateTime } from '../../core/format';
@@ -110,7 +111,7 @@ interface EventVm {
               }
               @if (brush(); as b) { <div class="brush" [style.left.px]="b.min" [style.width.px]="b.max - b.min"></div> }
             </div>
-            @if (t.eventsTruncated) { <div class="notice" role="status" i18n="@@profiling.threads.truncated">Only the first {{ maxEvents }} events are shown; narrow the range for the rest.</div> }
+            @if (t.eventsTruncated) { <div class="notice" role="status" i18n="@@profiling.threads.truncated">Only the first {{ fmt(maxEvents) }} events are shown; narrow the range for the rest.</div> }
             <details class="events">
               <summary i18n="@@profiling.threads.eventsInView">Events in view ({{ t.events.length }})</summary>
               <table class="grid">
@@ -162,6 +163,7 @@ interface EventVm {
   ],
 })
 export class ThreadTimelineView {
+  protected readonly fmt = formatCount;
   protected readonly active = inject(ActiveProfile);
   protected readonly state = inject(ProfileViewState);
   private readonly backend = inject(ProfilingBackend);

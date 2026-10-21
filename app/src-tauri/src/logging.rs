@@ -131,8 +131,8 @@ impl FileSink {
                 log::Level::Warn,
                 "imt_app_lib::logging",
                 &format!(
-                    "The log reached its daily limit of {} MB; only errors are written until tomorrow",
-                    self.max_bytes / (1024 * 1024)
+                    "The log reached its daily limit of {}; only errors are written until tomorrow",
+                    imt_plugin_api::units::bytes(self.max_bytes)
                 ),
                 Map::new(),
                 &crate::clef::Enrichment::current(),

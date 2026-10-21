@@ -1,3 +1,4 @@
+import { formatCount } from '../../shared/format/units';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, linkedSignal, signal, untracked } from '@angular/core';
 import { DiffSort, FlameGraph, FunctionDiffPage, FunctionDiffRow } from '../../core/api.types';
 import { AnalysisState } from '../../analysis/analysis-state';
@@ -75,7 +76,7 @@ const STATUS_LABEL = {
                 </select>
               </label>
               <input type="search" placeholder="Search…" i18n-placeholder="@@profiling.compare.searchPlaceholder" aria-label="Search changes" i18n-aria-label="@@profiling.compare.searchLabel" (input)="onSearch($event)" />
-              @if (diff.data(); as d) { <span class="muted" i18n="@@profiling.compare.summary">{{ d.totalRows // i18n(ph: "count") }} functions · baseline {{ value(d.baselineTotal) // i18n(ph: "baseline") }} · target {{ value(d.targetTotal) // i18n(ph: "target") }}</span> }
+              @if (diff.data(); as d) { <span class="muted" i18n="@@profiling.compare.summary">{{ fmt(d.totalRows) // i18n(ph: "count") }} functions · baseline {{ value(d.baselineTotal) // i18n(ph: "baseline") }} · target {{ value(d.targetTotal) // i18n(ph: "target") }}</span> }
             </div>
             <imt-analysis-state [loading]="diff.loading()" [error]="diff.error()" [hasData]="!!diff.data()" [empty]="diff.data()?.totalRows === 0" emptyText="No functions match." i18n-emptyText="@@profiling.compare.noMatch" (retry)="diff.retry()">
               <div class="body tight" tabindex="0" role="region" aria-label="Function change rows" i18n-aria-label="@@profiling.compare.rowsRegion">
@@ -127,6 +128,7 @@ const STATUS_LABEL = {
   ],
 })
 export class CompareView {
+  protected readonly fmt = formatCount;
   protected readonly active = inject(ActiveProfile);
   protected readonly state = inject(ProfileViewState);
   private readonly captures = inject(CapturesStore);

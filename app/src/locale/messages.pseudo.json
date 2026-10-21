@@ -1484,6 +1484,7 @@
     "jobs.link.event": "⟦ééṽééñţ {$id}⟧",
     "jobs.link.query": "⟦ǫûûééŕý {$ql}⟧",
     "jobs.link.range": "⟦áá ţîîɱéé ŕáñĝéé⟧",
+    "jobs.panel.bytesOf": "⟦{$done} ööƒ {$total}⟧",
     "jobs.panel.cancel": "⟦Çááñçééļ⟧",
     "jobs.panel.cancelLabel": "⟦Çááñçééļ {$job}⟧",
     "jobs.panel.clear": "⟦Çļééááŕ ƒîîñîšĥééð⟧",
