@@ -371,6 +371,8 @@ export interface Query {
   text: string;
   regex: boolean;
   caseSensitive: boolean;
+  /** How a plain `text` matches (smart search); absent = `substring`. A regex or case-sensitive search is a substring search. */
+  textMode?: TextMode;
   filters: FieldFilter[];
   /** Fields forming the instance key; empty = WorkspaceSummary.defaultGroupBy. */
   groupBy: string[];
@@ -384,6 +386,23 @@ export interface Query {
   window?: TimeWindow | null;
   /** Only events from these source ids (`SourceInfo.id`); absent or empty = all sources. Unknown ids match nothing. */
   sources?: number[];
+}
+
+/**
+ * How the search box text matches (Rust `query::TextMode`): `words` = every word, the last a prefix, answered from the
+ * full-text index; `wordsOrSubstring` = also the text inside words (after `search_partial` found such partial matches).
+ */
+export type TextMode = 'substring' | 'words' | 'wordsOrSubstring';
+
+/** How a row matched a smart search (Rust `ports::SearchMatch`). */
+export type SearchMatch = 'words' | 'partial';
+
+/** `search_partial({ query })` → the events holding the text only as a substring (Rust `ports::PartialMatches`); null when cancelled. */
+export interface PartialMatches {
+  /** "N more partial matches". */
+  added: number;
+  /** False when a limit stopped the scan. */
+  complete: boolean;
 }
 
 /**
@@ -425,6 +444,8 @@ export interface RecordView {
   group: string;
   /** Marker kinds, highest priority first. */
   markers: string[];
+  /** Set on pages of a smart search: a word match or a partial (substring) match. */
+  searchMatch?: SearchMatch;
 }
 
 export interface Page {

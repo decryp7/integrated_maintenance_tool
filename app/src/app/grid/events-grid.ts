@@ -175,7 +175,7 @@ export type GridRowVm = RowVm | PlaceholderVm;
               @for (c of v.cells; track c.column) {
                 <span class="mono extra ellipsis" role="gridcell" [title]="c.text">{{ c.text }}</span>
               }
-              <span class="msg ellipsis" role="gridcell">{{ v.row.message }}</span>
+              <span class="msg ellipsis" role="gridcell">@if (v.row.searchMatch === 'partial') {<span class="partial" data-testid="partial-match" title="Partial match: the search text appears inside a word" i18n-title="@@grid.partialMatchTitle" i18n="@@grid.partialMatch">partial</span>}{{ v.row.message }}</span>
             </div>
           } @else {
             <div class="row placeholder" role="row" [attr.aria-rowindex]="v.index + 2" [style.top.px]="v.y"><span role="gridcell" class="skeleton" aria-label="Loading" i18n-aria-label="@@grid.loading"></span></div>
@@ -234,6 +234,7 @@ export type GridRowVm = RowVm | PlaceholderVm;
     .mk { display: flex; justify-content: center; }
     .time { font-size: var(--fs-sm); color: var(--muted); white-space: nowrap; }
     .time.untimed { font-style: italic; color: var(--faint); }
+    .partial { font-size: var(--fs-xs); color: var(--faint); border: 1px dashed var(--border-2); border-radius: 4px; padding: 0 4px; margin-right: 6px; }
     .lvl { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--text-2); }
     .inst, .extra { font-size: var(--fs-sm); color: var(--text-2); }
     .extra { color: var(--muted); }

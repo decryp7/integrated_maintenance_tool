@@ -20,6 +20,7 @@ import {
   LiveState,
   Page,
   PageRequest,
+  PartialMatches,
   ParsePreview,
   ParsePreviewRequest,
   PluginInfo,
@@ -438,6 +439,10 @@ export class MockBackend implements ImtBackend {
         return this.options.corruptMarkers ? { ...page, rows: page.rows.map((r) => ({ ...r, markers: undefined as never })) } : page;
       }, 20)
     );
+  }
+
+  searchPartial(query: Query): Promise<PartialMatches | null> {
+    return this.failing('searchPartial') ?? this.delay(() => this.engine.partialMatches(query), 60);
   }
 
   queryTimeline(request: TimelineRequest): Promise<Timeline> {

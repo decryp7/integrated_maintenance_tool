@@ -20,6 +20,8 @@ import {
   LiveState,
   Page,
   PageRequest,
+  PartialMatches,
+  Query,
   ParsePreview,
   ParsePreviewRequest,
   ProfileDoc,
@@ -47,6 +49,8 @@ export abstract class ImtBackend {
   abstract clearWorkspace(): Promise<WorkspaceSummary>;
   abstract reloadWorkspace(): Promise<WorkspaceSummary>;
   abstract queryPage(request: PageRequest): Promise<Page>;
+  /** The background scan of a smart search: events whose text matches only inside words; null when cancelled (a newer search cancels it). */
+  abstract searchPartial(query: Query): Promise<PartialMatches | null>;
   abstract queryTimeline(request: TimelineRequest): Promise<Timeline>;
   abstract queryFacet(request: FacetRequest): Promise<Facet>;
   abstract queryChart(request: ChartRequest): Promise<ChartData>;
@@ -126,6 +130,9 @@ export class TauriBackend extends ImtBackend {
   }
   queryPage(request: PageRequest) {
     return this.call<Page>('query_page', { request });
+  }
+  searchPartial(query: Query) {
+    return this.call<PartialMatches | null>('search_partial', { query });
   }
   queryTimeline(request: TimelineRequest) {
     return this.call<Timeline>('query_timeline', { request });

@@ -50,7 +50,8 @@ export const QueryStore = signalStore(
       setTextInput(text: string) {
         patchState(store, { textInput: text });
         clearTimeout(textTimer);
-        textTimer = setTimeout(() => setQuery({ text }), TEXT_DEBOUNCE_MS);
+        // Smart search: word matches first; the engine's background scan may add partial matches (SmartSearchStore).
+        textTimer = setTimeout(() => setQuery({ text, textMode: 'words' }), TEXT_DEBOUNCE_MS);
       },
       setRegex: (regex: boolean) => setQuery({ regex }),
       setCaseSensitive: (caseSensitive: boolean) => setQuery({ caseSensitive }),
