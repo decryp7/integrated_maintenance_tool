@@ -60,6 +60,7 @@ inputs only to the first directory, so `fuzz/corpus/` stays small (seeds copied 
 | `fuzz_perfmon_csv` | PerfMon CSV and `.nfo` importers, counter path parser |
 | `fuzz_prof_speedscope`, `fuzz_prof_folded`, `fuzz_prof_cpuprofile`, `fuzz_prof_chrome_trace`, `fuzz_prof_pprof`, `fuzz_prof_perf_script`, `fuzz_prof_nettrace`, `fuzz_prof_nettrace_heap`, `fuzz_prof_heapsnapshot` | profiling importers (`imt-plugin-profiling`, built without the plugin feature), then every view over what they produced (`imt_profile::fuzz_views`) |
 | `fuzz_dotnet_etw`, `fuzz_dotnet_ipc` | .NET capture (`imt-plugin-dotnet`, without the plugin feature): ETW event payloads through the NetTrace converter, the `.etl` process scanner and back through the nettrace importer; diagnostics IPC replies |
+| `fuzz_plugin_package` | `.imtplugin` packages (`imt-plugin-package`, ADR 0027): the bounded zip reader, layout and signature checks, `manifest.toml` and public-key parsing |
 
 CI (`.gitea/workflows/fuzz.yml`) runs every target for 5 minutes each night (and on demand
 through `workflow_dispatch`, with a configurable duration) and uploads crash inputs as the
