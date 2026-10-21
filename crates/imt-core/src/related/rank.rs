@@ -79,7 +79,7 @@ pub fn format_delta(ms: i64) -> String {
     let a = ms.unsigned_abs();
     if a < 60_000 {
         let s = a as f64 / 1000.0;
-        if a % 1000 == 0 {
+        if a.is_multiple_of(1000) {
             format!("{sign}{} s", a / 1000)
         } else {
             format!("{sign}{s:.1} s")

@@ -384,12 +384,15 @@ mod tests {
         assert_eq!(dto.captured_at.as_deref(), Some("2026-10-21 09:14:03"));
         assert_eq!(clean_name("  "), "image");
         assert_eq!(clean_name(&"n".repeat(500)).chars().count(), MAX_NAME_CHARS);
-        assert_eq!(
-            link_of(&open),
-            Some(JobLink::Path {
-                path: "/x/shot.png".into()
-            })
-            .filter(|_| Path::new("/x/shot.png").is_absolute())
-        );
+        if Path::new("/x/shot.png").is_absolute() {
+            assert_eq!(
+                link_of(&open),
+                Some(JobLink::Path {
+                    path: "/x/shot.png".into()
+                })
+            );
+        } else {
+            assert_eq!(link_of(&open), None);
+        }
     }
 }

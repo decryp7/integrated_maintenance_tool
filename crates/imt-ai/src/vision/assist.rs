@@ -296,7 +296,8 @@ mod tests {
     fn vision_survives_shared_providers() {
         // Regression: the forwarding impls for `Arc` and `&` must pass `vision` on (they once reported false).
         let shared: std::sync::Arc<dyn LlmProvider> = std::sync::Arc::new(ScriptedProvider::new(vec![Reply::Text(facts())]).with_vision());
-        assert!(shared.vision() && (&shared).vision());
+        let by_ref: &dyn LlmProvider = &&shared;
+        assert!(shared.vision() && by_ref.vision());
         let a = Assistant::new(shared, AssistantConfig::default());
         assert!(a.read_screen(&image()).is_ok());
     }

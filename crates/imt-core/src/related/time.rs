@@ -185,9 +185,7 @@ pub fn machine_offset(machines: &[String], sources: &[SourceInfo]) -> Option<(St
         let hit = sources.iter().find(|s| {
             s.offset_ms != 0
                 && [&s.name, &s.path, &s.group].iter().any(|t| {
-                    words(t).iter().any(|w| *w == m)
-                        || t.to_lowercase().contains(&format!("{m}."))
-                        || t.to_lowercase().contains(&format!("{m}/"))
+                    words(t).contains(&m) || t.to_lowercase().contains(&format!("{m}.")) || t.to_lowercase().contains(&format!("{m}/"))
                 })
         });
         if let Some(s) = hit {

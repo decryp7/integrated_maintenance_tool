@@ -118,7 +118,7 @@ pub enum AiOutcome {
     Narrative(Narrative),
     Proposal(Proposal),
     Folder(FolderRefinement),
-    Related(imt_ai::vision::RelatedOutcome),
+    Related(Box<imt_ai::vision::RelatedOutcome>),
 }
 
 impl AiOutcome {
@@ -132,7 +132,9 @@ impl AiOutcome {
                 }
                 JobResult::Proposal { proposal }
             }),
-            AiOutcome::Related(r) => serde_json::to_value(r).ok().map(|result| JobResult::RelatedLogs { result }),
+            AiOutcome::Related(r) => serde_json::to_value(r.as_ref())
+                .ok()
+                .map(|result| JobResult::RelatedLogs { result }),
         };
         v
     }
@@ -383,7 +385,7 @@ fn use_case_work(
                     AiRequest::ExplainImage { question, .. } => {
                         super::vision::explain(&assistant, &img, question.as_deref()).map(AiOutcome::Narrative)
                     }
-                    _ => super::vision::related(&assistant, &win, &img, ctx).map(AiOutcome::Related),
+                    _ => super::vision::related(&assistant, &win, &img, ctx).map(|o| AiOutcome::Related(Box::new(o))),
                 };
             }
             let base = win.profile_doc().toml;
