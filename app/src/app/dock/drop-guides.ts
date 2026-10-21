@@ -1,5 +1,6 @@
 import { compassCells, edgeCells, GuideCell, hitGuide, Point, previewRect, Rect } from './dock-geometry';
 import { DRAG_THRESHOLD } from './dock-target';
+import { isFloatingMovePress } from './floating-move';
 
 const ARROWS: Record<string, string> = { center: '', left: '◀', right: '▶', top: '▲', bottom: '▼' };
 /** Where a panel or group drag starts: a tab or a group's header. */
@@ -48,7 +49,8 @@ export class DropGuides {
 
   private readonly onDown = (e: PointerEvent): void => {
     const t = e.target as Element | null;
-    this.pressed = e.button === 0 && t?.closest?.(DRAG_SOURCES) ? { x: e.clientX, y: e.clientY } : null;
+    // Moving a floating window docks nothing: no guides.
+    this.pressed = e.button === 0 && t?.closest?.(DRAG_SOURCES) && !isFloatingMovePress(e, t) ? { x: e.clientX, y: e.clientY } : null;
   };
 
   private readonly onMove = (e: PointerEvent): void => {
