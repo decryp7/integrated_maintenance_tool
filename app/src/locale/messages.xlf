@@ -1908,7 +1908,7 @@
         <source>Save</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/knowledge/knowledge-editor.ts</context>
-          <context context-type="linenumber">53,57</context>
+          <context context-type="linenumber">53,56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.knowledge.editor.placeholder" datatype="html">
@@ -2009,7 +2009,7 @@
         <source>No knowledge files yet.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
-          <context context-type="linenumber">72,75</context>
+          <context context-type="linenumber">72,74</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.knowledge.scope.project" datatype="html">
@@ -6666,7 +6666,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="browser.inspector.researchTitle" datatype="html">
-        <source>The AI searches the web, reads the top results (read-only) and answers in the chat with citations</source>
+        <source>The AI searches the web, picks and reads the results (read-only) and answers in the chat with citations</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
           <context context-type="linenumber">73</context>
@@ -6693,22 +6693,22 @@
           <context context-type="linenumber">76,77</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="browser.inspector.results3" datatype="html">
-        <source>3 results</source>
+      <trans-unit id="browser.inspector.results10" datatype="html">
+        <source>10 results</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
           <context context-type="linenumber">77,78</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="browser.inspector.results5" datatype="html">
-        <source>5 results</source>
+      <trans-unit id="browser.inspector.results20" datatype="html">
+        <source>20 results</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
           <context context-type="linenumber">78,79</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="browser.inspector.results10" datatype="html">
-        <source>10 results</source>
+      <trans-unit id="browser.inspector.results30" datatype="html">
+        <source>30 results</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
           <context context-type="linenumber">79,82</context>
@@ -6812,22 +6812,22 @@
           <context context-type="linenumber">34,35</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="browser.researchDialog.results3" datatype="html">
-        <source>3</source>
+      <trans-unit id="browser.researchDialog.results10" datatype="html">
+        <source>10</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
           <context context-type="linenumber">35,36</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="browser.researchDialog.results5" datatype="html">
-        <source>5</source>
+      <trans-unit id="browser.researchDialog.results20" datatype="html">
+        <source>20</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
           <context context-type="linenumber">36,37</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="browser.researchDialog.results10" datatype="html">
-        <source>10</source>
+      <trans-unit id="browser.researchDialog.results30" datatype="html">
+        <source>30</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
           <context context-type="linenumber">37,39</context>
@@ -12481,7 +12481,7 @@
         <source>Properties</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/inspector/inspector.ts</context>
-          <context context-type="linenumber">84,86</context>
+          <context context-type="linenumber">84,85</context>
         </context-group>
       </trans-unit>
       <trans-unit id="inspector.prop.only" datatype="html">
@@ -12509,7 +12509,7 @@
         <source>No properties.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/inspector/inspector.ts</context>
-          <context context-type="linenumber">97,101</context>
+          <context context-type="linenumber">97,100</context>
         </context-group>
       </trans-unit>
       <trans-unit id="inspector.exception" datatype="html">
@@ -26637,7 +26637,7 @@
         <source>No settings match “<x id="INTERPOLATION" equiv-text="{{ store.query() }}"/>”.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">95,97</context>
+          <context context-type="linenumber">95,96</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.general.desc" datatype="html">
@@ -26658,7 +26658,7 @@
         <source>Reset section</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">115,118</context>
+          <context context-type="linenumber">115,117</context>
         </context-group>
       </trans-unit>
       <trans-unit id="3868108601110605590" datatype="html">

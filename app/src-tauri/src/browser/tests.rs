@@ -194,7 +194,7 @@ fn agent_actions_reach_the_activity_log_without_page_or_typed_text() {
 }
 
 #[test]
-fn research_settings_default_to_automatic_with_five_results_and_are_validated() {
+fn research_settings_default_to_automatic_with_ten_results_and_are_validated() {
     use imt_core::settings::{sanitize, Configurable};
     let hub = std::sync::Arc::new(BrowserHub::default());
     let section = super::settings_section::BrowserSection { hub: hub.clone() };
@@ -202,17 +202,20 @@ fn research_settings_default_to_automatic_with_five_results_and_are_validated() 
     let values = |v: Value| sanitize(&schema, &v).0;
     section.apply_settings(&values(json!({}))).unwrap();
     let r = hub.settings().research;
-    assert_eq!((r.auto, r.max_results), (true, 5));
+    assert_eq!((r.auto, r.max_results), (true, 10));
     section
-        .apply_settings(&values(json!({"autoResearch": false, "researchResults": 3})))
+        .apply_settings(&values(json!({"autoResearch": false, "researchResults": "30"})))
         .unwrap();
     let r = hub.settings().research;
-    assert_eq!((r.auto, r.max_results), (false, 3));
-    // Out of range: the settings service refuses the value and the default applies.
-    section.apply_settings(&values(json!({"researchResults": 30}))).unwrap();
-    assert_eq!(hub.settings().research.max_results, 5);
+    assert_eq!((r.auto, r.max_results), (false, 30));
+    // Not one of the choices: the settings service refuses the value and the default applies.
+    section.apply_settings(&values(json!({"researchResults": "3"}))).unwrap();
+    assert_eq!(hub.settings().research.max_results, 10);
     let field = schema.fields.iter().find(|f| f.key == "researchResults").expect("the field");
-    assert!(matches!(field.kind, imt_core::settings::FieldKind::Int { min: 1, max: 10, .. }));
+    let imt_core::settings::FieldKind::Enum { options } = &field.kind else {
+        panic!("a choice: {:?}", field.kind)
+    };
+    assert_eq!(options.iter().map(|o| o.value.as_str()).collect::<Vec<_>>(), ["10", "20", "30"]);
 }
 
 #[test]
@@ -230,7 +233,7 @@ fn research_stop_and_retry_need_a_research_to_act_on() {
     let mut closed = job.clone();
     closed.source.window = Some("w-9".into());
     assert!(super::research::retry(app.handle(), &closed).unwrap_err().contains("closed"));
-    assert_eq!(super::research::settings(app.handle()).max_results, 5);
+    assert_eq!(super::research::settings(app.handle()).max_results, 10);
 }
 
 #[test]

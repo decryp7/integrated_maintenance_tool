@@ -66,7 +66,7 @@ pub fn verdict(outcome: &ResultsOutcome, first: Option<&Result<String, String>>)
             Verdict::Fail,
             format!("only {} result links (at least {MIN_LINKS} expected)", l.len()),
         ),
-        ResultsOutcome::NoLinks => (Verdict::Fail, "the results page showed no result links the rules recognise".into()),
+        ResultsOutcome::NoLinks => (Verdict::Fail, "the results page showed no candidate result links".into()),
         ResultsOutcome::HandOff(kind) => (Verdict::Warn, format!("handed to the user: {}", describe(*kind))),
         ResultsOutcome::NotShown => (Verdict::Fail, "the results page never showed".into()),
     }
