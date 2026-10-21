@@ -638,3 +638,44 @@ Phase R2c ("read side") gives the DuckDB store the rest of the read ports; the a
 - Project open/export use `ProjectManifest` (`project.toml`) and `.imtz`.
 - Span rule inference: `SpanRuleRequest`, `SpanProposal { candidates: [{ description, key, exampleKeys, start, stop,
   kind, profileOverride, evaluation }], notes }`, `SpanRuleCheck`, `SpanEvaluation`.
+
+## Performance notes (perf/rust, 2026-10-21)
+
+Measured on the shared Windows VM (24 cores, other builds running: single runs vary by 2-3x, so every number
+below is from interleaved A/B runs, at least two each).
+
+- **Segment listing**: closed segments are listed together, at most once a second, by whichever parse thread
+  finds the catalog free (`writer::LIST_EVERY`). Listing each segment at once rebound the views over every
+  segment file (quadratic in segments) under the catalog lock; it was 53% of the import's on-CPU samples.
+  10M import: 72-43k events/s before, 105k events/s after (same period).
+- **Allocator**: the store worker, the app and the benches that stand for them use mimalloc as the global
+  allocator, **v2** (`features = ["v2"]`), not the crate's default v3:
+
+  | | worker, 20 copies (asserted budgets) | 10M import, in process |
+  |---|---|---|
+  | system allocator | 49-82k ev/s, peak 283-314 MB | 28-79k ev/s, peak 524-553 MB |
+  | mimalloc v2 | 58-76k ev/s, peak 443-494 MB | 92-239k ev/s, peak 518-665 MB |
+  | mimalloc v3 | 58-98k ev/s, peak 643-690 MB | 107-187k ev/s, peak 727-815 MB |
+
+  v3 imports faster but its peak exceeds the 600 MB importing budget in every run of the worker benchmark
+  (v2 stays under it); reads are about the same with either (10M read bench peak: v2 861-865 MB, v3 954 MB,
+  system 980-986 MB, all in anomaly detection). `MIMALLOC_PURGE_DELAY=0` brought v3 to 393-535 MB in two
+  runs but could not be told apart from the machine's noise in speed; revisit v3 with a programmatic purge
+  delay (`mi_option_set`, the worker clears its environment) when the VM is quiet.
+- **The app** (in-memory engine until 6c) uses the same allocator: `benches/engine.rs` import, mimalloc v2 vs
+  the system allocator, two rounds: clef +81/+83%, serilog-text +60/+98%, log4net +118/+88%, csv +175/+73%.
+- Tried and dropped (no difference beyond the VM's noise): seeded foldhash / FxHash for the per-event maps of
+  facets, timelines, charts, patterns, exception groups, QL `stats` and span pairing (criterion: changes of
+  -50% to +74% in either direction between rounds, including benchmarks that do not use those maps; the
+  store's analyses are bound by DuckDB reads); moving the JSON importer's message and template instead of
+  cloning them and reusing the batcher's field-text buffer (worker bench within noise); listing the import's
+  files' sizes and archive slots in parallel (one quiet pair 95 s vs 90 s).
+- Not changed, still hot (10M import profile, on-CPU samples of the parse threads): `serde_json::Value` maps
+  per event (parsing, `IndexMap` inserts with SipHash, dropping records: ~30%), Parquet encoding and zstd
+  (~20%), `fsync` of every closed segment on the parse thread (12%), `SegmentStats::add` (3.5%). Reads at 10M:
+  time-ordered analyses issue one statement per ~100k-event window, each rebinding the view over every segment
+  and scanning every row group's `ts` (segments overlap in time, so pruning skips little): runs 33-80 s,
+  compare 15-33 s, anomalies 10-40 s, patterns 5-25 s; anomaly detection peaks at 840-990 MB.
+- The worker benchmark (`IMT_BENCH_COPIES=20 … --test worker`) fails at `summary()` already at 2ba7e00 (DuckDB
+  out of memory at its 183 MB limit); it now prints the import line before the queries so the import is still
+  measured.

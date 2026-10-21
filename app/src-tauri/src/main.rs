@@ -1,6 +1,11 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+/// The engine allocates per event while importing and analysing; mimalloc is faster than the Windows heap
+/// there (ADR 0014 performance notes).
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 fn main() {
     imt_app_lib::run();
 }

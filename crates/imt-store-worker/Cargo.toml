@@ -25,6 +25,9 @@ imt-core = { path = "../imt-core" }
 imt-ipc = { path = "../imt-ipc" }
 imt-store-duck = { path = "../imt-store-duck" }
 log = "0.4"
+# The global allocator of the worker binary (MIT): imports and analyses allocate per event, and the
+# Windows heap was a fifth of the import profile.
+mimalloc = { version = "0.1", default-features = false, features = ["v2"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 tokio = { version = "1", default-features = false, features = ["rt", "rt-multi-thread", "sync", "macros"] }

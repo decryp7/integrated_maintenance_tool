@@ -31,6 +31,9 @@ hyper-util = { version = "0.1", default-features = false, features = ["tokio"] }
 insta = { version = "1", features = ["yaml"] }
 libc = "0.2"
 log = "0.4"
+# The global allocator of the binaries that parse and analyse (MIT): see ADR 0014's performance notes for
+# the measurements and why v2.
+mimalloc = { version = "0.1", default-features = false, features = ["v2"] }
 proptest = "1.12"
 prost = "0.14"
 protox = "0.9"

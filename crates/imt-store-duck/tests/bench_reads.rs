@@ -11,6 +11,10 @@
 
 mod common;
 
+// The store worker's allocator (`imt-store-worker`), so the numbers are the shipped ones.
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 use common::{log_samples, TempDir};
 use imt_core::api::{QueryRequest, TimelineRequest};
 use imt_core::model::Level;

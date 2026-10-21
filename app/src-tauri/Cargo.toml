@@ -41,6 +41,7 @@ serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true
 log = { workspace = true, features = ["kv"] }
+mimalloc.workspace = true
 chrono.workspace = true
 tauri = { version = "2.12.4", features = ["tray-icon", "image-png"] }
 tauri-plugin-dialog = "2"
