@@ -15,14 +15,14 @@ use super::capture::MAX_CAPTURE_CHARS;
 use super::engines::SearchSettings;
 use super::leak::{self, LeakReport};
 use super::port::{ActionEntry, ActionLog, ActionOutcome, BrowserError, PageDriver, PageReader};
-use super::snapshot::{DomSnapshot, ElementKind};
+use super::results::{self as found, PageKind, ResultsReader};
+use super::snapshot::DomSnapshot;
 use super::url::WebUrl;
 use super::{clip, quote_capped};
 use crate::assistant::{Assistant, WebSource};
 use crate::llm::{ChatMessage, LlmProvider};
 use crate::{AiError, Result};
 use serde::Serialize;
-use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
@@ -167,9 +167,31 @@ pub struct ResearchReport {
     pub answer: String,
     pub read: Vec<ReadPage>,
     pub skipped: Vec<SkippedPage>,
+    /// No results were found on the results page, and why ("Google showed no result links"); the answer says it too.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub no_results: Option<String>,
+    /// The results page, offered as "Open the results page" when nothing was found, so the user picks results.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub results_page: Option<String>,
 }
 
 impl ResearchReport {
+    /// "Open the results page" when nothing was found: a link card the user clicks to pick results by hand (the
+    /// address is the engine's search for the checked search text).
+    pub fn results_page_card(&self) -> Option<crate::chat::ChatEvent> {
+        let url = self.results_page.clone()?;
+        Some(crate::chat::ChatEvent::LinkSuggestion {
+            kind: "search".into(),
+            segments: vec![super::leak::Segment {
+                text: url.clone(),
+                leak: None,
+            }],
+            url,
+            title: "Open the results page".into(),
+            query: Some(self.query.clone()),
+        })
+    }
+
     /// The pages read, as the chat cites web sources.
     pub fn sources(&self) -> Vec<WebSource> {
         self.read
@@ -213,11 +235,16 @@ pub trait ResearchModel {
     fn extract(&self, question: &str, page: &str) -> Result<String>;
     /// The answer from the numbered notes (`[n] title: note`).
     fn answer(&self, question: &str, notes: &str) -> Result<String>;
+    /// Which of the numbered candidate links (`results::pick_prompt`, addresses and titles only) are organic
+    /// results: the raw reply, parsed by `results::parse_picks`. Asked only when the rules found none.
+    fn pick(&self, question: &str, links: &str) -> Result<String>;
 }
 
 /// The browser and the limits of one research.
 pub struct ResearchEnv<'a> {
     pub reader: &'a dyn PageReader,
+    /// The results page's links (never the 60-element snapshot).
+    pub results: &'a dyn ResultsReader,
     pub driver: &'a dyn PageDriver,
     pub search: SearchSettings,
     pub log: &'a dyn ActionLog,
@@ -268,112 +295,6 @@ fn browser_error(e: BrowserError) -> AiError {
     AiError::Engine(format!("the browser: {e}"))
 }
 
-/// The address an engine's redirect link points to (DuckDuckGo `/l/?uddg=`, Google `/url?q=`), else the link.
-fn unwrap_redirect(url: &WebUrl, engine: &super::url::Site) -> Option<WebUrl> {
-    if url.site() != *engine {
-        return Some(url.clone());
-    }
-    let path = url.url().path();
-    let key = match path {
-        "/l/" | "/l" => "uddg",
-        "/url" => "q",
-        _ => return None,
-    };
-    let target = url
-        .url()
-        .query_pairs()
-        .find(|(k, _)| k == key || (key == "q" && k == "url"))
-        .map(|(_, v)| v.into_owned())?;
-    WebUrl::parse(&target).ok().filter(|t| t.site() != *engine)
-}
-
-/// Advertising and tracking links of results pages (never research material).
-fn is_ad(url: &WebUrl) -> bool {
-    const HOSTS: &[&str] = &[
-        "doubleclick.net",
-        "googleadservices.com",
-        "googlesyndication.com",
-        "bat.bing.com",
-        "ad.atdmt.com",
-    ];
-    let site = url.site();
-    let host = site.as_str();
-    let path = url.url().path();
-    HOSTS.iter().any(|h| host == *h || host.ends_with(&format!(".{h}"))) || path.contains("/aclk") || path.ends_with("/y.js")
-}
-
-/// Whether `url` belongs to the search engine itself rather than to a result: any host of the engine's brand
-/// (`maps.google.com`, `accounts.google.com`, `www.google.de` for a `www.google.com` search) and the brand's
-/// static, cache and image hosts. A results page links to these for maps, images, sign-in and settings.
-fn is_engine_property(url: &WebUrl, engine: &super::url::Site) -> bool {
-    let host = url.site().as_str().to_ascii_lowercase();
-    let labels: Vec<&str> = engine.as_str().split('.').collect();
-    // The brand is the label before the public suffix: google (www.google.co.uk), bing, duckduckgo.
-    let brand = match labels.as_slice() {
-        [.., b, "co" | "com", _] if b.len() > 2 => *b,
-        [.., b, _] => *b,
-        _ => return false,
-    };
-    const EXTRA: &[(&str, &[&str])] = &[
-        (
-            "google",
-            &[
-                "gstatic.com",
-                "googleusercontent.com",
-                "googleapis.com",
-                "g.co",
-                "goo.gl",
-                "googleadservices.com",
-            ],
-        ),
-        ("bing", &["bing.net", "msn.com", "microsoft.com", "live.com"]),
-        ("duckduckgo", &["duck.com", "duckduckgo.co"]),
-    ];
-    let host_labels: Vec<&str> = host.split('.').collect();
-    let same_brand = host_labels.len() >= 2 && host_labels[..host_labels.len() - 1].contains(&brand);
-    let extra = EXTRA
-        .iter()
-        .filter(|(b, _)| *b == brand)
-        .flat_map(|(_, hosts)| hosts.iter())
-        .any(|h| host == *h || host.ends_with(&format!(".{h}")));
-    same_brand || extra
-}
-
-/// The result links of a search results page: web links (http(s), no private or IMT origins), with the engine's
-/// redirect links unwrapped and its own pages (any host of its brand: maps, images, accounts) and ads dropped,
-/// without duplicates, in page order, at most `max`. Only these are ever opened, each directly by its address.
-pub fn result_links(page: &DomSnapshot, search: &WebUrl, max: usize) -> Vec<(WebUrl, String)> {
-    let engine = search.site();
-    let mut seen = HashSet::new();
-    let mut out = Vec::new();
-    for e in page.elements.iter().filter(|e| e.kind == ElementKind::Link) {
-        let Some(href) = &e.href else { continue };
-        let Ok(raw) = WebUrl::parse(href) else { continue };
-        if is_ad(&raw) {
-            continue;
-        }
-        let Some(url) = unwrap_redirect(&raw, &engine) else { continue };
-        if url.is_private() || is_ad(&url) || is_engine_property(&url, &engine) {
-            continue;
-        }
-        let mut key = url.url().clone();
-        key.set_fragment(None);
-        if !seen.insert(key.to_string()) {
-            continue;
-        }
-        let title = if e.name.trim().is_empty() {
-            url.site().to_string()
-        } else {
-            clip(e.name.trim(), 200)
-        };
-        out.push((url, title));
-        if out.len() >= max {
-            break;
-        }
-    }
-    out
-}
-
 /// Runs a research (blocking): search, read the results, answer. `on_step` hears the progress.
 pub fn research(
     env: &ResearchEnv<'_>,
@@ -393,7 +314,10 @@ pub fn research(
     env.log("research.search", Some(search_url.site().to_string()), ActionOutcome::Done, 0);
     // The result links are collected once, from the results page itself (never from a page shown before it, nor
     // later from a result page); then each result is opened directly by its address.
-    let links = collect_results(env, &search_url, max)?;
+    let links = match collect_results(env, model, &question, &search_url, max)? {
+        Found::Links(links) => links,
+        Found::Nothing(why) => return Ok(nothing_found(env, req, &search_url, why)),
+    };
     let mut read: Vec<ReadPage> = Vec::new();
     let mut notes: Vec<String> = Vec::new();
     let mut skipped: Vec<SkippedPage> = Vec::new();
@@ -485,6 +409,8 @@ pub fn research(
     Ok(ResearchReport {
         query: req.query.clone(),
         answer: with_sources(answer.trim(), &read, &skipped),
+        no_results: None,
+        results_page: None,
         read,
         skipped,
     })
@@ -510,38 +436,158 @@ fn wait_for_site(env: &ResearchEnv<'_>, site: &super::url::Site) -> Result<Optio
     }
 }
 
-/// The results page's links, read once the browser shows the results page.
-fn collect_results(env: &ResearchEnv<'_>, search: &WebUrl, max: usize) -> Result<Vec<(WebUrl, String)>> {
+/// What the results page gave.
+enum Found {
+    Links(Vec<(WebUrl, String)>),
+    Nothing(NoResults),
+}
+
+/// Why research found nothing to read on the results page.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NoResults {
+    /// The results page was shown, and neither the rules nor the model found result links on it.
+    NoLinks,
+    /// A cookie or consent page came instead of the results.
+    Consent,
+    /// A human check ("unusual traffic", a CAPTCHA) came instead of the results.
+    Captcha,
+    /// The results page never showed (the browser stayed on another page).
+    NotShown,
+}
+
+impl NoResults {
+    fn reason(self, engine: &str) -> String {
+        match self {
+            NoResults::NoLinks => format!("{engine} showed no result links."),
+            NoResults::Consent => {
+                format!("The results page was a consent page of {engine}: accept or decline it in the Browser panel, then research again.")
+            }
+            NoResults::Captcha => format!(
+                "{engine} showed a human check (unusual traffic or a CAPTCHA) instead of results: it is in the Browser panel for you."
+            ),
+            NoResults::NotShown => format!("The results page of {engine} did not show in the browser."),
+        }
+    }
+
+    fn action(self) -> &'static str {
+        match self {
+            NoResults::Consent | NoResults::Captcha => "research.links.handOff",
+            _ => "research.links.none",
+        }
+    }
+}
+
+/// The engine's name for messages ("Google"; the site for a custom engine).
+fn engine_name(env: &ResearchEnv<'_>, search: &WebUrl) -> String {
+    match env.search.engine {
+        super::engines::SearchEngine::Custom => search.site().to_string(),
+        e => e.label().to_string(),
+    }
+}
+
+/// The report when nothing was found: why, and the results page to open and pick from by hand.
+fn nothing_found(env: &ResearchEnv<'_>, req: &ResearchRequest, search: &WebUrl, why: NoResults) -> ResearchReport {
+    let reason = why.reason(&engine_name(env, search));
+    let outcome = match why {
+        NoResults::Consent | NoResults::Captcha => ActionOutcome::HandedBack,
+        _ => ActionOutcome::Failed,
+    };
+    env.log(why.action(), Some(search.site().to_string()), outcome, 0);
+    log::info!("Research found no results to read: {why:?}");
+    ResearchReport {
+        query: req.query.clone(),
+        answer: format!("{reason} Open the results page to pick the results yourself."),
+        read: vec![],
+        skipped: vec![],
+        no_results: Some(reason),
+        results_page: Some(search.as_str().to_string()),
+    }
+}
+
+/// The results page's links, read once the browser shows the results page, with the results-page collector (never
+/// the snapshot): by the rules first; when they find nothing, the model picks from the candidates.
+fn collect_results(env: &ResearchEnv<'_>, model: &dyn ResearchModel, question: &str, search: &WebUrl, max: usize) -> Result<Found> {
+    let region = env.search.engine.results_region();
     let mut last_err = None;
     let mut best: Vec<(WebUrl, String)> = Vec::new();
+    let mut shown: Option<found::ResultsPage> = None;
     for i in 0..PAGE_POLLS {
         if i > 0 {
             env.wait(PAGE_POLL)?;
         }
-        match env.reader.snapshot() {
-            Ok(p) if WebUrl::parse(&p.url).is_ok_and(|u| u.site() == search.site()) => {
-                let links = result_links(&p, search, max);
+        match env.results.results_page(region) {
+            Ok(p) => {
+                last_err = None;
+                // A consent or human-check page (often on another host) is the user's to handle.
+                match found::page_kind(&p) {
+                    PageKind::Consent => return Ok(Found::Nothing(NoResults::Consent)),
+                    PageKind::Captcha => return Ok(Found::Nothing(NoResults::Captcha)),
+                    PageKind::Results => {}
+                }
+                if !WebUrl::parse(&p.url).is_ok_and(|u| u.site() == search.site()) {
+                    continue;
+                }
+                let links = found::result_links(&p, search, max);
                 // Results pages fill in after the load (a map or an answer box first, the results later): take
                 // the list once it is full, or once it stopped growing between two looks.
                 if links.len() >= max || (!links.is_empty() && links.len() == best.len()) {
-                    return Ok(links);
+                    best = links;
+                    break;
                 }
                 if links.len() > best.len() {
                     best = links;
                 }
-                last_err = None;
+                shown = Some(p);
             }
-            Ok(_) => last_err = None,
             Err(e) => last_err = Some(e),
         }
     }
     if !best.is_empty() {
-        return Ok(best);
+        env.log("research.links.rules", Some(search.site().to_string()), ActionOutcome::Done, 0);
+        log::info!("Research took {} result links from the results page by the rules", best.len());
+        return Ok(Found::Links(best));
+    }
+    if let Some(page) = shown {
+        let picked = pick_with_model(env, model, question, &page, search, max)?;
+        if picked.is_empty() {
+            return Ok(Found::Nothing(NoResults::NoLinks));
+        }
+        env.log("research.links.ai", Some(search.site().to_string()), ActionOutcome::Done, 0);
+        log::info!("Research took {} result links picked by the model", picked.len());
+        return Ok(Found::Links(picked));
     }
     match last_err {
         Some(e) => Err(browser_error(e)),
-        None => Err(AiError::NotFound("the search found no result pages to read".into())),
+        None => Ok(Found::Nothing(NoResults::NotShown)),
     }
+}
+
+/// The fallback: the model answers with the numbers of the organic results among the candidates (addresses and titles,
+/// never page text); only those addresses are used. A failed call finds nothing (Cancel still cancels).
+fn pick_with_model(
+    env: &ResearchEnv<'_>,
+    model: &dyn ResearchModel,
+    question: &str,
+    page: &found::ResultsPage,
+    search: &WebUrl,
+    max: usize,
+) -> Result<Vec<(WebUrl, String)>> {
+    let candidates = found::candidates(page, search);
+    if candidates.is_empty() || env.cancelled() {
+        return if env.cancelled() { Err(AiError::Cancelled) } else { Ok(vec![]) };
+    }
+    let reply = match model.pick(question, &found::pick_prompt(question, &candidates, max)) {
+        Ok(r) => r,
+        Err(AiError::Cancelled) => return Err(AiError::Cancelled),
+        Err(e) => {
+            log::info!("The model did not pick results: {e}");
+            return Ok(vec![]);
+        }
+    };
+    Ok(found::parse_picks(&reply, candidates.len(), max)
+        .into_iter()
+        .filter_map(|i| candidates.get(i).cloned())
+        .collect())
 }
 
 /// The answer, then which results were read and which were skipped (with why).
@@ -588,6 +634,13 @@ impl<P: LlmProvider> ResearchModel for WithModel<'_, P> {
         );
         Ok(self.0.complete(&req)?.text)
     }
+
+    fn pick(&self, _question: &str, links: &str) -> Result<String> {
+        let mut req = self.0.request(found::PICK_SYSTEM, vec![ChatMessage::user(links)]);
+        req.max_tokens = 60;
+        req.temperature = Some(0.0);
+        Ok(self.0.complete(&req)?.text)
+    }
 }
 
 #[cfg(test)]
@@ -596,8 +649,9 @@ mod tests {
     use crate::browser::capture::PageCapture;
     use crate::browser::policy::ScrollDirection;
     use crate::browser::port::MemoryLog;
+    use crate::browser::snapshot::ElementKind;
     use crate::browser::snapshot::{Element, HandOff};
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
     use std::sync::Mutex;
 
     /// A fake web: pages by address; the browser is wherever the last navigation went.
@@ -610,6 +664,8 @@ mod tests {
         /// After a navigation, this many snapshots still show the page before it (a page that is still loading).
         stale: usize,
         before: Mutex<(String, usize)>,
+        /// Results pages as the collector returns them, by address (else the page's links, none in a region).
+        results: HashMap<String, found::ResultsPage>,
     }
 
     fn link(r: u32, name: &str, href: &str) -> Element {
@@ -671,6 +727,33 @@ mod tests {
         }
     }
 
+    impl ResultsReader for FakeWeb {
+        fn results_page(&self, _region: &[&str]) -> std::result::Result<found::ResultsPage, BrowserError> {
+            let snap = self.snapshot()?;
+            if let Some(p) = self.results.get(&snap.url) {
+                return Ok(p.clone());
+            }
+            Ok(found::ResultsPage {
+                links: snap
+                    .elements
+                    .iter()
+                    .filter(|e| e.kind == ElementKind::Link)
+                    .filter_map(|e| {
+                        Some(found::ResultLink {
+                            href: e.href.clone()?,
+                            text: e.name.clone(),
+                            in_region: false,
+                        })
+                    })
+                    .collect(),
+                url: snap.url,
+                title: snap.title,
+                region_found: false,
+                text: snap.text,
+            })
+        }
+    }
+
     impl PageDriver for FakeWeb {
         fn navigate(&self, url: &WebUrl) -> std::result::Result<(), BrowserError> {
             self.visited.lock().unwrap().push(url.as_str().to_string());
@@ -717,6 +800,10 @@ mod tests {
                 "Access is denied: IIS lacks rights on the folder [1].\nLikely causes and fixes:\n1. Grant IIS_IUSRS read access [1]."
                     .into(),
             )
+        }
+        fn pick(&self, _question: &str, links: &str) -> Result<String> {
+            assert!(links.contains("Links:"), "a numbered list of links, never page text");
+            Ok("none".into())
         }
     }
 
@@ -800,6 +887,7 @@ mod tests {
     fn run(w: &FakeWeb, m: &FakeModel, max: u8, cancel: &AtomicBool, log: &MemoryLog) -> (Result<ResearchReport>, Vec<String>) {
         let env = ResearchEnv {
             reader: w,
+            results: w,
             driver: w,
             search: SearchSettings::default(),
             log,
@@ -858,7 +946,12 @@ mod tests {
         assert_eq!(steps.last().unwrap(), "writing the answer");
         // Every navigation is in the activity log (sites only).
         let entries = log.entries.lock().unwrap();
-        assert_eq!(entries.len(), 7, "the search, five pages opened (one failed), one hand-off");
+        assert_eq!(
+            entries.len(),
+            8,
+            "the search, how the links were found, five pages opened (one failed), one hand-off"
+        );
+        assert!(entries.iter().any(|e| e.action == "research.links.rules"));
         assert!(entries.iter().all(|e| e.chat == "research:1"));
         assert!(entries.iter().any(|e| e.outcome == ActionOutcome::HandedBack));
     }
@@ -978,7 +1071,12 @@ mod tests {
             ),
         );
         let (r, _) = run(&stuck, &model(), 3, &AtomicBool::new(false), &log);
-        assert!(matches!(r, Err(AiError::NotFound(_))));
+        let r = r.unwrap();
+        assert_eq!(
+            r.no_results.as_deref(),
+            Some("The results page of Google did not show in the browser.")
+        );
+        assert!(r.answer.contains("Open the results page") && r.results_page.is_some());
     }
 
     #[test]
@@ -1019,7 +1117,7 @@ mod tests {
         let mut no_links = FakeWeb::default();
         no_links.add(SEARCH, page(SEARCH, "results", "no results", vec![], None));
         let (r, _) = run(&no_links, &model(), 5, &AtomicBool::new(false), &log);
-        assert!(matches!(r, Err(AiError::NotFound(_))));
+        assert_eq!(r.unwrap().no_results.as_deref(), Some("Google showed no result links."));
         // Nothing relevant anywhere: an honest answer, every page listed as skipped.
         let w = web();
         let nothing = FakeModel {
@@ -1040,6 +1138,7 @@ mod tests {
         let clock = Mutex::new(t0);
         let env = ResearchEnv {
             reader: &w,
+            results: &w,
             driver: &w,
             search: SearchSettings::default(),
             log: &log,
@@ -1073,74 +1172,176 @@ mod tests {
         assert!(check_query("   ", &terms, &|_| false).is_err());
     }
 
-    #[test]
-    fn result_links_follow_the_url_rules() {
-        let search = WebUrl::parse(SEARCH).unwrap();
-        let page = DomSnapshot {
-            url: SEARCH.into(),
-            title: String::new(),
-            elements: vec![
-                link(1, "", "https://a.example/"),
-                link(2, "ftp", "ftp://files.example/x"),
-                link(3, "app", "https://tauri.localhost/"),
-                link(4, "local", "http://127.0.0.1:8080/"),
-                Element {
-                    kind: ElementKind::Button,
-                    ..link(5, "button", "https://b.example/")
-                },
-                Element {
-                    href: None,
-                    ..link(6, "none", "")
-                },
-            ],
-            text: String::new(),
-            hand_off: None,
+    /// A web whose results page is a recorded-shape fixture (`results::fixtures`), each result readable.
+    fn fixture_web(search: &str, results: found::ResultsPage) -> FakeWeb {
+        let mut w = FakeWeb::default();
+        w.add(search, page(search, "results", "", vec![], None));
+        for l in &results.links {
+            let url = l.href.clone();
+            w.add(
+                &url,
+                page(&url, &l.text, "E_ACCESSDENIED: grant the app pool identity access.", vec![], None),
+            );
+        }
+        for target in [
+            "https://stackoverflow.com/q/1",
+            "https://example.org/access",
+            "https://nodejs.example/errors",
+        ] {
+            w.add(
+                target,
+                page(
+                    target,
+                    "Target",
+                    "E_ACCESSDENIED: grant the app pool identity access.",
+                    vec![],
+                    None,
+                ),
+            );
+        }
+        w.results.insert(search.into(), results);
+        w
+    }
+
+    fn run_with(w: &FakeWeb, m: &dyn ResearchModel, engine: super::super::engines::SearchEngine, query: &str) -> Result<ResearchReport> {
+        let log = MemoryLog::default();
+        let env = ResearchEnv {
+            reader: w,
+            results: w,
+            driver: w,
+            search: SearchSettings { engine, custom: None },
+            log: &log,
+            id: "research:3".into(),
+            cancel: &AtomicBool::new(false),
+            pace: Duration::ZERO,
+            total: TOTAL_TIME,
+            sleep: &|_| {},
+            now: &Instant::now,
         };
-        let links = result_links(&page, &search, 10);
-        assert_eq!(links.len(), 1);
-        assert_eq!(links[0].1, "a.example", "an unnamed link is named by its site");
-        assert_eq!(ResearchStep::Writing.describe(), "writing the answer");
+        let req = ResearchRequest {
+            question: "why?".into(),
+            query: query.into(),
+            max_results: 5,
+        };
+        research(&env, m, &req, &mut |_| {})
+    }
+
+    // Regression: Google research failed with "no result pages to read": the snapshot kept 60 elements, visible ones
+    // first, and Google's own links filled them before the organic results.
+    #[test]
+    fn google_results_below_its_own_links_are_read() {
+        use super::super::engines::SearchEngine;
+        use super::super::results::fixtures;
+        let w = fixture_web(fixtures::GOOGLE, fixtures::google());
+        let r = run_with(&w, &model(), SearchEngine::Google, "HttpRequestException 504").unwrap();
+        let visited = w.visited.lock().unwrap().clone();
+        assert_eq!(
+            visited[1..],
+            [
+                "https://learn.microsoft.com/dotnet/api/system.net.http.httprequestexception",
+                "https://stackoverflow.com/q/1",
+                "https://github.com/dotnet/runtime/issues/1",
+            ]
+        );
+        assert!(r.no_results.is_none() && r.results_page.is_none());
+        let w = fixture_web(fixtures::BING, fixtures::bing());
+        run_with(&w, &model(), SearchEngine::Bing, "E_ACCESSDENIED").unwrap();
+        assert_eq!(w.visited.lock().unwrap()[1], "https://example.org/access");
+        let w = fixture_web(fixtures::DUCKDUCKGO, fixtures::duckduckgo());
+        run_with(&w, &model(), SearchEngine::DuckDuckGo, "ECONNREFUSED").unwrap();
+        assert_eq!(w.visited.lock().unwrap()[1], "https://nodejs.example/errors");
+    }
+
+    /// A Google page whose results the rules cannot tell: only Google product pages (a question about Google).
+    fn product_page() -> found::ResultsPage {
+        use super::super::results::fixtures::{link, GOOGLE};
+        found::ResultsPage {
+            url: GOOGLE.into(),
+            title: "results".into(),
+            links: vec![
+                link("https://www.google.com/preferences", "Settings", false),
+                link("https://developers.google.com/search/docs", "Search Central docs", false),
+                link("https://support.google.com/websearch/answer/1", "Search help", false),
+            ],
+            region_found: false,
+            text: String::new(),
+        }
     }
 
     #[test]
-    fn the_engines_own_properties_are_not_results() {
-        // Regression: a Google results page led with a Maps link, and research read maps.google.com as result 1.
-        let search = WebUrl::parse("https://www.google.com/search?q=System.Net.Http.HttpRequestException+504").unwrap();
-        let page = DomSnapshot {
-            url: search.url().to_string(),
-            title: String::new(),
-            elements: vec![
-                link(1, "Maps", "https://maps.google.com/maps?q=x"),
-                link(2, "Google Maps", "https://www.google.com/maps/place/x"),
-                link(3, "Images", "https://www.google.de/search?tbm=isch&q=x"),
-                link(4, "Sign in", "https://accounts.google.com/ServiceLogin"),
-                link(5, "logo", "https://www.gstatic.com/images/x.png"),
-                link(6, "cache", "https://webcache.googleusercontent.com/search?q=cache:x"),
-                link(
-                    7,
-                    "HttpRequestException Class",
-                    "https://learn.microsoft.com/dotnet/api/system.net.http.httprequestexception",
-                ),
-                link(8, "504 Gateway Timeout", "https://stackoverflow.com/questions/1/504"),
-                link(9, "Googlebot docs", "https://developers.example/googlebot"),
+    fn when_the_rules_find_nothing_the_model_picks_from_the_list_only() {
+        use super::super::engines::SearchEngine;
+        use super::super::results::fixtures::GOOGLE;
+        use crate::assistant::{Assistant, AssistantConfig};
+        use crate::llm::{Reply, ScriptedProvider};
+        let assistant = Assistant::new(
+            ScriptedProvider::new(vec![
+                // The pick: candidate 1 and 2, a number off the list and an address it made up.
+                Reply::Text("1, 2, 7, https://evil.example/".into()),
+                Reply::Text("nothing".into()),
+                Reply::Text("nothing".into()),
+            ]),
+            AssistantConfig::default(),
+        );
+        let m = WithModel(&assistant);
+        let w = fixture_web(GOOGLE, product_page());
+        let r = run_with(&w, &m, SearchEngine::Google, "HttpRequestException 504").unwrap();
+        let visited = w.visited.lock().unwrap().clone();
+        assert_eq!(
+            visited[1..],
+            [
+                "https://developers.google.com/search/docs",
+                "https://support.google.com/websearch/answer/1"
             ],
-            text: String::new(),
-            hand_off: None,
+            "only addresses from the list; the search page's own links were never candidates"
+        );
+        assert!(visited.iter().all(|u| !u.contains("evil.example")));
+        let pick = &assistant.provider().requests()[0];
+        assert_eq!(pick.system, found::PICK_SYSTEM);
+        let list = &pick.messages[0].content;
+        assert!(
+            list.contains("1. https://developers.google.com/search/docs | Search Central docs"),
+            "{list}"
+        );
+        assert!(!list.contains("preferences"), "{list}");
+        assert!(r.no_results.is_none());
+        // The model finds nothing either: an honest report with the results page to open.
+        let none = FakeModel {
+            notes: vec![],
+            answers: Mutex::new(vec![]),
         };
-        let sites: Vec<String> = result_links(&page, &search, 10)
-            .into_iter()
-            .map(|(u, _)| u.site().to_string())
-            .collect();
-        assert_eq!(sites, ["learn.microsoft.com", "stackoverflow.com", "developers.example"]);
+        let w = fixture_web(GOOGLE, product_page());
+        let r = run_with(&w, &none, SearchEngine::Google, "HttpRequestException 504").unwrap();
+        assert_eq!(r.no_results.as_deref(), Some("Google showed no result links."));
+        assert_eq!(r.results_page.as_deref(), Some(GOOGLE));
+        assert!(r.answer.contains("Open the results page"));
+        assert_eq!(w.visited.lock().unwrap().len(), 1, "nothing opened");
+    }
 
-        let bing = WebUrl::parse("https://www.bing.com/search?q=x").unwrap();
-        let mut page = page;
-        page.url = bing.url().to_string();
-        page.elements = vec![
-            link(1, "maps", "https://www.bing.com/maps?q=x"),
-            link(2, "msn", "https://www.msn.com/x"),
-            link(3, "r", "https://a.example/"),
-        ];
-        assert_eq!(result_links(&page, &bing, 10).len(), 1);
+    #[test]
+    fn a_consent_or_human_check_page_is_handed_to_the_user() {
+        use super::super::engines::SearchEngine;
+        use super::super::results::fixtures::GOOGLE;
+        let consent = found::ResultsPage {
+            url: "https://consent.google.com/ml?continue=x".into(),
+            title: "Before you continue to Google".into(),
+            ..found::ResultsPage::default()
+        };
+        let w = fixture_web(GOOGLE, consent);
+        let r = run_with(&w, &model(), SearchEngine::Google, "HttpRequestException 504").unwrap();
+        assert!(
+            r.no_results.as_deref().is_some_and(|s| s.contains("consent page of Google")),
+            "{r:?}"
+        );
+        assert!(r.results_page.is_some() && r.read.is_empty());
+        let sorry = found::ResultsPage {
+            url: GOOGLE.into(),
+            text: "Our systems have detected unusual traffic from your computer network.".into(),
+            ..found::ResultsPage::default()
+        };
+        let w = fixture_web(GOOGLE, sorry);
+        let r = run_with(&w, &model(), SearchEngine::Google, "HttpRequestException 504").unwrap();
+        assert!(r.no_results.as_deref().is_some_and(|s| s.contains("human check")), "{r:?}");
+        assert_eq!(w.visited.lock().unwrap().len(), 1);
     }
 }

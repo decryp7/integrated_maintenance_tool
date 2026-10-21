@@ -125,6 +125,7 @@ fn run_research<R: Runtime>(app: &AppHandle<R>, owner: &str, req: &ResearchReque
     let cancel = ctx.cancel_flag();
     let env = ResearchEnv {
         reader: &reader,
+        results: &reader,
         driver: &driver,
         search: hub.settings().search,
         log: &log,
@@ -194,8 +195,10 @@ impl<R: Runtime> Researcher for TurnResearcher<R> {
     }
 }
 
-/// The answer of a research started from a button: a turn of the chat (a new chat when it is busy).
-fn record_in_chat(
+/// The answer of a research started from a button: a turn of the chat (a new chat when it is busy). When nothing was
+/// found, the results page comes with it as a link card the user may open (noted as suggested in that chat).
+fn record_in_chat<R: Runtime>(
+    app: &AppHandle<R>,
     win: &Arc<WindowState>,
     emit: &crate::ai::commands::Emit,
     session: Option<&str>,
@@ -216,10 +219,20 @@ fn record_in_chat(
         }
     };
     let mut s = crate::sync::lock(&turn.session);
-    s.record_answer(&format!("Research: {question}"), &report.answer, report.sources(), &mut |e| {
-        chats.push_event(&sid, e);
-        emit(&sid, e);
-    });
+    let cards: Vec<_> = report.results_page_card().into_iter().collect();
+    if let (Some(url), Some(hub)) = (&report.results_page, app.try_state::<super::BrowserState>()) {
+        hub.note_suggested(win.label(), &sid, url);
+    }
+    s.record_answer_with(
+        &format!("Research: {question}"),
+        &report.answer,
+        report.sources(),
+        cards,
+        &mut |e| {
+            chats.push_event(&sid, e);
+            emit(&sid, e);
+        },
+    );
     let record = s.to_record();
     drop(s);
     chats.end_turn(&sid, record);
@@ -247,7 +260,7 @@ pub(crate) fn start<R: Runtime>(
     });
     jobs::spawn(app, spec, controls, move |ctx: &JobCtx| -> AiResult<Done<()>> {
         let report = run_research(&a, w.label(), &req, ctx)?;
-        let sid = record_in_chat(&w, &emit, session.as_deref(), &req.question, &report)?;
+        let sid = record_in_chat(&a, &w, &emit, session.as_deref(), &req.question, &report)?;
         Ok(Done::new(()).with_result(JobResult::Chat { session_id: sid }))
     })
     .map_err(AiCmdError::busy)

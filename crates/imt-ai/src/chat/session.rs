@@ -245,6 +245,19 @@ impl ChatSession {
     /// Adds an answer IMT produced outside a model turn (a research run from a "Research this" button) as a
     /// turn of its own, streamed like one (`done`) so an open chat shows it. Its web pages are cited.
     pub fn record_answer(&mut self, user: &str, text: &str, web: Vec<crate::assistant::WebSource>, on_event: &mut dyn FnMut(&Envelope)) {
+        self.record_answer_with(user, text, web, vec![], on_event);
+    }
+
+    /// Like [`Self::record_answer`], with cards streamed before the answer (a research that found nothing offers its
+    /// results page as a link card).
+    pub fn record_answer_with(
+        &mut self,
+        user: &str,
+        text: &str,
+        web: Vec<crate::assistant::WebSource>,
+        cards: Vec<ChatEvent>,
+        on_event: &mut dyn FnMut(&Envelope),
+    ) {
         let user = truncate_chars(user.trim(), MAX_USER_CHARS);
         let citations: Vec<Citation> = web
             .iter()
@@ -258,6 +271,9 @@ impl ChatSession {
             replay: std::mem::take(&mut self.replay),
             sink: on_event,
         };
+        for card in cards {
+            em.emit(card);
+        }
         em.emit(ChatEvent::Done {
             text: text.to_string(),
             citations: citations.clone(),

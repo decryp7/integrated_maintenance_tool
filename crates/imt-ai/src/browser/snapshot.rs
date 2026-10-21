@@ -186,7 +186,7 @@ const CAPTCHA_MARKS: &[&str] = &[
     "cf-challenge",
     "challenge-form",
 ];
-const CAPTCHA_PHRASES: &[&str] = &[
+pub(crate) const CAPTCHA_PHRASES: &[&str] = &[
     "verify you are human",
     "verify that you are human",
     "i'm not a robot",
