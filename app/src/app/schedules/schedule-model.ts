@@ -1,5 +1,4 @@
 import { ActionFile, ActionKind, AgentFieldSchema, AgentIssue, AgentSchema, ScheduleFile, TriggerFile, TriggerKind } from '../core/agent.types';
-import { localizeDecimal } from '../i18n/locale';
 
 /** How a schedule is started. */
 export type TimingKind = 'cron' | 'every' | 'trigger';
@@ -93,15 +92,3 @@ export function parseJsonObject(text: string): { value: Record<string, unknown> 
   }
 }
 
-/** "12.0 MB", "512 B". */
-export function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  const units = ['KB', 'MB', 'GB', 'TB'];
-  let v = n / 1024;
-  let u = 0;
-  while (v >= 1024 && u < units.length - 1) {
-    v /= 1024;
-    u++;
-  }
-  return `${localizeDecimal(v.toFixed(1))} ${units[u]}`;
-}

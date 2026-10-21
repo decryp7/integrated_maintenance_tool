@@ -112,7 +112,7 @@ describe('FilterBar', () => {
     store.setRange(T0, T0 + 90 * SEC);
     await settle(fixture);
     expect(text(fixture)).toContain('instanceWEB01 · 100');
-    expect(text(fixture)).toContain('(1.5 min)');
+    expect(text(fixture)).toContain('(1 min 30 s)');
     el<HTMLButtonElement>(fixture, '[aria-label="Remove instance filter WEB01 · 100"]').click();
     expect(store.query().groups).toEqual([]);
     buttonByText(fixture, /14 Oct/).click();

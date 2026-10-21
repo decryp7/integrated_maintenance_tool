@@ -67,7 +67,7 @@ describe('AnalysisTime', () => {
     expect(time.format(null)).toBe('—');
     expect(time.format(undefined)).toBe('—');
     expect(time.range(null)).toBe('—');
-    expect(time.range({ from: 0, to: 90_000 })).toContain('(1.5 min)');
+    expect(time.range({ from: 0, to: 90_000 })).toContain('(1 min 30 s)');
   });
 });
 

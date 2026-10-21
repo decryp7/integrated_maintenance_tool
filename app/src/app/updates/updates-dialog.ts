@@ -1,6 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject } from '@angular/core';
-import { formatBytes } from '../import/import-format';
+import { formatBytes, formatEta, formatRate } from '../shared/format/units';
+import { transferSpeed, TransferSpeed } from '../shared/format/transfer-speed';
 import { DIALOG_REF } from '../ui/dialog.service';
 import { UpdatesStore } from './updates.store';
 import { UpdateError, UpdateInfo } from './updates.types';
@@ -10,8 +11,9 @@ import { activeLocale } from '../i18n/locale';
 const RETRY_DOWNLOAD = new Set(['offline', 'unreachable', 'diskFull', 'installFailed']);
 
 /** "1.2 MB of 48 MB". */
-export function progressText(downloaded: number, total: number | null): string {
-  return total ? $localize`:@@updates.progress:${formatBytes(downloaded)}:done: of ${formatBytes(total)}:total:` : formatBytes(downloaded);
+export function progressText(downloaded: number, total: number | null, speed?: TransferSpeed): string {
+  const base = total ? $localize`:@@updates.progress:${formatBytes(downloaded)}:done: of ${formatBytes(total)}:total:` : formatBytes(downloaded);
+  return [base, formatRate(speed?.rate), formatEta(speed?.etaSecs)].filter(Boolean).join(' · ');
 }
 
 /** A release date for people ("17 Oct 2026"), or '' when absent or invalid. */
@@ -170,9 +172,13 @@ export class UpdatesDialog {
     const p = this.phase();
     return p?.kind === 'failed' && !!p.info && RETRY_DOWNLOAD.has(p.error.kind);
   });
+  private readonly speed = transferSpeed(() => {
+    const p = this.phase();
+    return p?.kind === 'downloading' && p.total ? { bytes: p.downloaded, total: p.total } : null;
+  });
   protected readonly progress = computed(() => {
     const p = this.phase();
-    return p?.kind === 'downloading' ? progressText(p.downloaded, p.total) : '';
+    return p?.kind === 'downloading' ? progressText(p.downloaded, p.total, this.speed()) : '';
   });
 
   constructor() {

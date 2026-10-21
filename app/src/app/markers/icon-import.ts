@@ -1,3 +1,4 @@
+import { formatBytes } from '../shared/format/units';
 import { Injectable } from '@angular/core';
 import { iconNameFromFile } from './marker-rules';
 import { PendingIcon } from './markers.types';
@@ -16,7 +17,7 @@ function toBase64(bytes: Uint8Array): string {
 
 /** Reads a chosen SVG or PNG file into a pending icon; the engine still validates and sanitises on save. */
 export async function readIconFile(file: File, takenNames: ReadonlySet<string>): Promise<IconImport> {
-  if (file.size > MAX_ICON_BYTES) return { ok: false, error: $localize`:@@markers.iconImport.tooBig:Icons are limited to ${MAX_ICON_BYTES / 1024}:limit: KB; this file is ${Math.ceil(file.size / 1024)}:size: KB.` };
+  if (file.size > MAX_ICON_BYTES) return { ok: false, error: $localize`:@@markers.iconImport.tooBig:Icons are limited to ${formatBytes(MAX_ICON_BYTES)}:limit:; this file is ${formatBytes(file.size)}:size:.` };
   const name = iconNameFromFile(file.name, takenNames);
   try {
     if (/\.png$/i.test(file.name) || file.type === 'image/png') {

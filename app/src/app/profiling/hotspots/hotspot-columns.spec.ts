@@ -97,7 +97,7 @@ describe('hotspotColumns', () => {
     expect(col(cols, 'totalPct').value(r)).toBe('50.0%');
     expect(col(cols, 'total-samples').value(r)).toBe('9');
     expect(col(cols, 'self-calls').value(r)).toBe('4');
-    expect(col(cols, 'self-allocBytes').value(r)).toBe('2.0 KB');
+    expect(col(cols, 'self-allocBytes').value(r)).toBe('2 KB');
     expect(col(cols, 'self-exceptions').value(r)).toBe('1');
     expect(col(cols, 'self-waitNs').value(r)).toBe('5.0 µs');
     expect(col(cols, 'total-samples').value(row({ total: {} }))).toBe('—');

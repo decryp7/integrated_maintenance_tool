@@ -15,6 +15,9 @@ import {
   assignSlots,
   endLabels,
   exactValue,
+  humanValue,
+  isAutoUnit,
+  tooltipValue,
   hasMonitorSamples,
   MONITOR_METRICS,
   MONITOR_SOURCE_CONTEXT,
@@ -140,6 +143,22 @@ describe('monitor charts model', () => {
     expect(exactValue(Number.NaN, '%')).toBe('—');
   });
 
+  it('humanizes values by unit for axes and tooltips', () => {
+    expect(humanValue(512, 'MB')).toBe('512 MB');
+    expect(humanValue(1536, 'MB')).toBe('1.5 GB');
+    expect(humanValue(2048, 'B')).toBe('2 KB');
+    expect(humanValue(5 * 1024 ** 2, 'B/s')).toBe('5 MB/s');
+    expect(humanValue(0, 'B/s')).toBe('0 bytes/s');
+    expect(humanValue(42.46, '%')).toBe('42.5%');
+    expect(humanValue(1500, '/s')).toBe('1500/s');
+    expect(humanValue(25_000, '')).toBe('25k');
+    expect(humanValue(null, 'MB')).toBe('—');
+    expect(tooltipValue(1536, 'MB')).toBe('1.5 GB (1,536 MB)');
+    expect(tooltipValue(7, '%')).toBe('7%');
+    expect(['MB', 'B', 'B/s', '%'].every(isAutoUnit)).toBe(true);
+    expect(['/s', ''].some(isAutoUnit)).toBe(false);
+  });
+
   it('builds a small multiple: colours follow the slot, end labels shift apart, the shared legend toggles', () => {
     const o = monitorOption({ data: chart(['a', 'b', 'c']), tokens: TOKENS, tz: 'utc', slots: { c: 0, a: 3 }, hidden: new Set(['a']) }) as Opt;
     const series = o['series'] as Opt[];
@@ -154,8 +173,9 @@ describe('monitor charts model', () => {
     expect(o['legend']['show']).toBe(false);
     expect(o['legend']['selected']).toEqual({ c: true, a: false, b: true });
     expect(o['tooltip']['trigger']).toBe('axis');
-    expect(o['tooltip']['valueFormatter'](1.234)).toBe('1.23 %');
+    expect(o['tooltip']['valueFormatter'](1.234)).toBe('1.2%');
     expect(o['grid']['top']).toBe(12);
+    expect(o['yAxis']['axisLabel']['formatter'](42.46)).toBe('42.5%');
   });
 });
 
@@ -404,7 +424,7 @@ describe('MonitorLiveCharts', () => {
     expect(charts.instances.length).toBe(MONITOR_METRICS.length);
     const heap = at(charts.instances, -4).setOption.mock.calls.at(-1)?.[0] as Opt;
     expect((heap['series'] as Opt[]).map((s) => s['name'])).toEqual(['OrderService.exe · 4120', 'Worker.exe · 5232']);
-    expect(heap['tooltip']['valueFormatter'](1048576)).toBe('1,048,576 B');
+    expect(heap['tooltip']['valueFormatter'](1048576)).toBe('1 MB (1,048,576 B)');
   });
 
   it('appears for an opened monitor output without a run', async () => {
