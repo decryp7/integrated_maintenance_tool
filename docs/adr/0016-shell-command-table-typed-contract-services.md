@@ -91,10 +91,13 @@ IMT is pre-v1, so the shell is redesigned rather than patched; nothing below kee
 
 Recorded so the next phase picks them up: TypeScript generation and golden JSON fixtures for the engine's
 types (they need the derive in `imt-core` and ADR 0014's owned replies); a `ShareService`; `ai.json` and
-`local-models.json` on the `ConfigStore` (owned by the AI crate); a task-local context for the activity log
-(async commands now take `op: OpId`, but domain events lose their window); engine health from engine events
-(review #12; `engine_errors.rs` still reads a crash marker in the import reason until R2's events exist); and plugin
-tools with path arguments (their outputs are granted, their inputs are not yet checked against grants).
+`local-models.json` on the `ConfigStore` (owned by the AI crate); engine health from engine events
+(review #12; `engine_errors.rs` still reads a crash marker in the import reason until R2's events exist).
+
+Done since: plugin tools' path arguments are checked against the window's grants (`tools.rs` passes `WindowGrants`
+as the tool context's path policy), and a domain event of an async command keeps its window: the IPC wrapper
+remembers the window of the latest 256 operation ids, which `domain_event` looks up when it runs off the dispatch
+thread (instead of a task-local, which Tauri's spawned command futures cannot carry).
 
 ## Amendment (2026-10-21, ADR 0024)
 
