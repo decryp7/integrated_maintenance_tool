@@ -40,7 +40,8 @@ Everything applies at once, in every window, and is kept for your user (not in p
 
 | Setting | Choices | Also in |
 |---|---|---|
-| **Theme** | *Calm* (default): neutral and quiet, colour only for the data. *Console*: soft cards, violet accent, richer colour. | *View ▸ Theme*; palette *Theme: Calm* / *Theme: Console* |
+| **Theme** | *Calm* (default): neutral and quiet, colour only for the data. *Console*: soft cards, violet accent, richer colour. *Precision*: paper and ink, hairlines, mono figures, the densest view. | *View ▸ Theme*; palette *Theme: Calm* / *Theme: Console* / *Theme: Precision* |
+| **Interface font** | *System* (default): the operating system's font, like other desktop apps. *Theme*: the theme's own font. Log text stays monospaced | |
 | **Colour scheme** | *System* (default, follows the operating system), *Light*, *Dark* | *View ▸ Theme*; palette *Colour scheme: …* |
 | **Density** | *Comfortable* (default) or *Compact* rows and timeline lanes | |
 | **Timeline ▸ Colour lanes by source** | on: each lane's volume in its source colour; off: neutral grey. Each theme has a default; *Use the theme's default* returns to it | |

@@ -4,7 +4,7 @@ import { UiPrefsStore } from '../core/workspace/ui-prefs.store';
 import { SOURCE_COLOR_LABELS } from '../sources/source-colors';
 import { resolveTokens } from '../theme/theme-tokens';
 import { BUILT_IN_THEMES } from '../theme/themes';
-import { Density, DENSITIES, SCHEME_MODES, SchemeMode, ThemeId } from '../theme/theme.types';
+import { Density, DENSITIES, SCHEME_MODES, SchemeMode, ThemeId, UI_FONTS, UiFont } from '../theme/theme.types';
 import { Switch } from '../shared/switch';
 import { HelpHint } from '../ui/help-hint';
 import { SettingsStore, SOURCE_COLOR_MODES } from './settings.store';
@@ -13,7 +13,7 @@ import { SettingsStore, SOURCE_COLOR_MODES } from './settings.store';
 const PREVIEW = ['bg-0', 'bg-1', 'accent', 'src-1', 'src-2', 'src-3', 'mk-fatal'] as const;
 
 /**
- * Settings ▸ Appearance (ADR 0018): theme, colour scheme, density, lane colouring and source colours. UI preferences of
+ * Settings ▸ Appearance (ADR 0018, 0028): theme, colour scheme, interface font, density, lane colouring and source colours. UI preferences of
  * this user, kept in the browser, applied at once in every window.
  */
 @Component({
@@ -48,6 +48,14 @@ const PREVIEW = ['bg-0', 'bg-1', 'accent', 'src-1', 'src-2', 'src-3', 'mk-fatal'
       <div class="seg" data-testid="scheme-setting">
         @for (s of schemes; track s) {
           <button class="btn" type="button" [class.active]="prefs.scheme() === s" [attr.aria-pressed]="prefs.scheme() === s" (click)="prefs.setScheme(s)">{{ schemeLabels[s] }}</button>
+        }
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend i18n="@@settings.appearance.uiFont">Interface font <imt-help label="Interface font" text="The font of menus, panels and dialogs. System uses your operating system's font, like other desktop apps; theme uses the theme's own. Log text is always monospaced." i18n-label="@@settings.appearance.uiFont.helpLabel" i18n-text="@@settings.appearance.uiFont.help" /></legend>
+      <div class="seg" data-testid="ui-font-setting">
+        @for (f of uiFonts; track f) {
+          <button class="btn" type="button" [class.active]="prefs.uiFont() === f" [attr.aria-pressed]="prefs.uiFont() === f" (click)="prefs.setUiFont(f)">{{ uiFontLabels[f] }}</button>
         }
       </div>
     </fieldset>
@@ -122,6 +130,11 @@ export class AppearanceSettings {
     light: $localize`:Colour scheme option (capitalised by CSS)@@settings.appearance.scheme.light:light`,
     dark: $localize`:Colour scheme option (capitalised by CSS)@@settings.appearance.scheme.dark:dark`,
   };
+  protected readonly uiFonts: readonly UiFont[] = UI_FONTS;
+  protected readonly uiFontLabels: Record<UiFont, string> = {
+    system: $localize`:Interface font option (capitalised by CSS)@@settings.appearance.uiFont.system:system`,
+    theme: $localize`:Interface font option (capitalised by CSS)@@settings.appearance.uiFont.theme:theme`,
+  };
   protected readonly densities: readonly Density[] = DENSITIES;
   protected readonly densityLabels: Record<Density, string> = {
     comfortable: $localize`:Density option (capitalised by CSS)@@settings.general.density.comfortable:comfortable`,
@@ -135,9 +148,11 @@ export class AppearanceSettings {
 export const THEME_NAMES: Record<ThemeId, string> = {
   calm: $localize`:Theme name@@settings.appearance.theme.calm:Calm`,
   console: $localize`:Theme name@@settings.appearance.theme.console:Console`,
+  precision: $localize`:Theme name@@settings.appearance.theme.precision:Precision`,
 };
 
 const THEME_ABOUT: Record<ThemeId, string> = {
   calm: $localize`:Theme description@@settings.appearance.theme.calm.about:Quiet and neutral; only the data has colour.`,
   console: $localize`:Theme description@@settings.appearance.theme.console.about:Soft cards and richer colour; problems stand out.`,
+  precision: $localize`:Theme description@@settings.appearance.theme.precision.about:Paper and ink, hairlines and mono figures; the densest view.`,
 };

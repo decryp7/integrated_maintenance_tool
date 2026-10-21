@@ -21,7 +21,7 @@ import { titleWithCount } from './notifications-text';
         <div class="toast" data-imt-overlay [attr.data-severity]="t.severity" data-testid="notice-toast" (mouseenter)="store.holdToast(t.id)" (focusin)="store.holdToast(t.id)" (mouseleave)="leave(t.id, $event)" (focusout)="leave(t.id, $event)">
           <strong class="title">{{ titleWithCount(t) }}</strong>
           @if (t.body) {
-            <div class="body">{{ t.body }}</div>
+            <div class="body imt-selectable">{{ t.body }}</div>
           }
           @if (note(); as n) {
             <div class="body err" role="alert">{{ n }}</div>

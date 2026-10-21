@@ -1,7 +1,8 @@
 /* IMT global theme. Colours are tokens; components only use var(--…). */
 
 /* Fonts are bundled (offline desktop app; CSP allows no remote resources). */
-/* Calm: Inter + JetBrains Mono. Console: Geist + Geist Mono. A face is only downloaded when a theme uses it. */
+/* Calm: Inter + JetBrains Mono. Console: Geist + Geist Mono. Precision: IBM Plex Sans + Plex Mono. A face is only
+   loaded when a theme uses it; the default interface font is the operating system's (ADR 0028). */
 @use '@fontsource/inter/latin-400' as inter-400;
 @use '@fontsource/inter/latin-500' as inter-500;
 @use '@fontsource/inter/latin-600' as inter-600;
@@ -14,6 +15,12 @@
 @use '@fontsource/geist-sans/latin-700' as geist-700;
 @use '@fontsource/geist-mono/latin-400' as geist-mono-400;
 @use '@fontsource/geist-mono/latin-500' as geist-mono-500;
+@use '@fontsource/ibm-plex-sans/latin-400' as plex-400;
+@use '@fontsource/ibm-plex-sans/latin-500' as plex-500;
+@use '@fontsource/ibm-plex-sans/latin-600' as plex-600;
+@use '@fontsource/ibm-plex-sans/latin-700' as plex-700;
+@use '@fontsource/ibm-plex-mono/latin-400' as plex-mono-400;
+@use '@fontsource/ibm-plex-mono/latin-500' as plex-mono-500;
 @use '@angular/material' as mat;
 
 /* The tokens (colours, type, spacing, radii, motion, sizes) are not defined here: a theme is data
@@ -139,6 +146,19 @@ body {
   color: var(--text);
   font-family: var(--font-sans);
   font-size: var(--fs-md);
+  /* Desktop feel (ADR 0028): the window is application chrome, not a page. Nothing selects, drags, highlights on
+     tap or rubber-bands unless it opts in below; the pointer stays an arrow. */
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+img,
+svg,
+a {
+  -webkit-user-drag: none;
 }
 
 button,
@@ -149,8 +169,25 @@ textarea {
   color: inherit;
 }
 
-/* Desktop feel: the chrome (buttons, tabs, menus, toolbars, bars) does not select like web-page text; content
-   (log text, inspector values, text fields) does. */
+/* Content the user copies opts in to selection (ADR 0028): text fields and editors, grid cells, code, and anything
+   marked `.imt-selectable` (log rows, inspector values, AI messages, notes, error details). Errors and notes
+   (`role=alert`, `role=note`) select by nature, so a message can be copied into a bug report. */
+input,
+textarea,
+[contenteditable]:not([contenteditable='false']),
+[role='textbox'],
+[role='gridcell'],
+[role='alert'],
+[role='note'],
+pre,
+code,
+.imt-panel-error,
+.imt-selectable {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Chrome inside selectable content (buttons on a row, tabs in a message) still does not select. */
 button,
 label,
 [role='button'],
@@ -176,32 +213,40 @@ imt-activity-bar,
   user-select: none;
 }
 
-input,
+/* Text fields show the text cursor; everything else keeps the arrow, as in a native app. */
+input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='button'], [type='submit']),
 textarea,
-[contenteditable],
-[role='gridcell'],
-[role='textbox'],
-.imt-selectable {
-  -webkit-user-select: text;
-  user-select: text;
+[contenteditable]:not([contenteditable='false']) {
+  cursor: text;
 }
 
+/* Focus rings for the keyboard only: a mouse click does not leave one behind. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
 :focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
 
+/* Thin scrollbars like the platforms' overlay bars, in the theme's colours: a slim thumb that widens on hover. */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-thumb {
   background: var(--border-3);
-  border-radius: var(--r-2);
+  border-radius: 8px;
   border: 2px solid transparent;
   background-clip: padding-box;
+  min-height: 24px;
 }
-::-webkit-scrollbar-track {
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--faint);
+  border-width: 1px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
   background: transparent;
 }
 

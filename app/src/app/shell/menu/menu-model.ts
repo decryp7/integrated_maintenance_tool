@@ -1,5 +1,6 @@
 import { ANALYSIS_MENU_ORDER } from '../../analysis/analysis-menu-order';
 import { ViewCategory } from '../../extensions/tokens';
+import { ThemeId } from '../../theme/theme.types';
 
 /**
  * The application menus as plain data, built by a pure function from what is registered (views, commands) and the
@@ -97,7 +98,7 @@ export interface MenuState {
   views: readonly MenuView[];
   sidebarOpen: boolean;
   /** View › Theme: the look and the colour scheme. */
-  theme: 'calm' | 'console';
+  theme: ThemeId;
   scheme: 'system' | 'dark' | 'light';
   /** What the source colour marker stands for (View › Source colours); default by file. */
   sourceColors?: 'source' | 'instance' | 'off';
@@ -376,6 +377,7 @@ function viewMenu(state: MenuState, cmd: Cmd, sub: Sub): MenuNode[] {
     sub('view.theme', $localize`:@@shell.menu.view.theme:Theme`, [
       cmd('view.theme.calm', $localize`:Theme name@@shell.menu.view.theme.calm:Calm`, state.theme === 'calm'),
       cmd('view.theme.console', $localize`:Theme name@@shell.menu.view.theme.console:Console`, state.theme === 'console'),
+      cmd('view.theme.precision', $localize`:Theme name@@shell.menu.view.theme.precision:Precision`, state.theme === 'precision'),
       SEP,
       cmd('view.scheme.system', $localize`:Colour scheme option@@shell.menu.view.scheme.system:System`, state.scheme === 'system'),
       cmd('view.scheme.dark', $localize`:Colour scheme option@@shell.menu.view.scheme.dark:Dark`, state.scheme === 'dark'),

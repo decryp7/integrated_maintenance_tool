@@ -48,7 +48,7 @@ import { sourceLabel, titleWithCount } from './notifications-text';
               <span class="muted small time">{{ time(n.at) }}</span>
             </div>
             @if (n.body) {
-              <p class="body">{{ n.body }}</p>
+              <p class="body imt-selectable">{{ n.body }}</p>
             }
             <div class="actions">
               @if (store.localAction(n.id); as label) {

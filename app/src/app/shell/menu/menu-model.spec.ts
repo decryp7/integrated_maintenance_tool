@@ -24,6 +24,7 @@ const COMMANDS: [string, string, string?][] = [
   ['view.resetLayout', 'Reset layout'],
   ['view.theme.calm', 'Theme: Calm'],
   ['view.theme.console', 'Theme: Console'],
+  ['view.theme.precision', 'Theme: Precision'],
   ['view.scheme.system', 'Colour scheme: system'],
   ['view.scheme.dark', 'Colour scheme: dark'],
   ['view.scheme.light', 'Colour scheme: light'],
@@ -184,8 +185,8 @@ describe('menu model', () => {
     expect(items.find((i) => i.label === 'Explorer')).toMatchObject({ id: 'view.toggleSidebar', checked: true, keybinding: 'Mod+B' });
     expect(items.find((i) => i.label === 'Timeline')).toMatchObject({ id: 'view:timeline', checked: true });
     expect(items.find((i) => i.label === 'Metrics')).toMatchObject({ checked: false });
-    expect(labels(sub(v, 'Theme'))).toEqual(['Calm', 'Console', '—', 'System', 'Dark', 'Light']);
-    expect(sub(v, 'Theme').map((n) => n.kind === 'item' && n.checked)).toEqual([false, true, false, false, true, false]);
+    expect(labels(sub(v, 'Theme'))).toEqual(['Calm', 'Console', 'Precision', '—', 'System', 'Dark', 'Light']);
+    expect(sub(v, 'Theme').map((n) => n.kind === 'item' && n.checked)).toEqual([false, true, false, false, false, true, false]);
   });
 
   it('puts plugin views in Plugins, grouped by plugin, after the plugin manager', () => {

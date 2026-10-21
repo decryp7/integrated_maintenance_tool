@@ -45,14 +45,14 @@ const CONTEXT_MS = 2 * 60 * 1000;
               <span class="badge-mk"><imt-marker-icon [kind]="m" [color]="markerColor(m)" />{{ markerLabel(m) }}</span>
             }
           </div>
-          <div class="mono ts">{{ fullTime() }}</div>
+          <div class="mono ts imt-selectable">{{ fullTime() }}</div>
           @if (r.skewMs && r.ts !== null) {
-            <div class="mono skew" data-testid="skew-note" i18n="@@inspector.skewNote">Shifted by {{ skewText(r.skewMs) //i18n(ph="offset") }} · original {{ originalTime(r.ts, r.skewMs) //i18n(ph="original") }}</div>
+            <div class="mono skew imt-selectable" data-testid="skew-note" i18n="@@inspector.skewNote">Shifted by {{ skewText(r.skewMs) //i18n(ph="offset") }} · original {{ originalTime(r.ts, r.skewMs) //i18n(ph="original") }}</div>
           }
-          <div class="mono inst">{{ r.group }}</div>
-          <div class="message">{{ r.message }}</div>
+          <div class="mono inst imt-selectable">{{ r.group }}</div>
+          <div class="message imt-selectable">{{ r.message }}</div>
           @if (r.template && r.template !== r.message) {
-            <div class="mono template">
+            <div class="mono template imt-selectable">
               @for (part of templateParts(); track $index) {
                 @if (part.hole) { <span class="hole">{{ part.text }}</span> } @else { {{ part.text }} }
               }
@@ -102,7 +102,7 @@ const CONTEXT_MS = 2 * 60 * 1000;
         }
 
         <div class="src">
-          <div class="src-line faint">
+          <div class="src-line faint imt-selectable">
             @if (mark(); as m) {
               <imt-source-swatch [swatch]="m.swatch" [label]="m.label" />
             }

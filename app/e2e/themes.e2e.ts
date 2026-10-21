@@ -12,7 +12,7 @@ import { expectNoSeriousViolations, settleAnimations } from './axe';
  * platform yet the screenshot test is skipped; create them with `npx playwright test themes --project=chromium
  * --update-snapshots` and commit the PNGs from `e2e/themes.e2e.ts-snapshots/`.
  */
-const THEMES = ['calm', 'console'] as const;
+const THEMES = ['calm', 'console', 'precision'] as const;
 const SCHEMES = ['light', 'dark'] as const;
 
 async function openThemed(page: Page, theme: string, scheme: 'light' | 'dark'): Promise<void> {
@@ -80,4 +80,22 @@ test('switching the theme restyles the timeline: runs, lane fill and surface fol
   await expect(html).toHaveAttribute('data-lane-fill', 'bySource');
   const edge = page.locator('imt-timeline-panel .lane.colored .density .edge').first();
   expect(await edge.evaluate((el) => getComputedStyle(el).stroke)).not.toBe('none');
+});
+
+test('Precision draws bracket runs and barcode lanes; the interface font follows the Appearance setting', async ({ page }) => {
+  await openThemed(page, 'precision', 'light');
+  const html = page.locator('html');
+  await expect(html).toHaveAttribute('data-runs', 'bracket');
+  await expect(html).toHaveAttribute('data-lane-fill', 'barcode');
+  await expect(page.locator('imt-timeline-panel .lane .density .bars').first()).toBeVisible();
+  // The operating system's font by default (native feel, ADR 0028), log text in the theme's mono face.
+  const font = () => page.locator('imt-status-bar').evaluate((el) => getComputedStyle(el).fontFamily);
+  expect(await font()).toContain('Segoe UI');
+  const time = page.locator('imt-events-grid [role=row].row .time').first();
+  expect(await time.evaluate((el) => getComputedStyle(el).fontFamily)).toContain('IBM Plex Mono');
+  // Keeping the theme's font (Settings ▸ Appearance ▸ Interface font) brings IBM Plex Sans to the interface.
+  const themed = await page.context().newPage();
+  await themed.addInitScript(() => localStorage.setItem('imt.prefs.v1', JSON.stringify({ theme: 'precision', scheme: 'light', uiFont: 'theme' })));
+  await openApp(themed);
+  expect(await themed.locator('imt-status-bar').evaluate((el) => getComputedStyle(el).fontFamily)).toContain('IBM Plex Sans');
 });

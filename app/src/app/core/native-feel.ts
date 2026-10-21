@@ -1,10 +1,13 @@
 import { DestroyRef, EnvironmentProviders, inject, isDevMode, makeEnvironmentProviders, provideEnvironmentInitializer } from '@angular/core';
 import { isMac } from '../extensions/keybinding';
+import { copyText } from '../tools/clipboard';
+import { ContextMenuService } from '../ui/context-menu.service';
 
 /**
- * Makes IMT's windows feel like a desktop app rather than a web page: the browser's own context menu, reload,
- * back/forward, page zoom, find, print, save page, view source and (in release builds) devtools are switched off,
- * and images and links cannot be dragged out. The Tauri shell turns off what WebView2 lets it (`native_feel.rs`);
+ * Makes IMT's windows feel like a desktop app rather than a web page (ADR 0028): the browser's own context menu, reload,
+ * back/forward, page zoom, find, print, save page, view source, middle-click autoscroll and (in release builds) devtools
+ * are switched off, images and links cannot be dragged out, and files dropped where nothing takes them do not navigate.
+ * Right-clicking selected text opens IMT's own menu with Copy. The Tauri shell turns off what WebView2 lets it (`native_feel.rs`);
  * this guard covers the rest and makes the browser build behave the same.
  *
  * Only the browser's default is prevented: events still reach IMT's own handlers (shortcuts, timeline Ctrl+wheel
@@ -68,9 +71,12 @@ export function shouldBlockKey(e: KeyLike, o: FeelOptions): boolean {
   return true;
 }
 
-/** Mouse buttons 3 and 4 are the browser's Back and Forward. */
-export function shouldBlockMouseButton(button: number): boolean {
-  return button === 3 || button === 4;
+/**
+ * Mouse buttons 3 and 4 are the browser's Back and Forward; the middle button (1) starts autoscroll or opens a link
+ * in a new window, except in a text field (where Linux pastes the primary selection).
+ */
+export function shouldBlockMouseButton(button: number, editable = false): boolean {
+  return button === 3 || button === 4 || (button === 1 && !editable);
 }
 
 /** Ctrl+wheel (and a trackpad pinch, reported as one) zooms the page: IMT's own handlers still see the event. */
@@ -89,9 +95,22 @@ export interface ContextMenuTarget {
   developer: boolean;
 }
 
-/** Should the browser's context menu be suppressed? Only where it offers nothing but web-page actions. */
-export function shouldBlockContextMenu(t: ContextMenuTarget): boolean {
-  return !t.handled && !t.editable && !t.onSelection && !t.developer;
+/**
+ * What a right-click does: `leave` it to the menu IMT opened, keep the `native` edit menu (text fields, developers),
+ * open IMT's `copy` menu on selected text, or `block` the browser menu (it offers nothing but web-page actions).
+ */
+export type ContextMenuAction = 'leave' | 'native' | 'copy' | 'block';
+
+/** The context-menu policy of ADR 0028. Pure. */
+export function contextMenuAction(t: ContextMenuTarget): ContextMenuAction {
+  if (t.handled) return 'leave';
+  if (t.editable || t.developer) return 'native';
+  return t.onSelection ? 'copy' : 'block';
+}
+
+/** A file dragged over or dropped on the window that no IMT drop target took would navigate the window to it. */
+export function shouldBlockFileDrop(t: { files: boolean; handled: boolean }): boolean {
+  return t.files && !t.handled;
 }
 
 export interface DragTarget {
@@ -124,32 +143,52 @@ function elementOf(target: EventTarget | null): Element | null {
   return target instanceof Node ? target.parentElement : null;
 }
 
-function onSelection(el: Element | null, selection: Selection | null): boolean {
-  if (!el || !selection || selection.isCollapsed || !selection.toString().trim()) return false;
-  for (let i = 0; i < selection.rangeCount; i++) if (selection.getRangeAt(i).intersectsNode(el)) return true;
-  return false;
+/** The selected text when the selection covers `el`, else null. */
+function selectedTextAt(el: Element | null, selection: Selection | null): string | null {
+  if (!el || !selection || selection.isCollapsed) return null;
+  const text = selection.toString();
+  if (!text.trim()) return null;
+  for (let i = 0; i < selection.rangeCount; i++) if (selection.getRangeAt(i).intersectsNode(el)) return text;
+  return null;
+}
+
+/** What the guard asks of the app. */
+export interface FeelHooks {
+  /** Opens IMT's menu with Copy for `text` at the pointer. Without it, the native menu stays on selected text. */
+  copyMenu?: (x: number, y: number, text: string) => void;
 }
 
 /** Installs the guard on a window; returns the function that removes it. */
-export function installNativeFeel(win: Window, o: FeelOptions): () => void {
+export function installNativeFeel(win: Window, o: FeelOptions, hooks: FeelHooks = {}): () => void {
   const key = (e: KeyboardEvent) => {
     if (!e.defaultPrevented && shouldBlockKey(e, o)) e.preventDefault();
   };
   const mouse = (e: MouseEvent) => {
-    if (shouldBlockMouseButton(e.button)) e.preventDefault();
+    if (shouldBlockMouseButton(e.button, isEditable(elementOf(e.target)))) e.preventDefault();
   };
   const wheel = (e: WheelEvent) => {
     if (!e.defaultPrevented && shouldBlockWheel(e)) e.preventDefault();
   };
   const menu = (e: MouseEvent) => {
     const el = elementOf(e.target);
-    const block = shouldBlockContextMenu({
+    const selected = selectedTextAt(el, win.getSelection());
+    const action = contextMenuAction({
       handled: e.defaultPrevented,
       editable: isEditable(el),
-      onSelection: onSelection(el, win.getSelection()),
+      onSelection: selected !== null,
       developer: !o.release && e.shiftKey,
     });
-    if (block) e.preventDefault();
+    if (action === 'block') e.preventDefault();
+    if (action === 'copy' && selected !== null && hooks.copyMenu) {
+      e.preventDefault();
+      hooks.copyMenu(e.clientX, e.clientY, selected);
+    }
+  };
+  const files = (e: DragEvent) => {
+    const dropped = !!e.dataTransfer && Array.from(e.dataTransfer.types ?? []).includes('Files');
+    if (!shouldBlockFileDrop({ files: dropped, handled: e.defaultPrevented })) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'none';
   };
   const drag = (e: DragEvent) => {
     const el = e.target instanceof Element ? e.target : null;
@@ -164,6 +203,8 @@ export function installNativeFeel(win: Window, o: FeelOptions): () => void {
   win.addEventListener('wheel', wheel, passive);
   win.addEventListener('contextmenu', menu);
   win.addEventListener('dragstart', drag);
+  win.addEventListener('dragover', files);
+  win.addEventListener('drop', files);
   return () => {
     win.removeEventListener('keydown', key);
     win.removeEventListener('mousedown', mouse);
@@ -172,6 +213,8 @@ export function installNativeFeel(win: Window, o: FeelOptions): () => void {
     win.removeEventListener('wheel', wheel);
     win.removeEventListener('contextmenu', menu);
     win.removeEventListener('dragstart', drag);
+    win.removeEventListener('dragover', files);
+    win.removeEventListener('drop', files);
   };
 }
 
@@ -180,7 +223,10 @@ export function provideNativeFeel(): EnvironmentProviders {
   return makeEnvironmentProviders([
     provideEnvironmentInitializer(() => {
       if (typeof window === 'undefined') return;
-      const remove = installNativeFeel(window, { release: !isDevMode(), mac: isMac() });
+      const menu = inject(ContextMenuService);
+      const copyMenu = (x: number, y: number, text: string) =>
+        menu.open(x, y, [{ label: $localize`:Context menu item on selected text@@nativeFeel.copy:Copy`, run: () => void copyText(text) }]);
+      const remove = installNativeFeel(window, { release: !isDevMode(), mac: isMac() }, { copyMenu });
       inject(DestroyRef).onDestroy(remove);
     }),
   ]);

@@ -1,12 +1,13 @@
 import { CALM } from './themes/calm.theme';
 import { CONSOLE } from './themes/console.theme';
+import { PRECISION } from './themes/precision.theme';
 import { THEME_IDS, ThemeDef, ThemeId } from './theme.types';
 
 /** The default theme. */
 export const DEFAULT_THEME_ID: ThemeId = 'calm';
 
 /** The built-in themes, in menu order. */
-export const BUILT_IN_THEMES: readonly ThemeDef[] = [CALM, CONSOLE];
+export const BUILT_IN_THEMES: readonly ThemeDef[] = [CALM, CONSOLE, PRECISION];
 
 /** Narrows untrusted input (stored preferences, another window) to a theme id. */
 export function isThemeId(v: unknown): v is ThemeId {
