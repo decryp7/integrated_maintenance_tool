@@ -32,6 +32,7 @@ impl TextImporter for NfoImporter {
                 .map(|row| make_record(row.line, &row.categories, row.cols))
                 .collect(),
             skipped: parsed.skipped,
+            ..Default::default()
         })
     }
 }

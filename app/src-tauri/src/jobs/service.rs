@@ -1229,6 +1229,10 @@ pub(crate) mod tests {
         assert!(started.elapsed() < Duration::from_secs(5), "the caller did not wait for it");
         let _ = release.send(());
         let crashing: CancelFn = Arc::new(|| panic!("stop crashed"));
-        assert!(run_stop(JobId(3), crashing, STOP_WAIT).unwrap_err().contains("stop crashed"));
+        // A generous limit: the crash is reported as soon as the thread ends, but a loaded machine may take longer
+        // than STOP_WAIT to start it (then the stop would count as still running, not as crashed).
+        assert!(run_stop(JobId(3), crashing, Duration::from_secs(60))
+            .unwrap_err()
+            .contains("stop crashed"));
     }
 }

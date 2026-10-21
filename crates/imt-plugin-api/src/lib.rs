@@ -21,6 +21,7 @@ pub mod manifest;
 pub mod markers;
 pub mod model;
 pub mod plugin;
+pub mod problems;
 pub mod process;
 pub mod protocol;
 pub mod serve;

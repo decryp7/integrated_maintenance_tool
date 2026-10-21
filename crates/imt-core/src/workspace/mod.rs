@@ -368,15 +368,21 @@ impl Workspace {
         self.rebuild();
     }
 
+    /// Removes a source. The logical sources a `[[route]]` split from one file share its path and go with it
+    /// (the file is no longer read).
     pub fn remove_source(&mut self, id: u32) {
+        let mut ids = vec![id];
         if let Some(src) = self.sources.iter().find(|s| s.id == id) {
             let path = PathBuf::from(&src.path);
+            ids = self.sources.iter().filter(|s| s.path == src.path).map(|s| s.id).collect();
             self.roots.retain(|r| *r != path);
             self.removed.insert(path);
         }
-        self.sources.retain(|s| s.id != id);
-        self.records.retain(|r| r.source != id);
-        self.tail.forget(id);
+        self.sources.retain(|s| !ids.contains(&s.id));
+        self.records.retain(|r| !ids.contains(&r.source));
+        for id in ids {
+            self.tail.forget(id);
+        }
         self.rebuild();
         self.run_annotators(None);
     }
@@ -528,29 +534,9 @@ impl Workspace {
         let mut added = Vec::new();
         for (path_s, name, result) in results {
             match result {
-                Ok(mut loaded) => {
-                    let offset = self.apply_offset(&path_s, &mut loaded.imported.records);
-                    let id = self.add_source(path_s, name, loaded.importer, loaded.imported.skipped, loaded.stats);
-                    let file_kind = loaded.file_kind;
-                    let (from, to) = time_range(&loaded.imported.records);
-                    if let Some(s) = self.sources.last_mut() {
-                        s.records = loaded.imported.records.len();
-                        s.split_events = crate::importers::text::split_events(&loaded.imported.records);
-                        (s.from, s.to) = (from, to);
-                        s.offset_ms = offset;
-                        s.file_kind = file_kind;
-                        s.timestamp_issue = loaded.timestamp_issue.take();
-                    }
-                    if let Some(seed) = loaded.seed {
-                        let path = PathBuf::from(&self.sources[self.sources.len() - 1].path);
-                        let name = self.source_name(id).to_string();
-                        self.tail.track(id, &path, &name, seed);
-                    }
-                    records.extend(loaded.imported.records.into_iter().map(|mut r| {
-                        r.source = id;
-                        r
-                    }));
-                    added.push(id);
+                Ok(loaded) => {
+                    let ids = self.add_loaded(path_s, name, loaded, &mut records);
+                    added.extend(ids);
                 }
                 Err(reason) => {
                     if reason != NOT_IMPORTED {
@@ -567,6 +553,59 @@ impl Workspace {
         self.sources.sort_by(|a, b| a.name.cmp(&b.name));
         self.unrecognized.sort_by(|a, b| a.name.cmp(&b.name));
         (records, added)
+    }
+
+    /// Registers the sources of one loaded file (its own and the logical sources its routes split off), with
+    /// their records appended to `records`; returns their ids. File-wide counts (skipped lines, pipeline
+    /// statistics, problems, the timestamp issue) go to the first of them.
+    fn add_loaded(&mut self, path_s: String, name: String, mut loaded: Loaded, records: &mut Vec<Record>) -> Vec<u32> {
+        let own = std::mem::take(&mut loaded.imported.records);
+        let mut parts: Vec<(Option<String>, Vec<Record>)> = Vec::new();
+        if !own.is_empty() || loaded.logical.is_empty() {
+            parts.push((None, own));
+        }
+        parts.extend(loaded.logical.drain(..).map(|(label, recs)| (Some(label), recs)));
+        let mut problems = Some(std::mem::take(&mut loaded.imported.problems).into_vec());
+        let mut stats = Some(std::mem::take(&mut loaded.stats));
+        let mut skipped = loaded.imported.skipped;
+        let mut ids = Vec::new();
+        for (label, mut recs) in parts {
+            let offset = self.apply_offset(&path_s, &mut recs);
+            let source_name = label.clone().unwrap_or_else(|| name.clone());
+            let id = self.add_source(
+                path_s.clone(),
+                source_name,
+                loaded.importer.clone(),
+                std::mem::take(&mut skipped),
+                stats.take().unwrap_or_default(),
+            );
+            let (from, to) = time_range(&recs);
+            if let Some(s) = self.sources.last_mut() {
+                s.records = recs.len();
+                s.split_events = crate::importers::text::split_events(&recs);
+                (s.from, s.to) = (from, to);
+                s.offset_ms = offset;
+                s.file_kind = loaded.file_kind;
+                s.timestamp_issue = loaded.timestamp_issue.take();
+                s.problems = problems.take().unwrap_or_default();
+                s.identity = loaded.identity.clone();
+                if let Some(label) = &label {
+                    s.group = format!("{} › {label}", group_of(&name));
+                    s.routed_from = Some(name.clone());
+                }
+            }
+            if let Some(seed) = loaded.seed.take() {
+                let path = PathBuf::from(&path_s);
+                let name = self.source_name(id).to_string();
+                self.tail.track(id, &path, &name, seed);
+            }
+            records.extend(recs.into_iter().map(|mut r| {
+                r.source = id;
+                r
+            }));
+            ids.push(id);
+        }
+        ids
     }
 
     /// Registers a source (without records) and returns its id.
@@ -598,6 +637,9 @@ impl Workspace {
             offset_ms: 0,
             file_kind: FileKind::Text,
             timestamp_issue: None,
+            routed_from: None,
+            problems: Vec::new(),
+            identity: Vec::new(),
         });
         id
     }
@@ -630,8 +672,18 @@ impl Workspace {
         self.fields = self.field_index.infos(&derived);
     }
 
+    /// The instance key, its candidates checked per source (ADR 0020).
     fn pick_group_by(&self) -> Vec<String> {
-        crate::query::default_group_by(&self.profile.profile.instance, &self.fields, self.records.len(), self.sources.len())
+        let mut identity: Vec<String> = Vec::new();
+        for s in &self.sources {
+            for f in &s.identity {
+                if !identity.contains(f) {
+                    identity.push(f.clone());
+                }
+            }
+        }
+        let events: Vec<usize> = self.sources.iter().map(|s| s.records).collect();
+        crate::instance::instance_key(&self.profile.profile.instance, &identity, &self.fields, &events, self)
     }
 
     fn source_name(&self, id: u32) -> &str {
@@ -783,15 +835,25 @@ impl Workspace {
     }
 }
 
-/// A file read by an importer: its records after the pipeline, the pipeline's
-/// statistics, and how to tail it.
+/// A file read by an importer: its records after the pipeline (those no route claims), the logical sources
+/// its routes split off, the pipeline's statistics, and how to tail it.
 struct Loaded {
     importer: String,
     file_kind: FileKind,
     imported: crate::importers::Imported,
+    logical: Vec<(String, Vec<Record>)>,
+    /// The importer's identity fields (instance-key candidates).
+    identity: Vec<String>,
     stats: Vec<crate::pipeline::StepStats>,
     seed: Option<tail::TailSeed>,
     timestamp_issue: Option<crate::api::TimestampIssue>,
+}
+
+/// Field counts per source, by position in the source list.
+impl crate::instance::FieldPresence for Workspace {
+    fn count_in(&self, field: &str, source: usize) -> usize {
+        self.sources.get(source).map_or(0, |s| self.field_index.count_in(field, s.id))
+    }
 }
 
 /// The file read, or why it could not be read.
@@ -863,7 +925,8 @@ fn import_file(
                 } else if packed {
                     loaded.file_kind = FileKind::Compressed;
                 }
-                if !compressed && loaded.seed.is_none() {
+                // A file split by routes is not tailed (a change re-reads it, so events find their logical sources).
+                if !compressed && loaded.seed.is_none() && loaded.logical.is_empty() {
                     loaded.seed = whole.clone().or_else(|| Some(tail::TailSeed::whole(path, &entry.bytes)));
                 }
                 loaded
@@ -891,9 +954,11 @@ fn import_bytes(
     let mut append = None;
     let mut file_kind = FileKind::Text;
     let mut text = None;
+    let identity;
     let (id, mut imported) = match importers.select_binary(&ctx, &bytes[..bytes.len().min(64 * 1024)]) {
         Some(importer) => {
             file_kind = FileKind::Binary;
+            identity = importer.identity_fields();
             (
                 importer.id().to_string(),
                 importer.import(&ctx, bytes).map_err(|e| format!("{e:#}"))?,
@@ -903,6 +968,7 @@ fn import_bytes(
             let content = decode(bytes).ok_or("binary file")?;
             let head: String = content.chars().take(64 * 1024).collect();
             let importer = importers.select(&ctx, &head).ok_or("no importer recognises this format")?;
+            identity = importer.identity_fields();
             let imported = importer.import(&ctx, &content).map_err(|e| format!("{e:#}"))?;
             // Probe: an importer that cannot append is tailed by re-reading the file.
             if plain && importer.import_tail(&ctx, &head, "").is_some_and(|r| r.is_ok()) {
@@ -927,12 +993,18 @@ fn import_bytes(
         tail::TailSeed::append(path, bytes, &info, &stats_from)
     });
     let (records, stats) = profile.ingest(std::mem::take(&mut imported.records), source_name);
-    imported.records = records;
-    let timestamp_issue = text.and_then(|t| crate::timestamp_issue::assess(&id, &imported.records, &t, &profile.timestamps));
+    let timestamp_issue = text.and_then(|t| crate::timestamp_issue::assess(&id, &records, &t, &profile.timestamps));
+    let split = crate::route::split(&profile.routes, records, source_name);
+    imported.records = split.unrouted;
+    imported.problems.merge(split.problems);
+    // A file split by routes is re-read whole when it changes, so its new events find their logical sources.
+    let seed = seed.filter(|_| split.logical.is_empty());
     Ok(Loaded {
         importer: id.to_string(),
         file_kind,
         imported,
+        logical: split.logical,
+        identity,
         stats,
         seed,
         timestamp_issue,

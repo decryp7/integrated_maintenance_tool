@@ -70,10 +70,11 @@ impl PluginHandler {
         d.as_deref().and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())
     }
 
-    fn send_imported(ctx: &CallCtx, imported: Imported) -> Result<u64, RemoteError> {
+    /// Streams the records; returns what the end of the call carries (skipped lines, problems).
+    fn send_imported(ctx: &CallCtx, imported: Imported) -> Result<(u64, Vec<crate::problems::Problem>), RemoteError> {
         let skipped = imported.skipped as u64;
         chunk_events(imported.records.iter().map(WireEvent::of), |item| ctx.send(&item))?;
-        Ok(skipped)
+        Ok((skipped, imported.problems.into_vec()))
     }
 
     fn dispatch(&self, ctx: &CallCtx, req: PluginRequest) -> Result<Vec<u8>, RemoteError> {
@@ -120,8 +121,8 @@ impl PluginHandler {
                 } else {
                     return Err(invalid(format!("no importer \"{importer}\"")));
                 };
-                let skipped = Self::send_imported(ctx, imported)?;
-                encode_reply(&ImportDone { skipped })
+                let (skipped, problems) = Self::send_imported(ctx, imported)?;
+                encode_reply(&ImportDone { skipped, problems })
             }
             PluginRequest::ImportTail {
                 importer,
@@ -149,10 +150,15 @@ impl PluginHandler {
                     None => encode_reply(&TailDone {
                         supported: false,
                         skipped: 0,
+                        problems: Vec::new(),
                     }),
                     Some(r) => {
-                        let skipped = Self::send_imported(ctx, r.map_err(failed)?)?;
-                        encode_reply(&TailDone { supported: true, skipped })
+                        let (skipped, problems) = Self::send_imported(ctx, r.map_err(failed)?)?;
+                        encode_reply(&TailDone {
+                            supported: true,
+                            skipped,
+                            problems,
+                        })
                     }
                 }
             }

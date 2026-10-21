@@ -18,6 +18,11 @@ impl TextImporter for DockerJsonImporter {
         "docker-json"
     }
 
+    /// Where the container runs, from the log path (`Namespace`/`Pod` for Kubernetes) and its name or id.
+    fn identity_fields(&self) -> Vec<String> {
+        ["Namespace", "Pod", "Container", "ContainerId"].map(String::from).to_vec()
+    }
+
     /// Above the generic JSON importer (95), which would otherwise claim these lines.
     fn sniff(&self, _ctx: &ImportCtx, head: &str) -> u8 {
         let entry = first_line(head)
@@ -89,6 +94,7 @@ fn import(ctx: &ImportCtx, content: &str) -> Imported {
     Imported {
         records: joiner.finish(),
         skipped,
+        ..Default::default()
     }
 }
 
@@ -124,6 +130,14 @@ mod tests {
         r#"{"log":"{\"level\":\"error\",\"msg\":\"db down\"}\n","stream":"stdout","time":"yesterday"}"#,
         "\n",
     );
+
+    #[test]
+    fn declares_identity_fields() {
+        assert_eq!(
+            imt_plugin_api::TextImporter::identity_fields(&DockerJsonImporter),
+            ["Namespace", "Pod", "Container", "ContainerId"]
+        );
+    }
 
     #[test]
     fn parses_joins_partials_and_types_fields() {

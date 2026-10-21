@@ -25,6 +25,7 @@ use imt_ipc::{IpcError, Json};
 use imt_plugin_api::annotate as api_annotate;
 use imt_plugin_api::importer::path_tail;
 use imt_plugin_api::manifest::{ConfigParserCap, ImporterCap, Permission};
+use imt_plugin_api::problems::Problems;
 use imt_plugin_api::protocol::*;
 use std::sync::Arc;
 use std::time::Duration;
@@ -179,6 +180,7 @@ impl Importer for RemoteImporter {
         Ok(Imported {
             records,
             skipped: done.skipped as usize,
+            problems: Problems::from_vec(done.problems),
         })
     }
 
@@ -203,6 +205,7 @@ impl Importer for RemoteImporter {
             Ok((done, records)) => Some(Ok(Imported {
                 records,
                 skipped: done.skipped as usize,
+                problems: Problems::from_vec(done.problems),
             })),
             Err(e) => Some(Err(e)),
         }
@@ -210,6 +213,10 @@ impl Importer for RemoteImporter {
 
     fn multiline(&self) -> bool {
         self.cap.multiline
+    }
+
+    fn identity_fields(&self) -> Vec<String> {
+        self.cap.identity_fields.clone()
     }
 }
 
@@ -221,6 +228,10 @@ struct RemoteBinaryImporter {
 impl BinaryImporter for RemoteBinaryImporter {
     fn id(&self) -> &str {
         &self.cap.id
+    }
+
+    fn identity_fields(&self) -> Vec<String> {
+        self.cap.identity_fields.clone()
     }
 
     fn sniff(&self, ctx: &ImportCtx, head: &[u8]) -> u8 {
@@ -245,6 +256,7 @@ impl BinaryImporter for RemoteBinaryImporter {
         Ok(Imported {
             records,
             skipped: done.skipped as usize,
+            problems: Problems::from_vec(done.problems),
         })
     }
 }

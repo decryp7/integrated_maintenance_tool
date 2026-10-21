@@ -123,14 +123,16 @@ fn apply<R: Runtime>(app: &AppHandle<R>, owner: &str, hub: &BrowserHub) {
     let _ = browser.set_title(&window_title(&hub.page(owner).title, driving));
     set_frame(&browser, driving);
     match (driving, app.get_webview_window(&banner_label(owner))) {
-        (true, Some(banner)) => {
-            place(&browser, &banner);
-            let _ = banner.show();
-        }
+        (true, Some(banner)) => show_while_active(&browser, &banner),
         (true, None) => match build_banner(app, owner, &browser) {
             Ok(banner) => {
-                place(&browser, &banner);
-                let _ = banner.show();
+                let (a, o) = (app.clone(), owner.to_string());
+                banner.on_window_event(move |e| {
+                    if matches!(e, tauri::WindowEvent::Focused(_)) {
+                        focus_changed(&a, &o);
+                    }
+                });
+                show_while_active(&browser, &banner);
             }
             Err(e) => log::warn!(Window = owner; "The AI-is-browsing banner could not be shown: {e}"),
         },
@@ -158,6 +160,38 @@ fn build_banner<R: Runtime>(app: &AppHandle<R>, owner: &str, browser: &WebviewWi
         .visible(false)
         .inner_size(BANNER_HEIGHT * 10.0, BANNER_HEIGHT)
         .build()
+}
+
+/// Whether the banner shows: only while the browser (or the banner itself, e.g. its Stop button) is the active
+/// window. A separate always-shown window would float over whatever window is in front when the browser is behind
+/// it (macOS orders a shown child window to the front); the title and the frame still say "AI browsing" then.
+pub fn banner_visible(browser_focused: bool, banner_focused: bool) -> bool {
+    browser_focused || banner_focused
+}
+
+fn show_while_active<R: Runtime>(browser: &WebviewWindow<R>, banner: &WebviewWindow<R>) {
+    if banner_visible(browser.is_focused().unwrap_or(false), banner.is_focused().unwrap_or(false)) {
+        place(browser, banner);
+        let _ = banner.show();
+    } else {
+        let _ = banner.hide();
+    }
+}
+
+/// The browser or its banner gained or lost focus: show or hide the banner. Looked at a moment later, off the
+/// event thread, so moving focus from the browser to the banner (or back) does not hide it in between.
+pub fn focus_changed<R: Runtime>(app: &AppHandle<R>, owner: &str) {
+    let (a, o) = (app.clone(), owner.to_string());
+    tauri::async_runtime::spawn_blocking(move || {
+        std::thread::sleep(std::time::Duration::from_millis(150));
+        let Some(hub) = hub(&a) else { return };
+        if hub.ai_driver(&o).is_none() {
+            return;
+        }
+        if let (Some(browser), Some(banner)) = (a.get_webview_window(&browser_label(&o)), a.get_webview_window(&banner_label(&o))) {
+            show_while_active(&browser, &banner);
+        }
+    });
 }
 
 /// Puts the banner over the top of the browser's client area.
