@@ -43,15 +43,24 @@ fn snippet(s: &str) -> String {
 
 /// Research navigates only to the results page and its result links: every other driver action is refused,
 /// and the browser window lets only the address being opened load while research drives it.
-struct ReadOnlyDriver<R: Runtime> {
-    page: TauriPage<R>,
-    control: Arc<ChatBrowser>,
+pub(super) struct ReadOnlyDriver<R: Runtime> {
+    pub(super) page: TauriPage<R>,
+    pub(super) control: Arc<ChatBrowser>,
 }
 
 impl<R: Runtime> PageDriver for ReadOnlyDriver<R> {
     fn navigate(&self, url: &WebUrl) -> Result<(), BrowserError> {
         self.control.allow_site(url.site());
         self.control.expect_load(url);
+        let r = self.page.navigate(url);
+        self.control.clear_expected_load();
+        r
+    }
+
+    /// The engine's own redirect to a result: its site (the engine's, granted by the search) and then the one site it
+    /// redirects to, until the page load finished.
+    fn navigate_redirect(&self, url: &WebUrl) -> Result<(), BrowserError> {
+        self.control.expect_redirect(url);
         let r = self.page.navigate(url);
         self.control.clear_expected_load();
         r

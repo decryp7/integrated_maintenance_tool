@@ -40,6 +40,11 @@ pub trait PageReader: Send + Sync {
 /// passed); an element is checked against the snapshot it came from before it is touched.
 pub trait PageDriver: Send + Sync {
     fn navigate(&self, url: &WebUrl) -> Result<(), BrowserError>;
+    /// Loads `url`, a search engine's own redirect to a result, and lets it go on to the one other site it redirects
+    /// to (see `ChatBrowser::expect_redirect`). Drivers that do not restrict navigation just navigate.
+    fn navigate_redirect(&self, url: &WebUrl) -> Result<(), BrowserError> {
+        self.navigate(url)
+    }
     fn click(&self, element: &Element) -> Result<(), BrowserError>;
     fn type_text(&self, element: &Element, text: &str, submit: bool) -> Result<(), BrowserError>;
     fn scroll(&self, direction: ScrollDirection) -> Result<(), BrowserError>;

@@ -6,7 +6,9 @@
 //!
 //! The difference from agent mode: no per-site approval (only results-page links are opened, and only to
 //! read them), and nothing the page or the model says can make the browser go anywhere else: the next
-//! address always comes from the results page's links, never from page text or model output.
+//! address always comes from the results page's links, never from page text or model output. A result the engine
+//! links only through its own redirect is opened through it and may be redirected once, to the site the engine
+//! names ([`open_result`]).
 //!
 //! Everything here is pure or behind the [`PageReader`]/[`PageDriver`] ports and the [`ResearchModel`] trait,
 //! so it is tested without a webview or a model.
@@ -15,6 +17,7 @@ use super::capture::MAX_CAPTURE_CHARS;
 use super::engines::SearchSettings;
 use super::leak::{self, LeakReport};
 use super::port::{ActionEntry, ActionLog, ActionOutcome, BrowserError, PageDriver, PageReader};
+use super::readiness;
 use super::results::{self as found, PageKind, ResultsReader};
 use super::snapshot::DomSnapshot;
 use super::url::WebUrl;
@@ -296,6 +299,18 @@ fn browser_error(e: BrowserError) -> AiError {
     AiError::Engine(format!("the browser: {e}"))
 }
 
+/// Searches `query` with the engine of `env` in the browser (the engine's ordinary results page) and returns its
+/// address once the page load finished (the results may still be rendering: [`read_results`] waits for them).
+pub fn search(env: &ResearchEnv<'_>, query: &str) -> Result<WebUrl> {
+    let search_url = env
+        .search
+        .search_url(env.search.engine, query)
+        .map_err(|e| AiError::Invalid(e.to_string()))?;
+    env.driver.navigate(&search_url).map_err(browser_error)?;
+    env.log("research.search", Some(search_url.site().to_string()), ActionOutcome::Done, 0);
+    Ok(search_url)
+}
+
 /// Runs a research (blocking): search, read the results, answer. `on_step` hears the progress.
 pub fn research(
     env: &ResearchEnv<'_>,
@@ -306,15 +321,11 @@ pub fn research(
     let question = clip(req.question.trim(), MAX_QUESTION_CHARS);
     let max = usize::from(req.max_results.clamp(MIN_RESULTS, MAX_RESULTS));
     let started = (env.now)();
-    let search_url = env
-        .search
-        .search_url(env.search.engine, &req.query)
-        .map_err(|e| AiError::Invalid(e.to_string()))?;
     on_step(&ResearchStep::Searching);
-    env.driver.navigate(&search_url).map_err(browser_error)?;
-    env.log("research.search", Some(search_url.site().to_string()), ActionOutcome::Done, 0);
+    let search_url = search(env, &req.query)?;
     // The result links are collected once, from the results page itself (never from a page shown before it, nor
-    // later from a result page); then each result is opened directly by its address.
+    // later from a result page); then each result is opened directly by its address, or through the engine's own
+    // redirect when the engine hides the address behind it (one redirect, to whatever site the engine sends it).
     let links = match collect_results(env, model, &question, &search_url, max)? {
         Found::Links(links) => links,
         Found::Nothing(why) => return Ok(nothing_found(env, req, &search_url, why)),
@@ -323,11 +334,12 @@ pub fn research(
     let mut notes: Vec<String> = Vec::new();
     let mut skipped: Vec<SkippedPage> = Vec::new();
     let of = links.len();
-    for (i, (url, title)) in links.iter().enumerate() {
+    for (i, (link, title)) in links.iter().enumerate() {
         let step = (i + 1) as u32;
+        let via_engine = found::through_engine(link, &search_url);
         let skip = |reason: &str| SkippedPage {
             title: title.clone(),
-            url: url.as_str().to_string(),
+            url: link.as_str().to_string(),
             reason: reason.to_string(),
         };
         if (env.now)().duration_since(started) >= env.total {
@@ -340,28 +352,24 @@ pub fn research(
         on_step(&ResearchStep::Reading {
             page: i + 1,
             of,
-            site: url.site().to_string(),
+            site: if via_engine {
+                format!("{} (via {})", clip(title, 60), engine_name(env, &search_url))
+            } else {
+                link.site().to_string()
+            },
         });
-        if let Err(e) = env.driver.navigate(url) {
-            env.log("research.open", Some(url.site().to_string()), ActionOutcome::Failed, step);
-            skipped.push(skip(&format!("did not load ({e})")));
-            continue;
-        }
-        env.log("research.open", Some(url.site().to_string()), ActionOutcome::Done, step);
-        if env.cancelled() {
-            return Err(AiError::Cancelled);
-        }
-        let page = match wait_for_site(env, &url.site()) {
-            Ok(Some(p)) => p,
-            Ok(None) => {
-                skipped.push(skip("did not open (the browser showed another site)"));
+        let OpenedResult { url, page } = match open_result(env, link, &search_url, step)? {
+            Ok(opened) => opened,
+            Err(reason) => {
+                skipped.push(skip(&reason));
                 continue;
             }
-            Err(AiError::Cancelled) => return Err(AiError::Cancelled),
-            Err(e) => {
-                skipped.push(skip(&format!("could not be read ({e})")));
-                continue;
-            }
+        };
+        let url = &url;
+        let skip = |reason: &str| SkippedPage {
+            title: title.clone(),
+            url: url.as_str().to_string(),
+            reason: reason.to_string(),
         };
         if let Some(h) = page.hand_off {
             env.log("research.skip", Some(url.site().to_string()), ActionOutcome::HandedBack, step);
@@ -417,16 +425,69 @@ pub fn research(
     })
 }
 
-/// The page shown once it is on `site` (a page still loading or an older one is looked at again, briefly);
+/// A result shown in the browser: the address it was read at (where the engine's redirect went, for a result opened
+/// through the engine) and the page.
+#[derive(Debug, Clone)]
+pub struct OpenedResult {
+    pub url: WebUrl,
+    pub page: DomSnapshot,
+}
+
+/// Opens one result link of the results page and waits until the browser shows it: directly by its address, or
+/// through the engine's own redirect ([`found::through_engine`]), which may go once to whatever site the engine sends
+/// it (a private address is never read). `Ok(Err(why))`: skipped, and why; `Err`: cancelled.
+pub fn open_result(env: &ResearchEnv<'_>, link: &WebUrl, search: &WebUrl, step: u32) -> Result<std::result::Result<OpenedResult, String>> {
+    let via_engine = found::through_engine(link, search);
+    let opened = if via_engine {
+        env.driver.navigate_redirect(link)
+    } else {
+        env.driver.navigate(link)
+    };
+    if let Err(e) = opened {
+        env.log("research.open", Some(link.site().to_string()), ActionOutcome::Failed, step);
+        return Ok(Err(format!("did not load ({e})")));
+    }
+    env.log("research.open", Some(link.site().to_string()), ActionOutcome::Done, step);
+    if env.cancelled() {
+        return Err(AiError::Cancelled);
+    }
+    let engine = search.site();
+    let shown = if via_engine {
+        wait_for_page(env, &|u: &WebUrl| u.site() != engine)
+    } else {
+        wait_for_page(env, &|u: &WebUrl| u.site() == link.site())
+    };
+    let page = match shown {
+        Ok(Some(p)) => p,
+        Ok(None) if via_engine => return Ok(Err("did not open (the search engine did not redirect to the result)".into())),
+        Ok(None) => return Ok(Err("did not open (the browser showed another site)".into())),
+        Err(AiError::Cancelled) => return Err(AiError::Cancelled),
+        Err(e) => return Ok(Err(format!("could not be read ({e})"))),
+    };
+    if !via_engine {
+        return Ok(Ok(OpenedResult { url: link.clone(), page }));
+    }
+    match WebUrl::parse(&page.url) {
+        Ok(url) if !url.is_private() => {
+            env.log("research.redirected", Some(url.site().to_string()), ActionOutcome::Done, step);
+            Ok(Ok(OpenedResult { url, page }))
+        }
+        _ => Ok(Err(
+            "did not open (the search engine redirected to an address that is not read)".into()
+        )),
+    }
+}
+
+/// The page shown once its address is `wanted` (a page still loading or an older one is looked at again, briefly);
 /// `None` when the browser stays elsewhere (a redirect to another site was blocked).
-fn wait_for_site(env: &ResearchEnv<'_>, site: &super::url::Site) -> Result<Option<DomSnapshot>> {
+fn wait_for_page(env: &ResearchEnv<'_>, wanted: &dyn Fn(&WebUrl) -> bool) -> Result<Option<DomSnapshot>> {
     let mut last_err = None;
     for i in 0..PAGE_POLLS {
         if i > 0 {
             env.wait(PAGE_POLL)?;
         }
         match env.reader.snapshot() {
-            Ok(p) if WebUrl::parse(&p.url).is_ok_and(|u| u.site() == *site) => return Ok(Some(p)),
+            Ok(p) if WebUrl::parse(&p.url).is_ok_and(|u| wanted(&u)) => return Ok(Some(p)),
             Ok(_) => last_err = None,
             Err(e) => last_err = Some(e),
         }
@@ -444,10 +505,12 @@ enum Found {
 }
 
 /// Why research found nothing to read on the results page.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum NoResults {
     /// The results page was shown, and neither the rules nor the model found result links on it.
     NoLinks,
+    /// The rules found no result links and the model could not be asked (not set up, failed to load): why.
+    NoModel(String),
     /// A cookie or consent page came instead of the results.
     Consent,
     /// A human check ("unusual traffic", a CAPTCHA) came instead of the results.
@@ -459,9 +522,12 @@ enum NoResults {
 }
 
 impl NoResults {
-    fn reason(self, engine: &str) -> String {
+    fn reason(&self, engine: &str) -> String {
         match self {
             NoResults::NoLinks => format!("{engine} showed no result links."),
+            NoResults::NoModel(why) => {
+                format!("{engine} showed no result links IMT recognises, and the AI model could not pick them from the page ({why}).")
+            }
             NoResults::Consent => {
                 format!("The results page was a consent page of {engine}: accept or decline it in the Browser panel, then research again.")
             }
@@ -475,10 +541,19 @@ impl NoResults {
         }
     }
 
-    fn action(self) -> &'static str {
+    fn handed_back(&self) -> bool {
+        matches!(self, NoResults::Consent | NoResults::Captcha | NoResults::Redirect)
+    }
+
+    /// The variant's name, for IMT's log (never the model's error text: it is not needed there).
+    fn label(&self) -> &'static str {
         match self {
-            NoResults::Consent | NoResults::Captcha | NoResults::Redirect => "research.links.handOff",
-            _ => "research.links.none",
+            NoResults::NoLinks => "no links",
+            NoResults::NoModel(_) => "no links, model unavailable",
+            NoResults::Consent => "consent page",
+            NoResults::Captcha => "human check",
+            NoResults::Redirect => "redirect page",
+            NoResults::NotShown => "results page not shown",
         }
     }
 }
@@ -494,12 +569,13 @@ fn engine_name(env: &ResearchEnv<'_>, search: &WebUrl) -> String {
 /// The report when nothing was found: why, and the results page to open and pick from by hand.
 fn nothing_found(env: &ResearchEnv<'_>, req: &ResearchRequest, search: &WebUrl, why: NoResults) -> ResearchReport {
     let reason = why.reason(&engine_name(env, search));
-    let outcome = match why {
-        NoResults::Consent | NoResults::Captcha | NoResults::Redirect => ActionOutcome::HandedBack,
-        _ => ActionOutcome::Failed,
+    let (action, outcome) = if why.handed_back() {
+        ("research.links.handOff", ActionOutcome::HandedBack)
+    } else {
+        ("research.links.none", ActionOutcome::Failed)
     };
-    env.log(why.action(), Some(search.site().to_string()), outcome, 0);
-    log::info!("Research found no results to read: {why:?}");
+    env.log(action, Some(search.site().to_string()), outcome, 0);
+    log::info!("Research found no results to read: {}", why.label());
     ResearchReport {
         query: req.query.clone(),
         answer: format!("{reason} Open the results page to pick the results yourself."),
@@ -510,79 +586,160 @@ fn nothing_found(env: &ResearchEnv<'_>, req: &ResearchRequest, search: &WebUrl, 
     }
 }
 
-/// The results page's links, read once the browser shows the results page, with the results-page collector (never
-/// the snapshot): by the rules first; when they find nothing, the model picks from the candidates.
-fn collect_results(env: &ResearchEnv<'_>, model: &dyn ResearchModel, question: &str, search: &WebUrl, max: usize) -> Result<Found> {
+/// What the results page showed, by the rules alone ([`read_results`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ResultsOutcome {
+    /// Result links, best first.
+    Links(Vec<(WebUrl, String)>),
+    /// The results page showed; the rules found no result links on it.
+    NoLinks,
+    /// A consent, human-check or redirect page instead of the results: the user's to handle.
+    HandOff(PageKind),
+    /// The browser never showed a page of the search's site.
+    NotShown,
+}
+
+/// The results page as research read it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResultsRead {
+    pub outcome: ResultsOutcome,
+    /// The page last looked at (live tests write its diagnostics; never log its title or addresses).
+    pub page: Option<found::ResultsPage>,
+    /// How often the page was looked at.
+    pub looks: usize,
+    /// Whether the page was read because it was ready ([`readiness`]) rather than because the wait ended.
+    pub ready: bool,
+}
+
+/// The results page's links by the rules, read with the results-page collector (never the snapshot) once the page is
+/// ready ([`readiness::readiness`]: complete, results in its region, the DOM quiet), looking every
+/// [`readiness::LOOK_EVERY`] for at most [`readiness::LOOK_FOR`]. Consent and human-check pages end the wait at once;
+/// a redirect page or a page of another site is looked at again (it usually goes on to the results).
+pub fn read_results(env: &ResearchEnv<'_>, search: &WebUrl, max: usize) -> Result<ResultsRead> {
     let region = env.search.engine.results_region();
     let mut last_err = None;
-    let mut best: Vec<(WebUrl, String)> = Vec::new();
+    let mut last: Option<found::ResultsPage> = None;
     let mut shown: Option<found::ResultsPage> = None;
     let mut redirect = false;
-    for i in 0..PAGE_POLLS {
+    let looks = readiness::max_looks();
+    let read = |p: found::ResultsPage, looks: usize, ready: bool| {
+        let links = found::result_links(&p, search, max);
+        ResultsRead {
+            outcome: if links.is_empty() {
+                ResultsOutcome::NoLinks
+            } else {
+                ResultsOutcome::Links(links)
+            },
+            page: Some(p),
+            looks,
+            ready,
+        }
+    };
+    for i in 0..looks {
         if i > 0 {
-            env.wait(PAGE_POLL)?;
+            env.wait(readiness::LOOK_EVERY)?;
         }
-        match env.results.results_page(region) {
-            Ok(p) => {
-                last_err = None;
-                // A consent or human-check page (often on another host) is the user's to handle.
-                match found::page_kind(&p) {
-                    PageKind::Consent => return Ok(Found::Nothing(NoResults::Consent)),
-                    PageKind::Captcha => return Ok(Found::Nothing(NoResults::Captcha)),
-                    PageKind::Redirect => {
-                        redirect = true;
-                        continue;
-                    }
-                    PageKind::Results => {}
-                }
-                if !WebUrl::parse(&p.url).is_ok_and(|u| u.site() == search.site()) {
-                    continue;
-                }
-                let links = found::result_links(&p, search, max);
-                // Results pages fill in after the load (a map or an answer box first, the results later): take
-                // the list once it is full, or once it stopped growing between two looks.
-                if links.len() >= max || (!links.is_empty() && links.len() == best.len()) {
-                    best = links;
-                    break;
-                }
-                if links.len() > best.len() {
-                    best = links;
-                }
-                shown = Some(p);
+        let p = match env.results.results_page(region) {
+            Ok(p) => p,
+            Err(e) => {
+                last_err = Some(e);
+                continue;
             }
-            Err(e) => last_err = Some(e),
+        };
+        last_err = None;
+        match found::page_kind(&p) {
+            kind @ (PageKind::Consent | PageKind::Captcha) => {
+                return Ok(ResultsRead {
+                    outcome: ResultsOutcome::HandOff(kind),
+                    page: Some(p),
+                    looks: i + 1,
+                    ready: true,
+                })
+            }
+            PageKind::Redirect => {
+                redirect = true;
+                last = Some(p);
+                continue;
+            }
+            PageKind::Results => {}
         }
-    }
-    if !best.is_empty() {
-        env.log("research.links.rules", Some(search.site().to_string()), ActionOutcome::Done, 0);
-        log::info!("Research took {} result links from the results page by the rules", best.len());
-        return Ok(Found::Links(best));
-    }
-    if let Some(page) = shown {
-        // Counts only: the page's title and addresses carry the query, which may come from the user's logs.
-        log::info!(
-            "Research found no result links by the rules: {} links on the page, {} in the results region (found: {})",
-            page.links.len(),
-            page.links.iter().filter(|l| l.in_region).count(),
-            page.region_found
-        );
-        let picked = pick_with_model(env, model, question, &page, search, max)?;
-        if picked.is_empty() {
-            return Ok(Found::Nothing(NoResults::NoLinks));
+        if !WebUrl::parse(&p.url).is_ok_and(|u| u.site() == search.site()) {
+            last = Some(p);
+            continue;
         }
-        env.log("research.links.ai", Some(search.site().to_string()), ActionOutcome::Done, 0);
-        log::info!("Research took {} result links picked by the model", picked.len());
-        return Ok(Found::Links(picked));
+        if readiness::readiness(&p) == readiness::Readiness::Ready {
+            return Ok(read(p, i + 1, true));
+        }
+        shown = Some(p);
     }
-    match last_err {
-        Some(e) => Err(browser_error(e)),
-        None if redirect => Ok(Found::Nothing(NoResults::Redirect)),
-        None => Ok(Found::Nothing(NoResults::NotShown)),
+    // The wait ended: the results page as it is now, else why there was none.
+    if let Some(p) = shown {
+        return Ok(read(p, looks, false));
     }
+    let outcome = match last_err {
+        Some(e) => return Err(browser_error(e)),
+        None if redirect => ResultsOutcome::HandOff(PageKind::Redirect),
+        None => ResultsOutcome::NotShown,
+    };
+    Ok(ResultsRead {
+        outcome,
+        page: last,
+        looks,
+        ready: false,
+    })
+}
+
+/// The results page's links, by the rules first ([`read_results`]); when they find nothing, the model picks from the
+/// candidates.
+fn collect_results(env: &ResearchEnv<'_>, model: &dyn ResearchModel, question: &str, search: &WebUrl, max: usize) -> Result<Found> {
+    let read = read_results(env, search, max)?;
+    let page = match read.outcome {
+        ResultsOutcome::Links(links) => {
+            env.log("research.links.rules", Some(search.site().to_string()), ActionOutcome::Done, 0);
+            log::info!(
+                "Research took {} result links from the results page by the rules after {} looks (ready: {})",
+                links.len(),
+                read.looks,
+                read.ready
+            );
+            return Ok(Found::Links(links));
+        }
+        ResultsOutcome::HandOff(PageKind::Consent) => return Ok(Found::Nothing(NoResults::Consent)),
+        ResultsOutcome::HandOff(PageKind::Captcha) => return Ok(Found::Nothing(NoResults::Captcha)),
+        ResultsOutcome::HandOff(_) => return Ok(Found::Nothing(NoResults::Redirect)),
+        ResultsOutcome::NotShown => return Ok(Found::Nothing(NoResults::NotShown)),
+        ResultsOutcome::NoLinks => match read.page {
+            Some(p) => p,
+            None => return Ok(Found::Nothing(NoResults::NoLinks)),
+        },
+    };
+    // Counts only: the page's title and addresses carry the query, which may come from the user's logs.
+    log::info!(
+        "Research found no result links by the rules: {} links on the page ({} collected, {} in the results region, region found: {}), readyState {:?}, quiet {:?} ms, ready: {}",
+        page.total_links,
+        page.links.len(),
+        page.links_in_region(),
+        page.region_found,
+        page.ready_state,
+        page.quiet_ms,
+        read.ready
+    );
+    let picked = match pick_with_model(env, model, question, &page, search, max)? {
+        Ok(picked) => picked,
+        Err(why) => return Ok(Found::Nothing(NoResults::NoModel(why))),
+    };
+    if picked.is_empty() {
+        return Ok(Found::Nothing(NoResults::NoLinks));
+    }
+    env.log("research.links.ai", Some(search.site().to_string()), ActionOutcome::Done, 0);
+    log::info!("Research took {} result links picked by the model", picked.len());
+    Ok(Found::Links(picked))
 }
 
 /// The fallback: the model answers with the numbers of the organic results among the candidates (addresses and titles,
-/// never page text); only those addresses are used. A failed call finds nothing (Cancel still cancels).
+/// never page text); only those addresses are used. A model that is still loading is waited for (the provider waits,
+/// Cancel still cancels); one that cannot answer (not set up, failed to load) gives why, so the report says so instead
+/// of claiming the engine showed nothing.
 fn pick_with_model(
     env: &ResearchEnv<'_>,
     model: &dyn ResearchModel,
@@ -590,23 +747,26 @@ fn pick_with_model(
     page: &found::ResultsPage,
     search: &WebUrl,
     max: usize,
-) -> Result<Vec<(WebUrl, String)>> {
+) -> Result<std::result::Result<Vec<(WebUrl, String)>, String>> {
     let candidates = found::candidates(page, search);
-    if candidates.is_empty() || env.cancelled() {
-        return if env.cancelled() { Err(AiError::Cancelled) } else { Ok(vec![]) };
+    if env.cancelled() {
+        return Err(AiError::Cancelled);
+    }
+    if candidates.is_empty() {
+        return Ok(Ok(vec![]));
     }
     let reply = match model.pick(question, &found::pick_prompt(question, &candidates, max)) {
         Ok(r) => r,
         Err(AiError::Cancelled) => return Err(AiError::Cancelled),
         Err(e) => {
             log::info!("The model did not pick results: {e}");
-            return Ok(vec![]);
+            return Ok(Err(clip(&e.to_string(), 200)));
         }
     };
-    Ok(found::parse_picks(&reply, candidates.len(), max)
+    Ok(Ok(found::parse_picks(&reply, candidates.len(), max)
         .into_iter()
         .filter_map(|i| candidates.get(i).cloned())
-        .collect())
+        .collect()))
 }
 
 /// The answer, then which results were read and which were skipped (with why).
@@ -685,6 +845,10 @@ mod tests {
         before: Mutex<(String, usize)>,
         /// Results pages as the collector returns them, by address (else the page's links, none in a region).
         results: HashMap<String, found::ResultsPage>,
+        /// What the collector sees on the next looks, before `results` (a page still rendering its results).
+        rendering: Mutex<std::collections::VecDeque<found::ResultsPage>>,
+        /// Addresses opened as the engine's own redirects.
+        redirected: Mutex<Vec<String>>,
     }
 
     fn link(r: u32, name: &str, href: &str) -> Element {
@@ -749,10 +913,16 @@ mod tests {
     impl ResultsReader for FakeWeb {
         fn results_page(&self, _region: &[&str]) -> std::result::Result<found::ResultsPage, BrowserError> {
             let snap = self.snapshot()?;
+            if let Some(p) = self.rendering.lock().unwrap().pop_front() {
+                return Ok(p);
+            }
             if let Some(p) = self.results.get(&snap.url) {
                 return Ok(p.clone());
             }
             Ok(found::ResultsPage {
+                ready_state: found::ReadyState::Complete,
+                quiet_ms: Some(5_000),
+                total_links: snap.elements.len(),
                 links: snap
                     .elements
                     .iter()
@@ -762,6 +932,7 @@ mod tests {
                             href: e.href.clone()?,
                             text: e.name.clone(),
                             in_region: false,
+                            heading: false,
                         })
                     })
                     .collect(),
@@ -782,6 +953,10 @@ mod tests {
             let previous = std::mem::replace(&mut *self.at.lock().unwrap(), url.as_str().to_string());
             *self.before.lock().unwrap() = (previous, self.stale);
             Ok(())
+        }
+        fn navigate_redirect(&self, url: &WebUrl) -> std::result::Result<(), BrowserError> {
+            self.redirected.lock().unwrap().push(url.as_str().to_string());
+            self.navigate(url)
         }
         fn click(&self, _: &Element) -> std::result::Result<(), BrowserError> {
             panic!("research never clicks")
@@ -1283,7 +1458,7 @@ mod tests {
                 link("https://support.google.com/websearch/answer/1", "Search help", false),
             ],
             region_found: false,
-            text: String::new(),
+            ..super::super::results::fixtures::settled()
         }
     }
 
@@ -1378,5 +1553,191 @@ mod tests {
         assert!(r.no_results.as_deref().is_some_and(|s| s.contains("redirect page")), "{r:?}");
         assert!(r.results_page.is_some() && r.read.is_empty());
         assert_eq!(w.visited.lock().unwrap().len(), 1, "nothing opened");
+    }
+
+    /// A Google results page as the collector sees it while it renders: `region` result links, `quiet_ms` of quiet.
+    fn rendering(state: found::ReadyState, quiet_ms: u64, region: usize) -> found::ResultsPage {
+        use super::super::results::fixtures::{link, GOOGLE};
+        let mut links = vec![link("https://www.google.com/preferences", "Settings", false)];
+        links.extend((1..=region).map(|n| link(&format!("https://answer{n}.example.org/"), &format!("Answer {n}"), true)));
+        found::ResultsPage {
+            url: GOOGLE.into(),
+            title: "results".into(),
+            links,
+            region_found: true,
+            ready_state: state,
+            quiet_ms: Some(quiet_ms),
+            ..found::ResultsPage::default()
+        }
+    }
+
+    /// Reads the results page of `w` (a Google search) with a fake clock; returns the read and the time waited.
+    fn read_with_clock(w: &FakeWeb) -> (ResultsRead, Duration) {
+        use super::super::results::fixtures::GOOGLE;
+        let log = MemoryLog::default();
+        let t0 = Instant::now();
+        let clock = Mutex::new(t0);
+        let env = ResearchEnv {
+            reader: w,
+            results: w,
+            driver: w,
+            search: SearchSettings::default(),
+            log: &log,
+            id: "research:4".into(),
+            cancel: &AtomicBool::new(false),
+            pace: Duration::ZERO,
+            total: TOTAL_TIME,
+            sleep: &|d| *clock.lock().unwrap() += d,
+            now: &|| *clock.lock().unwrap(),
+        };
+        let search = WebUrl::parse(GOOGLE).unwrap();
+        w.navigate(&search).unwrap();
+        let r = read_results(&env, &search, 10).unwrap();
+        let waited = clock.lock().unwrap().duration_since(t0);
+        (r, waited)
+    }
+
+    // Regression: results pages render their results by script after the load event; research took the page as soon as
+    // the link count stopped growing between two looks, which an answer box or a map rendering first could fake.
+    #[test]
+    fn results_rendered_after_the_load_are_read_once_the_page_is_ready() {
+        use super::super::results::fixtures::GOOGLE;
+        use found::ReadyState::*;
+        let w = fixture_web(GOOGLE, rendering(Complete, 5_000, 3));
+        w.rendering.lock().unwrap().extend([
+            rendering(Interactive, 0, 0),
+            rendering(Complete, 0, 0),
+            // One result rendered, then nothing for a while (a growth pause the old rule took for the end)...
+            rendering(Complete, 300, 1),
+            rendering(Complete, 400, 1),
+            // ...then the rest.
+            rendering(Complete, 100, 3),
+        ]);
+        let (r, waited) = read_with_clock(&w);
+        let ResultsOutcome::Links(links) = &r.outcome else {
+            panic!("{:?}", r.outcome)
+        };
+        assert_eq!(links.len(), 3, "every result, not the first one only");
+        assert!(r.ready);
+        assert_eq!(r.looks, 6, "read on the first look that was complete, with region links and quiet");
+        assert_eq!(waited, readiness::LOOK_EVERY * 5);
+    }
+
+    #[test]
+    fn a_page_that_never_settles_is_read_when_the_wait_ends() {
+        use super::super::results::fixtures::GOOGLE;
+        // An animated page: its DOM never stays quiet.
+        let w = fixture_web(GOOGLE, rendering(found::ReadyState::Complete, 50, 2));
+        let (r, waited) = read_with_clock(&w);
+        assert!(matches!(&r.outcome, ResultsOutcome::Links(l) if l.len() == 2), "{:?}", r.outcome);
+        assert!(!r.ready);
+        assert_eq!(r.looks, readiness::max_looks());
+        assert!(waited < readiness::LOOK_FOR, "{waited:?}");
+        assert_eq!(r.page.map(|p| p.diagnostics().links_in_region), Some(2));
+    }
+
+    #[test]
+    fn a_page_on_another_site_is_not_the_results_page() {
+        use super::super::results::fixtures::GOOGLE;
+        let w = fixture_web(GOOGLE, rendering(found::ReadyState::Complete, 5_000, 2));
+        let elsewhere = found::ResultsPage {
+            url: "https://other.example/".into(),
+            ..super::super::results::fixtures::settled()
+        };
+        w.rendering.lock().unwrap().extend([elsewhere.clone(), elsewhere]);
+        let (r, _) = read_with_clock(&w);
+        assert_eq!(r.looks, 3, "the previous page twice, then the results");
+        let stuck = fixture_web(GOOGLE, rendering(found::ReadyState::Complete, 5_000, 2));
+        stuck
+            .rendering
+            .lock()
+            .unwrap()
+            .extend((0..readiness::max_looks()).map(|_| found::ResultsPage {
+                url: "https://other.example/".into(),
+                ..found::ResultsPage::default()
+            }));
+        let (r, _) = read_with_clock(&stuck);
+        assert_eq!(r.outcome, ResultsOutcome::NotShown);
+        assert_eq!(r.page.map(|p| p.url), Some("https://other.example/".to_string()));
+    }
+
+    /// A model that cannot answer (not set up, failed to load).
+    struct NoModel;
+
+    impl ResearchModel for NoModel {
+        fn extract(&self, _: &str, _: &str) -> Result<String> {
+            Err(AiError::NoModel)
+        }
+        fn answer(&self, _: &str, _: &str) -> Result<String> {
+            Err(AiError::NoModel)
+        }
+        fn pick(&self, _: &str, _: &str) -> Result<String> {
+            Err(AiError::Engine("the model failed to load".into()))
+        }
+    }
+
+    #[test]
+    fn when_the_model_cannot_pick_the_report_says_so() {
+        use super::super::engines::SearchEngine;
+        use super::super::results::fixtures::GOOGLE;
+        let w = fixture_web(GOOGLE, product_page());
+        let r = run_with(&w, &NoModel, SearchEngine::Google, "HttpRequestException 504").unwrap();
+        let why = r.no_results.unwrap();
+        assert!(
+            why.contains("AI model could not pick them") && why.contains("the model failed to load"),
+            "not \"Google showed no result links\": {why}"
+        );
+        assert!(r.results_page.is_some());
+    }
+
+    // Regression (live test, WebView2): Google hid every result's address behind its own `/goto?url=<token>` redirect.
+    // Research opens such a result through the engine, lets it redirect once, and cites the page it landed on.
+    #[test]
+    fn results_behind_the_engines_own_redirect_are_opened_through_it_and_cited_where_they_landed() {
+        use super::super::engines::SearchEngine;
+        use super::super::results::fixtures::{link, settled, GOOGLE};
+        let goto = |n: u32| format!("https://www.google.com/goto?url=CAESTok{n}");
+        let titled = |href: &str, text: &str| found::ResultLink {
+            heading: true,
+            ..link(href, text, true)
+        };
+        let results = found::ResultsPage {
+            url: GOOGLE.into(),
+            links: vec![
+                titled(&goto(1), "Timeouts explained"),
+                titled(&goto(2), "Stuck redirect"),
+                titled(&goto(3), "To a router"),
+            ],
+            region_found: true,
+            ..settled()
+        };
+        let mut w = fixture_web(GOOGLE, results);
+        // Google redirects result 1 to its page; result 2 stays on Google; result 3 lands on a private address.
+        w.add(
+            &goto(1),
+            page(
+                "https://learn.example.org/timeouts",
+                "Timeouts",
+                "E_ACCESSDENIED: grant the app pool identity access.",
+                vec![],
+                None,
+            ),
+        );
+        w.add(&goto(2), page(&goto(2), "Redirecting", "Redirecting...", vec![], None));
+        w.add(&goto(3), page("http://192.168.1.1/", "Router", "admin", vec![], None));
+        let r = run_with(&w, &model(), SearchEngine::Google, "HttpRequestException 504").unwrap();
+        assert_eq!(
+            *w.redirected.lock().unwrap(),
+            [goto(1), goto(2), goto(3)],
+            "opened through the engine"
+        );
+        assert_eq!(r.read.len(), 1, "{:?}", r.skipped);
+        assert_eq!(
+            r.read[0].url, "https://learn.example.org/timeouts",
+            "cited where it landed, never the redirect"
+        );
+        assert!(r.skipped[0].reason.contains("did not redirect"), "{:?}", r.skipped);
+        assert!(r.skipped[1].reason.contains("not read"), "{:?}", r.skipped);
+        assert!(r.sources().iter().all(|s| !s.url.contains("goto?url")));
     }
 }

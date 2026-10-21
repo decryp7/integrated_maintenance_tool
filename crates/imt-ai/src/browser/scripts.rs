@@ -8,6 +8,7 @@ use super::protocol::Nonce;
 use super::results::{MAX_LINK_TEXT, MAX_RESULT_LINKS};
 use super::snapshot::{Element, MAX_ELEMENTS};
 use serde_json::{json, Value};
+use std::sync::OnceLock;
 
 const CAPTURE: &str = include_str!("js/capture.js");
 const SNAPSHOT: &str = include_str!("js/snapshot.js");
@@ -36,11 +37,19 @@ pub fn snapshot(nonce: &Nonce) -> String {
     call(SNAPSHOT, json!({"nonce": nonce.as_str(), "maxElements": MAX_ELEMENTS * 2}))
 }
 
-/// Every link of a search results page, in document order, marked when inside `region` (see `results.rs`).
+/// The name of the property the results-page collector keeps its DOM observer in: random per process (a letter first,
+/// so it is an ordinary property name), so a page cannot look for it in advance.
+fn observer_slot() -> &'static str {
+    static SLOT: OnceLock<String> = OnceLock::new();
+    SLOT.get_or_init(|| format!("i{}", Nonce::new().as_str()))
+}
+
+/// Every link of a search results page, in document order, marked when inside `region`, with the page's readiness
+/// (see `results.rs`, `readiness.rs`).
 pub fn result_links(nonce: &Nonce, region: &[&str]) -> String {
     call(
         RESULT_LINKS,
-        json!({"nonce": nonce.as_str(), "max": MAX_RESULT_LINKS, "maxText": MAX_LINK_TEXT, "region": region}),
+        json!({"nonce": nonce.as_str(), "max": MAX_RESULT_LINKS, "maxText": MAX_LINK_TEXT, "region": region, "slot": observer_slot()}),
     )
 }
 
@@ -121,6 +130,13 @@ mod tests {
         assert_eq!(args(&click(&n, &el()))["tag"], "input");
         assert_eq!(args(&result_links(&n, &["#rso", "#search"]))["region"], json!(["#rso", "#search"]));
         assert_eq!(args(&result_links(&n, &[]))["max"], MAX_RESULT_LINKS);
+        let slot = args(&result_links(&n, &[]))["slot"].as_str().unwrap().to_string();
+        assert!(slot.len() > 16 && slot.starts_with('i') && slot.chars().all(|c| c.is_ascii_alphanumeric()));
+        assert_eq!(
+            args(&result_links(&Nonce::new(), &["#rso"]))["slot"],
+            slot.as_str(),
+            "one slot per process: the observer a first look installed is found again"
+        );
         assert_eq!(args(&scroll(&n, ScrollDirection::Down))["dir"], "down");
         assert_eq!(args(&history(&n, false))["op"], "forward");
     }
