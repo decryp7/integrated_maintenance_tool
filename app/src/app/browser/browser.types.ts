@@ -4,10 +4,10 @@
  * and agent mode are part of `ChatEvent` in `../ai/ai.types.ts`.
  */
 
-export type SearchEngine = 'google' | 'duckDuckGo' | 'bing' | 'stackOverflow' | 'custom';
+export type SearchEngine = 'google' | 'duckDuckGo' | 'bing' | 'custom';
 
 /** Every engine in the order the engine lists them (`SearchEngine::ALL`: Google, the default, first). */
-export const SEARCH_ENGINES: readonly SearchEngine[] = ['google', 'duckDuckGo', 'bing', 'stackOverflow', 'custom'];
+export const SEARCH_ENGINES: readonly SearchEngine[] = ['google', 'duckDuckGo', 'bing', 'custom'];
 
 /** The page a window's browser shows. */
 export interface PageState {

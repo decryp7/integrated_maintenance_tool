@@ -25,7 +25,6 @@ const TEMPLATES: Record<Exclude<SearchEngine, 'custom'>, string> = {
   google: 'https://www.google.com/search?q={q}',
   duckDuckGo: 'https://duckduckgo.com/?q={q}',
   bing: 'https://www.bing.com/search?q={q}',
-  stackOverflow: 'https://stackoverflow.com/search?q={q}',
 };
 
 /** A mock search page address, like the engine builds it. */

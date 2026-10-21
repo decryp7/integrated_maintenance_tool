@@ -385,7 +385,7 @@ mod tests {
     #[test]
     fn every_builtin_engine_is_probed_unless_some_are_chosen() {
         use SearchEngine::*;
-        assert_eq!(selected(None), [Google, DuckDuckGo, Bing, StackOverflow]);
+        assert_eq!(selected(None), [Google, DuckDuckGo, Bing]);
         assert_eq!(selected(Some(" ")), selected(None));
         assert_eq!(selected(Some("bing, google,custom,yahoo")), [Google, Bing]);
     }

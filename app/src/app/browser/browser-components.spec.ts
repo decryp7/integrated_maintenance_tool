@@ -69,7 +69,7 @@ describe('WebPanel', () => {
     expect(root.textContent).toContain('google.com/search');
     // The engine picker changes the engine of the next search.
     const engine = el<HTMLSelectElement>(f, '[data-testid=web-engine]');
-    expect(all<HTMLOptionElement>(f, '[data-testid=web-engine] option').map((o) => o.textContent?.trim())).toEqual(['Google', 'DuckDuckGo', 'Bing', 'Stack Overflow']);
+    expect(all<HTMLOptionElement>(f, '[data-testid=web-engine] option').map((o) => o.textContent?.trim())).toEqual(['Google', 'DuckDuckGo', 'Bing']);
     expect(engine.value).toBe('google');
     typeInto(engine, 'duckDuckGo', 'change');
     typeInto(engine, 'nonsense', 'change');
@@ -343,12 +343,12 @@ describe('SearchWebDialog', () => {
     expect(el(f, '[data-testid=web-search-removed]').textContent).toContain('1 value from your logs');
     expect(el(f, '[data-testid=web-search-source]').textContent).toContain('The AI wrote this search');
     typeInto(input, 'TimeoutException pool');
-    typeInto(el<HTMLSelectElement>(f, '#web-search-engine'), 'stackOverflow', 'change');
+    typeInto(el<HTMLSelectElement>(f, '#web-search-engine'), 'bing', 'change');
     f.detectChanges();
     buttonByText(f, 'Search').click();
     await until(f, () => close.mock.calls.length > 0);
     expect(close).toHaveBeenCalledWith(true);
-    expect(web.page.url).toBe('https://stackoverflow.com/search?q=TimeoutException+pool');
+    expect(web.page.url).toBe('https://www.bing.com/search?q=TimeoutException+pool');
   });
 
   it('reports a failure with Retry and a refused search', async () => {
@@ -452,7 +452,7 @@ describe('chat cards', () => {
   });
 
   it('name engines, notices, leaks and hand-offs', () => {
-    expect(['duckDuckGo', 'google', 'bing', 'stackOverflow', 'custom'].map((e) => engineLabel(e as never))).toEqual(['DuckDuckGo', 'Google', 'Bing', 'Stack Overflow', 'Custom']);
+    expect(['duckDuckGo', 'google', 'bing', 'custom'].map((e) => engineLabel(e as never))).toEqual(['DuckDuckGo', 'Google', 'Bing', 'Custom']);
     expect(noticeText('popup', '')).toContain('new window');
     expect(noticeText('blocked', 'why')).toContain('why');
     expect([leakText('logValue'), leakText('logText'), leakText('private')]).toEqual(['from your logs', 'text from your logs', 'looks private']);

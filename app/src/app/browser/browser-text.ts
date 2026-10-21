@@ -11,8 +11,6 @@ export function engineLabel(e: SearchEngine): string {
       return 'Google';
     case 'bing':
       return 'Bing';
-    case 'stackOverflow':
-      return 'Stack Overflow';
     case 'custom':
       return $localize`:Search engine option@@browser.engine.custom:Custom`;
   }

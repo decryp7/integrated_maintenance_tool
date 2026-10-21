@@ -43,7 +43,7 @@ interface Report {
 
 const REPORT = join(LIVE_DIR, 'live-search.json');
 // IMT_E2E_LIVE_SEARCH_ENGINES (comma-separated ids) limits a local run to some engines; the app reads it too.
-const ENGINES = (process.env['IMT_E2E_LIVE_SEARCH_ENGINES'] || 'google,duckDuckGo,bing,stackOverflow')
+const ENGINES = (process.env['IMT_E2E_LIVE_SEARCH_ENGINES'] || 'google,duckDuckGo,bing')
   .split(',')
   .map((e) => e.trim())
   .filter(Boolean);

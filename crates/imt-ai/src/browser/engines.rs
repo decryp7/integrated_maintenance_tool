@@ -20,18 +20,16 @@ pub enum SearchEngine {
     Google,
     DuckDuckGo,
     Bing,
-    StackOverflow,
     /// The user's own URL template with `{q}` (see [`SearchTemplate`]).
     Custom,
 }
 
 impl SearchEngine {
     /// Every engine, in the order pickers list them (the default first).
-    pub const ALL: [SearchEngine; 5] = [
+    pub const ALL: [SearchEngine; 4] = [
         SearchEngine::Google,
         SearchEngine::DuckDuckGo,
         SearchEngine::Bing,
-        SearchEngine::StackOverflow,
         SearchEngine::Custom,
     ];
 
@@ -40,7 +38,6 @@ impl SearchEngine {
             SearchEngine::DuckDuckGo => "duckDuckGo",
             SearchEngine::Google => "google",
             SearchEngine::Bing => "bing",
-            SearchEngine::StackOverflow => "stackOverflow",
             SearchEngine::Custom => "custom",
         }
     }
@@ -54,7 +51,6 @@ impl SearchEngine {
             SearchEngine::DuckDuckGo => "DuckDuckGo",
             SearchEngine::Google => "Google",
             SearchEngine::Bing => "Bing",
-            SearchEngine::StackOverflow => "Stack Overflow",
             SearchEngine::Custom => "Custom",
         }
     }
@@ -66,7 +62,6 @@ impl SearchEngine {
             SearchEngine::Google => &["#rso", "#search"],
             SearchEngine::Bing => &["#b_results"],
             SearchEngine::DuckDuckGo => &["ol.react-results--main", "[data-testid=mainline]", "#links", ".results"],
-            SearchEngine::StackOverflow => &[".js-search-results", "#mainbar"],
             SearchEngine::Custom => &[],
         }
     }
@@ -76,7 +71,6 @@ impl SearchEngine {
             SearchEngine::DuckDuckGo => Some("https://duckduckgo.com/?q={q}"),
             SearchEngine::Google => Some("https://www.google.com/search?q={q}"),
             SearchEngine::Bing => Some("https://www.bing.com/search?q={q}"),
-            SearchEngine::StackOverflow => Some("https://stackoverflow.com/search?q={q}"),
             SearchEngine::Custom => None,
         }
     }
@@ -206,10 +200,6 @@ mod tests {
             (SearchEngine::DuckDuckGo, "https://duckduckgo.com/?q=Timeout+%2B+0x80131500"),
             (SearchEngine::Google, "https://www.google.com/search?q=Timeout+%2B+0x80131500"),
             (SearchEngine::Bing, "https://www.bing.com/search?q=Timeout+%2B+0x80131500"),
-            (
-                SearchEngine::StackOverflow,
-                "https://stackoverflow.com/search?q=Timeout+%2B+0x80131500",
-            ),
         ];
         for (e, want) in cases {
             assert_eq!(s().search_url(e, "  Timeout + 0x80131500 ").unwrap().as_str(), want);

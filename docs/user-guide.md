@@ -239,7 +239,7 @@ export as CSV. The full grammar is in
 *Search the web for this error* and the address box of the **Browser** panel (Tools ▸ Browser) open pages in
 the panel itself. It docks like any other panel: drag its tab next to Timeline or Events, split it, maximise it
 or pop it out into a window of its own. Searches use **Google** unless you pick another engine: Settings ▸ Web
-browser ▸ Search engine sets it for every search (DuckDuckGo, Bing, Stack Overflow, or *Custom* with your own
+browser ▸ Search engine sets it for every search (DuckDuckGo, Bing, or *Custom* with your own
 address containing `{q}`), and the picker next to the address box or in the search dialog changes it for one
 search.
 

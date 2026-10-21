@@ -188,7 +188,7 @@ cargo deny --workspace check
 
 AI research reads the results page of the user's search engine in IMT's own browser. Search engines serve the
 system webview (WebView2, WebKitGTK) other pages than a desktop browser, and change them without notice, so a live
-test searches once with every built-in engine (Google, DuckDuckGo, Bing, Stack Overflow) in the real app, through the
+test searches once with every built-in engine (Google, DuckDuckGo, Bing) in the real app, through the
 real collector script and the real Rust rules (`research::search`, `research::read_results`).
 
 The app does the searching itself: the `live-search-probe` feature of `imt-app` (`app/src-tauri/src/browser/live_probe.rs`)

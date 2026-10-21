@@ -98,9 +98,9 @@ describe('BrowserStore', () => {
     await browser.go('learn.microsoft.com/dotnet');
     await settle();
     expect(browser.page().url).toBe('https://learn.microsoft.com/dotnet');
-    await browser.open({ kind: 'search', query: 'x', engine: 'stackOverflow' });
+    await browser.open({ kind: 'search', query: 'x', engine: 'duckDuckGo' });
     await settle();
-    expect(browser.page().url).toContain('stackoverflow.com');
+    expect(browser.page().url).toContain('duckduckgo.com');
     await browser.nav('back');
     await settle();
     expect(browser.page().url).toBe('https://learn.microsoft.com/dotnet');
