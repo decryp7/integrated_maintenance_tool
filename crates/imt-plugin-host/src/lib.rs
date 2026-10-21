@@ -6,12 +6,14 @@
 //! - [`remote`]: [`RemotePlugin`], registering proxies of what the plugin's manifest declares;
 //! - [`profile`]: profile importers in a plugin process (the profile worker);
 //! - [`sandbox`]: each process' sandbox from its manifest's permissions;
-//! - [`builtins`]: the built-in plugins served by the `imt-plugins` binary.
+//! - [`builtins`]: the built-in plugins served by the `imt-plugins` binary;
+//! - [`installed`]: third-party plugins installed from `.imtplugin` packages (ADR 0027).
 //!
 //! This is a library: the app links it, and the store worker links it to run importer plugins next to the store
 //! (ADR 0014 6c). It links no plugin.
 
 pub mod builtins;
+pub mod installed;
 pub mod process;
 pub mod profile;
 pub mod remote;

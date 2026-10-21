@@ -118,6 +118,26 @@ fn crashes_and_panics_count_against_the_plugin_and_restart_its_process() {
 }
 
 #[test]
+fn revoking_a_permission_restarts_the_plugin_with_fewer() {
+    use imt_plugin_api::manifest::Permission;
+    let b = builtins();
+    let ws = workspace(&b);
+    let p = b.process(ID).unwrap();
+    assert_eq!(p.granted_now(), [Permission::Network]);
+    assert!(p.sandbox().network && p.granted(Permission::Network));
+    let before = pid(ws.registry());
+    p.set_granted(Vec::new());
+    assert!(!p.sandbox().network && !p.granted(Permission::Network));
+    let after = pid(ws.registry());
+    assert_ne!(before, after, "the process was restarted with the new grants");
+    assert!(!p.third_party());
+    assert_eq!(
+        p.tool_data_dir(Some(Path::new("/app"))).as_deref(),
+        Some(Path::new("/app").to_str().unwrap())
+    );
+}
+
+#[test]
 fn a_hang_is_stopped_at_its_deadline() {
     let b = builtins();
     let dir = tempfile::tempdir().unwrap();

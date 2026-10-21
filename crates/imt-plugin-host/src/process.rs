@@ -7,7 +7,7 @@
 //! is a streamed request whose callbacks are *pumped* to the caller, which serves them with its borrowed data
 //! between the items of the answer. No copy of a file is made and nothing borrowed crosses threads.
 
-use crate::sandbox::sandbox_for;
+use crate::sandbox::{sandbox_for, sandbox_for_third_party, PluginHome};
 use imt_core::plugin::annotate::{AnnotationView, ViewFilter};
 use imt_core::plugin::tools::ToolCtx;
 use imt_ipc::child_log::{ChildKind, ChildLogSpec};
@@ -60,6 +60,29 @@ pub struct PluginSpec {
     /// this off, to run the elevated role as an ordinary process.
     #[doc(hidden)]
     pub elevate: bool,
+    /// A third-party plugin's folders (ADR 0027): it then runs contained by the launcher
+    /// ([`imt_plugin_api::sandbox::sandbox_for_third_party`]) and its tools get its private data folder.
+    pub home: Option<PluginHome>,
+    /// The SHA-256 its program must have: checked before every start, so a program changed after it was installed
+    /// never runs.
+    pub program_sha256: Option<[u8; 32]>,
+}
+
+/// The SHA-256 of the file at `path`.
+pub fn sha256_of(path: &std::path::Path) -> std::io::Result<[u8; 32]> {
+    use sha2::Digest;
+    use std::io::Read;
+    let mut f = std::fs::File::open(path)?;
+    let mut h = sha2::Sha256::new();
+    let mut buf = vec![0u8; 64 * 1024];
+    loop {
+        let n = f.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        h.update(&buf[..n]);
+    }
+    Ok(h.finalize().into())
 }
 
 impl PluginSpec {
@@ -76,6 +99,19 @@ impl PluginSpec {
             },
             log: Some(log),
             elevate: true,
+            home: None,
+            program_sha256: None,
+        }
+    }
+
+    /// The spec of an installed third-party plugin: its own program (no arguments), contained, verified by hash.
+    pub fn third_party(exe: impl Into<PathBuf>, id: &str, home: PluginHome, sha256: [u8; 32], granted: Vec<Permission>) -> PluginSpec {
+        PluginSpec {
+            args: Vec::new(),
+            granted,
+            home: Some(home),
+            program_sha256: Some(sha256),
+            ..PluginSpec::new(exe, id)
         }
     }
 }
@@ -229,6 +265,8 @@ pub struct PluginProcess {
     sup: Supervisor<Child>,
     elevated: Mutex<Option<Arc<Supervisor<Child>>>>,
     spec: PluginSpec,
+    /// The permissions granted now (revoking one restarts the process with fewer).
+    granted: Arc<Mutex<Vec<Permission>>>,
     services: Arc<HostServices>,
     /// The settings last applied, restored when the process restarts.
     settings: Arc<Mutex<Option<serde_json::Value>>>,
@@ -255,25 +293,30 @@ impl PluginProcess {
     fn create(manifest: Manifest, spec: PluginSpec) -> Arc<PluginProcess> {
         let services = Arc::new(HostServices::default());
         let settings: Arc<Mutex<Option<serde_json::Value>>> = Arc::default();
-        let child_spec = child_spec(&manifest, &spec, false);
+        let granted = Arc::new(Mutex::new(spec.granted.clone()));
         let handler: Arc<dyn Handler> = services.clone();
         let restore_settings = settings.clone();
-        let sup = Supervisor::new(spec.supervisor.clone(), move || launch(&child_spec, handler.clone())).with_restore(
-            move |c: &Child, restarted| {
-                let values = lock(&restore_settings).clone();
-                match (restarted, values) {
-                    (true, Some(v)) => c
-                        .peer()
-                        .request::<_, ()>(&PluginRequest::ApplySettings { values: Json(v) }, Some(Duration::from_secs(10))),
-                    _ => Ok(()),
-                }
-            },
-        );
+        let (m, s, g) = (manifest.clone(), spec.clone(), granted.clone());
+        let start = move || {
+            verify_program(&m, &s)?;
+            let child_spec = child_spec(&m, &s, &lock(&g), false);
+            launch(&child_spec, handler.clone())
+        };
+        let sup = Supervisor::new(spec.supervisor.clone(), start).with_restore(move |c: &Child, restarted| {
+            let values = lock(&restore_settings).clone();
+            match (restarted, values) {
+                (true, Some(v)) => c
+                    .peer()
+                    .request::<_, ()>(&PluginRequest::ApplySettings { values: Json(v) }, Some(Duration::from_secs(10))),
+                _ => Ok(()),
+            }
+        });
         Arc::new(PluginProcess {
             manifest,
             sup,
             elevated: Mutex::new(None),
             spec,
+            granted,
             services,
             settings,
         })
@@ -294,7 +337,37 @@ impl PluginProcess {
 
     /// Whether the plugin was granted `p`.
     pub fn granted(&self, p: Permission) -> bool {
-        self.spec.granted.contains(&p) && self.manifest.asks_for(p)
+        lock(&self.granted).contains(&p) && self.manifest.asks_for(p)
+    }
+
+    /// The permissions granted now.
+    pub fn granted_now(&self) -> Vec<Permission> {
+        lock(&self.granted).clone()
+    }
+
+    /// Changes the granted permissions: the process stops now and starts again on next use, in the sandbox of the
+    /// new grants (revoking a permission takes effect at once).
+    pub fn set_granted(&self, granted: Vec<Permission>) {
+        *lock(&self.granted) = granted;
+        self.shutdown();
+    }
+
+    /// The sandbox its process gets with the current grants.
+    pub fn sandbox(&self) -> imt_ipc::SandboxSpec {
+        child_spec(&self.manifest, &self.spec, &lock(&self.granted), false).spawn.sandbox
+    }
+
+    /// Whether it is a third-party plugin (installed from a package).
+    pub fn third_party(&self) -> bool {
+        self.spec.home.is_some()
+    }
+
+    /// The data folder its tools get: its own private folder for a third-party plugin, else `app`.
+    pub fn tool_data_dir(&self, app: Option<&std::path::Path>) -> Option<String> {
+        match &self.spec.home {
+            Some(h) => Some(h.data_dir.to_string_lossy().into_owned()),
+            None => app.map(|d| d.to_string_lossy().into_owned()),
+        }
     }
 
     pub(crate) fn services(&self) -> &HostServices {
@@ -329,7 +402,7 @@ impl PluginProcess {
     fn elevated_sup(&self) -> Arc<Supervisor<Child>> {
         lock(&self.elevated)
             .get_or_insert_with(|| {
-                let spec = child_spec(&self.manifest, &self.spec, true);
+                let spec = child_spec(&self.manifest, &self.spec, &lock(&self.granted), true);
                 let handler: Arc<dyn Handler> = self.services.clone();
                 let mut cfg = self.spec.supervisor.clone();
                 cfg.label = format!("{} (elevated)", cfg.label);
@@ -447,8 +520,27 @@ impl PluginProcess {
     }
 }
 
-/// The child spec of a plugin's normal or elevated process.
-fn child_spec(manifest: &Manifest, spec: &PluginSpec, elevated: bool) -> ChildSpec {
+/// Refuses to start a third-party plugin whose program is not the one that was installed.
+fn verify_program(manifest: &Manifest, spec: &PluginSpec) -> Result<(), IpcError> {
+    let Some(expected) = spec.program_sha256 else {
+        return Ok(());
+    };
+    match sha256_of(&spec.exe) {
+        Ok(actual) if actual == expected => Ok(()),
+        Ok(_) => Err(IpcError::Spawn(format!(
+            "the program of plugin \"{}\" changed after it was installed, so IMT does not run it; reinstall the plugin",
+            manifest.id
+        ))),
+        Err(e) => Err(IpcError::Spawn(format!(
+            "cannot check the program of plugin \"{}\" ({}): {e}; reinstall the plugin",
+            manifest.id,
+            spec.exe.display()
+        ))),
+    }
+}
+
+/// The child spec of a plugin's normal or elevated process with `granted`.
+fn child_spec(manifest: &Manifest, spec: &PluginSpec, granted: &[Permission], elevated: bool) -> ChildSpec {
     let label = if elevated {
         format!("plugin \"{}\" (elevated)", manifest.id)
     } else {
@@ -460,7 +552,13 @@ fn child_spec(manifest: &Manifest, spec: &PluginSpec, elevated: bool) -> ChildSp
     s.endpoint_prefix = "imt-plugin".into();
     s.connect_window = spec.connect_window;
     s.log = if elevated { None } else { spec.log.clone() };
-    s.sandbox = sandbox_for(manifest, &spec.granted, elevated);
+    s.sandbox = match &spec.home {
+        Some(home) => {
+            s.current_dir = Some(home.program_dir.clone());
+            sandbox_for_third_party(manifest, granted, home)
+        }
+        None => sandbox_for(manifest, granted, elevated),
+    };
     let mut c = ChildSpec::new(s);
     c.peer.protocol = imt_plugin_api::PROTOCOL;
     if elevated {
