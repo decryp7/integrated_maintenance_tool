@@ -2,6 +2,7 @@ import { effect, EffectRef, inject, Injectable, Injector, untracked } from '@ang
 import { FieldFilter, Query, RecordView, WorkspaceSummary } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { DockService } from '../dock/dock.service';
+import { WelcomeService } from '../welcome/welcome';
 import { CommandContext } from './tokens';
 
 /** How long `jumpTo` waits for the grid (it may not be open) before resolving anyway. */
@@ -12,6 +13,7 @@ export const JUMP_TIMEOUT_MS = 5000;
 export class WorkspaceCommandContext implements CommandContext {
   private readonly store = inject(WorkspaceStore);
   private readonly dock = inject(DockService);
+  private readonly welcome = inject(WelcomeService);
   private readonly injector = inject(Injector);
 
   get summary(): WorkspaceSummary | null {
@@ -53,6 +55,8 @@ export class WorkspaceCommandContext implements CommandContext {
     });
   }
   showView(id: string): void {
+    // The welcome screen covers the dock while nothing is open: a view the user asks for must be visible.
+    this.welcome.stepAside();
     this.dock.show(id);
   }
   notifyError(message: string): void {

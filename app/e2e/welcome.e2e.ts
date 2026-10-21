@@ -28,6 +28,19 @@ test.describe('welcome', () => {
     await expect(page.locator('imt-sidebar .src:not(.dim)').first()).toBeVisible();
   });
 
+  // Regression: with no files open, the Jobs and Notifications views opened behind the welcome screen.
+  test('Jobs and Notifications open over an empty workspace', async ({ page }) => {
+    await openApp(page);
+    await closeWorkspace(page);
+    const welcome = page.locator('imt-welcome');
+    await expect(welcome).toBeVisible();
+    await page.locator('imt-activity-bar').getByRole('button', { name: /^Jobs/ }).click();
+    await expect(welcome).toHaveCount(0);
+    await expect(page.getByRole('tab', { name: /Jobs/ })).toBeVisible();
+    await page.locator('imt-activity-bar').getByRole('button', { name: /^Notifications/ }).click();
+    await expect(page.getByRole('tab', { name: /Notifications/ })).toBeVisible();
+  });
+
   test('"Show welcome" is a command and can be dismissed', async ({ page }) => {
     await openApp(page);
     await page.keyboard.press('ControlOrMeta+k');

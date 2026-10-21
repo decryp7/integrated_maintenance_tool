@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, Injectable, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, Injectable, linkedSignal, signal } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
 import { Icon } from '../shared/icon';
 import { RECENT_STORE } from './recent-store';
@@ -6,22 +6,34 @@ import { DemoService } from '../onboarding/demo.service';
 import { HelpHint } from '../ui/help-hint';
 import { READ_ONLY_DETAIL, READ_ONLY_PROMISE } from '../shared/read-only';
 
-/** Whether the welcome screen is shown: whenever the workspace is empty, or when asked for explicitly. */
+/**
+ * Whether the welcome screen is shown: whenever the workspace is empty, or when asked for explicitly. It covers the
+ * dock, so it steps aside when the user opens a view (Jobs, Notifications, AI set-up need no files) until the
+ * workspace changes or the welcome screen is asked for again.
+ */
 @Injectable({ providedIn: 'root' })
 export class WelcomeService {
   private readonly store = inject(WorkspaceStore);
   private readonly forced = signal(false);
+  /** A view was opened over the empty workspace; reset whenever the number of sources changes. */
+  private readonly aside = linkedSignal({ source: () => this.store.summary()?.sources.length ?? 0, computation: () => false });
 
   readonly visible = computed(() => {
     const summary = this.store.summary();
-    return this.forced() || (summary !== null && summary.sources.length === 0);
+    return this.forced() || (summary !== null && summary.sources.length === 0 && !this.aside());
   });
 
   show(): void {
+    this.aside.set(false);
     this.forced.set(true);
   }
   hide(): void {
     this.forced.set(false);
+  }
+  /** The user opened a view: show the dock. */
+  stepAside(): void {
+    this.forced.set(false);
+    this.aside.set(true);
   }
 }
 
