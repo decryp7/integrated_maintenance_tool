@@ -7,7 +7,6 @@ import { setupProfiling } from '../testing/profiling-test-support';
 import { DotnetBackend, ToolDotnetBackend } from './dotnet-backend';
 import { DotnetCaptureStore, DotnetOpener } from './dotnet-capture.store';
 import { DotnetDialog, KIND_CHOICES } from './dotnet-dialog';
-import { EtlDialog } from './etl-dialog';
 import { MOCK_PROFILE_PATH, MockDotnetBackend } from './mock-dotnet-backend';
 import { ToolCatalogBackend } from '../../core/tools-backend';
 import { JobsBackend } from '../../jobs/jobs-backend';
@@ -105,30 +104,6 @@ describe('DotnetDialog', () => {
   });
 });
 
-describe('EtlDialog', () => {
-  it('lists the processes of a trace and opens the chosen one', async () => {
-    const { fixture, opener, closed } = await mount(EtlDialog, { path: 'C:\\traces\\shop.etl' });
-    expect(text(fixture)).toContain('shop.etl');
-    const items = all(fixture, 'li.proc');
-    expect(items.length).toBe(3);
-    expect(items[0]?.textContent).toContain('.NET');
-    (items[2] as HTMLElement).click();
-    await settle(fixture, 2);
-    el<HTMLButtonElement>(fixture, '[data-testid=etl-open]').click();
-    await settle(fixture, 6);
-    expect(opener.opened).toEqual([MOCK_PROFILE_PATH]);
-    expect(closed.length).toBe(1);
-  });
-
-  it('shows errors with Retry', async () => {
-    const { fixture, backend } = await mount(EtlDialog, { path: 'C:\\traces\\shop.txt' });
-    expect(text(fixture)).toContain('not an .etl file');
-    backend.failures.set('etlConvert', 'x');
-    (fixture.componentInstance as EtlDialog).load();
-    await settle(fixture, 4);
-  });
-});
-
 describe('ToolDotnetBackend', () => {
   it('calls the dotnet-profiler tool with each operation', async () => {
     const calls: unknown[][] = [];
@@ -144,8 +119,6 @@ describe('ToolDotnetBackend', () => {
     await b.captures();
     await b.stop('a');
     await b.cancel('b');
-    await b.etlProcesses('x.etl');
-    await b.etlConvert('x.etl', 3);
     await expect(b.cancel('none')).rejects.toThrow('not running');
     expect(calls).toEqual([
       ['dotnet-profiler', 'processes', {}],
@@ -155,8 +128,6 @@ describe('ToolDotnetBackend', () => {
       ['job', 'b'],
       ['jobs_cancel', 7],
       ['poll', 'dotnet-profiler', 'status', {}],
-      ['dotnet-profiler', 'etl-processes', { path: 'x.etl' }],
-      ['dotnet-profiler', 'etl-convert', { path: 'x.etl', pid: 3 }],
       ['job', 'none'],
     ]);
   });

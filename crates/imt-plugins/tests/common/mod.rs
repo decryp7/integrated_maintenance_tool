@@ -19,6 +19,7 @@ pub const FORMATS: &str = "net.decryptology.formats";
 pub const PROFILING: &str = "net.decryptology.profiling";
 pub const TOOLS: &str = "net.decryptology.tools";
 pub const DOTNET: &str = "net.decryptology.dotnet";
+pub const NATIVE: &str = "net.decryptology.native";
 
 /// The plugins binary built for these tests.
 pub fn binary() -> &'static Path {

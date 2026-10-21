@@ -238,13 +238,6 @@ doc = false
 bench = false
 
 [[bin]]
-name = "fuzz_dotnet_etw"
-path = "fuzz_targets/fuzz_dotnet_etw.rs"
-test = false
-doc = false
-bench = false
-
-[[bin]]
 name = "fuzz_plugin_request"
 path = "fuzz_targets/fuzz_plugin_request.rs"
 test = false

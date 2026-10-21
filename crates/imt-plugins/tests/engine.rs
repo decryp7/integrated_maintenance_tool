@@ -176,7 +176,7 @@ fn profiles_are_parsed_in_the_profiling_process() {
 }
 
 #[test]
-fn dotnet_capture_tool_and_etl_importer_run_in_the_plugin_process() {
+fn dotnet_capture_tool_runs_in_the_plugin_process() {
     let registry = common::registry(&[common::DOTNET]);
     let tools = registry.tools();
     let listed = tools.list();
@@ -197,17 +197,31 @@ fn dotnet_capture_tool_and_etl_importer_run_in_the_plugin_process() {
         .unwrap_err()
         .to_string();
     assert!(e.contains("not a running .NET process"), "{e}");
+    assert!(
+        !info.ops.iter().any(|o| o.name.starts_with("etl-")),
+        ".etl is the native profiler's"
+    );
+}
+
+#[test]
+fn one_etl_importer_and_picker_for_dotnet_and_native_processes() {
+    let registry = common::registry(&[common::DOTNET, common::NATIVE]);
+    let tools = registry.tools();
+    let dir = tempfile::tempdir().unwrap();
+    let ctx = ToolCtx::new(Some(dir.path().to_path_buf()), Arc::new(NoTasks));
     // .etl paths are typed: refused unless the user chose the file.
     let etl = dir.path().join("t.etl");
     std::fs::write(&etl, [0u8; 128]).unwrap();
-    let refused = tools.invoke("dotnet-profiler", "etl-processes", json!({"path": etl.to_string_lossy()}), &ctx);
+    let refused = tools.invoke("native-profiler", "etl-processes", json!({"path": etl.to_string_lossy()}), &ctx);
     assert!(matches!(refused, Err(ToolError::PathRefused { .. })), "{refused:?}");
     let importers = registry.contributions::<dyn CaptureImporter>(imt_profile::IMPORTERS_POINT);
+    let ids: Vec<String> = importers.iter().filter_map(|i| i.call(|i| i.id().to_string()).ok()).collect();
+    assert_eq!(ids.iter().filter(|id| *id == "etl").count(), 1, "{ids:?}");
     let etl_importer = importers
         .iter()
         .find(|i| i.call(|i| i.id().to_string()).ok().as_deref() == Some("etl"))
         .unwrap();
-    assert_eq!(etl_importer.call(|i| i.sniff("t.etl", &[0; 64])).unwrap(), 90);
+    assert!(etl_importer.call(|i| i.sniff("t.etl", &[0; 64])).unwrap() >= 50);
     let bad = etl_importer
         .call(|i| i.import("t.etl", &[0x11; 4096], &imt_profile::Limits::default()))
         .unwrap();

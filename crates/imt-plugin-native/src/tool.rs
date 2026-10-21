@@ -7,7 +7,7 @@
 //! | | `start` | `NativeCaptureRequest` (sampling) | `NativeCaptureStatus` (a running capture is a tool task → a Job) |
 //! | | `status` | — | `{ captures, outputs }` (pollable) |
 //! | | `stop` | `{ id }` | `NativeCaptureStatus` (kept; cancel is the Job's) |
-//! | | `etl-processes` | `{ path }` | `EtlProcess[]` (Windows) |
+//! | | `etl-processes` | `{ path }` | `EtlProcess[]`, .NET ones first (Windows; the one `.etl` picker for .NET and native) |
 //! | | `etl-convert` | `{ path, pid, symbolPath?, symbolServer? }` | `{ path, notes, outputs }` |
 //! | `native-profiler.etw` (elevated) | `start` | `NativeCaptureRequest` (ETW) | `NativeCaptureStatus` |
 //! | | `status` | — | `{ captures, outputs }` (pollable) |
@@ -417,7 +417,7 @@ mod etl {
     use std::sync::atomic::AtomicBool;
 
     pub(super) fn processes(path: &Path) -> Result<Vec<EtlProcess>> {
-        Ok(etl::scan(path, Order::Samples, &AtomicBool::new(false))?)
+        Ok(etl::scan(path, Order::DotnetFirst, &AtomicBool::new(false))?)
     }
 
     /// Converts process `pid` of `path` to NetTrace at `out` with symbols; returns the notes.
@@ -429,7 +429,7 @@ mod etl {
         limits: Limits,
         cancel: &AtomicBool,
     ) -> Result<Vec<String>> {
-        let procs = etl::scan(path, Order::Samples, cancel)?;
+        let procs = etl::scan(path, Order::DotnetFirst, cancel)?;
         let p = procs
             .iter()
             .find(|p| p.pid == pid)

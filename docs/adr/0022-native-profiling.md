@@ -157,9 +157,9 @@ before the rundown show as addresses.
 
 The ETW consumer glue, the kernel and heap payload decoders, the `.etl` scanner, the ETW → NetTrace converter and the
 NetTrace writer move out of `imt-plugin-dotnet` into a library crate, generalised (session configuration by flags and
-providers, converter options for heap events and symbol collection). The extraction is additive: the native plugin
-uses `imt-etw`; `imt-plugin-dotnet` switches to it when it is migrated onto `imt-plugin-api` (ADR 0017's deferred
-item), deleting its own copies.
+providers, converter options for heap events and symbol collection). Both profilers use it: `imt-plugin-dotnet` keeps
+only its recording control (presets, CLR providers, rundown and heap-walk milestones) on `imt_etw::session`, and its
+copies of the decoders, converter, writer and `.etl` reader are deleted.
 
 ### 7. Elevated output
 
@@ -179,9 +179,12 @@ path holding most `liveBytes`). Each links to its evidence view.
 
 ### 9. `.etl` import
 
-`.etl` files open through the plugin's profile importer (the process with the most CPU samples; notes name the
-others) and through `etl-processes` / `etl-convert` for choosing another process, with the same converter and
-symbolisation. Windows only; elsewhere "ETL import needs Windows".
+There is **one `.etl` importer** (id `etl`), this plugin's, for .NET and native processes alike: the converter keeps
+CLR events (managed frames) as well as kernel, heap and image events, and names native frames from symbols, so it is a
+superset of the .NET plugin's former importer, which is deleted together with the `dotnet-profiler` tool's
+`etl-processes` / `etl-convert` operations. Dropping an `.etl` file opens its busiest .NET process (else its busiest
+process; notes name the others); *File ▸ Open process from .etl…* (the native tool's `etl-processes` /
+`etl-convert`, processes listed .NET first) opens another. Windows only; elsewhere "ETL import needs Windows".
 
 ## Consequences
 

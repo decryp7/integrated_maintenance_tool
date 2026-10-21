@@ -5,12 +5,11 @@ import { ToolCatalogBackend } from '../../core/tools-backend';
 import { JobsBackend } from '../../jobs/jobs-backend';
 import { provideToolsTesting } from '../../tools/mock/test-support';
 import { DIALOG_REF, DialogService } from '../../ui/dialog.service';
-import { EtlDialog } from '../dotnet/etl-dialog';
-import { EtlPicker } from '../dotnet/dotnet-commands';
+import { EtlDialog } from './etl-dialog';
 import { setupProfiling } from '../testing/profiling-test-support';
 import { NativeBackend, ToolNativeBackend, toolOf } from './native-backend';
 import { NativeCaptureStore, NativeOpener } from './native-capture.store';
-import { NativeCommands } from './native-commands';
+import { EtlPicker, NativeCommands } from './native-commands';
 import { MODE_CHOICES, NativeDialog } from './native-dialog';
 import { MOCK_NATIVE_PROFILE_PATH, MockNativeBackend } from './mock-native-backend';
 
@@ -130,25 +129,42 @@ describe('NativeDialog', () => {
   });
 });
 
-describe('the native .etl dialog', () => {
-  it('lists and converts through the native backend', async () => {
+describe('EtlDialog', () => {
+  async function mountEtl(path: string) {
     const backend = new MockNativeBackend();
     const opener = new FakeOpener();
     const closed: unknown[] = [];
     setupProfiling();
     TestBed.configureTestingModule({ providers: [...provideToolsTesting(), { provide: DIALOG_REF, useValue: { close: (r?: unknown) => closed.push(r ?? 'closed'), closed: Promise.resolve(undefined) } }] });
     TestBed.overrideProvider(NativeBackend, { useValue: backend });
+    TestBed.overrideProvider(NativeOpener, { useValue: opener });
     const fixture = TestBed.createComponent(EtlDialog);
-    fixture.componentRef.setInput('path', 'C:\\traces\\shop.etl');
-    fixture.componentRef.setInput('source', backend);
-    fixture.componentRef.setInput('opener', opener);
+    fixture.componentRef.setInput('path', path);
     fixture.detectChanges();
     await settle(fixture, 6);
-    expect(all(fixture, 'li.proc')[0]?.textContent).toContain('OrderService.exe');
+    return { fixture, backend, opener, closed };
+  }
+
+  it('lists the processes of a trace, .NET ones first, and opens the chosen one', async () => {
+    const { fixture, opener, closed } = await mountEtl('C:/traces/shop.etl');
+    expect(text(fixture)).toContain('shop.etl');
+    const items = all(fixture, 'li.proc');
+    expect(items.length).toBe(3);
+    expect(items[0]?.textContent).toContain('.NET');
+    (items[1] as HTMLElement).click();
+    await settle(fixture, 2);
     el<HTMLButtonElement>(fixture, '[data-testid=etl-open]').click();
     await settle(fixture, 6);
     expect(opener.opened).toEqual([MOCK_NATIVE_PROFILE_PATH]);
     expect(closed.length).toBe(1);
+  });
+
+  it('shows errors with Retry', async () => {
+    const { fixture, backend } = await mountEtl('C:/traces/shop.txt');
+    expect(text(fixture)).toContain('not an .etl file');
+    backend.failures.set('etlConvert', 'x');
+    await (fixture.componentInstance as EtlDialog).load();
+    await settle(fixture, 4);
   });
 });
 
@@ -170,24 +186,28 @@ describe('NativeCommands', () => {
     return { commands: TestBed.inject(NativeCommands), dialogs };
   }
 
-  it('opens the capture dialog and the native .etl dialog with the picked file', async () => {
+  it('opens the capture dialog and the one .etl dialog with the picked file', async () => {
     const { commands, dialogs } = setup('C:\\t\\a.etl');
-    expect(commands.commands.map((c) => c.id)).toEqual(['profiling.native', 'profiling.native.etl']);
+    expect(commands.commands.map((c) => c.id)).toEqual(['profiling.native', 'profiling.etl']);
     await commands.commands[0]!.run({} as never);
     await commands.commands[1]!.run({} as never);
     await commands.openCapture();
     await commands.openEtl();
     expect(dialogs.opened.some((d) => d.title === 'Profile native process')).toBe(true);
     const etl = dialogs.opened.find((d) => d.inputs);
-    expect(etl?.title).toBe('Open a native process from an ETW trace');
-    expect(etl?.inputs?.['path']).toBe('C:\\t\\a.etl');
-    expect(etl?.inputs?.['source']).toBeInstanceOf(MockNativeBackend);
+    expect(etl?.title).toBe('Open a process from an ETW trace');
+    expect(etl?.inputs).toEqual({ path: 'C:\\t\\a.etl' });
   });
 
   it('does nothing when no .etl file was chosen', async () => {
     const { commands, dialogs } = setup(null);
     await commands.openEtl();
     expect(dialogs.opened).toEqual([]);
+  });
+
+  it('offers a demo trace in the browser', async () => {
+    setupProfiling();
+    expect(await TestBed.inject(EtlPicker).pick()).toBe('/demo/traces/shop.etl');
   });
 });
 

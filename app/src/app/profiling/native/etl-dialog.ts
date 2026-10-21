@@ -1,28 +1,18 @@
 import { CdkListbox, CdkOption } from '@angular/cdk/listbox';
 import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, signal } from '@angular/core';
-import { EtlConverted, EtlProcess } from '../../core/api.types';
+import { EtlProcess } from '../../core/api.types';
 import { baseName, errorMessage } from '../../tools/tool-errors';
 import { ToolError } from '../../tools/elevation-hint';
 import { DIALOG_REF } from '../../ui/dialog.service';
 import { formatValue } from '../profiling-format';
-import { DotnetBackend } from './dotnet-backend';
-import { DotnetOpener } from './dotnet-capture.store';
-
-/** Where the dialog lists and converts an `.etl` trace's processes (the .NET or the native profiler). */
-export interface EtlSource {
-  etlProcesses(path: string): Promise<EtlProcess[]>;
-  etlConvert(path: string, pid: number): Promise<EtlConverted>;
-}
-
-/** Opens the converted capture. */
-export interface EtlCaptureOpener {
-  open(path: string): Promise<void>;
-}
+import { NativeBackend } from './native-backend';
+import { NativeOpener } from './native-capture.store';
 
 /**
  * "Open process from .etl…": lists the processes in an `.etl` trace (PerfView, WPR, logman) with their CPU samples,
- * .NET ones first, and converts the chosen one into a profile. Dropping an `.etl` file opens its busiest .NET
- * process directly; this dialog is for choosing another.
+ * .NET ones first, and converts the chosen one into a profile through the native profiler's `.etl` support (managed
+ * frames from the CLR events, native frames from symbols; ADR 0022 §9). Dropping an `.etl` file opens its busiest
+ * .NET process (else its busiest process) directly; this dialog is for choosing another.
  */
 @Component({
   selector: 'imt-etl-dialog',
@@ -64,18 +54,9 @@ export interface EtlCaptureOpener {
 })
 export class EtlDialog implements OnInit {
   protected readonly ref = inject(DIALOG_REF);
-  private readonly dotnet = inject(DotnetBackend, { optional: true });
-  private readonly dotnetOpener = inject(DotnetOpener);
+  private readonly backend = inject(NativeBackend);
+  private readonly opener = inject(NativeOpener);
   readonly path = input.required<string>();
-  /** Another profiler's `.etl` support (the native profiler); the .NET profiler's by default. */
-  readonly source = input<EtlSource | null>(null);
-  readonly opener = input<EtlCaptureOpener | null>(null);
-  private readonly backend = computed<EtlSource>(() => {
-    const b = this.source() ?? this.dotnet;
-    if (!b) throw new Error('no .etl support is available');
-    return b;
-  });
-  private readonly openWith = computed<EtlCaptureOpener>(() => this.opener() ?? this.dotnetOpener);
   protected readonly processes = signal<EtlProcess[]>([]);
   protected readonly selected = signal<number | null>(null);
   protected readonly loading = signal(false);
@@ -98,7 +79,7 @@ export class EtlDialog implements OnInit {
     this.loading.set(true);
     this.error.set(null);
     try {
-      const list = await this.backend().etlProcesses(this.path());
+      const list = await this.backend.etlProcesses(this.path());
       this.processes.set(list);
       this.selected.set(list[0]?.pid ?? null);
     } catch (e) {
@@ -123,8 +104,8 @@ export class EtlDialog implements OnInit {
     this.converting.set(true);
     this.error.set(null);
     try {
-      const r = await this.backend().etlConvert(this.path(), pid);
-      await this.openWith().open(r.path);
+      const r = await this.backend.etlConvert(this.path(), pid);
+      await this.opener.open(r.path);
       this.ref.close();
     } catch (e) {
       this.error.set(errorMessage(e));

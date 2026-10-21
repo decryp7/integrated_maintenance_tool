@@ -1,6 +1,8 @@
-//! `.etl` files (WPR/xperf, PerfView, `logman`) as profiles (ADR 0022 §9): the process with the most CPU samples
-//! is converted through `imt-etw` (with heap events and symbols from the settings' symbol path) and opened with
-//! the nettrace importer; the notes name the other processes, which the tool's `etl-convert` opens instead.
+//! `.etl` files (WPR/xperf, PerfView, `logman`) as profiles (ADR 0022 §9): IMT's one `.etl` importer, for .NET
+//! and native processes alike. The .NET process with the most CPU samples (else the busiest process) is
+//! converted through `imt-etw` (CLR events for managed frames, heap events, and symbols from the settings'
+//! symbol path for native frames) and opened with the nettrace importer; the notes name the other processes,
+//! which *File ▸ Open process from .etl…* (the tool's `etl-processes` / `etl-convert`) opens instead.
 
 use crate::settings::Knobs;
 use imt_plugin_api::ProfileImporter;
@@ -51,9 +53,10 @@ impl EtlImporter {
     }
 }
 
-/// The process a converted `.etl` opens: the one with the most CPU samples (ties: the lower pid).
+/// The process a converted `.etl` opens: the .NET process with the most CPU samples, else the process with the
+/// most samples (ties: the lower pid).
 pub fn default_process(procs: &[imt_etw::scan::EtlProcess]) -> Option<&imt_etw::scan::EtlProcess> {
-    procs.iter().max_by(|a, b| a.samples.cmp(&b.samples).then(b.pid.cmp(&a.pid)))
+    procs.iter().max_by_key(|p| (p.is_dotnet(), p.samples, std::cmp::Reverse(p.pid)))
 }
 
 #[cfg(windows)]
@@ -91,7 +94,7 @@ mod windows_impl {
         let _temp = Temp(vec![etl_path.clone(), out.clone()]);
         std::fs::write(&etl_path, bytes).map_err(io)?;
         let cancel = AtomicBool::new(false);
-        let procs = etl::scan(&etl_path, Order::Samples, &cancel).map_err(|e| ProfileError::invalid(e.to_string()))?;
+        let procs = etl::scan(&etl_path, Order::DotnetFirst, &cancel).map_err(|e| ProfileError::invalid(e.to_string()))?;
         let p = default_process(&procs)
             .ok_or_else(|| ProfileError::invalid("the trace contains no processes"))?
             .clone();
@@ -148,7 +151,7 @@ mod tests {
     }
 
     #[test]
-    fn sniffs_by_extension_and_picks_the_busiest_process() {
+    fn sniffs_by_extension_and_picks_dotnet_first_then_the_busiest_process() {
         let i = EtlImporter { knobs: Arc::default() };
         assert_eq!(i.sniff("trace.ETL", b""), 80);
         assert_eq!(i.sniff("trace.nettrace", b""), 0);
@@ -156,6 +159,8 @@ mod tests {
         assert_eq!(i.id(), "etl");
         assert_eq!(default_process(&[p(5, 1), p(3, 9), p(2, 9)]).map(|p| p.pid), Some(2));
         assert!(default_process(&[]).is_none());
+        let dotnet = EtlProcess { clr_events: 10, ..p(7, 2) };
+        assert_eq!(default_process(&[p(5, 1), dotnet, p(3, 9)]).map(|p| p.pid), Some(7));
         let bad = i.import_encoded("x.etl", b"junk", &serde_json::json!("nope"));
         assert!(imt_profile::wire::decode_result(&bad, &Limits::default()).is_err());
         let limits = serde_json::to_value(Limits::default()).unwrap();

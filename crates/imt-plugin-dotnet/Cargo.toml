@@ -12,6 +12,7 @@ description = "IMT plugin: event-based .NET profiling (ETW and EventPipe capture
 imt-plugin-api = { path = "../imt-plugin-api", optional = true }
 imt-profile = { path = "../imt-profile" }
 imt-plugin-profiling = { path = "../imt-plugin-profiling", default-features = false }
+imt-etw = { path = "../imt-etw" }
 anyhow = { workspace = true, optional = true }
 serde.workspace = true
 serde_json = { workspace = true, optional = true }
@@ -19,11 +20,8 @@ thiserror.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 windows = { workspace = true, features = [
-    "Win32_System_Diagnostics_Etw",
     "Win32_System_Diagnostics_ToolHelp",
-    "Win32_System_Performance",
     "Win32_System_SystemInformation",
-    "Win32_System_Time",
     "Win32_Storage_FileSystem",
     "Win32_System_Pipes",
     "Win32_System_IO",

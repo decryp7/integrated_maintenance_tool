@@ -1116,6 +1116,7 @@ dependencies = [
 name = "imt-plugin-dotnet"
 version = "0.1.0"
 dependencies = [
+ "imt-etw",
  "imt-plugin-profiling",
  "imt-profile",
  "serde",

@@ -36,10 +36,10 @@ test.describe('Native profiling (mock plugin tools)', () => {
     await expect(dialog.locator('li.cap[data-state="recording"]')).toContainText('ETW');
   });
 
-  test('open a native process from an .etl trace', async ({ page }) => {
+  test('open a process (.NET or native) from an .etl trace', async ({ page }) => {
     await openProfiles(page);
-    await runCommand(page, 'Open native process from .etl');
-    const dialog = page.getByRole('dialog', { name: 'Open a native process from an ETW trace' });
+    await runCommand(page, 'Open process from .etl');
+    const dialog = page.getByRole('dialog', { name: 'Open a process from an ETW trace' });
     await expect(dialog.getByRole('listbox', { name: 'Processes in the trace' }).getByRole('option')).toHaveCount(3);
     await dialog.getByTestId('etl-open').click();
     await expect(dialog).toHaveCount(0);

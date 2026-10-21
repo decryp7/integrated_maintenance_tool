@@ -3,16 +3,8 @@
 
 use serde::{Deserialize, Serialize};
 
-/// `Microsoft-Windows-DotNETRuntime`.
-pub const RUNTIME: &str = "Microsoft-Windows-DotNETRuntime";
-/// {E13C0D23-CCBC-4E12-931B-D9CC2EEE27E4}
-pub const RUNTIME_GUID: u128 = 0xe13c0d23_ccbc_4e12_931b_d9cc2eee27e4;
-/// `Microsoft-Windows-DotNETRuntimeRundown`.
-pub const RUNDOWN: &str = "Microsoft-Windows-DotNETRuntimeRundown";
-/// {A669021C-C450-4609-A035-5AF59AF4DF18}
-pub const RUNDOWN_GUID: u128 = 0xa669021c_c450_4609_a035_5af59af4df18;
-/// `Microsoft-DotNETCore-SampleProfiler` (EventPipe only).
-pub const SAMPLE_PROFILER: &str = "Microsoft-DotNETCore-SampleProfiler";
+// Provider names, GUIDs and levels are `imt-etw`'s (the converter matches events by them).
+pub use imt_etw::clr::{level, RUNDOWN, RUNDOWN_GUID, RUNTIME, RUNTIME_GUID, SAMPLE_PROFILER};
 
 /// Runtime provider keywords.
 pub mod keywords {
@@ -30,12 +22,6 @@ pub mod keywords {
     pub const STACK: u64 = 0x4000_0000;
     /// Rundown provider: Loader | Jit | NGen | End rundown | (method) Jitted-method IL map off.
     pub const RUNDOWN_END: u64 = 0x8 | 0x10 | 0x20 | 0x100;
-}
-
-/// ETW / EventPipe levels.
-pub mod level {
-    pub const INFORMATIONAL: u8 = 4;
-    pub const VERBOSE: u8 = 5;
 }
 
 /// What to record.

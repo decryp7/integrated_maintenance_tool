@@ -2827,6 +2827,7 @@ name = "imt-plugin-dotnet"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "imt-etw",
  "imt-plugin-api",
  "imt-plugin-profiling",
  "imt-profile",

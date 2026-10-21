@@ -203,9 +203,9 @@ snapshots and other files apart without importing anything: the best importer's 
   source. Per ADR 0004, .NET-specific decoding belongs in the Windows/.NET helper process, which
   uses TraceEvent itself. That helper will turn a `.gcdump` into a `HeapSnapshot` (types plus graph)
   through the protobuf contract.
-- **`.etl`** (WPR/PerfView/logman): read on Windows by the `.NET profiling` plugin (`imt-plugin-dotnet`,
-  ADR 0019), which converts one process to NetTrace; native frames stay `module+offset` until PDB
-  symbolisation comes with the native profiler.
+- **`.etl`** (WPR/PerfView/logman): read on Windows by the native profiling plugin (`imt-plugin-native`,
+  ADR 0022), which converts one process (.NET or native) to NetTrace with symbols; see
+  [Native (C/C++) captures](#native-cc-captures).
 
 ## Samples
 
@@ -256,9 +256,10 @@ standard-library code it calls counts as its own), **wait hot spot** (the user-c
 waits, locks recognised), **native heap growth** (the call path holding most `liveBytes`). OS and runtime DLLs
 (`ntdll.dll`, `kernelbase.dll`, `ucrtbase.dll`, `vcruntime*`, ...) are never reported as the place of a fix.
 
-`.etl` traces (WPR/xperf: `wpr -start CPU -start Heap`, PerfView, `logman`) open by dropping them (the busiest
-process) or with *File ▸ Open native process from .etl…* (choose the process); the same converter and
-symbolisation run.
+`.etl` traces (WPR/xperf: `wpr -start CPU -start Heap`, PerfView, `logman`) open through this plugin's importer,
+IMT's one `.etl` importer for .NET and native processes: dropping one opens its busiest .NET process (else its
+busiest process), *File ▸ Open process from .etl…* lists the processes (.NET first) to choose from. The same
+converter and symbolisation run: managed frames from the CLR events, native frames from symbols.
 
 Limits: x64 and x86 (WOW64) targets from the 64-bit IMT; ARM64 targets are not sampled. Sampled stacks stop at
 JIT-compiled frames whose unwind data only the runtime knows (managed parts of sampled stacks are truncated; use

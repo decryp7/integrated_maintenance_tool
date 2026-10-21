@@ -115,8 +115,8 @@ export class MockNativeBackend extends NativeBackend {
     this.fail('etlProcesses');
     if (!path.toLowerCase().endsWith('.etl')) throw new Error(`${path} is not an .etl file`);
     return [
+      { pid: 4242, name: 'Shop.Web.exe', commandLine: null, samples: 12500, clrEvents: 3400, pointerSize: 8 },
       { pid: 3100, name: 'OrderService.exe', commandLine: null, samples: 15800, clrEvents: 0, pointerSize: 8 },
-      { pid: 880, name: 'sqlservr.exe', commandLine: null, samples: 8200, clrEvents: 0, pointerSize: 8 },
       { pid: 3200, name: 'LegacyReport.exe', commandLine: null, samples: 900, clrEvents: 0, pointerSize: 4 },
     ];
   }
