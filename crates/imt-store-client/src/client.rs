@@ -81,6 +81,9 @@ pub struct WorkerConfig {
     pub child_log: bool,
     /// Safe mode: the worker starts no plugin.
     pub safe_mode: bool,
+    /// Where libduckdb is looked for before the worker starts (`None`: `lib_dir`, the worker's folder and the
+    /// library path), so a missing library is a clear message instead of a failing process.
+    pub library_dirs: Option<Vec<PathBuf>>,
 }
 
 impl WorkerConfig {
@@ -93,6 +96,7 @@ impl WorkerConfig {
             disabled_plugins: Vec::new(),
             child_log: false,
             safe_mode: false,
+            library_dirs: None,
         }
     }
 }
@@ -122,6 +126,47 @@ pub fn library_path_env(lib_dir: Option<&Path>) -> Option<(String, String)> {
     Some((var.to_string(), value))
 }
 
+/// The file name of libduckdb on this platform.
+pub fn libduckdb_file() -> &'static str {
+    if cfg!(windows) {
+        "duckdb.dll"
+    } else if cfg!(target_os = "macos") {
+        "libduckdb.dylib"
+    } else {
+        "libduckdb.so"
+    }
+}
+
+/// The first of `dirs` that holds `file`.
+pub fn find_library(file: &str, dirs: &[PathBuf]) -> Option<PathBuf> {
+    dirs.iter().map(|d| d.join(file)).find(|p| p.is_file())
+}
+
+/// Where the worker's loader looks for libduckdb: the bundled folder, the worker's folder, the library path.
+fn library_search(cfg: &WorkerConfig) -> Vec<PathBuf> {
+    if let Some(dirs) = &cfg.library_dirs {
+        return dirs.clone();
+    }
+    let mut dirs: Vec<PathBuf> = cfg.lib_dir.iter().cloned().collect();
+    dirs.extend(cfg.exe.parent().map(Path::to_path_buf));
+    let (var, _) = library_path_var();
+    if let Some(path) = std::env::var_os(var) {
+        dirs.extend(std::env::split_paths(&path));
+    }
+    if cfg!(target_os = "linux") {
+        dirs.extend(
+            [
+                "/usr/lib",
+                "/usr/local/lib",
+                "/usr/lib/x86_64-linux-gnu",
+                "/usr/lib/aarch64-linux-gnu",
+            ]
+            .map(PathBuf::from),
+        );
+    }
+    dirs
+}
+
 /// One live worker process and the stores opened in it.
 pub struct Conn {
     child: Child,
@@ -142,6 +187,8 @@ struct Inner {
     sup: Supervisor<Conn>,
     disabled: Vec<String>,
     safe_mode: bool,
+    /// Why the worker cannot start (its database library is missing).
+    unavailable: Option<String>,
 }
 
 /// The supervised worker process. Cheap to clone.
@@ -160,6 +207,12 @@ impl StoreWorker {
         if let Some(kv) = library_path_env(cfg.lib_dir.as_deref()) {
             spawn.env.push(kv);
         }
+        let unavailable = find_library(libduckdb_file(), &library_search(&cfg)).is_none().then(|| {
+            format!(
+                "the store worker cannot start: its database library ({}) was not found next to it",
+                libduckdb_file()
+            )
+        });
         let mut sup_cfg = cfg.supervisor.clone();
         if cfg.child_log {
             let log = ChildLogSpec::new("store-worker", ChildKind::StoreWorker).with_version(env!("CARGO_PKG_VERSION"));
@@ -190,6 +243,7 @@ impl StoreWorker {
                 sup,
                 disabled: cfg.disabled_plugins,
                 safe_mode: cfg.safe_mode,
+                unavailable,
             }),
         })
     }
@@ -220,6 +274,7 @@ impl StoreWorker {
 
     /// Opens the store in `dir` (or creates it, replacing what is there).
     pub fn open_store(&self, dir: &Path, profile: Profile, create: bool, limits: Option<Limits>) -> StoreResult<RemoteStore> {
+        self.check_available()?;
         let store = RemoteStore {
             worker: self.clone(),
             dir: dir.to_path_buf(),
@@ -240,6 +295,7 @@ impl StoreWorker {
         profile: Profile,
         limits: Option<Limits>,
     ) -> StoreResult<(RemoteStore, ProjectManifest)> {
+        self.check_available()?;
         let req = OpenProject {
             path: path.to_path_buf(),
             dest_root: dest_root.to_path_buf(),
@@ -265,6 +321,14 @@ impl StoreWorker {
             store.remember_profile(&active);
         }
         Ok((store, opened.manifest))
+    }
+
+    /// A missing database library, as the error of every call that would start the worker.
+    fn check_available(&self) -> StoreResult<()> {
+        match &self.inner.unavailable {
+            Some(m) => Err(StoreError::Engine(m.clone())),
+            None => Ok(()),
+        }
     }
 
     fn report(&self, lease: &imt_ipc::supervisor::Lease<Conn>, e: &StoreError) {
@@ -679,6 +743,21 @@ mod tests {
                 assert_eq!(value, format!("/opt/imt/lib{sep}{rest}"));
             }
         }
+    }
+
+    #[test]
+    fn a_missing_database_library_is_a_clear_message_before_anything_starts() {
+        let dir = std::env::temp_dir();
+        assert!(find_library("no-such-library.dll", std::slice::from_ref(&dir)).is_none());
+        let mut cfg = WorkerConfig::new(dir.join("imt-store-worker-test.exe"));
+        cfg.library_dirs = Some(vec![dir.join("no-such-folder")]);
+        let w = StoreWorker::new(cfg).unwrap();
+        let e = w
+            .open_store(&dir.join("never-made"), Profile::default_profile(), true, None)
+            .err()
+            .unwrap();
+        assert!(e.to_string().contains(libduckdb_file()), "{e}");
+        assert!(w.status().pid.is_none(), "the worker was not started");
     }
 
     #[test]

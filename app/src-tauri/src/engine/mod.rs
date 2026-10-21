@@ -44,12 +44,13 @@ pub(crate) struct WorkerHost {
 }
 
 impl WorkerHost {
-    /// The worker next to IMT's executable (`IMT_STORE_WORKER` overrides it), with libduckdb from next to it
-    /// (installers) or from IMT's own library path (development builds, `fetch-libduckdb.sh`).
-    pub(crate) fn new(disabled_plugins: Vec<String>, safe_mode: bool) -> StoreResult<WorkerHost> {
+    /// The worker next to IMT's executable (`IMT_STORE_WORKER` overrides it), with libduckdb from the installed
+    /// resource folder `lib_dir` (installers), next to the worker, or from IMT's own library path (development
+    /// builds, `fetch-libduckdb.sh`).
+    pub(crate) fn new(disabled_plugins: Vec<String>, safe_mode: bool, lib_dir: Option<PathBuf>) -> StoreResult<WorkerHost> {
         let exe = worker_binary();
         let mut cfg = imt_store_client::WorkerConfig::new(&exe);
-        cfg.lib_dir = exe.parent().map(Path::to_path_buf);
+        cfg.lib_dir = lib_dir.filter(|d| d.is_dir()).or_else(|| exe.parent().map(Path::to_path_buf));
         cfg.disabled_plugins = disabled_plugins;
         cfg.safe_mode = safe_mode;
         cfg.child_log = true;

@@ -2,9 +2,22 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { sidecarPlan } from './build-sidecars.mjs';
+import { libduckdbFile, sidecarPlan } from './build-sidecars.mjs';
 
-const select = ['-p', 'imt-ai-worker', '--bin', 'imt-ai-worker', '-p', 'imt-plugins', '--bin', 'imt-plugins'];
+const select = [
+  '-p',
+  'imt-ai-worker',
+  '--bin',
+  'imt-ai-worker',
+  '-p',
+  'imt-plugins',
+  '--bin',
+  'imt-plugins',
+  '-p',
+  'imt-store-worker',
+  '--bin',
+  'imt-store-worker',
+];
 const host = 'x86_64-pc-windows-msvc';
 const targetDir = join('ci', 'target');
 
@@ -16,6 +29,7 @@ test('a host build runs without --target and reads target/<profile>, where tauri
     [
       ['imt-ai-worker-x86_64-pc-windows-msvc.exe', [join(targetDir, 'release', 'imt-ai-worker.exe')]],
       ['imt-plugins-x86_64-pc-windows-msvc.exe', [join(targetDir, 'release', 'imt-plugins.exe')]],
+      ['imt-store-worker-x86_64-pc-windows-msvc.exe', [join(targetDir, 'release', 'imt-store-worker.exe')]],
     ],
   );
 });
@@ -56,4 +70,10 @@ test('universal macOS builds both architectures with --target, like tauri build 
 test('an unknown host never drops --target', () => {
   const plan = sidecarPlan({ target: 'x86_64-unknown-linux-gnu', host: undefined, profile: 'release', targetDir });
   assert.deepEqual(plan.builds, [['build', ...select, '--target', 'x86_64-unknown-linux-gnu', '--release']]);
+});
+
+test('the store worker ships the prebuilt libduckdb of its platform', () => {
+  assert.equal(libduckdbFile('x86_64-pc-windows-msvc'), 'duckdb.dll');
+  assert.equal(libduckdbFile('x86_64-unknown-linux-gnu'), 'libduckdb.so');
+  assert.equal(libduckdbFile('universal-apple-darwin'), 'libduckdb.dylib');
 });

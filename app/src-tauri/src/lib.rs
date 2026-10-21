@@ -438,7 +438,14 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     log::info!(Version = env!("CARGO_PKG_VERSION"), SafeMode = safe_mode, PreviousCrash = previous_crash, SingleInstance = single; "Application starting — IMT {}", env!("CARGO_PKG_VERSION"));
 
     // ---- managed state (app-wide) ----
-    let shared = AppState::new(ctx.config.as_ref().map(|d| d.join("profiles")), ctx.data.clone(), ctx.safe_mode)?;
+    // The store worker's libduckdb ships in the resource folder `lib/` (tauri.sidecars.conf.json).
+    let lib_dir = tauri::Manager::path(app).resource_dir().ok().map(|d| d.join("lib"));
+    let shared = AppState::new(
+        ctx.config.as_ref().map(|d| d.join("profiles")),
+        ctx.data.clone(),
+        lib_dir,
+        ctx.safe_mode,
+    )?;
     if let Some(problem) = shared.plugins.problem() {
         log::error!("Plugins are unavailable: {problem}");
     }

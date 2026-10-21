@@ -36,7 +36,12 @@ pub(crate) fn store_root(data: Option<&std::path::Path>) -> PathBuf {
 
 impl AppState {
     /// The app's state: plugin processes and the store worker (both start on first use).
-    pub fn new(profile_dir: Option<PathBuf>, data_dir: Option<PathBuf>, safe_mode: bool) -> anyhow::Result<AppState> {
+    pub fn new(
+        profile_dir: Option<PathBuf>,
+        data_dir: Option<PathBuf>,
+        lib_dir: Option<PathBuf>,
+        safe_mode: bool,
+    ) -> anyhow::Result<AppState> {
         let plugins = if safe_mode {
             Builtins::none()
         } else {
@@ -44,7 +49,7 @@ impl AppState {
         };
         let config_dir = profile_dir.as_ref().and_then(|d| d.parent()).map(PathBuf::from);
         let disabled = crate::plugin_config::load_plugin_settings(config_dir.as_deref()).disabled;
-        let stores = crate::engine::WorkerHost::new(disabled, safe_mode)?;
+        let stores = crate::engine::WorkerHost::new(disabled, safe_mode, lib_dir)?;
         Ok(AppState::with(
             profile_dir,
             safe_mode,

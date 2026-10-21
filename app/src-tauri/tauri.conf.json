@@ -51,21 +51,12 @@
     "fileAssociations": [
       {
         "ext": [
-          "imtproj"
-        ],
-        "name": "IMT Project",
-        "description": "IMT analysis project",
-        "role": "Editor",
-        "mimeType": "application/x-imt-project"
-      },
-      {
-        "ext": [
           "imtz"
         ],
-        "name": "IMT Bundle",
-        "description": "Shareable IMT bundle (project, profile, logs and reports)",
-        "role": "Viewer",
-        "mimeType": "application/x-imt-bundle"
+        "name": "IMT Project",
+        "description": "IMT project: the analysed events, profile, view and reports, shareable without the log files",
+        "role": "Editor",
+        "mimeType": "application/x-imt-project"
       }
     ]
   },
