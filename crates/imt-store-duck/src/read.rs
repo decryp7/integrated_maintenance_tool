@@ -1134,8 +1134,10 @@ impl Inner {
         buckets: usize,
         lifecycle: u64,
     ) -> StoreResult<Timeline> {
-        // No window functions and no wide columns: one pass for the bounds, one GROUP BY for lanes, density,
-        // histogram and first sources, and one over the (few) marked events for the clusters.
+        // No window functions and no wide columns: one pass for the bounds, one GROUP BY for lanes, density and
+        // histogram, one for each lane's sources (bounds and first events), and one over the (few) marked events
+        // for the clusters. Lanes × buckets and lanes × sources are grouped apart: their product (thousands of
+        // sources × hundreds of buckets) exceeded the memory limit at 10M events.
         let filter = format!("e.ts IS NOT NULL AND {}", f.structural_sql());
         let (min, max) = conn
             .query_row(&format!("SELECT min(e.ts), max(e.ts) FROM {FROM} WHERE {filter}"), [], |r| {
@@ -1151,34 +1153,8 @@ impl Inner {
         let mut lanes: Vec<Lane> = Vec::new();
         let mut index: HashMap<String, usize> = HashMap::new();
         let mut histogram = vec![[0u32; 6]; buckets];
-        // The first event of each (lane, source), to order the lane's sources.
-        let mut firsts: HashMap<(usize, u32), OrderKey> = HashMap::new();
-        let mut stmt = conn
-            .prepare(&format!(
-                "SELECT k, b, level, m, source, n, tmin, tmax, struct_extract(f, 'ts'), struct_extract(f, 'line'), struct_extract(f, 'id') FROM (
-                   SELECT {key} AS k, {bucket} AS b, e.level AS level, ({content}) AS m, e.source AS source, count(*) AS n,
-                          min(e.ts) AS tmin, max(e.ts) AS tmax, min(struct_pack(ts := e.ts, line := e.line, id := e.id)) AS f
-                   FROM {FROM} WHERE {filter} GROUP BY ALL)"
-            ))
-            .map_err(engine)?;
-        let rows = stmt
-            .query_map([], |r| {
-                Ok((
-                    r.get::<_, String>(0)?,
-                    r.get::<_, i64>(1)?,
-                    r.get::<_, u8>(2)?,
-                    r.get::<_, bool>(3)?,
-                    r.get::<_, u32>(4)?,
-                    r.get::<_, u64>(5)?,
-                    r.get::<_, i64>(6)?,
-                    r.get::<_, i64>(7)?,
-                    (r.get::<_, i64>(8)?, r.get::<_, u32>(9)?, r.get::<_, u64>(10)?),
-                ))
-            })
-            .map_err(engine)?;
-        for row in rows {
-            let (k, b, level, m, source, n, tmin, tmax, (fts, fline, fid)) = row.map_err(engine)?;
-            let i = *index.entry(k).or_insert_with_key(|k| {
+        let mut lane_of = |k: String, lanes: &mut Vec<Lane>| -> usize {
+            *index.entry(k).or_insert_with_key(|k| {
                 lanes.push(Lane {
                     key: k.clone(),
                     first: i64::MAX,
@@ -1190,17 +1166,63 @@ impl Inner {
                     sources: Vec::new(),
                 });
                 lanes.len() - 1
-            });
+            })
+        };
+        let mut stmt = conn
+            .prepare(&format!(
+                "SELECT {key} AS k, {bucket} AS b, e.level AS level, ({content}) AS m, count(*) AS n FROM {FROM} WHERE {filter} GROUP BY ALL"
+            ))
+            .map_err(engine)?;
+        let rows = stmt
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, u8>(2)?,
+                    r.get::<_, bool>(3)?,
+                    r.get::<_, u64>(4)?,
+                ))
+            })
+            .map_err(engine)?;
+        for row in rows {
+            let (k, b, level, m, n) = row.map_err(engine)?;
+            let i = lane_of(k, &mut lanes);
             let lane = &mut lanes[i];
             let b = (b.max(0) as usize).min(buckets - 1);
-            lane.first = lane.first.min(tmin);
-            lane.last = lane.last.max(tmax);
             lane.total += n as usize;
             if m {
                 lane.matched += n as usize;
                 lane.density[b] += n as u32;
                 histogram[b][(level as usize).min(5)] += n as u32;
             }
+        }
+        // The first event of each (lane, source), to order the lane's sources.
+        let mut firsts: HashMap<(usize, u32), OrderKey> = HashMap::new();
+        let mut stmt = conn
+            .prepare(&format!(
+                "SELECT k, source, tmin, tmax, struct_extract(f, 'ts'), struct_extract(f, 'line'), struct_extract(f, 'id') FROM (
+                   SELECT {key} AS k, e.source AS source, min(e.ts) AS tmin, max(e.ts) AS tmax,
+                          min(struct_pack(ts := e.ts, line := e.line, id := e.id)) AS f
+                   FROM {FROM} WHERE {filter} GROUP BY ALL)"
+            ))
+            .map_err(engine)?;
+        let rows = stmt
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, u32>(1)?,
+                    r.get::<_, i64>(2)?,
+                    r.get::<_, i64>(3)?,
+                    (r.get::<_, i64>(4)?, r.get::<_, u32>(5)?, r.get::<_, u64>(6)?),
+                ))
+            })
+            .map_err(engine)?;
+        for row in rows {
+            let (k, source, tmin, tmax, (fts, fline, fid)) = row.map_err(engine)?;
+            let i = lane_of(k, &mut lanes);
+            let lane = &mut lanes[i];
+            lane.first = lane.first.min(tmin);
+            lane.last = lane.last.max(tmax);
             let key = (fts, source, fline, fid);
             firsts.entry((i, source)).and_modify(|k| *k = (*k).min(key)).or_insert(key);
         }

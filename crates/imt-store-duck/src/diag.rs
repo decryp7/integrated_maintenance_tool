@@ -97,6 +97,8 @@ impl Inner {
     }
 
     fn problems(&self) -> StoreResult<Vec<DiagnosticRow>> {
+        /// Sources a timestamp fix is proposed for.
+        const MAX_FIXES: usize = 16;
         let conn = self.conn()?;
         let profile = self.profile();
         let mut stmt = conn
@@ -123,11 +125,21 @@ impl Inner {
             let Some(kind) = ProblemKind::from_id(&kind) else { continue };
             let mut sample_lines: Vec<u32> = serde_json::from_str(&samples).unwrap_or_default();
             sample_lines.truncate(MAX_SAMPLES);
-            let mut d = DiagnosticRow::new(SourceId(source), name, path, Problem { kind, count, sample_lines });
-            if kind == ProblemKind::TimestampUnparsed {
-                d.fix = self.timestamp_fix(&conn, source, &profile)?;
+            out.push(DiagnosticRow::new(
+                SourceId(source),
+                name,
+                path,
+                Problem { kind, count, sample_lines },
+            ));
+        }
+        // A fix reads the source's untimed events: proposed for the sources with the most of them (bounded, so
+        // thousands of files answer at once; the same profile override usually fixes the rest too).
+        let mut untimed: Vec<usize> = (0..out.len()).filter(|&i| out[i].kind == ProblemKind::TimestampUnparsed).collect();
+        untimed.sort_by_key(|&i| std::cmp::Reverse(out[i].count));
+        for i in untimed.into_iter().take(MAX_FIXES) {
+            if let Some(SourceId(source)) = out[i].source {
+                out[i].fix = self.timestamp_fix(&conn, source, &profile)?;
             }
-            out.push(d);
         }
         for u in self.unrecognized() {
             out.push(DiagnosticRow {

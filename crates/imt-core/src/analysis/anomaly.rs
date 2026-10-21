@@ -113,23 +113,34 @@ impl<R> Ctx<R> {
 
 /// What the detectors read of an event, kept per event instead of the event (a few dozen bytes): its
 /// id, level, whether it has an exception, the message only where a detector reads it (errors, and
-/// messages that say the instance stopped) and the few fields the latency and growth detectors use.
+/// messages that say the instance stopped) and the few fields the latency and growth detectors use, only
+/// those the event has (texts shared between events: machine and process names repeat millions of times).
 struct Slim<'n> {
     id: u64,
     ts: i64,
     level: Level,
     exception: bool,
     message: Box<str>,
-    numbers: Box<[Option<f64>]>,
-    texts: Box<[Option<Box<str>>]>,
+    /// `(index in SlimNames, value)` of the fields the event has.
+    fields: Box<[(u8, SlimValue)]>,
     names: &'n SlimNames,
 }
 
-/// The fields a [`Slim`] keeps: numbers and texts, by position.
+/// A kept field value.
+enum SlimValue {
+    Number(f64),
+    Text(std::sync::Arc<str>),
+}
+
+/// The fields a [`Slim`] keeps (numbers first, then texts), and the texts seen so far (shared).
 struct SlimNames {
     numbers: Vec<String>,
     texts: Vec<String>,
+    interned: std::cell::RefCell<std::collections::HashSet<std::sync::Arc<str>>>,
 }
+
+/// Distinct texts shared at most; beyond, texts are kept per event (a hostile input cannot grow the set).
+const MAX_INTERNED: usize = 100_000;
 
 impl SlimNames {
     fn of(cfg: &AnomalyConfig) -> SlimNames {
@@ -139,7 +150,20 @@ impl SlimNames {
         SlimNames {
             numbers,
             texts: ["Counter", "MachineName", "ProcessName", "Instance"].map(String::from).to_vec(),
+            interned: Default::default(),
         }
+    }
+
+    fn intern(&self, t: &str) -> std::sync::Arc<str> {
+        let mut set = self.interned.borrow_mut();
+        if let Some(a) = set.get(t) {
+            return a.clone();
+        }
+        let a: std::sync::Arc<str> = t.into();
+        if set.len() < MAX_INTERNED {
+            set.insert(a.clone());
+        }
+        a
     }
 
     fn slim<'n>(&'n self, r: &dyn RowRef, ts: i64) -> Slim<'n> {
@@ -152,8 +176,20 @@ impl SlimNames {
             level: r.level(),
             exception: r.exception().is_some(),
             message: if keep { m.into() } else { "".into() },
-            numbers: self.numbers.iter().map(|n| r.number_of(n)).collect(),
-            texts: self.texts.iter().map(|n| r.text_of(n).map(|t| t.into())).collect(),
+            fields: {
+                let numbers = self
+                    .numbers
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, n)| Some((u8::try_from(i).ok()?, SlimValue::Number(r.number_of(n)?))));
+                let texts = self.texts.iter().enumerate().filter_map(|(i, n)| {
+                    Some((
+                        u8::try_from(self.numbers.len() + i).ok()?,
+                        SlimValue::Text(self.intern(&r.text_of(n)?)),
+                    ))
+                });
+                numbers.chain(texts).collect()
+            },
             names: self,
         }
     }
@@ -191,12 +227,18 @@ impl RowRef for Slim<'_> {
         self.exception.then_some("")
     }
     fn named_text(&self, _sym: crate::row::Sym, name: &str) -> Option<std::borrow::Cow<'_, str>> {
-        let i = self.names.texts.iter().position(|n| n == name)?;
-        self.texts[i].as_deref().map(std::borrow::Cow::Borrowed)
+        let i = self.names.numbers.len() + self.names.texts.iter().position(|n| n == name)?;
+        self.fields.iter().find_map(|(j, v)| match v {
+            SlimValue::Text(t) if usize::from(*j) == i => Some(std::borrow::Cow::Borrowed(&**t)),
+            _ => None,
+        })
     }
     fn named_number(&self, _sym: crate::row::Sym, name: &str) -> Option<f64> {
         let i = self.names.numbers.iter().position(|n| n == name)?;
-        self.numbers[i]
+        self.fields.iter().find_map(|(j, v)| match v {
+            SlimValue::Number(x) if usize::from(*j) == i => Some(*x),
+            _ => None,
+        })
     }
     fn named_value(&self, _sym: crate::row::Sym, _name: &str) -> Option<serde_json::Value> {
         None
@@ -514,4 +556,39 @@ fn rate_changes<R: RowRef>(ctx: &Ctx<R>) -> Vec<Anomaly> {
 fn ratio(counts: &[f64], baselines: &[f64], i: usize) -> f64 {
     let (c, b) = (counts[i], baselines[i]);
     (c / b).max(b / c.max(0.5))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::Record;
+    use crate::row::RecordRow;
+
+    #[test]
+    fn slim_events_keep_only_the_fields_they_have_and_share_texts() {
+        let names = SlimNames::of(&AnomalyConfig::default());
+        let mut a = Record::new(1);
+        a.message = "request handled".into();
+        a.fields.insert("MachineName".into(), "WEB01".into());
+        a.fields.insert("ElapsedMs".into(), serde_json::json!(12.5));
+        let mut b = a.clone();
+        b.id = 2;
+        b.level = Level::Error;
+        b.message = "service stopped".into();
+        let (sa, sb) = (
+            names.slim(&RecordRow { rec: &a, source: "s" }, 10),
+            names.slim(&RecordRow { rec: &b, source: "s" }, 20),
+        );
+        assert_eq!(sa.fields.len(), 2, "only the fields the event has");
+        assert_eq!(sa.number_of("ElapsedMs"), Some(12.5));
+        assert_eq!(sa.number_of("Duration"), None);
+        assert_eq!(sa.text_of("MachineName").as_deref(), Some("WEB01"));
+        assert_eq!(sa.text_of("ProcessName"), None);
+        assert_eq!(sa.message(), "", "a message no detector reads is not kept");
+        assert_eq!(sb.message(), "service stopped");
+        let (SlimValue::Text(x), SlimValue::Text(y)) = (&sa.fields[1].1, &sb.fields[1].1) else {
+            panic!("texts")
+        };
+        assert!(std::sync::Arc::ptr_eq(x, y), "the machine name is shared");
+    }
 }
