@@ -84,8 +84,9 @@ import diagnostics with engine-verified quick fixes (including an AI-proposed fi
   - **Store worker, idle or querying:** under 300 MB. DuckDB `memory_limit` defaults to 256 MB (spilling to its temp
     folder), its buffer pool is not a cache of the whole data, and per-generation analysis results live in the
     database, never in RAM.
-  - **Store worker, importing:** under 1 GB whatever the folder size (600 MB until 2026-10-21; raised by user decision
-    when mimalloc v3 left little margin, see the notes below; the worker's hard cap is 2 GB): batches of at most 8,192 rows, at most 4 batches
+  - **Store worker, importing:** under 768 MB whatever the folder size (600 MB until 2026-10-21; raised by user decision
+    when mimalloc v3 left little margin, see the notes below; the worker's hard cap is 2 GB). A "Low memory" setting
+    (planned) trades 20-40% of the import speed for about 400 MB (freed memory returned at once, fewer batches in flight): batches of at most 8,192 rows, at most 4 batches
     in flight per stage, file chunks streamed (never a whole file), Tantivy's writer budget 64 MB, DuckDB 256 MB.
   - Every cache is bounded by bytes (not entries) and dropped under memory pressure; nothing grows with the data.
   - Tests measure peak RSS (the spike's `rss.rs` sampler) and fail above the budget; Settings can raise the limits for

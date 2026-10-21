@@ -43,7 +43,7 @@ pub const CALL_TIMEOUT: Duration = Duration::from_secs(120);
 /// Deadline of waiting for an import.
 pub const WAIT_TIMEOUT: Duration = Duration::from_secs(24 * 3600);
 
-/// Memory cap of the worker process by default: twice the import budget (1 GB), so only a runaway is stopped
+/// Memory cap of the worker process by default: well above the import budget (768 MB), so only a runaway is stopped
 /// (the job object kills the process; the supervisor restarts it). Analyses of 10M events peak near 1 GB.
 pub const DEFAULT_MEMORY_CAP: u64 = 2 << 30;
 

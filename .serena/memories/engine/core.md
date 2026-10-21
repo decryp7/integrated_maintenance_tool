@@ -8,5 +8,5 @@
   - `imt-store-duck`: events in zstd Parquet segments (parallel writers, contiguous id block per segment), native DuckDB tables for meta/sources/diagnostics/marker_kinds/segments manifest/ord(id,pos); `events` is a read-only VIEW; rewrites = new segments + generation swap; pages are two-phase (ids via ord/pos, then rows).
   - Tantivy index = rebuildable cache, never shared.
 - Projects (`.imt` folder / `.imtz` zip) are self-contained: raw text is stored, original logs optional.
-- Memory budgets (ADR 0014): app flat < 250 MB; worker ≤ 300 MB idle/query, ≤ 1 GB importing (hard cap 2 GB); DuckDB memory_limit 256 MB.
+- Memory budgets (ADR 0014): app flat < 250 MB; worker ≤ 300 MB idle/query, ≤ 768 MB importing (hard cap 2 GB; planned Low memory mode ≤ 400 MB); DuckDB memory_limit 256 MB.
 - Known traps (engine review, docs/redesign-2026-10.md R2): record ids were positions (don't index `records[id]` in new code); importers carry per-file state (day order, midnight rollover, line numbers) — chunking needs FilePlan; four predicate languages being unified into the QL Expr; timestamp parsing must use a stored parse environment, not `Utc::now()`/local zone.
