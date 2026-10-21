@@ -467,7 +467,7 @@ impl Tool for RemoteTool {
             tool: self.info.id.as_str().into(),
             op: op.into(),
             args: Json(args),
-            data_dir: ctx.data_dir().map(|d| d.to_string_lossy().into_owned()),
+            data_dir: self.ctx.process.tool_data_dir(ctx.data_dir()),
         };
         let r: Result<Json, ToolFail> = self
             .ctx
@@ -481,7 +481,7 @@ impl Tool for RemoteTool {
         let req = PluginRequest::StopTask {
             tool: self.info.id.as_str().into(),
             task: task.into(),
-            data_dir: ctx.data_dir().map(|d| d.to_string_lossy().into_owned()),
+            data_dir: self.ctx.process.tool_data_dir(ctx.data_dir()),
         };
         // A task of an elevated operation is stopped in the elevated process.
         let elevated = self.info.ops.iter().any(|o| o.elevated) && self.info.ops.iter().all(|o| o.elevated);

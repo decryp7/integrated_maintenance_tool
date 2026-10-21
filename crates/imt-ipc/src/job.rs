@@ -56,7 +56,7 @@ impl JobGuard {
         Self::assign_handle(unsafe { windows::Win32::System::Threading::GetCurrentProcess() }, limits)
     }
 
-    fn assign_handle(process: HANDLE, limits: &JobLimits) -> Option<JobGuard> {
+    pub(crate) fn assign_handle(process: HANDLE, limits: &JobLimits) -> Option<JobGuard> {
         // SAFETY: plain Win32 calls with valid arguments; the handle is closed in `Drop`.
         unsafe {
             let job = CreateJobObjectW(None, None).ok()?;

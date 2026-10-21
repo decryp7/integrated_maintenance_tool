@@ -9,8 +9,11 @@ use std::collections::BTreeMap;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Severity {
+    /// Needs attention now; the data is likely wrong or incomplete.
     Critical,
+    /// Worth a look; part of the data may be affected.
     Warning,
+    /// For information only.
     Info,
 }
 
@@ -80,10 +83,12 @@ impl ProblemKind {
         }
     }
 
+    /// Parses a stable id as returned by [`ProblemKind::id`].
     pub fn from_id(id: &str) -> Option<ProblemKind> {
         ALL_KINDS.into_iter().find(|k| k.id() == id)
     }
 
+    /// How urgent this kind of problem is.
     pub fn severity(self) -> Severity {
         match self {
             ProblemKind::LineTooLong
@@ -105,7 +110,9 @@ impl ProblemKind {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Problem {
+    /// What went wrong.
     pub kind: ProblemKind,
+    /// How many times it happened.
     pub count: u64,
     /// 1-based line numbers of the first occurrences (at most [`MAX_SAMPLES`]).
     pub sample_lines: Vec<u32>,
@@ -118,6 +125,7 @@ pub struct Problems {
 }
 
 impl Problems {
+    /// Records one occurrence of `kind` at `line` (1-based); only the first [`MAX_SAMPLES`] lines are kept.
     pub fn add(&mut self, kind: ProblemKind, line: u32) {
         let p = self.by_kind.entry(kind).or_insert_with(|| Problem {
             kind,
@@ -130,10 +138,12 @@ impl Problems {
         }
     }
 
+    /// Occurrences of `kind` recorded so far.
     pub fn count(&self, kind: ProblemKind) -> u64 {
         self.by_kind.get(&kind).map_or(0, |p| p.count)
     }
 
+    /// Whether no problem has been recorded.
     pub fn is_empty(&self) -> bool {
         self.by_kind.is_empty()
     }
@@ -155,6 +165,7 @@ impl Problems {
         }
     }
 
+    /// One [`Problem`] per recorded kind, ordered by kind.
     pub fn into_vec(self) -> Vec<Problem> {
         self.by_kind.into_values().collect()
     }

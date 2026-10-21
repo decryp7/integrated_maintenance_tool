@@ -67,6 +67,9 @@ const EXPECTED: Record<ErrorCode, boolean> = {
   tooLarge: true,
   diskFull: true,
   installFailed: false,
+  // Plugin packages: a package that is not trusted or not for this IMT is the user's to resolve.
+  untrusted: true,
+  incompatible: true,
 };
 
 /** True for a failure the user can fix themselves (shown as is, logged as a warning). */

@@ -7,8 +7,7 @@ use crate::tools::ToolInfo;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-/// Version of the plugin contract. A plugin built against another version is refused with a message.
-pub const CONTRACT: u32 = 1;
+pub use crate::protocol::{ProtocolVersion, PROTOCOL};
 /// Largest memory a plugin may ask for (4 GiB).
 pub const MAX_MEMORY_LIMIT: u64 = 4 << 30;
 
@@ -46,7 +45,9 @@ impl Permission {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PermissionRequest {
+    /// The permission requested.
     pub permission: Permission,
+    /// Why the plugin needs it, shown to the user when they decide.
     pub reason: String,
 }
 
@@ -54,6 +55,7 @@ pub struct PermissionRequest {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImporterCap {
+    /// Importer id, as used by `parse.format`.
     pub id: Arc<str>,
     /// Receives raw bytes (else text IMT decoded).
     pub binary: bool,
@@ -74,8 +76,11 @@ pub const MAX_IDENTITY_FIELDS: usize = 8;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfigParserCap {
+    /// Parser id.
     pub id: Arc<str>,
+    /// Display name of the format.
     pub name: String,
+    /// File extensions it handles, without the dot.
     pub extensions: Vec<String>,
 }
 
@@ -83,6 +88,7 @@ pub struct ConfigParserCap {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProfileImporterCap {
+    /// Profile importer id.
     pub id: Arc<str>,
     /// Produces heap snapshots (else profiles).
     pub heap: bool,
@@ -92,6 +98,7 @@ pub struct ProfileImporterCap {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentImporterCap {
+    /// The importer's id.
     pub id: Arc<str>,
     /// What it produces, in the host engine's words (`dump`, `umdh`).
     pub produces: Arc<str>,
@@ -103,22 +110,33 @@ pub struct DocumentImporterCap {
 pub struct Manifest {
     /// Reverse-DNS id (`net.decryptology.registry`).
     pub id: Arc<str>,
+    /// Display name.
     pub name: Arc<str>,
     /// Semver.
     pub version: Arc<str>,
-    /// [`CONTRACT`] it was built against.
-    pub contract: u32,
+    /// The plugin protocol it was built for ([`PROTOCOL`] of its SDK).
+    pub protocol: ProtocolVersion,
+    /// Permissions the plugin asks for; the user grants them per plugin.
     pub permissions: Vec<PermissionRequest>,
     /// Memory it needs at most (bytes); the host caps it at [`MAX_MEMORY_LIMIT`]. `None`: the default.
     pub memory_limit: Option<u64>,
+    /// Importers it contributes.
     pub importers: Vec<ImporterCap>,
+    /// Configuration parsers it contributes.
     pub config_parsers: Vec<ConfigParserCap>,
+    /// Marker kinds it contributes.
     pub marker_kinds: Vec<PluginMarkerKind>,
+    /// Ids of its annotators.
     pub annotators: Vec<Arc<str>>,
+    /// Ids of its transforms.
     pub transforms: Vec<Arc<str>>,
+    /// Its settings section, when it has settings.
     pub settings: Option<SettingsSection>,
+    /// Tools it exposes.
     pub tools: Vec<ToolInfo>,
+    /// Profile and heap-snapshot importers it contributes.
     pub profile_importers: Vec<ProfileImporterCap>,
+    /// Document importers it contributes (dumps, UMDH logs).
     #[serde(default)]
     pub document_importers: Vec<DocumentImporterCap>,
 }
@@ -153,11 +171,8 @@ impl Manifest {
 
     /// Checks what the host relies on: the contract version, ids, unique contributions.
     pub fn check(&self) -> Result<(), String> {
-        if self.contract != CONTRACT {
-            return Err(format!(
-                "plugin \"{}\" was built for plugin contract {}, this IMT speaks {CONTRACT}",
-                self.id, self.contract
-            ));
+        if let Some(why) = PROTOCOL.mismatch(self.protocol, &format!("plugin \"{}\"", self.id)) {
+            return Err(why);
         }
         if self.id.is_empty() || self.id.len() > 128 || !self.id.chars().all(|c| c.is_ascii_alphanumeric() || ".-_".contains(c)) {
             return Err(format!("plugin id \"{}\" is not valid", self.id));
@@ -203,7 +218,7 @@ mod tests {
             id: "net.example.toy".into(),
             name: "Toy".into(),
             version: "1.0.0".into(),
-            contract: CONTRACT,
+            protocol: PROTOCOL,
             permissions: vec![PermissionRequest {
                 permission: Permission::RunPrograms,
                 reason: "relog".into(),
@@ -240,8 +255,11 @@ mod tests {
         let back: Manifest = serde_json::from_value(serde_json::to_value(&m).unwrap()).unwrap();
         assert_eq!(back, m);
         let mut old = m.clone();
-        old.contract = 0;
-        assert!(old.check().unwrap_err().contains("contract 0"));
+        old.protocol = ProtocolVersion::new(0, 9);
+        assert!(old.check().unwrap_err().contains("too old"));
+        let mut new = m.clone();
+        new.protocol = ProtocolVersion::new(PROTOCOL.major, PROTOCOL.minor + 1);
+        assert!(new.check().unwrap_err().contains("needs a newer IMT"));
         let mut identity = m.clone();
         identity.importers[0].identity_fields = vec!["".into()];
         assert!(identity.check().unwrap_err().contains("identity fields"));

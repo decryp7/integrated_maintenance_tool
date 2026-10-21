@@ -139,6 +139,15 @@ impl Builtins {
         Builtins { processes, problem: None }
     }
 
+    /// Adds an installed third-party plugin's process (ADR 0027); a built-in with the same id wins.
+    pub fn add_installed(&mut self, process: Arc<PluginProcess>) -> Result<(), String> {
+        if self.processes.iter().any(|p| p.id() == process.id()) {
+            return Err(format!("plugin \"{}\" is already part of IMT", process.id()));
+        }
+        self.processes.push(process);
+        Ok(())
+    }
+
     /// No plugins (safe mode).
     pub fn none() -> Builtins {
         Builtins {

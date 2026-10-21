@@ -19,7 +19,9 @@ pub const MAX_VIEW_RECORDS: usize = 100_000;
 /// The first record that is new since the previous run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecordCursor {
+    /// Id of the record.
     pub id: u32,
+    /// Its timestamp (milliseconds since the Unix epoch), when it has one.
     pub ts: Option<i64>,
 }
 
@@ -31,6 +33,7 @@ pub struct ViewFilter {
     pub when: Vec<ConditionCfg>,
     /// Inclusive time bounds (records without a time never match bounds).
     pub from: Option<i64>,
+    /// Inclusive upper time bound in milliseconds since the Unix epoch.
     pub to: Option<i64>,
     /// Newest first instead of oldest first.
     pub newest_first: bool,
@@ -39,6 +42,7 @@ pub struct ViewFilter {
 /// A record as an annotator sees it.
 #[derive(Debug, Clone)]
 pub struct ViewRecord {
+    /// The event itself.
     pub record: Record,
     /// Display name of its source file.
     pub source: String,
@@ -61,7 +65,9 @@ pub trait AnnotationView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FieldMatch {
+    /// The field to compare (a profile field or a pseudo-field such as `@level`).
     pub field: String,
+    /// The value it must equal.
     pub value: String,
 }
 
@@ -69,8 +75,11 @@ pub struct FieldMatch {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Severity {
+    /// Needs attention now.
     Critical,
+    /// Worth a look.
     Warning,
+    /// For information only.
     Info,
 }
 
@@ -78,9 +87,11 @@ pub enum Severity {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EvidenceFilter {
+    /// The field to compare.
     pub field: String,
     /// `eq`, `ne`, `contains`, ...
     pub op: String,
+    /// The value to compare with; absent for operators that take none.
     pub value: Option<String>,
 }
 
@@ -90,8 +101,11 @@ pub struct EvidenceFilter {
 pub struct Evidence {
     /// Free text.
     pub text: String,
+    /// Start of the time window in milliseconds since the Unix epoch.
     pub from: Option<i64>,
+    /// End of the time window in milliseconds since the Unix epoch.
     pub to: Option<i64>,
+    /// Further field filters, all of which must match.
     pub filters: Vec<EvidenceFilter>,
 }
 
@@ -102,13 +116,19 @@ pub struct Annotation {
     /// Short kind (namespaced `<plugin-id>/<kind>` when stored), ideally one of the plugin's marker kinds so it
     /// shares their style.
     pub kind: String,
+    /// Start of the range in milliseconds since the Unix epoch.
     pub from: i64,
+    /// End of the range in milliseconds since the Unix epoch (equal to `from` for a point).
     pub to: i64,
     /// The instance it applies to; `None` = every instance (or those matching `on`).
     pub instance: Option<String>,
+    /// Restricts the annotation to records matching a field value, e.g. a whole machine.
     pub on: Option<FieldMatch>,
+    /// Text shown for the annotation.
     pub label: String,
+    /// How urgent it is.
     pub severity: Severity,
+    /// The query that shows the records behind it.
     pub evidence: Evidence,
 }
 

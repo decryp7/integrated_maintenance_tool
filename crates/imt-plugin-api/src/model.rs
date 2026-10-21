@@ -2,17 +2,25 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::borrow::Cow;
 
+/// Severity of a [`Record`], ordered from least to most severe.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Level {
+    /// Very detailed tracing output.
     Verbose,
+    /// Diagnostic detail useful while debugging.
     Debug,
+    /// Normal, informational events.
     Information,
+    /// Something unexpected that did not stop the operation.
     Warning,
+    /// An operation failed.
     Error,
+    /// A failure the application could not recover from.
     Fatal,
 }
 
 impl Level {
+    /// Every level, in ascending severity.
     pub const ALL: [Level; 6] = [
         Level::Verbose,
         Level::Debug,
@@ -22,10 +30,12 @@ impl Level {
         Level::Fatal,
     ];
 
+    /// Position in [`Level::ALL`] (0 = `Verbose` ... 5 = `Fatal`).
     pub fn index(self) -> usize {
         self as usize
     }
 
+    /// The canonical display name (`"Information"`, `"Warning"`, ...).
     pub fn as_str(self) -> &'static str {
         match self {
             Level::Verbose => "Verbose",
@@ -67,6 +77,7 @@ impl Level {
     }
 }
 
+/// Free-form structured properties of a [`Record`], keyed by field name.
 pub type Fields = Map<String, Value>;
 
 /// Bit i set = marker kind i of the effective marker set matched.
@@ -79,20 +90,30 @@ pub const MAX_MARKER_KINDS: usize = MarkerMask::BITS as usize;
 /// which the workspace assigns.
 #[derive(Debug, Clone)]
 pub struct Record {
+    /// Id assigned by the workspace; importers leave it 0.
     pub id: u32,
+    /// Timestamp in milliseconds since the Unix epoch (UTC), when the event has one.
     pub ts: Option<i64>,
+    /// Severity of the event.
     pub level: Level,
+    /// The rendered message text.
     pub message: String,
+    /// The unrendered message template, when the format has one.
     pub template: Option<String>,
+    /// Exception or stack-trace text, when present.
     pub exception: Option<String>,
+    /// Structured properties other than the standard ones above.
     pub fields: Fields,
+    /// Index of the source file within the workspace, assigned by the workspace.
     pub source: u32,
+    /// One-based line number in the source file where the event starts.
     pub line: u32,
     /// Bit i set = marker kind i of the effective marker set matched.
     pub markers: MarkerMask,
 }
 
 impl Record {
+    /// Creates an empty `Information` record that starts at `line`.
     pub fn new(line: u32) -> Self {
         Record {
             id: 0,
@@ -121,6 +142,7 @@ impl Record {
         }
     }
 
+    /// Value of a field or pseudo-field as a number; `@line` and numeric, numeric-string or boolean fields qualify.
     pub fn field_number(&self, name: &str) -> Option<f64> {
         match name {
             "@line" => Some(self.line as f64),
@@ -129,6 +151,7 @@ impl Record {
     }
 }
 
+/// Renders a JSON value as text: strings verbatim, other values as compact JSON.
 pub fn value_text(v: &Value) -> Cow<'_, str> {
     match v {
         Value::String(s) => Cow::Borrowed(s),
@@ -136,6 +159,7 @@ pub fn value_text(v: &Value) -> Cow<'_, str> {
     }
 }
 
+/// Reads a JSON value as a finite number: numbers, numeric strings and booleans (1 or 0); anything else is `None`.
 pub fn value_number(v: &Value) -> Option<f64> {
     match v {
         Value::Number(n) => n.as_f64(),

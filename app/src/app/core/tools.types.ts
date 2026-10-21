@@ -13,6 +13,12 @@
  *   restart_app       { safeMode, reopenSession } -> void
  *   plugin_reset      { id }                      -> void
  *   plugin_set_enabled{ id, enabled }             -> boolean (restart needed)
+ *   plugin_packages_list        {}                       -> InstalledPluginsDto (third-party packages, damaged records)
+ *   plugin_package_inspect      { path }                 -> PackageReviewDto (path from the dialog or a drop)
+ *   plugin_package_install      { path, digest, approved } -> InstalledPluginDto (digest from the review)
+ *   plugin_package_remove       { id }                   -> boolean
+ *   plugin_package_set_enabled  { id, enabled }          -> InstalledPluginDto
+ *   plugin_package_set_permissions { id, granted }       -> InstalledPluginDto (the plugin restarts with them)
  *   save_session      { ui }                      -> void
  *   last_session      {}                          -> string | null
  *   save_project      { path, name, ui, reports? } -> { path, name }

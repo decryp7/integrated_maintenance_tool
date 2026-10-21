@@ -27,7 +27,9 @@ pub const MAX_IMPORT_BYTES: u64 = 2 << 30;
 /// Serves `plugin` in this process (its `main`): connects to IMT, locks down and answers until IMT closes the
 /// connection.
 pub fn serve(plugin: Arc<dyn Plugin>) -> std::io::Result<()> {
-    imt_ipc::child::child_main("IMT", move |boot| Arc::new(PluginHandler::new(plugin, boot.role == ELEVATED_ROLE)))
+    imt_ipc::child::child_main_speaking("IMT", PROTOCOL, move |boot| {
+        Arc::new(PluginHandler::new(plugin, boot.role == ELEVATED_ROLE))
+    })
 }
 
 /// Answers the host's requests for one plugin.
@@ -87,12 +89,8 @@ impl PluginHandler {
             PluginRequest::Sniff { importer, file, head } => {
                 let ts = Self::timestamps(&file.timestamps)?;
                 let path = PathBuf::from(&file.path);
-                let ictx = ImportCtx {
-                    file_name: &file.name,
-                    path: &path,
-                    file_date: Self::date(&file.date),
-                    timestamps: &ts,
-                };
+                let cancelled = || ctx.is_cancelled();
+                let ictx = ImportCtx::of(&file.name, &path, Self::date(&file.date), &ts).with_cancel(&cancelled);
                 let score = if let Some(i) = self.c.text.iter().find(|i| i.id() == &*importer) {
                     i.sniff(&ictx, &String::from_utf8_lossy(&head))
                 } else if let Some(i) = self.c.binary.iter().find(|i| i.id() == &*importer) {
@@ -105,13 +103,17 @@ impl PluginHandler {
             PluginRequest::Import { importer, file, content } => {
                 let ts = Self::timestamps(&file.timestamps)?;
                 let path = PathBuf::from(&file.path);
-                let ictx = ImportCtx {
-                    file_name: &file.name,
-                    path: &path,
-                    file_date: Self::date(&file.date),
-                    timestamps: &ts,
+                let cancelled = || ctx.is_cancelled();
+                let ictx = ImportCtx::of(&file.name, &path, Self::date(&file.date), &ts).with_cancel(&cancelled);
+                let f = HostFile::new(ctx.peer(), content).with_cancel(&cancelled);
+                // Whatever fails after a cancel is the cancel.
+                let failed = |e: anyhow::Error| {
+                    if ctx.is_cancelled() {
+                        CallCtx::cancelled_error()
+                    } else {
+                        failed(e)
+                    }
                 };
-                let f = HostFile::new(ctx.peer(), content);
                 let imported = if let Some(i) = self.c.text.iter().find(|i| i.id() == &*importer) {
                     let text = f.read_text(MAX_IMPORT_BYTES).map_err(failed)?;
                     i.import(&ictx, &text).map_err(failed)?
@@ -132,12 +134,8 @@ impl PluginHandler {
             } => {
                 let ts = Self::timestamps(&file.timestamps)?;
                 let path = PathBuf::from(&file.path);
-                let ictx = ImportCtx {
-                    file_name: &file.name,
-                    path: &path,
-                    file_date: Self::date(&file.date),
-                    timestamps: &ts,
-                };
+                let cancelled = || ctx.is_cancelled();
+                let ictx = ImportCtx::of(&file.name, &path, Self::date(&file.date), &ts).with_cancel(&cancelled);
                 let i = self
                     .c
                     .text

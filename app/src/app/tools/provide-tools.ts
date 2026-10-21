@@ -1,4 +1,5 @@
 import { EnvironmentProviders, inject, makeEnvironmentProviders, provideAppInitializer } from '@angular/core';
+import { DROPPED_FILES_HANDLERS } from '../core/dropped-files';
 import { provideToolsBackend } from '../core/tools-backend';
 import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, IMT_VIEWS } from '../extensions/tokens';
 import { CoreUiState } from '../lifecycle/core-ui-state';
@@ -10,6 +11,7 @@ import { BookmarkCommands } from '../projects/bookmark-commands';
 import { OpenRequests } from '../projects/open-requests';
 import { ProjectCommands } from '../projects/project-commands';
 import { ProjectUiState } from '../projects/project-ui-state';
+import { pluginPackageDropHandler } from '../plugins-panel/package-drop';
 import { ToolCatalog } from './tool-catalog.store';
 import { toolsActivityItems } from './tools-activity';
 import { ToolsCommands, toolsViews } from './tools-commands';
@@ -30,6 +32,8 @@ export function provideTools(): EnvironmentProviders {
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(BookmarkCommands).commands },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => inject(CoreUiState).contributions },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => inject(ProjectUiState).contributions },
+    // `.imtplugin` files dropped on the window are reviewed for installing, never opened as logs.
+    { provide: DROPPED_FILES_HANDLERS, multi: true, useFactory: pluginPackageDropHandler },
     provideAppInitializer(() => startTools()),
   ]);
 }

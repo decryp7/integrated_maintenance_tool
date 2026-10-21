@@ -9,8 +9,9 @@ use crate::RemoteError;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
-/// Version of the frame protocol, exchanged in [`Frame::Hello`] / [`Frame::Welcome`].
-pub const VERSION: u16 = 1;
+/// Version of the frame protocol, exchanged in [`Frame::Hello`] / [`Frame::Welcome`]. Version 2 added the
+/// connection's [`ProtocolVersion`] to both handshake frames.
+pub const VERSION: u16 = 2;
 /// Largest frame a connection accepts unless configured otherwise (16 MiB).
 pub const DEFAULT_MAX_FRAME: usize = 16 << 20;
 /// No connection accepts frames larger than this (64 MiB), whatever it is configured to.
@@ -20,13 +21,85 @@ pub const LEN_BYTES: usize = 4;
 /// Size of the per-launch token in [`Frame::Hello`].
 pub const TOKEN_BYTES: usize = 32;
 
+/// The version of the protocol a connection's bodies speak (the plugin protocol, the AI worker's, ...), as
+/// opposed to the frame [`VERSION`]. Both sides send theirs in the handshake; the host accepts a child that speaks
+/// the same major version and a minor version it knows ([`ProtocolVersion::accepts`]), and otherwise refuses it
+/// with a message that says which side must be updated ([`ProtocolVersion::mismatch`]).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct ProtocolVersion {
+    /// Incompatible changes (a request or reply changed or was removed).
+    pub major: u16,
+    /// Compatible additions (a request or reply variant added at the end of its enum).
+    pub minor: u16,
+}
+
+impl ProtocolVersion {
+    /// Connections whose protocol carries no version of its own (both sides are built together).
+    pub const UNVERSIONED: ProtocolVersion = ProtocolVersion::new(0, 0);
+
+    /// `major.minor`.
+    pub const fn new(major: u16, minor: u16) -> ProtocolVersion {
+        ProtocolVersion { major, minor }
+    }
+
+    /// Whether a host speaking `self` can serve a child built for `child`: same major version, and a minor version
+    /// no newer than the host's (a newer minor may send requests this host does not know).
+    pub fn accepts(self, child: ProtocolVersion) -> bool {
+        self.major == child.major && child.minor <= self.minor
+    }
+
+    /// Why a host speaking `self` refuses `label` built for `child`, telling the user what to update; `None` when
+    /// [`ProtocolVersion::accepts`] holds.
+    pub fn mismatch(self, child: ProtocolVersion, label: &str) -> Option<String> {
+        if self.accepts(child) {
+            None
+        } else if child.major < self.major {
+            Some(format!(
+                "{label} is too old: it was built for protocol {child} and this IMT speaks {self}; it needs an update built for                  protocol {}.x",
+                self.major
+            ))
+        } else {
+            Some(format!(
+                "{label} needs a newer IMT: it was built for protocol {child} and this IMT speaks {self}; update IMT to a version                  that speaks protocol {child} or later"
+            ))
+        }
+    }
+}
+
+impl std::fmt::Display for ProtocolVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}.{}", self.major, self.minor)
+    }
+}
+
+impl std::str::FromStr for ProtocolVersion {
+    type Err = String;
+
+    /// `major.minor` (e.g. `1.0`).
+    fn from_str(s: &str) -> Result<ProtocolVersion, String> {
+        let bad = || format!("\"{s}\" is not a protocol version (major.minor, e.g. 1.0)");
+        let (major, minor) = s.trim().split_once('.').ok_or_else(bad)?;
+        Ok(ProtocolVersion::new(
+            major.parse().map_err(|_| bad())?,
+            minor.parse().map_err(|_| bad())?,
+        ))
+    }
+}
+
 /// One message on a connection.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Frame {
-    /// First frame of the connecting side (the child): the protocol version, the per-launch token and its pid.
-    Hello { version: u16, token: [u8; TOKEN_BYTES], pid: u32 },
-    /// The listening side (the host) accepted [`Frame::Hello`].
-    Welcome { version: u16 },
+    /// First frame of the connecting side (the child): the frame version, the protocol it speaks, the per-launch
+    /// token and its pid. The two versions come first, so a host can read them from a child of any later or earlier
+    /// version (see [`handshake_versions`]).
+    Hello {
+        version: u16,
+        protocol: ProtocolVersion,
+        token: [u8; TOKEN_BYTES],
+        pid: u32,
+    },
+    /// The listening side (the host) accepted [`Frame::Hello`]; the protocol it speaks.
+    Welcome { version: u16, protocol: ProtocolVersion },
     /// A request; `credit` is how many [`Frame::Item`]s the callee may send before the caller's first [`Frame::Credit`].
     Call { id: u64, credit: u32, body: Vec<u8> },
     /// The single answer to a call (after its items, for a streamed call).
@@ -129,8 +202,25 @@ pub fn decode(buf: &[u8], max: usize) -> Result<Option<(Frame, usize)>, FrameErr
     decode_body(body).map(|f| Some((f, LEN_BYTES + len)))
 }
 
-/// Reads one frame. [`FrameError::Closed`] when the stream ends before its first byte.
-pub async fn read_frame<R: AsyncRead + Unpin>(r: &mut R, max: usize) -> Result<Frame, FrameError> {
+/// The frame version and, from frame version 2 on, the protocol version at the start of a [`Frame::Hello`] body,
+/// read without decoding the rest: a peer of another version may lay the rest out differently. `None` when the
+/// body does not start like a `Hello`.
+pub fn handshake_versions(body: &[u8]) -> Option<(u16, Option<ProtocolVersion>)> {
+    let (variant, rest) = postcard::take_from_bytes::<u32>(body).ok()?;
+    if variant != 0 {
+        return None;
+    }
+    let (version, rest) = postcard::take_from_bytes::<u16>(rest).ok()?;
+    let protocol = if version >= 2 {
+        postcard::take_from_bytes::<ProtocolVersion>(rest).ok().map(|(p, _)| p)
+    } else {
+        None
+    };
+    Some((version, protocol))
+}
+
+/// Reads one frame's body without decoding it (the handshake, which first looks at the versions).
+pub async fn read_body<R: AsyncRead + Unpin>(r: &mut R, max: usize) -> Result<Vec<u8>, FrameError> {
     let mut prefix = [0u8; LEN_BYTES];
     let mut got = 0;
     while got < LEN_BYTES {
@@ -147,7 +237,12 @@ pub async fn read_frame<R: AsyncRead + Unpin>(r: &mut R, max: usize) -> Result<F
         std::io::ErrorKind::UnexpectedEof => FrameError::Io("the stream ended inside a frame".into()),
         _ => io_error(e),
     })?;
-    decode_body(&body)
+    Ok(body)
+}
+
+/// Reads one frame. [`FrameError::Closed`] when the stream ends before its first byte.
+pub async fn read_frame<R: AsyncRead + Unpin>(r: &mut R, max: usize) -> Result<Frame, FrameError> {
+    decode_body(&read_body(r, max).await?)
 }
 
 /// Writes one frame (and flushes).
@@ -172,10 +267,14 @@ mod tests {
         vec![
             Frame::Hello {
                 version: VERSION,
+                protocol: ProtocolVersion::new(1, 3),
                 token: [7; TOKEN_BYTES],
                 pid: 42,
             },
-            Frame::Welcome { version: VERSION },
+            Frame::Welcome {
+                version: VERSION,
+                protocol: ProtocolVersion::new(1, 4),
+            },
             Frame::Call {
                 id: 1,
                 credit: 4,
@@ -208,6 +307,42 @@ mod tests {
         }
         assert_eq!(all()[2].call_id(), Some(1));
         assert_eq!(all()[0].call_id(), None);
+    }
+
+    #[test]
+    fn protocol_versions_say_which_side_to_update() {
+        let host = ProtocolVersion::new(2, 3);
+        assert!(host.accepts(ProtocolVersion::new(2, 0)) && host.accepts(host));
+        assert!(!host.accepts(ProtocolVersion::new(2, 4)) && !host.accepts(ProtocolVersion::new(1, 9)));
+        assert_eq!(host.mismatch(ProtocolVersion::new(2, 1), "p"), None);
+        let old = host.mismatch(ProtocolVersion::new(1, 7), "plugin \"x\"").unwrap();
+        assert!(old.contains("too old") && old.contains("1.7") && old.contains("2.x"), "{old}");
+        let new = host.mismatch(ProtocolVersion::new(2, 4), "plugin \"x\"").unwrap();
+        assert!(new.contains("needs a newer IMT") && new.contains("2.4"), "{new}");
+        assert!(host.mismatch(ProtocolVersion::new(3, 0), "p").unwrap().contains("newer IMT"));
+        assert_eq!("1.12".parse::<ProtocolVersion>(), Ok(ProtocolVersion::new(1, 12)));
+        for bad in ["1", "a.b", "1.2.3", "", "70000.1"] {
+            assert!(bad.parse::<ProtocolVersion>().is_err(), "{bad}");
+        }
+        assert_eq!(ProtocolVersion::UNVERSIONED.to_string(), "0.0");
+    }
+
+    #[test]
+    fn handshake_versions_are_read_from_any_hello() {
+        let hello = Frame::Hello {
+            version: VERSION,
+            protocol: ProtocolVersion::new(1, 2),
+            token: [1; TOKEN_BYTES],
+            pid: 7,
+        };
+        let body = encode(&hello, DEFAULT_MAX_FRAME).unwrap()[LEN_BYTES..].to_vec();
+        assert_eq!(handshake_versions(&body), Some((VERSION, Some(ProtocolVersion::new(1, 2)))));
+        // A version-1 Hello (no protocol) still yields its frame version.
+        let v1 = postcard::to_stdvec(&(0u32, 1u16, [1u8; TOKEN_BYTES], 7u32)).unwrap();
+        assert_eq!(handshake_versions(&v1), Some((1, None)));
+        assert_eq!(handshake_versions(&[]), None);
+        let cancel = encode(&Frame::Cancel { id: 1 }, DEFAULT_MAX_FRAME).unwrap();
+        assert_eq!(handshake_versions(&cancel[LEN_BYTES..]), None);
     }
 
     #[test]

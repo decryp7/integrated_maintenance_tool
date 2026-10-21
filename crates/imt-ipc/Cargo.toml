@@ -30,7 +30,7 @@ libc.workspace = true
 landlock = "0.4"
 
 [target.'cfg(windows)'.dependencies]
-windows = { workspace = true, features = ["Win32_System_JobObjects", "Win32_Security_Authorization", "Win32_System_Memory", "Win32_System_Pipes", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+windows = { workspace = true, features = ["Win32_System_JobObjects", "Win32_Security_Authorization", "Win32_Security_Isolation", "Win32_System_Memory", "Win32_System_Pipes", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 
 [dev-dependencies]
 tempfile.workspace = true

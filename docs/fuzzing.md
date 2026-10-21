@@ -68,6 +68,7 @@ inputs only to the first directory, so `fuzz/corpus/` stays small (seeds copied 
 | `fuzz_dump_minidump` | the dumps plugin's minidump reader (`imt-plugin-dumps` without the plugin feature: ranges, full-dump compaction, stack walks), then the dump engine's findings, views and wire round trip |
 | `fuzz_dump_umdh` | the UMDH snapshot/diff reader, then growth, grouping, tree and leak findings |
 | `fuzz_dump_wire` | `imt_dump::wire::decode_result`: what IMT accepts from the dumps plugin's process |
+| `fuzz_plugin_package` | `.imtplugin` packages (`imt-plugin-package`, ADR 0027): the bounded zip reader, layout and signature checks, `manifest.toml` and public-key parsing |
 
 CI (`.gitea/workflows/fuzz.yml`) runs every target for 5 minutes each night (and on demand
 through `workflow_dispatch`, with a configurable duration) and uploads crash inputs as the

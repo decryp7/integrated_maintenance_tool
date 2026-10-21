@@ -17,6 +17,7 @@ export { MockSettingsBackend } from './settings/mock-settings-backend';
 export { MockStorageBackend } from './settings/storage/mock-storage-backend';
 export { MockShareBackend } from './share/mock/mock-share-backend';
 export { MockMonitorCharts, mockMonitorChartsOptions } from './tools/monitor/mock/mock-monitor-charts';
+export { MockPluginPackagesBackend } from './plugins-panel/mock/mock-plugin-packages-backend';
 export { MockToolsBackend } from './tools/mock/mock-tools-backend';
 export { MockUpdatesBackend } from './updates/mock-updates-backend';
 export { MockWindowingBackend } from './windowing/mock-windowing-backend';

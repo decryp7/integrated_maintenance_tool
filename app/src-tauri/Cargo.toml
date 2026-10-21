@@ -27,6 +27,7 @@ imt-agent = { path = "../../crates/imt-agent" }
 # Plugins run out of process (ADR 0017): the host side only; no plugin is linked into the app.
 imt-plugin-host = { path = "../../crates/imt-plugin-host" }
 imt-plugin-api = { path = "../../crates/imt-plugin-api" }
+imt-plugin-package = { path = "../../crates/imt-plugin-package" }
 imt-ai = { path = "../../crates/imt-ai" }
 imt-collect = { path = "../../crates/imt-collect" }
 # Child-process logs (`imt_ipc::child_log`) for problem reports.

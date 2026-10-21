@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { ExporterInfo, PluginInfo } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
+import { InstalledPackages } from './installed-packages';
 
 /** Importers that ship with IMT (plugins can add more). */
 export const BUILTIN_IMPORTERS = [
@@ -14,10 +15,11 @@ export function contributionLabel(contribution: string): string {
   return contribution.startsWith('transform:') ? $localize`:@@pluginsPanel.contribution.transform:transform` : contribution;
 }
 
-/** What is installed: backend plugins reported by the engine, plus what is built in. */
+/** What is installed: backend plugins reported by the engine, third-party packages, plus what is built in. */
 @Component({
   selector: 'imt-plugins-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [InstalledPackages],
   template: `
     <div class="scroll" tabindex="0" role="region" aria-label="Plugins overview" i18n-aria-label="@@pluginsPanel.region">
       <h2 class="section-title" i18n="@@pluginsPanel.installed">Installed plugins</h2>
@@ -35,6 +37,8 @@ export function contributionLabel(contribution: string): string {
       } @else {
         <p class="faint" i18n="@@pluginsPanel.none">No plugins are installed. IMT works with its built-in importers and exporters.</p>
       }
+
+      <imt-installed-packages />
 
       <h2 class="section-title" i18n="@@pluginsPanel.builtIn">Built in</h2>
       <div class="builtin">

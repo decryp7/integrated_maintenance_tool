@@ -321,3 +321,9 @@ Deferred (tracked in `docs/redesign-2026-10.md`, R3):
   `imt-collect` and `imt-monitor`); its process is sandboxed like any other plugin.
 - Importer plugins streaming to the store worker directly (§5): needs the store worker in the workspace and its
   imports (ADR 0014 6c).
+
+Superseded in part by [ADR 0027](0027-plugin-sdk.md) (2026-10-21): the `Hello`/`Welcome` frames carry the plugin
+protocol version (frame version 2; the manifest's `contract` became `protocol`), and third-party plugins are
+installable as signed packages, contained by the launcher before they run (§6's "third-party binaries would need
+external enforcement" is now `Containment::Launcher`: an AppContainer and a job assigned while suspended on Windows,
+landlock and seccomp before `exec` on Linux, `sandbox-exec` on macOS).

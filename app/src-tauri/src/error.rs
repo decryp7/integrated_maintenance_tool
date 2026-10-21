@@ -77,6 +77,11 @@ pub enum ErrorCode {
     TooLarge,
     DiskFull,
     InstallFailed,
+    // ---- plugins ----
+    /// A plugin package that is unsigned or signed by a key the user has not trusted (developer mode is off).
+    Untrusted,
+    /// A plugin built for a plugin protocol this IMT cannot serve; the message says which side to update.
+    Incompatible,
 }
 
 impl ErrorCode {

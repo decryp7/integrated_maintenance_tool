@@ -83,6 +83,9 @@ pub struct PeerOptions {
     pub max_frame: usize,
     /// Calls of the other side handled at once; more are refused with [`code::BUSY`].
     pub max_concurrent_calls: usize,
+    /// The protocol the host serves on this connection, checked against the child's in the handshake
+    /// ([`frame::ProtocolVersion::accepts`]); [`frame::ProtocolVersion::UNVERSIONED`] by default.
+    pub protocol: frame::ProtocolVersion,
 }
 
 impl PeerOptions {
@@ -91,6 +94,7 @@ impl PeerOptions {
             label: label.into(),
             max_frame: frame::DEFAULT_MAX_FRAME,
             max_concurrent_calls: 64,
+            protocol: frame::ProtocolVersion::UNVERSIONED,
         }
     }
 }

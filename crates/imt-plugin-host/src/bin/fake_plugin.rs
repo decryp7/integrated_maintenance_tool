@@ -195,6 +195,13 @@ impl Plugin for FakePlugin {
         "1.0.0"
     }
 
+    fn permissions(&self) -> Vec<imt_plugin_api::manifest::PermissionRequest> {
+        vec![imt_plugin_api::manifest::PermissionRequest {
+            permission: imt_plugin_api::manifest::Permission::Network,
+            reason: "Tests revoking a permission.".into(),
+        }]
+    }
+
     fn register(&self, c: &mut Contributions) -> Result<()> {
         c.add_importer(Fake)
             .add_tool(Arc::new(FakeTool))

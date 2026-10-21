@@ -34,18 +34,41 @@ impl Default for Limits {
 /// Why a configuration file could not be read.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error, Serialize, Deserialize)]
 pub enum ConfigError {
+    /// The file exceeds the size limit.
     #[error("the file is {bytes} bytes; the limit is {max}")]
-    TooLarge { bytes: u64, max: usize },
+    TooLarge {
+        /// Size of the file in bytes.
+        bytes: u64,
+        /// The limit in bytes ([`Limits::max_bytes`]).
+        max: usize,
+    },
+    /// Nesting exceeds the depth limit.
     #[error("nesting is deeper than {max} levels")]
-    TooDeep { max: usize },
+    TooDeep {
+        /// The limit ([`Limits::max_depth`]).
+        max: usize,
+    },
+    /// The file is binary.
     #[error("this is a binary file, not a configuration file")]
     Binary,
+    /// No parser recognised the file.
     #[error("no configuration parser recognises this file (supported: {supported})")]
-    Unrecognised { supported: String },
+    Unrecognised {
+        /// The supported formats, for the message.
+        supported: String,
+    },
+    /// The file is not valid in its format.
     #[error("{format}: {message}")]
-    Syntax { format: String, message: String },
+    Syntax {
+        /// Id of the parser that read it.
+        format: String,
+        /// What is wrong, as the parser reports it.
+        message: String,
+    },
+    /// The file could not be read.
     #[error("{0}")]
     Io(String),
+    /// A plugin's parser failed.
     #[error("{0}")]
     Plugin(String),
 }

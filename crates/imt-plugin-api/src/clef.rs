@@ -39,6 +39,7 @@ pub fn clef_value(r: &Record) -> Value {
 
 /// Where collectors write the events they produce.
 pub trait EventSink: Send + Sync {
+    /// Writes `records`; fails on I/O errors.
     fn write(&self, records: &[Record]) -> Result<()>;
 }
 
@@ -53,6 +54,7 @@ pub struct ClefFileSink {
 }
 
 impl ClefFileSink {
+    /// Creates the sink, making `dir` if needed. Files are `<stem>.clef`, rolled over at `max_bytes`, and at most `keep` are retained.
     pub fn new(dir: impl Into<std::path::PathBuf>, stem: &str, max_bytes: u64, keep: usize) -> Result<ClefFileSink> {
         let dir = dir.into();
         std::fs::create_dir_all(&dir)?;

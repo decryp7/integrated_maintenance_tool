@@ -2630,6 +2630,22 @@ export interface EtlConverted {
 // Generated from `recent.rs`. Rust records an entry after a granted open or save.
 export type { RecentKind, RecentLists, RecentProject } from './generated/recent';
 
+// ---- Third-party plugin packages (`plugin_package_*`, see tools-backend.ts `PluginPackagesBackend`) ----
+// Generated from `plugin_packages`: a package's review before installing, and what is installed.
+export type {
+  DamagedPluginDto,
+  InstalledPluginDto,
+  InstalledPluginsDto,
+  InstalledState,
+  PackageReviewDto,
+  PermissionDto,
+  PermissionRequestDto,
+  RefusalDto,
+  SignatureDto,
+  SignatureKind,
+  UpdateDto,
+} from './generated/plugins';
+
 // ---- The one error of every command (app/src-tauri/src/error.rs; ADR 0016) ----
 
 // What every command rejects with, and its codes: generated from `error::CmdError` and `error::ErrorCode`.

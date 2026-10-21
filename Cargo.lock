@@ -615,6 +615,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "cargo-imt-plugin"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "imt-plugin-api",
+ "imt-plugin-package",
+ "imt-plugin-test",
+ "semver",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "toml 1.1.8+spec-1.1.0",
+]
+
+[[package]]
 name = "cargo-platform"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1469,6 +1484,12 @@ name = "dyn-clone"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
+
+[[package]]
+name = "ed25519-compact"
+version = "2.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1454db4f2edb7f0e8fe0c5b375b0c978fc63244cc9f010d160e417eb10139aa8"
 
 [[package]]
 name = "either"
@@ -2746,6 +2767,7 @@ dependencies = [
  "imt-plugin-api",
  "imt-plugin-dumps",
  "imt-plugin-host",
+ "imt-plugin-package",
  "imt-plugin-profiling",
  "imt-profile",
  "log",
@@ -2862,6 +2884,55 @@ dependencies = [
 ]
 
 [[package]]
+name = "imt-example-annotator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "imt-plugin-api",
+ "imt-plugin-test",
+ "serde_json",
+]
+
+[[package]]
+name = "imt-example-collector"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "imt-plugin-api",
+ "imt-plugin-test",
+ "serde_json",
+]
+
+[[package]]
+name = "imt-example-importer"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "imt-plugin-api",
+ "imt-plugin-test",
+ "serde_json",
+]
+
+[[package]]
+name = "imt-example-tool"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "imt-plugin-api",
+ "imt-plugin-test",
+ "serde_json",
+]
+
+[[package]]
+name = "imt-example-transform"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "imt-plugin-api",
+ "imt-plugin-test",
+]
+
+[[package]]
 name = "imt-ipc"
 version = "0.1.0"
 dependencies = [
@@ -2957,6 +3028,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "imt-plugin-e2e"
+version = "0.1.0"
+dependencies = [
+ "cargo-imt-plugin",
+ "imt-core",
+ "imt-example-importer",
+ "imt-plugin-api",
+ "imt-plugin-host",
+ "imt-plugin-package",
+ "tempfile",
+]
+
+[[package]]
 name = "imt-plugin-formats"
 version = "0.1.0"
 dependencies = [
@@ -2981,10 +3065,12 @@ dependencies = [
  "imt-dump",
  "imt-ipc",
  "imt-plugin-api",
+ "imt-plugin-package",
  "imt-profile",
  "log",
  "serde",
  "serde_json",
+ "sha2 0.11.1",
  "tempfile",
 ]
 
@@ -3015,6 +3101,24 @@ dependencies = [
  "insta",
  "proptest",
  "serde_json",
+]
+
+[[package]]
+name = "imt-plugin-package"
+version = "0.1.0"
+dependencies = [
+ "ed25519-compact",
+ "getrandom 0.4.3",
+ "imt-plugin-api",
+ "proptest",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tempfile",
+ "thiserror 2.0.21",
+ "toml 1.1.8+spec-1.1.0",
+ "zip",
 ]
 
 [[package]]
@@ -3052,6 +3156,19 @@ dependencies = [
  "insta",
  "proptest",
  "serde_json",
+]
+
+[[package]]
+name = "imt-plugin-test"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "imt-ipc",
+ "imt-plugin-api",
+ "imt-plugin-package",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

@@ -517,6 +517,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ed25519-compact"
+version = "2.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1454db4f2edb7f0e8fe0c5b375b0c978fc63244cc9f010d160e417eb10139aa8"
+
+[[package]]
 name = "either"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1210,6 +1216,7 @@ dependencies = [
  "imt-plugin-dumps",
  "imt-plugin-formats",
  "imt-plugin-otel",
+ "imt-plugin-package",
  "imt-plugin-profiling",
  "imt-plugin-registry",
  "imt-plugin-syslog",
@@ -1292,6 +1299,22 @@ dependencies = [
  "anyhow",
  "imt-plugin-api",
  "serde_json",
+]
+
+[[package]]
+name = "imt-plugin-package"
+version = "0.1.0"
+dependencies = [
+ "ed25519-compact",
+ "getrandom 0.4.3",
+ "imt-plugin-api",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.21",
+ "toml",
+ "zip",
 ]
 
 [[package]]

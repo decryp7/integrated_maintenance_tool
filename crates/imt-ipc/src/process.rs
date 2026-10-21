@@ -11,7 +11,7 @@ use crate::child_log::{self, ChildLog, ChildLogSpec, Exit};
 use crate::IpcError;
 use std::io::{BufRead, Read, Write};
 use std::path::PathBuf;
-use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
+use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -111,15 +111,62 @@ impl ExitNote {
     }
 }
 
+/// The OS process behind a [`ChildProcess`]: started by the standard library, or (a contained child on Windows) in
+/// an AppContainer by [`crate::contain`].
+enum OsChild {
+    Std(Child),
+    #[cfg(windows)]
+    Contained(crate::contain::Contained),
+}
+
+impl OsChild {
+    fn id(&self) -> u32 {
+        match self {
+            OsChild::Std(c) => c.id(),
+            #[cfg(windows)]
+            OsChild::Contained(c) => c.id(),
+        }
+    }
+
+    fn try_wait(&mut self) -> std::io::Result<Option<ExitStatus>> {
+        match self {
+            OsChild::Std(c) => c.try_wait(),
+            #[cfg(windows)]
+            OsChild::Contained(c) => c.try_wait(),
+        }
+    }
+
+    fn kill(&mut self) -> std::io::Result<()> {
+        match self {
+            OsChild::Std(c) => c.kill(),
+            #[cfg(windows)]
+            OsChild::Contained(c) => c.kill(),
+        }
+    }
+
+    fn wait(&mut self) -> std::io::Result<ExitStatus> {
+        match self {
+            OsChild::Std(c) => c.wait(),
+            #[cfg(windows)]
+            OsChild::Contained(c) => c.wait(),
+        }
+    }
+}
+
+/// A job object on Windows; nothing elsewhere.
+#[cfg(windows)]
+type Job = Option<crate::job::JobGuard>;
+#[cfg(not(windows))]
+type Job = ();
+
 /// A started child. Killed (and reaped) on drop.
 pub struct ChildProcess {
-    child: Arc<Mutex<Option<Child>>>,
-    stdin: Mutex<Option<ChildStdin>>,
+    child: Arc<Mutex<Option<OsChild>>>,
+    stdin: Mutex<Option<Box<dyn Write + Send>>>,
     pid: u32,
     label: String,
     exit_note: Option<Arc<ExitNote>>,
-    #[cfg(windows)]
-    _job: Option<crate::job::JobGuard>,
+    _job: Job,
 }
 
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
@@ -128,7 +175,7 @@ fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 
 /// Reads a child's standard error into its log until end of output, then records how it exited (unless
 /// IMT is already stopping it, which records that itself).
-fn capture_stderr(stderr: impl Read + Send + 'static, log: Arc<ChildLog>, child: Arc<Mutex<Option<Child>>>, note: Arc<ExitNote>) {
+fn capture_stderr(stderr: impl Read + Send + 'static, log: Arc<ChildLog>, child: Arc<Mutex<Option<OsChild>>>, note: Arc<ExitNote>) {
     let spawned = std::thread::Builder::new().name("imt-child-stderr".into()).spawn(move || {
         let mut r = std::io::BufReader::new(stderr);
         let mut line = Vec::new();
@@ -158,12 +205,46 @@ fn capture_stderr(stderr: impl Read + Send + 'static, log: Arc<ChildLog>, child:
 
 impl ChildProcess {
     /// Starts the program with a piped stdin (its lifeline), no stdout, and stderr captured into its child
-    /// log when the spec names one (discarded otherwise).
+    /// log when the spec names one (discarded otherwise). A spec whose sandbox is
+    /// [`crate::sandbox::Containment::Launcher`] is contained before it runs any code.
     pub fn spawn(spec: &SpawnSpec) -> Result<ChildProcess, IpcError> {
+        let fail = |e: String| {
+            let msg = format!("cannot start {} ({}): {e}", spec.label, spec.exe.display());
+            if let Some(l) = &spec.log {
+                child_log::get(l).record(&child_log::ChildEvent::Note(format!("Could not start: {msg}")));
+            }
+            IpcError::Spawn(msg)
+        };
+        #[cfg(windows)]
+        if let crate::sandbox::Containment::Launcher { name, read, write } = &spec.sandbox.containment {
+            let container = crate::contain::Container::open(name).map_err(|e| fail(e.to_string()))?;
+            for (paths, w) in [(read, false), (write, true)] {
+                for p in paths {
+                    container.grant(p, w).map_err(|e| fail(e.to_string()))?;
+                }
+            }
+            let mut contained = spec.clone();
+            // The container can only enter folders granted to it.
+            if !read.iter().chain(write).any(|r| Some(r) == contained.current_dir.as_ref()) {
+                contained.current_dir = read.first().cloned();
+            }
+            let limits = crate::job::JobLimits::of(spec);
+            let started = crate::contain::spawn(&contained, &container, spec.sandbox.network, &limits, spec.log.is_some())
+                .map_err(|e| fail(e.to_string()))?;
+            let stderr = started.stderr.map(|f| Box::new(f) as Box<dyn Read + Send>);
+            return Ok(ChildProcess::assemble(
+                spec,
+                OsChild::Contained(started.child),
+                Some(Box::new(started.stdin)),
+                stderr,
+                Some(started.job),
+            ));
+        }
+        let (exe, args) = launcher_command(spec);
         // The one spawner outside imt-core (this crate stands alone); it sets CREATE_NO_WINDOW below.
         #[allow(clippy::disallowed_methods)]
-        let mut cmd = Command::new(&spec.exe);
-        cmd.args(&spec.args)
+        let mut cmd = Command::new(&exe);
+        cmd.args(&args)
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
             .stderr(if spec.log.is_some() { Stdio::piped() } else { Stdio::null() });
@@ -184,14 +265,11 @@ impl ChildProcess {
             let priority = if spec.below_normal_priority { 0x0000_4000 } else { 0 };
             cmd.creation_flags(0x0800_0000 | priority);
         }
-        let mut child = cmd.spawn().map_err(|e| {
-            let msg = format!("cannot start {} ({}): {e}", spec.label, spec.exe.display());
-            if let Some(l) = &spec.log {
-                child_log::get(l).record(&child_log::ChildEvent::Note(format!("Could not start: {msg}")));
-            }
-            IpcError::Spawn(msg)
-        })?;
-        let pid = child.id();
+        #[cfg(target_os = "linux")]
+        if spec.sandbox.contained() {
+            crate::sandbox::contain_before_exec(&mut cmd, &spec.sandbox, &spec.exe).map_err(fail)?;
+        }
+        let mut child = cmd.spawn().map_err(|e| fail(e.to_string()))?;
         // Lowered from here rather than in a `pre_exec` hook: a hook forces fork+exec instead of
         // posix_spawn, and on macOS a concurrent fork can then inherit another spawn's exec-status pipe
         // and keep that spawn waiting forever.
@@ -200,13 +278,27 @@ impl ChildProcess {
             // SAFETY: setpriority takes plain integers and has no memory effects; it only lowers the
             // priority of our own child.
             unsafe {
-                libc::setpriority(libc::PRIO_PROCESS, pid as libc::id_t, 10);
+                libc::setpriority(libc::PRIO_PROCESS, child.id() as libc::id_t, 10);
             }
         }
         #[cfg(windows)]
         let job = crate::job::JobGuard::assign(&child, &crate::job::JobLimits::of(spec));
-        let stdin = child.stdin.take();
-        let stderr = child.stderr.take();
+        #[cfg(not(windows))]
+        let job = ();
+        let stdin = child.stdin.take().map(|s| Box::new(s) as Box<dyn Write + Send>);
+        let stderr = child.stderr.take().map(|s| Box::new(s) as Box<dyn Read + Send>);
+        Ok(ChildProcess::assemble(spec, OsChild::Std(child), stdin, stderr, job))
+    }
+
+    /// The bookkeeping of a started child: its log, its exit line and its standard error reader.
+    fn assemble(
+        spec: &SpawnSpec,
+        child: OsChild,
+        stdin: Option<Box<dyn Write + Send>>,
+        stderr: Option<Box<dyn Read + Send>>,
+        job: Job,
+    ) -> ChildProcess {
+        let pid = child.id();
         let child = Arc::new(Mutex::new(Some(child)));
         let exit_note = spec.log.as_ref().map(|l| {
             let log = child_log::get(l);
@@ -222,15 +314,14 @@ impl ChildProcess {
             }
             note
         });
-        Ok(ChildProcess {
+        ChildProcess {
             child,
             stdin: Mutex::new(stdin),
             pid,
             label: spec.label.clone(),
             exit_note,
-            #[cfg(windows)]
             _job: job,
-        })
+        }
     }
 
     /// The child's log, when its output is captured.
@@ -358,6 +449,18 @@ impl Drop for ChildProcess {
     fn drop(&mut self) {
         self.kill();
     }
+}
+
+/// The program and arguments that start `spec`: the program itself, or on macOS for a contained child,
+/// `sandbox-exec` with the sandbox profile in front of it.
+fn launcher_command(spec: &SpawnSpec) -> (PathBuf, Vec<String>) {
+    #[cfg(target_os = "macos")]
+    if let Some(profile) = crate::sandbox::launcher_profile(&spec.sandbox, &spec.exe) {
+        let mut args = vec!["-p".to_string(), profile, spec.exe.to_string_lossy().into_owned()];
+        args.extend(spec.args.iter().cloned());
+        return (PathBuf::from("/usr/bin/sandbox-exec"), args);
+    }
+    (spec.exe.clone(), spec.args.clone())
 }
 
 /// Resident memory of this process, in bytes (0 if unknown).

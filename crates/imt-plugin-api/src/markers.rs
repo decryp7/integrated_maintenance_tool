@@ -9,8 +9,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum MarkerRole {
+    /// The kind marks the start of a run or session.
     Start,
+    /// The kind marks the end of a run or session.
     Stop,
+    /// The kind marks an abnormal termination.
     Crash,
 }
 
@@ -20,7 +23,9 @@ pub enum MarkerRole {
 pub struct PluginMarkerKind {
     /// Short id (`app-crash`); shown as `<plugin-id>/app-crash`.
     pub kind: String,
+    /// Human-readable name.
     pub label: String,
+    /// Longer explanation shown in tooltips and settings.
     pub description: Option<String>,
     /// #RGB or #RRGGBB.
     pub color: Option<String>,
@@ -30,12 +35,14 @@ pub struct PluginMarkerKind {
     pub badge: Option<String>,
     /// circle, square, diamond or hexagon.
     pub shape: Option<String>,
+    /// Lifecycle role, when the kind marks a start, stop or crash.
     pub role: Option<MarkerRole>,
     /// Default rules (all must match); empty = only marked programmatically.
     pub when: Vec<ConditionCfg>,
 }
 
 impl PluginMarkerKind {
+    /// Creates a kind with a short id and a label and no style or rules.
     pub fn new(kind: &str, label: &str) -> Self {
         PluginMarkerKind {
             kind: kind.into(),
@@ -50,27 +57,32 @@ impl PluginMarkerKind {
         }
     }
 
+    /// Sets the description.
     pub fn describe(mut self, text: &str) -> Self {
         self.description = Some(text.into());
         self
     }
 
+    /// Sets the colour (`#RGB` or `#RRGGBB`).
     pub fn color(mut self, color: &str) -> Self {
         self.color = Some(color.into());
         self
     }
 
+    /// Sets one of the profile's marker icons.
     pub fn icon(mut self, icon: &str) -> Self {
         self.icon = Some(icon.into());
         self
     }
 
+    /// Sets the badge text (1â€“3 characters) and its shape (circle, square, diamond or hexagon).
     pub fn badge(mut self, badge: &str, shape: &str) -> Self {
         self.badge = Some(badge.into());
         self.shape = Some(shape.into());
         self
     }
 
+    /// Sets the lifecycle role.
     pub fn role(mut self, role: MarkerRole) -> Self {
         self.role = Some(role);
         self

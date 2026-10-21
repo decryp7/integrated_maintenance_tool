@@ -141,13 +141,26 @@ impl Drop for Child {
     }
 }
 
+/// Who may open the endpoint of a child started without elevation: its AppContainer too when it is contained.
+fn container_access(spawn: &SpawnSpec) -> Result<Access, IpcError> {
+    #[cfg(windows)]
+    if let crate::sandbox::Containment::Launcher { name, .. } = &spawn.sandbox.containment {
+        let c = crate::contain::Container::open(name)
+            .map_err(|e| IpcError::Spawn(format!("cannot prepare the sandbox of {}: {e}", spawn.label)))?;
+        return Ok(Access::OwnerInContainer(c.sid_string));
+    }
+    #[cfg(not(windows))]
+    let _ = spawn;
+    Ok(Access::Owner)
+}
+
 /// Starts the child described by `spec` and accepts its connection; `handler` answers the calls the child
 /// makes back (host services; [`crate::peer::NoCalls`] when there are none).
 pub fn launch(spec: &ChildSpec, handler: Arc<dyn Handler>) -> Result<Child, IpcError> {
     let mode = crate::elevation::decide(&spec.elevation, crate::elevation::is_elevated())?;
     let access = match mode {
-        crate::elevation::LaunchMode::Plain => Access::Owner,
         crate::elevation::LaunchMode::RunAs => Access::OwnerAndAdmins,
+        crate::elevation::LaunchMode::Plain => container_access(&spec.spawn)?,
     };
     let listener = Listener::create(&spec.spawn.endpoint_prefix, access)
         .map_err(|e| IpcError::Spawn(format!("cannot prepare a private connection for {}: {e}", spec.spawn.label)))?;

@@ -305,6 +305,7 @@ impl FramesTransport {
             label: "the AI engine".into(),
             max_frame: MAX_MESSAGE_BYTES,
             max_concurrent_calls: 8,
+            ..PeerOptions::new("")
         };
         let child = launch(&c, Arc::new(NoCalls))?;
         Ok(FramesTransport {

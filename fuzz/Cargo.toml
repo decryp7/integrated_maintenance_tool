@@ -15,6 +15,7 @@ libfuzzer-sys = "0.4"
 imt-core = { path = "../crates/imt-core" }
 imt-ipc = { path = "../crates/imt-ipc" }
 imt-plugin-api = { path = "../crates/imt-plugin-api" }
+imt-plugin-package = { path = "../crates/imt-plugin-package" }
 imt-ai = { path = "../crates/imt-ai" }
 imt-ai-worker = { path = "../crates/imt-ai-worker" }
 imt-plugin-registry = { path = "../crates/imt-plugin-registry" }
@@ -326,6 +327,13 @@ bench = false
 [[bin]]
 name = "fuzz_dump_wire"
 path = "fuzz_targets/fuzz_dump_wire.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_plugin_package"
+path = "fuzz_targets/fuzz_plugin_package.rs"
 test = false
 doc = false
 bench = false

@@ -6,14 +6,18 @@
 //!   `alloc <n>` → allocates and touches n bytes, `ok …` or `denied: …`;
 //!   `write <path>` → tries to create the file, answers `ok` or the error; `spawn` → tries to start a program;
 //!   `ask <text>` → calls the host back with `<text>` and answers with the host's reply; `gaps` → the notes of its
-//!   lockdown (JSON), so tests know what this system enforces.
+//!   lockdown (JSON), so tests know what this system enforces; `read <path>` → `ok <bytes>` or the error;
+//!   `connect <ip:port>` → opens a TCP connection, `ok` or the error.
 //!
 //! Flags: `--exit-now` (dies before connecting), `--no-connect` (reads the bootstrap, never connects),
 //! `--bad-token` (connects with a wrong token), `--relay` (starts a copy of itself that connects instead: a
 //! process the host did not start), `--garbage` (sends bytes that are not a frame after the handshake),
-//! `--oversize` (announces a 1 GiB frame after the handshake), `--say=<text>` (a line on stderr first).
+//! `--oversize` (announces a 1 GiB frame after the handshake), `--say=<text>` (a line on stderr first),
+//! `--protocol=<major.minor>` (speaks that protocol version in the handshake), `--skip-lockdown` (serves without
+//! locking itself down: a binary that ignores the sandbox, to test what the launcher enforces).
 
-use imt_ipc::child::{connect_and_lock_down, lifeline, read_bootstrap};
+use imt_ipc::child::{connect_speaking, lifeline, read_bootstrap};
+use imt_ipc::frame::ProtocolVersion;
 use imt_ipc::peer::{code, CallCtx, Handler};
 use imt_ipc::RemoteError;
 use std::io::Read;
@@ -52,6 +56,20 @@ fn handle(ctx: &CallCtx, body: &[u8]) -> Result<Vec<u8>, RemoteError> {
             }
             Ok(b"done".to_vec())
         }
+        "read" => Ok(match std::fs::read(arg) {
+            Ok(b) => format!("ok {}", b.len()).into_bytes(),
+            Err(e) => format!("denied: {e}").into_bytes(),
+        }),
+        "connect" => Ok(
+            match arg
+                .parse()
+                .map(|a| std::net::TcpStream::connect_timeout(&a, Duration::from_secs(3)))
+            {
+                Ok(Ok(_)) => b"ok".to_vec(),
+                Ok(Err(e)) => format!("denied: {e}").into_bytes(),
+                Err(e) => format!("bad address: {e}").into_bytes(),
+            },
+        ),
         "write" => Ok(match std::fs::write(arg, b"x") {
             Ok(()) => {
                 let _ = std::fs::remove_file(arg);
@@ -140,7 +158,23 @@ fn main() {
         return;
     }
     let handler: Arc<dyn Handler> = Arc::new(handle);
-    match connect_and_lock_down(&bootstrap, false, "IMT", |_| handler) {
+    if args.iter().any(|a| a == "--skip-lockdown") {
+        let token = imt_ipc::link::Token::from_hex(&bootstrap.token).expect("token");
+        let address = bootstrap.address.clone();
+        let rt = imt_ipc::runtime::shared().expect("runtime");
+        let io = rt
+            .block_on(async move { imt_ipc::link::handshake(&address, &token, "IMT").await })
+            .expect("handshake");
+        let peer = imt_ipc::Peer::start(io, handler, imt_ipc::PeerOptions::new("IMT"), rt.handle());
+        peer.wait_closed(None);
+        return;
+    }
+    let protocol = args
+        .iter()
+        .find_map(|a| a.strip_prefix("--protocol="))
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(ProtocolVersion::UNVERSIONED);
+    match connect_speaking(&bootstrap, false, "IMT", protocol, |_| handler) {
         Ok(peer) => {
             // As child_main does: after the lockdown, so the thread is locked down too.
             lifeline();

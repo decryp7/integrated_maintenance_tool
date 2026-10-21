@@ -35,17 +35,23 @@ pub enum SectionOwner {
     /// The desktop shell (diagnostics, workspace, plugin management).
     App,
     /// An engine plugin, by plugin id.
-    Plugin { id: String },
+    Plugin {
+        /// Plugin id.
+        id: String,
+    },
 }
 
 /// One choice of an [`FieldKind::Enum`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EnumOption {
+    /// The stored value.
     pub value: String,
+    /// Text shown to the user.
     pub label: String,
 }
 
 impl EnumOption {
+    /// Creates an option with the stored `value` and its `label`.
     pub fn new(value: impl Into<String>, label: impl Into<String>) -> Self {
         EnumOption {
             value: value.into(),
@@ -59,42 +65,64 @@ impl EnumOption {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum FieldKind {
+    /// On or off.
     Bool,
     /// Whole number in `min..=max`, reachable from `min` in `step`s.
     Int {
+        /// Smallest accepted value.
         min: i64,
+        /// Largest accepted value.
         max: i64,
+        /// Granularity of the control; at least 1.
         step: i64,
+        /// Unit label shown beside the value (e.g. `"lines"`).
         unit: Option<String>,
     },
     /// Finite number in `min..=max`; `step` is a hint for the UI only.
     Float {
+        /// Smallest accepted value.
         min: f64,
+        /// Largest accepted value.
         max: f64,
+        /// UI step hint; greater than 0.
         step: f64,
+        /// Unit label shown beside the value.
         unit: Option<String>,
     },
     /// Up to `max_len` characters, fully matching `pattern` when given.
     Text {
+        /// Longest accepted text, in characters (1 to the text limit).
         max_len: usize,
+        /// Regular expression the whole text must match.
         pattern: Option<String>,
     },
+    /// One of a fixed set of choices.
     Enum {
+        /// The choices; at least one, with unique values.
         options: Vec<EnumOption>,
     },
     /// An absolute path (or empty for "not set"); `dir` picks a folder dialog.
     Path {
+        /// Whether to pick a folder rather than a file.
         dir: bool,
     },
+    /// A time span, stored as milliseconds.
     Duration {
+        /// Shortest accepted span, in milliseconds.
         min_ms: u64,
+        /// Longest accepted span, in milliseconds.
         max_ms: u64,
     },
+    /// A size, stored as bytes.
     Size {
+        /// Smallest accepted size, in bytes.
         min_bytes: u64,
+        /// Largest accepted size, in bytes.
         max_bytes: u64,
     },
+    /// A list of text items.
     StringList {
+        /// Most items accepted.
         max_items: usize,
     },
 }
@@ -105,10 +133,13 @@ pub enum FieldKind {
 pub struct SettingField {
     /// Stable key within the section (`[A-Za-z0-9._-]`).
     pub key: String,
+    /// Name shown to the user.
     pub label: String,
     /// Help text shown under the control.
     pub description: String,
+    /// The field's type and limits.
     pub kind: FieldKind,
+    /// The value used until the user changes it; must pass the field's own validation.
     pub default: Value,
     /// A change only takes effect after IMT restarts.
     pub restart_required: bool,
@@ -117,6 +148,7 @@ pub struct SettingField {
 }
 
 impl SettingField {
+    /// Creates a field with a `key`, `label`, type and default; other properties take their defaults.
     pub fn new(key: impl Into<String>, label: impl Into<String>, kind: FieldKind, default: impl Into<Value>) -> Self {
         SettingField {
             key: key.into(),
@@ -129,16 +161,19 @@ impl SettingField {
         }
     }
 
+    /// Sets the help text.
     pub fn describe(mut self, description: impl Into<String>) -> Self {
         self.description = description.into();
         self
     }
 
+    /// Marks the field as taking effect only after IMT restarts.
     pub fn needs_restart(mut self) -> Self {
         self.restart_required = true;
         self
     }
 
+    /// Hides the field unless the user shows advanced settings.
     pub fn as_advanced(mut self) -> Self {
         self.advanced = true;
         self
@@ -151,13 +186,18 @@ impl SettingField {
 pub struct SettingsSection {
     /// Stable id; also the key in `settings.json`. Plugin sections use the plugin id.
     pub id: String,
+    /// Title shown in the settings navigation.
     pub title: String,
+    /// Help text shown under the title.
     pub description: String,
+    /// Who provides the section.
     pub owner: SectionOwner,
+    /// The fields, in display order.
     pub fields: Vec<SettingField>,
 }
 
 impl SettingsSection {
+    /// Creates an empty section.
     pub fn new(id: impl Into<String>, title: impl Into<String>, owner: SectionOwner) -> Self {
         SettingsSection {
             id: id.into(),
@@ -168,16 +208,19 @@ impl SettingsSection {
         }
     }
 
+    /// Sets the description.
     pub fn describe(mut self, description: impl Into<String>) -> Self {
         self.description = description.into();
         self
     }
 
+    /// Appends a field.
     pub fn field(mut self, field: SettingField) -> Self {
         self.fields.push(field);
         self
     }
 
+    /// The field with `key`, if any.
     pub fn find(&self, key: &str) -> Option<&SettingField> {
         self.fields.iter().find(|f| f.key == key)
     }
@@ -260,18 +303,22 @@ fn anchored(pattern: &str) -> Result<regex::Regex> {
 pub struct ValidValues(BTreeMap<String, Value>);
 
 impl ValidValues {
+    /// The raw value of `key`.
     pub fn get(&self, key: &str) -> Option<&Value> {
         self.0.get(key)
     }
 
+    /// A boolean value.
     pub fn bool(&self, key: &str) -> Option<bool> {
         self.get(key)?.as_bool()
     }
 
+    /// An integer value.
     pub fn int(&self, key: &str) -> Option<i64> {
         self.get(key)?.as_i64()
     }
 
+    /// A floating-point value.
     pub fn float(&self, key: &str) -> Option<f64> {
         self.get(key)?.as_f64()
     }
@@ -281,6 +328,7 @@ impl ValidValues {
         self.get(key)?.as_str()
     }
 
+    /// A duration value (stored as milliseconds).
     pub fn duration(&self, key: &str) -> Option<Duration> {
         self.get(key)?.as_u64().map(Duration::from_millis)
     }
@@ -290,10 +338,12 @@ impl ValidValues {
         self.get(key)?.as_u64()
     }
 
+    /// A list-of-text value.
     pub fn strings(&self, key: &str) -> Option<Vec<String>> {
         self.get(key)?.as_array()?.iter().map(|v| v.as_str().map(String::from)).collect()
     }
 
+    /// Every key and value, ordered by key.
     pub fn iter(&self) -> impl Iterator<Item = (&String, &Value)> {
         self.0.iter()
     }
@@ -307,7 +357,9 @@ impl ValidValues {
 /// Why a value was rejected; `key` is empty for problems with the whole object.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct FieldError {
+    /// The field the problem is about; empty for the whole object.
     pub key: String,
+    /// What is wrong, to show the user.
     pub message: String,
 }
 

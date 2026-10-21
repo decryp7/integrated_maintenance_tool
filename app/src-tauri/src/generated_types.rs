@@ -92,6 +92,7 @@ fn files() -> Vec<(&'static str, String)> {
                 decl(crate::browser::geometry::Placement::decl())
             ),
         ),
+        ("plugins.ts", crate::plugin_packages::dto::generated(header)),
     ]
 }
 
