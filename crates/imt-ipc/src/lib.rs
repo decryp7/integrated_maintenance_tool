@@ -30,7 +30,7 @@ pub mod wire;
 
 pub use error::{IpcError, RemoteError};
 pub use launch::{launch, Bootstrap, Child, ChildSpec};
-pub use peer::{CallCtx, CallStream, Handler, Peer, PeerOptions, StreamEvent};
+pub use peer::{CallCtx, CallStream, CancelProbe, Handler, Peer, PeerOptions, StreamEvent};
 pub use sandbox::{FsAccess, SandboxSpec};
 pub use wire::Json;
 

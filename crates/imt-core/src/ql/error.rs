@@ -4,7 +4,7 @@
 use serde::Serialize;
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QlError {
     pub message: String,
@@ -13,7 +13,7 @@ pub struct QlError {
     /// Length in bytes (0 = a position, e.g. "unexpected end of query").
     pub len: usize,
     /// "Did you mean": closest known names for an unknown field, best first.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub suggestions: Vec<String>,
 }
 

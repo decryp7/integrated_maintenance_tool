@@ -14,7 +14,7 @@ pub const MAX_REQUEST_INSTANCES: usize = 10_000;
 pub const PREVIEW_RUNS: usize = 20;
 
 /// What a run annotation adds to [`AnnotationDto`].
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunInfo {
     /// The `[[span]]` kind.
@@ -33,7 +33,7 @@ pub struct RunInfo {
 }
 
 /// Counts and durations of one span kind's runs.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpanSummary {
     pub kind: String,
@@ -92,7 +92,7 @@ impl SpanSummary {
 }
 
 /// Column the Runs table sorts by.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum RunSort {
     #[default]
@@ -104,7 +104,7 @@ pub enum RunSort {
 }
 
 /// Which runs `query_runs` returns; every key is optional.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct RunsRequest {
     /// Overlapping `[from, to]` (inclusive); open-ended when absent.
@@ -124,7 +124,7 @@ pub struct RunsRequest {
 }
 
 /// A page of runs plus the summaries of every span kind over the selection.
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunsReply {
     pub summaries: Vec<SpanSummary>,

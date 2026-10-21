@@ -72,6 +72,26 @@ jobs:
           key: clippy-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: clippy-${{ runner.os }}-
 
+      # The store crates link the official prebuilt libduckdb (ADR 0014): fetched once per version, SHA-256 pinned,
+      # so every job that builds the workspace links it (a test that is skipped still has to link).
+      - uses: actions/cache@v4
+        if: runner.os != 'Windows'
+        with:
+          path: ~/.cache/imt-libduckdb
+          key: libduckdb-${{ runner.os }}-${{ hashFiles('crates/imt-store-duck/scripts/fetch-libduckdb.sh') }}
+
+      - name: libduckdb (prebuilt, pinned SHA-256)
+        shell: bash
+        run: |
+          eval "$(crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+          echo "DUCKDB_LIB_DIR=$DUCKDB_LIB_DIR" >> "$GITHUB_ENV"
+          echo "DUCKDB_INCLUDE_DIR=$DUCKDB_INCLUDE_DIR" >> "$GITHUB_ENV"
+          case "$RUNNER_OS" in
+            Linux) echo "LD_LIBRARY_PATH=$DUCKDB_LIB_DIR:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV" ;;
+            macOS) echo "DYLD_LIBRARY_PATH=$DUCKDB_LIB_DIR:${DYLD_LIBRARY_PATH:-}" >> "$GITHUB_ENV" ;;
+            Windows) cygpath -w "$DUCKDB_LIB_DIR" >> "$GITHUB_PATH" ;;
+          esac
+
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
@@ -117,6 +137,26 @@ jobs:
             ~/.cargo/git
           key: test-registry-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: test-registry-${{ runner.os }}-
+
+      # The store crates link the official prebuilt libduckdb (ADR 0014): fetched once per version, SHA-256 pinned,
+      # so every job that builds the workspace links it (a test that is skipped still has to link).
+      - uses: actions/cache@v4
+        if: runner.os != 'Windows'
+        with:
+          path: ~/.cache/imt-libduckdb
+          key: libduckdb-${{ runner.os }}-${{ hashFiles('crates/imt-store-duck/scripts/fetch-libduckdb.sh') }}
+
+      - name: libduckdb (prebuilt, pinned SHA-256)
+        shell: bash
+        run: |
+          eval "$(crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+          echo "DUCKDB_LIB_DIR=$DUCKDB_LIB_DIR" >> "$GITHUB_ENV"
+          echo "DUCKDB_INCLUDE_DIR=$DUCKDB_INCLUDE_DIR" >> "$GITHUB_ENV"
+          case "$RUNNER_OS" in
+            Linux) echo "LD_LIBRARY_PATH=$DUCKDB_LIB_DIR:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV" ;;
+            macOS) echo "DYLD_LIBRARY_PATH=$DUCKDB_LIB_DIR:${DYLD_LIBRARY_PATH:-}" >> "$GITHUB_ENV" ;;
+            Windows) cygpath -w "$DUCKDB_LIB_DIR" >> "$GITHUB_PATH" ;;
+          esac
 
       # nextest runs every test in its own process, in parallel across crates, and reports every failure;
       # .config/nextest.toml serialises (and retries) the tests that time real child processes.
@@ -378,6 +418,26 @@ jobs:
           cache: npm
           cache-dependency-path: app/package-lock.json
 
+      # The store crates link the official prebuilt libduckdb (ADR 0014): fetched once per version, SHA-256 pinned,
+      # so every job that builds the workspace links it (a test that is skipped still has to link).
+      - uses: actions/cache@v4
+        if: runner.os != 'Windows'
+        with:
+          path: ~/.cache/imt-libduckdb
+          key: libduckdb-${{ runner.os }}-${{ hashFiles('crates/imt-store-duck/scripts/fetch-libduckdb.sh') }}
+
+      - name: libduckdb (prebuilt, pinned SHA-256)
+        shell: bash
+        run: |
+          eval "$(crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+          echo "DUCKDB_LIB_DIR=$DUCKDB_LIB_DIR" >> "$GITHUB_ENV"
+          echo "DUCKDB_INCLUDE_DIR=$DUCKDB_INCLUDE_DIR" >> "$GITHUB_ENV"
+          case "$RUNNER_OS" in
+            Linux) echo "LD_LIBRARY_PATH=$DUCKDB_LIB_DIR:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV" ;;
+            macOS) echo "DYLD_LIBRARY_PATH=$DUCKDB_LIB_DIR:${DYLD_LIBRARY_PATH:-}" >> "$GITHUB_ENV" ;;
+            Windows) cygpath -w "$DUCKDB_LIB_DIR" >> "$GITHUB_PATH" ;;
+          esac
+
       - name: tauri-driver
         shell: bash
         run: command -v tauri-driver || cargo install tauri-driver --locked
@@ -584,6 +644,26 @@ jobs:
           node-version-file: app/.nvmrc
           cache: npm
           cache-dependency-path: app/package-lock.json
+
+      # The store crates link the official prebuilt libduckdb (ADR 0014): fetched once per version, SHA-256 pinned,
+      # so every job that builds the workspace links it (a test that is skipped still has to link).
+      - uses: actions/cache@v4
+        if: runner.os != 'Windows'
+        with:
+          path: ~/.cache/imt-libduckdb
+          key: libduckdb-${{ runner.os }}-${{ hashFiles('crates/imt-store-duck/scripts/fetch-libduckdb.sh') }}
+
+      - name: libduckdb (prebuilt, pinned SHA-256)
+        shell: bash
+        run: |
+          eval "$(crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+          echo "DUCKDB_LIB_DIR=$DUCKDB_LIB_DIR" >> "$GITHUB_ENV"
+          echo "DUCKDB_INCLUDE_DIR=$DUCKDB_INCLUDE_DIR" >> "$GITHUB_ENV"
+          case "$RUNNER_OS" in
+            Linux) echo "LD_LIBRARY_PATH=$DUCKDB_LIB_DIR:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV" ;;
+            macOS) echo "DYLD_LIBRARY_PATH=$DUCKDB_LIB_DIR:${DYLD_LIBRARY_PATH:-}" >> "$GITHUB_ENV" ;;
+            Windows) cygpath -w "$DUCKDB_LIB_DIR" >> "$GITHUB_PATH" ;;
+          esac
 
       # No cargo-about and no notices regeneration here: the licences job fails when the committed notices
       # (app/src-tauri/resources, app/src/app/about/generated) are out of date, and a release needs that job.

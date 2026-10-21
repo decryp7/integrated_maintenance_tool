@@ -50,7 +50,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 /// What a query produces: matching event ids (in input order unless sorted), or a table after `stats`.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum QlResult {
     Events {

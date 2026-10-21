@@ -73,6 +73,8 @@ struct Chunks<'c> {
     next: usize,
     /// How many events the stream's statement selects.
     total: u64,
+    /// Newest first: the windows run backwards, each sorted descending.
+    descending: bool,
 }
 
 /// Events per window of a time-ordered stream (from the minute histogram: whole minutes, a busy minute
@@ -100,9 +102,14 @@ impl<'c> Chunks<'c> {
 
     /// The statement of the next window, or `None` after the last.
     fn next_statement(&mut self) -> Option<duckdb::Result<Statement<'c>>> {
-        let window = self.windows.get(self.next)?;
+        let index = if self.descending {
+            self.windows.len().checked_sub(self.next + 1)?
+        } else {
+            self.next
+        };
+        let window = self.windows.get(index)?;
         self.next += 1;
-        let sql = format!("{} AND {window} {}", self.select, order_by(false));
+        let sql = format!("{} AND {window} {}", self.select, order_by(self.descending));
         Some(self.conn.prepare(&sql).and_then(|mut stmt| {
             let _ = stmt.stream_arrow([])?;
             Ok(stmt)
@@ -238,7 +245,22 @@ impl<'c> EventStream<'c> {
         exact: bool,
         limit: usize,
     ) -> StoreResult<EventStream<'c>> {
-        EventStream::windowed(conn, select, filter, schema, ctx, cq, exact, limit, WINDOW_EVENTS)
+        EventStream::windowed(conn, select, filter, schema, ctx, cq, exact, limit, WINDOW_EVENTS, false)
+    }
+
+    /// [`EventStream::ordered`], newest first (untimed events first, as the grid shows them descending).
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn ordered_desc(
+        conn: &'c Connection,
+        select: &str,
+        filter: &str,
+        schema: Arc<EventSchema>,
+        ctx: &'c Ctx,
+        cq: &'c CompiledQuery,
+        exact: bool,
+        limit: usize,
+    ) -> StoreResult<EventStream<'c>> {
+        EventStream::windowed(conn, select, filter, schema, ctx, cq, exact, limit, WINDOW_EVENTS, true)
     }
 
     /// [`EventStream::ordered`] with windows of about `per` events.
@@ -253,6 +275,7 @@ impl<'c> EventStream<'c> {
         exact: bool,
         limit: usize,
         per: u64,
+        descending: bool,
     ) -> StoreResult<EventStream<'c>> {
         // Few events (a narrow query) sort at once.
         let total = count(conn, &format!("SELECT count(*) FROM {FROM} WHERE {filter}"))? as u64;
@@ -267,6 +290,7 @@ impl<'c> EventStream<'c> {
             windows,
             next: 0,
             total,
+            descending,
         };
         let first = match chunks.next_statement() {
             Some(stmt) => stmt.map_err(engine)?,
@@ -539,6 +563,72 @@ impl Inner {
         let result = f(&mut stream, &cq);
         let coverage = stream.finish()?;
         Ok(Analyzed { result, coverage })
+    }
+
+    /// Writes every event matching the request's query, in time order (or newest first), with one of the
+    /// registered exporters; streams (nothing is kept per event). With `redact`, every event passes the
+    /// profile's redaction rules with a fresh salt.
+    pub(crate) fn export(&self, req: &imt_core::api::ExportRequest) -> StoreResult<imt_core::api::ExportResult> {
+        let exporter = self
+            .registry()
+            .exporter(&req.format)
+            .cloned()
+            .ok_or_else(|| StoreError::Invalid(format!("unknown export format \"{}\"", req.format)))?;
+        let path = std::path::Path::new(&req.path);
+        imt_core::overwrite::check_overwrite(path, req.overwrite).map_err(|e| StoreError::Invalid(e.to_string()))?;
+        let redactor = if req.redact {
+            let r = imt_core::redact::Redactor::from_config(&self.profile().profile.redact, imt_core::redact::Salt::random())
+                .map_err(|e| StoreError::Invalid(format!("the profile's redaction rules: {e:#}")))?;
+            Some(r)
+        } else {
+            None
+        };
+        let conn = self.conn()?;
+        let ctx = self.ctx(&conn)?;
+        let (sf, cq) = self.compile(&ctx, &req.query)?;
+        let open = if req.descending {
+            EventStream::ordered_desc
+        } else {
+            EventStream::ordered
+        };
+        let mut stream = open(
+            &conn,
+            &rows_sql(&self.schema),
+            &sf.all_sql(),
+            self.schema.clone(),
+            &ctx,
+            &cq,
+            sf.exact,
+            usize::MAX,
+        )?;
+        let file = std::fs::File::create(path).map_err(|e| StoreError::Io(format!("cannot create {}: {e}", req.path)))?;
+        let mut out = std::io::BufWriter::new(file);
+        let mut counts = imt_core::redact::Counts::new();
+        let names = &ctx.names;
+        let mut rows = stream.by_ref().map(|r| {
+            let group = cq.group_key_of(&r);
+            let source_name = names.get(&r.rec.source).map_or("", String::as_str);
+            let record = match &redactor {
+                Some(x) => std::borrow::Cow::Owned(x.record(&r.rec, &mut counts).into_owned()),
+                None => std::borrow::Cow::Owned(r.rec),
+            };
+            imt_core::export::ExportRow {
+                record,
+                source_name,
+                group,
+            }
+        });
+        let written = exporter.export(&mut rows, &mut out);
+        drop(rows);
+        stream.finish()?;
+        let events = written.map_err(|e| StoreError::Io(format!("cannot write {}: {e:#}", req.path)))?;
+        std::io::Write::flush(&mut out).map_err(|e| StoreError::Io(format!("cannot write {}: {e}", req.path)))?;
+        Ok(imt_core::api::ExportResult {
+            format: exporter.id().into(),
+            path: req.path.clone(),
+            events,
+            redactions: counts,
+        })
     }
 
     /// Calls `f` with each event matching `q` in time order, at most `limit` of them.
@@ -1249,7 +1339,7 @@ mod tests {
         // Exact: the first `limit` events, across windows of 500 events (about four minutes); the rest
         // only counted.
         let limit = 4_321;
-        let mut stream = EventStream::windowed(&conn, &select, &sf.all_sql(), schema(), &ctx, &cq, true, limit, 500).unwrap();
+        let mut stream = EventStream::windowed(&conn, &select, &sf.all_sql(), schema(), &ctx, &cq, true, limit, 500, false).unwrap();
         let messages: Vec<String> = stream.by_ref().map(|r| r.rec.message.clone()).collect();
         assert_eq!(messages.len(), limit);
         assert!(
@@ -1260,9 +1350,17 @@ mod tests {
         assert_eq!((coverage.matched, coverage.analysed), (2 * n as u64, limit as u64));
         assert_eq!(coverage.limits.len(), 1);
         // Exact under the limit: everything, nothing counted twice.
-        let all = EventStream::windowed(&conn, &select, &sf.all_sql(), schema(), &ctx, &cq, true, usize::MAX, 500).unwrap();
+        let all = EventStream::windowed(&conn, &select, &sf.all_sql(), schema(), &ctx, &cq, true, usize::MAX, 500, false).unwrap();
         let coverage = all.finish().unwrap();
         assert_eq!((coverage.matched, coverage.analysed), (2 * n as u64, 2 * n as u64));
+        // Newest first: the windows backwards, each sorted descending.
+        let desc = EventStream::windowed(&conn, &select, &sf.all_sql(), schema(), &ctx, &cq, true, 3_000, 500, true).unwrap();
+        let newest: Vec<String> = desc.map(|r| r.rec.message.clone()).collect();
+        let total = 2 * n;
+        assert!(
+            newest.iter().enumerate().all(|(i, m)| *m == format!("event {}", total - 1 - i)),
+            "descending across windows"
+        );
         // Not exact: every candidate is read and checked by the engine (all match here). No match: empty.
         let stream = EventStream::ordered(&conn, &select, &sf.all_sql(), schema(), &ctx, &cq, false, 5).unwrap();
         let coverage = stream.finish().unwrap();

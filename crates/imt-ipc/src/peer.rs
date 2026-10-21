@@ -631,6 +631,12 @@ impl CallCtx {
         lock(&self.served.state).cancelled
     }
 
+    /// A probe of [`CallCtx::is_cancelled`] that outlives the borrow of the context, for work that runs on other
+    /// threads (e.g. a watcher that interrupts a database statement when the caller cancels).
+    pub fn cancel_probe(&self) -> CancelProbe {
+        CancelProbe(self.served.clone())
+    }
+
     /// The call as cancelled, for handlers that check [`CallCtx::is_cancelled`].
     pub fn cancelled_error() -> RemoteError {
         RemoteError::new(code::CANCELLED, "the call was cancelled")
@@ -668,6 +674,16 @@ impl CallCtx {
     pub fn send<T: Serialize>(&self, item: &T) -> Result<(), RemoteError> {
         let body = crate::wire::encode(item).map_err(|e| RemoteError::new(code::INTERNAL, e))?;
         self.send_item(body)
+    }
+}
+
+/// Whether a served call was cancelled (or its connection closed); see [`CallCtx::cancel_probe`].
+#[derive(Clone)]
+pub struct CancelProbe(Arc<Served>);
+
+impl CancelProbe {
+    pub fn is_cancelled(&self) -> bool {
+        lock(&self.0.state).cancelled
     }
 }
 

@@ -69,7 +69,7 @@ pub trait Annotator: Send + Sync {
 }
 
 /// An annotation as the UI receives it.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AnnotationDto {
     pub annotator: String,

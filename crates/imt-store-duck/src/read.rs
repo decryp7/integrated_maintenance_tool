@@ -14,7 +14,7 @@ use imt_core::api::{
 use imt_core::batch::{BatchRow, EventBatch, EventSchema, BATCH_ROWS};
 use imt_core::ingest::SourceReport;
 use imt_core::model::Level;
-use imt_core::ports::{EventView, Filter, PageQuery, PageReply, Query, StoreError, StoreResult, SummaryReply};
+use imt_core::ports::{EventView, Filter, PageQuery, PageReply, Query, StoreResult, SummaryReply};
 use imt_core::ql::{Completion, QlError, QlResult};
 use imt_core::query::{group_key, CompiledQuery};
 use imt_core::row::{to_record, ArrowRow, BatchSlots, FieldKeys, RowRef};
@@ -1355,7 +1355,7 @@ impl Query for DuckStore {
         self.inner.complete_query(req)
     }
 
-    fn export(&self, _req: &ExportRequest) -> StoreResult<ExportResult> {
-        Err(StoreError::unsupported("export", "R2c"))
+    fn export(&self, req: &ExportRequest) -> StoreResult<ExportResult> {
+        self.inner.export(req)
     }
 }
