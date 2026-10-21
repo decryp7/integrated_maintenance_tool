@@ -110,7 +110,7 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
     }
   `,
   styles: `
-    :host { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; overflow: auto; height: 100%; box-sizing: border-box; font-size: var(--fs-md); }
+    :host { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; overflow: auto; height: 100%; box-sizing: border-box; font-size: var(--fs-md); }
     .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
     .spacer, .grow { flex: 1; }
     .chip { border: 1px solid var(--border-2); background: transparent; color: var(--text-2); border-radius: 10px; padding: 1px 8px; font-size: var(--fs-xs); cursor: pointer; }

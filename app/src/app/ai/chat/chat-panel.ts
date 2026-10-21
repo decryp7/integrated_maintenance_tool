@@ -227,7 +227,8 @@ import { DropTargets } from '../../core/dropped-files';
     .engine { font-size: var(--fs-xs); }
     .setup { padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--bg-1); }
     .setup p { margin: 0 0 8px; }
-    .log { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+    /* Positioned, so the text for screen readers in it stays in the list (else the dock scrolled past the panel). */
+    .log { position: relative; flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 14px; min-height: 0; }
     .empty .starters { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 6px; }
     .starter { text-align: left; white-space: normal; }
     .turn { display: flex; flex-direction: column; gap: 6px; }

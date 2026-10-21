@@ -97,4 +97,36 @@ test.describe('AI chat', () => {
     await openMenu(page, 'Edit');
     await expect(page.getByRole('menuitem', { name: /^Undo AI: pipeline steps/ })).toBeVisible();
   });
+
+  test('a long conversation scrolls in its list only: the panel has no extra scroll space and the composer stays at the bottom', async ({ page }) => {
+    await openAiApp(page);
+    const chat = await openChat(page);
+    for (let i = 0; i < 6; i++) {
+      await ask(chat, 'What crashed?');
+      await waitAnswered(chat);
+    }
+    const log = chat.getByRole('log', { name: 'Conversation' });
+    expect(await log.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+    // Neither the panel nor any box around it up to the dock can scroll (text for screen readers in the scrolled
+    // list once made the dock's view scroll past the panel into empty space).
+    const extra = await chat.evaluate((el) => {
+      const out: string[] = [];
+      for (let n: HTMLElement | null = el; n && !n.classList.contains('dv-dockview'); n = n.parentElement) {
+        if (n.scrollHeight > n.clientHeight + 1) out.push(`${n.tagName.toLowerCase()}.${n.className}: ${n.scrollHeight} > ${n.clientHeight}`);
+      }
+      return out;
+    });
+    expect(extra).toEqual([]);
+    // Every panel container clips: it cannot be scrolled, even programmatically (focus, scrollIntoView).
+    const scrolled = await page.evaluate(() =>
+      Array.from(document.querySelectorAll<HTMLElement>('.imt-panel')).filter((el) => {
+        el.scrollTop = 10_000;
+        return el.scrollTop !== 0;
+      }).length,
+    );
+    expect(scrolled).toBe(0);
+    const panel = (await chat.boundingBox())!;
+    const composer = (await chat.locator('form.composer').boundingBox())!;
+    expect(Math.abs(composer.y + composer.height - (panel.y + panel.height))).toBeLessThan(2);
+  });
 });

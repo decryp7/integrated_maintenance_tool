@@ -1409,6 +1409,8 @@
     "dock.layoutDialog.reset": "⟦Ŕééšééţ ŵîîñðöŵ ļááýööûûţ⟧",
     "dock.layoutDialog.save": "⟦Šááṽéé⟧",
     "dock.layoutDialog.saved": "⟦Šááṽééð ŵîîñðöŵ ļááýööûûţš⟧",
+    "dock.overflow.many": "⟦{$count} ɱööŕéé ţááƀš⟧",
+    "dock.overflow.one": "⟦1 ɱööŕéé ţááƀ⟧",
     "dock.panel.copied": "⟦Çööþîîééð⟧",
     "dock.panel.copyDetails": "⟦Çööþý ðééţááîļš⟧",
     "dock.panel.copyFailed": "⟦Çööþý ƒááîîļéð⟧",
