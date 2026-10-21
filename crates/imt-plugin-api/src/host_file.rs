@@ -13,12 +13,19 @@ const READ_TIMEOUT: Duration = Duration::from_secs(60);
 pub struct HostFile<'a> {
     peer: &'a Peer,
     file: HostFileRef,
+    cancel: Option<&'a (dyn Fn() -> bool + Sync)>,
 }
 
 impl<'a> HostFile<'a> {
     /// Wraps the host file `file`, which is read through `peer`.
     pub fn new(peer: &'a Peer, file: HostFileRef) -> HostFile<'a> {
-        HostFile { peer, file }
+        HostFile { peer, file, cancel: None }
+    }
+
+    /// Stops [`HostFile::read_all`] between chunks once `cancelled` says so.
+    pub fn with_cancel(mut self, cancelled: &'a (dyn Fn() -> bool + Sync)) -> HostFile<'a> {
+        self.cancel = Some(cancelled);
+        self
     }
 
     /// Size of the file in bytes.
@@ -56,6 +63,9 @@ impl<'a> HostFile<'a> {
         }
         let mut out = Vec::with_capacity(self.file.len as usize);
         while (out.len() as u64) < self.file.len {
+            if self.cancel.is_some_and(|c| c()) {
+                bail!("cancelled");
+            }
             let want = (self.file.len - out.len() as u64).min(u64::from(READ_CHUNK)) as u32;
             let chunk = self.read_at(out.len() as u64, want)?;
             if chunk.is_empty() {

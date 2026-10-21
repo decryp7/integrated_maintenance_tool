@@ -26,6 +26,8 @@ pub struct ImportCtx<'a> {
     pub file_date: Option<NaiveDate>,
     /// The active profile's timestamp settings.
     pub timestamps: &'a TimestampParser,
+    /// Whether IMT gave up on the import (see [`ImportCtx::cancelled`]).
+    cancel: Option<&'a (dyn Fn() -> bool + Sync)>,
 }
 
 impl<'a> ImportCtx<'a> {
@@ -36,7 +38,32 @@ impl<'a> ImportCtx<'a> {
             path,
             file_date: None,
             timestamps,
+            cancel: None,
         }
+    }
+
+    /// The context with a file name, date and timestamp settings (what the serve loop builds).
+    pub fn of(file_name: &'a str, path: &'a Path, file_date: Option<NaiveDate>, timestamps: &'a TimestampParser) -> ImportCtx<'a> {
+        ImportCtx {
+            file_name,
+            path,
+            file_date,
+            timestamps,
+            cancel: None,
+        }
+    }
+
+    /// The context with `cancelled` answering [`ImportCtx::cancelled`].
+    pub fn with_cancel(mut self, cancelled: &'a (dyn Fn() -> bool + Sync)) -> ImportCtx<'a> {
+        self.cancel = Some(cancelled);
+        self
+    }
+
+    /// Whether IMT gave up on this import (the user cancelled it, or closed the file). A long import should look
+    /// now and then (say every few thousand lines) and return early with an error: IMT discards what it returns,
+    /// and a plugin that keeps going past the cancel grace period is counted as hung.
+    pub fn cancelled(&self) -> bool {
+        self.cancel.is_some_and(|c| c())
     }
 }
 

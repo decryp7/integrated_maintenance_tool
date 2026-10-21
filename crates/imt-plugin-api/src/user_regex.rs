@@ -3,7 +3,12 @@
 //! exhausting memory. The `regex` crate already guarantees linear-time matching.
 
 use anyhow::{anyhow, Result};
-use regex::{Regex, RegexBuilder, RegexSet, RegexSetBuilder};
+use regex::{RegexBuilder, RegexSetBuilder};
+
+/// A compiled pattern (the `regex` crate's), as [`compile`] returns it.
+pub use regex::Regex;
+/// A compiled set of patterns (the `regex` crate's), as [`compile_set`] returns it.
+pub use regex::RegexSet;
 
 /// Longest pattern accepted, in bytes.
 pub const MAX_PATTERN_LEN: usize = 4096;
