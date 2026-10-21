@@ -16,6 +16,9 @@ filter = '''
     | (package(imt-plugin-host) & binary(remote))
     | (package(imt-plugins) & kind(test))
     | (package(imt-plugin-windows) & test(eventlog::follower::))
+    | (package(imt-plugin-test) & kind(test))
+    | (package(imt-plugin-e2e) & kind(test))
+    | (package(imt-example-*) & kind(test))
 '''
 test-group = 'child-processes'
 retries = 2
