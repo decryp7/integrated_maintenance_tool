@@ -301,7 +301,9 @@ pub fn close<R: Runtime>(app: &AppHandle<R>, owner: &str) -> Result<bool, String
     if DOCKED {
         webview.close().map_err(crate::err)?;
     } else {
-        webview.window().close().map_err(crate::err)?;
+        // Destroy, not close: `close` only asks the page window to close (it would still be there when the panel
+        // already shows no page, and a second Open would find it). The page window has nothing to save.
+        webview.window().destroy().map_err(crate::err)?;
     }
     closed(app, owner);
     Ok(true)
