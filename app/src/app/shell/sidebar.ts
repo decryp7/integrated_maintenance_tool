@@ -17,6 +17,9 @@ import { SourceColors } from '../sources/source-colors.store';
 import { SourceFileActions } from '../sources/source-file-actions';
 import { SourceSwatch } from '../sources/source-swatch';
 import { TimestampWarning } from './timestamp-warning';
+import { AiLauncher } from '../ai/ai-launcher';
+import { AiStatusStore } from '../ai/ai-status.store';
+import { isImagePath } from '../ai/vision/image-files';
 
 type TailFileStateOf = Extract<TailFileState, { kind: NotableState }>;
 
@@ -84,7 +87,11 @@ function shortPath(path: string): string {
           <imt-icon name="file" [size]="13" />
           <span class="ellipsis name">{{ short(u.path) }}</span>
           <span class="badge">—</span>
-          <button class="btn ghost setup" [attr.aria-label]="setUpFormatLabel(u.name)" title="Teach IMT how to read this file" i18n-title="@@shell.sidebar.setUpFormatTitle" (click)="setUpFormat(u)" i18n="@@shell.sidebar.setUpFormat">Set up format…</button>
+          @if (canOpenImage(u.path)) {
+            <button class="btn ghost setup" data-testid="open-image" [attr.aria-label]="openImageLabel(u.name)" title="Open the image for the AI assistant" i18n-title="@@shell.sidebar.openImageTitle" (click)="openImage(u)" i18n="@@shell.sidebar.openImage">Open image</button>
+          } @else {
+            <button class="btn ghost setup" [attr.aria-label]="setUpFormatLabel(u.name)" title="Teach IMT how to read this file" i18n-title="@@shell.sidebar.setUpFormatTitle" (click)="setUpFormat(u)" i18n="@@shell.sidebar.setUpFormat">Set up format…</button>
+          }
         </div>
       }
     </div>
@@ -270,6 +277,22 @@ export class Sidebar {
   protected async openLive(): Promise<void> {
     const { OpenLiveDialog } = await import('../live/open-live-dialog');
     this.dialogs.open(OpenLiveDialog, { title: $localize`:@@shell.sidebar.dialog.openLive:Open for live tail`, width: 480 });
+  }
+
+  private readonly ai = inject(AiStatusStore);
+  private readonly aiLauncher = inject(AiLauncher);
+
+  /** An image the local AI can read (ADR 0025): offered instead of a log format. */
+  protected canOpenImage(path: string): boolean {
+    return this.ai.available() && isImagePath(path);
+  }
+
+  protected openImageLabel(name: string): string {
+    return $localize`:@@shell.sidebar.openImageLabel:Open image ${name}:name:`;
+  }
+
+  protected openImage(file: UnrecognizedFile): void {
+    void this.aiLauncher.openImage(file.path);
   }
 
   protected setUpFormat(file: UnrecognizedFile): void {

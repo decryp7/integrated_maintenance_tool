@@ -6,7 +6,7 @@
  * Every command rejects with `{ code, message }` (`AiErrorPayload`).
  */
 import { AgentApprovalRequest, HandOff, PauseReason, Segment } from '../browser/browser.types';
-import { ExplainNode, InferredGroup, ParsedPreview } from '../core/api.types';
+import { ExplainNode, InferredGroup, Level, ParsedPreview } from '../core/api.types';
 
 export const AI_SETUP_EVENT = 'imt://ai-setup';
 export const AI_STATUS_EVENT = 'imt://ai-status';
@@ -18,6 +18,8 @@ export type AiErrorCode =
   | 'unavailable'
   | 'noModel'
   | 'noRuntime'
+  /** The active model cannot read images: install its image projector or choose a "Text + images" model. */
+  | 'noVision'
   | 'busy'
   | 'cancelled'
   | 'invalid'
@@ -66,6 +68,8 @@ export interface AiStatus {
   notes: string[];
   safeMode: boolean;
   setupRunning: boolean;
+  /** The active model reads images ("Text + images"): its projector is installed (ADR 0025). */
+  vision: boolean;
 }
 
 export interface Gpu {
@@ -113,6 +117,15 @@ export interface CatalogModel {
   notes: string;
   /** Older files of this entry it replaces (an earlier revision or quantisation); absent when none. */
   supersedes?: string[];
+  /** The model's image projector (`mmproj`, same repository): present when it reads images (ADR 0025). */
+  projector?: CatalogProjector | null;
+}
+
+/** A model's multimodal projector as the catalog pins it (`imt_ai::catalog::CatalogProjector`). */
+export interface CatalogProjector {
+  file: string;
+  sha256: string;
+  sizeBytes: number;
 }
 
 export interface Recommendation {
@@ -186,6 +199,31 @@ export interface InstalledModel {
   name: string;
   license: string | null;
   toolCalling: boolean;
+  /** Reads images: its projector is installed and fits it. */
+  vision: boolean;
+  /** The installed projector (also one that cannot be used, with its problem). */
+  projector: InstalledProjector | null;
+  /** Bytes of the catalog projector that would add image support, when it is missing. */
+  projectorDownloadBytes: number | null;
+}
+
+/** What a projector's header says (`imt_ai::gguf::ProjectorInfo`). */
+export interface ProjectorInfo {
+  name: string | null;
+  projectorType: string | null;
+  projectionDim: number | null;
+  imageSize: number | null;
+  patchSize: number | null;
+  spatialMergeSize: number | null;
+  fileSize: number;
+}
+
+/** A model's projector in the models folder (`imt_ai::models::store::InstalledProjector`). */
+export interface InstalledProjector {
+  fileName: string;
+  sizeBytes: number;
+  info: ProjectorInfo | null;
+  problem: string | null;
 }
 
 // ---- inference runtimes (prebuilt llama-server builds, ADR 0009; `imt_ai::runtimes::overview`) ----
@@ -477,7 +515,115 @@ export type AiStartRequest =
   | { op: 'profile'; recordId: number | null; sample: string | null; fileName: string | null }
   | { op: 'pipeline' | 'markers' | 'extractors'; goal: string; recordId: number | null; sample: string | null }
   | { op: 'query'; question: string }
-  | { op: 'folderSetup'; request: unknown };
+  | { op: 'folderSetup'; request: unknown }
+  /** "Explain with AI" on an open image; the answer is a narrative. */
+  | { op: 'explainImage'; imageId: number; question: string | null }
+  /** "Find related logs" for an open image; the answer is a `RelatedOutcome` (job result `relatedLogs`). */
+  | { op: 'relatedLogs'; imageId: number };
+
+// ---- images (ADR 0025: app/src-tauri/src/ai/vision.rs, crates/imt-core/src/related, crates/imt-ai/src/vision) ----
+
+export type ImageSourceFormat = 'png' | 'jpeg' | 'bmp' | 'gif' | 'webp';
+
+/** An image opened for the AI (`ai_image_open`, `ai_image_paste`): the clean copy Rust re-encoded, never the file. */
+export interface AiImage {
+  id: number;
+  name: string;
+  /** The file it came from; null when pasted or dropped. */
+  path: string | null;
+  width: number;
+  height: number;
+  originalWidth: number;
+  originalHeight: number;
+  sourceFormat: ImageSourceFormat;
+  /** `data:image/png;base64,…` (or jpeg) of the clean copy. */
+  dataUrl: string;
+  /** EXIF capture time as the device wrote it, `YYYY-MM-DD HH:MM:SS`. */
+  capturedAt: string | null;
+}
+
+export type ScreenKind = 'error_dialog' | 'frozen_window' | 'console' | 'dashboard' | 'log_viewer' | 'browser' | 'other';
+
+/** What the model read off a screenshot (`imt_ai::vision::ScreenFacts`, bounded by the engine). */
+export interface ScreenFacts {
+  screenKind: ScreenKind;
+  windowTitle: string | null;
+  application: string | null;
+  timestamps: { text: string; hasDate: boolean }[];
+  errorTexts: string[];
+  errorCodes: string[];
+  exceptionNames: string[];
+  machineNames: string[];
+  userNames: string[];
+  serverNames: string[];
+  ids: string[];
+  versions: string[];
+  summary: string;
+}
+
+export type ImageTimeSource = 'screen' | 'screenTimeOfDay' | 'exif' | 'fileName' | 'fileModified';
+
+/** When the screenshot was taken, as the engine decided (`imt_core::related::ImageTime`). */
+export interface ImageTime {
+  atMs: number;
+  precisionMs: number;
+  source: ImageTimeSource;
+  text: string;
+}
+
+export interface RelatedEvent {
+  id: number;
+  ts: number | null;
+  level: Level;
+  message: string;
+  exception: string | null;
+  source: number;
+  sourceName: string;
+  group: string;
+  fields: Record<string, unknown>;
+}
+
+export type RelatedTitleTarget =
+  | { kind: 'source'; name: string }
+  | { kind: 'lane'; lane: string }
+  | { kind: 'field'; field: string; value: string };
+
+export type RelatedClueKind = 'exceptionName' | 'errorCode' | 'id' | 'errorText' | 'machine' | 'user' | 'server' | 'version';
+
+/** Why an event is linked to the image (`imt_core::related::Reason`). */
+export type RelatedReason =
+  /** `deltaMs` = event time − image time. */
+  | { kind: 'time'; deltaMs: number }
+  | { kind: 'title'; text: string; target: RelatedTitleTarget }
+  | { kind: 'text'; clue: string; clueKind: RelatedClueKind; partial: boolean };
+
+export interface RelatedLink {
+  event: RelatedEvent;
+  score: number;
+  reasons: RelatedReason[];
+}
+
+export type RelatedNote =
+  | { kind: 'noTime' }
+  | { kind: 'outsideData'; from: number | null; to: number | null }
+  /** The clocks likely disagree: offer the clock-offset correction of `sourceId`. */
+  | { kind: 'clockDisagreement'; deltaMs: number; sourceId: number; sourceName: string }
+  | { kind: 'offsetApplied'; sourceName: string; offsetMs: number }
+  | { kind: 'nothingToSearch' };
+
+export interface RelatedResult {
+  time: ImageTime | null;
+  links: RelatedLink[];
+  notes: RelatedNote[];
+  examined: number;
+}
+
+/** The answer of "find related logs" (job result `relatedLogs`): a typed result notes can link to later. */
+export interface RelatedOutcome {
+  facts: ScreenFacts;
+  result: RelatedResult;
+  explanation: Narrative;
+}
 
 /** `ai_research` arguments (app/src-tauri/src/browser/research.rs `ResearchArgs`). */
 export interface ResearchArgs {

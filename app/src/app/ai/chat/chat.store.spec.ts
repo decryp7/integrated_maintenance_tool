@@ -49,6 +49,7 @@ describe('ChatStore', () => {
       sessionId: store.activeId(),
       text: 'what crashed?',
       context: { query: 'level >= error', timeRange: [1, 9], selectedIds: [3], focusedInstance: 'WEB01', openView: 'events grid' },
+      images: [],
     });
     const t = at(store.activeTurns(), 0);
     expect(t.tools[0]).toMatchObject({ name: 'run_query', running: false, summary: '1 events' });

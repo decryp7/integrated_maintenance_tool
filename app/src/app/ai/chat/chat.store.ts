@@ -5,7 +5,10 @@ import { WorkspaceStore } from '../../core/workspace.store';
 import { GridSelection } from '../../grid/grid-selection';
 import { AiBackend, toAiError } from '../ai-backend';
 import { AiChatPersistence } from '../ai-chat-persistence';
-import { ChatEventEnvelope, SessionInfo } from '../ai.types';
+import { AiImage, ChatEventEnvelope, SessionInfo } from '../ai.types';
+import { AiStatusStore } from '../ai-status.store';
+import { AiImageStore } from '../vision/ai-image.store';
+import { MAX_IMAGES_PER_QUESTION } from '../vision/image-files';
 import { FrameThrottle } from '../../shared/throttle';
 import { AgentApprovalState, ALL_CONTEXT, buildContext, ContextSources, ContextToggles, reduceTurn, startTurn, turnFromRecord, TurnView } from './chat-model';
 
@@ -21,9 +24,16 @@ interface ChatState {
   error: string | null;
   notice: string | null;
   loading: boolean;
+  /** Images attached to the next question (open images; at most 4). */
+  attachments: AiImage[];
+  /** What each turn of this session showed the model, by chat and turn index (the engine's history says "[image]"). */
+  turnImages: Record<string, Record<number, ImageThumb[]>>;
 }
 
-const initial: ChatState = { sessions: [], activeId: null, turns: {}, lastSeq: {}, prompts: [], toggles: ALL_CONTEXT, error: null, notice: null, loading: false };
+/** A small picture of an attached image: its clean copy only. */
+export type ImageThumb = Pick<AiImage, 'id' | 'name' | 'dataUrl'>;
+
+const initial: ChatState = { sessions: [], activeId: null, turns: {}, lastSeq: {}, prompts: [], toggles: ALL_CONTEXT, error: null, notice: null, loading: false, attachments: [], turnImages: {} };
 
 /**
  * The chat panel's state for this window. The engine runs the turns and owns the history; this store
@@ -50,7 +60,7 @@ export const ChatStore = signalStore(
       return { ql: q.ql ?? null, range, selectedIds, instance: q.groups.length === 1 ? (q.groups[0] ?? null) : null, view: 'events grid' };
     }),
   })),
-  withMethods((store, backend = inject(AiBackend), persistence = inject(AiChatPersistence)) => {
+  withMethods((store, backend = inject(AiBackend), persistence = inject(AiChatPersistence), status = inject(AiStatusStore), images = inject(AiImageStore)) => {
     const setTurns = (id: string, f: (t: TurnView[]) => TurnView[]) => patchState(store, (s) => ({ turns: { ...s.turns, [id]: f(s.turns[id] ?? []) } }));
     const fail = (e: unknown) => patchState(store, { error: toAiError(e).message });
 
@@ -181,20 +191,65 @@ export const ChatStore = signalStore(
         }
       },
 
-      async send(text: string): Promise<boolean> {
+      /**
+       * Sends a question with the attached images (or `with`, e.g. one chip's "Find related logs"); the images sent are
+       * detached. A text-only model is not asked about images: the no-vision message says what to do instead.
+       */
+      async send(text: string, withImages?: AiImage[]): Promise<boolean> {
         const id = store.activeId();
         const question = text.trim();
         if (!id || !question || store.running()) return false;
+        const shown = withImages ?? store.attachments();
+        if (shown.length && status.status()?.vision === false) {
+          images.refuseNoVision();
+          return false;
+        }
         patchState(store, { error: null, notice: null });
+        const index = store.turns()[id]?.length ?? 0;
         setTurns(id, (t) => [...t, startTurn(question)]);
         try {
-          await backend.chatSend(id, question, buildContext(store.sources(), store.toggles()));
+          await backend.chatSend(id, question, buildContext(store.sources(), store.toggles()), shown.length ? shown.map((i) => i.id) : undefined);
+          if (shown.length) {
+            const sent = new Set(shown.map((i) => i.id));
+            const thumbs = shown.map(({ id: imageId, name, dataUrl }) => ({ id: imageId, name, dataUrl }));
+            patchState(store, (s) => ({
+              attachments: s.attachments.filter((a) => !sent.has(a.id)),
+              turnImages: { ...s.turnImages, [id]: { ...s.turnImages[id], [index]: thumbs } },
+            }));
+          }
           return true;
         } catch (e) {
           setTurns(id, (t) => (t.at(-1)?.running ? t.slice(0, -1) : t));
-          fail(e);
+          if (toAiError(e).code === 'noVision') images.refuseNoVision();
+          else fail(e);
           return false;
         }
+      },
+
+      /** Attaches an open image to the next question (at most 4; the same image once). */
+      attach(image: AiImage): boolean {
+        if (store.attachments().some((a) => a.id === image.id)) return true;
+        if (store.attachments().length >= MAX_IMAGES_PER_QUESTION) {
+          patchState(store, { notice: $localize`:@@ai.vision.chat.tooMany:At most ${MAX_IMAGES_PER_QUESTION}:max: images go with one question.` });
+          return false;
+        }
+        patchState(store, (s) => ({ attachments: [...s.attachments, image] }));
+        return true;
+      },
+
+      detach(imageId: number): void {
+        patchState(store, (s) => ({ attachments: s.attachments.filter((a) => a.id !== imageId) }));
+      },
+
+      /** "Find related logs" on an attachment chip: asks for the logs related to that image. */
+      sendRelated(image: AiImage): Promise<boolean> {
+        return methods.send($localize`:@@ai.vision.chat.relatedQuestion:find the logs related to this screenshot`, [image]);
+      },
+
+      /** The pictures attached to turn `index` of the active chat in this session. */
+      imagesOf(index: number): ImageThumb[] {
+        const id = store.activeId();
+        return id ? (store.turnImages()[id]?.[index] ?? []) : [];
       },
 
       async cancel(): Promise<void> {
@@ -231,9 +286,13 @@ export const ChatStore = signalStore(
         patchState(store, { error: null });
       },
 
+      setError(error: string | null): void {
+        patchState(store, { error });
+      },
+
       /** Saved chats were restored (project opened): start over from the engine's chats. */
       async reload(): Promise<void> {
-        patchState(store, { turns: {}, lastSeq: {}, activeId: null });
+        patchState(store, { turns: {}, lastSeq: {}, activeId: null, turnImages: {} });
         await methods.init();
       },
     };

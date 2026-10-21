@@ -4,6 +4,12 @@ import { AiStatusStore } from './ai-status.store';
 import { Narrative, NarrativeRequest, ProfileChangeKind, Proposal, ResearchArgs, SampleSource } from './ai.types';
 import { JobFollow } from '../jobs/job-follow';
 import { AiBackend, toAiError } from './ai-backend';
+import { Platform } from '../core/platform';
+import { COMMAND_CONTEXT } from '../extensions/command-registry';
+import { imageFilter } from './vision/image-files';
+
+/** The image view's id (ADR 0025). */
+export const AI_IMAGE_VIEW = 'ai-image';
 
 /** What a "Propose …" entry point asks for. */
 export type ProposeKind = ProfileChangeKind | 'profile';
@@ -97,6 +103,22 @@ export class AiLauncher {
       width: 600,
       inputs: { question: args.question ?? '', query: args.query ?? '', segments: args.segments ?? [], sessionId: args.sessionId ?? null, recordId: args.recordId ?? null, maxResults: args.maxResults ?? null },
     });
+  }
+
+  /**
+   * Opens an image for the AI in the image view (ADR 0025): `path` (an Explorer file), else one the user picks.
+   * With `findRelated`, "Find related logs" starts at once. Resolves with an error message when it did not open.
+   */
+  async openImage(path?: string | null, options: { findRelated?: boolean } = {}): Promise<string | null> {
+    const chosen = path ?? (await this.injector.get(Platform).pickOpenPath($localize`:@@ai.vision.pickTitle:Open an image`, imageFilter()));
+    if (!chosen) return null;
+    const { AiImageStore } = await import('./vision/ai-image.store');
+    const store = this.injector.get(AiImageStore);
+    this.injector.get(COMMAND_CONTEXT).showView(AI_IMAGE_VIEW);
+    const img = await store.openPath(chosen);
+    if (!img) return store.openError();
+    if (options.findRelated) await store.findRelated(img.id);
+    return null;
   }
 
   /** A finished request's answer with its citations (View of an AI job). */

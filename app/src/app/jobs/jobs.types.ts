@@ -41,7 +41,9 @@ export type JobResult =
   | { type: 'view'; view: string; ql: string | null }
   | { type: 'model'; fileName: string | null }
   | { type: 'folderSurvey'; outcome: unknown }
-  | { type: 'storage'; result: unknown };
+  | { type: 'storage'; result: unknown }
+  /** The logs related to an image (`RelatedOutcome`, ADR 0025). */
+  | { type: 'relatedLogs'; result: unknown };
 
 export type JobResultType = JobResult['type'];
 

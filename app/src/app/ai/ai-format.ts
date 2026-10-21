@@ -34,6 +34,11 @@ export function formatEta(secs: number | null | undefined): string {
     : $localize`:@@ai.format.eta.hours:about ${h}:hours: h`;
 }
 
+/** "Text + images" or "Text only": whether a model reads images (ADR 0025). */
+export function visionLabel(vision: boolean): string {
+  return vision ? $localize`:@@ai.vision.models.textImages:Text + images` : $localize`:@@ai.vision.models.textOnly:Text only`;
+}
+
 /** 0..100 (integer) for a progress bar. */
 export function percent(done: number, total: number): number {
   if (!(total > 0) || !(done > 0)) return 0;
