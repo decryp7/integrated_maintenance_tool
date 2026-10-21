@@ -2929,6 +2929,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "imt-plugin-test"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "imt-ipc",
+ "imt-plugin-api",
+ "imt-plugin-package",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "imt-plugin-tools"
 version = "0.1.0"
 dependencies = [

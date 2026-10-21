@@ -103,12 +103,23 @@ impl Container {
             ));
         }
         let w = wide(name);
-        // SAFETY: NUL-terminated strings that outlive the calls; the returned SID is freed by `Sid`.
-        let psid = unsafe {
-            match CreateAppContainerProfile(PCWSTR(w.as_ptr()), PCWSTR(w.as_ptr()), w!("An IMT plugin"), None) {
-                Ok(sid) => sid,
-                Err(e) if e.code() == ALREADY_EXISTS => DeriveAppContainerSidFromAppContainerName(PCWSTR(w.as_ptr()))
-                    .map_err(|e| io::Error::other(format!("AppContainer {name}: {e}")))?,
+        // Profiles are created one at a time: two creations of one name at once fail with a misleading error.
+        static CREATING: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _one = CREATING.lock().unwrap_or_else(|p| p.into_inner());
+        let mut attempt = 0;
+        let psid = loop {
+            attempt += 1;
+            // SAFETY: NUL-terminated strings that outlive the calls; the returned SID is freed by `Sid`.
+            let created = unsafe { CreateAppContainerProfile(PCWSTR(w.as_ptr()), PCWSTR(w.as_ptr()), w!("An IMT plugin"), None) };
+            match created {
+                Ok(sid) => break sid,
+                // SAFETY: as above.
+                Err(e) if e.code() == ALREADY_EXISTS => match unsafe { DeriveAppContainerSidFromAppContainerName(PCWSTR(w.as_ptr())) } {
+                    Ok(sid) => break sid,
+                    Err(e) => return Err(io::Error::other(format!("AppContainer {name}: {e}"))),
+                },
+                // Another process may be creating the same profile right now: try again shortly.
+                Err(_) if attempt < 5 => std::thread::sleep(std::time::Duration::from_millis(100 * attempt)),
                 Err(e) => return Err(io::Error::other(format!("cannot create the AppContainer {name}: {e}"))),
             }
         };
