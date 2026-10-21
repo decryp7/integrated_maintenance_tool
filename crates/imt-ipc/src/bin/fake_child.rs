@@ -13,7 +13,7 @@
 //! process the host did not start), `--garbage` (sends bytes that are not a frame after the handshake),
 //! `--oversize` (announces a 1 GiB frame after the handshake), `--say=<text>` (a line on stderr first).
 
-use imt_ipc::child::{connect_and_lock_down, read_bootstrap};
+use imt_ipc::child::{connect_and_lock_down, lifeline, read_bootstrap};
 use imt_ipc::peer::{code, CallCtx, Handler};
 use imt_ipc::RemoteError;
 use std::io::Read;
@@ -111,13 +111,8 @@ fn main() {
             std::process::exit(1);
         }
     };
-    // The lifeline, as child_main does.
-    std::thread::spawn(|| {
-        let mut sink = [0u8; 64];
-        while matches!(std::io::stdin().read(&mut sink), Ok(n) if n > 0) {}
-        std::process::exit(0);
-    });
     if args.iter().any(|a| a == "--no-connect") {
+        lifeline();
         loop {
             std::thread::sleep(Duration::from_secs(3600));
         }
@@ -133,6 +128,7 @@ fn main() {
         } else {
             (1u32 << 30).to_le_bytes().to_vec()
         };
+        lifeline();
         let _ = imt_ipc::runtime::run(async move {
             use tokio::io::AsyncWriteExt;
             if let Ok(mut io) = imt_ipc::link::handshake(&address, &token, "IMT").await {
@@ -146,6 +142,8 @@ fn main() {
     let handler: Arc<dyn Handler> = Arc::new(handle);
     match connect_and_lock_down(&bootstrap, false, "IMT", |_| handler) {
         Ok(peer) => {
+            // As child_main does: after the lockdown, so the thread is locked down too.
+            lifeline();
             peer.wait_closed(None);
         }
         Err(e) => {

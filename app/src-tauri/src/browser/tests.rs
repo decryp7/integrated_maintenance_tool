@@ -355,10 +355,12 @@ fn the_panel_places_the_page_and_the_page_follows_it_into_a_pop_out_and_back() {
         false,
         "hidden"
     );
-    // The panel popped out: the page moves into the pop-out window.
+    // The panel popped out: the page moves into the pop-out window. Linux (ADR 0024): the page has a window of its own
+    // and is never reparented; only the panel's place is remembered.
     let popout = window(&app, "p-main-1");
     assert_eq!(place(&popout, shown).unwrap(), true);
-    assert_eq!(page.window().label(), "p-main-1");
+    let in_popout = if super::view::DOCKED { "p-main-1" } else { "main" };
+    assert_eq!(page.window().label(), in_popout);
     assert_eq!(hub.placement("main").0.as_deref(), Some("p-main-1"));
     // The pop-out closes: the page goes back to its window, hidden, and lives on.
     super::host_closing(app.handle(), "p-main-1");

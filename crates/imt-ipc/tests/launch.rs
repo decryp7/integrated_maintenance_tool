@@ -188,9 +188,13 @@ fn the_job_memory_cap_fails_a_large_allocation() {
 
 /// What the child's lockdown could not enforce on this system (a CI container may filter landlock or seccomp).
 #[cfg(target_os = "linux")]
+fn notes(c: &imt_ipc::Child) -> Vec<imt_ipc::sandbox::Note> {
+    serde_json::from_str(&ask(c, "gaps").unwrap()).unwrap()
+}
+
+#[cfg(target_os = "linux")]
 fn gaps(c: &imt_ipc::Child) -> Vec<imt_ipc::sandbox::Gap> {
-    let notes: Vec<imt_ipc::sandbox::Note> = serde_json::from_str(&ask(c, "gaps").unwrap()).unwrap();
-    notes.into_iter().map(|n| n.gap).collect()
+    notes(c).into_iter().map(|n| n.gap).collect()
 }
 
 #[cfg(target_os = "linux")]
@@ -204,6 +208,10 @@ fn a_locked_child_cannot_write_files_or_start_programs() {
     let locked = launch(&spec(&[]).sandbox(imt_ipc::sandbox::SandboxSpec::locked()), Arc::new(NoCalls)).unwrap();
     // Whatever this kernel lacks, the child runs, says so, and its connection works.
     assert_eq!(ask(&locked, "echo alive").unwrap(), "alive");
+    // The child locks down before it starts any thread (landlock restricts only those started afterwards), and
+    // the handler runs on threads started after it: the checks below are made from such a thread.
+    let notes = notes(&locked);
+    assert!(!notes.iter().any(|n| n.message.contains("before the lockdown")), "{notes:?}");
     let gaps = gaps(&locked);
     let w = ask(&locked, &format!("write {target}")).unwrap();
     if gaps.contains(&Gap::Files) {

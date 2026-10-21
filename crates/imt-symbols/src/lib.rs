@@ -37,12 +37,14 @@ pub struct Module {
 }
 
 impl Module {
-    /// The file name (`busy.exe`).
+    /// The file name (`busy.exe`). Modules are Windows images whose paths come from traces and dumps, so `\` separates
+    /// too, whatever platform reads them (a Linux `Path` keeps `C:\app\busy.exe` whole).
     pub fn name(&self) -> String {
-        self.path
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_else(|| self.path.to_string_lossy().into_owned())
+        let path = self.path.to_string_lossy();
+        match path.trim_end_matches(['\\', '/']).rsplit(['\\', '/']).next() {
+            Some(name) if !name.is_empty() => name.to_string(),
+            _ => path.into_owned(),
+        }
     }
 
     pub fn contains(&self, address: u64) -> bool {
@@ -173,6 +175,24 @@ mod tests {
                 line: None,
             })
         }
+    }
+
+    #[test]
+    fn module_names_are_file_names_on_every_platform() {
+        let name = |p: &str| {
+            Module {
+                path: PathBuf::from(p),
+                base: 0,
+                size: 1,
+            }
+            .name()
+        };
+        assert_eq!(name(r"C:\x\a.dll"), "a.dll");
+        assert_eq!(name("/opt/x/b.so"), "b.so");
+        assert_eq!(name("c.dll"), "c.dll");
+        assert_eq!(name(r"C:\x\"), "x");
+        assert_eq!(name(r"\"), r"\");
+        assert_eq!(name(""), "");
     }
 
     #[test]

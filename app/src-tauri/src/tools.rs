@@ -801,7 +801,8 @@ pub(crate) mod tests {
     fn polling_is_only_for_status_operations_and_task_jobs_are_found() {
         let app = test_app_with_commands(None);
         let main = window(&app, "main");
-        let status = ipc(&main, "tool_poll", json!({ "tool": "native-profiler", "op": "status" })).unwrap();
+        // The .NET profiler runs on every platform (the native profiler is Windows-only and answers "unsupported").
+        let status = ipc(&main, "tool_poll", json!({ "tool": "dotnet-profiler", "op": "status" })).unwrap();
         assert!(status["captures"].is_array(), "{status}");
         let e = ipc(&main, "tool_poll", json!({ "tool": "elevation", "op": "info" })).unwrap_err();
         assert_eq!(e["code"], "invalid", "{e}");
@@ -809,7 +810,7 @@ pub(crate) mod tests {
         assert_eq!(e["code"], "invalid", "{e}");
         assert_eq!(ipc(&main, "tool_task_job", json!({ "task": "sampling-99" })).unwrap(), json!(null));
         // A non-status operation of a tool with a status operation is refused too.
-        let e = ipc(&main, "tool_poll", json!({ "tool": "native-profiler", "op": "defaults" })).unwrap_err();
+        let e = ipc(&main, "tool_poll", json!({ "tool": "dotnet-profiler", "op": "processes" })).unwrap_err();
         assert_eq!(e["code"], "invalid", "{e}");
         let e = ipc(&main, "tool_task_job", json!({ "task": "x".repeat(65) })).unwrap_err();
         assert_eq!(e["code"], "invalid", "{e}");
