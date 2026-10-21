@@ -6,12 +6,14 @@
 
 use imt_core::api::WorkspaceState;
 use imt_core::package::ProjectManifest;
-use imt_core::ports::{Analysis, Diagnostics, Filter, ImportSession, Ingest, Positions, Profiles, Query, Search, StoreError, StoreResult};
+use imt_core::ports::{
+    Analysis, Diagnostics, Filter, ImportSession, Ingest, Positions, Profiles, Projects, Query, Search, StoreError, StoreResult,
+};
 use imt_core::ql::QueryControl;
 use imt_core::{PluginRegistry, Profile};
 use imt_ipc::CancelProbe;
 use imt_store_client::protocol::{
-    self, ExportProject, Handle, IdsAt, OpenStore, Paths, Session, Source, StoreOp, StoreRequest, WorkerStatus,
+    self, ExportProject, Handle, IdsAt, OpenProject, OpenStore, OpenedProject, Paths, Session, Source, StoreOp, StoreRequest, WorkerStatus,
 };
 use imt_store_duck::{DuckStore, StoreOptions};
 use serde::de::DeserializeOwned;
@@ -36,8 +38,24 @@ fn reply<T: Serialize>(v: &T) -> StoreResult<serde_json::Value> {
     serde_json::to_value(v).map_err(|e| StoreError::Engine(format!("cannot encode the reply: {e}")))
 }
 
-/// Builds the plugin registry of a store from the plugins the user turned off (the importers of the others).
-pub type RegistryFactory = Arc<dyn Fn(&[String]) -> PluginRegistry + Send + Sync>;
+/// Builds the plugin registry of a store: the importers of every plugin except those the user turned off
+/// (the first argument); none in safe mode (the second).
+pub type RegistryFactory = Arc<dyn Fn(&[String], bool) -> PluginRegistry + Send + Sync>;
+
+/// A registry with `plugins` installed except the `disabled` ones (the same rules as IMT's own registry: a
+/// plugin that cannot be installed is logged and left out).
+pub fn install_plugins(plugins: Vec<Arc<dyn imt_core::Plugin>>, disabled: &[String]) -> PluginRegistry {
+    let mut registry = PluginRegistry::new();
+    registry.disable(disabled.iter().cloned());
+    for plugin in plugins {
+        let id = plugin.id().to_string();
+        if let Err(e) = registry.install_shared(plugin) {
+            log::error!("plugin {id} not installed in the store worker: {e:#}");
+        }
+    }
+    registry.resolve();
+    registry
+}
 
 /// The stores of this worker.
 pub struct Worker {
@@ -49,7 +67,7 @@ pub struct Worker {
 
 impl Default for Worker {
     fn default() -> Self {
-        Worker::new(Arc::new(|_| PluginRegistry::new()))
+        Worker::new(Arc::new(|_, _| PluginRegistry::new()))
     }
 }
 
@@ -89,7 +107,7 @@ impl Worker {
             },
             None => StoreOptions::default(),
         };
-        let registry = (self.registry)(&req.disabled_plugins);
+        let registry = (self.registry)(&req.disabled_plugins, req.safe_mode);
         let store = if req.create {
             DuckStore::create_with(&dir, req.profile, registry, opts)?
         } else {
@@ -98,6 +116,25 @@ impl Worker {
         let h = self.next.fetch_add(1, Ordering::SeqCst) + 1;
         lock(&self.stores).insert(h, (dir, store));
         Ok(Handle { store: h })
+    }
+
+    fn open_project(&self, req: OpenProject) -> StoreResult<OpenedProject> {
+        std::fs::create_dir_all(&req.dest_root)?;
+        let registry = (self.registry)(&req.disabled_plugins, req.safe_mode);
+        let (store, manifest) = DuckStore::open_project(&req.path, &req.dest_root, req.profile, registry)?;
+        if let Some(l) = req.limits {
+            store.configure(StoreOptions {
+                parse_threads: l.parse_threads,
+                duck_threads: l.duck_threads,
+                memory_limit: l.memory_limit,
+            })?;
+        }
+        let dir = std::fs::canonicalize(store.dir()).map_err(|e| StoreError::Io(format!("{}: {e}", store.dir().display())))?;
+        let mut stores = lock(&self.stores);
+        stores.retain(|_, (d, _)| *d != dir);
+        let h = self.next.fetch_add(1, Ordering::SeqCst) + 1;
+        stores.insert(h, (dir.clone(), store));
+        Ok(OpenedProject { store: h, dir, manifest })
     }
 
     fn session(&self, s: ImportSession) -> Session {
@@ -130,6 +167,7 @@ impl Worker {
     ) -> StoreResult<serde_json::Value> {
         match req {
             StoreRequest::OpenStore(b) => reply(&self.open_store(body(b.0)?)?),
+            StoreRequest::OpenProject(b) => reply(&self.open_project(body(b.0)?)?),
             StoreRequest::CloseStore { store } => {
                 lock(&self.stores).remove(&store);
                 reply(&())
@@ -217,6 +255,7 @@ impl Worker {
             }
             StoreOp::Summary => reply(&s.summary()?),
             StoreOp::Page => reply(&s.page(&body(b)?)?),
+            StoreOp::Events => reply(&s.events(&body(b)?)?),
             StoreOp::Timeline => reply(&s.timeline(&body(b)?)?),
             StoreOp::Facet => reply(&s.facet(&body(b)?)?),
             StoreOp::Chart => run!(s.chart(&body(b)?)),
@@ -261,14 +300,10 @@ impl Worker {
             StoreOp::EvaluateFix => run!(s.evaluate_fix(&body(b)?)),
             StoreOp::Search => reply(&s.search(&body(b)?)?),
             StoreOp::IndexStatus => reply(&s.index_status()?),
-            StoreOp::SaveProject => {
-                let mut m: ProjectManifest = body(b)?;
-                s.save_project(&mut m)?;
-                reply(&m)
-            }
+            StoreOp::SaveProject => reply(&Projects::save_project(&s, &body::<ProjectManifest>(b)?)?),
             StoreOp::ExportProject => {
-                let mut r: ExportProject = body(b)?;
-                reply(&s.export_project(&mut r.manifest, &r.out)?)
+                let r: ExportProject = body(b)?;
+                reply(&Projects::export_project(&s, &r.manifest, &r.out)?)
             }
         }
     }

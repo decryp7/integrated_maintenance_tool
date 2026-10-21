@@ -100,3 +100,20 @@ impl DuckStore {
         result
     }
 }
+
+impl imt_core::ports::Projects for DuckStore {
+    fn store_dir(&self) -> PathBuf {
+        self.inner.dir.clone()
+    }
+
+    fn save_project(&self, manifest: &ProjectManifest) -> StoreResult<ProjectManifest> {
+        let mut m = manifest.clone();
+        DuckStore::save_project(self, &mut m)?;
+        Ok(m)
+    }
+
+    fn export_project(&self, manifest: &ProjectManifest, out: &Path) -> StoreResult<u64> {
+        let mut m = manifest.clone();
+        DuckStore::export_project(self, &mut m, out)
+    }
+}

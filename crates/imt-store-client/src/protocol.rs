@@ -110,6 +110,8 @@ ops! {
     SaveProject,
     /// [`ExportProject`] → bytes written
     ExportProject,
+    /// [`imt_core::ports::EventsRequest`] → the events
+    Events,
 }
 
 /// What the app asks the worker.
@@ -134,6 +136,33 @@ pub enum StoreRequest {
         store: u64,
         filter: imt_ipc::Json,
     },
+    /// An [`OpenProject`] → [`OpenedProject`].
+    OpenProject(imt_ipc::Json),
+}
+
+/// Opens a project folder `<name>.imt` in place, or an exported `.imtz` extracted into a new folder under
+/// `dest_root`; the project's profile overrides are merged over `profile`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenProject {
+    pub path: PathBuf,
+    pub dest_root: PathBuf,
+    pub profile: Profile,
+    #[serde(default)]
+    pub disabled_plugins: Vec<String>,
+    #[serde(default)]
+    pub safe_mode: bool,
+    #[serde(default)]
+    pub limits: Option<Limits>,
+}
+
+/// An opened project: its store's handle and folder, and its manifest.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenedProject {
+    pub store: u64,
+    pub dir: PathBuf,
+    pub manifest: imt_core::package::ProjectManifest,
 }
 
 /// Error code of every store error (the kind is in [`WireError`]).
@@ -150,6 +179,9 @@ pub struct OpenStore {
     /// Plugins the user turned off (their importers are not installed in the worker's registry).
     #[serde(default)]
     pub disabled_plugins: Vec<String>,
+    /// Safe mode: no plugin is started; only the built-in importers read files.
+    #[serde(default)]
+    pub safe_mode: bool,
     /// DuckDB memory limit and threads, parse threads (defaults when absent).
     #[serde(default)]
     pub limits: Option<Limits>,

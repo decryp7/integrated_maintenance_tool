@@ -476,6 +476,25 @@ impl Inner {
         })
     }
 
+    /// [`Query::events`]: the grid rows of the ids, in the order asked.
+    pub(crate) fn events(&self, req: &imt_core::ports::EventsRequest) -> StoreResult<Vec<EventView>> {
+        if req.ids.len() > imt_core::ports::MAX_PAGE_ROWS {
+            return Err(imt_core::ports::StoreError::Invalid(format!(
+                "at most {} events at once",
+                imt_core::ports::MAX_PAGE_ROWS
+            )));
+        }
+        let conn = self.conn()?;
+        let ctx = self.ctx(&conn)?;
+        let q = Filter {
+            group_by: req.group_by.clone(),
+            ..Filter::default()
+        };
+        let (_, cq) = self.compile(&ctx, &q)?;
+        let ids: Vec<u64> = req.ids.iter().map(|i| i.0).collect();
+        self.rows_by_id(&conn, &ctx, &ids, &cq.group_by)
+    }
+
     /// The grid rows of `ids` (at most a page), in that order.
     fn rows_by_id(&self, conn: &Connection, ctx: &Ctx, ids: &[u64], group_by: &[String]) -> StoreResult<Vec<EventView>> {
         if ids.is_empty() {
@@ -1317,6 +1336,10 @@ impl Query for DuckStore {
 
     fn page(&self, req: &PageQuery) -> StoreResult<PageReply> {
         self.inner.page(req)
+    }
+
+    fn events(&self, req: &imt_core::ports::EventsRequest) -> StoreResult<Vec<EventView>> {
+        self.inner.events(req)
     }
 
     fn timeline(&self, req: &TimelineRequest) -> StoreResult<Timeline> {

@@ -8,14 +8,14 @@
 //! - errors are a typed [`StoreError`]; an operation an adapter does not offer yet fails with
 //!   [`StoreError::Unsupported`] naming the phase that adds it, never with a panic.
 //!
-//! The in-memory `Workspace` keeps serving the app through `LogStore` until phase 6c switches to these.
+//! [`Store`] is all of them together (plus [`Projects`]): what one window of the app holds.
 
 mod dto;
 mod session;
 
 pub use dto::{
-    Analyzed, Coverage, DiagnosticFix, DiagnosticRow, EventView, FixEvaluation, ImportReport, IndexStatus, PageQuery, PageReply, QuickFix,
-    SearchReply, SearchRequest, SummaryReply, MAX_PAGE_ROWS,
+    Analyzed, Coverage, DiagnosticFix, DiagnosticRow, EventView, EventsRequest, FixEvaluation, ImportReport, IndexStatus, PageQuery,
+    PageReply, QuickFix, SearchReply, SearchRequest, SummaryReply, MAX_PAGE_ROWS,
 };
 pub use session::ImportSession;
 
@@ -114,6 +114,8 @@ pub trait Query: Send + Sync {
     fn summary(&self) -> StoreResult<SummaryReply>;
     /// One page of matching events, in time order (untimed last).
     fn page(&self, req: &PageQuery) -> StoreResult<PageReply>;
+    /// Events by id, in the order asked (missing ids left out).
+    fn events(&self, req: &EventsRequest) -> StoreResult<Vec<EventView>>;
     /// Instance lanes and the level histogram (timed events only).
     fn timeline(&self, req: &TimelineRequest) -> StoreResult<Timeline>;
     /// Value counts of one field.
@@ -190,6 +192,22 @@ pub trait Search: Send + Sync {
     fn search(&self, req: &SearchRequest) -> StoreResult<SearchReply>;
     fn index_status(&self) -> StoreResult<IndexStatus>;
 }
+
+/// The store's folder as a project (ADR 0014 §6): `project.toml` and the `.imtz` export.
+pub trait Projects: Send + Sync {
+    /// The folder holding the store (and its `project.toml`).
+    fn store_dir(&self) -> PathBuf;
+    /// Writes `project.toml` with `manifest` and the store's opened roots; returns what was written.
+    fn save_project(&self, manifest: &crate::package::ProjectManifest) -> StoreResult<crate::package::ProjectManifest>;
+    /// Saves the project and writes it as an `.imtz` to `out` (no caches); returns the bytes written.
+    fn export_project(&self, manifest: &crate::package::ProjectManifest, out: &std::path::Path) -> StoreResult<u64>;
+}
+
+/// Every port of a store: what one window of the app holds (the DuckDB store in the store worker; in process
+/// in tests).
+pub trait Store: Ingest + Query + Positions + Analysis + Profiles + Diagnostics + Search + Projects {}
+
+impl<T: Ingest + Query + Positions + Analysis + Profiles + Diagnostics + Search + Projects> Store for T {}
 
 #[cfg(test)]
 mod tests {

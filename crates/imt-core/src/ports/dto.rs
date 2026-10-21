@@ -36,6 +36,16 @@ impl PageQuery {
     }
 }
 
+/// Events by id (a report's events, bookmarks, AI citations), at most [`MAX_PAGE_ROWS`]; ids that do not
+/// exist (any more) are left out.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct EventsRequest {
+    pub ids: Vec<EventId>,
+    /// The instance key's fields (empty: the engine's default key).
+    pub group_by: Vec<String>,
+}
+
 /// One event as the grid shows it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

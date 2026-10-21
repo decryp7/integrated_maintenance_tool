@@ -6,7 +6,7 @@
 
 use imt_core::api::{FacetRequest, TimelineRequest};
 use imt_core::batch::SourceId;
-use imt_core::ports::{Ingest, PageQuery, Positions, Query, Search, SearchRequest, StoreError};
+use imt_core::ports::{Ingest, PageQuery, Positions, Projects, Query, Search, SearchRequest, StoreError};
 use imt_core::Profile;
 use imt_store_worker::{StoreWorker, WorkerConfig};
 use std::path::{Path, PathBuf};
@@ -251,5 +251,50 @@ fn errors_pass_through_and_a_crash_is_recovered() {
     let second = w.open_store(&other.0, Profile::default_profile(), true, None).unwrap();
     assert_eq!(second.summary().unwrap().total, 0);
     assert_eq!(w.worker_status().unwrap().stores, 2);
+    w.shutdown();
+}
+
+#[test]
+fn a_project_exported_through_the_worker_opens_without_its_logs() {
+    let logs = TempDir::new("project-logs");
+    std::fs::write(
+        logs.0.join("a.log"),
+        "2026-10-14 10:00:00 INFO first
+2026-10-14 10:00:01 ERROR second
+2026-10-14 10:00:02 WARN third
+",
+    )
+    .unwrap();
+    let home = TempDir::new("project-home");
+    let dir = home.0.join("incident.imt");
+    let w = worker();
+    let store = w.open_store(&dir, Profile::default_profile(), true, None).unwrap();
+    store.open(std::slice::from_ref(&logs.0)).unwrap().wait().unwrap();
+    let manifest = imt_core::package::ProjectManifest {
+        name: "Incident".into(),
+        ..Default::default()
+    };
+    let saved = store.save_project(&manifest).unwrap();
+    assert_eq!(saved.roots.len(), 1, "the opened folder is remembered for refresh");
+    let archive = home.0.join("incident.imtz");
+    assert!(store.export_project(&saved, &archive).unwrap() > 0);
+    store.close();
+    drop(logs);
+    // The archive opens in a new folder, without the log files.
+    let unpacked = TempDir::new("project-open");
+    let (opened, m) = w.open_project(&archive, &unpacked.0, Profile::default_profile(), None).unwrap();
+    assert_eq!(m.name, "Incident");
+    assert!(opened.store_dir().starts_with(std::fs::canonicalize(&unpacked.0).unwrap()));
+    assert_eq!(opened.summary().unwrap().total, 3);
+    // The folder opens in place too.
+    let (in_place, _) = w.open_project(&dir, &unpacked.0, Profile::default_profile(), None).unwrap();
+    assert_eq!(in_place.summary().unwrap().total, 3);
+    // Something that is not a project is refused with a message.
+    let bogus = home.0.join("bogus.imtz");
+    std::fs::write(&bogus, b"not a zip").unwrap();
+    assert!(matches!(
+        w.open_project(&bogus, &unpacked.0, Profile::default_profile(), None),
+        Err(StoreError::Invalid(_))
+    ));
     w.shutdown();
 }

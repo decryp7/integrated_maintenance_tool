@@ -8,7 +8,10 @@
 //! reported as failed. Analyses and the query language are cancellable: a cancelled [`QueryControl`] cancels
 //! the call, and the worker interrupts the running statement.
 
-use crate::protocol::{self, ExportProject, Handle, IdsAt, Limits, OpenStore, Paths, Session, Source, StoreOp, StoreRequest, WorkerStatus};
+use crate::protocol::{
+    self, ExportProject, Handle, IdsAt, Limits, OpenProject, OpenStore, OpenedProject, Paths, Session, Source, StoreOp, StoreRequest,
+    WorkerStatus,
+};
 use imt_core::analysis::{Anomaly, Comparison, FieldStats, RequestSpan, WaterfallRow};
 use imt_core::api::{
     ChartData, ChartRequest, CompareRequest, CompletionRequest, ContextRequest, CorrelateRequest, ExportRequest, ExportResult,
@@ -21,8 +24,9 @@ use imt_core::exceptions::ExceptionGroup;
 use imt_core::package::ProjectManifest;
 use imt_core::patterns::Pattern;
 use imt_core::ports::{
-    Analysis, Analyzed, DiagnosticRow, Diagnostics, Filter, FixEvaluation, ImportSession, IndexStatus, Ingest, PageQuery, PageReply,
-    Positions, Profiles, Query, QuickFix, Search, SearchReply, SearchRequest, StoreError, StoreResult, SummaryReply,
+    Analysis, Analyzed, DiagnosticRow, Diagnostics, EventView, EventsRequest, Filter, FixEvaluation, ImportSession, IndexStatus, Ingest,
+    PageQuery, PageReply, Positions, Profiles, Projects, Query, QuickFix, Search, SearchReply, SearchRequest, StoreError, StoreResult,
+    SummaryReply,
 };
 use imt_core::ql::{Completion, QlError, QlResult, QueryControl};
 use imt_core::spans::infer::{SpanEvaluation, SpanProposal, SpanRuleCheck, SpanRuleRequest};
@@ -75,6 +79,8 @@ pub struct WorkerConfig {
     pub disabled_plugins: Vec<String>,
     /// Write the worker's standard error to its child log (the app; tests leave it off).
     pub child_log: bool,
+    /// Safe mode: the worker starts no plugin.
+    pub safe_mode: bool,
 }
 
 impl WorkerConfig {
@@ -86,6 +92,7 @@ impl WorkerConfig {
             lib_dir: None,
             disabled_plugins: Vec::new(),
             child_log: false,
+            safe_mode: false,
         }
     }
 }
@@ -134,6 +141,7 @@ impl imt_ipc::supervisor::Connection for Conn {
 struct Inner {
     sup: Supervisor<Conn>,
     disabled: Vec<String>,
+    safe_mode: bool,
 }
 
 /// The supervised worker process. Cheap to clone.
@@ -181,6 +189,7 @@ impl StoreWorker {
             inner: Arc::new(Inner {
                 sup,
                 disabled: cfg.disabled_plugins,
+                safe_mode: cfg.safe_mode,
             }),
         })
     }
@@ -220,6 +229,42 @@ impl StoreWorker {
         let lease = self.inner.sup.lease().map_err(ipc_error)?;
         store.ensure_open(&lease.conn, create).inspect_err(|e| self.report(&lease, e))?;
         Ok(store)
+    }
+
+    /// Opens a project: a `<name>.imt` folder in place, or an `.imtz` extracted into a new folder under
+    /// `dest_root`. Returns the store (in the project's folder) and the project's manifest.
+    pub fn open_project(
+        &self,
+        path: &Path,
+        dest_root: &Path,
+        profile: Profile,
+        limits: Option<Limits>,
+    ) -> StoreResult<(RemoteStore, ProjectManifest)> {
+        let req = OpenProject {
+            path: path.to_path_buf(),
+            dest_root: dest_root.to_path_buf(),
+            profile,
+            disabled_plugins: self.inner.disabled.clone(),
+            safe_mode: self.inner.safe_mode,
+            limits: limits.clone(),
+        };
+        let lease = self.inner.sup.lease().map_err(ipc_error)?;
+        let opened: StoreResult<OpenedProject> = encode(&req)
+            .and_then(|b| raw(&lease.conn, &StoreRequest::OpenProject(b), LONG_TIMEOUT).map_err(ipc_error))
+            .and_then(decode);
+        let opened = opened.inspect_err(|e| self.report(&lease, e))?;
+        lock(&lease.conn.handles).insert(opened.dir.clone(), opened.store);
+        let store = RemoteStore {
+            worker: self.clone(),
+            dir: opened.dir,
+            profile: Arc::new(Mutex::new(req.profile)),
+            limits,
+        };
+        // Reopening after a restart uses the profile with the project's overrides merged in.
+        if let Ok(active) = store.active_profile() {
+            store.remember_profile(&active);
+        }
+        Ok((store, opened.manifest))
     }
 
     fn report(&self, lease: &imt_ipc::supervisor::Lease<Conn>, e: &StoreError) {
@@ -285,6 +330,7 @@ impl RemoteStore {
             profile: lock(&self.profile).clone(),
             create,
             disabled_plugins: self.worker.inner.disabled.clone(),
+            safe_mode: self.worker.inner.safe_mode,
             limits: self.limits.clone(),
         };
         let h: Handle = decode(raw(conn, &StoreRequest::OpenStore(encode(&req)?), CALL_TIMEOUT).map_err(ipc_error)?)?;
@@ -402,23 +448,6 @@ impl RemoteStore {
         out
     }
 
-    /// Saves `project.toml` of the store's project folder; returns the manifest as written (with the roots).
-    pub fn save_project(&self, manifest: &ProjectManifest) -> StoreResult<ProjectManifest> {
-        self.call(StoreOp::SaveProject, manifest)
-    }
-
-    /// Saves the project and writes it as an `.imtz` to `out`; returns the bytes written.
-    pub fn export_project(&self, manifest: &ProjectManifest, out: &Path) -> StoreResult<u64> {
-        self.call_with(
-            StoreOp::ExportProject,
-            &ExportProject {
-                manifest: manifest.clone(),
-                out: out.to_path_buf(),
-            },
-            LONG_TIMEOUT,
-        )
-    }
-
     /// Closes the store in the worker (the folder stays). Later calls reopen it.
     pub fn close(&self) {
         let Ok(lease) = self.worker.inner.sup.lease() else { return };
@@ -440,6 +469,25 @@ thread_local! {
 
 fn current_control() -> Option<QueryControl> {
     CONTROL.with(|c| c.borrow().clone())
+}
+
+impl Projects for RemoteStore {
+    fn store_dir(&self) -> PathBuf {
+        self.dir.clone()
+    }
+    fn save_project(&self, manifest: &ProjectManifest) -> StoreResult<ProjectManifest> {
+        self.call(StoreOp::SaveProject, manifest)
+    }
+    fn export_project(&self, manifest: &ProjectManifest, out: &Path) -> StoreResult<u64> {
+        self.call_with(
+            StoreOp::ExportProject,
+            &ExportProject {
+                manifest: manifest.clone(),
+                out: out.to_path_buf(),
+            },
+            LONG_TIMEOUT,
+        )
+    }
 }
 
 impl Ingest for RemoteStore {
@@ -476,6 +524,9 @@ impl Query for RemoteStore {
     }
     fn page(&self, req: &PageQuery) -> StoreResult<PageReply> {
         self.call(StoreOp::Page, req)
+    }
+    fn events(&self, req: &EventsRequest) -> StoreResult<Vec<EventView>> {
+        self.call(StoreOp::Events, req)
     }
     fn timeline(&self, req: &TimelineRequest) -> StoreResult<Timeline> {
         self.call(StoreOp::Timeline, req)
