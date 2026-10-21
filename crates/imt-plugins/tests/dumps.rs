@@ -115,7 +115,15 @@ fn the_capture_tool_needs_a_granted_folder() {
     let dir = tempfile::tempdir().unwrap();
     let args = json!({ "pid": std::process::id(), "kind": "mini", "folder": dir.path().to_string_lossy() });
     let refused = tools.invoke("dumps.capture", "create", args.clone(), &ToolCtx::new(None, Arc::new(NoTasks)));
-    assert!(matches!(refused, Err(ToolError::PathRefused { .. })), "{refused:?}");
+    if cfg!(windows) {
+        assert!(matches!(refused, Err(ToolError::PathRefused { .. })), "{refused:?}");
+    } else {
+        // Creating a dump is Windows-only (ADR 0023): elsewhere the tool says so before it looks at the folder.
+        assert!(
+            matches!(&refused, Err(ToolError::Unsupported(m)) if m.contains("only available on Windows")),
+            "{refused:?}"
+        );
+    }
     let granted = ToolCtx::new(None, Arc::new(NoTasks)).with_paths(Arc::new(Under(dir.path().to_path_buf())));
     let made = tools.invoke("dumps.capture", "create", args, &granted);
     if cfg!(windows) {
