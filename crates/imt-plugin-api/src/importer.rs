@@ -43,6 +43,7 @@ impl<'a> ImportCtx<'a> {
 /// What an import produced.
 #[derive(Debug, Default)]
 pub struct Imported {
+    /// The parsed events, in file order.
     pub records: Vec<Record>,
     /// Lines or entries skipped (not records).
     pub skipped: usize,
@@ -60,6 +61,7 @@ pub trait TextImporter: Send + Sync {
     /// start of the file.
     fn sniff(&self, ctx: &ImportCtx, head: &str) -> u8;
 
+    /// Imports `content` (the decoded file) into records.
     fn import(&self, ctx: &ImportCtx, content: &str) -> Result<Imported>;
 
     /// Live tail: parses `tail`, text appended to a file this importer already read, whose start is `head`
@@ -90,6 +92,7 @@ pub trait BinaryImporter: Send + Sync {
     /// Confidence 0..=100 from the first bytes (usually a magic number).
     fn sniff(&self, ctx: &ImportCtx, head: &[u8]) -> u8;
 
+    /// Imports the raw `bytes` of the file into records.
     fn import(&self, ctx: &ImportCtx, bytes: &[u8]) -> Result<Imported>;
 
     /// As [`TextImporter::identity_fields`] (e.g. EVTX `Computer`, `ProcessId`). The default is none.

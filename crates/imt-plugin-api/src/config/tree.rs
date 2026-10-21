@@ -8,11 +8,14 @@ use std::cmp::Ordering;
 /// XML element) or a position in a list.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum PathSeg {
+    /// A named key.
     Key(String),
+    /// A position in a list (zero-based).
     Index(usize),
 }
 
 impl PathSeg {
+    /// A key segment.
     pub fn key(s: impl Into<String>) -> PathSeg {
         PathSeg::Key(s.into())
     }
@@ -52,13 +55,21 @@ pub fn display_path(path: &[PathSeg]) -> String {
 /// text) are [`ConfigValue::Section`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ConfigValue {
+    /// A container: object, section, registry key, or element without text.
     Section,
+    /// An explicit null.
     Null,
+    /// A boolean.
     Bool(bool),
+    /// A signed integer.
     Integer(i64),
+    /// A floating-point number.
     Float(f64),
+    /// Text.
     String(String),
+    /// Raw bytes.
     Binary(Vec<u8>),
+    /// A list of text items.
     List(Vec<String>),
 }
 
@@ -94,6 +105,7 @@ impl ConfigValue {
         }
     }
 
+    /// Whether this is a container.
     pub fn is_section(&self) -> bool {
         matches!(self, ConfigValue::Section)
     }
@@ -102,7 +114,9 @@ impl ConfigValue {
 /// One node of a tree.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ConfigNode {
+    /// Where the node sits in the tree.
     pub path: Vec<PathSeg>,
+    /// The node's value.
     pub value: ConfigValue,
 }
 
@@ -116,6 +130,7 @@ pub struct ConfigTree {
     pub case_insensitive: bool,
     /// The node limit was reached; later nodes are missing.
     pub truncated: bool,
+    /// The nodes, in document order.
     pub nodes: Vec<ConfigNode>,
 }
 
@@ -128,6 +143,7 @@ pub struct TreeBuilder {
 }
 
 impl TreeBuilder {
+    /// Starts a tree for parser `format`, enforcing `limits`.
     pub fn new(format: &str, limits: &Limits) -> TreeBuilder {
         TreeBuilder {
             tree: ConfigTree {
@@ -183,6 +199,7 @@ impl TreeBuilder {
         &self.tree.nodes
     }
 
+    /// The finished tree.
     pub fn finish(self) -> ConfigTree {
         self.tree
     }

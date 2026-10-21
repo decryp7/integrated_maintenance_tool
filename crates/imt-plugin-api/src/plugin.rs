@@ -12,11 +12,13 @@ use anyhow::Result;
 use std::cell::RefCell;
 use std::sync::Arc;
 
-/// A plugin. Its process serves it with [`crate::serve`].
+/// A plugin. Its process serves it with [`crate::serve::serve`].
 pub trait Plugin: Send + Sync + 'static {
     /// Stable, unique id, reverse-DNS style (`net.decryptology.registry`).
     fn id(&self) -> &str;
+    /// Display name shown in the Plugins view.
     fn name(&self) -> &str;
+    /// Semver version of the plugin.
     fn version(&self) -> &str;
     /// Adds the plugin's contributions. Must not panic; return an error instead (the plugin is then listed
     /// as inactive with it).
@@ -34,6 +36,7 @@ pub trait Plugin: Send + Sync + 'static {
 /// A profile (or heap snapshot) format. The capture crosses as bytes its library encodes and the host decodes
 /// with the same library, so this contract does not depend on the profile model.
 pub trait ProfileImporter: Send + Sync {
+    /// Stable id of the format.
     fn id(&self) -> &str;
     /// Produces heap snapshots (else profiles).
     fn heap(&self) -> bool;
@@ -46,7 +49,9 @@ pub trait ProfileImporter: Send + Sync {
 /// What a transform does with a record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Verdict {
+    /// Keep the record.
     Keep,
+    /// Drop the record from the import.
     Drop,
 }
 
@@ -58,6 +63,7 @@ pub struct TransformCtx<'a> {
 }
 
 impl<'a> TransformCtx<'a> {
+    /// Creates a context for records read from the file named `source_name`.
     pub fn new(source_name: &'a str) -> TransformCtx<'a> {
         TransformCtx {
             source_name,
@@ -79,7 +85,9 @@ impl<'a> TransformCtx<'a> {
 
 /// A record-level pipeline step (`{ step = "plugin", id = ... }`): deterministic, no shared mutable state.
 pub trait Transform: Send + Sync {
+    /// Stable id, as referenced by `{ step = "plugin", id = ... }`.
     fn id(&self) -> &str;
+    /// Transforms `record` in place and says whether to keep it.
     fn apply(&self, record: &mut Record, ctx: &TransformCtx) -> Verdict;
 }
 
@@ -98,31 +106,37 @@ pub struct Contributions {
 }
 
 impl Contributions {
+    /// Adds a text importer.
     pub fn add_importer(&mut self, importer: impl TextImporter + 'static) -> &mut Self {
         self.text.push(Arc::new(importer));
         self
     }
 
+    /// Adds a binary importer.
     pub fn add_binary_importer(&mut self, importer: impl BinaryImporter + 'static) -> &mut Self {
         self.binary.push(Arc::new(importer));
         self
     }
 
+    /// Adds a configuration parser.
     pub fn add_config_parser(&mut self, parser: impl ConfigParser + 'static) -> &mut Self {
         self.config_parsers.push(Arc::new(parser));
         self
     }
 
+    /// Adds marker kinds; the host namespaces them `<plugin-id>/<kind>`.
     pub fn add_marker_kinds(&mut self, kinds: Vec<PluginMarkerKind>) -> &mut Self {
         self.marker_kinds.extend(kinds);
         self
     }
 
+    /// Adds an annotator.
     pub fn add_annotator(&mut self, annotator: impl Annotator + 'static) -> &mut Self {
         self.annotators.push(Arc::new(annotator));
         self
     }
 
+    /// Adds a record transform.
     pub fn add_transform(&mut self, transform: impl Transform + 'static) -> &mut Self {
         self.transforms.push(Arc::new(transform));
         self
@@ -141,6 +155,7 @@ impl Contributions {
         self
     }
 
+    /// Adds a profile or heap-snapshot importer.
     pub fn add_profile_importer(&mut self, importer: impl ProfileImporter + 'static) -> &mut Self {
         self.profile_importers.push(Arc::new(importer));
         self

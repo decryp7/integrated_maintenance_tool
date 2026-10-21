@@ -10,6 +10,7 @@ pub const MAX_PATTERN_LEN: usize = 4096;
 /// Upper bound for the compiled program and the lazy DFA cache, in bytes.
 const SIZE_LIMIT: usize = 8 << 20;
 
+/// Compiles a user-supplied regex with the length and size limits applied; errors say what to fix.
 pub fn compile(pattern: &str, case_insensitive: bool) -> Result<Regex> {
     if pattern.len() > MAX_PATTERN_LEN {
         return Err(anyhow!("regex is {} bytes long; the limit is {MAX_PATTERN_LEN}", pattern.len()));

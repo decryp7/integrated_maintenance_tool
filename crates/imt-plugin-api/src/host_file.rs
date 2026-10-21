@@ -16,14 +16,17 @@ pub struct HostFile<'a> {
 }
 
 impl<'a> HostFile<'a> {
+    /// Wraps the host file `file`, which is read through `peer`.
     pub fn new(peer: &'a Peer, file: HostFileRef) -> HostFile<'a> {
         HostFile { peer, file }
     }
 
+    /// Size of the file in bytes.
     pub fn len(&self) -> u64 {
         self.file.len
     }
 
+    /// Whether the file has no bytes.
     pub fn is_empty(&self) -> bool {
         self.file.len == 0
     }

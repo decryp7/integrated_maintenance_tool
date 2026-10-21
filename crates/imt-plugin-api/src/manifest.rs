@@ -42,7 +42,9 @@ impl Permission {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PermissionRequest {
+    /// The permission requested.
     pub permission: Permission,
+    /// Why the plugin needs it, shown to the user when they decide.
     pub reason: String,
 }
 
@@ -50,6 +52,7 @@ pub struct PermissionRequest {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImporterCap {
+    /// Importer id, as used by `parse.format`.
     pub id: Arc<str>,
     /// Receives raw bytes (else text IMT decoded).
     pub binary: bool,
@@ -70,8 +73,11 @@ pub const MAX_IDENTITY_FIELDS: usize = 8;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfigParserCap {
+    /// Parser id.
     pub id: Arc<str>,
+    /// Display name of the format.
     pub name: String,
+    /// File extensions it handles, without the dot.
     pub extensions: Vec<String>,
 }
 
@@ -79,6 +85,7 @@ pub struct ConfigParserCap {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProfileImporterCap {
+    /// Profile importer id.
     pub id: Arc<str>,
     /// Produces heap snapshots (else profiles).
     pub heap: bool,
@@ -90,21 +97,31 @@ pub struct ProfileImporterCap {
 pub struct Manifest {
     /// Reverse-DNS id (`net.decryptology.registry`).
     pub id: Arc<str>,
+    /// Display name.
     pub name: Arc<str>,
     /// Semver.
     pub version: Arc<str>,
     /// The plugin protocol it was built for ([`PROTOCOL`] of its SDK).
     pub protocol: ProtocolVersion,
+    /// Permissions the plugin asks for; the user grants them per plugin.
     pub permissions: Vec<PermissionRequest>,
     /// Memory it needs at most (bytes); the host caps it at [`MAX_MEMORY_LIMIT`]. `None`: the default.
     pub memory_limit: Option<u64>,
+    /// Importers it contributes.
     pub importers: Vec<ImporterCap>,
+    /// Configuration parsers it contributes.
     pub config_parsers: Vec<ConfigParserCap>,
+    /// Marker kinds it contributes.
     pub marker_kinds: Vec<PluginMarkerKind>,
+    /// Ids of its annotators.
     pub annotators: Vec<Arc<str>>,
+    /// Ids of its transforms.
     pub transforms: Vec<Arc<str>>,
+    /// Its settings section, when it has settings.
     pub settings: Option<SettingsSection>,
+    /// Tools it exposes.
     pub tools: Vec<ToolInfo>,
+    /// Profile and heap-snapshot importers it contributes.
     pub profile_importers: Vec<ProfileImporterCap>,
 }
 

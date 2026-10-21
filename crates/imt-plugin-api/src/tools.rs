@@ -31,8 +31,11 @@ pub const MAX_PATH_LEN: usize = 4096;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Platform {
+    /// Microsoft Windows.
     Windows,
+    /// Apple macOS.
     Macos,
+    /// Linux and other Unixes.
     Linux,
 }
 
@@ -47,6 +50,7 @@ impl Platform {
         return Platform::Linux;
     }
 
+    /// The platform's display name.
     pub fn label(self) -> &'static str {
         match self {
             Platform::Windows => "Windows",
@@ -60,7 +64,9 @@ impl Platform {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PathKind {
+    /// A file.
     File,
+    /// A folder.
     Dir,
 }
 
@@ -68,7 +74,9 @@ pub enum PathKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PathAccess {
+    /// The tool reads the path.
     Read,
+    /// The tool writes to the path.
     Write,
 }
 
@@ -79,25 +87,37 @@ pub enum PathAccess {
 pub enum Schema {
     /// Any JSON value; the tool validates it itself (e.g. a nested config).
     Any,
+    /// A boolean.
     Bool,
+    /// A whole number in `min..=max`.
     Int {
+        /// Smallest accepted value.
         min: i64,
+        /// Largest accepted value.
         max: i64,
     },
+    /// Text of at most `max_len` characters.
     Text {
+        /// Longest accepted text, in characters.
         #[serde(rename = "maxLen")]
         max_len: usize,
     },
     /// One of these strings.
     Enum {
+        /// The accepted strings.
         values: Vec<String>,
     },
+    /// A list of items that all match `items`.
     List {
+        /// The schema every item must match.
         items: Box<Schema>,
+        /// Most items accepted.
         #[serde(rename = "maxItems")]
         max_items: usize,
     },
+    /// An object with the named members.
     Object {
+        /// The accepted members.
         fields: Vec<Field>,
         /// Whether names not in `fields` are accepted.
         additional: bool,
@@ -105,7 +125,9 @@ pub enum Schema {
     /// An absolute path the user chose: the host checks it against the calling window's path grants and
     /// passes it on canonicalised. A path the user did not choose is refused before the tool runs.
     Path {
+        /// Whether the path is a file or a folder.
         kind: PathKind,
+        /// Whether the tool reads or writes it.
         access: PathAccess,
     },
 }
@@ -114,27 +136,33 @@ pub enum Schema {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Field {
+    /// The member's name.
     pub name: String,
+    /// The schema its value must match.
     pub schema: Schema,
     /// Optional fields may be missing or `null`.
     pub required: bool,
 }
 
 impl Schema {
+    /// Text of at most `max_len` characters.
     pub fn text(max_len: usize) -> Schema {
         Schema::Text { max_len }
     }
 
+    /// A whole number in `min..=max`.
     pub fn int(min: i64, max: i64) -> Schema {
         Schema::Int { min, max }
     }
 
+    /// One of `values`.
     pub fn one_of<I: IntoIterator<Item = S>, S: Into<String>>(values: I) -> Schema {
         Schema::Enum {
             values: values.into_iter().map(Into::into).collect(),
         }
     }
 
+    /// A list of at most `max_items` items that match `items`.
     pub fn list(items: Schema, max_items: usize) -> Schema {
         Schema::List {
             items: Box::new(items),
@@ -324,6 +352,7 @@ fn kind_of(v: &Value) -> &'static str {
 pub struct SchemaError {
     /// `args`, `args.template.name`, `args.counters[2]`, ...
     pub at: String,
+    /// What is wrong with the value.
     pub message: String,
 }
 
@@ -337,8 +366,11 @@ impl fmt::Display for SchemaError {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpSpec {
+    /// Operation id, as passed to `invoke`.
     pub name: String,
+    /// Name shown to the user.
     pub title: String,
+    /// The schema its arguments must match.
     pub args: Schema,
     /// Time the operation may take before it is abandoned and its plugin marked hung; `None` means unlimited.
     #[serde(rename = "budgetMs", with = "millis")]
@@ -388,11 +420,13 @@ impl OpSpec {
         self
     }
 
+    /// Sets the argument schema.
     pub fn args(mut self, schema: Schema) -> OpSpec {
         self.args = schema;
         self
     }
 
+    /// Sets the time the operation may take before it is abandoned; `None` means unlimited.
     pub fn budget(mut self, budget: Option<Duration>) -> OpSpec {
         self.budget = budget;
         self
@@ -411,16 +445,20 @@ impl OpSpec {
 pub struct ToolInfo {
     /// Stable id, unique across plugins (`"perfmon.sets"`).
     pub id: String,
+    /// Name shown to the user.
     pub title: String,
+    /// What the tool does, shown under its title.
     pub description: String,
     /// Platforms it works on; empty means every platform.
     pub platforms: Vec<Platform>,
     /// Usually needs administrator rights (the UI offers an elevated restart).
     pub needs_elevation: bool,
+    /// The operations it offers.
     pub ops: Vec<OpSpec>,
 }
 
 impl ToolInfo {
+    /// Creates a tool with no operations, available on every platform.
     pub fn new(id: &str, title: &str) -> ToolInfo {
         ToolInfo {
             id: id.into(),
@@ -432,21 +470,25 @@ impl ToolInfo {
         }
     }
 
+    /// Sets the description.
     pub fn describe(mut self, text: &str) -> ToolInfo {
         self.description = text.into();
         self
     }
 
+    /// Restricts the tool to `platforms`.
     pub fn only_on(mut self, platforms: &[Platform]) -> ToolInfo {
         self.platforms = platforms.to_vec();
         self
     }
 
+    /// Marks the tool as usually needing administrator rights.
     pub fn needs_elevation(mut self) -> ToolInfo {
         self.needs_elevation = true;
         self
     }
 
+    /// Adds an operation.
     pub fn op(mut self, op: OpSpec) -> ToolInfo {
         self.ops.push(op);
         self
@@ -501,6 +543,7 @@ pub fn check_id(what: &str, id: &str) -> Result<(), String> {
 pub struct ToolTask {
     /// Stable id, unique per task (`"monitor"`, `"perfmon:IMT"`).
     pub id: String,
+    /// Display name of the task.
     pub label: String,
     /// A hint for the shell's icon (`"process-monitor"`, `"perfmon"`, ...).
     pub kind: String,
@@ -511,9 +554,11 @@ pub struct ToolTask {
 /// Receives a tool's background work. The shell lists it and offers a stop action that calls the tool's
 /// [`Tool::stop`] with the same tool and task id.
 pub trait TaskSink: Send + Sync {
+    /// Called when a task starts.
     fn started(&self, tool: &str, task: &ToolTask);
     /// `None`: unknown; otherwise 0..=1.
     fn progress(&self, tool: &str, task: &str, fraction: Option<f32>);
+    /// Called when a task ends (finished, failed or stopped).
     fn finished(&self, tool: &str, task: &str);
 }
 
@@ -545,6 +590,7 @@ impl PathPolicy for NoPaths {
 /// host (ADR 0017 §7): the host starts that process (the administrator prompt on Windows) and accepts only
 /// operations the plugin declared elevated. A prompt the user declines is a [`ToolFailure::denied`].
 pub trait ElevatedOps: Send + Sync {
+    /// Runs one of the plugin's elevated tool operations in its elevated process and returns its result; fails after `timeout`.
     fn invoke(&self, tool: &str, op: &str, args: Value, timeout: Duration) -> Result<Value>;
 }
 
@@ -624,10 +670,12 @@ impl ToolCtx {
         self.sink.started(&self.tool, &task);
     }
 
+    /// Reports progress of `task` from 0 to 1; `None` when unknown.
     pub fn task_progress(&self, task: &str, fraction: Option<f32>) {
         self.sink.progress(&self.tool, task, fraction);
     }
 
+    /// Reports that `task` finished.
     pub fn task_finished(&self, task: &str) {
         self.sink.finished(&self.tool, task);
     }
@@ -664,11 +712,14 @@ pub enum FailureReason {
 /// instead of a plain failure; the shell never reads the message to tell them apart.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolFailure {
+    /// Why it failed.
     pub reason: FailureReason,
+    /// Message shown to the user.
     pub message: String,
 }
 
 impl ToolFailure {
+    /// A failure of kind [`FailureReason::Denied`].
     pub fn denied(message: impl Into<String>) -> ToolFailure {
         ToolFailure {
             reason: FailureReason::Denied,
@@ -676,6 +727,7 @@ impl ToolFailure {
         }
     }
 
+    /// A failure of kind [`FailureReason::Missing`].
     pub fn missing(message: impl Into<String>) -> ToolFailure {
         ToolFailure {
             reason: FailureReason::Missing,

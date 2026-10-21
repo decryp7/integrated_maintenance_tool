@@ -40,27 +40,33 @@ pub const MAX_ANNOTATIONS: usize = crate::annotate::MAX_ANNOTATIONS;
 /// [`crate::host_file::HostFile`]). The plugin never gets a path for it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HostFileRef {
+    /// Id the host gave the file; quote it in [`HostRequest::ReadFile`].
     pub id: u64,
+    /// Size of the file in bytes.
     pub len: u64,
 }
 
 /// The active profile's timestamp settings (the plugin builds its [`crate::time::TimestampParser`] from them).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TimestampSettings {
+    /// Extra timestamp formats (.NET style or strftime) tried before the built-in ones.
     pub formats: Vec<String>,
     /// `UTC`, `local` or an offset (`+08:00`).
     pub zone: String,
+    /// Date order: `Some(true)` day first, `Some(false)` month first, `None` decided per value.
     pub day_first: Option<bool>,
 }
 
 /// What an importer learns about a file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FileInfo {
+    /// File name without folders.
     pub name: String,
     /// The path's trailing components, or the full path with [`crate::manifest::Permission::OpenedFilePaths`].
     pub path: String,
     /// `YYYY-MM-DD` of the last modification.
     pub date: Option<String>,
+    /// The profile's timestamp settings.
     pub timestamps: TimestampSettings,
 }
 
@@ -71,67 +77,114 @@ pub enum PluginRequest {
     Manifest,
     /// → `u8` (0–100). `head` is the start of the file: decoded text (UTF-8) for text importers, bytes for
     /// binary ones.
-    Sniff { importer: Arc<str>, file: FileInfo, head: Vec<u8> },
+    Sniff {
+        /// Importer id.
+        importer: Arc<str>,
+        /// The file being sniffed.
+        file: FileInfo,
+        /// The start of the file.
+        head: Vec<u8>,
+    },
     /// Items: `Vec<WireEvent>`; → [`ImportDone`]. `content` is decoded text (UTF-8) for text importers.
     Import {
+        /// Importer id.
         importer: Arc<str>,
+        /// The file being imported.
         file: FileInfo,
+        /// The decoded file content, read with [`HostRequest::ReadFile`].
         content: HostFileRef,
     },
     /// Items: `Vec<WireEvent>`; → [`TailDone`].
     ImportTail {
+        /// Importer id.
         importer: Arc<str>,
+        /// The file whose tail is imported.
         file: FileInfo,
+        /// The start of the file, for headers and detected format.
         head: HostFileRef,
+        /// The appended text.
         tail: HostFileRef,
     },
     /// → `u8`.
-    SniffConfig { parser: Arc<str>, file_name: String, head: String },
+    SniffConfig {
+        /// Parser id.
+        parser: Arc<str>,
+        /// Name of the file.
+        file_name: String,
+        /// The decoded start of the file.
+        head: String,
+    },
     /// → `Result<ConfigTree, ConfigError>`.
     ParseConfig {
+        /// Parser id.
         parser: Arc<str>,
+        /// The file content, read with [`HostRequest::ReadFile`].
         content: HostFileRef,
+        /// Size, depth and node limits to enforce.
         limits: Limits,
     },
     /// → `Vec<Annotation>`. While it runs, the plugin reads the events with the `View*` host requests under
     /// `ticket`.
     Annotate {
+        /// Annotator id.
         annotator: Arc<str>,
+        /// Identifies this run in the `View*` host requests.
         ticket: u64,
+        /// The first record that is new since the previous run.
         since: Option<RecordCursor>,
     },
     /// → [`TransformOut`].
     Transform {
+        /// Transform id.
         transform: Arc<str>,
+        /// Display name of the file the rows came from.
         source_name: String,
+        /// The rows to transform.
         rows: Vec<WireEvent>,
     },
     /// → `()`. Values the host validated against the plugin's section (the plugin validates again).
-    ApplySettings { values: Json },
+    ApplySettings {
+        /// The settings values, keyed by setting id.
+        values: Json,
+    },
     /// → `Result<Json, ToolFail>`. Path arguments were checked against the user's choices and are canonical.
     InvokeTool {
+        /// Tool id.
         tool: Arc<str>,
+        /// The tool operation.
         op: String,
+        /// Arguments of the operation.
         args: Json,
+        /// The plugin's private data folder, when it has one.
         data_dir: Option<String>,
     },
     /// → `Result<(), ToolFail>`.
     StopTask {
+        /// Tool id.
         tool: Arc<str>,
+        /// Id of the task to stop.
         task: String,
+        /// The plugin's private data folder, when it has one.
         data_dir: Option<String>,
     },
     /// → `u8`.
     SniffProfile {
+        /// Importer id.
         importer: Arc<str>,
+        /// Name of the file.
         file_name: String,
+        /// The start of the file.
         head: Vec<u8>,
     },
     /// Items: pieces (`Vec<u8>`) of the capture, encoded by the plugin's profile library; → [`ProfileDone`].
     ImportProfile {
+        /// Importer id.
         importer: Arc<str>,
+        /// Name of the file.
         file_name: String,
+        /// The file content, read with [`HostRequest::ReadFile`].
         content: HostFileRef,
+        /// Import limits as JSON.
         limits: Json,
     },
 }
@@ -139,6 +192,7 @@ pub enum PluginRequest {
 /// The end of an import.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImportDone {
+    /// Lines or entries skipped (not records).
     pub skipped: u64,
     /// The importer's aggregated problems ([`crate::importer::Imported::problems`]).
     pub problems: Vec<crate::problems::Problem>,
@@ -149,21 +203,27 @@ pub struct ImportDone {
 pub struct TailDone {
     /// `false`: the importer cannot append; the host re-imports the whole file.
     pub supported: bool,
+    /// Lines or entries skipped (not records).
     pub skipped: u64,
+    /// The importer's aggregated problems.
     pub problems: Vec<crate::problems::Problem>,
 }
 
 /// The end of a profile import: the capture's encoded size and whether it is a heap snapshot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProfileDone {
+    /// Size of the encoded capture in bytes.
     pub bytes: u64,
+    /// Whether the capture is a heap snapshot (else a profile).
     pub heap: bool,
 }
 
 /// A failed tool call.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolFail {
+    /// Why it failed, when the tool classifies the failure.
     pub reason: Option<FailureReason>,
+    /// Message shown to the user.
     pub message: String,
 }
 
@@ -171,9 +231,13 @@ pub struct ToolFail {
 /// kind, and notes about problems.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct TransformOut {
+    /// The transformed rows, in the input order.
     pub rows: Vec<WireEvent>,
+    /// Per row: `true` keeps it, `false` drops it.
     pub keep: Vec<bool>,
+    /// Marks as `(row index, marker kind)`.
     pub marks: Vec<(u32, String)>,
+    /// Notes about problems met.
     pub notes: Vec<String>,
 }
 
@@ -181,25 +245,66 @@ pub struct TransformOut {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum HostRequest {
     /// → `Vec<u8>` (at most `len` and [`READ_CHUNK`] bytes; fewer at the end).
-    ReadFile { id: u64, offset: u64, len: u32 },
+    ReadFile {
+        /// Id of the [`HostFileRef`].
+        id: u64,
+        /// Byte offset to read from.
+        offset: u64,
+        /// Most bytes to return.
+        len: u32,
+    },
     /// → `Result<Vec<WireViewRecord>, String>`. `filter` is a JSON [`crate::annotate::ViewFilter`].
-    ViewSelect { ticket: u64, filter: Json, limit: u32 },
+    ViewSelect {
+        /// The ticket of the running annotation.
+        ticket: u64,
+        /// A JSON [`crate::annotate::ViewFilter`].
+        filter: Json,
+        /// Most records to return.
+        limit: u32,
+    },
     /// → `Vec<String>`.
-    ViewInstances { ticket: u64 },
+    ViewInstances {
+        /// The ticket of the running annotation.
+        ticket: u64,
+    },
     /// → `Option<(i64, i64)>`.
-    ViewTimeRange { ticket: u64 },
+    ViewTimeRange {
+        /// The ticket of the running annotation.
+        ticket: u64,
+    },
     /// → `()`.
-    TaskStarted { tool: String, task: ToolTask },
+    TaskStarted {
+        /// Tool id.
+        tool: String,
+        /// The task that started.
+        task: ToolTask,
+    },
     /// → `()`.
-    TaskProgress { tool: String, task: String, fraction: Option<f32> },
+    TaskProgress {
+        /// Tool id.
+        tool: String,
+        /// Task id.
+        task: String,
+        /// Progress from 0 to 1; `None` when unknown.
+        fraction: Option<f32>,
+    },
     /// → `()`.
-    TaskFinished { tool: String, task: String },
+    TaskFinished {
+        /// Tool id.
+        tool: String,
+        /// Task id.
+        task: String,
+    },
     /// → `Result<Json, ToolFail>`: runs one of the plugin's own elevated tool operations in its elevated process
     /// (ADR 0017 §7); the host refuses any other operation. Only the plugin's normal process may send it.
     InvokeElevated {
+        /// Tool id.
         tool: String,
+        /// The elevated operation.
         op: String,
+        /// Arguments of the operation.
         args: Json,
+        /// How long the host waits, in milliseconds.
         timeout_ms: u64,
     },
 }
@@ -207,11 +312,17 @@ pub enum HostRequest {
 /// A field value on the wire (postcard cannot carry a `serde_json::Value`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum WireValue {
+    /// JSON null.
     Null,
+    /// A boolean.
     Bool(bool),
+    /// A signed integer.
     Int(i64),
+    /// An unsigned integer too large for `Int`.
     UInt(u64),
+    /// A floating-point number.
     Float(f64),
+    /// A string.
     Text(String),
     /// An array or object, as JSON text.
     Json(String),
@@ -251,19 +362,28 @@ impl From<WireValue> for Value {
 /// A record on the wire.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WireEvent {
+    /// Id assigned by the workspace.
     pub id: u32,
+    /// Timestamp in milliseconds since the Unix epoch (UTC).
     pub ts: Option<i64>,
+    /// The level as its index in [`Level::ALL`].
     pub level: u8,
+    /// Rendered message.
     pub message: String,
+    /// Unrendered message template.
     pub template: Option<String>,
+    /// Exception or stack-trace text.
     pub exception: Option<String>,
     /// In the record's order.
     pub fields: Vec<(String, WireValue)>,
+    /// One-based line number in the source file.
     pub line: u32,
+    /// The marker mask ([`Record::markers`]).
     pub markers: u64,
 }
 
 impl WireEvent {
+    /// The wire form of `r` (its `source` is not sent).
     pub fn of(r: &Record) -> WireEvent {
         WireEvent {
             id: r.id,
@@ -321,8 +441,11 @@ impl WireEvent {
 /// A record as an annotator's view returns it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WireViewRecord {
+    /// The event.
     pub event: WireEvent,
+    /// Display name of its source file.
     pub source: String,
+    /// Its instance (timeline lane) key.
     pub instance: String,
 }
 

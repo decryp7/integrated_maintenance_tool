@@ -8,8 +8,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConditionCfg {
+    /// Field name or pseudo-field (`@level`, `@message`, `@exception`, `@template`, `@source`, `@line`).
     pub field: String,
+    /// Operator name; see the type docs for the supported set.
     pub op: String,
+    /// Operand; absent for operators that take none (`exists`, `missing`).
     #[serde(default)]
     pub value: Option<CondValue>,
 }
@@ -18,9 +21,13 @@ pub struct ConditionCfg {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum CondValue {
+    /// A text operand.
     Text(String),
+    /// A numeric operand.
     Number(f64),
+    /// A boolean operand.
     Bool(bool),
+    /// A list of alternatives, used by `in`.
     List(Vec<String>),
 }
 

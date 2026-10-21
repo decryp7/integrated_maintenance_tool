@@ -8,13 +8,18 @@ use chrono::{DateTime, Datelike, FixedOffset, Local, NaiveDate, NaiveDateTime, N
 use regex::Regex;
 use std::sync::OnceLock;
 
+/// The time zone assumed for timestamps that carry no offset.
 #[derive(Debug, Clone, Copy)]
 pub enum AssumedZone {
+    /// UTC.
     Utc,
+    /// The machine's local time zone.
     Local,
+    /// A fixed offset from UTC.
     Fixed(FixedOffset),
 }
 
+/// Parses timestamp text in many log formats to milliseconds since the Unix epoch (UTC).
 #[derive(Debug, Clone)]
 pub struct TimestampParser {
     custom: Vec<String>,
@@ -68,6 +73,7 @@ fn time_only_re() -> &'static Regex {
 }
 
 impl TimestampParser {
+    /// Builds a parser from user formats (.NET style or strftime), the zone assumed for values without an offset (`"UTC"`, `"local"` or an offset like `"+08:00"`) and the date order (`None` = decide from the value). Fails on an unknown zone.
     pub fn new(formats: &[String], zone: &str, day_first: Option<bool>) -> Result<Self> {
         let zone = match zone.trim().to_ascii_lowercase().as_str() {
             "" | "utc" | "z" => AssumedZone::Utc,
@@ -81,10 +87,12 @@ impl TimestampParser {
         Ok(TimestampParser { custom, zone, day_first })
     }
 
+    /// The configured date order: `Some(true)` day first, `Some(false)` month first, `None` decided per value.
     pub fn day_first(&self) -> Option<bool> {
         self.day_first
     }
 
+    /// This parser with another date order.
     pub fn with_day_first(&self, day_first: Option<bool>) -> Self {
         TimestampParser { day_first, ..self.clone() }
     }
@@ -419,6 +427,7 @@ pub fn to_strftime(fmt: &str) -> String {
     out
 }
 
+/// The UTC calendar date of a time in milliseconds since the Unix epoch; `None` when out of range.
 pub fn utc_date_of(ms: i64) -> Option<NaiveDate> {
     Utc.timestamp_millis_opt(ms).single().map(|d| d.date_naive())
 }
