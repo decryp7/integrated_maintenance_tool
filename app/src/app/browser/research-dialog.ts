@@ -1,13 +1,14 @@
-import { ChangeDetectionStrategy, Component, inject, input, linkedSignal, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { AiBackend, toAiError } from '../ai/ai-backend';
 import { DIALOG_REF } from '../ui/dialog.service';
-import { Segment } from './browser.types';
+import { QuerySource, Segment } from './browser.types';
 import { Segments } from './chat-cards';
 
 /**
- * Research the web: the question, the search text the engine built (with what the leak guard found in it), and how
- * many results to read. The engine checks the search text; with workspace data in it, the user confirms it here
- * (or edits it) before anything is searched. The research then runs as a job and its answer goes to the chat.
+ * Research the web: the question, the search text the AI drafted from it and the event (the engine's text without a
+ * model), with what the leak guard found in it, and how many results to read. Nothing is searched before the user has
+ * seen the search text here: they edit it, or let the AI write it again. With workspace data in it, the user confirms
+ * it ("Research anyway"). The research then runs as a job and its answer goes to the chat.
  */
 @Component({
   selector: 'imt-research-dialog',
@@ -16,8 +17,12 @@ import { Segments } from './chat-cards';
   template: `
     <label for="research-question" i18n="@@browser.researchDialog.question">What should the AI find out?</label>
     <textarea id="research-question" class="input" rows="2" maxlength="1000" [value]="q()" (input)="q.set(asValue($event))" data-testid="research-question"></textarea>
-    <label for="research-query" i18n="@@browser.researchDialog.query">Search text (optional; the question is used when empty)</label>
-    <input id="research-query" class="input" type="text" maxlength="300" [value]="text()" (input)="edit(asValue($event))" data-testid="research-query" />
+    <div class="query-head">
+      <label for="research-query" i18n="@@browser.researchDialog.query">Search text</label>
+      <button type="button" class="btn ghost small" [disabled]="!q().trim() || busy()" (click)="draft()" data-testid="research-draft" i18n="@@browser.researchDialog.draft">Let the AI write it</button>
+    </div>
+    <input id="research-query" class="input" type="text" maxlength="300" [value]="text()" (input)="edit(asValue($event))" aria-describedby="research-query-note" data-testid="research-query" />
+    <p id="research-query-note" class="muted small" data-testid="research-source">{{ sourceNote() }}</p>
     @if (flagged().length) {
       <div class="flagged" role="alert" data-testid="research-flagged">
         <p><imt-segments [segments]="flagged()" /></p>
@@ -37,7 +42,7 @@ import { Segments } from './chat-cards';
     }
     <div class="foot">
       <button type="button" class="btn ghost" (click)="ref.close()" i18n="@@browser.researchDialog.cancel">Cancel</button>
-      <button type="button" class="btn primary" [disabled]="!q().trim() || busy()" (click)="run()" data-testid="research-run">{{ flagged().length ? anyway : start }}</button>
+      <button type="button" class="btn primary" [disabled]="!q().trim() || busy()" (click)="run()" data-testid="research-run">{{ runLabel() }}</button>
     </div>
   `,
   styles: `
@@ -46,6 +51,7 @@ import { Segments } from './chat-cards';
     .small { font-size: var(--fs-xs); }
     .warn { color: var(--warn-text); }
     .err { color: var(--danger-text, var(--lvl-error)); }
+    .query-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .flagged { border: 1px solid var(--warn-text); border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; }
     .foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
   `,
@@ -57,6 +63,8 @@ export class ResearchDialog {
   readonly query = input('');
   /** What the leak guard found in `query` (empty: nothing to confirm). */
   readonly segments = input<Segment[]>([]);
+  /** Who wrote `query` (null: the user, or nobody yet). */
+  readonly source = input<QuerySource | null>(null);
   readonly sessionId = input<string | null>(null);
   readonly recordId = input<number | null>(null);
   readonly maxResults = input<number | null>(null);
@@ -64,31 +72,66 @@ export class ResearchDialog {
   protected readonly q = linkedSignal(() => this.question());
   protected readonly text = linkedSignal(() => this.query());
   protected readonly flagged = linkedSignal(() => this.segments());
+  protected readonly by = linkedSignal(() => this.source());
   protected readonly results = linkedSignal(() => (this.maxResults() ? String(this.maxResults()) : ''));
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
-  protected readonly start = $localize`:@@browser.researchDialog.start:Research`;
-  protected readonly anyway = $localize`:@@browser.researchDialog.anyway:Research anyway`;
+  protected readonly runLabel = computed(() =>
+    !this.text().trim()
+      ? $localize`:@@browser.researchDialog.draftFirst:Write the search text`
+      : this.flagged().length
+        ? $localize`:@@browser.researchDialog.anyway:Research anyway`
+        : $localize`:@@browser.researchDialog.start:Research`,
+  );
+  protected readonly sourceNote = computed(() => {
+    switch (this.by()) {
+      case 'model':
+        return $localize`:@@browser.researchDialog.byModel:The AI wrote it from the question and the event, asked to leave out ids, names, paths and other values of this installation. Check it before it is sent.`;
+      case 'engine':
+        return $localize`:@@browser.researchDialog.byEngine:Built by IMT (the AI could not write it). Check it before it is sent.`;
+      default:
+        return $localize`:@@browser.researchDialog.byUser:Only this text goes to the search engine.`;
+    }
+  });
 
   protected asValue(e: Event): string {
     return (e.target as HTMLInputElement).value;
   }
 
-  /** Editing the search text drops the old findings: the engine checks the new text. */
+  /** Editing the search text drops the old findings (the engine checks the new text) and makes it the user's. */
   protected edit(v: string): void {
     this.text.set(v);
     this.flagged.set([]);
+    this.by.set(null);
+  }
+
+  /** The AI writes the search text for the question (and the event): shown here, nothing is searched. */
+  protected async draft(): Promise<void> {
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      const d = await this.backend.researchDraft({ question: this.q().trim(), recordId: this.recordId() });
+      this.text.set(d.checked.query);
+      this.flagged.set(d.checked.needsConfirm ? d.checked.segments : []);
+      this.by.set(d.source);
+    } catch (e) {
+      this.error.set(toAiError(e).message);
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   protected async run(): Promise<void> {
+    // The search never runs on a text the user has not seen: without one, the AI writes it first.
+    if (!this.text().trim()) return this.draft();
     this.busy.set(true);
     this.error.set(null);
     try {
       const r = await this.backend.research({
         question: this.q().trim(),
-        query: this.text().trim() || null,
+        query: this.text().trim(),
         sessionId: this.sessionId(),
-        recordId: this.text().trim() ? null : this.recordId(),
+        recordId: null,
         maxResults: this.results() ? Number(this.results()) : null,
         // Only what the user saw highlighted is confirmed.
         confirmed: this.flagged().length > 0,

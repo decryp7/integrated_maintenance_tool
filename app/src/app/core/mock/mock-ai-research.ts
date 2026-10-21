@@ -27,6 +27,16 @@ export function mockLeaks(text: string): boolean {
   return /\bWEB0\d\b/i.test(text);
 }
 
+/** The mock model's search text for a question: its words without the question form, one line, at most 300 characters. */
+export function mockDraft(question: string): string {
+  const words = question
+    .replace(/^\s*(what|why|how|where|when)(\s+(does|do|is|are|can|should))?\s+/i, '')
+    .replace(/[?"'`]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w);
+  return words.join(' ').slice(0, 300) || question.trim().slice(0, 300);
+}
+
 /** Runs a mock research inside a job's work ("page 2 of 3"), honouring Cancel. */
 export async function runMockResearch(ctx: MockJobCtx, question: string, maxResults: number, stepMs: number): Promise<MockResearchReport> {
   // Research holds the browser while it reads (the shell's "AI is browsing"); finished, failed or cancelled, it lets go.

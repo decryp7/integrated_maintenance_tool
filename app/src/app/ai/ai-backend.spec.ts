@@ -134,6 +134,7 @@ describe('TauriAiBackend', () => {
       [() => b.start({ op: 'explain', recordId: 3 }), 'ai_start', { request: { op: 'explain', recordId: 3 } }],
       [() => b.start({ op: 'rootCauses' }), 'ai_start', { request: { op: 'rootCauses' } }],
       [() => b.start({ op: 'regex', lines: ['a'], intent: null }), 'ai_start', { request: { op: 'regex', lines: ['a'], intent: null } }],
+      [() => b.researchDraft({ recordId: 3 }), 'ai_research_draft', { args: { recordId: 3 } }],
       [() => b.cancel(), 'ai_cancel', undefined],
       [() => b.chatSessions(), 'ai_chat_sessions', undefined],
       [() => b.chatNew(), 'ai_chat_new', undefined],

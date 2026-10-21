@@ -118,7 +118,7 @@
         <source>The AI assistant failed.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-backend.ts</context>
-          <context context-type="linenumber">54</context>
+          <context context-type="linenumber">56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.format.fit.comfortable" datatype="html">
@@ -202,98 +202,98 @@
         <source>Propose pipeline steps</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-launcher.ts</context>
-          <context context-type="linenumber">12</context>
+          <context context-type="linenumber">13</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.launcher.title.proposeMarkers" datatype="html">
         <source>Propose markers</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-launcher.ts</context>
-          <context context-type="linenumber">13</context>
+          <context context-type="linenumber">14</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.launcher.title.proposeExtractors" datatype="html">
         <source>Propose extractors</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-launcher.ts</context>
-          <context context-type="linenumber">14</context>
+          <context context-type="linenumber">15</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.launcher.title.proposeProfile" datatype="html">
         <source>Propose a parsing profile</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-launcher.ts</context>
-          <context context-type="linenumber">15</context>
+          <context context-type="linenumber">16</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.launcher.title.setup" datatype="html">
         <source>Set up the AI assistant</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-launcher.ts</context>
-          <context context-type="linenumber">43</context>
+          <context context-type="linenumber">44</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.launcher.title.models" datatype="html">
         <source>AI models</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-launcher.ts</context>
-          <context context-type="linenumber">48</context>
+          <context context-type="linenumber">49</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.launcher.started.explain" datatype="html">
         <source>Explaining event #<x id="id" equiv-text="recordId"/> — running in Jobs</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-launcher.ts</context>
-          <context context-type="linenumber">53</context>
+          <context context-type="linenumber">54</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.launcher.started.summarize" datatype="html">
         <source>Summarizing the range — running in Jobs</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-launcher.ts</context>
-          <context context-type="linenumber">57</context>
+          <context context-type="linenumber">58</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.launcher.started.rootCauses" datatype="html">
         <source>Looking for root causes — running in Jobs</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-launcher.ts</context>
-          <context context-type="linenumber">61</context>
+          <context context-type="linenumber">62</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.launcher.startFailed" datatype="html">
         <source>The AI request did not start</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-launcher.ts</context>
-          <context context-type="linenumber">72</context>
+          <context context-type="linenumber">73</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.launcher.title.research" datatype="html">
         <source>Research the web</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-launcher.ts</context>
-          <context context-type="linenumber">96</context>
+          <context context-type="linenumber">106</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.launcher.title.askQuery" datatype="html">
         <source>Ask AI to write a query</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-launcher.ts</context>
-          <context context-type="linenumber">118</context>
+          <context context-type="linenumber">136</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.launcher.title.suggestRegex" datatype="html">
         <source>Suggest a regex</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-launcher.ts</context>
-          <context context-type="linenumber">129</context>
+          <context context-type="linenumber">147</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.launcher.title.proposeChanges" datatype="html">
         <source>Propose profile changes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-launcher.ts</context>
-          <context context-type="linenumber">143</context>
+          <context context-type="linenumber">161</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.context.selected.one" datatype="html">
@@ -5169,39 +5169,39 @@
           <context context-type="linenumber">19,20</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="browser.banner.stopLabel" datatype="html">
+        <source>Stop the AI browsing</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/browser/ai-browsing-banner.ts</context>
+          <context context-type="linenumber">24</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="browser.banner.stop" datatype="html">
         <source>Stop</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/ai-browsing-banner.ts</context>
-          <context context-type="linenumber">24,26</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="browser.banner.idle" datatype="html">
-        <source>The browser is yours again.</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/browser/ai-browsing-banner.ts</context>
-          <context context-type="linenumber">27,31</context>
+          <context context-type="linenumber">24,28</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.banner.research" datatype="html">
-        <source>Research is reading result pages. Leave the browser to it, or stop it.</source>
+        <source>Research is reading result pages. Leave the page to it, or stop it.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/ai-browsing-banner.ts</context>
-          <context context-type="linenumber">64</context>
+          <context context-type="linenumber">50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.banner.agent" datatype="html">
-        <source>A chat&apos;s agent mode is driving this browser. Leave it to the AI, or stop it.</source>
+        <source>A chat&apos;s agent mode is driving this page. Leave it to the AI, or stop it.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/ai-browsing-banner.ts</context>
-          <context context-type="linenumber">65</context>
+          <context context-type="linenumber">51</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.banner.stopFailed" datatype="html">
         <source>Could not stop the AI (<x id="reason" equiv-text="why"/>). Press Stop to try again.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/ai-browsing-banner.ts</context>
-          <context context-type="linenumber">109</context>
+          <context context-type="linenumber">63</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.engine.custom" datatype="html">
@@ -5293,7 +5293,7 @@
         <source>The browser did not answer.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/browser.store.ts</context>
-          <context context-type="linenumber">42</context>
+          <context context-type="linenumber">54</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.chatBar.sources.label" datatype="html">
@@ -5671,7 +5671,7 @@
         <source>Search the web for this error</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
-          <context context-type="linenumber">26</context>
+          <context context-type="linenumber">29</context>
         </context-group>
         <note priority="1" from="description">Dialog title</note>
       </trans-unit>
@@ -5679,71 +5679,75 @@
         <source>Search the web for this error…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
-          <context context-type="linenumber">44,45</context>
+          <context context-type="linenumber">71,73</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.inspector.researchTitle" datatype="html">
         <source>The AI searches the web, reads the top results (read-only) and answers in the chat with citations</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
-          <context context-type="linenumber">46</context>
+          <context context-type="linenumber">73</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.inspector.research" datatype="html">
         <source>Research this</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
-          <context context-type="linenumber">46,47</context>
+          <context context-type="linenumber">73,74</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.inspector.resultsLabel" datatype="html">
         <source>Results to read</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
-          <context context-type="linenumber">47,48</context>
+          <context context-type="linenumber">74,75</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.inspector.resultsDefault" datatype="html">
         <source>Default</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
-          <context context-type="linenumber">49,50</context>
+          <context context-type="linenumber">76,77</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.inspector.results3" datatype="html">
         <source>3 results</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
-          <context context-type="linenumber">50,51</context>
+          <context context-type="linenumber">77,78</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.inspector.results5" datatype="html">
         <source>5 results</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
-          <context context-type="linenumber">51,52</context>
+          <context context-type="linenumber">78,79</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.inspector.results10" datatype="html">
         <source>10 results</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
-          <context context-type="linenumber">52,55</context>
+          <context context-type="linenumber">79,82</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.inspector.title" datatype="html">
         <source>Web</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
-          <context context-type="linenumber">79</context>
+          <context context-type="linenumber">106</context>
         </context-group>
         <note priority="1" from="description">Inspector section</note>
       </trans-unit>
       <trans-unit id="browser.view.title" datatype="html">
-        <source>Web</source>
+        <source>Browser</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
-          <context context-type="linenumber">89</context>
+          <context context-type="linenumber">116</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
+          <context context-type="linenumber">180</context>
         </context-group>
         <note priority="1" from="description">View title</note>
       </trans-unit>
@@ -5751,7 +5755,7 @@
         <source>Web</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
-          <context context-type="linenumber">99</context>
+          <context context-type="linenumber">126</context>
         </context-group>
         <note priority="1" from="description">Command palette category</note>
       </trans-unit>
@@ -5759,399 +5763,441 @@
         <source>Web: Open the browser panel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
-          <context context-type="linenumber">101</context>
+          <context context-type="linenumber">128</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.cmd.searchSelected" datatype="html">
         <source>Web: Search the web for the selected event…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
-          <context context-type="linenumber">104</context>
+          <context context-type="linenumber">131</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.menu.search" datatype="html">
         <source>Search the web for this error…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
-          <context context-type="linenumber">118</context>
+          <context context-type="linenumber">145</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.menu.research" datatype="html">
         <source>Research this error</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/provide-browser.ts</context>
-          <context context-type="linenumber">119</context>
+          <context context-type="linenumber">146</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.researchDialog.question" datatype="html">
         <source>What should the AI find out?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
-          <context context-type="linenumber">17,18</context>
+          <context context-type="linenumber">18,19</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.researchDialog.query" datatype="html">
-        <source>Search text (optional; the question is used when empty)</source>
+        <source>Search text</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
-          <context context-type="linenumber">19,20</context>
+          <context context-type="linenumber">21,22</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="browser.researchDialog.draft" datatype="html">
+        <source>Let the AI write it</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
+          <context context-type="linenumber">22,24</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.researchDialog.flagged" datatype="html">
         <source>Highlighted parts come from your logs or look private. Edit them out, or research anyway to send them to the search engine.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
-          <context context-type="linenumber">24,27</context>
+          <context context-type="linenumber">29,32</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.researchDialog.results" datatype="html">
         <source>Results to read</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
-          <context context-type="linenumber">27,28</context>
+          <context context-type="linenumber">32,33</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.researchDialog.resultsDefault" datatype="html">
         <source>Default (Settings ▸ Web browser)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
-          <context context-type="linenumber">29,30</context>
+          <context context-type="linenumber">34,35</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.researchDialog.results3" datatype="html">
         <source>3</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
-          <context context-type="linenumber">30,31</context>
+          <context context-type="linenumber">35,36</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.researchDialog.results5" datatype="html">
         <source>5</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
-          <context context-type="linenumber">31,32</context>
+          <context context-type="linenumber">36,37</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.researchDialog.results10" datatype="html">
         <source>10</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
-          <context context-type="linenumber">32,34</context>
+          <context context-type="linenumber">37,39</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.researchDialog.note" datatype="html">
         <source>The AI searches with your search engine in IMT&apos;s browser and reads the result pages only (no logins, forms or typing). It runs as a job; the answer arrives in the chat with its sources.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
-          <context context-type="linenumber">34,36</context>
+          <context context-type="linenumber">39,41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.researchDialog.cancel" datatype="html">
         <source>Cancel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
-          <context context-type="linenumber">39,40</context>
+          <context context-type="linenumber">44,45</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="browser.researchDialog.start" datatype="html">
-        <source>Research</source>
+      <trans-unit id="browser.researchDialog.draftFirst" datatype="html">
+        <source>Write the search text</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
-          <context context-type="linenumber">70</context>
+          <context context-type="linenumber">81</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.researchDialog.anyway" datatype="html">
         <source>Research anyway</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
-          <context context-type="linenumber">71</context>
+          <context context-type="linenumber">83</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="browser.researchDialog.start" datatype="html">
+        <source>Research</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
+          <context context-type="linenumber">84</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="browser.researchDialog.byModel" datatype="html">
+        <source>The AI wrote it from the question and the event, asked to leave out ids, names, paths and other values of this installation. Check it before it is sent.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
+          <context context-type="linenumber">89</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="browser.researchDialog.byEngine" datatype="html">
+        <source>Built by IMT (the AI could not write it). Check it before it is sent.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
+          <context context-type="linenumber">91</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="browser.researchDialog.byUser" datatype="html">
+        <source>Only this text goes to the search engine.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
+          <context context-type="linenumber">93</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.searchDialog.loading" datatype="html">
         <source>Preparing the search…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/search-web-dialog.ts</context>
-          <context context-type="linenumber">17,19</context>
+          <context context-type="linenumber">18,20</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.searchDialog.label" datatype="html">
         <source>Search for</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/search-web-dialog.ts</context>
-          <context context-type="linenumber">20,21</context>
+          <context context-type="linenumber">21,22</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.searchDialog.note" datatype="html">
-        <source>Only this text goes to the search engine, in IMT&apos;s browser window. Nothing else from your logs leaves this computer.</source>
+        <source>Only this text goes to the search engine, in IMT&apos;s Browser panel. Nothing else from your logs leaves this computer.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/search-web-dialog.ts</context>
-          <context context-type="linenumber">25,27</context>
+          <context context-type="linenumber">29,31</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.searchDialog.engine" datatype="html">
         <source>Engine</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/search-web-dialog.ts</context>
-          <context context-type="linenumber">27,28</context>
+          <context context-type="linenumber">31,32</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.searchDialog.cancel" datatype="html">
         <source>Cancel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/search-web-dialog.ts</context>
-          <context context-type="linenumber">34,35</context>
+          <context context-type="linenumber">38,39</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.searchDialog.search" datatype="html">
         <source>Search</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/search-web-dialog.ts</context>
-          <context context-type="linenumber">35,38</context>
+          <context context-type="linenumber">39,42</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.searchDialog.retry" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/search-web-dialog.ts</context>
-          <context context-type="linenumber">40,44</context>
+          <context context-type="linenumber">44,48</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="browser.searchDialog.byModel" datatype="html">
+        <source>The AI wrote this search from the event.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/browser/search-web-dialog.ts</context>
+          <context context-type="linenumber">72</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="browser.searchDialog.byEngine" datatype="html">
+        <source>IMT built this search from the event (the AI could not write it).</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/browser/search-web-dialog.ts</context>
+          <context context-type="linenumber">73</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.searchDialog.removed" datatype="html">
         <source>Removed for your privacy: <x id="what" equiv-text="this.removed().join(&apos;, &apos;)"/>.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/search-web-dialog.ts</context>
-          <context context-type="linenumber">72</context>
+          <context context-type="linenumber">80</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.toolbar" datatype="html">
         <source>Browser</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">25</context>
+          <context context-type="linenumber">35</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.back" datatype="html">
         <source>Back</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">26</context>
+          <context context-type="linenumber">36</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.back.title" datatype="html">
         <source>Back</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">26</context>
+          <context context-type="linenumber">36</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.forward" datatype="html">
         <source>Forward</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">27</context>
+          <context context-type="linenumber">37</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.forward.title" datatype="html">
         <source>Forward</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">27</context>
+          <context context-type="linenumber">37</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.stopLoading" datatype="html">
         <source>Stop loading</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">29</context>
+          <context context-type="linenumber">39</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.stopLoading.title" datatype="html">
         <source>Stop loading</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">29</context>
+          <context context-type="linenumber">39</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.reload" datatype="html">
         <source>Reload</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">31</context>
+          <context context-type="linenumber">41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.reload.title" datatype="html">
         <source>Reload</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">31</context>
+          <context context-type="linenumber">41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.address.label" datatype="html">
         <source>Address or search</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">34,35</context>
+          <context context-type="linenumber">44,45</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.address.placeholder" datatype="html">
-        <source>Search or type a web address</source>
+        <source>Search or type a web address (Ctrl+L)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">35</context>
+          <context context-type="linenumber">45</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.engine.label" datatype="html">
         <source>Search engine</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">36,37</context>
+          <context context-type="linenumber">46,47</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.go" datatype="html">
         <source>Go</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">42,44</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="browser.panel.researchStop" datatype="html">
-        <source>Stop</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">50,53</context>
+          <context context-type="linenumber">52,54</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.loading" datatype="html">
         <source> (loading…)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">55,56</context>
+          <context context-type="linenumber">57,58</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.capture" datatype="html">
         <source>Add page to AI context</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">60,62</context>
+          <context context-type="linenumber">59,61</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.external" datatype="html">
         <source>Open in your browser</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">62,63</context>
+          <context context-type="linenumber">61,62</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.close" datatype="html">
-        <source>Close browser</source>
+        <source>Close page</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">63,65</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="browser.panel.empty" datatype="html">
-        <source>Search the web or open a page. It opens in a separate browser window with its own cookies and history; the AI sees a page only when you add it to a chat, or turn on read-along or agent mode in a chat.</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">66,69</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="browser.panel.agent" datatype="html">
-        <source>The AI is driving the browser</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">71</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="browser.panel.agent.stop" datatype="html">
-        <source>Stop</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">72,76</context>
+          <context context-type="linenumber">62,65</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.notice.openExternal" datatype="html">
         <source>Open in your browser…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">84,86</context>
+          <context context-type="linenumber">69,71</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.notice.dismiss" datatype="html">
         <source>Dismiss</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">86,88</context>
+          <context context-type="linenumber">71,74</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.confirm.q" datatype="html">
         <source>Open this address in your browser?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">93,94</context>
+          <context context-type="linenumber">76</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.confirm.open" datatype="html">
         <source>Open</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">96,97</context>
+          <context context-type="linenumber">77,78</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.confirm.cancel" datatype="html">
         <source>Cancel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">97,99</context>
+          <context context-type="linenumber">78,81</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.retry" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">104,105</context>
+          <context context-type="linenumber">84,85</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.dismiss" datatype="html">
         <source>Dismiss</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">105,108</context>
+          <context context-type="linenumber">85,88</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="browser.panel.researching" datatype="html">
-        <source>The AI is researching: <x id="step" equiv-text="message"/></source>
+      <trans-unit id="browser.panel.page" datatype="html">
+        <source>Web page</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">149</context>
+          <context context-type="linenumber">93</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="browser.panel.researchingPlain" datatype="html">
-        <source>The AI is researching the web.</source>
+      <trans-unit id="browser.panel.empty" datatype="html">
+        <source>Search the web or open a page: it shows here, with its own cookies and history. The AI sees a page only when you add it to a chat, or turn on read-along or agent mode in a chat.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">149</context>
+          <context context-type="linenumber">95,97</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="browser.panel.ownWindow" datatype="html">
+        <source>The page is shown in a window of its own on this system.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
+          <context context-type="linenumber">99,100</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="browser.panel.covered" datatype="html">
+        <source>The page is hidden while a menu, dialog or message is open over it.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
+          <context context-type="linenumber">101,103</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.untitled" datatype="html">
         <source>Untitled page</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">161</context>
+          <context context-type="linenumber">153</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.agent.steps" datatype="html">
-        <source>step <x id="used" equiv-text="used"/> of <x id="limit" equiv-text="limit"/></source>
+        <source>step <x id="used" equiv-text="s.stepsUsed"/> of <x id="limit" equiv-text="s.stepLimit"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">184</context>
+          <context context-type="linenumber">168</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="browser.view.titleDriving" datatype="html">
+        <source>Browser · AI is browsing</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
+          <context context-type="linenumber">180</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.panel.captured" datatype="html">
         <source>Added to the AI chat as untrusted web content. It goes with your next question.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/web-panel.ts</context>
-          <context context-type="linenumber">201</context>
+          <context context-type="linenumber">242</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.activityBar.explorer" datatype="html">
@@ -10151,7 +10197,7 @@
         <source>You can keep working; files already read stay open if you cancel.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/import/import-ui.ts</context>
-          <context context-type="linenumber">75,78</context>
+          <context context-type="linenumber">75,79</context>
         </context-group>
       </trans-unit>
       <trans-unit id="import.ui.cancelImport" datatype="html">

@@ -7,7 +7,7 @@ import { ContextMenuService, MenuEntry } from './context-menu.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (service.menu(); as m) {
-      <div class="backdrop" (mousedown)="service.close()" (contextmenu)="$event.preventDefault(); service.close()"></div>
+      <div class="backdrop" data-imt-overlay (mousedown)="service.close()" (contextmenu)="$event.preventDefault(); service.close()"></div>
       <div #box class="menu popover" role="menu" aria-label="Actions" i18n-aria-label="@@ui.contextMenu.actions" [style.left.px]="m.x" [style.top.px]="m.y" (keydown)="onKey($event)">
         @for (item of m.items; track item.label) {
           <button type="button" role="menuitem" class="item" [class.hinted]="!!item.hint" tabindex="-1" [disabled]="item.disabled" (click)="run(item)">

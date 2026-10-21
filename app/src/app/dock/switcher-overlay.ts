@@ -11,7 +11,7 @@ import { selected, selectId } from './switcher';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (dock.switcher()) {
-      <div class="imt-switcher-backdrop" (pointerdown)="dock.cancelSwitch()"></div>
+      <div class="imt-switcher-backdrop" data-imt-overlay (pointerdown)="dock.cancelSwitch()"></div>
       <div class="imt-switcher" role="dialog" aria-label="Switch to panel" i18n-aria-label="@@dock.switcher.label" (pointerdown)="$event.stopPropagation()">
         <div class="cols">
           @for (col of columns(); track col.title) {

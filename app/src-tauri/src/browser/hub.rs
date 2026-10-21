@@ -1,7 +1,9 @@
 //! The browsers of the open IMT windows (one per window, opened on demand) and what the shell keeps about
-//! them: the page shown, popups waiting for the user's decision, pages handed to a chat, links a chat
-//! suggested, and each chat's hold on the browser (`imt_ai::browser::ChatBrowser`). Plain Rust, no Tauri.
+//! them: the page shown, where the Browser panel last placed it, popups waiting for the user's decision, pages
+//! handed to a chat, links a chat suggested, and each chat's hold on the browser (`imt_ai::browser::ChatBrowser`).
+//! Plain Rust, no Tauri.
 
+use super::geometry::View;
 use imt_ai::browser::{AgentLimits, ChatBrowser, PageCapture, ResearchSettings, SearchSettings};
 use serde::Serialize;
 use std::collections::{HashMap, VecDeque};
@@ -22,7 +24,7 @@ pub fn research_key(job: u64) -> String {
     format!("{RESEARCH_KEY_PREFIX}{job}")
 }
 
-/// Who drives a window's browser now, as the browser window shows it ("AI is browsing — Stop"). The Stop of
+/// Who drives a window's browser now, as the Browser panel shows it ("AI is browsing — Stop"). The Stop of
 /// an agent calls `browser_agent_stop` with its chat; the Stop of research cancels its job (`jobs_cancel`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
@@ -42,7 +44,7 @@ pub struct BrowserSettings {
     pub research: ResearchSettings,
 }
 
-/// The page a window's browser shows, for the Web panel.
+/// The page a window's browser shows, for the Browser panel.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PageState {
@@ -66,6 +68,10 @@ struct Owner {
     popups: VecDeque<String>,
     attachments: HashMap<String, Vec<PageCapture>>,
     suggested: HashMap<String, VecDeque<String>>,
+    /// The window the Browser panel is in (the owner, or one of its pop-outs), as the panel last said.
+    host: Option<String>,
+    /// Where the panel last placed the page.
+    view: Option<View>,
 }
 
 impl Owner {
@@ -126,7 +132,7 @@ impl BrowserHub {
         state.0
     }
 
-    /// The browser window was closed: the page is gone, a driving agent stops, popups are forgotten.
+    /// The page was closed: the page is gone, a driving agent stops, popups are forgotten.
     pub fn closed(&self, owner: &str) -> PageState {
         let page = self.update_page(owner, |p| {
             *p = PageState {
@@ -158,6 +164,23 @@ impl BrowserHub {
             }
             guard = self.loaded.wait_timeout(guard, left).unwrap_or_else(|p| p.into_inner()).0;
         }
+    }
+
+    // ---- where the page is ----
+
+    /// The Browser panel of `owner`, in window `host`, placed the page (hidden, or at a place).
+    pub fn set_placement(&self, owner: &str, host: &str, view: View) {
+        self.with(owner, |o| {
+            o.host = Some(host.to_string());
+            o.view = Some(view);
+        });
+    }
+
+    /// The window the panel is in (none reported yet) and where it placed the page (hidden until it says).
+    pub fn placement(&self, owner: &str) -> (Option<String>, View) {
+        self.lock()
+            .get(owner)
+            .map_or((None, View::Hidden), |o| (o.host.clone(), o.view.unwrap_or(View::Hidden)))
     }
 
     // ---- popups ----
@@ -528,6 +551,30 @@ mod tests {
             serde_json::to_value(AiDriver::Research).unwrap(),
             serde_json::json!({"kind": "research"})
         );
+    }
+
+    #[test]
+    fn the_panel_placement_is_kept_per_window_until_the_window_goes() {
+        use super::super::geometry::PhysicalRect;
+        let hub = BrowserHub::default();
+        assert_eq!(
+            hub.placement("main"),
+            (None, View::Hidden),
+            "nothing reported: hidden in its own window"
+        );
+        let at = View::At(PhysicalRect {
+            x: 1,
+            y: 2,
+            width: 3,
+            height: 4,
+        });
+        hub.set_placement("main", "p-main-1", at);
+        assert_eq!(hub.placement("main"), (Some("p-main-1".into()), at));
+        hub.closed("main");
+        assert_eq!(hub.placement("main").1, at, "closing the page keeps where the panel is");
+        assert_eq!(hub.placement("w-2"), (None, View::Hidden), "per window");
+        hub.forget_owner("main");
+        assert_eq!(hub.placement("main"), (None, View::Hidden));
     }
 
     #[test]

@@ -18,7 +18,7 @@ export function engineLabel(e: SearchEngine): string {
   }
 }
 
-/** One line for a notice of the browser window. */
+/** One line for a notice of the browser. */
 export function noticeText(kind: NoticeKind, message: string): string {
   switch (kind) {
     case 'blocked':

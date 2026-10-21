@@ -571,7 +571,7 @@ fn arm_exit_watchdog_with<R: tauri::Runtime>(
     let spawned = std::thread::Builder::new().name("imt-exit-watchdog".into()).spawn(move || {
         std::thread::sleep(limit);
         use tauri::Manager;
-        let open = || app.webview_windows().into_keys().collect::<Vec<_>>();
+        let open = || app.windows().into_keys().collect::<Vec<_>>();
         end_stalled_exit(&TEARDOWN_STARTED, open, || exit_teardown(&app), end, code, limit);
     });
     if let Err(e) = spawned {
