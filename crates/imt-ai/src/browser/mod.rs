@@ -15,6 +15,7 @@
 
 pub mod capture;
 pub mod control;
+pub mod draft;
 pub mod engines;
 pub mod leak;
 pub mod pace;
@@ -30,6 +31,7 @@ pub mod url;
 
 pub use capture::{capture_from, PageCapture};
 pub use control::{small_for_agent, AgentLimits, ChatBrowser, ChatBrowserStatus};
+pub use draft::{draft_or, parse_draft, Drafted, QueryDrafter, QuerySource};
 pub use engines::{SearchEngine, SearchError, SearchSettings, SearchTemplate};
 pub use leak::{LeakKind, LeakReport, Segment};
 pub use policy::{AgentAction, Ask, AskKind, ScrollDirection};

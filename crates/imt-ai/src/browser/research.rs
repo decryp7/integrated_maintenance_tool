@@ -39,7 +39,8 @@ const PAGE_CHARS: usize = 6_000;
 /// What the model may say about one page.
 const NOTE_CHARS: usize = 1_200;
 const MAX_QUESTION_CHARS: usize = 1_000;
-const MAX_QUERY_CHARS: usize = 300;
+/// The longest search text (a draft beyond it is not used; a typed one is clipped).
+pub const MAX_QUERY_CHARS: usize = 300;
 /// How often a page is looked at while it loads, and how many times, before research gives up on it.
 const PAGE_POLL: Duration = Duration::from_millis(500);
 const PAGE_POLLS: usize = 10;
@@ -329,7 +330,7 @@ fn is_engine_property(url: &WebUrl, engine: &super::url::Site) -> bool {
         ("duckduckgo", &["duck.com", "duckduckgo.co"]),
     ];
     let host_labels: Vec<&str> = host.split('.').collect();
-    let same_brand = host_labels.len() >= 2 && host_labels[..host_labels.len() - 1].iter().any(|l| *l == brand);
+    let same_brand = host_labels.len() >= 2 && host_labels[..host_labels.len() - 1].contains(&brand);
     let extra = EXTRA
         .iter()
         .filter(|(b, _)| *b == brand)
