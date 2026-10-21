@@ -24,6 +24,7 @@ import { AiImage } from '../ai.types';
 import { AiImageStore } from '../vision/ai-image.store';
 import { dragHasFiles, imageFilesOf, imageFilter, MAX_IMAGES_PER_QUESTION } from '../vision/image-files';
 import { AiNoVisionCard } from '../vision/no-vision-card';
+import { DropTargets } from '../../core/dropped-files';
 
 /**
  * The AI assistant chat (a dock view). Answers stream in with the tools the model used, proposals to
@@ -185,7 +186,7 @@ import { AiNoVisionCard } from '../vision/no-vision-card';
       </ul>
     }
 
-    <form class="composer" [class.dropping]="dropping()" (submit)="$event.preventDefault(); submit()" (dragover)="onDragOver($event)" (dragleave)="dropping.set(false)" (drop)="onDrop($event)">
+    <form #composer class="composer" [class.dropping]="dropping()" (submit)="$event.preventDefault(); submit()" (dragover)="onDragOver($event)" (dragleave)="dropping.set(false)" (drop)="onDrop($event)">
       <button
         type="button"
         class="icon-btn attach"
@@ -285,6 +286,8 @@ export class AiChatPanel {
   private readonly workspace = inject(WorkspaceStore);
   private readonly browser = inject(ChatBrowserStore);
   private readonly logEl = viewChild<ElementRef<HTMLElement>>('log');
+  private readonly composerEl = viewChild<ElementRef<HTMLElement>>('composer');
+  private readonly dropTargets = inject(DropTargets);
 
   protected readonly images = inject(AiImageStore);
   protected readonly maxImages = MAX_IMAGES_PER_QUESTION;
@@ -314,6 +317,12 @@ export class AiChatPanel {
   });
 
   constructor() {
+    // The composer takes images dropped from the desktop (the shell routes OS drops by target, ADR 0025).
+    effect((onCleanup) => {
+      const el = this.composerEl()?.nativeElement;
+      if (!el) return;
+      onCleanup(this.dropTargets.register({ kind: 'aiImages', element: el, accept: (paths) => this.acceptDroppedPaths(paths) }));
+    });
     void this.store.init();
     let first = true;
     effect(() => {
@@ -446,6 +455,28 @@ export class AiChatPanel {
     if (!this.canAttach()) return;
     const path = await this.platform.pickOpenPath($localize`:@@ai.vision.chat.pickTitle:Attach an image`, imageFilter());
     if (path) await this.attachVia(() => this.images.openPath(path, false));
+  }
+
+  /**
+   * Files dropped from the desktop onto the composer (the OS drop, routed here by the shell as an `aiImages` target):
+   * each is opened by the engine, which recognises images by their content; what it refuses is not claimed and opens
+   * as logs. With a text-only model the drop is claimed and the offer to add image support is shown.
+   */
+  async acceptDroppedPaths(paths: readonly string[]): Promise<readonly string[]> {
+    if (!this.canAttach()) return paths;
+    const room = Math.max(0, MAX_IMAGES_PER_QUESTION - this.store.attachments().length);
+    const claimed: string[] = [];
+    for (const path of paths.slice(0, room)) {
+      const img = await this.images.openPath(path, false);
+      if (img) {
+        this.store.attach(img);
+        claimed.push(path);
+      } else {
+        this.images.dismissOpenError();
+      }
+    }
+    if (paths.length > room) this.store.setNotice($localize`:@@ai.vision.chat.tooMany:At most ${MAX_IMAGES_PER_QUESTION}:max: images go with one question.`);
+    return claimed;
   }
 
   /** Pasted or dropped image files: their bytes go to the engine as they are (never decoded here). */

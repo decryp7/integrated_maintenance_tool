@@ -1,5 +1,5 @@
 import { effect, EnvironmentProviders, inject, Injector, makeEnvironmentProviders, provideAppInitializer } from '@angular/core';
-import { DROPPED_FILES_HANDLERS, routeDroppedFiles } from '../dropped-files';
+import { DROPPED_FILES_HANDLERS, DropTargets, routeDrop } from '../dropped-files';
 import { Logger } from '../logger';
 import { Platform } from '../platform';
 import { ShellUiStore } from './shell-ui.store';
@@ -14,8 +14,8 @@ export function persistPrefs(injector: Injector): void {
 }
 
 /**
- * Routes files dropped on the window: features claim their files first (profiling: captures); the rest open as
- * logs, once. The drop overlay follows the drag. When the window cannot listen for drops, that is logged and the rest
+ * Routes files dropped on the window: the drop target under the pointer first (the AI chat takes images), then the
+ * features (profiling: captures); the rest open as logs, once. The drop overlay follows the drag. When the window cannot listen for drops, that is logged and the rest
  * works.
  */
 export function routeDrops(injector: Injector): void {
@@ -25,7 +25,8 @@ export function routeDrops(injector: Injector): void {
   injector
     .get(Platform)
     .onFilesDropped(
-      (paths) => void routeDroppedFiles(handlers, paths).then((rest) => (rest.length ? injector.get(WorkspaceDataStore).openPaths(rest) : undefined)),
+      (paths, at) =>
+        void routeDrop(injector.get(DropTargets), handlers, paths, at).then((rest) => (rest.length ? injector.get(WorkspaceDataStore).openPaths(rest) : undefined)),
       (over) => shell.setDropHover(over),
     )
     // Without drops the window still works (open files from the menu); say why in the log.

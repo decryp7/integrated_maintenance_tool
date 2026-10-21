@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeContext, provideAnalysisTesting } from '../../analysis/test-setup';
 import { MockAiBackend, MockAiOptions } from '../../core/mock/mock-ai-backend';
 import { Platform } from '../../core/platform';
+import { DropTargets } from '../../core/dropped-files';
 import { MockJobs, resetMockJobs } from '../../jobs/mock-jobs';
 import { all, buttonByText, el, settle, typeInto } from '../../../testing/helpers';
 import { AiBackend, AiError } from '../ai-backend';
@@ -219,4 +220,34 @@ describe('AiChatPanel images', () => {
     await settle(f);
     expect(all(f, '[data-testid=ai-attachment]').length).toBe(1);
   });
+
+  it('takes images dropped from the desktop through its drop target and leaves the rest to the logs', async () => {
+    const env = setup();
+    const { f, root, store } = env;
+    await ready(env);
+    const targets = TestBed.inject(DropTargets);
+    const composer = el(f, 'form.composer');
+    const target = targets.at({ x: 0, y: 0 }, { elementFromPoint: () => composer });
+    expect(target?.kind).toBe('aiImages');
+    // The engine decides what an image is: a text file is not claimed and opens as a log.
+    const claimed = await target!.accept(['/shots/a.png', '/logs/app.log']);
+    expect(claimed).toEqual(['/shots/a.png']);
+    await until(f, () => all(f, '[data-testid=ai-attachment]').length === 1);
+    expect(store.attachments()[0]?.name).toBe('a.png');
+    expect(root.querySelector('[data-testid=ai-attach-error]')).toBeNull();
+    // Destroyed: the target is gone.
+    f.destroy();
+    expect(targets.at({ x: 0, y: 0 }, { elementFromPoint: () => composer })).toBeNull();
+  });
+
+  it('claims a desktop drop for a text-only model and shows the offer instead', async () => {
+    const env = setup({ vision: 'missing' });
+    await ready(env);
+    const composer = el(env.f, 'form.composer');
+    const target = TestBed.inject(DropTargets).at({ x: 0, y: 0 }, { elementFromPoint: () => composer });
+    await until(env.f, () => TestBed.inject(AiStatusStore).status()?.vision === false);
+    expect(await target!.accept(['/shots/a.png'])).toEqual(['/shots/a.png']);
+    expect(env.store.attachments()).toEqual([]);
+  });
 });
+
