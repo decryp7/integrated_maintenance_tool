@@ -311,12 +311,12 @@ pub async fn tool_invoke<R: Runtime>(
     args: Option<Value>,
 ) -> CmdResult<Value> {
     let result = invoke(&app, &window, state.safe_mode, &tool, &op, args.unwrap_or(Value::Null)).await?;
-    // What a tool wrote (a collected bundle, an event-log capture folder) may be opened from this window.
+    // What a tool wrote (a collected bundle, an event-log capture folder, a dump) may be opened from this window.
     crate::paths::grant_read_all(&app, window.label(), &tool_outputs(&result), crate::paths::GrantSource::Output);
     Ok(result)
 }
 
-/// The files and folders a tool reports it wrote: the top-level `bundle`, `dir` and `path` of its result and
+/// The files and folders a tool reports it wrote: the top-level `bundle`, `dir`, `path` and `file` of its result and
 /// the paths listed in `outputs` (the tool output contract; plugin code, not the webview, names them).
 pub(crate) fn tool_outputs(result: &Value) -> Vec<PathBuf> {
     let listed = result
@@ -325,7 +325,7 @@ pub(crate) fn tool_outputs(result: &Value) -> Vec<PathBuf> {
         .into_iter()
         .flatten()
         .filter_map(Value::as_str);
-    ["bundle", "dir", "path"]
+    ["bundle", "dir", "path", "file"]
         .iter()
         .filter_map(|k| result.get(*k).and_then(Value::as_str))
         .chain(listed)
@@ -822,6 +822,11 @@ pub(crate) mod tests {
         let abs = std::env::temp_dir().join("out").to_string_lossy().into_owned();
         let found = tool_outputs(&json!({ "bundle": abs, "dir": "relative", "other": abs, "manifest": {} }));
         assert_eq!(found, vec![PathBuf::from(&abs)]);
+        assert_eq!(
+            tool_outputs(&json!({ "file": abs })),
+            vec![PathBuf::from(&abs)],
+            "a dump the capture tool wrote"
+        );
         assert!(tool_outputs(&json!(null)).is_empty());
         let listed = tool_outputs(&json!({ "path": abs, "outputs": [abs, "relative", 3] }));
         assert_eq!(listed, vec![PathBuf::from(&abs), PathBuf::from(&abs)]);

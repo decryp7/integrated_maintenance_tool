@@ -65,10 +65,13 @@ inputs only to the first directory, so `fuzz/corpus/` stays small (seeds copied 
 | `fuzz_dotnet_etw`, `fuzz_dotnet_ipc` | .NET capture (`imt-plugin-dotnet`, without the plugin feature): ETW event payloads through the NetTrace converter, the `.etl` process scanner and back through the nettrace importer; diagnostics IPC replies |
 | `fuzz_image` | The AI's image sanitiser (ADR 0025): any bytes through signature sniffing, the claimed-size guard, the decoders (PNG, JPEG, BMP, GIF, WebP) and the re-encoding, within small limits |
 | `fuzz_vision_facts` | What a model writes about a screenshot (strict JSON, bounded) and the EXIF capture-time reader |
+| `fuzz_dump_minidump` | the dumps plugin's minidump reader (`imt-plugin-dumps` without the plugin feature: ranges, full-dump compaction, stack walks), then the dump engine's findings, views and wire round trip |
+| `fuzz_dump_umdh` | the UMDH snapshot/diff reader, then growth, grouping, tree and leak findings |
+| `fuzz_dump_wire` | `imt_dump::wire::decode_result`: what IMT accepts from the dumps plugin's process |
 
 CI (`.gitea/workflows/fuzz.yml`) runs every target for 5 minutes each night (and on demand
 through `workflow_dispatch`, with a configurable duration) and uploads crash inputs as the
-`crashes-<target>` artifact. Five shards build the fuzz workspace once
+`crashes-<target>` artifact. Six shards build the fuzz workspace once
 and then fuzz their targets one after another, on the dated nightly in `FUZZ_TOOLCHAIN`
 (use the same one locally, e.g. `cargo +nightly-2026-10-01 fuzz run ...`, to reproduce CI).
 

@@ -16,6 +16,7 @@ import { provideWindowing } from './windowing/provide-windowing';
 import { provideClockSkew } from './skew/skew.plugin';
 import { provideShare } from './share/share.plugin';
 import { provideProfiling } from './profiling/provide-profiling';
+import { provideDumps } from './dumps/provide-dumps';
 import { provideHelp } from './help/help.commands';
 import { provideUndo } from './undo/provide-undo';
 import { provideOverview } from './overview/overview.plugin';
@@ -56,6 +57,7 @@ export const appConfig: ApplicationConfig = {
     provideClockSkew(),
     provideShare(),
     provideProfiling(),
+    provideDumps(),
     provideHelp(),
     provideUndo(),
     provideOverview(),

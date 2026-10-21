@@ -32,8 +32,9 @@ pub mod tools;
 pub mod units;
 pub mod user_regex;
 
+pub use host_file::RangeRead;
 pub use importer::{BinaryImporter, ImportCtx, Imported, TextImporter};
 pub use manifest::{Manifest, Permission, PermissionRequest, CONTRACT};
 pub use model::{Fields, Level, Record};
-pub use plugin::{Contributions, Plugin, ProfileImporter, Transform, TransformCtx, Verdict};
+pub use plugin::{Contributions, DocumentImporter, Plugin, ProfileImporter, Transform, TransformCtx, Verdict};
 pub use serve::serve;

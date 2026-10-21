@@ -279,6 +279,26 @@ impl PluginHandler {
                     heap: i.heap(),
                 })
             }
+            PluginRequest::SniffDocument { importer, file_name, head } => {
+                let i = self.document_importer(&importer)?;
+                encode_reply(&i.sniff(&file_name, &head).min(100))
+            }
+            PluginRequest::ImportDocument {
+                importer,
+                file_name,
+                content,
+                options,
+            } => {
+                let i = self.document_importer(&importer)?;
+                let file = HostFile::new(ctx.peer(), content);
+                let encoded = i.import_encoded(&file_name, &file, &options.0);
+                for piece in encoded.chunks(READ_CHUNK as usize) {
+                    ctx.send_item(piece.to_vec())?;
+                }
+                encode_reply(&DocumentDone {
+                    bytes: encoded.len() as u64,
+                })
+            }
         }
     }
 
@@ -296,6 +316,14 @@ impl PluginHandler {
             .iter()
             .find(|p| p.id() == id)
             .ok_or_else(|| invalid(format!("no profile importer \"{id}\"")))
+    }
+
+    fn document_importer(&self, id: &str) -> Result<&Arc<dyn crate::plugin::DocumentImporter>, RemoteError> {
+        self.c
+            .document_importers
+            .iter()
+            .find(|p| p.id() == id)
+            .ok_or_else(|| invalid(format!("no document importer \"{id}\"")))
     }
 
     fn tool(&self, id: &str) -> Result<&(crate::tools::ToolInfo, Arc<dyn crate::tools::Tool>), RemoteError> {

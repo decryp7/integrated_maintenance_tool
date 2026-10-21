@@ -61,7 +61,7 @@ impl CaptureImporter for RemoteCaptureImporter {
         let mut encoded: Vec<u8> = Vec::new();
         let lent = Lent {
             files: vec![bytes],
-            view: None,
+            ..Lent::default()
         };
         let budget = self.health.budgets().get(CallKind::Import).map(crate::remote::deadline_for);
         let (importer, name) = (self.cap.id.clone(), file_name.to_string());

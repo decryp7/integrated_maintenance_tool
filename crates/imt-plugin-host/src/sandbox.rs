@@ -34,6 +34,14 @@ pub fn sandbox_for(manifest: &Manifest, granted: &[Permission], elevated: bool) 
     if has(Permission::Network) {
         s.network = true;
     }
+    if has(Permission::ReadFolders) && s.fs == FsAccess::Nothing {
+        // Reading anything, writing nothing: low integrity on Windows (it reads, it cannot write), a read-only
+        // file system elsewhere. The folders are settings that change after the start, so they are not listed.
+        s.fs = FsAccess::Paths {
+            read: vec![std::path::PathBuf::from("/")],
+            write: Vec::new(),
+        };
+    }
     if elevated {
         // An elevated process cannot lower its own integrity below what its operations need (ETW sessions);
         // it keeps no file-system writes of its own by contract (its output streams back to the host).
@@ -70,6 +78,7 @@ mod tests {
             settings: None,
             tools: Vec::new(),
             profile_importers: Vec::new(),
+            document_importers: Vec::new(),
         }
     }
 
@@ -94,6 +103,15 @@ mod tests {
         assert!(paths.low_integrity && paths.fs == FsAccess::Unrestricted);
         let net = sandbox_for(&manifest(&[Permission::Network]), &[Permission::Network], false);
         assert!(net.network);
+        let symbols = sandbox_for(&manifest(&[Permission::ReadFolders]), &[Permission::ReadFolders], false);
+        assert!(symbols.low_integrity && !symbols.network);
+        assert!(matches!(&symbols.fs, FsAccess::Paths { read, write } if read.len() == 1 && write.is_empty()));
+        let both = sandbox_for(
+            &manifest(&[Permission::ReadFolders, Permission::WriteFolders]),
+            &[Permission::ReadFolders, Permission::WriteFolders],
+            false,
+        );
+        assert_eq!(both.fs, FsAccess::Unrestricted, "writing folders already reads everything");
         let elevated = sandbox_for(&manifest(&[]), &[], true);
         assert!(!elevated.low_integrity && !elevated.children);
         let mut big = manifest(&[]);
