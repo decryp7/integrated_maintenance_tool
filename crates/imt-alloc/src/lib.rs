@@ -14,7 +14,7 @@
 //! ```
 //!
 //! v3 keeps freed memory for a second (`purge_delay` = 1000 ms) before giving it back to the OS, which during an
-//! import added 150-200 MB to the worker's peak (643-690 MB, over ADR 0014's 600 MB budget). [`tune`] sets v2's
+//! import added 150-200 MB to the worker's peak (643-690 MB, over ADR 0014's import budget, then 600 MB). [`tune`] sets v2's
 //! timing instead (10 ms, arenas 10x that): measured as fast as v2 and back under the budget; purging at once
 //! (0 ms) halved the peak but cost 20-40% of the import speed. The options are set in code because the
 //! workers start with a cleared environment (no `MIMALLOC_*` variables).
