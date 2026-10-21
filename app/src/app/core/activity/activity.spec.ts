@@ -92,6 +92,9 @@ describe('activity privacy', () => {
     expect(isUserError({ code: 'cancelled', message: 'stopped' })).toBe(true);
     expect(isUserError({ code: 'internal', message: 'invalid state' })).toBe(false);
     expect(isUserError({ code: 'engine', message: 'not found' })).toBe(false);
+    // A research page that failed in the browser is the web's doing, not an IMT bug (regression: reported as
+    // "the model engine failed: the browser: ...").
+    expect(isUserError({ code: 'browser', message: 'The browser could not finish: the page did not answer in time' })).toBe(true);
     expect(isUserError(new Error('index out of bounds'))).toBe(false);
     expect(isUserError({ circular: true })).toBe(false);
   });

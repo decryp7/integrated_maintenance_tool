@@ -24,6 +24,8 @@ export type AiErrorCode =
   | 'cancelled'
   | 'invalid'
   | 'engine'
+  /** The research or agent browser failed (not open, a page that did not answer or changed). */
+  | 'browser'
   | 'contextOverflow'
   | 'malformed'
   | 'toolLoopLimit'

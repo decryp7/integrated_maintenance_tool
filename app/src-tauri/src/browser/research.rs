@@ -197,6 +197,7 @@ impl<R: Runtime> Researcher for TurnResearcher<R> {
         match handle.wait() {
             Ok(Ok(report)) => Ok(report),
             Ok(Err(e)) if e.code == AiErrorCode::Cancelled => Err(imt_ai::AiError::Cancelled),
+            Ok(Err(e)) if e.code == AiErrorCode::Browser => Err(imt_ai::AiError::Browser(e.message)),
             Ok(Err(e)) => Err(imt_ai::AiError::Engine(e.message)),
             Err(jobs::Stopped::Cancelled | jobs::Stopped::Interrupted(_)) => Err(imt_ai::AiError::Cancelled),
             Err(e) => Err(imt_ai::AiError::Engine(e.to_string())),

@@ -16,6 +16,10 @@ pub enum AiError {
     NoRuntime,
     #[error("the model engine failed: {0}")]
     Engine(String),
+    /// The browser (a page of the research or agent browser) failed: not open, not answering, changed under
+    /// the step. The message is complete ("The browser could not ..."), so a nested job can pass it on as is.
+    #[error("{0}")]
+    Browser(String),
     #[error("the conversation does not fit the model's context window ({prompt} of {limit} tokens)")]
     ContextOverflow { prompt: usize, limit: usize },
     /// Images were given to a model that cannot read them (no image projector installed for it).

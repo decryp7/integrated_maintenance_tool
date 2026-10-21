@@ -21,6 +21,7 @@ impl From<AiError> for AiCmdError {
             AiError::NoRuntime => AiErrorCode::NoRuntime,
             AiError::NoVision => AiErrorCode::NoVision,
             AiError::Engine(_) => AiErrorCode::Engine,
+            AiError::Browser(_) => AiErrorCode::Browser,
             AiError::ContextOverflow { .. } => AiErrorCode::ContextOverflow,
             AiError::Malformed(_) => AiErrorCode::Malformed,
             AiError::ToolLoopLimit(_) => AiErrorCode::ToolLoopLimit,
@@ -63,6 +64,7 @@ mod tests {
             (AiError::NoRuntime, AiErrorCode::NoRuntime),
             (AiError::NoVision, AiErrorCode::NoVision),
             (AiError::Engine("x".into()), AiErrorCode::Engine),
+            (AiError::Browser("The browser could not finish: x".into()), AiErrorCode::Browser),
             (AiError::ContextOverflow { prompt: 2, limit: 1 }, AiErrorCode::ContextOverflow),
             (AiError::Malformed("x".into()), AiErrorCode::Malformed),
             (AiError::ToolLoopLimit(3), AiErrorCode::ToolLoopLimit),
@@ -92,6 +94,8 @@ mod tests {
         assert_eq!(serde_json::to_value(AiErrorCode::NoRuntime).unwrap(), "noRuntime");
         assert_eq!(serde_json::to_value(AiErrorCode::ProxyAuth).unwrap(), "proxyAuth");
         assert_eq!(serde_json::to_value(AiErrorCode::HttpStatus).unwrap(), "httpStatus");
+        assert_eq!(serde_json::to_value(AiErrorCode::Browser).unwrap(), "browser");
+        assert!(AiErrorCode::Browser.retryable(), "a page that did not answer may answer next time");
         assert_eq!(AiCmdError::busy("b").to_string(), "b");
         let fe = AiCmdError::from(imt_core::overwrite::FileExists("/x/a.md".into()));
         assert_eq!(fe.code, AiErrorCode::FileExists);

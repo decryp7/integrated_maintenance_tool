@@ -49,6 +49,8 @@ pub enum ErrorCode {
     /// The active model cannot read images (no projector installed for it; ADR 0025).
     NoVision,
     Engine,
+    /// The research or agent browser failed (not open, a page that did not answer or changed): not an IMT bug.
+    Browser,
     ContextOverflow,
     Malformed,
     ToolLoopLimit,
@@ -90,7 +92,7 @@ impl ErrorCode {
         use ErrorCode::*;
         matches!(
             self,
-            Failed | Busy | Io | Network | Offline | Timeout | HttpStatus | Unreachable | Proxy | Engine | Memory | Internal
+            Failed | Busy | Io | Network | Offline | Timeout | HttpStatus | Unreachable | Proxy | Engine | Browser | Memory | Internal
         )
     }
 }
