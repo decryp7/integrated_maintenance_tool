@@ -186,12 +186,60 @@ fn the_job_memory_cap_fails_a_large_allocation() {
     assert!(ask(&c, "big 200000000").is_err());
 }
 
+/// What the child's lockdown could not enforce on this system (a CI container may filter landlock or seccomp).
+#[cfg(target_os = "linux")]
+fn gaps(c: &imt_ipc::Child) -> Vec<imt_ipc::sandbox::Gap> {
+    let notes: Vec<imt_ipc::sandbox::Note> = serde_json::from_str(&ask(c, "gaps").unwrap()).unwrap();
+    notes.into_iter().map(|n| n.gap).collect()
+}
+
 #[cfg(target_os = "linux")]
 #[test]
-fn a_locked_child_cannot_read_files_open_sockets_or_start_programs() {
+fn a_locked_child_cannot_write_files_or_start_programs() {
+    use imt_ipc::sandbox::Gap;
+    let target = format!("/tmp/imt-sandbox-test-{}", std::process::id());
+    let open = launch(&spec(&[]), Arc::new(NoCalls)).unwrap();
+    assert_eq!(ask(&open, &format!("write {target}")).unwrap(), "ok");
+    assert!(gaps(&open).is_empty(), "an unrestricted child has nothing to degrade");
     let locked = launch(&spec(&[]).sandbox(imt_ipc::sandbox::SandboxSpec::locked()), Arc::new(NoCalls)).unwrap();
-    let w = ask(&locked, "write /tmp/imt-sandbox-test").unwrap();
-    assert!(w.starts_with("denied"), "{w}");
+    // Whatever this kernel lacks, the child runs, says so, and its connection works.
+    assert_eq!(ask(&locked, "echo alive").unwrap(), "alive");
+    let gaps = gaps(&locked);
+    let w = ask(&locked, &format!("write {target}")).unwrap();
+    if gaps.contains(&Gap::Files) {
+        eprintln!("skipped the file check: landlock is not available here (the child logged it); wrote: {w}");
+    } else {
+        assert!(w.starts_with("denied"), "{w}");
+    }
     let p = ask(&locked, "spawn").unwrap();
-    assert!(p.starts_with("denied"), "{p}");
+    if gaps.contains(&Gap::Syscalls) {
+        eprintln!("skipped the program check: seccomp is not available here (the child logged it); spawn: {p}");
+    } else {
+        assert!(p.starts_with("denied"), "{p}");
+    }
+    let _ = std::fs::remove_file(&target);
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn the_memory_cap_fails_a_large_allocation_but_not_a_busy_child() {
+    let capped = imt_ipc::sandbox::SandboxSpec {
+        memory_limit: Some(256 << 20),
+        ..imt_ipc::sandbox::SandboxSpec::unrestricted()
+    };
+    let open = launch(&spec(&[]), Arc::new(NoCalls)).unwrap();
+    assert!(ask(&open, "alloc 400000000").unwrap().starts_with("ok"));
+    let c = launch(&spec(&[]).sandbox(capped), Arc::new(NoCalls)).unwrap();
+    // Many calls at once (handler threads, each a malloc arena that reserves address space) stay well within a
+    // 256 MiB cap of the memory used, which an address-space cap did not.
+    let answers: Vec<_> = std::thread::scope(|s| {
+        let calls: Vec<_> = (0..32).map(|_| s.spawn(|| ask(&c, "alloc 2000000"))).collect();
+        calls.into_iter().map(|h| h.join().unwrap()).collect()
+    });
+    assert!(
+        answers.iter().all(|a| a.as_deref().is_ok_and(|a| a.starts_with("ok"))),
+        "{answers:?}"
+    );
+    let big = ask(&c, "alloc 400000000").unwrap();
+    assert!(big.starts_with("denied"), "{big}");
 }

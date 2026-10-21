@@ -3,8 +3,10 @@
 //!
 //! - `echo <text>` → `<text>`; `env <NAME>` → the variable or `<unset>`; `exit <code>` → exits at once (a crash);
 //!   `hang` → never answers; `panic` → panics in the handler; `big <n>` → n bytes; `stream <n>` → n items;
+//!   `alloc <n>` → allocates and touches n bytes, `ok …` or `denied: …`;
 //!   `write <path>` → tries to create the file, answers `ok` or the error; `spawn` → tries to start a program;
-//!   `ask <text>` → calls the host back with `<text>` and answers with the host's reply.
+//!   `ask <text>` → calls the host back with `<text>` and answers with the host's reply; `gaps` → the notes of its
+//!   lockdown (JSON), so tests know what this system enforces.
 //!
 //! Flags: `--exit-now` (dies before connecting), `--no-connect` (reads the bootstrap, never connects),
 //! `--bad-token` (connects with a wrong token), `--relay` (starts a copy of itself that connects instead: a
@@ -24,6 +26,7 @@ fn handle(ctx: &CallCtx, body: &[u8]) -> Result<Vec<u8>, RemoteError> {
     let fail = |m: String| RemoteError::new(code::INTERNAL, m);
     match cmd {
         "echo" => Ok(arg.as_bytes().to_vec()),
+        "gaps" => Ok(serde_json::to_vec(imt_ipc::sandbox::applied_notes()).map_err(|e| fail(e.to_string()))?),
         "env" => Ok(std::env::var(arg).unwrap_or_else(|_| "<unset>".into()).into_bytes()),
         "exit" => std::process::exit(arg.parse().unwrap_or(3)),
         "hang" => loop {
@@ -31,6 +34,18 @@ fn handle(ctx: &CallCtx, body: &[u8]) -> Result<Vec<u8>, RemoteError> {
         },
         "panic" => panic!("handler panicked"),
         "big" => Ok(vec![b'x'; arg.parse().unwrap_or(0)]),
+        "alloc" => {
+            // Allocates and touches n bytes without aborting when it cannot (`denied`).
+            let n: usize = arg.parse().unwrap_or(0);
+            let mut v: Vec<u8> = Vec::new();
+            Ok(match v.try_reserve_exact(n) {
+                Ok(()) => {
+                    v.resize(n, 1);
+                    format!("ok {}", v.iter().step_by(4096).map(|b| *b as usize).sum::<usize>()).into_bytes()
+                }
+                Err(e) => format!("denied: {e}").into_bytes(),
+            })
+        }
         "stream" => {
             for i in 0..arg.parse::<u32>().unwrap_or(0) {
                 ctx.send_item(i.to_le_bytes().to_vec())?;
