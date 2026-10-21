@@ -675,6 +675,11 @@ below is from interleaved A/B runs, at least two each).
   store's analyses are bound by DuckDB reads); moving the JSON importer's message and template instead of
   cloning them and reusing the batcher's field-text buffer (worker bench within noise); listing the import's
   files' sizes and archive slots in parallel (one quiet pair 95 s vs 90 s).
+- **JSON events keep their parsed map** as their fields (`importers::json::fields_of`) unless keys need
+  renaming, flattening or repeat; the old path re-inserted every key into a second map. Engine bench
+  import/clef +19% / +16%; 10M CLEF import 269-276k -> 279-291k events/s in quiet pairs (the ADR's 218k
+  target is met end to end in process when the VM is quiet; the 20-copy worker run stays at 52-60k, its
+  fixed costs dominate). Identical output, field order included (tested against the old path on /samples).
 - Not changed, still hot (10M import profile, on-CPU samples of the parse threads): `serde_json::Value` maps
   per event (parsing, `IndexMap` inserts with SipHash, dropping records: ~30%) and Parquet encoding and zstd
   (~20%).
