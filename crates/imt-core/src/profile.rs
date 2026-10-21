@@ -132,6 +132,9 @@ pub struct JsonCfg {
 pub struct CsvCfg {
     pub delimiter: String,
     pub has_header: bool,
+    /// Column names for a file without a header row (missing or extra columns are `col<N>`).
+    #[serde(default)]
+    pub columns: Vec<String>,
     pub timestamp: String,
     pub level: String,
     pub message: String,
