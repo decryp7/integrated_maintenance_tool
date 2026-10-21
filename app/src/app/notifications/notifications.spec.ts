@@ -505,7 +505,13 @@ describe('NoticeActions', () => {
 
   function setup() {
     const ctx = new FakeContext();
-    const jobsBackend = { retry: vi.fn(async () => 1 as number | null), reveal: vi.fn(async (_id: number) => '/out/a.csv'), list: vi.fn(async () => EMPTY_JOBS), onChange: vi.fn(async () => () => undefined) };
+    // The list stays unanswered (the Jobs list is not known): tests that need it apply a snapshot themselves.
+    const jobsBackend = {
+      retry: vi.fn(async () => 1 as number | null),
+      reveal: vi.fn(async (_id: number) => '/out/a.csv'),
+      list: vi.fn(() => new Promise<typeof EMPTY_JOBS>(() => undefined)),
+      onChange: vi.fn(async () => () => undefined),
+    };
     const notices = new FakeNotices();
     const lifecycle = { pluginReset: vi.fn(async () => undefined) };
     const dialogs = { open: vi.fn() };
@@ -548,8 +554,22 @@ describe('NoticeActions', () => {
     expect(view).toHaveBeenLastCalledWith({ id: 7, title: 'Export CSV', resultType: 'file' });
     expect(await run({ type: 'reviewProposals', jobId: 7 })).toBeNull();
     expect(view).toHaveBeenCalledTimes(2);
+  });
+
+  it('says a job was cleared instead of failing when its job is no longer listed', async () => {
+    const { run, jobsBackend } = setup();
+    const view = vi.spyOn(TestBed.inject(JobViewer), 'view').mockResolvedValue(null);
+    // Before the list is loaded the action runs (the viewer reports its own failure).
     await run({ type: 'viewJob', jobId: 99 });
     expect(view).toHaveBeenLastCalledWith({ id: 99, title: '', resultType: null });
+    TestBed.inject(JobsStore).apply({ jobs: [{ id: 7, title: 'Export CSV', resultType: 'file' } as JobInfo], paused: [] });
+    view.mockClear();
+    for (const a of [{ type: 'viewJob', jobId: 99 }, { type: 'reviewProposals', jobId: 99 }, { type: 'retryJob', jobId: 99 }, { type: 'showInFolder', jobId: 99 }] as NoticeAction[]) {
+      expect(await run(a)).toContain('cleared from Jobs');
+    }
+    expect(view).not.toHaveBeenCalled();
+    expect(jobsBackend.retry).not.toHaveBeenCalled();
+    expect(jobsBackend.reveal).not.toHaveBeenCalled();
   });
 
   it('returns the viewer message when the result cannot be shown', async () => {

@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, effect, ElementRef, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, signal, untracked } from '@angular/core';
 import { formatDateTime } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
-import { actionLabel, NoticeActions } from './notice-actions';
+import { JobsStore } from '../jobs/jobs.store';
+import { actionAvailable, actionLabel, jobClearedNote, listedJobs, NoticeActions } from './notice-actions';
 import { NotificationsStore } from './notifications.store';
 import { Notice, NOTICE_SOURCES, NoticeAction } from './notifications.types';
 import { sourceLabel, titleWithCount } from './notifications-text';
@@ -50,18 +51,27 @@ import { sourceLabel, titleWithCount } from './notifications-text';
             @if (n.body) {
               <p class="body imt-selectable">{{ n.body }}</p>
             }
+            @if (cleared(n)) {
+              <p class="muted small cleared" [attr.data-testid]="'notice-cleared-' + n.id">{{ clearedNote }}</p>
+            }
             <div class="actions">
               @if (store.localAction(n.id); as label) {
                 <button type="button" class="btn small primary" (click)="store.runLocal(n.id)" [attr.data-testid]="'notice-primary-' + n.id">{{ label }}</button>
               }
               @if (n.primary; as a) {
-                <button type="button" class="btn small primary" (click)="act(n, a)" [attr.data-testid]="'notice-primary-' + n.id">{{ actionLabel(a) }}</button>
+                @if (available(a)) {
+                  <button type="button" class="btn small primary" (click)="act(n, a)" [attr.data-testid]="'notice-primary-' + n.id">{{ actionLabel(a) }}</button>
+                }
               }
               @if (n.secondary; as a) {
-                <button type="button" class="btn small" (click)="act(n, a)">{{ actionLabel(a) }}</button>
+                @if (available(a)) {
+                  <button type="button" class="btn small" (click)="act(n, a)">{{ actionLabel(a) }}</button>
+                }
               }
               @if (n.tertiary; as a) {
-                <button type="button" class="btn small" (click)="act(n, a)" [attr.data-testid]="'notice-tertiary-' + n.id">{{ actionLabel(a) }}</button>
+                @if (available(a)) {
+                  <button type="button" class="btn small" (click)="act(n, a)" [attr.data-testid]="'notice-tertiary-' + n.id">{{ actionLabel(a) }}</button>
+                }
               }
               @if (!n.read) {
                 <button type="button" class="btn ghost small" (click)="store.markRead(n.id)" [attr.aria-label]="markReadLabel(n)" i18n="@@notifications.panel.markRead">Mark read</button>
@@ -97,6 +107,7 @@ import { sourceLabel, titleWithCount } from './notifications-text';
     .body { margin: 0; color: var(--text-2); overflow-wrap: anywhere; }
     .actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
     .empty { margin: 12px 0; }
+    .cleared { margin: 0; }
     .small { font-size: var(--fs-xs); }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   `,
@@ -105,6 +116,10 @@ export class NotificationsPanel {
   protected readonly store = inject(NotificationsStore);
   private readonly actions = inject(NoticeActions);
   private readonly ws = inject(WorkspaceStore);
+  private readonly jobs = inject(JobsStore);
+  /** The listed jobs: actions of a job cleared from Jobs are hidden (its result is gone; the message keeps the outcome). */
+  private readonly listed = computed(() => listedJobs(this.jobs));
+  protected readonly clearedNote = jobClearedNote();
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   protected readonly sources = NOTICE_SOURCES;
   protected readonly sourceLabel = sourceLabel;
@@ -153,6 +168,15 @@ export class NotificationsPanel {
 
   protected dismissLabel(n: Notice): string {
     return $localize`:@@notifications.panel.dismissLabel:Dismiss ${n.title}:title:`;
+  }
+
+  protected available(a: NoticeAction): boolean {
+    return actionAvailable(a, this.listed());
+  }
+
+  /** Some action of the message was hidden because its job was cleared. */
+  protected cleared(n: Notice): boolean {
+    return [n.primary, n.secondary, n.tertiary].some((a) => a !== null && !this.available(a));
   }
 
   protected async act(n: Notice, a: NoticeAction): Promise<void> {

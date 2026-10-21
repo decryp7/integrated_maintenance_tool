@@ -6,6 +6,9 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { all, buttonByText, el, MemoryLogger, settle } from '../../testing/helpers';
 import { at, must } from '../../testing/must';
+import { JobsBackend } from '../jobs/jobs-backend';
+import { JobsStore } from '../jobs/jobs.store';
+import { JobInfo } from '../jobs/jobs.types';
 import { NoticeActions } from './notice-actions';
 import { NotificationToasts } from './notification-toasts';
 import { NotificationsBackend } from './notifications-backend';
@@ -63,6 +66,8 @@ function providers(fake: FakeNotices, ctx: FakeContext, actions: { run: (n: Noti
     { provide: NotificationsBackend, useValue: fake },
     { provide: COMMAND_CONTEXT, useValue: ctx },
     { provide: NoticeActions, useValue: actions },
+    // The Jobs list is not known until a test applies one.
+    { provide: JobsBackend, useValue: { list: () => new Promise(() => undefined), onChange: async () => () => undefined } },
     { provide: WorkspaceStore, useValue: { timezone: () => 'utc' } },
     { provide: Logger, useFactory: () => new MemoryLogger() },
   ];
@@ -266,6 +271,29 @@ describe('NotificationsPanel', () => {
     f.detectChanges();
     expect(fake.markAllRead).toHaveBeenCalledTimes(2);
     expect(f.nativeElement.querySelector('div.err')).toBeNull();
+  });
+  it('hides the job actions of a message whose job was cleared from Jobs and says the outcome is all that is kept', async () => {
+    const done = notice({ id: 9, source: 'job', title: 'Finished: Export', body: 'Bundle written', primary: { type: 'viewJob', jobId: 1 } });
+    const failed = notice({ id: 8, source: 'job', title: 'Failed: Import', body: 'disk full', primary: { type: 'retryJob', jobId: 2 }, secondary: { type: 'showJobs' } });
+    const { f } = setup([done, failed]);
+    const jobs = TestBed.inject(JobsStore);
+    await render(f);
+    // Until the Jobs list is known every action stays offered.
+    expect(f.nativeElement.querySelector('[data-testid=notice-primary-9]')).not.toBeNull();
+    expect(f.nativeElement.querySelector('[data-testid=notice-cleared-9]')).toBeNull();
+    jobs.apply({ jobs: [{ id: 2 } as JobInfo], paused: [] });
+    await render(f);
+    expect(f.nativeElement.querySelector('[data-testid=notice-primary-9]')).toBeNull();
+    expect(el(f, '[data-testid=notice-cleared-9]').textContent).toContain('cleared from Jobs');
+    expect(el(f, '[data-testid=notice-9] .body').textContent).toBe('Bundle written');
+    expect(el(f, '[data-testid=notice-primary-8]').textContent).toBe('Retry');
+    expect(f.nativeElement.querySelector('[data-testid=notice-cleared-8]')).toBeNull();
+    // Job 2 cleared too: Retry goes, "Show in Jobs" (no job of its own) stays.
+    jobs.apply({ jobs: [], paused: [] });
+    await render(f);
+    expect(f.nativeElement.querySelector('[data-testid=notice-primary-8]')).toBeNull();
+    expect(el(f, '[data-testid=notice-cleared-8]')).toBeTruthy();
+    expect(buttonByText(f, 'Show in Jobs')).toBeTruthy();
   });
 });
 
