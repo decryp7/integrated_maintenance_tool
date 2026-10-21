@@ -26,7 +26,9 @@ contributors are in [AGENTS.md](../AGENTS.md); the design is in [architecture.md
 
   ```sh
   eval "$(bash crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
-  ```
+  ```
+
+`npm run tauri build` (and `node app/scripts/build-sidecars.mjs`) fetch it themselves when `DUCKDB_LIB_DIR` is not set. On Windows without bash, run `node app/scripts/libduckdb.mjs` in PowerShell and paste the three lines it prints.
 
   It sets `DUCKDB_LIB_DIR`/`DUCKDB_INCLUDE_DIR` and puts the library on `PATH` / `LD_LIBRARY_PATH` /
   `DYLD_LIBRARY_PATH`, where the store worker (`imt-store-worker`) finds it in development builds; installers
