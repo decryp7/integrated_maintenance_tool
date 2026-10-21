@@ -9,6 +9,7 @@
 //! A child also exits when its stdin closes (the host died); nothing is left behind.
 
 use crate::elevation::{take_bootstrap, BOOTSTRAP_FLAG};
+use crate::frame::ProtocolVersion;
 use crate::launch::Bootstrap;
 use crate::link::Token;
 use crate::peer::{Handler, Peer, PeerOptions};
@@ -36,6 +37,12 @@ pub fn bootstrap_file(args: &[String]) -> Option<std::path::PathBuf> {
 /// A child process' `main`; see the module docs. `label` names the host in messages ("IMT"); `make` builds the
 /// handler once the bootstrap is known (it may look at [`Bootstrap::role`]).
 pub fn child_main(label: &str, make: impl FnOnce(&Bootstrap) -> Arc<dyn Handler>) -> io::Result<()> {
+    child_main_speaking(label, ProtocolVersion::UNVERSIONED, make)
+}
+
+/// [`child_main`] for a child that speaks a versioned protocol (a plugin): `protocol` is sent in the handshake, and
+/// a host that cannot serve it refuses the connection with a message saying which side to update.
+pub fn child_main_speaking(label: &str, protocol: ProtocolVersion, make: impl FnOnce(&Bootstrap) -> Arc<dyn Handler>) -> io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     let elevated = bootstrap_file(&args);
     let bootstrap = match &elevated {
@@ -51,7 +58,7 @@ pub fn child_main(label: &str, make: impl FnOnce(&Bootstrap) -> Arc<dyn Handler>
             b
         }
     };
-    let peer = connect_and_lock_down(&bootstrap, elevated.is_some(), label, make)?;
+    let peer = connect_speaking(&bootstrap, elevated.is_some(), label, protocol, make)?;
     peer.wait_closed(None);
     Ok(())
 }
@@ -63,11 +70,22 @@ pub fn connect_and_lock_down(
     label: &str,
     make: impl FnOnce(&Bootstrap) -> Arc<dyn Handler>,
 ) -> io::Result<Peer> {
+    connect_speaking(bootstrap, elevated, label, ProtocolVersion::UNVERSIONED, make)
+}
+
+/// [`connect_and_lock_down`] for a child that speaks `protocol`.
+pub fn connect_speaking(
+    bootstrap: &Bootstrap,
+    elevated: bool,
+    label: &str,
+    protocol: ProtocolVersion,
+    make: impl FnOnce(&Bootstrap) -> Arc<dyn Handler>,
+) -> io::Result<Peer> {
     let token =
         Token::from_hex(&bootstrap.token).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "bad token in the bootstrap"))?;
     let address = bootstrap.address.clone();
     let label_owned = label.to_string();
-    let stream = crate::runtime::run(async move { crate::link::handshake(&address, &token, &label_owned).await })
+    let stream = crate::runtime::run(async move { crate::link::handshake_speaking(&address, &token, &label_owned, protocol).await })
         .map_err(io::Error::other)?
         .map_err(|e| io::Error::other(e.to_string()))?;
     // Nothing has been read from the host yet but the handshake: lock down before the first request.

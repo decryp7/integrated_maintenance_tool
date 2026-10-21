@@ -23,6 +23,44 @@ pub enum FsAccess {
     },
 }
 
+/// Who enforces a child's sandbox.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", tag = "mode")]
+pub enum Containment {
+    /// The child locks itself down after connecting ([`lockdown`]): IMT's own code, where the threat is an exploited
+    /// parser, not a malicious binary.
+    #[default]
+    SelfApplied,
+    /// The launcher contains the child before its first instruction, so a binary that never calls [`lockdown`]
+    /// is still confined (third-party plugins, ADR 0027). The child still locks itself down on top.
+    ///
+    /// - Windows: an AppContainer named `name` (no access to the user's files or objects; network only with
+    ///   [`SandboxSpec::network`], through the `internetClient` capability), inside a job object with the
+    ///   sandbox's limits assigned while the process is still suspended; `readable` and `writable` are granted to
+    ///   the container.
+    /// - Linux: resource limits, `no_new_privs`, landlock (read and execute only below `readable` and the system
+    ///   library folders, writes only below `writable`) and the seccomp network filter, applied between `fork` and
+    ///   `exec`.
+    /// - macOS: started through `sandbox-exec` with the sandbox profile.
+    Launcher {
+        /// A stable name of at most 64 characters from `A–Z a–z 0–9 . -` (the AppContainer profile's name).
+        name: String,
+        /// Folders the child may read (its own program folder).
+        #[serde(default)]
+        read: Vec<PathBuf>,
+        /// Folders the child may write (its private data folder).
+        #[serde(default)]
+        write: Vec<PathBuf>,
+    },
+}
+
+impl Containment {
+    /// Whether `name` is a valid [`Containment::Launcher`] name.
+    pub fn valid_name(name: &str) -> bool {
+        !name.is_empty() && name.len() <= 64 && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-')
+    }
+}
+
 /// The sandbox of one child. The default restricts nothing (workers that need the user's rights).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -40,6 +78,8 @@ pub struct SandboxSpec {
     /// May open network sockets (Linux: seccomp; macOS: the sandbox profile; Windows: not enforced).
     pub network: bool,
     pub fs: FsAccess,
+    /// Who enforces the rest: the child itself (the default) or the launcher, before the child runs.
+    pub containment: Containment,
 }
 
 impl SandboxSpec {
@@ -63,7 +103,13 @@ impl SandboxSpec {
             low_integrity: true,
             network: false,
             fs: FsAccess::Nothing,
+            containment: Containment::SelfApplied,
         }
+    }
+
+    /// Whether the launcher contains the child ([`Containment::Launcher`]).
+    pub fn contained(&self) -> bool {
+        matches!(self.containment, Containment::Launcher { .. })
     }
 
     /// Whether the child must lock itself down at all.
@@ -83,6 +129,84 @@ pub fn lockdown(spec: &SandboxSpec, elevated: bool) -> Result<Vec<String>, Strin
     }
     platform::lockdown(spec, elevated, &mut notes)?;
     Ok(notes)
+}
+
+/// System folders a contained child may read and execute (the dynamic loader and the C library), Linux.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+const SYSTEM_READ: &[&str] = &[
+    "/usr",
+    "/lib",
+    "/lib64",
+    "/lib32",
+    "/etc/ld.so.cache",
+    "/etc/ld.so.conf",
+    "/etc/ld.so.conf.d",
+];
+
+/// Linux: contains `cmd` before it runs (see [`Containment::Launcher`]): resource limits, `no_new_privs`, landlock
+/// (read and execute below `read`, the program's folder and [`SYSTEM_READ`]; writes below `write`) and the network
+/// filter, applied in the forked child before `exec`. Everything is prepared before the fork.
+#[cfg(target_os = "linux")]
+pub(crate) fn contain_before_exec(cmd: &mut std::process::Command, spec: &SandboxSpec, exe: &std::path::Path) -> Result<(), String> {
+    use std::os::unix::process::CommandExt;
+    let Containment::Launcher { read, write, .. } = &spec.containment else {
+        return Ok(());
+    };
+    let mut readable: Vec<PathBuf> = read.clone();
+    readable.extend(exe.parent().map(PathBuf::from));
+    readable.extend(SYSTEM_READ.iter().map(PathBuf::from).filter(|p| p.exists()));
+    let ruleset = std::sync::Mutex::new(Some(platform::launcher_ruleset(&readable, write)?));
+    let filter = bpf::filter(!spec.network, false);
+    let (memory, cpu) = (spec.memory_limit, spec.cpu_seconds);
+    // SAFETY: the hook runs in the forked child before exec; it only makes system calls on data prepared above
+    // (the limits, the landlock ruleset's descriptor and the BPF program). The ruleset's mutex is never contended:
+    // only this hook takes it, so no lock held at fork time can block it.
+    unsafe {
+        cmd.pre_exec(move || {
+            platform::set_limit(libc::RLIMIT_AS, memory).map_err(std::io::Error::other)?;
+            platform::set_limit(libc::RLIMIT_CPU, cpu).map_err(std::io::Error::other)?;
+            if libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            if let Some(r) = ruleset.lock().ok().and_then(|mut g| g.take()) {
+                r.restrict_self().map_err(|e| std::io::Error::other(e.to_string()))?;
+            }
+            let fprog = libc::sock_fprog {
+                len: filter.len() as u16,
+                filter: filter.as_ptr() as *mut libc::sock_filter,
+            };
+            if libc::prctl(libc::PR_SET_SECCOMP, libc::SECCOMP_MODE_FILTER, &fprog as *const libc::sock_fprog) != 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+    Ok(())
+}
+
+/// macOS: the profile `sandbox-exec` starts a contained child with (see [`Containment::Launcher`]): the sandbox's
+/// profile with file access limited to `read` (and the program's folder) and `write`, plus permission to execute
+/// the program itself. `None` for a child that is not contained.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub(crate) fn launcher_profile(spec: &SandboxSpec, exe: &std::path::Path) -> Option<String> {
+    let Containment::Launcher { read, write, .. } = &spec.containment else {
+        return None;
+    };
+    let mut s = spec.clone();
+    let mut readable = read.clone();
+    readable.extend(exe.parent().map(PathBuf::from));
+    s.fs = FsAccess::Paths {
+        read: readable,
+        write: write.clone(),
+    };
+    let mut p = macos_profile(&s)?;
+    p.push_str(&format!("(allow process-exec (literal {}))\n", sbpl_quote(exe)));
+    Some(p)
+}
+
+/// A path as an SBPL string literal.
+fn sbpl_quote(p: &std::path::Path) -> String {
+    format!("\"{}\"", p.to_string_lossy().replace('\\', "\\\\").replace('"', "\\\""))
 }
 
 /// Removes every environment variable but `keep`.
@@ -120,7 +244,8 @@ mod platform {
                 None => notes.push("could not apply the job limits".into()),
             }
         }
-        if spec.low_integrity {
+        // A contained child already runs in an AppContainer, which is below low integrity.
+        if spec.low_integrity && !spec.contained() {
             lower_integrity()?;
         }
         if !spec.network {
@@ -169,7 +294,7 @@ mod platform {
         Ok(())
     }
 
-    fn set_limit(resource: libc::__rlimit_resource_t, value: Option<u64>) -> Result<(), String> {
+    pub(super) fn set_limit(resource: libc::__rlimit_resource_t, value: Option<u64>) -> Result<(), String> {
         let Some(v) = value else { return Ok(()) };
         let lim = libc::rlimit {
             rlim_cur: v as libc::rlim_t,
@@ -210,6 +335,26 @@ mod platform {
             RulesetStatus::NotEnforced => notes.push("landlock is not supported by this kernel: file access is not restricted".into()),
         }
         Ok(())
+    }
+
+    /// The landlock ruleset of a contained child (see [`super::contain_before_exec`]), created but not applied.
+    pub(super) fn launcher_ruleset(read: &[std::path::PathBuf], write: &[std::path::PathBuf]) -> Result<landlock::RulesetCreated, String> {
+        use landlock::{Access, AccessFs, PathBeneath, PathFd, Ruleset, RulesetAttr, RulesetCreatedAttr, ABI};
+        let abi = ABI::V3;
+        let fail = |e: landlock::RulesetError| format!("landlock: {e}");
+        let mut ruleset = Ruleset::default()
+            .handle_access(AccessFs::from_all(abi))
+            .map_err(fail)?
+            .create()
+            .map_err(fail)?;
+        for (paths, access) in [(read, AccessFs::from_read(abi)), (write, AccessFs::from_all(abi))] {
+            for p in paths {
+                if let Ok(fd) = PathFd::new(p) {
+                    ruleset = ruleset.add_rule(PathBeneath::new(fd, access)).map_err(fail)?;
+                }
+            }
+        }
+        Ok(ruleset)
     }
 
     /// Installs [`super::bpf::filter`].
@@ -367,7 +512,10 @@ mod platform {
     pub fn lockdown(spec: &SandboxSpec, _elevated: bool, _notes: &mut Vec<String>) -> Result<(), String> {
         set_limit(libc::RLIMIT_AS, spec.memory_limit)?;
         set_limit(libc::RLIMIT_CPU, spec.cpu_seconds)?;
-        let Some(profile) = super::macos_profile(spec) else { return Ok(()) };
+        // A contained child already runs under the profile sandbox-exec applied.
+        let Some(profile) = super::macos_profile(spec).filter(|_| !spec.contained()) else {
+            return Ok(());
+        };
         let profile = CString::new(profile).map_err(|e| e.to_string())?;
         let mut err: *mut c_char = std::ptr::null_mut();
         // SAFETY: `profile` is a valid C string; `err` receives an allocated message, freed below.
@@ -484,6 +632,36 @@ mod tests {
         assert!(p.contains(r#"(allow file-read* (subpath "/models/a \"b\""))"#), "{p}");
         assert!(p.contains(r#"(allow file-read* file-write* (subpath "/out"))"#), "{p}");
         assert!(!p.contains("network"));
+    }
+
+    #[test]
+    fn contained_children_get_a_launcher_profile_with_their_folders_only() {
+        assert_eq!(launcher_profile(&SandboxSpec::locked(), std::path::Path::new("/p/bin/x")), None);
+        let spec = SandboxSpec {
+            containment: Containment::Launcher {
+                name: "imt.plugin.x".into(),
+                read: vec!["/p".into()],
+                write: vec!["/p/data".into()],
+            },
+            ..SandboxSpec::locked()
+        };
+        assert!(spec.contained() && !SandboxSpec::locked().contained());
+        let p = launcher_profile(&spec, std::path::Path::new("/p/bin/x")).unwrap();
+        for rule in [
+            "(deny network*)",
+            "(deny process-exec*)",
+            "(deny file-read* file-write*)",
+            r#"(allow file-read* (subpath "/p"))"#,
+            r#"(allow file-read* (subpath "/p/bin"))"#,
+            r#"(allow file-read* file-write* (subpath "/p/data"))"#,
+            r#"(allow process-exec (literal "/p/bin/x"))"#,
+        ] {
+            assert!(p.contains(rule), "{rule} in {p}");
+        }
+        let json = serde_json::to_string(&spec).unwrap();
+        assert_eq!(serde_json::from_str::<SandboxSpec>(&json).unwrap(), spec);
+        assert!(Containment::valid_name("imt.plugin.a-b") && !Containment::valid_name("a b") && !Containment::valid_name(""));
+        assert!(!Containment::valid_name(&"x".repeat(65)));
     }
 
     #[test]

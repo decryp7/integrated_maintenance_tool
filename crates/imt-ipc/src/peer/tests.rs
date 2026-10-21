@@ -277,7 +277,13 @@ fn garbage_closes_the_connection() {
 #[test]
 fn a_repeated_handshake_or_items_beyond_credit_break_the_protocol() {
     let (p, mut io) = raw(Arc::new(NoCalls), PeerOptions::new("the plugin"));
-    write_frame_raw(&mut io, &Frame::Welcome { version: 1 });
+    write_frame_raw(
+        &mut io,
+        &Frame::Welcome {
+            version: 1,
+            protocol: Default::default(),
+        },
+    );
     assert!(p.wait_closed(Some(Duration::from_secs(5))));
     assert!(matches!(p.closed(), Some(IpcError::Protocol(m)) if m.contains("handshake")));
 

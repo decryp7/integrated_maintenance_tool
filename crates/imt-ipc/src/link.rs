@@ -6,7 +6,7 @@
 //! id against the process it started, answers [`Frame::Welcome`], and both sides start a [`Peer`].
 
 use crate::endpoint::PrivateEndpoint;
-use crate::frame::{self, Frame, FrameError, TOKEN_BYTES, VERSION};
+use crate::frame::{self, Frame, FrameError, ProtocolVersion, TOKEN_BYTES, VERSION};
 use crate::peer::{Duplex, Handler, Peer, PeerOptions};
 use crate::IpcError;
 use std::sync::Arc;
@@ -18,13 +18,16 @@ pub const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 const HANDSHAKE_MAX: usize = 1024;
 
 /// Who may open the host's endpoint (the token is checked either way).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Access {
     /// Only the user running IMT.
     Owner,
     /// The user and the Administrators group: for an elevated child, which may run as another account
     /// (an over-the-shoulder administrator). Unix: same as [`Access::Owner`].
     OwnerAndAdmins,
+    /// The user's processes in the AppContainer with this SID (`S-1-15-2-...`), which run below low integrity: a
+    /// contained child ([`crate::sandbox::Containment::Launcher`]). Unix: same as [`Access::Owner`].
+    OwnerInContainer(String),
 }
 
 /// A per-launch token.
@@ -129,20 +132,26 @@ impl Listener {
                 }
             }
         };
-        let hello = tokio::time::timeout(HANDSHAKE_TIMEOUT, frame::read_frame(&mut stream.io, HANDSHAKE_MAX)).await;
-        let (version, token, pid) = match hello {
+        let hello = tokio::time::timeout(HANDSHAKE_TIMEOUT, frame::read_body(&mut stream.io, HANDSHAKE_MAX)).await;
+        let body = match hello {
             Err(_) => return Err(IpcError::Protocol(format!("{label} connected but sent no handshake"))),
             Ok(Err(e)) => return Err(handshake_error(&label, e)),
-            Ok(Ok(Frame::Hello { version, token, pid })) => (version, token, pid),
-            Ok(Ok(other)) => return Err(IpcError::Protocol(format!("{label} sent {other:?} instead of its handshake"))),
+            Ok(Ok(body)) => body,
+        };
+        // The versions first: a child of another frame version lays the rest of its Hello out differently.
+        if let Some((version, _)) = frame::handshake_versions(&body).filter(|(v, _)| *v != VERSION) {
+            return Err(IpcError::Spawn(frame_version_mismatch(&label, version)));
+        }
+        let (protocol, token, pid) = match frame::decode_body(&body) {
+            Ok(Frame::Hello { protocol, token, pid, .. }) => (protocol, token, pid),
+            Ok(other) => return Err(IpcError::Protocol(format!("{label} sent {other:?} instead of its handshake"))),
+            Err(e) => return Err(handshake_error(&label, e)),
         };
         if !self.token.matches(&token) {
             return Err(IpcError::Protocol(format!("{label} presented a wrong session token")));
         }
-        if version != VERSION {
-            return Err(IpcError::Protocol(format!(
-                "{label} speaks protocol version {version}, this IMT speaks {VERSION}; reinstall IMT"
-            )));
+        if let Some(why) = opts.protocol.mismatch(protocol, &label) {
+            return Err(IpcError::Spawn(why));
         }
         if let Some(expected) = expected_pid {
             // The peer's pid as the OS reports it, else what it claims; both must be the started process.
@@ -153,11 +162,26 @@ impl Listener {
                 )));
             }
         }
-        frame::write_frame(&mut stream.io, &Frame::Welcome { version: VERSION }, HANDSHAKE_MAX)
+        let welcome = Frame::Welcome {
+            version: VERSION,
+            protocol: opts.protocol,
+        };
+        frame::write_frame(&mut stream.io, &welcome, HANDSHAKE_MAX)
             .await
             .map_err(|e| handshake_error(&label, e))?;
         let peer = Peer::start(stream.io, handler, opts, &tokio::runtime::Handle::current());
         Ok((peer, self.endpoint))
+    }
+}
+
+/// Why a child of frame version `version` is refused.
+fn frame_version_mismatch(label: &str, version: u16) -> String {
+    if version < VERSION {
+        format!(
+            "{label} is too old: it uses frame version {version} and this IMT uses {VERSION}; it needs an update built with a current SDK"
+        )
+    } else {
+        format!("{label} needs a newer IMT: it uses frame version {version} and this IMT uses {VERSION}; update IMT")
     }
 }
 
@@ -169,13 +193,21 @@ fn handshake_error(label: &str, e: FrameError) -> IpcError {
 }
 
 /// The child's side of the handshake: connects to `address` and authenticates with `token`; returns the stream
-/// to start a [`Peer`] on (after the child locked itself down).
+/// to start a [`Peer`] on (after the child locked itself down). For connections whose protocol carries no version
+/// ([`ProtocolVersion::UNVERSIONED`]); see [`handshake_speaking`].
 pub async fn handshake(address: &str, token: &Token, label: &str) -> Result<Box<dyn Duplex>, IpcError> {
+    handshake_speaking(address, token, label, ProtocolVersion::UNVERSIONED).await
+}
+
+/// [`handshake`] for a child that speaks `protocol` (a plugin: the plugin protocol it was built for). The host
+/// refuses a protocol it cannot serve with a message saying which side to update.
+pub async fn handshake_speaking(address: &str, token: &Token, label: &str, protocol: ProtocolVersion) -> Result<Box<dyn Duplex>, IpcError> {
     let mut io = platform::connect(address)
         .await
         .map_err(|e| IpcError::Spawn(format!("cannot connect to {label}: {e}")))?;
     let hello = Frame::Hello {
         version: VERSION,
+        protocol,
         token: token.0,
         pid: std::process::id(),
     };
@@ -185,7 +217,7 @@ pub async fn handshake(address: &str, token: &Token, label: &str) -> Result<Box<
     match tokio::time::timeout(HANDSHAKE_TIMEOUT, frame::read_frame(&mut io, HANDSHAKE_MAX)).await {
         Err(_) => Err(IpcError::Protocol(format!("{label} did not answer the handshake"))),
         Ok(Err(e)) => Err(handshake_error(label, e)),
-        Ok(Ok(Frame::Welcome { version: VERSION })) => Ok(Box::new(io)),
+        Ok(Ok(Frame::Welcome { version: VERSION, .. })) => Ok(Box::new(io)),
         Ok(Ok(other)) => Err(IpcError::Protocol(format!("{label} answered the handshake with {other:?}"))),
     }
 }
@@ -254,9 +286,18 @@ mod platform {
     pub struct Listening(NamedPipeServer);
 
     pub fn listen(address: &str, access: Access) -> io::Result<Listening> {
-        let sddl = match access {
-            Access::Owner => OWNER_ONLY,
-            Access::OwnerAndAdmins => OWNER_AND_ADMINS,
+        let sddl = match &access {
+            Access::Owner => OWNER_ONLY.to_string(),
+            Access::OwnerAndAdmins => OWNER_AND_ADMINS.to_string(),
+            Access::OwnerInContainer(sid) => {
+                // A SID string has only `S`, digits and dashes: nothing that could change the descriptor.
+                if !sid.starts_with("S-1-15-2-") || !sid.chars().all(|c| c == 'S' || c == '-' || c.is_ascii_digit()) {
+                    return Err(io::Error::new(io::ErrorKind::InvalidInput, "not an AppContainer SID"));
+                }
+                // Both the user and the container must be allowed (an AppContainer's access check needs both), and
+                // the pipe is labelled low integrity so a container (below low) may write to it.
+                format!("D:P(A;;GA;;;OW)(A;;GA;;;{sid})S:(ML;;NW;;;LW)")
+            }
         };
         let wide: Vec<u16> = sddl.encode_utf16().chain(std::iter::once(0)).collect();
         let mut descriptor = PSECURITY_DESCRIPTOR::default();

@@ -13,6 +13,8 @@
 
 pub mod child;
 pub mod child_log;
+#[cfg(windows)]
+pub mod contain;
 pub mod elevation;
 pub mod endpoint;
 pub mod error;
@@ -31,7 +33,7 @@ pub mod wire;
 pub use error::{IpcError, RemoteError};
 pub use launch::{launch, Bootstrap, Child, ChildSpec};
 pub use peer::{CallCtx, CallStream, Handler, Peer, PeerOptions, StreamEvent};
-pub use sandbox::{FsAccess, SandboxSpec};
+pub use sandbox::{Containment, FsAccess, SandboxSpec};
 pub use wire::Json;
 
 /// The message of a panic payload (`&str` or `String`), for errors that report a contained panic.

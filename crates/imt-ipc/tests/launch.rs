@@ -78,6 +78,29 @@ fn children_that_die_or_never_connect_fail_the_launch() {
 }
 
 #[test]
+fn a_child_of_another_protocol_version_is_refused_with_what_to_update() {
+    let host = |args: &[&str]| {
+        let mut s = spec(args);
+        s.peer.protocol = imt_ipc::frame::ProtocolVersion::new(1, 2);
+        s
+    };
+    assert!(launch(&host(&["--protocol=1.0"]), Arc::new(NoCalls)).is_ok());
+    for (args, says) in [
+        (["--protocol=0.9"], "too old"),
+        (["--protocol=1.3"], "needs a newer IMT"),
+        (["--protocol=2.0"], "needs a newer IMT"),
+    ] {
+        match launch(&host(&args), Arc::new(NoCalls)) {
+            Err(IpcError::Spawn(m)) => assert!(m.contains(says) && m.contains("the fake child"), "{m}"),
+            Err(e) => panic!("{args:?}: {e:?}"),
+            Ok(_) => panic!("{args:?} accepted"),
+        }
+    }
+    // Unversioned on both sides (the workers) still connects.
+    assert!(launch(&spec(&[]), Arc::new(NoCalls)).is_ok());
+}
+
+#[test]
 fn a_wrong_token_or_another_process_is_refused() {
     match launch(&spec(&["--bad-token"]), Arc::new(NoCalls)) {
         Err(IpcError::Protocol(m)) => assert!(m.contains("wrong session token"), "{m}"),
@@ -184,6 +207,89 @@ fn the_job_memory_cap_fails_a_large_allocation() {
     let c = launch(&spec(&[]).sandbox(capped), Arc::new(NoCalls)).unwrap();
     // 200 MB cannot be committed under a 64 MiB cap: the child dies (allocation failure aborts) or errors.
     assert!(ask(&c, "big 200000000").is_err());
+}
+
+/// A copy of the fake child in its own folder (a contained child can only run from folders granted to it; granting
+/// cargo's target folder would rewrite the permissions of everything in it), contained by the launcher.
+#[cfg(any(windows, target_os = "linux"))]
+fn contained(args: &[&str], root: &std::path::Path) -> ChildSpec {
+    let bin = root.join("bin");
+    let data = root.join("data");
+    std::fs::create_dir_all(&bin).unwrap();
+    std::fs::create_dir_all(&data).unwrap();
+    let exe = bin.join(std::path::Path::new(env!("CARGO_BIN_EXE_imt-ipc-fake-child")).file_name().unwrap());
+    std::fs::copy(env!("CARGO_BIN_EXE_imt-ipc-fake-child"), &exe).unwrap();
+    let mut s = spec(args);
+    s.spawn.exe = exe;
+    s.spawn.sandbox = imt_ipc::sandbox::SandboxSpec {
+        containment: imt_ipc::sandbox::Containment::Launcher {
+            name: "imt.test.fake-child".into(),
+            read: vec![bin],
+            write: vec![data],
+        },
+        ..imt_ipc::sandbox::SandboxSpec::locked()
+    };
+    s
+}
+
+#[cfg(windows)]
+#[test]
+fn a_contained_child_is_confined_even_when_it_skips_its_own_lockdown() {
+    let root = tempfile::tempdir().unwrap();
+    // A file of the user's, outside every granted folder.
+    let user = tempfile::tempdir().unwrap();
+    let secret = user.path().join("secret.txt");
+    std::fs::write(&secret, b"top secret").unwrap();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    for args in [&[][..], &["--skip-lockdown"][..]] {
+        let c = launch(&contained(args, root.path()), Arc::new(NoCalls)).unwrap();
+        assert_eq!(ask(&c, "echo contained").unwrap(), "contained", "{args:?}");
+        let r = ask(&c, &format!("read {}", secret.display())).unwrap();
+        assert!(r.starts_with("denied"), "{args:?}: a contained child read a user file: {r}");
+        let w = ask(&c, &format!("write {}", user.path().join("x.txt").display())).unwrap();
+        assert!(w.starts_with("denied"), "{args:?}: {w}");
+        let own = root.path().join("data").join("own.txt");
+        assert_eq!(
+            ask(&c, &format!("write {}", own.display())).unwrap(),
+            "ok",
+            "{args:?}: its data folder"
+        );
+        let n = ask(&c, &format!("connect {addr}")).unwrap();
+        assert!(
+            n.starts_with("denied"),
+            "{args:?}: a contained child without the network connected: {n}"
+        );
+        let p = ask(&c, "spawn").unwrap();
+        assert!(p.starts_with("denied"), "{args:?}: {p}");
+        // The environment is the spec's only.
+        assert_eq!(ask(&c, "env CARGO_PKG_NAME").unwrap(), "<unset>");
+        c.stop();
+    }
+    // A wrong token is still refused from inside a container.
+    assert!(matches!(
+        launch(&contained(&["--bad-token"], root.path()), Arc::new(NoCalls)),
+        Err(IpcError::Protocol(_))
+    ));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_contained_child_is_confined_even_when_it_skips_its_own_lockdown() {
+    let root = tempfile::tempdir().unwrap();
+    let user = tempfile::tempdir().unwrap();
+    let secret = user.path().join("secret.txt");
+    std::fs::write(&secret, b"top secret").unwrap();
+    let c = launch(&contained(&["--skip-lockdown"], root.path()), Arc::new(NoCalls)).unwrap();
+    assert_eq!(ask(&c, "echo contained").unwrap(), "contained");
+    let r = ask(&c, &format!("read {}", secret.display())).unwrap();
+    assert!(r.starts_with("denied"), "{r}");
+    let w = ask(&c, &format!("write {}", user.path().join("x.txt").display())).unwrap();
+    assert!(w.starts_with("denied"), "{w}");
+    let own = root.path().join("data").join("own.txt");
+    assert_eq!(ask(&c, &format!("write {}", own.display())).unwrap(), "ok");
+    let n = ask(&c, "connect 127.0.0.1:9").unwrap();
+    assert!(n.starts_with("denied"), "{n}");
 }
 
 #[cfg(target_os = "linux")]
