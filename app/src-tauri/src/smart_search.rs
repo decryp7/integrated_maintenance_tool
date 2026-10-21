@@ -16,13 +16,23 @@ use tauri::{AppHandle, Manager, Runtime};
 /// The running scan of each window.
 static RUNNING: Mutex<Option<HashMap<String, JobId>>> = Mutex::new(None);
 
-fn swap(label: &str, id: Option<JobId>) -> Option<JobId> {
+fn with_running<T>(f: impl FnOnce(&mut HashMap<String, JobId>) -> T) -> T {
     let mut running = RUNNING.lock().unwrap_or_else(|p| p.into_inner());
-    let map = running.get_or_insert_with(HashMap::new);
-    match id {
-        Some(id) => map.insert(label.to_string(), id),
-        None => map.remove(label),
-    }
+    f(running.get_or_insert_with(HashMap::new))
+}
+
+/// Records `id` as the window's scan; returns the scan it supersedes.
+fn started(label: &str, id: JobId) -> Option<JobId> {
+    with_running(|m| m.insert(label.to_string(), id))
+}
+
+/// Forgets the window's scan when it is still `id` (a newer scan stays).
+fn finished(label: &str, id: Option<JobId>) {
+    with_running(|m| {
+        if id.is_some() && m.get(label).copied() == id {
+            m.remove(label);
+        }
+    });
 }
 
 /// Counts the events matching `query` whose text matches only as a substring (not as words); `null` when the
@@ -31,10 +41,12 @@ fn swap(label: &str, id: Option<JobId>) -> Option<JobId> {
 pub async fn search_partial<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, query: Filter) -> CmdResult<Option<PartialMatches>> {
     let label = state.label().to_string();
     let jobs = app.try_state::<crate::jobs::Jobs>().map(|j| j.inner().clone());
+    let mine = std::sync::Arc::new(Mutex::new(None));
     let announce = {
-        let label = label.clone();
+        let (label, mine) = (label.clone(), mine.clone());
         move |id: JobId| {
-            if let (Some(previous), Some(jobs)) = (swap(&label, Some(id)), jobs.as_ref()) {
+            *mine.lock().unwrap_or_else(|p| p.into_inner()) = Some(id);
+            if let (Some(previous), Some(jobs)) = (started(&label, id), jobs.as_ref()) {
                 // Already finished or gone: nothing to stop.
                 let _ = jobs.cancel(previous);
             }
@@ -52,8 +64,12 @@ pub async fn search_partial<R: Runtime>(app: AppHandle<R>, state: CurrentWindow,
         move |store, _| Ok(store.partial_matches(&query)),
     )
     .await;
-    swap(&label, None);
-    match out? {
+    finished(&label, *mine.lock().unwrap_or_else(|p| p.into_inner()));
+    let out = match out {
+        Err(e) if e.code == crate::ErrorCode::Cancelled => return Ok(None),
+        other => other?,
+    };
+    match out {
         Ok(found) => Ok(Some(found)),
         Err(StoreError::Cancelled) => Ok(None),
         Err(e) => Err(e.into()),
@@ -97,6 +113,14 @@ mod tests {
             found.added as usize, page.total,
             "every substring match of `imeout` is a partial match"
         );
-        assert!(swap("main", None).is_none(), "the finished scan is forgotten");
+        assert!(with_running(|m| m.get("main").is_none()), "the finished scan is forgotten");
+        // A newer scan is not forgotten when an older one finishes.
+        assert!(started("w", JobId(1)).is_none());
+        assert_eq!(started("w", JobId(2)), Some(JobId(1)));
+        finished("w", Some(JobId(1)));
+        assert_eq!(with_running(|m| m.get("w").copied()), Some(JobId(2)));
+        finished("w", Some(JobId(2)));
+        finished("w", None);
+        assert!(with_running(|m| m.get("w").is_none()));
     }
 }

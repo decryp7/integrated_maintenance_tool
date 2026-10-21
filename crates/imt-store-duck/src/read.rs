@@ -351,7 +351,7 @@ impl Inner {
 
     /// The hits file of a word search, or `None` when the index cannot answer it exactly (unavailable, not
     /// caught up with the segments, or too many hits).
-    fn word_hits(&self, words: &imt_core::words::WordQuery) -> anyhow::Result<Option<Arc<crate::hits::HitsFile>>> {
+    fn word_hits(&self, words: &imt_core::words::WordQuery) -> anyhow::Result<Option<crate::hits::Hits>> {
         let Some(fts) = self.fts.as_ref() else { return Ok(None) };
         let conn = self.conn().map_err(|e| anyhow::anyhow!("{e}"))?;
         let pending: u64 = conn.query_row("SELECT count(*) FROM segments WHERE NOT indexed", [], |r| r.get(0))?;
@@ -1468,10 +1468,10 @@ impl sql::FieldSource for WithHits<'_> {
     }
     fn word_hits(&self, words: &imt_core::words::WordQuery) -> Option<String> {
         match self.inner.word_hits(words) {
-            Ok(Some(file)) => {
-                let path = sql::lit(&file.path.to_string_lossy().replace('\\', "/"))?;
-                self.keep.borrow_mut().push(file);
-                Some(format!("e.id IN (SELECT id FROM read_parquet({path}))"))
+            Ok(Some(hits)) => {
+                let (sql, file) = hits.condition()?;
+                self.keep.borrow_mut().extend(file);
+                Some(sql)
             }
             Ok(None) => None,
             Err(e) => {
