@@ -6,23 +6,26 @@ import { ANALYSIS_STYLES } from '../analysis/analysis-styles';
 import { AsyncResource } from '../analysis/async-resource';
 import { SeverityBadge } from '../live/severity-badge';
 import { DumpsBackend } from './dumps-backend';
+import { formatBytes as unitBytes, formatCount } from '../shared/format/units';
+
+export { formatCount };
 
 /** The AI chat view (provide-ai.ts `AI_CHAT_VIEW`). */
 const AI_CHAT_VIEW = 'ai-chat';
 
-/** `12.3 MB`, `-2.0 KB`, `512 bytes` (display only; the engine computes the values). */
+/** A size, also negative (a shrinking stack): the app's humanized sizes (display only; the engine computes them). */
 export function formatBytes(n: number): string {
-  const sign = n < 0 ? '-' : '';
-  const v = Math.abs(n);
-  if (v >= 1 << 30) return `${sign}${(v / (1 << 30)).toFixed(1)} GB`;
-  if (v >= 1 << 20) return `${sign}${(v / (1 << 20)).toFixed(1)} MB`;
-  if (v >= 1 << 10) return `${sign}${(v / (1 << 10)).toFixed(1)} KB`;
-  return $localize`:@@dumps.bytes:${sign + v}:n: bytes`;
+  return n < 0 ? `-${unitBytes(-n)}` : unitBytes(n);
 }
 
 /** A signed change: `+1.2 MB`. */
 export function formatDelta(n: number): string {
   return n > 0 ? `+${formatBytes(n)}` : formatBytes(n);
+}
+
+/** A signed count change: `+320`. */
+export function formatCountDelta(n: number): string {
+  return n > 0 ? `+${formatCount(n)}` : n < 0 ? `-${formatCount(-n)}` : formatCount(0);
 }
 
 /** Layout shared by the dump views (on top of the analysis views'); colours are app tokens. */

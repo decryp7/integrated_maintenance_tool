@@ -414,6 +414,60 @@ proptest! {
     }
 }
 
+/// Lines a mixed log file may hold: events of several formats, JSON objects, stack frames, anything.
+fn mixed_line() -> impl Strategy<Value = String> {
+    prop_oneof![
+        (timestamp_like(), "[ -~]{0,60}").prop_map(|(t, rest)| format!("{t} {rest}")),
+        (timestamp_like(), "(INF|WRN|ERR|INFO|WARN|ERROR)", "[ -~]{0,40}").prop_map(|(t, l, m)| format!("{t} [{l}] {m}")),
+        (timestamp_like(), "[ -~]{0,40}").prop_map(|(t, m)| format!("{{\"@t\":{t:?},\"@m\":{m:?}}}")),
+        "[ \t]{1,4}at [ -~]{0,40}",
+        "[{} ]{0,4}",
+        any::<String>(),
+    ]
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(CASES))]
+
+    /// Per-line format matching never panics, whatever format dominates, and agrees with the chunk-boundary
+    /// check of the parallel import.
+    #[test]
+    fn line_parser_never_panics(lines in prop::collection::vec(mixed_line(), 0..12), dominant in 0usize..8) {
+        guard(move || {
+            use imt_core::importers::lines::{begins_event, looks_like_event_start, Line, LineFormat, LineParser};
+            for profile in [default_ctx_profile(), sample_ctx_profile()] {
+                let fmt = if dominant == 7 { LineFormat::Json } else { LineFormat::Text(dominant) };
+                let mut parser = LineParser::new(profile, fmt, None, chrono::NaiveDate::from_ymd_opt(2026, 10, 14));
+                for (i, l) in lines.iter().enumerate() {
+                    let _ = looks_like_event_start(l);
+                    let event = matches!(parser.line(l, i as u32 + 1), Line::Event(_));
+                    assert_eq!(begins_event(profile, fmt, l), event, "{l:?}");
+                }
+                let text = lines.join("
+");
+                let _ = imt_core::importers::lines::best_format(profile, &text);
+            }
+        });
+    }
+
+    /// Route templates and labels never panic and labels stay within their limit.
+    #[test]
+    fn routes_never_panic(template in ".{0,40}", value in any::<String>()) {
+        guard(move || {
+            let cfg = imt_core::route::RouteCfg { when: Vec::new(), source: template };
+            if let Ok(route) = imt_core::route::Route::compile(&cfg) {
+                let mut r = Record::new(1);
+                for k in ["App", "Host", "x"] {
+                    r.fields.insert(k.into(), Value::from(value.clone()));
+                }
+                if let Some(label) = route.label(&r, "s") {
+                    assert!(!label.is_empty() && label.chars().count() <= imt_core::route::MAX_LABEL_CHARS);
+                }
+            }
+        });
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Archives
 // ---------------------------------------------------------------------------

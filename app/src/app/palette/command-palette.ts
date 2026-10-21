@@ -17,7 +17,7 @@ let nextId = 0;
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (palette.isOpen()) {
-      <div class="backdrop" (mousedown)="close()"></div>
+      <div class="backdrop" data-imt-overlay (mousedown)="close()"></div>
       <div class="box" role="dialog" aria-modal="true" [attr.aria-label]="dialogLabel()">
         <input
           #input

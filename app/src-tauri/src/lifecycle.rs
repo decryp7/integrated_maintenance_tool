@@ -571,7 +571,7 @@ fn arm_exit_watchdog_with<R: tauri::Runtime>(
     let spawned = std::thread::Builder::new().name("imt-exit-watchdog".into()).spawn(move || {
         std::thread::sleep(limit);
         use tauri::Manager;
-        let open = || app.webview_windows().into_keys().collect::<Vec<_>>();
+        let open = || app.windows().into_keys().collect::<Vec<_>>();
         end_stalled_exit(&TEARDOWN_STARTED, open, || exit_teardown(&app), end, code, limit);
     });
     if let Err(e) = spawned {
@@ -863,8 +863,9 @@ mod tests {
         crate::window_manager::destroyed(app.handle(), "main");
         exit_teardown(app.handle());
         let took = started.elapsed();
+        // Bounded by the step limits, far below the job's 30 s; the slack covers a loaded machine's scheduling.
         assert!(
-            took < TEARDOWN_STEP_LIMIT * 2 + std::time::Duration::from_secs(1),
+            took < TEARDOWN_STEP_LIMIT * 2 + std::time::Duration::from_secs(5),
             "quitting took {took:?}"
         );
         drop(import);

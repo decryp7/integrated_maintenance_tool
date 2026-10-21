@@ -17,6 +17,8 @@ export function kindLabel(kind: JobKind): string {
       return $localize`:@@jobs.kind.download:Download`;
     case 'collection':
       return $localize`:@@jobs.kind.collection:Collection`;
+    case 'capture':
+      return $localize`:@@jobs.kind.capture:Capture`;
     case 'maintenance':
       return $localize`:@@jobs.kind.maintenance:Maintenance`;
   }

@@ -1,3 +1,4 @@
+import { formatBytes, formatNumber, formatPercent, formatRate } from '../../shared/format/units';
 import type { EChartsCoreOption } from 'echarts/core';
 import { ChartData, ChartDef, Query, WorkspaceSummary } from '../../core/api.types';
 import { EMPTY_QUERY } from '../../core/workspace.store';
@@ -111,6 +112,36 @@ export function exactValue(v: unknown, unit: string): string {
   return unit ? `${n} ${unit}` : n;
 }
 
+/** Units whose values the chart scales for people (KB, MB, GB, MB/s) instead of printing a fixed unit. */
+export function isAutoUnit(unit: string): boolean {
+  return unit === 'MB' || unit === 'B' || unit === 'B/s' || unit === '%';
+}
+
+/** A value humanized by its unit: bytes scale to KB/MB/GB, rates to MB/s, percentages follow the locale. */
+export function humanValue(v: unknown, unit: string): string {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return '—';
+  switch (unit) {
+    case 'MB':
+      return formatBytes(v * 1024 * 1024);
+    case 'B':
+      return formatBytes(v);
+    case 'B/s':
+      return v > 0 ? formatRate(v) : $localize`:@@tools.monitor.noRate:0 bytes/s`;
+    case '%':
+      return formatPercent(v, 1);
+    case '/s':
+      return `${formatNumber(v)}/s`;
+    default:
+      return formatNumber(v);
+  }
+}
+
+/** Tooltip text: the humanized value, plus the exact one where scaling hides digits. */
+export function tooltipValue(v: unknown, unit: string): string {
+  const human = humanValue(v, unit);
+  return unit === 'MB' || unit === 'B' || unit === 'B/s' ? `${human} (${exactValue(v, unit)})` : human;
+}
+
 /**
  * Direct labels for narrow small multiples: the process name alone (`OrderService.exe`) when it is unique in the chart,
  * the full `name · pid` key otherwise. Legend and tooltip always show the full key.
@@ -157,7 +188,8 @@ export function monitorOption({ data, tokens, tz, slots, hidden }: MonitorOption
     grid: { ...base['grid'], top: 12 },
     // One shared legend (HTML, above the multiples) toggles a process in every chart.
     legend: { ...base['legend'], show: false, selected },
-    tooltip: { ...base['tooltip'], valueFormatter: (v: unknown) => exactValue(v, data.def.unit) },
+    tooltip: { ...base['tooltip'], valueFormatter: (v: unknown) => tooltipValue(v, data.def.unit) },
+    yAxis: { ...base['yAxis'], axisLabel: { ...base['yAxis']?.axisLabel, formatter: (v: number) => humanValue(v, data.def.unit) } },
     series: patched,
   };
 }

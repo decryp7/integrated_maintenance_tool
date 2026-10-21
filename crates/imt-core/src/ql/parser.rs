@@ -5,6 +5,7 @@ use super::error::QlError;
 use super::expr::{Expr, Filter, Literal, Operand};
 use super::lexer::{lex, CmpOp, Tok, Token};
 use crate::model::Level;
+use crate::row::{FieldKey, FieldKeys};
 use crate::user_regex;
 
 pub(super) const MAX_DEPTH: usize = 64;
@@ -17,6 +18,8 @@ pub struct Program {
     /// Every field the query names, in order, with the part it is in: 0 for the leading filter,
     /// `i + 1` for `stages[i]` (used to check names against the data, see [`super::unknown_field`]).
     pub field_refs: Vec<(usize, FieldRef)>,
+    /// The field names the query's expressions and stages refer to, interned.
+    pub keys: FieldKeys,
 }
 
 /// A field named in the query, with its source span for error reporting.
@@ -24,6 +27,8 @@ pub struct Program {
 pub struct FieldRef {
     /// Canonical name (`level` -> `@level`).
     pub name: String,
+    /// `name`, interned in the program's keys.
+    pub key: FieldKey,
     /// The name as written; used as the result column name.
     pub label: String,
     pub offset: usize,
@@ -86,6 +91,7 @@ pub fn parse(text: &str) -> Result<Program, QlError> {
         depth: 0,
         part: 0,
         refs: Vec::new(),
+        keys: FieldKeys::new(),
     };
     let filter = if matches!(p.peek(), None | Some(Tok::Pipe)) {
         Filter { expr: None }
@@ -104,6 +110,7 @@ pub fn parse(text: &str) -> Result<Program, QlError> {
         filter,
         stages,
         field_refs: p.refs,
+        keys: p.keys,
     })
 }
 
@@ -115,6 +122,7 @@ struct Parser<'a> {
     /// The query part being parsed (see `Program::field_refs`).
     part: usize,
     refs: Vec<(usize, FieldRef)>,
+    keys: FieldKeys,
 }
 
 impl Parser<'_> {
@@ -126,6 +134,7 @@ impl Parser<'_> {
     fn note(&mut self, name: &str, label: &str, t: &Token) {
         let r = FieldRef {
             name: name.to_string(),
+            key: self.keys.key(name),
             label: label.to_string(),
             offset: t.start,
             len: t.end - t.start,
@@ -282,9 +291,9 @@ impl Parser<'_> {
         }
         self.pos += 1;
         Ok(if name == "exists" {
-            Expr::Exists(field.name)
+            Expr::Exists(field.key)
         } else {
-            Expr::Missing(field.name)
+            Expr::Missing(field.key)
         })
     }
 
@@ -330,9 +339,10 @@ impl Parser<'_> {
         Ok(Operand { lit, level })
     }
 
-    fn comparison(&mut self, field: String, field_tok: &Token) -> Result<Expr, QlError> {
+    fn comparison(&mut self, name: String, field_tok: &Token) -> Result<Expr, QlError> {
         // Callers checked that an operator follows; falling back to the field token keeps this total.
         let t = self.next().unwrap_or_else(|| field_tok.clone());
+        let field = self.keys.key(&name);
         match t.tok {
             Tok::Op(CmpOp::Re | CmpOp::NotRe) => {
                 let negate = t.tok == Tok::Op(CmpOp::NotRe);
@@ -343,7 +353,7 @@ impl Parser<'_> {
                 Ok(Expr::Regex { field, re, negate })
             }
             Tok::Op(op) => {
-                let rhs = self.operand(&field)?;
+                let rhs = self.operand(&name)?;
                 Ok(Expr::Cmp { field, op, rhs })
             }
             Tok::Bang => {
@@ -367,18 +377,18 @@ impl Parser<'_> {
                 })
             }
             // `in`: the only other word is_comparison_next() lets through.
-            _ => self.in_list(field, &t),
+            _ => self.in_list(field, &name, &t),
         }
     }
 
-    fn in_list(&mut self, field: String, in_tok: &Token) -> Result<Expr, QlError> {
+    fn in_list(&mut self, field: FieldKey, name: &str, in_tok: &Token) -> Result<Expr, QlError> {
         let Some(open) = self.next().filter(|t| t.tok == Tok::LParen) else {
             return Err(Self::err_tok(in_tok, "expected '(' after 'in'"));
         };
-        let mut set = vec![self.operand(&field)?];
+        let mut set = vec![self.operand(name)?];
         while self.peek() == Some(&Tok::Comma) {
             self.pos += 1;
-            set.push(self.operand(&field)?);
+            set.push(self.operand(name)?);
         }
         if self.peek() != Some(&Tok::RParen) {
             return Err(Self::err_tok(&open, "unclosed '(' (expected ')')"));
@@ -400,6 +410,7 @@ impl Parser<'_> {
                 start,
                 end,
             }) => Ok(FieldRef {
+                key: self.keys.key(&canonical(&w)),
                 name: canonical(&w),
                 label: w,
                 offset: start,
@@ -410,6 +421,7 @@ impl Parser<'_> {
                 start,
                 end,
             }) => Ok(FieldRef {
+                key: self.keys.key(&w),
                 name: w.clone(),
                 label: w,
                 offset: start,

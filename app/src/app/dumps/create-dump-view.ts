@@ -9,7 +9,7 @@ import { errorText } from '../analysis/async-resource';
 import { ToolError } from '../tools/elevation-hint';
 import { ToolUnavailable } from '../tools/tool-unavailable';
 import { ToolCatalog } from '../tools/tool-catalog.store';
-import { DUMPS_STYLES, formatBytes } from './dumps-shared';
+import { DUMPS_STYLES, formatBytes, formatCount } from './dumps-shared';
 import { DumpsStore } from './dumps.store';
 
 /** A process the capture tool lists. */
@@ -86,7 +86,7 @@ export function filterProcesses(list: readonly CaptureProcess[], filter: string)
             <input type="search" [value]="filter()" (input)="filter.set(value($event))" placeholder="Filter by name or pid" i18n-placeholder="@@dumps.capture.filter" aria-label="Filter processes" i18n-aria-label="@@dumps.capture.filterLabel" />
             <ul cdkListbox class="list" aria-label="Processes" i18n-aria-label="@@dumps.capture.processes" data-testid="capture-processes" [cdkListboxValue]="pidValue()" (cdkListboxValueChange)="pickPid($event.value[0])">
               @for (p of shown(); track p.pid) {
-                <li [cdkOption]="p.pid" class="proc"><span class="mono">{{ p.pid }}</span> <span class="ellipsis">{{ p.name }}</span> <span class="faint" i18n="@@dumps.capture.threads">{{ p.threads }} threads</span></li>
+                <li [cdkOption]="p.pid" class="proc"><span class="mono">{{ p.pid }}</span> <span class="ellipsis">{{ p.name }}</span> <span class="faint" i18n="@@dumps.capture.threads">{{ count(p.threads) }} threads</span></li>
               } @empty {
                 <li class="faint" role="status">@if (loading()) { <span i18n="@@dumps.capture.loading">Loading…</span> } @else { <span i18n="@@dumps.capture.none">No processes.</span> }</li>
               }
@@ -219,4 +219,5 @@ export class CreateDumpView implements OnInit {
   }
 
   protected readonly bytes = formatBytes;
+  protected readonly count = formatCount;
 }

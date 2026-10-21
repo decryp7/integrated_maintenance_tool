@@ -185,13 +185,33 @@ pub struct WorkerStatus {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum WireError {
-    Unsupported { operation: String, phase: String },
-    Invalid { message: String },
-    NotFound { message: String },
-    Busy { message: String },
+    Unsupported {
+        operation: String,
+        phase: String,
+    },
+    Invalid {
+        message: String,
+    },
+    /// An invalid query-language text, with the span to underline.
+    Query {
+        message: String,
+        offset: usize,
+        len: usize,
+        suggestions: Vec<String>,
+    },
+    NotFound {
+        message: String,
+    },
+    Busy {
+        message: String,
+    },
     Cancelled,
-    Io { message: String },
-    Engine { message: String },
+    Io {
+        message: String,
+    },
+    Engine {
+        message: String,
+    },
 }
 
 impl From<&StoreError> for WireError {
@@ -202,6 +222,12 @@ impl From<&StoreError> for WireError {
                 phase: phase.to_string(),
             },
             StoreError::Invalid(m) => WireError::Invalid { message: m.clone() },
+            StoreError::Query(q) => WireError::Query {
+                message: q.message.clone(),
+                offset: q.offset,
+                len: q.len,
+                suggestions: q.suggestions.clone(),
+            },
             StoreError::NotFound(m) => WireError::NotFound { message: m.clone() },
             StoreError::Busy(m) => WireError::Busy { message: m.clone() },
             StoreError::Cancelled => WireError::Cancelled,
@@ -219,6 +245,17 @@ impl From<WireError> for StoreError {
                 phase: Cow::Owned(phase),
             },
             WireError::Invalid { message } => StoreError::Invalid(message),
+            WireError::Query {
+                message,
+                offset,
+                len,
+                suggestions,
+            } => StoreError::Query(imt_core::ql::QlError {
+                message,
+                offset,
+                len,
+                suggestions,
+            }),
             WireError::NotFound { message } => StoreError::NotFound(message),
             WireError::Busy { message } => StoreError::Busy(message),
             WireError::Cancelled => StoreError::Cancelled,
@@ -257,6 +294,12 @@ mod tests {
             StoreError::Cancelled,
             StoreError::Io("disk".into()),
             StoreError::Engine("x".into()),
+            StoreError::Query(imt_core::ql::QlError {
+                message: "unknown field".into(),
+                offset: 3,
+                len: 4,
+                suggestions: vec!["Host".into()],
+            }),
         ] {
             let r = to_remote(&e);
             let back: RemoteError = serde_json::from_str(&serde_json::to_string(&r).unwrap()).unwrap();

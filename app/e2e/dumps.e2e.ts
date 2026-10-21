@@ -48,7 +48,7 @@ test.describe('Dumps', () => {
 
     await view.getByRole('tab', { name: 'Growth' }).click();
     const growth = view.getByTestId('umdh-growth');
-    await expect(growth.locator('tbody tr').first()).toContainText('+20.0 MB');
+    await expect(growth.locator('tbody tr').first()).toContainText('+20 MB');
     await growth.locator('tbody tr').first().click();
     await expect(view.getByTestId('umdh-stack')).toContainText('allocated here');
     await view.getByTestId('umdh-group-module').check();

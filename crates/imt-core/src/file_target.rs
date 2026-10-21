@@ -109,6 +109,9 @@ mod tests {
             offset_ms: 0,
             file_kind: kind,
             timestamp_issue: None,
+            routed_from: None,
+            problems: Vec::new(),
+            identity: Vec::new(),
         }
     }
 

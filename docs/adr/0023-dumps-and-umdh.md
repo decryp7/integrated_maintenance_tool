@@ -56,9 +56,12 @@ IMT, and the answers must lead with the problem (what crashed and where; what le
    This change implements it in pure Rust with the `pdb` crate (procedures with lengths from the module streams,
    public symbols for the rest, simple MSVC names undecorated), over **local symbol folders** in the dumps plugin's
    settings (symbol-store layout `<name>.pdb/<GUID><age>/<name>.pdb` and flat), refusing a PDB of another build when
-   the module records its id. Nothing is downloaded. `imt-symbols` (DbgHelp, the configurable symbol path, the
-   opt-in Microsoft symbol server; built on `feature/cpp-profiler`) implements the same trait later; the readers and
-   the engine do not change. Frames keep the return address debuggers show; lookups use it as is.
+   the module records its id. Nothing is downloaded. `imt-symbols` (ADR 0022: DbgHelp, the configurable symbol
+   path, the opt-in Microsoft symbol server) is not wired in yet: its `Resolver::add_module` takes the module's image
+   path on disk, which a dump from another machine does not have, and a symbol-server download needs the network,
+   which the readers' sandbox denies. The adapter needs an identity-based load (PDB name, GUID, age, as in the
+   module's CodeView record) in `imt-symbols` and either the `Network` permission or the download done by the host;
+   then it implements `imt_dump::symbols::SymbolProvider` and the readers and the engine do not change. Frames keep the return address debuggers show; lookups use it as is.
 6. **UMDH.** The reader recognises snapshots (`umdh -p -f`: `// Loaded modules:`, then `<size> bytes + <overhead>
    at <address> by BackTrace<id>` per allocation with the stack the first time an id appears) and diffs (`umdh old
    new`: `± delta (new - old) count allocs BackTrace<id>`, the count line, the stack, `Total increase == …`), in

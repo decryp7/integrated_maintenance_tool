@@ -24,6 +24,7 @@ pub mod settings;
 pub mod setup;
 pub mod testing;
 pub mod updates;
+pub mod vision;
 pub mod web;
 pub mod worker;
 

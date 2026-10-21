@@ -40,20 +40,24 @@ pub fn child_main(label: &str, make: impl FnOnce(&Bootstrap) -> Arc<dyn Handler>
     let elevated = bootstrap_file(&args);
     let bootstrap = match &elevated {
         Some(file) => take_bootstrap(file)?,
-        None => {
-            let b = read_bootstrap(io::stdin().lock())?;
-            // The lifeline: when the host closes stdin (or dies), exit at once.
-            std::thread::spawn(|| {
-                let mut sink = [0u8; 256];
-                while matches!(io::stdin().read(&mut sink), Ok(n) if n > 0) {}
-                std::process::exit(0);
-            });
-            b
-        }
+        None => read_bootstrap(io::stdin().lock())?,
     };
     let peer = connect_and_lock_down(&bootstrap, elevated.is_some(), label, make)?;
+    if elevated.is_none() {
+        // Started after the lockdown, like every thread of a child (see `connect_and_lock_down`).
+        lifeline();
+    }
     peer.wait_closed(None);
     Ok(())
+}
+
+/// The lifeline: when the host closes stdin (or dies), exit at once.
+pub fn lifeline() {
+    std::thread::spawn(|| {
+        let mut sink = [0u8; 256];
+        while matches!(io::stdin().read(&mut sink), Ok(n) if n > 0) {}
+        std::process::exit(0);
+    });
 }
 
 /// Steps 2–4 of [`child_main`]: connect, lock down, serve. Returns the running peer.
@@ -65,21 +69,56 @@ pub fn connect_and_lock_down(
 ) -> io::Result<Peer> {
     let token =
         Token::from_hex(&bootstrap.token).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "bad token in the bootstrap"))?;
-    let address = bootstrap.address.clone();
-    let label_owned = label.to_string();
-    let stream = crate::runtime::run(async move { crate::link::handshake(&address, &token, &label_owned).await })
-        .map_err(io::Error::other)?
-        .map_err(|e| io::Error::other(e.to_string()))?;
-    // Nothing has been read from the host yet but the handshake: lock down before the first request.
-    let notes = crate::sandbox::lockdown(&bootstrap.sandbox, elevated).map_err(|e| io::Error::other(format!("cannot lock down: {e}")))?;
-    for n in notes {
-        eprintln!("sandbox: {n}");
-    }
+    let stream = handshake_then_lock_down(bootstrap, &token, elevated, label)?;
     let handler = make(bootstrap);
     let mut opts = PeerOptions::new(label);
     opts.max_frame = bootstrap.max_frame;
     let rt = crate::runtime::shared().map_err(io::Error::other)?;
     Ok(Peer::start(stream, handler, opts, rt.handle()))
+}
+
+/// Unix: landlock restricts only the thread that locks down and the threads it starts afterwards, so the IPC
+/// runtime's threads (which run the handler) must start after the lockdown. The handshake runs on a short-lived
+/// thread of its own, with a single-threaded runtime, and is over before the lockdown; the stream then moves to
+/// the shared runtime.
+#[cfg(unix)]
+fn handshake_then_lock_down(bootstrap: &Bootstrap, token: &Token, elevated: bool, label: &str) -> io::Result<Box<dyn crate::peer::Duplex>> {
+    let stream = std::thread::scope(|s| {
+        s.spawn(|| -> io::Result<std::os::unix::net::UnixStream> {
+            let rt = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
+            let stream = rt
+                .block_on(crate::link::platform_handshake(&bootstrap.address, token, label))
+                .map_err(|e| io::Error::other(e.to_string()))?;
+            stream.into_std()
+        })
+        .join()
+        .map_err(|_| io::Error::other("the handshake thread panicked"))?
+    })?;
+    lock_down(bootstrap, elevated)?;
+    // `from_std` registers with the reactor of the runtime entered: the shared one, started now.
+    let _g = crate::runtime::shared().map_err(io::Error::other)?.enter();
+    Ok(Box::new(tokio::net::UnixStream::from_std(stream)?))
+}
+
+/// Windows: the lowered integrity level and the job hold for every thread of the process.
+#[cfg(not(unix))]
+fn handshake_then_lock_down(bootstrap: &Bootstrap, token: &Token, elevated: bool, label: &str) -> io::Result<Box<dyn crate::peer::Duplex>> {
+    let (address, token, label_owned) = (bootstrap.address.clone(), token.clone(), label.to_string());
+    let stream = crate::runtime::run(async move { crate::link::handshake(&address, &token, &label_owned).await })
+        .map_err(io::Error::other)?
+        .map_err(|e| io::Error::other(e.to_string()))?;
+    lock_down(bootstrap, elevated)?;
+    Ok(stream)
+}
+
+/// Nothing has been read from the host yet but the handshake: lock down before the first request.
+fn lock_down(bootstrap: &Bootstrap, elevated: bool) -> io::Result<()> {
+    let notes = crate::sandbox::lockdown(&bootstrap.sandbox, elevated).map_err(|e| io::Error::other(format!("cannot lock down: {e}")))?;
+    // On stderr, so the child's log has them (a gap as a Warning): never less sandboxed without saying so.
+    for n in notes {
+        eprintln!("{}", n.log_line());
+    }
+    Ok(())
 }
 
 #[cfg(test)]

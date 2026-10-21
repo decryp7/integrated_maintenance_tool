@@ -62,7 +62,7 @@ export class ImportStatus {
   template: `
     @if (svc.long()) {
       @if (vm(); as v) {
-        <div class="toast" role="status" aria-label="Import in progress" i18n-aria-label="@@import.ui.inProgress" data-testid="import-toast">
+        <div class="toast" data-imt-overlay role="status" aria-label="Import in progress" i18n-aria-label="@@import.ui.inProgress" data-testid="import-toast">
           <div class="head">
             <imt-icon name="refresh" [size]="14" />
             <strong i18n="@@import.ui.heading">Importing…</strong>

@@ -87,6 +87,8 @@ export class FloatCue {
     this.ghost = doc.createElement('div');
     this.ghost.className = 'imt-float-cue';
     this.ghost.setAttribute('aria-hidden', 'true');
+    // An overlay while shown (`OverlayTracker`; hidden, it has no area).
+    this.ghost.setAttribute('data-imt-overlay', '');
     this.ghost.hidden = true;
     this.hint = doc.createElement('div');
     this.hint.className = 'imt-float-cue-hint';

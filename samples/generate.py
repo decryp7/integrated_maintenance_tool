@@ -1622,6 +1622,120 @@ for worker, pid, gap in [("A", 7101, 140), ("B", 7102, 170)]:
 write_text(serilog_text(run_rows), "runs", "shared", "workers-20261014.log")
 
 # --------------------------------------------------------------------------
+# Mixed sources (ADR 0020): a log server (rsyslog relay) collects what several
+# products write into one shared file, and syslog from several hosts.
+#
+# linux/logserver01/apps-20261014.log mixes, line by line:
+#   - Checkout (Serilog file sink: "{Timestamp} [{Level:u3}] {Message}
+#     {Properties}"), APP01 pid 3120 recycled at 10:12 and back as pid 3388,
+#     APP02 pid 3410, errors with stack traces;
+#   - Inventory (log4net "%date [%thread] %level %logger - %message") on SRV2,
+#     two processes (pid 7001, 7002) named in the message ("host=SRV2 pid=7001");
+#   - Payments writing CLEF JSON lines (PAY01, pid 6100);
+#   - a few haproxy lines in BSD syslog format that no default format reads.
+# Read with profiles/logserver.imtprofile.toml, routes split it into logical
+# sources per product and host.
+#
+# linux/logserver01/syslog-20261014.log: RFC 5424 lines from three hosts
+# (web01, db01, edge01) and several apps and pids, as the relay stores them.
+
+mrnd = random.Random(2020)
+mixed = []
+MIXED_START = datetime(2026, 10, 14, 10, 0, 0, tzinfo=timezone.utc)
+MIXED_END = datetime(2026, 10, 14, 10, 30, 0, tzinfo=timezone.utc)
+MIXED_RECYCLE = datetime(2026, 10, 14, 10, 12, 30, 250000, tzinfo=timezone.utc)
+MIXED_RESTART = MIXED_RECYCLE + timedelta(seconds=41)
+
+
+def serilog_line(t, lvl, msg, props):
+    stamp = t.strftime("%Y-%m-%d %H:%M:%S.") + f"{t.microsecond // 1000:03d} +00:00"
+    return f"{stamp} [{lvl}] {msg} {json.dumps(props, separators=(', ', ': '))}"
+
+
+def log4net_line(t, thread, lvl, logger, msg):
+    stamp = t.strftime("%Y-%m-%d %H:%M:%S,") + f"{t.microsecond // 1000:03d}"
+    return f"{stamp} [{thread}] {lvl:<5} {logger} - {msg}"
+
+
+for machine, pid, gap in [("APP01", 3120, 9.0), ("APP02", 3410, 12.0)]:
+    props = {"Application": "Checkout", "MachineName": machine, "ProcessId": pid}
+    for t in rtimes(mrnd, MIXED_START, MIXED_END, gap):
+        if machine == "APP01" and MIXED_RECYCLE <= t < MIXED_RESTART:
+            continue
+        if machine == "APP01" and t >= MIXED_RESTART:
+            props = dict(props, ProcessId=3388)
+        order = mrnd.randint(88000, 89999)
+        if mrnd.random() < 0.08:
+            mixed.append((t, serilog_line(t, "ERR", f"Payment capture failed for order {order}", dict(props, OrderId=order)) + "\n" + TIMEOUT_STACK))
+        else:
+            mixed.append((t, serilog_line(t, "INF", f"Order {order} placed in {mrnd.randint(12, 240)} ms", dict(props, OrderId=order))))
+    # Every process ends the window healthy.
+    mixed.append((MIXED_END, serilog_line(MIXED_END, "INF", "Checkout heartbeat", props)))
+mixed.append((MIXED_RECYCLE, serilog_line(MIXED_RECYCLE, "INF", "Checkout stopping: application pool recycle",
+                                          {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120})))
+mixed.append((MIXED_RESTART, serilog_line(MIXED_RESTART, "INF", "Checkout 4.2.1 starting",
+                                          {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388})))
+for pid, thread in [(7001, "sync-1"), (7002, "sync-2")]:
+    for t in rtimes(mrnd, MIXED_START, MIXED_END, 20.0):
+        r = mrnd.random()
+        if r < 0.15:
+            mixed.append((t, log4net_line(t, thread, "WARN", "Inventory.Sync", f"host=SRV2 pid={pid} Stock feed slow: {mrnd.randint(2, 9)} s")))
+        elif r < 0.2:
+            mixed.append((t, log4net_line(t, thread, "ERROR", "Inventory.Sync", f"host=SRV2 pid={pid} Stock feed failed") + "\n"
+                          "java.io.IOException: Connection reset by peer\n\tat inventory.Feed.read(Feed.java:88)"))
+        else:
+            mixed.append((t, log4net_line(t, thread, "INFO", "Inventory.Sync", f"host=SRV2 pid={pid} Synced {mrnd.randint(10, 400)} items")))
+    mixed.append((MIXED_END, log4net_line(MIXED_END, thread, "INFO", "Inventory.Sync", f"host=SRV2 pid={pid} Idle")))
+for t in rtimes(mrnd, MIXED_START, MIXED_END, 60.0):
+    clef = {"@t": iso_ms(t), "@mt": "Captured {PaymentId} for {Amount}", "PaymentId": f"p-{mrnd.randint(1000, 9999)}",
+            "Amount": mrnd.randint(5, 900), "Application": "Payments", "MachineName": "PAY01", "ProcessId": 6100}
+    if mrnd.random() < 0.1:
+        clef["@l"] = "Warning"
+    mixed.append((t, json.dumps(clef, separators=(",", ":"))))
+for t in rtimes(mrnd, MIXED_START, MIXED_END, 600.0):
+    mixed.append((t, f"{t.strftime('%b')} {t.day:2d} {t.strftime('%H:%M:%S')} edge01 haproxy[812]: backend orders has no server available!"))
+mixed.sort(key=lambda x: x[0])
+write_text("# logserver01: forwarded application logs (rsyslog omfile, raw messages)\n" + "\n".join(l for _, l in mixed) + "\n",
+           "linux", "logserver01", "apps-20261014.log")
+
+LOGSERVER_PROFILE = '''name = "Log server (logserver01)"
+
+# Inventory names its host and process in the message.
+[[extract]]
+name = "inventory-identity"
+from = "@message"
+regex = 'host=(?P<Host>\\S+) pid=(?P<Pid>\\d+) '
+when = [{ field = "Logger", op = "contains", value = "Inventory" }]
+
+# One logical source per product and host.
+[[route]]
+when = [{ field = "Application", op = "exists" }]
+source = "{Application}@{MachineName}"
+
+[[route]]
+when = [{ field = "Logger", op = "contains", value = "Inventory" }]
+source = "Inventory@{Host}"
+'''
+write_text(LOGSERVER_PROFILE, "profiles", "logserver.imtprofile.toml")
+
+lrnd = random.Random(2021)
+relay = []
+
+
+def relay5424(t, sev, host, app, pid, msg):
+    relay.append((t, f"<{8 * 3 + sev}>1 {iso_ms(t)} {host} {app} {pid} - - {msg}"))
+
+
+apps = [("web01", "nginx", [2211, 2212]), ("web01", "sshd", [30412]), ("db01", "postgres", [1880, 1893]), ("edge01", "haproxy", [812])]
+for host, app, pids in apps:
+    for t in rtimes(lrnd, MIXED_START, MIXED_END, 25.0):
+        pid = lrnd.choice(pids)
+        sev = 4 if lrnd.random() < 0.1 else 6
+        relay5424(t, sev, host, app, pid, f"{app} worker {pid}: {'slow request' if sev == 4 else 'request served'} in {lrnd.randint(1, 900)} ms")
+relay.sort(key=lambda x: x[0])
+write_text("\n".join(l for _, l in relay) + "\n", "linux", "logserver01", "syslog-20261014.log")
+
+# --------------------------------------------------------------------------
 # Share: an .imtproj project over the samples (paths relative to it, the
 # OrderService profile, WEB02's clock offset) and an .imtz bundle of the
 # clock-skew logs in the format Workspace::write_bundle writes (project,

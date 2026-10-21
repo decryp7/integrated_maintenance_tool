@@ -81,7 +81,7 @@ async function agentTurn(t: MockBrowserTurn, cite: (title: string, url: string) 
     }
     if (d === 'allowSite' && !w.status(id).sites.includes(site)) w.update(id, { sites: [...w.status(id).sites, site] });
     t.emit({ type: 'agentStep', step: n, limit, action, site });
-    w.show(url);
+    w.show(url, false);
     w.update(id, { stepsUsed: n });
     t.emit({ type: 'toolFinished', name: `browser_${action}`, summary: `step ${n}: ${action} ${site}`, error: false, evidence: { recordIds: [], queries: [] } });
     return true;

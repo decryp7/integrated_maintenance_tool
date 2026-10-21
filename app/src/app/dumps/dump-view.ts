@@ -6,7 +6,7 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { AnalysisState } from '../analysis/analysis-state';
 import { AsyncResource, errorText } from '../analysis/async-resource';
 import { DumpsBackend } from './dumps-backend';
-import { DumpFindings, DumpsExplainer, DUMPS_STYLES, formatBytes, NoDump } from './dumps-shared';
+import { DumpFindings, DumpsExplainer, DUMPS_STYLES, formatBytes, formatCount, NoDump } from './dumps-shared';
 import { DumpsStore } from './dumps.store';
 
 export type DumpTab = 'findings' | 'threads' | 'modules' | 'details';
@@ -154,12 +154,12 @@ const TRUST_LABEL: Record<FrameTrust, string> = {
               <div class="body cards">
                 <section class="card">
                   <h3 class="sec" i18n="@@dumps.details.symbols">Symbols</h3>
-                  <p i18n="@@dumps.details.symbolsText">{{ o.framesSymbolised }} of {{ o.frames }} frames named; {{ o.modulesWithSymbols }} of {{ o.modules }} modules with symbols.</p>
+                  <p i18n="@@dumps.details.symbolsText">{{ count(o.framesSymbolised) }} of {{ count(o.frames) }} frames named; {{ count(o.modulesWithSymbols) }} of {{ count(o.modules) }} modules with symbols.</p>
                 </section>
                 @if (o.handles; as h) {
                   <section class="card">
-                    <h3 class="sec" i18n="@@dumps.details.handles">Handles ({{ h.total }})</h3>
-                    <ul class="list">@for (t of h.byType; track t.name) { <li><span class="mono">{{ t.count }}</span> {{ t.name }}</li> }</ul>
+                    <h3 class="sec" i18n="@@dumps.details.handles">Handles ({{ count(h.total) }})</h3>
+                    <ul class="list">@for (t of h.byType; track t.name) { <li><span class="mono">{{ count(t.count) }}</span> {{ t.name }}</li> }</ul>
                   </section>
                 }
                 @if (o.memory; as m) {
@@ -347,4 +347,5 @@ export class DumpView {
   }
 
   protected readonly bytes = formatBytes;
+  protected readonly count = formatCount;
 }

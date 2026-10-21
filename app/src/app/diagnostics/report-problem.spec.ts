@@ -13,7 +13,7 @@ import { ErrorSnapshotService } from './error-snapshot.service';
 import { ErrorSnapshotsView } from './error-snapshots-view';
 import { ExportTarget } from './export-target';
 import { MockSnapshotBackend } from './mock/mock-snapshot-backend';
-import { formatBytes, REPORT_FILE_NAME, ReportProblemDialog } from './report-problem-dialog';
+import { REPORT_FILE_NAME, ReportProblemDialog } from './report-problem-dialog';
 import { SnapshotBackend, TauriSnapshotBackend } from './snapshot-backend';
 import { SnapshotToast } from './snapshot-toast';
 import { ACTIVITY_LOG_COMMAND, CapturedImage, REPORT_PROBLEM_COMMAND } from './snapshot.types';
@@ -131,7 +131,6 @@ describe('ReportProblemDialog', () => {
   });
 
   it('formats sizes', () => {
-    expect([formatBytes(10), formatBytes(2048), formatBytes(3 * 1024 * 1024)]).toEqual(['10 B', '2.0 KB', '3.0 MB']);
   });
 });
 

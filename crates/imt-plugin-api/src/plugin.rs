@@ -177,12 +177,14 @@ impl Contributions {
                 binary: false,
                 tail: true,
                 multiline: i.multiline(),
+                identity_fields: i.identity_fields(),
             })
             .chain(self.binary.iter().map(|i| ImporterCap {
                 id: i.id().into(),
                 binary: true,
                 tail: false,
                 multiline: false,
+                identity_fields: i.identity_fields(),
             }))
             .collect();
         Manifest {

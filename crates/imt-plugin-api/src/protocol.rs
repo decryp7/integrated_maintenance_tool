@@ -139,17 +139,20 @@ pub enum PluginRequest {
 }
 
 /// The end of an import.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImportDone {
     pub skipped: u64,
+    /// The importer's aggregated problems ([`crate::importer::Imported::problems`]).
+    pub problems: Vec<crate::problems::Problem>,
 }
 
 /// The end of a live-tail import.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TailDone {
     /// `false`: the importer cannot append; the host re-imports the whole file.
     pub supported: bool,
     pub skipped: u64,
+    pub problems: Vec<crate::problems::Problem>,
 }
 
 /// The end of a profile import: the capture's encoded size and whether it is a heap snapshot.
@@ -199,6 +202,14 @@ pub enum HostRequest {
     TaskProgress { tool: String, task: String, fraction: Option<f32> },
     /// → `()`.
     TaskFinished { tool: String, task: String },
+    /// → `Result<Json, ToolFail>`: runs one of the plugin's own elevated tool operations in its elevated process
+    /// (ADR 0017 §7); the host refuses any other operation. Only the plugin's normal process may send it.
+    InvokeElevated {
+        tool: String,
+        op: String,
+        args: Json,
+        timeout_ms: u64,
+    },
 }
 
 /// A field value on the wire (postcard cannot carry a `serde_json::Value`).

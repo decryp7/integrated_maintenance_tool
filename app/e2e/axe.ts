@@ -8,9 +8,14 @@ export const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'
 /** Waits until no CSS animation or transition is running: axe measures colours as rendered, so a panel sliding in or a
  *  scrim fading out mid-scan reads as low contrast (WebKit, being slower, used to hit this). */
 export async function settleAnimations(page: Page): Promise<void> {
-  // Endless animations (spinners, a pulsing live dot) are ignored: they never settle.
+  // Endless animations (spinners, a pulsing live dot) are ignored: they never settle. So are instant ones: with reduced
+  // motion the motion tokens are 0.01ms, and WebKit can leave such a transition "running" without ever finishing it.
   await page.waitForFunction(
-    () => document.getAnimations().every((a) => a.playState !== 'running' || a.effect?.getTiming().iterations === Infinity),
+    () =>
+      document.getAnimations().every((a) => {
+        const timing = a.effect?.getTiming();
+        return a.playState !== 'running' || timing?.iterations === Infinity || Number(timing?.duration ?? 0) <= 1;
+      }),
     undefined,
     { timeout: 10_000 },
   );

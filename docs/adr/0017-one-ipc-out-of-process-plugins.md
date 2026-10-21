@@ -163,7 +163,7 @@ it; a path the user did not choose is refused with `notGranted`. Outputs a tool 
 
 | | Windows | Linux | macOS |
 |---|---|---|---|
-| Memory | job object `ProcessMemoryLimit` | `RLIMIT_AS` | `RLIMIT_AS` (advisory on macOS) |
+| Memory | job object `ProcessMemoryLimit` | `RLIMIT_DATA` (memory used; not `RLIMIT_AS`, which counts malloc arena reservations) | `RLIMIT_AS` (advisory on macOS) |
 | CPU | job CPU rate cap; per-process user time | `RLIMIT_CPU` | `RLIMIT_CPU` |
 | Child processes | job `ActiveProcessLimit = 1` unless allowed | `RLIMIT_NPROC` / seccomp `fork` denied | profile `process-fork` denied |
 | Network | (not enforced; low integrity cannot reach the app's pipes) | seccomp: `socket(AF_INET/AF_INET6)` → `EACCES` | profile `network*` denied |
@@ -183,8 +183,12 @@ it; a path the user did not choose is refused with `notGranted`. Outputs a tool 
   asks for `RunPrograms` and `WriteFolders` (normal integrity, children allowed). Workers have their own (the
   store worker: memory cap, no file-system restriction yet; the AI worker: may start `llama-server`). The Plugins
   settings show the permissions.
-- Lockdown failures on an older kernel (no landlock) degrade with a note in the child's log; on Windows a failed
-  integrity drop fails the start (it always works on supported versions).
+- What the system cannot enforce degrades instead of failing the plugin, and is never silent: a kernel or
+  container without landlock (or with landlock filtered by its seccomp profile) leaves file access unrestricted,
+  one without seccomp leaves network sockets and program starts allowed; the child logs each gap as a warning
+  ("sandbox degraded: …") in its log, and `imt_ipc::sandbox::applied_notes` reports them as typed `Gap`s, which the
+  sandbox tests use to skip, with a message, what the machine cannot enforce. A failed resource limit, and on
+  Windows a failed integrity drop, still fail the start.
 
 ### 7. Elevation
 
@@ -299,6 +303,14 @@ What landed, and where it differs from the text above:
   (`sandbox_init` profile) are implemented behind `cfg` and type-checked with clippy for
   `x86_64-unknown-linux-gnu` and `x86_64-apple-darwin`; they run in CI on those runners.
 
+- **Elevated operations** (§7, first user: `imt-plugin-dotnet`'s ETW recordings, ADR 0019): the host runs an
+  operation declared `elevated` in the plugin's elevated process when the UI calls it, or when the plugin's normal
+  process asks with `HostRequest::InvokeElevated` (`ToolCtx::elevated()`), which lets a plugin keep its state in the
+  normal process and use the elevated one only for what needs the rights. The host accepts only operations the
+  manifest declares elevated and passes its own data folder. Instead of streaming capture bytes back (§7), the
+  elevated .NET process writes into the captures folder of that host-given data folder under a file name it
+  checks; it never writes at a path it receives.
+
 Deferred (tracked in `docs/redesign-2026-10.md`, R3):
 
 - Splitting `imt-ai` into `imt-ai-proto` / `imt-ai-runtime` / `imt-ai` / `imt-browser-agent`, one `SafeHttp`, the
@@ -309,5 +321,3 @@ Deferred (tracked in `docs/redesign-2026-10.md`, R3):
   `imt-collect` and `imt-monitor`); its process is sandboxed like any other plugin.
 - Importer plugins streaming to the store worker directly (§5): needs the store worker in the workspace and its
   imports (ADR 0014 6c).
-- `imt-plugin-dotnet` on the contract with ETW capture as the first elevated operation (§7, ADR 0019): the
-  elevated launch and channel exist; the operation is migrated when that crate lands on `main`.

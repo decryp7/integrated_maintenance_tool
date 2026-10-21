@@ -37,6 +37,14 @@ pub mod ids {
     pub const MODULE_DC_START: u32 = 153;
     /// Rundown `ModuleDCEnd_V2`.
     pub const MODULE_DC_END: u32 = 154;
+    /// Runtime `GCAllocationTick` (V1..V4).
+    pub const GC_ALLOCATION_TICK: u32 = 10;
+    /// Runtime `ThreadPoolWorkerThreadStart`.
+    pub const THREAD_POOL_WORKER_START: u32 = 50;
+    /// Runtime `ThreadPoolWorkerThreadAdjustmentAdjustment`.
+    pub const THREAD_POOL_ADJUSTMENT: u32 = 55;
+    /// Rundown `DCEndComplete_V1` (the end of a rundown).
+    pub const DC_END_COMPLETE: u32 = 146;
 }
 
 /// What an event (by its metadata) means to the importer.
@@ -54,6 +62,21 @@ pub(super) enum Known {
     Exception,
     ContentionStart,
     ContentionStop,
+    /// `GCAllocationTick`.
+    Alloc,
+    /// A thread became a thread-pool worker.
+    PoolWorker,
+    /// The thread pool changed its worker count.
+    PoolAdjust,
+    /// A heap-walk event.
+    Heap(super::heap::HeapEvent),
+    /// IMT extension events (ETW captures).
+    Image,
+    Wait,
+    ThreadName,
+    NativeSymbol,
+    /// `HeapAlloc`, `HeapFree` or `HeapReAlloc` (the extension event id).
+    NativeHeap(u32),
 }
 
 /// Classifies an event type by provider and event id (or name for the sampler).
@@ -72,6 +95,19 @@ pub(super) fn classify(provider: &str, event_id: u32, event_name: &str) -> Optio
             METHOD_LOAD_VERBOSE => Some(Known::Method { jitted: true }),
             METHOD_JITTING_STARTED => Some(Known::JitStart),
             MODULE_LOAD => Some(Known::Module),
+            GC_ALLOCATION_TICK => Some(Known::Alloc),
+            THREAD_POOL_WORKER_START => Some(Known::PoolWorker),
+            THREAD_POOL_ADJUSTMENT => Some(Known::PoolAdjust),
+            id => super::heap::HeapEvent::from_id(id).map(Known::Heap),
+        };
+    }
+    if provider.eq_ignore_ascii_case(super::ext::PROVIDER) {
+        return match event_id {
+            super::ext::ids::IMAGE_LOAD => Some(Known::Image),
+            super::ext::ids::THREAD_WAIT => Some(Known::Wait),
+            super::ext::ids::THREAD_NAME => Some(Known::ThreadName),
+            super::ext::ids::NATIVE_SYMBOL => Some(Known::NativeSymbol),
+            id @ (super::ext::ids::HEAP_ALLOC | super::ext::ids::HEAP_FREE | super::ext::ids::HEAP_REALLOC) => Some(Known::NativeHeap(id)),
             _ => None,
         };
     }
@@ -189,10 +225,87 @@ pub(super) fn contention_native(payload: &[u8]) -> Option<bool> {
     Some(Cursor::new(payload, 0).u8().ok()? & 1 == 1)
 }
 
+/// `GCAllocationTick`: what one tick (about 100 KB of allocations) reports.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct AllocTick {
+    /// Bytes allocated since the previous tick.
+    pub bytes: u64,
+    /// 0 small object heap, 1 large object heap, 2 pinned object heap.
+    pub kind: u32,
+    /// The type of the object whose allocation crossed the threshold (V2+).
+    pub type_name: Option<String>,
+}
+
+/// `GCAllocationTick_V1..V4` (V1 has no type; V2 adds the 64-bit amount, type id and name).
+/// `TypeID` is pointer-sized.
+pub(super) fn alloc_tick(payload: &[u8], ptr: usize, max_name: usize) -> Option<AllocTick> {
+    let mut c = Cursor::new(payload, 0);
+    let amount = c.u32().ok()?;
+    let kind = c.u32().ok()?;
+    let _clr = c.u16().ok()?;
+    let mut tick = AllocTick {
+        bytes: u64::from(amount),
+        kind,
+        type_name: None,
+    };
+    if let Ok(amount64) = c.u64() {
+        tick.bytes = amount64;
+        if c.take(ptr).is_ok() {
+            tick.type_name = c.utf16z(max_name).ok().filter(|t| !t.is_empty());
+        }
+    }
+    Some(tick)
+}
+
+/// `ThreadPoolWorkerThreadAdjustmentAdjustment`: (new worker count, reason).
+pub(super) fn pool_adjust(payload: &[u8]) -> Option<(u32, u32)> {
+    let mut c = Cursor::new(payload, 0);
+    let _throughput = c.u64().ok()?;
+    Some((c.u32().ok()?, c.u32().ok()?))
+}
+
+/// The thread pool's adjustment reason for starvation.
+pub(super) const POOL_STARVATION: u32 = 6;
+
 #[cfg(test)]
 mod tests {
     use super::super::writer::payload as p;
     use super::*;
+
+    #[test]
+    fn decodes_allocation_ticks_of_every_version_and_bitness() {
+        let mut v1 = Vec::new();
+        v1.extend_from_slice(&100_000u32.to_le_bytes());
+        v1.extend_from_slice(&1u32.to_le_bytes());
+        v1.extend_from_slice(&0u16.to_le_bytes());
+        assert_eq!(
+            alloc_tick(&v1, 8, 100),
+            Some(AllocTick {
+                bytes: 100_000,
+                kind: 1,
+                type_name: None
+            })
+        );
+        for ptr in [4usize, 8] {
+            let t = p::alloc_tick(123_456, 0, "System.Byte[]", ptr);
+            let d = alloc_tick(&t, ptr, 100).unwrap();
+            assert_eq!(d.bytes, 123_456);
+            assert_eq!(d.type_name.as_deref(), Some("System.Byte[]"));
+        }
+        assert!(alloc_tick(&v1[..9], 8, 100).is_none());
+        let mut a = Vec::new();
+        a.extend_from_slice(&1.5f64.to_le_bytes());
+        a.extend_from_slice(&12u32.to_le_bytes());
+        a.extend_from_slice(&POOL_STARVATION.to_le_bytes());
+        assert_eq!(pool_adjust(&a), Some((12, POOL_STARVATION)));
+        assert!(pool_adjust(&a[..10]).is_none());
+        assert_eq!(classify(RUNTIME, 10, ""), Some(Known::Alloc));
+        assert_eq!(classify(RUNTIME, 18, ""), Some(Known::Heap(super::super::heap::HeapEvent::Node)));
+        assert_eq!(classify(super::super::ext::PROVIDER, 2, ""), Some(Known::Wait));
+        assert_eq!(classify(super::super::ext::PROVIDER, 4, ""), Some(Known::NativeSymbol));
+        assert_eq!(classify(super::super::ext::PROVIDER, 6, ""), Some(Known::NativeHeap(6)));
+        assert_eq!(classify(super::super::ext::PROVIDER, 9, ""), None);
+    }
 
     #[test]
     fn classifies_by_provider_and_id() {

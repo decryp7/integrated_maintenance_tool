@@ -20,7 +20,7 @@ test.describe('Updates', () => {
     const notes = dialog.getByRole('region', { name: 'Release notes' });
     await expect(notes).toContainText('<b>Faster</b> grid scrolling');
     await expect(notes.locator('b')).toHaveCount(0);
-    await expect(dialog).toContainText('48 MB');
+    await expect(dialog).toContainText('46 MB');
     await expect(dialog.getByTestId('updates-auto')).toContainText('Automatic checks are off');
 
     await dialog.getByRole('button', { name: 'Download' }).click();

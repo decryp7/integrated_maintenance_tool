@@ -2,7 +2,8 @@
 
 use super::field_stats::ValueCount;
 use super::util::{fmt_num, percentile_sorted, sorted};
-use crate::model::{Level, Record};
+use crate::model::{auto_value, Level};
+use crate::row::RowRef;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -116,35 +117,75 @@ pub struct Comparison {
     pub summary: Vec<String>,
 }
 
+/// Most fields one side tracks (engine review finding 13); later fields are not compared.
+pub const MAX_COMPARE_FIELDS: usize = 1000;
+
 #[derive(Default)]
 struct Side {
-    /// field -> value -> count (categorical view).
+    /// field -> value -> count (categorical view), at most `max_distinct + 1` values per field: a
+    /// field with more is not compared as a category anyway.
     values: BTreeMap<String, BTreeMap<String, u64>>,
+    /// Fields that had more than `max_distinct` values on this side.
+    too_many: BTreeSet<String>,
     /// field -> numeric values.
     numbers: BTreeMap<String, Vec<f64>>,
 }
 
-fn scan<'a>(records: impl IntoIterator<Item = &'a Record>) -> (Side, SideStats) {
+impl Side {
+    fn count(&mut self, field: &str, value: String, max_distinct: usize) {
+        if self.too_many.contains(field) {
+            return;
+        }
+        if !self.values.contains_key(field) && self.values.len() >= MAX_COMPARE_FIELDS {
+            return;
+        }
+        let m = self.values.entry(field.to_string()).or_default();
+        if let Some(c) = m.get_mut(&value) {
+            *c += 1;
+        } else if m.len() < max_distinct {
+            m.insert(value, 1);
+        } else {
+            self.values.remove(field);
+            self.too_many.insert(field.to_string());
+        }
+    }
+}
+
+/// A field value as a number: JSON numbers, and text that importers would have read as a number
+/// (stores keep undeclared fields as text).
+fn numeric(v: &Value) -> Option<f64> {
+    match v {
+        Value::Number(n) => n.as_f64(),
+        Value::String(s) => match auto_value(s) {
+            Value::Number(n) => n.as_f64(),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn scan<R: RowRef>(records: impl IntoIterator<Item = R>, max_distinct: usize) -> (Side, SideStats) {
     let mut side = Side::default();
     let mut counts = [0u64; 6];
     let (mut n, mut from, mut to): (u64, Option<i64>, Option<i64>) = (0, None, None);
     for r in records {
         n += 1;
-        counts[r.level.index()] += 1;
-        if let Some(ts) = r.ts {
+        counts[r.level().index()] += 1;
+        if let Some(ts) = r.ts() {
             from = Some(from.map_or(ts, |f| f.min(ts)));
             to = Some(to.map_or(ts, |t| t.max(ts)));
         }
-        if let Some(t) = &r.template {
-            *side.values.entry("@template".into()).or_default().entry(t.clone()).or_insert(0) += 1;
+        if let Some(t) = r.template() {
+            side.count("@template", t.to_string(), max_distinct);
         }
-        for (name, v) in &r.fields {
-            let text = crate::model::value_text(v).into_owned();
-            *side.values.entry(name.clone()).or_default().entry(text).or_insert(0) += 1;
-            if let (Value::Number(_), Some(f)) = (v, v.as_f64()) {
-                side.numbers.entry(name.clone()).or_default().push(f);
+        r.for_each_field(&mut |name, v| {
+            side.count(name, crate::model::value_text(&v).into_owned(), max_distinct);
+            if let Some(f) = numeric(&v) {
+                if side.numbers.contains_key(name) || side.numbers.len() < MAX_COMPARE_FIELDS {
+                    side.numbers.entry(name.to_string()).or_default().push(f);
+                }
             }
-        }
+        });
     }
     let duration_ms = from.zip(to).map_or(0, |(f, t)| t - f).max(1000);
     let per_min = |c: u64| c as f64 * 60_000.0 / duration_ms as f64;
@@ -248,12 +289,12 @@ fn summarize(a: &SideStats, b: &SideStats, cmp: &Comparison) -> Vec<String> {
 }
 
 /// Compares window A (the baseline) with window B.
-pub fn compare_windows<'a>(
-    a: impl IntoIterator<Item = &'a Record>,
-    b: impl IntoIterator<Item = &'a Record>,
+pub fn compare_windows<R: RowRef, S: RowRef>(
+    a: impl IntoIterator<Item = R>,
+    b: impl IntoIterator<Item = S>,
     cfg: &CompareConfig,
 ) -> Comparison {
-    let ((sa, stats_a), (sb, stats_b)) = (scan(a), scan(b));
+    let ((sa, stats_a), (sb, stats_b)) = (scan(a, cfg.max_distinct), scan(b, cfg.max_distinct));
     let fields: BTreeSet<&String> = sa.values.keys().chain(sb.values.keys()).collect();
     let empty_map = BTreeMap::new();
     let mut changed_fields = Vec::new();
@@ -264,7 +305,7 @@ pub fn compare_windows<'a>(
             sb.values.get(field).unwrap_or(&empty_map),
         );
         let distinct: BTreeSet<&String> = va.keys().chain(vb.keys()).collect();
-        if distinct.len() > cfg.max_distinct {
+        if distinct.len() > cfg.max_distinct || sa.too_many.contains(field) || sb.too_many.contains(field) {
             continue;
         }
         let (ta, tb) = (va.values().sum::<u64>() as f64, vb.values().sum::<u64>() as f64);

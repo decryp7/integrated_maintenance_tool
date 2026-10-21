@@ -460,9 +460,12 @@ impl Tool for Sets {
   `notGranted` and the tool never runs. The tool receives the checked, canonical path.
 - **Elevated operations.** `OpSpec::elevated()` marks an operation that needs administrator rights. The
   host starts a separate elevated process of the plugin for these operations only (on Windows through a UAC
-  prompt) and serves only the elevated operations there; everything else stays unelevated. The elevated
-  process keeps no file-system writes of its own by contract: its output streams back to the host.
-  `ToolInfo::needs_elevation` is the tool-level hint for the UI.
+  prompt) and serves only the elevated operations there; everything else stays unelevated. The plugin's
+  normal process can run them itself with `ctx.elevated()` (`ElevatedOps::invoke`), so its state stays
+  unelevated and the elevated process does only what needs the rights; the host accepts only operations the
+  manifest declares elevated, and a declined prompt is a `ToolFailure::denied`. The elevated process writes
+  nothing at paths it receives (the .NET plugin's ETW recorder writes only into the captures folder of the data
+  folder the host passes, ADR 0019). `ToolInfo::needs_elevation` is the tool-level hint for the UI.
 - Background work is reported with `ctx.task_started/task_progress/task_finished`; the shell lists
   it in the tray and status bar and stops it through `Tool::stop`.
 

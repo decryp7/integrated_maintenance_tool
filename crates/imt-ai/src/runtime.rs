@@ -8,7 +8,7 @@ use crate::llm::{LlmProvider, ModelLoader};
 use crate::models::ModelStore;
 use crate::recommend::{assess, Fit};
 use crate::settings::{AiSettings, GpuOffload};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,6 +32,9 @@ impl From<GpuOffload> for GpuMode {
 #[derive(Debug, Clone)]
 pub struct LoadRequest {
     pub path: PathBuf,
+    /// The model's image projector (`mmproj`), loaded into the same engine so the one model reads images too
+    /// (ADR 0025).
+    pub projector: Option<PathBuf>,
     pub info: GgufInfo,
     pub context: usize,
     pub gpu: GpuMode,
@@ -59,9 +62,16 @@ pub fn effective_context(settings: &AiSettings, info: &GgufInfo) -> usize {
     }
 }
 
-/// Refuses a model that cannot fit this machine, with advice.
-pub fn check_memory(hw: &Hardware, info: &GgufInfo) -> Result<()> {
-    let a = assess(hw, info.file_size, info.params_b, info.is_moe(), 0.0);
+/// Size of a projector file (0 for none or an unreadable one): it is loaded with the model and counts toward
+/// its memory.
+pub fn projector_bytes(projector: Option<&Path>) -> u64 {
+    projector.and_then(|p| std::fs::metadata(p).ok()).map_or(0, |m| m.len())
+}
+
+/// Refuses a model (with `extra_bytes` loaded alongside it, its projector) that cannot fit this machine, with
+/// advice.
+pub fn check_memory(hw: &Hardware, info: &GgufInfo, extra_bytes: u64) -> Result<()> {
+    let a = assess(hw, info.file_size.saturating_add(extra_bytes), info.params_b, info.is_moe(), 0.0);
     if a.fit == Fit::TooLarge {
         return Err(AiError::Memory(format!(
             "this model needs about {:.1} GB but this machine can offer less ({}). Choose a smaller model or a lower quantisation.",
@@ -101,10 +111,12 @@ impl ModelLoader for InstalledModelLoader {
     fn load(&self) -> Result<Arc<dyn LlmProvider>> {
         let path = self.store.path_of(&self.file_name)?;
         let info = crate::gguf::inspect(&path)?;
-        check_memory(&self.hardware, &info)?;
+        let projector = self.store.projector_path(&self.file_name)?;
+        check_memory(&self.hardware, &info, projector_bytes(projector.as_deref()))?;
         let req = LoadRequest {
             context: effective_context(&self.settings, &info),
             path,
+            projector,
             info,
             gpu: self.settings.gpu_offload.into(),
             threads: self.settings.threads,
@@ -114,5 +126,9 @@ impl ModelLoader for InstalledModelLoader {
 
     fn context_hint(&self) -> usize {
         self.settings.context_length
+    }
+
+    fn vision_hint(&self) -> bool {
+        self.store.projector_path(&self.file_name).is_ok_and(|p| p.is_some())
     }
 }

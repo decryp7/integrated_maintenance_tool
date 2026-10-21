@@ -347,6 +347,10 @@ pub struct OpSpec {
     /// started through the administrator prompt on first use.
     #[serde(default)]
     pub elevated: bool,
+    /// A read-only status operation the UI polls: the shell runs it through the quiet `tool_poll`
+    /// (not logged per call) and refuses `tool_poll` for any other operation.
+    #[serde(default)]
+    pub poll: bool,
 }
 
 mod millis {
@@ -374,7 +378,14 @@ impl OpSpec {
             args: Schema::object(),
             budget: Some(DEFAULT_OP_BUDGET),
             elevated: false,
+            poll: false,
         }
+    }
+
+    /// Marks a read-only status operation that may be polled (see [`OpSpec::poll`]).
+    pub fn polling(mut self) -> OpSpec {
+        self.poll = true;
+        self
     }
 
     pub fn args(mut self, schema: Schema) -> OpSpec {
@@ -530,6 +541,13 @@ impl PathPolicy for NoPaths {
     }
 }
 
+/// Runs the calling plugin's own elevated operations ([`OpSpec::elevated`]) in its elevated process, through the
+/// host (ADR 0017 §7): the host starts that process (the administrator prompt on Windows) and accepts only
+/// operations the plugin declared elevated. A prompt the user declines is a [`ToolFailure::denied`].
+pub trait ElevatedOps: Send + Sync {
+    fn invoke(&self, tool: &str, op: &str, args: Value, timeout: Duration) -> Result<Value>;
+}
+
 /// What the host gives a tool for one call. Cheap to clone; a tool may keep a clone to report the end of
 /// background work it started.
 #[derive(Clone)]
@@ -538,6 +556,7 @@ pub struct ToolCtx {
     data_dir: Option<PathBuf>,
     sink: Arc<dyn TaskSink>,
     paths: Arc<dyn PathPolicy>,
+    elevated: Option<Arc<dyn ElevatedOps>>,
 }
 
 impl ToolCtx {
@@ -549,7 +568,20 @@ impl ToolCtx {
             data_dir,
             sink,
             paths: Arc::new(NoPaths),
+            elevated: None,
         }
+    }
+
+    /// The same context able to run the plugin's elevated operations through `elevated`.
+    pub fn with_elevated(mut self, elevated: Arc<dyn ElevatedOps>) -> ToolCtx {
+        self.elevated = Some(elevated);
+        self
+    }
+
+    /// How to run the plugin's elevated operations; `None` where there is no elevated process (in the
+    /// elevated process itself, in tests, in hosts without one).
+    pub fn elevated(&self) -> Option<&Arc<dyn ElevatedOps>> {
+        self.elevated.as_ref()
     }
 
     /// The same context checking path arguments with `paths`.

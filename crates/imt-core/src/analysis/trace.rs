@@ -2,31 +2,56 @@
 //! trace fields and a request waterfall.
 
 use super::util::truncate;
-use crate::model::{Level, Record};
+use crate::model::Level;
+use crate::row::RowRef;
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 const TRACE_FIELDS: [&str; 3] = ["TraceId", "trace_id", "@tr"];
 const SPAN_FIELDS: [&str; 3] = ["SpanId", "span_id", "@sp"];
 const PARENT_FIELDS: [&str; 3] = ["ParentSpanId", "ParentId", "parent_span_id"];
+/// An event's id as the DTOs carry it (saturating until 6c widens them).
+fn sid(r: &dyn RowRef) -> u32 {
+    u32::try_from(r.id()).unwrap_or(u32::MAX)
+}
+
 const DURATION_FIELDS: [&str; 4] = ["ElapsedMs", "Elapsed", "DurationMs", "Duration"];
 
+/// Every field [`spans`] reads (a store reads only these).
+pub const SPAN_INPUT_FIELDS: [&str; 15] = [
+    "TraceId",
+    "trace_id",
+    "@tr",
+    "SpanId",
+    "span_id",
+    "@sp",
+    "ParentSpanId",
+    "ParentId",
+    "parent_span_id",
+    "ElapsedMs",
+    "Elapsed",
+    "DurationMs",
+    "Duration",
+    "RequestPath",
+    "SourceContext",
+];
+
 /// First non-empty value among `names`.
-fn first_text(r: &Record, names: &[&str]) -> Option<String> {
+fn first_text(r: &dyn RowRef, names: &[&str]) -> Option<String> {
     names
         .iter()
-        .filter_map(|n| r.field_text(n, ""))
+        .filter_map(|n| r.text_of(n))
         .map(|v| v.into_owned())
         .find(|v| !v.is_empty())
 }
 
 /// Ids of the events whose `key_field` equals `value`, in time order
 /// (events without a timestamp last).
-pub fn correlate<'a>(records: impl IntoIterator<Item = &'a Record>, key_field: &str, value: &str) -> Vec<u32> {
+pub fn correlate<R: RowRef>(records: impl IntoIterator<Item = R>, key_field: &str, value: &str) -> Vec<u32> {
     let mut hits: Vec<(i64, u32)> = records
         .into_iter()
-        .filter(|r| r.field_text(key_field, "").is_some_and(|v| v == value))
-        .map(|r| (r.ts.unwrap_or(i64::MAX), r.id))
+        .filter(|r| r.text_of(key_field).is_some_and(|v| v == value))
+        .map(|r| (r.ts().unwrap_or(i64::MAX), sid(&r)))
         .collect();
     hits.sort_unstable();
     hits.into_iter().map(|(_, id)| id).collect()
@@ -50,43 +75,63 @@ pub struct Span {
 
 #[derive(Default)]
 struct SpanBuilder {
-    parent: Option<String>,
+    /// Each with the time of the event it came from: the earliest event that has one wins.
+    parent: Option<(i64, String)>,
     start: i64,
     end: i64,
     explicit: Option<f64>,
     events: u32,
     errors: u32,
     first_id: u32,
-    request_path: Option<String>,
-    context: Option<String>,
+    request_path: Option<(i64, String)>,
+    context: Option<(i64, String)>,
     text: String,
+}
+
+/// Keeps the value of the earliest event (the first one seen among events at the same time).
+fn earliest(slot: &mut Option<(i64, String)>, ts: i64, value: impl FnOnce() -> Option<String>) {
+    if slot.as_ref().is_none_or(|(t, _)| ts < *t) {
+        if let Some(v) = value() {
+            *slot = Some((ts, v));
+        }
+    }
 }
 
 /// Builds spans from events carrying a trace id and a span id. The name is the
 /// request path, else the logger, else the first message. The duration is the
 /// largest `Elapsed`-style value logged in the span, else last minus first event.
-pub fn spans<'a>(records: impl IntoIterator<Item = &'a Record>) -> Vec<Span> {
-    let mut events: Vec<(i64, &Record)> = records.into_iter().filter_map(|r| r.ts.map(|t| (t, r))).collect();
-    events.sort_by_key(|e| e.0);
+///
+/// Events stream through (nothing is kept per event); their order does not matter: each span takes what it
+/// reports from its earliest events, as if they were sorted by time.
+pub fn spans<R: RowRef>(records: impl IntoIterator<Item = R>) -> Vec<Span> {
     let mut builders: BTreeMap<(String, String), SpanBuilder> = BTreeMap::new();
-    for (ts, r) in events {
+    for r in records {
+        let Some(ts) = r.ts() else { continue };
+        let r: &dyn RowRef = &r;
         let (Some(trace), Some(span)) = (first_text(r, &TRACE_FIELDS), first_text(r, &SPAN_FIELDS)) else {
             continue;
         };
+        let text = || truncate(r.template().unwrap_or(r.message()), 80);
         let b = builders.entry((trace, span)).or_insert_with(|| SpanBuilder {
             start: ts,
-            first_id: r.id,
-            text: truncate(r.template.as_deref().unwrap_or(&r.message), 80),
+            end: ts,
+            first_id: sid(r),
+            text: text(),
             ..SpanBuilder::default()
         });
-        b.end = ts;
+        if ts < b.start {
+            b.start = ts;
+            b.first_id = sid(r);
+            b.text = text();
+        }
+        b.end = b.end.max(ts);
         b.events += 1;
-        b.errors += u32::from(r.level >= Level::Error);
-        b.parent = b.parent.take().or_else(|| first_text(r, &PARENT_FIELDS));
-        b.request_path = b.request_path.take().or_else(|| first_text(r, &["RequestPath"]));
-        b.context = b.context.take().or_else(|| first_text(r, &["SourceContext"]));
+        b.errors += u32::from(r.level() >= Level::Error);
+        earliest(&mut b.parent, ts, || first_text(r, &PARENT_FIELDS));
+        earliest(&mut b.request_path, ts, || first_text(r, &["RequestPath"]));
+        earliest(&mut b.context, ts, || first_text(r, &["SourceContext"]));
         for f in DURATION_FIELDS {
-            if let Some(d) = r.field_number(f) {
+            if let Some(d) = r.number_of(f) {
                 b.explicit = Some(b.explicit.map_or(d, |e| e.max(d)));
             }
         }
@@ -96,8 +141,8 @@ pub fn spans<'a>(records: impl IntoIterator<Item = &'a Record>) -> Vec<Span> {
         .map(|((trace_id, span_id), b)| Span {
             trace_id,
             span_id,
-            parent: b.parent,
-            name: b.request_path.or(b.context).unwrap_or(b.text),
+            parent: b.parent.map(|(_, p)| p),
+            name: b.request_path.or(b.context).map_or(b.text, |(_, n)| n),
             start: b.start,
             duration_ms: b.explicit.unwrap_or((b.end - b.start) as f64),
             events: b.events,
@@ -140,13 +185,13 @@ pub fn waterfall(spans: &[Span], trace_id: &str) -> Vec<WaterfallRow> {
     }
     let mut rows = Vec::new();
     let mut seen: HashSet<&str> = HashSet::new();
-    // Spans caught in a parent cycle have no root; surface them after the real roots.
-    let cyclic: Vec<&Span> = mine
-        .iter()
-        .copied()
-        .filter(|s| !roots.contains(s) && !reaches_root(s, &by_id))
-        .collect();
-    for root in roots.into_iter().chain(cyclic) {
+    // Every span that reaches a root is visited from it; the rest are caught in a parent cycle and are
+    // surfaced after the real roots, in start order (linear, engine review finding 19).
+    let walk = roots.into_iter().chain(mine.iter().copied());
+    for root in walk {
+        if seen.contains(root.span_id.as_str()) {
+            continue;
+        }
         let mut stack = vec![(root, 0u32)];
         while let Some((s, depth)) = stack.pop() {
             if !seen.insert(s.span_id.as_str()) {
@@ -169,18 +214,6 @@ pub fn waterfall(spans: &[Span], trace_id: &str) -> Vec<WaterfallRow> {
     rows
 }
 
-/// True when following parents from `span` ends at a span without a known parent.
-fn reaches_root(span: &Span, by_id: &HashMap<&str, &Span>) -> bool {
-    let mut current = span;
-    for _ in 0..by_id.len() {
-        match current.parent.as_deref().and_then(|p| by_id.get(p)) {
-            Some(next) if next.span_id != current.span_id => current = next,
-            _ => return true,
-        }
-    }
-    false
-}
-
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestSpan {
@@ -195,11 +228,11 @@ pub struct RequestSpan {
 /// Groups events by a request/correlation id for logs without span ids.
 /// `id_field` may list alternatives separated by `|` (`RequestId|CorrelationId`).
 /// Input is `(event, instance key)`; events without a timestamp or id are skipped.
-pub fn request_durations<'a>(records: impl IntoIterator<Item = (&'a Record, &'a str)>, id_field: &str) -> Vec<RequestSpan> {
+pub fn request_durations<R: RowRef, K: AsRef<str>>(records: impl IntoIterator<Item = (R, K)>, id_field: &str) -> Vec<RequestSpan> {
     let names: Vec<&str> = id_field.split('|').map(str::trim).filter(|n| !n.is_empty()).collect();
     let mut by_id: BTreeMap<String, RequestSpan> = BTreeMap::new();
     for (r, instance) in records {
-        let (Some(ts), Some(id)) = (r.ts, first_text(r, &names)) else {
+        let (Some(ts), Some(id)) = (r.ts(), first_text(&r, &names)) else {
             continue;
         };
         let e = by_id.entry(id.clone()).or_insert_with(|| RequestSpan {
@@ -208,14 +241,23 @@ pub fn request_durations<'a>(records: impl IntoIterator<Item = (&'a Record, &'a 
             last: ts,
             events: 0,
             errors: 0,
-            instance: instance.to_string(),
+            instance: instance.as_ref().to_string(),
         });
         e.first = e.first.min(ts);
         e.last = e.last.max(ts);
         e.events += 1;
-        e.errors += u32::from(r.level >= Level::Error);
+        e.errors += u32::from(r.level() >= Level::Error);
     }
     let mut out: Vec<RequestSpan> = by_id.into_values().collect();
     out.sort_by(|a, b| a.first.cmp(&b.first).then_with(|| a.id.cmp(&b.id)));
     out
+}
+
+/// Most requests listed.
+pub const MAX_REQUESTS: usize = 500;
+
+/// Requests longest first (ties by id), at most [`MAX_REQUESTS`].
+pub fn rank_requests(out: &mut Vec<RequestSpan>) {
+    out.sort_by(|a, b| (b.last - b.first).cmp(&(a.last - a.first)).then_with(|| a.id.cmp(&b.id)));
+    out.truncate(MAX_REQUESTS);
 }

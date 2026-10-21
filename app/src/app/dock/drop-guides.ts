@@ -68,6 +68,8 @@ export class DropGuides {
   private start(): void {
     this.active = true;
     this.layer.classList.add('on');
+    // While shown it covers the dock: the internal browser's native page steps aside (`OverlayTracker`).
+    this.layer.setAttribute('data-imt-overlay', '');
     this.drawEdges();
   }
 
@@ -85,6 +87,7 @@ export class DropGuides {
     this.active = false;
     this.group = null;
     this.layer.classList.remove('on');
+    this.layer.removeAttribute('data-imt-overlay');
     this.preview.hidden = true;
     this.compass.replaceChildren();
     this.edges.replaceChildren();

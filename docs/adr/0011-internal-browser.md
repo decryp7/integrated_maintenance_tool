@@ -1,6 +1,6 @@
 # 11. The AI gets web content only through an internal browser the user drives
 
-- Status: accepted (amended by [ADR 0012](0012-jobs.md): read-only research mode)
+- Status: accepted (amended by [ADR 0012](0012-jobs.md): read-only research mode; by [ADR 0024](0024-docked-browser.md): the browser is a docked panel with a child webview instead of a separate window, and the AI drafts the search text)
 - Date: 2026-10-18
 
 ## Context
@@ -100,7 +100,7 @@ shares a window with IMT's own UI. One browser per IMT window (`browser-<window>
 - **Playwright headful or stealth automation**: bundles a browser and Node, and stealth or bot-detection
   evasion is explicitly not wanted. The system webview with its honest user agent is enough for a user who
   watches and approves.
-- **Multi-webview in one window**: see above; unstable in this Tauri version.
+- **Multi-webview in one window**: rejected then as unstable in this Tauri version; adopted later by [ADR 0024](0024-docked-browser.md) (the page is a child webview of the window hosting the Browser panel).
 
 ## Consequences
 

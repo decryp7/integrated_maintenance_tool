@@ -99,29 +99,90 @@ pub struct ImportReport {
     pub elapsed_ms: u64,
 }
 
-/// One kind of import problem in one source.
+/// One kind of import problem in one source (or one file that was not imported).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosticRow {
-    pub source: SourceId,
+    /// The source, when the file was imported.
+    pub source: Option<SourceId>,
     pub source_name: String,
+    /// The file (with the archive entry for an archive member).
+    pub path: String,
     pub kind: ProblemKind,
     pub severity: crate::api::Severity,
     pub count: u64,
+    /// At most 20 1-based line numbers of the first occurrences.
     pub sample_lines: Vec<u32>,
+    /// What the engine knows more (e.g. why a file was not opened).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+    /// A fix the engine checked against the samples, ready for quick-fix evaluation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fix: Option<DiagnosticFix>,
 }
 
 impl DiagnosticRow {
-    pub fn new(source: SourceId, source_name: String, p: Problem) -> DiagnosticRow {
+    pub fn new(source: SourceId, source_name: String, path: String, p: Problem) -> DiagnosticRow {
         DiagnosticRow {
-            source,
+            source: Some(source),
             source_name,
+            path,
             severity: p.kind.severity(),
             kind: p.kind,
             count: p.count,
             sample_lines: p.sample_lines,
+            detail: None,
+            fix: None,
         }
     }
+}
+
+/// An engine-proposed fix of a diagnostic: a profile override and, for unreadable timestamps, the
+/// verified format.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagnosticFix {
+    pub title: String,
+    /// TOML merged over the active profile (the `profileOverride` of a [`QuickFix`]).
+    pub profile_override: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timestamp: Option<crate::api::TimestampSuggestion>,
+}
+
+/// How much of the matching data an analysis looked at (engine review finding 16: no silent caps).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Coverage {
+    /// Events the analysis's query matched.
+    pub matched: u64,
+    /// Events it looked at (fewer than `matched` when a limit stopped it).
+    pub analysed: u64,
+    /// The limits that bounded the result, in words (e.g. "patterns: 10,000 kept; 312 events in the
+    /// overflow pattern").
+    pub limits: Vec<String>,
+}
+
+impl Coverage {
+    /// Whether every matching event was analysed and no limit bounded the result.
+    pub fn complete(&self) -> bool {
+        self.analysed == self.matched && self.limits.is_empty()
+    }
+
+    /// Both coverages together (an analysis over two queries).
+    pub fn and(mut self, other: Coverage) -> Coverage {
+        self.matched += other.matched;
+        self.analysed += other.analysed;
+        self.limits.extend(other.limits);
+        self
+    }
+}
+
+/// An analysis result with its [`Coverage`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Analyzed<T> {
+    pub result: T,
+    pub coverage: Coverage,
 }
 
 /// A proposed profile override (TOML merged over the active profile) for some sources.
@@ -133,11 +194,17 @@ pub struct QuickFix {
     pub sources: Vec<SourceId>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// How a proposed fix does on the stored events it applies to: "fixes `fixed` of `checked`".
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FixEvaluation {
     pub fixed: u64,
     pub checked: u64,
+    /// Affected events not checked (beyond the evaluation limit).
+    pub unchecked: u64,
+    /// Why some problems could not be checked (e.g. skipped lines are not stored).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -199,6 +266,7 @@ mod tests {
         let row = DiagnosticRow::new(
             SourceId(1),
             "a.log".into(),
+            "/x/a.log".into(),
             Problem {
                 kind: ProblemKind::LineTooLong,
                 count: 2,

@@ -61,7 +61,14 @@ pub struct ImporterCap {
     pub tail: bool,
     /// A record may span several lines.
     pub multiline: bool,
+    /// Fields that identify who wrote an event, widest first (ADR 0020; see
+    /// [`crate::importer::TextImporter::identity_fields`]).
+    #[serde(default)]
+    pub identity_fields: Vec<String>,
 }
+
+/// Most identity fields an importer may declare.
+pub const MAX_IDENTITY_FIELDS: usize = 8;
 
 /// A configuration format a plugin contributes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -161,6 +168,15 @@ impl Manifest {
                 return Err(format!("plugin \"{}\" contributes \"{c}\" twice", self.id));
             }
         }
+        for i in &self.importers {
+            let bad = |f: &String| f.is_empty() || f.len() > 64 || f.chars().any(char::is_control);
+            if i.identity_fields.len() > MAX_IDENTITY_FIELDS || i.identity_fields.iter().any(bad) {
+                return Err(format!(
+                    "importer \"{}\": declare at most {MAX_IDENTITY_FIELDS} identity fields of 1–64 characters",
+                    i.id
+                ));
+            }
+        }
         for t in &self.tools {
             t.check()?;
         }
@@ -198,6 +214,7 @@ mod tests {
                 binary: false,
                 tail: true,
                 multiline: false,
+                identity_fields: vec!["Host".into()],
             }],
             config_parsers: Vec::new(),
             marker_kinds: vec![PluginMarkerKind::new("boom", "Boom")],
@@ -225,6 +242,17 @@ mod tests {
         let mut old = m.clone();
         old.contract = 0;
         assert!(old.check().unwrap_err().contains("contract 0"));
+        let mut identity = m.clone();
+        identity.importers[0].identity_fields = vec!["".into()];
+        assert!(identity.check().unwrap_err().contains("identity fields"));
+        identity.importers[0].identity_fields = vec!["F".into(); MAX_IDENTITY_FIELDS + 1];
+        assert!(identity.check().is_err());
+        // Older manifests without the field read as none.
+        let mut json = serde_json::to_value(&m).unwrap();
+        json["importers"][0].as_object_mut().unwrap().remove("identityFields");
+        assert!(serde_json::from_value::<Manifest>(json).unwrap().importers[0]
+            .identity_fields
+            .is_empty());
         let mut twice = m.clone();
         twice.annotators.push("toy.spans".into());
         assert!(twice.check().unwrap_err().contains("twice"));

@@ -89,6 +89,8 @@ export class DockService {
   /** The Ctrl+Tab navigator, when open. */
   readonly switcher = signal<SwitcherState | null>(null);
   readonly fullScreen = signal(false);
+  /** Ticks on every layout change of the dock (panels that keep native content in place follow it). */
+  readonly layoutChanged = this.ctx.layoutVersion.asReadonly();
 
   constructor() {
     inject(DockPolicy).start({
@@ -220,6 +222,7 @@ export class DockService {
       api.onDidRemovePanel(() => this.ctx.refreshOpen()),
       api.onDidLayoutFromJSON(() => this.ctx.refreshOpen()),
       api.onDidLayoutChange(() => {
+        this.ctx.layoutVersion.update((n) => n + 1);
         this.ctx.markPinnedTabs();
         this.persistence.schedule();
       }),

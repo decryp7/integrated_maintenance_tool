@@ -354,6 +354,25 @@ describe('NotificationsStore', () => {
     store.holdToast(99);
   });
 
+  // Regression: a toast the pointer had passed over stayed until it was closed by hand.
+  it('a held toast goes after the usual time once released', async () => {
+    const { fake, store } = setupStore();
+    await settle();
+    vi.useFakeTimers();
+    const a = notice({ id: 1 });
+    fake.push(event([a], a));
+    store.holdToast(1);
+    vi.advanceTimersByTime(TOAST_MS * 3);
+    store.releaseToast(1);
+    vi.advanceTimersByTime(TOAST_MS - 1);
+    expect(store.toasts()).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    expect(store.toasts()).toHaveLength(0);
+    store.releaseToast(1); // gone already: nothing to restart
+    vi.advanceTimersByTime(TOAST_MS);
+    expect(store.toasts()).toHaveLength(0);
+  });
+
   it('dismissing a message removes its toast and asks the engine', async () => {
     const { fake, store } = setupStore();
     await settle();

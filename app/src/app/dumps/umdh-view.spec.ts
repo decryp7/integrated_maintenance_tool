@@ -58,7 +58,7 @@ describe('UmdhView', () => {
     expect(view.tab()).toBe('growth');
     expect(view.stackKey()).toBe('cache');
     const rows = all(fixture, '[data-testid="umdh-growth"] tbody tr');
-    expect(rows[0]!.textContent).toContain('+20.0 MB');
+    expect(rows[0]!.textContent).toContain('+20 MB');
     expect(el(fixture, '[data-testid="umdh-stack"]').textContent).toContain('allocated here');
     el<HTMLInputElement>(fixture, '[data-testid="umdh-group-module"]').dispatchEvent(new Event('change'));
     await settle(fixture, 6);

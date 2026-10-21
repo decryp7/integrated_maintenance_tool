@@ -15,6 +15,8 @@ import {
   HeapDiffPage,
   HeapDiffRequest,
   HeapDominatorsRequest,
+  HeapFinding,
+  HeapFindingsRequest,
   HeapGrowthPage,
   HeapGrowthRequest,
   HeapInstancesRequest,
@@ -42,10 +44,10 @@ import {
 } from '../api.types';
 import { heapSnapshot, MockHeapData, MockProfileData, ordersProfile, regressionProfile } from './mock-profiling-data';
 import { mockButterfly, mockFindings, mockFlame, mockFramePaths, mockFunctionDiff, mockHotPath, mockHotspots, mockThreads, mockTree, FlameParams, viewSamples, grandTotal } from './mock-profiling-engine';
-import { HeapIndex, indexHeap, mockHeapDiff, mockHeapDominators, mockHeapGrowth, mockHeapInstances, mockHeapPaths, mockHeapTypes } from './mock-profiling-heap';
+import { HeapIndex, indexHeap, mockHeapDiff, mockHeapDominators, mockHeapGrowth, mockHeapInstances, mockHeapFindings, mockHeapPaths, mockHeapTypes } from './mock-profiling-heap';
 
 /** Operations `mockProfilingFail` may name. */
-export const PROFILING_FAILABLE = ['open', 'sniff', 'hotspots', 'tree', 'hotPath', 'framePaths', 'butterfly', 'flame', 'diffFlame', 'functionDiff', 'threads', 'findings', 'moment', 'heapTypes', 'heapDiff', 'heapGrowth', 'heapDominators', 'heapInstances', 'heapPaths', 'spans'] as const;
+export const PROFILING_FAILABLE = ['open', 'sniff', 'hotspots', 'tree', 'hotPath', 'framePaths', 'butterfly', 'flame', 'diffFlame', 'functionDiff', 'threads', 'findings', 'moment', 'heapTypes', 'heapDiff', 'heapGrowth', 'heapDominators', 'heapInstances', 'heapPaths', 'heapFindings', 'spans'] as const;
 export type ProfilingFailable = (typeof PROFILING_FAILABLE)[number];
 
 export interface MockProfilingOptions {
@@ -338,5 +340,8 @@ export class MockProfilingBackend implements ProfilingBackend {
   }
   heapPaths(r: HeapPathsRequest): Promise<HeapPaths> {
     return this.answer('heapPaths', () => mockHeapPaths(this.heap(r.snapshotId), r.object, Math.min(20, r.maxPaths ?? 5)));
+  }
+  heapFindings(r: HeapFindingsRequest): Promise<HeapFinding[]> {
+    return this.answer('heapFindings', () => mockHeapFindings(this.heap(r.snapshotId), r.baselineId != null && r.baselineId !== r.snapshotId ? this.heap(r.baselineId) : null));
   }
 }

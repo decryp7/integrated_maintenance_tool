@@ -1,7 +1,7 @@
 //! The two seams of the streaming import: importers push [`ParsedEvent`]s into an [`EventSink`]; the
 //! batcher pushes [`PendingBatch`]es into a [`BatchSink`] (the store's writer).
 
-use super::problems::{Problem, ProblemKind};
+use super::problems::{Problem, ProblemKind, Problems};
 use crate::api::FileKind;
 use crate::batch::{PendingBatch, SourceId};
 use crate::model::Record;
@@ -23,6 +23,11 @@ pub trait EventSink {
     fn event(&mut self, ev: ParsedEvent) -> Result<()>;
     /// Something on `line` could not be read as it should.
     fn problem(&mut self, kind: ProblemKind, line: u32);
+    /// Problems an importer that does not stream already aggregated (`Imported::problems`). Sinks that keep
+    /// problems override it; the default drops them.
+    fn problems(&mut self, problems: Problems) {
+        let _ = problems;
+    }
 }
 
 /// A source about to be read.

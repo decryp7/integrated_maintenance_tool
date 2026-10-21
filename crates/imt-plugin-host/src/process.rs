@@ -18,19 +18,22 @@ use imt_ipc::process::SpawnSpec;
 use imt_ipc::supervisor::{ChildStatus, Supervisor, SupervisorConfig};
 use imt_ipc::{IpcError, Json, RemoteError};
 use imt_plugin_api::manifest::{Manifest, Permission};
-use imt_plugin_api::protocol::{HostFileRef, HostRequest, PluginRequest, WireEvent, WireViewRecord, READ_CHUNK};
+use imt_plugin_api::protocol::{HostFileRef, HostRequest, PluginRequest, ToolFail, WireEvent, WireViewRecord, READ_CHUNK};
 use imt_plugin_api::serve::ELEVATED_ROLE;
+use imt_plugin_api::tools::FailureReason;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::Duration;
 
 fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|p| p.into_inner())
 }
 
+/// Longest elevated operation a plugin may ask for.
+const MAX_ELEVATED_CALL: Duration = Duration::from_secs(3600);
 /// How long a pumped callback may wait for the calling thread.
 const PUMP_WAIT: Duration = Duration::from_secs(120);
 /// How often the calling thread looks for callbacks while it waits for items.
@@ -53,6 +56,10 @@ pub struct PluginSpec {
     pub supervisor: SupervisorConfig,
     /// Where its standard error goes.
     pub log: Option<ChildLogSpec>,
+    /// Whether its elevated process is started with administrator rights (the prompt on Windows). Only tests turn
+    /// this off, to run the elevated role as an ordinary process.
+    #[doc(hidden)]
+    pub elevate: bool,
 }
 
 impl PluginSpec {
@@ -68,9 +75,13 @@ impl PluginSpec {
                 ..SupervisorConfig::new(format!("plugin \"{id}\""))
             },
             log: Some(log),
+            elevate: true,
         }
     }
 }
+
+/// Runs one of the plugin's elevated operations for its normal process.
+type ElevatedRunner = Box<dyn Fn(&str, &str, Json, Duration) -> Result<Json, ToolFail> + Send + Sync>;
 
 /// A callback the calling thread serves.
 struct Pumped {
@@ -87,6 +98,8 @@ pub(crate) struct HostServices {
     next: AtomicU64,
     /// Tool id → the context of its last call (task reports outlive the call that started the task).
     tasks: Mutex<HashMap<String, ToolCtx>>,
+    /// The plugin's elevated operations (set once the process exists).
+    elevated: OnceLock<ElevatedRunner>,
 }
 
 impl HostServices {
@@ -135,6 +148,19 @@ impl Handler for HostServices {
                     ctx.sink().finished(&tool, &task);
                 }
                 encode_reply(&())
+            }
+            HostRequest::InvokeElevated {
+                tool,
+                op,
+                args,
+                timeout_ms,
+            } => {
+                let run = self
+                    .elevated
+                    .get()
+                    .ok_or_else(|| RemoteError::new(code::INVALID, "this process cannot run elevated operations"))?;
+                let timeout = Duration::from_millis(timeout_ms).min(MAX_ELEVATED_CALL);
+                encode_reply(&run(&tool, &op, args, timeout))
             }
         }
     }
@@ -234,6 +260,22 @@ pub struct PluginProcess {
 impl PluginProcess {
     /// The process of the plugin `manifest` describes; started on first use.
     pub fn new(manifest: Manifest, spec: PluginSpec) -> Arc<PluginProcess> {
+        let process = PluginProcess::create(manifest, spec);
+        let weak = Arc::downgrade(&process);
+        let _ = process
+            .services
+            .elevated
+            .set(Box::new(move |tool, op, args, timeout| match weak.upgrade() {
+                Some(p) => p.invoke_elevated(tool, op, args, timeout),
+                None => Err(ToolFail {
+                    reason: None,
+                    message: "the plugin was shut down".into(),
+                }),
+            }));
+        process
+    }
+
+    fn create(manifest: Manifest, spec: PluginSpec) -> Arc<PluginProcess> {
         let services = Arc::new(HostServices::default());
         let settings: Arc<Mutex<Option<serde_json::Value>>> = Arc::default();
         let child_spec = child_spec(&manifest, &spec, false);
@@ -317,6 +359,42 @@ impl PluginProcess {
                 Arc::new(Supervisor::new(cfg, move || launch(&spec, handler.clone())))
             })
             .clone()
+    }
+
+    /// Runs `tool op` in the elevated process for the plugin's normal process: only an operation the manifest
+    /// declares elevated, with the app's data folder of the tool's last call.
+    fn invoke_elevated(&self, tool: &str, op: &str, args: Json, timeout: Duration) -> Result<Json, ToolFail> {
+        let fail = |message: String| ToolFail { reason: None, message };
+        let declared = self
+            .manifest
+            .tools
+            .iter()
+            .find(|t| t.id == tool)
+            .and_then(|t| t.ops.iter().find(|o| o.name == op))
+            .is_some_and(|o| o.elevated);
+        if !declared {
+            return Err(fail(format!(
+                "\"{tool} {op}\" is not an elevated operation of plugin \"{}\"",
+                self.id()
+            )));
+        }
+        let data_dir = lock(&self.services.tasks)
+            .get(tool)
+            .and_then(|c| c.data_dir().map(|d| d.to_string_lossy().into_owned()));
+        let req = PluginRequest::InvokeTool {
+            tool: tool.into(),
+            op: op.into(),
+            args,
+            data_dir,
+        };
+        match self.call::<Result<Json, ToolFail>>(&req, Some(timeout), true) {
+            Ok(r) => r,
+            Err(IpcError::Denied(m)) => Err(ToolFail {
+                reason: Some(FailureReason::Denied),
+                message: m,
+            }),
+            Err(e) => Err(fail(format!("{tool} {op} (elevated): {e}"))),
+        }
     }
 
     /// One call (no callbacks), on the elevated process when `elevated`.
@@ -408,6 +486,8 @@ fn child_spec(manifest: &Manifest, spec: &PluginSpec, elevated: bool) -> ChildSp
     let mut c = ChildSpec::new(s);
     if elevated {
         c.role = ELEVATED_ROLE.into();
+    }
+    if elevated && spec.elevate {
         c.elevation = Elevation::Required {
             reason: format!("{} needs administrator rights for this", manifest.name),
         };

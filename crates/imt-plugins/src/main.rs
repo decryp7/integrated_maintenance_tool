@@ -19,6 +19,9 @@ fn builtins() -> Vec<Arc<dyn Plugin>> {
         Arc::new(imt_plugin_formats::FormatsPlugin),
         Arc::new(imt_plugin_profiling::ProfilingPlugin),
         Arc::new(imt_plugin_tools::ToolsPlugin::new()),
+        Arc::new(imt_plugin_native::NativePlugin::new()),
+        // Captures are shared by every window (one capture list in the plugin's process).
+        Arc::new(imt_plugin_dotnet::DotnetPlugin::default()),
         Arc::new(imt_plugin_dumps::DumpsPlugin::new()),
         Arc::new(imt_plugin_dumps::DumpCapturePlugin),
     ]
@@ -69,8 +72,10 @@ mod tests {
         let json = super::manifests().unwrap();
         let list: Vec<imt_plugin_api::Manifest> = serde_json::from_str(&json).unwrap();
         let ids: Vec<&str> = list.iter().map(|m| m.id.as_ref()).collect();
-        assert_eq!(ids.len(), 10, "{ids:?}");
+        assert_eq!(ids.len(), 12, "{ids:?}");
         assert!(ids.contains(&"net.decryptology.tools") && ids.contains(&"net.decryptology.profiling"));
+        assert!(ids.contains(&"net.decryptology.native"));
+        assert!(ids.contains(&"net.decryptology.dotnet"));
         assert!(ids.contains(&"net.decryptology.dumps") && ids.contains(&"net.decryptology.dumps.capture"));
     }
 }

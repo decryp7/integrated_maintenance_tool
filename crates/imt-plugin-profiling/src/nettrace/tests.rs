@@ -339,16 +339,15 @@ fn versions_are_checked() {
     }
     let e = import(&minimal(&header(|h| h.min_version = 6))).unwrap_err();
     assert!(matches!(e, ProfileError::Unsupported { .. }));
-    // NetTrace V6 stream header.
-    let mut v6 = b"Nettrace".to_vec();
-    v6.extend_from_slice(&[0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0]);
-    let e = import(&v6).unwrap_err();
+    // A NetTrace V7 stream header (V6 is read: see `reads_nettrace_v6`).
+    let mut v7 = b"Nettrace".to_vec();
+    v7.extend_from_slice(&[0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0]);
+    let e = import(&v7).unwrap_err();
     assert!(
-        matches!(e, ProfileError::Unsupported { .. }) && e.to_string().contains("version 6"),
+        matches!(e, ProfileError::Unsupported { .. }) && e.to_string().contains("version 7"),
         "{e}"
     );
-    let e = import(b"Nettrace\0\0\0\0").unwrap_err();
-    assert!(e.to_string().contains("version 0"), "{e}");
+    assert!(import(b"Nettrace\0\0\0\0").is_err());
     // A block that needs a newer reader.
     let mut w = Writer::new(&TraceHeader::default());
     w.block("EventBlock", 3, &[20, 0, 0, 0]);
@@ -707,7 +706,8 @@ fn symbol_lookup_handles_edges() {
         size,
         name: String::new(),
     };
-    let s = Symbols::new(&[m(100, 10), m(100, 10), m(200, 0), m(u64::MAX - 1, 100)]);
+    let methods = [m(100, 10), m(100, 10), m(200, 0), m(u64::MAX - 1, 100)];
+    let s = Ranges::new(methods.iter().map(|m| (m.start, u64::from(m.size))));
     assert_eq!(s.ranges.len(), 3, "duplicates removed");
     assert_eq!(s.lookup(99), None);
     assert_eq!(s.lookup(100), Some(0));
@@ -716,4 +716,350 @@ fn symbol_lookup_handles_edges() {
     assert_eq!(s.lookup(200), Some(2), "size 0 covers its start");
     assert_eq!(s.lookup(201), None);
     assert_eq!(s.lookup(u64::MAX - 1), Some(3));
+}
+
+fn meta(id: u32, provider: &'static str, event_id: u32) -> Meta<'static> {
+    Meta {
+        id,
+        provider,
+        event_id,
+        name: "",
+    }
+}
+
+#[test]
+fn allocation_ticks_become_alloc_samples_with_the_type_as_leaf() {
+    for ptr in [4u32, 8] {
+        let mut w = Writer::new(&TraceHeader {
+            pointer_size: ptr,
+            ..TraceHeader::default()
+        });
+        w.metadata(
+            true,
+            &[
+                meta(1, RUNTIME, ids::GC_ALLOCATION_TICK),
+                meta(2, RUNDOWN, ids::METHOD_DC_END_VERBOSE),
+            ],
+        );
+        const MAIN32: u64 = 0x1000_1000;
+        w.stacks(1, &[vec![MAIN32 + 4]]);
+        w.events(
+            true,
+            &[
+                row(1, 10, 1, at(1), p::alloc_tick(100_000, 0, "System.String", ptr as usize)),
+                row(1, 10, 1, at(2), p::alloc_tick(200_000, 1, "System.Byte[]", ptr as usize)),
+                row(2, 10, 0, at(3), p::method_verbose(1, 50, MAIN32, 0x100, "Shop.Program", "Main")),
+            ],
+        );
+        let p = import(&w.finish()).unwrap();
+        assert_eq!(p.kind, ProfileKind::Alloc);
+        let bytes = p.metric_index(MetricId::AllocBytes).unwrap();
+        let n = p.metrics.len();
+        let total: u64 = (0..p.samples.len()).map(|i| p.samples.values[i * n + bytes]).sum();
+        assert_eq!(total, 300_000);
+        let leafs: Vec<Vec<String>> = (0..p.samples.len()).map(|i| names(&p, p.samples.stack[i])).collect();
+        assert!(
+            leafs.iter().any(|s| s.last().map(String::as_str) == Some("System.String")),
+            "{leafs:?}"
+        );
+        assert!(leafs
+            .iter()
+            .any(|s| s.last().map(String::as_str) == Some("System.Byte[] (large object heap)")));
+        assert!(leafs.iter().all(|s| s.first().map(String::as_str) == Some("Shop.Program.Main")));
+    }
+}
+
+#[test]
+fn etw_extension_events_and_pool_starvation() {
+    let mut w = Writer::new(&TraceHeader::default());
+    w.metadata(
+        true,
+        &[
+            meta(1, ext::PROVIDER, ext::ids::IMAGE_LOAD),
+            meta(2, ext::PROVIDER, ext::ids::THREAD_WAIT),
+            meta(3, ext::PROVIDER, ext::ids::THREAD_NAME),
+            meta(4, SAMPLE_PROFILER, ids::THREAD_SAMPLE),
+            meta(5, RUNTIME, ids::THREAD_POOL_ADJUSTMENT),
+            meta(6, RUNTIME, ids::THREAD_POOL_WORKER_START),
+        ],
+    );
+    w.stacks(1, &[vec![0x7ff0_0010, UNKNOWN]]);
+    let image = ext::image_load(&ext::ImageLoad {
+        base: 0x7ff0_0000,
+        size: 0x1000,
+        path: r"C:\Windows\System32\KERNELBASE.dll".into(),
+    });
+    let wait = ext::thread_wait(&ext::ThreadWait {
+        duration: 30_000,
+        reason: 4,
+        readied_by: 0,
+    });
+    w.events(
+        true,
+        &[
+            row(1, 10, 0, at(0), image),
+            row(3, 10, 0, at(0), ext::thread_name("UI thread")),
+            row(6, 11, 0, at(0), vec![0; 10]),
+            row(4, 10, 1, at(1), p::sample(false)),
+            row(2, 10, 1, at(2), wait),
+            row(5, 11, 0, at(3), p::pool_adjust(9, 6)),
+            row(5, 11, 0, at(4), p::pool_adjust(10, 3)),
+            row(2, 10, 0, at(5), vec![1]),
+        ],
+    );
+    let p = import(&w.finish()).unwrap();
+    let s = names(&p, p.samples.stack[0]);
+    assert!(s.contains(&"KERNELBASE.dll+0x10".to_string()), "{s:?}");
+    assert!(p.notes.iter().any(|n| n.contains("module+offset")), "{:?}", p.notes);
+    let wait = p.events.iter().find(|e| e.kind == EventKind::Wait).unwrap();
+    assert_eq!(wait.dur_ns, 3_000_000);
+    assert_eq!(wait.label, "Sleeping (delay)");
+    assert!(p.metrics.iter().any(|m| m.id == MetricId::WaitNs));
+    let starving: Vec<_> = p.events.iter().filter(|e| e.kind == EventKind::Marker).collect();
+    assert_eq!(starving.len(), 1, "only the starvation adjustment is a marker");
+    assert!(starving[0].label.contains("starvation"));
+    assert!(p.threads.iter().any(|t| t.name == "UI thread"));
+    assert!(p.threads.iter().any(|t| t.name == ".NET ThreadPool Worker"));
+    assert!(
+        p.notes.iter().any(|n| n.contains("damaged")),
+        "the short wait payload: {:?}",
+        p.notes
+    );
+}
+
+#[test]
+fn heap_walks_import_as_heap_snapshots() {
+    use super::heap::{ids as h, payload as hp};
+    for ptr in [4usize, 8] {
+        let mut w = Writer::new(&TraceHeader {
+            pointer_size: ptr as u32,
+            ..TraceHeader::default()
+        });
+        w.metadata(
+            true,
+            &[
+                meta(1, RUNTIME, h::BULK_TYPE),
+                meta(2, RUNTIME, h::BULK_NODE),
+                meta(3, RUNTIME, h::BULK_EDGE),
+                meta(4, RUNTIME, h::BULK_ROOT_EDGE),
+                meta(5, RUNTIME, ids::GC_START),
+                meta(6, RUNTIME, ids::GC_END),
+            ],
+        );
+        w.events(
+            true,
+            &[
+                row(5, 1, 0, at(0), p::gc_start(1, 2, 1)),
+                row(1, 1, 0, at(1), hp::bulk_type(&[(7, "Shop.Order", &[]), (8, "System.String", &[])])),
+                row(2, 1, 0, at(1), hp::bulk_node(0, &[(0x1000, 32, 7, 1), (0x2000, 20, 8, 0)], ptr)),
+                row(3, 1, 0, at(1), hp::bulk_edge(0, &[0x2000], ptr)),
+                row(4, 1, 0, at(1), hp::bulk_root_edge(0, &[(0x1000, 0, 0)], ptr)),
+                row(6, 1, 0, at(2), p::gc_end(1, 2)),
+            ],
+        );
+        let Capture::Heap(s) = NettraceImporter
+            .import("app.gcdump.nettrace", &w.finish(), &Limits::default())
+            .unwrap()
+        else {
+            panic!("a heap snapshot");
+        };
+        assert_eq!(s.name, "app");
+        assert!(s.taken_ms.is_some());
+        let g = s.graph.unwrap();
+        assert_eq!(g.len(), 3, "the stack-roots group and two objects");
+        assert_eq!(g.roots.len(), 1);
+        assert!(s.types.iter().any(|t| t.name == "Shop.Order" && t.bytes == 32));
+    }
+}
+
+#[test]
+fn reads_nettrace_v6() {
+    use super::writer::v6::{V6Writer, LABEL_LIST};
+    for (compressed, ptr) in [(true, 8u32), (false, 8), (true, 4)] {
+        let main = if ptr == 4 { 0x1000_1000 } else { MAIN };
+        let mut w = V6Writer::new(6, ptr, 4242, 2_000_000);
+        w.metadata(&[
+            (1, SAMPLE_PROFILER, ids::THREAD_SAMPLE, "ThreadSample"),
+            (2, RUNDOWN, ids::METHOD_DC_END_VERBOSE, "MethodDCEndVerbose"),
+            (3, RUNTIME, ids::EXCEPTION_THROWN, "ExceptionThrown"),
+        ]);
+        w.threads(&[(1, 7001, "Main"), (2, 7002, "")]);
+        w.block(LABEL_LIST, &[1, 0, 0, 0, 0, 0, 0, 0]);
+        w.block(99, &[1, 2, 3]);
+        w.stacks(1, &[vec![main + 4]]);
+        let exc = p::exception("System.TimeoutException", "late");
+        let sample = p::sample(true);
+        w.events(
+            compressed,
+            &[(1, 1, 1, at(1), &sample), (1, 2, 1, at(2), &sample), (3, 1, 1, at(3), &exc)],
+        );
+        w.sequence_point(at(4));
+        w.stacks(1, &[vec![main + 8, main]]);
+        let dc = p::method_verbose(1, 50, main, 0x100, "Shop.Program", "Main");
+        w.events(compressed, &[(1, 1, 1, at(5), &sample), (2, 1, 0, at(6), &dc)]);
+        let p = import(&w.finish()).unwrap();
+        assert_eq!(p.samples.len(), 4, "3 samples + the exception");
+        assert!(p.frames.iter().any(|f| f.function == "Shop.Program.Main"), "{compressed} {ptr}");
+        assert!(
+            p.threads.iter().any(|t| t.name == "Main" && t.os_id == Some(7001)),
+            "{:?}",
+            p.threads
+        );
+        assert!(p.threads.iter().any(|t| t.os_id == Some(7002)));
+        assert!(p.events.iter().any(|e| e.label == "System.TimeoutException"));
+        assert!(
+            p.notes.iter().any(|n| n.contains("unknown objects")),
+            "the unknown block is counted: {:?}",
+            p.notes
+        );
+    }
+}
+
+#[test]
+fn v6_errors_and_truncation() {
+    use super::writer::v6::V6Writer;
+    let err = |b: &[u8]| import(b).unwrap_err().to_string();
+    assert!(err(&V6Writer::new(7, 8, 1, 0).finish()).contains("version 7"));
+    assert!(err(&V6Writer::new(5, 8, 1, 0).finish()).contains("version 5"));
+    // Cut before any event: no samples or events.
+    let mut w = V6Writer::new(6, 8, 1, 0);
+    w.metadata(&[(1, SAMPLE_PROFILER, 0, "ThreadSample")]);
+    let sample = p::sample(true);
+    w.events(true, &[(1, 1, 0, at(1), &sample)]);
+    // A stream without EndOfStream keeps what it read.
+    let p = import(&w.unfinished()).unwrap();
+    assert_eq!(p.samples.len(), 1);
+    let mut w = V6Writer::new(6, 8, 1, 0);
+    w.metadata(&[(1, SAMPLE_PROFILER, 0, "ThreadSample")]);
+    let bytes = w.finish();
+    // A block longer than the file is an error, not a panic.
+    let mut cut = bytes.clone();
+    cut.truncate(bytes.len() - 6);
+    assert!(import(&cut).is_err());
+    // An event block before the Trace block.
+    let mut raw = b"Nettrace".to_vec();
+    for v in [0u32, 6, 0] {
+        raw.extend_from_slice(&v.to_le_bytes());
+    }
+    raw.extend_from_slice(&((2u32 << 24) | 4).to_le_bytes());
+    raw.extend_from_slice(&[4, 0, 0, 0]);
+    assert!(err(&raw).contains("Trace block must come first"));
+    // Only the header.
+    let mut head = b"Nettrace".to_vec();
+    for v in [0u32, 6, 0] {
+        head.extend_from_slice(&v.to_le_bytes());
+    }
+    assert!(err(&head).contains("Trace block"));
+}
+
+#[test]
+fn native_symbols_name_frames_and_heap_events_pair_by_address() {
+    let mut w = Writer::new(&TraceHeader::default());
+    w.metadata(
+        true,
+        &[
+            meta(1, ext::PROVIDER, ext::ids::IMAGE_LOAD),
+            meta(2, ext::PROVIDER, ext::ids::NATIVE_SYMBOL),
+            meta(3, SAMPLE_PROFILER, ids::THREAD_SAMPLE),
+            meta(4, ext::PROVIDER, ext::ids::HEAP_ALLOC),
+            meta(5, ext::PROVIDER, ext::ids::HEAP_FREE),
+            meta(6, ext::PROVIDER, ext::ids::HEAP_REALLOC),
+        ],
+    );
+    const BASE: u64 = 0x7ff6_0000_0000;
+    const SPIN: u64 = BASE + 0x1010;
+    const MAIN_FN: u64 = BASE + 0x2020;
+    const GROW: u64 = BASE + 0x3030;
+    w.stacks(1, &[vec![SPIN, MAIN_FN], vec![GROW, MAIN_FN], vec![SPIN + 4, MAIN_FN]]);
+    let image = ext::image_load(&ext::ImageLoad {
+        base: BASE,
+        size: 0x10_000,
+        path: r"C:\app\busy.exe".into(),
+    });
+    let sym = |address: u64, start: u64, function: &str, line: u32| {
+        ext::native_symbol(&ext::NativeSymbol {
+            address,
+            start,
+            line,
+            function: function.into(),
+            file: r"C:\src\busy.rs".into(),
+        })
+    };
+    let heap = |op: ext::HeapOp| ext::heap_op(&op).1;
+    w.events(
+        true,
+        &[
+            row(1, 10, 0, at(0), image),
+            row(2, 10, 0, at(0), sym(SPIN, BASE + 0x1000, "busy::spin", 12)),
+            row(2, 10, 0, at(0), sym(SPIN + 4, BASE + 0x1000, "busy::spin", 12)),
+            row(2, 10, 0, at(0), sym(MAIN_FN, BASE + 0x2000, "busy::main", 0)),
+            row(3, 10, 1, at(1), p::sample(false)),
+            row(3, 10, 3, at(2), p::sample(false)),
+            // Two allocations: one freed, one reallocated (grown) and kept; a free of older memory.
+            row(
+                4,
+                11,
+                2,
+                at(3),
+                heap(ext::HeapOp::Alloc {
+                    heap: 1,
+                    address: 0x500,
+                    size: 100,
+                }),
+            ),
+            row(
+                4,
+                11,
+                2,
+                at(4),
+                heap(ext::HeapOp::Alloc {
+                    heap: 1,
+                    address: 0x600,
+                    size: 40,
+                }),
+            ),
+            row(5, 11, 0, at(5), heap(ext::HeapOp::Free { heap: 1, address: 0x500 })),
+            row(
+                6,
+                11,
+                2,
+                at(6),
+                heap(ext::HeapOp::ReAlloc {
+                    heap: 1,
+                    new_address: 0x700,
+                    old_address: 0x600,
+                    size: 80,
+                }),
+            ),
+            row(5, 11, 0, at(7), heap(ext::HeapOp::Free { heap: 1, address: 0x999 })),
+            row(4, 11, 0, at(8), vec![1, 2]),
+        ],
+    );
+    let p = import(&w.finish()).unwrap();
+    assert_eq!(p.kind, ProfileKind::Mixed);
+    let s = names(&p, p.samples.stack[0]);
+    assert_eq!(s, ["busy::main", "busy::spin"], "{s:?}");
+    // Both addresses of busy::spin are one frame (one function, its first line).
+    let spins: Vec<_> = p.frames.iter().filter(|f| f.function == "busy::spin").collect();
+    assert_eq!(spins.len(), 1);
+    assert_eq!(spins[0].kind, FrameKind::Native);
+    assert_eq!(spins[0].line, Some(12));
+    assert!(spins[0].file.as_deref().is_some_and(|f| f.ends_with("busy.rs")));
+    assert_eq!(spins[0].module.as_deref(), Some("busy.exe"));
+    assert!(p.notes.iter().any(|n| n.contains("named from symbols")), "{:?}", p.notes);
+    let total = |m: MetricId| {
+        let k = p.metric_index(m).unwrap();
+        let n = p.metrics.len();
+        (0..p.samples.len()).map(|i| p.samples.values[i * n + k]).sum::<u64>()
+    };
+    assert_eq!(total(MetricId::AllocBytes), 220);
+    assert_eq!(total(MetricId::AllocCount), 3);
+    assert_eq!(total(MetricId::LiveBytes), 80, "only the reallocated block is left");
+    assert_eq!(
+        p.metrics.iter().find(|m| m.id == MetricId::AllocBytes).unwrap().measurement,
+        Measurement::Exact
+    );
+    assert!(p.notes.iter().any(|n| n.contains("80 bytes")), "{:?}", p.notes);
+    assert!(p.notes.iter().any(|n| n.contains("allocated before the capture")), "{:?}", p.notes);
+    assert!(p.notes.iter().any(|n| n.contains("damaged")), "{:?}", p.notes);
 }

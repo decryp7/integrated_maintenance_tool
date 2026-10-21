@@ -596,6 +596,10 @@ impl Importer for GuardedImporter {
         // When in doubt, re-read from the last record start (always correct).
         self.guard.quiet(CallKind::Tail, "multiline", true, || self.inner.multiline())
     }
+    fn identity_fields(&self) -> Vec<String> {
+        self.guard
+            .quiet(CallKind::Sniff, "identity_fields", Vec::new(), || self.inner.identity_fields())
+    }
 }
 
 pub struct GuardedBinaryImporter {
@@ -606,6 +610,10 @@ pub struct GuardedBinaryImporter {
 impl BinaryImporter for GuardedBinaryImporter {
     fn id(&self) -> &str {
         self.inner.id()
+    }
+    fn identity_fields(&self) -> Vec<String> {
+        self.guard
+            .quiet(CallKind::Sniff, "identity_fields", Vec::new(), || self.inner.identity_fields())
     }
     fn sniff(&self, ctx: &ImportCtx, head: &[u8]) -> u8 {
         self.guard.quiet(CallKind::Sniff, "sniff", 0, || self.inner.sniff(ctx, head))

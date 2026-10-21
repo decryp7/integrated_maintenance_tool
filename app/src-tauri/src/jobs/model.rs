@@ -37,13 +37,18 @@ pub enum JobKind {
     Download,
     /// Diagnostics collections started by tools.
     Collection,
+    /// Profiler captures started by tools (a .NET capture): several processes may be recorded at once.
+    Capture,
     /// Storage clean-up.
     Maintenance,
 }
 
+/// Captures recorded at once (each records another process).
+pub const CAPTURES: usize = 4;
+
 impl JobKind {
     #[cfg(test)]
-    pub const ALL: [JobKind; 8] = [
+    pub const ALL: [JobKind; 9] = [
         JobKind::Ai,
         JobKind::Research,
         JobKind::Analysis,
@@ -51,6 +56,7 @@ impl JobKind {
         JobKind::Export,
         JobKind::Download,
         JobKind::Collection,
+        JobKind::Capture,
         JobKind::Maintenance,
     ];
 
@@ -60,6 +66,7 @@ impl JobKind {
             JobKind::Ai | JobKind::Research | JobKind::Import | JobKind::Collection | JobKind::Maintenance => 1,
             JobKind::Analysis => cores.saturating_sub(1).max(1),
             JobKind::Export | JobKind::Download => 2,
+            JobKind::Capture => CAPTURES,
         }
     }
 
@@ -82,6 +89,7 @@ impl JobKind {
             JobKind::Export => "export",
             JobKind::Download => "download",
             JobKind::Collection => "collection",
+            JobKind::Capture => "capture",
             JobKind::Maintenance => "maintenance",
         }
     }
@@ -244,6 +252,8 @@ pub enum JobResult {
     FolderSurvey { outcome: Value },
     /// What clearing IMT's storage freed and kept: View opens Settings ▸ Storage with it.
     Storage { result: Value },
+    /// The logs related to an image (ADR 0025): View opens the image with its links.
+    RelatedLogs { result: Value },
 }
 
 impl JobResult {
@@ -255,7 +265,8 @@ impl JobResult {
             JobResult::Narrative { narrative: v }
             | JobResult::Proposal { proposal: v }
             | JobResult::FolderSurvey { outcome: v }
-            | JobResult::Storage { result: v } => v.to_string().len(),
+            | JobResult::Storage { result: v }
+            | JobResult::RelatedLogs { result: v } => v.to_string().len(),
             _ => 0,
         };
         (size <= Self::MAX_PAYLOAD_BYTES).then_some(self)
@@ -433,10 +444,12 @@ mod tests {
                 "export",
                 "download",
                 "collection",
+                "capture",
                 "maintenance"
             ]
         );
         assert_eq!(JobKind::Research.limit(8), 1);
+        assert_eq!(JobKind::Capture.limit(1), CAPTURES, "captures do not queue behind each other");
         for k in JobKind::ALL {
             assert_eq!(serde_json::to_value(k).unwrap(), k.as_str());
         }

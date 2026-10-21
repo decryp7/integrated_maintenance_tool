@@ -69,8 +69,14 @@ impl ProfileFiles {
         if !active.exists() || std::fs::create_dir_all(&dir).is_err() {
             return;
         }
-        let stamp = chrono::Utc::now().format("%Y%m%d-%H%M%S%3f");
-        let _ = std::fs::copy(active, dir.join(format!("{stamp}.imtprofile.toml")));
+        // Two saves within one millisecond must not overwrite each other: take the next free stamp.
+        let mut at = chrono::Utc::now();
+        let mut target = dir.join(format!("{}.imtprofile.toml", at.format("%Y%m%d-%H%M%S%3f")));
+        while target.exists() {
+            at += chrono::TimeDelta::milliseconds(1);
+            target = dir.join(format!("{}.imtprofile.toml", at.format("%Y%m%d-%H%M%S%3f")));
+        }
+        let _ = std::fs::copy(active, target);
         let mut files: Vec<PathBuf> = std::fs::read_dir(&dir)
             .map(|r| r.flatten().map(|e| e.path()).collect())
             .unwrap_or_default();
@@ -163,5 +169,17 @@ mod tests {
         assert!(none.history().is_empty());
         assert_eq!(none.version("a").unwrap_err().code, ErrorCode::Unavailable);
         assert_eq!(stamp_ms("bad"), None);
+    }
+
+    #[test]
+    fn saves_within_one_millisecond_keep_every_version() {
+        let t = TempDir::new("profile-service-burst");
+        let files = ProfileFiles::new(Some(t.0.clone()));
+        for i in 0..20 {
+            files.persist(&format!("name = 'v{i}'")).unwrap();
+        }
+        let history = files.history();
+        assert_eq!(history.len(), 19.min(PROFILE_HISTORY), "no version overwrote another");
+        assert_eq!(history[0]["name"], "v18", "newest first");
     }
 }

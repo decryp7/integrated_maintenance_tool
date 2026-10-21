@@ -3,8 +3,9 @@ import { expectNoSeriousViolations } from './axe';
 import { ask, openAiApp, openChat, rowMenu, runCommand, waitAnswered } from './ai-support';
 
 // The internal browser against the mock backends (src/app/browser/mock-browser-backend.ts and the AI mock):
-// search the web for an error, hand the page to the chat, and agent mode with its approvals and Stop. The
-// real browser window (a system webview) cannot be driven here; its logic is tested in Rust.
+// search the web for an error (the AI drafts the search text), hand the page to the chat, and agent mode with its
+// approvals and Stop in the Browser panel's header. The
+// real page (a native child webview) cannot be driven here; its rules and placement are tested in Rust.
 
 test.describe('internal browser', () => {
   test('search an error, add the page to the chat and get a cited answer', async ({ page }, testInfo) => {
@@ -14,7 +15,8 @@ test.describe('internal browser', () => {
     const dialog = page.getByRole('dialog', { name: 'Search the web for this error' });
     const text = dialog.getByLabel('Search for');
     await expect(text).toHaveValue('System.TimeoutException The operation has timed out');
-    await expect(dialog.getByTestId('web-search-removed')).toContainText('names from your logs');
+    await expect(dialog.getByTestId('web-search-removed')).toContainText('1 value from your logs');
+    await expect(dialog.getByTestId('web-search-source')).toContainText('The AI wrote this search');
     await expectNoSeriousViolations(page, testInfo, 'browser-search-dialog', '[role=dialog]');
     await text.fill('TimeoutException gateway pool');
     await dialog.getByRole('button', { name: 'Search', exact: true }).click();
@@ -60,13 +62,13 @@ test.describe('internal browser', () => {
     await waitAnswered(chat);
     await expect(chat.getByTestId('ai-answer-0')).toContainText('You declined opening the page');
 
-    // Stop while a step waits: it is denied and agent mode ends; the Web panel showed the AI driving.
+    // Stop while a step waits: it is denied and agent mode ends; the Browser panel's header showed the AI driving.
     await ask(chat, 'look up the error again');
     await expect(chat.getByTestId('agent-approval').nth(2)).toBeVisible();
     await runCommand(page, 'Web: Open the browser panel');
-    await expect(page.locator('imt-web-panel').getByTestId('web-agent')).toContainText('The AI is driving the browser');
-    await page.locator('imt-web-panel').getByTestId('web-agent-stop').click();
-    await expect(page.locator('imt-web-panel').getByTestId('web-agent')).toHaveCount(0);
+    await expect(page.locator('imt-web-panel').getByTestId('ai-browsing')).toContainText('AI is browsing');
+    await page.locator('imt-web-panel').getByTestId('ai-browsing-stop').click();
+    await expect(page.locator('imt-web-panel').getByTestId('ai-browsing')).toHaveCount(0);
     await runCommand(page, 'AI: Open the assistant chat');
     await expect(chat.getByTestId('agent-paused')).toContainText('You stopped the AI');
     await expect(chat.getByTestId('chat-agent-stop')).toHaveCount(0);

@@ -14,7 +14,7 @@ import { ReportStore } from '../report/report.store';
 import { ShareBackend } from '../share-backend';
 import { BundleBanner } from './bundle-banner';
 import { BundleCommands } from './bundle.commands';
-import { BundleDialog, bundleFileName, formatBytes } from './bundle-dialog';
+import { BundleDialog, bundleFileName } from './bundle-dialog';
 import { BundleService, isBundlePath } from './bundle.service';
 import { at } from '../../../testing/must';
 import { mockJobs } from '../../jobs/mock-jobs';
@@ -47,7 +47,6 @@ describe('bundle helpers', () => {
   it('recognises bundles and formats sizes and names', () => {
     expect(isBundlePath('/x/Case.IMTZ')).toBe(true);
     expect(isBundlePath('/x/case.zip')).toBe(false);
-    expect([formatBytes(12), formatBytes(2048), formatBytes(3 << 20), formatBytes(5 * 2 ** 30)]).toEqual(['12 B', '2 KB', '3.0 MB', '5.0 GB']);
     expect(bundleFileName('a/b: c')).toBe('a_b_ c.imtz');
     expect(bundleFileName(' ')).toBe('bundle.imtz');
   });

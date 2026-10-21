@@ -17,7 +17,7 @@ import { StatusJobs } from '../jobs/status-jobs';
       @if (store.matchTotal() !== null) {
         <span class="keep" i18n="@@shell.statusBar.matching">{{ fmt(store.matchTotal()!) }} matching</span>
       }
-      <span i18n="@@shell.statusBar.instances">{{ store.instanceCount() }} instances</span>
+      <span i18n="@@shell.statusBar.instances">{{ fmt(store.instanceCount()) }} instances</span>
       @if (s.dropped > 0) {
         <span class="dropped" title="Events removed by the profile pipeline" i18n-title="@@shell.statusBar.droppedTitle" i18n="@@shell.statusBar.dropped">{{ fmt(s.dropped) }} dropped by pipeline</span>
       }

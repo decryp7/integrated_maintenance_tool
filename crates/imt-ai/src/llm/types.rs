@@ -21,10 +21,68 @@ pub struct ToolCall {
     pub input: Value,
 }
 
+/// How a sanitised image is encoded.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ImageMime {
+    Png,
+    Jpeg,
+}
+
+impl ImageMime {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ImageMime::Png => "image/png",
+            ImageMime::Jpeg => "image/jpeg",
+        }
+    }
+}
+
+/// An image for the model. Only `crate::vision::image::sanitize` makes one: decoded in Rust within limits,
+/// downscaled and re-encoded without metadata, so a provider never sees the user's raw bytes (ADR 0025).
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImageInput {
+    mime: ImageMime,
+    bytes: Arc<[u8]>,
+    width: u32,
+    height: u32,
+}
+
+impl ImageInput {
+    pub(crate) fn new(mime: ImageMime, bytes: Vec<u8>, width: u32, height: u32) -> Self {
+        ImageInput {
+            mime,
+            bytes: bytes.into(),
+            width,
+            height,
+        }
+    }
+
+    pub fn mime(&self) -> ImageMime {
+        self.mime
+    }
+
+    /// The encoded image (PNG or JPEG).
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ChatMessage {
     pub role: Role,
     pub content: String,
+    /// Images shown with a user message (to a model that reads images). Never persisted with a chat.
+    #[serde(skip)]
+    pub images: Vec<ImageInput>,
     /// Tool calls made by an assistant message.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tool_calls: Vec<ToolCall>,
@@ -38,14 +96,23 @@ impl ChatMessage {
         ChatMessage {
             role: Role::User,
             content: content.into(),
+            images: vec![],
             tool_calls: vec![],
             tool_call_id: None,
+        }
+    }
+    /// A user message with images (shown to the model before the text).
+    pub fn user_with_images(content: impl Into<String>, images: Vec<ImageInput>) -> Self {
+        ChatMessage {
+            images,
+            ..ChatMessage::user(content)
         }
     }
     pub fn assistant(content: impl Into<String>) -> Self {
         ChatMessage {
             role: Role::Assistant,
             content: content.into(),
+            images: vec![],
             tool_calls: vec![],
             tool_call_id: None,
         }
@@ -54,6 +121,7 @@ impl ChatMessage {
         ChatMessage {
             role: Role::Assistant,
             content: content.into(),
+            images: vec![],
             tool_calls,
             tool_call_id: None,
         }
@@ -62,6 +130,7 @@ impl ChatMessage {
         ChatMessage {
             role: Role::Tool,
             content: content.into(),
+            images: vec![],
             tool_calls: vec![],
             tool_call_id: Some(call_id.into()),
         }

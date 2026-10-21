@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "popout",
-  "description": "extra permissions of pop-out panel windows only: their own title bar (moving the window from it, minimise, maximise, close, resizing from the edges of a frameless window)",
-  "windows": [
+  "description": "extra permissions of the webviews of pop-out panel windows only: their own title bar (moving the window from it, minimise, maximise, close, resizing from the edges of a frameless window)",
+  "webviews": [
     "p-*"
   ],
   "permissions": [

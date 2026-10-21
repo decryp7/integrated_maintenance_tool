@@ -1,3 +1,4 @@
+import { formatDuration } from '../shared/format/units';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
 import { AppLogo } from '../shared/app-logo';
@@ -8,7 +9,6 @@ import { TitleExtras } from '../lifecycle/title-extras';
 import { MenuBar } from './menu/menu-bar';
 import { MENU_MODE } from './menu/app-menu.service';
 import { NativeMenuBridge } from './menu/native-menu';
-import { localizeDecimal } from '../i18n/locale';
 
 @Component({
   selector: 'imt-title-bar',
@@ -34,7 +34,7 @@ import { localizeDecimal } from '../i18n/locale';
         <span class="spinner" aria-hidden="true"></span><span>{{ busy }}</span>
       } @else if (store.summary(); as s) {
         <span class="dot" style="background: var(--mk-start)"></span>
-        <span i18n="@@shell.titleBar.indexed">Indexed · {{ seconds(s.loadMs) }} s</span>
+        <span i18n="@@shell.titleBar.indexed">Indexed · {{ loadTime(s.loadMs) }}</span>
       }
     </div>
     <imt-title-extras />
@@ -54,10 +54,8 @@ import { localizeDecimal } from '../i18n/locale';
   `,
 })
 export class TitleBar {
-  /** Load time in seconds, one decimal, with the locale's separator. */
-  protected seconds(ms: number): string {
-    return localizeDecimal((ms / 1000).toFixed(1));
-  }
+  /** How long the load took, humanized ("850 ms", "4.2 s", "1 min 5 s"). */
+  protected readonly loadTime = formatDuration;
 
   protected readonly store = inject(WorkspaceStore);
   private readonly registry = inject(CommandRegistry);

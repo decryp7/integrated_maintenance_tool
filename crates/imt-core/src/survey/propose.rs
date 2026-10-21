@@ -6,7 +6,7 @@ use crate::condition::{CondValue, ConditionCfg};
 use crate::dashboard::{DashboardCfg, TileCfg, TileKind};
 use crate::patterns::WILDCARD;
 use crate::pipeline::StepCfg;
-use crate::profile::{ChartCfg, ExtractCfg, FieldSpec, MarkerCfg};
+use crate::profile::{ChartCfg, ExtractCfg, FieldSpec, FieldType, MarkerCfg};
 use crate::spans::{OneOrMany, SpanCfg};
 use crate::Profile;
 use std::collections::{BTreeMap, HashSet};
@@ -110,7 +110,7 @@ fn instances(survey: &FolderSurvey, profile: &Profile, out: &mut Vec<Candidate>)
                         fields: BTreeMap::from([(
                             c.field.clone(),
                             FieldSpec {
-                                kind: "string".into(),
+                                kind: FieldType::String,
                                 unit: None,
                                 unit_from: None,
                                 to: None,
@@ -309,13 +309,13 @@ fn extractors(survey: &FolderSurvey, profile: &Profile, out: &mut Vec<Candidate>
         let name = unique(&format!("metric-{}", n.name.to_ascii_lowercase()), &mut taken);
         let spec = match n.number_kind {
             NumberKind::Duration => FieldSpec {
-                kind: "duration".into(),
+                kind: FieldType::Duration,
                 unit: n.unit.as_deref().map(|u| if u == "sec" { "s".to_string() } else { u.to_string() }),
                 unit_from: None,
                 to: Some("ms".into()),
             },
             NumberKind::Bytes => FieldSpec {
-                kind: "bytes".into(),
+                kind: FieldType::Bytes,
                 unit: n
                     .unit
                     .as_deref()
@@ -324,7 +324,7 @@ fn extractors(survey: &FolderSurvey, profile: &Profile, out: &mut Vec<Candidate>
                 to: Some("MB".into()),
             },
             NumberKind::Number => FieldSpec {
-                kind: "number".into(),
+                kind: FieldType::Number,
                 unit: n.unit.clone(),
                 unit_from: None,
                 to: None,

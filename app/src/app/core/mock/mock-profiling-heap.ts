@@ -1,4 +1,4 @@
-import { HeapDiffPage, HeapDiffSort, HeapGrowthPage, HeapObjectRow, HeapObjectsPage, HeapPaths, HeapSort, HeapTypeRow, HeapTypesPage, PathStep } from '../api.types';
+import { HeapDiffPage, HeapDiffSort, HeapFinding, HeapGrowthPage, HeapObjectRow, HeapObjectsPage, HeapPaths, HeapSort, HeapTypeRow, HeapTypesPage, PathStep } from '../api.types';
 import { MockHeapData, MockObject } from './mock-profiling-data';
 
 /**
@@ -146,4 +146,45 @@ export function mockHeapPaths(h: HeapIndex, object: number, maxPaths: number): H
   };
   const paths = target.from.map(chainFrom).sort((a, b) => a.length - b.length).slice(0, maxPaths);
   return { paths, unreachable: paths.length === 0, truncated: target.from.length > maxPaths };
+}
+
+const MB = (v: number) => `${(v / 1e6).toFixed(1)} MB`;
+
+/** The engine's heap findings, approximated: the biggest retainer and, with a baseline, what grew most. */
+export function mockHeapFindings(h: HeapIndex, baseline: HeapIndex | null): HeapFinding[] {
+  const out: HeapFinding[] = [];
+  const table = typeTable(h);
+  const reachable = h.retained[0] ?? 0;
+  const top = [...table.entries()].sort((a, b) => b[1].retained - a[1].retained || a[0].localeCompare(b[0]))[0];
+  if (top) {
+    const share = reachable ? (top[1].retained / reachable) * 100 : 0;
+    out.push({
+      kind: 'topRetainers',
+      severity: share >= 20 ? 'warning' : 'info',
+      title: `${top[0]} keeps ${share.toFixed(0)}% of the heap alive`,
+      detail: `${top[1].count} objects retain ${MB(top[1].retained)}. Its paths to roots show who holds it.`,
+      valueBytes: top[1].retained,
+      typeName: top[0],
+      view: 'dominators',
+    });
+  }
+  if (baseline) {
+    const before = typeTable(baseline);
+    const grown = [...table.entries()]
+      .map(([name, t]) => ({ name, delta: t.bytes - (before.get(name)?.bytes ?? 0) }))
+      .filter((g) => g.delta > 0)
+      .sort((a, b) => b.delta - a.delta || a.name.localeCompare(b.name));
+    if (grown[0]) {
+      out.push({
+        kind: 'growth',
+        severity: 'warning',
+        title: `The heap grew since ${baseline.data.name}`,
+        detail: `Grown most: ${grown.slice(0, 3).map((g) => `${g.name} (+${MB(g.delta)})`).join(', ')}.`,
+        valueBytes: grown[0].delta,
+        typeName: grown[0].name,
+        view: 'diff',
+      });
+    }
+  }
+  return out;
 }

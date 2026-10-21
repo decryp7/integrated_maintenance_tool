@@ -2,7 +2,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormatWizard } from '../format/format-wizard';
 import { DialogService } from '../ui/dialog.service';
-import { SourceInfo, TailFileState, UnrecognizedFile } from '../core/api.types';
+import { SourceInfo, SourceProblem, TailFileState, UnrecognizedFile } from '../core/api.types';
 import { formatCompact, formatCount, formatDateTime } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
 import { Icon } from '../shared/icon';
@@ -17,8 +17,27 @@ import { SourceColors } from '../sources/source-colors.store';
 import { SourceFileActions } from '../sources/source-file-actions';
 import { SourceSwatch } from '../sources/source-swatch';
 import { TimestampWarning } from './timestamp-warning';
+import { AiLauncher } from '../ai/ai-launcher';
+import { AiStatusStore } from '../ai/ai-status.store';
+import { isImagePath } from '../ai/vision/image-files';
 
 type TailFileStateOf = Extract<TailFileState, { kind: NotableState }>;
+
+/** An import problem of a source, in words (the first line it occurred on, when known). */
+export function problemText(p: SourceProblem): string {
+  const count = formatCount(p.count);
+  const line = p.sampleLines[0];
+  switch (p.kind) {
+    case 'unmatchedLine':
+      return line === undefined
+        ? $localize`:@@shell.sidebar.problem.unmatched:${count}:count: lines look like events but match no format (kept with the event above)`
+        : $localize`:@@shell.sidebar.problem.unmatchedAt:${count}:count: lines look like events but match no format (kept with the event above), first on line ${line}:line:`;
+    case 'routeLimit':
+      return $localize`:@@shell.sidebar.problem.routeLimit:${count}:count: events past the logical-source limit stayed in the file`;
+    default:
+      return $localize`:@@shell.sidebar.problem.other:${count}:count: import problems (${p.kind}:kind:)`;
+  }
+}
 
 /** Last folder + file name, e.g. "web01/orders.clef". */
 function shortPath(path: string): string {
@@ -47,7 +66,7 @@ function shortPath(path: string): string {
           <ng-container *ngTemplateOutlet="file; context: { $implicit: item.source, member: false }" />
         } @else {
           @let g = item.group;
-          <div class="src group" [title]="groupTitle(g.key, g.sources.length, g.newest.name)">
+          <div class="src group" [title]="g.split ? splitTitle(g.label, g.sources.length) : groupTitle(g.key, g.sources.length, g.newest.name)">
             <button
               type="button"
               class="expander"
@@ -58,13 +77,19 @@ function shortPath(path: string): string {
               <imt-icon [name]="isOpen(g.key) ? 'chevronDown' : 'chevronRight'" [size]="12" />
               <imt-icon name="files" [size]="13" class="faint" />
               <span class="ellipsis name">{{ g.label }}</span>
-              <span class="badge" i18n="@@shell.sidebar.groupFiles">{{ g.sources.length }} files</span>
-              <span class="sr" i18n="@@shell.sidebar.groupNewestSr">, newest {{ g.newest.name }}</span>
+              @if (g.split) {
+                <span class="badge" data-testid="split-badge" i18n="@@shell.sidebar.groupSources">{{ g.sources.length }} sources</span>
+              } @else {
+                <span class="badge" i18n="@@shell.sidebar.groupFiles">{{ g.sources.length }} files</span>
+                <span class="sr" i18n="@@shell.sidebar.groupNewestSr">, newest {{ g.newest.name }}</span>
+              }
             </button>
             <span class="mono count">{{ compact(g.records) }}</span>
           </div>
           @if (!isOpen(g.key)) {
-            <div class="newest faint ellipsis" i18n="@@shell.sidebar.groupNewest">newest: {{ g.newest.name }}</div>
+            @if (!g.split) {
+              <div class="newest faint ellipsis" i18n="@@shell.sidebar.groupNewest">newest: {{ g.newest.name }}</div>
+            }
           } @else {
             <div role="group" [attr.aria-label]="filesOf(g.label)">
               @for (s of g.sources; track s.id) {
@@ -84,7 +109,11 @@ function shortPath(path: string): string {
           <imt-icon name="file" [size]="13" />
           <span class="ellipsis name">{{ short(u.path) }}</span>
           <span class="badge">—</span>
-          <button class="btn ghost setup" [attr.aria-label]="setUpFormatLabel(u.name)" title="Teach IMT how to read this file" i18n-title="@@shell.sidebar.setUpFormatTitle" (click)="setUpFormat(u)" i18n="@@shell.sidebar.setUpFormat">Set up format…</button>
+          @if (canOpenImage(u.path)) {
+            <button class="btn ghost setup" data-testid="open-image" [attr.aria-label]="openImageLabel(u.name)" title="Open the image for the AI assistant" i18n-title="@@shell.sidebar.openImageTitle" (click)="openImage(u)" i18n="@@shell.sidebar.openImage">Open image</button>
+          } @else {
+            <button class="btn ghost setup" [attr.aria-label]="setUpFormatLabel(u.name)" title="Teach IMT how to read this file" i18n-title="@@shell.sidebar.setUpFormatTitle" (click)="setUpFormat(u)" i18n="@@shell.sidebar.setUpFormat">Set up format…</button>
+          }
         </div>
       }
     </div>
@@ -183,8 +212,17 @@ export class Sidebar {
       const dropped = formatCount(s.dropped);
       lines.push($localize`:@@shell.sidebar.sourceTitle.dropped:${dropped}:dropped: dropped by pipeline`);
     }
+    if (s.routedFrom) {
+      const file = s.routedFrom;
+      lines.push($localize`:@@shell.sidebar.sourceTitle.routedFrom:Split from ${file}:file: by a profile route`);
+    }
+    for (const p of s.problems ?? []) lines.push(problemText(p));
     lines.push(range);
     return lines.join('\n');
+  }
+
+  protected splitTitle(label: string, sources: number): string {
+    return `${label}\n${$localize`:@@shell.sidebar.splitTitle:Split into ${sources}:sources: sources by profile routes`}`;
   }
 
   protected groupTitle(key: string, files: number, newest: string): string {
@@ -270,6 +308,22 @@ export class Sidebar {
   protected async openLive(): Promise<void> {
     const { OpenLiveDialog } = await import('../live/open-live-dialog');
     this.dialogs.open(OpenLiveDialog, { title: $localize`:@@shell.sidebar.dialog.openLive:Open for live tail`, width: 480 });
+  }
+
+  private readonly ai = inject(AiStatusStore);
+  private readonly aiLauncher = inject(AiLauncher);
+
+  /** An image the local AI can read (ADR 0025): offered instead of a log format. */
+  protected canOpenImage(path: string): boolean {
+    return this.ai.available() && isImagePath(path);
+  }
+
+  protected openImageLabel(name: string): string {
+    return $localize`:@@shell.sidebar.openImageLabel:Open image ${name}:name:`;
+  }
+
+  protected openImage(file: UnrecognizedFile): void {
+    void this.aiLauncher.openImage(file.path);
   }
 
   protected setUpFormat(file: UnrecognizedFile): void {

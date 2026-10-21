@@ -5,7 +5,7 @@ import { MockBackend } from '../core/mock/mock-backend';
 import { at } from '../../testing/must';
 import { WorkspaceStore } from '../core/workspace.store';
 import { DEFAULT_LIVE_OPTIONS, LiveTail } from '../workspace/live-tail';
-import { formatAgo, formatBytes, parseLimit, STATUS_POLL_MS, TailStatusView } from './tail-status-view';
+import { parseLimit, STATUS_POLL_MS, TailStatusView } from './tail-status-view';
 import { stateHint, stateLabel, TailStatusStore } from './tail-status.store';
 
 const STATES: TailFileState[] = [{ kind: 'tailing' }, { kind: 'rotated' }, { kind: 'truncated' }, { kind: 'deleted' }, { kind: 'whole' }, { kind: 'error', message: 'access denied' }];
@@ -86,16 +86,6 @@ describe('tail status', () => {
   });
 
   it('formats sizes, ages and limits', () => {
-    expect(formatBytes(512)).toBe('512 B');
-    expect(formatBytes(2048)).toBe('2.0 KB');
-    expect(formatBytes(50 * 1024 * 1024)).toBe('50 MB');
-    expect(formatBytes(3 * 1024 ** 5)).toBe('3072 TB');
-    const now = 1_000_000;
-    expect(formatAgo(null, now)).toBe('—');
-    expect(formatAgo(now - 500, now)).toBe('just now');
-    expect(formatAgo(now - 12_000, now)).toBe('12 s ago');
-    expect(formatAgo(now - 180_000, now)).toBe('3 min ago');
-    expect(formatAgo(now - 7_200_000, now)).toBe('2 h ago');
     expect(parseLimit(' 50 ')).toBe(50);
     expect(parseLimit('')).toBeNull();
     expect(parseLimit('0')).toBeNull();

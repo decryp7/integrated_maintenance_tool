@@ -1,3 +1,4 @@
+import { formatExactBytes } from '../../shared/format/units';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, linkedSignal, signal, untracked } from '@angular/core';
 import { HeapSort, HeapTypeRow, HeapTypesPage } from '../../core/api.types';
 import { formatCount } from '../../core/format';
@@ -38,7 +39,7 @@ const PAGE = 200;
               <tr>
                 <td class="ellipsis fn"><button class="link" type="button" [title]="instancesTitle(r.name)" (click)="sel.showInstances(r.name)">{{ r.name }}</button></td>
                 <td class="num">{{ count(r.count) }}</td>
-                <td class="num">{{ bytes(r.bytes) }}</td>
+                <td class="num" [title]="exact(r.bytes)">{{ bytes(r.bytes) }}</td>
                 <td class="num">{{ r.retained === null ? '—' : bytes(r.retained) }}</td>
                 <td class="num"><span class="bar-cell"><span class="meter" aria-hidden="true"><span [style.width.%]="r.bytesPct"></span></span>{{ pct(r.bytesPct) }}</span></td>
               </tr>
@@ -72,6 +73,7 @@ export class HeapTypes {
   ];
   protected readonly count = formatCount;
   protected readonly bytes = formatBytes;
+  protected readonly exact = formatExactBytes;
   protected readonly pct = formatPct;
   protected readonly rows = computed(() => [...(this.res.data()?.rows ?? []), ...this.extra()]);
   protected readonly more = computed(() => Math.max(0, (this.res.data()?.totalRows ?? 0) - this.rows().length));

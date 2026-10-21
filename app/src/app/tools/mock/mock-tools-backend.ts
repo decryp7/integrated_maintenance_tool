@@ -381,6 +381,16 @@ export class MockToolsBackend implements ToolsBackend {
       : { state: 'available' };
   }
 
+  /** Status polls run the same operations (the real shell refuses ops not declared pollable). */
+  toolPoll<T = unknown>(tool: string, op: string, args: unknown = {}): Promise<T> {
+    return this.toolInvoke<T>(tool, op, args);
+  }
+
+  /** The mock lists no tool tasks as jobs. */
+  async toolTaskJob(_task: string): Promise<number | null> {
+    return null;
+  }
+
   async toolInvoke<T = unknown>(tool: string, op: string, args: unknown = {}): Promise<T> {
     const entry = (await this.toolsList()).find((t) => t.id === tool);
     if (!entry) throw new Error(`no installed plugin provides the tool "${tool}"`);

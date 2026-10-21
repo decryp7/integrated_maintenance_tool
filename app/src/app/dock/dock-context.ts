@@ -38,6 +38,8 @@ export class DockContext {
   readonly autoHide = signal<AutoHideState>(EMPTY_AUTO_HIDE);
   /** Tabs pinned to the left of their strip (they survive "Close all"). */
   readonly pinned = signal<ReadonlySet<string>>(new Set());
+  /** Ticks whenever dockview reports a layout change (a sash moved, a group floated, moved or was maximised). */
+  readonly layoutVersion = signal(0);
 
   /** The pop-out windows (absent in a pop-out and in tests without them). */
   windows(): PanelWindows | null {

@@ -148,6 +148,8 @@ import { CollectBackend, EventLogBackend, LifecycleBackend, PerfmonBackend, Proj
 import { ConfigDiffBackend } from '../../config-diff/config-diff-backend';
 import { PopoutBackend } from '../../popout/popout-backend';
 import { ProfilingBackend } from '../../profiling/profiling-backend';
+import { DotnetBackend } from '../../profiling/dotnet/dotnet-backend';
+import { NativeBackend } from '../../profiling/native/native-backend';
 import { DumpsBackend } from '../../dumps/dumps-backend';
 import { SchedulesBackend } from '../../schedules/schedules-backend';
 import { SettingsBackend } from '../../settings/settings-backend';
@@ -184,6 +186,8 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   ConfigDiffBackend,
   PopoutBackend,
   ProfilingBackend,
+  DotnetBackend,
+  NativeBackend,
   DumpsBackend,
   SchedulesBackend,
   SettingsBackend,

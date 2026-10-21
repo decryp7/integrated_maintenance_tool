@@ -3,7 +3,7 @@ import { HotspotRow, Measurement, MetricDto, MetricId, MetricUnit, ProfileSummar
 import { GROUP_LABELS, hotspotColumns, sameSort } from './hotspot-columns';
 
 const UNITS: Record<MetricId, MetricUnit> = {
-  samples: 'count', timeNs: 'nanoseconds', calls: 'count', allocCount: 'count', allocBytes: 'bytes', exceptions: 'count', waitNs: 'nanoseconds', maxCallNs: 'nanoseconds',
+  samples: 'count', timeNs: 'nanoseconds', calls: 'count', allocCount: 'count', allocBytes: 'bytes', exceptions: 'count', waitNs: 'nanoseconds', maxCallNs: 'nanoseconds', liveBytes: 'bytes',
 };
 const metric = (id: MetricId, measurement: Measurement): MetricDto => ({ id, measurement, unit: UNITS[id], label: id });
 const summary = (metrics: MetricDto[]): ProfileSummary => ({ capture: 'profile', id: 1, metrics, defaultMetric: metrics[0]?.id ?? 'samples' }) as unknown as ProfileSummary;
@@ -28,7 +28,7 @@ describe('hotspotColumns', () => {
   it('offers every column for a full instrumented profile', () => {
     const all = (Object.keys(UNITS) as MetricId[]).map((id) => metric(id, 'exact'));
     const cols = hotspotColumns(summary(all), 'timeNs', 'Type');
-    expect(ids(cols)).toEqual(['name', 'self-timeNs', 'total-timeNs', 'selfPct', 'totalPct', 'total-samples', 'self-calls', 'avg', 'self-maxCallNs', 'self-allocCount', 'self-allocBytes', 'self-exceptions', 'self-waitNs']);
+    expect(ids(cols)).toEqual(['name', 'self-timeNs', 'total-timeNs', 'selfPct', 'totalPct', 'total-samples', 'self-calls', 'avg', 'self-maxCallNs', 'self-allocCount', 'self-allocBytes', 'self-exceptions', 'self-waitNs', 'self-liveBytes']);
   });
 
   it('labels each column sampled or exact from the profile MetricDto', () => {
@@ -97,7 +97,7 @@ describe('hotspotColumns', () => {
     expect(col(cols, 'totalPct').value(r)).toBe('50.0%');
     expect(col(cols, 'total-samples').value(r)).toBe('9');
     expect(col(cols, 'self-calls').value(r)).toBe('4');
-    expect(col(cols, 'self-allocBytes').value(r)).toBe('2.0 KB');
+    expect(col(cols, 'self-allocBytes').value(r)).toBe('2 KB');
     expect(col(cols, 'self-exceptions').value(r)).toBe('1');
     expect(col(cols, 'self-waitNs').value(r)).toBe('5.0 µs');
     expect(col(cols, 'total-samples').value(row({ total: {} }))).toBe('—');

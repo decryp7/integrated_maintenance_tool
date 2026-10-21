@@ -10,6 +10,7 @@ use imt_plugin_api::annotate::{Annotation, AnnotationView, Annotator, Evidence, 
 use imt_plugin_api::importer::{ImportCtx, Imported, TextImporter};
 use imt_plugin_api::manifest::Manifest;
 use imt_plugin_api::model::Record;
+use imt_plugin_api::problems::{ProblemKind, Problems};
 use imt_plugin_api::settings::{Configurable, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
 use imt_plugin_api::tools::{OpSpec, PathAccess, PathKind, Schema, Tool, ToolCtx, ToolInfo};
 use imt_plugin_api::{Contributions, Plugin};
@@ -24,6 +25,10 @@ struct Fake;
 impl TextImporter for Fake {
     fn id(&self) -> &str {
         "fake"
+    }
+
+    fn identity_fields(&self) -> Vec<String> {
+        vec!["Host".into(), "App".into()]
     }
 
     fn sniff(&self, _: &ImportCtx, head: &str) -> u8 {
@@ -55,20 +60,31 @@ impl TextImporter for Fake {
                         })
                         .collect(),
                     skipped: 0,
+                    ..Default::default()
                 })
             }
-            _ => Ok(Imported {
-                records: body
+            _ => {
+                // Lines starting with `?` are problems, not events.
+                let mut problems = Problems::default();
+                let records = body
                     .iter()
                     .enumerate()
-                    .map(|(i, l)| {
+                    .filter_map(|(i, l)| {
+                        if l.starts_with('?') {
+                            problems.add(ProblemKind::LineNotParsed, i as u32 + 2);
+                            return None;
+                        }
                         let mut r = Record::new(i as u32 + 2);
                         r.message = l.to_string();
-                        r
+                        Some(r)
                     })
-                    .collect(),
-                skipped: 0,
-            }),
+                    .collect();
+                Ok(Imported {
+                    records,
+                    skipped: 0,
+                    problems,
+                })
+            }
         }
     }
 }
@@ -87,9 +103,10 @@ impl Tool for FakeTool {
             .op(OpSpec::new("pid", "Process id"))
             .op(OpSpec::new("write", "Write a file").args(Schema::object().field("path", Schema::path(PathKind::File, PathAccess::Write))))
             .op(OpSpec::new("admin", "Needs administrator rights").elevated())
+            .op(OpSpec::new("via-admin", "Runs an operation in the elevated process").args(Schema::object().open()))
     }
 
-    fn invoke(&self, op: &str, args: Value, _ctx: &ToolCtx) -> Result<Value> {
+    fn invoke(&self, op: &str, args: Value, ctx: &ToolCtx) -> Result<Value> {
         match op {
             "settings" => Ok(json!(LEVEL.load(Ordering::SeqCst))),
             "echo" => Ok(args),
@@ -99,7 +116,16 @@ impl Tool for FakeTool {
                 std::fs::write(path, b"x")?;
                 Ok(json!("written"))
             }
-            "admin" => Ok(json!("elevated")),
+            "admin" => Ok(json!({
+                "pid": std::process::id(),
+                "dataDir": ctx.data_dir().map(|d| d.to_string_lossy().into_owned()),
+                "canElevate": ctx.elevated().is_some(),
+            })),
+            "via-admin" => {
+                let ops = ctx.elevated().ok_or_else(|| anyhow::anyhow!("no elevated process"))?;
+                let target = args["op"].as_str().unwrap_or("admin");
+                ops.invoke("fake.tool", target, json!({}), std::time::Duration::from_secs(10))
+            }
             other => bail!("no op {other}"),
         }
     }

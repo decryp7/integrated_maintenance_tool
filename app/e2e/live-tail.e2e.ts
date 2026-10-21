@@ -117,7 +117,8 @@ test.describe('live tail: alerts', () => {
     // between, and it was not toasted (the engine holds muted kinds back).
     const ruleRows = page.locator('imt-alerts-view').getByTestId('alert-row').filter({ hasText: 'Rule: payment errors' });
     const rules = await ruleRows.count();
-    await expect.poll(() => ruleRows.count(), { timeout: 10_000 }).toBeGreaterThanOrEqual(rules + 2);
+    // A rule alert comes every third alert (about 3 s); headless WebKit runs timers slower, so allow for that.
+    await expect.poll(() => ruleRows.count(), { timeout: 30_000 }).toBeGreaterThanOrEqual(rules + 2);
     await expect(page.getByTestId('alert-toast').filter({ hasText: 'Error spike' })).toHaveCount(0);
   });
 

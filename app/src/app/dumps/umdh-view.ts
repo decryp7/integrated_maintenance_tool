@@ -4,7 +4,7 @@ import { DumpDocSummary, DumpFinding, UmdhDiffPage, UmdhGroup, UmdhStackDto, Umd
 import { AnalysisState } from '../analysis/analysis-state';
 import { AsyncResource, errorText } from '../analysis/async-resource';
 import { DumpsBackend } from './dumps-backend';
-import { DumpFindings, DumpsExplainer, DUMPS_STYLES, formatBytes, formatDelta, NoDump } from './dumps-shared';
+import { DumpFindings, DumpsExplainer, DUMPS_STYLES, formatBytes, formatCount, formatCountDelta, formatDelta, NoDump } from './dumps-shared';
 import { DumpsStore } from './dumps.store';
 
 /** Rows of the growth table asked for at once. */
@@ -92,9 +92,9 @@ export function insertChildren(items: readonly TreeItem[], parent: TreeItem, chi
                         <tr [class.clickable]="group() === 'stack'" [class.sel]="r.key === stackKey()" (click)="selectStack(r.key)" (keydown.enter)="selectStack(r.key)" [attr.tabindex]="group() === 'stack' ? 0 : null">
                           <td class="mono ellipsis" [title]="r.label">{{ r.label }}</td>
                           <td class="num" [class.up]="r.deltaBytes > 0" [class.down]="r.deltaBytes < 0">{{ delta(r.deltaBytes) }}</td>
-                          <td class="num">{{ r.deltaCount }}</td>
+                          <td class="num">{{ countDelta(r.deltaCount) }}</td>
                           <td class="num">{{ bytes(r.bytes) }}</td>
-                          <td class="num">{{ r.stacks }}</td>
+                          <td class="num">{{ count(r.stacks) }}</td>
                         </tr>
                       }
                     </tbody>
@@ -316,4 +316,6 @@ export class UmdhView {
 
   protected readonly bytes = formatBytes;
   protected readonly delta = formatDelta;
+  protected readonly count = formatCount;
+  protected readonly countDelta = formatCountDelta;
 }
