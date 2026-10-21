@@ -1,6 +1,6 @@
 # 13. "AI is browsing" on the browser window
 
-- Status: accepted
+- Status: superseded by [ADR 0024](0024-docked-browser.md) (the banner is the Browser panel's header; the browser window, its banner window, title prefix and frame colour are gone)
 - Date: 2026-10-20
 
 ## Context
@@ -62,3 +62,10 @@ Options considered:
 - The banner hides the top 40 pixels of the page while the AI drives (the user is not meant to use the page
   then).
 - One more window label scheme (`aib-*`) that the window manager and `CurrentWindow` know about.
+
+## Amendment (2026-10-21, ADR 0024)
+
+The browser became the docked Browser panel (a child webview of the IMT window). "AI is browsing" with Stop is now
+the panel's own header (and its tab title), the hub state, events and `browser_driving` stay as decided above, and
+the banner window (`aib-*`, its capability and command class, `#/ai-browsing`), the title prefix and the Windows 11
+frame colour are removed.
