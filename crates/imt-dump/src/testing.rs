@@ -194,7 +194,7 @@ pub fn summary() -> DumpDocSummary {
         path: None,
         kind: DocKind::Dump,
         time_ms: Some(1_791_974_484_000),
-        headline: String::new(),
+        headline: crate::api::DumpHeadline::NoException { threads: 0 },
         process: Some("OrderService.exe".into()),
         severity: Severity::Critical,
     }

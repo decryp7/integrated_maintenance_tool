@@ -258,21 +258,15 @@ fn summary(doc: &Doc) -> DumpDocSummary {
         ),
         Document::Umdh(u) => {
             let bytes: u64 = u.stacks.iter().map(|s| s.bytes).sum();
+            let stacks = u32::try_from(u.stacks.len()).unwrap_or(u32::MAX);
             let (kind, headline) = match u.kind {
-                UmdhKind::Snapshot => (
-                    DocKind::UmdhSnapshot,
-                    format!("{} allocation stacks, {}", u.stacks.len(), umdh::fmt_bytes(bytes as i64)),
-                ),
+                UmdhKind::Snapshot => (DocKind::UmdhSnapshot, DumpHeadline::UmdhSnapshot { stacks, bytes }),
                 UmdhKind::Diff => {
                     let old: u64 = u.stacks.iter().filter_map(|s| s.old_bytes).sum();
-                    (
-                        DocKind::UmdhDiff,
-                        format!(
-                            "{} across {} allocation stacks",
-                            umdh::fmt_bytes(bytes as i64 - old as i64),
-                            u.stacks.len()
-                        ),
-                    )
+                    let delta_bytes = i64::try_from(bytes)
+                        .unwrap_or(i64::MAX)
+                        .saturating_sub(i64::try_from(old).unwrap_or(i64::MAX));
+                    (DocKind::UmdhDiff, DumpHeadline::UmdhDiff { stacks, delta_bytes })
                 }
             };
             let severity = umdh::findings(&[(doc.id, u)])
@@ -350,7 +344,13 @@ mod tests {
         let mut d = docs();
         let a = d.insert("crash.dmp", Some("/x/crash.dmp"), Document::Dump(sample_dump())).unwrap();
         assert_eq!((a.kind, a.severity), (DocKind::Dump, Severity::Critical));
-        assert_eq!(a.headline, "ACCESS_VIOLATION in ntdll.dll!RtlFreeHeap+0x1d");
+        assert_eq!(
+            a.headline,
+            DumpHeadline::Exception {
+                name: "ACCESS_VIOLATION".into(),
+                location: Some("ntdll.dll!RtlFreeHeap+0x1d".into())
+            }
+        );
         // Reopening the same path replaces it.
         let again = d.insert("crash.dmp", Some("/x/crash.dmp"), Document::Dump(sample_dump())).unwrap();
         assert_ne!(again.id, a.id);
@@ -437,7 +437,13 @@ mod tests {
             )
             .unwrap();
         assert_eq!(a.kind, DocKind::UmdhSnapshot);
-        assert_eq!(a.headline, "1 allocation stacks, 10.0 MB");
+        assert_eq!(
+            a.headline,
+            DumpHeadline::UmdhSnapshot {
+                stacks: 1,
+                bytes: 10 * mib
+            }
+        );
         let page = d.umdh_diff(&diff(Some(a.id), b.id)).unwrap();
         assert_eq!(page.delta_bytes, 20 * mib as i64);
         // Cached: the same answer again.
@@ -476,7 +482,13 @@ mod tests {
             .insert("d.txt", None, Document::Umdh(sample_umdh(UmdhKind::Diff, 0, &[(1, 4 * mib, 4)])))
             .unwrap();
         assert_eq!(diff_log.kind, DocKind::UmdhDiff);
-        assert_eq!(diff_log.headline, "2.0 MB across 1 allocation stacks");
+        assert_eq!(
+            diff_log.headline,
+            DumpHeadline::UmdhDiff {
+                stacks: 1,
+                delta_bytes: 2 << 20
+            }
+        );
         assert_eq!(d.overview(a.id).unwrap_err().code, ErrorCode::Unsupported);
         assert_eq!(d.markers().len(), 3);
     }

@@ -51,12 +51,36 @@ pub struct DumpDocSummary {
     /// When the dump was written or the snapshot taken (Unix ms).
     #[cfg_attr(feature = "ts", ts(type = "number | null"))]
     pub time_ms: Option<i64>,
-    /// One line: `ACCESS_VIOLATION in Shop.Orders.dll` or `412 allocation stacks, 38.2 MB`.
-    pub headline: String,
+    /// What the documents list shows in one line; the UI words it and formats the sizes.
+    pub headline: DumpHeadline,
     /// The process it is about.
     pub process: Option<String>,
     /// Severity of its most severe finding.
     pub severity: Severity,
+}
+
+/// A document's one-line headline as typed values: the UI turns it into words and formats sizes with the shared
+/// units rules, so no size or count travels as text.
+#[cfg_attr(feature = "ts", derive(TS))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum DumpHeadline {
+    /// The dump's exception: `ACCESS_VIOLATION`, at `ntdll.dll!RtlFreeHeap+0x1d` when the faulting frame is known.
+    Exception { name: String, location: Option<String> },
+    /// A dump without an exception, with its thread count.
+    NoException { threads: u32 },
+    /// A UMDH snapshot: its allocation stacks and the bytes they hold.
+    UmdhSnapshot {
+        stacks: u32,
+        #[cfg_attr(feature = "ts", ts(type = "number"))]
+        bytes: u64,
+    },
+    /// A UMDH comparison: the growth (negative: shrink) across its allocation stacks.
+    UmdhDiff {
+        stacks: u32,
+        #[cfg_attr(feature = "ts", ts(type = "number"))]
+        delta_bytes: i64,
+    },
 }
 
 #[cfg_attr(feature = "ts", derive(TS), ts(rename = "DumpSeverity"))]
@@ -469,6 +493,6 @@ pub struct DumpMarker {
     pub kind: DocKind,
     #[cfg_attr(feature = "ts", ts(type = "number"))]
     pub time_ms: i64,
-    pub headline: String,
+    pub headline: DumpHeadline,
     pub severity: Severity,
 }

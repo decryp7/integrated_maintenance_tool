@@ -42,6 +42,7 @@ fn files() -> Vec<(&'static str, String)> {
                 DumpSniffKind::decl(),
                 DumpSniffResult::decl(),
                 Severity::decl(),
+                DumpHeadline::decl(),
                 DumpDocSummary::decl(),
                 ExceptionCard::decl(),
                 HandleTypeDto::decl(),

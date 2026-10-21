@@ -9,6 +9,8 @@ export type DumpSniffResult = { path: string, kind: DumpSniffKind, };
 
 export type DumpSeverity = "info" | "warning" | "critical";
 
+export type DumpHeadline = { "type": "exception", name: string, location: string | null, } | { "type": "noException", threads: number, } | { "type": "umdhSnapshot", stacks: number, bytes: number, } | { "type": "umdhDiff", stacks: number, deltaBytes: number, };
+
 export type DumpDocSummary = { id: number, 
 /**
  * File name.
@@ -23,9 +25,9 @@ path: string | null, kind: DocKind,
  */
 timeMs: number | null, 
 /**
- * One line: `ACCESS_VIOLATION in Shop.Orders.dll` or `412 allocation stacks, 38.2 MB`.
+ * What the documents list shows in one line; the UI words it and formats the sizes.
  */
-headline: string, 
+headline: DumpHeadline, 
 /**
  * The process it is about.
  */
@@ -195,4 +197,4 @@ export type UmdhTreeRequest = { base: number | null, target: number, path: Array
 
 export type UmdhTreeNode = { key: string, label: string, deltaBytes: number, deltaCount: number, hasChildren: boolean, framework: boolean, };
 
-export type DumpMarker = { id: number, name: string, kind: DocKind, timeMs: number, headline: string, severity: DumpSeverity, };
+export type DumpMarker = { id: number, name: string, kind: DocKind, timeMs: number, headline: DumpHeadline, severity: DumpSeverity, };

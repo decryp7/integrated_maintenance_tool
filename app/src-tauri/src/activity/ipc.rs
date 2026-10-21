@@ -116,6 +116,33 @@ pub(crate) fn current_window() -> Option<String> {
     CURRENT.with(|c| c.borrow().as_ref().map(|(_, w)| w.clone()))
 }
 
+/// Windows of the latest operations, so a domain event of an async command (which runs after the dispatch, on
+/// another thread, and knows only its [`OpId`]) is still attributed to the window that sent it.
+static OP_WINDOWS: Mutex<std::collections::VecDeque<(String, String)>> = Mutex::new(std::collections::VecDeque::new());
+/// Most operations remembered (the oldest are forgotten).
+const MAX_OP_WINDOWS: usize = 256;
+
+/// Remembers that operation `op` came from `window`.
+fn remember_window(op: &str, window: &str) {
+    let mut w = crate::sync::lock(&OP_WINDOWS);
+    if w.iter().any(|(o, win)| o == op && win == window) {
+        return;
+    }
+    if w.len() >= MAX_OP_WINDOWS {
+        w.pop_front();
+    }
+    w.push_back((op.to_string(), window.to_string()));
+}
+
+/// The window that sent operation `op`, while it is remembered.
+pub(crate) fn window_of_op(op: &str) -> Option<String> {
+    crate::sync::lock(&OP_WINDOWS)
+        .iter()
+        .rev()
+        .find(|(o, _)| o == op)
+        .map(|(_, w)| w.clone())
+}
+
 struct CurrentGuard;
 impl Drop for CurrentGuard {
     fn drop(&mut self) {
@@ -209,6 +236,9 @@ pub fn logged<R: Runtime>(inner: impl Fn(Invoke<R>) -> bool + Send + Sync + 'sta
         );
         let _entered = span.enter();
         log_call(&call, &limiter, Instant::now());
+        if let Some(op) = &call.op {
+            remember_window(op, &call.window);
+        }
         CURRENT.with(|c| *c.borrow_mut() = Some((call.op.clone(), call.window.clone())));
         let _reset = CurrentGuard;
         let handled = inner(invoke);
@@ -400,6 +430,42 @@ mod tests {
                 captured().into_iter().find(|c| c.message == "export.written").unwrap().props["OperationId"],
                 "op-x"
             );
+        }
+
+        #[test]
+        fn domain_events_of_async_commands_keep_the_window_that_sent_them() {
+            let _g = test_capture();
+            let (_app, w) = app(Arc::new(StdMutex::new(Vec::new())));
+            assert!(get_ipc_response(&w, request("clear_workspace", Some("op-async-1"))).is_ok());
+            // Later, on another thread, the async command logs with only its operation id.
+            std::thread::spawn(|| domain_event("export.written", Some("op-async-1"), &[]))
+                .join()
+                .unwrap();
+            let e = captured()
+                .into_iter()
+                .find(|c| c.message == "export.written" && c.props.get("OperationId").is_some_and(|o| o == "op-async-1"))
+                .expect("domain event");
+            assert_eq!(e.props["Window"], "w-ipc");
+            // An operation no command sent has no window.
+            domain_event("export.written", Some("op-never-sent"), &[]);
+            let e = captured()
+                .into_iter()
+                .find(|c| c.props.get("OperationId").is_some_and(|o| o == "op-never-sent"))
+                .unwrap();
+            assert!(!e.props.contains_key("Window"), "{:?}", e.props);
+        }
+
+        #[test]
+        fn the_windows_of_operations_are_bounded() {
+            for i in 0..MAX_OP_WINDOWS + 10 {
+                remember_window(&format!("op-bound-{i}"), "w-bound");
+            }
+            assert_eq!(window_of_op("op-bound-0"), None, "the oldest is forgotten");
+            assert_eq!(
+                window_of_op(&format!("op-bound-{}", MAX_OP_WINDOWS + 9)).as_deref(),
+                Some("w-bound")
+            );
+            assert!(crate::sync::lock(&OP_WINDOWS).len() <= MAX_OP_WINDOWS);
         }
 
         #[test]

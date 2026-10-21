@@ -45,7 +45,10 @@ pub const SOURCE_CONTEXT: &str = "IMT.Activity";
 /// (see [`privacy`]): never file contents, query text in normal mode or secrets.
 pub fn domain_event(event: &str, op: Option<&str>, props: &[(&str, &str)]) {
     let op = op.map(str::to_string).or_else(current_op).unwrap_or_default();
-    let window = ipc::current_window().unwrap_or_default();
+    // An async command runs outside its dispatch: its window comes from its operation id.
+    let window = ipc::current_window()
+        .or_else(|| (!op.is_empty()).then(|| ipc::window_of_op(&op)).flatten())
+        .unwrap_or_default();
     let mut kvs: Vec<(&str, log::kv::Value)> = vec![
         ("SourceContext", log::kv::Value::from(SOURCE_CONTEXT)),
         ("Operation", log::kv::Value::from(event)),

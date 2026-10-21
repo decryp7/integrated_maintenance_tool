@@ -3,6 +3,7 @@ import { DumpMarker } from '../core/api.types';
 import { formatDateTime } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
+import { headlineText } from './dump-headline';
 import { DumpsBackend } from './dumps-backend';
 import { DumpsStore } from './dumps.store';
 
@@ -103,7 +104,7 @@ export class DumpMarkerTrack {
   protected title(m: MarkerVm): string {
     const when = formatDateTime(m.marker.timeMs, this.workspace.timezone(), true);
     const name = m.marker.name;
-    const headline = m.marker.headline;
+    const headline = headlineText(m.marker.headline);
     return $localize`:@@dumps.marker.title:${name}:name: — ${when}:when:: ${headline}:headline:. Click to open.`;
   }
 

@@ -2828,6 +2828,7 @@ export type {
   DumpFinding,
   DumpFindingKind,
   DumpFindingsRequest,
+  DumpHeadline,
   DumpMarker,
   DumpOverview,
   DumpSeverity,
