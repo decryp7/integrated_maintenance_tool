@@ -2,7 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { provideTinyBackend } from '../../testing/helpers';
 import { MockToolsBackend } from '../tools/mock/mock-tools-backend';
 import { FailureReporter } from './failure-reporter';
-import { CollectBackend, EventLogBackend, LifecycleBackend, PerfmonBackend, ProjectBackend, provideToolsBackend, TauriToolsBackend, ToolCatalogBackend, ToolsBackend } from './tools-backend';
+import { CollectBackend, EventLogBackend, LifecycleBackend, PerfmonBackend, PluginPackagesBackend, ProjectBackend, provideToolsBackend, TauriPluginPackagesBackend, TauriToolsBackend, ToolCatalogBackend, ToolsBackend } from './tools-backend';
+import { MockPluginPackagesBackend } from '../plugins-panel/mock/mock-plugin-packages-backend';
 import { CollectorTemplate } from './tools.types';
 import { at } from '../../testing/must';
 
@@ -63,6 +64,28 @@ describe('TauriToolsBackend', () => {
   });
 });
 
+describe('TauriPluginPackagesBackend', () => {
+  it('maps every method to its plugin_package command and arguments', async () => {
+    const b = new TauriPluginPackagesBackend(invoke as never);
+    const calls: [() => Promise<unknown>, string, unknown?][] = [
+      [() => b.listPackages(), 'plugin_packages_list'],
+      [() => b.readPackage('/p/a.imtplugin'), 'plugin_package_inspect', { path: '/p/a.imtplugin' }],
+      [() => b.installPackage('/p/a.imtplugin', 'ab', ['network']), 'plugin_package_install', { path: '/p/a.imtplugin', digest: 'ab', approved: ['network'] }],
+      [() => b.removePackage('x'), 'plugin_package_remove', { id: 'x' }],
+      [() => b.setPackageEnabled('x', true), 'plugin_package_set_enabled', { id: 'x', enabled: true }],
+      [() => b.setPackagePermissions('x', []), 'plugin_package_set_permissions', { id: 'x', granted: [] }],
+    ];
+    for (const [call, name, args] of calls) {
+      invoke.mockClear();
+      await call();
+      expect(invoke).toHaveBeenCalledTimes(1);
+      expect(at(invoke.mock.calls, 0)[0]).toBe(name);
+      if (args) expect(at(invoke.mock.calls, 0)[1]).toEqual(args);
+    }
+    expect(new TauriPluginPackagesBackend()).toBeInstanceOf(PluginPackagesBackend);
+  });
+});
+
 describe('provideToolsBackend', () => {
   afterEach(() => {
     delete (window as unknown as Record<string, unknown>)['__TAURI_INTERNALS__'];
@@ -83,6 +106,9 @@ describe('provideToolsBackend', () => {
     expect((await full.openProject('/demo/p.imtproj')).summary.sources.length).toBeGreaterThan(0);
     expect(full).toBeDefined();
     expect(new MockToolsBackend()).toBeInstanceOf(MockToolsBackend);
+    // Plugin packages: the mock in a browser.
+    expect((await TestBed.inject(PluginPackagesBackend).listPackages()).plugins.length).toBe(1);
+    expect(new MockPluginPackagesBackend()).toBeInstanceOf(PluginPackagesBackend);
   });
 
   it('reports failed commands to the FailureReporter', async () => {
@@ -97,5 +123,6 @@ describe('provideToolsBackend', () => {
     (window as unknown as Record<string, unknown>)['__TAURI_INTERNALS__'] = {};
     TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideToolsBackend()] });
     expect(typeof TestBed.inject(ToolsBackend).perfmonPresets).toBe('function');
+    expect(typeof TestBed.inject(PluginPackagesBackend).listPackages).toBe('function');
   });
 });

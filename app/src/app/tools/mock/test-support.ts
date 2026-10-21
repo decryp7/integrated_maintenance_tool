@@ -6,6 +6,7 @@ import {
   EventLogBackend,
   LifecycleBackend,
   PerfmonBackend,
+  PluginPackagesBackend,
   ProjectBackend,
   ToolCatalogBackend,
   ToolsBackend,
@@ -16,6 +17,10 @@ import { RECENT_PROJECTS, RecentProjects, RecentProject } from '../../projects/r
 import { inject, signal } from '@angular/core';
 import { MOCK_DEFAULTS, MockToolsBackend, MockToolsOptions } from './mock-tools-backend';
 import { hasSkew } from '../../core/skew-backend';
+import { MockPluginPackagesBackend, MockPluginPackagesOptions } from '../../plugins-panel/mock/mock-plugin-packages-backend';
+
+/** The packages mock's options for tests (nothing unusual unless asked). */
+export const PACKAGES_DEFAULTS: MockPluginPackagesOptions = { developerMode: false, safeMode: false, damaged: false, variant: '' };
 
 /** In-memory recent list for tests (a signal, like `RecentService`). */
 export class MemoryRecentProjects implements RecentProjects {
@@ -47,6 +52,7 @@ export class FakePicker {
 /** Mock tools backend, tiny workspace backend, fake dock, in-memory recents and a fake picker. */
 export function provideToolsTesting(
   options: Partial<MockToolsOptions> = {},
+  packages: Partial<MockPluginPackagesOptions> = {},
 ): (Provider | EnvironmentProviders)[] {
   const tools = () => {
     const imt = inject(ImtBackend);
@@ -68,6 +74,7 @@ export function provideToolsTesting(
     { provide: EventLogBackend, useExisting: ToolsBackend },
     { provide: LifecycleBackend, useExisting: ToolsBackend },
     { provide: ProjectBackend, useExisting: ToolsBackend },
+    { provide: PluginPackagesBackend, useFactory: () => new MockPluginPackagesBackend({ ...PACKAGES_DEFAULTS, ...packages }) },
     { provide: RECENT_PROJECTS, useValue: new MemoryRecentProjects() },
     { provide: ProjectPicker, useClass: FakePicker },
   ];
@@ -76,4 +83,9 @@ export function provideToolsTesting(
 /** The mock backend behind the DI tokens, for assertions on `calls`. */
 export function mockTools(): MockToolsBackend {
   return TestBed.inject(ToolsBackend) as unknown as MockToolsBackend;
+}
+
+/** The plugin packages mock behind the DI token, for assertions on `calls`. */
+export function mockPackages(): MockPluginPackagesBackend {
+  return TestBed.inject(PluginPackagesBackend) as MockPluginPackagesBackend;
 }

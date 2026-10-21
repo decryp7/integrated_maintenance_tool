@@ -1,6 +1,6 @@
 import { invoke } from './activity/ipc';
 import { inject, Provider } from '@angular/core';
-import { Report } from './api.types';
+import { InstalledPluginDto, InstalledPluginsDto, PackageReviewDto, PermissionDto, Report } from './api.types';
 import { ImtBackend } from './backend';
 import { reportBackendFailures } from './failure-reporter';
 import { Logger, withFailureLogging } from './logger';
@@ -103,6 +103,50 @@ export abstract class LifecycleBackend {
   /** Autosaves the session; `reports` are the project's incident reports. */
   abstract saveSession(ui: unknown, reports?: Report[]): Promise<void>;
   abstract lastSession(): Promise<string | null>;
+}
+
+/**
+ * Third-party plugin packages (`.imtplugin`): review before installing, then manage what is installed. Paths come
+ * from the native dialog or a drop, which the shell granted; the shell re-checks the package at install against the
+ * reviewed `digest`.
+ */
+export abstract class PluginPackagesBackend {
+  abstract listPackages(): Promise<InstalledPluginsDto>;
+  /** Reads and checks a package without installing anything (`plugin_package_inspect`). */
+  abstract readPackage(path: string): Promise<PackageReviewDto>;
+  /** Installs the reviewed package (`digest` from the review) with the permissions the user approved. */
+  abstract installPackage(path: string, digest: string, approved: PermissionDto[]): Promise<InstalledPluginDto>;
+  /** Uninstalls; false when nothing was installed under `id`. */
+  abstract removePackage(id: string): Promise<boolean>;
+  abstract setPackageEnabled(id: string, enabled: boolean): Promise<InstalledPluginDto>;
+  /** Grants exactly `granted` (a subset of what it requests); a running plugin restarts with them. */
+  abstract setPackagePermissions(id: string, granted: PermissionDto[]): Promise<InstalledPluginDto>;
+}
+
+/** The `plugin_package_*` commands. */
+export class TauriPluginPackagesBackend extends PluginPackagesBackend {
+  /** `call` is Tauri's `invoke`; tests pass a fake. */
+  constructor(private readonly call: typeof invoke = invoke) {
+    super();
+  }
+  listPackages() {
+    return this.call<InstalledPluginsDto>('plugin_packages_list');
+  }
+  readPackage(path: string) {
+    return this.call<PackageReviewDto>('plugin_package_inspect', { path });
+  }
+  installPackage(path: string, digest: string, approved: PermissionDto[]) {
+    return this.call<InstalledPluginDto>('plugin_package_install', { path, digest, approved });
+  }
+  removePackage(id: string) {
+    return this.call<boolean>('plugin_package_remove', { id });
+  }
+  setPackageEnabled(id: string, enabled: boolean) {
+    return this.call<InstalledPluginDto>('plugin_package_set_enabled', { id, enabled });
+  }
+  setPackagePermissions(id: string, granted: PermissionDto[]) {
+    return this.call<InstalledPluginDto>('plugin_package_set_permissions', { id, granted });
+  }
 }
 
 /** Projects and OS "open with" requests (live tail lives on `ImtBackend`). */
@@ -340,5 +384,14 @@ export function provideToolsBackend(): Provider[] {
     { provide: EventLogBackend, useExisting: ToolsBackend },
     { provide: LifecycleBackend, useExisting: ToolsBackend },
     { provide: ProjectBackend, useExisting: ToolsBackend },
+    {
+      provide: PluginPackagesBackend,
+      useFactory: () =>
+        withFailureLogging<PluginPackagesBackend>(
+          isTauri() ? new TauriPluginPackagesBackend() : new (browserMocks().MockPluginPackagesBackend)(),
+          inject(Logger),
+          { onFailure: reportBackendFailures() },
+        ),
+    },
   ];
 }
