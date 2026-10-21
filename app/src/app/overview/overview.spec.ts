@@ -1,7 +1,7 @@
 import { LAYOUT_MODE_KEY, LayoutModeStore } from '../core/workspace/layout-mode';
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, FakeDock, pluginInfo, provideFakeDock, provideTinyBackend, settle, text } from '../../testing/helpers';
-import { ExceptionGroup, Finding, WorkspaceSummary } from '../core/api.types';
+import { ExceptionGroup, Finding, fullCoverage, WorkspaceSummary } from '../core/api.types';
 import { AnalysisBackend } from '../core/analysis-backend';
 import { WorkspaceStore } from '../core/workspace.store';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
@@ -128,7 +128,7 @@ describe('OverviewPrefs', () => {
 describe('OverviewActions', () => {
   function setup(groups: ExceptionGroup[] | { reject: unknown } = [group()]) {
     const ctx = new FakeCtx();
-    const analysis = { queryExceptions: vi.fn(async () => (Array.isArray(groups) ? groups : Promise.reject(groups.reject))) };
+    const analysis = { queryExceptions: vi.fn(async () => (Array.isArray(groups) ? { result: groups, coverage: fullCoverage(groups.length) } : Promise.reject(groups.reject))) };
     TestBed.configureTestingModule({
       providers: [provideTinyBackend(), provideFakeDock(), { provide: COMMAND_CONTEXT, useValue: ctx }, { provide: AnalysisBackend, useValue: analysis }],
     });
@@ -197,10 +197,11 @@ describe('OverviewActions', () => {
 
 describe('OverviewView', () => {
   function setup(findings: Finding[] | (() => Promise<Finding[]>)) {
-    const overview = vi.fn(typeof findings === 'function' ? findings : async () => findings);
+    const answer = typeof findings === 'function' ? findings : async () => findings;
+    const overview = vi.fn(async () => ({ result: await answer(), coverage: fullCoverage(3) }));
     const ctx = new FakeCtx();
     TestBed.configureTestingModule({
-      providers: [provideTinyBackend(), provideFakeDock(), { provide: ShareBackend, useValue: { overview } }, { provide: COMMAND_CONTEXT, useValue: ctx }, { provide: AnalysisBackend, useValue: { queryExceptions: async () => [] } }],
+      providers: [provideTinyBackend(), provideFakeDock(), { provide: ShareBackend, useValue: { overview } }, { provide: COMMAND_CONTEXT, useValue: ctx }, { provide: AnalysisBackend, useValue: { queryExceptions: async () => ({ result: [], coverage: fullCoverage(0) }) } }],
     });
     const fixture = TestBed.createComponent(OverviewView);
     return { fixture, overview, ctx };

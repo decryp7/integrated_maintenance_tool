@@ -34,8 +34,8 @@ export class MemoryRecentProjects implements RecentProjects {
 
 /** A picker whose answers the test sets. */
 export class FakePicker {
-  open: string | null = '/p/a.imtproj';
-  save: string | null = '/p/saved.imtproj';
+  open: string | null = '/p/a.imtz';
+  save: string | null = '/p/saved.imtz';
   saveNames: string[] = [];
   pickOpen = async () => this.open;
   pickSave = async (name: string) => {

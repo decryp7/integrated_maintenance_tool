@@ -1,4 +1,5 @@
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
+import { Analyzed } from '../core/api.types';
 import { failureText, isRetryable } from '../core/cmd-error';
 
 export function errorText(e: unknown): string {
@@ -48,4 +49,10 @@ export class AsyncResource<T> {
     this.error.set(null);
     this.loading.set(false);
   }
+}
+
+/** An `AsyncResource` of an analysis: its `result` for the view, its `coverage` for `<imt-coverage-note>`. */
+export class AnalysisResource<T> extends AsyncResource<Analyzed<T>> {
+  readonly result = computed(() => this.data()?.result ?? null);
+  readonly coverage = computed(() => this.data()?.coverage ?? null);
 }

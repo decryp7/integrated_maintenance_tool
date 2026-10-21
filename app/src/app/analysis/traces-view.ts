@@ -8,7 +8,8 @@ import { AnalysisState } from './analysis-state';
 import { ANALYSIS_STYLES } from './analysis-styles';
 import { AnalysisTargets } from './analysis-targets';
 import { AnalysisTime } from './analysis-time';
-import { AsyncResource } from './async-resource';
+import { AnalysisResource, AsyncResource } from './async-resource';
+import { CoverageNote } from './coverage-note';
 
 export const DEFAULT_ID_FIELD = 'RequestId|CorrelationId|TraceId';
 
@@ -28,7 +29,7 @@ export function waterfallTotal(rows: readonly WaterfallRow[]): number {
 @Component({
   selector: 'imt-traces-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AnalysisState],
+  imports: [AnalysisState, CoverageNote],
   template: `
     <div class="bar">
       <span class="section-title" i18n="@@analysis.traces.title">Traces &amp; requests</span>
@@ -46,6 +47,7 @@ export function waterfallTotal(rows: readonly WaterfallRow[]): number {
     </div>
 
     @if (mode() === 'traces') {
+      <imt-coverage-note [coverage]="traces.data()?.coverage ?? null" />
       <imt-analysis-state [loading]="traces.loading()" [error]="traces.error()" [hasData]="!!traces.data()" [empty]="traces.data()?.traces?.length === 0" emptyText="No traces: no events carry trace and span ids." i18n-emptyText="@@analysis.traces.no.emptyText" emptyHint="Traces need events with trace and span id fields (such as TraceId and SpanId). If your logs name them differently, rename the fields in the profile." i18n-emptyHint="@@analysis.traces.no.emptyHint" suggest (retry)="traces.retry()">
         <div class="split">
           <ul class="list tlist" aria-label="Traces" i18n-aria-label="@@analysis.traces.listLabel">
@@ -84,10 +86,11 @@ export function waterfallTotal(rows: readonly WaterfallRow[]): number {
         </div>
       </imt-analysis-state>
     } @else {
-      <imt-analysis-state [loading]="requests.loading()" [error]="requests.error()" [hasData]="!!requests.data()" [empty]="requests.data()?.length === 0" emptyText="No requests found for these id fields." i18n-emptyText="@@analysis.traces.noRequests" (retry)="requests.retry()">
+      <imt-coverage-note [coverage]="requests.coverage()" />
+      <imt-analysis-state [loading]="requests.loading()" [error]="requests.error()" [hasData]="!!requests.result()" [empty]="requests.result()?.length === 0" emptyText="No requests found for these id fields." i18n-emptyText="@@analysis.traces.noRequests" (retry)="requests.retry()">
         <div class="body" tabindex="0" role="region" aria-label="Requests" i18n-aria-label="@@analysis.traces.requests">
           <ul class="list">
-            @for (r of requests.data() ?? []; track r.id) {
+            @for (r of requests.result() ?? []; track r.id) {
               <li>
                 <button class="row" type="button" (click)="filter(r)" title="Show only the events of {{ r.id }}" i18n-title="@@analysis.traces.showOnly">
                   <span class="mono id" [title]="r.id">{{ short(r.id) }}</span>
@@ -145,7 +148,7 @@ export class TracesView {
   protected readonly defaultField = DEFAULT_ID_FIELD;
   protected readonly traces = new AsyncResource<TracesResult>();
   protected readonly waterfall = new AsyncResource<TracesResult>();
-  protected readonly requests = new AsyncResource<RequestSpan[]>();
+  protected readonly requests = new AnalysisResource<RequestSpan[]>();
   protected readonly rows = computed(() => this.waterfall.data()?.waterfall ?? []);
   protected readonly total = computed(() => waterfallTotal(this.rows()));
 

@@ -1,11 +1,11 @@
-import { computed, DestroyRef, effect, inject, Injectable, signal, untracked } from '@angular/core';
+import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { ImportProgress } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { WorkspaceStatusStore } from '../core/workspace/status.store';
 import { UxBackend } from '../core/ux-backend';
+import { JobsStore } from '../jobs/jobs.store';
+import { JobInfo } from '../jobs/jobs.types';
 
-/** How often progress is read while an import runs. */
-export const POLL_MS = 250;
 /** Imports running longer than this also show the progress toast. */
 export const LONG_IMPORT_MS = 1500;
 
@@ -15,42 +15,73 @@ export interface PartialImport {
   total: number;
 }
 
+/** What the widgets show before the import's job reports (the engine lists a job once it ran a moment). */
+const STARTING: ImportProgress = { running: true, done: 0, total: 0, cancelled: false, bytesDone: 0, bytesTotal: 0, current: null, elapsedMs: 0, etaMs: null };
+
+/** A running import job's progress (\`imt://jobs\`) in the shape the widgets show. */
+export function jobImportProgress(job: JobInfo): ImportProgress {
+  const p = job.progress;
+  return {
+    running: true,
+    done: p.done ?? 0,
+    total: p.total ?? 0,
+    cancelled: false,
+    bytesDone: p.bytesDone ?? 0,
+    bytesTotal: p.bytesTotal ?? 0,
+    current: p.current ?? null,
+    elapsedMs: job.elapsedMs,
+    etaMs: p.etaMs ?? job.etaMs,
+  };
+}
+
 /**
- * Follows the engine's import progress while the workspace imports files (its busy state is an import: open,
- * re-import, profile apply): polls `import_progress`, offers Cancel, and remembers a cancelled import so a
- * "partially imported" banner can say what was read. The import job's progress events carry a fraction and file
- * counts but not the current file or the bytes the toast shows, so the poll stays until the job reports them.
+ * Follows the engine's import while the workspace imports files (its busy state is an import: open, re-import,
+ * profile apply): the progress comes from the import's job (files, bytes and the current file, from the jobs
+ * store), Cancel stops it, and a cancelled import is remembered so a "partially imported" banner can say what was
+ * read (one \`import_progress\` read when the import ends).
  */
 @Injectable({ providedIn: 'root' })
 export class ImportProgressService {
   private readonly store = inject(WorkspaceStore);
   private readonly status = inject(WorkspaceStatusStore);
   private readonly backend = inject(UxBackend);
+  private readonly jobs = inject(JobsStore);
+
+  private readonly tracking = signal(false);
+  /** The import's job: the busy state's when it is known, else the newest running import of this window. */
+  private readonly job = computed(() => {
+    const busy = this.status.busy();
+    const running = this.jobs.snapshot().jobs.filter((j) => j.kind === 'import' && j.state === 'running');
+    const known = busy?.kind === 'import' && busy.jobId !== null ? running.find((j) => j.id === busy.jobId) : undefined;
+    return known ?? running.at(-1) ?? null;
+  });
 
   /** Latest progress of the running import; null when none runs. */
-  readonly progress = signal<ImportProgress | null>(null);
-  /** The running import has taken longer than `LONG_IMPORT_MS` (the toast shows). */
+  readonly progress = computed<ImportProgress | null>(() => {
+    if (!this.tracking()) return null;
+    const job = this.job();
+    return job ? jobImportProgress(job) : STARTING;
+  });
+  /** The running import has taken longer than \`LONG_IMPORT_MS\` (the toast shows). */
   readonly long = signal(false);
   readonly cancelling = signal(false);
   /** The last import was cancelled; null once dismissed or after a complete import. */
   readonly partial = signal<PartialImport | null>(null);
   readonly active = computed(() => this.progress() !== null);
 
-  private timer: ReturnType<typeof setInterval> | undefined;
   private longTimer: ReturnType<typeof setTimeout> | undefined;
-  private tracking = false;
 
   constructor() {
-    effect(() => {
+    effect((onCleanup) => {
       const importing = this.status.importing();
-      untracked(() => (importing ? this.start() : this.stop()));
+      untracked(() => (importing ? this.start() : void this.stop()));
+      onCleanup(() => clearTimeout(this.longTimer));
     });
-    inject(DestroyRef).onDestroy(() => this.clearTimers());
   }
 
   /** Asks the engine to stop after the files in flight. */
   async cancel(): Promise<void> {
-    if (!this.tracking || this.cancelling()) return;
+    if (!this.tracking() || this.cancelling()) return;
     this.cancelling.set(true);
     try {
       await this.backend.cancelImport();
@@ -72,22 +103,19 @@ export class ImportProgressService {
   }
 
   private start(): void {
-    if (this.tracking) return;
-    this.tracking = true;
+    if (this.tracking()) return;
+    this.tracking.set(true);
     this.partial.set(null);
     this.cancelling.set(false);
     this.long.set(false);
-    this.progress.set({ running: true, done: 0, total: 0, cancelled: false, bytesDone: 0, bytesTotal: 0, current: null, elapsedMs: 0, etaMs: null });
-    this.timer = setInterval(() => void this.poll(), POLL_MS);
+    clearTimeout(this.longTimer);
     this.longTimer = setTimeout(() => this.long.set(true), LONG_IMPORT_MS);
-    void this.poll();
   }
 
   private async stop(): Promise<void> {
-    if (!this.tracking) return;
-    this.tracking = false;
-    this.clearTimers();
-    this.progress.set(null);
+    if (!this.tracking()) return;
+    this.tracking.set(false);
+    clearTimeout(this.longTimer);
     this.long.set(false);
     this.cancelling.set(false);
     try {
@@ -96,19 +124,5 @@ export class ImportProgressService {
     } catch {
       /* no final progress: nothing to report */
     }
-  }
-
-  private async poll(): Promise<void> {
-    try {
-      const p = await this.backend.importProgress();
-      if (this.tracking && p.running) this.progress.set(p);
-    } catch {
-      /* progress is a convenience: the import itself reports its errors */
-    }
-  }
-
-  private clearTimers(): void {
-    clearInterval(this.timer);
-    clearTimeout(this.longTimer);
   }
 }

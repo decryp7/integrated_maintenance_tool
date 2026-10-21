@@ -257,6 +257,7 @@ export class MockEngine {
     return {
       id: r.id,
       ts: r.ts,
+      tsState: r.ts === null ? 'untimed' : 'parsed',
       level: r.level,
       message: r.message,
       template: r.template,
@@ -265,16 +266,10 @@ export class MockEngine {
       source: r.source,
       sourceName: this.sourceById.get(r.source)?.name ?? '',
       line: r.line,
+      byteOffset: mockByteOffset(r.line),
       group: this.groupKey(r, groupBy),
       markers: r.markers,
-      ...this.skewOf(r),
     };
-  }
-
-  /** `skewMs` of a timed record whose source has a clock offset (like the engine's page rows). */
-  private skewOf(r: MockRecord): { skewMs?: number } {
-    const off = this.sourceById.get(r.source)?.offsetMs ?? 0;
-    return off !== 0 && r.ts !== null ? { skewMs: off } : {};
   }
 
   page(req: PageRequest): Page {
@@ -473,6 +468,11 @@ export class MockEngine {
     }
     return { candidates, matches, failed: candidates - matches, samples, error: null };
   }
+}
+
+/** A plausible byte offset for a line of a mock file (the demo data has no bytes). */
+function mockByteOffset(line: number): number {
+  return Math.max(0, line - 1) * 128;
 }
 
 export function safeRegex(pattern: string, flags = ''): RegExp | null {

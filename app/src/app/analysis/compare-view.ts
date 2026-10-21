@@ -7,7 +7,8 @@ import { AnalysisState } from './analysis-state';
 import { ANALYSIS_STYLES } from './analysis-styles';
 import { AnalysisTargets, windowQuery } from './analysis-targets';
 import { AnalysisTime } from './analysis-time';
-import { AsyncResource } from './async-resource';
+import { AnalysisResource } from './async-resource';
+import { CoverageNote } from './coverage-note';
 import { TimeCursor } from './time-cursor';
 import { aroundTime, midpoint, previousWindow, WIDTHS } from './windows';
 
@@ -15,7 +16,7 @@ import { aroundTime, midpoint, previousWindow, WIDTHS } from './windows';
 @Component({
   selector: 'imt-compare-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AnalysisState],
+  imports: [AnalysisState, CoverageNote],
   template: `
     <div class="bar">
       <span class="section-title" i18n="@@analysis.compare.title">Compare</span>
@@ -33,8 +34,9 @@ import { aroundTime, midpoint, previousWindow, WIDTHS } from './windows';
       <div><strong>A</strong> <span class="mono">{{ time.range(targets.windowA()) }}</span></div>
       <div><strong>B</strong> <span class="mono">{{ time.range(targets.windowB()) }}</span></div>
     </div>
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="!targets.windowA() || !targets.windowB()" emptyText="Pick two windows to compare, for example the current range against the one before it." i18n-emptyText="@@analysis.compare.emptyText" (retry)="res.retry()">
-      @if (res.data(); as c) {
+    <imt-coverage-note [coverage]="res.coverage()" />
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="!targets.windowA() || !targets.windowB()" emptyText="Pick two windows to compare, for example the current range against the one before it." i18n-emptyText="@@analysis.compare.emptyText" (retry)="res.retry()">
+      @if (res.result(); as c) {
         <div class="body" tabindex="0" role="region" aria-label="Comparison" i18n-aria-label="@@analysis.compare.region">
           <h3 class="sec first" i18n="@@analysis.compare.summary">Summary</h3>
           <ul class="summary">
@@ -140,7 +142,7 @@ export class CompareView {
   protected readonly targets = inject(AnalysisTargets);
   protected readonly cursor = inject(TimeCursor);
   protected readonly time = inject(AnalysisTime);
-  protected readonly res = new AsyncResource<Comparison>();
+  protected readonly res = new AnalysisResource<Comparison>();
   protected readonly widths = WIDTHS;
   protected readonly width = signal(WIDTHS[1]?.ms ?? 5 * 60_000);
   private readonly backend = inject(AnalysisBackend);

@@ -45,8 +45,11 @@ export class MockImportSim {
     if (this.state.running) this.cancelRequested = true;
   }
 
-  /** Reads `files` one after the other; resolves with the files read and the ones skipped by a cancel. */
-  async run(files: string[], read: (file: string) => void): Promise<{ read: string[]; skipped: string[] }> {
+  /**
+   * Reads `files` one after the other, telling `onProgress` (the import job's progress) after each step; resolves with
+   * the files read and the ones skipped by a cancel.
+   */
+  async run(files: string[], read: (file: string) => void, onProgress: (p: ImportProgress) => void = () => undefined): Promise<{ read: string[]; skipped: string[] }> {
     const started = Date.now();
     this.cancelRequested = false;
     const total = files.length;
@@ -55,6 +58,7 @@ export class MockImportSim {
     for (const file of files) {
       if (this.cancelRequested) break;
       this.state = { ...this.state, current: file };
+      onProgress(this.progress());
       await new Promise((r) => setTimeout(r, this.msPerFile));
       read(file);
       done.push(file);
@@ -62,6 +66,7 @@ export class MockImportSim {
       const bytesDone = done.length * SLOW_FILE_BYTES;
       const etaMs = Math.round((elapsedMs / bytesDone) * (this.state.bytesTotal - bytesDone));
       this.state = { ...this.state, done: done.length, bytesDone, elapsedMs, etaMs };
+      onProgress(this.progress());
     }
     this.state = { ...this.state, running: false, current: null, cancelled: this.cancelRequested, elapsedMs: Date.now() - started, etaMs: null };
     return { read: done, skipped: files.slice(done.length) };

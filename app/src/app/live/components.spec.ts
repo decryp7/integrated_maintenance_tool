@@ -49,7 +49,7 @@ function makePlatform() {
   return { isTauri: () => false, pickPaths: vi.fn(async (dir: boolean) => [dir ? '/live/dir' : '/live/file.log']), onFilesDropped: async () => () => undefined };
 }
 
-function setup(backend = new MockBackend({ latency: false, dataset: tinyDataset, liveMs: 100_000 }), extra: unknown[] = []) {
+function setup(backend = new MockBackend({ latency: false, dataset: tinyDataset, liveMs: 100_000, memoryStoreFeatures: true }), extra: unknown[] = []) {
   const dock = new FakeDock();
   const platform = makePlatform();
   TestBed.configureTestingModule({ providers: [provideTinyBackend(backend), provideFakeDock(dock), { provide: Platform, useValue: platform }, ...(extra as never[])] });
@@ -82,7 +82,7 @@ describe('source groups', () => {
   });
 
   it('the sidebar shows a group row that expands, with state badges explained in words', async () => {
-    const { backend } = setup(new MockBackend({ latency: false, dataset: rolledDataset }));
+    const { backend } = setup(new MockBackend({ latency: false, dataset: rolledDataset, memoryStoreFeatures: true }));
     const fixture = TestBed.createComponent(Sidebar);
     await settle(fixture);
     const row = el<HTMLButtonElement>(fixture, '[data-testid=source-group]');

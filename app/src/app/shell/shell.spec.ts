@@ -224,6 +224,7 @@ describe('StatusBar', () => {
     await settle(fixture);
     expect(text(fixture)).toContain('2 sources');
     expect(text(fixture)).toContain('11 events');
+    expect(el(fixture, '[data-testid=status-untimed]').textContent).toContain('1 without a time');
     expect(text(fixture)).toContain('3 matching');
     expect(text(fixture)).toContain('Importers: json · text');
     el<HTMLButtonElement>(fixture, '.tz').click();
@@ -232,6 +233,7 @@ describe('StatusBar', () => {
     await settle(fixture);
     expect(text(fixture)).toContain('Importers: —');
     expect(text(fixture)).toContain('0 sources');
+    expect(fixture.nativeElement.querySelector('[data-testid=status-untimed]')).toBeNull();
   });
 
   it('shows how many events the pipeline dropped', async () => {

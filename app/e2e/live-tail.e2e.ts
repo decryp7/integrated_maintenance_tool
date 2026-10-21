@@ -5,7 +5,7 @@ import { openAppWith } from './mock-url';
 import { chooseMenu } from './menu-support';
 
 /** Realistic live simulation: 40 events/s, no rotations or alerts unless a test asks for them. */
-const LIVE = '?mockLive=1&mockLiveRate=40&mockLiveRotateMs=0&mockLiveAlertMs=0';
+const LIVE = '?mockMemoryFeatures=1&mockLive=1&mockLiveRate=40&mockLiveRotateMs=0&mockLiveAlertMs=0';
 
 const liveButton = (page: Page) => page.locator('imt-status-bar').getByRole('button', { name: 'Live tail', exact: true });
 const timelineTo = async (page: Page) => Number(await page.locator('imt-timeline-panel .wrap').getAttribute('data-to'));
@@ -85,7 +85,7 @@ test.describe('live tail: follow now', () => {
 
 test.describe('live tail: alerts', () => {
   test('an alert toast says its severity in words; Show applies the evidence query', async ({ page }, testInfo) => {
-    await openAppWith(page, '?mockLive=1&mockLiveRate=20&mockLiveRotateMs=0&mockLiveAlertMs=1500');
+    await openAppWith(page, '?mockMemoryFeatures=1&mockLive=1&mockLiveRate=20&mockLiveRotateMs=0&mockLiveAlertMs=1500');
     await liveOn(page);
     const toast = page.getByTestId('alert-toast').first();
     await expect(toast).toBeVisible({ timeout: 10_000 });
@@ -103,7 +103,7 @@ test.describe('live tail: alerts', () => {
   });
 
   test('mute this kind for 15 min stops its toasts', async ({ page }) => {
-    await openAppWith(page, '?mockLive=1&mockLiveRate=20&mockLiveRotateMs=0&mockLiveAlertMs=1000');
+    await openAppWith(page, '?mockMemoryFeatures=1&mockLive=1&mockLiveRate=20&mockLiveRotateMs=0&mockLiveAlertMs=1000');
     // The alerts panel lists every alert received, so the test can tell when the next error spike was due.
     await openView(page, 'Alerts');
     await liveOn(page);
@@ -123,7 +123,7 @@ test.describe('live tail: alerts', () => {
   });
 
   test('the alerts panel lists, filters, clears, counts on its tab, and passes axe', async ({ page }, testInfo) => {
-    await openAppWith(page, '?mockLive=1&mockLiveRate=20&mockLiveRotateMs=0&mockLiveAlertMs=700');
+    await openAppWith(page, '?mockMemoryFeatures=1&mockLive=1&mockLiveRate=20&mockLiveRotateMs=0&mockLiveAlertMs=700');
     await openView(page, 'Alerts');
     const panel = page.locator('imt-alerts-view');
     await expect(panel).toContainText('No alerts yet');
@@ -211,7 +211,7 @@ test.describe('live tail: status, sources and opening', () => {
   });
 
   test('rolling files of one log collapse into a group that expands, with a rotated badge', async ({ page }, testInfo) => {
-    await openAppWith(page, '?mockLive=1&mockLiveRate=20&mockLiveRotateMs=1000&mockLiveAlertMs=0');
+    await openAppWith(page, '?mockMemoryFeatures=1&mockLive=1&mockLiveRate=20&mockLiveRotateMs=1000&mockLiveAlertMs=0');
     await liveOn(page);
     const group = page.getByTestId('source-group').first();
     await expect(group).toBeVisible({ timeout: 10_000 });

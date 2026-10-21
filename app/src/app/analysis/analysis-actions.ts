@@ -57,7 +57,7 @@ export class AnalysisActions {
    */
   async filterById(idField: string, id: string): Promise<number> {
     for (const field of idField.split('|').map((f) => f.trim()).filter(Boolean)) {
-      const ids = await this.analysis.correlate(field, id);
+      const { result: ids } = await this.analysis.correlate(field, id);
       if (ids.length) {
         this.ctx.addFilter({ field, op: 'eq', value: id });
         return ids.length;

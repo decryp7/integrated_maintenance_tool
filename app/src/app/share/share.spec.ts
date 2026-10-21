@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { AnalysisBackend } from '../core/analysis-backend';
-import { BundleOptions, Query, Report, TileCfg } from '../core/api.types';
+import { BundleManifest, Query, Report, TileCfg } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { Logger } from '../core/logger';
 import { MockBackend } from '../core/mock/mock-backend';
@@ -31,7 +31,6 @@ function report(): Report {
 describe('TauriShareBackend', () => {
   it('maps every method to its Tauri command', async () => {
     const b = new TauriShareBackend(invoke as never);
-    const options: BundleOptions = { name: 'n', content: 'raw', query: q, redact: false, ui: null, reports: [] };
     const calls: [() => Promise<unknown>, string, unknown][] = [
       [() => b.setRedactedView(true), 'set_redacted_view', { enabled: true }],
       [() => b.previewRedaction({ sample: 's' }), 'preview_redaction', { request: { sample: 's' } }],
@@ -39,8 +38,6 @@ describe('TauriShareBackend', () => {
       [() => b.dashboardTile({ tile: tile({ type: 'stat' }), query: q }), 'dashboard_tile', { request: { tile: tile({ type: 'stat' }), query: q } }],
       [() => b.exportReport({ report: report(), format: 'pdf', path: '/r.pdf', redact: true, theme: 'dark' }), 'export_report', { request: { report: report(), format: 'pdf', path: '/r.pdf', redact: true, theme: 'dark' } }],
       [() => b.saveVisual({ path: '/a.svg', kind: 'svg', data: '<svg/>' }), 'save_visual', { request: { path: '/a.svg', kind: 'svg', data: '<svg/>' } }],
-      [() => b.estimateBundle(options), 'estimate_bundle', { options }],
-      [() => b.createBundle(options, '/x.imtz'), 'create_bundle', { options, path: '/x.imtz' }],
       [() => b.openBundle('/x.imtz'), 'open_bundle', { path: '/x.imtz' }],
       [() => b.overview(q), 'overview', { request: { query: q } }],
     ];
@@ -156,7 +153,7 @@ describe('MockShareBackend', () => {
   let imt: MockBackend;
   let share: MockShareBackend;
   beforeEach(() => {
-    imt = new MockBackend({ latency: false });
+    imt = new MockBackend({ latency: false, memoryStoreFeatures: true });
     share = new MockShareBackend(imt, new MockAnalysisBackend(recordsFrom(imt)));
   });
 
@@ -271,28 +268,29 @@ describe('MockShareBackend', () => {
     expect((globalThis as Record<string, unknown>)['__imtMockShareWritten']).toBe(share.written);
   });
 
-  it('estimates, creates and opens bundles', async () => {
-    const options: BundleOptions = { name: 'Case 42', content: 'events', query: { ...q, levels: ['Error'] }, redact: true, ui: { k: 1 }, reports: [report()] };
-    const est = await share.estimateBundle(options);
-    expect(est.events).toBeGreaterThan(0);
-    expect(est.files).toBe(5);
-    const raw = await share.estimateBundle({ ...options, content: 'raw', reports: [] });
-    expect(raw.parts.map((p) => p.name)).toEqual(['profile', 'logs', 'reports']);
-    const job = await share.createBundle(options, '/out/case.imtz');
-    expect(job).toEqual(expect.any(Number));
-    const written = await mockJobs().wait(job);
-    expect([written.state, written.message, written.result]).toEqual(['done', 'Bundle written, redacted (5 values).', { type: 'file', path: '/out/case.imtz' }]);
-    await expect(share.createBundle(options, '/out/case.zip')).rejects.toThrow(/\.imtz/);
+  it('opens old share bundles read-only (creating them is replaced by saving a project)', async () => {
+    const manifest: BundleManifest = { format: 'imt-share', schema: 1, name: 'Case 42', createdAt: 1, imtVersion: '0.1.0', content: 'events', redacted: true, redaction: { email: 3 }, events: 4, entries: [], skipped: [] };
+    share.addBundle('/out/case.imtz', { name: 'Case 42', ui: { k: 1 }, reports: [report()], manifest });
     const opened = await share.openBundle('/out/case.imtz');
     expect(opened).toMatchObject({ readOnly: true, name: 'Case 42', ui: { k: 1 }, reports: [report()], bundle: { format: 'imt-share', name: 'Case 42', redacted: true, content: 'events' } });
     const other = await share.openBundle('/demo/shared.imtz');
     expect(other).toMatchObject({ name: 'shared', bundle: null, reports: [], ui: null });
     await expect(share.openBundle('/demo/x.zip')).rejects.toThrow(/not an IMT bundle/);
-    const plainEnd = await mockJobs().wait(await share.createBundle({ ...options, redact: false, content: 'raw' }, '/out/raw.imtz'));
-    expect(plainEnd.message).toBe('Bundle written.');
-    const plain = (await share.openBundle('/out/raw.imtz')).bundle;
-    expect(plain?.redaction).toEqual({});
-    expect(plain?.events).toBeNull();
+    expect('estimateBundle' in share || 'createBundle' in share).toBe(false);
+  });
+
+  it('answers like the log store by default: no redacted view or redaction summary yet', async () => {
+    const plain = new MockShareBackend(new MockBackend({ latency: false }), new MockAnalysisBackend(recordsFrom(imt)));
+    const refused = { code: 'unsupported', retryable: false };
+    await expect(plain.setRedactedView(true)).rejects.toMatchObject({ ...refused, message: 'the redacted view is not available with the new log store yet', hint: expect.stringContaining('Exports') });
+    expect((await plain.setRedactedView(false)).redactedView).toBe(false);
+    await expect(plain.redactionSummary({ query: q })).rejects.toMatchObject({ ...refused, message: expect.stringContaining('redaction summary') });
+  });
+
+  it('returns the health check with the coverage of its analysis', async () => {
+    const { result, coverage } = await share.overview(q);
+    expect(Array.isArray(result)).toBe(true);
+    expect(coverage.analysed).toBe(coverage.matched);
   });
 
   it('refuses profiles with a broken [redact] section or dashboard, like the engine', async () => {
@@ -306,6 +304,7 @@ describe('MockShareBackend', () => {
 
   it('works over a non-mock workspace backend (no redacted view to switch)', async () => {
     const other = new MockShareBackend({ workspaceSummary: () => imt.workspaceSummary(), getProfile: () => imt.getProfile() } as unknown as ImtBackend, new MockAnalysisBackend(recordsFrom(imt)));
-    expect((await other.setRedactedView(true)).redactedView).toBe(false);
+    await expect(other.setRedactedView(true)).rejects.toMatchObject({ code: 'unsupported' });
+    expect((await other.setRedactedView(false)).redactedView).toBe(false);
   });
 });

@@ -54,7 +54,7 @@ export class OverviewActions {
 
   /** Filters to the events of an exception group (the engine identifies the group by fingerprint). */
   private async showException(fingerprint: string, recordId: number | null): Promise<void> {
-    const groups = await this.analysis.queryExceptions(this.store.effectiveQuery());
+    const { result: groups } = await this.analysis.queryExceptions(this.store.effectiveQuery());
     const group = groups.find((g) => g.fingerprint === fingerprint);
     if (!group) {
       this.ctx.notifyError($localize`:@@overview.actions.exceptionGone:That exception is not in the current view any more. Clear the filters and try again.`);

@@ -1,7 +1,7 @@
 import { inject, Provider } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { AnalysisBackend } from '../core/analysis-backend';
-import { Anomaly, Comparison, ExceptionGroup, FieldStats, MomentSummary, Pattern, RequestSpan, TracesResult, RecordView } from '../core/api.types';
+import { Analyzed, Anomaly, Comparison, Coverage, ExceptionGroup, FieldStats, fullCoverage, MomentSummary, Pattern, RequestSpan, TracesResult, RecordView } from '../core/api.types';
 import { Logger } from '../core/logger';
 import { ImtBackend } from '../core/backend';
 import { MockBackend } from '../core/mock/mock-backend';
@@ -102,6 +102,7 @@ export const FIX = {
       { traceId: 'bbbb', spans: 1, errors: 0, start: 3000, durationMs: 20, root: 'GET /health' },
     ],
     waterfall: [],
+    coverage: fullCoverage(3000),
   } as TracesResult,
   waterfall: {
     traces: [],
@@ -109,6 +110,7 @@ export const FIX = {
       { spanId: 's1', parent: null, depth: 0, name: 'GET /orders', startOffsetMs: 0, durationMs: 1500, errors: 0 },
       { spanId: 's2', parent: 's1', depth: 1, name: 'SELECT orders', startOffsetMs: 100, durationMs: 1200, errors: 2 },
     ],
+    coverage: fullCoverage(3000),
   } as TracesResult,
   requests: [
     { id: 'req-0001-abcdefghijkl', first: 1000, last: 3500, events: 12, errors: 1, instance: 'WEB01' },
@@ -136,7 +138,27 @@ function FIXED_PATTERN(): Pattern {
   return { id: 9, template: 'Failed to capture payment', count: 25, levels: [0, 0, 0, 0, 25, 0], firstTs: 1, lastTs: 2, sampleIds: [], source: 'Serilog' };
 }
 
-/** A backend answering from `FIX`; override or spy on individual methods in tests. */
+/** The coverage the stub reports when a test gives none: everything analysed. */
+export const STUB_COVERAGE: Coverage = fullCoverage(3000);
+
+/** The analyses that resolve with `Analyzed` (the stub wraps plain results of overrides in it). */
+const ANALYZED = new Set<string>(['queryPatterns', 'queryExceptions', 'queryAnomalies', 'compareWindows', 'correlate', 'queryRequests', 'queryMoment']);
+
+function isAnalyzed(v: unknown): v is Analyzed<unknown> {
+  return !!v && typeof v === 'object' && 'result' in v && 'coverage' in v;
+}
+
+/** An override's answer in the reply's shape: plain results get the stub coverage (tests may pass `Analyzed` themselves). */
+function shaped(key: string, v: unknown): unknown {
+  if (ANALYZED.has(key)) return isAnalyzed(v) ? v : { result: v, coverage: STUB_COVERAGE };
+  if (key === 'queryTraces' && v && typeof v === 'object' && !('coverage' in v)) return { ...v, coverage: STUB_COVERAGE };
+  return v;
+}
+
+/**
+ * A backend answering from `FIX`; override or spy on individual methods in tests. Overrides of the analyses may
+ * return the plain result (wrapped with `STUB_COVERAGE`) or an `Analyzed` reply.
+ */
 export function stubBackend(overrides: Partial<Record<keyof AnalysisBackend, (...a: never[]) => unknown>> = {}): AnalysisBackend {
   const base = {
     runQuery: async () => ({ result: { kind: 'events', ids: [1, 2], fields: null } }),
@@ -148,7 +170,6 @@ export function stubBackend(overrides: Partial<Record<keyof AnalysisBackend, (..
     completeQuery: async () => [],
     queryPatterns: async () => FIX.patterns,
     queryExceptions: async () => FIX.exceptions,
-    analysisCoverage: async () => null,
     queryAnomalies: async () => FIX.anomalies,
     compareWindows: async () => FIX.comparison,
     fieldStats: async () => FIX.stats,
@@ -157,5 +178,13 @@ export function stubBackend(overrides: Partial<Record<keyof AnalysisBackend, (..
     queryRequests: async () => FIX.requests,
     queryMoment: async () => FIX.moment,
   };
-  return { ...base, ...overrides } as unknown as AnalysisBackend;
+  const merged: Record<string, unknown> = { ...base, ...overrides };
+  for (const key of [...ANALYZED, 'queryTraces']) {
+    const fn = merged[key] as (...a: unknown[]) => unknown;
+    merged[key] = (...a: unknown[]) => {
+      const out = fn(...a);
+      return out instanceof Promise ? out.then((v) => shaped(key, v)) : shaped(key, out);
+    };
+  }
+  return merged as unknown as AnalysisBackend;
 }

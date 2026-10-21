@@ -79,8 +79,8 @@ describe('provideToolsBackend', () => {
     expect(TestBed.inject(ProjectBackend)).toBe(full);
     expect(TestBed.inject(ToolCatalogBackend)).toBe(full);
     // The mock gets the workspace summary of the app's backend for open_project.
-    await full.saveProject('/demo/p.imtproj', 'P', {});
-    expect((await full.openProject('/demo/p.imtproj')).summary.sources.length).toBeGreaterThan(0);
+    await full.saveProject('/demo/p.imtz', 'P', {});
+    expect((await full.openProject('/demo/p.imtz')).summary.sources.length).toBeGreaterThan(0);
     expect(full).toBeDefined();
     expect(new MockToolsBackend()).toBeInstanceOf(MockToolsBackend);
   });

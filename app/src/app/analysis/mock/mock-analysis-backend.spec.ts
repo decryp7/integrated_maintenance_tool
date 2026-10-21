@@ -67,24 +67,26 @@ describe('MockAnalysisBackend (demo data)', () => {
     // A later `from` is kept.
     const later = await backend.runQuery(q({ window: { kind: 'live', lastMs: HOUR }, from: newest - 60_000, ql: '| stats count()' }));
     expect('result' in later && later.result.kind === 'table' && at(at(later.result.rows, 0), 0)).toBe(all.filter((r) => r.ts !== null && r.ts >= newest - 60_000).length);
-    const moment = await backend.queryMoment(q({ window: { kind: 'live', lastMs: HOUR } }), newest - HOUR, newest);
+    const { result: moment } = await backend.queryMoment(q({ window: { kind: 'live', lastMs: HOUR } }), newest - HOUR, newest);
     expect(moment).toBeTruthy();
   });
 
   it('mines patterns, exceptions and anomalies', async () => {
-    const patterns = await backend.queryPatterns(q());
+    const { result: patterns, coverage } = await backend.queryPatterns(q());
+    expect(coverage.analysed).toBe(coverage.matched);
+    expect(coverage.limits).toEqual([]);
     expect(patterns.length).toBeGreaterThan(3);
     expect(at(patterns, 0).count).toBeGreaterThanOrEqual(at(patterns, 1).count);
     expect(patterns.reduce((s, p) => s + p.count, 0)).toBe(all.length);
     expect(patterns[0]?.levels).toHaveLength(6);
     expect(patterns.some((p) => p.source === 'Mined')).toBe(true);
 
-    const groups = await backend.queryExceptions(q());
+    const { result: groups } = await backend.queryExceptions(q());
     expect(groups.length).toBeGreaterThan(0);
     expect(groups[0]).toMatchObject({ typeName: expect.stringContaining('Exception'), count: expect.any(Number) });
     expect(groups[0]?.instances[0]).toEqual([expect.any(String), expect.any(Number)]);
 
-    const anomalies = await backend.queryAnomalies(q());
+    const { result: anomalies } = await backend.queryAnomalies(q());
     expect(anomalies.length).toBeGreaterThan(0);
     expect(anomalies.map((a) => a.kind)).toContain('crash');
     expect(at(anomalies, 0).score).toBeGreaterThanOrEqual(at(anomalies, -1).score);
@@ -93,12 +95,12 @@ describe('MockAnalysisBackend (demo data)', () => {
 
   it('compares two windows', async () => {
     const mid = DEMO_START + 100 * 60_000;
-    const c = await backend.compareWindows(q({ from: mid - 30 * 60_000, to: mid }), q({ from: mid, to: mid + 30 * 60_000 }));
+    const { result: c } = await backend.compareWindows(q({ from: mid - 30 * 60_000, to: mid }), q({ from: mid, to: mid + 30 * 60_000 }));
     expect(c.a.count).toBeGreaterThan(0);
     expect(c.b.count).toBeGreaterThan(0);
     expect(c.summary[0]).toContain('Window B has');
     expect(c.a.levels[0]).toMatchObject({ level: expect.any(String), count: expect.any(Number) });
-    const incident = await backend.compareWindows(q({ from: DEMO_START, to: DEMO_START + 20 * 60_000 }), q({ from: DEMO_START + 95 * 60_000, to: DEMO_START + 115 * 60_000 }));
+    const { result: incident } = await backend.compareWindows(q({ from: DEMO_START, to: DEMO_START + 20 * 60_000 }), q({ from: DEMO_START + 95 * 60_000, to: DEMO_START + 115 * 60_000 }));
     expect(incident.changedFields.length + incident.numericChanges.length + incident.newValues.length).toBeGreaterThan(0);
     expect(mockCompare([], []).summary[0]).toContain('0 events');
     expect(mockCompare([], []).a.durationMs).toBe(0);
@@ -120,11 +122,12 @@ describe('MockAnalysisBackend (demo data)', () => {
 
   it('correlates, traces and requests', async () => {
     const cid = all.find((r) => typeof r.fields['CorrelationId'] === 'string')!.fields['CorrelationId'] as string;
-    const ids = await backend.correlate('CorrelationId', cid);
+    const { result: ids } = await backend.correlate('CorrelationId', cid);
     expect(ids.length).toBeGreaterThan(0);
-    expect(await backend.correlate('CorrelationId', 'nope')).toEqual([]);
+    expect((await backend.correlate('CorrelationId', 'nope')).result).toEqual([]);
 
     const list = await backend.queryTraces(q(), '');
+    expect(list.coverage.analysed).toBe(list.coverage.matched);
     expect(list.traces.length).toBeGreaterThan(0);
     expect(list.waterfall).toEqual([]);
     expect(at(list.traces, 0).durationMs).toBeGreaterThanOrEqual(at(list.traces, -1).durationMs);
@@ -134,18 +137,18 @@ describe('MockAnalysisBackend (demo data)', () => {
     expect(one.waterfall[0]).toMatchObject({ depth: 0, parent: null, startOffsetMs: 0 });
     expect((await backend.queryTraces(q(), 'unknown')).waterfall).toEqual([]);
 
-    const requests = await backend.queryRequests(q(), 'RequestId|CorrelationId');
+    const { result: requests } = await backend.queryRequests(q(), 'RequestId|CorrelationId');
     expect(requests.length).toBeGreaterThan(0);
     const span = (r: { first: number; last: number }) => r.last - r.first;
     expect(span(at(requests, 0))).toBeGreaterThanOrEqual(span(at(requests, -1)));
-    expect(await backend.queryRequests(q(), 'NoSuch')).toEqual([]);
+    expect((await backend.queryRequests(q(), 'NoSuch')).result).toEqual([]);
     expect(mockRequests(all.map((r) => ({ ...r, ts: null })), 'CorrelationId')).toEqual([]);
     expect(mockTraces([], '')).toEqual({ traces: [], waterfall: [] });
   });
 
   it('summarises a moment', async () => {
     const from = DEMO_START + 100 * 60_000;
-    const m = await backend.queryMoment(q(), from, from + 15 * 60_000);
+    const { result: m } = await backend.queryMoment(q(), from, from + 15 * 60_000);
     expect(m.total).toBeGreaterThan(0);
     expect(Object.values(m.levels).reduce((s, n) => s + (n ?? 0), 0)).toBe(m.total);
     expect(m.instances.length).toBeGreaterThan(0);

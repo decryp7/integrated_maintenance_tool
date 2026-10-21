@@ -7,7 +7,7 @@ import { AnalysisState } from './analysis-state';
 import { ANALYSIS_STYLES } from './analysis-styles';
 import { AnalysisTargets } from './analysis-targets';
 import { AnalysisTime } from './analysis-time';
-import { AsyncResource } from './async-resource';
+import { AnalysisResource } from './async-resource';
 import { CoverageNote } from './coverage-note';
 
 /** Exceptions grouped by fingerprint; a group expands into its instances and sample events. */
@@ -18,14 +18,14 @@ import { CoverageNote } from './coverage-note';
   template: `
     <div class="bar">
       <span class="section-title" i18n="@@analysis.exceptions.title">Exceptions</span>
-      @if (res.data(); as list) { <span class="faint" i18n="@@analysis.exceptions.groups">{{ list.length }} groups</span> }
+      @if (res.result(); as list) { <span class="faint" i18n="@@analysis.exceptions.groups">{{ list.length }} groups</span> }
       <span class="spacer"></span>
       <button class="btn" type="button" (click)="res.retry()" i18n="@@analysis.exceptions.refresh">Refresh</button>
     </div>
-    <imt-coverage-note [query]="targets.query()" />
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No exceptions in the current query." i18n-emptyText="@@analysis.exceptions.emptyText" emptyHint="Events that carry an exception (a stack trace) are grouped here by type and top frame." i18n-emptyHint="@@analysis.exceptions.emptyHint" suggest (retry)="res.retry()">
+    <imt-coverage-note [coverage]="res.coverage()" />
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="res.result()?.length === 0" emptyText="No exceptions in the current query." i18n-emptyText="@@analysis.exceptions.emptyText" emptyHint="Events that carry an exception (a stack trace) are grouped here by type and top frame." i18n-emptyHint="@@analysis.exceptions.emptyHint" suggest (retry)="res.retry()">
       <ul class="list body" aria-label="Exception groups" i18n-aria-label="@@analysis.exceptions.listLabel">
-        @for (g of res.data() ?? []; track g.fingerprint) {
+        @for (g of res.result() ?? []; track g.fingerprint) {
           <li class="group">
             <button class="row head" type="button" [attr.aria-expanded]="isOpen(g)" (click)="toggle(g)">
               <span aria-hidden="true">{{ isOpen(g) ? '▾' : '▸' }}</span>
@@ -73,7 +73,7 @@ import { CoverageNote } from './coverage-note';
   ],
 })
 export class ExceptionsView {
-  protected readonly res = new AsyncResource<ExceptionGroup[]>();
+  protected readonly res = new AnalysisResource<ExceptionGroup[]>();
   protected readonly time = inject(AnalysisTime);
   protected readonly count = formatCount;
   protected readonly open = signal<ReadonlySet<string>>(new Set());

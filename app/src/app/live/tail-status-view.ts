@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { DeletedFiles, LiveOptions, MAX_DETECT_EVERY_MS, TailFileStatus, WatchPreference } from '../core/api.types';
 import { formatCount } from '../core/format';
+import { WorkspaceStore } from '../core/workspace.store';
 import { LiveTail } from '../workspace/live-tail';
 import { parseDetectEvery } from './live-ui-state';
 import { stateHint, stateLabel, TailStatusStore } from './tail-status.store';
@@ -126,7 +127,11 @@ export function parseLimit(text: string): number | null {
                 <td [title]="hint(f)"><span class="state" [class]="f.state.kind">{{ label(f) }}</span>@if (f.state.kind === 'error') { <span class="err-msg">{{ errorOf(f) }}</span> }</td>
               </tr>
             } @empty {
-              <tr><td colspan="7" class="faint" i18n="@@live.tailStatus.noFiles">No files are open. <imt-next-steps /></td></tr>
+              @if (sourcesOpen()) {
+                <tr><td colspan="7" class="faint" i18n="@@live.tailStatus.noFileState">The state of each tailed file is not available yet. Live tail still adds new lines.</td></tr>
+              } @else {
+                <tr><td colspan="7" class="faint" i18n="@@live.tailStatus.noFiles">No files are open. <imt-next-steps /></td></tr>
+              }
             }
           </tbody>
         </table>
@@ -161,6 +166,9 @@ export function parseLimit(text: string): number | null {
 export class TailStatusView {
   protected readonly live = inject(LiveTail);
   protected readonly status = inject(TailStatusStore);
+  private readonly workspace = inject(WorkspaceStore);
+  /** Files are open although the engine lists none: it keeps no per-file tail state (yet). */
+  protected readonly sourcesOpen = computed(() => (this.workspace.summary()?.sources.length ?? 0) > 0);
   private readonly cdr = inject(ChangeDetectorRef);
   protected readonly opts = computed(() => this.live.options());
   protected readonly maxAgeMinutes = computed(() => {

@@ -37,6 +37,22 @@ export function fromRejection(e: unknown): unknown {
   return isCmdErrorDto(e) ? new CmdError(e) : e;
 }
 
+/** Whether the engine does not offer the operation (yet): the UI says so calmly, without Retry. */
+export function isUnsupported(e: unknown): boolean {
+  return e instanceof CmdError && e.code === 'unsupported';
+}
+
+/**
+ * A failure as a calm sentence of its own (not after "Could not …: "): the message with a capital and a full stop,
+ * then the next step. For notices such as an operation that is not available yet.
+ */
+export function sentenceText(e: unknown): string {
+  const message = e instanceof CmdError ? e.message : failureText(e);
+  const head = message.charAt(0).toUpperCase() + message.slice(1);
+  const stop = /[.!?…]$/.test(head) ? head : `${head}.`;
+  return e instanceof CmdError && e.hint ? `${stop} ${e.hint}` : stop;
+}
+
 /** Whether trying the same request again may succeed (unknown failures: yes). */
 export function isRetryable(e: unknown): boolean {
   return e instanceof CmdError ? e.retryable : true;

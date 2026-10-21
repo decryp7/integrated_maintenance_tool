@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { RecordView } from '../core/api.types';
 import { GridSelection } from './grid-selection';
 
-const rec = (id: number): RecordView => ({ id, ts: id, level: 'Information', message: `line ${id}`, template: null, exception: null, fields: {}, source: 0, sourceName: 's.log', line: id, group: 'g', markers: [] });
+const rec = (id: number): RecordView => ({ id, ts: id, tsState: 'parsed', level: 'Information', message: `line ${id}`, template: null, exception: null, fields: {}, source: 0, sourceName: 's.log', line: id, byteOffset: 0, group: 'g', markers: [] });
 
 describe('GridSelection', () => {
   it('starts empty and publishes a copy of the records in order', () => {

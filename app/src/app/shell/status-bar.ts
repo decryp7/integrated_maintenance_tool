@@ -14,6 +14,9 @@ import { StatusJobs } from '../jobs/status-jobs';
     @if (store.summary(); as s) {
       <span class="strong" i18n="@@shell.statusBar.sources">{s.sources.length, plural, =1 {{{ s.sources.length }} source} other {{{ s.sources.length }} sources}}</span>
       <span class="keep" i18n="@@shell.statusBar.events">{{ fmt(s.total) }} events</span>
+      @if (s.untimed > 0) {
+        <span data-testid="status-untimed" title="Events without a timestamp: in the grid, not on the timeline" i18n-title="@@shell.statusBar.untimedTitle" i18n="@@shell.statusBar.untimed">{{ fmt(s.untimed) }} without a time</span>
+      }
       @if (store.matchTotal() !== null) {
         <span class="keep" i18n="@@shell.statusBar.matching">{{ fmt(store.matchTotal()!) }} matching</span>
       }

@@ -29,6 +29,11 @@ export interface JobProgress {
   done: number | null;
   total: number | null;
   etaMs: number | null;
+  /** Bytes read so far, of `bytesTotal` (an import); absent when the job does not count bytes. */
+  bytesDone?: number;
+  bytesTotal?: number;
+  /** What the job works on now (an import: the file being read); absent between items. */
+  current?: string;
 }
 
 /** Where a finished job's result is (`jobs_result`). */

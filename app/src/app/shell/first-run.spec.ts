@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { all, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
-import { Finding } from '../core/api.types';
+import { Finding, fullCoverage } from '../core/api.types';
 import { LAYOUT_MODE_KEY, LayoutModeStore } from '../core/workspace/layout-mode';
 import { WorkspaceStore } from '../core/workspace.store';
 import { CommandRegistry } from '../extensions/command-registry';
@@ -103,7 +103,7 @@ describe('OverviewHeadline', () => {
     const dock = new FakeDock();
     const views: string[] = [];
     const queries: unknown[] = [];
-    const share = { overview: vi.fn(async () => findings) };
+    const share = { overview: vi.fn(async () => ({ result: findings, coverage: fullCoverage(findings.length) })) };
     TestBed.configureTestingModule({
       providers: [
         provideTinyBackend(),

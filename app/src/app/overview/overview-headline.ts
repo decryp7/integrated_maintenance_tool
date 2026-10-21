@@ -63,7 +63,7 @@ export class OverviewHeadlineStore {
         const mine = ++this.seq;
         this.share
           .overview({ ...EMPTY_QUERY, groupBy })
-          .then((f) => mine === this.seq && this.found.set(f))
+          .then((f) => mine === this.seq && this.found.set(f.result))
           .catch(() => {
             if (mine !== this.seq) return;
             this.found.set([]);

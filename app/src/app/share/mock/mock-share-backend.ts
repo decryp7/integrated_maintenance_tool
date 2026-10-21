@@ -1,15 +1,15 @@
 import { parse } from 'smol-toml';
 import {
-  BundleEstimate,
+  Analyzed,
   BundleManifest,
   BundleOpened,
-  BundleOptions,
   Finding,
   Query,
   RedactionPreview,
   RedactionPreviewRequest,
   RedactionSummary,
   RedactionSummaryRequest,
+  Report,
   ReportExportRequest,
   TileData,
   TileRequest,
@@ -27,6 +27,7 @@ import { MockAnalysisBackend, recordsFrom } from '../../analysis/mock/mock-analy
 import { MockFiles } from '../../core/mock/mock-import';
 import { mockRedactCfg, mockRedactionPreview, MockRedactor } from './mock-redact';
 import { mockJobs, mockSteps } from '../../jobs/mock-jobs';
+import { mockUnsupported } from '../../core/mock/mock-unsupported';
 
 /** How long a mock export takes (`?mockExportMs=`, default instant), to see it as a job in the Jobs pane. */
 export function mockExportMs(search = typeof window === 'undefined' ? '' : window.location.search): number {
@@ -36,9 +37,11 @@ export function mockExportMs(search = typeof window === 'undefined' ? '' : windo
 
 const fileName = (path: string) => path.split(/[\\/]/).pop() ?? path;
 
-/** A bundle "written" by the mock (nothing reaches a disk): what opening it gives back. */
-interface MockBundle {
-  options: BundleOptions;
+/** An old share bundle the mock knows (tests add them): what opening it gives back. */
+export interface MockBundle {
+  name: string;
+  ui: unknown;
+  reports: Report[];
   manifest: BundleManifest;
 }
 
@@ -89,7 +92,10 @@ export class MockShareBackend extends ShareBackend {
     return parse((await this.imt.getProfile()).toml) as Record<string, unknown>;
   }
 
+  /** Like the engine with the current log store: the redacted view cannot be switched on (yet), unless the mock offers
+   * the old store's features. */
   async setRedactedView(enabled: boolean): Promise<WorkspaceSummary> {
+    if (enabled && !this.mock()?.memoryStoreFeatures) throw mockUnsupported('the redacted view is not available with the new log store yet', 'Exports, reports and shared projects can still be redacted.');
     this.mock()?.setMockRedaction(enabled);
     return this.imt.workspaceSummary();
   }
@@ -98,7 +104,9 @@ export class MockShareBackend extends ShareBackend {
     return mockRedactionPreview(request.toml ?? (await this.profileModel()), request.sample);
   }
 
+  /** Like the engine with the current log store: not available (yet), unless the mock offers the old store's features. */
   async redactionSummary(request: RedactionSummaryRequest): Promise<RedactionSummary> {
+    if (!this.mock()?.memoryStoreFeatures) throw mockUnsupported('the redaction summary is not available with the new log store yet');
     const r = new MockRedactor(mockRedactCfg(await this.profileModel()), 'summary');
     const page = await this.imt.queryPage({ query: request.query, offset: 0, limit: 5000, descending: false, anchor: null });
     const counts: Record<string, number> = {};
@@ -147,7 +155,7 @@ export class MockShareBackend extends ShareBackend {
       case 'top':
         return { kind: 'top', facet: await this.imt.queryFacet({ query: mockTileQuery(base, tile.query), field: tile.field ?? '', limit: tile.limit ?? 10 }) };
       case 'alerts':
-        return { kind: 'alerts', items: (await this.analysis.queryAnomalies(mockTileQuery(base, tile.query))).slice(0, tile.limit ?? 20) };
+        return { kind: 'alerts', items: (await this.analysis.queryAnomalies(mockTileQuery(base, tile.query))).result.slice(0, tile.limit ?? 20) };
       case 'annotations':
         return { kind: 'annotations', items: (await this.imt.annotations({ from: base.from ?? null, to: base.to ?? null })).slice(0, tile.limit ?? 20) };
     }
@@ -212,46 +220,9 @@ export class MockShareBackend extends ShareBackend {
     return { path: request.path, bytes };
   }
 
-  async estimateBundle(options: BundleOptions): Promise<BundleEstimate> {
-    const summary = await this.imt.workspaceSummary();
-    const events = options.content === 'events' ? (await this.imt.queryPage({ query: options.query, offset: 0, limit: 1, descending: false, anchor: null })).total : summary.total;
-    const logs = options.content === 'events' ? events * 220 : summary.sources.reduce((n, s) => n + s.records * 180, 0);
-    const reports = options.reports.reduce((n, r) => n + JSON.stringify(r).length, 0);
-    const files = 3 + (options.content === 'events' ? 1 : summary.sources.length) + options.reports.length;
-    return { files, bytes: logs + reports + 4000, events, parts: [{ name: 'profile', bytes: 4000 }, { name: options.content === 'events' ? 'events' : 'logs', bytes: logs }, { name: 'reports', bytes: reports }], skipped: [] };
-  }
-
-  async createBundle(options: BundleOptions, path: string, overwrite = false): Promise<number> {
-    if (!path.toLowerCase().endsWith('.imtz')) throw new Error('the file must end in .imtz');
-    this.files.write(path, overwrite);
-    const est = await this.estimateBundle(options);
-    const manifest: BundleManifest = {
-      format: 'imt-share',
-      schema: 1,
-      name: options.name,
-      createdAt: Date.now(),
-      imtVersion: '0.1.0',
-      content: options.content,
-      redacted: options.redact,
-      redaction: options.redact ? { email: 3, ipv4: 2 } : {},
-      events: options.content === 'events' ? est.events : null,
-      entries: [{ path: 'project.imtproj', kind: 'project', bytes: 1200, sha256: '0'.repeat(64) }],
-      skipped: [],
-    };
-    const job = mockJobs().start({ kind: 'export', title: `Share bundle ${fileName(path)}`, link: { type: 'path', path } }, async (ctx) => {
-      await mockSteps(ctx, mockExportMs());
-      this.bundles.set(path, { options: structuredClone(options), manifest });
-      this.written.push({ path, kind: 'imtz', bytes: est.bytes });
-      ctx.message(options.redact ? 'Bundle written, redacted (5 values).' : 'Bundle written.');
-      return { value: manifest, result: { type: 'file', path } };
-    });
-    job.done.catch(() => undefined);
-    return job.id;
-  }
-
   /** Findings derived from the mock anomalies, unrecognised files and plugin problems (the engine's health check covers much more). */
-  async overview(query: Query): Promise<Finding[]> {
-    const anomalies = await this.analysis.queryAnomalies(query);
+  async overview(query: Query): Promise<Analyzed<Finding[]>> {
+    const { result: anomalies, coverage } = await this.analysis.queryAnomalies(query);
     const summary = await this.imt.workspaceSummary();
     const severity = (kind: string): Finding['severity'] => (kind === 'crash' ? 'critical' : kind === 'errorSpike' || kind === 'memoryGrowth' || kind === 'silence' ? 'warning' : 'info');
     const rank = { critical: 0, warning: 1, info: 2 };
@@ -268,7 +239,12 @@ export class MockShareBackend extends ShareBackend {
     for (const p of summary.plugins.filter((x) => x.status === 'quarantined')) {
       found.push({ kind: 'pluginQuarantined', severity: 'warning', title: 'Plugin disabled after crashes', detail: `${p.name}: ${p.lastError ?? ''}`, action: { kind: 'openPanel', panel: 'plugins' } });
     }
-    return found.sort((x, y) => rank[x.severity] - rank[y.severity]);
+    return { result: found.sort((x, y) => rank[x.severity] - rank[y.severity]), coverage };
+  }
+
+  /** Makes `path` an old share bundle that `openBundle` knows (tests). */
+  addBundle(path: string, bundle: MockBundle): void {
+    this.bundles.set(path, structuredClone(bundle));
   }
 
   async openBundle(path: string): Promise<BundleOpened> {
@@ -277,10 +253,10 @@ export class MockShareBackend extends ShareBackend {
     const summary = await this.imt.workspaceSummary();
     return {
       path,
-      name: known?.options.name ?? path.split(/[\\/]/).pop()!.replace(/\.imtz$/i, ''),
+      name: known?.name ?? path.split(/[\\/]/).pop()!.replace(/\.imtz$/i, ''),
       summary,
-      ui: known ? structuredClone(known.options.ui) : null,
-      reports: known ? structuredClone(known.options.reports) : [],
+      ui: known ? structuredClone(known.ui) : null,
+      reports: known ? structuredClone(known.reports) : [],
       missing: [],
       readOnly: true,
       bundle: known?.manifest ?? null,

@@ -2,6 +2,7 @@ import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { MarkerKind, WorkspaceSummary } from '../api.types';
 import { ImtBackend } from '../backend';
+import { failureText } from '../cmd-error';
 import { Logger } from '../logger';
 import { Platform } from '../platform';
 import { JobsBackend } from '../../jobs/jobs-backend';
@@ -22,10 +23,9 @@ interface DataState {
   importVersion: number;
 }
 
+/** The text the error banner shows: the message, then the engine's next step (`hint`) when it gave one. */
 export function errorText(e: unknown): string {
-  if (typeof e === 'string') return e;
-  if (e instanceof Error) return e.message;
-  return JSON.stringify(e);
+  return failureText(e);
 }
 
 /** The busy state while `n` paths are being opened. */

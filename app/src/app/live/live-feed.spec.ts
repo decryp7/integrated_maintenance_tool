@@ -12,7 +12,7 @@ import { at } from '../../testing/must';
 
 describe('LiveFeed', () => {
   async function setup() {
-    const backend = new MockBackend({ latency: false, dataset: tinyDataset, liveMs: 100_000 });
+    const backend = new MockBackend({ latency: false, dataset: tinyDataset, liveMs: 100_000, memoryStoreFeatures: true });
     TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
     const store = TestBed.inject(WorkspaceStore);
     const live = TestBed.inject(LiveTail);

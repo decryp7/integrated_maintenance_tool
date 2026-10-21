@@ -30,7 +30,7 @@ function status(): TailStatus {
 
 describe('tail status', () => {
   async function setup() {
-    const backend = new MockBackend({ latency: false, dataset: tinyDataset, liveMs: 100_000 });
+    const backend = new MockBackend({ latency: false, dataset: tinyDataset, liveMs: 100_000, memoryStoreFeatures: true });
     TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
     TestBed.inject(WorkspaceStore);
     await settle();
@@ -233,7 +233,19 @@ describe('tail status', () => {
     expect(text(fixture)).toContain('Loading…');
     release({ files: [], totals: { files: 0, tailing: 0, errors: 0, bytes: 0, linesPerSec: 0, evicted: 0, records: 0 } });
     await settle(fixture);
+    // Files are open, but the engine lists none: it keeps no per-file state (the log store, for now).
+    expect(text(fixture)).toContain('The state of each tailed file is not available yet.');
+    await TestBed.inject(WorkspaceStore).clearWorkspace();
+    await settle(fixture);
     expect(text(fixture)).toContain('No files are open.');
+  });
+
+  it('the default mock answers like the log store: an empty status, and live alerts cannot be muted yet', async () => {
+    const backend = new MockBackend({ latency: false, dataset: tinyDataset });
+    expect(await backend.tailStatus()).toEqual({ files: [], totals: { files: 0, tailing: 0, errors: 0, bytes: 0, linesPerSec: 0, evicted: 0, records: 0 } });
+    const refused = { code: 'unsupported', retryable: false, message: 'live alerts are not available with the new log store yet' };
+    await expect(backend.muteAlerts({ kind: 'errorSpike' }, Date.now() + 1000)).rejects.toMatchObject(refused);
+    await expect(backend.unmuteAlerts({ kind: 'errorSpike' })).rejects.toMatchObject(refused);
   });
 });
 

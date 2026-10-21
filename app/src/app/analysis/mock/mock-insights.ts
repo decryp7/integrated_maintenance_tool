@@ -244,7 +244,7 @@ export function mockCorrelate(records: RecordView[], field: string, value: strin
   return records.filter((r) => String(fieldValue(r, field)) === value).map((r) => r.id);
 }
 
-export function mockTraces(records: RecordView[], traceId: string): TracesResult {
+export function mockTraces(records: RecordView[], traceId: string): Omit<TracesResult, 'coverage'> {
   const traces = new Map<string, RecordView[]>();
   for (const r of records) {
     const id = r.fields['CorrelationId'];

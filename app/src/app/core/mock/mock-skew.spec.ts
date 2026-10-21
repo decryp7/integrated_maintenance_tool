@@ -84,8 +84,15 @@ describe('mock clock skew', () => {
     expect(mockSuggest(clean.records, clean.sources, { maxDeltaMs: 10 }).insufficient).toEqual([1]);
   });
 
-  it('applies offsets through the mock backend, keeping tracked records and showing skew', async () => {
+  it('is not offered by the log store: the default mock rejects like the engine', async () => {
     const b = new MockBackend({ latency: false, dataset: tinyDataset, pluginMarkerKinds: [] });
+    const refused = { code: 'unsupported', retryable: false, message: 'clock-skew correction is not available with the new log store yet' };
+    await expect(b.setSourceOffset({ kind: 'manual', source: 1, offsetMs: 1 })).rejects.toMatchObject(refused);
+    await expect(b.suggestOffsets()).rejects.toMatchObject({ ...refused, hint: expect.stringContaining('shift_time') });
+  });
+
+  it('applies offsets through the mock backend (old store features), keeping tracked records and showing skew', async () => {
+    const b = new MockBackend({ latency: false, dataset: tinyDataset, pluginMarkerKinds: [], memoryStoreFeatures: true });
     const page = async () => (await b.queryPage({ query: { from: null, to: null, levels: [], text: '', regex: false, caseSensitive: false, filters: [], groupBy: [], groups: [], markers: [] }, offset: 0, limit: 100, descending: false })).rows;
     const rows = await page();
     const worker = rows.find((x) => x.message === 'Application starting — Worker')!;
@@ -96,8 +103,6 @@ describe('mock clock skew', () => {
     const moved = at(await page(), must(at(change.tracked, 0)));
     expect(moved.message).toBe('Application starting — Worker');
     expect(moved.ts).toBe(worker.ts! + 100_000);
-    expect(moved.skewMs).toBe(100_000);
-    expect((await page()).find((x) => x.ts === null)?.skewMs).toBeUndefined();
     expect((await b.workspaceSummary()).sources.find((s) => s.id === 1)?.offsetMs).toBe(100_000);
     const same = await b.setSourceOffset({ kind: 'manual', source: 1, offsetMs: 100_000 });
     expect(same.idsChangedFrom).toBeNull();

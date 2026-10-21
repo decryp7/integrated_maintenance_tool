@@ -60,6 +60,8 @@ export interface RowVm {
   stripe: string | null;
   marker: { kind: string; color: string | null; label: string } | null;
   time: string;
+  /** The event has no timestamp: it is in the grid but not on the timeline (the time cell says so). */
+  untimed: boolean;
   levelVar: string;
   levelCode: string;
   /** The extra columns' texts, in column order. */
@@ -163,7 +165,11 @@ export type GridRowVm = RowVm | PlaceholderVm;
                 }
                 @if (v.marker; as mk) { <imt-marker-icon [kind]="mk.kind" [color]="mk.color" [label]="mk.label" /> }
               </span>
-              <span class="mono time" role="gridcell">{{ v.time }}</span>
+              @if (v.untimed) {
+                <span class="mono time untimed" role="gridcell" title="This event has no timestamp, so it is not on the timeline" i18n-title="@@grid.untimedTitle" i18n="@@grid.untimed">no time</span>
+              } @else {
+                <span class="mono time" role="gridcell">{{ v.time }}</span>
+              }
               <span class="lvl" role="gridcell"><span class="dot" [style.background]="v.levelVar"></span><span class="mono">{{ v.levelCode }}</span></span>
               <span class="mono inst ellipsis" role="gridcell" [title]="v.row.group">{{ v.row.group }}</span>
               @for (c of v.cells; track c.column) {
@@ -227,6 +233,7 @@ export type GridRowVm = RowVm | PlaceholderVm;
     .row.marked.hl.sel { box-shadow: inset 10px 0 0 var(--accent); }
     .mk { display: flex; justify-content: center; }
     .time { font-size: var(--fs-sm); color: var(--muted); white-space: nowrap; }
+    .time.untimed { font-style: italic; color: var(--faint); }
     .lvl { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--text-2); }
     .inst, .extra { font-size: var(--fs-sm); color: var(--text-2); }
     .extra { color: var(--muted); }
@@ -362,6 +369,7 @@ export class EventsGrid {
         stripe: mark ? stripeBackground(mark.swatch) : null,
         marker: first === undefined ? null : { kind: first, color: kind?.color ?? null, label: kind?.label ?? first },
         time: formatDateTime(row.ts, tz, true, dateFormat),
+        untimed: row.tsState === 'untimed' || row.ts === null,
         levelVar: LEVEL_VARS[row.level],
         levelCode: LEVEL_CODES[row.level],
         cells: columns.map((column) => ({ column, text: this.cell(row, column) })),

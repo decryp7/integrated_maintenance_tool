@@ -1,4 +1,5 @@
 import { computed, inject, Injectable, Injector, signal } from '@angular/core';
+import { isUnsupported, sentenceText } from '../../core/cmd-error';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { ProfileEdits } from '../../profile/profile-edits';
 import { errorMessage } from '../../tools/tool-errors';
@@ -30,7 +31,9 @@ export class RedactionService {
       this.store.applySummary(await this.share.setRedactedView(enabled));
       return true;
     } catch (e) {
-      this.store.setError($localize`:@@share.redactionService.switchFailed:Could not switch the redacted view: ${errorMessage(e)}:error:`);
+      // Not offered by the log store (yet): a notice that says so, not an error.
+      if (isUnsupported(e)) this.store.setNotice(sentenceText(e));
+      else this.store.setError($localize`:@@share.redactionService.switchFailed:Could not switch the redacted view: ${errorMessage(e)}:error:`);
       return false;
     } finally {
       this.busy.set(false);

@@ -12,7 +12,6 @@ import { AnalysisState } from './analysis-state';
 import { ANALYSIS_STYLES } from './analysis-styles';
 import { AnalysisTargets } from './analysis-targets';
 import { AsyncResource } from './async-resource';
-import { CoverageNote } from './coverage-note';
 
 export const HISTOGRAM_BUCKETS = 20;
 
@@ -34,7 +33,7 @@ export function histogramOption(stats: NumericStats, t: ChartTokens): EChartsCor
 @Component({
   selector: 'imt-field-stats-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AnalysisState, EChart, CoverageNote],
+  imports: [AnalysisState, EChart],
   template: `
     <div class="bar">
       <span class="section-title" i18n="@@analysis.fieldStats.title">Field statistics</span>
@@ -45,7 +44,6 @@ export function histogramOption(stats: NumericStats, t: ChartTokens): EChartsCor
         </select>
       </label>
     </div>
-    <imt-coverage-note [query]="targets.query()" />
     <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="!targets.field()" emptyText="Choose a field to see its distribution." i18n-emptyText="@@analysis.fieldStats.emptyText" (retry)="res.retry()">
       @if (res.data(); as s) {
         <div class="body" tabindex="0" role="region" aria-label="Field statistics" i18n-aria-label="@@analysis.fieldStats.region">

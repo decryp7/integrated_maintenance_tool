@@ -1,9 +1,8 @@
 import { TestBed } from '@angular/core/testing';
-import { buttonByText, el, settle, text, typeInto } from '../../../testing/helpers';
-import { ImtBackend } from '../../core/backend';
+import { buttonByText, settle, text } from '../../../testing/helpers';
+import { BundleManifest } from '../../core/api.types';
 import { Platform } from '../../core/platform';
 import { WorkspaceStore } from '../../core/workspace.store';
-import { UiStateRegistry } from '../../lifecycle/ui-state';
 import { OpenRequests } from '../../projects/open-requests';
 import { ProjectService } from '../../projects/project.service';
 import { mockTools, provideToolsTesting } from '../../tools/mock/test-support';
@@ -14,11 +13,8 @@ import { ReportStore } from '../report/report.store';
 import { ShareBackend } from '../share-backend';
 import { BundleBanner } from './bundle-banner';
 import { BundleCommands } from './bundle.commands';
-import { BundleDialog, bundleFileName, formatBytes } from './bundle-dialog';
 import { BundleService, isBundlePath } from './bundle.service';
 import { at } from '../../../testing/must';
-import { mockJobs } from '../../jobs/mock-jobs';
-import { NotificationsStore } from '../../notifications/notifications.store';
 
 const closed = vi.fn();
 const pickSavePath = vi.fn<(title: string, name: string, filters: unknown) => Promise<string | null>>();
@@ -41,108 +37,12 @@ async function setup() {
   return { store, service: TestBed.inject(BundleService), share: TestBed.inject(ShareBackend) as MockShareBackend, projects: TestBed.inject(ProjectService), reports: TestBed.inject(ReportStore) };
 }
 
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const MANIFEST: BundleManifest = { format: 'imt-share', schema: 1, name: 'Case 42', createdAt: 1, imtVersion: '0.1.0', content: 'raw', redacted: true, redaction: { email: 3 }, events: null, entries: [], skipped: [] };
 
 describe('bundle helpers', () => {
-  it('recognises bundles and formats sizes and names', () => {
+  it('recognises bundles', () => {
     expect(isBundlePath('/x/Case.IMTZ')).toBe(true);
     expect(isBundlePath('/x/case.zip')).toBe(false);
-    expect([formatBytes(12), formatBytes(2048), formatBytes(3 << 20), formatBytes(5 * 2 ** 30)]).toEqual(['12 B', '2 KB', '3.0 MB', '5.0 GB']);
-    expect(bundleFileName('a/b: c')).toBe('a_b_ c.imtz');
-    expect(bundleFileName(' ')).toBe('bundle.imtz');
-  });
-});
-
-describe('BundleDialog', () => {
-  async function dialog() {
-    const ctx = await setup();
-    ctx.reports.create('Outage');
-    const fixture = TestBed.createComponent(BundleDialog);
-    await settle(fixture);
-    await wait(250);
-    await settle(fixture);
-    return { ...ctx, fixture };
-  }
-
-  it('estimates the bundle live as the options change', async () => {
-    const { fixture } = await dialog();
-    expect(text(fixture)).toMatch(/About .* before compression · 6 files · 11 events/);
-    el<HTMLInputElement>(fixture, 'input[value=events]').click();
-    await wait(250);
-    await settle(fixture);
-    expect(text(fixture)).toMatch(/· 5 files · 11 events/);
-    el<HTMLInputElement>(fixture, 'input[value=raw]').click();
-    const boxes = [...fixture.nativeElement.querySelectorAll('input[type=checkbox]')] as HTMLInputElement[];
-    const redact = at(boxes, 0);
-    const reports = at(boxes, 1);
-    redact.click();
-    reports.click();
-    await wait(250);
-    await settle(fixture);
-    expect(text(fixture)).toContain('Binary files and archives cannot be redacted');
-    expect(text(fixture)).toMatch(/· 5 files ·/);
-    vi.spyOn(TestBed.inject(ShareBackend), 'estimateBundle').mockResolvedValueOnce({ files: 3, bytes: 10, events: 0, parts: [], skipped: [{ path: '/logs/a.evtx', reason: 'binary files cannot be redacted' }] });
-    el<HTMLInputElement>(fixture, 'input[value=events]').click();
-    await wait(250);
-    await settle(fixture);
-    expect(text(fixture)).toContain('a.evtx: binary files cannot be redacted');
-  });
-
-  it('writes the bundle where the user chose and reports it', async () => {
-    const { fixture, share } = await dialog();
-    const spy = vi.spyOn(share, 'createBundle');
-    typeInto(el<HTMLInputElement>(fixture, 'input[aria-label="Bundle name"]'), 'Case 42');
-    (fixture.nativeElement.querySelectorAll('input[type=checkbox]')[0] as HTMLInputElement).click();
-    await settle(fixture);
-    pickSavePath.mockResolvedValueOnce(null);
-    buttonByText(fixture, 'Save bundle…').click();
-    await settle(fixture);
-    expect(pickSavePath).toHaveBeenCalledWith('Share bundle', 'Case 42.imtz', [{ name: 'IMT bundle', extensions: ['imtz'] }]);
-    expect(spy).not.toHaveBeenCalled();
-    pickSavePath.mockResolvedValueOnce('/out/case.imtz');
-    buttonByText(fixture, 'Save bundle…').click();
-    await settle(fixture);
-    expect(spy.mock.calls[0]?.[0]).toMatchObject({ name: 'Case 42', content: 'raw', redact: true, reports: [expect.objectContaining({ title: 'Outage' })] });
-    expect(spy.mock.calls[0]?.[0].ui).toEqual(TestBed.inject(UiStateRegistry).serialize());
-    // The bundle is written by a job: the call returned its id at once, a toast says so, and the dialog closes.
-    const job = await at(spy.mock.results, 0).value;
-    expect(job).toEqual(expect.any(Number));
-    const toast = at(TestBed.inject(NotificationsStore).toasts(), 0);
-    expect([toast.severity, toast.title, toast.primary]).toEqual(['info', 'Writing the bundle case.imtz — running in Jobs', { type: 'showJobs' }]);
-    expect(closed).toHaveBeenCalled();
-    const end = await mockJobs().wait(job);
-    expect([end.state, end.message, end.result]).toEqual(['done', 'Bundle written, redacted (5 values).', { type: 'file', path: '/out/case.imtz' }]);
-  });
-
-  it('shows failures and lets the user cancel', async () => {
-    const { fixture, share, store } = await dialog();
-    pickSavePath.mockResolvedValue('/out/x.imtz');
-    const job = await share.createBundle({ name: 'n', content: 'raw', query: store.effectiveQuery(), redact: false, ui: null, reports: [] }, '/o/n.imtz');
-    vi.spyOn(share, 'createBundle').mockRejectedValueOnce(new Error('disk full')).mockResolvedValueOnce(job);
-    buttonByText(fixture, 'Save bundle…').click();
-    await settle(fixture);
-    expect(el(fixture, '[role=alert]').textContent).toContain('disk full');
-    buttonByText(fixture, 'Save bundle…').click();
-    await settle(fixture);
-    expect(TestBed.inject(NotificationsStore).toasts().at(-1)?.title).toBe('Writing the bundle x.imtz — running in Jobs');
-    vi.spyOn(share, 'estimateBundle').mockRejectedValueOnce(new Error('cannot estimate'));
-    el<HTMLInputElement>(fixture, 'input[value=events]').click();
-    await wait(250);
-    await settle(fixture);
-    expect(el(fixture, '[role=alert]').textContent).toContain('cannot estimate');
-    buttonByText(fixture, 'Cancel').click();
-    expect(closed).toHaveBeenCalled();
-  });
-
-  it('defaults to the project name and the profile redaction default', async () => {
-    const ctx = await setup();
-    await TestBed.inject(ImtBackend).saveProfile((await TestBed.inject(ImtBackend).getProfile()).toml.replace('on_export = false', 'on_export = true'));
-    ctx.projects.name.set('Incident');
-    const fixture = TestBed.createComponent(BundleDialog);
-    await settle(fixture);
-    expect(el<HTMLInputElement>(fixture, 'input[aria-label="Bundle name"]').value).toBe('Incident');
-    expect((fixture.nativeElement.querySelectorAll('input[type=checkbox]')[0] as HTMLInputElement).checked).toBe(true);
-    expect((fixture.nativeElement.querySelectorAll('input[type=checkbox]')[1] as HTMLInputElement).disabled).toBe(true);
   });
 });
 
@@ -150,7 +50,7 @@ describe('BundleService', () => {
   it('opens a bundle read-only with its UI state and reports, then saves it as a project or closes it', async () => {
     const { service, share, store, projects, reports } = await setup();
     const report = { version: 1, id: 'r1', title: 'Outage', summary: '', createdAt: 1, updatedAt: 1, sections: [] };
-    await share.createBundle({ name: 'Case 42', content: 'raw', query: store.effectiveQuery(), redact: true, ui: { version: 1 }, reports: [report] }, '/out/case.imtz');
+    share.addBundle('/out/case.imtz', { name: 'Case 42', ui: { version: 1 }, reports: [report], manifest: MANIFEST });
     expect(await service.open('/out/case.imtz')).toBe(true);
     expect(service.opened()).toMatchObject({ path: '/out/case.imtz', name: 'Case 42' });
     expect(reports.reports()).toEqual([report]);
@@ -164,7 +64,7 @@ describe('BundleService', () => {
     expect(text(banner)).toMatch(/Opened from Case 42 \(read-only\) · redacted · created .* · IMT 0\.1\.0/);
     buttonByText(banner, 'Save as project…').click();
     await settle(banner);
-    expect(mockTools().calls).toContain('saveProject:/p/saved.imtproj');
+    expect(mockTools().calls).toContain('saveProject:/p/saved.imtz');
     expect(service.opened()).toBeNull();
 
     await service.open('/demo/shared.imtz');
@@ -188,11 +88,12 @@ describe('BundleService', () => {
     expect(service.busy()).toBe(false);
   });
 
-  it('opens from the dialog and the commands', async () => {
-    const { service } = await setup();
+  it('shares by saving the project (no bundle dialog) and opens old bundles from the dialog and the commands', async () => {
+    const { service, projects } = await setup();
     const commands = TestBed.inject(BundleCommands).commands;
-    const create = at(commands, 0);
+    const share = at(commands, 0);
     const open = at(commands, 1);
+    expect(share.title).toBe('Share as project file…');
     pickOpenPath.mockResolvedValueOnce(null);
     await open.run({} as never);
     expect(service.opened()).toBeNull();
@@ -200,17 +101,20 @@ describe('BundleService', () => {
     await open.run({} as never);
     expect(pickOpenPath).toHaveBeenCalledWith('Open bundle', [{ name: 'IMT bundle', extensions: ['imtz'] }]);
     expect(service.opened()?.name).toBe('shared');
-    expect(create.when!({ summary: TestBed.inject(WorkspaceStore).summary() } as never)).toBe(true);
-    expect(create.when!({ summary: null } as never)).toBe(false);
-    void create.run({} as never);
-    await settle();
-    expect(TestBed.inject(DialogService).stack()[0]?.options.title).toBe('Share as bundle');
+    expect(share.when!({ summary: TestBed.inject(WorkspaceStore).summary() } as never)).toBe(true);
+    expect(share.when!({ summary: null } as never)).toBe(false);
+    const saveAs = vi.spyOn(projects, 'saveAs').mockResolvedValueOnce(true);
+    await share.run({} as never);
+    expect(saveAs).toHaveBeenCalledTimes(1);
+    expect(TestBed.inject(DialogService).stack()).toHaveLength(0);
   });
 
-  it('is what OpenRequests uses for .imtz files', async () => {
-    const { service } = await setup();
-    await TestBed.inject(OpenRequests).handle(['/demo/shared.imtz', '/logs/x.log']);
-    expect(service.opened()?.path).toBe('/demo/shared.imtz');
+  it('is not what OpenRequests uses for .imtz files: those are projects now', async () => {
+    const { service, projects } = await setup();
+    const open = vi.spyOn(projects, 'open').mockResolvedValue(true);
+    await TestBed.inject(OpenRequests).handle(['/demo/case.imtz', '/logs/x.log']);
+    expect(open).toHaveBeenCalledWith('/demo/case.imtz', { session: false });
+    expect(service.opened()).toBeNull();
     expect(TestBed.inject(WorkspaceStore).summary()?.sources.some((s) => s.path === '/logs/x.log')).toBe(true);
   });
 });

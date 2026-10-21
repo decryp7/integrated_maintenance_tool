@@ -10,7 +10,8 @@ import { ANALYSIS_STYLES } from './analysis-styles';
 import { AnalysisTargets } from './analysis-targets';
 import { AnalysisTime } from './analysis-time';
 import { anomalyIcon, anomalyLabel, ARROWS, direction, formatChange } from './analysis-format';
-import { AsyncResource } from './async-resource';
+import { AnalysisResource } from './async-resource';
+import { CoverageNote } from './coverage-note';
 import { qlEquals } from './ql-text';
 import { TimeCursor } from './time-cursor';
 import { ProfileMomentSection } from '../profiling/integration/profile-moment';
@@ -19,7 +20,7 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
 @Component({
   selector: 'imt-moment-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AnalysisState, ProfileMomentSection, AiButton],
+  imports: [AnalysisState, ProfileMomentSection, AiButton, CoverageNote],
   template: `
     <div class="bar">
       <span class="section-title" i18n="@@analysis.moment.title">Moment</span>
@@ -28,8 +29,9 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
       <button class="btn" type="button" [disabled]="!range()" (click)="zoom()" i18n="@@analysis.moment.zoom">Zoom to this range</button>
       <imt-ai-button label="Summarize" i18n-label="@@analysis.moment.summarize" hint="The local model summarizes what happened in this range" i18n-hint="@@analysis.moment.summarizeHint" testId="ai-summarize" [disabled]="!range()" (pressed)="summarize()" />
     </div>
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="!range()" emptyText="Select a time range (or load a workspace) to analyse a moment." i18n-emptyText="@@analysis.moment.emptyText" (retry)="res.retry()">
-      @if (res.data(); as m) {
+    <imt-coverage-note [coverage]="res.coverage()" />
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="!range()" emptyText="Select a time range (or load a workspace) to analyse a moment." i18n-emptyText="@@analysis.moment.emptyText" (retry)="res.retry()">
+      @if (res.result(); as m) {
         <div class="body" tabindex="0" role="region" aria-label="Moment details" i18n-aria-label="@@analysis.moment.region">
           <div class="summary">
             <strong class="total" i18n="@@analysis.moment.total">{{ count(m.total) }} events</strong>
@@ -166,7 +168,7 @@ export class MomentView {
   private readonly backend = inject(AnalysisBackend);
   private readonly targets = inject(AnalysisTargets);
 
-  protected readonly res = new AsyncResource<MomentSummary>();
+  protected readonly res = new AnalysisResource<MomentSummary>();
   protected readonly range = computed(() => this.targets.moment() ?? this.targets.currentRange());
 
   protected readonly count = formatCount;

@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
 import { OffsetChange, OffsetSpec, RecordView, SuggestResult } from '../core/api.types';
+import { isUnsupported, sentenceText } from '../core/cmd-error';
 import { describeError } from '../core/logger';
 import { SkewBackend } from '../core/skew-backend';
 import { WorkspaceStore } from '../core/workspace.store';
@@ -20,12 +21,14 @@ interface ClockSkewState {
   reference: ClockReference | null;
   busy: boolean;
   error: string | null;
+  /** The engine does not offer clock correction (yet): what it says, shown as a calm note instead of an error. */
+  unavailable: string | null;
   suggestion: SuggestResult | null;
   suggesting: boolean;
   lastChange: OffsetChange | null;
 }
 
-const initial: ClockSkewState = { reference: null, busy: false, error: null, suggestion: null, suggesting: false, lastChange: null };
+const initial: ClockSkewState = { reference: null, busy: false, error: null, unavailable: null, suggestion: null, suggesting: false, lastChange: null };
 
 /**
  * Clock-skew correction state: the reference event, suggestions and applying offsets. The engine
@@ -72,7 +75,7 @@ export const ClockSkewStore = signalStore(
         patchState(store, { busy: false, lastChange: change, suggestion: null });
         return change;
       } catch (e) {
-        patchState(store, { busy: false, error: describeError(e) });
+        patchState(store, { busy: false, ...failure(e) });
         return null;
       }
     },
@@ -84,11 +87,16 @@ export const ClockSkewStore = signalStore(
         const suggestion = await backend.suggestOffsets(reference === null ? {} : { reference });
         patchState(store, { suggestion, suggesting: false });
       } catch (e) {
-        patchState(store, { suggesting: false, error: describeError(e) });
+        patchState(store, { suggesting: false, ...failure(e) });
       }
     },
   })),
 );
+
+/** A failure as state: `unavailable` when the engine does not offer the operation, otherwise `error`. */
+function failure(e: unknown): Pick<ClockSkewState, 'error' | 'unavailable'> {
+  return isUnsupported(e) ? { error: null, unavailable: sentenceText(e) } : { error: describeError(e), unavailable: null };
+}
 
 function sourceLabel(workspace: InstanceType<typeof WorkspaceStore>, id: number): string {
   return workspace.summary()?.sources.find((s) => s.id === id)?.name ?? $localize`:@@skew.dialog.sourceFallback:source ${id}:id:`;

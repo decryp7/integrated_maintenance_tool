@@ -45,6 +45,21 @@ describe('Inspector', () => {
     return { fixture, store };
   }
 
+  it('says when an event has no timestamp, or took its time from the event before it', async () => {
+    const { fixture, store } = await render(0);
+    const rows = (await TestBed.inject(ImtBackend).queryPage({ query: EMPTY_QUERY, offset: 0, limit: 100, descending: false })).rows;
+    const untimed = rows.find((r) => r.ts === null)!;
+    expect(untimed.tsState).toBe('untimed');
+    store.select(untimed);
+    await settle(fixture);
+    expect(el(fixture, '[data-testid=untimed-note]').textContent).toContain('No timestamp');
+    const timed = rows.find((r) => r.ts !== null)!;
+    store.select({ ...timed, tsState: 'inherited' });
+    await settle(fixture);
+    expect(all(fixture, '[data-testid=untimed-note]')).toHaveLength(0);
+    expect(el(fixture, '[data-testid=inherited-note]').textContent).toContain('Time taken from the event before it');
+  });
+
   it('shows an empty hint without a selection', async () => {
     TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
     const fixture = TestBed.createComponent(Inspector);

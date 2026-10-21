@@ -4,7 +4,7 @@ import { MarkerKind, PluginInfo, Query } from '../app/core/api.types';
 import { ImtBackend } from '../app/core/backend';
 import { Logger, LogProps } from '../app/core/logger';
 import { DEMO_START, MockDataset, MockRecord } from '../app/core/mock/mock-data';
-import { MockBackend } from '../app/core/mock/mock-backend';
+import { MockBackend, MockBackendOptions } from '../app/core/mock/mock-backend';
 import { EMPTY_QUERY } from '../app/core/workspace.store';
 import { provideImtBuiltins } from '../app/builtin/provide-builtins';
 import { BUILTIN_VIEWS } from '../app/builtin/builtin-views';
@@ -50,8 +50,8 @@ export function tinyDataset(): MockDataset {
   };
 }
 
-export function tinyBackend(): MockBackend {
-  return new MockBackend({ latency: false, dataset: tinyDataset, pluginMarkerKinds: [] });
+export function tinyBackend(options: MockBackendOptions = {}): MockBackend {
+  return new MockBackend({ latency: false, dataset: tinyDataset, pluginMarkerKinds: [], ...options });
 }
 
 export interface LogEntry {

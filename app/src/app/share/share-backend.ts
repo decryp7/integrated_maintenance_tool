@@ -1,8 +1,7 @@
 import { invoke } from '../core/activity/ipc';
 import {
-  BundleEstimate,
+  Analyzed,
   BundleOpened,
-  BundleOptions,
   Finding,
   Query,
   RedactionPreview,
@@ -19,15 +18,16 @@ import {
 
 /**
  * Everything the "explain and share" features ask the engine: the redacted view, redaction previews,
- * dashboard tiles, report and image exports, and `.imtz` bundles. Injected as a class token (see
+ * dashboard tiles, report and image exports, opening old `.imtz` share bundles (sharing is saving a project now). Injected as a class token (see
  * `provideShare()`); the Tauri implementation calls the shell, the mock serves browser development.
  */
 export abstract class ShareBackend {
-  /** Switches this window's redacted view on or off (rejects when the profile has no redaction rules). */
+  /** Switches this window's redacted view on or off (rejects when the profile has no redaction rules; switching it on
+   * is `unsupported` with the current log store). */
   abstract setRedactedView(enabled: boolean): Promise<WorkspaceSummary>;
   /** A sample redacted with the active profile's `[redact]` rules, or with those of `toml` (unsaved). */
   abstract previewRedaction(request: RedactionPreviewRequest): Promise<RedactionPreview>;
-  /** What redaction would change in the events of a query. */
+  /** What redaction would change in the events of a query (`unsupported` with the current log store). */
   abstract redactionSummary(request: RedactionSummaryRequest): Promise<RedactionSummary>;
   /** One dashboard tile evaluated over the window's query. */
   abstract dashboardTile(request: TileRequest): Promise<TileData>;
@@ -35,15 +35,10 @@ export abstract class ShareBackend {
   abstract exportReport(request: ReportExportRequest): Promise<number>;
   /** Saves a chart or timeline image (PNG data URL or SVG markup) to a path chosen in the save dialog. */
   abstract saveVisual(request: VisualRequest): Promise<VisualSaved>;
-  /** What a bundle with `options` would contain. */
-  abstract estimateBundle(options: BundleOptions): Promise<BundleEstimate>;
-  /** Writes a shareable `.imtz` bundle as a background export job (resolves with it at once); never replaces an
-   * existing file unless `overwrite`. */
-  abstract createBundle(options: BundleOptions, path: string, overwrite?: boolean): Promise<number>;
-  /** Opens a `.imtz` read-only (extracted to a temporary folder). */
+  /** Opens an old share bundle (`.imtz`) read-only (extracted to a temporary folder). */
   abstract openBundle(path: string): Promise<BundleOpened>;
-  /** The automatic health check over the events of a query, most severe first (report findings). */
-  abstract overview(query: Query): Promise<Finding[]>;
+  /** The automatic health check over the events of a query, most severe first (report findings), with its coverage. */
+  abstract overview(query: Query): Promise<Analyzed<Finding[]>>;
 }
 
 /** Talks to the Rust shell (app/src-tauri/src/share.rs). */
@@ -71,16 +66,10 @@ export class TauriShareBackend extends ShareBackend {
   saveVisual(request: VisualRequest) {
     return this.call<VisualSaved>('save_visual', { request });
   }
-  estimateBundle(options: BundleOptions) {
-    return this.call<BundleEstimate>('estimate_bundle', { options });
-  }
-  createBundle(options: BundleOptions, path: string, overwrite = false) {
-    return this.call<number>('create_bundle', overwrite ? { options, path, overwrite } : { options, path });
-  }
   openBundle(path: string) {
     return this.call<BundleOpened>('open_bundle', { path });
   }
   overview(query: Query) {
-    return this.call<Finding[]>('overview', { request: { query } });
+    return this.call<Analyzed<Finding[]>>('overview', { request: { query } });
   }
 }

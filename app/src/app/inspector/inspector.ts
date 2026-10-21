@@ -45,9 +45,18 @@ const CONTEXT_MS = 2 * 60 * 1000;
               <span class="badge-mk"><imt-marker-icon [kind]="m" [color]="markerColor(m)" />{{ markerLabel(m) }}</span>
             }
           </div>
-          <div class="mono ts">{{ fullTime() }}</div>
-          @if (r.skewMs && r.ts !== null) {
-            <div class="mono skew" data-testid="skew-note" i18n="@@inspector.skewNote">Shifted by {{ skewText(r.skewMs) //i18n(ph="offset") }} · original {{ originalTime(r.ts, r.skewMs) //i18n(ph="original") }}</div>
+          @if (r.ts === null) {
+            <div class="mono ts untimed" data-testid="untimed-note" i18n="@@inspector.untimed">No timestamp: this event is not on the timeline</div>
+          } @else {
+            <div class="mono ts">{{ fullTime() }}</div>
+          }
+          @if (r.tsState === 'inherited') {
+            <div class="mono time-note" data-testid="inherited-note" i18n="@@inspector.inheritedTime">Time taken from the event before it in the file</div>
+          }
+          @if (skewMs(); as skew) {
+            @if (r.ts !== null) {
+              <div class="mono skew" data-testid="skew-note" i18n="@@inspector.skewNote">Shifted by {{ skewText(skew) //i18n(ph="offset") }} · original {{ originalTime(r.ts, skew) //i18n(ph="original") }}</div>
+            }
           }
           <div class="mono inst">{{ r.group }}</div>
           <div class="message">{{ r.message }}</div>
@@ -140,6 +149,8 @@ const CONTEXT_MS = 2 * 60 * 1000;
     .badge-lvl, .badge-mk { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 4px; background: var(--bg-active); border: 1px solid var(--border-3); font-size: var(--fs-sm); }
     .ts { font-size: var(--fs-sm); color: var(--muted); }
     .skew { font-size: var(--fs-xs); color: var(--warn-text); }
+    .ts.untimed { color: var(--muted); font-style: italic; }
+    .time-note { font-size: var(--fs-xs); color: var(--muted); }
     .inst { font-size: var(--fs-sm); color: var(--text-2); }
     .message { font-size: var(--fs-lg); line-height: 1.45; color: var(--text); white-space: pre-wrap; word-break: break-word; }
     .template { font-size: var(--fs-xs); color: var(--faint); line-height: 1.5; word-break: break-word; }
@@ -247,6 +258,11 @@ export class Inspector {
     return r ? LEVEL_VARS[r.level] : '';
   });
   protected readonly skewText = formatOffset;
+  /** The clock-skew offset of the selected event's source (already applied to its time); 0 when none. */
+  protected readonly skewMs = computed(() => {
+    const r = this.rec();
+    return r ? (this.store.summary()?.sources.find((s) => s.id === r.source)?.offsetMs ?? 0) : 0;
+  });
   /** The timestamp before clock-skew correction. */
   protected originalTime(ts: number, skewMs: number): string {
     return formatFull(ts - skewMs, this.store.timezone(), this.settings.dateFormat());

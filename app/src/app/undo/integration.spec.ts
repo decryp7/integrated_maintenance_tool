@@ -18,7 +18,7 @@ import { UndoStack } from './undo-stack';
 import { at } from '../../testing/must';
 
 const record = (id = 7): RecordView => ({
-  id, ts: 1_700_000_000_000, level: 'Error', message: 'Failed', template: null, exception: null, fields: {}, source: 0, sourceName: 'a', line: 1, group: 'g', markers: [],
+  id, ts: 1_700_000_000_000, tsState: 'parsed', level: 'Error', message: 'Failed', template: null, exception: null, fields: {}, source: 0, sourceName: 'a', line: 1, byteOffset: 0, group: 'g', markers: [],
 });
 
 async function setup() {
