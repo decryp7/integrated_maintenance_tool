@@ -77,3 +77,6 @@ export function runLayout(runDir: string): {
 
 /** Screenshots and page sources of failed tests. */
 export const ARTIFACTS_DIR = join(E2E_DIR, '.artifacts');
+
+/** The live search test's report and page screenshots (written by the app's `live_probe`). */
+export const LIVE_DIR = join(ARTIFACTS_DIR, 'live-search');

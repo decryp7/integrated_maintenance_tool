@@ -132,4 +132,45 @@ test.describe('results page link collector', () => {
     expect((few['links'] as unknown[]).length).toBe(5);
     expect(few['regionFound']).toBe(false);
   });
+
+  test('marks links that hold a heading (a result title)', async ({ page }) => {
+    // Google in WebView2: results link to an opaque redirect of the engine, titled by an h3.
+    await page.setContent(`<!doctype html><html><head><base href="https://www.search.example/search"></head><body><div id="rso">
+      <a href="/goto?url=CAESAbc1"><h3>TimeoutException Class</h3><cite>https://learn.example.org</cite></a>
+      <a href="/search?q=related">Related search</a>
+    </div></body></html>`);
+    const r = await run(page, 'result_links.js', { max: 10, maxText: 50, region: ['#rso'], slot: 's9' });
+    const links = r['links'] as { href: string; text: string; heading: boolean }[];
+    expect(links[0]).toMatchObject({ href: 'https://www.search.example/goto?url=CAESAbc1', text: 'TimeoutException Class', heading: true });
+    expect(links[1]).toMatchObject({ heading: false });
+  });
+
+  test('reports readiness: readyState and how long the DOM has been quiet, with no visible trace', async ({ page }) => {
+    await page.setContent(RESULTS);
+    const args = { max: 300, maxText: 200, region: ['#rso'], slot: 's1a2b3' };
+    const first = await run(page, 'result_links.js', args);
+    expect(first['readyState']).toBe('complete');
+    expect(first['quietMs'], 'the first look installs the observer').toBe(0);
+    await page.waitForTimeout(300);
+    const later = await run(page, 'result_links.js', args);
+    expect(later['quietMs'] as number).toBeGreaterThanOrEqual(250);
+    // A result rendered by script: the DOM is no longer quiet.
+    await page.evaluate(() => document.getElementById('rso')!.append(Object.assign(document.createElement('a'), { href: 'https://late.example/' })));
+    const changed = await run(page, 'result_links.js', args);
+    expect(changed['quietMs'] as number).toBeLessThan(100);
+    expect((changed['links'] as { region: boolean }[]).filter((l) => l.region).length).toBe(3);
+    // The observer's slot is neither enumerable nor replaceable; no global is added.
+    const trace = await page.evaluate((slot) => {
+      const d = document as unknown as Record<string, unknown>;
+      try {
+        d[slot] = { last: 0 };
+      } catch {
+        // strict mode: assigning a read-only property throws
+      }
+      const replaced = (d[slot] as { last: number }).last === 0;
+      const inFor = Object.prototype.propertyIsEnumerable.call(document, slot);
+      return { keys: Object.keys(document).includes(slot), inFor, replaced, globals: Object.keys(window).filter((k) => k.includes(slot)) };
+    }, args.slot);
+    expect(trace).toEqual({ keys: false, inFor: false, replaced: false, globals: [] });
+  });
 });

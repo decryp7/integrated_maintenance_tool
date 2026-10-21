@@ -35,6 +35,8 @@ struct State {
     continued: bool,
     /// The address the agent's current action was approved to load (followed even on a new site).
     expected_load: Option<String>,
+    /// The expected load may be redirected once to another site (a search engine's own redirect to a result).
+    redirect_once: bool,
 }
 
 #[derive(Debug)]
@@ -70,6 +72,7 @@ impl ChatBrowser {
                 rate: RateLimiter::new(limits.actions_per_minute),
                 continued: false,
                 expected_load: None,
+                redirect_once: false,
             }),
         }
     }
@@ -106,7 +109,7 @@ impl ChatBrowser {
     pub fn stop(&self) {
         self.agent.store(false, Ordering::Relaxed);
         self.stopped.store(true, Ordering::Relaxed);
-        self.lock().expected_load = None;
+        self.clear_expected_load();
     }
 
     /// Agent actions may run now (agent mode is on and Stop was not pressed).
@@ -164,8 +167,19 @@ impl ChatBrowser {
         self.lock().expected_load = Some(url.as_str().to_string());
     }
 
+    /// Like [`Self::expect_load`], and the load may then go on to one other address the site redirects it to,
+    /// whatever its site: research opens a result the engine links only through its own redirect (the result's
+    /// address is the engine's to give). One navigation, never a chain.
+    pub fn expect_redirect(&self, url: &WebUrl) {
+        let mut s = self.lock();
+        s.expected_load = Some(url.as_str().to_string());
+        s.redirect_once = true;
+    }
+
     pub fn clear_expected_load(&self) {
-        self.lock().expected_load = None;
+        let mut s = self.lock();
+        s.expected_load = None;
+        s.redirect_once = false;
     }
 
     /// The browser window asks before every navigation: while agent mode drives, only allowed sites and the
@@ -174,8 +188,11 @@ impl ChatBrowser {
         if !self.may_act() {
             return true;
         }
-        let s = self.lock();
-        s.grants.allows(&url.site()) || s.expected_load.as_deref() == Some(url.as_str())
+        let mut s = self.lock();
+        if s.grants.allows(&url.site()) || s.expected_load.as_deref() == Some(url.as_str()) {
+            return true;
+        }
+        std::mem::take(&mut s.redirect_once)
     }
 
     pub fn status(&self) -> ChatBrowserStatus {
@@ -259,6 +276,29 @@ mod tests {
         assert!(c.grants().allows(&docs.site()));
         c.stop();
         assert!(c.allows_navigation(&evil), "after Stop the user is in control again");
+    }
+
+    #[test]
+    fn an_expected_redirect_may_go_to_one_other_site_once() {
+        let c = ChatBrowser::new(AgentLimits::default());
+        c.set_agent(true, AgentLimits::default());
+        let goto = WebUrl::parse("https://www.search.example/goto?url=CAESAbc1").unwrap();
+        let result = WebUrl::parse("https://learn.example.org/a").unwrap();
+        let next = WebUrl::parse("https://tracker.example/b").unwrap();
+        c.expect_redirect(&goto);
+        assert!(c.allows_navigation(&goto), "the redirect itself");
+        assert!(c.allows_navigation(&goto), "...without using up the hop");
+        assert!(c.allows_navigation(&result), "the site it redirects to");
+        assert!(!c.allows_navigation(&next), "one hop, never a chain");
+        c.expect_redirect(&goto);
+        c.clear_expected_load();
+        assert!(!c.allows_navigation(&result));
+        c.expect_redirect(&goto);
+        c.stop();
+        c.set_agent(true, AgentLimits::default());
+        assert!(!c.allows_navigation(&result), "Stop ends it");
+        c.expect_load(&goto);
+        assert!(!c.allows_navigation(&result), "a plain expected load is never redirected elsewhere");
     }
 
     #[test]

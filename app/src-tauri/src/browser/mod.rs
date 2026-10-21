@@ -23,6 +23,8 @@ pub(crate) mod driving;
 pub(crate) mod geometry;
 mod hub;
 mod keys;
+#[cfg(feature = "live-search-probe")]
+mod live_probe;
 mod page;
 pub(crate) mod research;
 mod settings_section;
@@ -185,6 +187,8 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
     ) {
         log::warn!("Web browser settings not registered: {e:#}");
     }
+    #[cfg(feature = "live-search-probe")]
+    live_probe::start(app);
 }
 
 /// The managed state alone (the hub and the approvals), for [`init`] and tests.

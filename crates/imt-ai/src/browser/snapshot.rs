@@ -195,6 +195,8 @@ pub(crate) const CAPTCHA_PHRASES: &[&str] = &[
     "complete the security check",
     "unusual traffic from your computer",
     "checking your browser",
+    // Stack Overflow's (and other Stack Exchange sites') check.
+    "human verification",
 ];
 const LOGIN_AUTOCOMPLETE: &[&str] = &["current-password", "new-password", "one-time-code"];
 const LOGIN_NAMES: &[&str] = &["password", "passwd", "passcode", "otp", "totp", "2fa", "mfa"];
