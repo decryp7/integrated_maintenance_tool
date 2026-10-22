@@ -452,7 +452,7 @@ impl Iterator for EventStream<'_> {
 }
 
 /// FNV-1a, a stable hash of the canonical query text (cache keys must not change between builds).
-fn fnv1a(text: &str) -> String {
+pub(crate) fn fnv1a(text: &str) -> String {
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
     for b in text.bytes() {
         h ^= u64::from(b);
@@ -476,7 +476,7 @@ fn canonical(q: &Filter) -> String {
 impl Inner {
     /// The data version (bumped by every change to the events, persisted, so cached results of an
     /// earlier session are never mistaken for current ones).
-    fn data_version(&self, conn: &Connection) -> StoreResult<u64> {
+    pub(crate) fn data_version(&self, conn: &Connection) -> StoreResult<u64> {
         let v: Option<String> = conn
             .query_row("SELECT value FROM meta WHERE key = 'data_version'", [], |r| r.get(0))
             .ok();

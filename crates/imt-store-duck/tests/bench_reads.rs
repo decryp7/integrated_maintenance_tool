@@ -6,6 +6,7 @@
 //!   yet, imports into it and stops (run again to measure in a process that did not import). Analyses
 //!   cached by an earlier run are dropped first.
 //! - `IMT_BENCH_STRICT=1` fails above the budgets (0.5 s per interactive call, 300 MB query RSS).
+//! - `IMT_BENCH_ONLY=<a,b>` measures only the operations whose names contain one of these.
 //!
 //! Run with `--release --test bench_reads -- --nocapture`.
 
@@ -147,7 +148,13 @@ fn read_operations_meet_the_budget() {
     };
     let mut results: Vec<(&str, u128, bool, u64, bool)> = Vec::new();
     let op_peak = peak.clone();
+    let only: Vec<String> = std::env::var("IMT_BENCH_ONLY")
+        .map(|v| v.split(',').map(String::from).collect())
+        .unwrap_or_default();
     let mut time = |name: &'static str, interactive: bool, f: &mut dyn FnMut() -> bool| {
+        if !only.is_empty() && !only.iter().any(|o| name.contains(o.as_str())) {
+            return;
+        }
         // The peak RSS during this operation alone.
         op_peak.store(rss(), Ordering::Relaxed);
         let started = Instant::now();
@@ -201,16 +208,20 @@ fn read_operations_meet_the_budget() {
     time("page one hour", true, &mut || {
         store.page(&page(&window, 0)).map_err(|e| eprintln!("{e}")).is_ok()
     });
-    time("timeline 400", true, &mut || {
-        store
-            .timeline(&TimelineRequest {
-                query: any.clone(),
-                buckets: 400,
-                always_show_lifecycle: true,
-            })
-            .map_err(|e| eprintln!("{e}"))
-            .is_ok()
-    });
+    // The first timeline of a data version materialises the per-lane minute counts (a job's worth), the next
+    // ones read them.
+    for name in ["timeline 400 (cold)", "timeline 400"] {
+        time(name, !name.contains("cold"), &mut || {
+            store
+                .timeline(&TimelineRequest {
+                    query: any.clone(),
+                    buckets: 400,
+                    always_show_lifecycle: true,
+                })
+                .map_err(|e| eprintln!("{e}"))
+                .is_ok()
+        });
+    }
     time("timeline errors", true, &mut || {
         store
             .timeline(&TimelineRequest {

@@ -311,7 +311,8 @@ fn check_timelines(p: &Pair) {
 /// per bucket may move to a neighbouring bucket (a minute is counted whole) and lane bounds are minutes.
 fn check_histogram_timelines(p: &Pair) {
     p.duck.set_preaggregate_above(0);
-    // One lane per source (a source with events of several instances needs the events).
+    // One lane per source (the minute histogram), and instance lanes (several in some sources: the per-lane
+    // minute counts, materialised on first use).
     let by_source = Filter {
         group_by: vec!["@source".into()],
         ..Filter::default()
@@ -320,7 +321,31 @@ fn check_histogram_timelines(p: &Pair) {
         levels: vec![Level::Error, Level::Warning],
         ..by_source.clone()
     };
-    for (name, q) in [("everything", by_source), ("levels", levels)] {
+    let instance_levels = Filter {
+        levels: vec![Level::Error, Level::Warning],
+        ..Filter::default()
+    };
+    let instances = p.ws.timeline(&TimelineRequest {
+        query: Filter::default(),
+        buckets: 10,
+        always_show_lifecycle: true,
+    });
+    let shared = {
+        let mut seen = std::collections::HashMap::new();
+        instances
+            .unwrap()
+            .lanes
+            .iter()
+            .flat_map(|l| l.sources.clone())
+            .any(|s| seen.insert(s, ()).is_some())
+    };
+    assert!(shared, "some source of the samples holds several instances");
+    for (name, q) in [
+        ("everything", by_source),
+        ("levels", levels),
+        ("instances", Filter::default()),
+        ("instance levels", instance_levels),
+    ] {
         let req = TimelineRequest {
             query: q,
             buckets: 10,

@@ -12,6 +12,7 @@ mod context;
 mod diag;
 mod fts;
 mod hits;
+mod lanes;
 mod parsers;
 mod pos;
 mod profiles;
@@ -268,6 +269,7 @@ impl Inner {
             .map_err(engine)?;
         conn.execute("DELETE FROM analysis_cache WHERE version < ?", params![next])
             .map_err(engine)?;
+        conn.execute_batch(&lanes::prune_sql(next)).map_err(engine)?;
         Ok(())
     }
 
@@ -452,6 +454,7 @@ impl DuckStore {
         conn.execute_batch(&schema::ddl(&schema)).map_err(engine)?;
         conn.execute_batch(&schema::events_view(&schema, &[])).map_err(engine)?;
         conn.execute_batch(schema::CACHE_DDL).map_err(engine)?;
+        conn.execute_batch(lanes::DDL).map_err(engine)?;
         for (k, v) in [
             ("format_version", FORMAT_VERSION.to_string()),
             ("declared", schema::encode_declared(&schema)),
@@ -502,6 +505,7 @@ impl DuckStore {
         })?;
         // Added after the format was first written; created on open so older stores gain it.
         conn.execute_batch(schema::CACHE_DDL).map_err(engine)?;
+        conn.execute_batch(lanes::DDL).map_err(engine)?;
         Ok(Self::with(dir, conn, schema, parsers, registry, opts))
     }
 
