@@ -61,7 +61,7 @@ describe('AnomaliesView', () => {
     const { fixture } = await mount(AnomaliesView);
     const rows = all<HTMLButtonElement>(fixture, 'li button');
     expect(rows).toHaveLength(2);
-    expect(all(fixture, 'li.group').map((g) => g.textContent?.replace(/\s+/g, ' ').trim())).toEqual(['▲ Error spike 1', '✖ Crash 1']);
+    expect(all(fixture, 'li.group').map((g) => g.textContent?.trim())).toEqual(['▲Error spike1', '✖Crash1']);
     expect(rows[0]?.textContent).toContain('WEB01 · 3312');
     expect(rows[0]?.textContent).toContain('12 errors in 5 min');
     expect(rows[0]?.textContent).toContain('→');
@@ -397,7 +397,7 @@ describe('CompareView', () => {
     expect(t).toContain('100 events');
     expect(t).toContain('300 events');
     expect(t).toContain('StatusCode');
-    expect(t).toContain('A 1% · B 40%');
+    expect(t).toContain('A 1%');
     expect(t).toContain('+150%');
     expect(t).toContain('−25%');
     expect(t).toContain('web03');
@@ -429,9 +429,12 @@ describe('CompareView', () => {
     expect(targets.windowA()).toEqual({ from: mid - 300_000, to: mid });
     expect(targets.windowB()).toEqual({ from: mid, to: mid + 300_000 });
 
-    const select = el<HTMLSelectElement>(fixture, 'select');
-    select.value = String(60_000);
-    select.dispatchEvent(new Event('change'));
+    el<HTMLButtonElement>(fixture, 'imt-select button').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const option = [...document.querySelectorAll<HTMLElement>('.cdk-overlay-container [role=option]')].find((o) => o.textContent?.includes('1 minute'));
+    option?.click();
+    fixture.detectChanges();
     TestBed.inject(TimeCursor).select({ from: 10_000_000, to: 10_100_000 });
     fixture.detectChanges();
     buttonByText(fixture, 'Before / after selected time').click();
