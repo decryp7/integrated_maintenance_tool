@@ -1,4 +1,4 @@
-import { $, $$, browser, expect } from '@wdio/globals';
+import { $, browser, expect } from '@wdio/globals';
 import { gridTotal, waitForEvents, waitForShell } from '../support/app';
 
 /** The one search field of the filter bar: words search messages, a query (`level >= Error`) is applied as a filter. */
@@ -24,10 +24,13 @@ describe('real app: query language', () => {
       },
       { timeout: 30_000, timeoutMsg: `the total did not drop below ${all}` },
     );
-    const rows = $$('imt-events-grid [role=row].row');
-    await expect(rows[0]).toHaveText(/ERR|FTL/);
-    for (const row of await rows.getElements())
-      await expect(row).not.toHaveText(/\b(INF|WRN|DBG|VRB)\b/);
+    // The rows are read in one call: a webdriver round trip per row is slow and the rows re-render while it runs.
+    const levels = await browser.execute(() =>
+      Array.from(document.querySelectorAll('imt-events-grid [role=row].row')).map((r) => r.textContent ?? ''),
+    );
+    expect(levels.length).toBeGreaterThan(0);
+    expect(levels[0]).toMatch(/ERR|FTL/);
+    for (const text of levels) expect(text).not.toMatch(/\b(INF|WRN|DBG|VRB)\b/);
 
     await searchField().click();
     await browser.keys(['Control', 'a']);
