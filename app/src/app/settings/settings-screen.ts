@@ -13,6 +13,8 @@ import { STORAGE_ID } from './storage/storage.types';
 import { ParsersSettings } from './parsers/parsers-settings';
 import { PARSERS_ID } from './parsers/parsers.types';
 import { ParsersStore } from './parsers/parsers.store';
+import { VideoSettings } from '../video/video-settings';
+import { VIDEO_SETTINGS_ID } from '../video/video-settings.types';
 import { searchParsers } from './parsers/parser-search';
 import { APPEARANCE_ID, fieldMatches, GENERAL_ID, GROUPS, statusLabel } from './settings-model';
 import { SettingField, SettingsSection } from './settings.types';
@@ -25,7 +27,7 @@ import { SettingField, SettingsSection } from './settings.types';
 @Component({
   selector: 'imt-settings-screen',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, KnowledgeSettings, StorageSettings, ParsersSettings, PerformanceExtras],
+  imports: [GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, KnowledgeSettings, StorageSettings, ParsersSettings, PerformanceExtras, VideoSettings],
   host: { '(keydown.escape)': 'onEscape($event)' },
   template: `
     <div class="top">
@@ -59,6 +61,7 @@ import { SettingField, SettingsSection } from './settings.types';
         <button class="nav" type="button" [attr.aria-current]="isSelected(appearance) ? 'page' : null" (click)="store.select(appearance)" data-testid="settings-nav-appearance" i18n="Settings section|Theme, colour scheme and density@@settings.screen.appearance">Appearance</button>
         <button class="nav" type="button" [attr.aria-current]="isSelected(storage) ? 'page' : null" (click)="store.select(storage)" i18n="Settings section|What IMT keeps on disk@@settings.storage.nav">Disk usage</button>
         <button class="nav" type="button" [attr.aria-current]="isSelected(parsers) ? 'page' : null" (click)="store.select(parsers)" data-testid="settings-nav-parsers" i18n="Settings section|The log formats IMT reads@@settings.parsers.nav">Parsers</button>
+        <button class="nav" type="button" [attr.aria-current]="isSelected(video) ? 'page' : null" (click)="store.select(video)" data-testid="settings-nav-video" i18n="Settings section|Videos and the FFmpeg runtime@@video.settings.nav">Video</button>
         @for (g of navGroups(); track g.id) {
           <div class="group" role="presentation">{{ g.title }}</div>
           @for (s of g.sections; track s.id) {
@@ -125,6 +128,8 @@ import { SettingField, SettingsSection } from './settings.types';
           <imt-storage-settings />
         } @else if (isSelected(parsers)) {
           <imt-parsers-settings />
+        } @else if (isSelected(video)) {
+          <imt-video-settings />
         } @else if (store.current(); as s) {
           <div class="section-head">
             <h3>{{ s.title }}</h3>
@@ -227,6 +232,7 @@ export class SettingsScreen {
   protected readonly general = GENERAL_ID;
   protected readonly storage = STORAGE_ID;
   protected readonly parsers = PARSERS_ID;
+  protected readonly video = VIDEO_SETTINGS_ID;
   protected readonly appearance = APPEARANCE_ID;
   protected readonly cancelLabel = $localize`:@@settings.screen.cancel:Cancel`;
   protected readonly closeLabel = $localize`:Button that closes the settings dialog@@settings.screen.close:Close`;

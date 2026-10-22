@@ -327,3 +327,32 @@ protocol version (frame version 2; the manifest's `contract` became `protocol`),
 installable as signed packages, contained by the launcher before they run (§6's "third-party binaries would need
 external enforcement" is now `Containment::Launcher`: an AppContainer and a job assigned while suspended on Windows,
 landlock and seccomp before `exec` on Linux, `sandbox-exec` on macOS).
+
+## Amendment (2026-10-22): output streams and forwarded standard error (protocol 1.1)
+
+§7 said the elevated process streams capture bytes to the host; until now the frame protocol had no byte-stream
+request in that direction, so the ETW collector wrote its file itself (ADR 0022 §7). Protocol 1.1 adds it:
+
+- **`HostRequest::SaveOutput { tool, stream, folder, name, max_bytes }`**, sent by the elevated process only, answers
+  with `Result<SavedOutput, String>` when the stream ended. While it is pending the host pulls the bytes with
+  **`PluginRequest::PullOutput { stream }`**, a streamed request with `OUTPUT_CREDIT` (4) credits: pieces of at most
+  `OUTPUT_CHUNK` (256 KiB), so at most 1 MiB is in flight; the stream ends with `OutputEnd { bytes }`. The plugin side
+  is `ToolCtx::outputs()` (`imt_plugin_api::output::Outputs::create(folder, name, max_bytes)` giving an `OutputFile`,
+  which is `Write`); `FolderOutputs` writes the same files directly for a normal process and in tests.
+- **The host decides where**: `<data>/captures/<folder>/<name>` in the data folder it chose for the tool. Both names
+  are one plain component (`check_output_name`: `[A-Za-z0-9._-]`, at most 200 bytes, no leading or trailing dot, no
+  reserved Windows device name). A file is never replaced. The bytes go to a hidden partial file that becomes the file
+  only when the stream ended as announced; a stream that fails, is cut, breaks off (the plugin crashes, the connection
+  closes) or is dropped by the plugin without `finish` leaves nothing behind.
+- **Bounds**: each stream at most `min(max_bytes, MAX_OUTPUT_BYTES = 8 GiB)`; a piece over `OUTPUT_CHUNK` ends the
+  stream; at most `MAX_OUTPUTS` (8) streams at once per plugin; a stream the host does not accept within 30 s fails.
+  Over the limit the host cuts the stream and says so.
+- **Standard error**: the elevated process has no pipe the host can read, so it redirects its own standard error and
+  sends lines in `HostRequest::Log { lines, dropped }` (at most 64 lines per request, each cut at `MAX_LOG_LINE`, at
+  most 10,000 lines per start of the process; later ones are counted). The host logs them in the plugin's elevated
+  log. The pipe is always drained, so a chatty plugin never blocks.
+- The elevated process still writes nothing at a path it receives; the one remaining write of the ETW tool is its
+  symbol cache, below the user's application-data folders (ADR 0022 §7).
+
+Tested end to end with the host's fake plugin (`imt-plugin-host/tests/elevated_output.rs`): intact bytes, the limit,
+malicious names, a crash in the middle of a stream, forwarded and capped standard error.

@@ -332,10 +332,7 @@ mod tests {
         assert_eq!(d.pick("a.dmp", b"MDMP").unwrap().id(), "fake");
         let none = DumpDocs::new(Vec::new(), Limits::default());
         assert!(!none.has_importers() && none.pick("a", b"MDMP").is_none());
-        let opts = ImportOptions {
-            limits: Limits::default(),
-            file_time_ms: None,
-        };
+        let opts = ImportOptions::default();
         assert!(d.pick("a.dmp", b"MDMP").unwrap().import("a", Arc::new(Vec::new()), &opts).is_ok());
     }
 

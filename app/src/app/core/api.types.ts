@@ -2828,6 +2828,8 @@ export type {
   DumpMarker,
   DumpOverview,
   DumpSeverity,
+  DumpSymbolProblems,
+  DumpSymbolStatus,
   DumpSniffKind,
   DumpSniffResult,
   ExceptionCard,
@@ -2922,6 +2924,9 @@ export type {
  *   sql_run           { sql, explain, onEvent }            -> SqlOutcome     (an analysis job: `onEvent` first carries
  *                                                                              `{ kind: 'started', jobId }`; cancel with `jobs_cancel`)
  *   sql_page          { request: SqlPageRequest }          -> SqlPage
+ *   sql_ids           { request: SqlIdsRequest }          -> SqlIds         (the event ids of a kept result)
+ *   sql_export        { sql, path, overwrite }             -> number         (an export job's id: all rows as CSV, up to 5 M rows,
+ *                                                                              2 GiB and 10 min; cells starting with = + - @ get a leading ')
  * Limits: 10,000 rows kept per run, pages of 500, 30 s, 128 MB, 64 KB of SQL. Refusals and invalid SQL come back as
  * `{ error: QlError }` (offsets in UTF-8 bytes); a limit hit rejects the command with an `invalid` CmdError.
  */
@@ -2935,6 +2940,8 @@ export type {
   SegmentsPage,
   SegmentsRequest,
   SqlColumn,
+  SqlIds,
+  SqlIdsRequest,
   SqlPage,
   SqlPageRequest,
   SqlResult,

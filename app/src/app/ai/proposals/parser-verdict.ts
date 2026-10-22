@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { FailedRule, ParserProposal, ZoneSource } from '../ai.types';
+import { formatCount } from '../../shared/format/units';
 
 const RULES: Record<FailedRule, string> = {
   format: $localize`:@@ai.parserVerdict.rule.format:no pattern`,
@@ -30,7 +31,7 @@ const ZONES: Record<ZoneSource, string> = {
       <div class="verdict" data-testid="parser-verdict">
         <p class="score" [class.ok]="p().status !== 'bestEffort'">
           <strong data-testid="parser-score">{{ percent(v.score) }}</strong>
-          <span i18n="@@ai.parserVerdict.score">of {{ v.lines }} lines read with a timestamp{{ v.readsLevels ? levelSuffix : '' }}</span>
+          <span i18n="@@ai.parserVerdict.score">of {{ count(v.lines) }} lines read with a timestamp{{ v.readsLevels ? levelSuffix : '' }}</span>
           <span class="status" data-testid="parser-status">{{ statusText() }}</span>
         </p>
         @if (!v.timestamps.accepted && v.timestamps.reason) {
@@ -38,7 +39,7 @@ const ZONES: Record<ZoneSource, string> = {
         }
         @if (v.failures.length) {
           <details [open]="p().status === 'bestEffort'">
-            <summary i18n="@@ai.parserVerdict.unreadable">{{ v.lines - v.readable }} lines not read — examples</summary>
+            <summary i18n="@@ai.parserVerdict.unreadable">{{ count(v.lines - v.readable) }} lines not read — examples</summary>
             <table class="failures">
               <thead><tr><th scope="col" i18n="@@ai.parserVerdict.col.line">Line</th><th scope="col" i18n="@@ai.parserVerdict.col.rule">Rule</th><th scope="col" i18n="@@ai.parserVerdict.col.text">Text</th></tr></thead>
               <tbody>
@@ -86,13 +87,13 @@ const ZONES: Record<ZoneSource, string> = {
   styles: `
     .verdict { display: grid; gap: 6px; margin: 6px 0; }
     .score { margin: 0; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-    .score strong { font-size: 1.2em; color: var(--warn, #b26a00); }
-    .score.ok strong { color: var(--ok, #2e7d32); }
+    .score strong { font-size: 1.2em; color: var(--warn-text); }
+    .score.ok strong { color: var(--ok); }
     .status { margin-left: auto; color: var(--muted); }
-    .warn { margin: 0; color: var(--warn, #b26a00); }
+    .warn { margin: 0; color: var(--warn-text); }
     .facts { margin: 0; }
     .muted { color: var(--muted); }
-    .mono { font-family: var(--mono, monospace); }
+    .mono { font-family: var(--font-mono); }
     table.failures { width: 100%; border-collapse: collapse; font-size: 0.9em; }
     table.failures td, table.failures th { text-align: left; padding: 2px 6px; vertical-align: top; }
     table.failures td.mono { word-break: break-all; }
@@ -102,6 +103,7 @@ const ZONES: Record<ZoneSource, string> = {
 })
 export class ParserVerdictView {
   readonly p = input.required<ParserProposal>();
+  protected readonly count = formatCount;
 
   protected readonly levelSuffix = $localize`:@@ai.parserVerdict.andLevel: and a level`;
   protected readonly kept = $localize`:@@ai.parserVerdict.kept:kept`;

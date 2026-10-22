@@ -6,7 +6,7 @@ use super::expr::TableRow;
 use super::parser::{Program, Stage};
 
 /// Pseudo-fields every event has.
-pub const PSEUDO_FIELDS: [&str; 6] = ["@level", "@message", "@exception", "@template", "@source", "@line"];
+pub const PSEUDO_FIELDS: [&str; 7] = ["@level", "@message", "@exception", "@template", "@source", "@line", "@id"];
 /// Suggestions given at most.
 const MAX_SUGGESTIONS: usize = 3;
 

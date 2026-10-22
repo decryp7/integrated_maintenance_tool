@@ -4,6 +4,7 @@ import { SavedSqlStore } from '../projects/bookmarks/saved-sql.store';
 import { formatCount, formatDuration } from '../shared/format/units';
 import { applyCompletion, byteToIndex, completeSql, rowsToTsv, SqlCompletion } from './sql-complete';
 import { SqlConsoleStore } from './sql-console.store';
+import { SqlExportFiles } from './sql-export-files';
 
 /**
  * The SQL tab of the Store pane (ADR 0030): a monospace editor (`Ctrl+Enter` runs, `Esc` stops, `Tab` takes the
@@ -76,6 +77,12 @@ import { SqlConsoleStore } from './sql-console.store';
       @if (sql.failure(); as f) {
         <div class="error" role="alert" data-testid="sql-failure">{{ f }}</div>
       }
+      @if (sql.notice(); as n) {
+        <div class="faint" role="status" data-testid="sql-notice">{{ n }}</div>
+      }
+      @if (sql.exportJob() !== null) {
+        <div class="faint" role="status" data-testid="sql-export-started" i18n="@@store.sql.exportStarted">Exporting in the background: follow it in Jobs.</div>
+      }
       @if (sql.stopped()) {
         <div class="faint" role="status" i18n="@@store.sql.stopped">Stopped.</div>
       }
@@ -91,6 +98,10 @@ import { SqlConsoleStore } from './sql-console.store';
           @if (r.eventIds) {
             <button type="button" class="btn" data-testid="sql-open-events" [disabled]="!eventId()" (click)="openInEvents()" i18n="@@store.sql.openInEvents">Open in Events</button>
           }
+          @if (r.eventIds) {
+            <button type="button" class="btn" data-testid="sql-open-all-events" (click)="openAllInEvents()" i18n="@@store.sql.openAllInEvents">Open all in Events</button>
+          }
+          <button type="button" class="btn" data-testid="sql-export" [disabled]="!!sql.runId()" (click)="exportCsv()" i18n="@@store.sql.exportCsv">Export CSV</button>
           <button type="button" class="btn" (click)="copy()" i18n="@@store.sql.copy">Copy</button>
         </div>
         <div class="table-wrap" tabindex="0" role="region" aria-label="Results" i18n-aria-label="@@store.sql.results">
@@ -150,6 +161,7 @@ export class SqlConsole implements OnInit {
   protected readonly sql = inject(SqlConsoleStore);
   private readonly saved = inject(SavedSqlStore);
   private readonly ctx = inject(COMMAND_CONTEXT);
+  private readonly files = inject(SqlExportFiles);
   private readonly editor = viewChild<ElementRef<HTMLTextAreaElement>>('editor');
   protected readonly completions = signal<SqlCompletion[]>([]);
   protected readonly active = signal(0);
@@ -254,6 +266,18 @@ export class SqlConsole implements OnInit {
   protected openInEvents(): void {
     const id = this.eventId();
     if (id !== null) void this.ctx.jumpTo(id);
+  }
+
+  protected async openAllInEvents(): Promise<void> {
+    const ql = await this.sql.idsQuery();
+    if (ql === null) return;
+    this.ctx.setQuery({ ql });
+    this.ctx.showView('events');
+  }
+
+  protected async exportCsv(): Promise<void> {
+    const path = await this.files.pickCsv();
+    if (path) await this.sql.exportCsv(path);
   }
 
   protected copy(): void {

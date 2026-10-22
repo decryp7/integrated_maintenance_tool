@@ -209,8 +209,14 @@ pub async fn dumps_sniff(state: CurrentWindow, grants: WindowGrants, paths: Vec<
 /// Opens a dump or UMDH log the user chose (recognised by content). The reader runs without holding the
 /// window's documents; the document is added when it is done. Reopening a path replaces its document.
 #[tauri::command]
-pub async fn dumps_open(state: CurrentWindow, grants: WindowGrants, path: String) -> CmdResult<DumpDocSummary> {
+pub async fn dumps_open<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    state: CurrentWindow,
+    grants: WindowGrants,
+    path: String,
+) -> CmdResult<DumpDocSummary> {
     let docs = state.dumps.docs.clone();
+    let symbols = crate::symbols::of(&app);
     tauri::async_runtime::spawn_blocking(move || {
         let granted = grants.read_file(&path, &[])?;
         let canonical = granted.path().to_path_buf();
@@ -242,8 +248,15 @@ pub async fn dumps_open(state: CurrentWindow, grants: WindowGrants, path: String
                 .ok()
                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                 .map(|d| d.as_millis() as i64),
+            // IMT's symbol cache: PDBs the user's symbol servers gave earlier are found by identity.
+            symbol_folders: symbols
+                .cache_dir()
+                .map(|d| vec![d.to_string_lossy().into_owned()])
+                .unwrap_or_default(),
         };
-        let doc = importer.import(&name, source, &options).map_err(cmd_error)?;
+        let doc = importer.import(&name, source.clone(), &options).map_err(cmd_error)?;
+        // The missing PDBs are asked of the user's symbol servers (when they turned them on), then the dump is read again.
+        let doc = symbols.complete(doc, limits.max_text, || importer.import(&name, source, &options));
         let path = canonical.to_string_lossy().into_owned();
         crate::sync::write(&docs).insert(&name, Some(&path), doc).map_err(cmd_error)
     })
@@ -481,6 +494,7 @@ mod tests {
         ImportOptions {
             limits: Limits::default(),
             file_time_ms: None,
+            symbol_folders: Vec::new(),
         }
     }
 

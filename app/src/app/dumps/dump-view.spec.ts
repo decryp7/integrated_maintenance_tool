@@ -92,6 +92,11 @@ describe('DumpView', () => {
     tab(fixture, 'modules').click();
     await settle(fixture, 6);
     expect(all(fixture, '[data-testid="dump-modules"] tbody tr')).toHaveLength(6);
+    // Each module says what its symbols are, with the next step on hover.
+    const cells = all(fixture, '[data-testid="module-symbols"]');
+    expect(cells.map((c) => c.textContent?.trim())).toEqual(['Loaded', 'Loaded', 'Missing (downloads off)', 'Not on the servers', 'Loaded', 'Loaded']);
+    expect(cells[2]?.getAttribute('title')).toContain('Settings > Symbols');
+    expect(cells[0]?.getAttribute('title')).toBe('');
     typeInto(el<HTMLInputElement>(fixture, 'input[type="search"]'), 'shop.');
     await settle(fixture, 6);
     expect(all(fixture, '[data-testid="dump-modules"] tbody tr')).toHaveLength(2);
@@ -101,6 +106,7 @@ describe('DumpView', () => {
     expect(t).toContain('Handles (412)');
     expect(t).toContain('Legacy.dll');
     expect(t).toContain('14 of 14 frames named');
+    expect(el(fixture, '[data-testid="symbol-problems"]').textContent).toContain('downloads are off');
   });
 
   it('explains with AI and shows a failure inline', async () => {

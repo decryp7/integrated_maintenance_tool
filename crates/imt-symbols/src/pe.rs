@@ -51,16 +51,7 @@ impl PdbId {
     /// The symbol-store key: the GUID in upper-case hex (Data1, Data2, Data3 as numbers, then Data4) followed by
     /// the age in hex, as `symstore` and symbol servers use it (`<name>/<key>/<name>`).
     pub fn key(&self) -> String {
-        let g = &self.guid;
-        let d1 = u32::from_le_bytes([g[0], g[1], g[2], g[3]]);
-        let d2 = u16::from_le_bytes([g[4], g[5]]);
-        let d3 = u16::from_le_bytes([g[6], g[7]]);
-        let mut s = format!("{d1:08X}{d2:04X}{d3:04X}");
-        for b in &g[8..] {
-            s.push_str(&format!("{b:02X}"));
-        }
-        s.push_str(&format!("{:X}", self.age));
-        s
+        crate::id::store_key(&self.guid, self.age)
     }
 }
 

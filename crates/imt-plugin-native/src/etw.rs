@@ -7,6 +7,7 @@
 
 use crate::captures::Control;
 use crate::{Finished, NativeError};
+use imt_plugin_api::output::OutputFile;
 use imt_symbols::SymbolConfig;
 use std::path::Path;
 use std::time::Duration;
@@ -26,19 +27,28 @@ pub struct EtwSpec {
     pub max_addresses: usize,
 }
 
-/// Records `pid` into `out` until `ctl` stops, the duration ends, the size limit is reached or the process
-/// exits; then names the code addresses with `symbols` and closes the file.
+/// What the recorder may write after the size limit is reached (the address symbols and the closing blocks); the
+/// output stream is limited to the size limit plus this.
+pub const CLOSING_ALLOWANCE: u64 = 64 << 20;
+
+/// Records `pid` into the output stream `out` until `ctl` stops, the duration ends, the size limit is reached or the
+/// process exits; then names the code addresses with `symbols` and completes the stream. `saved_at` is where the host
+/// saves the file (reported as the capture's path). A capture that fails or is cancelled is dropped without
+/// completing its stream, so the host removes the partial file.
 #[cfg(windows)]
-pub fn record(pid: u32, spec: &EtwSpec, out: &Path, symbols: &SymbolConfig, ctl: &Control) -> Result<Finished, NativeError> {
-    let r = windows_impl::record(pid, spec, out, symbols, ctl);
-    if r.is_err() {
-        let _ = std::fs::remove_file(out);
-    }
-    r
+pub fn record(
+    pid: u32,
+    spec: &EtwSpec,
+    out: Box<dyn OutputFile>,
+    saved_at: &Path,
+    symbols: &SymbolConfig,
+    ctl: &Control,
+) -> Result<Finished, NativeError> {
+    windows_impl::record(pid, spec, out, saved_at, symbols, ctl)
 }
 
 #[cfg(not(windows))]
-pub fn record(_: u32, _: &EtwSpec, _: &Path, _: &SymbolConfig, _: &Control) -> Result<Finished, NativeError> {
+pub fn record(_: u32, _: &EtwSpec, _: Box<dyn OutputFile>, _: &Path, _: &SymbolConfig, _: &Control) -> Result<Finished, NativeError> {
     Err(NativeError::Unsupported("ETW recording is only available on Windows".into()))
 }
 
@@ -51,6 +61,7 @@ mod windows_impl {
     use imt_etw::nettrace::{system_time, TraceHeader};
     use imt_etw::session::{self, KernelSpec, Provider, Session};
     use imt_etw::{clr, heap, EtwError, RawEvent};
+    use imt_plugin_api::output::OutputFile;
     use imt_symbols::SymbolConfig;
     use std::io::BufWriter;
     use std::path::Path;
@@ -64,7 +75,7 @@ mod windows_impl {
     const FULL: u8 = 4;
     const WRITE_FAILED: u8 = 8;
 
-    type Conv = Converter<BufWriter<std::fs::File>>;
+    type Conv = Converter<BufWriter<Box<dyn OutputFile>>>;
 
     /// What the consumer thread shares with the controller.
     struct Shared {
@@ -122,7 +133,14 @@ mod windows_impl {
             .map_or(0, |d| d.as_millis() as i64)
     }
 
-    pub(super) fn record(pid: u32, spec: &EtwSpec, out: &Path, symbols: &SymbolConfig, ctl: &Control) -> Result<Finished, NativeError> {
+    pub(super) fn record(
+        pid: u32,
+        spec: &EtwSpec,
+        out: Box<dyn OutputFile>,
+        saved_at: &Path,
+        symbols: &SymbolConfig,
+        ctl: &Control,
+    ) -> Result<Finished, NativeError> {
         session::stop_orphans(PREFIX);
         let pointer_size = pointer_size(pid)?;
         let clr_loaded = process::has_clr(pid);
@@ -163,12 +181,11 @@ mod windows_impl {
             processors: std::thread::available_parallelism().map_or(1, |n| n.get() as u32),
             sampling_ns: 1_000_000,
         };
-        let file = std::fs::File::create(out)?;
         let options = Options {
             heap: spec.heap,
             max_addresses: spec.max_addresses,
         };
-        let mut conv = Converter::with_options(BufWriter::with_capacity(1 << 20, file), header, options)?;
+        let mut conv = Converter::with_options(BufWriter::with_capacity(1 << 20, out), header, options)?;
         conv.seed_threads(process::threads(pid));
         let shared = Arc::new(Shared {
             conv: Mutex::new(Some(conv)),
@@ -244,7 +261,9 @@ mod windows_impl {
             Err(e) => notes.push(format!("Reading the session failed: {e}")),
         }
         if shared.has(WRITE_FAILED) {
-            return Err(NativeError::Failed("writing the capture file failed (is the disk full?)".into()));
+            return Err(NativeError::Failed(
+                "the capture could not be saved: IMT stopped taking its output (is the disk full?)".into(),
+            ));
         }
         let mut conv = shared
             .conv
@@ -256,9 +275,12 @@ mod windows_impl {
         conv.symbols(&syms)?;
         let stats = conv.stats();
         let (w, _) = conv.finish()?;
-        let file = w.into_inner().map_err(|e| NativeError::Io(e.into_error()))?;
-        file.sync_all()?;
-        let bytes = file.metadata()?.len();
+        let stream = w.into_inner().map_err(|e| NativeError::Io(e.into_error()))?;
+        // The host saves the file when the stream is completed, and refuses it if the bytes were cut or broke off.
+        let bytes = stream
+            .finish()
+            .map_err(|e| NativeError::Failed(format!("the capture could not be saved: {e:#}")))?
+            .bytes;
         let truncated = shared.has(FULL);
         if truncated {
             notes.push(format!(
@@ -286,7 +308,7 @@ mod windows_impl {
         }
         notes.extend(sym_notes);
         Ok(Finished {
-            path: out.to_path_buf(),
+            path: saved_at.to_path_buf(),
             bytes,
             truncated,
             notes,
@@ -307,15 +329,25 @@ mod tests {
             return;
         }
         let dir = tempfile::tempdir().unwrap();
-        let out = dir.path().join("x.nettrace");
+        let outputs = imt_plugin_api::output::FolderOutputs(dir.path().to_path_buf());
+        let out = imt_plugin_api::output::Outputs::create(&outputs, "native", "x.nettrace", 1 << 20).unwrap();
         let spec = EtwSpec {
             heap: false,
             duration: Duration::from_secs(1),
             max_bytes: 1 << 20,
             max_addresses: 10,
         };
-        let e = record(std::process::id(), &spec, &out, &SymbolConfig::default(), &Control::default()).unwrap_err();
+        let saved_at = dir.path().join("captures").join("native").join("x.nettrace");
+        let e = record(
+            std::process::id(),
+            &spec,
+            out,
+            &saved_at,
+            &SymbolConfig::default(),
+            &Control::default(),
+        )
+        .unwrap_err();
         assert!(matches!(e, NativeError::Denied(_)), "{e:?}");
-        assert!(!out.exists(), "a failed capture leaves no file");
+        assert!(!saved_at.exists(), "a failed capture leaves no file");
     }
 }

@@ -19,3 +19,6 @@ thiserror.workspace = true
 
 [dev-dependencies]
 postcard.workspace = true
+tempfile.workspace = true
+# In-memory connections for the output-stream tests.
+tokio = { workspace = true, features = ["io-util"] }

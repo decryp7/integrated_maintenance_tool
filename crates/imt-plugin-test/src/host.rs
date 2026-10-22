@@ -136,6 +136,11 @@ impl Handler for FakeHost {
                 code::INVALID,
                 format!("the test harness runs no elevated process (\"{tool} {op}\")"),
             )),
+            // Only the elevated process sends these, and the harness runs none.
+            HostRequest::SaveOutput { .. } | HostRequest::Log { .. } => Err(RemoteError::new(
+                code::INVALID,
+                "the test harness runs no elevated process, so it saves no output files",
+            )),
         }
     }
 }
