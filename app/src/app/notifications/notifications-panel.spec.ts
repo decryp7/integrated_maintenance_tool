@@ -142,7 +142,7 @@ describe('NotificationsPanel', () => {
     unreadOnly.click();
     f.detectChanges();
     const chip = (label: string) => buttonByText(f, label);
-    expect(all(f, '.chip').map((c) => c.textContent?.trim())).toEqual(['Unread only', 'Jobs', 'Live alerts', 'Imports', 'Plugins', 'AI', 'Updates', 'Session']);
+    expect(all(f, '.chip').map((c) => c.textContent?.trim())).toEqual(['Unread only', 'Jobs', 'Live alerts', 'Imports', 'Plugins', 'AI', 'Updates', 'Session', 'Performance']);
     chip('Updates').click();
     f.detectChanges();
     expect(chip('Updates').getAttribute('aria-pressed')).toBe('true');

@@ -2,9 +2,12 @@
 // `imt://notifications-open` events; camelCase JSON), mirrored by
 // app/src-tauri/src/notification_centre/{centre,persist,mod}.rs. Change both sides together.
 
-export type NoticeSource = 'job' | 'liveAlert' | 'import' | 'plugin' | 'ai' | 'update' | 'session';
+export type NoticeSource = 'job' | 'liveAlert' | 'import' | 'plugin' | 'ai' | 'update' | 'session' | 'performance';
 
-export const NOTICE_SOURCES: readonly NoticeSource[] = ['job', 'liveAlert', 'import', 'plugin', 'ai', 'update', 'session'];
+export const NOTICE_SOURCES: readonly NoticeSource[] = ['job', 'liveAlert', 'import', 'plugin', 'ai', 'update', 'session', 'performance'];
+
+/** One of IMT's capped processes (Settings ▸ Performance, `performance.types.ts`). */
+export type NoticeProcess = { kind: 'storeWorker' } | { kind: 'ai' } | { kind: 'plugin'; pluginId: string };
 
 export type NoticeSeverity = 'info' | 'success' | 'warning' | 'error';
 
@@ -25,7 +28,11 @@ export type NoticeAction =
   | { type: 'showInFolder'; jobId: number }
   | { type: 'updateAi'; key: string }
   | { type: 'laterAiUpdate'; key: string }
-  | { type: 'skipAiUpdate'; key: string };
+  | { type: 'skipAiUpdate'; key: string }
+  /** Opens the process' memory cap with a suggested value (Settings ▸ Performance, or the plugin's own cap). */
+  | { type: 'raiseMemoryCap'; process: NoticeProcess; suggestedMb: number }
+  /** Lets a process the memory watcher stopped start again. */
+  | { type: 'retryProcess'; process: NoticeProcess };
 
 export interface NoticeLink {
   window: string | null;

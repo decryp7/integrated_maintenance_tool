@@ -490,7 +490,7 @@ describe('NotificationsStore', () => {
 
 describe('notifications-text', () => {
   it('names every source', () => {
-    expect(NOTICE_SOURCES.map(sourceLabel)).toEqual(['Jobs', 'Live alerts', 'Imports', 'Plugins', 'AI', 'Updates', 'Session']);
+    expect(NOTICE_SOURCES.map(sourceLabel)).toEqual(['Jobs', 'Live alerts', 'Imports', 'Plugins', 'AI', 'Updates', 'Session', 'Performance']);
   });
 
   it('adds the count only when a message repeated', () => {

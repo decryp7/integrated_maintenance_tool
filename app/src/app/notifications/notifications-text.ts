@@ -16,6 +16,8 @@ export function sourceLabel(source: NoticeSource): string {
       return $localize`:@@notifications.source.update:Updates`;
     case 'session':
       return $localize`:@@notifications.source.session:Session`;
+    case 'performance':
+      return $localize`:@@notifications.source.performance:Performance`;
   }
 }
 

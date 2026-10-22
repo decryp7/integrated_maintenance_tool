@@ -40,9 +40,9 @@ describe('SettingsScreen', () => {
   it('lists General, then the engine sections by group with their status', async () => {
     const { fixture } = await setup();
     const groups = all(fixture, 'nav .group').map((g) => g.textContent?.trim());
-    expect(groups).toEqual(['Application', 'Diagnostics', 'Plugins', 'AI', 'Advanced']);
+    expect(groups).toEqual(['Application', 'Diagnostics', 'Plugins', 'AI', 'Performance', 'Advanced']);
     const items = all(fixture, 'nav .nav').map((b) => [...b.querySelectorAll('.name, .badge')].map((x) => x.textContent?.trim()).join(' ') || b.textContent?.trim());
-    expect(items).toEqual(['General', 'Appearance', 'Storage', 'Parsers', 'Window & tray', 'Diagnostics', 'Plugins', 'Windows diagnostics', 'Example plugin disabled', 'AI assistant not installed', 'Workspace']);
+    expect(items).toEqual(['General', 'Appearance', 'Storage', 'Parsers', 'Window & tray', 'Diagnostics', 'Plugins', 'Windows diagnostics', 'Example plugin disabled', 'AI assistant not installed', 'Performance', 'Workspace']);
     expect(el(fixture, 'nav [aria-current=page]').textContent).toContain('General');
     expect(text(fixture)).toContain('Time zone');
     nav(fixture, 'Appearance').click();
