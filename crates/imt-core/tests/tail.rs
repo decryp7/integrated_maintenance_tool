@@ -1644,3 +1644,55 @@ fn a_whole_file_read_again_keeps_the_events_routes_would_claim() {
     assert_eq!(messages(&ws), ["a", "b"]);
     assert_eq!(ws.sources().len(), 1);
 }
+
+#[test]
+fn a_record_that_grows_past_the_resume_limit_stops_being_merged_into() {
+    let d = Dir::new("resume-cap");
+    let p = d.write("app.log", &line(0, "ERR", "A", "dump follows"));
+    let mut ws = ws_on(&d.0);
+    // The open record is held for continuation lines; 9 MiB of them arrive in steps.
+    d.append("app.log", &line(1, "ERR", "A", "second"));
+    ws.refresh_tail(std::slice::from_ref(&p)).unwrap();
+    let mut dump = String::new();
+    while dump.len() < 17 << 20 {
+        dump += "    continuation of a very long dump\n";
+    }
+    d.append("app.log", &dump);
+    ws.refresh_tail(std::slice::from_ref(&p)).unwrap();
+    d.append("app.log", &line(2, "INF", "A", "after"));
+    ws.refresh_tail(std::slice::from_ref(&p)).unwrap();
+    let last = ws.records().last().unwrap().message.clone();
+    assert_eq!(last, "after", "the new event is not swallowed by the endless record");
+}
+
+#[test]
+fn a_rule_remembers_a_bounded_number_of_hits_and_forgets_those_outside_its_window() {
+    let d = Dir::new("rule-hits");
+    let profile = Profile::from_toml(
+        r#"
+[[live.rule]]
+name = "payment errors"
+when = 'message contains "Payment"'
+threshold = 5
+window = "1m"
+severity = "warning"
+"#,
+    )
+    .unwrap();
+    let p = d.write("app.log", &line(0, "INF", "A", "start"));
+    let mut ws = Workspace::new(profile).unwrap();
+    ws.open(std::slice::from_ref(&d.0)).unwrap();
+    ws.set_tail_options(TailOptions {
+        detect_every_ms: 0,
+        ..TailOptions::default()
+    });
+    let burst: String = (0..10_050).map(|_| line(5, "ERR", "A", "Payment failed")).collect();
+    d.append("app.log", &burst);
+    let r = ws.refresh_tail(std::slice::from_ref(&p)).unwrap();
+    assert_eq!(r.appended, 10_050);
+    assert!(r.alerts.iter().any(|a| a.kind == "rule"), "{:?}", r.alerts);
+    // Much later the old hits fall out of the window: one new hit does not reach the threshold again.
+    d.append("app.log", &line(3000, "ERR", "A", "Payment failed"));
+    let r = ws.refresh_tail(std::slice::from_ref(&p)).unwrap();
+    assert!(r.alerts.iter().all(|a| a.kind != "rule"), "{:?}", r.alerts);
+}
