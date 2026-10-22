@@ -5275,39 +5275,46 @@
           <context context-type="linenumber">50</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="analysis.commands.outliers" datatype="html">
+        <source>Show error outliers</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/analysis/analysis-commands.ts</context>
+          <context context-type="linenumber">51</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="analysis.commands.compare" datatype="html">
         <source>Compare time ranges</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/analysis-commands.ts</context>
-          <context context-type="linenumber">51</context>
+          <context context-type="linenumber">52</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.commands.comparePrevious" datatype="html">
         <source>Compare: current range vs previous</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/analysis-commands.ts</context>
-          <context context-type="linenumber">54</context>
+          <context context-type="linenumber">55</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.commands.compareBeforeAfter" datatype="html">
         <source>Compare: before / after selected time</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/analysis-commands.ts</context>
-          <context context-type="linenumber">65</context>
+          <context context-type="linenumber">66</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.commands.fieldStats" datatype="html">
         <source>Field statistics…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/analysis-commands.ts</context>
-          <context context-type="linenumber">81</context>
+          <context context-type="linenumber">82</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.commands.traces" datatype="html">
         <source>Show traces and requests</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/analysis-commands.ts</context>
-          <context context-type="linenumber">86</context>
+          <context context-type="linenumber">87</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.format.anomaly.errorSpike" datatype="html">
@@ -5408,25 +5415,32 @@
           <context context-type="linenumber">19</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="analysis.plugin.view.outliers" datatype="html">
+        <source>Error outliers</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/analysis/analysis.plugin.ts</context>
+          <context context-type="linenumber">20</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="analysis.plugin.view.compare" datatype="html">
         <source>Compare time ranges</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/analysis.plugin.ts</context>
-          <context context-type="linenumber">20</context>
+          <context context-type="linenumber">21</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.plugin.view.fieldStatistics" datatype="html">
         <source>Field statistics</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/analysis.plugin.ts</context>
-          <context context-type="linenumber">21</context>
+          <context context-type="linenumber">22</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.plugin.view.traces" datatype="html">
         <source>Traces</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/analysis.plugin.ts</context>
-          <context context-type="linenumber">22</context>
+          <context context-type="linenumber">23</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.anomalies.title" datatype="html">
@@ -6191,6 +6205,83 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/moment-view.ts</context>
           <context context-type="linenumber">162</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="analysis.outliers.title" datatype="html">
+        <source>Error outliers</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/analysis/outliers-view.ts</context>
+          <context context-type="linenumber">24,25</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="analysis.outliers.summary" datatype="html">
+        <source><x id="INTERPOLATION" equiv-text="{{ count(r.subsetTotal) }}"/> selected events against <x id="INTERPOLATION_1" equiv-text="{{ count(r.restTotal) }}"/> others</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/analysis/outliers-view.ts</context>
+          <context context-type="linenumber">26,28</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="analysis.outliers.subsetLabel" datatype="html">
+        <source>Selected events</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/analysis/outliers-view.ts</context>
+          <context context-type="linenumber">30,31</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="analysis.outliers.subsetPlaceholder" datatype="html">
+        <source>Errors (or a filter such as host = &quot;B&quot;)</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/analysis/outliers-view.ts</context>
+          <context context-type="linenumber">31</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="analysis.outliers.apply" datatype="html">
+        <source>Compare</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/analysis/outliers-view.ts</context>
+          <context context-type="linenumber">33,35</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="analysis.outliers.emptyText" datatype="html">
+        <source>No value stands out among the selected events.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/analysis/outliers-view.ts</context>
+          <context context-type="linenumber">36</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="analysis.outliers.emptyHint" datatype="html">
+        <source>Outliers need at least three selected events sharing a value that is clearly rarer in the rest. Try another window or a different selection.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/analysis/outliers-view.ts</context>
+          <context context-type="linenumber">36</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="analysis.outliers.listLabel" datatype="html">
+        <source>Error outliers</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/analysis/outliers-view.ts</context>
+          <context context-type="linenumber">37</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="analysis.outliers.filter" datatype="html">
+        <source>Show these events</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/analysis/outliers-view.ts</context>
+          <context context-type="linenumber">40</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="analysis.outliers.shareLabel" datatype="html">
+        <source><x id="selected" equiv-text="o.subsetCount"/> of the selected events and <x id="rest" equiv-text="o.restCount"/> of the others carry this value</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/analysis/outliers-view.ts</context>
+          <context context-type="linenumber">101</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="analysis.outliers.eventLabel" datatype="html">
+        <source>Show event <x id="id" equiv-text="id"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/analysis/outliers-view.ts</context>
+          <context context-type="linenumber">105</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.patterns.title" datatype="html">

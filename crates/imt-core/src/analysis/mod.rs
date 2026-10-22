@@ -10,12 +10,14 @@ mod anomaly_events;
 pub mod compare;
 pub mod field_stats;
 pub mod moment;
+pub mod outliers;
 pub mod trace;
 pub mod trend;
 
 pub use anomaly::{detect, detect_with, Anomaly, AnomalyConfig, AnomalyInputs, AnomalyKind};
 pub use compare::{compare_windows, CompareConfig, Comparison};
 pub use field_stats::{field_stats, FieldStats, HistogramBin, NumericStats, ValueCount};
+pub use outliers::{error_outliers, Outlier, OutlierReport, OutlierRequest};
 pub use trace::{correlate, request_durations, spans, waterfall, RequestSpan, Span, WaterfallRow};
 pub use trend::{memory_growth, GrowthSeries, TrendConfig};
 

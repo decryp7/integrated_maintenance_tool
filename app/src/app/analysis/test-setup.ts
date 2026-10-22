@@ -1,7 +1,7 @@
 import { inject, Provider } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { AnalysisBackend } from '../core/analysis-backend';
-import { Analyzed, Anomaly, Comparison, Coverage, ExceptionGroup, FieldStats, fullCoverage, MomentSummary, Pattern, RequestSpan, TracesResult, RecordView } from '../core/api.types';
+import { Analyzed, Anomaly, Comparison, Coverage, ExceptionGroup, FieldStats, fullCoverage, MomentSummary, OutlierReport, Pattern, RequestSpan, TracesResult, RecordView } from '../core/api.types';
 import { Logger } from '../core/logger';
 import { ImtBackend } from '../core/backend';
 import { MockBackend } from '../core/mock/mock-backend';
@@ -74,6 +74,16 @@ export const FIX = {
     { kind: 'errorSpike', instance: 'WEB01 · 3312', from: 1000, to: 5000, score: 6.5, message: '12 errors in 5 min', sampleIds: [7, 8] },
     { kind: 'crash', instance: null, from: 9000, to: 9000, score: 10, message: 'Process terminated', sampleIds: [] },
   ] as Anomaly[],
+  outliers: {
+    subset: '@level >= error',
+    subsetTotal: 60,
+    restTotal: 540,
+    fieldsChecked: 4,
+    outliers: [
+      { field: 'Host', value: 'B', subsetCount: 60, restCount: 240, lift: 4.2, significance: 38.5, pValue: 1e-9, query: 'Host = "B" and (@level >= error)', sampleIds: [5, 6] },
+      { field: 'Build', value: '3.1', subsetCount: 30, restCount: 10, lift: 9, significance: 12.1, pValue: 0.0005, query: 'Build = "3.1" and (@level >= error)', sampleIds: [] },
+    ],
+  } as OutlierReport,
   patterns: [
     { id: 1, template: 'Order {OrderId} placed', count: 120, levels: [0, 0, 100, 15, 5, 0], firstTs: 1000, lastTs: 9000, sampleIds: [1], source: 'Serilog' },
     { id: 2, template: 'Took <*> ms', count: 30, levels: [0, 0, 30, 0, 0, 0], firstTs: null, lastTs: null, sampleIds: [], source: 'Mined' },
@@ -143,7 +153,7 @@ function FIXED_PATTERN(): Pattern {
 export const STUB_COVERAGE: Coverage = fullCoverage(3000);
 
 /** The analyses that resolve with `Analyzed` (the stub wraps plain results of overrides in it). */
-const ANALYZED = new Set<string>(['queryPatterns', 'queryExceptions', 'queryAnomalies', 'compareWindows', 'correlate', 'queryRequests', 'queryMoment']);
+const ANALYZED = new Set<string>(['queryPatterns', 'queryExceptions', 'queryAnomalies', 'queryOutliers', 'compareWindows', 'correlate', 'queryRequests', 'queryMoment']);
 
 function isAnalyzed(v: unknown): v is Analyzed<unknown> {
   return !!v && typeof v === 'object' && 'result' in v && 'coverage' in v;
@@ -173,6 +183,7 @@ export function stubBackend(overrides: Partial<Record<keyof AnalysisBackend, (..
     queryPatterns: async () => FIX.patterns,
     queryExceptions: async () => FIX.exceptions,
     queryAnomalies: async () => FIX.anomalies,
+    queryOutliers: async () => FIX.outliers,
     compareWindows: async () => FIX.comparison,
     fieldStats: async () => FIX.stats,
     correlate: async (_f: string, v: string) => (v.startsWith('req') ? [1, 2, 3] : []),

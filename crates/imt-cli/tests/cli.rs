@@ -160,6 +160,38 @@ fn analyses_report_findings_and_set_the_exit_code() {
 }
 
 #[test]
+fn outliers_point_at_the_value_only_the_errors_share() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut text = String::new();
+    for i in 0..300 {
+        let host = if i % 2 == 0 { "A" } else { "B" };
+        let level = if host == "B" && i % 6 == 1 { "ERR" } else { "INF" };
+        text.push_str(&format!(
+            "2026-10-14 09:{:02}:{:02}.000 +00:00 [{level}] work {{\"Host\": \"{host}\", \"Zone\": \"z{}\"}}\n",
+            i / 60,
+            i % 60,
+            (i / 7) % 3
+        ));
+    }
+    let log = dir.path().join("svc.log");
+    std::fs::write(&log, text).unwrap();
+    let log = log.to_str().unwrap();
+    let r = exec(&["analyze", "outliers", "--open", log, "--json"]);
+    assert_eq!(r.exit, Exit::Ok, "{}", r.err);
+    let v = json(&r);
+    assert_eq!(v["kind"], "outliers");
+    assert_eq!(v["items"][0]["field"], "Host");
+    assert_eq!(v["items"][0]["value"], "B");
+    assert!(v["items"].as_array().unwrap().iter().all(|o| o["field"] != "Zone"));
+    let r = exec(&["analyze", "outliers", "--open", log, "--fields", "Zone", "--fail-on-findings"]);
+    assert_eq!(r.exit, Exit::Ok, "{}", r.err);
+    assert!(r.out.contains("no outliers"));
+    let r = exec(&["analyze", "outliers", "--open", log, "--subset", "level = = 3"]);
+    assert_eq!(r.exit, Exit::Failure);
+    assert!(r.err.contains("subset"), "{}", r.err);
+}
+
+#[test]
 fn known_issues_match_from_knowledge_files() {
     let dir = tempfile::tempdir().unwrap();
     let log = write_log(dir.path());

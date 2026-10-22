@@ -184,6 +184,7 @@ command_table! {
     Query [WINDOW] => insights::query_patterns,
     Query [WINDOW] => insights::query_exceptions,
     Query [WINDOW] => insights::query_anomalies,
+    Query [WINDOW] => insights::query_outliers,
     Query [WINDOW] => insights::compare_windows,
     Query [WINDOW] => insights::field_stats,
     Query [WINDOW] => insights::correlate,

@@ -26,7 +26,7 @@ export const TOOL_VIEWS: ReadonlySet<string> = new Set([
 ]);
 
 /** Views that are documents even though they open on the right or at the bottom by default. */
-const DOCUMENT_VIEWS: ReadonlySet<string> = new Set(['events', 'query-results', 'report', 'anomalies', 'patterns', 'exceptions', 'profiling-threads']);
+const DOCUMENT_VIEWS: ReadonlySet<string> = new Set(['events', 'query-results', 'report', 'anomalies', 'patterns', 'exceptions', 'outliers', 'profiling-threads']);
 
 /**
  * Is the view a tool window or a document? Views whose home is a side or status area are tool windows; then known

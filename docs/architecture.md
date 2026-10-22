@@ -147,6 +147,7 @@ error snapshots, [ADR 0034](adr/0034-native-window-capture.md)), `video/` and `i
 | [0041](adr/0041-redacted-project-copy.md) | Redacted project copy: rebuilt from redacted text so nothing derived can leak; text sources only. |
 | [0042](adr/0042-store-port-table.md) | One port table for the store worker protocol: a single declarative list expands into the operation enum, the client and the worker's dispatch; the order is the wire format. |
 | [0044](adr/0044-headless-command-line.md) | A headless command line (`imt`) over the store worker: pure parsing and rendering, exit codes and `--json` as contract, bounded output. |
+| [0045](adr/0045-error-outliers.md) | Error outliers: a pure function over the `Query` port (facets and counts), G-test ranking, bounded, no new store operation. |
 
 
 ## Plugin runtime (ADR 0003, ADR 0017)

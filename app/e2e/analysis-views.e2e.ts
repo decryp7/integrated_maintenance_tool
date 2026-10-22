@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { expandFields, openApp } from './app';
 import { expectNoSeriousViolations } from './axe';
-import { openQuery, runCommand } from './analysis-support';
+import { openQuery, runCommand, searchField } from './analysis-support';
 
 test.describe('analysis views', () => {
   test.beforeEach(async ({ page }) => openApp(page));
@@ -56,6 +56,16 @@ test.describe('analysis views', () => {
     await expect(head).toHaveAttribute('aria-expanded', 'true');
     await expect(exceptions.getByRole('heading', { name: 'Sample events' })).toBeVisible();
     await expectNoSeriousViolations(page, testInfo, 'exceptions', 'imt-exceptions-view');
+  });
+
+  test('Error outliers: values concentrated among errors filter the events', async ({ page }, testInfo) => {
+    await runCommand(page, 'Show error outliers');
+    const view = page.locator('imt-outliers-view');
+    const rows = view.getByRole('list', { name: 'Error outliers' }).getByRole('button', { name: /×/ });
+    await expect(rows.first()).toBeVisible();
+    await expectNoSeriousViolations(page, testInfo, 'outliers', 'imt-outliers-view');
+    await rows.first().click();
+    await expect(searchField(page)).toHaveValue(/@level >= error/);
   });
 
   test('Compare: current range against the previous one', async ({ page }, testInfo) => {

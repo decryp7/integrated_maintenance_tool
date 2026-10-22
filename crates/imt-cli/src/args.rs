@@ -38,6 +38,8 @@ pub enum AnalyzeKind {
     Exceptions,
     /// Known issues from `--knowledge` files.
     Issues,
+    /// Values over-represented among errors (or `--subset`) against the rest of the window.
+    Outliers,
 }
 
 impl AnalyzeKind {
@@ -47,6 +49,7 @@ impl AnalyzeKind {
             AnalyzeKind::Patterns => "patterns",
             AnalyzeKind::Exceptions => "exceptions",
             AnalyzeKind::Issues => "issues",
+            AnalyzeKind::Outliers => "outliers",
         }
     }
 }
@@ -82,6 +85,9 @@ pub enum Command {
         json: bool,
         knowledge: Vec<PathBuf>,
         fail_on_findings: bool,
+        /// Outliers only: the selected events as a filter (empty: errors) and the fields examined (empty: all).
+        subset: String,
+        fields: Vec<String>,
     },
     Report {
         src: Source,
@@ -104,8 +110,8 @@ pub fn usage() -> String {
         "usage:
   {b} import PATH... [SOURCE OPTIONS] [--json]
   {b} query QL [SOURCE OPTIONS] [--format table|csv|json] [--json] [--limit N]
-  {b} analyze anomalies|patterns|exceptions|issues [SOURCE OPTIONS] [--filter QL] [--limit N] [--json]
-                [--knowledge FILE]... [--fail-on-findings]
+  {b} analyze anomalies|patterns|exceptions|issues|outliers [SOURCE OPTIONS] [--filter QL] [--limit N] [--json]
+                [--knowledge FILE]... [--fail-on-findings] [--subset QL] [--fields A,B]
   {b} report --out FILE [SOURCE OPTIONS] [--format html|pdf] [--title TEXT] [--knowledge FILE]...
                 [--from TIME] [--to TIME] [--top N] [--overwrite] [--json]
   {b} help | --version
@@ -163,6 +169,8 @@ struct Options {
     filter: Option<String>,
     knowledge: Vec<PathBuf>,
     fail_on_findings: bool,
+    subset: Option<String>,
+    fields: Vec<String>,
     out: Option<PathBuf>,
     title: Option<String>,
     from: Option<i64>,
@@ -218,6 +226,18 @@ fn collect(cur: &mut Cursor<'_>) -> Result<Options, UsageError> {
             "--fail-on-findings" => {
                 o.fail_on_findings = true;
                 o.used.push("--fail-on-findings");
+            }
+            "--subset" => {
+                o.subset = Some(val(cur)?);
+                o.used.push("--subset");
+            }
+            "--fields" => {
+                o.fields = val(cur)?
+                    .split(',')
+                    .map(|f| f.trim().to_string())
+                    .filter(|f| !f.is_empty())
+                    .collect();
+                o.used.push("--fields");
             }
             "--out" => {
                 o.out = Some(PathBuf::from(val(cur)?));
@@ -303,24 +323,36 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             only(
                 &o,
                 "analyze",
-                &allowed(&["--json", "--limit", "--filter", "--knowledge", "--fail-on-findings"]),
+                &allowed(&[
+                    "--json",
+                    "--limit",
+                    "--filter",
+                    "--knowledge",
+                    "--fail-on-findings",
+                    "--subset",
+                    "--fields",
+                ]),
             )?;
             if o.positional.len() != 1 {
-                return Err("analyze needs one of anomalies, patterns, exceptions, issues".into());
+                return Err("analyze needs one of anomalies, patterns, exceptions, issues, outliers".into());
             }
             let kind = match o.positional[0].as_str() {
                 "anomalies" => AnalyzeKind::Anomalies,
                 "patterns" => AnalyzeKind::Patterns,
                 "exceptions" => AnalyzeKind::Exceptions,
                 "issues" => AnalyzeKind::Issues,
+                "outliers" => AnalyzeKind::Outliers,
                 other => {
                     return Err(format!(
-                        "unknown analysis \"{other}\": use anomalies, patterns, exceptions or issues"
+                        "unknown analysis \"{other}\": use anomalies, patterns, exceptions, issues or outliers"
                     ))
                 }
             };
             if kind == AnalyzeKind::Patterns && o.fail_on_findings {
                 return Err("--fail-on-findings is for anomalies, exceptions and issues (every log has patterns)".into());
+            }
+            if kind != AnalyzeKind::Outliers && (o.subset.is_some() || !o.fields.is_empty()) {
+                return Err("--subset and --fields are for analyze outliers".into());
             }
             if kind == AnalyzeKind::Issues && o.knowledge.is_empty() {
                 return Err("analyze issues needs --knowledge FILE (a Markdown file declaring known issues)".into());
@@ -336,6 +368,8 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
                 json: o.json,
                 knowledge: o.knowledge,
                 fail_on_findings: o.fail_on_findings,
+                subset: o.subset.unwrap_or_default(),
+                fields: o.fields,
             })
         }
         "report" => {
@@ -459,6 +493,11 @@ mod tests {
         assert!(p("analyze").is_err());
         assert!(p("analyze patterns --fail-on-findings").unwrap_err().contains("every log"));
         assert!(p("analyze issues --knowledge k.md").is_ok());
+        let Command::Analyze { kind, subset, fields, .. } = p("analyze outliers --subset Host=B --fields Build,Region").unwrap() else {
+            panic!()
+        };
+        assert_eq!((kind, subset.as_str(), fields.len()), (AnalyzeKind::Outliers, "Host=B", 2));
+        assert!(p("analyze patterns --subset x").unwrap_err().contains("analyze outliers"));
     }
 
     #[test]

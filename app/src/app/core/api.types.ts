@@ -834,6 +834,7 @@ export interface InferredRegex {
  *   query_patterns   { request: { query } }                 -> Analyzed<Pattern[]>
  *   query_exceptions { request: { query } }                 -> Analyzed<ExceptionGroup[]>
  *   query_anomalies  { request: { query } }                 -> Analyzed<Anomaly[]>
+ *   query_outliers   { request: OutlierRequest }            -> Analyzed<OutlierReport>
  *   compare_windows  { request: { a, b } }                  -> Analyzed<Comparison>
  *   field_stats      { request: { query, field, buckets } } -> FieldStats
  *   correlate        { request: { field, value } }          -> Analyzed<number[]>
@@ -917,6 +918,42 @@ export interface Anomaly {
   score: number;
   message: string;
   sampleIds: number[];
+}
+
+/** What to compare (Rust `analysis::outliers::OutlierRequest`, ADR 0045). */
+export interface OutlierRequest {
+  /** The window: the events compared (a filter without `|` stages). */
+  query: QlQuery;
+  /** The subset as a query-language filter; empty: error and fatal events. */
+  subset: string;
+  /** Only these fields; empty: every field with a handful of values. */
+  fields: string[];
+  /** Outliers returned (0: the engine's default). */
+  limit: number;
+}
+
+/** A value over-represented in the subset against the rest of the window. */
+export interface Outlier {
+  field: string;
+  value: string;
+  subsetCount: number;
+  restCount: number;
+  /** How many times more likely the value is in the subset than in the rest. */
+  lift: number;
+  /** The G statistic (larger is stronger). */
+  significance: number;
+  pValue: number;
+  /** Filter selecting the subset events with this value. */
+  query: string;
+  sampleIds: number[];
+}
+
+export interface OutlierReport {
+  subset: string;
+  subsetTotal: number;
+  restTotal: number;
+  fieldsChecked: number;
+  outliers: Outlier[];
 }
 
 export interface LevelCount {

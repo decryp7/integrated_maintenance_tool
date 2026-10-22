@@ -200,9 +200,19 @@ fn execute(command: Command, host: &dyn StoreHost, out: &mut dyn Write, err: &mu
             json,
             knowledge,
             fail_on_findings,
+            subset,
+            fields,
         } => {
             let (prepared, _) = prepare(&src, host, err)?;
-            let found = analyze(prepared.store.as_ref(), kind, &filter, limit, &knowledge)?;
+            let ask = Ask {
+                kind,
+                filter: &filter,
+                limit,
+                knowledge: &knowledge,
+                subset: &subset,
+                fields: &fields,
+            };
+            let found = analyze(prepared.store.as_ref(), &ask)?;
             write_analysis(&found, json, out, err).map_err(io)?;
             Ok(if fail_on_findings && found.total > 0 {
                 Exit::Findings
@@ -336,10 +346,23 @@ fn read_knowledge(files: &[PathBuf]) -> Result<Vec<(String, String)>, String> {
         .collect()
 }
 
-/// Runs one analysis over the events matching `filter`.
-pub fn analyze(store: &dyn Store, kind: AnalyzeKind, filter: &str, limit: usize, knowledge: &[PathBuf]) -> Result<Found, String> {
-    let limit = limit.clamp(1, MAX_LIMIT);
-    let req = query_with(filter);
+/// What `analyze` is asked.
+pub struct Ask<'a> {
+    pub kind: AnalyzeKind,
+    /// A query-language filter narrowing the events analysed.
+    pub filter: &'a str,
+    pub limit: usize,
+    pub knowledge: &'a [PathBuf],
+    /// Outliers: the selected events (empty: errors) and the fields examined (empty: all).
+    pub subset: &'a str,
+    pub fields: &'a [String],
+}
+
+/// Runs one analysis over the events matching the ask's filter.
+pub fn analyze(store: &dyn Store, ask: &Ask<'_>) -> Result<Found, String> {
+    let (kind, knowledge) = (ask.kind, ask.knowledge);
+    let limit = ask.limit.clamp(1, MAX_LIMIT);
+    let req = query_with(ask.filter);
     let mut found = Found {
         kind,
         total: 0,
@@ -383,6 +406,27 @@ pub fn analyze(store: &dyn Store, kind: AnalyzeKind, filter: &str, limit: usize,
             for x in v.iter().take(limit) {
                 found.lines.push(format!("{:?} {}", x.kind, first_line(&x.message)));
                 found.items.push(to_value(x));
+            }
+            fill_coverage(&mut found, &a.coverage);
+        }
+        AnalyzeKind::Outliers => {
+            let a = imt_core::analysis::error_outliers(
+                store,
+                &imt_core::analysis::OutlierRequest {
+                    query: req.query.clone(),
+                    subset: ask.subset.to_string(),
+                    fields: ask.fields.to_vec(),
+                    limit,
+                },
+            )
+            .map_err(store_message)?;
+            found.total = a.result.outliers.len();
+            for o in &a.result.outliers {
+                found.lines.push(format!(
+                    "{:>8} vs {:<8}  {:>6.1}x  {}={}",
+                    o.subset_count, o.rest_count, o.lift, o.field, o.value
+                ));
+                found.items.push(to_value(o));
             }
             fill_coverage(&mut found, &a.coverage);
         }

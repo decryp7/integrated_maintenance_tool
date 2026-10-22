@@ -9,8 +9,8 @@ product is renamed); the store worker (`imt-store-worker`) and libduckdb must si
 ```text
 imt import PATH... [SOURCE OPTIONS] [--json]
 imt query QL [SOURCE OPTIONS] [--format table|csv|json] [--json] [--limit N]
-imt analyze anomalies|patterns|exceptions|issues [SOURCE OPTIONS] [--filter QL] [--limit N] [--json]
-            [--knowledge FILE]... [--fail-on-findings]
+imt analyze anomalies|patterns|exceptions|issues|outliers [SOURCE OPTIONS] [--filter QL] [--limit N] [--json]
+            [--knowledge FILE]... [--fail-on-findings] [--subset QL] [--fields A,B]
 imt report --out FILE [SOURCE OPTIONS] [--format html|pdf] [--title TEXT] [--knowledge FILE]...
             [--from TIME] [--to TIME] [--top N] [--overwrite] [--json]
 imt help | --version
@@ -39,7 +39,9 @@ prepare a store for later runs.
 
 **`analyze`** runs one analysis over the events matching `--filter` (a query-language filter; all events by default):
 `anomalies` (error spikes, silence, crashes, slow outliers, rate changes, memory growth), `patterns` (message templates
-by count), `exceptions` (grouped by fingerprint) and `issues` (the known issues declared in the Markdown
+by count), `exceptions` (grouped by fingerprint), `outliers` (values over-represented among errors, or among the events
+selected by `--subset QL`, against the rest of the window; `--fields A,B` limits the fields examined; each outlier has
+its counts, lift, p-value and evidence ids) and `issues` (the known issues declared in the Markdown
 `--knowledge` files that occur in the data, with their counts and fixes). Each result says how much of the data it
 covered; limits that bounded it are printed on standard error.
 

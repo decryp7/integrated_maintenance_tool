@@ -70,3 +70,15 @@ export function templateQl(template: string, mined: boolean): string {
     .join('.+');
   return `@message ~ ${qlQuote(regex)}`;
 }
+
+/** "4.2×" (a lift: how many times more likely a value is in the subset). */
+export function formatLift(lift: number): string {
+  if (!Number.isFinite(lift)) return '—';
+  return `${lift >= 100 ? Math.round(lift) : Math.round(lift * 10) / 10}×`;
+}
+
+/** "p < 0.001" or "p = 0.012". */
+export function formatP(p: number): string {
+  if (!Number.isFinite(p)) return '—';
+  return p < 0.001 ? 'p < 0.001' : `p = ${p.toFixed(3)}`;
+}

@@ -199,6 +199,7 @@ Analysis runs in the engine and is available from the command palette (`Ctrl/⌘
 | **Patterns** | Clusters similar messages into templates so 100k lines become a short list, with first/last seen and level colouring. |
 | **Exceptions** | Groups exceptions by type and normalised stack with counts, first/last seen and affected instances. |
 | **Anomalies** | Error-rate spikes, slow-request outliers and crashes, listed with their time window and instance. |
+| **Error outliers** | The fields and values that are over-represented among errors (or any selection you type as a filter) compared with the rest of the same window, ranked by lift and significance (a G-test, with its p-value). "Only host B", "only build 3.1" instead of "errors rose". Each row filters the workspace to those events and links to evidence events; the result says what bounded it ([ADR 0045](adr/0045-error-outliers.md)). `imt analyze outliers` does the same from the command line. |
 | **Compare** | Two windows side by side ("current vs previous", before/after a time, or any two selections): changed fields, new values and event mix. |
 | **Field statistics** | Distributions and percentiles for a field. |
 | **Traces** | Follows trace/span/request ids (for example from OpenTelemetry). |

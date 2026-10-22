@@ -453,6 +453,17 @@ that occur in the open data, with the number of events, the fix and *Show events
 model which of your notes fit the problems; the engine keeps only suggestions whose fix is quoted from your notes and
 whose query selects events (they are marked *AI suggested, verified*). Without a model the declared issues still work.
 
+## Error outliers
+
+*Analyze: Show error outliers* answers "what do the failing events have in common?". It compares the events you select
+(errors and fatals by default; type any filter such as `host = "B"` in the box and press **Compare**) with the rest of
+the current window and lists the field values that are clearly more common in the selection: for each, how many
+selected events and how many other events carry it, the **lift** (how many times more likely it is in the selection) and
+the p-value of the difference. Values need at least three selected events, a lift of 1.5 or more and p < 0.001 to be
+listed. Click a row to filter the events by it, or an evidence button to jump to one event. The window is the current
+query and time range, which must not contain `|` stages. The same analysis runs from the command line with
+`imt analyze outliers`.
+
 ## Incident summary report
 
 *Report: Incident summary…* builds a report from the open data in one step: the period and levels, key moments, the

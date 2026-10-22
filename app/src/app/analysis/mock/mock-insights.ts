@@ -10,6 +10,8 @@ import {
   MomentSummary,
   NumberSummary,
   NumericShift,
+  Outlier,
+  OutlierReport,
   Pattern,
   QlQuery,
   RequestSpan,
@@ -350,4 +352,51 @@ export function mockMoment(all: RecordView[], base: QlQuery, from: number, to: n
   const users = [...userCounts.values()].sort((a, b) => b.count - a.count).slice(0, 12);
   const anomalies = mockAnomalies(filtered).filter((a) => a.to >= from && a.from <= to);
   return { from, to, total: inWin.length, levels, instances, metrics, users, activity, anomalies };
+}
+
+/**
+ * Plausible outliers: field values frequent among Error/Fatal events and rarer elsewhere (G statistic as in the
+ * engine, ADR 0045). The subset is always the errors here; the engine honours any filter.
+ */
+export function mockOutliers(records: RecordView[], fields: readonly string[]): OutlierReport {
+  const isErr = (r: RecordView) => r.level === 'Error' || r.level === 'Fatal';
+  const subsetTotal = records.filter(isErr).length;
+  const restTotal = records.length - subsetTotal;
+  const counts = new Map<string, { field: string; value: string; a: number; c: number; ids: number[] }>();
+  const names = new Set<string>();
+  for (const r of records) {
+    const entries: [string, string][] = [['@source', r.sourceName], ...Object.entries(r.fields).map(([k, v]): [string, string] => [k, String(v)])];
+    for (const [field, value] of entries) {
+      if (fields.length && !fields.includes(field)) continue;
+      names.add(field);
+      const key = `${field}\u0000${value}`;
+      const e = counts.get(key) ?? { field, value, a: 0, c: 0, ids: [] };
+      if (isErr(r)) {
+        e.a++;
+        if (e.ids.length < 5) e.ids.push(r.id);
+      } else e.c++;
+      counts.set(key, e);
+    }
+  }
+  const outliers: Outlier[] = [];
+  if (subsetTotal > 0 && restTotal > 0) {
+    for (const e of counts.values()) {
+      if (e.a < 3) continue;
+      const lift = (e.a + 0.5) / (subsetTotal + 1) / ((e.c + 0.5) / (restTotal + 1));
+      const g = gStatistic(e.a, subsetTotal, e.c, restTotal);
+      if (lift < 1.5 || g < 10.83) continue;
+      const quoted = e.value.replace(/[\\"]/g, '\\$&');
+      outliers.push({ field: e.field, value: e.value, subsetCount: e.a, restCount: e.c, lift, significance: g, pValue: Math.max(1e-300, Math.exp(-g / 2)), query: `${e.field} = "${quoted}" and (@level >= error)`, sampleIds: e.ids });
+    }
+  }
+  outliers.sort((x, y) => y.significance - x.significance || x.field.localeCompare(y.field));
+  return { subset: '@level >= error', subsetTotal, restTotal, fieldsChecked: names.size, outliers: outliers.slice(0, 30) };
+}
+
+function gStatistic(a: number, nS: number, c: number, nR: number): number {
+  const n = nS + nR;
+  const cells: [number, number, number][] = [[a, nS, a + c], [nS - a, nS, n - a - c], [c, nR, a + c], [nR - c, nR, n - a - c]];
+  let g = 0;
+  for (const [o, row, col] of cells) if (o > 0 && row > 0 && col > 0) g += o * Math.log((o * n) / (row * col));
+  return Math.max(0, 2 * g);
 }
