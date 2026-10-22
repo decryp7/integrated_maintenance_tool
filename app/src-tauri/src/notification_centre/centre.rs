@@ -29,6 +29,8 @@ pub enum NoticeSource {
     Ai,
     Update,
     Session,
+    /// Memory caps of IMT's processes (Settings ▸ Performance).
+    Performance,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -107,6 +109,29 @@ pub enum NoticeAction {
     SkipAiUpdate {
         key: String,
     },
+    /// Opens the memory cap of `process` (Settings ▸ Performance, or the plugin's cap in the Plugins panel) with a
+    /// suggested value, to apply or change.
+    RaiseMemoryCap {
+        process: ProcessRef,
+        #[serde(rename = "suggestedMb")]
+        suggested_mb: u32,
+    },
+    /// Lets a process the memory watcher stopped start again (resets its crash count).
+    RetryProcess {
+        process: ProcessRef,
+    },
+}
+
+/// One of IMT's capped processes, as a message's action names it.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", tag = "kind")]
+pub enum ProcessRef {
+    StoreWorker,
+    Ai,
+    Plugin {
+        #[serde(rename = "pluginId")]
+        plugin_id: String,
+    },
 }
 
 /// What a message refers to.
@@ -160,6 +185,8 @@ pub struct NewNotice {
     pub scope: NoticeScope,
     /// Posting the same key again is ignored instead of counted (e.g. an update announced at every check).
     pub once: bool,
+    /// Listed without a toast (a warning that needs no action yet).
+    pub quiet: bool,
 }
 
 impl NewNotice {
@@ -176,7 +203,14 @@ impl NewNotice {
             dedupe_key: None,
             scope,
             once: false,
+            quiet: false,
         }
+    }
+
+    /// Listed in the centre without a toast.
+    pub fn quiet(mut self) -> NewNotice {
+        self.quiet = true;
+        self
     }
 
     /// Announced once per dedupe key: posting it again changes nothing.

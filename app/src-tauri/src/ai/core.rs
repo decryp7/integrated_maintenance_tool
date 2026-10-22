@@ -56,15 +56,30 @@ impl AiDeps {
     /// The real adapters: the worker at `worker` (running the llama-server builds kept in
     /// `<data_dir>/ai/runtimes`), the system's hardware, Hugging Face and GitHub releases, the keychain.
     pub fn system(worker: PathBuf, data_dir: &Path) -> AiDeps {
+        AiDeps::system_capped(worker, data_dir, Arc::new(|| None), None)
+    }
+
+    /// [`AiDeps::system`] with a memory cap on the worker's own process, read at every launch, and a listener for
+    /// its memory watcher (Settings ▸ Performance, ADR 0031).
+    pub fn system_capped(
+        worker: PathBuf,
+        data_dir: &Path,
+        memory_cap: imt_ai::worker::WorkerMemoryCap,
+        listener: Option<imt_ipc::memory_watch::MemoryListener>,
+    ) -> AiDeps {
         let probe = Arc::new(SystemProbe::new(imt_collect::SystemRunner));
         let p = probe.clone();
         let settings = Arc::new(RwLock::new(AiSettings::default()));
         let runtimes = RuntimeDeps::system(data_dir.join("ai").join("runtimes"), worker.clone());
         let env = runtimes.worker_env_source(settings.clone());
-        let cfg = WorkerConfig::new(Arc::new(FramesLauncher {
-            exe: worker.clone(),
-            args: vec![],
-            env,
+        let cfg = WorkerConfig::new(Arc::new(imt_ai::worker::CappedLauncher {
+            launcher: FramesLauncher {
+                exe: worker.clone(),
+                args: vec![],
+                env,
+            },
+            memory_cap,
+            listener,
         }));
         let runtime = Arc::new(WorkerRuntime::new(cfg, Box::new(move || p.probe())));
         AiDeps {

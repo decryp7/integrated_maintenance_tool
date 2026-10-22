@@ -318,6 +318,11 @@ command_table! {
     Mutation [WINDOW] => notification_centre::notifications_dismiss,
     Quiet [WINDOW] => notification_centre::notifications_record,
     Mutation [WINDOW] limit 4 * MIB => notification_centre::notifications_restore,
+    Query [WINDOW] => performance::commands::performance_suggest,
+    Query [WINDOW] => performance::commands::performance_preset,
+    Query [WINDOW] => performance::commands::performance_memory,
+    Mutation [WINDOW] => performance::commands::performance_set_plugin_memory,
+    Mutation [WINDOW] => performance::commands::performance_retry_store_worker,
     Query [WINDOW] => browser::research::ai_research_draft,
     Mutation [WINDOW] => browser::research::ai_research,
     Query [WINDOW] => browser::driving::browser_driving,
@@ -536,6 +541,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     app.manage(tray::TrayState::default());
     jobs::init(app.handle());
     notification_centre::init(app.handle());
+    performance::attach_notifications(app.handle());
 
     // ---- settings ----
     settings::init(app.handle());
