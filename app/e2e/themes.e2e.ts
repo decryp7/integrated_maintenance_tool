@@ -41,8 +41,8 @@ for (const theme of THEMES) {
         test.skip(!updating && !shots.every((s) => existsSync(testInfo.snapshotPath(s))), `no screenshot baselines for ${process.platform} yet (run with --update-snapshots)`);
         await openThemed(page, theme, scheme);
         await settleAnimations(page);
-        // The load time in the title bar differs from run to run.
-        const mask = [page.locator('imt-title-bar .state')];
+        // The load time (the events count's tooltip) is not drawn; nothing in the chrome differs from run to run.
+        const mask: ReturnType<typeof page.locator>[] = [];
         await expect(page).toHaveScreenshot(shots[0]!, { animations: 'disabled', caret: 'hide', mask, maxDiffPixelRatio: 0.01 });
         // The close-up: the timeline maximised, every lane in view.
         const group = page.locator('.dv-groupview').filter({ has: page.getByRole('tab', { name: 'Timeline', exact: true }) });
