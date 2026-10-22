@@ -17,7 +17,7 @@ fn workspace() -> WorkspaceStore {
         .map(|e| e.unwrap().path())
         .filter(|p| {
             p.file_name()
-                .is_some_and(|n| n != "profiling" && n != "profiles" && n != "generate.py")
+                .is_some_and(|n| n != "profiling" && n != "profiles" && n != "video" && n != "generate.py")
         })
         .collect();
     paths.sort();
