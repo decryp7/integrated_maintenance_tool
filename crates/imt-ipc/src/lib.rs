@@ -10,6 +10,7 @@
 //!   that need administrator rights.
 //! - [`supervisor`]: lazy start, restart with backoff and a restore hook, quarantine after repeated failures.
 //! - [`child_log`]: each child's captured standard error and start/exit lines, for problem reports.
+//! - [`stderr_pipe`]: an elevated child's standard error into a pipe it reads and forwards itself.
 
 pub mod child;
 pub mod child_log;
@@ -28,6 +29,7 @@ pub mod peer;
 pub mod process;
 pub mod runtime;
 pub mod sandbox;
+pub mod stderr_pipe;
 pub mod supervisor;
 pub mod wire;
 

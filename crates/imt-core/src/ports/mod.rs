@@ -14,12 +14,16 @@
 mod console;
 mod dto;
 mod inspect;
+mod live;
 mod session;
 
 pub use console::{
     SqlColumn, SqlNote, SqlPage, SqlPageRequest, SqlRequest, SqlResult, SqlSchema, SqlView, SqlViewColumn, MAX_CELL_CHARS, MAX_SQL_LEN,
     SQL_MAX_NOTES, SQL_MAX_RESULT_BYTES, SQL_MAX_ROWS, SQL_MEMORY_LIMIT, SQL_NOTE_CHARS, SQL_PAGE_ROWS, SQL_THREADS, SQL_TIME_LIMIT,
     SQL_VIEWS_VERSION,
+};
+pub use console::{
+    SqlExportRequest, SqlExportResult, SqlIds, SqlIdsRequest, SQL_EXPORT_MAX_BYTES, SQL_EXPORT_MAX_ROWS, SQL_EXPORT_TIME_LIMIT,
 };
 pub use inspect::{
     parse_size, FieldStorage, FieldType, LastImport, MaintenanceAction, MaintenanceReport, RunningJob, SegmentRow, SegmentsPage,
@@ -32,6 +36,7 @@ pub use dto::{
     ImportReport, IndexStatus, PageQuery, PageReply, ParserChange, ParserDef, ParserRef, ParserUse, PartialMatches, QuickFix, SearchMatch,
     SearchReply, SearchRequest, SummaryReply, MAX_PAGE_ROWS,
 };
+pub use live::{TailAppend, TailFile, TailRead, HOLD_IDLE};
 pub use session::ImportSession;
 
 use crate::analysis::{Anomaly, Comparison, FieldStats, RequestSpan, WaterfallRow};
@@ -129,8 +134,9 @@ pub trait Ingest: Send + Sync {
     fn clear(&self) -> StoreResult<()>;
     /// Replaces everything with a saved state.
     fn restore(&self, state: &WorkspaceState) -> StoreResult<ImportSession>;
-    /// Live tail: reads what was appended to followed files.
-    fn append_tail(&self, changed: &[PathBuf]) -> StoreResult<usize>;
+    /// Live tail: reads what was appended to followed files (with an empty list: only what is due, such as a
+    /// held-back last event of a file that stopped growing).
+    fn append_tail(&self, changed: &[PathBuf]) -> StoreResult<TailAppend>;
 }
 
 /// Reading: pages, aggregates and batch scans over the events matching a [`Filter`].
@@ -292,13 +298,92 @@ pub trait Console: Send + Sync {
     fn sql_page(&self, _req: &SqlPageRequest) -> StoreResult<SqlPage> {
         Err(StoreError::unsupported("the SQL console", "ADR 0030"))
     }
+    /// The event ids of a kept result (*Open in Events* on all its rows); [`StoreError::NotFound`] when the result
+    /// is gone, [`StoreError::Invalid`] when it has no `id` column of an integer type.
+    fn sql_ids(&self, _req: &SqlIdsRequest) -> StoreResult<SqlIds> {
+        Err(StoreError::unsupported("the SQL console's event ids", "ADR 0030"))
+    }
+    /// Runs the query again and streams its rows as CSV to the request's file (bounded by
+    /// [`SQL_EXPORT_MAX_ROWS`], [`SQL_EXPORT_MAX_BYTES`] and [`SQL_EXPORT_TIME_LIMIT`]; cancelled with the thread's
+    /// [`QueryControl`]). An existing file is replaced only when the request says so; a failed or cancelled export
+    /// leaves no file behind.
+    fn sql_export(&self, _req: &SqlExportRequest) -> StoreResult<SqlExportResult> {
+        Err(StoreError::unsupported("CSV export of the SQL console", "ADR 0030"))
+    }
+}
+
+/// What redaction would change in the events of a query (shown before an export), with the profile's `[redact]`
+/// rules. The redacted view itself is applied to replies by their caller ([`crate::redact::view`]). Cancellable through
+/// the thread's [`QueryControl`].
+pub trait Redaction: Send + Sync {
+    fn redaction_summary(&self, _req: &crate::redact::RedactionSummaryRequest) -> StoreResult<crate::redact::RedactionSummary> {
+        Err(StoreError::unsupported("the redaction summary", "ADR 0014 6c"))
+    }
+}
+
+/// Clock-skew correction (see [`crate::skew`]): per-file time offsets, kept by the store (with the project) and
+/// applied to the events' timestamps, so pages, timelines, facets, analyses and search all see the corrected
+/// times. A refused offset (too large, an unknown source or event) fails with [`StoreError::Invalid`] saying what
+/// to fix.
+pub trait Skew: Send + Sync {
+    /// The offsets by file path.
+    fn clock_offsets(&self) -> StoreResult<crate::skew::ClockOffsets> {
+        Err(StoreError::unsupported("clock-skew correction", "6c"))
+    }
+    /// Replaces the offsets (a project's or a session's; out-of-range ones are dropped): files read later take
+    /// them, and the events of files already read move.
+    fn set_clock_offsets(&self, _offsets: &crate::skew::ClockOffsets) -> StoreResult<()> {
+        Err(StoreError::unsupported("clock-skew correction", "6c"))
+    }
+    /// Sets the offset of a source's file (manually or by aligning two events) and moves its events.
+    fn set_source_offset(&self, _req: &crate::skew::SetOffsetRequest) -> StoreResult<crate::skew::OffsetChange> {
+        Err(StoreError::unsupported("clock-skew correction", "6c"))
+    }
+    /// Offsets that would align each source with a reference, from events sharing a correlation id (at most
+    /// [`crate::skew::MAX_IDS`] ids).
+    fn suggest_offsets(&self, _req: &crate::skew::SuggestRequest) -> StoreResult<crate::skew::SuggestResult> {
+        Err(StoreError::unsupported("clock-skew correction", "6c"))
+    }
+}
+
+/// Live tail: how the store's files were last read (a query) and opening files at their end.
+pub trait Tail: Send + Sync {
+    /// The followed files as the store last read them.
+    fn tail_files(&self) -> StoreResult<Vec<TailFile>> {
+        Err(StoreError::unsupported("the live tail state", "6c"))
+    }
+    /// Opens files and folders for live tail at their current end: text files are followed from there (only lines
+    /// written from now on); files that cannot be read from the middle are read in full (with a note).
+    fn open_at_end(&self, _paths: &[PathBuf]) -> StoreResult<ImportSession> {
+        Err(StoreError::unsupported("opening files at their end", "6c"))
+    }
 }
 
 /// Every port of a store: what one window of the app holds (the DuckDB store in the store worker; in process
 /// in tests).
-pub trait Store: Ingest + Query + Positions + Analysis + Profiles + Diagnostics + Search + Projects + Inspect + Maintain + Console {}
+pub trait Store:
+    Ingest + Query + Positions + Analysis + Profiles + Diagnostics + Search + Projects + Inspect + Maintain + Console + Redaction + Skew + Tail
+{
+}
 
-impl<T: Ingest + Query + Positions + Analysis + Profiles + Diagnostics + Search + Projects + Inspect + Maintain + Console> Store for T {}
+impl<
+        T: Ingest
+            + Query
+            + Positions
+            + Analysis
+            + Profiles
+            + Diagnostics
+            + Search
+            + Projects
+            + Inspect
+            + Maintain
+            + Console
+            + Redaction
+            + Skew
+            + Tail,
+    > Store for T
+{
+}
 
 #[cfg(test)]
 mod tests {

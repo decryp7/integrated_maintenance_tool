@@ -603,6 +603,7 @@ pub struct ToolCtx {
     sink: Arc<dyn TaskSink>,
     paths: Arc<dyn PathPolicy>,
     elevated: Option<Arc<dyn ElevatedOps>>,
+    outputs: Option<Arc<dyn crate::output::Outputs>>,
 }
 
 impl ToolCtx {
@@ -615,6 +616,7 @@ impl ToolCtx {
             sink,
             paths: Arc::new(NoPaths),
             elevated: None,
+            outputs: None,
         }
     }
 
@@ -628,6 +630,19 @@ impl ToolCtx {
     /// elevated process itself, in tests, in hosts without one).
     pub fn elevated(&self) -> Option<&Arc<dyn ElevatedOps>> {
         self.elevated.as_ref()
+    }
+
+    /// The same context writing output files through `outputs`.
+    pub fn with_outputs(mut self, outputs: Arc<dyn crate::output::Outputs>) -> ToolCtx {
+        self.outputs = Some(outputs);
+        self
+    }
+
+    /// Where output files go without writing at a path: in a plugin's elevated process they are streamed to the
+    /// host, which saves them in the data folder it chose (ADR 0017 §7). `None` where the host gives none (a
+    /// normal process writes into [`ToolCtx::data_dir`] itself).
+    pub fn outputs(&self) -> Option<&Arc<dyn crate::output::Outputs>> {
+        self.outputs.as_ref()
     }
 
     /// The same context checking path arguments with `paths`.

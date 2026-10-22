@@ -14,6 +14,6 @@ pub mod facts;
 pub mod image;
 pub mod intent;
 
-pub use assist::{RelatedOutcome, RelatedStage};
+pub use assist::{RelatedOutcome, RelatedStage, MAX_IMAGES_PER_REQUEST};
 pub use facts::{ScreenFacts, ScreenKind};
 pub use image::{sanitize, ImageError, ImageLimits, SanitizedImage, SourceFormat};

@@ -5,8 +5,8 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { CommandRegistry } from '../extensions/command-registry';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { NotificationsStore } from '../notifications/notifications.store';
-import { headlineOf, OverviewHeadline } from '../overview/overview-headline';
-import { OverviewActions } from '../overview/overview-actions';
+import { headlineOf, HealthHeadline } from '../home/health/health-headline';
+import { HealthActions } from '../home/health/health-actions';
 import { ShareBackend } from '../share/share-backend';
 import { TimelinePanel } from '../timeline/timeline-panel';
 import { LEGEND_COLLAPSED } from '../timeline/timeline-legend';
@@ -78,7 +78,7 @@ describe('timeline legend', () => {
   });
 });
 
-describe('OverviewHeadline', () => {
+describe('HealthHeadline', () => {
   it('summarises crashes, errors and silences, and is hidden when nothing is notable', () => {
     expect(headlineOf([], { Error: 0, Fatal: 0 })).toBeNull();
     expect(headlineOf([finding('crash'), finding('silence'), finding('memoryGrowth')], { Error: 3, Fatal: 1 })).toMatchObject({ errors: 4 });
@@ -99,14 +99,14 @@ describe('OverviewHeadline', () => {
       ],
     });
     const actions = { run: vi.fn(async () => undefined) };
-    TestBed.overrideProvider(OverviewActions, { useValue: actions });
+    TestBed.overrideProvider(HealthActions, { useValue: actions });
     TestBed.inject(WorkspaceStore);
-    const fixture = TestBed.createComponent(OverviewHeadline);
+    const fixture = TestBed.createComponent(HealthHeadline);
     await settle(fixture);
     return { fixture, share, views, queries, actions };
   }
 
-  it('shows one toolbar line whose counts act like the Overview, and Review opens it', async () => {
+  it('shows one toolbar line whose counts act like Home, and Review opens it', async () => {
     const { fixture, share, views, queries, actions } = await mount([finding('crash', 'a'), finding('crash', 'b'), finding('silence', 's')]);
     expect(share.overview).toHaveBeenCalledTimes(1);
     const bar = el(fixture, '[role=toolbar]');
@@ -121,7 +121,7 @@ describe('OverviewHeadline', () => {
     el<HTMLButtonElement>(fixture, '[data-testid=headline-errors]').click();
     expect(queries).toEqual([{ levels: ['Error', 'Fatal'] }]);
     el<HTMLButtonElement>(fixture, '[data-testid=headline-review]').click();
-    expect(views).toEqual(['events', 'overview']);
+    expect(views).toEqual(['events', 'home']);
   });
 
   it('uses singular forms for one', async () => {

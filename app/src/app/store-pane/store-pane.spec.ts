@@ -14,12 +14,13 @@ import { MockStorePaneBackend } from './mock/mock-store-pane-backend';
 import { storePaneCommands, storePaneViews } from './provide-store-pane';
 import { applyCompletion, byteToIndex, completeSql, rowsToTsv, wordAt } from './sql-complete';
 import { SqlConsoleStore } from './sql-console.store';
+import { SqlExportFiles } from './sql-export-files';
 import { StorePane } from './store-pane';
 import { StorePaneBackend, TauriStorePaneBackend } from './store-pane-backend';
 import { activityLabel, gauge, maintenanceText, memoryGauges, STORE_VIEW, storageLabel } from './store-pane-model';
 import { StorePaneStore } from './store-pane.store';
 
-const ctx = () => ({ showView: vi.fn(), jumpTo: vi.fn(async () => undefined), notifyError: vi.fn() }) as unknown as CommandContext;
+const ctx = () => ({ showView: vi.fn(), setQuery: vi.fn(), jumpTo: vi.fn(async () => undefined), notifyError: vi.fn() }) as unknown as CommandContext;
 
 function provide(backend: MockBackend = tinyBackend(), context = ctx()) {
   const pane = new MockStorePaneBackend(backend);
@@ -102,6 +103,8 @@ describe('TauriStorePaneBackend', () => {
     expect(await b.maintain('compact')).toBe(7);
     await b.describeSqlSchema();
     await b.fetchSqlPage({ result: 1, offset: 500 });
+    await b.fetchSqlIds(3);
+    expect(await b.exportSql('SELECT 1', '/tmp/a.csv', true)).toEqual({});
     expect(await b.cancelSql('none')).toBe(false);
     const run = b.querySql('SELECT 1', true, 'r1');
     await Promise.resolve();
@@ -120,13 +123,17 @@ describe('TauriStorePaneBackend', () => {
       'store_maintenance',
       'sql_schema',
       'sql_page',
+      'sql_ids',
+      'sql_export',
       'sql_run',
       'jobs_cancel',
     ]);
     expect(at(calls, 1)[1]).toEqual({ request: { offset: 5, limit: 10 } });
     expect(at(calls, 5)[1]).toEqual({ action: 'compact' });
-    expect(at(calls, 9)[1]).toEqual({ id: 42 });
-    expect((at(calls, 8)[1] as { sql: string; explain: boolean }).explain).toBe(true);
+    expect(at(calls, 8)[1]).toEqual({ request: { result: 3 } });
+    expect(at(calls, 9)[1]).toEqual({ sql: 'SELECT 1', path: '/tmp/a.csv', overwrite: true });
+    expect(at(calls, 11)[1]).toEqual({ id: 42 });
+    expect((at(calls, 10)[1] as { sql: string; explain: boolean }).explain).toBe(true);
     // A stop after the job is known cancels it at once.
     const second = b.querySql('SELECT 2', false, 'r2');
     must(hooks.onEvent)({ kind: 'started', jobId: 43 });
@@ -286,6 +293,17 @@ describe('Store pane', () => {
     await settle(f);
     el(f, '[data-testid=sql-open-events]').click();
     expect(context.jumpTo).toHaveBeenCalledWith(expect.any(Number));
+    // Open all in Events filters the grid to the ids; Export CSV asks for a file and starts the job.
+    el(f, '[data-testid=sql-open-all-events]').click();
+    await settle(f, 8);
+    expect(context.setQuery).toHaveBeenCalledWith({ ql: expect.stringMatching(/^@id in \(\d+(, \d+)*\)$/) });
+    expect(context.showView).toHaveBeenCalledWith('events');
+    el(f, '[data-testid=sql-export]').click();
+    await settle(f, 8);
+    expect(el(f, '[data-testid=sql-export-started]')).toBeTruthy();
+    vi.spyOn(TestBed.inject(SqlExportFiles), 'pickCsv').mockResolvedValueOnce(null);
+    el(f, '[data-testid=sql-export]').click();
+    await settle(f, 8);
     // A refusal is shown with its span.
     typeInto(editor, 'DROP VIEW events');
     buttonByText(f, 'Run').click();
@@ -313,6 +331,37 @@ describe('Store pane', () => {
     buttonByText(f, 'Retry').click();
     await settle(f, 8);
     expect(el(f, '[data-testid=store-overview]')).toBeTruthy();
+  });
+});
+
+describe('SQL console ids and export', () => {
+  it('turns the kept ids into a query, says when the result was cut, and reports failures', async () => {
+    const { pane } = provide();
+    const sql = TestBed.inject(SqlConsoleStore);
+    expect(await sql.idsQuery()).toBeNull();
+    await sql.exportCsv('/tmp/none.csv');
+    expect(sql.exportJob()).toBeNull();
+    sql.setText('SELECT id FROM events LIMIT 3');
+    await sql.run();
+    const spy = vi.spyOn(pane, 'fetchSqlIds');
+    spy.mockResolvedValueOnce({ ids: [], truncated: false });
+    expect(await sql.idsQuery()).toBeNull();
+    expect(sql.notice()).toContain('no event ids');
+    spy.mockResolvedValueOnce({ ids: [4, 9], truncated: true });
+    expect(await sql.idsQuery()).toBe('@id in (4, 9)');
+    expect(sql.notice()).toContain('kept rows');
+    spy.mockRejectedValueOnce(new CmdError({ code: 'notFound', message: 'this result is gone', retryable: false }));
+    expect(await sql.idsQuery()).toBeNull();
+    expect(sql.failure()).toContain('gone');
+    // The export runs the SQL that produced the result, not what was typed since.
+    const exp = vi.spyOn(pane, 'exportSql');
+    sql.setText('SELECT 2');
+    await sql.exportCsv('/tmp/a.csv');
+    expect(exp).toHaveBeenCalledWith('SELECT id FROM events LIMIT 3', '/tmp/a.csv', true);
+    expect(sql.exportJob()).not.toBeNull();
+    exp.mockRejectedValueOnce(new CmdError({ code: 'invalid', message: 'the file exists', retryable: false }));
+    await sql.exportCsv('/tmp/a.csv');
+    expect(sql.failure()).toContain('exists');
   });
 });
 

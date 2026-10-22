@@ -25,6 +25,17 @@ describe('AiImageStore', () => {
     resetMockJobs();
   });
 
+  it('takes an image the engine already opened (a video frame)', async () => {
+    const { store, backend } = await setup();
+    const frame = await backend.imagePaste('iVBORw0KGgoAAAAN', 'clip.mp4 @ 9 s');
+    store.adopt(frame);
+    expect(store.current()?.name).toBe('clip.mp4 @ 9 s');
+    const other = await backend.imagePaste('iVBORw0KGgoAAAAN', 'other.png');
+    store.adopt(other, false);
+    expect(store.images()).toHaveLength(2);
+    expect(store.current()?.id).toBe(frame.id);
+  });
+
   it('opens a picked file and pasted bytes, switches and closes them', async () => {
     const { store, backend } = await setup();
     const a = await store.openPath('C:\\shots\\dialog.png');

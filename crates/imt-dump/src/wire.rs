@@ -95,6 +95,9 @@ fn check_dump(d: &Dump, l: &Limits) -> Result<()> {
         opt_text(&m.version, l, "a module version")?;
         opt_text(&m.debug_file, l, "a debug file")?;
         opt_text(&m.debug_id, l, "a debug id")?;
+        if let Some(d) = m.symbols.detail() {
+            text(d, l, "a symbol status")?;
+        }
     }
     for m in &d.unloaded_modules {
         text(m, l, "an unloaded module")?;

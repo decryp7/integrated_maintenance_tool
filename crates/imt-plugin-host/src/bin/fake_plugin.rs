@@ -105,6 +105,15 @@ impl Tool for FakeTool {
             .op(OpSpec::new("admin", "Needs administrator rights").elevated())
             .op(OpSpec::new("admin-steps", "Reports progress in the elevated process").elevated())
             .op(OpSpec::new("via-admin", "Runs an operation in the elevated process").args(Schema::object().open()))
+            .op(OpSpec::new("admin-save", "Streams an output file to the host")
+                .elevated()
+                .args(Schema::object().open()))
+            .op(OpSpec::new("admin-save-crash", "Exits in the middle of an output file")
+                .elevated()
+                .args(Schema::object().open()))
+            .op(OpSpec::new("admin-log", "Writes lines to standard error")
+                .elevated()
+                .args(Schema::object().open()))
     }
 
     fn invoke(&self, op: &str, args: Value, ctx: &ToolCtx) -> Result<Value> {
@@ -135,6 +144,36 @@ impl Tool for FakeTool {
                 ctx.task_progress("steps", Some(1.0));
                 ctx.task_finished("steps");
                 Ok(json!("done"))
+            }
+            "admin-save" | "admin-save-crash" => {
+                // `size` bytes of a pattern, written in odd-sized pieces, into `folder`/`name` through the host.
+                let outputs = ctx.outputs().ok_or_else(|| anyhow::anyhow!("no output streams here"))?;
+                let text = |k: &str, d: &str| args[k].as_str().unwrap_or(d).to_string();
+                let size = args["size"].as_u64().unwrap_or(0) as usize;
+                let max = args["max"].as_u64().unwrap_or(u64::MAX);
+                let mut f = outputs.create(&text("folder", "fake"), &text("name", "out.bin"), max)?;
+                let bytes: Vec<u8> = (0..size).map(|i| (i % 251) as u8).collect();
+                let half = if op == "admin-save-crash" { size / 2 } else { size };
+                for piece in bytes[..half].chunks(70_001) {
+                    std::io::Write::write_all(&mut f, piece)?;
+                }
+                if op == "admin-save-crash" {
+                    std::io::Write::flush(&mut f)?;
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    std::process::exit(7);
+                }
+                let saved = f.finish()?;
+                Ok(json!({ "name": saved.name, "bytes": saved.bytes }))
+            }
+            "admin-log" => {
+                let marker = args["marker"].as_str().unwrap_or("log");
+                for i in 0..args["lines"].as_u64().unwrap_or(1) {
+                    eprintln!("{marker} line {i}");
+                }
+                if let Some(n) = args["long"].as_u64() {
+                    eprintln!("{marker} long {}", "x".repeat(n as usize));
+                }
+                Ok(json!("logged"))
             }
             "via-admin" => {
                 let ops = ctx.elevated().ok_or_else(|| anyhow::anyhow!("no elevated process"))?;

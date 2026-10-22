@@ -16,6 +16,7 @@ import { MarkerOverrideDialog } from './marker-override-dialog';
 import { OverrideStyle, PluginKindRow, pluginRows, readOverrides, resetStyle, setOverride } from './marker-overrides';
 import { ProfileModel } from '../core/profile.model';
 import { RunsEditor } from './runs-editor';
+import { HighlightEditor } from '../projects/bookmarks/highlight-editor';
 
 /** The engine's failure message, with the profile line it points at when it has one. */
 function failureText(f: { message: string; line: number | null }): string {
@@ -26,7 +27,7 @@ function failureText(f: { message: string; line: number | null }): string {
 @Component({
   selector: 'imt-markers-manager',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MarkerGlyph, Icon, CdkDropList, CdkDrag, CdkDragHandle, AiButton, RunsEditor],
+  imports: [MarkerGlyph, Icon, CdkDropList, CdkDrag, CdkDragHandle, AiButton, RunsEditor, HighlightEditor],
   template: `
     <div class="head">
       <span class="section-title" i18n="@@markers.manager.title">Markers</span>
@@ -120,9 +121,12 @@ function failureText(f: { message: string; line: number | null }): string {
         </table>
       }
       <imt-runs-editor />
+      <section class="highlights" aria-labelledby="hl-h"><h2 id="hl-h" class="section-title" i18n="@@projects.view.highlights">Highlight rules</h2><imt-highlight-editor /></section>
     </div>
   `,
   styles: `
+    .highlights { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .highlights h2 { margin: 0; }
     :host { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); }
     .head { display: flex; align-items: center; gap: 12px; padding: 8px 14px; font-size: var(--fs-sm); }
     .spacer { flex: 1; }

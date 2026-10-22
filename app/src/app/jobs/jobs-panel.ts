@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { AiBackend } from '../ai/ai-backend';
 import { formatDuration } from '../core/format';
 import { formatBytes, formatCount, formatEta, formatRate, TransferMeter } from '../shared/format/units';
@@ -6,7 +6,8 @@ import { TransferSpeed } from '../shared/format/transfer-speed';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { Icon } from '../shared/icon';
 import { JobViewer } from './job-viewer';
-import { JobsStore } from './jobs.store';
+import { KindFilter, KindOption } from '../ui/kind-filter';
+import { JobsStore, JobsView } from './jobs.store';
 import { JOB_KINDS, JobInfo, JobKind, JobState } from './jobs.types';
 import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
 
@@ -18,13 +19,15 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
 @Component({
   selector: 'imt-jobs-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon],
+  imports: [Icon, KindFilter],
   template: `
     <div class="bar" role="toolbar" aria-label="Job filters" i18n-aria-label="@@jobs.panel.filters">
-      <span class="muted small" id="jobs-kinds" i18n="@@jobs.panel.show">Show</span>
-      @for (k of kinds; track k) {
-        <button type="button" class="chip" [attr.aria-pressed]="store.kinds().includes(k)" (click)="store.toggleKind(k)" [attr.data-testid]="'jobs-kind-' + k">{{ kindLabel(k) }}</button>
-      }
+      <div class="seg" role="group" aria-label="Show" i18n-aria-label="@@jobs.panel.show" data-testid="jobs-view">
+        @for (v of views; track v.id) {
+          <button type="button" class="btn small" [attr.aria-pressed]="store.view() === v.id" (click)="store.setView(v.id)" [attr.data-testid]="'jobs-view-' + v.id">{{ v.label }} <span class="faint">{{ store.viewCounts()[v.id] }}</span></button>
+        }
+      </div>
+      <imt-kind-filter label="Kind" i18n-label="@@jobs.panel.kind" [options]="kindOptions()" [selected]="store.kinds()" (toggled)="store.toggleKind($any($event))" (cleared)="store.setKinds([])" />
       <span class="spacer"></span>
       <button type="button" class="btn ghost small" [disabled]="!store.finished().length" (click)="store.clearFinished()" data-testid="jobs-clear" i18n="@@jobs.panel.clear">Clear finished</button>
     </div>
@@ -144,7 +147,12 @@ export class JobsPanel {
   private readonly viewer = inject(JobViewer);
   private readonly ai = inject(AiBackend);
   private readonly ctx = inject(COMMAND_CONTEXT);
-  protected readonly kinds = JOB_KINDS;
+  protected readonly views: readonly { id: JobsView; label: string }[] = [
+    { id: 'all', label: $localize`:@@jobs.panel.view.all:All` },
+    { id: 'running', label: $localize`:@@jobs.panel.view.running:Running` },
+    { id: 'failed', label: $localize`:@@jobs.panel.view.failed:Failed` },
+  ];
+  protected readonly kindOptions = computed<KindOption[]>(() => JOB_KINDS.map((k) => ({ id: k, label: kindLabel(k), count: this.store.kindCounts().get(k) ?? 0 })));
   protected readonly kindLabel = kindLabel;
   protected readonly stateLabel = stateLabel;
   protected readonly linkLabel = linkLabel;

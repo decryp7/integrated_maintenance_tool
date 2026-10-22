@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text } from '../../testing/helpers';
 import { WorkspaceStore } from '../core/workspace.store';
-import { OVERVIEW_AUTO_OPEN_KEY, OverviewPrefs } from '../overview/overview-prefs';
+import { HOME_AUTO_OPEN_KEY, HomePrefs } from '../home/home-prefs';
 import { DialogService } from '../ui/dialog.service';
 import { GeneralSettings } from './general-settings';
 import { EngineSettingsStore } from './engine-settings.store';
@@ -76,17 +76,17 @@ describe('GeneralSettings', () => {
     expect(settings.dateFormat()).toBe('iso');
     el<HTMLInputElement>(fixture, 'input[type=checkbox]').click();
     expect(store.alwaysShowLifecycle()).toBe(false);
-    const overview = TestBed.inject(OverviewPrefs);
-    expect(overview.autoOpen()).toBe(false);
-    el<HTMLInputElement>(fixture, '[data-testid=overview-auto-open]').click();
+    const overview = TestBed.inject(HomePrefs);
     expect(overview.autoOpen()).toBe(true);
-    expect(localStorage.getItem(OVERVIEW_AUTO_OPEN_KEY)).toBe('true');
+    el<HTMLInputElement>(fixture, '[data-testid=home-auto-open]').click();
+    expect(overview.autoOpen()).toBe(false);
+    expect(localStorage.getItem(HOME_AUTO_OPEN_KEY)).toBe('false');
     await settle(fixture);
     expect(all(fixture, '[aria-pressed=true]').map((b) => b.textContent?.trim())).toEqual(['Local', 'ISO']);
     // The look moved to Appearance.
     expect(text(fixture)).not.toContain('Theme');
     expect(text(fixture)).toContain('Always show start/stop markers');
-    expect(text(fixture)).toContain('Overview: show after every import');
+    expect(text(fixture)).toContain('Home: show after every import');
   });
 
   it('resets the layout and says so', async () => {

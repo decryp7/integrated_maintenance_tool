@@ -1,5 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal, ViewEncapsulation } from '@angular/core';
 import { CommandRegistry } from '../extensions/command-registry';
+import { DIALOG_REF } from '../ui/dialog.service';
+import { SettingsDialogService } from '../settings/settings-dialog';
+import { KEYBOARD_ID } from '../settings/keyboard/keyboard.types';
 import { FIXED_KEYS, shortcutGroups } from './shortcuts';
 
 /** Class on `<body>` while the cheat sheet is printed (the print styles below show only the sheet). */
@@ -18,6 +21,7 @@ export const PRINT_CLASS = 'imt-print-cheat-sheet';
     <div class="cs-bar">
       <input class="input cs-search" type="search" aria-label="Search shortcuts" i18n-aria-label="@@help.cheatSheet.search.label" placeholder="Search shortcuts…" i18n-placeholder="@@help.cheatSheet.search.placeholder" [value]="query()" (input)="query.set($any($event.target).value)" />
       <button type="button" class="btn" (click)="print()" i18n="@@help.cheatSheet.print">Print…</button>
+      <button type="button" class="btn" data-testid="cheat-sheet-edit" (click)="edit()" i18n="@@help.cheatSheet.edit">Edit shortcuts…</button>
     </div>
     <p class="cs-count" role="status" i18n="@@help.cheatSheet.count">{count(), plural, =1 {{{ count() }} shortcut} other {{{ count() }} shortcuts}}</p>
     @for (g of groups(); track g.title) {
@@ -58,9 +62,17 @@ export const PRINT_CLASS = 'imt-print-cheat-sheet';
 })
 export class CheatSheet {
   private readonly registry = inject(CommandRegistry);
+  private readonly settings = inject(SettingsDialogService);
+  private readonly ref = inject(DIALOG_REF, { optional: true });
   protected readonly query = signal('');
   protected readonly groups = computed(() => shortcutGroups(this.registry.all(), FIXED_KEYS, this.query()));
   protected readonly count = computed(() => this.groups().reduce((n, g) => n + g.items.length, 0));
+
+  /** Opens Settings ▸ Keyboard shortcuts, where the keys can be changed. */
+  protected edit(): void {
+    this.ref?.close();
+    this.settings.open(KEYBOARD_ID);
+  }
 
   /** Prints only the sheet (the rest of the app is hidden by the print styles while the class is set). */
   protected print(): void {

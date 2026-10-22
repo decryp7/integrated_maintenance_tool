@@ -137,7 +137,7 @@ test.describe('menus', () => {
 
   test('Window ▸ Perspectives ▸ Reset perspective gives the clean default', async ({ page }) => {
     await chooseMenu(page, 'View', 'Analysis', 'Patterns');
-    await chooseMenu(page, 'View', 'Diagnostics', 'Plugin health');
+    await chooseMenu(page, 'View', 'Plugins', 'Manage plugins');
     await chooseMenu(page, 'View', 'Inspector');
     await expect(page.getByRole('tab', { name: 'Patterns' })).toBeVisible();
     await expect(inspectorTab(page)).toHaveCount(0);

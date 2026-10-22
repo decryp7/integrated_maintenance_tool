@@ -12,7 +12,7 @@ async function runCommand(page: Page, title: string): Promise<void> {
 }
 
 test('the redacted view masks the grid until it is turned off', async ({ page }, testInfo) => {
-  await openAppWith(page, '?mockMemoryFeatures=1');
+  await openAppWith(page, '');
   await page.getByTestId('query-field').fill('listening');
   const row = page.locator('imt-events-grid [role=row].row').first();
   await expect(row).toContainText('0.0.0.0');
@@ -41,7 +41,7 @@ test('the redacted view masks the grid until it is turned off', async ({ page },
 });
 
 test('redaction settings preview the profile rules live', async ({ page }, testInfo) => {
-  await openAppWith(page, '?mockMemoryFeatures=1');
+  await openAppWith(page, '');
   await runCommand(page, 'Redaction settings');
   const dialog = page.getByRole('dialog', { name: 'Redaction settings' });
   const preview = dialog.getByTestId('redaction-preview');
@@ -56,7 +56,7 @@ test('redaction settings preview the profile rules live', async ({ page }, testI
 });
 
 test('exports can be redacted with a preview of what is masked', async ({ page }) => {
-  await openAppWith(page, '?mockMemoryFeatures=1');
+  await openAppWith(page, '');
   await page.keyboard.press('ControlOrMeta+Shift+e');
   const dialog = page.getByRole('dialog', { name: 'Export events' });
   await dialog.getByLabel("Redact with the profile's rules").check();

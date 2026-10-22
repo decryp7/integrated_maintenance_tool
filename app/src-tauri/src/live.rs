@@ -3,13 +3,16 @@
 //! commands. The watcher coalesces changes; the store reads what was appended
 //! (`Ingest::append_tail`: new segments, the full-text index follows); this
 //! module wires it to the OS, the owning window and the background task registry.
-//! Live alerts and per-file tail status are not computed over the store yet
-//! (ADR 0014 6c follow-up).
+//! Alerts and the per-file tail status come from the window's [`LiveSession`] over the store's ports; an event held back
+//! at the end of a file (plain text events may continue on the next lines) is written by a follow-up refresh once the
+//! file has been idle for [`HOLD_IDLE`].
 
 use crate::background::{BackgroundTasks, TaskKind, TaskSpec};
 use crate::notify::{notify, NotificationKind};
 use crate::windows::{emit_to_window, CurrentWindow, WindowState, Windows};
-use crate::{CmdError, CmdResult, ErrorCode};
+use crate::{CmdError, CmdResult};
+use imt_core::live::LiveSession;
+use imt_core::ports::HOLD_IDLE;
 use imt_core::workspace::{
     AlertTarget, FileWatcher, LiveTail, StopToken, TailOptions, TailReport, TailStatus, WatchMode, WatchPreference, WatchSettings,
     WatchSignal, WatchSink, WatcherFactory,
@@ -17,6 +20,7 @@ use imt_core::workspace::{
 use notify_debouncer_mini::notify;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
 use tauri::{AppHandle, Manager, Runtime};
@@ -74,6 +78,12 @@ pub(crate) struct LiveState {
 pub(crate) struct LiveSlot {
     running: Mutex<Option<LiveTail>>,
     options: Mutex<Option<LiveOptions>>,
+    /// Alert state, mutes and file rates; outlives stopping and starting live tail.
+    session: Mutex<LiveSession>,
+    /// A refresh left an event held back: ask again once the file is idle.
+    flush_wanted: AtomicBool,
+    /// A follow-up refresh is waiting for the idle time.
+    flush_scheduled: AtomicBool,
 }
 
 impl LiveSlot {
@@ -83,6 +93,10 @@ impl LiveSlot {
 
     fn options(&self) -> std::sync::MutexGuard<'_, Option<LiveOptions>> {
         crate::sync::lock(&self.options)
+    }
+
+    fn session(&self) -> std::sync::MutexGuard<'_, LiveSession> {
+        crate::sync::lock(&self.session)
     }
 
     /// Whether live tail runs and the options in effect (defaults until it was first started).
@@ -259,6 +273,10 @@ pub(crate) fn set<R: Runtime>(app: &AppHandle<R>, state: &Arc<WindowState>, enab
     *state.live.options() = Some(options.clone());
     // The opened roots, as the store remembers them for refresh.
     let store = state.engine.store()?;
+    // Alerts count the events newer than the store's newest one from now on.
+    if let Err(e) = state.live.session().start(&*store) {
+        log::warn!("live alerts could not start: {e}");
+    }
     let saved = store
         .save_project(&imt_core::package::ProjectManifest::default())
         .map_err(CmdError::from)?;
@@ -285,6 +303,9 @@ pub(crate) fn set<R: Runtime>(app: &AppHandle<R>, state: &Arc<WindowState>, enab
             let Some(state) = weak.upgrade() else { return };
             if let Some(report) = apply_unless_stopped(&state, &paths, &batch_stop) {
                 emit_report(&handle, &owner, &report);
+            }
+            if state.live.flush_wanted.load(Ordering::SeqCst) {
+                schedule_flush(&handle, &weak, &owner, &batch_stop);
             }
             release_off_worker(state);
         }),
@@ -359,19 +380,22 @@ fn release_off_worker(state: Arc<WindowState>) {
         .spawn(move || drop(state));
 }
 
-/// Reads what was appended to `paths` (the store writes new segments); a failure is logged and reported as
-/// no change.
+/// Reads what was appended to `paths` (the store writes new segments) and evaluates the live alerts; a failure is
+/// logged and reported as no change.
 pub(crate) fn apply_changes(state: &WindowState, paths: &[PathBuf]) -> TailReport {
-    let appended = state
-        .engine
-        .store()
-        .map_err(|e| e.message)
-        .and_then(|s| s.append_tail(paths).map_err(|e| e.to_string()));
-    match appended {
-        Ok(n) => TailReport {
-            appended: n,
-            ..TailReport::default()
-        },
+    let options = state
+        .live
+        .options()
+        .clone()
+        .unwrap_or_else(|| LiveOptions::default().resolved())
+        .tail;
+    let done = state.engine.store().map_err(|e| e.message).and_then(|store| {
+        let appended = store.append_tail(paths).map_err(|e| e.to_string())?;
+        state.live.flush_wanted.store(!appended.held.is_empty(), Ordering::SeqCst);
+        Ok(state.live.session().after_refresh(&*store, &appended, &options))
+    });
+    match done {
+        Ok(report) => report,
         Err(e) => {
             log::warn!(Files = paths.len() as u64; "Live tail refresh failed: {}", crate::activity::privacy::redact(&e));
             TailReport::default()
@@ -379,13 +403,49 @@ pub(crate) fn apply_changes(state: &WindowState, paths: &[PathBuf]) -> TailRepor
     }
 }
 
+/// After [`HOLD_IDLE`] asks the store again, with no paths, for the events it held back at the end of idle files
+/// (once per wait, however many refreshes asked); repeats while it still holds some. Stops with the session.
+fn schedule_flush<R: Runtime>(app: &AppHandle<R>, state: &Weak<WindowState>, label: &str, stop: &StopToken) {
+    let Some(strong) = state.upgrade() else { return };
+    if strong.live.flush_scheduled.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    drop(strong);
+    let (app, state, label, stop) = (app.clone(), state.clone(), label.to_string(), stop.clone());
+    let spawned = std::thread::Builder::new().name("imt-live-flush".into()).spawn(move || loop {
+        std::thread::sleep(HOLD_IDLE + Duration::from_millis(100));
+        let Some(win) = state.upgrade() else { return };
+        if stop.is_stopped() {
+            win.live.flush_scheduled.store(false, Ordering::SeqCst);
+            return;
+        }
+        if let Some(report) = apply_unless_stopped(&win, &[], &stop) {
+            emit_report(&app, &label, &report);
+        }
+        if !win.live.flush_wanted.load(Ordering::SeqCst) {
+            win.live.flush_scheduled.store(false, Ordering::SeqCst);
+            // A refresh may have asked in between.
+            if !win.live.flush_wanted.load(Ordering::SeqCst) || win.live.flush_scheduled.swap(true, Ordering::SeqCst) {
+                return;
+            }
+        }
+    });
+    if let Err(e) = spawned {
+        log::warn!("could not schedule the follow-up live refresh: {e}");
+    }
+}
+
 /// Per-file live tail state (offset, size, lines/s, rotation...) and totals,
 /// with how each file is watched.
 #[tauri::command]
 pub(crate) async fn tail_status(state: CurrentWindow) -> CmdResult<TailStatus> {
-    // Per-file offsets and rates are not kept by the store yet: the files are listed without them.
-    let _ = state;
-    Ok(TailStatus::default())
+    let win = state.arc().clone();
+    crate::engine::with_store(&state, move |s| {
+        let running = win.live.lock();
+        let mode_of = |p: &Path| running.as_ref().map_or(WatchMode::Off, |l| l.mode_of(p));
+        win.live.session().status(s, mode_of)
+    })
+    .await
 }
 
 /// Whether the calling window's live tail runs, and the options in effect
@@ -400,23 +460,22 @@ pub(crate) async fn live_state(state: CurrentWindow) -> LiveState {
 /// `untilMs` (wall clock, at most a day ahead); they are not raised meanwhile.
 #[tauri::command]
 pub(crate) async fn mute_alerts(state: CurrentWindow, target: AlertTarget, until_ms: i64) -> CmdResult<()> {
-    let _ = (state, target, until_ms);
-    Err(no_alerts())
-}
-
-fn no_alerts() -> CmdError {
-    CmdError::new(ErrorCode::Unsupported, "live alerts are not available with the new log store yet")
+    state
+        .live
+        .session()
+        .mute(target, until_ms)
+        .map_err(|e| CmdError::invalid(e.to_string()))
 }
 
 /// Lifts a mute set with `mute_alerts`.
 #[tauri::command]
 pub(crate) async fn unmute_alerts(state: CurrentWindow, target: AlertTarget) -> CmdResult<()> {
-    let _ = (state, target);
-    Err(no_alerts())
+    state.live.session().unmute(&target);
+    Ok(())
 }
 
-/// Opens files and folders for live tail. (`startAtEnd`, reading only lines written from now on, is not
-/// offered by the store yet: the files open in full.)
+/// Opens files and folders for live tail. With `startAtEnd` only the lines written from now on are read (files that
+/// cannot be followed from the middle, such as archives and JSON documents, are read in full).
 #[tauri::command]
 pub(crate) async fn open_paths_live<R: Runtime>(
     app: AppHandle<R>,
@@ -428,7 +487,7 @@ pub(crate) async fn open_paths_live<R: Runtime>(
         .into_iter()
         .map(|p| p.to_string_lossy().into_owned())
         .collect();
-    let summary = crate::workspace_commands::open_granted(&app, &state, paths.clone()).await?;
+    let summary = crate::workspace_commands::open_granted_at(&app, &state, paths.clone(), start_at_end.unwrap_or(false)).await?;
     log::info!(Sources = summary.sources.len() as u64, StartAtEnd = start_at_end.unwrap_or(false); "Workspace opened for live tail");
     crate::recent::opened_files(&app, &paths);
     Ok(summary)
@@ -521,13 +580,16 @@ mod tests {
             std::thread::sleep(Duration::from_millis(20));
         }
         assert_eq!(block(workspace_summary(st())).unwrap().json()["total"], 2);
-        // Per-file tail status is not kept by the store yet: an empty status, not an error.
-        assert!(block(tail_status(st())).unwrap().files.is_empty());
+        // The store lists the followed file with where it was last read; the session's watcher mode is shown.
+        let status = block(tail_status(st())).unwrap();
+        assert_eq!(status.files.len(), 1);
+        assert_eq!((status.files[0].name.as_str(), status.totals.files), ("a.log", 1));
+        assert!(status.files[0].size > 0 && status.files[0].offset <= status.files[0].size);
         assert_eq!(block(set_live(app.handle().clone(), st(), false, None)).unwrap(), 0);
         assert!(!st().live.is_running());
         assert!(app.state::<BackgroundTasks>().list().is_empty());
 
-        // Opening for live tail opens the files (start-at-end is not offered by the store yet).
+        // Opening for live tail at the end reads nothing of what is there; the file is followed from now on.
         let other = TempDir::new("live-end");
         std::fs::write(other.0.join("b.log"), "2026-10-14 10:00:00 INFO old\n").unwrap();
         crate::paths::allow_under(app.handle(), st().label(), &other.0);
@@ -539,8 +601,19 @@ mod tests {
         ))
         .unwrap()
         .json();
-        assert_eq!(summary["total"], 3);
-        // A broken refresh is reported as no change.
+        assert_eq!(summary["total"], 2, "the old line of b.log was not read");
+        assert_eq!(summary["sources"].as_array().unwrap().len(), 2);
+        let b = other.0.join("b.log");
+        std::fs::write(&b, "2026-10-14 10:00:00 INFO old\n2026-10-14 10:00:05 ERROR new\n").unwrap();
+        let report = apply_changes(&st(), std::slice::from_ref(&b));
+        assert_eq!(report.appended, 0, "the last line is held back until the file is idle: {report:?}");
+        assert!(st().live.flush_wanted.load(Ordering::SeqCst));
+        std::thread::sleep(HOLD_IDLE + Duration::from_millis(200));
+        let report = apply_changes(&st(), &[]);
+        assert_eq!(report.appended, 1, "{report:?}");
+        assert!(!st().live.flush_wanted.load(Ordering::SeqCst));
+        assert_eq!(crate::test_support::store_summary(&st()).total, 3);
+        // A refresh that changes nothing is reported as no change.
         assert!(apply_changes(&st(), &[]).is_empty());
     }
 
@@ -674,15 +747,27 @@ mod tests {
         assert!(!live_state(st()).now().enabled);
     }
 
-    /// Live alerts are not computed over the store yet: muting says so instead of failing silently.
+    /// Mutes belong to the window's live session: they validate like the engine's, and unmuting lifts them.
     #[test]
     fn mute_and_unmute_alerts() {
         let app = test_app(None);
         let st = || main_window(&app);
         let rule = AlertTarget::Rule("payment errors".into());
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64;
         let e = block(mute_alerts(st(), rule.clone(), 0)).unwrap_err();
-        assert_eq!(e.code, crate::ErrorCode::Unsupported);
-        assert_eq!(block(unmute_alerts(st(), rule)).unwrap_err().code, crate::ErrorCode::Unsupported);
+        assert_eq!(e.code, crate::ErrorCode::Invalid);
+        assert!(e.message.contains("future"), "{}", e.message);
+        let e = block(mute_alerts(st(), rule.clone(), now + 3 * 24 * 3_600_000)).unwrap_err();
+        assert!(e.message.contains("24 hours"), "{}", e.message);
+        block(mute_alerts(st(), rule.clone(), now + 60_000)).unwrap();
+        assert!(
+            st().live.session().mute(rule.clone(), now + 120_000).is_ok(),
+            "a second mute replaces the first"
+        );
+        block(unmute_alerts(st(), rule)).unwrap();
         // The wire format names exactly one target.
         assert!(serde_json::from_value::<AlertTarget>(serde_json::json!({ "kind": "crash" })).is_ok());
         assert!(serde_json::from_value::<AlertTarget>(serde_json::json!({ "kind": "crash", "rule": "x" })).is_err());

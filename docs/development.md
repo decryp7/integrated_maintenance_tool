@@ -287,6 +287,19 @@ says so. There are no memory rlimits: they count address space that allocators r
   dynamically before bootstrapping outside Tauri, so the desktop app never loads mock code. Never import a mock
   backend statically from app code.
 
+### Error snapshot capture
+
+The picture in an error snapshot is taken by the platform webview, not drawn by the page (ADR 0034,
+`app/src-tauri/src/window_capture/`): WebView2 `CapturePreview` on Windows, `WKWebView takeSnapshot` on macOS,
+WebKitGTK `get_snapshot` on Linux. The platform callback only copies bytes (macOS: an uncompressed BMP); decoding,
+scaling and PNG/JPEG encoding run on a blocking worker (`window_capture::bound`, unit-tested on every OS) and the
+result is at most 1600 px wide (on macOS at most the window's width in points, so a Retina capture is stored at
+logical size) and 3 MiB. Any failure (unsupported platform, the webview refusing, the 10 s timeout, undecodable or
+oversized data) saves the snapshot with a placeholder picture and "No screenshot: …". On macOS WebKit draws nothing
+for a window that is not on screen (minimised, covered, on another desktop), so such a window gets no picture. The platform halves need the
+real webview, so check them by hand on each OS: Tray → *Capture diagnostic screenshot*, then *Tools → Show error
+snapshots* (manual test 24 in [testing-manual.md](testing-manual.md)).
+
 ## CI/CD
 
 Gitea Actions workflows live in [`.gitea/workflows/`](../.gitea/workflows/):

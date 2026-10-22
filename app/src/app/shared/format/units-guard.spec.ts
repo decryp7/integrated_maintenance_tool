@@ -14,7 +14,9 @@ const SRC = 'src/app';
 const QUANTITY = /(?:bytes|size|ms|millis|count|total|done|percent|pct|rate|duration|elapsed|offset|etaMs|etaSecs|events|lines|rows|files|items|samples|instances)$/i;
 
 /** `file:expression` -> why printing it as is is right. */
-const ALLOWED = new Map<string, string>([]);
+const ALLOWED = new Map<string, string>([
+  ['ai/proposals/parser-verdict.ts:v.zone.offset', 'a UTC offset the engine formats (e.g. +09:00), not a quantity'],
+]);
 
 interface Hit {
   file: string;

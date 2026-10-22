@@ -45,20 +45,25 @@ pub fn is_within(dir: &Path, roots: &[PathBuf]) -> bool {
         .any(|r| !r.is_empty() && (d == r || d.starts_with(&format!("{r}\\"))))
 }
 
+/// The folder (below `<data dir>/captures`) native captures are written to.
+pub const CAPTURE_FOLDER: &str = "native";
+
 /// The folder captures are written to: `<data dir>/captures/native` (created).
 pub fn capture_dir(data_dir: Option<&Path>) -> Result<PathBuf, NativeError> {
     let dir = data_dir
         .ok_or_else(|| NativeError::Unsupported("IMT has no data folder to write captures to".into()))?
         .join("captures")
-        .join("native");
+        .join(CAPTURE_FOLDER);
     std::fs::create_dir_all(&dir)?;
     Ok(dir)
 }
 
-/// The capture folder of the elevated process: the host's data folder only when it is inside the user's own
-/// `%APPDATA%` or `%LOCALAPPDATA%` (as the elevated token sees them); anything else is refused.
-pub fn elevated_capture_dir(data_dir: Option<&Path>) -> Result<PathBuf, NativeError> {
-    let data = data_dir.ok_or_else(|| NativeError::Unsupported("IMT has no data folder to write captures to".into()))?;
+/// The data folder the elevated process may write into (its symbol cache): the host's data folder only when it is
+/// inside the user's own `%APPDATA%` or `%LOCALAPPDATA%` (as the elevated token sees them); anything else is
+/// refused. Captures are not written there: the elevated process streams them to the host
+/// ([`imt_plugin_api::output`]), which saves them where it chose.
+pub fn elevated_data_dir(data_dir: Option<&Path>) -> Result<PathBuf, NativeError> {
+    let data = data_dir.ok_or_else(|| NativeError::Unsupported("IMT has no data folder for the symbol cache".into()))?;
     let roots = user_data_roots();
     let canonical = data.canonicalize().unwrap_or_else(|_| data.to_path_buf());
     if !is_within(&canonical, &roots) {
@@ -67,7 +72,7 @@ pub fn elevated_capture_dir(data_dir: Option<&Path>) -> Result<PathBuf, NativeEr
             data.display()
         )));
     }
-    capture_dir(Some(&canonical))
+    Ok(canonical)
 }
 
 /// The user's application-data folders (`%APPDATA%`, `%LOCALAPPDATA%`), as this process's token resolves them.
@@ -158,8 +163,8 @@ mod tests {
         assert!(!is_within(Path::new(r"C:\Users\me\AppData\Roaming2"), &roots));
         assert!(!is_within(Path::new(r"C:\Users\me\AppData\Roaming\..\..\x"), &roots));
         assert!(!is_within(Path::new(r"C:\x"), &[]));
-        assert!(elevated_capture_dir(None).is_err());
-        assert!(elevated_capture_dir(Some(Path::new(r"C:\Windows\Temp\imt"))).is_err());
+        assert!(elevated_data_dir(None).is_err());
+        assert!(elevated_data_dir(Some(Path::new(r"C:\Windows\Temp\imt"))).is_err());
         let tmp = tempfile::tempdir().unwrap();
         let d = capture_dir(Some(tmp.path())).unwrap();
         assert!(d.ends_with(Path::new("captures").join("native")) && d.is_dir());

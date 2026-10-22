@@ -8,6 +8,7 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { Icon } from '../shared/icon';
 import { FieldsPanel } from '../workspace/fields-panel';
 import { groupSources } from '../live/source-groups';
+import { explorerRows, splitMiddle } from './explorer-names';
 import { NotableState, stateHint, stateLabel, TailStatusStore } from '../live/tail-status.store';
 import { ContextMenuService } from '../ui/context-menu.service';
 import { ClockDialogService } from '../skew/clock-section';
@@ -65,9 +66,13 @@ function shortPath(path: string): string {
 
     <div class="sources" role="region" aria-label="Opened files" i18n-aria-label="@@shell.sidebar.openedFiles" [title]="readOnly" aria-describedby="imt-sources-read-only">
       <span id="imt-sources-read-only" class="sr">{{ readOnly }}</span>
-      @for (item of items(); track item.kind === 'file' ? 'f' + item.source.id : 'g' + item.group.key) {
+      @for (row of layout().rows; track row.item.kind === 'file' ? 'f' + row.item.source.id : 'g' + row.item.group.key) {
+        @let item = row.item;
+        @if (row.heading; as h) {
+          <div class="folder-head" data-testid="folder-heading" [title]="h.path"><imt-icon name="folder" [size]="12" /><span class="ellipsis">{{ h.label }}</span></div>
+        }
         @if (item.kind === 'file') {
-          <ng-container *ngTemplateOutlet="file; context: { $implicit: item.source, member: false }" />
+          <ng-container *ngTemplateOutlet="file; context: { $implicit: item.source, member: false, nameOnly: layout().byFolder }" />
         } @else {
           @let g = item.group;
           <div class="src group" [title]="g.split ? splitTitle(g.label, g.sources.length) : groupTitle(g.key, g.sources.length, g.newest.name)">
@@ -97,7 +102,7 @@ function shortPath(path: string): string {
           } @else {
             <div role="group" [attr.aria-label]="filesOf(g.label)">
               @for (s of g.sources; track s.id) {
-                <ng-container *ngTemplateOutlet="file; context: { $implicit: s, member: true }" />
+                <ng-container *ngTemplateOutlet="file; context: { $implicit: s, member: true, nameOnly: true }" />
               }
             </div>
           }
@@ -130,14 +135,15 @@ function shortPath(path: string): string {
       <imt-fields-panel />
     }
 
-    <ng-template #file let-s let-member="member">
+    <ng-template #file let-s let-member="member" let-nameOnly="nameOnly">
       <div class="src" [class.member]="member" [title]="sourceTitle(s)" (contextmenu)="sourceMenu($event, s)">
         @if (colors.forExplorer(s); as m) {
           <imt-source-swatch [swatch]="m.swatch" [label]="m.label" [size]="12" />
         } @else {
           <imt-icon name="file" [size]="13" class="faint" />
         }
-        <span class="ellipsis name">{{ member ? s.name : short(s.path) }}</span>
+        @let nm = splitName(member || nameOnly ? s.name : short(s.path));
+        <span class="name" [title]="s.path"><span class="head">{{ nm.head }}</span><span class="tail">{{ nm.tail }}</span></span>
         @if (notable(s.id); as st) {
           <span class="state" [class]="'state ' + st.kind" [title]="hint(st)" [attr.aria-label]="label(st) + ': ' + hint(st)" role="img">{{ label(st) }}</span>
         }
@@ -148,7 +154,7 @@ function shortPath(path: string): string {
         @if (notes.bySource().get(s.path); as n) {
           <span class="notes-badge" data-testid="source-notes-badge" role="img" [title]="notesLabel(n)" [attr.aria-label]="notesLabel(n)"><imt-icon name="note" [size]="11" />{{ n }}</span>
         }
-        <span class="badge">{{ s.importer }}</span>
+        <span class="format" data-testid="format-badge" role="img" [title]="s.importer" [attr.aria-label]="formatLabel(s.importer)"><imt-icon [name]="formatIcon(s.importer)" [size]="12" /></span>
         <span class="mono count">{{ compact(s.records) }}</span>
         <button class="icon-btn rm" aria-haspopup="menu" data-testid="source-actions" [attr.aria-label]="actionsLabel(s.name)" [attr.title]="actionsLabel(s.name)" (click)="sourceMenu($event, s)"><imt-icon name="drag" [size]="12" /></button>
         <button class="icon-btn rm" [attr.aria-label]="adjustClockLabel(s.name)" [attr.title]="adjustClockTitle(s.name)" (click)="adjustClock(s)"><imt-icon name="timeline" [size]="12" /></button>
@@ -168,7 +174,12 @@ function shortPath(path: string): string {
     .src { display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 2px 0 6px; border-radius: 5px; color: var(--text-2); }
     .src:hover { background: var(--bg-hover); }
     /* Truncates with an ellipsis but never collapses to nothing next to the badge, count and row buttons. */
-    .src .name { flex: 1; min-width: 6ch; }
+    .src .name { flex: 1; min-width: 6ch; display: flex; }
+    .src .name .head { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .src .name .tail { flex: none; white-space: pre; }
+    .src .format { flex: none; display: inline-flex; color: var(--faint); }
+    .folder-head { display: flex; align-items: center; gap: 6px; height: 22px; padding: 0 6px; margin-top: 4px; font-size: var(--fs-xs); color: var(--muted); font-weight: 600; }
+    .group .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .src .count { font-size: var(--fs-xs); color: var(--faint); width: 38px; text-align: end; }
     .src .rm { width: 20px; height: 20px; visibility: hidden; }
     .src:hover .rm, .src .rm:focus-visible { visibility: visible; }
@@ -210,8 +221,20 @@ export class Sidebar {
   protected readonly sources = computed(() => this.store.summary()?.sources ?? []);
   /** Sources with rolling files of one log collapsed into expandable groups. */
   protected readonly items = computed(() => groupSources(this.sources()));
+  /** The items in display order, with a folder heading before each folder when several are open (H2). */
+  protected readonly layout = computed(() => explorerRows(this.items()));
+  protected readonly splitName = splitMiddle;
   private readonly expanded = signal<ReadonlySet<string>>(new Set());
   protected readonly unrecognized = computed(() => this.store.summary()?.unrecognized ?? []);
+
+  /** The importer's id as the small icon in a row: logs are files, a registry is a table, others are files too. */
+  protected formatIcon(importer: string): 'file' | 'columns' {
+    return /csv|tsv|registry|table/i.test(importer) ? 'columns' : 'file';
+  }
+
+  protected formatLabel(importer: string): string {
+    return $localize`:@@shell.sidebar.format:Format: ${importer}:format:`;
+  }
 
   protected sourceTitle(s: SourceInfo): string {
     const tz = this.store.timezone();

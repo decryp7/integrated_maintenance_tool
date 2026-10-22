@@ -22,8 +22,10 @@
 //! command returns the new ids of the records the caller tracks. The original
 //! timestamp is `ts - offset`; page rows carry the offset as `skewMs`.
 
+mod store;
 mod types;
 
+pub use store::{suggest_over, MAX_SCAN};
 pub use types::*;
 
 use serde::{Deserialize, Serialize};

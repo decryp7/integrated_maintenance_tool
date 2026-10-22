@@ -211,7 +211,7 @@ impl Worker {
                 let filter: Filter = body(filter.0)?;
                 let s = self.store(store)?;
                 let mut failed: Option<StoreError> = None;
-                controlled(probe, || {
+                cancellable(probe, || {
                     s.scan(
                         &filter,
                         &mut |batch| match imt_store_client::arrow_wire::encode(batch, protocol::MAX_MESSAGE_BYTES - 4096) {
@@ -235,16 +235,23 @@ impl Worker {
                     None => reply(&()),
                 }
             }
-            StoreRequest::Call { store, op, body: b } => self.call(store, op, b.0, probe),
+            StoreRequest::Call { store, op, body: b } => self.call(store, op, b.0, probe, items),
         }
     }
 
-    fn call(&self, h: u64, op: StoreOp, b: serde_json::Value, probe: Option<CancelProbe>) -> StoreResult<serde_json::Value> {
+    fn call(
+        &self,
+        h: u64,
+        op: StoreOp,
+        b: serde_json::Value,
+        probe: Option<CancelProbe>,
+        items: &mut dyn FnMut(Vec<u8>) -> bool,
+    ) -> StoreResult<serde_json::Value> {
         let s = self.store(h)?;
-        // A cancellable operation: the caller's cancel interrupts its statements.
+        // A cancellable operation: the caller's cancel interrupts its statements; its progress streams meanwhile.
         macro_rules! run {
             ($e:expr) => {
-                reply(&controlled(probe, || $e)?)
+                reply(&controlled(probe, items, || $e)?)
             };
         }
         match op {
@@ -295,7 +302,7 @@ impl Worker {
                 let req = body(b)?;
                 let control = QueryControl::new();
                 let _watch = probe.map(|p| Watch::start(p, control.clone()));
-                reply(&s.run_query_with(&req, &control)?)
+                reply(&with_progress(&control, items, || s.run_query_with(&req, &control))?)
             }
             StoreOp::CheckQuery => reply(&s.check_query(&body::<String>(b)?)?),
             StoreOp::CompleteQuery => reply(&s.complete_query(&body(b)?)?),
@@ -361,6 +368,19 @@ impl Worker {
             StoreOp::SqlSchema => reply(&s.sql_schema()?),
             StoreOp::SqlRun => run!(s.sql_run(&body(b)?)),
             StoreOp::SqlPage => reply(&s.sql_page(&body(b)?)?),
+            StoreOp::SqlIds => reply(&s.sql_ids(&body(b)?)?),
+            StoreOp::SqlExport => run!(s.sql_export(&body(b)?)),
+            StoreOp::RedactionSummary => run!(imt_core::ports::Redaction::redaction_summary(&s, &body(b)?)),
+            StoreOp::ClockOffsets => reply(&imt_core::ports::Skew::clock_offsets(&s)?),
+            StoreOp::SetClockOffsets => reply(&imt_core::ports::Skew::set_clock_offsets(&s, &body(b)?)?),
+            StoreOp::SetSourceOffset => reply(&imt_core::ports::Skew::set_source_offset(&s, &body(b)?)?),
+            StoreOp::SuggestOffsets => run!(imt_core::ports::Skew::suggest_offsets(&s, &body(b)?)),
+            StoreOp::TailFiles => reply(&imt_core::ports::Tail::tail_files(&s)?),
+            StoreOp::OpenAtEnd => {
+                let p: Paths = body(b)?;
+                let session = imt_core::ports::Tail::open_at_end(&s, &p.paths)?;
+                reply(&self.session(session))
+            }
             StoreOp::SaveProject => reply(&Projects::save_project(&s, &body::<ProjectManifest>(b)?)?),
             StoreOp::ExportProject => {
                 let r: ExportProject = body(b)?;
@@ -370,8 +390,9 @@ impl Worker {
     }
 }
 
-/// Runs `f` under a control that the caller's cancel triggers (when there is a probe).
-fn controlled<R>(probe: Option<CancelProbe>, f: impl FnOnce() -> StoreResult<R>) -> StoreResult<R> {
+/// Runs `f` under a control that the caller's cancel triggers (when there is a probe). A scan streams its own
+/// items, so it reports no progress.
+fn cancellable<R>(probe: Option<CancelProbe>, f: impl FnOnce() -> StoreResult<R>) -> StoreResult<R> {
     match probe {
         None => f(),
         Some(p) => {
@@ -380,6 +401,65 @@ fn controlled<R>(probe: Option<CancelProbe>, f: impl FnOnce() -> StoreResult<R>)
             DuckStore::with_control(&control, f)
         }
     }
+}
+
+/// Runs `f` under a control that the caller's cancel triggers (when there is a probe), sending its progress to
+/// `items` meanwhile.
+fn controlled<R: Send>(
+    probe: Option<CancelProbe>,
+    items: &mut dyn FnMut(Vec<u8>) -> bool,
+    f: impl FnOnce() -> StoreResult<R> + Send,
+) -> StoreResult<R> {
+    match probe {
+        None => f(),
+        Some(p) => {
+            let control = QueryControl::new();
+            let _watch = Watch::start(p, control.clone());
+            with_progress(&control, items, || DuckStore::with_control(&control, f))
+        }
+    }
+}
+
+/// Runs `f` on its own thread while this one sends `control`'s progress to `items` every
+/// [`protocol::PROGRESS_EVERY`] when it changed (the caller's stream; a refused item ends the sending, not the
+/// run). A panic in `f` is an engine error of the call.
+fn with_progress<R: Send>(
+    control: &QueryControl,
+    items: &mut dyn FnMut(Vec<u8>) -> bool,
+    f: impl FnOnce() -> StoreResult<R> + Send,
+) -> StoreResult<R> {
+    std::thread::scope(|scope| {
+        let (done, finished) = std::sync::mpsc::channel::<()>();
+        let run = std::thread::Builder::new()
+            .name("imt-store-call".into())
+            .spawn_scoped(scope, move || {
+                let out = f();
+                let _ = done.send(());
+                out
+            })
+            .map_err(|e| StoreError::Engine(format!("cannot start the call: {e}")))?;
+        let mut last = None;
+        let mut sending = true;
+        while let Err(std::sync::mpsc::RecvTimeoutError::Timeout) = finished.recv_timeout(protocol::PROGRESS_EVERY) {
+            let now = control.progress();
+            if sending && last != Some(now) {
+                last = Some(now);
+                sending = match imt_ipc::wire::encode(&now) {
+                    Ok(bytes) => items(bytes),
+                    Err(e) => {
+                        log::warn!("cannot encode the progress: {e}");
+                        false
+                    }
+                };
+            }
+        }
+        run.join().unwrap_or_else(|p| {
+            Err(StoreError::Engine(format!(
+                "the store worker hit an internal error: {}",
+                imt_core::guard::panic_message(p.as_ref())
+            )))
+        })
+    })
 }
 
 /// Cancels a control when the caller cancels the call; stops when dropped.
@@ -547,6 +627,77 @@ mod tests {
         );
         let status: WorkerStatus = serde_json::from_value(w.handle(StoreRequest::Status, None, &mut none).unwrap()).unwrap();
         assert_eq!(status.tuning, tuning);
+    }
+
+    #[test]
+    fn a_long_call_streams_its_changed_progress_and_a_panic_is_an_engine_error() {
+        use imt_core::ql::{QueryProgress, QueryStage};
+        let control = QueryControl::new();
+        let mut sent: Vec<QueryProgress> = Vec::new();
+        let c = control.clone();
+        let reply = with_progress(
+            &control,
+            &mut |bytes| {
+                sent.push(imt_ipc::wire::decode(&bytes).unwrap());
+                true
+            },
+            move || {
+                c.begin(QueryStage::Evaluating, 100);
+                c.advance(40);
+                std::thread::sleep(protocol::PROGRESS_EVERY * 3);
+                Ok(7)
+            },
+        )
+        .unwrap();
+        assert_eq!(reply, 7);
+        assert!(!sent.is_empty(), "progress reached the caller while the call ran");
+        assert_eq!(
+            sent[0],
+            QueryProgress {
+                stage: QueryStage::Evaluating,
+                done: 40,
+                total: 100
+            }
+        );
+        assert!(sent.windows(2).all(|w| w[0] != w[1]), "only changes are sent");
+
+        // The caller refusing an item (it is gone) stops the sending, not the call.
+        let control = QueryControl::new();
+        let c = control.clone();
+        let mut refused = 0;
+        let reply = with_progress(
+            &control,
+            &mut |_| {
+                refused += 1;
+                false
+            },
+            move || {
+                c.advance(1);
+                std::thread::sleep(protocol::PROGRESS_EVERY * 3);
+                Ok(1)
+            },
+        );
+        assert_eq!((reply.unwrap(), refused), (1, 1));
+
+        // A panic inside the call is an engine error of that call; the worker lives on.
+        let control = QueryControl::new();
+        let err = with_progress::<()>(&control, &mut none, || panic!("query exploded")).unwrap_err();
+        assert!(matches!(&err, StoreError::Engine(m) if m.contains("query exploded")), "{err}");
+    }
+
+    #[test]
+    fn a_cancel_reaches_a_running_call() {
+        let control = QueryControl::new();
+        control.cancel();
+        let c = control.clone();
+        let reply = with_progress(&control, &mut none, move || {
+            if c.is_cancelled() {
+                Err(StoreError::Cancelled)
+            } else {
+                Ok(())
+            }
+        });
+        assert_eq!(reply.unwrap_err(), StoreError::Cancelled);
     }
 
     #[test]

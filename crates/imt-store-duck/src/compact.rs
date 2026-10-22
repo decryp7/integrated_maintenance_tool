@@ -85,7 +85,7 @@ pub(crate) fn empty_trash(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn delete_or_trash(conn: &Connection, path: &Path) -> Result<()> {
+pub(crate) fn delete_or_trash(conn: &Connection, path: &Path) -> Result<()> {
     if std::fs::remove_file(path).is_err() && path.exists() {
         conn.execute("INSERT OR IGNORE INTO trash VALUES (?)", params![path.to_string_lossy()])?;
     }

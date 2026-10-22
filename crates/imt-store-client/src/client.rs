@@ -26,8 +26,9 @@ use imt_core::patterns::Pattern;
 use imt_core::ports::{
     Analysis, Analyzed, Console, DiagnosticRow, Diagnostics, EventView, EventsRequest, Filter, FixEvaluation, ImportSession, IndexStatus,
     Ingest, Inspect, Maintain, MaintenanceAction, MaintenanceReport, PageQuery, PageReply, Positions, Profiles, Projects, Query, QuickFix,
-    Search, SearchReply, SearchRequest, SegmentsPage, SegmentsRequest, SqlPage, SqlPageRequest, SqlRequest, SqlResult, SqlSchema,
-    StoreError, StoreFields, StoreIndex, StoreMemory, StoreOverview, StoreResult, SummaryReply,
+    Search, SearchReply, SearchRequest, SegmentsPage, SegmentsRequest, SqlExportRequest, SqlExportResult, SqlIds, SqlIdsRequest, SqlPage,
+    SqlPageRequest, SqlRequest, SqlResult, SqlSchema, StoreError, StoreFields, StoreIndex, StoreMemory, StoreOverview, StoreResult,
+    SummaryReply,
 };
 use imt_core::ql::{Completion, QlError, QlResult, QueryControl};
 use imt_core::spans::infer::{SpanEvaluation, SpanProposal, SpanRuleCheck, SpanRuleRequest};
@@ -516,8 +517,9 @@ impl RemoteStore {
         self.call_with(op, body, CALL_TIMEOUT)
     }
 
-    /// A long call that `control` can cancel: it runs as a stream (no items), so a cancel reaches the worker,
-    /// which interrupts the statement; the call then fails with [`StoreError::Cancelled`].
+    /// A long call that `control` can cancel: it runs as a stream, so a cancel reaches the worker, which interrupts
+    /// the statement; the call then fails with [`StoreError::Cancelled`]. The stream's items are the worker's
+    /// progress ([`protocol::PROGRESS_EVERY`]), taken over by `control`.
     fn call_controlled<T: DeserializeOwned>(&self, op: StoreOp, body: &impl Serialize, control: &QueryControl) -> StoreResult<T> {
         control.check().map_err(|_| StoreError::Cancelled)?;
         let body = encode(body)?;
@@ -553,9 +555,16 @@ impl RemoteStore {
                 }
                 match stream.next(Some(POLL)).map_err(|e| ipc_error(died(&lease.conn, e)))? {
                     StreamEvent::Idle => continue,
-                    StreamEvent::Item(_) => {
-                        return Err(StoreError::Engine(format!("the store worker streamed items for {}", op.name())));
-                    }
+                    // The worker's progress, relayed to the control (the app samples it for the UI).
+                    StreamEvent::Item(bytes) => match imt_ipc::wire::decode::<imt_core::ql::QueryProgress>(&bytes) {
+                        Ok(p) => control.report(p),
+                        Err(e) => {
+                            return Err(StoreError::Engine(format!(
+                                "the store worker sent an invalid progress for {}: {e}",
+                                op.name()
+                            )));
+                        }
+                    },
                     StreamEvent::Done(bytes) => {
                         let json: Json = imt_ipc::wire::decode(&bytes)
                             .map_err(|e| StoreError::Engine(format!("the store worker sent an invalid reply: {e}")))?;
@@ -657,7 +666,7 @@ impl Ingest for RemoteStore {
         let s = self.call(StoreOp::Restore, state)?;
         self.session(s)
     }
-    fn append_tail(&self, changed: &[PathBuf]) -> StoreResult<usize> {
+    fn append_tail(&self, changed: &[PathBuf]) -> StoreResult<imt_core::ports::TailAppend> {
         self.call_with(StoreOp::AppendTail, &Paths { paths: changed.to_vec() }, LONG_TIMEOUT)
     }
 }
@@ -872,6 +881,38 @@ impl Inspect for RemoteStore {
     }
 }
 
+impl imt_core::ports::Skew for RemoteStore {
+    fn clock_offsets(&self) -> StoreResult<imt_core::skew::ClockOffsets> {
+        self.call(StoreOp::ClockOffsets, &())
+    }
+    /// Moves the events of every file whose offset changes: a long call.
+    fn set_clock_offsets(&self, offsets: &imt_core::skew::ClockOffsets) -> StoreResult<()> {
+        self.call_with(StoreOp::SetClockOffsets, offsets, LONG_TIMEOUT)
+    }
+    fn set_source_offset(&self, req: &imt_core::skew::SetOffsetRequest) -> StoreResult<imt_core::skew::OffsetChange> {
+        self.call_with(StoreOp::SetSourceOffset, req, LONG_TIMEOUT)
+    }
+    fn suggest_offsets(&self, req: &imt_core::skew::SuggestRequest) -> StoreResult<imt_core::skew::SuggestResult> {
+        self.analysis(StoreOp::SuggestOffsets, req)
+    }
+}
+
+impl imt_core::ports::Tail for RemoteStore {
+    fn tail_files(&self) -> StoreResult<Vec<imt_core::ports::TailFile>> {
+        self.call(StoreOp::TailFiles, &())
+    }
+    fn open_at_end(&self, paths: &[PathBuf]) -> StoreResult<ImportSession> {
+        let s = self.call(StoreOp::OpenAtEnd, &Paths { paths: paths.to_vec() })?;
+        self.session(s)
+    }
+}
+
+impl imt_core::ports::Redaction for RemoteStore {
+    fn redaction_summary(&self, req: &imt_core::redact::RedactionSummaryRequest) -> StoreResult<imt_core::redact::RedactionSummary> {
+        self.analysis(StoreOp::RedactionSummary, req)
+    }
+}
+
 impl Maintain for RemoteStore {
     /// Compaction rewrites segments: a long call.
     fn maintain(&self, action: MaintenanceAction) -> StoreResult<MaintenanceReport> {
@@ -889,6 +930,13 @@ impl Console for RemoteStore {
     }
     fn sql_page(&self, req: &SqlPageRequest) -> StoreResult<SqlPage> {
         self.call(StoreOp::SqlPage, req)
+    }
+    fn sql_ids(&self, req: &SqlIdsRequest) -> StoreResult<SqlIds> {
+        self.call(StoreOp::SqlIds, req)
+    }
+    /// Cancellable through the thread's current control (the worker interrupts the statement).
+    fn sql_export(&self, req: &SqlExportRequest) -> StoreResult<SqlExportResult> {
+        self.analysis(StoreOp::SqlExport, req)
     }
 }
 

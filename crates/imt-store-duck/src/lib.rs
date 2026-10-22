@@ -22,11 +22,14 @@ mod project;
 pub mod promote;
 mod qlang;
 mod read;
+mod redaction;
 mod schema;
 pub mod segments;
+mod skew;
 mod spans;
 mod sql;
 pub mod stats;
+mod tail;
 mod writer;
 
 pub use compact::Compaction;
@@ -38,7 +41,9 @@ use imt_core::api::{UnrecognizedFile, WorkspaceState};
 use imt_core::batch::{EventId, EventSchema, SourceId};
 use imt_core::ingest::{self, ImportEnv, Outcome, ParallelOptions};
 use imt_core::parser::{ParserSet, ParserSetup};
-use imt_core::ports::{ImportReport, ImportSession, IndexStatus, Ingest, Search, SearchReply, SearchRequest, StoreError, StoreResult};
+use imt_core::ports::{
+    ImportReport, ImportSession, IndexStatus, Ingest, Search, SearchReply, SearchRequest, StoreError, StoreResult, TailAppend,
+};
 use imt_core::profile::{CompiledProfile, Profile};
 use imt_core::workspace::{ImportProgress, NOT_IMPORTED};
 use imt_core::PluginRegistry;
@@ -208,9 +213,15 @@ pub(crate) struct Inner {
     options: RwLock<StoreOptions>,
     pub(crate) progress: Arc<ImportProgress>,
     pub(crate) derived: Mutex<Option<(u64, Arc<read::Derived>)>>,
+    /// Analyses being computed now, by kind and query: a second identical request waits for the first and reads its
+    /// cached result instead of computing the same thing again (Home, the health check and the headline ask together).
+    pub(crate) flights: Mutex<std::collections::HashMap<String, Arc<Mutex<()>>>>,
     /// From this many events on, timelines use the pre-aggregated histogram (approximate at bucket edges)
     /// instead of grouping the events.
     pub(crate) preaggregate_above: AtomicU64,
+    /// When live tail last read each followed file (a file whose last event is held back is flushed once it has not
+    /// grown for [`imt_core::ports::HOLD_IDLE`]).
+    pub(crate) tail_read_at: Mutex<std::collections::HashMap<u32, std::time::Instant>>,
 }
 
 /// A connection borrowed from the pool, returned on drop.
@@ -337,7 +348,7 @@ impl Inner {
         let _writing = lock(&self.write_lock);
         let files = writer::segment_files(&conn, &self.dir).map_err(|e| engine(format!("{e:#}")))?;
         conn.execute_batch(
-            "BEGIN TRANSACTION; DELETE FROM segments; DELETE FROM segment_fields; DELETE FROM histogram; DELETE FROM ord; DELETE FROM diagnostics; DELETE FROM sources; COMMIT;",
+            "BEGIN TRANSACTION; DELETE FROM segments; DELETE FROM segment_fields; DELETE FROM histogram; DELETE FROM ord; DELETE FROM diagnostics; DELETE FROM tail_offsets; DELETE FROM sources; COMMIT;",
         )
         .map_err(engine)?;
         writer::refresh_view(&conn, &self.dir, &self.schema).map_err(|e| engine(format!("{e:#}")))?;
@@ -576,6 +587,7 @@ impl DuckStore {
         // Added after the format was first written; created on open so older stores gain it.
         conn.execute_batch(schema::CACHE_DDL).map_err(engine)?;
         conn.execute_batch(lanes::DDL).map_err(engine)?;
+        conn.execute_batch(schema::ADDED_DDL).map_err(engine)?;
         Ok(Self::with(dir, conn, schema, parsers, registry, opts))
     }
 
@@ -639,7 +651,9 @@ impl DuckStore {
                 options: RwLock::new(opts),
                 progress: Arc::new(ImportProgress::default()),
                 derived: Mutex::new(None),
+                flights: Mutex::new(std::collections::HashMap::new()),
                 preaggregate_above: AtomicU64::new(PREAGGREGATE_ABOVE),
+                tail_read_at: Mutex::new(std::collections::HashMap::new()),
             }),
         }
     }
@@ -716,9 +730,6 @@ impl DuckStore {
     }
 }
 
-/// How long live tail waits for a running import before it gives up for this change.
-const TAIL_WAIT: std::time::Duration = std::time::Duration::from_secs(30);
-
 impl Ingest for DuckStore {
     fn open(&self, paths: &[PathBuf]) -> StoreResult<ImportSession> {
         if self.inner.importing.swap(true, Ordering::SeqCst) {
@@ -783,7 +794,7 @@ impl Ingest for DuckStore {
             if !gone.is_empty() {
                 let list = gone.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(", ");
                 conn.execute_batch(&format!(
-                    "BEGIN TRANSACTION; DELETE FROM diagnostics WHERE source IN ({list}); DELETE FROM sources WHERE id IN ({list}); COMMIT;"
+                    "BEGIN TRANSACTION; DELETE FROM diagnostics WHERE source IN ({list}); DELETE FROM tail_offsets WHERE source IN ({list}); DELETE FROM sources WHERE id IN ({list}); COMMIT;"
                 ))
                 .map_err(engine)?;
                 if let Some(f) = &self.inner.fts {
@@ -812,7 +823,11 @@ impl Ingest for DuckStore {
         };
         let _writing = lock(&self.inner.write_lock);
         // The view hides the source's rows at once; compaction rewrites its segments.
-        for sql in ["DELETE FROM diagnostics WHERE source = ?", "DELETE FROM sources WHERE id = ?"] {
+        for sql in [
+            "DELETE FROM diagnostics WHERE source = ?",
+            "DELETE FROM tail_offsets WHERE source = ?",
+            "DELETE FROM sources WHERE id = ?",
+        ] {
             conn.execute(sql, params![id.0]).map_err(engine)?;
         }
         if let Some(f) = &self.inner.fts {
@@ -839,72 +854,21 @@ impl Ingest for DuckStore {
         Ok(())
     }
 
-    /// Forgets everything and imports the state's roots (files it removed stay out). Clock offsets are kept
-    /// in the project, not applied to the events yet.
+    /// Forgets everything and imports the state's roots (files it removed stay out), with the state's clock offsets
+    /// applied to the events as they are read.
     fn restore(&self, state: &WorkspaceState) -> StoreResult<ImportSession> {
         self.clear()?;
+        imt_core::ports::Skew::set_clock_offsets(self, &state.offsets)?;
         write_lock(&self.inner.state).removed = state.removed.iter().map(PathBuf::from).collect();
         let roots: Vec<PathBuf> = state.roots.iter().map(PathBuf::from).collect();
         self.open(&roots)
     }
 
-    /// Live tail: the changed files are read again (new segments; the full-text index follows) and new files
-    /// under the opened folders read; returns how many events were added. Waits for a running import first
-    /// (at most [`TAIL_WAIT`]).
-    fn append_tail(&self, changed: &[PathBuf]) -> StoreResult<usize> {
-        let started = std::time::Instant::now();
-        while self.inner.is_importing() {
-            if started.elapsed() > TAIL_WAIT {
-                return Err(StoreError::Busy(
-                    "an import is running; live tail reads the changes afterwards".into(),
-                ));
-            }
-            std::thread::sleep(std::time::Duration::from_millis(50));
-        }
-        let count = |conn: &Connection| -> StoreResult<u64> {
-            conn.query_row("SELECT count(*) FROM events", [], |r| r.get::<_, u64>(0))
-                .map_err(engine)
-        };
-        let before = count(&*self.inner.conn()?)?;
-        let grown = self.inner.grown_sources(changed)?;
-        self.refresh(&grown)?.wait()?;
-        let after = count(&*self.inner.conn()?)?;
-        Ok(usize::try_from(after.saturating_sub(before)).unwrap_or(usize::MAX))
-    }
-}
-
-impl Inner {
-    /// The files of sources at or under `paths` (a watcher may name a folder) whose size differs from what was
-    /// imported (appended, truncated, rewritten) or that are gone.
-    fn grown_sources(&self, paths: &[PathBuf]) -> StoreResult<Vec<PathBuf>> {
-        let conn = self.conn()?;
-        let mut stmt = conn.prepare("SELECT path, bytes FROM sources WHERE ready").map_err(engine)?;
-        let sources = stmt
-            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, u64>(1)?)))
-            .map_err(engine)?
-            .collect::<duckdb::Result<Vec<_>>>()
-            .map_err(engine)?;
-        let sep = imt_core::archive::ENTRY_SEPARATOR;
-        let mut out = Vec::new();
-        for p in paths {
-            let canonical = std::fs::canonicalize(p).unwrap_or_else(|_| p.clone());
-            let under = canonical.to_string_lossy().into_owned();
-            for (path, bytes) in &sources {
-                let file = path.split(sep).next().unwrap_or(path);
-                let inside = file == under || Path::new(file).starts_with(&canonical);
-                if !inside {
-                    continue;
-                }
-                let changed = match std::fs::metadata(file) {
-                    Ok(m) => m.len() != *bytes,
-                    Err(_) => true,
-                };
-                if changed && !out.iter().any(|o: &PathBuf| o.as_path() == Path::new(file)) {
-                    out.push(PathBuf::from(file));
-                }
-            }
-        }
-        Ok(out)
+    /// Live tail: reads what was appended to the changed files and the files that appeared under opened folders (see
+    /// the `tail` module); with no paths, only what is due. Waits for a running import first (at most
+    /// [`tail::TAIL_WAIT`]).
+    fn append_tail(&self, changed: &[PathBuf]) -> StoreResult<TailAppend> {
+        self.tail_refresh(changed)
     }
 }
 

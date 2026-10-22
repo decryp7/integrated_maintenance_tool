@@ -788,7 +788,7 @@ fn macos_profile(spec: &SandboxSpec) -> Option<String> {
     if spec.fs != FsAccess::Unrestricted {
         rules.push("(deny file-read* file-write*)".into());
         // What the dynamic loader and the C library read after start.
-        rules.push(r#"(allow file-read* (subpath "/System") (subpath "/usr/lib") (literal "/dev/urandom"))"#.into());
+        rules.push(r#"(allow file-read* (literal "/") (subpath "/System") (subpath "/usr/lib") (literal "/dev/urandom"))"#.into());
         if let FsAccess::Paths { read, write } = &spec.fs {
             rules.extend(read.iter().map(|p| format!("(allow file-read* (subpath {}))", quote(p))));
             rules.extend(
@@ -858,6 +858,8 @@ mod tests {
         assert!(p.contains(r#"(allow file-read* (subpath "/models/a \"b\""))"#), "{p}");
         assert!(p.contains(r#"(allow file-read* file-write* (subpath "/out"))"#), "{p}");
         assert!(!p.contains("network"));
+        // Regression: without the root directory itself every process aborts at start on macOS (path resolution).
+        assert!(p.contains(r#"(literal "/")"#), "{p}");
     }
 
     #[test]

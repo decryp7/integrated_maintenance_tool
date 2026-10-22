@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, OnInit, signal, untracked } from '@angular/core';
-import { ParserDocDto, ParsePreview, SourceInfo } from '../../core/api.types';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, OnInit, output, signal, untracked } from '@angular/core';
+import { ParserDocDto, ParserLibraryDto, ParsePreview, SourceInfo } from '../../core/api.types';
 import { ImtBackend } from '../../core/backend';
 import { CmdError } from '../../core/cmd-error';
 import { formatFull } from '../../core/format';
@@ -25,6 +25,7 @@ const PREVIEW_DEBOUNCE_MS = 300;
 @Component({
   selector: 'imt-parser-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[class.embedded]': '!ref' },
   imports: [TomlEditor],
   providers: [ParserDraft, { provide: TOML_DOCUMENT, useExisting: ParserDraft }],
   template: `
@@ -74,12 +75,13 @@ const PREVIEW_DEBOUNCE_MS = 300;
 
     @if (error(); as e) { <div class="err" role="alert">{{ e }}</div> }
     <div class="foot">
-      <button type="button" class="btn ghost" (click)="ref.close()" i18n="@@settings.parsers.editor.cancel">Cancel</button>
+      <button type="button" class="btn ghost" (click)="finish()" i18n="@@settings.parsers.editor.cancel">Cancel</button>
       <button type="button" class="btn primary" data-testid="parser-save" [disabled]="!canSave() || saving()" (click)="save()">{{ saveLabel() }}</button>
     </div>
   `,
   styles: `
     :host { display: flex; flex-direction: column; gap: 8px; height: min(720px, calc(100vh - 140px)); min-height: 0; }
+    :host(.embedded) { height: 100%; }
     .note { margin: 0; padding: 6px 8px; border-inline-start: 2px solid var(--accent); color: var(--text-2); }
     .toml { flex: 1 1 280px; min-height: 160px; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
     .status { font-size: var(--fs-sm); color: var(--text-2); min-height: 1.4em; }
@@ -95,7 +97,10 @@ const PREVIEW_DEBOUNCE_MS = 300;
   `,
 })
 export class ParserEditor implements OnInit {
-  protected readonly ref = inject(DIALOG_REF);
+  /** Present when the editor is a dialog; absent when it sits in the Parsers view (`closed` is emitted instead). */
+  protected readonly ref = inject(DIALOG_REF, { optional: true });
+  /** The editor ended: the library after a save, or nothing (Cancel). Only emitted outside a dialog. */
+  readonly closed = output<ParserLibraryDto | undefined>();
   protected readonly draft = inject(ParserDraft);
   private readonly parsers = inject(ParsersBackend);
   private readonly backend = inject(ImtBackend);
@@ -149,6 +154,12 @@ export class ParserEditor implements OnInit {
     }
   }
 
+  /** Closes the dialog with the result, or tells the view hosting the editor. */
+  protected finish(library?: ParserLibraryDto): void {
+    if (this.ref) this.ref.close(library);
+    else this.closed.emit(library);
+  }
+
   protected pickSource(id: string): void {
     this.sourceId.set(Number(id));
     void this.loadHead();
@@ -197,7 +208,7 @@ export class ParserEditor implements OnInit {
         if (!(e instanceof CmdError && e.code === 'fileExists') || !(await this.confirmReplace(e.message))) throw e;
         library = await this.parsers.save(toml, { previousId, overwrite: true });
       }
-      this.ref.close(library);
+      this.finish(library);
     } catch (e) {
       this.error.set(describeError(e));
     } finally {

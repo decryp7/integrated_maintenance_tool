@@ -44,14 +44,14 @@ test.describe('AI entry points', () => {
     await expect(page.locator('imt-events-grid .row.sel')).toBeVisible();
   });
 
-  test('Root causes from the Overview and Summarize from the Moment view', async ({ page }) => {
+  test('Root causes from Home and Summarize from the Moment view', async ({ page }) => {
     await openAiApp(page);
     await page.locator('imt-sidebar').getByRole('button', { name: 'Open files' }).click();
-    // Review on the timeline header's headline opens the Overview.
+    // Review on the timeline header's headline opens Home.
     await page.getByRole('toolbar', { name: 'Health check' }).getByRole('button', { name: 'Review' }).click({ timeout: 10_000 });
-    const overview = page.locator('imt-overview-view');
-    await expect(overview).toBeVisible({ timeout: 10_000 });
-    await overview.getByTestId('ai-root-causes').click();
+    const home = page.locator('imt-home-view');
+    await expect(home).toBeVisible({ timeout: 10_000 });
+    await home.getByTestId('ai-root-causes').click();
     await viewAnswer(page, 'Root causes ready');
     const causes = narrativeDialog(page);
     await expect(causes.getByTestId('ai-narrative')).toContainText('Memory leak on WEB02');

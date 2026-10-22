@@ -278,8 +278,14 @@ fn apply(s: &mut CaptureStatus, r: Result<Finished, NativeError>, cancelled: boo
     }
 }
 
-/// A unique capture file `<dir>/<stem>-<pid>-<n>.nettrace` (the stem is the process name, made safe).
+/// A unique capture file `<dir>/<name>` (see [`capture_name`]).
 pub fn capture_file(dir: &std::path::Path, process_name: &str, pid: u32) -> PathBuf {
+    dir.join(capture_name(process_name, pid))
+}
+
+/// A unique capture file name `<stem>-<pid>-<stamp>-<n>.nettrace` (the stem is the process name, made safe: only
+/// letters, digits, `-` and `_`, so it is also a valid output name for the host to save, ADR 0017 §7).
+pub fn capture_name(process_name: &str, pid: u32) -> String {
     static N: AtomicU64 = AtomicU64::new(1);
     let stem: String = process_name
         .trim_end_matches(".exe")
@@ -297,7 +303,7 @@ pub fn capture_file(dir: &std::path::Path, process_name: &str, pid: u32) -> Path
     let stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_secs());
-    dir.join(format!("{stem}-{pid}-{stamp}-{}.nettrace", N.fetch_add(1, Ordering::Relaxed)))
+    format!("{stem}-{pid}-{stamp}-{}.nettrace", N.fetch_add(1, Ordering::Relaxed))
 }
 
 #[cfg(test)]
@@ -391,5 +397,12 @@ mod tests {
         assert!(capture_file(std::path::Path::new("d"), "", 1)
             .to_string_lossy()
             .contains("process-1-"));
+        // The host saves the elevated recorder's capture under this name, so it must pass the host's name check
+        // whatever the process is called, and stay unique.
+        for process in ["my app/..\\x.exe", "", "CON.exe", &"é".repeat(300), "a.b.c"] {
+            let name = capture_name(process, 7);
+            imt_plugin_api::protocol::check_output_name("file name", &name).unwrap_or_else(|e| panic!("{process:?} -> {name}: {e}"));
+        }
+        assert_ne!(capture_name("a", 1), capture_name("a", 1));
     }
 }

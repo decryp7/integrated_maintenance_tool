@@ -26,13 +26,14 @@ pub struct Completion {
 const STAGES: [&str; 6] = ["where", "stats", "sort", "head", "limit", "fields"];
 const AGGS: [&str; 9] = ["count", "count_distinct", "avg", "min", "max", "sum", "p50", "p95", "p99"];
 const OPERATORS: [&str; 10] = ["=", "!=", ">", ">=", "<", "<=", "~", "!~", "contains", "in"];
-const PSEUDO: [&str; 10] = [
+const PSEUDO: [&str; 11] = [
     "@level",
     "@message",
     "@exception",
     "@template",
     "@source",
     "@line",
+    "@id",
     "level",
     "message",
     "exception",

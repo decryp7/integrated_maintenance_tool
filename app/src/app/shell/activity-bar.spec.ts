@@ -169,8 +169,8 @@ describe('ActivityBar', () => {
     expect(analysis.classList).toContain('on');
     analysis.click();
     await settle(fixture);
-    // The ordered analysis views, then the other views of the category (Saved queries, from the tools feature).
-    expect(entryLabels('Analysis')).toEqual([...ANALYSIS_MENU_ORDER.map((id) => ANALYSIS_VIEWS.find((v) => v.id === id)?.title), 'Saved queries']);
+    // The ordered analysis views, then the other views of the category (Parsers, and Saved queries from the tools feature).
+    expect(entryLabels('Analysis')).toEqual([...ANALYSIS_MENU_ORDER.map((id) => ANALYSIS_VIEWS.find((v) => v.id === id)?.title), 'Parsers', 'Saved queries']);
     expect(entry('Analysis', 'Patterns')?.getAttribute('aria-checked')).toBe('true');
     expect(entry('Analysis', 'Anomalies')?.getAttribute('aria-checked')).toBe('false');
     expect(entry('Analysis', 'Patterns')?.querySelector('imt-icon.mi-icon')).toBeTruthy();

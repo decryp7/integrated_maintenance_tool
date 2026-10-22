@@ -143,12 +143,31 @@ function elementOf(target: EventTarget | null): Element | null {
   return target instanceof Node ? target.parentElement : null;
 }
 
-/** The selected text when the selection covers `el`, else null. */
-function selectedTextAt(el: Element | null, selection: Selection | null): string | null {
+function inRect(r: DOMRect, x: number, y: number): boolean {
+  return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+}
+
+/**
+ * The selected text when the right-click at (`x`, `y`) lands on, or inside, the selection. Where the browser lays text
+ * out, that is the pointer being over one of the range's rectangles; without layout (tests) the target must be inside
+ * the range's common ancestor, so a click on an ancestor such as `body` or on an empty area never counts.
+ */
+function selectedTextAt(el: Element | null, selection: Selection | null, x: number, y: number): string | null {
   if (!el || !selection || selection.isCollapsed) return null;
   const text = selection.toString();
   if (!text.trim()) return null;
-  for (let i = 0; i < selection.rangeCount; i++) if (selection.getRangeAt(i).intersectsNode(el)) return text;
+  for (let i = 0; i < selection.rangeCount; i++) {
+    const range = selection.getRangeAt(i);
+    if (!range.intersectsNode(el)) continue;
+    const rects = typeof range.getClientRects === 'function' ? Array.from(range.getClientRects()) : [];
+    if (rects.length > 0) {
+      if (rects.some((r) => inRect(r, x, y))) return text;
+      continue;
+    }
+    const common = range.commonAncestorContainer;
+    const commonEl = common instanceof Element ? common : common.parentElement;
+    if (commonEl?.contains(el)) return text;
+  }
   return null;
 }
 
@@ -171,7 +190,7 @@ export function installNativeFeel(win: Window, o: FeelOptions, hooks: FeelHooks 
   };
   const menu = (e: MouseEvent) => {
     const el = elementOf(e.target);
-    const selected = selectedTextAt(el, win.getSelection());
+    const selected = selectedTextAt(el, win.getSelection(), e.clientX, e.clientY);
     const action = contextMenuAction({
       handled: e.defaultPrevented,
       editable: isEditable(el),

@@ -2,6 +2,7 @@ import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { QlError, SqlResult, SqlSchema } from '../core/api.types';
 import { failureText } from '../core/cmd-error';
+import { formatCount } from '../shared/format/units';
 import { StorePaneBackend } from './store-pane-backend';
 
 /** Texts kept in the console's history. */
@@ -21,6 +22,12 @@ interface SqlConsoleState {
   /** The run failed for another reason (a limit, the store). */
   failure: string | null;
   stopped: boolean;
+  /** The SQL that produced `result` (an export runs this text, not what was typed since). */
+  ranSql: string;
+  /** An export was started (its job shows in Jobs). */
+  exportJob: number | null;
+  /** What the last Open all / Export said that the user should know (a cut). */
+  notice: string | null;
   schema: SqlSchema | null;
   history: string[];
 }
@@ -44,6 +51,9 @@ export const SqlConsoleStore = signalStore(
     error: null,
     failure: null,
     stopped: false,
+    ranSql: '',
+    exportJob: null,
+    notice: null,
     schema: null,
     history: [],
   }),
@@ -72,11 +82,11 @@ export const SqlConsoleStore = signalStore(
       const sql = store.text();
       if (store.runId() || !sql.trim()) return;
       const runId = `sql-${++runs}`;
-      patchState(store, { runId, error: null, failure: null, stopped: false });
+      patchState(store, { runId, error: null, failure: null, stopped: false, notice: null, exportJob: null });
       try {
         const out = await backend.querySql(sql, store.explain(), runId);
         const history = [sql, ...store.history().filter((h) => h !== sql)].slice(0, SQL_HISTORY);
-        if ('result' in out) patchState(store, { result: out.result, rows: out.result.rows, history });
+        if ('result' in out) patchState(store, { result: out.result, rows: out.result.rows, history, ranSql: sql });
         else if ('error' in out) patchState(store, { error: out.error });
         else patchState(store, { stopped: true });
       } catch (e) {
@@ -102,6 +112,35 @@ export const SqlConsoleStore = signalStore(
         patchState(store, { failure: failureText(e) });
       } finally {
         patchState(store, { loadingMore: false });
+      }
+    },
+    /** The ids of every kept row, as the query that shows exactly them in Events; null when there are none or it failed. */
+    async idsQuery(): Promise<string | null> {
+      const r = store.result();
+      if (!r?.eventIds) return null;
+      try {
+        const { ids, truncated } = await backend.fetchSqlIds(r.result);
+        if (!ids.length) {
+          patchState(store, { notice: $localize`:@@store.sql.noIds:The result has no event ids to open.` });
+          return null;
+        }
+        patchState(store, {
+          notice: truncated ? $localize`:@@store.sql.idsCut:Only the ${formatCount(ids.length)}:count: kept rows are opened; narrow the query for the rest.` : null,
+        });
+        return `@id in (${ids.join(', ')})`;
+      } catch (e) {
+        patchState(store, { failure: failureText(e) });
+        return null;
+      }
+    },
+    /** Writes all rows of the last run's SQL to `path` as CSV (an export job); the engine bounds and checks it. */
+    async exportCsv(path: string): Promise<void> {
+      if (!store.result() || store.result()?.plan !== null) return;
+      patchState(store, { failure: null, exportJob: null });
+      try {
+        patchState(store, { exportJob: await backend.exportSql(store.ranSql(), path, true) });
+      } catch (e) {
+        patchState(store, { failure: failureText(e) });
       }
     },
     /** Puts a saved or earlier SQL text in the editor. */

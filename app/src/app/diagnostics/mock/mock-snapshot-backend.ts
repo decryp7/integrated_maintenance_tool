@@ -1,7 +1,7 @@
 import { FILE_EXISTS_SUFFIX, WorkspaceSummary } from '../../core/api.types';
 import { SnapshotBackend, Unlisten } from '../snapshot-backend';
 import { mockJobs, mockSteps } from '../../jobs/mock-jobs';
-import { EngineError, ProblemReportPreview, SnapshotContext, SnapshotInfo, SnapshotSaveResult } from '../../core/api.types';
+import { EngineError, ProblemReportPreview, SnapshotContext, SnapshotInfo, SnapshotSaveResult, WindowCapture } from '../../core/api.types';
 import { activity } from '../../core/activity/runtime';
 import { Breadcrumb } from '../../core/activity/types';
 import { steps } from '../../core/activity/steps';
@@ -9,9 +9,14 @@ import { CapturedImage } from '../snapshot.types';
 import { DiagnosticsReportState } from '../diagnostics-report.types';
 import { SAMPLE_REPORT_IMAGE, sampleReportState } from './mock-diagnostics-report';
 
+/** A 160 × 90 slate-grey PNG: what the mock "captures" (the real shell asks the platform webview). */
+export const MOCK_WINDOW_PNG =
+  'iVBORw0KGgoAAAANSUhEUgAAAKAAAABaCAIAAACwpMoFAAAAo0lEQVR42u3RMQ0AAAgEsffDwo5/X/iAJqfgmurR4WIBYAEWYAEWYAEWYMACLMACLMACLMCABViABViABViABRiwAAuwAAuwAAswYAEWYAEWYAEWYMACLMACLMACLMACDFiABViABViABRiwAAuwAAuwAAswYBcAC7AAC7AAC7AAAxZgARZgARZgAQYswAIswAIswAIswIAFWIAFWIAFWIB/AS+ulfdhMQahHwAAAABJRU5ErkJggg==';
+const MOCK_WINDOW_PNG_BYTES = 220;
+
 /**
- * In-memory snapshot store for browser development and UI tests. It keeps the images the UI really captured,
- * so the view shows what was rendered. It is not the reference for behaviour (the Rust engine is).
+ * In-memory snapshot store for browser development and UI tests. It keeps the images the UI sends, so the view
+ * shows them. It is not the reference for behaviour (the Rust engine is).
  */
 export class MockSnapshotBackend extends SnapshotBackend {
   private readonly items: { info: SnapshotInfo; url: string }[] = [];
@@ -19,7 +24,7 @@ export class MockSnapshotBackend extends SnapshotBackend {
   private n = 0;
   /**
    * Settings ▸ "Take error snapshots automatically" (`?mockSnapshots=off` turns it off, for UI tests of error states
-   * that are not about snapshots: rendering the window to an image blocks the page for seconds on a loaded runner).
+   * that are not about snapshots, so no snapshot toast covers what they check).
    */
   enabled = typeof window === 'undefined' || new URLSearchParams(window.location.search).get('mockSnapshots') !== 'off';
   /** Calls made by the UI, for assertions. */
@@ -35,6 +40,11 @@ export class MockSnapshotBackend extends SnapshotBackend {
     private readonly workspace: () => WorkspaceSummary | null = () => null,
   ) {
     super();
+  }
+
+  /** The browser has no native capture: a small placeholder picture stands in for the window (and costs nothing). */
+  async captureWindow(): Promise<WindowCapture> {
+    return { status: 'captured', image: MOCK_WINDOW_PNG, mime: 'image/png', bytes: MOCK_WINDOW_PNG_BYTES };
   }
 
   async save(image: CapturedImage, context: SnapshotContext): Promise<SnapshotSaveResult> {

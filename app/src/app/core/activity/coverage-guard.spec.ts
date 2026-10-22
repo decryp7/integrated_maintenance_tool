@@ -154,6 +154,7 @@ import { ProfilingBackend } from '../../profiling/profiling-backend';
 import { DotnetBackend } from '../../profiling/dotnet/dotnet-backend';
 import { NativeBackend } from '../../profiling/native/native-backend';
 import { DumpsBackend } from '../../dumps/dumps-backend';
+import { VideoBackend } from '../../video/video-backend';
 import { SchedulesBackend } from '../../schedules/schedules-backend';
 import { SettingsBackend } from '../../settings/settings-backend';
 import { StorageBackend } from '../../settings/storage/storage-backend';
@@ -173,12 +174,15 @@ import { JobsBackend } from '../../jobs/jobs-backend';
 import { NotificationsBackend } from '../../notifications/notifications-backend';
 import { KnowledgeBackend } from '../../ai/knowledge/knowledge-backend';
 import { NotesBackend } from '../../notes/notes-backend';
+import { SearchEverythingBackend } from '../../search-everything/search-everything-backend';
 import { DragGhostBackend } from '../../popout/drag-ghost-backend';
+import { HomeBackend } from '../../home/home-backend';
 import { at, must } from '../../../testing/must';
 
 const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   AiBackend,
   AnalysisBackend,
+  HomeBackend,
   ImtBackend,
   BrowserBackend,
   ChatBrowserBackend,
@@ -200,6 +204,7 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   DotnetBackend,
   NativeBackend,
   DumpsBackend,
+  VideoBackend,
   SchedulesBackend,
   SettingsBackend,
   StorageBackend,
@@ -217,5 +222,6 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   NotificationsBackend,
   KnowledgeBackend,
   NotesBackend,
+  SearchEverythingBackend,
   DragGhostBackend,
 };

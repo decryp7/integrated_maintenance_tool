@@ -429,9 +429,9 @@ describe('DockService VS-style features', () => {
     const dock = setup();
     const shown: string[] = [];
     dock.setRemote((id) => shown.push(id));
-    dock.show('overview');
+    dock.show('home');
     dock.setRemote(null);
-    expect(shown).toEqual(['overview']);
+    expect(shown).toEqual(['home']);
   });
 });
 

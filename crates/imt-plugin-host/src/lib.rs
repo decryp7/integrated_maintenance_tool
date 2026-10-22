@@ -2,7 +2,8 @@
 //! [`imt_core::Plugin`]s, so the registry's guards, quarantine, settings and the UI work unchanged.
 //!
 //! - [`process`]: one plugin's supervised process (and its elevated process), the calls to it and the host
-//!   services it calls back (host files, an annotator's view, tool task reports);
+//!   services it calls back (host files, an annotator's view, tool task reports; the elevated process' output
+//!   files and standard error, in `output`);
 //! - [`remote`]: [`RemotePlugin`], registering proxies of what the plugin's manifest declares;
 //! - [`profile`]: profile importers in a plugin process (the profile worker);
 //! - [`document`]: document importers (dumps, UMDH logs: ADR 0023), reading the file by ranges;
@@ -16,6 +17,7 @@
 pub mod builtins;
 pub mod document;
 pub mod installed;
+mod output;
 pub mod process;
 pub mod profile;
 pub mod remote;

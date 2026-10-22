@@ -5,6 +5,7 @@ import {
   QueryStreamEvent,
   SegmentsPage,
   SegmentsRequest,
+  SqlIds,
   SqlOutcome,
   SqlPage,
   SqlPageRequest,
@@ -42,6 +43,10 @@ export abstract class StorePaneBackend {
   /** Stops the run `runId` (its job); false when it is not running. */
   abstract cancelSql(runId: string): Promise<boolean>;
   abstract fetchSqlPage(request: SqlPageRequest): Promise<SqlPage>;
+  /** The event ids of the kept result `result` (for Open all in Events). */
+  abstract fetchSqlIds(result: number): Promise<SqlIds>;
+  /** Starts writing all rows of `sql` as CSV to `path` as an export job; resolves with its id. */
+  abstract exportSql(sql: string, path: string, overwrite: boolean): Promise<number>;
 }
 
 /** A run in flight: its job (once the engine said it) and whether a stop came first. */
@@ -105,6 +110,12 @@ export class TauriStorePaneBackend extends StorePaneBackend {
   }
   fetchSqlPage(request: SqlPageRequest) {
     return this.call<SqlPage>('sql_page', { request });
+  }
+  fetchSqlIds(result: number) {
+    return this.call<SqlIds>('sql_ids', { request: { result } });
+  }
+  exportSql(sql: string, path: string, overwrite: boolean) {
+    return this.call<number>('sql_export', { sql, path, overwrite });
   }
 }
 

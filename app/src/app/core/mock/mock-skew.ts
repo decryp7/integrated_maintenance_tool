@@ -1,4 +1,5 @@
 import { OffsetSuggestion, SetOffsetRequest, SuggestRequest, SuggestResult } from '../api.types';
+import { CmdError } from '../cmd-error';
 import { MockRecord, MockSource } from './mock-data';
 
 /**
@@ -10,27 +11,32 @@ export const MOCK_MAX_OFFSET_MS = 7 * 24 * 3_600_000;
 const DEFAULT_FIELDS = ['CorrelationId', 'TraceId', 'RequestId'];
 const MIN_PAIRS = 3;
 
+/** A refusal like the engine's `SkewError`: code `invalid`, nothing to retry. */
+function invalid(message: string): CmdError {
+  return new CmdError({ code: 'invalid', message, retryable: false });
+}
+
 /** Messages like the engine's `SkewError`. */
 export function checkOffset(ms: number): number {
-  if (!Number.isFinite(ms) || Math.abs(ms) > MOCK_MAX_OFFSET_MS) throw new Error(`a clock offset of ${ms} ms is too large; use at most ±7 days`);
+  if (!Number.isFinite(ms) || Math.abs(ms) > MOCK_MAX_OFFSET_MS) throw invalid(`a clock offset of ${ms} ms is too large; use at most ±7 days`);
   return Math.round(ms);
 }
 
 /** The source and absolute offset a request asks for, resolved against the shown records (ids = positions). */
 export function resolveOffset(req: SetOffsetRequest, shown: readonly MockRecord[], sources: readonly MockSource[]): { source: number; offsetMs: number } {
   if (req.kind === 'manual') {
-    if (!sources.some((s) => s.id === req.source)) throw new Error(`source ${req.source} is not open any more; reload the sources and try again`);
+    if (!sources.some((s) => s.id === req.source)) throw invalid(`source ${req.source} is not open any more; reload the sources and try again`);
     return { source: req.source, offsetMs: checkOffset(req.offsetMs) };
   }
   const timed = (id: number) => {
     const r = shown[id];
-    if (!r) throw new Error(`event ${id} no longer exists; select the events again`);
-    if (r.ts === null) throw new Error(`event ${id} has no timestamp, so it cannot be used to align clocks`);
+    if (!r) throw invalid(`event ${id} no longer exists; select the events again`);
+    if (r.ts === null) throw invalid(`event ${id} has no timestamp, so it cannot be used to align clocks`);
     return r as MockRecord & { ts: number };
   };
   const ref = timed(req.reference);
   const target = timed(req.target);
-  if (ref.source === target.source) throw new Error(`both events come from the same source (${ref.source}); pick the matching event in another source`);
+  if (ref.source === target.source) throw invalid(`both events come from the same source (${ref.source}); pick the matching event in another source`);
   const current = sources.find((s) => s.id === target.source)?.offsetMs ?? 0;
   return { source: target.source, offsetMs: checkOffset(ref.ts - (target.ts - current)) };
 }

@@ -164,8 +164,49 @@ pub struct Module {
     pub debug_file: Option<String>,
     /// The PDB's identifier (GUID and age, as symbol servers spell it).
     pub debug_id: Option<String>,
-    /// Whether symbols were found for it.
-    pub symbols: bool,
+    /// What symbols it has, and why not.
+    pub symbols: SymbolStatus,
+}
+
+/// What symbols a module has (ADR 0036). PDBs are matched by the module's identity (PDB name, GUID and age),
+/// never by a file name alone.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SymbolStatus {
+    /// No frame needed a name from it, so no PDB was looked for.
+    #[default]
+    NotNeeded,
+    /// A PDB with its GUID and age named its frames.
+    Loaded,
+    /// It records no usable PDB identity, so no PDB can be matched to it.
+    NoIdentity,
+    /// No PDB with its identity in the symbol folders or the symbol cache.
+    Missing,
+    /// Missing, and downloads from symbol servers are off.
+    ServersDisabled,
+    /// Missing, and none of the symbol servers has it.
+    NotOnServer,
+    /// A PDB of its name was found, but of another build (GUID or age differ): it is not used.
+    Mismatch { detail: String },
+    /// A PDB was found but could not be read.
+    Unreadable { detail: String },
+    /// Downloading its PDB failed (network, size limit, an answer that is not a PDB).
+    DownloadFailed { detail: String },
+}
+
+impl SymbolStatus {
+    pub fn is_loaded(&self) -> bool {
+        matches!(self, SymbolStatus::Loaded)
+    }
+
+    /// The detail text, for the statuses that have one.
+    pub fn detail(&self) -> Option<&str> {
+        match self {
+            SymbolStatus::Mismatch { detail } | SymbolStatus::Unreadable { detail } | SymbolStatus::DownloadFailed { detail } => {
+                Some(detail)
+            }
+            _ => None,
+        }
+    }
 }
 
 impl Module {
