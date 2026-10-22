@@ -54,6 +54,8 @@ pub enum SectionGroup {
     Ai,
     /// Memory and processor use of IMT's processes (ADR 0031).
     Performance,
+    /// Where debug symbols come from (ADR 0036).
+    Symbols,
     Advanced,
 }
 
