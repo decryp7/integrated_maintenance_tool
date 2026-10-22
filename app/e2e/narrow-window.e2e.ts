@@ -2,7 +2,7 @@ import { expect, Page, test } from '@playwright/test';
 import { openApp } from './app';
 import { expectNoSeriousViolations } from './axe';
 
-// Narrow windows: the filter bar folds range, time zone and Clear all into a ⋯ menu (bar < 860 px), the Explorer
+// Narrow windows: the filter bar folds range, time zone and Clear all into a ⋯ menu (bar < 1000 px), the Explorer
 // closes by itself below 1100 px (and comes back), low-priority status items go below 1000 px, and the page never
 // scrolls sideways.
 
@@ -82,7 +82,7 @@ test.describe('narrow window', () => {
   // ~1100 px, so its right-hand buttons (View options, Add filter) are clipped; it folds only below 860 px and does
   // not wrap. Enable once the bar wraps or folds earlier.
   for (const width of [1024, 900, 600]) {
-    test.fixme(`the filter bar's buttons stay inside a ${width} px window`, async ({ page }) => {
+    test(`the filter bar's buttons stay inside a ${width} px window`, async ({ page }) => {
       await resize(page, width);
       const right = await page.getByRole('button', { name: 'View options' }).evaluate((el) => el.getBoundingClientRect().right);
       expect(right).toBeLessThanOrEqual(width);

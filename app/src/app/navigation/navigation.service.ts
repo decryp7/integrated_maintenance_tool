@@ -3,6 +3,9 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { DockService } from '../dock/dock.service';
 import { NavHistory, NavPlace } from './nav-history';
 
+/** After going back or forward, changes seen for this long (ms) are its echo (selection, panels sliding) and not recorded. */
+export const NAV_ECHO_MS = 600;
+
 /**
  * Back and forward through where the user has been (Alt+Left / Alt+Right, the mouse's back and forward buttons):
  * events they selected, time ranges they zoomed to, views they brought to the front. The places are recorded by
@@ -17,6 +20,8 @@ export class NavigationHistory {
   private readonly history = new NavHistory();
   private readonly version = signal(0);
   private started = false;
+  /** Places seen before this time (ms) are the echo of a back or forward, not something the user did. */
+  private quietUntil = 0;
   /** Clock, replaceable in tests. */
   now: () => number = () => Date.now();
 
@@ -45,7 +50,8 @@ export class NavigationHistory {
     effect(
       () => {
         const id = this.dock.activeViewId();
-        if (id) untracked(() => this.observe({ kind: 'view', id }));
+        // Tool windows (the inspector sliding out on a selection) come and go by themselves: they are not places.
+        if (id && untracked(() => this.dock.kindOf?.(id)) !== 'tool') untracked(() => this.observe({ kind: 'view', id }));
       },
       { injector: this.injector },
     );
@@ -53,6 +59,7 @@ export class NavigationHistory {
 
   /** @internal Records a place (exposed for tests). */
   observe(place: NavPlace): void {
+    if (this.now() < this.quietUntil) return;
     if (this.history.record(place, this.now())) this.version.update((v) => v + 1);
   }
 
@@ -73,6 +80,7 @@ export class NavigationHistory {
   private go(place: NavPlace | null): boolean {
     this.version.update((v) => v + 1);
     if (!place) return false;
+    this.quietUntil = this.now() + NAV_ECHO_MS;
     switch (place.kind) {
       case 'event':
         this.store.jumpTo(place.id);

@@ -134,7 +134,7 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
   `,
   styles: `
     /* Basis 360 px: the bar's other controls shrink (the range first) before the field falls below a usable width. */
-    :host { position: relative; flex: 1 1 360px; min-width: 200px; height: 30px; display: block; }
+    :host { position: relative; flex: 1 1 360px; min-width: 420px; height: 30px; display: block; }
     .box {
       position: absolute; inset: 0 0 auto 0; min-height: 30px; box-sizing: border-box; z-index: 5;
       display: flex; align-items: flex-start; gap: 6px; padding: 0 4px 0 10px; border-radius: 6px; background: var(--bg-3); border: 1px solid var(--border-2);

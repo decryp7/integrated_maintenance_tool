@@ -79,16 +79,17 @@ test.describe('navigation history', () => {
     await expectEvent(page, 7);
   });
 
-  // Known gap: after one step back the next Back/Forward do not move (going back to an event slides the inspector
-  // out, which records the inspector as a new place and cuts the places ahead). Enable once going back records nothing.
+  // Known gap (open): the second Back stays on the first place back; one step back and forward-after-back are not yet reliable.
   test.fixme('Alt+Left twice reaches the first event and Alt+Right walks forward again', async ({ page }) => {
     await selectEvent(page, 1);
     await selectEvent(page, 5);
     await selectEvent(page, 9);
     await page.keyboard.press('Alt+ArrowLeft');
+    await expectEvent(page, 5);
     await page.keyboard.press('Alt+ArrowLeft');
     await expectEvent(page, 1);
     await page.keyboard.press('Alt+ArrowRight');
+    await expectEvent(page, 5);
     await page.keyboard.press('Alt+ArrowRight');
     await expectEvent(page, 9);
   });

@@ -47,7 +47,7 @@ and a group, next to a separate search box in the filter bar.
 4. **Activity bar and status bar** (A3). The accent bar marks the view that is *in front*; a small dot marks a view
    that is open behind another. Jobs and Notifications live in the status bar only (progress pill, bell with badge).
 5. **Narrow windows** (H1). The filter bar folds the range, time zone and *Clear all* into a ⋯ menu when it is
-   narrower than 860 px; the Explorer closes by itself below 1100 px (and returns when the window is wide again,
+   narrower than 1000 px; the Explorer closes by itself below 1100 px (and returns when the window is wide again,
    unless the user chose in between); the events grid keeps a readable Message column (the other columns have a
    `minmax`); the status bar drops low-priority items below 1000 px.
 6. **Navigation and undo.** Back/forward (`Alt+←/→`, the mouse's back/forward buttons) walk through the places the

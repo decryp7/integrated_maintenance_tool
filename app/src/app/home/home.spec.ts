@@ -35,12 +35,12 @@ class FakeCtx implements CommandContext {
 describe('HomePrefs', () => {
   afterEach(() => localStorage.removeItem(HOME_AUTO_OPEN_KEY));
 
-  it('defaults to opening, remembers the choice and survives broken storage', () => {
-    expect(TestBed.inject(HomePrefs).autoOpen()).toBe(true);
-    TestBed.inject(HomePrefs).setAutoOpen(false);
-    expect(localStorage.getItem(HOME_AUTO_OPEN_KEY)).toBe('false');
-    TestBed.resetTestingModule();
+  it('defaults to not opening, remembers the choice and survives broken storage', () => {
     expect(TestBed.inject(HomePrefs).autoOpen()).toBe(false);
+    TestBed.inject(HomePrefs).setAutoOpen(true);
+    expect(localStorage.getItem(HOME_AUTO_OPEN_KEY)).toBe('true');
+    TestBed.resetTestingModule();
+    expect(TestBed.inject(HomePrefs).autoOpen()).toBe(true);
     TestBed.resetTestingModule();
     const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('denied');
@@ -49,6 +49,8 @@ describe('HomePrefs', () => {
       throw new Error('denied');
     });
     const prefs = TestBed.inject(HomePrefs);
+    expect(prefs.autoOpen()).toBe(false);
+    prefs.setAutoOpen(true);
     expect(prefs.autoOpen()).toBe(true);
     prefs.setAutoOpen(false);
     expect(prefs.autoOpen()).toBe(false);
@@ -189,9 +191,9 @@ describe('HomeView', () => {
     const { fixture } = setup([]);
     await settle(fixture, 8);
     const box = fixture.nativeElement.querySelector('input[type=checkbox]') as HTMLInputElement;
-    expect(box.checked).toBe(true);
+    expect(box.checked).toBe(false);
     box.click();
-    expect(TestBed.inject(HomePrefs).autoOpen()).toBe(false);
+    expect(TestBed.inject(HomePrefs).autoOpen()).toBe(true);
   });
 
   it('reads its numbers from the Home backend', async () => {
@@ -271,10 +273,9 @@ describe('provideHome', () => {
     localStorage.removeItem(HOME_AUTO_OPEN_KEY);
   });
 
-  it('does not open the view after an import when turned off', async () => {
+  it('does not open the view after an import by default', async () => {
     const dock = new FakeDock();
     TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock), provideHome()] });
-    TestBed.inject(HomePrefs).setAutoOpen(false);
     TestBed.inject(HomeAutoOpen);
     const store = TestBed.inject(WorkspaceStore);
     await settle();
@@ -286,6 +287,7 @@ describe('provideHome', () => {
   it('registers the view (a document) and command, and opens the view after each import unless turned off', async () => {
     const dock = new FakeDock();
     TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock), provideHome()] });
+    TestBed.inject(HomePrefs).setAutoOpen(true);
     TestBed.inject(HomeAutoOpen);
     const store = TestBed.inject(WorkspaceStore);
     await settle();

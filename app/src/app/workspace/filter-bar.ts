@@ -13,7 +13,7 @@ import { QueryField, QueryStatus } from '../analysis/query-field';
 import { SearchField } from '../analysis/search-field';
 
 /** The filter bar folds its secondary controls into a menu when the bar is narrower than this, px (H1). */
-export const COMPACT_WIDTH_PX = 860;
+export const COMPACT_WIDTH_PX = 1000;
 
 const OP_LABELS: Record<FilterOp, string> = {
   eq: '=',
@@ -29,6 +29,7 @@ const OP_LABELS: Record<FilterOp, string> = {
 
 @Component({
   selector: 'imt-filter-bar',
+  host: { '[class.compact]': 'compact()' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, ClickOutside, Switch, QueryField, QueryStatus],
   template: `
@@ -171,6 +172,9 @@ const OP_LABELS: Record<FilterOp, string> = {
     :host { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg-1); }
     .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .row:first-child { flex-wrap: nowrap; }
+    /* A narrow bar (H1) wraps: the search field gets a line of its own and the rest follows below. */
+    :host(.compact) .row:first-child { flex-wrap: wrap; }
+    :host(.compact) imt-query-field { flex: 1 1 100%; }
     .levels { flex: none; display: flex; height: 30px; border: 1px solid var(--border-2); border-radius: 6px; overflow: hidden; }
     .lvl { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 9px; border: 0; border-right: 1px solid var(--border-2); background: var(--bg-2); color: var(--faint); font-size: var(--fs-sm); cursor: pointer; }
     .lvl:last-child { border-right: 0; }
