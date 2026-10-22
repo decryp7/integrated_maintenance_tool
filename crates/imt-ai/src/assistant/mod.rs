@@ -3,6 +3,7 @@
 
 mod citations;
 mod folder;
+mod incident;
 mod markers;
 mod narrative;
 mod parser;
@@ -15,6 +16,7 @@ mod tools;
 
 pub use citations::{parse_citations, Citation};
 pub use folder::FolderRefinement;
+pub use incident::MAX_SUGGESTIONS;
 #[allow(unused_imports)]
 pub(crate) use narrative::prefetch;
 pub use narrative::{Narrative, ANALYST_SYSTEM};

@@ -308,3 +308,43 @@ pub fn build_incident_report(store: &dyn Store, opts: &IncidentOptions) -> Store
         sections: b.sections,
     })
 }
+
+/// The facts of a report as plain text for a model to write up (and the event ids it may cite), at most `max_chars`
+/// characters. Only what the report holds goes in; the text is data, never instructions.
+pub fn digest(report: &Report, max_chars: usize) -> (String, Vec<u32>) {
+    let mut out = String::new();
+    let mut ids: Vec<u32> = Vec::new();
+    'all: for s in &report.sections {
+        out.push_str(&format!("## {}\n", s.title));
+        for b in &s.blocks {
+            let StoredBlock::Known(item) = b else { continue };
+            let line = match &item.block {
+                Block::Text { markdown } if s.title != "Notes" => format!("{markdown}\n"),
+                Block::Text { .. } => "(the investigator's notes are in the report)\n".to_string(),
+                Block::Finding { severity, title, detail } => format!("- [{severity}] {title}: {detail}\n"),
+                Block::Table { caption, columns, rows, .. } => {
+                    let mut t = format!("{caption} ({}):\n", columns.join(" | "));
+                    for r in rows.iter().take(MAX_TOP) {
+                        let cells: Vec<String> = r.iter().map(|v| v.as_str().map_or_else(|| v.to_string(), str::to_string)).collect();
+                        t.push_str(&format!("- {}\n", cells.join(" | ")));
+                    }
+                    t
+                }
+                Block::Annotations { items, .. } => items.iter().map(|i| format!("- {}: {}\n", clock(i.from), i.label)).collect(),
+                Block::Events { caption, ids: e } => {
+                    ids.extend(e.iter().copied());
+                    format!("{caption}: events {}\n", e.iter().take(12).map(|i| i.to_string()).collect::<Vec<_>>().join(", "))
+                }
+                _ => continue,
+            };
+            if out.chars().count() + line.chars().count() > max_chars {
+                out.push_str("(cut: the report is longer)\n");
+                break 'all;
+            }
+            out.push_str(&line);
+        }
+    }
+    ids.sort_unstable();
+    ids.dedup();
+    (out, ids)
+}
