@@ -90,10 +90,10 @@ describe('MockLiveSim', () => {
     const b3 = sim.tick(list, 1_500, last, 300);
     expect(b3.records.some((r) => r.source === 50)).toBe(true);
     expect(b3.records.some((r) => r.source === rot.sourceId)).toBe(false);
-    const st = sim.status(list, () => 3, 'events', 4, 99);
+    const st = sim.status(list, () => 3, 'events', 99);
     expect(st.files.find((f) => f.sourceId === rot.sourceId)!.state).toEqual({ kind: 'rotated' });
     expect(st.files.find((f) => f.sourceId === 5)).toMatchObject({ mode: 'off', state: { kind: 'whole' } });
-    expect(st.totals).toMatchObject({ files: list.length, evicted: 4, records: 99 });
+    expect(st.totals).toMatchObject({ files: list.length, records: 99 });
     expect(st.totals.linesPerSec).toBeGreaterThan(0);
     // Alerts cycle through kinds.
     sim.tick(list, 1_750, last, 400);
@@ -101,7 +101,7 @@ describe('MockLiveSim', () => {
     for (let i = 0; i < 6; i++) kinds.push(...sim.tick(list, 2_000 + i * 250, last, 500).alerts.map((a) => a.kind));
     expect(new Set(kinds)).toEqual(new Set(['rule', 'silence', 'errorSpike']));
     sim.idle();
-    expect(sim.status(list, () => 0, 'off', 0, 0).totals.linesPerSec).toBe(0);
+    expect(sim.status(list, () => 0, 'off', 0).totals.linesPerSec).toBe(0);
     expect(sim.produced).toBeGreaterThan(30);
   });
 
@@ -171,10 +171,10 @@ describe('MockBackend live tail', () => {
     await b.setLive(true, { watch: 'polling', pollIntervalMs: 5, detectEveryMs: 1e9 });
     const on = await b.liveState();
     expect(on.enabled).toBe(true);
-    expect(on.options).toMatchObject({ watch: 'polling', pollIntervalMs: 100, detectEveryMs: 600_000, carryFlushMs: 2000, deletedFiles: 'keep' });
+    expect(on.options).toMatchObject({ watch: 'polling', pollIntervalMs: 100, detectEveryMs: 600_000, carryFlushMs: 500, deletedFiles: 'keep' });
     await b.setLive(false);
     expect((await b.liveState()).enabled).toBe(false);
-    expect(mockResolveLiveOptions({ retention: { maxRecords: 5 }, detectEveryMs: -3 })).toMatchObject({ retention: { maxRecords: 5, maxAgeMs: null }, detectEveryMs: 0 });
+    expect(mockResolveLiveOptions({ detectEveryMs: -3 })).toMatchObject({ detectEveryMs: 0 });
   });
 
   it('mutes alerts by kind or rule until they expire', () => {
@@ -191,26 +191,6 @@ describe('MockBackend live tail', () => {
     m.unmute({ rule: 'pay' });
     expect(m.covers({ kind: 'rule', rule: 'pay' })).toBe(false);
     expect(new MockAlertMutes().covers({ kind: 'silence', rule: null })).toBe(false);
-  });
-
-  it('evicts by retention and reports changed ids', async () => {
-    const b = new MockBackend({ latency: false, dataset: tinyDataset, liveMs: 15, liveRate: 100, liveRotateMs: 0, liveAlertMs: 0 });
-    const reports: TailReport[] = [];
-    await b.onWorkspaceChanged((r) => r && reports.push(r));
-    await b.setLive(true, { retention: { maxRecords: 8 } });
-    await vi.waitFor(() => expect(reports.some((r) => r.evicted > 0)).toBe(true));
-    await b.setLive(false);
-    const evicting = reports.find((r) => r.evicted > 0)!;
-    expect(evicting.idsChangedFrom).toBe(0);
-    const summary = await b.workspaceSummary();
-    expect(summary.total).toBeLessThanOrEqual(8);
-    expect(summary.evicted).toBeGreaterThan(0);
-    const aged = new MockBackend({ latency: false, dataset: tinyDataset, liveMs: 15, liveRate: 100, liveRotateMs: 0, liveAlertMs: 0 });
-    const r2: TailReport[] = [];
-    await aged.onWorkspaceChanged((r) => r && r2.push(r));
-    await aged.setLive(true, { retention: { maxAgeMs: 60_000 } });
-    await vi.waitFor(() => expect(r2.some((r) => r.evicted > 0)).toBe(true));
-    await aged.setLive(false);
   });
 
   it('keeps the legacy one-event-per-tick simulation and the synthetic mode', async () => {

@@ -5,14 +5,13 @@
 //! module wires it to the OS, the owning window and the background task registry.
 //! Alerts and the per-file tail status come from the window's [`LiveSession`] over the store's ports; an event held back
 //! at the end of a file (plain text events may continue on the next lines) is written by a follow-up refresh once the
-//! file has been idle for [`HOLD_IDLE`].
+//! file has been idle for `TailOptions::carry_flush_ms`.
 
 use crate::background::{BackgroundTasks, TaskKind, TaskSpec};
 use crate::notify::{notify, NotificationKind};
 use crate::windows::{emit_to_window, CurrentWindow, WindowState, Windows};
 use crate::{CmdError, CmdResult};
 use imt_core::live::LiveSession;
-use imt_core::ports::HOLD_IDLE;
 use imt_core::workspace::{
     AlertTarget, FileWatcher, LiveTail, StopToken, TailOptions, TailReport, TailStatus, WatchMode, WatchPreference, WatchSettings,
     WatchSignal, WatchSink, WatcherFactory,
@@ -380,15 +379,20 @@ fn release_off_worker(state: Arc<WindowState>) {
         .spawn(move || drop(state));
 }
 
-/// Reads what was appended to `paths` (the store writes new segments) and evaluates the live alerts; a failure is
-/// logged and reported as no change.
-pub(crate) fn apply_changes(state: &WindowState, paths: &[PathBuf]) -> TailReport {
-    let options = state
+/// The engine-side tail options in effect for a window.
+fn tail_options(state: &WindowState) -> TailOptions {
+    state
         .live
         .options()
         .clone()
         .unwrap_or_else(|| LiveOptions::default().resolved())
-        .tail;
+        .tail
+}
+
+/// Reads what was appended to `paths` (the store writes new segments) and evaluates the live alerts; a failure is
+/// logged and reported as no change.
+pub(crate) fn apply_changes(state: &WindowState, paths: &[PathBuf]) -> TailReport {
+    let options = tail_options(state);
     let done = state.engine.store().map_err(|e| e.message).and_then(|store| {
         let appended = store.append_tail(paths).map_err(|e| e.to_string())?;
         state.live.flush_wanted.store(!appended.held.is_empty(), Ordering::SeqCst);
@@ -403,7 +407,7 @@ pub(crate) fn apply_changes(state: &WindowState, paths: &[PathBuf]) -> TailRepor
     }
 }
 
-/// After [`HOLD_IDLE`] asks the store again, with no paths, for the events it held back at the end of idle files
+/// After `carry_flush_ms` (the tail option) asks the store again, with no paths, for the events it held back at the end of idle files
 /// (once per wait, however many refreshes asked); repeats while it still holds some. Stops with the session.
 fn schedule_flush<R: Runtime>(app: &AppHandle<R>, state: &Weak<WindowState>, label: &str, stop: &StopToken) {
     let Some(strong) = state.upgrade() else { return };
@@ -413,7 +417,10 @@ fn schedule_flush<R: Runtime>(app: &AppHandle<R>, state: &Weak<WindowState>, lab
     drop(strong);
     let (app, state, label, stop) = (app.clone(), state.clone(), label.to_string(), stop.clone());
     let spawned = std::thread::Builder::new().name("imt-live-flush".into()).spawn(move || loop {
-        std::thread::sleep(HOLD_IDLE + Duration::from_millis(100));
+        let Some(win) = state.upgrade() else { return };
+        let wait = Duration::from_millis(tail_options(&win).carry_flush_ms);
+        drop(win);
+        std::thread::sleep(wait + Duration::from_millis(100));
         let Some(win) = state.upgrade() else { return };
         if stop.is_stopped() {
             win.live.flush_scheduled.store(false, Ordering::SeqCst);
@@ -505,12 +512,10 @@ mod tests {
             "watch": "polling",
             "pollIntervalMs": 5,
             "deletedFiles": "drop",
-            "retention": { "maxRecords": 1000 },
             "carryFlushMs": 50
         }))
         .unwrap();
         assert_eq!(o.watch, WatchPreference::Polling);
-        assert_eq!(o.tail.retention.max_records, Some(1000));
         assert_eq!(o.tail.carry_flush_ms, 50);
         let s = watch_settings(Duration::from_millis(750), &o);
         assert_eq!(
@@ -608,7 +613,7 @@ mod tests {
         let report = apply_changes(&st(), std::slice::from_ref(&b));
         assert_eq!(report.appended, 0, "the last line is held back until the file is idle: {report:?}");
         assert!(st().live.flush_wanted.load(Ordering::SeqCst));
-        std::thread::sleep(HOLD_IDLE + Duration::from_millis(200));
+        std::thread::sleep(Duration::from_millis(imt_core::workspace::TailOptions::default().carry_flush_ms + 200));
         let report = apply_changes(&st(), &[]);
         assert_eq!(report.appended, 1, "{report:?}");
         assert!(!st().live.flush_wanted.load(Ordering::SeqCst));

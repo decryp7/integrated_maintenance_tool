@@ -15301,85 +15301,46 @@
           <context context-type="linenumber">31,32</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="live.settings.keepEvents" datatype="html">
-        <source>Keep at most</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/live/live-tail-settings.ts</context>
-          <context context-type="linenumber">34,35</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="live.tailStatus.noLimit" datatype="html">
-        <source>no limit</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/live/live-tail-settings.ts</context>
-          <context context-type="linenumber">35</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/live/live-tail-settings.ts</context>
-          <context context-type="linenumber">38</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="live.settings.unitEvents" datatype="html">
-        <source>events</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/live/live-tail-settings.ts</context>
-          <context context-type="linenumber">35,37</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="live.settings.keepMinutes" datatype="html">
-        <source>Keep for at most</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/live/live-tail-settings.ts</context>
-          <context context-type="linenumber">37,38</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="live.settings.unitMinutes" datatype="html">
-        <source>minutes</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/live/live-tail-settings.ts</context>
-          <context context-type="linenumber">38,40</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="live.tailStatus.deletedFiles" datatype="html">
         <source>Deleted files</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/live-tail-settings.ts</context>
-          <context context-type="linenumber">40,41</context>
+          <context context-type="linenumber">34,35</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.deletedKeep" datatype="html">
         <source>Keep their events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/live-tail-settings.ts</context>
-          <context context-type="linenumber">42,43</context>
+          <context context-type="linenumber">36,37</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.deletedDrop" datatype="html">
         <source>Drop their events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/live-tail-settings.ts</context>
-          <context context-type="linenumber">43,45</context>
+          <context context-type="linenumber">37,39</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.settings.flush" datatype="html">
         <source>Flush a partial line after</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/live-tail-settings.ts</context>
-          <context context-type="linenumber">46,47</context>
+          <context context-type="linenumber">40,41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.detectTitle" datatype="html">
         <source>The live anomaly detectors (error spikes, crashes, slow outliers...) run at most this often. 0 runs them after every batch.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/live-tail-settings.ts</context>
-          <context context-type="linenumber">49</context>
+          <context context-type="linenumber">43</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.settings.detectEvery" datatype="html">
         <source>Run detectors every</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/live-tail-settings.ts</context>
-          <context context-type="linenumber">49,50</context>
+          <context context-type="linenumber">43,44</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.windowControls.group" datatype="html">
@@ -15657,200 +15618,172 @@
           <context context-type="linenumber">43,44</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="live.tailStatus.evictedTitle" datatype="html">
-        <source>Events removed by the retention limit since the workspace was opened</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">44</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="live.tailStatus.totalEvicted" datatype="html">
-        <source><x id="INTERPOLATION" equiv-text="{{ count(st.totals.evicted) }}"/> evicted</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">44,45</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="live.tailStatus.filesAria" datatype="html">
         <source>Tailed files</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">46</context>
+          <context context-type="linenumber">45</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.colFile" datatype="html">
         <source>File</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">50</context>
+          <context context-type="linenumber">49</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.colGroup" datatype="html">
         <source>Group</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">50</context>
+          <context context-type="linenumber">49</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.colMode" datatype="html">
         <source>Mode</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">50</context>
+          <context context-type="linenumber">49</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.colOffset" datatype="html">
         <source>Offset / size</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">50,51</context>
+          <context context-type="linenumber">49,50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.colRate" datatype="html">
         <source>Lines/s</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">51</context>
+          <context context-type="linenumber">50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.colLast" datatype="html">
         <source>Last change</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">51</context>
+          <context context-type="linenumber">50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.colState" datatype="html">
         <source>State</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">51,53</context>
+          <context context-type="linenumber">50,52</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.noFileState" datatype="html">
         <source>The state of each tailed file is not available yet. Live tail still adds new lines.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">67,69</context>
+          <context context-type="linenumber">66,68</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.noFiles" datatype="html">
         <source>No files are open. <x id="START_TAG_IMT_NEXT_STEPS" ctype="x-imt_next_steps" equiv-text="&lt;imt-next-steps /&gt;"/><x id="CLOSE_TAG_IMT_NEXT_STEPS" ctype="x-imt_next_steps" equiv-text="&lt;imt-next-steps /&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">69,71</context>
+          <context context-type="linenumber">68,70</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.loadFailed" datatype="html">
         <source>The tail status could not be loaded: <x id="INTERPOLATION" equiv-text="{{ e }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">76</context>
+          <context context-type="linenumber">75</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.retry" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">76,78</context>
+          <context context-type="linenumber">75,77</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.loading" datatype="html">
         <source>Loading…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">78,82</context>
+          <context context-type="linenumber">77,81</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.watchAuto.short" datatype="html">
         <source>auto</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">109</context>
+          <context context-type="linenumber">108</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.watchEvents.short" datatype="html">
         <source>file events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">110</context>
+          <context context-type="linenumber">109</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.watchPolling.short" datatype="html">
         <source>polling</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">111</context>
+          <context context-type="linenumber">110</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.liveOn" datatype="html">
         <source>Live tail on</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">115</context>
+          <context context-type="linenumber">114</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.liveOff" datatype="html">
         <source>Live tail off</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">115</context>
+          <context context-type="linenumber">114</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.modeWhole" datatype="html">
         <source>Whole file</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">149</context>
+          <context context-type="linenumber">148</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.modeEvents" datatype="html">
         <source>Events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">150</context>
+          <context context-type="linenumber">149</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.modePolling" datatype="html">
         <source>Polling</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">151</context>
+          <context context-type="linenumber">150</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.modeOff" datatype="html">
         <source>Off</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">152</context>
+          <context context-type="linenumber">151</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.summary.watch" datatype="html">
         <source>Watch: <x id="mode" equiv-text="watch"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">167</context>
+          <context context-type="linenumber">166</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.summary.poll" datatype="html">
         <source>poll every <x id="ms" equiv-text="o.pollIntervalMs ?? 2000"/> ms</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">168</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="live.tailStatus.summary.keep" datatype="html">
-        <source>keep <x id="n" equiv-text="formatCount(max)"/> events</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">170</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="live.tailStatus.summary.keepAll" datatype="html">
-        <source>keep all events</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
-          <context context-type="linenumber">170</context>
+          <context context-type="linenumber">167</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tail.state.tailing" datatype="html">
@@ -41294,7 +41227,7 @@
         <source>Live tail could not start</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/live-tail.ts</context>
-          <context context-type="linenumber">89</context>
+          <context context-type="linenumber">88</context>
         </context-group>
       </trans-unit>
     </body>

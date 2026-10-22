@@ -19,14 +19,12 @@ export function parseDetectEvery(value: unknown): number | null {
 /** Validates saved live settings (untrusted project/session state) on top of the defaults. */
 export function sanitizeLiveOptions(value: unknown): LiveOptions {
   const v = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
-  const retention = v['retention'] && typeof v['retention'] === 'object' ? (v['retention'] as Record<string, unknown>) : {};
   const carry = typeof v['carryFlushMs'] === 'number' && Number.isFinite(v['carryFlushMs']) && v['carryFlushMs'] >= 0 ? Math.round(v['carryFlushMs']) : DEFAULT_LIVE_OPTIONS.carryFlushMs;
   const detect = parseDetectEvery(v['detectEveryMs']) ?? DEFAULT_LIVE_OPTIONS.detectEveryMs;
   return {
     watch: v['watch'] === 'events' || v['watch'] === 'polling' ? v['watch'] : 'auto',
     pollIntervalMs: posInt(v['pollIntervalMs']) ?? DEFAULT_LIVE_OPTIONS.pollIntervalMs,
     deletedFiles: v['deletedFiles'] === 'drop' ? 'drop' : 'keep',
-    retention: { maxRecords: posInt(retention['maxRecords']), maxAgeMs: posInt(retention['maxAgeMs']) },
     carryFlushMs: carry,
     detectEveryMs: detect,
   };

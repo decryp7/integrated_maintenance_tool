@@ -41,7 +41,6 @@ export const STATUS_POLL_MS = 2000;
         <span [title]="exact(st.totals.bytes)">{{ bytes(st.totals.bytes) }}</span>
         <span i18n="@@live.tailStatus.totalRate"><strong>{{ rate(st.totals.linesPerSec) }}</strong> lines/s</span>
         <span i18n="@@live.tailStatus.totalEvents">{{ count(st.totals.records) }} events</span>
-        <span title="Events removed by the retention limit since the workspace was opened" i18n-title="@@live.tailStatus.evictedTitle" i18n="@@live.tailStatus.totalEvicted">{{ count(st.totals.evicted) }} evicted</span>
       </div>
       <div class="list" tabindex="0" role="region" aria-label="Tailed files" i18n-aria-label="@@live.tailStatus.filesAria">
         <table>
@@ -166,8 +165,6 @@ export class TailStatusView {
     const watch = o.watch === 'events' ? this.watchEvents : o.watch === 'polling' ? this.watchPolling : this.watchAuto;
     const parts = [$localize`:@@live.tailStatus.summary.watch:Watch: ${watch}:mode:`];
     if (o.watch !== 'events') parts.push($localize`:@@live.tailStatus.summary.poll:poll every ${o.pollIntervalMs ?? 2000}:ms: ms`);
-    const max = o.retention?.maxRecords;
-    parts.push(max ? $localize`:@@live.tailStatus.summary.keep:keep ${formatCount(max)}:n: events` : $localize`:@@live.tailStatus.summary.keepAll:keep all events`);
     return parts.join(' · ');
   });
 

@@ -67,7 +67,6 @@ export function emptyReport(): TailReport {
     truncated: [],
     deleted: [],
     reimported: [],
-    evicted: 0,
     idsChangedFrom: null,
     newestTs: null,
     instancesChanged: [],
@@ -196,7 +195,7 @@ export class MockLiveSim {
   }
 
   /** The per-file status table, as `tail_status` returns it. */
-  status(sources: MockSource[], records: (sourceId: number) => number, mode: WatchMode, evicted: number, total: number): TailStatus {
+  status(sources: MockSource[], records: (sourceId: number) => number, mode: WatchMode, total: number): TailStatus {
     const files: TailFileStatus[] = sources.map((s) => {
       const f = this.fileOf(s.id);
       const whole = s.importer === 'registry';
@@ -223,7 +222,6 @@ export class MockLiveSim {
         errors: files.filter((f) => f.state.kind === 'error').length,
         bytes: files.reduce((a, f) => a + f.size, 0),
         linesPerSec: Math.round(files.reduce((a, f) => a + f.linesPerSec, 0) * 10) / 10,
-        evicted,
         records: total,
       },
     };
@@ -340,8 +338,7 @@ export function mockResolveLiveOptions(options: LiveOptions | undefined): LiveOp
     watch: o.watch ?? 'auto',
     pollIntervalMs: clamp(o.pollIntervalMs ?? 2000, 100, 600_000),
     deletedFiles: o.deletedFiles ?? 'keep',
-    retention: { maxRecords: o.retention?.maxRecords ?? null, maxAgeMs: o.retention?.maxAgeMs ?? null },
-    carryFlushMs: o.carryFlushMs ?? 2000,
+    carryFlushMs: o.carryFlushMs ?? 500,
     detectEveryMs: clamp(o.detectEveryMs ?? 1000, 0, MAX_DETECT_EVERY_MS),
   };
 }

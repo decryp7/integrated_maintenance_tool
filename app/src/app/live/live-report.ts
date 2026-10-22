@@ -11,7 +11,6 @@ export function emptyTailReport(): TailReport {
     truncated: [],
     deleted: [],
     reimported: [],
-    evicted: 0,
     idsChangedFrom: null,
     newestTs: null,
     instancesChanged: [],
@@ -48,7 +47,6 @@ export function mergeReports(a: TailReport, b: TailReport): TailReport {
     truncated: union(a.truncated, b.truncated),
     deleted: union(a.deleted, b.deleted),
     reimported: union(a.reimported, b.reimported),
-    evicted: a.evicted + b.evicted,
     idsChangedFrom: minOf(a.idsChangedFrom, b.idsChangedFrom),
     newestTs: maxOf(a.newestTs, b.newestTs),
     instancesChanged: union(a.instancesChanged, b.instancesChanged),
@@ -65,7 +63,6 @@ export function mergeReports(a: TailReport, b: TailReport): TailReport {
 export function isStructural(r: TailReport): boolean {
   return (
     r.idsChangedFrom !== null ||
-    r.evicted > 0 ||
     r.updated > 0 ||
     r.truncated.length > 0 ||
     r.deleted.length > 0 ||
