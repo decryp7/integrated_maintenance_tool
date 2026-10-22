@@ -701,7 +701,7 @@ their pure logic but have not been checked on every desktop environment.
 
 ## Themes, colour schemes and density
 
-![The workspace in the light colour scheme of the Calm theme](screenshots/light-theme.png)
+![The workspace in the light colour scheme of the Calm theme](screenshots/workspace-light.png)
 
 Settings ▸ Appearance (or *View ▸ Theme*, or the command palette) chooses how IMT looks:
 

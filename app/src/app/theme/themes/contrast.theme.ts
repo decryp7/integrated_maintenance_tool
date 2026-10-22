@@ -19,6 +19,7 @@ export const CONTRAST: ThemeDef = {
     'fs-md': '14px',
     'fs-lg': '16px',
     'fs-xl': '21px',
+    'fs-hero': '30px',
     's-1': '4px',
     's-2': '8px',
     's-3': '12px',

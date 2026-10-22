@@ -19,6 +19,7 @@ export const PRECISION: ThemeDef = {
     'fs-md': '12px',
     'fs-lg': '14px',
     'fs-xl': '18px',
+    'fs-hero': '26px',
     's-1': '4px',
     's-2': '8px',
     's-3': '12px',

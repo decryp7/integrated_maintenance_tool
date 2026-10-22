@@ -10,6 +10,7 @@ export const COMMON_TOKENS = [
   'fs-md',
   'fs-lg',
   'fs-xl',
+  'fs-hero',
   's-1',
   's-2',
   's-3',

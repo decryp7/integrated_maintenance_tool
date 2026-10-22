@@ -66,3 +66,26 @@ runs, neutral vs source-coloured vs barcode lane density, comfortable vs compact
   validated source and series colours (see above). The table-style label column (PID, events, errors
   per lane) and the grid's LINE column still wait for per-lane error counts from the engine.
 - ADR 0028 adds an *Interface font* setting: the operating system's font by default, the theme's face on request.
+
+## Amendment (2026-10-23): calm is the suite-aligned default, system font by default, others opt-in
+
+The suite design guide (one shared token vocabulary, system fonts, cobalt accent) and the design review of the app
+(`design-review-debrief`) conflict with decision 6 only for the **default look**. The mechanism (tokens plus traits,
+the density setting, the per-theme gates) stays; what changes is what a user gets without choosing anything:
+
+1. **`calm` is the default** and follows the suite guide: neutral graphite surfaces, the system UI font (ADR 0028's
+   *Interface font* default; the bundled Inter stays the theme's own face, one click away under *Theme font*), a
+   cobalt accent (`#2f6fe0` in both schemes, `accent-text` lighter on dark so text on dark keeps 4.5:1), flat panels
+   and the guide's type scale, with a `fs-hero` token (28 px) for the one hero number of a page.
+2. **`console` and `precision` are opt-in alternative looks** (Settings > Appearance). They keep their own bundled
+   fonts and must pass the same gates as `calm`: 4.5:1 text and 3:1 marks contrast, colour-vision-deficiency checks
+   of the categorical palettes, axe in both schemes. A new token (such as `fs-hero`) is added to every theme.
+3. **Typography rules that apply in every theme**: the interface font with tabular numerals for numbers and
+   versions; monospace only for addresses, hashes, paths, code and raw log text; sentence-case section labels, no
+   uppercase letter-spaced headings.
+4. **Traits do the design work, not special cases**: `laneFill: neutral` (no hatched or dotted fills; annotation
+   bands are flat tints, markers are told apart by shape) and `findings: chips` are what the Home and timeline
+   changes of the design pass rely on.
+
+Consequences: screenshots and baselines change once; no data migration (the stored theme id and font preference are
+unchanged, `null` still means the default).

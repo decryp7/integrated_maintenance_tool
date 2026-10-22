@@ -183,7 +183,7 @@ const VISIBLE_ROWS = 6;
     .tiles > div { position: relative; }
     .tiles .hero { padding: 10px 12px; border: 1px solid var(--border-2); border-radius: var(--r-3); background: var(--bg-2); min-height: 72px; }
     .tiles .hero dt { font-size: var(--fs-sm); color: var(--muted); }
-    .tiles .hero dd { margin: 2px 0 0; font-size: 28px; line-height: 1.15; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .tiles .hero dd { margin: 2px 0 0; font-size: var(--fs-hero); line-height: 1.15; font-weight: 600; font-variant-numeric: tabular-nums; }
     .tiles .chip { grid-column: auto; display: inline-flex; align-items: baseline; gap: 6px; padding: 2px 10px; border: 1px solid var(--border-2); border-radius: 999px; font-size: var(--fs-sm); width: max-content; max-width: 100%; }
     .tiles .chip dt { color: var(--muted); }
     .tiles .chip dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }

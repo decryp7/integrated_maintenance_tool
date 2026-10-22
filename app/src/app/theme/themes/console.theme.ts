@@ -19,6 +19,7 @@ export const CONSOLE: ThemeDef = {
     'fs-md': '13px',
     'fs-lg': '16px',
     'fs-xl': '22px',
+    'fs-hero': '28px',
     's-1': '4px',
     's-2': '8px',
     's-3': '12px',
