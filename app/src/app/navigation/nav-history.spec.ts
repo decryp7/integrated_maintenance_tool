@@ -127,6 +127,34 @@ describe('NavHistory', () => {
     expect(h.canBack).toBe(false);
   });
 
+  it('steps over places the caller rejects, so one press reaches the previous event (regression)', () => {
+    const h = new NavHistory();
+    h.record(ev(1), 0);
+    h.record(view('events'), 1);
+    h.record(ev(5), 2);
+    h.record(ev(9), 3);
+    const inFront = (p: NavPlace) => p.kind === 'view' && p.id === 'events';
+    expect(h.back(inFront)).toEqual(ev(5));
+    expect(h.back(inFront)).toEqual(ev(1));
+    expect(h.canGo(-1, inFront)).toBe(false);
+    expect(h.back(inFront)).toBeNull();
+    expect(h.current).toEqual(ev(1));
+    expect(h.forward(inFront)).toEqual(ev(5));
+    expect(h.forward(inFront)).toEqual(ev(9));
+    expect(h.forward(inFront)).toBeNull();
+  });
+
+  it('does not move when every place that way is rejected, and moves normally without a predicate', () => {
+    const h = new NavHistory();
+    h.record(ev(1), 0);
+    h.record(view('a'), 1);
+    expect(h.canGo(-1, () => true)).toBe(false);
+    expect(h.back(() => true)).toBeNull();
+    expect(h.current).toEqual(view('a'));
+    expect(h.canGo(-1)).toBe(true);
+    expect(h.back()).toEqual(ev(1));
+  });
+
   it('clears everything', () => {
     const h = new NavHistory();
     h.record(ev(1), 0);
