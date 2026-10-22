@@ -83,13 +83,15 @@ test.describe('VS-style docking', () => {
     await expect(groups(page)).toHaveCount(4);
   });
 
-  test('a released drag away from any guide floats the panel there instead of docking it', async ({ page }) => {
+  test('a released drag away from any guide is cancelled: the panel stays where it was and nothing floats', async ({ page }) => {
+    const before = await groupOf(page, 'Metrics').locator('[role="tab"]').allInnerTexts();
     const content = await box(page, '.dv-groupview:has(imt-events-grid) .dv-content-container');
     await dragTabTo(page, 'Metrics', content.x + 40, content.y + content.height - 20);
-    await expect(page.locator('.imt-float-cue')).toHaveText('Release to float');
+    await expect(page.locator('.imt-float-cue')).toHaveText('Release to cancel');
     await page.mouse.up();
-    await expect(page.locator('.dv-resize-container').getByRole('tab', { name: 'Metrics', exact: true })).toBeVisible();
-    await expect(groupOf(page, 'Timeline')).not.toContainText('Metrics');
+    await expect(page.locator('.dv-resize-container')).toHaveCount(0);
+    await expect(groupOf(page, 'Events')).not.toContainText('Metrics');
+    expect(await groupOf(page, 'Metrics').locator('[role="tab"]').allInnerTexts()).toEqual(before);
   });
 
   test('auto hide: the inspector collapses to a side bar, slides out on hover, hides on Escape, pins back', async ({ page, browserName }) => {
@@ -149,7 +151,7 @@ test.describe('VS-style docking', () => {
     await expect(menu.getByRole('menuitem', { name: 'Pop out to window' })).toBeEnabled();
     await expect(menu.getByRole('menuitem', { name: 'Close all but this' })).toBeVisible();
     await expectNoSeriousViolations(page, test.info(), 'panel-menu');
-    await menu.getByRole('menuitem', { name: 'Float inside window' }).click();
+    await menu.getByRole('menuitem', { name: 'Float', exact: true }).click();
     await expect(page.locator('.dv-resize-container')).toBeVisible();
     await (await panelMenu(page, 'Events')).getByRole('menuitem', { name: 'Dock', exact: true }).click();
     await expect(page.locator('.dv-resize-container')).toHaveCount(0);

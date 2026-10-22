@@ -9835,120 +9835,127 @@
           <context context-type="linenumber">37</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="dock.commands.float" datatype="html">
+        <source>Float panel</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dock/dock-commands.ts</context>
+          <context context-type="linenumber">38</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="dock.commands.panelMenu" datatype="html">
         <source>Panel menu (window position)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-commands.ts</context>
-          <context context-type="linenumber">38</context>
+          <context context-type="linenumber">39</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.commands.autoHide" datatype="html">
         <source>Auto hide / pin tool window</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-commands.ts</context>
-          <context context-type="linenumber">39</context>
+          <context context-type="linenumber">40</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.commands.autoHideAll" datatype="html">
         <source>Auto hide all tool windows</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-commands.ts</context>
-          <context context-type="linenumber">40</context>
+          <context context-type="linenumber">41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.commands.pinAll" datatype="html">
         <source>Pin all tool windows</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-commands.ts</context>
-          <context context-type="linenumber">41</context>
+          <context context-type="linenumber">42</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.commands.closeAllDocuments" datatype="html">
         <source>Close all documents</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-commands.ts</context>
-          <context context-type="linenumber">42</context>
+          <context context-type="linenumber">43</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.commands.switcher" datatype="html">
         <source>Switch panel (Ctrl+Tab)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-commands.ts</context>
-          <context context-type="linenumber">43</context>
+          <context context-type="linenumber">44</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.commands.fullScreen" datatype="html">
         <source>Full screen</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-commands.ts</context>
-          <context context-type="linenumber">44</context>
+          <context context-type="linenumber">45</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.commands.fullScreenMode.both" datatype="html">
         <source>Full screen does: hide tool windows and chrome, and OS full screen</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-commands.ts</context>
-          <context context-type="linenumber">45</context>
+          <context context-type="linenumber">46</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.commands.fullScreenMode.chrome" datatype="html">
         <source>Full screen does: hide tool windows and chrome only</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-commands.ts</context>
-          <context context-type="linenumber">46</context>
+          <context context-type="linenumber">47</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.commands.fullScreenMode.os" datatype="html">
         <source>Full screen does: OS full screen only</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-commands.ts</context>
-          <context context-type="linenumber">47</context>
+          <context context-type="linenumber">48</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.commands.layout.save" datatype="html">
         <source>Save window layout…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-commands.ts</context>
-          <context context-type="linenumber">50</context>
+          <context context-type="linenumber">51</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.commands.layout.saveDialog" datatype="html">
         <source>Save window layout</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-commands.ts</context>
-          <context context-type="linenumber">52</context>
+          <context context-type="linenumber">53</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.commands.layout.manage" datatype="html">
         <source>Manage window layouts…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-commands.ts</context>
-          <context context-type="linenumber">54</context>
+          <context context-type="linenumber">55</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.commands.layout.dialogTitle" datatype="html">
         <source>Window layouts</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-commands.ts</context>
-          <context context-type="linenumber">54</context>
+          <context context-type="linenumber">55</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-commands.ts</context>
-          <context context-type="linenumber">55</context>
+          <context context-type="linenumber">56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.commands.layout.apply" datatype="html">
         <source>Apply window layout…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-commands.ts</context>
-          <context context-type="linenumber">55</context>
+          <context context-type="linenumber">56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.commands.layout.reset" datatype="html">
         <source>Reset window layout</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-commands.ts</context>
-          <context context-type="linenumber">60</context>
+          <context context-type="linenumber">61</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.overflow.one" datatype="html">
@@ -9999,49 +10006,49 @@
         <source>Auto-hidden tool windows (left)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">223</context>
+          <context context-type="linenumber">231</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.barRight" datatype="html">
         <source>Auto-hidden tool windows (right)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">225</context>
+          <context context-type="linenumber">233</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.barBottom" datatype="html">
         <source>Auto-hidden tool windows (bottom)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">227</context>
+          <context context-type="linenumber">235</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.pinLabel" datatype="html">
         <source>Pin <x id="title" equiv-text="title"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">232</context>
+          <context context-type="linenumber">240</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.hideLabel" datatype="html">
         <source>Hide <x id="title" equiv-text="title"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">236</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="dock.floatCue.float" datatype="html">
-        <source>Release to float</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/dock/float-cue.ts</context>
-          <context context-type="linenumber">68</context>
+          <context context-type="linenumber">244</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.floatCue.window" datatype="html">
         <source>Release to open in a new window</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/float-cue.ts</context>
-          <context context-type="linenumber">70</context>
+          <context context-type="linenumber">83</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dock.floatCue.cancel" datatype="html">
+        <source>Release to cancel</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dock/float-cue.ts</context>
+          <context context-type="linenumber">85</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.groupActions.panelMenu" datatype="html">
@@ -10220,11 +10227,12 @@
         </context-group>
       </trans-unit>
       <trans-unit id="dock.panelMenu.float" datatype="html">
-        <source>Float inside window</source>
+        <source>Float</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/panel-menu.ts</context>
           <context context-type="linenumber">46</context>
         </context-group>
+        <note priority="1" from="description">Verb, float a panel inside the window</note>
       </trans-unit>
       <trans-unit id="dock.panelMenu.popOut" datatype="html">
         <source>Pop out to window</source>
@@ -19215,7 +19223,7 @@
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/problems/problems-panel.ts</context>
-          <context context-type="linenumber">51,54</context>
+          <context context-type="linenumber">51,53</context>
         </context-group>
       </trans-unit>
       <trans-unit id="problems.dismiss" datatype="html">
@@ -31328,7 +31336,7 @@
         <source>Windows</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/menu/menu-model.ts</context>
-          <context context-type="linenumber">434</context>
+          <context context-type="linenumber">435</context>
         </context-group>
         <note priority="1" from="description">Menu group</note>
       </trans-unit>
@@ -31336,7 +31344,7 @@
         <source>Pop-out panels</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/menu/menu-model.ts</context>
-          <context context-type="linenumber">435</context>
+          <context context-type="linenumber">436</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.sidebar.problem.unmatched" datatype="html">
@@ -31708,14 +31716,14 @@
         <source><x id="INTERPOLATION" equiv-text="{{ fmt(s.untimed) }}"/> without a time</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">19,21</context>
+          <context context-type="linenumber">19,20</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.matching" datatype="html">
         <source><x id="INTERPOLATION" equiv-text="{{ fmt(store.matchTotal()!) }}"/> matching</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">22,24</context>
+          <context context-type="linenumber">22,23</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.instances" datatype="html">
@@ -31736,7 +31744,7 @@
         <source><x id="INTERPOLATION" equiv-text="{{ fmt(s.dropped) }}"/> dropped by pipeline</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">26,28</context>
+          <context context-type="linenumber">26,27</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.group" datatype="html">
@@ -33145,7 +33153,7 @@
         <source>events / bucket</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-panel.ts</context>
-          <context context-type="linenumber">75,77</context>
+          <context context-type="linenumber">75,76</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.panel.histMaxTitle" datatype="html">

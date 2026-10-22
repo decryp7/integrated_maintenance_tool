@@ -361,8 +361,10 @@ Browser keys such as `F5`/`Mod+R` (reload), `Mod+F` (find, unless IMT binds it),
 (IMT's own bindings, such as the time-range history above, still work). Release builds also turn off
 the developer tools (`F12`, `Mod+Shift+I`).
 
-To float a panel, drag its tab off the docking guides and release it where the **Release to float**
-ghost shows; release it outside the window (**Release to open in a new window**) to pop it out.
+To float a panel inside the window, choose **Float** in its tab menu or **Window ▸ Float panel**. A
+tab dragged off the docking guides and released inside the window goes back where it was
+(**Release to cancel**); release it outside the window (**Release to open in a new window**) to pop
+it out.
 
 ## Command line
 

@@ -9,17 +9,16 @@ export interface TabDragHost {
   outcome(id: string, client: Point): TabDropOutcome;
   /** Opens the panel in its own window at a screen point. */
   popOut(id: string, screen: Point): void;
-  /** Floats the panel in the window at a client point. */
-  float(id: string, client: Point): void;
-  /** Shows the cue for this outcome at the pointer; `none` and `dock` clear it. */
-  cue(id: string, client: Point, outcome: TabDropOutcome): void;
+  /** Shows the cue for this outcome at the pointer; `dock` and null clear it. */
+  cue(id: string, client: Point, outcome: TabDropOutcome | null): void;
 }
 
 /**
  * Follows a tab dragged off the dock's drop zones, using pointer events (works in WKWebView and WebView2, where
  * HTML5 drag-and-drop is unreliable or taken by the native file-drop handler): released outside the window it pops
- * out, released inside but away from every drop zone it floats there; dockview handles drops on the zones. While
- * dragging, the host shows a cue of what a release would do. Escape cancels the drag (dockview's too).
+ * out; dockview handles drops on the zones; released inside but away from every drop zone nothing happens (the drag
+ * is cancelled and the tab stays where it was). While dragging, the host shows a cue of what a release would do.
+ * Escape cancels the drag (dockview's too).
  *
  * Once a press on a tab becomes a drag, the pointer is captured, so the release is reported even outside the
  * window; a capture lost without a release counts as a release at the last position.
@@ -65,7 +64,7 @@ export class TabDragOut {
     this.end();
   };
 
-  /** Escape while dragging cancels: nothing floats or pops out, and dockview's drag ends without a drop. */
+  /** Escape while dragging cancels: nothing pops out, and dockview's drag ends without a drop. */
   private readonly onKey = (e: KeyboardEvent): void => {
     if (e.key !== 'Escape' || !this.drag?.dragging) return;
     e.preventDefault();
@@ -87,9 +86,7 @@ export class TabDragOut {
     const drag = this.drag ? moveTab(this.drag, client, screen) : null;
     this.end();
     if (!drag?.dragging) return;
-    const outcome = this.host.outcome(drag.id, client);
-    if (outcome === 'window') this.host.popOut(drag.id, screen);
-    else if (outcome === 'float') this.host.float(drag.id, client);
+    if (this.host.outcome(drag.id, client) === 'window') this.host.popOut(drag.id, screen);
   }
 
   /** Forgets the drag and clears the cue. */
@@ -97,7 +94,7 @@ export class TabDragOut {
     const drag = this.drag;
     this.drag = null;
     this.release();
-    if (drag?.dragging) this.host.cue(drag.id, drag.last, 'none');
+    if (drag?.dragging) this.host.cue(drag.id, drag.last, null);
   }
 
   private capture(pointerId: number): void {

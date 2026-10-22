@@ -428,6 +428,7 @@ function windowMenu(state: MenuState, cmd: Cmd, sub: Sub): MenuNode[] {
     cmd('window.pinAll'),
     cmd('window.closeAllDocuments'),
     SEP,
+    cmd('window.float'),
     cmd('window.popOut'),
     cmd('window.fullScreen'),
     SEP,

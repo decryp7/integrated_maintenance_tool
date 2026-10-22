@@ -64,6 +64,7 @@ const COMMANDS: [string, string, string?][] = [
   ['window.autoHideAll', 'Auto hide all tool windows'],
   ['window.pinAll', 'Pin all tool windows'],
   ['window.closeAllDocuments', 'Close all documents'],
+  ['window.float', 'Float panel'],
   ['window.popOut', 'Pop out to window', 'Ctrl+Alt+O'],
   ['window.fullScreen', 'Full screen', 'Shift+Alt+Enter'],
   ['window.panelMenu', 'Panel menu (window position)', 'Alt+-'],
@@ -225,7 +226,7 @@ describe('menu model', () => {
 
   it('groups Window: layouts submenu, tool window actions, then the windows and pop-outs when there are several', () => {
     const w = menu(buildMenus(state()), 'window').items;
-    expect(labels(w)).toEqual(['Layouts', '—', 'Auto hide all tool windows', 'Pin all tool windows', 'Close all documents', '—', 'Pop out to window', 'Full screen']);
+    expect(labels(w)).toEqual(['Layouts', '—', 'Auto hide all tool windows', 'Pin all tool windows', 'Close all documents', '—', 'Float panel', 'Pop out to window', 'Full screen']);
     expect(labels(sub(w, 'Layouts'))).toEqual(['Save window layout…', '—', 'Apply window layout 1', 'Apply window layout 3', '—', 'Manage window layouts…', 'Reset window layout']);
     const two = menu(
       buildMenus(

@@ -478,15 +478,17 @@ See [ADR 0012](adr/0012-jobs.md).
 
 ![A floating timeline panel over the events grid](screenshots/floating-panel.png)
 
-Every view is a panel. Drag tabs to split, float a panel (`Float panel` button), maximise it, and
-reset the layout from the command palette. Layouts are remembered.
+Every view is a panel. Drag tabs to split, maximise a panel, and reset the layout from the command
+palette. Layouts are remembered. Floating a panel inside the window is always deliberate: **Float**
+in the tab menu, the group's `Float panel` button or **Window ▸ Float panel**; a drag never floats.
 
 Dragging a tab shows where it goes. On a docking guide (the compass over a group, the guides at
-the dock's edges) or a tab strip it docks there. Anywhere else in the window a dashed ghost of the
-panel, sized as it will float, follows the pointer with **Release to float**; outside the window
-the ghost waits at the window's edge with **Release to open in a new window**. Releasing does
-what the hint says; `Esc` cancels the drag. The hint is also announced to screen readers, and the
-ghost does not animate when reduced motion is on.
+the dock's edges) or a tab strip it docks there. Anywhere else in the window a release cancels the
+drag: the dragged tab dims, a small **Release to cancel** shows by the pointer, and the tab stays
+where it was. Outside the window a translucent preview of the panel follows the pointer along the
+window's edge with **Release to open in a new window**, and releasing there pops the panel out into
+its own window. `Esc` cancels the drag. The hint is also announced to screen readers, and the
+preview does not animate when reduced motion is on.
 
 IMT behaves like a desktop app, not a web page: right-clicking toolbars, tabs and other chrome
 shows IMT's own menus or nothing (text fields and selected text keep the system Copy/Paste menu),
