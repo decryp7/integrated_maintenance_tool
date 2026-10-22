@@ -222,31 +222,51 @@ describe('LensBar', () => {
     const { lenses, sets, workspace } = await setup();
     const fixture = TestBed.createComponent(LensBar);
     await settle(fixture);
-    const select = el<HTMLSelectElement>(fixture, 'select');
-    expect(Array.from(select.options).map((o) => o.textContent?.trim())).toEqual(['Pick a lens…', 'Errors only', 'Warnings and worse']);
-    typeInto(select, 'errors', 'change');
+    const button = () => el<HTMLButtonElement>(fixture, '[data-testid="lens-button"]');
+    const label = () => el(fixture, '[data-testid="lens-name"]').textContent?.trim();
+    const items = () => Array.from(document.body.querySelectorAll<HTMLButtonElement>('[data-testid="lens-menu"] button'));
+    const item = (t: string) => items().find((b) => b.textContent?.includes(t)) as HTMLButtonElement;
+    expect(label()).toBe('No lens');
+    expect(fixture.nativeElement.querySelector('select')).toBeNull();
+    button().click();
+    await settle(fixture);
+    expect(items().map((b) => b.textContent?.trim())).toEqual(['Errors only', 'Warnings and worse', 'Save current as lens…', 'Filters → set']);
+    item('Errors only').click();
     await settle(fixture);
     expect(workspace.query().levels).toEqual(['Error', 'Fatal']);
-    typeInto(select, '', 'change');
     expect(lenses.activeId()).toBe('errors');
+    expect(label()).toBe('Errors only');
 
-    const name = el<HTMLInputElement>(fixture, 'input');
+    // Saving opens a small popover with the name; the saved lens becomes the current one and can be deleted from the menu.
+    button().click();
+    await settle(fixture);
+    item('Save current as lens').click();
+    await settle(fixture);
+    const name = el<HTMLInputElement>(fixture, '[data-testid="lens-save-form"] input');
     typeInto(name, 'Mine');
     await settle(fixture);
-    el<HTMLButtonElement>(fixture, '.lens-row > button.btn').click();
+    el<HTMLFormElement>(fixture, '[data-testid="lens-save-form"]').dispatchEvent(new Event('submit', { cancelable: true }));
     await settle(fixture);
     expect(lenses.saved().map((l) => l.name)).toEqual(['Mine']);
-    expect(name.value).toBe('');
-    expect(el(fixture, 'button.icon-btn')).toBeTruthy();
-    el<HTMLButtonElement>(fixture, 'button.icon-btn').click();
+    expect(fixture.nativeElement.querySelector('[data-testid="lens-save-form"]')).toBeNull();
+    expect(label()).toBe('Mine');
+    button().click();
+    await settle(fixture);
+    item('Delete lens Mine').click();
     await settle(fixture);
     expect(lenses.saved()).toEqual([]);
+    expect(label()).toBe('No lens');
 
-    const setButton = () => all<HTMLButtonElement>(fixture, '.lens-row > button.btn')[1] as HTMLButtonElement;
-    expect(setButton().disabled).toBe(true);
+    const openSetItem = async () => {
+      button().click();
+      await settle(fixture);
+      return item('Filters → set');
+    };
+    expect((await openSetItem()).getAttribute('aria-disabled')).toBe('true');
     workspace.addFilter({ field: 'a', op: 'eq', value: '1' });
     await settle(fixture);
-    setButton().click();
+    expect(item('Filters → set').getAttribute('aria-disabled')).not.toBe('true');
+    item('Filters → set').click();
     await settle(fixture);
     const chip = () => el<HTMLButtonElement>(fixture, '[data-testid="filter-set"] .toggle');
     expect(chip().getAttribute('aria-pressed')).toBe('true');
@@ -284,13 +304,15 @@ describe('LensBar', () => {
     expect(titles[9]).not.toContain('Alt');
   });
 
-  it('shows saved lenses in their own group', async () => {
+  it('groups profile and saved lenses in the menu', async () => {
     const { lenses, workspace } = await setup();
     workspace.setTextInput('x');
     lenses.saveCurrent('Mine');
     const fixture = TestBed.createComponent(LensBar);
     await settle(fixture);
-    expect(all(fixture, 'optgroup')).toHaveLength(2);
+    el<HTMLButtonElement>(fixture, '[data-testid="lens-button"]').click();
+    await settle(fixture);
+    expect(Array.from(document.body.querySelectorAll('[data-testid="lens-menu"] .group')).map((g) => g.textContent?.trim())).toEqual(['Profile', 'Saved']);
   });
 });
 

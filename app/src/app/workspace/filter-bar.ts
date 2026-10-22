@@ -88,6 +88,7 @@ const OP_LABELS: Record<FilterOp, string> = {
         <button class="btn ghost pill" [class.fold]="compact()" (click)="store.clearQuery()" i18n="@@workspace.filterBar.clearAll">Clear all</button>
       }
       <span class="spacer"></span>
+      <imt-lens-bar />
       @if (compact()) {
         <!-- Narrow window (H1): what does not fit folds into this menu; the search and the levels always stay. -->
         <div class="anchor" (imtClickOutside)="moreOpen.set(false)" (keydown.escape)="moreOpen.set(false)">
@@ -168,7 +169,6 @@ const OP_LABELS: Record<FilterOp, string> = {
 
     </div>
     }
-    <imt-lens-bar />
   `,
   styles: `
     :host { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg-1); }

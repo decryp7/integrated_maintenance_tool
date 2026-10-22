@@ -1,5 +1,11 @@
-import { expect, test } from '@playwright/test';
+import { expect, Page, test } from '@playwright/test';
 import { gridTotal, initialTotal, openApp, parseCount } from './app';
+
+/** Opens the Lens menu and picks an item by its text. */
+async function lensMenu(page: Page, item: string | RegExp): Promise<void> {
+  await page.getByTestId('lens-button').click();
+  await page.getByRole('menuitem', { name: item, exact: typeof item === 'string' }).click();
+}
 
 test.describe('lenses and filter sets', () => {
   test.beforeEach(async ({ page }) => openApp(page));
@@ -12,13 +18,12 @@ test.describe('lenses and filter sets', () => {
     const errors = await chipCount('ERR');
     const fatals = await chipCount('FTL');
 
-    const lens = page.getByRole('combobox', { name: 'Lens' });
-    await lens.selectOption({ label: 'Errors only' });
+    await lensMenu(page, 'Errors only');
     await expect(levels.getByRole('button', { name: /^ERR/ })).toHaveAttribute('aria-pressed', 'true');
     await expect(levels.getByRole('button', { name: /^FTL/ })).toHaveAttribute('aria-pressed', 'true');
     await expect(total).toHaveText(String(errors + fatals));
 
-    await lens.selectOption({ label: 'Warnings and worse' });
+    await lensMenu(page, 'Warnings and worse');
     await expect(levels.getByRole('button', { name: /^WRN/ })).toHaveAttribute('aria-pressed', 'true');
     // The lens also brings its extra column.
     await expect(page.locator('imt-events-grid .hcell.extra', { hasText: 'SourceContext' })).toBeVisible();
@@ -32,19 +37,20 @@ test.describe('lenses and filter sets', () => {
     await levels.getByRole('button', { name: /^ERR/ }).click();
     const errorsOnly = await total.innerText();
 
-    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('My errors');
+    await lensMenu(page, /Save current as lens/);
+    await page.getByTestId('lens-save-form').getByRole('textbox', { name: 'Name' }).fill('My errors');
     await page.getByRole('button', { name: 'Save lens' }).click();
     await levels.getByRole('button', { name: /^ERR/ }).click();
     await expect(total).toHaveText(all);
 
-    await page.getByRole('combobox', { name: 'Lens' }).selectOption({ label: 'My errors' });
+    await lensMenu(page, 'My errors');
     await expect(total).toHaveText(errorsOnly);
   });
 
   test('filter sets switch off and on without being deleted', async ({ page }) => {
     const total = gridTotal(page);
     const all = await initialTotal(page);
-    await page.getByRole('combobox', { name: 'Lens' }).selectOption({ label: 'Errors only' });
+    await lensMenu(page, 'Errors only');
     await expect(total).not.toHaveText(all);
     const errorsOnly = await total.innerText();
 
@@ -54,7 +60,7 @@ test.describe('lenses and filter sets', () => {
     await page.getByLabel('Value', { exact: true }).fill('zz-no-such-context');
     await page.getByRole('button', { name: 'Add', exact: true }).click();
     await expect(total).toHaveText('0');
-    await page.getByRole('button', { name: 'Filters → set' }).click();
+    await lensMenu(page, 'Filters → set');
 
     const chip = page.getByTestId('filter-set').getByRole('button', { name: /^Set 1/ });
     await expect(chip).toHaveAttribute('aria-pressed', 'true');
