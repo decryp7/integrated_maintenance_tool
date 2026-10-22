@@ -1,4 +1,4 @@
-//! The client side of the store ports, expanded from the port table ([`crate::store_port_table`], ADR 0040):
+//! The client side of the store ports, expanded from the port table ([`crate::store_port_table`], ADR 0042):
 //! one `impl Port for RemoteStore` per port. Plain rows are a one-line call; `custom` rows delegate to the
 //! `remote_*` methods below, which hold what is not a plain DTO call (import sessions, remembered state).
 

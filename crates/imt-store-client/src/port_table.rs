@@ -1,4 +1,4 @@
-//! The one declarative source of the store ports on the wire (ADR 0040).
+//! The one declarative source of the store ports on the wire (ADR 0042).
 //!
 //! [`store_port_table!`] lists, per port trait, every method that crosses to the store worker. Three callbacks
 //! expand the table: [`crate::protocol::StoreOp`] (the operation enum), the client's `impl Port for RemoteStore`

@@ -1,5 +1,5 @@
 //! The worker's dispatch of store operations, expanded from the port table ([`imt_store_client::store_port_table`],
-//! ADR 0040): a plain row calls the port method with its decoded request; a `custom` row calls the `serve_*`
+//! ADR 0042): a plain row calls the port method with its decoded request; a `custom` row calls the `serve_*`
 //! handler below. A new plain port method needs no code here.
 
 use super::*;
