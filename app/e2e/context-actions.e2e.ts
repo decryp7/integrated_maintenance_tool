@@ -77,7 +77,8 @@ test.describe('context actions from data', () => {
   test('mask dialog previews the replacement and saves', async ({ page }, testInfo) => {
     await selectRowWithMessage(page, 'Slow request');
     await selectInMessage(page, '\\d+ ms');
-    await page.getByRole('button', { name: 'Mask…' }).click();
+    await page.getByRole('button', { name: 'More actions…' }).click();
+    await page.getByRole('menuitem', { name: 'Mask in message…' }).click();
     const dialog = page.getByRole('dialog', { name: 'Mask in message' });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByTestId('mask-after')).toContainText('***');
@@ -93,7 +94,8 @@ test.describe('context actions from data', () => {
   test('extract dialog proposes a regex, previews matches and adds a field', async ({ page }, testInfo) => {
     await selectRowWithMessage(page, 'Slow request');
     await selectInMessage(page, '\\d+(?= ms)');
-    await page.getByRole('button', { name: 'Extract value…' }).click();
+    await page.getByRole('button', { name: 'More actions…' }).click();
+    await page.getByRole('menuitem', { name: 'Extract value…' }).click();
     const dialog = page.getByRole('dialog', { name: 'Extract value' });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByTestId('extract-preview')).toContainText(/\d+ of \d+ candidate events match/);

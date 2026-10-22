@@ -37,6 +37,12 @@ describe('MarkersManager', () => {
     expect(row.querySelector('imt-marker-glyph')).not.toBeNull();
   });
 
+  it('holds the highlight rules, which are line markers (K6)', async () => {
+    const { fixture } = await mount();
+    expect(el(fixture, 'section.highlights h2').textContent).toBe('Highlight rules');
+    expect(el(fixture, 'section.highlights imt-highlight-editor')).toBeTruthy();
+  });
+
   it('reorders with the move buttons and saves the new priority', async () => {
     const { fixture, backend } = await mount();
     expect(btn(fixture, 'Move up Fatal').disabled).toBe(true);

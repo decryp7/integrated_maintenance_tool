@@ -3,6 +3,8 @@ export function isMac(): boolean {
   return typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform ?? '');
 }
 
+const ARROWS = new Set(['left', 'right', 'up', 'down']);
+
 /** Does the keyboard event match a binding such as "Mod+Shift+P" or "Alt+Left"? */
 export function matchesKeybinding(binding: string, e: KeyboardEvent, mac = isMac()): boolean {
   const parts = binding.split('+').map((p) => p.trim().toLowerCase());
@@ -14,7 +16,7 @@ export function matchesKeybinding(binding: string, e: KeyboardEvent, mac = isMac
   const meta = wants.has('meta') || (mod && mac);
   if (e.ctrlKey !== ctrl || e.metaKey !== meta || e.altKey !== wants.has('alt') || e.shiftKey !== wants.has('shift')) return false;
   const pressed = e.key.toLowerCase();
-  return pressed === key || (key === 'left' && pressed === 'arrowleft') || (key === 'right' && pressed === 'arrowright');
+  return pressed === key || (ARROWS.has(key) && pressed === 'arrow' + key) || (key === 'space' && pressed === ' ');
 }
 
 /** Human-readable form of a binding for hints: "⌘⇧P" on macOS, "Ctrl+Shift+P" elsewhere. */
@@ -28,6 +30,8 @@ export function formatKeybinding(binding: string, mac = isMac()): string {
     if (names[lower]) return names[lower];
     if (p.toLowerCase() === 'left') return '←';
     if (p.toLowerCase() === 'right') return '→';
+    if (p.toLowerCase() === 'up') return '↑';
+    if (p.toLowerCase() === 'down') return '↓';
     return p.length === 1 ? p.toUpperCase() : p;
   });
   return mac ? out.join('') : out.join('+');

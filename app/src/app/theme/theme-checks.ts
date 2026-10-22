@@ -11,6 +11,13 @@ import { TokenSet } from './theme.types';
 export const TEXT_CONTRAST = 4.5;
 /** Minimum contrast of marks, glyphs and focus indicators (WCAG 1.4.11). */
 export const GRAPHIC_CONTRAST = 3;
+/** Minimum contrast of text at WCAG AAA (1.4.6), required of the high contrast theme. */
+export const TEXT_CONTRAST_AAA = 7;
+/** Minimum contrast of marks and focus indicators in the high contrast theme (AA text size for large text, 4.5:1). */
+export const GRAPHIC_CONTRAST_AAA = 4.5;
+
+/** How strict a contrast check is: the standard AA gates, or the AAA gates of the high contrast theme. */
+export type ContrastLevel = 'AA' | 'AAA';
 
 /** Text roles drawn on any panel surface. */
 export const TEXT_ROLES = ['text', 'text-2', 'muted', 'faint', 'accent-text', 'ok', 'warn-text', 'danger-text', 'fatal-text'] as const;
@@ -51,12 +58,22 @@ function pairProblem(tokens: TokenSet, fg: string, bg: string, min: number): str
   return r < min ? `--${fg} (${a}) on --${bg} (${b}) has contrast ${r.toFixed(2)}:1, below ${min}:1` : null;
 }
 
-/** Every text and mark pair below its minimum contrast (empty = the token set passes). */
-export function contrastProblems(tokens: TokenSet): string[] {
+/** Borders and the focus ring, which must be seen against the main surfaces (WCAG 1.4.11). */
+export const BORDER_ROLES = ['border', 'border-2', 'border-3', 'focus-ring'] as const;
+export const BORDER_SURFACES = ['bg-0', 'bg-1', 'bg-2', 'bg-3'] as const;
+
+/**
+ * Every text and mark pair below its minimum contrast (empty = the token set passes). At `AAA` text needs 7:1 and
+ * marks, borders and the focus ring 4.5:1; `AA` is 4.5:1 for text and 3:1 for marks.
+ */
+export function contrastProblems(tokens: TokenSet, level: ContrastLevel = 'AA'): string[] {
+  const text = level === 'AAA' ? TEXT_CONTRAST_AAA : TEXT_CONTRAST;
+  const graphic = level === 'AAA' ? GRAPHIC_CONTRAST_AAA : GRAPHIC_CONTRAST;
   const out: (string | null)[] = [];
-  for (const fg of TEXT_ROLES) for (const bg of TEXT_SURFACES) out.push(pairProblem(tokens, fg, bg, TEXT_CONTRAST));
-  for (const [fg, bg] of TEXT_PAIRS) out.push(pairProblem(tokens, fg, bg, TEXT_CONTRAST));
-  for (const fg of GRAPHIC_ROLES) for (const bg of GRAPHIC_SURFACES) out.push(pairProblem(tokens, fg, bg, GRAPHIC_CONTRAST));
+  for (const fg of TEXT_ROLES) for (const bg of TEXT_SURFACES) out.push(pairProblem(tokens, fg, bg, text));
+  for (const [fg, bg] of TEXT_PAIRS) out.push(pairProblem(tokens, fg, bg, text));
+  for (const fg of GRAPHIC_ROLES) for (const bg of GRAPHIC_SURFACES) out.push(pairProblem(tokens, fg, bg, graphic));
+  if (level === 'AAA') for (const fg of BORDER_ROLES) for (const bg of BORDER_SURFACES) out.push(pairProblem(tokens, fg, bg, GRAPHIC_CONTRAST));
   return out.filter((p): p is string => p !== null);
 }
 

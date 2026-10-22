@@ -18,14 +18,21 @@ describe('AppearanceSettings', () => {
   it('offers every built-in theme as a radio card with a preview in the scheme in effect', async () => {
     const { fixture, prefs, theme } = await setup();
     const cards = all<HTMLInputElement>(fixture, 'input[type=radio][name=imt-theme]');
-    expect(cards.map((c) => c.value)).toEqual(['calm', 'console', 'precision']);
+    expect(cards.map((c) => c.closest('label')?.getAttribute('data-theme-card'))).toEqual(['system', 'calm', 'console', 'precision', 'contrast']);
     expect(cards[0]?.checked).toBe(true);
+    expect(prefs.theme()).toBeNull();
+    expect(text(fixture)).toContain('Follow system');
     expect(text(fixture)).toContain('Calm');
     expect(text(fixture)).toContain('Console');
     expect(text(fixture)).toContain('Precision');
-    cards[1]?.click();
+    cards[2]?.click();
     await settle(fixture);
     expect(prefs.theme()).toBe('console');
+    cards[0]?.click();
+    await settle(fixture);
+    expect(prefs.theme()).toBeNull();
+    cards[2]?.click();
+    await settle(fixture);
     expect(el(fixture, '[data-theme-card=console]').classList).toContain('on');
     // The preview shows the theme's own colours, for the scheme in effect.
     const panel = (id: string) => el<HTMLElement>(fixture, `[data-theme-card=${id}] .panel`).style.background;
@@ -65,21 +72,18 @@ describe('AppearanceSettings', () => {
     expect(all(fixture, '[aria-pressed=true]').map((b) => b.textContent?.trim())).toEqual(['light', 'system', 'compact', 'Off']);
   });
 
-  it('colours lanes by source as the theme says until the user chooses, and can go back to the default', async () => {
-    const { fixture, prefs, theme } = await setup();
-    const toggle = () => el<HTMLInputElement>(fixture, '[data-testid=lanes-by-source] input');
-    expect(toggle().checked).toBe(false);
-    expect(text(fixture)).not.toContain("Use the theme's default");
+  it('Source colours: Off also draws the lanes neutral; the other choices leave lane colour to the theme (I6)', async () => {
+    const { fixture, prefs, theme, settings } = await setup();
     prefs.setTheme('console');
     await settle(fixture);
-    expect(toggle().checked).toBe(true);
-    toggle().click();
+    expect(text(fixture)).not.toContain('Colour lanes by source');
+    expect(theme.traits().laneFill).toBe('bySource');
+    all<HTMLButtonElement>(fixture, '[data-testid=source-colors] button')[2]?.click();
     await settle(fixture);
-    expect(prefs.lanesBySource()).toBe(false);
+    expect(settings.sourceColors()).toBe('off');
     expect(theme.traits().laneFill).toBe('neutral');
-    buttonByText(fixture, "Use the theme's default").click();
+    all<HTMLButtonElement>(fixture, '[data-testid=source-colors] button')[1]?.click();
     await settle(fixture);
-    expect(prefs.lanesBySource()).toBeNull();
     expect(theme.traits().laneFill).toBe('bySource');
   });
 });

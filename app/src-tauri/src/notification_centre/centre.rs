@@ -31,6 +31,8 @@ pub enum NoticeSource {
     Session,
     /// Memory caps of IMT's processes (Settings ▸ Performance).
     Performance,
+    /// Things about the files and folders the user opened (a new folder worth setting up).
+    Workspace,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -524,6 +526,16 @@ mod tests {
             (wire["source"].as_str(), wire["severity"].as_str(), wire["scope"].as_str()),
             (Some("ai"), Some("warning"), Some("app"))
         );
+        // The workspace source (K4) is spelled like the UI's `NoticeSource`.
+        assert_eq!(
+            serde_json::to_value(NoticeSource::Workspace).unwrap(),
+            serde_json::json!("workspace")
+        );
+        assert_eq!(
+            serde_json::from_value::<NoticeSource>(serde_json::json!("workspace")).unwrap(),
+            NoticeSource::Workspace
+        );
+        assert!(serde_json::from_value::<NoticeSource>(serde_json::json!("nope")).is_err());
         let action = serde_json::to_value(NoticeAction::ViewJob { job_id: 3 }).unwrap();
         assert_eq!(action, serde_json::json!({"type": "viewJob", "jobId": 3}));
     }

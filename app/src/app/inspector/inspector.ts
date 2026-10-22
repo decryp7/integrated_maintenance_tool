@@ -1,3 +1,5 @@
+import { copyText } from '../tools/clipboard';
+import { breakAfterSeparators } from './inspector-text';
 import { NgComponentOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, linkedSignal, signal } from '@angular/core';
 import { MessageSelection, RecordActions } from '../context/record-actions';
@@ -84,9 +86,7 @@ const CONTEXT_MS = 2 * 60 * 1000;
               <button class="btn" (click)="sameAs(c.field, c.value)" i18n="@@inspector.sameAs">Same {{ c.field //i18n(ph="field") }}</button>
             }
             <button class="btn" (click)="copyJson()">{{ copyJsonLabel() }}</button>
-            <button class="btn" [disabled]="!selection()" title="Select text in the message first" i18n-title="@@inspector.mask.title" (click)="mask()" i18n="@@inspector.mask">Mask…</button>
-            <button class="btn" [disabled]="!selection()" title="Select a value in the message first" i18n-title="@@inspector.extract.title" (click)="extract()" i18n="@@inspector.extract">Extract value…</button>
-            <button class="btn" aria-haspopup="menu" title="Drop, mark or filter events like this" i18n-title="@@inspector.moreActions.title" (click)="openActions($event)" i18n="@@inspector.moreActions">More actions…</button>
+            <button class="btn" aria-haspopup="menu" title="Mask, extract, drop, mark or filter events like this" i18n-title="@@inspector.moreActions.title" (click)="openActions($event)" i18n="@@inspector.moreActions">More actions…</button>
           </div>
         </div>
 
@@ -95,8 +95,9 @@ const CONTEXT_MS = 2 * 60 * 1000;
           @for (p of props(); track p.key) {
             <div class="prop" (contextmenu)="openPropMenu($event, p.key, p.value)" (keydown)="onPropKey($event, p.key, p.value)">
               <span class="mono k ellipsis" [title]="p.key">{{ p.key }}</span>
-              <span class="mono v imt-selectable" [title]="p.display">{{ p.display }}</span>
+              <span class="mono v imt-selectable" [title]="p.display">@for (part of breakParts(p.display); track $index) {{{ part }}<wbr />}</span>
               <span class="pa">
+                <button class="icon-btn" data-testid="prop-copy" [attr.aria-label]="copyValueLabel(p.key)" [title]="copyValueLabel(p.key)" (click)="copyValue(p.value)"><imt-icon name="copy" [size]="12" /></button>
                 <button class="icon-btn" [attr.aria-label]="filterEqLabel(p.key, p.value)" title="Only this value" i18n-title="@@inspector.prop.only" (click)="filter(p.key, 'eq', p.value)"><imt-icon name="plus" [size]="12" /></button>
                 <button class="icon-btn" [attr.aria-label]="filterNeLabel(p.key, p.value)" title="Exclude this value" i18n-title="@@inspector.prop.exclude" (click)="filter(p.key, 'ne', p.value)"><imt-icon name="minus" [size]="12" /></button>
                 <button class="icon-btn" aria-haspopup="menu" [attr.aria-label]="moreActionsLabel(p.key)" title="More actions" i18n-title="@@inspector.prop.moreActions" (click)="openPropMenu($event, p.key, p.value)"><imt-icon name="drag" [size]="12" /></button>
@@ -169,10 +170,10 @@ const CONTEXT_MS = 2 * 60 * 1000;
     .actions { display: flex; gap: 6px; flex-wrap: wrap; }
     .sub { padding: 12px 14px 6px; }
     .props { display: flex; flex-direction: column; }
-    .prop { display: grid; grid-template-columns: 118px minmax(0, 1fr) 72px; column-gap: 8px; align-items: start; padding: 3px 8px 3px 14px; }
+    .prop { display: grid; grid-template-columns: 118px minmax(0, 1fr) 98px; column-gap: 8px; align-items: start; padding: 3px 8px 3px 14px; }
     .prop:hover { background: var(--bg-hover); }
     .k { font-size: var(--fs-xs); color: var(--muted); padding-top: 3px; }
-    .v { font-size: var(--fs-xs); color: var(--text); word-break: break-all; padding-top: 3px; }
+    .v { font-size: var(--fs-xs); color: var(--text); overflow-wrap: anywhere; padding-top: 3px; }
     .pa { display: flex; gap: 2px; visibility: hidden; }
     .pa .icon-btn { width: 22px; height: 22px; }
     .prop:hover .pa, .pa:focus-within { visibility: visible; }
@@ -196,6 +197,19 @@ export class Inspector {
     this.selection.set(selectionWithin(message, sel.getRangeAt(0)));
   }
 
+  /** A value in pieces that may break after `.`, `/` and `\` ("Microsoft.Hosting.Lifetime" never splits mid-word). */
+  protected breakParts(value: string): string[] {
+    return breakAfterSeparators(value);
+  }
+
+  protected copyValueLabel(key: string): string {
+    return $localize`:@@inspector.prop.copyValue:Copy the value of ${key}:key:`;
+  }
+
+  protected async copyValue(value: string): Promise<void> {
+    if (!(await copyText(value))) this.store.setError($localize`:@@inspector.clipboardUnavailable:Clipboard is not available.`);
+  }
+
   protected mask(): void {
     const r = this.rec();
     const s = this.selection();
@@ -210,7 +224,7 @@ export class Inspector {
 
   protected openActions(e: MouseEvent): void {
     const r = this.rec();
-    if (r) this.actions.openFor(e, r, { selection: this.selection() });
+    if (r) this.actions.openFor(e, r, { selection: this.selection(), explainTextRules: true });
   }
 
   protected openPropMenu(e: MouseEvent, name: string, value: string): void {

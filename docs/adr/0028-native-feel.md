@@ -24,13 +24,14 @@ keys and blocked the browser menu outside text fields; this ADR records the whol
    menu with *Copy*; everywhere else nothing opens. Development builds show the browser menu (with *Inspect*) on
    Shift+right-click. The record menu (grid rows, inspector) gains *Copy* (the selection, else the messages).
 3. **Browser keys and buttons are blocked** in every build: reload (F5, Ctrl/Cmd+R), print, save page, view source,
-   browser find (F3, Ctrl/Cmd+F/G when IMT does not bind them), page zoom (Ctrl +/-/0, Ctrl+wheel, pinch; IMT zooms
+   browser find (F3, Ctrl/Cmd+F/G, unless an IMT handler already took the key and prevented its default, as the Find command does), page zoom (Ctrl +/-/0, Ctrl+wheel, pinch; IMT zooms
    its own views), back/forward (Alt+arrows, mouse buttons 4/5), middle-click autoscroll outside text fields. Release
    builds also block devtools and hard reload; development builds keep them. Only the browser's *default* is
    prevented, from a window listener in the bubble phase, so IMT's own shortcuts and handlers still see every event.
 4. **The shell turns off what the webview lets it**: WebView2's `AreBrowserAcceleratorKeysEnabled` (release builds),
-   `zoom_hotkeys_enabled(false)` and no browser extensions, for every IMT window (main and pop-outs). The UI guard
-   covers the rest, so the browser build (`ng serve`, Playwright) behaves the same.
+   `zoom_hotkeys_enabled(false)` and no browser extensions, for every IMT window (main and pop-outs). These switches
+   exist on Windows (WebView2) only; on macOS and Linux only the UI guard applies. The guard covers the rest, so the
+   browser build (`ng serve`, Playwright) behaves the same.
 5. **Files dropped where no target takes them never navigate**: the guard swallows `dragover`/`drop` of files that no
    IMT drop target handled. In the desktop app Tauri's native drag-and-drop delivers drops to IMT's drop router (`core/dropped-files.ts`).
 6. **Native typography and chrome**: a new appearance setting, *Interface font*, defaults to the operating system's

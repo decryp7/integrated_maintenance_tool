@@ -58,6 +58,12 @@ export const MENU_IDS = {
   otherWindows: 'menu.otherWindows',
   /** Shows the sidebar and focuses the fields filter. */
   fields: 'menu.fields',
+  /** `recent:file:<path>` opens a recent file or folder. */
+  recentFile: 'recent:file:',
+  /** `recent:project:<path>` opens a recent project. */
+  recentProject: 'recent:project:',
+  /** Empties both recent lists. */
+  recentClear: 'menu.recentClear',
 } as const;
 
 /**
@@ -98,7 +104,7 @@ export interface MenuState {
   views: readonly MenuView[];
   sidebarOpen: boolean;
   /** View › Theme: the look and the colour scheme. */
-  theme: ThemeId;
+  theme: ThemeId | null;
   scheme: 'system' | 'dark' | 'light';
   /** What the source colour marker stands for (View › Source colours); default by file. */
   sourceColors?: 'source' | 'instance' | 'off';
@@ -110,6 +116,8 @@ export interface MenuState {
   redoLabel: string | null;
   windows: readonly MenuWindow[];
   popouts: readonly MenuPopout[];
+  /** File ▸ Open recent: newest first (the model shows the first few of each). */
+  recent?: { projects: readonly { path: string; name: string }[]; files: readonly string[] };
   /** macOS native menu bar: About and Settings are in the app menu, not in Help/Tools. */
   nativeAppMenu: boolean;
 }
@@ -152,6 +160,15 @@ const CATEGORY_LABELS: Readonly<Record<Exclude<ViewCategory, 'core'>, string>> =
   AI: $localize`:View submenu@@shell.menu.view.category.ai:AI`,
 };
 
+/** How many recent projects and files File ▸ Open recent lists. */
+export const RECENT_MENU_PROJECTS = 5;
+export const RECENT_MENU_FILES = 10;
+
+/** The last two path segments, e.g. "web01/orders.clef": what a recent item is called in a menu (the path is its tooltip elsewhere). */
+export function recentLabel(path: string): string {
+  return path.split(/[\\/]/).filter(Boolean).slice(-2).join('/') || path;
+}
+
 /** A separator; collapsed when leading, trailing or doubled. */
 const SEP: SeparatorNode = { kind: 'separator' };
 
@@ -173,6 +190,25 @@ export function tidy(parts: readonly Part[]): MenuNode[] {
   }
   while (out.length && out[out.length - 1]?.kind === 'separator') out.pop();
   return out;
+}
+
+/** File ▸ Open recent ▸: projects, then folders and files, then Clear recent. Missing when nothing was opened yet. */
+function recentMenu(state: MenuState): SubmenuNode | null {
+  const projects = (state.recent?.projects ?? []).slice(0, RECENT_MENU_PROJECTS);
+  const files = (state.recent?.files ?? []).slice(0, RECENT_MENU_FILES);
+  if (!projects.length && !files.length) return null;
+  return {
+    kind: 'submenu',
+    id: 'file.openRecent',
+    label: $localize`:@@shell.menu.file.openRecent:Open recent`,
+    items: tidy([
+      ...projects.map((p): MenuItemNode => ({ kind: 'item', id: MENU_IDS.recentProject + p.path, label: p.name })),
+      projects.length && files.length ? SEP : null,
+      ...files.map((f): MenuItemNode => ({ kind: 'item', id: MENU_IDS.recentFile + f, label: recentLabel(f) })),
+      SEP,
+      { kind: 'item', id: MENU_IDS.recentClear, label: $localize`:@@shell.menu.file.clearRecent:Clear recent` },
+    ]),
+  };
 }
 
 /** Builds the menu bar. Pure: same state, same menus. */
@@ -222,7 +258,7 @@ export function buildMenus(state: MenuState): TopMenu[] {
         cmd('dumps.openUmdh'),
         cmd('video.open'),
         cmd('project.open'),
-        cmd('project.recent', $localize`:@@shell.menu.file.openRecentProject:Open recent project…`),
+        recentMenu(state),
         SEP,
         cmd('project.save'),
         cmd('project.saveAs'),
@@ -377,9 +413,11 @@ function viewMenu(state: MenuState, cmd: Cmd, sub: Sub): MenuNode[] {
     { kind: 'item', id: MENU_IDS.otherWindows, label: $localize`:@@shell.menu.view.otherWindows:Other windows…` },
     SEP,
     sub('view.theme', $localize`:@@shell.menu.view.theme:Theme`, [
+      cmd('view.theme.system', $localize`:Theme name@@shell.menu.view.theme.system:Follow system`, state.theme === null),
       cmd('view.theme.calm', $localize`:Theme name@@shell.menu.view.theme.calm:Calm`, state.theme === 'calm'),
       cmd('view.theme.console', $localize`:Theme name@@shell.menu.view.theme.console:Console`, state.theme === 'console'),
       cmd('view.theme.precision', $localize`:Theme name@@shell.menu.view.theme.precision:Precision`, state.theme === 'precision'),
+      cmd('view.theme.contrast', $localize`:Theme name@@shell.menu.view.theme.contrast:High contrast`, state.theme === 'contrast'),
       SEP,
       cmd('view.scheme.system', $localize`:Colour scheme option@@shell.menu.view.scheme.system:System`, state.scheme === 'system'),
       cmd('view.scheme.dark', $localize`:Colour scheme option@@shell.menu.view.scheme.dark:Dark`, state.scheme === 'dark'),

@@ -47,14 +47,11 @@ describe('shared UI state of a window group', () => {
     expect(store.theme()).toBe('console');
     apply('theme', 'precision');
     expect(store.theme()).toBe('precision');
+    apply('theme', null);
+    expect(store.theme()).toBeNull();
     apply('uiFont', 'theme');
     apply('uiFont', 'comic');
     expect(read('uiFont')).toBe('theme');
-    apply('lanesBySource', true);
-    apply('lanesBySource', 'yes');
-    expect(read('lanesBySource')).toBe(true);
-    apply('lanesBySource', null);
-    expect(store.lanesBySource()).toBeNull();
     apply('timezone', 'local');
     expect(read('timezone')).toBe('local');
     apply('lifecycle', false);

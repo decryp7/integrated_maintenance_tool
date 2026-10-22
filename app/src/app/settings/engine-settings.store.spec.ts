@@ -23,7 +23,7 @@ describe('EngineSettingsStore', () => {
     await store.load();
     expect(store.sections().map((s) => s.id)).toContain('diagnostics');
     store.select('workspace');
-    expect(store.current()?.title).toBe('Workspace');
+    expect(store.current()?.title).toBe('Live tail');
     store.edit('workspace', 'liveTailDebounce', 900);
     expect(store.dirty()).toBe(true);
     expect(store.dirtySections()).toEqual(['workspace']);
@@ -41,7 +41,11 @@ describe('EngineSettingsStore', () => {
     store.edit('workspace', 'liveTailDebounce', 1000);
     await store.load();
     expect(store.valueOf('workspace', 'liveTailDebounce')).toBe(1000);
-    // Closing with edits asks first.
+    // A plain edit applies by itself, so it never blocks closing; only an edit the engine refused asks first.
+    expect(store.canClose()).toBe(true);
+    store.edit('workspace', 'liveTailDebounce', 5);
+    expect(await store.apply()).toBe(false);
+    expect(store.rejectedSections()).toEqual(['workspace']);
     expect(store.canClose()).toBe(false);
     expect(store.confirmDiscard()).toBe(true);
     store.keepEditing();

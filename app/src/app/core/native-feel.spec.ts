@@ -210,6 +210,18 @@ describe('native feel: the installed guard', () => {
     expect(fire(el('p').firstChild!, new MouseEvent('contextmenu', { bubbles: true, cancelable: true })).defaultPrevented).toBe(true);
   });
 
+  it('offers Copy only when the right-click is on the selected text, not on an ancestor such as body (regression)', () => {
+    const menu = (target: Element) => fire(target, new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 1, clientY: 2 }));
+    const range = document.createRange();
+    range.selectNodeContents(el('p'));
+    window.getSelection()?.addRange(range);
+    expect(menu(document.body).defaultPrevented).toBe(true);
+    expect(menu(host).defaultPrevented).toBe(true);
+    expect(copied).toEqual([]);
+    menu(el('p'));
+    expect(copied).toHaveLength(1);
+  });
+
   it('blocks Ctrl+wheel zoom without stopping IMT handlers, and the back/forward mouse buttons', () => {
     let zoomed = false;
     el('b').addEventListener('wheel', () => (zoomed = true));

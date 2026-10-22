@@ -130,24 +130,29 @@ describe('NotificationsPanel', () => {
     expect(el<HTMLButtonElement>(f, '[data-testid=notices-mark-all]').disabled).toBe(false);
   });
 
-  it('filters to unread messages and by source with pressed chips', async () => {
+  it('filters with an All / Unread segmented control and a Source filter with counts (K5)', async () => {
     const { f } = setup();
     await render(f);
-    const unreadOnly = el<HTMLButtonElement>(f, '[data-testid=notices-unread-only]');
-    expect(unreadOnly.getAttribute('aria-pressed')).toBe('false');
-    unreadOnly.click();
+    expect(all(f, '.chip')).toHaveLength(0);
+    const unread = el<HTMLButtonElement>(f, '[data-testid=notices-unread-only]');
+    const allBtn = el<HTMLButtonElement>(f, '[data-testid=notices-view-all]');
+    expect(allBtn.getAttribute('aria-pressed')).toBe('true');
+    unread.click();
     f.detectChanges();
-    expect(unreadOnly.getAttribute('aria-pressed')).toBe('true');
+    expect(unread.getAttribute('aria-pressed')).toBe('true');
     expect(all(f, 'li.notice').map((e) => e.getAttribute('data-testid'))).toEqual(['notice-5', 'notice-2']);
-    unreadOnly.click();
+    allBtn.click();
     f.detectChanges();
-    const chip = (label: string) => buttonByText(f, label);
-    expect(all(f, '.chip').map((c) => c.textContent?.trim())).toEqual(['Unread only', 'Jobs', 'Live alerts', 'Imports', 'Plugins', 'AI', 'Updates', 'Session', 'Performance']);
-    chip('Updates').click();
+    el<HTMLButtonElement>(f, '[data-testid=kind-filter]').click();
     f.detectChanges();
-    expect(chip('Updates').getAttribute('aria-pressed')).toBe('true');
+    const labels = all(f, '[data-testid=kind-filter-list] label').map((l) => l.textContent?.replace(/\s+/g, ' ').trim());
+    expect(labels).toContain('Updates1');
+    expect(labels).toHaveLength(9);
+    el<HTMLInputElement>(f, '[data-testid=kind-update]').click();
+    f.detectChanges();
     expect(all(f, 'h3').map((h) => h.textContent)).toEqual(['Updates']);
-    chip('Updates').click();
+    expect(el(f, '[data-testid=kind-filter]').textContent).toContain('Source: 1');
+    el<HTMLButtonElement>(f, '[data-testid=kind-filter-clear]').click();
     f.detectChanges();
     expect(all(f, 'h3')).toHaveLength(3);
   });
