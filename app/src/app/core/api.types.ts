@@ -2700,7 +2700,7 @@ export interface EtlConverted {
 
 // ---- Recent files and projects (`recent_list`, `recent_remove`, `recent_clear`; event `imt://recent-changed`) ----
 // Generated from `recent.rs`. Rust records an entry after a granted open or save.
-export type { RecentKind, RecentLists, RecentProject } from './generated/recent';
+export type { RecentFile, RecentKind, RecentLists, RecentProject } from './generated/recent';
 
 // ---- Third-party plugin packages (`plugin_package_*`, see tools-backend.ts `PluginPackagesBackend`) ----
 // Generated from `plugin_packages`: a package's review before installing, and what is installed.

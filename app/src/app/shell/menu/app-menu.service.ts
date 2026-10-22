@@ -62,7 +62,7 @@ export class AppMenu {
       redoLabel: this.undo.redoLabel(),
       windows: this.windowing.windows().map((w) => ({ label: w.label, title: w.title, current: w.label === label })),
       popouts: [...popped].map((id) => ({ id, title: this.views.find(id)?.title ?? id })),
-      recent: { projects: this.recent.projects(), files: this.recent.files() },
+      recent: { projects: this.recent.projects(), files: this.recent.files().map((f) => f.path) },
       nativeAppMenu: this.mode === 'native',
     });
   });
