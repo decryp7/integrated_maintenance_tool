@@ -330,7 +330,10 @@ mod tests {
         assert!(!row.full_text("absent"));
         assert_eq!(row.number(&key), Some(7.0));
         assert_eq!(row.value(&key), Some(serde_json::json!(7)));
-        assert_eq!(row.text(&crate::row::FieldKeys::new().key("N")).map(|t| t.into_owned()), Some("7".to_string()));
+        assert_eq!(
+            row.text(&crate::row::FieldKeys::new().key("N")).map(|t| t.into_owned()),
+            Some("7".to_string())
+        );
         assert_eq!(row.event().map(|e| e.message().to_string()), Some("Disk Full here".to_string()));
     }
 

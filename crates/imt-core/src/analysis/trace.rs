@@ -262,3 +262,32 @@ pub fn rank_requests(out: &mut Vec<RequestSpan>) {
     out.sort_by(|a, b| (b.last - b.first).cmp(&(a.last - a.first)).then_with(|| a.id.cmp(&b.id)));
     out.truncate(MAX_REQUESTS);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::Record;
+    use crate::row::RecordRow;
+
+    fn event(id: u32, ts: i64, message: &str) -> Record {
+        let mut r = Record::new(0);
+        r.id = id;
+        r.ts = Some(ts);
+        r.message = message.into();
+        r.fields.insert("TraceId".into(), serde_json::json!("t1"));
+        r.fields.insert("SpanId".into(), serde_json::json!("s1"));
+        r
+    }
+
+    #[test]
+    fn a_span_takes_its_start_and_text_from_the_earliest_event_whatever_the_order() {
+        let late = event(1, 2_000, "finished");
+        let early = event(2, 1_000, "started");
+        let built = spans([&late, &early].map(|rec| RecordRow { rec, source: "s" }));
+        assert_eq!(built.len(), 1);
+        let s = &built[0];
+        assert_eq!((s.start, s.first_id, s.events), (1_000, 2, 2));
+        assert_eq!(s.name, "started");
+        assert_eq!(s.duration_ms, 1_000.0);
+    }
+}
