@@ -108,7 +108,8 @@ describe('NotificationsPanel', () => {
     await render(f);
     expect(el(f, '[data-testid=notices-empty]').textContent).toContain('Nothing needs your attention');
     expect(el<HTMLButtonElement>(f, '[data-testid=notices-mark-all]').disabled).toBe(true);
-    expect(f.nativeElement.querySelector('h3')).toBeNull();
+    expect(f.nativeElement.querySelector('[data-testid=notices-empty] imt-icon')).not.toBeNull();
+    expect([...f.nativeElement.querySelectorAll('h3')].filter((h: Element) => !h.closest('[data-testid=notices-empty]'))).toHaveLength(0);
   });
 
   it('groups messages by source under headings with counts, time, body and read state', async () => {
@@ -169,12 +170,13 @@ describe('NotificationsPanel', () => {
     const { f, actions } = setup();
     await render(f);
     const row = el(f, '[data-testid=notice-5]');
-    const buttons = [...row.querySelectorAll('button')].map((b) => b.textContent?.trim());
-    expect(buttons).toEqual(['Reset AI', 'Show in Jobs', 'Mark read', 'Dismiss']);
+    const buttons = [...row.querySelectorAll('.actions button')].map((b) => b.textContent?.trim());
+    expect(buttons).toEqual(['Reset AI', 'Show in Jobs']);
+    expect([...row.querySelectorAll('.row-actions button')].map((b) => b.getAttribute('aria-label'))).toEqual(['Mark read: AI paused', 'Dismiss AI paused']);
     el<HTMLButtonElement>(f, '[data-testid=notice-primary-5]').click();
     await settle(f);
     expect(actions.run).toHaveBeenLastCalledWith(expect.objectContaining({ id: 5 }), { type: 'resetAi' });
-    at([...row.querySelectorAll('button')], 1).click();
+    at([...row.querySelectorAll<HTMLButtonElement>('.actions button')], 1).click();
     await settle(f);
     expect(actions.run).toHaveBeenLastCalledWith(expect.objectContaining({ id: 5 }), { type: 'showJobs' });
   });
@@ -185,8 +187,8 @@ describe('NotificationsPanel', () => {
       notice({ id: 9, source: 'ai', title: 'AI runtime update', primary: { type: 'updateAi', key }, secondary: { type: 'laterAiUpdate', key }, tertiary: { type: 'skipAiUpdate', key } }),
     ]);
     await render(f);
-    const buttons = [...el(f, '[data-testid=notice-9]').querySelectorAll('button')].map((b) => b.textContent?.trim());
-    expect(buttons).toEqual(['Update', 'Later', 'Skip this version', 'Mark read', 'Dismiss']);
+    const buttons = [...el(f, '[data-testid=notice-9]').querySelectorAll('.actions button')].map((b) => b.textContent?.trim());
+    expect(buttons).toEqual(['Update', 'Later', 'Skip this version']);
     el<HTMLButtonElement>(f, '[data-testid=notice-tertiary-9]').click();
     await settle(f);
     expect(actions.run).toHaveBeenLastCalledWith(expect.objectContaining({ id: 9 }), { type: 'skipAiUpdate', key });
@@ -210,9 +212,10 @@ describe('NotificationsPanel', () => {
     const { f, fake } = setup();
     await render(f);
     // Read messages offer no Mark read.
-    expect(buttonByText(f, 'Mark read')).toBeTruthy();
-    expect([...el(f, '[data-testid=notice-4]').querySelectorAll('button')].map((b) => b.textContent?.trim())).toEqual(['View', 'Dismiss']);
-    const mark = at(all<HTMLButtonElement>(f, '[data-testid=notice-5] button'), 2);
+    expect(el(f, '[data-testid=notice-read-5]')).toBeTruthy();
+    expect(f.nativeElement.querySelector('[data-testid=notice-read-4]')).toBeNull();
+    expect([...el(f, '[data-testid=notice-4]').querySelectorAll('.actions button')].map((b) => b.textContent?.trim())).toEqual(['View']);
+    const mark = el<HTMLButtonElement>(f, '[data-testid=notice-read-5]');
     expect(mark.getAttribute('aria-label')).toBe('Mark read: AI paused');
     mark.click();
     expect(fake.markRead).toHaveBeenCalledWith(5);

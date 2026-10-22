@@ -3,6 +3,7 @@ import { Severity } from '../core/api.types';
 import { formatCount } from '../core/format';
 import { RovingFocusNavigation } from '../shared/list-navigation';
 import { Icon } from '../shared/icon';
+import { PanelEmpty } from '../jobs/panel-empty';
 import { KnownIssues } from '../investigate/known-issues/known-issues';
 import { DialogService } from '../ui/dialog.service';
 import { countText, evaluationText, evaluationTone, kindHint, kindLabel, parserCanFix, ProblemGroup, ProblemItem } from './problems-model';
@@ -32,7 +33,7 @@ export function severityLabel(s: Severity): string {
 @Component({
   selector: 'imt-problems-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, KnownIssues],
+  imports: [Icon, KnownIssues, PanelEmpty],
   template: `
     <div class="bar">
       <span class="summary" data-testid="problems-summary">{{ summary() }}</span>
@@ -63,7 +64,7 @@ export function severityLabel(s: Severity): string {
     }
     <imt-known-issues />
     @if (store.loaded() && rows().length === 0 && !store.loadError()) {
-      <div class="empty faint" data-testid="problems-empty" i18n="@@problems.empty">No problems: every opened file was read completely.</div>
+      <imt-panel-empty class="empty" data-testid="problems-empty" icon="check" title="No problems" i18n-title="@@problems.empty.title"><ng-container i18n="@@problems.empty">Every opened file was read completely.</ng-container></imt-panel-empty>
     } @else {
       <div class="body">
         <div class="tree" role="tree" aria-label="Problems" i18n-aria-label="@@problems.tree" (keydown)="onKey($event)">
@@ -173,14 +174,13 @@ export function severityLabel(s: Severity): string {
     }
   `,
   styles: `
-    :host { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); container-type: inline-size; }
+    :host { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); container-type: inline-size; overflow: auto; }
     .bar { flex: none; display: flex; align-items: center; gap: 10px; padding: 4px 12px; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); color: var(--text-2); }
     .spacer { flex: 1; }
     .index, .notice { flex: none; padding: 4px 12px; font-size: var(--fs-sm); color: var(--text-2); border-bottom: 1px solid var(--border); }
     .error { flex: none; display: flex; align-items: center; gap: 8px; padding: 4px 12px; color: var(--danger-text); font-size: var(--fs-sm); border-bottom: 1px solid var(--border); }
     .error span { flex: 1; }
-    .empty { padding: 12px 14px; }
-    .body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(220px, 45%) 1fr; }
+    .body { flex: 1 0 280px; min-height: 0; display: grid; grid-template-columns: minmax(220px, 45%) 1fr; }
     @container (max-width: 560px) { .body { grid-template-columns: 1fr; grid-template-rows: 1fr auto; } .details { border-left: 0; border-top: 1px solid var(--border); } }
     .tree { position: relative; min-height: 0; overflow: auto; padding: 2px 0; }
     .item { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; cursor: default; color: var(--text-2); white-space: nowrap; font-size: var(--fs-sm); }
@@ -192,7 +192,7 @@ export function severityLabel(s: Severity): string {
     .twisty { flex: none; }
     .name { flex: 1; min-width: 0; }
     .count { flex: none; color: var(--muted); font-weight: 400; font-size: var(--fs-xs); }
-    .fixable { flex: none; font-size: var(--fs-2xs); color: var(--accent-text); border: 1px solid currentColor; border-radius: 8px; padding: 0 5px; }
+    .fixable { flex: none; font-size: var(--fs-xs); color: var(--muted); }
     .sev { flex: none; }
     .sev.critical { color: var(--lvl-error); }
     .sev.warning { color: var(--lvl-warn); }
