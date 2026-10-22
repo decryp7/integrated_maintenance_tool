@@ -77,6 +77,11 @@ export interface CommandContext {
   jumpTo(id: number): Promise<void>;
   /** Opens (if needed) and focuses a view by id. */
   showView(id: string): void;
+  /**
+   * Offers the window arrangement for what the user just opened (`profiling` after a performance capture): switches
+   * to that perspective once per window, with an Undo in the notice. Unknown ids and repeats do nothing.
+   */
+  suggestPerspective?(id: string): void;
   /** Reports a problem to the user. */
   notifyError(message: string): void;
   /** The current workspace summary (null before the first load). */

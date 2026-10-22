@@ -1,7 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { all, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
 import { Finding, fullCoverage } from '../core/api.types';
-import { LAYOUT_MODE_KEY, LayoutModeStore } from '../core/workspace/layout-mode';
 import { WorkspaceStore } from '../core/workspace.store';
 import { CommandRegistry } from '../extensions/command-registry';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
@@ -16,19 +15,6 @@ import { at } from '../../testing/must';
 const finding = (kind: string, title = kind): Finding => ({ kind, severity: 'critical', title, detail: '', action: { kind: 'zoom', from: 1, to: 2, recordId: 3 } });
 
 describe('focused first run', () => {
-  afterEach(() => localStorage.removeItem(LAYOUT_MODE_KEY));
-
-  it('View › Layout switches between Focused (default) and Full, and remembers it', async () => {
-    TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
-    const layout = TestBed.inject(LayoutModeStore);
-    expect(layout.mode()).toBe('focused');
-    await TestBed.inject(CommandRegistry).run('view.layout.full');
-    expect(layout.full()).toBe(true);
-    expect(localStorage.getItem(LAYOUT_MODE_KEY)).toBe('full');
-    await TestBed.inject(CommandRegistry).run('view.layout.focused');
-    expect(layout.mode()).toBe('focused');
-  });
-
   it('keeps local messages in the bell: unread until read, all read, dismissed', () => {
     TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
     const notices = TestBed.inject(NotificationsStore);

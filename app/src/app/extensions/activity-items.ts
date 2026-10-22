@@ -70,10 +70,25 @@ export class ActivityItems {
   readonly top = computed(() => this.visible().filter((i) => i.section !== 'bottom'));
   readonly bottom = computed(() => this.visible().filter((i) => i.section === 'bottom'));
 
-  /** Highlighted: its own `active`, else the view it shows is open. */
+  /** Highlighted: its own `active`, else the view it shows is in front. */
   isActive(item: ImtActivityItem): boolean {
     if (item.active) return this.safe(item, 'active', () => item.active?.(this.ctx) === true, false);
-    return 'view' in item.run ? this.dock.isOpen(item.run.view) : false;
+    return 'view' in item.run ? this.dock.isVisible(item.run.view) : false;
+  }
+
+  /**
+   * A fly-out item: `shown` while one of its views is in front, `open` while some are open only behind others or
+   * auto-hidden, else null. Entries that run a command say nothing about views.
+   */
+  menuState(item: ImtActivityItem): 'shown' | 'open' | null {
+    const views = this.menu(item).flatMap((e) => ('view' in e.run ? [e.run.view] : []));
+    if (views.some((v) => this.dock.isVisible(v))) return 'shown';
+    return views.some((v) => this.dock.isOpen(v)) ? 'open' : null;
+  }
+
+  /** The item's view is open but not in front (a tab behind another, or auto-hidden): the bar marks it with a dot. */
+  isOpenElsewhere(item: ImtActivityItem): boolean {
+    return !item.active && 'view' in item.run && this.dock.isOpen(item.run.view) && !this.dock.isVisible(item.run.view);
   }
 
   /** The badge text, or null for none. */

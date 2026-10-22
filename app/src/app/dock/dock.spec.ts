@@ -1,4 +1,3 @@
-import { LAYOUT_MODE_KEY, LayoutModeStore } from '../core/workspace/layout-mode';
 import { ApplicationRef, ChangeDetectionStrategy, Component, effect, EnvironmentInjector, ErrorHandler, inject, OnDestroy, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { DockviewApi, SerializedDockview } from 'dockview';
@@ -13,7 +12,7 @@ import { ImtPlugin, provideImtPlugin } from '../extensions';
 import { AngularContentRenderer, MissingViewRenderer } from './angular-panel';
 import { PANEL_VISIBLE } from '../core/panel-visibility';
 import { DockHost } from './dock-host';
-import { DockService, keepGroupsUnscrolled, PANEL, QUERY_HEIGHT, QUERY_VIEW } from './dock.service';
+import { DockService, keepGroupsUnscrolled, PANEL } from './dock.service';
 import { GroupActions } from './group-actions';
 import { ContextMenuService } from '../ui/context-menu.service';
 import { EMPTY_EXTRAS, LAYOUT_KEY, LAYOUT_STORE, ENVELOPE_VERSION, LayoutStore, LocalStorageLayoutStore } from './layout-store';
@@ -25,19 +24,14 @@ import { labelTabOverflow, overflowLabel } from './dock-dom';
 // dockview is loaded on demand (see dockview-loader); load it once so attach() is synchronous here.
 beforeAll(() => loadDockview());
 
-@Component({ selector: 'imt-test-query', template: 'query bar' })
-class QueryStub {}
+@Component({ selector: 'imt-test-query', template: 'stub' })
+class ToolStub {}
 
-/** The query bar as the analysis plugin declares it: opened by itself only in the Full layout. */
-const FULL_ONLY_QUERY_PLUGIN: ImtPlugin = {
-  views: [{ id: QUERY_VIEW, title: 'Query', icon: 'search', defaultPosition: 'bottom', component: async () => QueryStub, when: (s) => s.total > 0, autoOpen: 'full' }],
-};
-
-/** Stand-in for the analysis plugin's query bar (a conditional bottom view), plus a right-hand tool window opened on demand. */
-const QUERY_PLUGIN: ImtPlugin = {
+/** Stand-in for a conditional bottom (analysis) view that opens by itself, plus a right-hand tool window opened on demand. */
+const BOTTOM_PLUGIN: ImtPlugin = {
   views: [
-    { id: QUERY_VIEW, title: 'Query', icon: 'search', defaultPosition: 'bottom', component: async () => QueryStub, when: (s) => s.total > 0, autoOpen: true },
-    { id: 'test-tool', title: 'Tool', icon: 'panel', defaultPosition: 'right', component: async () => QueryStub },
+    { id: 'test-bottom', title: 'Bottom', icon: 'search', defaultPosition: 'bottom', component: async () => ToolStub, when: (s) => s.total > 0, autoOpen: true },
+    { id: 'test-tool', title: 'Tool', icon: 'panel', defaultPosition: 'right', component: async () => ToolStub },
   ],
 };
 
@@ -549,7 +543,7 @@ describe('DockService with dockview', () => {
   let saved: SerializedDockview | null;
   let layoutStore: LayoutStore & { saves: number; cleared: number };
 
-  function setup(opts: { plugin?: boolean; query?: boolean; fullOnlyQuery?: boolean; stored?: SerializedDockview | null; backend?: MockBackend } = {}) {
+  function setup(opts: { plugin?: boolean; bottom?: boolean; stored?: SerializedDockview | null; backend?: MockBackend } = {}) {
     saved = opts.stored ?? null;
     layoutStore = {
       saves: 0,
@@ -565,7 +559,7 @@ describe('DockService with dockview', () => {
       },
     };
     TestBed.configureTestingModule({
-      providers: [provideDockTesting(opts.backend), { provide: LAYOUT_STORE, useValue: layoutStore }, ...(opts.plugin ? [provideImtPlugin(REGISTRY_PLUGIN)] : []), ...(opts.query ? [provideImtPlugin(QUERY_PLUGIN)] : []), ...(opts.fullOnlyQuery ? [provideImtPlugin(FULL_ONLY_QUERY_PLUGIN)] : [])],
+      providers: [provideDockTesting(opts.backend), { provide: LAYOUT_STORE, useValue: layoutStore }, ...(opts.plugin ? [provideImtPlugin(REGISTRY_PLUGIN)] : []), ...(opts.bottom ? [provideImtPlugin(BOTTOM_PLUGIN)] : [])],
     });
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -602,7 +596,7 @@ describe('DockService with dockview', () => {
   });
 
   it('slides the inspector back in when another tool window is shown (it would cover it), not for documents', async () => {
-    const { dock } = setup({ query: true });
+    const { dock } = setup({ bottom: true });
     dock.attach(container);
     await settle();
     dock.show('inspector');
@@ -617,7 +611,7 @@ describe('DockService with dockview', () => {
   });
 
   it('does not slide the inspector out over a tool window docked on its edge', async () => {
-    const { dock, store } = setup({ query: true });
+    const { dock, store } = setup({ bottom: true });
     dock.attach(container);
     await settle();
     dock.show('test-tool');
@@ -819,70 +813,6 @@ describe('DockService with dockview', () => {
     saved = layout;
     first.dock.attach(container);
     expect(container.textContent).toContain('"ghost" is not available');
-  });
-
-  it('Focused layout (default): only the timeline over the events; the query bar of the analysis plugin opens on demand', async () => {
-    const { dock } = setup({ fullOnlyQuery: true });
-    dock.attach(container);
-    await settle();
-    expect(dock.isOpen(QUERY_VIEW)).toBe(false);
-    const order = () => groupsInOrder((dock as unknown as { api: { toJSON(): SerializedDockview } }).api.toJSON());
-    expect(order()).toEqual([['timeline'], ['events']]);
-    dock.show(QUERY_VIEW);
-    expect(order()).toEqual([['timeline'], [QUERY_VIEW], ['events']]);
-  });
-
-  it('Full layout: the default layout pins the query bar above the events', async () => {
-    localStorage.setItem(LAYOUT_MODE_KEY, 'full');
-    try {
-      const { dock } = setup({ fullOnlyQuery: true });
-      expect(TestBed.inject(LayoutModeStore).full()).toBe(true);
-      dock.attach(container);
-      await settle();
-      expect(dock.isOpen(QUERY_VIEW)).toBe(true);
-      // Switching to Focused does not change the layout in place (nor a saved one): it applies to new layouts.
-      TestBed.inject(LayoutModeStore).set('focused');
-      await settle();
-      expect(dock.isOpen(QUERY_VIEW)).toBe(true);
-      dock.reset();
-      expect(dock.isOpen(QUERY_VIEW)).toBe(false);
-    } finally {
-      localStorage.removeItem(LAYOUT_MODE_KEY);
-    }
-  });
-
-  it('pins the query bar in its own short group right above the events grid, and puts it back there', async () => {
-    const { dock, store } = setup({ query: true });
-    dock.attach(container);
-    await settle();
-    expect(dock.isOpen(QUERY_VIEW)).toBe(true);
-    const order = () => groupsInOrder((dock as unknown as { api: { toJSON(): SerializedDockview } }).api.toJSON());
-    expect(order()).toEqual([['timeline'], [QUERY_VIEW], ['events']]);
-    // Gone while there is nothing to query; back above the grid (not tabbed with it) when there is.
-    await store.clearWorkspace();
-    await settle();
-    expect(dock.isOpen(QUERY_VIEW)).toBe(false);
-    await store.openPaths(['/x/a.log']);
-    await settle();
-    expect(order()).toEqual([['timeline'], [QUERY_VIEW], ['events']]);
-    // With a real size (jsdom has no layout), the query group gets its short fixed height.
-    const api = (dock as unknown as { api: DockviewApi }).api;
-    api.layout(1200, 800);
-    dock.reset();
-    expect(order()).toEqual([['timeline'], [QUERY_VIEW], ['events']]);
-    expect(api.getPanel(QUERY_VIEW)!.group.api.height).toBe(QUERY_HEIGHT);
-    expect(api.getPanel('timeline')!.group.api.height).toBe(300);
-  });
-
-  it('opens the query bar by its default position when the events grid is closed', async () => {
-    const { dock, store } = setup({ query: true });
-    dock.attach(container);
-    await settle();
-    dock.close('events');
-    dock.close(QUERY_VIEW);
-    dock.show(QUERY_VIEW);
-    expect(dock.isOpen(QUERY_VIEW)).toBe(true);
-    void store;
   });
 
   it('reset restores the default arrangement and forgets the saved one', async () => {

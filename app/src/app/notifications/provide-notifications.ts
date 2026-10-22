@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import { Logger } from '../core/logger';
 import { DockService } from '../dock/dock.service';
-import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, IMT_VIEWS, ImtActivityItem, ImtCommand, ImtView } from '../extensions/tokens';
+import { IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS, UiStateContribution } from '../lifecycle/ui-state';
 import { NOTIFICATIONS_VIEW } from './notice-actions';
 import { NotificationToasts } from './notification-toasts';
@@ -40,21 +40,6 @@ export function notificationsCommands(store: InstanceType<typeof NotificationsSt
   return [
     { id: 'notifications.show', title: $localize`:@@notifications.cmd.show:View: Notifications`, category, view: NOTIFICATIONS_VIEW, run: (ctx) => ctx.showView(NOTIFICATIONS_VIEW) },
     { id: 'notifications.markAllRead', title: $localize`:@@notifications.cmd.markAll:Notifications: Mark all read`, category, when: () => store.unread() > 0, run: () => void store.markAllRead() },
-  ];
-}
-
-/** The Notifications button: always on the bar (the view opens only on demand); its badge counts unread messages. */
-export function notificationsActivityItems(store: InstanceType<typeof NotificationsStore>): ImtActivityItem[] {
-  return [
-    {
-      id: 'notifications',
-      label: $localize`:@@notifications.activity:Notifications`,
-      icon: 'bell',
-      order: 50,
-      section: 'bottom',
-      badge: () => store.unread() || null,
-      run: { view: NOTIFICATIONS_VIEW },
-    },
   ];
 }
 
@@ -132,7 +117,6 @@ export function provideNotifications(): EnvironmentProviders {
   return makeEnvironmentProviders([
     { provide: IMT_VIEWS, multi: true, useFactory: notificationsViews },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => notificationsCommands(inject(NotificationsStore)) },
-    { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: () => notificationsActivityItems(inject(NotificationsStore)) },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => [inject(NotificationsPersistence).contribution] },
     provideAppInitializer(() => startNotifications()),
   ]);

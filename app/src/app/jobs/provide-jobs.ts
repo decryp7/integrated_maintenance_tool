@@ -1,6 +1,6 @@
 import { effect, EnvironmentProviders, inject, Injectable, makeEnvironmentProviders, provideAppInitializer, signal, untracked } from '@angular/core';
 import { Logger } from '../core/logger';
-import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, IMT_VIEWS, ImtActivityItem, ImtCommand, ImtView } from '../extensions/tokens';
+import { IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS, UiStateContribution } from '../lifecycle/ui-state';
 import { JOBS_VIEW } from './job-viewer';
 import { JobsBackend } from './jobs-backend';
@@ -31,22 +31,6 @@ export function jobsCommands(store: InstanceType<typeof JobsStore>): ImtCommand[
       category,
       when: () => store.snapshot().jobs.some((j) => j.state !== 'queued' && j.state !== 'running'),
       run: () => void store.clearFinished(),
-    },
-  ];
-}
-
-/** The Jobs button: always on the bar; its badge counts running and waiting jobs. */
-export function jobsActivityItems(store: InstanceType<typeof JobsStore>): ImtActivityItem[] {
-  return [
-    {
-      id: 'jobs',
-      label: $localize`:@@jobs.activity:Jobs`,
-      icon: 'jobs',
-      order: 40,
-      section: 'bottom',
-      badge: () => store.activeCount() || null,
-      pulse: () => store.running().length > 0,
-      run: { view: JOBS_VIEW },
     },
   ];
 }
@@ -107,12 +91,11 @@ export class JobsPersistence {
   };
 }
 
-/** One line in `app.config.ts`: the Jobs view (View ▸ Jobs), its commands, its activity-bar button, saved history. */
+/** One line in `app.config.ts`: the Jobs view (View ▸ Jobs), its commands, saved history; running jobs show in the status bar. */
 export function provideJobs(): EnvironmentProviders {
   return makeEnvironmentProviders([
     { provide: IMT_VIEWS, multi: true, useFactory: jobsViews },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => jobsCommands(inject(JobsStore)) },
-    { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: () => jobsActivityItems(inject(JobsStore)) },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => [inject(JobsPersistence).contribution] },
     provideAppInitializer(() => {
       inject(JobsStore);

@@ -77,10 +77,10 @@ describe('GeneralSettings', () => {
     el<HTMLInputElement>(fixture, 'input[type=checkbox]').click();
     expect(store.alwaysShowLifecycle()).toBe(false);
     const overview = TestBed.inject(OverviewPrefs);
-    expect(overview.autoOpen()).toBe(true);
-    el<HTMLInputElement>(fixture, '[data-testid=overview-auto-open]').click();
     expect(overview.autoOpen()).toBe(false);
-    expect(localStorage.getItem(OVERVIEW_AUTO_OPEN_KEY)).toBe('false');
+    el<HTMLInputElement>(fixture, '[data-testid=overview-auto-open]').click();
+    expect(overview.autoOpen()).toBe(true);
+    expect(localStorage.getItem(OVERVIEW_AUTO_OPEN_KEY)).toBe('true');
     await settle(fixture);
     expect(all(fixture, '[aria-pressed=true]').map((b) => b.textContent?.trim())).toEqual(['Local', 'ISO']);
     // The look moved to Appearance.

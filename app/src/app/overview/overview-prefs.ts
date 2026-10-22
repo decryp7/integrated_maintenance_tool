@@ -4,13 +4,13 @@ export const OVERVIEW_AUTO_OPEN_KEY = 'imt.overview.autoOpen.v1';
 
 function readAutoOpen(): boolean {
   try {
-    return localStorage.getItem(OVERVIEW_AUTO_OPEN_KEY) !== 'false';
+    return localStorage.getItem(OVERVIEW_AUTO_OPEN_KEY) === 'true';
   } catch {
-    return true;
+    return false;
   }
 }
 
-/** Whether the overview opens by itself after files are opened (a per-browser convenience; default on). */
+/** Whether the overview opens by itself after files are opened (a per-browser convenience; default off: the timeline over the events stays the first thing you see). */
 @Injectable({ providedIn: 'root' })
 export class OverviewPrefs {
   private readonly auto = signal(readAutoOpen());

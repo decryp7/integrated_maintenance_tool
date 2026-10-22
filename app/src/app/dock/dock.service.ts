@@ -90,6 +90,9 @@ export class DockService {
   /** The Ctrl+Tab navigator, when open. */
   readonly switcher = signal<SwitcherState | null>(null);
   readonly fullScreen = signal(false);
+  private readonly activeView = signal<string | null>(null);
+  /** The view whose tab was brought to the front last (null before any). */
+  readonly activeViewId = this.activeView.asReadonly();
   /** Ticks on every layout change of the dock (panels that keep native content in place follow it). */
   readonly layoutChanged = this.ctx.layoutVersion.asReadonly();
 
@@ -114,6 +117,14 @@ export class DockService {
 
   isOpen(id: string): boolean {
     return this.openIds().has(id);
+  }
+
+  /**
+   * Is the view in front: the active tab of its group, or the slid-out auto-hidden window? (`isOpen` is also true for
+   * a tab behind another, an auto-hidden window that is not slid out, and a pop-out.)
+   */
+  isVisible(id: string): boolean {
+    return this.ctx.shown().has(id) || this.ctx.autoHide().open === id || (this.ctx.windows()?.poppedIds().has(id) ?? false);
   }
 
   kindOf(id: string): ViewKind {
@@ -232,6 +243,8 @@ export class DockService {
         this.persistence.schedule();
       }),
       api.onDidActivePanelChange((e) => {
+        this.ctx.refreshShown();
+        this.activeView.set(e.panel?.id ?? null);
         if (e.panel) this.ctx.mru = touchMru(this.ctx.mru, e.panel.id);
       }),
     ];

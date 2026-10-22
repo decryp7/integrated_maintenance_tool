@@ -24,7 +24,7 @@ import { EMPTY_JOBS, JOB_KINDS, JobInfo, JobKind, JobResult, JobsRecord, JobsSna
 import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
 import { JobsPanel } from './jobs-panel';
 import { MockJobCancelled, MockJobsOptions, MockJobs, mockJobs, mockJobsOptionsFromSearch, mockSteps, resetMockJobs } from './mock-jobs';
-import { jobsActivityItems, jobsCommands, JobsPersistence, jobsViews, provideJobs } from './provide-jobs';
+import { jobsCommands, JobsPersistence, jobsViews, provideJobs } from './provide-jobs';
 
 function jobInfo(p: Partial<JobInfo> & { id: number }): JobInfo {
   return {
@@ -1026,25 +1026,12 @@ describe('provide-jobs', () => {
     expect(fake.clearFinished).toHaveBeenCalled();
   });
 
-  it('shows the active job count as the button badge and pulses while jobs run', async () => {
-    const { store } = setupStore();
-    await settle();
-    const [item] = jobsActivityItems(store);
-    const it0 = must(item);
-    expect(it0).toMatchObject({ id: 'jobs', section: 'bottom', run: { view: 'jobs' } });
-    expect(must(it0.badge)(new FakeContext())).toBeNull();
-    expect(must(it0.pulse)(new FakeContext())).toBe(false);
-    store.apply({ jobs: [jobInfo({ id: 1, state: 'queued' }), jobInfo({ id: 2, state: 'running' }), jobInfo({ id: 3 })], paused: [] });
-    expect(must(it0.badge)(new FakeContext())).toBe(2);
-    expect(must(it0.pulse)(new FakeContext())).toBe(true);
-  });
-
-  it('registers the view, commands, button and saved state with one call', async () => {
+  it('registers the view, commands and saved state (no activity-bar button: the status bar has the jobs and the bell) with one call', async () => {
     const fake = new FakeJobs();
     TestBed.configureTestingModule({ providers: [{ provide: JobsBackend, useValue: fake }, { provide: Logger, useFactory: () => new MemoryLogger() }, provideJobs()] });
     expect(TestBed.inject(IMT_VIEWS).flat().map((v) => v.id)).toContain('jobs');
     expect(TestBed.inject(IMT_COMMANDS).flat().map((c) => c.id)).toEqual(expect.arrayContaining(['jobs.show', 'jobs.clearFinished']));
-    expect(TestBed.inject(IMT_ACTIVITY_ITEMS).flat().map((i) => i.id)).toContain('jobs');
+    expect((TestBed.inject(IMT_ACTIVITY_ITEMS, [], { optional: true }) ?? []).flat().map((i) => i.id)).not.toContain('jobs');
     expect(TestBed.inject(UI_STATE_CONTRIBUTIONS).flat().map((c) => c.key)).toContain('jobs');
     await settle();
     expect(fake.list).toHaveBeenCalled();

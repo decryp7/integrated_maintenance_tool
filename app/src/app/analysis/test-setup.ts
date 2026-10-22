@@ -40,6 +40,7 @@ export class FakeContext implements CommandContext {
   selectRecord = (...args: unknown[]) => void this.calls.push({ fn: 'selectRecord', args });
   jumpTo = async (...args: number[]) => void this.calls.push({ fn: 'jumpTo', args });
   showView = (...args: unknown[]) => void this.calls.push({ fn: 'showView', args });
+  suggestPerspective = (...args: unknown[]) => void this.calls.push({ fn: 'suggestPerspective', args });
   notifyError = (...args: unknown[]) => void this.calls.push({ fn: 'notifyError', args });
   last(fn: string): unknown[] | undefined {
     return [...this.calls].reverse().find((c) => c.fn === fn)?.args;

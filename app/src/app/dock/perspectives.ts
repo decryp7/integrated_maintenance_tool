@@ -130,6 +130,11 @@ export class Perspectives {
     return list.find((p) => p.id === this.activeId()) ?? list[0] ?? builtInInfo(DEFAULT_PERSPECTIVE);
   });
 
+  /** The active perspective's number (1-based, as in Ctrl+n), or 0 when it has none. */
+  activeNumber(): number {
+    return this.list().findIndex((p) => p.id === this.active().id) + 1;
+  }
+
   /** Perspective number `n` (1-based, Ctrl+n). */
   at(n: number): PerspectiveInfo | undefined {
     return this.list()[n - 1];
@@ -196,6 +201,39 @@ export class Perspectives {
     this.activeId.set(id);
     this.persist({ active: id, layouts });
     return saved;
+  }
+
+  /** Renames a saved perspective, keeping its remembered arrangement and the active choice; false if refused. */
+  rename(from: string, to: string): boolean {
+    const before = this.saved.list().map((l) => l.name);
+    if (!this.saved.rename(from, to)) return false;
+    const after = this.saved.list().find((l) => !before.includes(l.name))?.name;
+    if (!after) return true;
+    const layouts = { ...this.state.layouts };
+    const old = SAVED_PREFIX + from;
+    const moved = layouts[old];
+    delete layouts[old];
+    if (moved) layouts[SAVED_PREFIX + after] = moved;
+    const active = this.activeId() === old ? SAVED_PREFIX + after : this.state.active;
+    this.activeId.set(active);
+    this.persist({ active, layouts });
+    return true;
+  }
+
+  /** Deletes a saved perspective; when it was active the window keeps its arrangement and Investigate is named active. */
+  remove(name: string): void {
+    const id = SAVED_PREFIX + name;
+    this.saved.remove(name);
+    const layouts = { ...this.state.layouts };
+    delete layouts[id];
+    const active = this.activeId() === id ? DEFAULT_PERSPECTIVE : this.state.active;
+    this.activeId.set(active);
+    this.persist({ active, layouts });
+  }
+
+  /** Moves a saved perspective up (-1) or down (+1) in the list (and so to another Ctrl+n). */
+  move(name: string, delta: -1 | 1): void {
+    this.saved.move(name, delta);
   }
 
   private show(p: PerspectiveInfo): void {

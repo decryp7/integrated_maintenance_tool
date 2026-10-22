@@ -27,7 +27,7 @@ import { MAX_TOASTS, NotificationsStore, TOAST_MS } from './notifications.store'
 import { EMPTY_NOTICES, Notice, NoticeAction, NoticesEvent, NoticesRecord, NoticesSnapshot, NOTICE_SOURCES } from './notifications.types';
 import { sourceLabel, titleWithCount } from './notifications-text';
 import { NotificationsPanel } from './notifications-panel';
-import { notificationsActivityItems, notificationsCommands, NotificationsPersistence, notificationsViews, provideNotifications, startNotifications } from './provide-notifications';
+import { notificationsCommands, NotificationsPersistence, notificationsViews, provideNotifications, startNotifications } from './provide-notifications';
 
 function notice(p: Partial<Notice> & { id: number }): Notice {
   return {
@@ -795,16 +795,6 @@ describe('provide-notifications', () => {
     expect(must(mark).when?.(ctx)).toBe(true);
     must(mark).run(ctx);
     expect(fake.markAllRead).toHaveBeenCalled();
-  });
-
-  it('badges the bell button with the unread count', async () => {
-    const { store } = setupStore();
-    await settle();
-    const item = must(notificationsActivityItems(store)[0]);
-    expect(item).toMatchObject({ id: 'notifications', icon: 'bell', section: 'bottom', run: { view: 'notifications' } });
-    expect(must(item.badge)(new FakeContext())).toBeNull();
-    store.apply(event([notice({ id: 1 }), notice({ id: 2 }), notice({ id: 3, read: true })]));
-    expect(must(item.badge)(new FakeContext())).toBe(2);
   });
 
   it('mounts the toasts and shows Notifications when a message gets the focus', async () => {

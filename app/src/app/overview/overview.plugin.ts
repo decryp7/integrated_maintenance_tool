@@ -4,7 +4,6 @@ import { DockService } from '../dock/dock.service';
 import { provideImtPlugin } from '../extensions/provide';
 import { ImtView } from '../extensions/tokens';
 import { OverviewPrefs } from './overview-prefs';
-import { LayoutModeStore } from '../core/workspace/layout-mode';
 
 export const OVERVIEW_VIEW = 'overview';
 
@@ -29,7 +28,6 @@ export class OverviewAutoOpen {
   private readonly store = inject(WorkspaceStore);
   private readonly dock = inject(DockService);
   private readonly prefs = inject(OverviewPrefs);
-  private readonly layout = inject(LayoutModeStore);
 
   constructor() {
     let seen = this.store.importVersion();
@@ -38,7 +36,7 @@ export class OverviewAutoOpen {
       if (version === seen) return;
       seen = version;
       untracked(() => {
-        if (this.layout.full() && this.prefs.autoOpen()) this.dock.show(OVERVIEW_VIEW);
+        if (this.prefs.autoOpen()) this.dock.show(OVERVIEW_VIEW);
       });
     });
   }

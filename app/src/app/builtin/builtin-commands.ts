@@ -1,5 +1,4 @@
 import { inject, Injectable } from '@angular/core';
-import { LayoutModeStore } from '../core/workspace/layout-mode';
 import { ExportService } from '../export/export.service';
 import { WorkspaceStore } from '../core/workspace.store';
 import { DockService } from '../dock/dock.service';
@@ -27,7 +26,6 @@ export class BuiltinCommands {
   private readonly settings = inject(SettingsDialogService);
   private readonly about = inject(AboutService);
   private readonly prefs = inject(SettingsStore);
-  private readonly layout = inject(LayoutModeStore);
 
   private showOverWelcome(id: string): void {
     this.welcome.stepAside();
@@ -64,8 +62,6 @@ export class BuiltinCommands {
     { id: 'view.scheme.system', title: $localize`:@@builtin.cmd.view.scheme.system:Colour scheme: system`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setScheme('system') },
     { id: 'view.scheme.dark', title: $localize`:@@builtin.cmd.view.scheme.dark:Colour scheme: dark`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setScheme('dark') },
     { id: 'view.scheme.light', title: $localize`:@@builtin.cmd.view.scheme.light:Colour scheme: light`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setScheme('light') },
-    { id: 'view.layout.focused', title: $localize`:@@builtin.cmd.view.layout.focused:Layout: focused`, category: $localize`:@@builtin.category.view:View`, run: () => this.layout.set('focused') },
-    { id: 'view.layout.full', title: $localize`:@@builtin.cmd.view.layout.full:Layout: full`, category: $localize`:@@builtin.category.view:View`, run: () => this.layout.set('full') },
     { id: 'view.sourceColors.source', title: $localize`:@@builtin.cmd.view.sourceColors.source:Source colours: by file`, category: $localize`:@@builtin.category.view:View`, run: () => this.prefs.setSourceColors('source') },
     { id: 'view.sourceColors.instance', title: $localize`:@@builtin.cmd.view.sourceColors.instance:Source colours: by instance`, category: $localize`:@@builtin.category.view:View`, run: () => this.prefs.setSourceColors('instance') },
     { id: 'view.sourceColors.off', title: $localize`:@@builtin.cmd.view.sourceColors.off:Source colours: off`, category: $localize`:@@builtin.category.view:View`, run: () => this.prefs.setSourceColors('off') },

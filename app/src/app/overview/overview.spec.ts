@@ -1,4 +1,3 @@
-import { LAYOUT_MODE_KEY, LayoutModeStore } from '../core/workspace/layout-mode';
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, FakeDock, pluginInfo, provideFakeDock, provideTinyBackend, settle, text } from '../../testing/helpers';
 import { ExceptionGroup, Finding, fullCoverage, WorkspaceSummary } from '../core/api.types';
@@ -259,18 +258,16 @@ describe('OverviewView', () => {
     const { fixture } = setup([]);
     await settle(fixture);
     const box = fixture.nativeElement.querySelector('input[type=checkbox]') as HTMLInputElement;
-    expect(box.checked).toBe(true);
+    expect(box.checked).toBe(false);
     box.click();
-    expect(TestBed.inject(OverviewPrefs).autoOpen()).toBe(false);
+    expect(TestBed.inject(OverviewPrefs).autoOpen()).toBe(true);
   });
 });
 
 describe('provideOverview', () => {
   afterEach(() => localStorage.removeItem(OVERVIEW_AUTO_OPEN_KEY));
 
-  afterEach(() => localStorage.removeItem(LAYOUT_MODE_KEY));
-
-  it('does not open the view after an import in the Focused layout (the default)', async () => {
+  it('does not open the view after an import by default', async () => {
     const dock = new FakeDock();
     TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock), provideOverview()] });
     TestBed.inject(OverviewAutoOpen);
@@ -281,10 +278,10 @@ describe('provideOverview', () => {
     expect(dock.calls).toEqual([]);
   });
 
-  it('registers the view and command, and in the Full layout opens the view after each import unless turned off', async () => {
+  it('registers the view and command, and opens the view after each import when turned on', async () => {
     const dock = new FakeDock();
     TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock), provideOverview()] });
-    TestBed.inject(LayoutModeStore).set('full');
+    TestBed.inject(OverviewPrefs).setAutoOpen(true);
     TestBed.inject(OverviewAutoOpen);
     const store = TestBed.inject(WorkspaceStore);
     await settle();
