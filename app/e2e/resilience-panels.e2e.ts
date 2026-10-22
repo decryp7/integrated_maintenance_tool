@@ -35,7 +35,11 @@ test.describe('panel error boundaries', () => {
     // The grid asks for its first page again when the workspace summary arrives, so two requests fail before one succeeds.
     await openAppWith(page, '?mockFail=queryPage:2');
     const err = page.locator('imt-events-grid .err-card');
-    await expect(err).toContainText('Could not load events');
+    await expect(err).toContainText("Couldn't load events.");
+    // The backend's own message is folded under Technical details.
+    await expect(err.getByText('Simulated queryPage failure')).toBeHidden();
+    await err.getByText('Technical details').click();
+    await expect(err.getByText('Simulated queryPage failure')).toBeVisible();
     await expect(err).toContainText('Simulated queryPage failure');
     await expectNoSeriousViolations(page, testInfo, 'resilience-grid-error', 'imt-events-grid');
     await expect(async () => {

@@ -58,7 +58,7 @@ export function resultLine(r: StorageCategoryClearResult, label: string): string
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="section-head">
-      <h3 i18n="Settings section@@settings.storage.title">Storage</h3>
+      <h3 i18n="Settings section@@settings.storage.title">Disk usage</h3>
       <span class="spacer"></span>
       <button class="btn" type="button" [disabled]="store.busy()" (click)="store.load()" i18n="@@settings.storage.refresh">Refresh</button>
       <button class="btn primary" type="button" [disabled]="store.busy() || !store.cacheBytes()" (click)="confirmClearCache()" i18n="@@settings.storage.clearCache">Clear cache…</button>

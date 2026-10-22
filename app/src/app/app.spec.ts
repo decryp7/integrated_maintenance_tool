@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { el, provideDockTesting, settle, text } from '../testing/helpers';
+import { provideDockTesting, settle, text } from '../testing/helpers';
 import { App } from './app';
 import { WorkspaceStore } from './core/workspace.store';
 import { DockService } from './dock/dock.service';
@@ -63,13 +63,17 @@ describe('App', () => {
     store.setNotice('Exported 3 events');
     store.setDropHover(true);
     await settle(fixture);
-    expect(el(fixture, '.toast[role=alert]').textContent).toContain('Something failed');
-    expect(el(fixture, '.toast[role=status]').textContent).toContain('Exported 3 events');
+    // In the toast stack, one above the other.
+    const stack = document.querySelector('.imt-toast-stack')!;
+    expect(stack.querySelector('.toast[role=alert]')?.textContent).toContain('Something failed');
+    expect(stack.querySelector('.toast[role=status]')?.textContent).toContain('Exported 3 events');
     expect(text(fixture)).toContain('Drop files or folders');
-    el<HTMLButtonElement>(fixture, '.toast[role=alert] button').click();
-    el<HTMLButtonElement>(fixture, '.toast[role=status] button').click();
+    stack.querySelector<HTMLButtonElement>('.toast[role=alert] button')!.click();
+    stack.querySelector<HTMLButtonElement>('.toast[role=status] button')!.click();
     await settle(fixture);
-    expect(fixture.nativeElement.querySelector('.toast')).toBeNull();
+    expect(stack.querySelector('.toast')).toBeNull();
+    fixture.destroy();
+    expect(document.querySelector('imt-workspace-toasts')).toBeNull();
   });
 
   it('renders the lifecycle banners right below the title bar, as part of the shell', async () => {

@@ -46,6 +46,16 @@ export function copyTextFor(record: RecordView, target: ActionTarget, windowSele
   return (target.records?.length ? target.records : [record]).map((r) => r.message).join('\n');
 }
 
+/** The order of the record menu's own groups; contributed groups follow in their order. */
+const GROUP_ORDER = ['copy', 'filter', 'mark', 'open', 'rules'];
+
+/** Puts the entries of each group together: known groups in `GROUP_ORDER`, then the rest as they first appear. Pure. */
+export function groupMenu(items: readonly MenuEntry[]): MenuEntry[] {
+  const groups: string[] = [...GROUP_ORDER];
+  for (const e of items) if (!groups.includes(e.group ?? '')) groups.push(e.group ?? '');
+  return groups.flatMap((g) => items.filter((e) => (e.group ?? '') === g));
+}
+
 /**
  * Extra entries for the record context menu, contributed by features (multi provider; each returns
  * the entries for the record and the user's target).
@@ -66,31 +76,38 @@ export class RecordActions {
   private readonly files = inject(SourceFileActions);
   private readonly contributions = inject(IMT_RECORD_MENU_ITEMS, { optional: true }) ?? [];
 
+  /**
+   * The menu in groups (separated in the menu): Copy first, then filter, mark and note, open the file, the "teach IMT"
+   * rules, then each contribution's own group (AI, web, report) in registration order.
+   */
   itemsFor(record: RecordView, target: ActionTarget = {}): MenuEntry[] {
     const items: MenuEntry[] = [];
+    const text = copyTextFor(record, target, typeof window === 'undefined' ? '' : (window.getSelection()?.toString() ?? ''));
+    items.push({ group: 'copy', label: $localize`:Context menu item that copies the selected text, else the messages@@context.recordActions.menu.copy:Copy`, run: () => void copyText(text) });
     const filterField = target.field ?? this.contextField(record);
     if (filterField) {
       const { name, value } = filterField;
       items.push(
-        { label: $localize`:@@context.recordActions.filterOnly:Filter: only this ${name}:name:`, run: () => this.store.addFilter({ field: name, op: 'eq', value }) },
-        { label: $localize`:@@context.recordActions.exclude:Exclude this ${name}:name:`, run: () => this.store.addFilter({ field: name, op: 'ne', value }) },
+        { group: 'filter', label: $localize`:@@context.recordActions.onlyThis:Only this ${name}:name:`, run: () => this.store.addFilter({ field: name, op: 'eq', value }) },
+        { group: 'filter', label: $localize`:@@context.recordActions.exclude:Exclude this ${name}:name:`, run: () => this.store.addFilter({ field: name, op: 'ne', value }) },
       );
     }
+    items.push({ group: 'mark', label: $localize`:@@context.recordActions.menu.highlight:Highlight lines…`, run: () => this.highlight(record, target.selection?.text) });
+    items.push(...this.files.itemsForRecord(record).map((e) => ({ ...e, group: 'open' })));
     items.push(
-      { label: $localize`:@@context.recordActions.menu.drop:Drop events like this (pipeline)…`, run: () => this.drop(record, target.field) },
-      { label: $localize`:@@context.recordActions.menu.mark:Mark events like this…`, run: () => this.mark(record, target.field) },
-      { label: $localize`:@@context.recordActions.menu.highlight:Highlight lines…`, run: () => this.highlight(record, target.selection?.text) },
-      { label: $localize`:@@context.recordActions.menu.infer:Infer pattern from lines…`, run: () => this.infer(target.records?.length ? target.records : [record]) },
+      { group: 'rules', label: $localize`:@@context.recordActions.menu.mark:Mark events like this…`, run: () => this.mark(record, target.field) },
+      { group: 'rules', label: $localize`:@@context.recordActions.menu.drop:Drop events like this (pipeline)…`, run: () => this.drop(record, target.field) },
+      { group: 'rules', label: $localize`:@@context.recordActions.menu.infer:Infer pattern from lines…`, run: () => this.infer(target.records?.length ? target.records : [record]) },
     );
     const sel = target.selection;
     if (sel?.text.trim()) {
-      items.push({ label: $localize`:@@context.recordActions.menu.mask:Mask in message…`, run: () => this.mask(record, sel) }, { label: $localize`:@@context.recordActions.menu.extract:Extract value…`, run: () => this.extract(record, sel) });
+      items.push(
+        { group: 'rules', label: $localize`:@@context.recordActions.menu.mask:Mask in message…`, run: () => this.mask(record, sel) },
+        { group: 'rules', label: $localize`:@@context.recordActions.menu.extract:Extract value…`, run: () => this.extract(record, sel) },
+      );
     }
-    items.push(...this.files.itemsForRecord(record));
-    for (const contribute of this.contributions) items.push(...contribute(record, target));
-    const text = copyTextFor(record, target, typeof window === 'undefined' ? '' : (window.getSelection()?.toString() ?? ''));
-    items.push({ label: $localize`:Context menu item that copies the selected text, else the messages@@context.recordActions.menu.copy:Copy`, run: () => void copyText(text) });
-    return items;
+    this.contributions.forEach((contribute, i) => items.push(...contribute(record, target).map((e) => ({ ...e, group: e.group ?? `contribution-${i}` }))));
+    return groupMenu(items);
   }
 
   /** Opens the menu next to the pointer (mouse) or the focused element (keyboard). */

@@ -6,6 +6,8 @@ import { SnapshotInfo } from '../core/api.types';
 import { REPORT_PROBLEM_COMMAND, SNAPSHOT_NOTICE } from './snapshot.types';
 import { SETTINGS_DIAGNOSTICS_COMMAND } from '../settings/settings-dialog';
 import { activeLocale } from '../i18n/locale';
+import { formatKeybinding } from '../extensions/keybinding';
+import { CAPTURE_KEYBINDING } from './diagnostics-commands';
 
 /** Opens the Settings screen at its Diagnostics section (error snapshot switch and limits). */
 export const SETTINGS_COMMAND = SETTINGS_DIAGNOSTICS_COMMAND;
@@ -17,15 +19,22 @@ export const SETTINGS_COMMAND = SETTINGS_DIAGNOSTICS_COMMAND;
   template: `
     <div class="wrap">
       <div class="bar" role="toolbar" aria-label="Error snapshots actions" i18n-aria-label="@@diagnostics.snapshotsView.toolbar">
-        <label class="all" i18n="@@diagnostics.snapshotsView.selectAll"><input type="checkbox" [checked]="store.allSelected()" [disabled]="!store.items().length" (change)="store.toggleAll()" /> Select all</label>
-        <button type="button" class="btn" [disabled]="store.busy()" (click)="store.captureNow()" i18n="@@diagnostics.snapshotsView.captureNow">Capture now</button>
-        <button type="button" class="btn primary" [disabled]="store.busy() || !store.items().length" (click)="store.exportSelected()" i18n="@@diagnostics.snapshotsView.export">Export diagnostics…</button>
-        <button type="button" class="btn" [disabled]="store.busy() || !store.selected().length" (click)="store.remove(store.selected())" i18n="@@diagnostics.snapshotsView.deleteSelected">Delete selected</button>
+        @if (store.items().length) {
+          <label class="all" i18n="@@diagnostics.snapshotsView.selectAll"><input type="checkbox" [checked]="store.allSelected()" (change)="store.toggleAll()" /> Select all</label>
+        }
+        <!-- With nothing captured yet, Capture now is the one thing to do; export and delete come with snapshots. -->
+        <button type="button" class="btn" [class.primary]="!store.items().length" [disabled]="store.busy()" (click)="store.captureNow()" i18n="@@diagnostics.snapshotsView.captureNow">Capture now</button>
+        @if (store.items().length) {
+          <button type="button" class="btn primary" [disabled]="store.busy()" (click)="store.exportSelected()" i18n="@@diagnostics.snapshotsView.export">Export diagnostics…</button>
+          <button type="button" class="btn" [disabled]="store.busy() || !store.selected().length" (click)="store.remove(store.selected())" i18n="@@diagnostics.snapshotsView.deleteSelected">Delete selected</button>
+        }
         <span class="grow"></span>
         <button type="button" class="btn" (click)="store.openFolder()" i18n="@@diagnostics.snapshotsView.openFolder">Open folder</button>
         <button type="button" class="btn ghost" (click)="openSettings()" i18n="@@diagnostics.snapshotsView.settings">Settings…</button>
       </div>
-      <p class="privacy" i18n="@@diagnostics.snapshotsView.privacy">{{ notice }} Snapshots may show log content; they leave this machine only when you export them.</p>
+      @if (store.items().length) {
+        <p class="privacy" i18n="@@diagnostics.snapshotsView.privacy">{{ notice }} Snapshots may show log content; they leave this machine only when you export them.</p>
+      }
       @if (store.error(); as e) {
         <div class="msg err" role="alert">{{ e }}</div>
       }
@@ -51,7 +60,7 @@ export const SETTINGS_COMMAND = SETTINGS_DIAGNOSTICS_COMMAND;
               </div>
             </li>
           } @empty {
-            <li class="empty">@if (store.loading()) {<ng-container i18n="@@diagnostics.snapshotsView.loading">Loading…</ng-container>} @else {<ng-container i18n="@@diagnostics.snapshotsView.empty">No error snapshots yet. IMT saves one when something goes wrong; press Ctrl/Cmd+Shift+F12 to take one yourself.</ng-container>}</li>
+            <li class="empty">@if (store.loading()) {<ng-container i18n="@@diagnostics.snapshotsView.loading">Loading…</ng-container>} @else {<ng-container i18n="@@diagnostics.snapshotsView.emptyKey">No error snapshots yet. IMT saves one on this machine when something goes wrong; press {{ captureKey }} or Capture now to take one yourself.</ng-container>}</li>
           }
         </ul>
         @if (store.current(); as c) {
@@ -133,6 +142,7 @@ export class ErrorSnapshotsView implements OnInit {
   private readonly service = inject(ErrorSnapshotService);
   private readonly commands = inject(CommandRegistry);
   protected readonly notice = SNAPSHOT_NOTICE;
+  protected readonly captureKey = formatKeybinding(CAPTURE_KEYBINDING);
   protected readonly manualSuffix = $localize`:@@diagnostics.snapshotsView.manualSuffix: (manual)`;
 
   constructor() {

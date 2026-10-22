@@ -77,7 +77,7 @@ describe('NoCapture', () => {
     f.componentRef.setInput('text', 'Nothing yet');
     f.detectChanges();
     expect(text(f)).toContain('Nothing yet');
-    buttonByText(f, 'Open profile…').click();
+    buttonByText(f, 'Open performance capture…').click();
     await settle(f, 6);
     expect(TestBed.inject(CapturesStore).captures().length).toBe(5);
   });
@@ -87,15 +87,15 @@ describe('NoCapture', () => {
     d.picker.paths = ['/tmp/bad.txt'];
     const f = TestBed.createComponent(NoCapture);
     f.detectChanges();
-    expect(text(f)).toContain('Open a profile to see this view.');
-    buttonByText(f, 'Open profile…').click();
+    expect(text(f)).toContain('Open a performance capture to see this view.');
+    buttonByText(f, 'Open performance capture…').click();
     await new Promise((r) => setTimeout(r, 5));
     f.detectChanges();
-    expect(buttonByText(f, 'Open profile…').disabled).toBe(true);
+    expect(buttonByText(f, 'Open performance capture…').disabled).toBe(true);
     await new Promise((r) => setTimeout(r, 150));
     await settle(f, 6);
     expect(el(f, '[role=alert]').textContent).toContain('bad.txt');
-    expect(buttonByText(f, 'Open profile…').disabled).toBe(false);
+    expect(buttonByText(f, 'Open performance capture…').disabled).toBe(false);
   });
 });
 

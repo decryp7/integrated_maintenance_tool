@@ -58,9 +58,12 @@ test('an uncaught error saves a snapshot, shows the toast and the notice, and th
   await openApp(page);
   await throwUncaught(page, 'e2e boom');
 
-  await expect(toast(page)).toContainText('Error captured', { timeout: CAPTURE_TIMEOUT });
+  await expect(toast(page)).toContainText('Something went wrong.', { timeout: CAPTURE_TIMEOUT });
+  // The short toast; what IMT did about the error is under Details.
+  await expect(page.locator('[data-testid=snapshot-notice]')).toHaveCount(0);
+  await toast(page).getByRole('button', { name: 'Details' }).click();
   await expect(page.locator('[data-testid=snapshot-notice]')).toContainText('IMT saved a screenshot of this error locally to help diagnose it. Nothing is sent anywhere.');
-  await toast(page).getByRole('button', { name: 'View', exact: true }).click();
+  await toast(page).getByRole('button', { name: 'View snapshot' }).click();
 
   const view = page.locator('imt-error-snapshots-view');
   await expect(view.locator('[data-testid=snapshot-card]')).toHaveCount(1);
@@ -98,7 +101,7 @@ test('an uncaught error saves a snapshot, shows the toast and the notice, and th
 test('a second automatic error within 10 seconds does not take another snapshot', async ({ page }) => {
   await openApp(page);
   await throwUncaught(page, 'first');
-  await expect(toast(page)).toContainText('Error captured', { timeout: CAPTURE_TIMEOUT });
+  await expect(toast(page)).toContainText('Something went wrong', { timeout: CAPTURE_TIMEOUT });
   // The app logs the error and decides about a snapshot in the same task: once it is logged, it was decided.
   const handled = page.waitForEvent('console', (m) => m.type() === 'error' && m.text().includes('second'));
   await throwUncaught(page, 'second');
@@ -126,7 +129,7 @@ test('Ctrl/Cmd+Shift+F12 captures a diagnostic screenshot that includes the char
   const box = (await chart.boundingBox())!;
 
   await page.keyboard.press('ControlOrMeta+Shift+F12');
-  await expect(toast(page)).toContainText('Error captured', { timeout: CAPTURE_TIMEOUT });
+  await expect(toast(page)).toContainText('Diagnostic screenshot captured.', { timeout: CAPTURE_TIMEOUT });
   await toast(page).getByRole('button', { name: 'View', exact: true }).click();
   const view = page.locator('imt-error-snapshots-view');
   await expect(view).toContainText('manual');
@@ -147,7 +150,7 @@ test('a panel that fails takes a snapshot of its error card', async ({ page }) =
   // Rows without `markers` make the events grid throw while rendering.
   await openAppWith(page, '?mockCorrupt=markers', { grid: false });
   await expect(page.locator('.imt-panel-failed')).toBeVisible();
-  await expect(toast(page)).toContainText('Error captured', { timeout: CAPTURE_TIMEOUT });
+  await expect(toast(page)).toContainText('Something went wrong', { timeout: CAPTURE_TIMEOUT });
   await openSnapshotsView(page);
   const view = page.locator('imt-error-snapshots-view');
   await expect(view.locator('[data-testid=snapshot-card]')).toHaveCount(1);
@@ -156,10 +159,23 @@ test('a panel that fails takes a snapshot of its error card', async ({ page }) =
 
 test('an unexpected backend failure takes a snapshot naming the command', async ({ page }) => {
   await openAppWith(page, '?mockFail=queryTimeline:1');
-  await expect(toast(page)).toContainText('Error captured', { timeout: CAPTURE_TIMEOUT });
+  await expect(toast(page)).toContainText('Something went wrong', { timeout: CAPTURE_TIMEOUT });
   await openSnapshotsView(page);
   const view = page.locator('imt-error-snapshots-view');
   await expect(view.locator('[data-testid=snapshot-card]')).toHaveCount(1);
   await expect(view).toContainText('backend-failed');
   await expect(view).toContainText('queryTimeline');
+});
+
+test('toasts stack one above the other instead of on top of each other', async ({ page }) => {
+  await openApp(page);
+  await throwUncaught(page, 'stacked boom');
+  await expect(toast(page)).toContainText('Something went wrong', { timeout: CAPTURE_TIMEOUT });
+  await page.keyboard.press('ControlOrMeta+s');
+  const notice = page.locator('.imt-toast-stack .toast.info');
+  await expect(notice).toContainText('Saved');
+  const a = (await toast(page).boundingBox())!;
+  const b = (await notice.boundingBox())!;
+  const overlap = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+  expect(overlap).toBeLessThanOrEqual(0);
 });

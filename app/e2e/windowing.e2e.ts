@@ -37,7 +37,7 @@ test('New window opens a second window with its own workspace', async ({ page, c
 
   // Closing the workspace in the new window leaves the first one alone.
   await chooseMenu(second, 'File', 'Close workspace');
-  await expect(statusBar(second).locator('.strong')).toHaveText('0 sources');
+  await expect(statusBar(second)).toContainText('No files open');
   await page.bringToFront();
   await expect(statusBar(page).locator('.strong')).toHaveText(sources);
   await expect(page.locator('imt-events-grid [role=row].row').first()).toBeVisible();

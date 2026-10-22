@@ -103,7 +103,7 @@ export function rowWindow(total: number, scrollTop: number, height: number, rowH
         </div>
       </imt-analysis-state>
     } @else {
-      <imt-no-capture text="Open a profile to see its hotspots." i18n-text="@@profiling.hotspots.noCapture" />
+      <imt-no-capture text="Open a performance capture to see its hotspots." i18n-text="@@profiling.hotspots.noCapture" />
     }
   `,
   styles: [

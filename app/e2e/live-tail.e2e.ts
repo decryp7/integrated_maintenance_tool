@@ -102,14 +102,15 @@ test.describe('live tail: alerts', () => {
     await liveOn(page);
     // The first alert (an error spike) is due 1.5 s of live ticks after live tail starts.
     await page.clock.runFor(2_000);
-    const toast = page.getByTestId('alert-toast').filter({ hasText: 'Error spike' }).first();
+    // The toast stack shows the newest three: take a visible error spike (an older toast may be folded away meanwhile).
+    const toast = page.getByTestId('alert-toast').filter({ hasText: 'Error spike', visible: true }).last();
     await expect(toast).toBeVisible();
     await expect(toast).toContainText('Critical');
     await expect(toast).toContainText('Error spike');
     await expectNoSeriousViolations(page, testInfo, 'alert-toast', 'imt-alert-toasts');
     await toast.getByRole('button', { name: 'Show' }).click();
     // The evidence: errors and fatals in the alert's time range (which pauses following).
-    const level = (l: string) => page.getByRole('group', { name: 'Levels' }).locator(`button[title=${l}]`);
+    const level = (l: string) => page.getByRole('toolbar', { name: 'Levels' }).locator(`button[data-level=${l}]`);
     await expect(level('Error')).toHaveAttribute('aria-pressed', 'true');
     await expect(level('Fatal')).toHaveAttribute('aria-pressed', 'true');
     await expect(level('Information')).toHaveAttribute('aria-pressed', 'false');
@@ -170,7 +171,7 @@ test.describe('live tail: alerts', () => {
     await expect(rows.filter({ hasNotText: 'Critical' })).toHaveCount(0);
     await filters.getByRole('button', { name: /^All/ }).click();
     await panel.getByRole('button', { name: 'Show evidence: Error spike' }).first().click();
-    await expect(page.getByRole('group', { name: 'Levels' }).locator('button[title=Error]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('toolbar', { name: 'Levels' }).locator('button[data-level=Error]')).toHaveAttribute('aria-pressed', 'true');
     // "Show" brings the events grid to the front; go back to the alerts tab.
     await page.locator('.imt-tab-label', { hasText: /^Alerts/ }).click();
     await panel.getByRole('button', { name: 'Clear' }).click();

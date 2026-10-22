@@ -56,7 +56,7 @@ describe('SettingFieldControl', () => {
     typeInto(input, 'abc');
     expect(changed).toEqual([30, '']);
     const reset = el<HTMLButtonElement>(fixture, 'button.reset');
-    expect(reset.getAttribute('aria-label')).toBe('Reset My setting to default');
+    expect(reset.getAttribute('aria-label')).toBe('Reset to default: My setting');
     expect(reset.title).toBe('Default: 10 MB');
     reset.click();
     expect(resets()).toBe(1);

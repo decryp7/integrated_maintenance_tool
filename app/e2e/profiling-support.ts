@@ -11,7 +11,7 @@ export async function openProfiles(page: Page, search = ''): Promise<void> {
   await page.goto(`/${search}`);
   await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible({ timeout: APP_LOAD_TIMEOUT });
   await expect(page.locator('imt-status-bar')).toContainText('events');
-  await chooseMenu(page, 'File', 'Open profile…');
+  await chooseMenu(page, 'File', 'Open performance capture…');
   await expect(hotspots(page).locator('tbody tr[aria-rowindex]').first()).toBeVisible();
 }
 

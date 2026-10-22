@@ -1,4 +1,5 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, signal, untracked, viewChild } from '@angular/core';
+import { ErrorDetails } from '../ui/error-details';
 import { RecordView } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { formatCount, formatDateTime } from '../core/format';
@@ -93,7 +94,7 @@ export type GridRowVm = RowVm | PlaceholderVm;
   selector: 'imt-events-grid',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[style.--row-h.px]': 'rowH()' },
-  imports: [Icon, MarkerIcon, ClickOutside, VirtualList, NewEventsPill, NextSteps],
+  imports: [Icon, MarkerIcon, ClickOutside, VirtualList, NewEventsPill, NextSteps, ErrorDetails],
   template: `
     <div class="bar">
       <span class="section-title" i18n="@@grid.title">Events</span>
@@ -201,9 +202,7 @@ export type GridRowVm = RowVm | PlaceholderVm;
     </div>
     @if (pageError(); as err) {
       <div class="err-card" role="alert">
-        <strong i18n="@@grid.error.title">Could not load events</strong>
-        <span class="mono">{{ err }}</span>
-        <button class="btn" (click)="retry()" i18n="@@grid.error.retry">Retry</button>
+        <imt-error-details summary="Couldn't load events." i18n-summary="@@grid.error.summary" [detail]="err" (retry)="retry()" />
       </div>
     }
   `,
@@ -215,7 +214,7 @@ export type GridRowVm = RowVm | PlaceholderVm;
     .spacer { flex: 1; }
     .anchor { position: relative; }
     .cols { right: 0; top: 30px; width: 280px; display: flex; flex-direction: column; gap: 6px; }
-    .err-card { position: absolute; top: 90px; left: 50%; transform: translateX(-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 80%; padding: 14px 18px; border: 1px solid var(--border-3); border-radius: 8px; background: var(--bg-3); color: var(--danger-text); text-align: center; }
+    .err-card { position: absolute; top: 90px; left: 50%; transform: translateX(-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 80%; padding: 14px 18px; border: 1px solid var(--border-3); border-radius: 8px; background: var(--bg-3); color: var(--text); text-align: center; }
     .col-opt { width: 100%; display: flex; align-items: center; gap: 8px; height: 24px; color: var(--text-2); font-size: var(--fs-sm); }
     .header { position: sticky; top: 0; z-index: 2; height: ${HEADER_H}px; display: grid; align-items: center; column-gap: 10px; padding: 0 14px; font-size: var(--fs-xs); color: var(--muted); border-bottom: 1px solid var(--border); background: var(--bg-2); }
     .hcell { display: flex; align-items: center; gap: 4px; min-width: 0; }
@@ -396,7 +395,11 @@ export class EventsGrid {
 
   constructor() {
     const destroyRef = inject(DestroyRef);
-    destroyRef.onDestroy(() => this.rows.dispose());
+    destroyRef.onDestroy(() => {
+      this.rows.dispose();
+      // Nothing keeps the count current once the grid is gone: the status bar hides it instead of showing an old one.
+      this.sel.setMatchTotal(null);
+    });
 
     // New query, sort order or data: start from the top, except that a live refresh keeps the position.
     effect(() => {
@@ -480,6 +483,20 @@ export class EventsGrid {
     this.selection.set(EMPTY_SELECTION);
     this.setTop(0);
     this.rows.reset(query, descending);
+    void this.checkSelected(query, descending);
+  }
+
+  /** Asks the engine whether the event the inspector shows is still in the result, so the inspector can say when it is not. */
+  private async checkSelected(query: Parameters<PagedRowsStore['reset']>[0], descending: boolean): Promise<void> {
+    const id = untracked(() => this.sel.selected())?.id;
+    if (id === undefined) return;
+    const gen = this.rows.generation;
+    try {
+      const res = await this.backend.queryPage({ query, offset: 0, limit: 1, descending, anchor: id });
+      if (gen === this.rows.generation) this.sel.setSelectedHidden(id, res.anchorIndex === null);
+    } catch {
+      // Unknown: the inspector keeps the event without a note rather than claiming it is hidden.
+    }
   }
 
   /** Live tail changed the data: refetch what is on screen (old rows stay until the new ones arrive) and keep following. */

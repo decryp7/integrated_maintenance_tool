@@ -13,7 +13,7 @@ import { InferDialog } from '../markers/regex/infer-dialog';
 import { MarkDialog } from './mark-dialog';
 import { applyMask, MaskDialog } from './mask-dialog';
 import { MatchCounter } from './match-count';
-import { copyTextFor, RecordActions } from './record-actions';
+import { copyTextFor, groupMenu, RecordActions } from './record-actions';
 import { GridSelection } from '../grid/grid-selection';
 import { selectionWithin } from './selection';
 import { at } from '../../testing/must';
@@ -276,43 +276,82 @@ describe('RecordActions and the context menu', () => {
 
   it('offers row actions and opens the drop dialog prefilled from the record', async () => {
     const { rec, actions, dialogs } = await setup();
-    const labels = actions.itemsFor(rec).map((i) => i.label);
-    expect(labels).toEqual(['Drop events like this (pipeline)…', 'Mark events like this…', 'Highlight lines…', 'Infer pattern from lines…', 'Open file', `Open at line ${rec.line}`, 'Show in folder', 'Copy']);
-    at(actions.itemsFor(rec), 0).run();
+    const items = actions.itemsFor(rec);
+    // In groups, Copy first (F3): copy · mark · open · rules.
+    expect(items.map((i) => i.label)).toEqual(['Copy', 'Highlight lines…', 'Open file', `Open at line ${rec.line}`, 'Show in folder', 'Mark events like this…', 'Drop events like this (pipeline)…', 'Infer pattern from lines…']);
+    expect(items.map((i) => i.group)).toEqual(['copy', 'mark', 'open', 'open', 'open', 'rules', 'rules', 'rules']);
+    const byLabel = (label: string) => actions.itemsFor(rec).find((i) => i.label === label)!;
+    byLabel('Drop events like this (pipeline)…').run();
     expect(dialogs.stack()[0]?.component).toBe(DropDialog);
     expect(dialogs.stack()[0]?.options.inputs?.['initial']).toEqual([{ field: '@message', op: 'eq', value: rec.message }]);
-    at(actions.itemsFor(rec), 1).run();
+    byLabel('Mark events like this…').run();
     expect(dialogs.stack()[1]?.component).toBe(MarkDialog);
+  });
+
+  it('draws a separator between groups and shows shortcuts right-aligned (F3)', async () => {
+    const { fixture, menu } = await setup();
+    menu.open(10, 10, [
+      { group: 'copy', label: 'Copy', run: () => undefined },
+      { group: 'mark', label: 'Highlight lines…', run: () => undefined },
+      { group: 'mark', label: 'Add note…', shortcut: 'Mod+D', run: () => undefined },
+      { group: 'open', label: 'Open file', run: () => undefined },
+    ], null);
+    await settle(fixture);
+    const host: HTMLElement = fixture.nativeElement;
+    expect([...host.querySelectorAll('[role=menu] > *')].map((e) => e.getAttribute('role'))).toEqual(['menuitem', 'separator', 'menuitem', 'menuitem', 'separator', 'menuitem']);
+    const note = [...host.querySelectorAll<HTMLElement>('[role=menuitem]')].find((b) => b.textContent?.includes('Add note'))!;
+    expect(note.querySelector('kbd')?.textContent).toMatch(/^(Ctrl\+D|⌘D)$/);
+    expect(note.getAttribute('aria-keyshortcuts')).toMatch(/^(Control|Meta)\+D$/);
+    // Keyboard navigation skips the separators.
+    expect(document.activeElement?.textContent).toContain('Copy');
+    (host.querySelector('[role=menu]') as HTMLElement).dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    expect(document.activeElement?.textContent).toContain('Highlight lines');
+    menu.close();
+  });
+
+  it('groups contributed entries after the menu own ones, each contribution together (F3)', () => {
+    const e = (label: string, group?: string) => ({ label, run: () => undefined, ...(group ? { group } : {}) });
+    expect(groupMenu([e('Ask AI', 'contribution-0'), e('Copy', 'copy'), e('Add note…', 'mark'), e('Rule', 'rules'), e('Filter', 'filter'), e('Report', 'contribution-1'), e('Ask AI 2', 'contribution-0'), e('Odd')]).map((x) => x.label)).toEqual([
+      'Copy',
+      'Filter',
+      'Add note…',
+      'Rule',
+      'Ask AI',
+      'Ask AI 2',
+      'Report',
+      'Odd',
+    ]);
   });
 
   it('offers field and selection actions', async () => {
     const { rec, actions, store, dialogs } = await setup();
     const items = actions.itemsFor(rec, { field: { name: 'MachineName', value: 'WEB01' }, selection: { text: '1500', start: 20, end: 24 } });
     expect(items.map((i) => i.label)).toEqual([
-      'Filter: only this MachineName',
+      'Copy',
+      'Only this MachineName',
       'Exclude this MachineName',
-      'Drop events like this (pipeline)…',
-      'Mark events like this…',
       'Highlight lines…',
-      'Infer pattern from lines…',
-      'Mask in message…',
-      'Extract value…',
       'Open file',
       `Open at line ${rec.line}`,
       'Show in folder',
-      'Copy',
+      'Mark events like this…',
+      'Drop events like this (pipeline)…',
+      'Infer pattern from lines…',
+      'Mask in message…',
+      'Extract value…',
     ]);
-    at(items, 0).run();
-    at(items, 1).run();
+    const run = (label: string) => items.find((i) => i.label === label)!.run();
+    run('Only this MachineName');
+    run('Exclude this MachineName');
     expect(store.query().filters.map((f) => f.op)).toEqual(['eq', 'ne']);
-    at(items, 2).run();
+    run('Drop events like this (pipeline)…');
     expect(dialogs.stack()[0]?.options.inputs?.['initial']).toEqual([{ field: 'MachineName', op: 'eq', value: 'WEB01' }]);
-    at(items, 3).run();
+    run('Mark events like this…');
     expect(dialogs.stack()[1]?.options.inputs?.['suggestedLabel']).toBe('MachineName WEB01');
-    at(items, 4).run();
-    at(items, 5).run();
-    at(items, 6).run();
-    at(items, 7).run();
+    run('Highlight lines…');
+    run('Infer pattern from lines…');
+    run('Mask in message…');
+    run('Extract value…');
     expect(dialogs.stack().map((d) => d.component)).toEqual([DropDialog, MarkDialog, MarkDialog, InferDialog, MaskDialog, ExtractDialog]);
     expect(dialogs.stack()[2]?.options.inputs?.['initial']).toEqual([{ field: '@message', op: 'matches', value: '\\d+' }]);
     expect(actions.itemsFor(rec, { selection: { text: '  ', start: 0, end: 2 } })).toHaveLength(8);
@@ -349,7 +388,7 @@ describe('RecordActions and the context menu', () => {
     const { rec, actions, dialogs } = await setup();
     const withContext = { ...rec, fields: { ...rec.fields, SourceContext: 'Web.Requests' }, template: 'x'.repeat(80) };
     const items = actions.itemsFor(withContext);
-    expect(items[0]?.label).toBe('Filter: only this SourceContext');
+    expect(items[1]?.label).toBe('Only this SourceContext');
     actions.mark(withContext);
     expect(String(dialogs.stack()[0]?.options.inputs?.['suggestedLabel'])).toHaveLength(41);
   });

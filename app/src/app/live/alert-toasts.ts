@@ -14,7 +14,7 @@ import { SeverityBadge } from './severity-badge';
   template: `
     <div class="stack" role="region" aria-label="Live alerts" i18n-aria-label="@@live.alertToasts.region" aria-live="polite">
       @for (t of alerts.toasts(); track t.id) {
-        <div class="toast" [class]="t.alert.severity" data-testid="alert-toast">
+        <div class="toast" [class]="t.alert.severity" data-toast data-testid="alert-toast">
           <div class="head">
             <imt-severity-badge [severity]="t.alert.severity" />
             <strong class="kind">{{ kind(t) }}</strong>
@@ -32,7 +32,7 @@ import { SeverityBadge } from './severity-badge';
     </div>
   `,
   styles: `
-    :host { position: fixed; right: 16px; bottom: 32px; z-index: 1900; pointer-events: none; }
+    :host { display: block; }
     .stack { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
     .toast { pointer-events: auto; position: relative; width: 380px; max-width: calc(100vw - 32px); padding: 10px 32px 10px 12px; border: 1px solid var(--border-2); border-left: 3px solid var(--accent); border-radius: 8px; background: var(--bg-3); color: var(--text); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-md); }
     .toast.critical { border-left-color: var(--lvl-fatal); }

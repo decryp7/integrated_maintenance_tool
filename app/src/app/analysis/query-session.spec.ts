@@ -72,6 +72,8 @@ describe('QuerySession', () => {
     expect(ctx.last('showView')).toEqual(['query-results']);
     expect(ctx.calls.some((c) => c.fn === 'setQuery')).toBe(false);
     expect(session.matched()).toBeNull();
+    expect(session.tableText()).toBe('| stats count() by level');
+    expect(session.tableStale()).toBeNull();
   });
 
   it('reports engine errors without touching the workspace', async () => {

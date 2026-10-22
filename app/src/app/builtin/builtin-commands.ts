@@ -4,7 +4,7 @@ import { ExportService } from '../export/export.service';
 import { WorkspaceStore } from '../core/workspace.store';
 import { DockService } from '../dock/dock.service';
 import { PaletteService } from '../palette/palette.service';
-import { ImtCommand } from '../extensions/tokens';
+import { ImtCommand, VIEW_OPEN_PREFIX } from '../extensions/tokens';
 import { isViewAvailable, ViewRegistry } from '../extensions/view-registry';
 import { DIAGNOSTICS_SECTION, SETTINGS_DIAGNOSTICS_COMMAND, SettingsDialogService } from '../settings/settings-dialog';
 import { CLEAR_CACHE_COMMAND, STORAGE_ID } from '../settings/storage/storage.types';
@@ -83,15 +83,16 @@ export class BuiltinCommands {
       category: $localize`:@@builtin.category.analyze:Analyze`,
       run: () => this.store.setTimezone(this.store.timezone() === 'utc' ? 'local' : 'utc'),
     },
-    // One "Toggle <panel>" command per registered view (built in and from plugins).
+    // One "Open <view>" command per registered view (built in and from plugins); the View menu toggles them.
     ...this.views.all.map(
       (view): ImtCommand => ({
-        id: `view.toggle.${view.id}`,
-        title: $localize`:@@builtin.cmd.toggleView:Toggle ${view.title}:view: panel`,
+        id: `${VIEW_OPEN_PREFIX}${view.id}`,
+        title: $localize`:@@builtin.cmd.openView:Open ${view.title}:view:`,
         category: $localize`:@@builtin.category.view:View`,
+        view: view.id,
         when: (ctx) => isViewAvailable(view, ctx.summary),
-        // Behind the welcome screen a docked panel is open but unseen: show it rather than close it.
-        run: () => (this.welcome.visible() ? this.showOverWelcome(view.id) : this.dock.toggle(view.id)),
+        // Behind the welcome screen a docked panel is open but unseen: step the welcome page aside too.
+        run: () => (this.welcome.visible() ? this.showOverWelcome(view.id) : this.dock.show(view.id)),
       }),
     ),
   ];

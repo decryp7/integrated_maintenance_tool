@@ -3,6 +3,7 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { AiButton } from '../ai/ai-button';
 import { AiLauncher } from '../ai/ai-launcher';
 import { Icon } from '../shared/icon';
+import { formatKeybinding } from '../extensions/keybinding';
 import { ProfileDraft } from './profile-draft';
 import { ProfileForm } from './profile-form';
 import { TomlEditor } from './toml-editor';
@@ -38,7 +39,7 @@ import { PARSERS_ID } from '../settings/parsers/parsers.types';
       <button class="btn ghost" (click)="draft.importFile()" i18n="@@profile.editor.import">Import…</button>
       <button class="btn ghost" (click)="draft.exportFile()" i18n="@@profile.editor.export">Export…</button>
       <button class="btn" [disabled]="!draft.dirty()" (click)="draft.revert()" i18n="@@profile.editor.revert">Revert</button>
-      <button class="btn primary" [disabled]="!draft.dirty() || !!draft.problem() || draft.saving()" (click)="draft.save()" title="Apply and re-import (Ctrl/⌘+S)" i18n-title="@@profile.editor.saveTitle">
+      <button class="btn primary" [disabled]="!draft.dirty() || !!draft.problem() || draft.saving()" (click)="draft.save()" [title]="saveTitle">
         @if (draft.saving()) { <ng-container i18n="@@profile.editor.applying">Applying…</ng-container> } @else { <ng-container i18n="@@profile.editor.save">Save &amp; apply</ng-container> }
       </button>
     </div>
@@ -81,6 +82,7 @@ import { PARSERS_ID } from '../settings/parsers/parsers.types';
 })
 export class ProfileEditor {
   protected readonly draft = inject(ProfileDraft);
+  protected readonly saveTitle = $localize`:@@profile.editor.saveTitleKey:Apply and re-import (${formatKeybinding('Mod+S')}:key:)`;
   protected readonly mode = signal<'form' | 'toml' | 'history'>('form');
   private readonly settings = inject(SettingsDialogService);
   private readonly ai = inject(AiLauncher);

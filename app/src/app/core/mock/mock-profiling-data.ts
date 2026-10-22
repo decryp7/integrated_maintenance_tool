@@ -230,7 +230,7 @@ export function heapSnapshot(n: number): MockHeapData {
   return { name: `heap-${n}.heapsnapshot`, takenMs: HEAP_TAKEN_MS[n - 1] ?? 0, objects, notes: n === 3 ? ['Weak and shortcut edges were skipped.'] : [] };
 }
 
-/** Paths the browser demo's "Open profile…" dialog returns. */
+/** Paths the browser demo's "Open performance capture…" dialog returns. */
 export const MOCK_CAPTURE_PATHS = [
   '/demo/profiles/orders.speedscope.json',
   '/demo/profiles/orders-regression.speedscope.json',

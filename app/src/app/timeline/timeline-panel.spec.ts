@@ -79,6 +79,13 @@ describe('TimelinePanel', () => {
     expect(text(fixture)).toContain('Fatal');
     expect(text(fixture)).toContain('3 instances');
     expect(all(fixture, '.fatal-line')).toHaveLength(1);
+    // The title row stays short: how to zoom and pan is behind a (?) with this platform's key (F6, F7).
+    expect(el(fixture, '.hint').textContent).not.toContain('drag');
+    expect(el<HTMLButtonElement>(fixture, 'imt-help button').getAttribute('aria-label')).toContain('Zoom and pan');
+    el<HTMLButtonElement>(fixture, 'imt-help button').click();
+    await settle(fixture);
+    expect(text(fixture)).toContain('Ctrl+wheel zooms');
+    expect(text(fixture)).not.toContain('⌘/Ctrl');
   });
 
   it('jumps to an event when a marker is clicked and shows a tooltip on hover', async () => {
@@ -222,7 +229,9 @@ describe('TimelinePanel', () => {
     const store = TestBed.inject(WorkspaceStore);
     await settle(fixture);
     const card = el(fixture, '.err-card[role=alert]');
-    expect(card.textContent).toContain('Could not load the timeline');
+    // A sentence first; the backend's message only under Technical details (E5).
+    expect(card.querySelector('strong')?.textContent).toBe("Couldn't load the timeline.");
+    expect(card.querySelector('details:not([open]) code')?.textContent).toBe('engine down');
     expect(card.textContent).toContain('engine down');
     expect(store.error()).toBeNull();
     (card.querySelector('button') as HTMLButtonElement).click();

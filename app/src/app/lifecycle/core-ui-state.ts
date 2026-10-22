@@ -27,7 +27,10 @@ export class CoreUiState {
     {
       key: 'query',
       // The search box text counts as applied even while its debounce is pending, so saving right after typing is consistent.
-      capture: () => ({ query: { ...this.store.query(), text: this.store.textInput() }, textInput: this.store.textInput() }),
+      // How the text matches (`textMode`) is left out: smart search derives it from the text after a debounce and a
+      // background scan, so it is no user change (it made the unsaved dot appear right after a save) and restoring the
+      // text derives it again.
+      capture: () => ({ query: { ...this.store.query(), text: this.store.textInput(), textMode: undefined }, textInput: this.store.textInput() }),
       restore: (v) => {
         const saved = (v ?? {}) as { query?: unknown; textInput?: unknown };
         const query = sanitizeQuery(saved.query);

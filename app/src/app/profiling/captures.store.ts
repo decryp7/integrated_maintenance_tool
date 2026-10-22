@@ -13,7 +13,7 @@ import { browserMocks } from '../core/mock-registry';
 
 /* v8 ignore start: the native dialog exists only inside Tauri */
 async function nativePick(): Promise<string[]> {
-  return hostPick({ kind: 'openFiles', title: $localize`:@@profiling.captures.dialogTitle:Open profile or heap snapshot` });
+  return hostPick({ kind: 'openFiles', title: $localize`:@@profiling.captures.dialogTitle:Open performance capture or heap snapshot` });
 }
 /* v8 ignore stop */
 

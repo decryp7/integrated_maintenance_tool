@@ -32,7 +32,7 @@ describe('CapturesView', () => {
     const pending = store.refresh();
     fixture.detectChanges();
     expect(text(fixture)).toContain('Loading…');
-    expect(buttonByText(fixture, 'Open profile…').disabled).toBe(true);
+    expect(buttonByText(fixture, 'Open performance capture…').disabled).toBe(true);
     await pending;
     await settle(fixture, 3);
     expect(text(fixture)).not.toContain('Loading…');
@@ -98,25 +98,25 @@ describe('CapturesView', () => {
     expect(cap(fixture, 'orders-regression.speedscope.json').getAttribute('aria-current')).toBe('true');
   });
 
-  it('Open profile… opens the picked captures, announces them and shows the hotspots', async () => {
+  it('Open performance capture… opens the picked captures, announces them and shows the hotspots', async () => {
     const { fixture, doubles, ctx } = await mount({}, false);
     doubles.picker.paths = ['/demo/profiles/orders.speedscope.json'];
-    buttonByText(fixture, 'Open profile…').click();
+    buttonByText(fixture, 'Open performance capture…').click();
     await settle(fixture, 6);
     expect(all(fixture, 'li.cap')).toHaveLength(1);
     expect(el(fixture, '.notice').textContent).toContain('Opened 1 capture.');
     expect(ctx.last('showView')).toEqual(['profiling-hotspots']);
   });
 
-  it('Open profile… with only a heap snapshot shows the heap view; with nothing shows no view', async () => {
+  it('Open performance capture… with only a heap snapshot shows the heap view; with nothing shows no view', async () => {
     const { fixture, doubles, ctx } = await mount({}, false);
     doubles.picker.paths = ['/demo/profiles/heap-1.heapsnapshot'];
-    buttonByText(fixture, 'Open profile…').click();
+    buttonByText(fixture, 'Open performance capture…').click();
     await settle(fixture, 6);
     expect(ctx.last('showView')).toEqual(['profiling-heap']);
     ctx.calls.length = 0;
     doubles.picker.paths = [];
-    buttonByText(fixture, 'Open profile…').click();
+    buttonByText(fixture, 'Open performance capture…').click();
     await settle(fixture, 6);
     expect(ctx.calls.filter((c) => c.fn === 'showView')).toHaveLength(0);
   });
@@ -124,7 +124,7 @@ describe('CapturesView', () => {
   it('shows open failures with Retry and Dismiss', async () => {
     const { fixture, doubles } = await mount({}, false);
     doubles.picker.paths = ['/tmp/readme.txt'];
-    buttonByText(fixture, 'Open profile…').click();
+    buttonByText(fixture, 'Open performance capture…').click();
     await settle(fixture, 6);
     expect(el(fixture, '[role=alert] .msg').textContent).toContain('readme.txt is not a profile or heap snapshot');
     buttonByText(fixture, 'Retry').click();

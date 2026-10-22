@@ -26,7 +26,7 @@ test.describe('query bar', () => {
     const underline = page.locator('imt-query-view .mirror .err');
     await expect(underline).toHaveText('frob');
     await expect(input).toHaveAttribute('aria-invalid', 'true');
-    await expect(page.locator('#ql-error')).toContainText("unknown stage 'frob'");
+    await expect(page.locator('#ql-error')).toContainText("Unknown stage 'frob' at column 20");
     await input.fill('level >= warning');
     await expect(underline).toHaveCount(0);
     await expect(input).not.toHaveAttribute('aria-invalid', 'true');
