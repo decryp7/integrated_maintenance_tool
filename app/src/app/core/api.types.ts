@@ -492,6 +492,18 @@ export interface MarkerHit {
   snippet: SnippetPart[];
 }
 
+/** An exception group whose type, message or top frame holds the words. */
+export interface ExceptionHit {
+  fingerprint: string;
+  typeName: string;
+  /** Events in the group. */
+  count: number;
+  /** The group's first sample event. */
+  sample: number | null;
+  /** `Type: message` with the matched words marked. */
+  snippet: SnippetPart[];
+}
+
 /** Whose a note or knowledge file is. */
 export type DocScope = 'project' | 'global';
 
@@ -520,6 +532,7 @@ export interface SearchAllReply {
   sources: KindHits<SourceHit>;
   fields: KindHits<FieldHit>;
   markers: KindHits<MarkerHit>;
+  exceptions: KindHits<ExceptionHit>;
   notes: KindHits<DocHit>;
   knowledge: KindHits<DocHit>;
 }
@@ -1062,7 +1075,7 @@ export interface MomentSummary {
 
 /*
  * Mirrors app/src-tauri/src/snapshots.rs:
- *   capture_window_image   {}                     -> WindowCapture  (app/src-tauri/src/window_capture, ADR 0034)
+ *   capture_window_image   { userRequested? }     -> WindowCapture  (app/src-tauri/src/window_capture, ADR 0034)
  *   save_error_snapshot   { image: base64, mime, context: SnapshotContext } -> SnapshotSaveResult
  *   list_error_snapshots   {}                     -> SnapshotInfo[]  (newest first)
  *   read_error_snapshot    { id }                 -> string (data: URL)

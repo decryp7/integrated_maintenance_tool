@@ -1,5 +1,5 @@
 //! Search everything: one search box text looked up in every kind of thing a window holds (events, sources,
-//! fields and their values, marker kinds, notes and knowledge files), a few results of each kind with the matched
+//! fields and their values, marker kinds, exception groups, notes and knowledge files), a few results of each kind with the matched
 //! words marked, for the palette that jumps to them.
 //!
 //! Pure over a small port ([`SearchSource`]: summary, page, facet) and the notes and knowledge the app hands in
@@ -20,7 +20,8 @@ pub use dto::*;
 pub use snippet::{contains_any, needles, snippet, MAX_SCAN_CHARS, SNIPPET_CHARS};
 
 use crate::api::{FacetRequest, FieldInfo};
-use crate::ports::{EventView, Filter, PageQuery, PageReply, Query, StoreError, StoreResult, SummaryReply};
+use crate::exceptions::ExceptionGroup;
+use crate::ports::{Analysis, EventView, Filter, PageQuery, PageReply, Query, StoreError, StoreResult, SummaryReply};
 use crate::query::TextMode;
 use crate::words::WordQuery;
 use std::time::{Duration, Instant};
@@ -39,14 +40,16 @@ pub const MAX_VALUE_FIELDS: usize = 24;
 pub const MAX_DISTINCT_VALUES: usize = 500;
 
 /// What search everything reads from the store: the summary (sources, fields, marker kinds), a page of events
-/// matching words, and the values of a field. Every [`Query`] store offers it.
+/// matching words, the values of a field and the exception groups. Every store with [`Query`] and [`Analysis`] offers it.
 pub trait SearchSource {
     fn summary(&self) -> StoreResult<SummaryReply>;
     fn page(&self, req: &PageQuery) -> StoreResult<PageReply>;
     fn facet(&self, req: &FacetRequest) -> StoreResult<crate::api::Facet>;
+    /// The exception groups of every event.
+    fn exception_groups(&self) -> StoreResult<Vec<ExceptionGroup>>;
 }
 
-impl<T: Query + ?Sized> SearchSource for T {
+impl<T: Query + Analysis + ?Sized> SearchSource for T {
     fn summary(&self) -> StoreResult<SummaryReply> {
         Query::summary(self)
     }
@@ -55,6 +58,9 @@ impl<T: Query + ?Sized> SearchSource for T {
     }
     fn facet(&self, req: &FacetRequest) -> StoreResult<crate::api::Facet> {
         Query::facet(self, req)
+    }
+    fn exception_groups(&self) -> StoreResult<Vec<ExceptionGroup>> {
+        Analysis::exception_groups(self, &crate::api::QueryRequest { query: Default::default() }).map(|a| a.result)
     }
 }
 
@@ -176,6 +182,7 @@ pub fn run(
     } else {
         timed_out()
     };
+    let exceptions = if go_on(control)? { exceptions(store, &plan) } else { timed_out() };
     let fields = match &summary {
         None => timed_out(),
         Some(Err(e)) => failed(e),
@@ -186,6 +193,7 @@ pub fn run(
         sources,
         fields,
         markers,
+        exceptions,
         notes,
         knowledge,
     }))
@@ -273,6 +281,28 @@ fn markers(plan: &Plan, summary: &SummaryReply) -> KindHits<MarkerHit> {
             plan.push(&mut hits, || MarkerHit {
                 kind: kind.clone(),
                 snippet: snippet(kind, &plan.needles),
+            });
+        }
+    }
+    hits
+}
+
+/// Exception groups whose type, message or top frame hold the words (most frequent first, as the engine lists them).
+fn exceptions(store: &(impl SearchSource + ?Sized), plan: &Plan) -> KindHits<ExceptionHit> {
+    let groups = match store.exception_groups() {
+        Ok(groups) => groups,
+        Err(e) => return failed(&e),
+    };
+    let mut hits = KindHits::default();
+    for g in &groups {
+        let top = g.top_frame.as_deref().unwrap_or_default();
+        if plan.matches_all(&[&g.type_name, &g.message, top]) {
+            plan.push(&mut hits, || ExceptionHit {
+                fingerprint: g.fingerprint.clone(),
+                type_name: g.type_name.clone(),
+                count: g.count as u64,
+                sample: g.sample_ids.first().copied().map(|id| crate::batch::EventId(u64::from(id))),
+                snippet: snippet(&format!("{}: {}", g.type_name, g.message), &plan.needles),
             });
         }
     }
