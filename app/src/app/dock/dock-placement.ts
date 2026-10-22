@@ -23,7 +23,7 @@ const TOOL_SIZE = { side: INSPECTOR_WIDTH, bottom: 240 };
 /** Height of a new analysis panel below the events grid, px. */
 const ANALYSIS_HEIGHT = 280;
 /** Height of a status tool window sliding out of the bottom edge, px. */
-const STATUS_HEIGHT = 260;
+const STATUS_HEIGHT = 360;
 
 /** The two panels a new view never covers: it opens beside them (documents) or below them (analysis). */
 const MAIN_PANELS: ReadonlySet<string> = new Set([PANEL.timeline, PANEL.events]);

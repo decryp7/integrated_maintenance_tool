@@ -1,4 +1,5 @@
 import { DestroyRef, inject } from '@angular/core';
+import { EVENT_DRAG_TYPE } from '../../core/event-drag';
 import { PasteCommands } from './paste-commands';
 
 /** The data of a drag, as far as it matters here. */
@@ -10,12 +11,13 @@ export interface DragData {
 
 /** Whether a drag carries plain text and no files (checked while it is over the window, when only the types are known). */
 export function dragsText(dt: Pick<DragData, 'files' | 'types'> | null): boolean {
-  return !!dt && !dt.files.length && dt.types.includes('text/plain');
+  // An event dragged out of the grid carries its text too, but it is meant for a drop target of its own (Notes).
+  return !!dt && !dt.files.length && dt.types.includes('text/plain') && !dt.types.includes(EVENT_DRAG_TYPE);
 }
 
 /** The dropped plain text, or null when the drop carries files or no text. Pure. */
 export function droppedText(dt: DragData | null): string | null {
-  if (!dt || dt.files.length) return null;
+  if (!dt || dt.files.length || dt.types.includes(EVENT_DRAG_TYPE)) return null;
   const text = dt.getData('text/plain');
   return text.trim() ? text : null;
 }
@@ -32,7 +34,7 @@ export function startTextDrops(): void {
     if (dragsText(e.dataTransfer) && !editable(e)) e.preventDefault();
   };
   const drop = (e: DragEvent) => {
-    if (editable(e)) return;
+    if (editable(e) || e.defaultPrevented) return;
     const text = droppedText(e.dataTransfer);
     if (text === null) return;
     e.preventDefault();

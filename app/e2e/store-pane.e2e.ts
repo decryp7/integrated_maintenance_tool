@@ -37,6 +37,15 @@ test('Store pane: reports, maintenance and the read-only SQL console', async ({ 
   await page.getByRole('combobox', { name: 'Type a command' }).fill('Open SQL console');
   await page.getByRole('option', { name: /Open SQL console/ }).first().click();
   const editor = pane.getByTestId('sql-editor');
+  const openConsole = () =>
+    expect(async () => {
+      await page.keyboard.press('ControlOrMeta+k');
+      await page.getByRole('combobox', { name: 'Type a command' }).fill('Open SQL console');
+      await page.getByRole('option', { name: /Open SQL console/ }).first().click();
+      await expect(editor).toBeVisible();
+      await page.waitForTimeout(400);
+      await expect(editor).toBeVisible({ timeout: 1000 });
+    }).toPass({ timeout: 15_000 });
   await expect(editor).toBeVisible();
   await editor.fill('');
   await editor.pressSequentially('SELECT id, ts, level, message FROM ev');
@@ -51,10 +60,9 @@ test('Store pane: reports, maintenance and the read-only SQL console', async ({ 
   await pane.getByTestId('sql-open-events').click();
   await expect(page.locator('[role=row][aria-selected=true]').first()).toBeVisible({ timeout: 10_000 });
   // Back to the console (the Events grid came to the front).
-  await page.keyboard.press('ControlOrMeta+k');
-  await page.getByRole('combobox', { name: 'Type a command' }).fill('Open SQL console');
-  await page.getByRole('option', { name: /Open SQL console/ }).first().click();
-  await expect(editor).toBeVisible();
+  // The slid-out panel settles a moment after the command (it can be dismissed by the focus change of the click that
+  // chose it), so the console counts as open once it has stayed visible.
+  await openConsole();
 
   // A write is refused, with the keyword underlined.
   await editor.fill('DROP VIEW events');
@@ -70,6 +78,8 @@ test('Store pane: reports, maintenance and the read-only SQL console', async ({ 
   const saved = page.getByTestId('saved-sql');
   await expect(saved).toContainText('All events');
   await expect(saved).toContainText('SQL');
+  // The Store panel slides away while another panel has the focus: bring it back before editing.
+  await openConsole();
   await editor.fill('');
   await saved.getByRole('button', { name: /Open SQL All events/ }).click();
   await expect(editor).toHaveValue('SELECT count(*) FROM events');

@@ -148,7 +148,7 @@ import { SqlExportFiles } from './sql-export-files';
     .snippet { margin: 0; padding: 4px 8px; background: var(--bg-2); border-radius: 4px; color: var(--text-2); white-space: pre-wrap; overflow-wrap: anywhere; }
     mark { background: transparent; color: inherit; text-decoration: underline wavy var(--lvl-error); }
     .plan { margin: 0; padding: 8px; background: var(--bg-2); border-radius: 6px; overflow: auto; max-height: 420px; font-size: var(--fs-xs); }
-    .table-wrap { overflow: auto; max-height: 420px; border: 1px solid var(--border-2); border-radius: 6px; }
+    .table-wrap { overflow: auto; scroll-padding-top: 32px; max-height: 420px; border: 1px solid var(--border-2); border-radius: 6px; }
     .results { border-collapse: collapse; width: max-content; min-width: 100%; font-size: var(--fs-sm); }
     th, td { text-align: left; padding: 3px 8px; border-bottom: 1px solid var(--border-2); white-space: nowrap; max-width: 480px; overflow: hidden; text-overflow: ellipsis; }
     th { position: sticky; top: 0; background: var(--bg-2); font-weight: 600; }

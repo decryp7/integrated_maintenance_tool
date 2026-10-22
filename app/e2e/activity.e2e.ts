@@ -101,7 +101,8 @@ test('a user journey is logged once per operation, in order, with triggers and w
     { Operation: 'search.change', Trigger: 'keyboard' },
     { Operation: 'selection.change', Trigger: 'pointer' },
     { Operation: 'dock.popout', Panel: 'inspector', Trigger: 'context-menu' },
-    { Operation: 'settings.change', Section: 'diagnostics', Fields: /logLevel/, Trigger: 'dialog' },
+    // Settings save by themselves as they are edited, so the change is logged with the input that made it, not an Apply click.
+    { Operation: 'settings.change', Section: 'diagnostics', Fields: /logLevel/ },
     // The command runs until its dialog is done, so the export it makes is part of it (one entry).
     { Operation: 'file.export', Title: /^Export events/, Trigger: 'menu', Outcome: 'ok' },
   ];
