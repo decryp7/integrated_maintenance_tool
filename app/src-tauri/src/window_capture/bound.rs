@@ -10,8 +10,9 @@ use std::io::Cursor;
 pub const MAX_WIDTH: u32 = 1600;
 /// A PNG up to this size is kept; a larger one is replaced by a JPEG.
 pub const TARGET_BYTES: usize = 2 * 1024 * 1024;
-/// Largest encoded image accepted from the platform (a 16k × 16k PNG is far below this).
-pub const MAX_RAW_BYTES: usize = 64 * 1024 * 1024;
+/// Largest encoded image accepted from the platform: room for macOS's uncompressed BMP of a full-screen window on an
+/// 8K display (7680 × 4320 px × 4 B ≈ 127 MiB); a PNG from WebView2 is far smaller.
+pub const MAX_RAW_BYTES: usize = 160 * 1024 * 1024;
 /// Largest side accepted from the platform, in pixels.
 pub const MAX_SOURCE_SIDE: u32 = 16_384;
 /// Memory the decoder may allocate.
@@ -33,8 +34,13 @@ pub enum Alpha {
 /// What a platform webview returns.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RawCapture {
-    /// An encoded image (PNG from WebView2, BMP from WebKit on macOS).
+    /// An encoded image (PNG from WebView2).
     Encoded(Vec<u8>),
+    /// An encoded image drawn at the screen's backing scale (BMP from WebKit on macOS, 2 px per point on Retina),
+    /// with the window's width in points: the snapshot is kept at most that wide, so a Retina capture costs what
+    /// the same window does on a standard screen.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    Scaled { encoded: Vec<u8>, logical_width: u32 },
     /// Native-endian 32-bit pixels, B, G, R, A in memory on little-endian machines (WebKitGTK's cairo surface).
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     Bgra {
@@ -58,8 +64,13 @@ pub struct Bounded {
 /// Decodes `raw`, scales it to at most [`MAX_WIDTH`] and encodes it as PNG, or as JPEG when the PNG is larger
 /// than [`TARGET_BYTES`]; halves the width until the result fits in the snapshot limit ([`MAX_IMAGE_BYTES`]).
 pub fn bound(raw: RawCapture) -> Result<Bounded, CaptureError> {
+    let mut max_width = MAX_WIDTH;
     let image = match raw {
         RawCapture::Encoded(bytes) => decode(&bytes)?,
+        RawCapture::Scaled { encoded, logical_width } => {
+            max_width = max_width.min(logical_width.max(1));
+            decode(&encoded)?
+        }
         RawCapture::Bgra {
             width,
             height,
@@ -68,7 +79,7 @@ pub fn bound(raw: RawCapture) -> Result<Bounded, CaptureError> {
             data,
         } => rgba_from_bgra(width, height, stride, alpha, &data)?,
     };
-    let mut width = image.width().min(MAX_WIDTH);
+    let mut width = image.width().min(max_width);
     loop {
         let scaled = scaled_to(&image, width);
         let png = encode_png(&scaled)?;
@@ -115,6 +126,14 @@ fn decode(bytes: &[u8]) -> Result<RgbaImage, CaptureError> {
     Ok(image.to_rgba8())
 }
 
+/// A window width in points as reported by the platform (`NSImage.size.width`), or `None` when it is not a usable
+/// width (not finite, not positive, or wider than any capture is accepted).
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub fn logical_width(points: f64) -> Option<u32> {
+    let rounded = points.round();
+    (rounded.is_finite() && rounded >= 1.0 && rounded <= f64::from(MAX_SOURCE_SIDE)).then_some(rounded as u32)
+}
+
 /// Straight RGBA from 32-bit BGRA rows (`stride` bytes apart), un-premultiplying when asked.
 pub fn rgba_from_bgra(width: u32, height: u32, stride: usize, alpha: Alpha, data: &[u8]) -> Result<RgbaImage, CaptureError> {
     let bad = |why: &str| CaptureError::Decode(format!("the webview returned unusable pixels ({why})"));
@@ -128,14 +147,15 @@ pub fn rgba_from_bgra(width: u32, height: u32, stride: usize, alpha: Alpha, data
     if stride < row {
         return Err(bad("rows overlap"));
     }
-    let needed = stride * (height as usize - 1) + row;
+    // Saturating: a bogus stride from the platform must be refused, not overflow.
+    let needed = stride.saturating_mul(height as usize - 1).saturating_add(row);
     if data.len() < needed {
         return Err(bad("too few bytes"));
     }
     let mut out = Vec::with_capacity(row * height as usize);
     for y in 0..height as usize {
-        for px in data[y * stride..y * stride + row].chunks_exact(4) {
-            let (b, g, r, a) = (px[0], px[1], px[2], px[3]);
+        let (pixels, _) = data[y * stride..y * stride + row].as_chunks::<4>();
+        for &[b, g, r, a] in pixels {
             match alpha {
                 Alpha::Ignored => out.extend_from_slice(&[r, g, b, 255]),
                 Alpha::Premultiplied if a == 0 => out.extend_from_slice(&[0, 0, 0, 0]),

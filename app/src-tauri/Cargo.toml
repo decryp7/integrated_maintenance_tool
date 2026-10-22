@@ -96,11 +96,11 @@ tauri = { version = "2.12.4", features = ["test", "tray-icon", "image-png", "uns
 tauri-plugin-single-instance = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSEvent", "NSImage", "NSImageRep", "NSBitmapImageRep"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "bitflags", "NSEvent", "NSImage", "NSImageRep", "NSBitmapImageRep", "NSResponder", "NSView", "NSWindow"] }
 # Native window capture (`window_capture::native`, ADR 0034): the versions wry uses.
 objc2 = "0.6"
 block2 = "0.6"
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSData", "NSDictionary", "NSError", "NSString"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSData", "NSDictionary", "NSError", "NSGeometry", "NSString"] }
 objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-app-kit", "WKWebView", "WKSnapshotConfiguration"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]

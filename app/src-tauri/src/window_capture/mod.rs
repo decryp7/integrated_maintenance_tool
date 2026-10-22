@@ -28,6 +28,9 @@ pub enum CaptureError {
     /// This platform has no native webview capture.
     #[cfg_attr(any(windows, target_os = "macos", target_os = "linux"), allow(dead_code))]
     Unsupported,
+    /// The window is not on screen (minimised, hidden, on another desktop or covered), so there is nothing to capture.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    NotVisible,
     /// The webview refused or failed.
     Webview(String),
     /// The webview went away without answering.
@@ -46,6 +49,7 @@ impl fmt::Display for CaptureError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Unsupported => write!(f, "screenshots are not available on this platform"),
+            Self::NotVisible => write!(f, "the window was not on screen (minimised, hidden, covered or on another desktop)"),
             Self::Webview(e) => write!(f, "the window could not be captured: {e}"),
             Self::NoAnswer => write!(f, "the window's webview did not return a picture"),
             Self::TimedOut => write!(f, "the window did not return a picture within {} s", CAPTURE_TIMEOUT.as_secs()),

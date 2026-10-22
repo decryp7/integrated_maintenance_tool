@@ -58,8 +58,9 @@ Use the platform capture (B). The page no longer rasterises anything; html-to-im
    awaits the channel asynchronously with a 10 s timeout (`CAPTURE_TIMEOUT`); a webview that goes away without
    answering drops the channel and the command answers at once.
 3. **Bound and encode off the UI thread** (`window_capture::bound`, pure and unit-tested, on `spawn_blocking`):
-   decode with limits (64 MiB of input, 16 384 px per side, 512 MiB of decoder memory, PNG/BMP/JPEG only), convert
-   premultiplied BGRA where needed, scale to at most 1600 px wide, keep a PNG up to 2 MiB, otherwise a JPEG at quality
+   decode with limits (160 MiB of input, 16 384 px per side, 512 MiB of decoder memory, PNG/BMP/JPEG only), convert
+   premultiplied BGRA where needed, scale to at most 1600 px wide (on macOS also to at most the window's width in
+   points, see below), keep a PNG up to 2 MiB, otherwise a JPEG at quality
    80, and halve the width until it fits the store's 3 MiB limit.
 4. **Degrade, don't fail.** Any reason a picture can't be taken (unsupported platform, the webview refused, timeout,
    undecodable data, too large) is `unavailable` with a message, not an error: the snapshot is still saved, with a
@@ -77,9 +78,37 @@ Use the platform capture (B). The page no longer rasterises anything; html-to-im
 - The picture is what the webview composited, including canvases exactly as drawn. It covers the window's main
   webview only; the docked browser's page (a separate webview) is still not in it, as before. Native window chrome
   (title bar) is not included either, which matches the old picture.
-- Platform code is behind `cfg`: Windows is built and tested here; the macOS part type-checks against the
-  `x86_64-apple-darwin` target in isolation and the Linux part relies on the Linux CI runner (the GTK system
-  libraries are needed to build it). Other targets answer `unavailable`.
+- Platform code is behind `cfg`: Windows was built and run on Windows (WebView2), macOS was built and run on
+  macOS (WKWebView, Apple silicon, Retina), and the Linux part relies on the Linux CI runner (the GTK system
+  libraries are needed to build it; it has not been run yet). Other targets answer `unavailable`.
 - The images are now encoded by the `image` crate rather than the browser's canvas encoder; sizes are comparable.
 - `mockSnapshots=off` in e2e tests stays, but only to keep snapshot toasts out of tests about other error states:
   the mock no longer renders the page.
+
+## macOS notes
+
+- `with_webview` runs the closure on the main thread (a `MainThreadMarker` is taken, never assumed);
+  `takeSnapshotWithConfiguration:completionHandler:` returns at once and WebKit calls the block once, on the main
+  thread, with an `NSImage` or an `NSError`.
+- The block converts the image to BMP through `TIFFRepresentation` → `NSBitmapImageRep` →
+  `representationUsingType:BMP` and sends the bytes; it does no compression, so the main thread spends only a copy on
+  it. PNG is not encoded there on purpose: compressing a Retina-sized bitmap on the main thread would be exactly the
+  kind of stall this ADR removes. `bound` decodes the BMP and encodes the PNG or JPEG on a blocking worker.
+- The `NSImage` is sized in points but its bitmap is at the screen's backing scale (2 px per point on Retina). The
+  block also sends `NSImage.size.width` (`RawCapture::Scaled`), and `bound` keeps the snapshot at most that wide: a
+  Retina capture is stored at the window's logical size, like the same window on a standard screen, and the picture
+  is a clean 2:1 reduction. An unusable width (not finite, not positive, too large) falls back to the pixel width.
+- WebKit renders nothing for a window that is not on screen, and its snapshot then fails at once ("An unknown error
+  occurred") or, while the window is minimised, never answers (the 10 s timeout would end it). The capture therefore
+  first checks the window's `occlusionState`: without `NSWindowOcclusionStateVisible` it answers `unavailable` ("the
+  window was not on screen ...") immediately. WebKit can still refuse a visible window for a moment after it was
+  hidden (observed right after un-minimising); that is the ordinary `Webview` error path. The tray's *Capture
+  diagnostic screenshot* brings the window to the front first.
+- Measured on an M-series Mac mini (1x displays, a 1440 x 900 pt window with ~59 000 events loaded): the completion
+  block takes about 5 ms on the main thread (a 5.2 MB BMP), and the whole command 0.2 to 0.9 s; the stored PNG was
+  1440 x 900 and 460 to 495 KB. A Retina display was not available, so the 2:1 reduction is covered by unit tests only.
+- Because the BMP is uncompressed, the input limit is 160 MiB: a full-screen window on an 8K display (7680 × 4320 px
+  × 4 B ≈ 127 MiB) still fits; anything larger answers `unavailable` ("too large").
+- The `objc2`, `block2`, `objc2-foundation`, `objc2-app-kit` and `objc2-web-kit` crates are the versions wry already
+  links; only features were enabled (`NSImage`, `NSBitmapImageRep`, `NSWindow`, `NSGeometry`, `WKSnapshotConfiguration`, ...),
+  so `Cargo.lock` gains no crate.

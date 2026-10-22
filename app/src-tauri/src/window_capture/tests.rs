@@ -1,4 +1,4 @@
-use super::bound::{bound, rgba_from_bgra, Alpha, RawCapture, MAX_RAW_BYTES, MAX_SOURCE_SIDE, MAX_WIDTH, TARGET_BYTES};
+use super::bound::{bound, logical_width, rgba_from_bgra, Alpha, RawCapture, MAX_RAW_BYTES, MAX_SOURCE_SIDE, MAX_WIDTH, TARGET_BYTES};
 use super::*;
 use crate::snapshots::{validate_image, ImageFormat, MAX_IMAGE_BYTES};
 use image::{ImageFormat as Codec, Rgba, RgbaImage};
@@ -67,6 +67,53 @@ fn a_capture_that_compresses_badly_becomes_a_jpeg_within_the_snapshot_limit() {
 }
 
 #[test]
+fn a_retina_capture_is_kept_at_the_window_s_logical_width() {
+    // A 1440 × 900 pt window drawn at 2 px per point, as WebKit on macOS hands it over (BMP).
+    let image = RgbaImage::from_pixel(2880, 1800, Rgba([30, 60, 90, 255]));
+    let b = bound(RawCapture::Scaled {
+        encoded: encoded(&image, Codec::Bmp),
+        logical_width: 1440,
+    })
+    .unwrap();
+    assert_eq!((b.format, b.width, b.height), (ImageFormat::Png, 1440, 900));
+    // A window wider in points than the maximum is still bounded by it.
+    let wide = RgbaImage::from_pixel(4000, 1000, Rgba([0, 0, 0, 255]));
+    let b = bound(RawCapture::Scaled {
+        encoded: encoded(&wide, Codec::Bmp),
+        logical_width: 2000,
+    })
+    .unwrap();
+    assert_eq!((b.width, b.height), (MAX_WIDTH, 400));
+    // A logical width above the pixel width (a scale below 1) never enlarges; zero is treated as one point.
+    for logical_width in [5000, 0] {
+        let b = bound(RawCapture::Scaled {
+            encoded: png(300, 100),
+            logical_width,
+        })
+        .unwrap();
+        let expected = if logical_width == 0 { (1, 1) } else { (300, 100) };
+        assert_eq!((b.width, b.height), expected, "{logical_width}");
+    }
+    assert!(matches!(
+        bound(RawCapture::Scaled {
+            encoded: b"junk".to_vec(),
+            logical_width: 100
+        }),
+        Err(CaptureError::Decode(_))
+    ));
+}
+
+#[test]
+fn only_usable_point_widths_become_logical_widths() {
+    assert_eq!(logical_width(1440.0), Some(1440));
+    assert_eq!(logical_width(1439.6), Some(1440));
+    assert_eq!(logical_width(1.0), Some(1));
+    for unusable in [0.0, 0.4, -10.0, f64::NAN, f64::INFINITY, f64::from(MAX_SOURCE_SIDE) + 1.0] {
+        assert_eq!(logical_width(unusable), None, "{unusable}");
+    }
+}
+
+#[test]
 fn garbage_unknown_formats_and_oversized_input_are_errors_not_panics() {
     assert!(matches!(bound(RawCapture::Encoded(vec![])), Err(CaptureError::Decode(_))));
     assert!(matches!(
@@ -125,6 +172,10 @@ fn malformed_bgra_buffers_are_rejected() {
         "stride shorter than a row"
     );
     assert!(decode(rgba_from_bgra(2, 2, 8, Alpha::Ignored, &[0; 12])), "too few bytes");
+    assert!(
+        decode(rgba_from_bgra(2, 3, usize::MAX, Alpha::Ignored, &[0; 64])),
+        "a stride that would overflow"
+    );
     assert_eq!(
         rgba_from_bgra(MAX_SOURCE_SIDE + 1, 1, 0, Alpha::Ignored, &[]),
         Err(CaptureError::TooLarge)
@@ -148,6 +199,7 @@ fn the_reply_carries_the_image_or_why_there_is_none() {
     );
     for e in [
         CaptureError::Webview("E_FAIL".into()),
+        CaptureError::NotVisible,
         CaptureError::NoAnswer,
         CaptureError::TimedOut,
         CaptureError::Decode("x".into()),
