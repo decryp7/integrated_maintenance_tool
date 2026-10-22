@@ -1,9 +1,10 @@
-import { computed, effect, inject, untracked } from '@angular/core';
-import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
+import { computed, DestroyRef, effect, inject, untracked } from '@angular/core';
+import { patchState, signalStore, withComputed, withHooks, withMethods, withProps, withState } from '@ngrx/signals';
 import { AiLauncher } from '../ai/ai-launcher';
 import { DiagnosticRow, FixEvaluation, IndexStatus } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { failureText } from '../core/cmd-error';
+import { ConsumerGate } from '../core/panel-visibility';
 import { EMPTY_QUERY } from '../core/workspace/query.store';
 import { WorkspaceStore } from '../core/workspace.store';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
@@ -11,6 +12,7 @@ import { ParsersBackend } from '../settings/parsers/parsers-backend';
 import { SourceFileActions } from '../sources/source-file-actions';
 import { countProblems, groupProblems, ProblemItem, problemKey, quickFixOf } from './problems-model';
 import { ProblemsBackend } from './problems-backend';
+import { RefreshThrottle } from './refresh-throttle';
 
 /** A quick fix's preview (`evaluate_fix`): running, its result, or why it failed. */
 export type FixPreview = { state: 'running' } | { state: 'done'; result: FixEvaluation } | { state: 'failed'; error: string };
@@ -20,6 +22,12 @@ const FALLBACK_PARSER = 'generic';
 /** Lines of the file the AI gets when no stored event is at the problem's line. */
 const AI_SAMPLE_LINES = 40;
 const AI_SAMPLE_BYTES = 16 * 1024;
+/**
+ * At most one listing per this many ms after workspace changes (the summary changes up to ~4x/s in live tail): while
+ * the Problems pane is visible, and while it is not (the status-bar badge still counts, less often).
+ */
+export const PROBLEMS_REFRESH_VISIBLE_MS = 2_000;
+export const PROBLEMS_REFRESH_HIDDEN_MS = 10_000;
 
 interface ProblemsState {
   rows: DiagnosticRow[];
@@ -57,11 +65,14 @@ const INITIAL: ProblemsState = {
  * The window's import problems as the engine lists them (`import_problems`), the Problems pane's selection, and the
  * quick fixes: a preview of what the engine's fix would repair (`evaluate_fix`), applying it (the source's parser
  * changed by the fix's `[format]` fragment, saved in the library, the files read again: ADR 0026), and "Ask the AI
- * to fix", which opens the AI's parser proposal for the user to review. Listed again whenever the workspace changes.
+ * to fix", which opens the AI's parser proposal for the user to review. Listed again when the workspace changes, at
+ * most once per `PROBLEMS_REFRESH_VISIBLE_MS` while the pane is visible (`gate`) and less often while it is not.
  */
 export const ProblemsStore = signalStore(
   { providedIn: 'root' },
   withState<ProblemsState>(INITIAL),
+  // The Problems pane registers here; changes are listed sooner while it is visible.
+  withProps(() => ({ gate: new ConsumerGate() })),
   withComputed((store) => ({
     groups: computed(() => groupProblems(store.rows())),
     counts: computed(() => countProblems(store.rows())),
@@ -210,11 +221,21 @@ export const ProblemsStore = signalStore(
     },
   ),
   withHooks({
-    onInit(store, workspace = inject(WorkspaceStore)) {
-      // The sources changed (opened, re-read, removed, appended to): list again.
+    onInit(store, workspace = inject(WorkspaceStore), destroyRef = inject(DestroyRef)) {
+      const throttle = new RefreshThrottle(
+        () => void store.load(),
+        () => (store.gate.active() ? PROBLEMS_REFRESH_VISIBLE_MS : PROBLEMS_REFRESH_HIDDEN_MS),
+      );
+      destroyRef.onDestroy(() => throttle.dispose());
+      // The sources changed (opened, re-read, removed, appended to): list again, coalesced.
       effect(() => {
         workspace.summary();
-        untracked(() => void store.load());
+        untracked(() => throttle.request());
+      });
+      // The pane became visible (or hidden): a pending listing moves to the new interval.
+      effect(() => {
+        store.gate.active();
+        untracked(() => throttle.reschedule());
       });
     },
   }),

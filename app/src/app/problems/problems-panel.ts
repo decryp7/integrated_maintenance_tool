@@ -232,6 +232,11 @@ export class ProblemsPanel {
   /** Files whose problems are folded away (all start expanded). */
   protected readonly collapsed = signal<ReadonlySet<string>>(new Set());
 
+  constructor() {
+    // Workspace changes are listed sooner while this pane is visible.
+    this.store.gate.use();
+  }
+
   protected readonly rows = computed<TreeRow[]>(() => {
     const groups = this.store.groups();
     const out: TreeRow[] = [];
