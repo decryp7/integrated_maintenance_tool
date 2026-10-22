@@ -260,11 +260,9 @@ textarea,
 }
 
 .section-title {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  letter-spacing: 0.08em;
   color: var(--muted);
-  text-transform: uppercase;
 }
 
 .muted {
@@ -551,6 +549,6 @@ textarea.input {
 /* A region focused with F6 (shell/regions.ts) shows where the keyboard is. */
 [data-imt-region]:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 
-/* The selected segment of a segmented control (Light / Dark, Compact / Comfortable…) is filled, not just outlined. */
+/* The selected segment of a segmented control (Light / Dark, Compact / Comfortable…) is a tint with accent text: only a dialog's one primary button is filled. */
 .seg > .btn[aria-pressed='true'],
-.seg > .btn[aria-checked='true'] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.seg > .btn[aria-checked='true'] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }

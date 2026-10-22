@@ -95,8 +95,8 @@ test.describe('home quick actions and history', () => {
     const home = page.locator('imt-home-view');
     await expect(home).toBeVisible({ timeout: 10_000 });
     await expect(home.getByTestId('home-open-files')).toBeVisible();
-    // Open last project needs a recent project: disabled on a fresh profile.
-    await expect(home.getByTestId('home-open-last')).toBeDisabled();
+    // Open last project needs a recent project: not offered on a fresh profile.
+    await expect(home.getByTestId('home-open-last')).toHaveCount(0);
     // A click inside the history chart narrows the time range to that bar.
     const chart = home.getByTestId('home-history');
     await expect(chart).toBeVisible();

@@ -44,7 +44,7 @@ test.describe('timeline legend (F7) and explorer (H2)', () => {
     expect(heights.row).toBeLessThan(heights.line * 3.5);
     const headings = page.locator('imt-sidebar [data-testid=folder-heading]');
     await expect(headings.first()).toBeVisible();
-    await expect(page.locator('imt-sidebar [data-testid=format-badge]').first()).toHaveAttribute('title', /.+/);
+    await expect(page.locator('imt-sidebar .src:not(.dim)').first()).toHaveAttribute('title', /Format: /);
   });
 });
 

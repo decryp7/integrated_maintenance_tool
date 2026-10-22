@@ -61,19 +61,18 @@ describe('AnomaliesView', () => {
     const { fixture } = await mount(AnomaliesView);
     const rows = all<HTMLButtonElement>(fixture, 'li button');
     expect(rows).toHaveLength(2);
-    expect(rows[0]?.textContent).toContain('Error spike');
+    expect(all(fixture, 'li.group').map((g) => g.textContent?.replace(/\s+/g, ' ').trim())).toEqual(['▲ Error spike 1', '✖ Crash 1']);
     expect(rows[0]?.textContent).toContain('WEB01 · 3312');
     expect(rows[0]?.textContent).toContain('12 errors in 5 min');
     expect(rows[0]?.textContent).toContain('→');
     expect(rows[0]?.textContent).toContain('6.5');
     expect(rows[1]?.textContent).toContain('all instances');
-    expect(rows[1]?.textContent).toContain('Crash');
     expect(text(fixture)).toContain('2 found');
   });
 
   it('has sortable column headers (K2)', async () => {
     const { fixture } = await mount(AnomaliesView);
-    expect(all(fixture, '[data-testid=anomaly-head] .th').map((h) => h.textContent?.replace(/\s+/g, ' ').trim().replace(/[▲▼]/, '').trim())).toEqual(['Kind', 'Instance', 'Time', 'What', 'Score']);
+    expect(all(fixture, '[data-testid=anomaly-head] .th').map((h) => h.textContent?.replace(/\s+/g, ' ').trim().replace(/[▲▼]/, '').trim())).toEqual(['Instance', 'Time', 'What', 'Score']);
     const first = () => all<HTMLButtonElement>(fixture, 'li button')[0]?.textContent ?? '';
     el<HTMLButtonElement>(fixture, '[data-testid=anomaly-sort-score]').click();
     fixture.detectChanges();

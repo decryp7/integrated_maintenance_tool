@@ -43,18 +43,31 @@ export function bucketAt(summary: Pick<HomeSummary, 'from' | 'bucketMs' | 'histo
   return Math.min(summary.histogram.length - 1, Math.floor((ts - summary.from) / summary.bucketMs));
 }
 
+/** Height of the marker lane under the history plot, in px. */
+const MARKER_LANE = 14;
+
+/** Shape of a marker on the lane: shape tells the kind apart besides colour. */
+function markerSymbol(kind: string): string {
+  if (/crash|fatal|exception/i.test(kind)) return 'diamond';
+  if (/warn/i.test(kind)) return 'triangle';
+  if (/start|stop/i.test(kind)) return 'rect';
+  return 'circle';
+}
+
 /** Levels in the history chart's stack, from the baseline: the most severe at the bottom, never hidden by info. */
 const STACK: readonly Level[] = ['Fatal', 'Error', 'Warning', 'Information', 'Debug', 'Verbose'];
 
 export interface HistoryLabels {
   level: (level: Level) => string;
   marker: (kind: string) => string;
+  /** Name of the marker lane under the plot (tooltip and legend-free). */
+  markerLane: string;
   anomaly: string;
 }
 
 /**
- * The history chart: events per bucket stacked by level (level colours, the timeline's), markers as thin vertical
- * rules and anomalies as shaded ranges. One axis, a legend (≥ 2 series), an axis tooltip; drag across it to select a
+ * The history chart: events per bucket stacked by level (level colours, the timeline's), markers on a lane under the plot
+ * and anomalies as shaded ranges. One axis, a legend (≥ 2 series), an axis tooltip; drag across it to select a
  * range (`EChart` arms brushing).
  */
 export function historyOption(summary: HomeSummary, t: ChartTokens, tz: TimeZoneMode, labels: HistoryLabels): EChartsCoreOption | null {
@@ -62,17 +75,6 @@ export function historyOption(summary: HomeSummary, t: ChartTokens, tz: TimeZone
   const from = summary.from;
   const mid = (i: number) => Math.round(from + (i + 0.5) * summary.bucketMs);
   const present = STACK.filter((level) => summary.histogram.some((b) => (b[LEVELS.indexOf(level)] ?? 0) > 0));
-  const markLine = {
-    silent: false,
-    symbol: 'none',
-    label: { show: false },
-    data: summary.markers.map((m) => ({
-      xAxis: m.ts,
-      name: labels.marker(m.kind),
-      lineStyle: { color: t.markers[m.kind] ?? t.muted, width: 1, type: 'solid' as const, opacity: 0.5 },
-      tooltip: { formatter: `${labels.marker(m.kind)} · ${formatDateTime(m.ts, tz)}${m.count > 1 ? ` ×${m.count}` : ''}` },
-    })),
-  };
   const markArea = {
     silent: false,
     itemStyle: { color: t.accentSoft, opacity: 0.5 },
@@ -89,14 +91,32 @@ export function historyOption(summary: HomeSummary, t: ChartTokens, tz: TimeZone
     itemStyle: { borderRadius: i === present.length - 1 ? [2, 2, 0, 0] : 0 },
     emphasis: { focus: 'series' },
     data: summary.histogram.map((b, x) => [mid(x), b[LEVELS.indexOf(level)] ?? 0]),
-    markLine: i === 0 ? markLine : undefined,
     markArea: i === 0 ? markArea : undefined,
   }));
+  // Markers sit on their own lane under the plot, shape-coded, never as rules through the bars.
+  const markers = {
+    name: labels.markerLane,
+    type: 'scatter',
+    xAxisIndex: 1,
+    yAxisIndex: 1,
+    symbolSize: 9,
+    z: 4,
+    data: summary.markers.map((m) => ({
+      value: [m.ts, 0],
+      symbol: markerSymbol(m.kind),
+      itemStyle: { color: t.markers[m.kind] ?? t.muted },
+      tooltip: { formatter: `${labels.marker(m.kind)} · ${formatDateTime(m.ts, tz)}${m.count > 1 ? ` ×${m.count}` : ''}` },
+    })),
+  };
+  const laneH = summary.markers.length ? MARKER_LANE : 0;
   return {
     animation: false,
     textStyle: { fontFamily: t.fontSans, color: t.muted },
     // The legend wraps (never pages): headroom for a row per four entries, so it cannot overlap the plot.
-    grid: { left: 48, right: 16, top: 12 + Math.ceil(present.length / 4) * 20, bottom: 26 },
+    grid: [
+      { left: 48, right: 16, top: 12 + Math.ceil(present.length / 4) * 20, bottom: 26 + laneH },
+      { left: 48, right: 16, height: laneH, bottom: 24 },
+    ],
     legend: { type: 'plain', left: 48, top: 0, right: 16, textStyle: { color: t.text, fontSize: 11 }, icon: 'rect', itemWidth: 12, itemHeight: 8 },
     tooltip: {
       trigger: 'axis',
@@ -106,20 +126,26 @@ export function historyOption(summary: HomeSummary, t: ChartTokens, tz: TimeZone
       axisPointer: { type: 'shadow', shadowStyle: { color: t.accentSoft, opacity: 0.4 } },
       valueFormatter: (v: unknown) => (typeof v === 'number' ? formatNumber(v) : '—'),
     },
-    xAxis: {
+    xAxis: [
+      {
       type: 'time',
       min: from,
       max: summary.to,
       axisLine: { lineStyle: { color: t.grid } },
       axisTick: { show: false },
       splitLine: { show: false },
-      axisLabel: { color: t.faint, fontFamily: t.fontMono, fontSize: 10, hideOverlap: true, formatter: (v: number) => formatDateTime(v, tz).split(' ').slice(2).join(' ').slice(0, 5) },
+      axisLabel: { color: t.faint, fontSize: 11, hideOverlap: true, formatter: (v: number) => formatDateTime(v, tz).split(' ').slice(2).join(' ').slice(0, 5) },
       axisPointer: { label: { formatter: (p: { value: number }) => formatDateTime(p.value, tz) } },
-    },
-    yAxis: { type: 'value', splitNumber: 3, axisLabel: { color: t.faint, fontFamily: t.fontMono, fontSize: 10, formatter: (v: number) => formatNumber(v) }, splitLine: { lineStyle: { color: t.grid } } },
-    brush: { xAxisIndex: 0, brushType: 'lineX', brushMode: 'single', throttleType: 'debounce', brushStyle: { color: t.accentSoft, borderColor: t.accent, borderWidth: 1 }, outOfBrush: { colorAlpha: 1 } },
+      },
+      { type: 'time', gridIndex: 1, min: from, max: summary.to, show: false },
+    ],
+    yAxis: [
+      { type: 'value', splitNumber: 3, axisLabel: { color: t.faint, fontSize: 11, formatter: (v: number) => formatNumber(v) }, splitLine: { lineStyle: { color: t.grid, type: 'dashed' } } },
+      { type: 'value', gridIndex: 1, min: -1, max: 1, show: false },
+    ],
+    brush: { xAxisIndex: [0, 1], brushType: 'lineX', brushMode: 'single', throttleType: 'debounce', brushStyle: { color: t.accentSoft, borderColor: t.accent, borderWidth: 1 }, outOfBrush: { colorAlpha: 1 } },
     toolbox: { show: false },
-    series,
+    series: summary.markers.length ? [...series, markers] : series,
   };
 }
 

@@ -129,7 +129,7 @@ describe('HomeView', () => {
     const t = text(fixture);
     expect(t).toContain('Events');
     expect(t).toContain('Exception groups');
-    expect(t).toContain('1 file not opened');
+    expect(t).toContain('Needs attention');
     expect(t).toContain('Events over time');
     expect(charts.instances).toHaveLength(1);
     expect(t).toContain('Crash');
@@ -154,7 +154,7 @@ describe('HomeView', () => {
     expect(TestBed.inject(HomeStore).health.result()).toHaveLength(2);
     expect(text(headline)).toContain('crash');
     // Refresh still asks the engine again (once, for both).
-    buttonByText(fixture, 'Refresh').click();
+    (fixture.nativeElement.querySelector('[data-testid=home-refresh]') as HTMLButtonElement).click();
     await settle(fixture, 8);
     expect(overview).toHaveBeenCalledTimes(2);
     expect(TestBed.inject(HomeStore).health).toBe(TestBed.inject(HealthFindingsStore).findings);
@@ -174,7 +174,7 @@ describe('HomeView', () => {
     await settle(fixture, 8);
     expect(text(fixture)).toContain('Nothing alarming found');
     const calls = overview.mock.calls.length;
-    buttonByText(fixture, 'Refresh').click();
+    (fixture.nativeElement.querySelector('[data-testid=home-refresh]') as HTMLButtonElement).click();
     await settle(fixture, 8);
     expect(overview.mock.calls.length).toBe(calls + 1);
   });
@@ -202,8 +202,8 @@ describe('HomeView', () => {
     const run = vi.spyOn(TestBed.inject(CommandRegistry), 'run');
     buttonByText(fixture, 'Open files…').click();
     expect(run).toHaveBeenCalledWith('file.openFiles', 'button');
-    const last = fixture.nativeElement.querySelector('[data-testid=home-open-last]') as HTMLButtonElement;
-    expect(last.disabled).toBe(true);
+    // Without a recent project the shortcut is not offered at all (no disabled ghost button).
+    expect(fixture.nativeElement.querySelector('[data-testid=home-open-last]')).toBeNull();
   });
 
   it('toggles opening after imports', async () => {
