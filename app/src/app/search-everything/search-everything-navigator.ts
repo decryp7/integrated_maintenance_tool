@@ -1,21 +1,25 @@
 import { inject, Injectable } from '@angular/core';
+import { openKnowledgeEditor } from '../ai/knowledge/knowledge-editor';
+import { KnowledgeStore } from '../ai/knowledge/knowledge.store';
 import { WorkspaceStore } from '../core/workspace.store';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { NOTES_VIEW } from '../notes/note-actions';
-import { SettingsDialogService } from '../settings/settings-dialog';
+import { DialogService } from '../ui/dialog.service';
+import { DocScope } from '../core/api.types';
 import { SearchTarget } from './search-everything.model';
 
 /** The events grid's view id. */
 export const EVENTS_VIEW = 'events';
-/** The Settings section with the knowledge files. */
-export const KNOWLEDGE_SECTION = 'ai';
+/** The Exceptions view's id. */
+export const EXCEPTIONS_VIEW = 'exceptions';
 
 /** Goes where a search result points: reveals an event, filters the grid, or shows the view that holds it. */
 @Injectable({ providedIn: 'root' })
 export class SearchEverythingNavigator {
   private readonly context = inject(COMMAND_CONTEXT);
   private readonly workspace = inject(WorkspaceStore);
-  private readonly settings = inject(SettingsDialogService);
+  private readonly dialogs = inject(DialogService);
+  private readonly knowledge = inject(KnowledgeStore);
 
   go(target: SearchTarget): void {
     const ctx = this.context;
@@ -40,13 +44,23 @@ export class SearchEverythingNavigator {
         ctx.setQuery({ markers: [target.marker] });
         ctx.showView(EVENTS_VIEW);
         break;
+      case 'exception':
+        ctx.showView(EXCEPTIONS_VIEW);
+        break;
       case 'note':
         ctx.showView(NOTES_VIEW);
         if (target.event !== null) void ctx.jumpTo(target.event);
         break;
       case 'knowledge':
-        this.settings.open(KNOWLEDGE_SECTION);
+        void this.editKnowledge(target.scope, target.id);
         break;
     }
+  }
+
+  /** Opens the knowledge file in the editor; the files are listed first when this window has not yet. */
+  private async editKnowledge(scope: DocScope, id: string): Promise<void> {
+    if (!this.knowledge.list()) await this.knowledge.load();
+    const file = (scope === 'project' ? this.knowledge.project() : this.knowledge.global()).find((f) => f.id === id);
+    if (file) openKnowledgeEditor(this.dialogs, file, scope, this.knowledge.list()?.maxFileBytes ?? 64 * 1024);
   }
 }

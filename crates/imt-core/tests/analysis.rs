@@ -760,7 +760,7 @@ fn detect_on_the_generated_samples() {
     let mut paths: Vec<PathBuf> = std::fs::read_dir(&dir)
         .unwrap()
         .map(|e| e.unwrap().path())
-        .filter(|p| !p.ends_with("real-libraries"))
+        .filter(|p| !p.ends_with("real-libraries") && !p.ends_with("encodings"))
         .collect();
     paths.sort();
     let mut ws = Workspace::new(Profile::default_profile()).unwrap();

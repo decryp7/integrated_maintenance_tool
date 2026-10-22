@@ -79,7 +79,11 @@ fn req<T: serde::de::DeserializeOwned>(v: serde_json::Value) -> T {
     serde_json::from_value(v).unwrap()
 }
 
+// The budget is the shipped worker's, so it is measured on a release build: unoptimised code keeps ~50 MB more
+// resident (bigger frames and buffers, no inlining) and fails it without saying anything about the product. CI runs
+// it with `cargo test --release -p imt-store-duck --test analysis_memory` (the "Memory budget" step).
 #[test]
+#[cfg_attr(debug_assertions, ignore = "memory budgets are measured on release builds (see above)")]
 fn analyses_stay_within_the_query_budget() {
     // DuckDB's jemalloc reads its options when libduckdb loads, before this test runs: like the store worker, the
     // measured process gets them in its environment at start. On Linux the test runs itself once more with them.

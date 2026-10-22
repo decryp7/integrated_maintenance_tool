@@ -15,6 +15,9 @@ export interface MockRedactCfg {
   rules: { name: string; regex: string; replace?: string }[];
 }
 
+/** Every built-in detector, in the order the engine applies them. */
+export const MOCK_DETECTORS: readonly RedactDetector[] = ['bearer-token', 'jwt', 'api-key', 'connection-string', 'password', 'user-path', 'email', 'credit-card', 'ipv4', 'ipv6', 'guid', 'phone', 'hostname'];
+
 const DEFAULT_DETECTORS: RedactDetector[] = ['bearer-token', 'jwt', 'api-key', 'connection-string', 'password', 'user-path', 'email', 'credit-card', 'ipv4', 'ipv6'];
 
 /** Label in masks (`<email>`) per detector. */

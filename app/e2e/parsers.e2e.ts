@@ -76,3 +76,17 @@ test('edits a built-in parser beside the list, with validation and a live previe
   await expect(row(page, 'serilog-text')).toContainText('Overrides built-in');
   await expect(view(page).getByTestId('parsers-stale')).toContainText(/read with (a parser|parsers) that changed\./);
 });
+
+test('Explorer "Parse with…" opens the Parsers view to choose a parser for that file, not a dialog of its own (I3)', async ({ page }) => {
+  await openApp(page);
+  const source = page.locator('imt-sidebar .src').filter({ hasText: 'inventory-sync.csv' });
+  await source.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Parse with…' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(view(page).getByTestId('parsers-target')).toContainText('inventory-sync.csv');
+  await expect(view(page).getByTestId('parsers-target-auto')).toHaveClass(/primary/);
+
+  await row(page, 'generic').getByTestId('parser-read-with').click();
+  await expect(view(page).getByTestId('parsers-target')).toHaveCount(0);
+  await expect(view(page).getByTestId('parser-read-generic')).toContainText('inventory-sync.csv');
+});

@@ -68,6 +68,7 @@ pub(crate) fn report_source(r: &SourceReport) -> SourceInfo {
         problems: r.problems.clone(),
         identity: Vec::new(),
         parser: Some(r.parser.id.clone()),
+        encoding: r.encoding.clone(),
     }
 }
 
@@ -754,7 +755,7 @@ impl Inner {
         }
         let mut sources = Vec::new();
         let mut stmt = conn
-            .prepare("SELECT id, path, name, importer, file_kind, events, skipped, dropped, ts_from, ts_to, parser_id, coalesce((SELECT offset_ms FROM clock_offsets c WHERE c.path = sources.path), 0) FROM sources WHERE ready ORDER BY name")
+            .prepare("SELECT id, sources.path, name, importer, file_kind, events, skipped, dropped, ts_from, ts_to, parser_id, coalesce((SELECT offset_ms FROM clock_offsets c WHERE c.path = sources.path), 0), e.label, e.confidence, e.origin FROM sources LEFT JOIN source_encodings e ON e.path = sources.path WHERE ready ORDER BY name")
             .map_err(engine)?;
         let rows = stmt
             .query_map([], |r| {
@@ -780,6 +781,7 @@ impl Inner {
                     problems: Vec::new(),
                     identity: Vec::new(),
                     parser: r.get(10)?,
+                    encoding: crate::encodings::info(r.get(12)?, r.get(13)?, r.get(14)?),
                 })
             })
             .map_err(engine)?;

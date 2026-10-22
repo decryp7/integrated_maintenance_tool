@@ -5,8 +5,9 @@
 
 use super::batcher::{BatchedSource, RecordBatcher};
 use super::chunk::{LineReader, ReaderChunks};
+use super::encoding::EncodingPolicy;
 use super::parallel::Split;
-use super::plan::{plan, score_text, FilePlan, PlanKind, HEAD_BYTES};
+use super::plan::{plan_with, score_text_with, FilePlan, PlanKind, HEAD_BYTES};
 use super::sink::{BatchSink, ImportCancelled, NewSource, SourceReport};
 use super::{json, legacy, text};
 use crate::api::{FileKind, UnrecognizedFile};
@@ -28,12 +29,15 @@ pub struct ImportEnv<'a> {
     /// The parser library compiled with the profile: each file is read with the parser chosen for it.
     pub parsers: &'a ParserSet,
     pub schema: Arc<EventSchema>,
+    /// How files are decoded: the profile's default and the user's per-source choices.
+    pub encodings: &'a EncodingPolicy,
     /// Set to stop the import at the next batch; the file being read is then not imported.
     pub cancel: &'a AtomicBool,
 }
 
 /// The result for one source.
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)] // one per file, short-lived: boxing the report would only add an allocation
 pub enum Outcome {
     Imported(SourceReport),
     Unrecognized(UnrecognizedFile),
@@ -185,7 +189,8 @@ fn import_source<R: Read + Seek>(
     if head.is_empty() {
         return unrecognized(&src.path, &src.name, "empty file");
     }
-    let text = score_text(&head, whole);
+    let request = env.encodings.request_for(&src.path);
+    let text = score_text_with(&head, whole, request);
     let candidate = Candidate {
         source: &src.path,
         path,
@@ -205,7 +210,7 @@ fn import_source<R: Read + Seek>(
         path,
         file_date,
     };
-    let plan = match plan(env.importers, &ctx, &head, whole) {
+    let plan = match plan_with(env.importers, &ctx, &head, whole, request) {
         Ok(p) => p,
         Err(reason) => return unrecognized(&src.path, &src.name, reason),
     };
@@ -265,6 +270,7 @@ fn import_source<R: Read + Seek>(
                 to: batched.to,
                 bytes: size,
                 problems: batched.problems.into_vec(),
+                encoding: plan.encoding_info.clone(),
             };
             match sink.finish_source(&report) {
                 Ok(()) => return Outcome::Imported(report),
@@ -412,6 +418,7 @@ mod tests {
         let (importers, profile) = env_parts();
         let cancel = AtomicBool::new(false);
         let env = ImportEnv {
+            encodings: &Default::default(),
             importers: &importers,
             parsers: &profile,
             schema: Arc::new(EventSchema::plain()),
@@ -475,6 +482,7 @@ mod tests {
         let (importers, profile) = env_parts();
         let cancel = AtomicBool::new(false);
         let env = ImportEnv {
+            encodings: &Default::default(),
             importers: &importers,
             parsers: &profile,
             schema: Arc::new(EventSchema::plain()),

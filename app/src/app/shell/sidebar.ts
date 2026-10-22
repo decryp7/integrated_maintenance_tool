@@ -2,7 +2,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormatWizard } from '../format/format-wizard';
 import { DialogService } from '../ui/dialog.service';
-import { SourceInfo, SourceProblem, TailFileState, UnrecognizedFile } from '../core/api.types';
+import { EncodingInfo, SourceInfo, SourceProblem, TailFileState, UnrecognizedFile } from '../core/api.types';
 import { formatCompact, formatCount, formatDateTime } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
 import { Icon } from '../shared/icon';
@@ -22,9 +22,11 @@ import { AiLauncher } from '../ai/ai-launcher';
 import { AiStatusStore } from '../ai/ai-status.store';
 import { isImagePath } from '../ai/vision/image-files';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
+import { isLowConfidence, encodingBadge, encodingTitle, showsEncodingBadge } from '../sources/encoding/encoding-format';
 import { NoteImageStore } from '../notes/image/note-image.store';
 import { anchors, NOTE_IMAGE_VIEW, NoteActions } from '../notes/note-actions';
 import { NotesStore } from '../notes/notes.store';
+import { ParsersStore } from '../settings/parsers/parsers.store';
 
 type TailFileStateOf = Extract<TailFileState, { kind: NotableState }>;
 
@@ -154,6 +156,9 @@ function shortPath(path: string): string {
         @if (notes.bySource().get(s.path); as n) {
           <span class="notes-badge" data-testid="source-notes-badge" role="img" [title]="notesLabel(n)" [attr.aria-label]="notesLabel(n)"><imt-icon name="note" [size]="11" />{{ n }}</span>
         }
+        @if (encodingShown(s); as enc) {
+          <span class="enc mono" data-testid="encoding-badge" [class.low]="isLowConfidence(enc)" role="img" [title]="encodingTitle(enc)" [attr.aria-label]="encodingTitle(enc)">{{ encodingBadge(enc) }}</span>
+        }
         <span class="format" data-testid="format-badge" role="img" [title]="s.importer" [attr.aria-label]="formatLabel(s.importer)"><imt-icon [name]="formatIcon(s.importer)" [size]="12" /></span>
         <span class="mono count">{{ compact(s.records) }}</span>
         <button class="icon-btn rm" aria-haspopup="menu" data-testid="source-actions" [attr.aria-label]="actionsLabel(s.name)" [attr.title]="actionsLabel(s.name)" (click)="sourceMenu($event, s)"><imt-icon name="drag" [size]="12" /></button>
@@ -200,6 +205,8 @@ function shortPath(path: string): string {
     .state.deleted { border-style: dashed; }
     .state.error { border-color: var(--danger-text); color: var(--danger-text); }
     .notes-badge { flex: none; display: inline-flex; align-items: center; gap: 2px; font-size: var(--fs-2xs); color: var(--accent-text); }
+    .enc { flex: none; font-size: var(--fs-2xs); padding: 0 5px; border-radius: 7px; border: 1px solid var(--border-3); color: var(--text-2); }
+    .enc.low { border-color: var(--warn-text, var(--accent)); color: var(--warn-text, var(--text-2)); }
     .skew { flex: none; font-size: var(--fs-2xs); padding: 0 5px; border-radius: 7px; border: 1px solid var(--accent); color: var(--text-2); }
   `,
 })
@@ -215,6 +222,7 @@ export class Sidebar {
   private readonly tail = inject(TailStatusStore);
   private readonly menu = inject(ContextMenuService);
   private readonly clock = inject(ClockDialogService);
+  private readonly parsers = inject(ParsersStore);
   private readonly files = inject(SourceFileActions);
   protected readonly colors = inject(SourceColors);
   protected readonly offset = formatOffset;
@@ -337,6 +345,7 @@ export class Sidebar {
       [
         ...this.files.items(s),
         { label: $localize`:@@shell.sidebar.menu.parseWith:Parse with…`, run: () => void this.parseWith(s) },
+        ...(s.encoding ? [{ label: $localize`:@@shell.sidebar.menu.encoding:Encoding…`, run: () => void this.chooseEncoding(s) }] : []),
         { label: $localize`:@@shell.sidebar.menu.addNote:Add note…`, run: () => void this.noteActions.write(anchors.source(s.path)) },
         { label: $localize`:@@shell.sidebar.menu.adjustClock:Adjust clock…`, run: () => this.adjustClock(s) },
         { label: $localize`:Context menu item@@shell.sidebar.menu.remove:Remove`, run: () => void this.store.removeSource(s.id) },
@@ -345,12 +354,27 @@ export class Sidebar {
     );
   }
 
-  /** Explorer ▸ "Parse with…": read this source again with another parser of the library (ADR 0026). */
+  /** Explorer ▸ "Parse with…": opens the Parsers view to choose a parser for this source (ADR 0026, I3). */
   protected async parseWith(s: SourceInfo): Promise<void> {
-    const { ParseWithDialog } = await import('../settings/parsers/parse-with-dialog');
-    const name = s.name;
-    this.dialogs.open(ParseWithDialog, { title: $localize`:@@shell.sidebar.dialog.parseWith:Parse ${name}:name: with`, inputs: { source: s }, width: 520 });
+    void this.parsers.chooseFor(s);
+    this.commands.showView('parsers');
   }
+
+  /** Explorer ▸ "Encoding…": read this source again with another text encoding. */
+  protected async chooseEncoding(s: SourceInfo): Promise<void> {
+    const { EncodingDialog } = await import('../sources/encoding/encoding-dialog');
+    const name = s.name;
+    this.dialogs.open(EncodingDialog, { title: $localize`:@@shell.sidebar.dialog.encoding:Encoding of ${name}:name:`, inputs: { source: s }, width: 520 });
+  }
+
+  /** The source's encoding when the row badges it (not for a confidently detected UTF-8 or a binary format). */
+  protected encodingShown(s: SourceInfo): EncodingInfo | null {
+    return showsEncodingBadge(s.encoding) ? s.encoding : null;
+  }
+
+  protected readonly isLowConfidence = isLowConfidence;
+  protected readonly encodingTitle = encodingTitle;
+  protected readonly encodingBadge = encodingBadge;
 
   protected async openLive(): Promise<void> {
     const { OpenLiveDialog } = await import('../live/open-live-dialog');

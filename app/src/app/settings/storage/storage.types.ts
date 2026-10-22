@@ -70,3 +70,53 @@ export interface StorageClearResult {
   /** Stopped from the background tasks before everything was cleared. */
   cancelled: boolean;
 }
+
+/**
+ * Why a store folder is on disk (`storage_stores`): `open` a window has it open; `session` an autosaved session reopens
+ * it (kept so it can be restored); `running` another IMT process uses it; `orphaned` nothing references it (for
+ * example the extraction of a project that was closed). Only orphaned stores can be cleaned up.
+ */
+export type StoreFolderState = 'open' | 'session' | 'running' | 'orphaned';
+
+export interface StoreFolder {
+  /** The folder's name; also the id `storage_stores_clear` takes. */
+  id: string;
+  bytes: number;
+  files: number;
+  /** When the store was last used (ms since the epoch); null when unknown. */
+  lastUsedMs: number | null;
+  state: StoreFolderState;
+}
+
+/** The store folders on disk, newest first. */
+export interface StoreFolders {
+  folders: StoreFolder[];
+  totalBytes: number;
+  /** What cleaning up every orphaned store would free. */
+  orphanedBytes: number;
+  /** The scan stopped at its limits: sizes are lower bounds. */
+  capped: boolean;
+}
+
+export interface StoreSkipped {
+  id: string;
+  /** Why it stayed, for example "a window has this store open". */
+  reason: string;
+}
+
+export interface StoreClearResult {
+  freedBytes: number;
+  removed: string[];
+  skipped: StoreSkipped[];
+  /** Stopped before every store was handled. */
+  cancelled: boolean;
+}
+
+/** Automatic clean-up of orphaned stores (`storage_policy`). */
+export interface StoragePolicy {
+  /** Orphaned stores unused for this many days are removed on their own; 0 = off, at most 365. */
+  autoCleanDays: number;
+}
+
+/** The largest `autoCleanDays` the engine accepts. */
+export const MAX_AUTO_CLEAN_DAYS = 365;

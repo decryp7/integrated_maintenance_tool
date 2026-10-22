@@ -146,6 +146,7 @@ import { AnalysisBackend } from '../analysis-backend';
 import { ImtBackend } from '../backend';
 import { CollectBackend, EventLogBackend, LifecycleBackend, PerfmonBackend, PluginPackagesBackend, ProjectBackend, ToolCatalogBackend, ToolsBackend } from '../tools-backend';
 import { ProblemsBackend } from '../../problems/problems-backend';
+import { IncidentBackend, KnownIssuesBackend, PlaybookBackend } from '../../investigate/investigate-backend';
 import { PerformanceBackend } from '../../settings/performance/performance-backend';
 import { StorePaneBackend } from '../../store-pane/store-pane-backend';
 import { ConfigDiffBackend } from '../../config-diff/config-diff-backend';
@@ -159,6 +160,8 @@ import { SchedulesBackend } from '../../schedules/schedules-backend';
 import { SettingsBackend } from '../../settings/settings-backend';
 import { StorageBackend } from '../../settings/storage/storage-backend';
 import { ParsersBackend } from '../../settings/parsers/parsers-backend';
+import { EncodingBackend } from '../../sources/encoding/encoding-backend';
+import { PasteBackend } from '../../sources/paste/paste-backend';
 import { ShareBackend } from '../../share/share-backend';
 import { SkewBackend } from '../skew-backend';
 import { FilesBackend } from '../files-backend';
@@ -194,6 +197,9 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   PerfmonBackend,
   ProjectBackend,
   ProblemsBackend,
+  KnownIssuesBackend,
+  IncidentBackend,
+  PlaybookBackend,
   PerformanceBackend,
   StorePaneBackend,
   ToolCatalogBackend,
@@ -209,6 +215,8 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   SettingsBackend,
   StorageBackend,
   ParsersBackend,
+  EncodingBackend,
+  PasteBackend,
   ShareBackend,
   SkewBackend,
   FilesBackend,

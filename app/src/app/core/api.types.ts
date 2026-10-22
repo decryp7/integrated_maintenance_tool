@@ -93,6 +93,27 @@ export interface SourceInfo {
   problems?: SourceProblem[];
   /** Id of the library parser that read the source (ADR 0026); null or absent when none did. */
   parser?: string | null;
+  /** How the source's text was decoded; null or absent for binary formats. */
+  encoding?: EncodingInfo | null;
+}
+
+/** Where a source's text encoding came from: a byte-order mark, a guess, the profile's `[files] encoding`, or the user. */
+export type EncodingOrigin = 'bom' | 'detected' | 'profile' | 'manual';
+
+/** How a source's text was decoded (engine `ingest::EncodingInfo`). */
+export interface EncodingInfo {
+  /** Canonical name: "UTF-8", "UTF-16LE", "Shift_JIS", "GBK", "windows-1252"... */
+  label: string;
+  /** 0..100; 100 for a byte-order mark or the user's choice. */
+  confidence: number;
+  origin: EncodingOrigin;
+}
+
+/** One encoding the user can choose for a source (`list_encodings`). */
+export interface EncodingOption {
+  label: string;
+  /** English name including the languages it covers. */
+  name: string;
 }
 
 /**
@@ -492,6 +513,18 @@ export interface MarkerHit {
   snippet: SnippetPart[];
 }
 
+/** An exception group whose type, message or top frame holds the words. */
+export interface ExceptionHit {
+  fingerprint: string;
+  typeName: string;
+  /** Events in the group. */
+  count: number;
+  /** The group's first sample event. */
+  sample: number | null;
+  /** `Type: message` with the matched words marked. */
+  snippet: SnippetPart[];
+}
+
 /** Whose a note or knowledge file is. */
 export type DocScope = 'project' | 'global';
 
@@ -520,6 +553,7 @@ export interface SearchAllReply {
   sources: KindHits<SourceHit>;
   fields: KindHits<FieldHit>;
   markers: KindHits<MarkerHit>;
+  exceptions: KindHits<ExceptionHit>;
   notes: KindHits<DocHit>;
   knowledge: KindHits<DocHit>;
 }
@@ -1069,7 +1103,7 @@ export interface MomentSummary {
 
 /*
  * Mirrors app/src-tauri/src/snapshots.rs:
- *   capture_window_image   {}                     -> WindowCapture  (app/src-tauri/src/window_capture, ADR 0034)
+ *   capture_window_image   { userRequested? }     -> WindowCapture  (app/src-tauri/src/window_capture, ADR 0034)
  *   save_error_snapshot   { image: base64, mime, context: SnapshotContext } -> SnapshotSaveResult
  *   list_error_snapshots   {}                     -> SnapshotInfo[]  (newest first)
  *   read_error_snapshot    { id }                 -> string (data: URL)
@@ -2480,6 +2514,69 @@ export interface RedactionSummary {
   samples: RedactionSample[];
 }
 
+// ---------------------------------------------------------------------------------------------
+// Share a redacted copy of the project (.imtz) (crates/imt-core, app/src-tauri/src/share.rs)
+//   redacted_copy_choices  {}                              -> RedactedCopyChoices   (detectors, custom rules, what the profile selects)
+//   redacted_copy_preview  { options }                     -> RedactedCopyPreview   (`invalid`, field "options", when nothing is picked)
+//   export_redacted_copy   { path, name, options, ui, reports?, overwrite? } -> RedactedExport   (never replaces a file unless `overwrite`)
+// ---------------------------------------------------------------------------------------------
+
+/** The profile's `[redact]` section as the engine reports it. */
+export interface RedactCfg {
+  detectors: string[];
+  mode: RedactMode;
+  fields: string[];
+  onExport: boolean;
+  rule: { name: string; regex: string; replace?: string | null }[];
+}
+
+/** What the "Share redacted copy" dialog offers: every built-in detector, the profile's custom rules, and what the profile selects now. */
+export interface RedactedCopyChoices {
+  /** All built-in detector ids (kebab-case, see `RedactDetector`). */
+  detectors: string[];
+  /** Names of the profile's `[[redact.rule]]` entries. */
+  rules: string[];
+  selected: RedactCfg;
+}
+
+/** What to redact in the copy; every key absent = the profile's own choice. */
+export interface RedactedCopyOptions {
+  detectors?: string[];
+  mode?: RedactMode;
+  rules?: string[];
+}
+
+/** A source the copy leaves out (its format cannot be redacted) and why. */
+export interface RedactedExcluded {
+  name: string;
+  reason: string;
+}
+
+export interface RedactedCopyPreview {
+  summary: RedactionSummary;
+  excluded: RedactedExcluded[];
+  /** Sources that go into the copy. */
+  included: number;
+}
+
+export interface RedactedCopyRequest {
+  path: string;
+  name: string;
+  options: RedactedCopyOptions;
+  ui: unknown;
+  reports?: Report[];
+  overwrite?: boolean;
+}
+
+/** What `export_redacted_copy` wrote. */
+export interface RedactedExport {
+  bytes: number;
+  sources: number;
+  events: number;
+  excluded: RedactedExcluded[];
+  hits: RuleHits[];
+}
+
 /** What a dashboard tile shows (`[[dashboard.tile]] type`). */
 export type TileKind = 'chart' | 'stat' | 'table' | 'top' | 'alerts' | 'annotations';
 export const TILE_KINDS: readonly TileKind[] = ['chart', 'stat', 'table', 'top', 'alerts', 'annotations'];
@@ -2862,7 +2959,7 @@ export interface EtlConverted {
 
 // ---- Recent files and projects (`recent_list`, `recent_remove`, `recent_clear`; event `imt://recent-changed`) ----
 // Generated from `recent.rs`. Rust records an entry after a granted open or save.
-export type { RecentKind, RecentLists, RecentProject } from './generated/recent';
+export type { RecentFile, RecentKind, RecentLists, RecentProject } from './generated/recent';
 
 // ---- Third-party plugin packages (`plugin_package_*`, see tools-backend.ts `PluginPackagesBackend`) ----
 // Generated from `plugin_packages`: a package's review before installing, and what is installed.
@@ -3031,6 +3128,20 @@ export type {
 //                                                                     retries unrecognised files)
 //   parser_assign       { sourceId, parserId: string | null }      -> number   (job id: "Parse with…" re-reads one source with that
 //                                                                     parser; null = automatic choice)
+//   list_encodings      {}                                         -> EncodingOption[]   (the encodings "Encoding…" offers)
+//   set_source_encoding { sourceId, encoding: string | null }      -> number   (job id: "Encoding…" re-reads one source with that
+//                                                                     encoding; null or "auto" = detect it again)
+//   paste_log           { text, name: string | null }              -> WorkspaceSummary   ("Paste as log…": the engine saves the text as a
+//                                                                     source file in the project (name made safe and unique, e.g.
+//                                                                     "web01 errors (2).log"), opens it through the importers and
+//                                                                     returns the workspace like open_paths; invalid: empty text, or
+//                                                                     over 8 MiB of UTF-8 (the UI refuses early too))
+//   storage_stores        {}                                       -> StoreFolders        (Settings > Storage, "Project stores": the folders of
+//                                                                     the stores on disk, newest first, with their state)
+//   storage_stores_clear  { ids: string[] }                        -> StoreClearResult    (removes the orphaned ones among ids; the engine
+//                                                                     re-checks each and skips the rest with a reason)
+//   storage_policy        {}                                       -> StoragePolicy       (automatic clean-up of orphaned stores)
+//   storage_set_policy    { policy: StoragePolicy }                -> StoragePolicy       (autoCleanDays 0 = off, at most 365; else invalid)
 export type {
   BrokenParserDto,
   ParserDocDto,
@@ -3108,3 +3219,124 @@ export type {
 } from './generated/store';
 /** A console run's outcome (`sql_run`). Mirrors `store_pane::SqlOutcome`. */
 export type SqlOutcome = { result: import('./generated/store').SqlResult } | { error: QlError } | { cancelled: true };
+
+// ---- Known issues, incident summary and playbooks (ADR 0039; crates/imt-core/src/{known_issues,incident,playbook}) ----
+
+/** How a known issue is recognised: a regex over the message and exception, or a query-language filter. */
+export type IssueMatcher = { type: 'pattern'; pattern: string } | { type: 'query'; ql: string };
+
+/** A known issue declared in a knowledge file (or suggested by the AI and verified by the engine). */
+export interface KnownIssue {
+  id: string;
+  title: string;
+  fix: string;
+  matcher: IssueMatcher;
+  /** The knowledge file that declares it. */
+  file: string;
+}
+
+/** Who found the match: the user's declared rule, or an AI suggestion the engine verified. */
+export type IssueOrigin = 'rule' | 'ai';
+
+/** A known issue present in the open data, with the evidence. */
+export interface IssueMatch {
+  issue: KnownIssue;
+  origin: IssueOrigin;
+  /** The filter that selects the events. */
+  query: string;
+  count: number;
+  /** Up to 5 events that show it. */
+  sampleIds: number[];
+}
+
+/** `known_issues_match`: what is present, and what the user should fix in their knowledge files. */
+export interface IssueReport {
+  matches: IssueMatch[];
+  checked: number;
+  truncated: number;
+  warnings: string[];
+}
+
+/** `incident_report_build` arguments. */
+export interface IncidentRequest {
+  title?: string;
+  /** Epoch ms. */
+  from?: number | null;
+  to?: number | null;
+  /** Entries per ranking, 1 to 10 (5 when absent). */
+  top?: number | null;
+}
+
+export type PlaybookExpect = { kind: 'noMatch' } | { kind: 'anyMatch' } | { kind: 'atLeast'; n: number } | { kind: 'atMost'; n: number };
+
+/** What a playbook step does. */
+export type PlaybookAction =
+  | { type: 'manual' }
+  | { type: 'query'; ql: string }
+  | { type: 'filter'; ql: string }
+  | { type: 'openView'; view: string }
+  | { type: 'check'; ql: string; expect: PlaybookExpect };
+
+export interface PlaybookStep {
+  id: string;
+  title: string;
+  instruction: string;
+  action: PlaybookAction;
+}
+
+/** A saved investigation (a versioned JSON file; see docs/playbooks.md). */
+export interface Playbook {
+  version: number;
+  id: string;
+  title: string;
+  description: string;
+  tags: string[];
+  steps: PlaybookStep[];
+}
+
+export type PlaybookStatus = 'pass' | 'fail' | 'info' | 'error' | 'skipped';
+
+/** What running a step found; the engine computes it. */
+export interface PlaybookStepResult {
+  status: PlaybookStatus;
+  summary: string;
+  count: number | null;
+  sampleIds: number[];
+  columns: string[];
+  rows: unknown[][];
+}
+
+export interface PlaybookStepRecord {
+  stepId: string;
+  status: PlaybookStatus;
+  summary: string;
+  count: number | null;
+  sampleIds: number[];
+  note: string;
+  at: number;
+}
+
+/** One execution of a playbook, with the playbook as it was. Saved in the project. */
+export interface PlaybookRun {
+  id: string;
+  playbook: Playbook;
+  startedAt: number;
+  steps: PlaybookStepRecord[];
+}
+
+/** The runs a project keeps (`PlaybookRecord` v1; the project's UI state key `playbooks`). */
+export interface PlaybookRecord {
+  version: number;
+  runs: PlaybookRun[];
+}
+
+export interface PlaybookLibrary {
+  playbooks: Playbook[];
+  templates: Playbook[];
+  warnings: string[];
+}
+
+export interface PlaybookRestore {
+  record: PlaybookRecord;
+  warnings: string[];
+}

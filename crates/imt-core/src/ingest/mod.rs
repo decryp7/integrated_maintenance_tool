@@ -12,6 +12,7 @@
 
 mod batcher;
 mod chunk;
+mod encoding;
 mod json;
 mod legacy;
 mod parallel;
@@ -24,8 +25,15 @@ mod text;
 
 pub use batcher::{column_type, schema_for, BatchedSource, RecordBatcher};
 pub use chunk::{Chunk, ChunkSource, Encoding, Line, LineReader, LineSpan, OwnedLine, ReaderChunks, TextChunks, CHUNK_BYTES};
+pub use encoding::{
+    detect as detect_text_encoding, options as encoding_options, EncodingChoice, EncodingInfo, EncodingOption, EncodingOrigin,
+    EncodingPolicy, EncodingRequest, SNIFF_BYTES,
+};
 pub use parallel::{default_threads, import_files_parallel, ParallelOptions, SharedRef, SharedSink, MAX_DEFAULT_THREADS};
-pub use plan::{detect_encoding, plan, scan_chunk_starts, score_text, ChunkStart, FilePlan, JsonShape, PlanKind, CHUNK_TARGET, HEAD_BYTES};
+pub use plan::{
+    detect_encoding, plan, plan_with, scan_chunk_starts, score_text, score_text_with, ChunkStart, FilePlan, JsonShape, PlanKind,
+    CHUNK_TARGET, HEAD_BYTES,
+};
 pub use problems::{Problem, ProblemKind, Problems, MAX_SAMPLES};
 pub use region::{begin_at_end, read_appended, resume_after, AtEnd, Region, RegionRead, TailStart};
 pub use sink::{BatchSink, EventSink, ImportCancelled, NewSource, ParsedEvent, SourceReport};

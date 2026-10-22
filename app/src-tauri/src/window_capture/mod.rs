@@ -22,6 +22,9 @@ use std::time::Duration;
 /// How long the webview has to deliver its picture.
 pub const CAPTURE_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// How long a raised window gets to be composited before the one retry.
+pub const RAISE_SETTLE: Duration = Duration::from_millis(250);
+
 /// Why no picture was taken; shown to the user in the snapshot ("No screenshot: …").
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CaptureError {
@@ -85,11 +88,30 @@ impl From<Result<Bounded, CaptureError>> for WindowCapture {
     }
 }
 
-/// A picture of the calling window's webview. Never blocks the UI thread: the platform call returns at once
-/// and its completion callback is awaited; encoding runs on a blocking worker.
+/// Whether a failed capture is tried once more after raising the window: WebKit sometimes refuses a window it
+/// reports as visible (a moment after it was hidden or covered) and takes the picture once it is in front. Only
+/// when the user asked for the snapshot (an automatic one never moves windows), only for the app's own window
+/// (not a docked browser's page), only when the webview itself refused, and only once.
+pub fn should_raise_and_retry(error: &CaptureError, user_requested: bool, own_window: bool, retried: bool) -> bool {
+    user_requested && own_window && !retried && matches!(error, CaptureError::Webview(_))
+}
+
+/// A picture of the calling window's webview. `user_requested` is set when the user asked for the snapshot (then
+/// a refusal is retried once after raising the window). Never blocks the UI thread: the platform call returns at
+/// once and its completion callback is awaited; encoding runs on a blocking worker.
 #[tauri::command]
-pub async fn capture_window_image<R: tauri::Runtime>(webview: tauri::Webview<R>) -> CmdResult<WindowCapture> {
-    let result = capture(&webview).await;
+pub async fn capture_window_image<R: tauri::Runtime>(webview: tauri::Webview<R>, user_requested: Option<bool>) -> CmdResult<WindowCapture> {
+    let mut result = capture(&webview).await;
+    if let Err(e) = &result {
+        // The window's own webview carries its window's label; a separate (docked browser) webview does not.
+        let own_window = webview.label() == webview.window().label();
+        if should_raise_and_retry(e, user_requested.unwrap_or(false), own_window, false) {
+            log::info!(Reason = e.to_string().as_str(); "Raising the window to retry the capture");
+            let _ = webview.window().set_focus();
+            tokio::time::sleep(RAISE_SETTLE).await;
+            result = capture(&webview).await;
+        }
+    }
     match &result {
         // Size only: no image data.
         Ok(b) => log::debug!(Width = b.width, Height = b.height, Bytes = b.bytes.len() as u64; "Window captured"),

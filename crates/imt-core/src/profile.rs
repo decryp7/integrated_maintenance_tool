@@ -84,6 +84,20 @@ pub struct MarkerOverrideCfg {
 pub struct FilesCfg {
     pub include: Vec<String>,
     pub exclude: Vec<String>,
+    /// Text encoding of the files: `auto` (detected per file) or a label such as `Shift_JIS` or `windows-1252`.
+    #[serde(default = "default_encoding")]
+    pub encoding: String,
+}
+
+fn default_encoding() -> String {
+    "auto".into()
+}
+
+impl FilesCfg {
+    /// The encoding choice (an unknown label was refused when the profile compiled).
+    pub fn encoding_choice(&self) -> crate::ingest::EncodingChoice {
+        crate::ingest::EncodingChoice::parse(&self.encoding).unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -448,6 +462,7 @@ impl CompiledProfile {
     /// Compiles a profile with `parser`; `{ step = "plugin" }` entries resolve against `transforms`.
     pub fn compile_for(profile: Profile, parser: &Parser, transforms: &Transforms) -> Result<CompiledProfile> {
         profile.live.compile()?;
+        crate::ingest::EncodingChoice::parse(&profile.files.encoding).map_err(|e| anyhow!("files.encoding: {e}"))?;
         let include = globs(&profile.files.include).context("files.include")?;
         let exclude = globs(&profile.files.exclude).context("files.exclude")?;
         let format = parser.format.clone();

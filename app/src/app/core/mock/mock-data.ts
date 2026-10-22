@@ -1,4 +1,4 @@
-import { Level, SourceProblem, TimestampIssue } from '../api.types';
+import { EncodingInfo, Level, SourceProblem, TimestampIssue } from '../api.types';
 
 /** A raw imported event, before the profile pipeline (extractors, markers) runs. */
 export interface MockRecord {
@@ -28,6 +28,8 @@ export interface MockSource {
   routedFrom?: string | null;
   /** Import problems, as the engine reports them. */
   problems?: SourceProblem[];
+  /** How the text was decoded (null or absent: a binary format). */
+  encoding?: EncodingInfo | null;
 }
 
 export interface MockDataset {
@@ -103,12 +105,12 @@ export function generateDemo(seed = 42): MockDataset {
       return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
     });
 
-  const sources = [
-    { id: 0, path: '/incident-2026-10-14/web01/orders-20261014.clef', name: 'orders-20261014.clef', importer: 'json', skipped: 0 },
-    { id: 1, path: '/incident-2026-10-14/web02/orders-20261014.clef', name: 'orders-20261014.clef', importer: 'json', skipped: 0 },
-    { id: 2, path: '/incident-2026-10-14/worker01/worker-20261014.log', name: 'worker-20261014.log', importer: 'text', skipped: 0 },
-    { id: 3, path: '/incident-2026-10-14/gateway/gateway-20261014.json', name: 'gateway-20261014.json', importer: 'json', skipped: 0 },
-    { id: 4, path: '/incident-2026-10-14/sync/inventory-sync.csv', name: 'inventory-sync.csv', importer: 'csv', skipped: 2 },
+  const sources: MockSource[] = [
+    { id: 0, path: '/incident-2026-10-14/web01/orders-20261014.clef', name: 'orders-20261014.clef', importer: 'json', skipped: 0, encoding: { label: 'UTF-8', confidence: 100, origin: 'detected' } },
+    { id: 1, path: '/incident-2026-10-14/web02/orders-20261014.clef', name: 'orders-20261014.clef', importer: 'json', skipped: 0, encoding: { label: 'UTF-8', confidence: 100, origin: 'detected' } },
+    { id: 2, path: '/incident-2026-10-14/worker01/worker-20261014.log', name: 'worker-20261014.log', importer: 'text', skipped: 0, encoding: { label: 'Shift_JIS', confidence: 84, origin: 'detected' } },
+    { id: 3, path: '/incident-2026-10-14/gateway/gateway-20261014.json', name: 'gateway-20261014.json', importer: 'json', skipped: 0, encoding: { label: 'UTF-8', confidence: 100, origin: 'detected' } },
+    { id: 4, path: '/incident-2026-10-14/sync/inventory-sync.csv', name: 'inventory-sync.csv', importer: 'csv', skipped: 2, encoding: { label: 'windows-1252', confidence: 57, origin: 'detected' } },
     { id: 5, path: '/incident-2026-10-14/system/registry-export.reg', name: 'registry-export.reg', importer: 'registry', skipped: 0 },
   ];
 

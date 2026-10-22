@@ -1,5 +1,5 @@
 import { inject, Injectable, signal } from '@angular/core';
-import { RecentKind, RecentProject, RecentLists } from '../api.types';
+import { RecentFile, RecentKind, RecentProject, RecentLists } from '../api.types';
 import { RecentBackend } from './recent-backend';
 
 /**
@@ -9,10 +9,10 @@ import { RecentBackend } from './recent-backend';
 @Injectable({ providedIn: 'root' })
 export class RecentService {
   private readonly backend = inject(RecentBackend);
-  readonly files = signal<string[]>([]);
+  readonly files = signal<RecentFile[]>([]);
   readonly projects = signal<RecentProject[]>([]);
   /** Performance captures (profiles and heap snapshots) opened before, newest first. */
-  readonly captures = signal<string[]>([]);
+  readonly captures = signal<RecentFile[]>([]);
   /** The first load (tests wait for it). */
   readonly ready: Promise<void>;
 
@@ -30,7 +30,7 @@ export class RecentService {
   }
 
   /** The UI opened files or a project (Rust recorded them; the mock records them now). */
-  async opened(files: string[], project?: RecentProject, captures: string[] = []): Promise<void> {
+  async opened(files: string[], project?: Omit<RecentProject, 'openedAt'>, captures: string[] = []): Promise<void> {
     try {
       await this.backend.opened(files, project, captures);
     } catch {

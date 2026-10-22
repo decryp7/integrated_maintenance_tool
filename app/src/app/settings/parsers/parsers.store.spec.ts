@@ -7,7 +7,8 @@ import { MockParsersBackend } from './mock-parsers-backend';
 import { ParserDialogs } from './parser-dialogs';
 import { DEMO_PARSER_IMPORT, ParserFiles } from './parser-files';
 import { ParsersBackend } from './parsers-backend';
-import { BLANK_PARSER, ParsersStore } from './parsers.store';
+import { BLANK_PARSER, initialChoice, ParsersStore } from './parsers.store';
+import type { ParserLibraryDto } from '../../core/api.types';
 
 function setup() {
   const imt = tinyBackend();
@@ -21,7 +22,7 @@ function setup() {
 }
 
 describe('ParsersStore', () => {
-  it('loads the library, grouped by category, with choices for "Parse with…"', async () => {
+  it('loads the library, grouped by category, ', async () => {
     const { store } = setup();
     expect(store.parsers()).toEqual([]);
     expect(store.stale()).toBe(0);
@@ -30,7 +31,6 @@ describe('ParsersStore', () => {
     expect(store.groups().map((g) => g.category)).toEqual(['.NET', 'Big data', 'Generic', 'Mobile', 'System', 'Web servers']);
     expect(store.broken()).toHaveLength(1);
     await store.setEnabled('nlog', false);
-    expect(store.choices().at(-1)?.id).toBe('nlog');
     expect(store.parsers().find((p) => p.id === 'nlog')?.enabled).toBe(false);
   });
 
@@ -165,5 +165,45 @@ describe('ParsersStore', () => {
     await store.assign(1, 'generic');
     expect(workspace.summary()?.sources[1]?.parser).toBe('generic');
     expect(store.parsers().find((p) => p.id === 'generic')?.sources.map((s) => s.id)).toEqual([1]);
+  });
+
+  it('Parse with… (I3): a source is chosen for, the library offers each parser, and a choice or Cancel ends it', async () => {
+    const { store, backend } = setup();
+    const workspace = TestBed.inject(WorkspaceStore);
+    await workspace.init();
+    const source = workspace.summary()!.sources[1]!;
+    expect(store.targetChoice()).toBeNull();
+    await store.readTargetWith('nlog');
+    expect(store.readTarget()).toBeNull();
+
+    await store.chooseFor(source);
+    expect(store.readTarget()).toEqual({ id: source.id, name: source.name });
+    // Matched automatically: Automatic is the starting choice.
+    expect(store.targetChoice()).toBe('');
+    store.cancelChoice();
+    expect(store.readTarget()).toBeNull();
+    expect(store.targetChoice()).toBeNull();
+
+    const assign = vi.spyOn(backend, 'assign');
+    await store.chooseFor(source);
+    await store.readTargetWith('nlog');
+    expect(assign).toHaveBeenLastCalledWith(source.id, 'nlog');
+    expect(store.readTarget()).toBeNull();
+    expect(workspace.summary()?.sources[1]?.parser).toBe('nlog');
+
+    // A parser the user chose before is the starting choice again.
+    await store.chooseFor(source);
+    expect(store.targetChoice()).toBe('nlog');
+    await store.readTargetWith(null);
+    expect(assign).toHaveBeenLastCalledWith(source.id, null);
+  });
+
+  it('starts on what the user chose before, else Automatic', () => {
+    const lib = (chosen: boolean) =>
+      ({ parsers: [{ id: 'nlog', sources: [{ id: 3, name: 'a.log', chosen }] }], broken: [], stale: 0 }) as unknown as ParserLibraryDto;
+    expect(initialChoice(null, 3)).toBe('');
+    expect(initialChoice(lib(false), 3)).toBe('');
+    expect(initialChoice(lib(true), 3)).toBe('nlog');
+    expect(initialChoice(lib(true), 4)).toBe('');
   });
 });

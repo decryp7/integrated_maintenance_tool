@@ -44,8 +44,8 @@ import { PROFILING_STYLES } from '../profiling-styles';
             <section class="recent" aria-labelledby="recent-captures-title" data-testid="recent-captures">
               <h3 id="recent-captures-title" class="section-title" i18n="@@profiling.captures.recent">Recent captures</h3>
               <ul>
-                @for (path of recentCaptures(); track path) {
-                  <li><button class="link" type="button" [title]="path" [disabled]="store.loading()" (click)="openRecent(path)">{{ fileName(path) }}</button></li>
+                @for (c of recentCaptures(); track c.path) {
+                  <li><button class="link" type="button" [title]="c.path" [disabled]="store.loading()" (click)="openRecent(c.path)">{{ fileName(c.path) }}</button></li>
                 }
               </ul>
               <button class="mini" type="button" (click)="clearRecent()" i18n="@@profiling.captures.recent.clear">Clear recent captures</button>

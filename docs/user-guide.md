@@ -24,7 +24,7 @@ One word, one meaning: menus, the palette, Settings and these docs use these ter
 | **Performance capture** | A profiler recording (`.nettrace`, `.speedscope.json`, heap snapshot…) opened with *File ▸ Open performance capture…*; listed in *Profiling ▸ Captures*. | A profile. "Profile .NET process" (a verb) records one. |
 | **Project** | One `.imtz` file holding the opened events, the profile, filters, notes and reports (*File ▸ Save project*). | The folder the logs came from. |
 | **Store** | The engine's event database (segments, fields, index) behind a window. | Disk usage. |
-| **Disk usage** | What IMT keeps on disk besides projects: bundle copies, web data, caches (Settings ▸ Disk usage). | The store. |
+| **Disk usage** | What IMT keeps on disk besides projects: bundle copies, web data, caches, the folders of project stores (Settings ▸ Disk usage). | The store. |
 | **Compare time ranges** | Two time ranges of the same events side by side (*Analyze ▸ Compare time ranges*). | *Compare configuration files* (two config files) and comparing two performance captures. |
 | **Region** | A part of the window `F6` moves between: activity bar, side bar, filter bar, a panel group, status bar. | A panel (one tab in a group). |
 
@@ -131,6 +131,37 @@ are detected by magic bytes and expanded (with size caps against zip bombs).
 | SQL Server `ERRORLOG` | `ERRORLOG` | `imt-plugin-formats` | UTF-16 or UTF-8; error number, severity and state become fields |
 | Docker `json-file` and Kubernetes CRI container logs | `*-json.log`, `*.log` | `imt-plugin-formats` | Partial lines are joined; `Stream`, pod, namespace and container are fields |
 | CBS / DISM text logs | `CBS.log` | built-in text importer | Read by the default profile; a one-line profile regex adds the component as a field |
+
+### Text encodings
+
+IMT detects the text encoding of every text source when it opens it: a byte-order mark settles UTF-8 and
+UTF-16 (little or big endian) at once; without one the engine guesses from the bytes (UTF-8, UTF-16,
+Shift_JIS, GBK, gb18030, EUC-KR, Big5, EUC-JP, the windows-125x code pages, ...). A source whose encoding is
+not plain UTF-8 shows a badge in the Explorer, for example `Shift_JIS 84%`; the tooltip reads "Shift_JIS
+· 84% (detected)". The percentage is the engine's confidence in its guess. Under 70% the badge gets a
+warning tone: the text was guessed, and if it looks wrong, choose another encoding.
+
+*Encoding…* in the Explorer row menu (only for text sources) lists the encodings plus *Automatic (detect)*,
+with the one you chose before selected. *Apply* reads that one file again with the encoding, as a job; the
+badge then says `(chosen)` with 100% confidence. *Automatic (detect)* guesses again.
+
+To set the encoding for all files of a profile, use the `[files]` section of the profile:
+
+```toml
+[files]
+encoding = "auto"        # or "Shift_JIS", "GBK", "windows-1252", ...
+```
+
+`auto` (the default) detects per file; a byte-order mark and your *Encoding…* choice win over the profile.
+
+### Paste as log
+
+*Edit ▸ Paste as log…* (`Mod+Shift+V`) opens a dialog with a Name (default "Pasted log") and a text box that is
+filled from the clipboard when IMT may read it; otherwise paste into the box. A counter shows the size against the
+limit of 8 MiB, and *Add* is refused above it (save such text as a file and open that instead). *Add* saves the text as
+a log file in the project's `pasted/` folder, so a saved project carries it, and opens it like any other log, with the
+importer chosen from its content. The engine makes the name safe and unique ("web01 errors.log", then "web01 errors
+(2).log"). Dropping plain text (no files) on the window opens the same dialog with that text.
 
 ### Opening a source file outside IMT
 
@@ -388,6 +419,41 @@ what each log source is, known errors and their fixes, facts about your environm
   is told which files were left out, so shorten or turn off what it does not need. They are background facts for
   the AI: they never replace IMT's own rules, and their text is never written to IMT's logs.
 
+### Known issues
+
+A knowledge file can declare errors you have already diagnosed. Add a fenced block labelled `known-issue`:
+
+````text
+```known-issue
+title: Connection pool exhausted
+pattern: (?i)timeout expired.*max pool size
+fix: Raise Max Pool Size in the connection string.
+  Then restart the service.
+```
+````
+
+Give `title`, `fix` and one of `pattern` (a regular expression over the message and exception) or `query` (a query-language
+filter); a line indented by two spaces continues the previous value. The **Problems** pane lists the declared issues
+that occur in the open data, with the number of events, the fix and *Show events*. **Suggest with AI** asks the
+model which of your notes fit the problems; the engine keeps only suggestions whose fix is quoted from your notes and
+whose query selects events (they are marked *AI suggested, verified*). Without a model the declared issues still work.
+
+## Incident summary report
+
+*Report: Incident summary…* builds a report from the open data in one step: the period and levels, key moments, the
+top anomalies, exceptions and error messages with the events that show them, the sources and hosts with most errors,
+import problems, matched known issues with their fixes and your notes. The engine computes every number; nothing
+is written by a model. With a model you can tick *Add an AI narrative*: a short write-up is added as its own first
+section, marked as AI-written, citing events (citations the engine could not verify are listed). Export it from the
+report view as HTML or PDF; the export has the redaction option.
+
+## Investigation playbooks
+
+*View: Playbooks* lists your playbooks and four templates (service crashed, errors after a change, slow requests,
+sign-in failures). A run steps through the playbook: queries, filters, views to open and checks that pass or fail,
+each with the engine's result; add a note to any step. Runs are saved with the project. Playbooks are JSON files you
+can import, export and share; see [playbooks.md](playbooks.md).
+
 ## AI runtime and model updates
 
 IMT checks for newer **inference runtimes** (the llama.cpp builds that run the model) and newer revisions or
@@ -410,6 +476,22 @@ blocks it does not interrupt you: the reason is shown in Settings and IMT tries 
 then less and less often, at most once per interval). When a proxy intercepts HTTPS, **Download manually**
 there works as described under [Troubleshooting](#behind-a-corporate-proxy-zscaler-etc).
 
+## Disk usage and project stores
+
+Settings ▸ Storage lists what IMT keeps on disk by category (sizes are computed by the engine). Below the
+categories, *Project stores* lists one row per store folder: its name, size, when it was last used and its state:
+
+- **Open**: a window has the store open.
+- **Kept for session restore**: an autosaved session reopens it, so it stays until you restore or discard that session.
+- **In use by another IMT**: another IMT process uses it.
+- **Orphaned**: nothing references it any more (for example the extraction of a project you closed).
+
+Only orphaned stores can be removed, and never a store that is open: tick the orphaned rows and choose *Clean up
+selected…*, or choose *Clean up all orphaned*. A confirmation lists the count and size and says the data cannot be
+recovered. The engine checks every store again before removing it and reports the ones it skipped with the reason.
+*Automatically remove orphaned stores unused for N days* removes old orphaned stores on its own; 0 (the default)
+turns it off, and the largest value is 365.
+
 ## Keyboard shortcuts
 
 `Mod` is `Ctrl` on Windows/Linux and `⌘` on macOS.
@@ -428,6 +510,7 @@ there works as described under [Troubleshooting](#behind-a-corporate-proxy-zscal
 | `Mod+S` / `Mod+Shift+S` | Save project / save project as |
 | `Mod+D` | Add a note to the selected event |
 | `Mod+Shift+E` | Export events |
+| `Mod+Shift+V` | Paste as log (Edit menu) |
 | `Mod+Shift+X` | Toggle the redacted view |
 | `Mod+B` | Toggle the sidebar |
 | `F6` / `Shift+F6` | Next / previous region: activity bar, side bar, filter bar, each panel group, status bar |
@@ -450,6 +533,32 @@ To float a panel inside the window, choose **Float** in its tab menu or **Window
 tab dragged off the docking guides and released inside the window goes back where it was
 (**Release to cancel**); drag it outside the window and a ghost of the new window follows the pointer
 (also over other apps and monitors): release it to open the panel there.
+
+## Share a redacted copy
+
+**File ▸ Share redacted copy…** writes a copy of the project (`.imtz`) that is safe to hand to someone
+else. Pick the detectors (bearer tokens, JWTs, API keys, connection strings, passwords, user names in paths,
+email addresses, card numbers, IP addresses, GUIDs, phone numbers, host names) and the profile's custom
+`[[redact.rule]]` entries; they start as the profile selects them. Choose how a value is replaced: *Mask*
+(`<email>`), *Hash* (a short code; equal values stay equal within the copy, so you can still follow one
+address through the log) or *Drop* (removed). A live preview shows how many events would change, the count
+per rule, up to five before/after samples and what is left out. **Create copy…** asks where to save it, like
+**Save project as…**, then shows what was written.
+
+What the copy contains: it is built from the redacted text of every text source (JSON and text logs), so its
+events, field statistics, search index, diagnostics samples, notes, AI chats, saved queries and reports
+contain no unredacted value of the selected rules. The whole event text is redacted whatever field it is in.
+Clock corrections are kept.
+
+What it leaves out, and says so in the preview and the result:
+
+- Sources in formats that cannot be redacted (binary formats such as event logs and dumps, CSV and XML).
+- Note images and attachments, and video frames: pictures cannot be redacted.
+- The profile's own redaction rules: the copy does not carry them.
+
+This differs from the *Redacted view*, which only masks what one window shows and changes nothing on disk,
+and from exports and reports, which redact one file at a time when asked to. **Save project as…** keeps
+everything, unredacted.
 
 ## Command line
 

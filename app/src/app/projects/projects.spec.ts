@@ -116,7 +116,7 @@ describe('ProjectService', () => {
     expect(projects.dirty()).toBe(false);
     expect(tools.calls).toContain('saveProject:/p/saved.imtz');
     expect(store.notice()).toBe('Saved saved');
-    expect(recent.items).toEqual([{ path: '/p/saved.imtz', name: 'saved' }]);
+    expect(recent.items).toEqual([{ path: '/p/saved.imtz', name: 'saved', openedAt: expect.any(Number) }]);
     expect(projects.recent()).toEqual(recent.items);
     tools.calls.length = 0;
     expect(await projects.save()).toBe(true);
@@ -300,6 +300,8 @@ describe('ProjectCommands, SavedQueryCommands and the recent dialog', () => {
     await settle(f);
     expect(text(f)).toContain('saved');
     expect(all(f, '.item .ellipsis')[0]?.textContent).toBe('/p/');
+    // J1: the item says when the project was last opened or saved.
+    expect(all(f, '.item [data-testid=recent-when]')[0]?.textContent?.trim()).not.toBe('');
     tools.calls.length = 0;
     at(all<HTMLButtonElement>(f, '.item'), 0).click();
     await settle(f);

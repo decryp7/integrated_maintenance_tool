@@ -629,7 +629,10 @@ mod tests {
         crate::paths::allow_under(&main, "main", &dir.0);
         invoke(&main, "profiling_open", json!({ "path": path })).unwrap();
         let lists = crate::recent::recents(app_handle).list();
-        assert_eq!(lists.captures, vec![path.clone()]);
+        assert_eq!(
+            lists.captures.iter().map(|f| f.path.clone()).collect::<Vec<_>>(),
+            vec![path.clone()]
+        );
         assert!(lists.files.is_empty());
         // The list grants it again to a window that was never given it.
         let reopened = invoke(&other, "profiling_open", json!({ "path": path })).unwrap();

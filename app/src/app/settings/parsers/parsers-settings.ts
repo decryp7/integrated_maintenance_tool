@@ -31,6 +31,13 @@ const NAMES_SHOWN = 3;
     </div>
     <p class="desc" i18n="@@settings.parsers.desc">A parser describes one log format and is one TOML file you can share. For every file, IMT uses the enabled parser that reads it best; “Parse with…” in the Explorer chooses one yourself.</p>
 
+    @if (store.readTarget(); as t) {
+      <div class="banner target" role="region" aria-label="Choose a parser" i18n-aria-label="@@settings.parsers.target.label" data-testid="parsers-target">
+        <span i18n="@@settings.parsers.target.text">Choose how to read <strong class="mono">{{ t.name //i18n(ph="name") }}</strong>: pick “Read it with this” on a parser below, or use the automatic choice.</span>
+        <button type="button" class="btn" data-testid="parsers-target-auto" [class.primary]="store.targetChoice() === ''" [disabled]="busy()" (click)="store.readTargetWith(null)" i18n="@@settings.parsers.target.auto">Automatic</button>
+        <button type="button" class="btn ghost" data-testid="parsers-target-cancel" (click)="store.cancelChoice()" i18n="@@settings.parsers.target.cancel">Cancel</button>
+      </div>
+    }
     @if (store.stale(); as n) {
       <div class="banner warn" role="status" data-testid="parsers-stale">
         <span i18n="@@settings.parsers.stale">{n, plural, =1 {1 source was read with a parser that changed.} other {{{ n }} sources were read with parsers that changed.}}</span>
@@ -57,7 +64,7 @@ const NAMES_SHOWN = 3;
       <h4>{{ g.category }}</h4>
       <ul class="list" [attr.aria-label]="g.category">
         @for (p of g.parsers; track p.id) {
-          <li class="parser" [class.off]="!p.enabled" [attr.data-parser]="p.id">
+          <li class="parser" [class.off]="!p.enabled" [class.chosen]="store.targetChoice() === p.id" [attr.data-parser]="p.id">
             <div class="main">
               <div class="title">
                 <span class="name">{{ p.name }}</span>
@@ -69,6 +76,9 @@ const NAMES_SHOWN = 3;
               <div class="read" [attr.data-testid]="'parser-read-' + p.id">{{ readText(p) }}</div>
             </div>
             <div class="actions">
+              @if (store.readTarget(); as t) {
+                <button type="button" class="btn small" [class.primary]="store.targetChoice() === p.id" data-testid="parser-read-with" [disabled]="busy()" [attr.aria-label]="readWithLabel(p, t.name)" (click)="store.readTargetWith(p.id)" i18n="@@settings.parsers.target.use">Read it with this</button>
+              }
               <imt-switch size="small" [checked]="p.enabled" [disabled]="busy()" (checkedChange)="store.setEnabled(p.id, $event)"><span class="sr-only">{{ enableLabel(p) }}</span><span aria-hidden="true" i18n="@@settings.parsers.enabled">Enabled</span></imt-switch>
               <button type="button" class="btn ghost small" [disabled]="busy()" [attr.aria-label]="actionLabel(editText, p)" (click)="edit(p.id)">{{ editText }}</button>
               <button type="button" class="btn ghost small" [disabled]="busy()" [attr.aria-label]="actionLabel(duplicateText, p)" (click)="store.duplicate(p.id)">{{ duplicateText }}</button>
@@ -125,6 +135,8 @@ const NAMES_SHOWN = 3;
     .banner > span { flex: 1; }
     .banner.warn { border-color: var(--warn-text); }
     .banner.ok { border-color: var(--ok); }
+    .banner.target { border-color: var(--accent); }
+    .parser.chosen { border-color: var(--accent); }
     .banner.err { border-color: var(--danger-text); color: var(--danger-text); }
     .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
     .parser { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-2); flex-wrap: wrap; }
@@ -189,6 +201,10 @@ export class ParsersSettings implements OnInit {
   }
 
   /** "Read 2 files: a.log, b.log" (the sources of this window), or that it read none. */
+  protected readWithLabel(p: ParserEntryDto, source: string): string {
+    return $localize`:@@settings.parsers.target.useLabel:Read ${source}:source: with ${p.name}:parser:`;
+  }
+
   protected readText(p: ParserEntryDto): string {
     const n = p.sources.length;
     if (!n) return $localize`:@@settings.parsers.readNone:Read no files in this window`;

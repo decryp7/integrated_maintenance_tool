@@ -75,6 +75,7 @@ fn batches(copies: usize) -> Vec<EventBatch> {
     let schema = Arc::new(ingest::schema_for(&profile));
     let progress = imt_core::workspace::ImportProgress::default();
     let env = ImportEnv {
+        encodings: &Default::default(),
         importers: registry.importers(),
         parsers: &parsers,
         schema,

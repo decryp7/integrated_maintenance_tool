@@ -32,7 +32,7 @@ export class MemoryRecentProjects implements RecentProjects {
     this.state.set(v);
   }
   list = () => [...this.state()];
-  add = (p: RecentProject) => this.state.update((l) => [p, ...l.filter((x) => x.path !== p.path)]);
+  add = (p: Omit<RecentProject, 'openedAt'>) => this.state.update((l) => [{ ...p, openedAt: Date.now() }, ...l.filter((x) => x.path !== p.path)]);
   remove = (path: string) => this.state.update((l) => l.filter((x) => x.path !== path));
   clear = () => this.state.set([]);
 }

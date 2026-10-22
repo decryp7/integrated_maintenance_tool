@@ -11,7 +11,7 @@
 
 use super::batcher::{BatchedSource, RecordBatcher};
 use super::chunk::{Encoding, LineReader, ReaderChunks};
-use super::plan::{plan, score_text, FilePlan, JsonShape, PlanKind, HEAD_BYTES};
+use super::plan::{plan_with, score_text_with, FilePlan, JsonShape, PlanKind, HEAD_BYTES};
 use super::sink::{BatchSink, EventSink, NewSource, ParsedEvent, SourceReport};
 use super::source::ImportEnv;
 use super::{json, text, ProblemKind};
@@ -98,7 +98,8 @@ fn planned(env: &ImportEnv, path: &Path, src: &NewSource) -> Result<std::result:
     if crate::archive::is_zip(&head) || crate::archive::is_gzip(&head) {
         return Ok(Err("it is an archive".into()));
     }
-    let text = score_text(&head, whole);
+    let request = env.encodings.request_for(&src.path);
+    let text = score_text_with(&head, whole, request);
     let candidate = Candidate {
         source: &src.path,
         path,
@@ -116,7 +117,7 @@ fn planned(env: &ImportEnv, path: &Path, src: &NewSource) -> Result<std::result:
         path,
         file_date,
     };
-    let plan = match plan(env.importers, &ctx, &head, whole) {
+    let plan = match plan_with(env.importers, &ctx, &head, whole, request) {
         Ok(p) => p,
         Err(reason) => return Ok(Err(reason)),
     };
@@ -328,6 +329,7 @@ pub fn begin_at_end(env: &ImportEnv, path: &Path, src: &NewSource, sink: &mut dy
         to: None,
         bytes: p.size,
         problems: Vec::new(),
+        encoding: p.plan.encoding_info.clone(),
     };
     sink.finish_source(&report)?;
     Ok(Ok(AtEnd {
@@ -426,6 +428,7 @@ mod tests {
         let parsers = ParserSet::of_compiled(CompiledProfile::compile(Profile::default_profile()).unwrap());
         let cancel = AtomicBool::new(false);
         let env = ImportEnv {
+            encodings: &Default::default(),
             importers: &importers,
             parsers: &parsers,
             schema: Arc::new(EventSchema::plain()),

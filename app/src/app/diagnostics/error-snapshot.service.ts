@@ -135,7 +135,7 @@ export class ErrorSnapshotService implements FailureReporter {
     if (this.busy || (!manual && !this.automatic) || !this.gate.tryAcquire(this.clock.now(), manual)) return null;
     this.busy = true;
     try {
-      const { image, note } = await this.screenshot();
+      const { image, note } = await this.screenshot(manual);
       const context = this.context(reason, detail, manual);
       if (note) context.message = `${context.message}\n${note}`;
       const result = await this.backend.save(image, await this.filtered(context));
@@ -156,12 +156,12 @@ export class ErrorSnapshotService implements FailureReporter {
    * running while the webview takes its picture. Toasts are hidden for that frame. Without a picture the snapshot
    * keeps a blank image and a note saying why.
    */
-  private async screenshot(): Promise<{ image: CapturedImage; note?: string }> {
+  private async screenshot(manual: boolean): Promise<{ image: CapturedImage; note?: string }> {
     const root = document.documentElement;
     root.setAttribute(CAPTURING_ATTRIBUTE, '');
     try {
       await this.clock.nextFrame();
-      const shot = await this.backend.captureWindow();
+      const shot = await this.backend.captureWindow(manual);
       if (shot.status === 'captured') return { image: { base64: shot.image, mime: shot.mime, bytes: shot.bytes } };
       const why = redactPaths(shot.reason);
       this.logger.info(CATEGORY, 'No screenshot for the error snapshot', { Reason: why });

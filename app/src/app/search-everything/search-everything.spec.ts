@@ -11,13 +11,17 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { CommandContext, flattenContributions, IMT_COMMANDS, ImtCommand } from '../extensions/tokens';
 import { NOTES_VIEW } from '../notes/note-actions';
-import { SettingsDialogService } from '../settings/settings-dialog';
+import { KnowledgeBackend } from '../ai/knowledge/knowledge-backend';
+import { KnowledgeEditor } from '../ai/knowledge/knowledge-editor';
+import { DialogService } from '../ui/dialog.service';
+import { MockAnalysisBackend, MockKnowledgeBackend, MockNotesBackend, recordsFrom } from '../mock-backends';
+import { EMPTY_QUERY } from '../core/workspace/query.store';
 import { mockSnippet, MockSearchEverythingBackend } from './mock/mock-search-everything-backend';
 import { provideSearchEverything, SEARCH_EVERYTHING_COMMAND, SEARCH_EVERYTHING_KEYBINDING, searchEverythingCommands } from './provide-search-everything';
 import { flatRows, KIND_ORDER, outcomeNotice, resultGroups } from './search-everything.model';
 import { SearchEverythingBackend, TauriSearchEverythingBackend } from './search-everything-backend';
 import { SearchEverythingLauncher } from './search-everything-launcher';
-import { EVENTS_VIEW, KNOWLEDGE_SECTION, SearchEverythingNavigator } from './search-everything-navigator';
+import { EVENTS_VIEW, EXCEPTIONS_VIEW, SearchEverythingNavigator } from './search-everything-navigator';
 import { SearchEverythingPalette } from './search-everything-palette';
 import { SEARCH_DEBOUNCE_MS, SearchEverythingStore } from './search-everything.store';
 
@@ -26,7 +30,7 @@ const part = (text: string, mark = false) => ({ text, mark });
 const doc = (id: string, patch: Partial<DocHit> = {}): DocHit => ({ id, scope: 'project', title: `Title ${id}`, event: null, snippet: [part('the '), part('timeout', true)], ...patch });
 
 function reply(patch: Partial<SearchAllReply> = {}): SearchAllReply {
-  return { events: none(), sources: none(), fields: none(), markers: none(), notes: none(), knowledge: none(), ...patch };
+  return { events: none(), sources: none(), fields: none(), markers: none(), exceptions: none(), notes: none(), knowledge: none(), ...patch };
 }
 
 const full = reply({
@@ -41,6 +45,7 @@ const full = reply({
     outcome: { kind: 'timedOut' },
   },
   markers: { total: 1, items: [{ kind: 'timeout', snippet: [part('timeout', true)] }], outcome: { kind: 'complete' } },
+  exceptions: { total: 1, items: [{ fingerprint: 'fp1', typeName: 'TimeoutException', count: 12, sample: 9, snippet: [part('Timeout', true), part('Exception: gateway')] }], outcome: { kind: 'complete' } },
   notes: { total: 1, items: [doc('n1', { event: 4 })], outcome: { kind: 'complete' } },
   knowledge: { total: 1, items: [doc('k1', { scope: 'global' })], outcome: { kind: 'failed', message: 'busy' } },
 });
@@ -75,7 +80,11 @@ describe('search everything backend', () => {
   });
 
   it('the mock searches the mock workspace by words', async () => {
-    const mock = new MockSearchEverythingBackend(tinyBackend());
+    const workspace = tinyBackend();
+    const notes = new MockNotesBackend();
+    const knowledge = new MockKnowledgeBackend();
+    const analysis = new MockAnalysisBackend(recordsFrom(workspace));
+    const mock = new MockSearchEverythingBackend(workspace, { notes: () => notes, knowledge: () => knowledge, analysis: () => analysis });
     expect(await mock.searchEverything({ text: ' -- ' })).toBeNull();
     await expect(mock.searchEverything({ text: 'x'.repeat(257) })).rejects.toBeInstanceOf(CmdError);
     const found = must(await mock.searchEverything({ text: 'web02' }));
@@ -86,6 +95,26 @@ describe('search everything backend', () => {
     const events = must(await mock.searchEverything({ text: 'payment' }));
     expect(events.events.total).toBe(1);
     expect(at(events.events.items, 0).level).toBe('Error');
+    // Notes and knowledge files, like the engine: every word, in the title or the text.
+    await notes.addNote({ anchor: { kind: 'project' }, text: 'Gateway retries\nThey start after the deploy.' });
+    await knowledge.createKnowledge('global', 'Glossary', 'ACME-GW is the payment gateway.');
+    const docs = must(await mock.searchEverything({ text: 'gateway deploy' }));
+    expect(docs.notes.items.map((n) => [n.id, n.title, n.scope])).toEqual([['n1', 'Gateway retries', 'project']]);
+    expect(docs.knowledge.total).toBe(0);
+    const glossary = must(await mock.searchEverything({ text: 'glossary payment' }));
+    expect(glossary.knowledge.items.map((k) => [k.title, k.scope])).toEqual([['Glossary', 'global']]);
+    expect(glossary.notes.total).toBe(0);
+    // Values of fields with few distinct values.
+    const summary = await workspace.workspaceSummary();
+    const field = must(summary.fields.find((f) => !f.numeric && f.distinct > 0 && f.distinct <= 500));
+    const facet = await workspace.queryFacet({ query: { ...EMPTY_QUERY }, field: field.name, limit: 500 });
+    const value = must(facet.values[0]).value;
+    const valueHits = must(await mock.searchEverything({ text: value })).fields.items.filter((f) => f.value === value && f.field === field.name);
+    expect(valueHits.length, `${field.name} = ${value}`).toBe(1);
+    // Exception groups by type, message or top frame.
+    const group = must((await analysis.queryExceptions({ ...EMPTY_QUERY })).result[0]);
+    const byType = must(await mock.searchEverything({ text: group.typeName }));
+    expect(byType.exceptions.items.map((x) => x.fingerprint)).toContain(group.fingerprint);
     expect(mockSnippet('A  timeout,\nTIMEOUT', ['timeout'])).toEqual([part('A '), part('timeout', true), part(', '), part('TIMEOUT', true)]);
   });
 });
@@ -94,7 +123,7 @@ describe('search everything model', () => {
   it('groups the kinds in order with their notices, and only those with something to show', () => {
     const groups = resultGroups(full, 'timeout');
     expect(groups.map((g) => g.kind)).toEqual(KIND_ORDER);
-    expect(groups.map((g) => g.title)).toEqual(['Events', 'Sources', 'Fields', 'Markers', 'Notes', 'Knowledge']);
+    expect(groups.map((g) => g.title)).toEqual(['Events', 'Sources', 'Fields', 'Markers', 'Exceptions', 'Notes', 'Knowledge']);
     expect(groups.find((g) => g.kind === 'fields')?.notice).toMatch(/time ran out/);
     expect(groups.find((g) => g.kind === 'knowledge')?.notice).toBe('Could not search: busy');
     expect(resultGroups(null, 'x')).toEqual([]);
@@ -112,6 +141,7 @@ describe('search everything model', () => {
       { kind: 'field', field: 'TimeoutMs', value: null },
       { kind: 'field', field: 'Reason', value: 'timeout' },
       { kind: 'marker', marker: 'timeout' },
+      { kind: 'exception', sample: 9 },
       { kind: 'note', id: 'n1', event: 4 },
       { kind: 'knowledge', scope: 'global', id: 'k1' },
     ]);
@@ -121,6 +151,7 @@ describe('search everything model', () => {
     expect(at(byKey('events:all').snippet, 0).text).toBe('Show all 3 matching events in the grid');
     expect(byKey('field:Reason:timeout').snippet).toEqual([part('Reason = '), part('timeout', true)]);
     expect(byKey('source:1').detail).toBe('4 events');
+    expect(byKey('exception:fp1').detail).toBe('12 events');
     expect(byKey('knowledge:global:k1').detail).toBe('Title k1 · Global');
     expect(byKey('notes:project:n1').detail).toBe('Title n1');
     // A doc without a snippet shows its title; all events are not offered when every match is shown.
@@ -152,7 +183,7 @@ describe('search everything store', () => {
     release(reply());
     await vi.advanceTimersByTimeAsync(0);
     expect(store.reply()).toBe(full);
-    expect(store.rows().length).toBe(8);
+    expect(store.rows().length).toBe(9);
     expect(store.loading()).toBe(false);
 
     store.setText('   ');
@@ -180,15 +211,15 @@ describe('search everything store', () => {
     fake.answer = async () => full;
     await store.searchNow();
     expect(store.error()).toBeNull();
-    expect(store.groups().length).toBe(6);
+    expect(store.groups().length).toBe(7);
   });
 });
 
 describe('search everything navigation', () => {
   it('goes where each result points', () => {
     const { context } = provide();
-    const settings = TestBed.inject(SettingsDialogService);
-    const open = vi.spyOn(settings, 'open').mockImplementation(() => undefined);
+    const dialogs = TestBed.inject(DialogService);
+    const open = vi.spyOn(dialogs, 'open').mockImplementation(() => undefined as never);
     const nav = TestBed.inject(SearchEverythingNavigator);
     nav.go({ kind: 'event', id: 4 });
     expect(context.jumpTo).toHaveBeenLastCalledWith(4);
@@ -207,10 +238,27 @@ describe('search everything navigation', () => {
     expect(context.jumpTo).not.toHaveBeenCalled();
     nav.go({ kind: 'note', id: 'n1', event: 9 });
     expect(context.jumpTo).toHaveBeenLastCalledWith(9);
-    nav.go({ kind: 'knowledge', scope: 'global', id: 'k1' });
-    expect(open).toHaveBeenCalledWith(KNOWLEDGE_SECTION);
+    nav.go({ kind: 'exception', sample: 9 });
+    expect(context.showView).toHaveBeenLastCalledWith(EXCEPTIONS_VIEW);
     nav.go({ kind: 'allEvents', text: 'timeout' });
     expect(TestBed.inject(WorkspaceStore).textInput()).toBe('timeout');
+  });
+});
+
+describe('search everything knowledge results', () => {
+  it('open the file in the knowledge editor, listing the files first when they were not listed yet', async () => {
+    provide();
+    const backend = TestBed.inject(KnowledgeBackend);
+    const made = await backend.createKnowledge('global', 'Glossary', 'ACME-GW');
+    const open = vi.spyOn(TestBed.inject(DialogService), 'open').mockImplementation(() => undefined as never);
+    const nav = TestBed.inject(SearchEverythingNavigator);
+    nav.go({ kind: 'knowledge', scope: 'global', id: made.id });
+    await vi.waitFor(() => expect(open).toHaveBeenCalledTimes(1));
+    expect(open).toHaveBeenCalledWith(KnowledgeEditor, expect.objectContaining({ inputs: expect.objectContaining({ file: expect.objectContaining({ id: made.id, name: 'Glossary', scope: 'global' }), scope: 'global' }) }));
+    // A file that is gone opens nothing.
+    nav.go({ kind: 'knowledge', scope: 'project', id: 'missing' });
+    await new Promise((r) => setTimeout(r));
+    expect(open).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -231,8 +279,8 @@ describe('search everything palette', () => {
     typeInto(input, 'timeout');
     await TestBed.inject(SearchEverythingStore).searchNow();
     f.detectChanges();
-    expect(all(f, '[role=option]').length).toBe(8);
-    expect(all(f, '[role=group]').length).toBe(6);
+    expect(all(f, '[role=option]').length).toBe(9);
+    expect(all(f, '[role=group]').length).toBe(7);
     expect(el(f, '[data-testid=search-group-events] mark').textContent).toBe('timeout');
     expect(el(f, '[data-testid=search-group-fields]').textContent).toContain('time ran out');
     expect(input.getAttribute('aria-activedescendant')).toBe(at(all(f, '[role=option]'), 0).id);
@@ -268,7 +316,7 @@ describe('search everything palette', () => {
     must(all<HTMLButtonElement>(f, 'button').find((b) => b.textContent?.includes('Retry'))).click();
     await new Promise((r) => setTimeout(r));
     f.detectChanges();
-    expect(all(f, '[role=option]').length).toBe(8);
+    expect(all(f, '[role=option]').length).toBe(9);
     expect(f.nativeElement.getAttribute('data-activity-trigger')).toBe('palette');
   });
 });

@@ -145,14 +145,14 @@ describe('NotificationsPanel', () => {
     f.detectChanges();
     el<HTMLButtonElement>(f, '[data-testid=kind-filter]').click();
     f.detectChanges();
-    const labels = all(f, '[data-testid=kind-filter-list] label').map((l) => l.textContent?.replace(/\s+/g, ' ').trim());
-    expect(labels).toContain('Updates1');
+    const labels = Array.from(document.querySelectorAll('[data-testid=kind-filter-list] [role=option]')).map((l) => l.textContent?.replace(/\s+/g, ' ').trim());
+    expect(labels.some((l) => l?.includes('Updates1'))).toBe(true);
     expect(labels).toHaveLength(9);
-    el<HTMLInputElement>(f, '[data-testid=kind-update]').click();
+    document.querySelector<HTMLElement>('[data-testid=kind-update]')!.click();
     f.detectChanges();
     expect(all(f, 'h3').map((h) => h.textContent)).toEqual(['Updates']);
     expect(el(f, '[data-testid=kind-filter]').textContent).toContain('Source: 1');
-    el<HTMLButtonElement>(f, '[data-testid=kind-filter-clear]').click();
+    document.querySelector<HTMLButtonElement>('[data-testid=kind-filter-clear]')!.click();
     f.detectChanges();
     expect(all(f, 'h3')).toHaveLength(3);
   });

@@ -3,8 +3,9 @@
 //! the file can be read in chunks, and later in parallel (R2b), with the same result.
 
 use super::chunk::{Encoding, CHUNK_BYTES};
+use super::encoding::{detect, EncodingInfo, EncodingRequest};
 use crate::importers::lines::{self, LineFormat};
-use crate::importers::{first_lines, looks_binary, looks_utf16le, ImportCtx, Importers};
+use crate::importers::{first_lines, looks_binary, ImportCtx, Importers};
 use std::io::Read;
 
 /// Bytes of a file's start the plan reads (1 MiB): enough for the importer choice (64 KiB of text), the
@@ -62,6 +63,8 @@ pub struct ChunkStart {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilePlan {
     pub encoding: Encoding,
+    /// How the encoding was decided (shown to the user, who can choose another).
+    pub encoding_info: Option<EncodingInfo>,
     /// Offset of the first byte after the byte-order mark.
     pub data_start: u64,
     /// Id of the importer that reads the file.
@@ -77,19 +80,10 @@ pub struct FilePlan {
     pub chunks: Vec<ChunkStart>,
 }
 
-/// The encoding of `bytes` (a file's start) and the length of its byte-order mark.
+/// The encoding of `bytes` (a file's start) and the length of its byte-order mark, decided from the content.
 pub fn detect_encoding(bytes: &[u8]) -> (Encoding, u64) {
-    if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
-        (Encoding::Utf8, 3)
-    } else if bytes.starts_with(&[0xFF, 0xFE]) {
-        (Encoding::Utf16Le, 2)
-    } else if bytes.starts_with(&[0xFE, 0xFF]) {
-        (Encoding::Utf16Be, 2)
-    } else if looks_utf16le(bytes) {
-        (Encoding::Utf16Le, 0)
-    } else {
-        (Encoding::Utf8, 0)
-    }
+    let d = detect(bytes, false, EncodingRequest::default());
+    (d.encoding, d.bom_len)
 }
 
 /// Decodes the head (from after the BOM). Unless it is the whole file, it is cut after its last newline
@@ -124,8 +118,14 @@ fn decode_head(head: &[u8], encoding: Encoding, start: usize, whole: bool) -> St
 /// The decoded start of a file the parsers are scored on (at most [`crate::parser::set::SCORE_CHARS`]
 /// characters, from the first 256 KiB), or `None` when it does not look like text.
 pub fn score_text(head: &[u8], whole: bool) -> Option<String> {
+    score_text_with(head, whole, EncodingRequest::default())
+}
+
+/// [`score_text`] with the encoding the profile or the user asked for.
+pub fn score_text_with(head: &[u8], whole: bool, request: EncodingRequest) -> Option<String> {
     const SCORE_BYTES: usize = 256 * 1024;
-    let (encoding, data_start) = detect_encoding(head);
+    let d = detect(head, whole, request);
+    let (encoding, data_start) = (d.encoding, d.bom_len);
     let cut = head.len() > SCORE_BYTES;
     let text = decode_head(&head[..head.len().min(SCORE_BYTES)], encoding, data_start as usize, whole && !cut);
     (!looks_binary(&text)).then(|| text.chars().take(crate::parser::set::SCORE_CHARS).collect())
@@ -134,12 +134,18 @@ pub fn score_text(head: &[u8], whole: bool) -> Option<String> {
 /// Plans reading a file from its first bytes (`head`, at most [`HEAD_BYTES`]; `whole` when that is the
 /// entire file). The error is the reason shown for an unrecognised file.
 pub fn plan(importers: &Importers, ctx: &ImportCtx, head: &[u8], whole: bool) -> Result<FilePlan, String> {
+    plan_with(importers, ctx, head, whole, EncodingRequest::default())
+}
+
+/// [`plan`] with the encoding the profile or the user asked for (`request`).
+pub fn plan_with(importers: &Importers, ctx: &ImportCtx, head: &[u8], whole: bool, request: EncodingRequest) -> Result<FilePlan, String> {
     if head.is_empty() {
         return Err("empty file".into());
     }
     if let Some(binary) = importers.select_binary(ctx, &head[..head.len().min(SELECT_CHARS)]) {
         return Ok(FilePlan {
             encoding: Encoding::Utf8,
+            encoding_info: None,
             data_start: 0,
             importer: binary.id().to_string(),
             kind: PlanKind::Binary,
@@ -148,7 +154,8 @@ pub fn plan(importers: &Importers, ctx: &ImportCtx, head: &[u8], whole: bool) ->
             chunks: Vec::new(),
         });
     }
-    let (encoding, data_start) = detect_encoding(head);
+    let detected = detect(head, whole, request);
+    let (encoding, data_start) = (detected.encoding, detected.bom_len);
     let text = decode_head(head, encoding, data_start as usize, whole);
     if looks_binary(&text) {
         return Err("binary file".into());
@@ -174,6 +181,7 @@ pub fn plan(importers: &Importers, ctx: &ImportCtx, head: &[u8], whole: bool) ->
     };
     Ok(FilePlan {
         encoding,
+        encoding_info: Some(detected.info()),
         data_start,
         importer: importer.id().to_string(),
         kind,

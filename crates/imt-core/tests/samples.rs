@@ -22,7 +22,7 @@ fn samples() -> PathBuf {
 /// (opened by the dumps plugin, tested in `imt-plugin-dumps`), `real-libraries` the output of the real .NET logging
 /// libraries (in their own time zones and at the time of the run, outside the scenario; tested in
 /// `real_libraries.rs`).
-const NOT_LOGS: &[&str] = &["profiling", "configs", "share", "live", "dumps", "real-libraries"];
+const NOT_LOGS: &[&str] = &["profiling", "configs", "share", "live", "dumps", "real-libraries", "encodings"];
 
 /// Folders whose formats only plugins read (tested in the plugin crates):
 /// Windows event logs, ProcMon/PerfMon CSV, the crash dump, msinfo/registry

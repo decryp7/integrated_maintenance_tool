@@ -52,6 +52,15 @@ pub fn stats_text() -> String {
     out
 }
 
+/// Gives memory that is free but not yet returned to the OS back now: collects the calling thread's heap and the
+/// abandoned pages of finished threads, and purges the arenas. [`tune`]'s purge timing only acts while the process
+/// allocates; after a burst of work (an import, an index build) the process may then idle with the burst's free pages
+/// still resident. Call it when such work ends (cheap: a few ms for a 100 MB heap).
+pub fn release() {
+    // SAFETY: a plain call into the linked mimalloc, valid at any time from any thread.
+    unsafe { libmimalloc_sys::mi_collect(true) };
+}
+
 /// Sets the allocator's purge timing (see the module docs); call it first thing in `main`.
 pub fn tune() {
     // SAFETY: plain option setters of the linked mimalloc; any value is valid for these options.
