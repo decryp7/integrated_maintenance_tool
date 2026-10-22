@@ -10,6 +10,9 @@ Run with the normal test suite; they are fast (a few seconds) and deterministic 
 ```sh
 cargo test -p imt-core --test properties
 cargo test -p imt-plugin-registry -p imt-plugin-windows -p imt-plugin-web -p imt-plugin-otel -p imt-plugin-syslog --test properties
+cargo test -p imt-core --test properties_files      # parser TOML, .imtproj, project.toml, .imtz
+cargo test -p imt-ipc -p imt-notes --test properties # IPC frames, notes records
+cargo test -p imt-ai --test properties_knowledge     # knowledge records and the prompt block
 ```
 
 * Default is 256 cases per property. Run harder with `PROPTEST_CASES=10000 cargo test --release ...`.
@@ -73,6 +76,9 @@ inputs only to the first directory, so `fuzz/corpus/` stays small (seeds copied 
 | `fuzz_dump_umdh` | the UMDH snapshot/diff reader, then growth, grouping, tree and leak findings |
 | `fuzz_dump_wire` | `imt_dump::wire::decode_result`: what IMT accepts from the dumps plugin's process |
 | `fuzz_plugin_package` | `.imtplugin` packages (`imt-plugin-package`, ADR 0027): the bounded zip reader, layout and signature checks, `manifest.toml` and public-key parsing |
+| `fuzz_parser_toml` | parser library files (ADR 0026): `Parser::from_toml`, an override fragment over a built-in (first byte selects which), the library's import check; accepted parsers round-trip through their canonical TOML |
+| `fuzz_project` | `.imtproj` workspace files, `project.toml` manifests and `.imtz` archives opened into a scratch folder (first byte selects); an extracted project stays inside its destination |
+| `fuzz_notes_knowledge` | the notes and knowledge-file records of projects and sessions (`imt-notes`, `imt-ai::knowledge`; first byte selects), written back and re-read without a warning, and the AI blocks built from them |
 
 CI (`.gitea/workflows/fuzz.yml`) runs every target for 5 minutes each night (and on demand
 through `workflow_dispatch`, with a configurable duration) and uploads crash inputs as the

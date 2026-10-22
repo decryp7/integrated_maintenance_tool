@@ -20,11 +20,11 @@ env:
   FUZZ_TOOLCHAIN: nightly-2026-10-01
 
 jobs:
-  # Five shards of up to seven targets instead of one job per target: each shard compiles the fuzz workspace once
+  # Six shards of up to nine targets instead of one job per target: each shard compiles the fuzz workspace once
   # (cargo fuzz build builds every target in one cargo run) and then fuzzes its targets one after another,
   # where 28 jobs each compiled the whole workspace and queued for the few shared Linux runner slots.
   fuzz:
-    name: fuzz (shard ${{ matrix.shard }}/5)
+    name: fuzz (shard ${{ matrix.shard }}/6)
     runs-on: ubuntu-latest
     container:
       image: catthehacker/ubuntu:act-latest
@@ -43,7 +43,7 @@ jobs:
           - shard: 5
             targets: [fuzz_prof_nettrace_heap, fuzz_dotnet_ipc, fuzz_native_etw, fuzz_native_pe, fuzz_image, fuzz_vision_facts]
           - shard: 6
-            targets: [fuzz_dump_minidump, fuzz_dump_umdh, fuzz_dump_wire, fuzz_plugin_package]
+            targets: [fuzz_dump_minidump, fuzz_dump_umdh, fuzz_dump_wire, fuzz_plugin_package, fuzz_parser_toml, fuzz_project, fuzz_notes_knowledge]
     steps:
       - uses: actions/checkout@v4
 

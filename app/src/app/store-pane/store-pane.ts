@@ -103,7 +103,7 @@ const TAB_LABELS: Record<StoreTab, string> = {
                         <td class="num">{{ bytes(r.sizeBytes) }}</td>
                         <td>{{ time(r.from) }} – {{ time(r.to) }}</td>
                         <td>{{ r.compression }}</td>
-                        <td class="num" [title]="r.sources.join(', ')">{{ r.sourceCount }}</td>
+                        <td class="num" [title]="r.sources.join(', ')">{{ count(r.sourceCount) }}</td>
                         <td>{{ r.indexed ? yes : no }}</td>
                         <td class="ellipsis" [title]="r.promoted.join(', ')">{{ r.promoted.length }}</td>
                         <td>{{ r.pendingCompaction ? pendingText : '' }}</td>

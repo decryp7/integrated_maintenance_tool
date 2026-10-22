@@ -9,6 +9,8 @@ import { chooseMenu, menubar, menuItem, openMenu, openMenuPath } from './menu-su
 const tabNames = async (page: Page) => (await page.getByRole('tab').locator('.imt-tab-label').allInnerTexts()).map((t) => t.trim()).sort();
 /** The Focused layout (the default): the query bar opens on demand. */
 const CORE_TABS = ['Events', 'Registry', 'Timeline'];
+/** The menu bar and its open menus (CDK overlays): what the menu checks scan, not the whole window (slow on WebKit). */
+const OPEN_MENUS = 'imt-menu-bar, .cdk-overlay-container';
 const inspectorTab = (page: Page) => page.locator('.imt-ah-tab[data-ah-id="inspector"]');
 
 function watchProblems(page: Page): string[] {
@@ -74,6 +76,9 @@ test.describe('menus', () => {
     await page.keyboard.press('ArrowRight');
     const sub = page.getByRole('menu', { name: 'Live' });
     await expect(sub).toBeVisible();
+    // The live tail switch heads the Live submenu (F5), then its views.
+    await expect(menuItem(sub, 'Toggle live tail')).toBeFocused();
+    await page.keyboard.press('ArrowDown');
     await expect(menuItem(sub, 'Alerts')).toBeFocused();
     await page.keyboard.press('ArrowLeft');
     await expect(sub).toHaveCount(0);
@@ -154,11 +159,11 @@ test.describe('menus', () => {
       await chooseMenu(page, 'View', 'Theme', theme);
       await expect(page.locator('html')).toHaveAttribute('data-scheme', theme.toLowerCase());
       await openMenuPath(page, 'View', 'Analysis');
-      await expectNoSeriousViolations(page, testInfo, `menus-view-${theme}`);
+      await expectNoSeriousViolations(page, testInfo, `menus-view-${theme}`, OPEN_MENUS);
       await page.keyboard.press('Escape');
       await page.keyboard.press('Escape');
       await openMenuPath(page, 'Window', 'Layouts');
-      await expectNoSeriousViolations(page, testInfo, `menus-window-${theme}`);
+      await expectNoSeriousViolations(page, testInfo, `menus-window-${theme}`, OPEN_MENUS);
       await page.keyboard.press('Escape');
       await page.keyboard.press('Escape');
     }
