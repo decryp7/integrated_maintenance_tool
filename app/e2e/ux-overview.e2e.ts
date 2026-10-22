@@ -1,11 +1,20 @@
-import { expect, test } from '@playwright/test';
+import { expect, Page, test } from '@playwright/test';
 import { gridTotal, initialTotal, openApp, parseCount } from './app';
 import { expectNoSeriousViolations } from './axe';
 import { runCommand } from './analysis-support';
 import { chooseMenu } from './menu-support';
 
+/** Turns on "Overview: show after every import" (off by default) in General settings. */
+async function enableAutoOpen(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Settings' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Settings' });
+  await dialog.getByRole('checkbox', { name: /Overview: show after every import/ }).check();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+}
+
 test.describe('overview (health check)', () => {
-  test('Focused layout (default): the headline is on the timeline header and Review opens the Overview', async ({ page }, testInfo) => {
+  test('Overview off (the default): the headline is on the timeline header and Review opens the Overview', async ({ page }, testInfo) => {
     await openApp(page);
     const total = parseCount(await initialTotal(page));
     await page.locator('imt-sidebar').getByRole('button', { name: 'Open files' }).click();
@@ -21,9 +30,9 @@ test.describe('overview (health check)', () => {
     await expect(headline).toHaveCount(0);
   });
 
-  test('opens after an import in the Full layout, groups findings by severity, and its actions work', async ({ page }, testInfo) => {
+  test('opens after an import when the setting is on, groups findings by severity, and its actions work', async ({ page }, testInfo) => {
     await openApp(page);
-    await runCommand(page, 'Layout: full');
+    await enableAutoOpen(page);
     const total = parseCount(await initialTotal(page));
     await expect(page.locator('imt-overview-view')).toHaveCount(0);
 
@@ -48,7 +57,7 @@ test.describe('overview (health check)', () => {
 
   test('can be turned off for later imports', async ({ page }) => {
     await openApp(page);
-    await runCommand(page, 'Layout: full');
+    await enableAutoOpen(page);
     await page.locator('imt-sidebar').getByRole('button', { name: 'Open files' }).click();
     const overview = page.locator('imt-overview-view');
     await expect(overview).toBeVisible({ timeout: 10_000 });
@@ -61,18 +70,18 @@ test.describe('overview (health check)', () => {
     await expect(overview).toHaveCount(0);
   });
 
-  test('can be turned off in General settings', async ({ page }) => {
+  test('is off by default and can be turned on in General settings', async ({ page }) => {
     await openApp(page);
-    await runCommand(page, 'Layout: full');
     await page.getByRole('button', { name: 'Settings' }).click();
     const dialog = page.getByRole('dialog', { name: 'Settings' });
     const auto = dialog.getByRole('checkbox', { name: /Overview: show after every import/ });
-    await expect(auto).toBeChecked();
-    await auto.uncheck();
+    await expect(auto).not.toBeChecked();
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await page.locator('imt-sidebar').getByRole('button', { name: 'Open files' }).click();
     await expect(page.locator('imt-sidebar')).toContainText('msinfo32.nfo', { timeout: 10_000 });
     await expect(page.locator('imt-overview-view')).toHaveCount(0);
+    await runCommand(page, 'Show overview');
+    await expect(page.locator('imt-overview-view')).toBeVisible();
   });
 });

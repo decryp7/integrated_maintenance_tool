@@ -331,6 +331,10 @@ export class DockService {
   setTitle(id: string, title: string): void {
     const panel = this.api?.getPanel(id);
     if (panel && panel.title !== title) panel.api.setTitle(title);
+    // A tool window collapsed to a side-bar tab keeps counting too.
+    if (this.ctx.autoHide().items.some((i) => i.id === id && i.title !== title)) {
+      this.ctx.autoHide.update((s) => ({ ...s, items: s.items.map((i) => (i.id === id ? { ...i, title } : i)) }));
+    }
   }
 
   /** Opens the view if needed and brings it to the front. Unknown or unavailable views are ignored. */

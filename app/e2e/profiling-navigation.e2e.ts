@@ -43,8 +43,12 @@ test.describe('profiling navigation', () => {
     await expect(list).toHaveCount(0);
 
     await runCommand(page, 'Open project');
-    await expect(list.locator(':scope > li')).toHaveCount(5);
-    await expect(page.getByRole('status').filter({ hasText: 'Opened 5 captures.' })).toBeVisible();
+    // The captures are reopened in the background (a few seconds in the mock); the Captures list is where the hotspots
+    // tab over it in the Profiling perspective, so ask for it until it lists them.
+    await expect(async () => {
+      await runCommand(page, 'Profiling: show captures');
+      await expect(list.locator(':scope > li')).toHaveCount(5, { timeout: 2000 });
+    }).toPass({ timeout: 30_000 });
     // Reopening left the project clean.
     await expect(page.getByRole('img', { name: 'Unsaved changes' })).toHaveCount(0);
     await expect(list).toContainText('orders.speedscope.json');

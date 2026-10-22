@@ -28,7 +28,7 @@ test.describe('demo and guided tour', () => {
     await expect(tour(page).getByRole('button', { name: 'Next' })).toBeFocused();
     await expectNoSeriousViolations(page, testInfo, 'tour', '[data-testid=tour]');
 
-    const titles = ['Timeline', 'Events', 'Query bar', 'Moment', 'Markers', 'Overview'];
+    const titles = ['Timeline', 'Events', 'Search or query', 'Moment', 'Markers', 'Overview'];
     for (const [i, title] of titles.entries()) {
       await page.keyboard.press('ArrowRight');
       await expect(tour(page)).toContainText(`Step ${i + 2} of 7`);

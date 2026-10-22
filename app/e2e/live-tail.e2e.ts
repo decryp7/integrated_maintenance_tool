@@ -271,7 +271,7 @@ test.describe('live tail: status, sources and opening', () => {
     const row = page.locator('imt-sidebar .src', { hasText: 'extra-service.log' });
     await expect(row).toBeVisible();
     // Its history was skipped: none of the file's existing lines ("Sent N notifications") were imported...
-    await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('notifications');
+    await page.getByTestId('query-field').fill('notifications');
     await expect(gridTotal(page)).toHaveText('0');
     // ...but it grows with the new lines.
     await expect.poll(async () => parseCount((await row.locator('.count').innerText()) || '0'), { timeout: 10_000 }).toBeGreaterThan(0);

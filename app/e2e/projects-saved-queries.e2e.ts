@@ -5,7 +5,7 @@ test.describe('saved queries and highlight rules', () => {
   test('saved queries re-apply the search', async ({ page }) => {
     await openAppWith(page);
     await openView(page, 'Saved queries');
-    const search = page.getByRole('textbox', { name: 'Search messages and exceptions' });
+    const search = page.getByTestId('query-field');
     await search.fill('timed out');
     const panel = page.locator('imt-saved-queries-view');
     await panel.getByRole('textbox', { name: 'Saved query name' }).fill('Timeouts');
@@ -29,7 +29,7 @@ test.describe('saved queries and highlight rules', () => {
     await expect(rules).toContainText('Error');
 
     // The grid paints matching rows with a left colour bar (not only a tint), and only those rows.
-    await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('failed');
+    await page.getByTestId('query-field').fill('failed');
     const painted = page.locator('imt-events-grid [role=row].row.hl');
     await expect(painted.first()).toBeVisible();
     await expect(painted.first().locator('.lvl')).toContainText('ERR');

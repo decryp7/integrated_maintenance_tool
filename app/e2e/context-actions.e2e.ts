@@ -18,7 +18,7 @@ async function selectInMessage(page: Page, pattern: string): Promise<void> {
 }
 
 async function selectRowWithMessage(page: Page, text: string): Promise<void> {
-  await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill(text);
+  await page.getByTestId('query-field').fill(text);
   const row = page.locator('imt-events-grid [role=row].row').first();
   await expect(row).toContainText(text);
   await row.click();
@@ -86,7 +86,7 @@ test.describe('context actions from data', () => {
     await dialog.getByRole('button', { name: 'Add mask step' }).click();
     await expect(dialog).toHaveCount(0);
     await expect(page.getByRole('status').filter({ hasText: 'mask step' })).toBeVisible();
-    await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('Slow request');
+    await page.getByTestId('query-field').fill('Slow request');
     await expect(page.locator('imt-events-grid [role=row].row').first()).toContainText('***');
   });
 

@@ -9,7 +9,7 @@ function sourceRow(page: Page, path: string) {
 
 /** Searches the messages and selects the first matching event. */
 async function selectFirst(page: Page, text: string): Promise<void> {
-  await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill(text);
+  await page.getByTestId('query-field').fill(text);
   const first = page.locator('imt-events-grid [role=row].row').first();
   await expect(first).toContainText(text);
   await first.click();

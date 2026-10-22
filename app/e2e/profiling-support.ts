@@ -25,6 +25,17 @@ export async function runCommand(page: Page, title: string): Promise<void> {
   await expect(input).toHaveCount(0);
 }
 
+/**
+ * Brings the Captures list to the front. Opening a capture switches to the Profiling perspective, where the hotspots
+ * (and the other profiling views) tab into the same group as the Captures list, so it is behind them.
+ */
+export async function showCaptures(page: Page) {
+  const view = page.locator('imt-captures-view');
+  if (!(await view.isVisible())) await page.getByRole('tab', { name: 'Captures', exact: true }).click();
+  await expect(view).toBeVisible();
+  return view;
+}
+
 export const hotspots = (page: Page) => page.locator('imt-hotspots-view');
 export const callTree = (page: Page) => page.locator('imt-call-tree-view');
 export const flame = (page: Page) => page.locator('imt-flame-view');
