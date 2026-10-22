@@ -114,10 +114,10 @@ export function historyOption(summary: HomeSummary, t: ChartTokens, tz: TimeZone
     textStyle: { fontFamily: t.fontSans, color: t.muted },
     // The legend wraps (never pages): headroom for a row per four entries, so it cannot overlap the plot.
     grid: [
-      { left: 48, right: 16, top: 12 + Math.ceil(present.length / 4) * 20, bottom: 26 + laneH },
-      { left: 48, right: 16, height: laneH, bottom: 24 },
+      { left: 48, right: 16, top: 12 + Math.ceil(present.length / 4) * 20, bottom: 28 + laneH },
+      { left: 48, right: 16, height: laneH, bottom: 4 },
     ],
-    legend: { type: 'plain', left: 48, top: 0, right: 16, textStyle: { color: t.text, fontSize: 11 }, icon: 'rect', itemWidth: 12, itemHeight: 8 },
+    legend: { type: 'plain', data: present.map((l) => labels.level(l)), left: 48, top: 0, right: 16, textStyle: { color: t.text, fontSize: 11 }, icon: 'rect', itemWidth: 12, itemHeight: 8 },
     tooltip: {
       trigger: 'axis',
       backgroundColor: t.tooltipBg,

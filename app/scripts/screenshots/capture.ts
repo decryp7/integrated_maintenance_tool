@@ -179,6 +179,11 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
     await page.waitForTimeout(800);
   }, 'Query results');
 
+  // The query shots leave their text in the search field: clear it so later shots show an empty field.
+  await need(page, 'Query: focus the search field').catch(() => undefined);
+  await page.getByTestId('query-field').fill('').catch(() => undefined);
+  await page.keyboard.press('Enter');
+
   await shot(page, 'metrics', async () => {
     await showPanel(page, 'Metrics', 'Show Metrics');
     await page.waitForTimeout(1200);
