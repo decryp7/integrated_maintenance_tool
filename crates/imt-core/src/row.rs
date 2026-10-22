@@ -644,6 +644,16 @@ mod tests {
             assert_eq!(by_ref.value(k), record_row.value(k), "{}", k.name());
         }
         assert_eq!((by_ref.id(), by_ref.source_name(), by_ref.line()), (u64::from(r.id), "app.log", 12));
+        // A reference to a row is a row (through the blanket impl), and a bare record has no source name.
+        assert_eq!(
+            (RowRef::id(&by_ref), RowRef::source_name(&by_ref), RowRef::line(&by_ref)),
+            (u64::from(r.id), "app.log", 12)
+        );
+        assert_eq!(
+            (RowRef::id(&r), RowRef::source_name(&r), RowRef::source(&r)),
+            (u64::from(r.id), "", 3)
+        );
+        assert_eq!(RowRef::text(&r, &FieldKey::Pseudo(Pseudo::Source)).as_deref(), Some(""));
         // Named values come back from the arrow row; unknown names are None.
         let ms = keys.key("Ms");
         assert_eq!(
