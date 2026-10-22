@@ -4,7 +4,7 @@ import { provideConfigDiffBackend } from './config-diff-backend';
 
 /** The configuration diff panel. Same extension point as plugin views. */
 export const CONFIG_DIFF_VIEWS: ImtView[] = [
-  { id: 'config-diff', category: 'Tools', title: $localize`:@@configDiff.provide.view.title:Configuration diff`, icon: 'columns', defaultPosition: 'center', component: () => import('./config-diff-view').then((m) => m.ConfigDiffView) },
+  { id: 'config-diff', category: 'Tools', title: $localize`:@@configDiff.provide.view.title:Configuration diff`, icon: 'columns', defaultPosition: 'center', area: 'document', component: () => import('./config-diff-view').then((m) => m.ConfigDiffView) },
 ];
 
 export const CONFIG_DIFF_COMMANDS: ImtCommand[] = [
