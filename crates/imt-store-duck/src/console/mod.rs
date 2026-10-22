@@ -16,9 +16,8 @@ use duckdb::types::Value as Duck;
 use duckdb::{params, Connection};
 use imt_core::ports::{
     Console, Inspect, SqlColumn, SqlExportRequest, SqlExportResult, SqlIds, SqlIdsRequest, SqlNote, SqlPage, SqlPageRequest, SqlRequest,
-    SqlResult, SqlSchema, StoreError, StoreResult,
-    MAX_CELL_CHARS, MAX_SQL_LEN, SQL_MAX_NOTES, SQL_MAX_RESULT_BYTES, SQL_MAX_ROWS, SQL_MEMORY_LIMIT, SQL_NOTE_CHARS, SQL_PAGE_ROWS,
-    SQL_THREADS, SQL_TIME_LIMIT, SQL_VIEWS_VERSION,
+    SqlResult, SqlSchema, StoreError, StoreResult, MAX_CELL_CHARS, MAX_SQL_LEN, SQL_MAX_NOTES, SQL_MAX_RESULT_BYTES, SQL_MAX_ROWS,
+    SQL_MEMORY_LIMIT, SQL_NOTE_CHARS, SQL_PAGE_ROWS, SQL_THREADS, SQL_TIME_LIMIT, SQL_VIEWS_VERSION,
 };
 use imt_core::ql::{QlError, QueryControl};
 use serde_json::Value;
@@ -589,7 +588,9 @@ impl Console for DuckStore {
             .ok_or_else(|| StoreError::Engine("the SQL console is unavailable".into()))?;
         let checked = Self::check_sql(&sandbox.conn, &req.sql)?;
         if checked.explain {
-            return Err(StoreError::Invalid("an EXPLAIN has no rows to export; run it without EXPLAIN".into()));
+            return Err(StoreError::Invalid(
+                "an EXPLAIN has no rows to export; run it without EXPLAIN".into(),
+            ));
         }
         self.fill(sandbox, &req.notes)?;
         let limits = lock(&self.inner.console.export_limits).unwrap_or_default();

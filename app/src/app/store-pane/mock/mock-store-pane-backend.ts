@@ -4,6 +4,7 @@ import {
   SegmentsPage,
   SegmentsRequest,
   SqlOutcome,
+  SqlIds,
   SqlPage,
   SqlPageRequest,
   SqlResult,
@@ -286,5 +287,16 @@ export class MockStorePaneBackend implements StorePaneBackend {
     const rows = this.results.get(request.result);
     if (!rows) throw new CmdError({ code: 'notFound', message: 'this result is gone (newer queries replaced it); run the query again', retryable: false });
     return { offset: request.offset, rows: rows.slice(request.offset, request.offset + PAGE) as SqlPage['rows'] };
+  }
+
+  async fetchSqlIds(result: number): Promise<SqlIds> {
+    const rows = this.results.get(result);
+    if (!rows) throw new CmdError({ code: 'notFound', message: 'this result is gone (newer queries replaced it); run the query again', retryable: false });
+    const ids = [...new Set(rows.map((r) => r[0]).filter((v): v is number => typeof v === 'number'))];
+    return { ids, truncated: false };
+  }
+
+  async exportSql(_sql: string, _path: string, _overwrite: boolean): Promise<number> {
+    return this.nextJob++;
   }
 }

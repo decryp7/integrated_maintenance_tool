@@ -113,7 +113,8 @@ pub(super) fn write_csv(conn: &Connection, sql: &str, req: &SqlExportRequest, li
         "SELECT {} FROM (\n{sql}\n) AS imt_result({}) LIMIT {}",
         select.join(", "),
         aliases.join(", "),
-        limits.rows.saturating_add(1)
+        // DuckDB's LIMIT is a signed 64-bit value; "no row limit" (u64::MAX) must not overflow it.
+        limits.rows.min(i64::MAX as u64 - 1) + 1
     );
     let mut partial = Partial {
         path: partial_path(target),
@@ -127,10 +128,7 @@ pub(super) fn write_csv(conn: &Connection, sql: &str, req: &SqlExportRequest, li
     let mut record: Vec<String> = Vec::with_capacity(described.len());
     let mut stmt = conn.prepare(&wrapped).map_err(|e| stopper.error(e, limits.time))?;
     let mut result = stmt.query([]).map_err(|e| stopper.error(e, limits.time))?;
-    loop {
-        let Some(r) = result.next().map_err(|e| stopper.error(e, limits.time))? else {
-            break;
-        };
+    while let Some(r) = result.next().map_err(|e| stopper.error(e, limits.time))? {
         record.clear();
         for i in 0..described.len() {
             record.push(csv_cell(r.get::<_, Duck>(i).map_err(|e| stopper.error(e, limits.time))?));
