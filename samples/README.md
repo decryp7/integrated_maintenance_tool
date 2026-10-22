@@ -110,9 +110,10 @@ Not generated as samples:
 - `crates/imt-core/tests/parsers.rs`: the built-in parsers (ADR 0026) on their samples: the right parser per
   file (also in one mixed folder), timestamps, levels, fields and multi-line events.
 - `crates/imt-core/tests/importer_snapshots.rs`: insta snapshots per built-in importer.
-- `crates/imt-plugins/tests/evtx_corpus.rs` (ignored; nightly `corpus` workflow): about 280 real-world event logs
-  of [EVTX-ATTACK-SAMPLES](https://github.com/sbousseaden/EVTX-ATTACK-SAMPLES) (GPL-3.0), downloaded at a
-  pinned commit into a temporary folder at test time and never committed.
+- `crates/imt-plugins/tests/evtx_corpus.rs` (runs only with `IMT_EVTX_CORPUS=1`; nightly `corpus` workflow): about
+  280 real-world event logs of [EVTX-ATTACK-SAMPLES](https://github.com/sbousseaden/EVTX-ATTACK-SAMPLES)
+  (GPL-3.0, `LICENSE.GPL`), downloaded for the run (about 6 MB, pinned by commit and SHA-256, kept in
+  `IMT_CORPUS_CACHE` when set) into a temporary folder and never committed or redistributed.
 - `crates/imt-plugin-{windows,web,syslog,otel,registry,formats}/tests/samples.rs`: the
   plugin formats, with snapshots in each crate's `tests/snapshots/`.
 - `crates/imt-plugin-profiling/tests/samples.rs`: the profiler captures.
