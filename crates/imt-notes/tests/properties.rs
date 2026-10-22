@@ -101,7 +101,7 @@ proptest! {
         let focus = Focus { events, range: None, image: None };
         if let Some(block) = context::render(set.notes(), &focus, budget) {
             // The heading and the "left out" line are always there; past them, the budget holds.
-            let bound = budget.min(context::MAX_CONTEXT_BYTES).max(200);
+            let bound = budget.clamp(200, context::MAX_CONTEXT_BYTES);
             prop_assert!(block.len() <= bound, "{} > {bound}", block.len());
         }
         for n in set.notes() {

@@ -346,9 +346,8 @@ proptest! {
             std::fs::write(&path, &bytes).unwrap();
             let dest = dir.0.join("dest");
             std::fs::create_dir_all(&dest).unwrap();
-            match package::open_package(&path, &dest) {
-                Ok(package::Package::Project { dir: p, .. }) => assert!(p.dir.starts_with(&dest)),
-                Ok(_) | Err(_) => {}
+            if let Ok(package::Package::Project { dir: p, .. }) = package::open_package(&path, &dest) {
+                assert!(p.dir.starts_with(&dest));
             }
             // Nothing but `in.imtz` and `dest` in the parent.
             let mut names: Vec<_> = std::fs::read_dir(&dir.0).unwrap().filter_map(|e| e.ok()).map(|e| e.file_name()).collect();

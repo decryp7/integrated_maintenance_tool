@@ -10,7 +10,8 @@ use std::path::PathBuf;
 
 fn store() -> WorkspaceStore {
     let mut ws = Workspace::new(Profile::default_profile()).unwrap();
-    ws.open(&[PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../samples/serilog-clef")]).unwrap();
+    ws.open(&[PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../samples/serilog-clef")])
+        .unwrap();
     WorkspaceStore::new(ws)
 }
 
@@ -43,7 +44,9 @@ fn events_blocks_are_looked_up_in_the_store_and_gone_ids_are_counted() {
     assert!(!resolved.redacted);
     let blocks = &resolved.sections[0].blocks;
     assert!(matches!(&blocks[0], ResolvedBlock::Text { markdown } if markdown == "What happened"));
-    let ResolvedBlock::Events { caption, events, missing } = &blocks[1] else { panic!("{:?}", blocks[1]) };
+    let ResolvedBlock::Events { caption, events, missing } = &blocks[1] else {
+        panic!("{:?}", blocks[1])
+    };
     assert_eq!(caption, "The errors");
     assert_eq!(*missing, 2);
     assert_eq!(events.len(), total.min(1200) as usize);

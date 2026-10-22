@@ -267,7 +267,7 @@ fn ingest_ports_reload_refresh_tail_restore_and_remove() {
     let dir = TempDir::new("ingest");
     let log = dir.0.join("app.log");
     std::fs::write(&log, "2026-10-14 10:00:00 INFO one\n2026-10-14 10:00:01 INFO two\n").unwrap();
-    let store = opened(&[dir.0.clone()]);
+    let store = opened(std::slice::from_ref(&dir.0));
     assert_eq!(QueryPort::summary(&store).unwrap().total, 2);
 
     use std::io::Write;
