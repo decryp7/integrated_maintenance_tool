@@ -6,7 +6,9 @@ import { formatDateTime, formatDuration, formatNumber } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
 import { Icon } from '../shared/icon';
 import { ChartTheme, ChartTokens } from './chart-theme';
-import { EChart } from './echart';
+import { ChartPointMenu, EChart } from './echart';
+import { ContextMenuService } from '../ui/context-menu.service';
+import { anchors, NoteActions } from '../notes/note-actions';
 import { TimelineZoom } from '../timeline/zoom';
 import { TimeCursor, TimeCursorLine, TimeCursorSource, TimeRange } from '../analysis/time-cursor';
 import { LiveTail } from '../workspace/live-tail';
@@ -194,7 +196,7 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
       <div class="msg faint" i18n="@@metrics.chart.empty">No numeric values for {{ def().y }} in the current results.</div>
     } @else if (option(); as o) {
       <div class="plot" [imtTimeCursor]="range()" [imtTimeCursorLeft]="grid().left" [imtTimeCursorRight]="grid().right">
-        <imt-echart class="chart" [options]="o" [merge]="live.enabled()" (brushed)="brushed($event)" />
+        <imt-echart class="chart" [options]="o" [merge]="live.enabled()" (brushed)="brushed($event)" (pointMenu)="pointMenu($event)" />
         <div
           class="hover-line"
           [imtTimeCursorLine]="range()"
@@ -310,6 +312,17 @@ export class ChartCard {
   protected brushed([from, to]: [number, number]): void {
     this.cursor.select({ from, to });
     this.zoom.apply({ from, to });
+  }
+
+  /** Right-click on the chart: a note on the point (or on the moment of the plot under the pointer). */
+  protected pointMenu(p: ChartPointMenu): void {
+    const title = this.def().title;
+    const notes = this.injector.get(NoteActions);
+    const label =
+      p.series === null
+        ? $localize`:@@metrics.chart.noteMoment:Add note at this moment…`
+        : $localize`:@@metrics.chart.notePoint:Add note to this point (${p.series}:series:)…`;
+    this.injector.get(ContextMenuService).open(p.x, p.y, [{ label, run: () => void notes.write(anchors.chartPoint(title, p.series, p.at, p.value)) }]);
   }
 
   protected readonly option = computed(() => {

@@ -20,6 +20,15 @@ export const anchors = {
   instant: (at: number): NoteAnchor => ({ kind: 'instant', at: Math.round(at) }),
   range: (from: number, to: number): NoteAnchor => ({ kind: 'range', from: Math.round(Math.min(from, to)), to: Math.round(Math.max(from, to)) }),
   source: (path: string): NoteAnchor => ({ kind: 'source', path }),
+  /** A timeline marker (`to` null) or span (a run, an annotation band). */
+  marker: (name: string, from: number, to: number | null = null): NoteAnchor => ({
+    kind: 'marker',
+    name,
+    from: Math.round(from),
+    to: to === null || to <= from ? null : Math.round(to),
+  }),
+  /** A point of a chart (`series` and `value` null: a moment on the chart's plot). */
+  chartPoint: (chart: string, series: string | null, at: number, value: number | null): NoteAnchor => ({ kind: 'chartPoint', chart, series, at: Math.round(at), value }),
   project: (): NoteAnchor => ({ kind: 'project' }),
 };
 

@@ -4,6 +4,8 @@ import { at, must } from '../../testing/must';
 import { WorkspaceStore } from '../core/workspace.store';
 import { ContextMenuService } from '../ui/context-menu.service';
 import { TimelinePanel } from './timeline-panel';
+import { anchors, NoteActions } from '../notes/note-actions';
+import { SelectionStore } from '../core/workspace/selection.store';
 
 async function render(backend = tinyBackend()) {
   TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
@@ -105,5 +107,57 @@ describe('TimelinePanel runs', () => {
     expect(fixture.nativeElement.querySelector('.ann-legend')).toBeNull();
     expect(el(fixture, '.run-legend .ann-list')).toBeTruthy();
     expect(el(fixture, '.run-legend .lg[title]').title).toContain('Hide the runs');
+  });
+});
+
+describe('TimelinePanel notes on markers and spans', () => {
+  const menuAt = (target: Element) => {
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 30, clientY: 40 });
+    target.dispatchEvent(event);
+    return event;
+  };
+
+  it('offers "Add note…" on a marker, a run and an annotation, anchored to its time', async () => {
+    const { fixture } = await render();
+    const menu = TestBed.inject(ContextMenuService);
+    const write = vi.spyOn(TestBed.inject(NoteActions), 'write').mockResolvedValue(null);
+    const jump = vi.spyOn(TestBed.inject(SelectionStore), 'jumpTo');
+
+    // A marker: the note names its kind and time; "Show its event" jumps to it.
+    const marker = must(all<HTMLButtonElement>(fixture, '.marker')[0]);
+    expect(menuAt(marker).defaultPrevented).toBe(true);
+    const onMarker = menu.menu()!.items;
+    expect(onMarker.map((i) => i.label)).toEqual(['Add note to this marker…', 'Show its event']);
+    at(onMarker, 0).run();
+    expect(write).toHaveBeenLastCalledWith(expect.objectContaining({ kind: 'marker', to: null }));
+    at(onMarker, 1).run();
+    expect(jump).toHaveBeenCalled();
+
+    // A closed run: the note covers its span.
+    const run = must(all<HTMLButtonElement>(fixture, '.lane .run').find((r) => r.getAttribute('data-status') === 'closed'));
+    expect(menuAt(run).defaultPrevented).toBe(true);
+    const onRun = menu.menu()!.items;
+    expect(onRun.map((i) => i.label)).toEqual(['Add note to this span…', 'Show this run']);
+    at(onRun, 0).run();
+    const anchor = write.mock.lastCall![0];
+    expect(anchor.kind === 'marker' && anchor.to !== null && anchor.to > anchor.from).toBe(true);
+    at(onRun, 1).run();
+
+    // A plugin annotation: the note covers it; the other entry shows its evidence.
+    const ann = must(all<HTMLButtonElement>(fixture, '.ann')[0]);
+    menuAt(ann);
+    const onAnn = menu.menu()!.items;
+    expect(onAnn.map((i) => i.label)).toEqual(['Add note to this span…', 'Show the evidence']);
+    at(onAnn, 0).run();
+    expect(write).toHaveBeenLastCalledWith(expect.objectContaining({ kind: 'marker' }));
+    at(onAnn, 1).run();
+    await settle(fixture);
+  });
+
+  it('anchors a marker note on its time and a span note on its range', () => {
+    expect(anchors.marker('Crash', 10.4)).toEqual({ kind: 'marker', name: 'Crash', from: 10, to: null });
+    expect(anchors.marker('Run', 10, 20.6)).toEqual({ kind: 'marker', name: 'Run', from: 10, to: 21 });
+    expect(anchors.marker('Point', 10, 10)).toEqual({ kind: 'marker', name: 'Point', from: 10, to: null });
+    expect(anchors.chartPoint('CPU', null, 5.5, null)).toEqual({ kind: 'chartPoint', chart: 'CPU', series: null, at: 6, value: null });
   });
 });

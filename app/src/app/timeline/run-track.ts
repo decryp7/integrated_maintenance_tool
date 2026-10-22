@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { SpanMenu } from './annotation-track';
 import { RunBandVm } from './run-layout';
 import { runStatusLabel } from './run-text';
 
@@ -42,6 +43,7 @@ export interface RunHover {
         [style.--run-color]="v.run.color ?? laneColor()"
         [attr.aria-label]="ariaLabel(v)"
         (click)="activated.emit(v)"
+        (contextmenu)="menu($event, v)"
         (pointerenter)="hovered.emit({ x: $event.clientX, y: $event.clientY, vm: v })"
         (pointerleave)="hovered.emit(null)"
       >
@@ -121,6 +123,14 @@ export class RunTrack {
   readonly laneColor = input<string | null>(null);
   readonly hovered = output<RunHover | null>();
   readonly activated = output<RunBandVm>();
+  /** A right-click on a run: where, and which (the timeline offers "Add note…"). */
+  readonly menuRequested = output<SpanMenu>();
+
+  protected menu(e: MouseEvent, v: RunBandVm): void {
+    e.preventDefault();
+    e.stopPropagation();
+    this.menuRequested.emit({ x: e.clientX, y: e.clientY, ann: v.ann });
+  }
 
   protected ariaLabel(v: RunBandVm): string {
     const label = v.label;

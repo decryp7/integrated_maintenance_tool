@@ -5,7 +5,7 @@ import { Icon } from '../shared/icon';
 import { MarkerGlyph } from '../markers/marker-glyph';
 import { SourceSwatch } from '../sources/source-swatch';
 import { AnnotationVm } from './annotation-layout';
-import { AnnotationHover, AnnotationTrack } from './annotation-track';
+import { AnnotationHover, AnnotationTrack, SpanMenu } from './annotation-track';
 import { LaidMarker } from './marker-layout';
 import { RunBandVm, runRowCount } from './run-layout';
 import { RunHover, RunTrack } from './run-track';
@@ -16,6 +16,13 @@ export interface MarkerHover {
   x: number;
   y: number;
   lane: string;
+  marker: LaidMarker;
+}
+
+/** A marker's context menu: where, and which marker. */
+export interface MarkerMenu {
+  x: number;
+  y: number;
   marker: LaidMarker;
 }
 
@@ -53,7 +60,7 @@ export type LanesEmpty = 'noSources' | 'noMatchMain' | 'noMatchOwn' | null;
           <div class="band">
             <div class="bar" [style.left.%]="l.left" [style.width.%]="l.width"></div>
             @if (annLanes().get(l.lane.key); as items) {
-              <imt-annotation-track [items]="items" (hovered)="annHover.emit($event)" (activated)="showEvidence.emit($event.ann)" />
+              <imt-annotation-track [items]="items" (hovered)="annHover.emit($event)" (activated)="showEvidence.emit($event.ann)" (menuRequested)="spanMenu.emit($event)" />
             }
             <!-- The theme's lane fill decides which of these shows (data-lane-fill). -->
             <svg class="density" [attr.viewBox]="densityViewBox()" preserveAspectRatio="none" aria-hidden="true">
@@ -83,6 +90,7 @@ export type LanesEmpty = 'noSources' | 'noMatchMain' | 'noMatchOwn' | null;
                 [attr.aria-label]="t.aria"
                 (pointerdown)="$event.stopPropagation()"
                 (click)="activate($event, t)"
+                (contextmenu)="menu($event, t)"
                 (pointerenter)="markerHover.emit({ x: $event.clientX, y: $event.clientY, lane: l.lane.key, marker: t.primary })"
                 (pointerleave)="markerHover.emit(null)"
               >
@@ -104,7 +112,7 @@ export type LanesEmpty = 'noSources' | 'noMatchMain' | 'noMatchOwn' | null;
             }
           </div>
           @if (runs) {
-            <imt-run-track [items]="runs" [laneColor]="l.color" (hovered)="runHover.emit($event)" (activated)="showRun.emit($event.ann)" />
+            <imt-run-track [items]="runs" [laneColor]="l.color" (hovered)="runHover.emit($event)" (activated)="showRun.emit($event.ann)" (menuRequested)="spanMenu.emit($event)" />
           }
         </div>
       </div>
@@ -210,6 +218,10 @@ export class TimelineLanes {
   readonly showRun = output<AnnotationDto>();
   readonly showEvidence = output<AnnotationDto>();
   readonly openFolder = output<void>();
+  /** A marker's context menu was asked for (right-click, the context-menu key). */
+  readonly markerMenu = output<MarkerMenu>();
+  /** A run's or annotation's context menu was asked for. */
+  readonly spanMenu = output<SpanMenu>();
 
   /** The marker of each lane chosen with the arrow keys (by index; clamped when the lane has fewer now). */
   private readonly chosen = signal<ReadonlyMap<string, number>>(new Map());
@@ -268,8 +280,19 @@ export class TimelineLanes {
 
   /** Jumps to the clicked glyph's event, or to the target's primary from the keyboard or the space around glyphs. */
   protected activate(event: Event, t: TargetVm): void {
+    this.jump.emit(this.picked(event, t).cluster.id);
+  }
+
+  /** Right-click (or the context-menu key) on a marker: the timeline offers "Add note…" on the glyph under the pointer. */
+  protected menu(event: MouseEvent, t: TargetVm): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.markerMenu.emit({ x: event.clientX, y: event.clientY, marker: this.picked(event, t) });
+  }
+
+  /** The glyph the event hit, else the target's primary. */
+  private picked(event: Event, t: TargetVm): LaidMarker {
     const member = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-member]')?.dataset['member'] : undefined;
-    const picked = member === undefined ? undefined : t.members[Number(member)]?.marker;
-    this.jump.emit((picked ?? t.primary).cluster.id);
+    return (member === undefined ? undefined : t.members[Number(member)]?.marker) ?? t.primary;
   }
 }
