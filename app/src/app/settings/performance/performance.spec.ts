@@ -144,22 +144,23 @@ describe('Settings ▸ Performance', () => {
     fixture.componentRef.setInput('pluginId', 'net.decryptology.windows');
     fixture.componentRef.setInput('pluginName', 'Windows diagnostics');
     await settle(fixture);
-    expect(text(fixture)).toContain('peak 420 MB of a 1024 MB cap');
-    expect(text(fixture)).toContain('near its cap');
+    expect(text(fixture)).toContain('Peak 420 MB of a 1024 MB cap');
     const input = el<HTMLInputElement>(fixture, '[data-testid=plugin-memory-input]');
     input.value = '10';
     input.dispatchEvent(new Event('input'));
     await settle(fixture);
-    el(fixture, '[data-testid=plugin-memory-set]').click();
+    input.dispatchEvent(new Event('blur'));
     await settle(fixture);
     expect(el(fixture, '[role=alert]').textContent).toContain('64 to 4096 MB');
     input.value = '768';
     input.dispatchEvent(new Event('input'));
     await settle(fixture);
-    el(fixture, '[data-testid=plugin-memory-set]').click();
+    input.dispatchEvent(new Event('blur'));
     await settle(fixture);
     expect(store.plugin('net.decryptology.windows')?.overrideMb).toBe(768);
-    expect(text(fixture)).toContain('768 MB cap');
+    expect(text(fixture)).toContain('of a 768 MB cap');
+    // Leaving the field again without a change sends nothing.
+    input.dispatchEvent(new Event('blur'));
     buttonByText(fixture, /Use the default/).click();
     await settle(fixture);
     expect(store.plugin('net.decryptology.windows')?.overrideMb).toBeNull();

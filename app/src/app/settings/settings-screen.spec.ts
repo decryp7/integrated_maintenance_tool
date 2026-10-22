@@ -1,3 +1,4 @@
+import { pick } from './themed-select.testing';
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, typeInto } from '../../testing/helpers';
 import { LifecycleService } from '../lifecycle/lifecycle.service';
@@ -130,7 +131,7 @@ describe('SettingsScreen', () => {
     expect(el<HTMLInputElement>(fixture, 'imt-setting-field input').disabled).toBe(true);
     typeInto(el<HTMLInputElement>(fixture, 'input[type=search]'), 'log level');
     await settle(fixture);
-    typeInto(el<HTMLSelectElement>(fixture, 'imt-setting-field select'), 'debug', 'change');
+    await pick(fixture, 'imt-setting-field imt-select button', 'ebug');
     await settle(fixture);
     el<HTMLButtonElement>(fixture, 'imt-setting-field button.reset').click();
     await settle(fixture);

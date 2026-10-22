@@ -1,3 +1,4 @@
+import { pick } from './themed-select.testing';
 import { TestBed } from '@angular/core/testing';
 import { all, el, settle, text, typeInto } from '../../testing/helpers';
 import { SettingFieldControl } from './setting-field';
@@ -91,9 +92,8 @@ describe('SettingFieldControl', () => {
     expect(text(t.fixture)).toContain('up to 5 characters');
     TestBed.resetTestingModule();
     const e = await render(field({ type: 'enum', options: [{ value: 'a', label: 'Alpha' }, { value: 'b', label: 'Beta' }] }, 'a'), 'b');
-    const select = el<HTMLSelectElement>(e.fixture, 'select');
-    expect(select.value).toBe('b');
-    typeInto(select, 'a', 'change');
+    expect(el(e.fixture, 'imt-select button').textContent).toContain('Beta');
+    await pick(e.fixture, 'imt-select button', 'Alpha');
     expect(e.changed).toEqual(['a']);
     TestBed.resetTestingModule();
     const l = await render(field({ type: 'stringList', maxItems: 5 }, []), ['x', 'y']);

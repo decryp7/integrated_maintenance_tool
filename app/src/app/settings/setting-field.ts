@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { Icon } from '../shared/icon';
 import { Switch } from '../shared/switch';
+import { ImtSelect } from './themed-select';
 import { SettingsFiles } from './settings-files';
 import { displayValue, editUnit, parseList, parseNumber, precheck, rangeHint, sameValue } from './settings-model';
 import { SettingField, SettingValue } from './settings.types';
@@ -15,7 +16,7 @@ let nextId = 0;
 @Component({
   selector: 'imt-setting-field',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Switch],
+  imports: [Icon, Switch, ImtSelect],
   host: { class: 'setting', '[class.invalid]': '!!message()', '[attr.data-key]': 'field().key' },
   template: `
     @let f = field();
@@ -43,11 +44,7 @@ let nextId = 0;
       <div class="control">
         @switch (k.type) {
           @case ('enum') {
-            <select class="select" [id]="id" [disabled]="readOnly()" [attr.aria-describedby]="describedBy()" [attr.aria-invalid]="!!message()" (change)="emit($any($event.target).value)">
-              @for (o of k.options; track o.value) {
-                <option [value]="o.value" [selected]="o.value === value()">{{ o.label }}</option>
-              }
-            </select>
+            <imt-select class="enum" [disabled]="readOnly()" [ariaLabel]="f.label" [options]="k.options" [value]="enumValue()" (valueChange)="emit($any($event))" />
           }
           @case ('text') {
             <input class="input wide" [id]="id" type="text" [value]="text()" [disabled]="readOnly()" [attr.aria-describedby]="describedBy()" [attr.aria-invalid]="!!message()" (input)="emit($any($event.target).value)" />
@@ -100,7 +97,7 @@ let nextId = 0;
     .reset { height: 22px; font-size: var(--fs-xs); }
     .control { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .input.num { width: 120px; }
-    .input.wide, .select { min-width: 260px; max-width: 100%; }
+    .input.wide, .select, .enum { min-width: 260px; max-width: 100%; }
     textarea.input.wide { width: 100%; box-sizing: border-box; font-family: var(--font-mono); }
     .unit { color: var(--text-2); }
     .hint { color: var(--muted); font-size: var(--fs-sm); }
@@ -119,6 +116,7 @@ export class SettingFieldControl {
   readonly changed = output<SettingValue>();
   readonly resetToDefault = output<void>();
 
+  protected readonly enumValue = computed(() => String(this.value() ?? ''));
   protected readonly id = `imt-setting-${nextId++}`;
   protected readonly unit = computed(() => editUnit(this.field().kind));
   protected readonly unitLabel = computed(() => {
