@@ -8,6 +8,7 @@ import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { Inspector } from './inspector';
 import { SelectionStore } from '../core/workspace/selection.store';
 import { at } from '../../testing/must';
+import { LEVEL_CODES } from '../shared/colors';
 
 @Component({ selector: 'imt-test-section', template: '<span class="plugin-section">id {{ record().id }}</span>' })
 class TestSection {
@@ -45,6 +46,15 @@ describe('Inspector', () => {
     await settle(fixture);
     return { fixture, store };
   }
+
+  it('names the level once, by the engine\'s level name and never by a three-letter code (K1)', async () => {
+    const { fixture, store } = await render(2);
+    const level = store.selected()!.level;
+    expect(el(fixture, '.badge-lvl').textContent?.trim()).toBe(level);
+    const codes = Object.values(LEVEL_CODES);
+    const words = (el(fixture, '.top').textContent ?? '').split(/\W+/);
+    expect(words.filter((w) => codes.includes(w))).toEqual([]);
+  });
 
   it('says when the filters hide the event it shows, and offers to clear them or the selection (D4)', async () => {
     const { fixture, store } = await render(2);
