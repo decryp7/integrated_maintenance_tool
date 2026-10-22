@@ -3191,6 +3191,7 @@ name = "imt-cli"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "ctrlc",
  "imt-core",
  "imt-pdf",
  "imt-store-client",

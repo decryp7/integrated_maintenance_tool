@@ -57,6 +57,7 @@ pub mod svg;
 pub mod template;
 pub mod tiles;
 pub mod timestamp_issue;
+pub mod watch;
 pub mod words;
 pub mod workspace;
 

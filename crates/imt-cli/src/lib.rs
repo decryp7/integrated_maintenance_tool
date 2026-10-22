@@ -9,6 +9,7 @@ pub mod host;
 pub mod output;
 pub mod run;
 pub mod time_arg;
+pub mod watch;
 
 /// The executable's name in usage text and messages (one place to change when the product is renamed).
 pub const BIN_NAME: &str = "imt";

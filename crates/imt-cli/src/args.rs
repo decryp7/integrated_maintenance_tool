@@ -93,6 +93,17 @@ pub enum Command {
         subset: String,
         fields: Vec<String>,
     },
+    /// Watch a folder and import what appears in it (ADR 0048).
+    Watch {
+        src: Source,
+        dir: PathBuf,
+        knowledge: Vec<PathBuf>,
+        interval_ms: u64,
+        debounce_ms: u64,
+        once: bool,
+        json: bool,
+        fail_on_findings: bool,
+    },
     Report {
         src: Source,
         out: PathBuf,
@@ -116,6 +127,8 @@ pub fn usage() -> String {
   {b} query QL [SOURCE OPTIONS] [--format table|csv|json] [--json] [--limit N]
   {b} analyze anomalies|patterns|exceptions|issues|outliers [SOURCE OPTIONS] [--filter QL] [--limit N] [--json]
                 [--knowledge FILE]... [--fail-on-findings] [--subset QL] [--fields A,B]
+  {b} watch DIR [--store DIR] [--knowledge FILE]... [--interval SECS] [--debounce SECS] [--once] [--json]
+                [--fail-on-findings]
   {b} report --out FILE [SOURCE OPTIONS] [--format html|pdf] [--title TEXT] [--knowledge FILE]...
                 [--from TIME] [--to TIME] [--top N] [--overwrite] [--json]
   {b} help | --version
@@ -157,6 +170,15 @@ fn number(flag: &str, text: &str) -> Result<usize, UsageError> {
         .map_err(|_| format!("{flag} needs a whole number, not \"{text}\""))
 }
 
+/// Seconds (1 to 86,400) as milliseconds.
+fn secs(flag: &str, text: &str) -> Result<u64, UsageError> {
+    let n = number(flag, text)?;
+    if n == 0 || n > 86_400 {
+        return Err(format!("{flag} is between 1 and 86400 seconds"));
+    }
+    Ok(n as u64 * 1000)
+}
+
 fn limit(flag: &str, text: &str) -> Result<usize, UsageError> {
     let n = number(flag, text)?;
     if n == 0 || n > MAX_LIMIT {
@@ -177,6 +199,9 @@ struct Options {
     fail_on_findings: bool,
     subset: Option<String>,
     fields: Vec<String>,
+    interval: Option<u64>,
+    debounce: Option<u64>,
+    once: bool,
     out: Option<PathBuf>,
     title: Option<String>,
     from: Option<i64>,
@@ -252,6 +277,18 @@ fn collect(cur: &mut Cursor<'_>) -> Result<Options, UsageError> {
                     .filter(|f| !f.is_empty())
                     .collect();
                 o.used.push("--fields");
+            }
+            "--interval" => {
+                o.interval = Some(secs("--interval", &val(cur)?)?);
+                o.used.push("--interval");
+            }
+            "--debounce" => {
+                o.debounce = Some(secs("--debounce", &val(cur)?)?);
+                o.used.push("--debounce");
+            }
+            "--once" => {
+                o.once = true;
+                o.used.push("--once");
             }
             "--out" => {
                 o.out = Some(PathBuf::from(val(cur)?));
@@ -389,6 +426,35 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
                 fail_on_findings: o.fail_on_findings,
                 subset: o.subset.unwrap_or_default(),
                 fields: o.fields,
+            })
+        }
+        "watch" => {
+            let mut o = collect(&mut cur)?;
+            only(
+                &o,
+                "watch",
+                &[
+                    "--store",
+                    "--knowledge",
+                    "--interval",
+                    "--debounce",
+                    "--once",
+                    "--json",
+                    "--fail-on-findings",
+                ],
+            )?;
+            if o.positional.len() != 1 {
+                return Err("watch needs exactly one folder to watch".into());
+            }
+            Ok(Command::Watch {
+                src: o.src,
+                dir: PathBuf::from(o.positional.remove(0)),
+                knowledge: o.knowledge,
+                interval_ms: o.interval.unwrap_or(5_000),
+                debounce_ms: o.debounce.unwrap_or(2_000),
+                once: o.once,
+                json: o.json,
+                fail_on_findings: o.fail_on_findings,
             })
         }
         "report" => {
@@ -544,6 +610,26 @@ mod tests {
         assert!(p("report --out r --from 2026-10-02 --to 2026-10-01").is_err());
         assert!(p("report x --out r").is_err());
         assert!(p("report --out r --format doc").is_err());
+    }
+
+    #[test]
+    fn watch_takes_one_folder_and_bounded_timings() {
+        let Command::Watch {
+            dir,
+            interval_ms,
+            debounce_ms,
+            once,
+            ..
+        } = p("watch logs --once --interval 3").unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!((dir, interval_ms, debounce_ms, once), (PathBuf::from("logs"), 3000, 2000, true));
+        assert!(p("watch").unwrap_err().contains("one folder"));
+        assert!(p("watch a b").is_err());
+        assert!(p("watch a --interval 0").unwrap_err().contains("between"));
+        assert!(p("watch a --open x").unwrap_err().contains("does not take --open"));
+        assert!(p("query q --once").unwrap_err().contains("does not take --once"));
     }
 
     #[test]

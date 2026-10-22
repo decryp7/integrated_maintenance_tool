@@ -353,7 +353,7 @@ a store you can keep with `--store`, `imt query` runs the query language (table,
 anomaly, pattern, exception and known-issue analyses (with `--fail-on-findings` for CI gates), and `imt report`
 writes the incident summary as HTML or PDF. Exit codes are 0 done, 1 failed, 2 wrong command line, 3 findings; with
 `--json` every command prints exactly one JSON object. Output is bounded (rows, items and cell length) and the store
-runs in the same worker process as in the app. `--since` and `--until` import only a time range of very large inputs (events outside it never reach the store; files that stopped growing before it are not opened; [ADR 0047](adr/0047-time-window-import.md)). Reference: [cli.md](cli.md).
+runs in the same worker process as in the app. `--since` and `--until` import only a time range of very large inputs (events outside it never reach the store; files that stopped growing before it are not opened; [ADR 0047](adr/0047-time-window-import.md)). `imt watch DIR` imports files as they settle in a folder (debounced, partial writes and temporary names ignored, locked files retried, huge files reported) and announces known issues from your knowledge files ([ADR 0048](adr/0048-watched-folders.md)). Reference: [cli.md](cli.md).
 
 ## Scheduled and triggered collection (`imt-agent`)
 
