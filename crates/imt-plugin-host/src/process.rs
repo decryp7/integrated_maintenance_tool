@@ -276,10 +276,9 @@ impl HostServices {
                 }
                 encode_reply(&())
             }
-            HostRequest::InvokeElevated { .. } if elevated => Err(RemoteError::new(
-                code::INVALID,
-                "the elevated process runs its operations itself",
-            )),
+            HostRequest::InvokeElevated { .. } if elevated => {
+                Err(RemoteError::new(code::INVALID, "the elevated process runs its operations itself"))
+            }
             HostRequest::InvokeElevated {
                 tool,
                 op,
@@ -429,7 +428,10 @@ impl PluginProcess {
 
     fn create(manifest: Manifest, spec: PluginSpec) -> Arc<PluginProcess> {
         // The elevated process' forwarded standard error goes to a log of its own next to the plugin's.
-        let log_name = spec.log.as_ref().map_or_else(|| format!("plugin-{}", manifest.id), |l| l.name.clone());
+        let log_name = spec
+            .log
+            .as_ref()
+            .map_or_else(|| format!("plugin-{}", manifest.id), |l| l.name.clone());
         let services = Arc::new(HostServices {
             own_data: spec.home.as_ref().map(|h| h.data_dir.clone()),
             elevated_log: OnceLock::from(ForwardedLog::new(ChildLogSpec::new(

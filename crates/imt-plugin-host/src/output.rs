@@ -11,8 +11,7 @@ use imt_ipc::peer::CallCtx;
 use imt_ipc::StreamEvent;
 use imt_plugin_api::output::LocalFile;
 use imt_plugin_api::protocol::{
-    cut_line, OutputEnd, PluginRequest, SavedOutput, MAX_LOG_BATCH, MAX_LOG_LINE, MAX_LOG_LINES, MAX_OUTPUTS, OUTPUT_CHUNK,
-    OUTPUT_CREDIT,
+    cut_line, OutputEnd, PluginRequest, SavedOutput, MAX_LOG_BATCH, MAX_LOG_LINE, MAX_LOG_LINES, MAX_OUTPUTS, OUTPUT_CHUNK, OUTPUT_CREDIT,
 };
 use std::io::Write;
 use std::path::Path;

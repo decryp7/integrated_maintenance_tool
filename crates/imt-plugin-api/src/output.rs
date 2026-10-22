@@ -9,8 +9,8 @@
 //!
 //! An [`OutputFile`] dropped without [`OutputFile::finish`] is discarded: nothing is left at its name.
 
-use crate::protocol::{check_output_name, HostRequest, OutputEnd, MAX_OUTPUT_BYTES, OUTPUT_CHUNK, OUTPUT_ROOT};
 pub use crate::protocol::SavedOutput;
+use crate::protocol::{check_output_name, HostRequest, OutputEnd, MAX_OUTPUT_BYTES, OUTPUT_CHUNK, OUTPUT_ROOT};
 use anyhow::{anyhow, bail, Context, Result};
 use imt_ipc::peer::{code, encode_reply, CallCtx};
 use imt_ipc::{IpcError, Peer, RemoteError};
@@ -130,7 +130,10 @@ impl LocalFile {
 
 impl Write for LocalFile {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let file = self.file.as_mut().ok_or_else(|| io::Error::other("the output file was already finished"))?;
+        let file = self
+            .file
+            .as_mut()
+            .ok_or_else(|| io::Error::other("the output file was already finished"))?;
         if self.written + buf.len() as u64 > self.max {
             return Err(io::Error::other(format!(
                 "the output exceeds its limit of {} bytes and was cut off",
@@ -452,11 +455,20 @@ mod tests {
         // At most the credits, the queue and the pieces being handed over are written ahead of the host.
         let ahead = pieces.load(Ordering::SeqCst);
         assert!(ahead >= u64::from(OUTPUT_CREDIT), "{ahead}");
-        assert!(ahead <= u64::from(OUTPUT_CREDIT) + QUEUE as u64 + 2, "the producer ran {ahead} pieces ahead");
+        assert!(
+            ahead <= u64::from(OUTPUT_CREDIT) + QUEUE as u64 + 2,
+            "the producer ran {ahead} pieces ahead"
+        );
         assert!(!done.load(Ordering::SeqCst), "the producer must wait for credit");
         go_tx.send(()).unwrap();
         let saved = producer.join().unwrap().unwrap();
-        assert_eq!(saved, SavedOutput { name: "n.bin".into(), bytes: 40 * OUTPUT_CHUNK as u64 });
+        assert_eq!(
+            saved,
+            SavedOutput {
+                name: "n.bin".into(),
+                bytes: 40 * OUTPUT_CHUNK as u64
+            }
+        );
     }
 
     #[test]
@@ -496,7 +508,8 @@ mod tests {
         let why = seen_rx.recv_timeout(Duration::from_secs(10)).unwrap();
         assert!(why.contains("discarded the output"), "{why}");
         // Pulling a stream that does not exist is refused.
-        let ctx_free: Result<OutputEnd, _> = host_peer.request(&PluginRequest::PullOutput { stream: 999_999 }, Some(Duration::from_secs(5)));
+        let ctx_free: Result<OutputEnd, _> =
+            host_peer.request(&PluginRequest::PullOutput { stream: 999_999 }, Some(Duration::from_secs(5)));
         assert!(matches!(ctx_free, Err(IpcError::Remote(e)) if e.message.contains("no output stream")));
     }
 
@@ -507,13 +520,27 @@ mod tests {
         let mut f = out.create("dotnet", "a.nettrace", 100).unwrap();
         f.write_all(b"Nettrace").unwrap();
         let saved = f.finish().unwrap();
-        assert_eq!(saved, SavedOutput { name: "a.nettrace".into(), bytes: 8 });
+        assert_eq!(
+            saved,
+            SavedOutput {
+                name: "a.nettrace".into(),
+                bytes: 8
+            }
+        );
         let path = dir.path().join("captures").join("dotnet").join("a.nettrace");
         assert_eq!(std::fs::read(&path).unwrap(), b"Nettrace");
         // Never replaced.
         assert!(failure(out.create("dotnet", "a.nettrace", 100)).contains("already exists"));
         // Bad names.
-        for (folder, name) in [("..", "x"), ("a/b", "x"), ("d", "../x"), ("d", "C:x"), ("d", "con.txt"), ("d", ".x"), ("d", "")] {
+        for (folder, name) in [
+            ("..", "x"),
+            ("a/b", "x"),
+            ("d", "../x"),
+            ("d", "C:x"),
+            ("d", "con.txt"),
+            ("d", ".x"),
+            ("d", ""),
+        ] {
             assert!(out.create(folder, name, 10).is_err(), "{folder} {name}");
         }
         // Over the limit: cut off, and dropping it leaves nothing.

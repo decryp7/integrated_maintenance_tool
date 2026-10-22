@@ -107,7 +107,8 @@ fn output_bytes_arrive_intact_in_the_folder_the_host_chose() {
     assert_eq!(std::fs::read(&saved).unwrap(), pattern(size));
     assert_eq!(f.files(), ["data/captures/fake/trace.bin"], "no partial file is left");
     // An empty output is a file too, and an existing file is never replaced.
-    f.invoke("admin-save", json!({"folder": "fake", "name": "empty.bin", "size": 0})).unwrap();
+    f.invoke("admin-save", json!({"folder": "fake", "name": "empty.bin", "size": 0}))
+        .unwrap();
     assert_eq!(std::fs::metadata(f.data_dir().join("captures/fake/empty.bin")).unwrap().len(), 0);
     let e = f
         .invoke("admin-save", json!({"folder": "fake", "name": "trace.bin", "size": 5}))
@@ -120,12 +121,16 @@ fn output_bytes_arrive_intact_in_the_folder_the_host_chose() {
 fn an_output_over_its_limit_is_cut_off_with_a_clear_error_and_removed() {
     let f = Fixture::new();
     let e = f
-        .invoke("admin-save", json!({"folder": "fake", "name": "big.bin", "size": 900_000, "max": 300_000}))
+        .invoke(
+            "admin-save",
+            json!({"folder": "fake", "name": "big.bin", "size": 900_000, "max": 300_000}),
+        )
         .unwrap_err();
     assert!(e.contains("exceeds its limit of 300000 bytes"), "{e}");
     assert!(eventually(|| f.files().is_empty()), "{:?}", f.files());
     // The elevated process is still fine afterwards.
-    f.invoke("admin-save", json!({"folder": "fake", "name": "ok.bin", "size": 10})).unwrap();
+    f.invoke("admin-save", json!({"folder": "fake", "name": "ok.bin", "size": 10}))
+        .unwrap();
 }
 
 #[test]
@@ -156,7 +161,8 @@ fn malicious_output_names_are_refused_by_the_host() {
 fn a_crash_in_the_middle_of_a_stream_is_a_typed_error_and_leaves_no_partial_file() {
     let f = Fixture::new();
     // A first call tells the host the tool's data folder.
-    f.invoke("admin-save", json!({"folder": "fake", "name": "first.bin", "size": 3})).unwrap();
+    f.invoke("admin-save", json!({"folder": "fake", "name": "first.bin", "size": 3}))
+        .unwrap();
     let req = PluginRequest::InvokeTool {
         tool: "fake.tool".into(),
         op: "admin-save-crash".into(),
@@ -200,7 +206,9 @@ fn standard_error_is_forwarded_cut_and_capped() {
     // A flood: the plugin drains its standard error, sends what its bounds allow and reports the rest as dropped.
     f.invoke("admin-log", json!({"marker": "m2", "lines": 50_000})).unwrap();
     assert!(
-        eventually(|| elevated_messages().iter().any(|l| l.contains("lines of the elevated process were dropped"))),
+        eventually(|| elevated_messages()
+            .iter()
+            .any(|l| l.contains("lines of the elevated process were dropped"))),
         "{:?}",
         elevated_messages().last()
     );

@@ -105,9 +105,15 @@ impl Tool for FakeTool {
             .op(OpSpec::new("admin", "Needs administrator rights").elevated())
             .op(OpSpec::new("admin-steps", "Reports progress in the elevated process").elevated())
             .op(OpSpec::new("via-admin", "Runs an operation in the elevated process").args(Schema::object().open()))
-            .op(OpSpec::new("admin-save", "Streams an output file to the host").elevated().args(Schema::object().open()))
-            .op(OpSpec::new("admin-save-crash", "Exits in the middle of an output file").elevated().args(Schema::object().open()))
-            .op(OpSpec::new("admin-log", "Writes lines to standard error").elevated().args(Schema::object().open()))
+            .op(OpSpec::new("admin-save", "Streams an output file to the host")
+                .elevated()
+                .args(Schema::object().open()))
+            .op(OpSpec::new("admin-save-crash", "Exits in the middle of an output file")
+                .elevated()
+                .args(Schema::object().open()))
+            .op(OpSpec::new("admin-log", "Writes lines to standard error")
+                .elevated()
+                .args(Schema::object().open()))
     }
 
     fn invoke(&self, op: &str, args: Value, ctx: &ToolCtx) -> Result<Value> {
