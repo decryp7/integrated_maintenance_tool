@@ -360,10 +360,14 @@ mod tests {
         finished: Vec<SourceReport>,
         aborted: Vec<SourceId>,
         fail_finish: bool,
+        fail_begin: bool,
     }
 
     impl BatchSink for Memory {
         fn begin_source(&mut self, _source: &NewSource) -> Result<SourceId> {
+            if self.fail_begin {
+                anyhow::bail!("no space left");
+            }
             self.next_source += 1;
             Ok(SourceId(self.next_source - 1))
         }
@@ -522,6 +526,22 @@ mod tests {
         std::fs::remove_dir_all(dir).ok();
     }
 
+    /// The report of the only outcome of an import, which must have been imported.
+    fn imported(mut outcomes: Vec<Outcome>) -> SourceReport {
+        match outcomes.remove(0) {
+            Outcome::Imported(r) => r,
+            other => panic!("not imported: {other:?}"),
+        }
+    }
+
+    /// The only outcome of an import, which must have been refused.
+    fn unrecognised(mut outcomes: Vec<Outcome>) -> UnrecognizedFile {
+        match outcomes.remove(0) {
+            Outcome::Unrecognized(u) => u,
+            other => panic!("not unrecognised: {other:?}"),
+        }
+    }
+
     /// A binary importer for files starting with `BINX`: `BINX<n>` yields n events; `BINXfail` fails and
     /// `BINXpanic` crashes.
     struct Bin;
@@ -543,7 +563,7 @@ mod tests {
                 "fail" => anyhow::bail!("the file is damaged"),
                 "panic" => panic!("importer bug"),
                 n => Ok(crate::importers::Imported {
-                    records: (0..n.trim().parse::<u32>().unwrap_or(0))
+                    records: (0..n.parse::<u32>().unwrap_or(0))
                         .map(|i| {
                             let mut r = crate::model::Record::new(i + 1);
                             r.ts = Some(1_000 + i64::from(i));
@@ -574,52 +594,32 @@ mod tests {
         let none = HashSet::new();
         let mut sink = Memory::default();
         let ok = write(&dir, "a.bin", b"BINX3");
-        let Outcome::Imported(r) = &import_path(&env, &ok, "a.bin", &none, &mut sink)[0] else {
-            panic!("imported")
-        };
+        let r = imported(import_path(&env, &ok, "a.bin", &none, &mut sink));
         assert_eq!(
             (r.events, r.importer.as_str(), r.file_kind, r.bytes),
             (3, "test-bin", FileKind::Binary, 5)
         );
+        // Other files are still sniffed by it and read by their own importer.
+        let text = write(&dir, "t.log", b"2026-10-14 10:00:00 INFO plain\n");
+        assert_eq!(imported(import_path(&env, &text, "t.log", &none, &mut sink)).importer, "text");
         // An importer that finds nothing, one that fails and one that crashes: each only fails its own file.
         let empty = write(&dir, "empty.bin", b"BINX0");
-        let Outcome::Unrecognized(u) = &import_path(&env, &empty, "empty.bin", &none, &mut sink)[0] else {
-            panic!("unrecognised")
-        };
+        let u = unrecognised(import_path(&env, &empty, "empty.bin", &none, &mut sink));
         assert_eq!((u.reason.as_str(), u.crashed), ("test-bin importer found no events", false));
         let bad = write(&dir, "bad.bin", b"BINXfail");
-        let Outcome::Unrecognized(u) = &import_path(&env, &bad, "bad.bin", &none, &mut sink)[0] else {
-            panic!("unrecognised")
-        };
+        let u = unrecognised(import_path(&env, &bad, "bad.bin", &none, &mut sink));
         assert!(u.reason.contains("the file is damaged") && !u.crashed, "{}", u.reason);
         let boom = write(&dir, "boom.bin", b"BINXpanic");
-        let Outcome::Unrecognized(u) = &import_path(&env, &boom, "boom.bin", &none, &mut sink)[0] else {
-            panic!("unrecognised")
-        };
+        let u = unrecognised(import_path(&env, &boom, "boom.bin", &none, &mut sink));
         assert!(u.crashed && u.reason.contains("please report this file"), "{}", u.reason);
-        // Everything that failed was removed again; the good source is the only one left.
-        assert_eq!(sink.finished.len(), 1);
+        // Everything that failed was removed again; the good sources are the only ones left.
+        assert_eq!(sink.finished.len(), 2, "the binary file and the text file");
         assert_eq!(sink.aborted.len(), 3);
         std::fs::remove_dir_all(dir).ok();
     }
 
     #[test]
     fn a_sink_that_cannot_begin_a_source_and_unreadable_files_are_reported_not_raised() {
-        struct NoSpace;
-        impl BatchSink for NoSpace {
-            fn begin_source(&mut self, _: &NewSource) -> Result<SourceId> {
-                anyhow::bail!("no space left")
-            }
-            fn write(&mut self, _: PendingBatch) -> Result<()> {
-                Ok(())
-            }
-            fn finish_source(&mut self, _: &SourceReport) -> Result<()> {
-                Ok(())
-            }
-            fn abort_source(&mut self, _: SourceId) -> Result<()> {
-                Ok(())
-            }
-        }
         let dir = temp();
         let (importers, profile) = env_parts();
         let cancel = AtomicBool::new(false);
@@ -630,10 +630,12 @@ mod tests {
             schema: Arc::new(EventSchema::plain()),
             cancel: &cancel,
         };
-        let log = write(&dir, "a.log", b"2026-10-14 10:00:00 INFO a\n");
-        let Outcome::Unrecognized(u) = &import_path(&env, &log, "a.log", &HashSet::new(), &mut NoSpace)[0] else {
-            panic!("unrecognised")
+        let mut no_space = Memory {
+            fail_begin: true,
+            ..Memory::default()
         };
+        let log = write(&dir, "a.log", b"2026-10-14 10:00:00 INFO a\n");
+        let u = unrecognised(import_path(&env, &log, "a.log", &HashSet::new(), &mut no_space));
         assert_eq!(u.reason, "no space left");
         #[cfg(unix)]
         {

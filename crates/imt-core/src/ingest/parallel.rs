@@ -344,6 +344,8 @@ mod tests {
         next_source: AtomicU32,
         finished: Mutex<Vec<SourceReport>>,
         aborted: Mutex<Vec<SourceId>>,
+        /// Cancelled as soon as a source begins (for the cancel test).
+        cancel_on_begin: Option<Arc<ImportProgress>>,
     }
 
     impl SharedSink for Shared {
@@ -351,6 +353,9 @@ mod tests {
             Ok(SourceId(self.next_source.fetch_add(n, Ordering::SeqCst)))
         }
         fn begin_source(&self, _s: &NewSource, id: Option<SourceId>) -> Result<SourceId> {
+            if let Some(progress) = &self.cancel_on_begin {
+                progress.cancel();
+            }
             Ok(id.unwrap_or_else(|| SourceId(self.next_source.fetch_add(1, Ordering::SeqCst))))
         }
         fn write(&self, batch: PendingBatch) -> Result<()> {
@@ -632,26 +637,6 @@ mod tests {
 
     #[test]
     fn after_a_cancel_the_files_not_started_are_listed_as_not_imported() {
-        /// Cancels the import as soon as the first source begins.
-        struct CancelsOnBegin<'a>(Shared, &'a ImportProgress);
-        impl SharedSink for CancelsOnBegin<'_> {
-            fn reserve_sources(&self, n: u32) -> Result<SourceId> {
-                self.0.reserve_sources(n)
-            }
-            fn begin_source(&self, s: &NewSource, id: Option<SourceId>) -> Result<SourceId> {
-                self.1.cancel();
-                self.0.begin_source(s, id)
-            }
-            fn write(&self, batch: PendingBatch) -> Result<()> {
-                self.0.write(batch)
-            }
-            fn finish_source(&self, r: &SourceReport) -> Result<()> {
-                self.0.finish_source(r)
-            }
-            fn abort_source(&self, id: SourceId) -> Result<()> {
-                self.0.abort_source(id)
-            }
-        }
         let dir = temp();
         // The bigger file is read first (one thread), and cancels; the smaller one is never started.
         let paths: Vec<(PathBuf, String)> = [("a.log", 50), ("b.log", 5)]
@@ -670,8 +655,11 @@ mod tests {
             schema: Arc::new(EventSchema::plain()),
             cancel: &cancel,
         };
-        let progress = ImportProgress::default();
-        let sink = CancelsOnBegin(Shared::default(), &progress);
+        let progress = Arc::new(ImportProgress::default());
+        let sink = Shared {
+            cancel_on_begin: Some(progress.clone()),
+            ..Shared::default()
+        };
         let opts = ParallelOptions {
             threads: 1,
             chunk_target: 1 << 20,

@@ -414,6 +414,13 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
+    fn project(p: Package) -> (ProjectDir, ProjectManifest) {
+        match p {
+            Package::Project { dir, manifest } => (dir, manifest),
+            other => panic!("not a project: {other:?}"),
+        }
+    }
+
     fn zip_with(path: &Path, files: &[(&str, &[u8])]) {
         let mut z = zip::ZipWriter::new(std::fs::File::create(path).unwrap());
         for (name, data) in files {
@@ -459,9 +466,7 @@ mod tests {
         let bytes = first.export_with(&out, &[(PathBuf::from("data.duckdb"), copy)]).unwrap();
         assert!(bytes >= "the copy".len() as u64);
         let opened = open_package(&out, &root.join("open")).unwrap();
-        let Package::Project { dir: opened, .. } = opened else {
-            panic!("a project")
-        };
+        let (opened, _) = project(opened);
         assert_eq!(std::fs::read(opened.dir.join("data.duckdb")).unwrap(), b"the copy");
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -502,9 +507,7 @@ mod tests {
             ],
         );
         let dest = root.join("open");
-        let Package::Project { dir, manifest } = open_package(&archive, &dest).unwrap() else {
-            panic!("a project")
-        };
+        let (dir, manifest) = project(open_package(&archive, &dest).unwrap());
         assert_eq!(manifest.name, "mine");
         // The folder is named after the archive, with unsafe characters replaced.
         assert_eq!(
@@ -517,9 +520,7 @@ mod tests {
         );
         // Something added since is gone after the next open: it is the archive's content again.
         std::fs::write(dir.dir.join("added-later.txt"), b"x").unwrap();
-        let Package::Project { dir: again, .. } = open_package(&archive, &dest).unwrap() else {
-            panic!("a project")
-        };
+        let (again, _) = project(open_package(&archive, &dest).unwrap());
         assert_eq!(again.dir, dir.dir);
         assert!(!again.dir.join("added-later.txt").exists());
         assert_eq!(std::fs::read(again.dir.join("data.duckdb")).unwrap(), b"db");
