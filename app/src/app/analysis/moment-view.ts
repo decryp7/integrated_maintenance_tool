@@ -45,7 +45,7 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
               @for (i of m.instances; track i.key) {
                 <section class="card" [attr.aria-label]="instanceLabel(i.key)">
                   <div class="head"><strong class="ellipsis" [title]="i.key">{{ i.key }}</strong></div>
-                  <div class="counts mono">
+                  <div class="counts">
                     <span i18n="@@analysis.moment.events">{{ count(i.events) }} events</span>
                     <span class="warn" i18n="@@analysis.moment.warnings">{{ count(i.warnings) }} warnings</span>
                     <span [class.errs]="i.errors" i18n="@@analysis.moment.errors">{{ count(i.errors) }} errors</span>
@@ -56,7 +56,7 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
                     }
                   </ul>
                   @if (i.firstError !== null) {
-                    <button class="btn" type="button" (click)="select(i.firstError)" i18n="@@analysis.moment.firstError">Go to first error</button>
+                    <button class="btn ghost first" type="button" (click)="select(i.firstError)" i18n="@@analysis.moment.firstError">Go to first error</button>
                   }
                 </section>
               }
@@ -142,7 +142,9 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
       .summary { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
       .total { font-size: var(--fs-lg); color: var(--text); margin-right: 6px; }
       .head { margin-bottom: 4px; color: var(--text); }
-      .counts { display: flex; gap: 12px; font-size: var(--fs-xs); margin-bottom: 6px; }
+      .counts { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; margin-bottom: 6px; white-space: nowrap; }
+      .card { display: flex; flex-direction: column; }
+      .card .first { align-self: flex-start; margin-top: auto; }
       .warn { color: var(--warn-text); }
       .errs { color: var(--danger-text); }
       .pats li { display: flex; gap: 8px; padding: 2px 0; font-size: var(--fs-xs); }

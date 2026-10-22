@@ -80,13 +80,13 @@ const CONTEXT_MS = 2 * 60 * 1000;
           }
           <div class="actions">
             @if (r.ts !== null) {
-              <button class="btn" (click)="showContext()" i18n="@@inspector.showContext">Show ±2 min</button>
+              <button class="btn ghost" (click)="showContext()" i18n="@@inspector.showContext">Show ±2 min</button>
             }
             @if (correlation(); as c) {
-              <button class="btn" (click)="sameAs(c.field, c.value)" i18n="@@inspector.sameAs">Same {{ c.field //i18n(ph="field") }}</button>
+              <button class="btn ghost" (click)="sameAs(c.field, c.value)" i18n="@@inspector.sameAs">Same {{ c.field //i18n(ph="field") }}</button>
             }
-            <button class="btn" (click)="copyJson()">{{ copyJsonLabel() }}</button>
-            <button class="btn" aria-haspopup="menu" title="Mask, extract, drop, mark or filter events like this" i18n-title="@@inspector.moreActions.title" (click)="openActions($event)" i18n="@@inspector.moreActions">More actions…</button>
+            <button class="btn ghost" (click)="copyJson()">{{ copyJsonLabel() }}</button>
+            <button class="btn ghost" aria-haspopup="menu" title="Mask, extract, drop, mark or filter events like this" i18n-title="@@inspector.moreActions.title" (click)="openActions($event)" i18n="@@inspector.moreActions">More actions…</button>
           </div>
         </div>
 
@@ -112,7 +112,7 @@ const CONTEXT_MS = 2 * 60 * 1000;
 
         @for (section of sections(); track section.id) {
           <div class="section-title sub">{{ section.title }}</div>
-          <ng-container *ngComponentOutlet="section.component; inputs: { record: r }" />
+          <div class="pad section-body"><ng-container *ngComponentOutlet="section.component; inputs: { record: r }" /></div>
         }
 
         @if (r.exception) {
@@ -129,7 +129,7 @@ const CONTEXT_MS = 2 * 60 * 1000;
           </div>
           <div class="actions file-actions">
             @for (a of fileStates(); track a.action) {
-              <button class="btn" type="button" [disabled]="!!a.reason" [attr.title]="a.reason" [attr.data-action]="a.action" (click)="openFile(a.action)">{{ a.label }}</button>
+              <button class="btn ghost" type="button" [disabled]="!!a.reason" [attr.title]="a.reason" [attr.data-action]="a.action" (click)="openFile(a.action)">{{ a.label }}</button>
             }
           </div>
           @if (fileReason(); as why) {

@@ -169,7 +169,7 @@ describe('monitor charts model', () => {
     expect(series.every((s) => s['lineStyle']?.['type'] === undefined)).toBe(true);
     expect(at(series, 0)['endLabel']['show']).toBe(true);
     expect(at(series, 0)['endLabel']['formatter']).toBe('c');
-    expect(at(series, 0)['labelLayout']).toEqual({ moveOverlap: 'shiftY' });
+    expect(at(series, 0)['labelLayout']).toEqual({ moveOverlap: 'shiftY', hideOverlap: true });
     expect(o['legend']['show']).toBe(false);
     expect(o['legend']['selected']).toEqual({ c: true, a: false, b: true });
     expect(o['tooltip']['trigger']).toBe('axis');

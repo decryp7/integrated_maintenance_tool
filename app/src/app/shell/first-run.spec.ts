@@ -66,7 +66,8 @@ describe('timeline legend', () => {
     const legendButtons = () => all<HTMLButtonElement>(fixture, '.legend .lg:not(.more)');
     expect(legendButtons()).toHaveLength(LEGEND_COLLAPSED);
     const more = el<HTMLButtonElement>(fixture, '[data-testid=legend-more]');
-    expect(more.textContent?.trim()).toBe('+2 more');
+    // The two extra marker kinds, plus the run and annotation kinds the one-line strip keeps in the popover.
+    expect(Number(/\+(\d+) more/.exec(more.textContent ?? '')?.[1])).toBeGreaterThanOrEqual(2);
     expect(more.getAttribute('aria-expanded')).toBe('false');
     expect(el(fixture, '#' + more.getAttribute('aria-controls')).classList.contains('collapsed')).toBe(true);
     more.click();

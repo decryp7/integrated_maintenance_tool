@@ -179,12 +179,13 @@ const VISIBLE_ROWS = 6;
     .actions .btn { display: inline-flex; align-items: center; gap: 6px; }
     .pad { margin: 4px 0; }
     .subtitle { margin: 0; font-size: var(--fs-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
-    .tiles { margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .tiles { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+    .tiles .hero { flex: 1 1 calc(25% - 8px); min-width: 160px; }
     .tiles > div { position: relative; }
     .tiles .hero { padding: 10px 12px; border: 1px solid var(--border-2); border-radius: var(--r-3); background: var(--bg-2); min-height: 72px; }
     .tiles .hero dt { font-size: var(--fs-sm); color: var(--muted); }
     .tiles .hero dd { margin: 2px 0 0; font-size: var(--fs-hero); line-height: 1.15; font-weight: 600; font-variant-numeric: tabular-nums; }
-    .tiles .chip { grid-column: auto; display: inline-flex; align-items: baseline; gap: 6px; padding: 2px 10px; border: 1px solid var(--border-2); border-radius: 999px; font-size: var(--fs-sm); width: max-content; max-width: 100%; }
+    .tiles .chip { flex: none; display: inline-flex; align-items: baseline; gap: 6px; padding: 2px 10px; border: 1px solid var(--border-2); border-radius: 999px; font-size: var(--fs-sm); width: max-content; max-width: 100%; }
     .tiles .chip dt { color: var(--muted); }
     .tiles .chip dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
     .tiles > div.bad dd { color: var(--danger-text); }
@@ -205,7 +206,7 @@ const VISIBLE_ROWS = 6;
     .link { color: var(--accent-text); }
     .all { align-self: flex-start; margin-top: 4px; }
     h3 { margin: 0 0 6px; font-size: var(--fs-md); font-weight: 600; display: flex; align-items: center; gap: 6px; }
-    .chart { height: 200px; min-height: 160px; }
+    .chart { height: 150px; min-height: 130px; }
     .hint { margin: 2px 0 0; font-size: var(--fs-xs); }
     .sub ul, .feed ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; }
     .sub li, .feed li { font-size: var(--fs-sm); overflow-wrap: anywhere; }
