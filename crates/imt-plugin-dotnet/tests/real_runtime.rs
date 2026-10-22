@@ -223,7 +223,13 @@ fn etw_framework_and_core_targets_elevated() {
         assert_eq!(info.arch.as_deref(), Some(if label.ends_with("x86") { "x86" } else { "x64" }));
         for preset in [Preset::Cpu, Preset::Allocations, Preset::HeapSnapshot] {
             let out = dir.path().join(format!("{label}-{preset:?}.nettrace"));
-            let r = imt_plugin_dotnet::etw::session::record(&info, preset, &out, limits()).expect("start ETW");
+            let r = imt_plugin_dotnet::etw::session::record(
+                &info,
+                preset,
+                Box::new(imt_plugin_dotnet::recording::FileSink::create(&out).unwrap()),
+                &out,
+                limits(),
+            ).expect("start ETW");
             let start = std::time::Instant::now();
             let secs = if preset == Preset::HeapSnapshot { 60 } else { 4 };
             while !r.is_finished() && start.elapsed() < Duration::from_secs(secs) {

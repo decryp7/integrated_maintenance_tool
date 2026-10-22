@@ -11,7 +11,7 @@
 use super::convert::Converter;
 use super::{EtwError, RawEvent};
 use crate::nettrace::{system_time, TraceHeader};
-use crate::recording::{Control, ThreadRecording};
+use crate::recording::{CaptureSink, Control, ThreadRecording};
 use crate::{clr, DotnetError, Finished, Limits, Preset, ProcessInfo, HEAP_SNAPSHOT_CAP};
 use imt_etw::session::{self as etw, process_alive, qpc, qpc_frequency, session_name, KernelSpec, Provider};
 use std::io::BufWriter;
@@ -65,9 +65,12 @@ fn stop_orphans() {
     etw::stop_orphans(PREFIX);
 }
 
+/// The converter writing into the capture's sink.
+type SinkConverter = Converter<BufWriter<Box<dyn CaptureSink>>>;
+
 /// What the consumer thread shares with the controller.
 struct Shared {
-    conv: Mutex<Option<Converter<BufWriter<std::fs::File>>>>,
+    conv: Mutex<Option<SinkConverter>>,
     bytes: AtomicU64,
     /// Bits: 1 rundown complete, 2 heap walk done, 4 size limit reached, 8 write failed.
     flags: AtomicU8,
@@ -120,8 +123,16 @@ fn unix_ms() -> i64 {
         .map_or(0, |d| d.as_millis() as i64)
 }
 
-/// Starts recording `target` into `out`. Errors (rights, unsupported) are returned before any thread starts.
-pub fn record(target: &ProcessInfo, preset: Preset, out: &Path, limits: Limits) -> Result<ThreadRecording, DotnetError> {
+/// Starts recording `target` into `sink`; `saved_at` is where the finished capture will be (reported in
+/// [`Finished::path`]). Errors (rights, unsupported) are returned before any thread starts; a failed or cancelled
+/// recording drops the sink unfinished, which leaves no partial file.
+pub fn record(
+    target: &ProcessInfo,
+    preset: Preset,
+    sink: Box<dyn CaptureSink>,
+    saved_at: &Path,
+    limits: Limits,
+) -> Result<ThreadRecording, DotnetError> {
     stop_orphans();
     let name = session_name(PREFIX, target.pid);
     let session = Session::start(&name, preset)?;
@@ -147,8 +158,7 @@ pub fn record(target: &ProcessInfo, preset: Preset, out: &Path, limits: Limits) 
         processors: std::thread::available_parallelism().map_or(1, |n| n.get() as u32),
         sampling_ns: 1_000_000,
     };
-    let file = std::fs::File::create(out)?;
-    let mut conv = Converter::new(BufWriter::with_capacity(1 << 20, file), header)?;
+    let mut conv = Converter::new(BufWriter::with_capacity(1 << 20, sink), header)?;
     conv.seed_threads(crate::process::threads(target.pid));
     let shared = Arc::new(Shared {
         conv: Mutex::new(Some(conv)),
@@ -170,11 +180,12 @@ pub fn record(target: &ProcessInfo, preset: Preset, out: &Path, limits: Limits) 
         .map_err(DotnetError::Io)?;
 
     let pid = target.pid;
-    let path = out.to_path_buf();
+    let path = saved_at.to_path_buf();
     ThreadRecording::spawn("imt-dotnet-etw", path.clone(), move |ctl| {
         let r = control(&ctl, session, consumer, &consumer_done, &shared, pid, preset, limits, path.clone());
         if r.is_err() {
-            let _ = std::fs::remove_file(&path);
+            // Dropping the converter drops the sink unfinished: nothing is left behind.
+            drop(shared.conv.lock().unwrap_or_else(|p| p.into_inner()).take());
         }
         r
     })
@@ -265,9 +276,8 @@ fn control(
         .ok_or_else(|| DotnetError::Protocol("the capture was already finished".into()))?;
     let stats = conv.stats();
     let (w, _) = conv.finish()?;
-    let file = w.into_inner().map_err(|e| DotnetError::Io(e.into_error()))?;
-    file.sync_all()?;
-    let bytes = file.metadata()?.len();
+    let sink = w.into_inner().map_err(|e| DotnetError::Io(e.into_error()))?;
+    let bytes = sink.finish()?;
     let truncated = shared.has(FULL);
     if truncated {
         notes.push(format!(
