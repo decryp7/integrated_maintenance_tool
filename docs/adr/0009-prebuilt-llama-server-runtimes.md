@@ -89,3 +89,22 @@ given machine never uses.
   resident memory, and IMT's status should count the worker's children too.
 - Licences: llama.cpp is MIT; the CUDA runtime archives carry NVIDIA's redistributable licence and are
   downloaded by the user from llama.cpp's release, not redistributed by IMT.
+
+## Note (2026-10-22): trust what the server reports, self-test new builds
+
+A newer llama-server build chose its own media marker (now read from `/props` `media_marker`) and image
+requests failed against it. So the worker never assumes what a build does: after every start (and restart) it
+reads `/props` once into a typed `ServerInfo` (context, `modalities.vision`/`audio`, media marker, model name,
+build, whether it has a chat template; every field optional) and decides from it (`imt-ai-worker/src/capabilities.rs`):
+the context is the server's `n_ctx` (else the requested one), images are accepted only when IMT loaded the
+projector and the server does not report `vision = false`, and the marker is the server's (else llama.cpp's
+default). `LoadResult.server` carries the record to IMT, which shows it in Settings → AI and the AI status.
+
+Before IMT switches to a newly downloaded or updated build, the unpacked build (still in `.staging-<id>`) runs a
+self-test in a worker of its own with the user's active model (`imt_ai::runtimes::selftest`): one short text
+completion, and when the model has a projector one generated 32×32 PNG (a red block) whose colour it must name.
+The active engine is stopped for the test. A build that fails is never renamed into place: the previous build stays
+in use, the verified archives stay for another try, and the install fails with `selfTestFailed` and a message
+naming the step and the next action. Without an active model there is nothing to test with and the build installs
+as before. The fake llama-server scripts the cases (no marker, a custom one, `vision: false`, no `/props`, and
+`colour_blind`, a build that cannot read the test image).

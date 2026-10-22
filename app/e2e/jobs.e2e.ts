@@ -95,6 +95,10 @@ test.describe('jobs', () => {
 
 test.describe('notifications', () => {
   test('a finished job is an unread message; View reads it; live alerts merge; Mark all read', async ({ page }, testInfo) => {
+    // On Playwright's clock: the mock's live alerts are moved on below instead of waited for in real time (rendering
+    // every simulated frame still takes a while on a loaded runner, hence slow).
+    test.slow();
+    await page.clock.install();
     await openAiApp(page, 'mockAiStepMs=200&mockJobsVisibleMs=0&mockJobsAttentionMs=0&mockLive=1&mockLiveRate=20&mockLiveRotateMs=0&mockLiveAlertMs=300');
     const bell = page.getByTestId('status-notifications');
     await explainInBackground(page);
@@ -111,7 +115,9 @@ test.describe('notifications', () => {
 
     // Live alerts: the same kind on the same instance merges into one message with a count.
     await page.locator('imt-status-bar').getByRole('button', { name: 'Live tail', exact: true }).click();
-    await expect(pane.locator('li').filter({ hasText: /\(×\d+\)/ }).first()).toBeVisible({ timeout: 20_000 });
+    // An alert every 300 ms of live ticks, the kinds in turn: within 3 s each kind came more than once.
+    await page.clock.runFor(3_000);
+    await expect(pane.locator('li').filter({ hasText: /\(×\d+\)/ }).first()).toBeVisible();
     await page.locator('imt-status-bar').getByRole('button', { name: 'Live tail', exact: true }).click();
     await pane.getByTestId('notices-mark-all').click();
     await expect(pane.locator('li.unread')).toHaveCount(0);

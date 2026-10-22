@@ -27,7 +27,8 @@ use std::sync::Mutex;
 /// The marker written into a complete build folder.
 pub const MARKER: &str = "runtime.json";
 
-fn server_file_name() -> &'static str {
+/// The llama-server executable's file name on this platform.
+pub fn server_file_name() -> &'static str {
     if cfg!(windows) {
         "llama-server.exe"
     } else {
@@ -52,10 +53,22 @@ pub struct InstalledRuntime {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "stage", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum RuntimeStage {
-    Downloading { asset: String, index: usize, count: usize },
-    Unpacking { asset: String },
+    Downloading {
+        asset: String,
+        index: usize,
+        count: usize,
+    },
+    Unpacking {
+        asset: String,
+    },
+    /// The unpacked build runs its self-test with the active model before it is installed.
+    Testing,
     Finishing,
 }
+
+/// Checks an unpacked build (its staging folder, holding `llama-server`) before it replaces anything: a failure
+/// keeps the build out of use (ADR 0009).
+pub type RuntimeCheck<'a> = &'a dyn Fn(&Path) -> Result<()>;
 
 pub struct RuntimeStore {
     root: PathBuf,
@@ -109,6 +122,22 @@ fn copy_hashing(src: &Path, dest: &Path, progress: &Progress) -> Result<String> 
     }
     out.flush()?;
     Ok(h.finalize().iter().map(|b| format!("{b:02x}")).collect())
+}
+
+/// How long a folder whose server just exited may stay locked (Windows releases a process's DLLs a moment late).
+const RELEASE_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// Renames `from` to `to`, retrying while the files are still locked.
+fn rename_retrying(from: &Path, to: &Path) -> std::io::Result<()> {
+    let deadline = std::time::Instant::now() + RELEASE_WAIT;
+    loop {
+        match std::fs::rename(from, to) {
+            Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied && std::time::Instant::now() < deadline => {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            r => return r,
+        }
+    }
 }
 
 /// The release whose builds the worker uses: the pinned one when any of its builds is installed, else the newest
@@ -265,8 +294,10 @@ impl RuntimeStore {
         Ok(())
     }
 
-    /// Downloads, verifies and unpacks `build` of `catalog`, replacing an older copy of the same build.
-    /// Cancelling keeps partial downloads so the next install resumes.
+    /// Downloads, verifies and unpacks `build` of `catalog`, runs `check` on the unpacked build when given, and only
+    /// then replaces an older copy of the same build (so a build that fails its check never becomes the one in use;
+    /// its verified archives stay, so trying again does not download them again). Cancelling keeps partial downloads
+    /// so the next install resumes.
     #[allow(clippy::too_many_arguments)]
     pub fn install(
         &self,
@@ -277,6 +308,7 @@ impl RuntimeStore {
         opts: DownloadOptions,
         progress: &Progress,
         on_stage: &mut dyn FnMut(RuntimeStage),
+        check: Option<RuntimeCheck<'_>>,
     ) -> Result<InstalledRuntime> {
         let tag = catalog.tag.as_str();
         if !super::builds::is_build_id(tag) || !super::builds::is_build_id(&build.id) {
@@ -342,6 +374,13 @@ impl RuntimeStore {
                 )));
             }
             super::macos::after_verified_unpack(&staging)?;
+            if let Some(check) = check {
+                on_stage(RuntimeStage::Testing);
+                check(&staging)?;
+                if progress.is_cancelled() {
+                    return Err(AiError::Cancelled);
+                }
+            }
             let marker = json!({
                 "version": 1,
                 "tag": tag,
@@ -357,11 +396,15 @@ impl RuntimeStore {
             if dest.exists() {
                 std::fs::remove_dir_all(&dest)?;
             }
-            std::fs::rename(&staging, &dest)?;
+            rename_retrying(&staging, &dest)?;
             Ok(())
         })();
         if let Err(e) = result {
-            let _ = std::fs::remove_dir_all(&staging);
+            // The self-tested server may hold its libraries for a moment after it exited (Windows).
+            let deadline = std::time::Instant::now() + RELEASE_WAIT;
+            while std::fs::remove_dir_all(&staging).is_err() && staging.exists() && std::time::Instant::now() < deadline {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
             return Err(e);
         }
         // The archives are no longer needed once unpacked.

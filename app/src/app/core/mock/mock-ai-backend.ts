@@ -49,6 +49,7 @@ import {
 import { mockAsksForRelated, mockExplainImage, mockFormatOf, mockFormatOfPath, mockImage, mockRelatedOutcome } from './mock-ai-vision';
 import { FILE_EXISTS_SUFFIX } from '../api.types';
 import { MOCK_NET_FAILURES, MockNetFailure, mockNetError, MockRuntimeMode, MockRuntimes } from './mock-ai-runtimes';
+import { MockClock, systemMockClock } from './mock-clock';
 import { mockWeb } from '../../browser/mock-browser-backend';
 import { MockAiUpdates, MockUpdatesMode } from './mock-ai-updates';
 import { mockBrowserTurn } from './mock-ai-browser';
@@ -87,6 +88,8 @@ export interface MockAiOptions {
   /** Image support of the active model (ADR 0025): `on` (default), `missing` (text only, the catalog projector can be
    * added), `none` (text only, nothing to add: choose another model). */
   vision?: MockVisionMode;
+  /** The clock of every simulated step, download and update check (default: the page's timers). */
+  clock?: MockClock;
 }
 
 export type MockVisionMode = 'on' | 'missing' | 'none';
@@ -131,14 +134,13 @@ interface MockChat {
   cancel: boolean;
 }
 
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-
 /** The AI folder of the demo machine (Windows, like the mock hardware). */
 const MOCK_AI_DIR = 'C:\\Users\\demo\\AppData\\Roaming\\IMT\\ai';
 
 export class MockAiBackend extends AiBackend {
   private readonly mode: 'ready' | 'setup' | 'off';
   private readonly stepMs: number;
+  private readonly clock: MockClock;
   private readonly fails: Set<AiFailable>;
   private readonly net: MockNetFailure | null;
   private installed: InstalledModel[];
@@ -164,6 +166,7 @@ export class MockAiBackend extends AiBackend {
     super();
     this.mode = options.mode ?? 'ready';
     this.stepMs = options.stepMs ?? 25;
+    this.clock = options.clock ?? systemMockClock;
     this.fails = new Set(options.fail ?? []);
     this.net = options.net ?? null;
     const ready = this.mode === 'ready';
@@ -179,9 +182,10 @@ export class MockAiBackend extends AiBackend {
         : this.fails.has('runtime')
           ? new AiError('network', 'network error: the connection to github.com was reset')
           : null,
+      this.clock,
     );
     this.backend = ready ? (this.rt.backendName() ?? 'Vulkan') : null;
-    this.updates = new MockAiUpdates(this.mode === 'off' ? 'none' : (options.updates ?? 'none'), this.stepMs, this.net);
+    this.updates = new MockAiUpdates(this.mode === 'off' ? 'none' : (options.updates ?? 'none'), this.stepMs, this.net, this.clock);
   }
 
   private check(op?: AiFailable): void {
@@ -220,7 +224,7 @@ export class MockAiBackend extends AiBackend {
   }
 
   private async later<T>(f: () => T, ms = this.stepMs * 4): Promise<T> {
-    await sleep(ms);
+    await this.clock.sleep(ms);
     return f();
   }
 
@@ -250,6 +254,17 @@ export class MockAiBackend extends AiBackend {
       safeMode: false,
       setupRunning: this.setupRunning,
       vision: !!this.installed.find((m) => m.fileName === this.activeFile)?.vision,
+      server: this.activeFile
+        ? {
+            context: 8192,
+            vision: !!this.installed.find((m) => m.fileName === this.activeFile)?.vision,
+            audio: false,
+            mediaMarker: '<__media_mock__>',
+            model: this.activeFile,
+            build: 'b0-mock',
+            chatTemplate: true,
+          }
+        : null,
     };
   }
 
@@ -326,7 +341,7 @@ export class MockAiBackend extends AiBackend {
     const step = async (e: SetupEvent) => {
       if (this.setupCancelled) throw new AiError('cancelled', 'cancelled');
       this.emitSetup(e);
-      await sleep(this.stepMs * 2);
+      await this.clock.sleep(this.stepMs * 2);
     };
     try {
       await step({ stage: 'probing' });
@@ -450,7 +465,7 @@ export class MockAiBackend extends AiBackend {
     const job = mockJobs().start({ kind: 'download', title: `Image support for ${m.name}`, link: { type: 'model', id: m.catalogId ?? fileName }, appWide: true }, async (ctx) => {
       for (let i = 1; i <= 8; i++) {
         if (ctx.cancelled()) throw new MockJobCancelled();
-        await sleep(this.stepMs * 2);
+        await this.clock.sleep(this.stepMs * 2);
         ctx.progress({ fraction: i / 8, done: Math.round((size * i) / 8), total: size });
       }
       if (this.net) throw mockNetError(this.net, 'huggingface.co');
@@ -875,13 +890,13 @@ export class MockAiBackend extends AiBackend {
     c.cancel = false;
     const question = text.trim();
     const job = mockJobs().start({ kind: 'ai', title: `Chat: ${question.slice(0, 60)}`, link: { type: 'chat', sessionId } }, async (ctx) => {
-      const stop = setInterval(() => {
+      const stop = this.clock.setInterval(() => {
         if (ctx.cancelled()) c.cancel = true;
       }, 20);
       try {
         await this.runTurn(c, question, shown);
       } finally {
-        clearInterval(stop);
+        this.clock.clearInterval(stop);
       }
       return { value: undefined, result: { type: 'chat', sessionId } };
     });
@@ -906,7 +921,7 @@ export class MockAiBackend extends AiBackend {
     for (const piece of text.match(/.{1,12}/gs) ?? []) {
       if (c.cancel) return false;
       this.emitChat(c, { type: 'delta', text: piece });
-      await sleep(this.stepMs);
+      await this.clock.sleep(this.stepMs);
     }
     return !c.cancel;
   }
@@ -927,7 +942,7 @@ export class MockAiBackend extends AiBackend {
       error = false,
     ) => {
       this.emitChat(c, { type: 'toolStarted', name, args });
-      await sleep(this.stepMs * 2);
+      await this.clock.sleep(this.stepMs * 2);
       this.emitChat(c, {
         type: 'toolFinished',
         name,
@@ -972,7 +987,7 @@ export class MockAiBackend extends AiBackend {
       }
     };
     try {
-      await sleep(this.stepMs);
+      await this.clock.sleep(this.stepMs);
       const browsed = images.length ? null : await mockBrowserTurn({
         sessionId: c.record.id,
         question: text,

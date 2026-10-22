@@ -41,7 +41,20 @@ describe('AiSettingsExtras', () => {
     expect(launcher.openSetup).toHaveBeenCalled();
     expect(launcher.openModels).toHaveBeenCalled();
     expect(q('ai-settings-status')!.textContent).toContain('Model: Qwen3.5-4B-Q4_K_M.gguf · Vulkan · 3.2 GB in memory');
+    expect(q('ai-settings-server')!.textContent).toContain(
+      'llama-server b0-mock · 8192 tokens of context · reads images · image marker <__media_mock__>',
+    );
     const store = TestBed.inject(AiStatusStore);
+    const server = store.status()!.server!;
+    store.setStatus({ ...store.status()!, server: { ...server, build: null, context: null, vision: false, mediaMarker: null } });
+    await flush();
+    expect(q('ai-settings-server')!.textContent).toContain('llama-server unknown build · text only · default image marker');
+    store.setStatus({ ...store.status()!, server: { ...server, vision: null } });
+    await flush();
+    expect(q('ai-settings-server')!.textContent).not.toMatch(/text only|reads images/);
+    store.setStatus({ ...store.status()!, server: null });
+    await flush();
+    expect(q('ai-settings-server')).toBeNull();
     store.setStatus({ ...store.status()!, state: 'noModel' });
     await flush();
     expect(q('ai-settings-status')!.textContent).toContain('No model is set up yet');

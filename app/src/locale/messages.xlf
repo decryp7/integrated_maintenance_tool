@@ -3914,11 +3914,18 @@
           <context context-type="linenumber">31</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="ai.runtime.stage.testing" datatype="html">
+        <source>Testing <x id="label" equiv-text="label"/> with your model…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
+          <context context-type="linenumber">33</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="ai.runtime.progress.of" datatype="html">
         <source><x id="done" equiv-text="formatBytes(e.bytes)"/> of <x id="total" equiv-text="formatBytes(e.total)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">43</context>
+          <context context-type="linenumber">45</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
@@ -3929,42 +3936,42 @@
         <source>In use</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">62</context>
+          <context context-type="linenumber">64</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.state.ready" datatype="html">
         <source>Installed, works here</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">64</context>
+          <context context-type="linenumber">66</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.state.problem" datatype="html">
         <source>Installed, does not work here</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">66</context>
+          <context context-type="linenumber">68</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.state.unchecked" datatype="html">
         <source>Installed</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">68</context>
+          <context context-type="linenumber">70</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.state.available" datatype="html">
         <source>Not installed</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">70</context>
+          <context context-type="linenumber">72</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.device" datatype="html">
         <source><x id="description" equiv-text="d.description"/> (<x id="name" equiv-text="d.name"/>, <x id="free" equiv-text="size(d.freeMib)"/> of <x id="total" equiv-text="size(d.totalMib)"/> free)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">77</context>
+          <context context-type="linenumber">79</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.setup" datatype="html">
@@ -3985,42 +3992,91 @@
         <source>The AI assistant is not available in this run: <x id="reason" equiv-text="reason"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">41</context>
+          <context context-type="linenumber">44</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.unavailable" datatype="html">
         <source>The AI assistant is not available in this run.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">42</context>
+          <context context-type="linenumber">45</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.status.noModel" datatype="html">
         <source>No model is set up yet.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">47</context>
+          <context context-type="linenumber">50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.status.modelNone" datatype="html">
         <source>none</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">48</context>
+          <context context-type="linenumber">51</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.status.model" datatype="html">
         <source>Model: <x id="model" equiv-text="model"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">49</context>
+          <context context-type="linenumber">52</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.status.memory" datatype="html">
         <source><x id="size" equiv-text="formatBytes(s.rssBytes)"/> in memory</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">51</context>
+          <context context-type="linenumber">54</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.settings.server.unknownBuild" datatype="html">
+        <source>unknown build</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
+          <context context-type="linenumber">63</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.settings.server.build" datatype="html">
+        <source>llama-server <x id="build" equiv-text="build"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
+          <context context-type="linenumber">64</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.settings.server.context" datatype="html">
+        <source><x id="tokens" equiv-text="v.context"/> tokens of context</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
+          <context context-type="linenumber">65</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.settings.server.vision" datatype="html">
+        <source>reads images</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
+          <context context-type="linenumber">66</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.settings.server.noVision" datatype="html">
+        <source>text only</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
+          <context context-type="linenumber">67</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.settings.server.marker" datatype="html">
+        <source>image marker <x id="marker" equiv-text="v.mediaMarker"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
+          <context context-type="linenumber">70</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.settings.server.defaultMarker" datatype="html">
+        <source>default image marker</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
+          <context context-type="linenumber">71</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.localNote" datatype="html">

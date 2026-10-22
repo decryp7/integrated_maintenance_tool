@@ -18,6 +18,7 @@ use imt_ai::recommend::{assess, recommend, Assessment, Recommendation, Recommend
 use imt_ai::runtime::{check_memory, effective_context, load_with_fallback, projector_bytes, LoadRequest, ModelRuntime};
 use imt_ai::settings::AiSettings;
 use imt_ai::setup::{Setup, SetupPlan, SetupStage};
+use imt_ai::worker::protocol::ServerInfo;
 use imt_ai::worker::{FramesLauncher, Health, WorkerConfig, WorkerRuntime};
 use imt_ai::AiError;
 use serde::Serialize;
@@ -121,6 +122,8 @@ pub struct AiStatus {
     pub setup_running: bool,
     /// The active model reads images ("Text + images"): its projector is installed (ADR 0025).
     pub vision: bool,
+    /// What the running inference server reported about itself, once a model is loaded.
+    pub server: Option<AiServerDto>,
 }
 
 /// An installed model with what it means for this machine.
@@ -175,9 +178,39 @@ impl SetupEvent {
 }
 
 #[derive(Default)]
-struct EngineInfo {
+pub(super) struct EngineInfo {
     backend: Option<String>,
     notes: Vec<String>,
+    server: Option<ServerInfo>,
+}
+
+/// What the running inference server reported about itself (`/props`, ADR 0009), for the AI status and problem
+/// reports. Fields the server did not report are `null`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiServerDto {
+    pub context: Option<usize>,
+    pub vision: Option<bool>,
+    pub audio: Option<bool>,
+    /// `null`: the server named none, so llama.cpp's default `<__media__>` is used.
+    pub media_marker: Option<String>,
+    pub model: Option<String>,
+    pub build: Option<String>,
+    pub chat_template: bool,
+}
+
+impl From<&ServerInfo> for AiServerDto {
+    fn from(s: &ServerInfo) -> Self {
+        AiServerDto {
+            context: s.n_ctx,
+            vision: s.vision,
+            audio: s.audio,
+            media_marker: s.media_marker.clone(),
+            model: s.model.clone(),
+            build: s.build.clone(),
+            chat_template: s.chat_template,
+        }
+    }
 }
 
 enum Active {
@@ -191,8 +224,8 @@ enum Active {
     Fixed(Arc<dyn LlmProvider>),
 }
 
-/// A loaded provider with its backend name and notes (GPU fallback), from the set-up.
-type Primed = (Arc<dyn LlmProvider>, String, Vec<String>);
+/// A loaded provider with its backend name, notes (GPU fallback) and server report, from the set-up.
+type Primed = (Arc<dyn LlmProvider>, EngineInfo);
 
 /// Loads the active model on demand, remembering the backend and any GPU fallback for the status.
 struct AppLoader {
@@ -208,32 +241,35 @@ struct AppLoader {
 
 use crate::sync::lock;
 
+/// How model `file` of `store` loads with `settings`: its path, GGUF facts, image projector (loaded into the same
+/// engine, one model, ADR 0025), context and GPU mode.
+pub(super) fn load_request(store: &ModelStore, file: &str, settings: &AiSettings) -> imt_ai::Result<LoadRequest> {
+    let path = store.path_of(file)?;
+    let info = gguf::inspect(&path)?;
+    let projector = store.projector_path(file)?;
+    Ok(LoadRequest {
+        context: effective_context(settings, &info),
+        path,
+        projector,
+        info,
+        gpu: settings.gpu_offload.into(),
+        threads: settings.threads,
+    })
+}
+
 impl ModelLoader for AppLoader {
     fn load(&self) -> imt_ai::Result<Arc<dyn LlmProvider>> {
-        if let Some((p, backend, notes)) = lock(&self.primed).take() {
-            *lock(&self.info) = EngineInfo {
-                backend: Some(backend),
-                notes,
-            };
+        if let Some((p, info)) = lock(&self.primed).take() {
+            *lock(&self.info) = info;
             return Ok(p);
         }
-        let path = self.store.path_of(&self.file)?;
-        let info = gguf::inspect(&path)?;
-        // The model's image projector, when installed, loads into the same engine (one model, ADR 0025).
-        let projector = self.store.projector_path(&self.file)?;
-        check_memory(&self.probe.probe(), &info, projector_bytes(projector.as_deref()))?;
-        let req = LoadRequest {
-            context: effective_context(&self.settings, &info),
-            path,
-            projector,
-            info,
-            gpu: self.settings.gpu_offload.into(),
-            threads: self.settings.threads,
-        };
+        let req = load_request(&self.store, &self.file, &self.settings)?;
+        check_memory(&self.probe.probe(), &req.info, projector_bytes(req.projector.as_deref()))?;
         let (loaded, note) = load_with_fallback(self.runtime.as_ref(), req)?;
         *lock(&self.info) = EngineInfo {
             backend: Some(loaded.backend),
             notes: note.into_iter().collect(),
+            server: loaded.server,
         };
         Ok(loaded.provider)
     }
@@ -490,6 +526,7 @@ impl AiCore {
             safe_mode: self.safe_mode,
             setup_running: self.setup_running(),
             vision: false,
+            server: info.server.as_ref().map(AiServerDto::from),
         };
         drop(info);
         if let Err(e) = self.availability() {
@@ -677,7 +714,12 @@ impl AiCore {
 
     fn adopt(&self, outcome: imt_ai::setup::SetupOutcome) {
         *crate::sync::write(&self.settings) = outcome.settings;
-        self.install_active(Some((outcome.provider, outcome.backend, outcome.notes)));
+        let info = EngineInfo {
+            backend: Some(outcome.backend),
+            notes: outcome.notes,
+            server: outcome.server,
+        };
+        self.install_active(Some((outcome.provider, info)));
     }
 
     // ---- models ----
