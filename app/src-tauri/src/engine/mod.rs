@@ -348,7 +348,7 @@ pub(crate) fn sweep_scratch(root: &Path, keep: &[PathBuf]) {
 }
 
 /// The process id in a scratch folder's name (`<window>-<pid>-<n>`).
-fn scratch_pid(path: &Path) -> Option<u32> {
+pub(crate) fn scratch_pid(path: &Path) -> Option<u32> {
     let name = path.file_name()?.to_str()?;
     let mut parts = name.rsplitn(3, '-');
     let _n = parts.next()?;

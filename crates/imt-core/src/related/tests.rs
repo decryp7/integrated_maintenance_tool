@@ -22,6 +22,7 @@ pub(super) fn source(id: u32, name: &str, offset_ms: i64, from: Option<i64>, to:
         file_kind: FileKind::Text,
         timestamp_issue: None,
         routed_from: None,
+        encoding: None,
         problems: vec![],
         identity: vec![],
         parser: None,

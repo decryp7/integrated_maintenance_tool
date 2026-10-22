@@ -1,6 +1,18 @@
 import type { StorageBackend } from './storage-backend';
 import { mockJobs, mockSteps } from '../../jobs/mock-jobs';
-import { StorageCategory, StorageCategoryClearResult, StorageCategoryId, StorageClearResult, StorageUsage } from './storage.types';
+import {
+  MAX_AUTO_CLEAN_DAYS,
+  StorageCategory,
+  StorageCategoryClearResult,
+  StorageCategoryId,
+  StorageClearResult,
+  StoragePolicy,
+  StorageUsage,
+  StoreClearResult,
+  StoreFolder,
+  StoreFolders,
+  StoreFolderState,
+} from './storage.types';
 
 const MB = 1024 * 1024;
 
@@ -36,17 +48,58 @@ const KEPT: Partial<Record<StorageCategoryId, string>> = {
   sessions: 'saved in this session',
 };
 
+const DAY = 24 * 60 * 60 * 1000;
+
+/** Demo store folders shaped like the engine's: one open, one for a session, one in use elsewhere, two orphaned. */
+export function mockStoreFolders(now = Date.now()): StoreFolder[] {
+  const row = (id: string, state: StoreFolderState, mb: number, ageDays: number | null): StoreFolder => ({
+    id,
+    state,
+    bytes: mb * MB,
+    files: Math.max(1, Math.round(mb / 2)),
+    lastUsedMs: ageDays === null ? null : now - ageDays * DAY,
+  });
+  return [
+    row('store-7f3a91c2', 'open', 640, 0),
+    row('store-2b8e04d5', 'session', 310, 1),
+    row('store-c91d57aa', 'running', 120, 2),
+    row('store-5e60b3f8', 'orphaned', 96, 9),
+    row('store-0a4c7712', 'orphaned', 1800, 41),
+  ];
+}
+
+/** Why the engine keeps a store that is not orphaned (the mock mirrors the messages). */
+const STORE_KEPT: Record<Exclude<StoreFolderState, 'orphaned'>, string> = {
+  open: 'a window has this store open',
+  session: 'an autosaved session reopens it',
+  running: 'another IMT process is using it',
+};
+
 /**
  * In-memory storage: clearing frees the clearable bytes and keeps what the engine would keep. The
  * URL switch `?mockStorageFail=N` makes the first N calls fail (error and Retry paths).
  */
 export class MockStorageBackend implements StorageBackend {
   private categories = mockCategories();
+  private folders = mockStoreFolders();
+  private autoCleanDays = 0;
   private failures: number;
+  private storeFailures: number;
 
   constructor(search = '') {
     const n = Number(new URLSearchParams(search).get('mockStorageFail') ?? '0');
     this.failures = Number.isInteger(n) && n > 0 ? Math.min(n, 100) : 0;
+    const m = Number(new URLSearchParams(search).get('mockStoresFail') ?? '0');
+    this.storeFailures = Number.isInteger(m) && m > 0 ? Math.min(m, 100) : 0;
+  }
+
+  /** `?mockStoresFail=N` makes the first N store calls fail. */
+  private async maybeFailStores(what: string): Promise<void> {
+    await Promise.resolve();
+    if (this.storeFailures > 0) {
+      this.storeFailures--;
+      throw `could not ${what}: the stores folder is not readable (mock)`;
+    }
   }
 
   private async maybeFail(what: string): Promise<void> {
@@ -111,5 +164,52 @@ export class MockStorageBackend implements StorageBackend {
     const c = this.categories.find((x) => x.id === id);
     if (!c?.path) throw 'unknown storage category';
     return c.path;
+  }
+
+  async stores(): Promise<StoreFolders> {
+    await this.maybeFailStores('list the project stores');
+    const folders = this.folders.map((f) => ({ ...f })).sort((a, b) => (b.lastUsedMs ?? 0) - (a.lastUsedMs ?? 0));
+    const orphaned = folders.filter((f) => f.state === 'orphaned');
+    return {
+      folders,
+      totalBytes: folders.reduce((n, f) => n + f.bytes, 0),
+      orphanedBytes: orphaned.reduce((n, f) => n + f.bytes, 0),
+      capped: false,
+    };
+  }
+
+  /** Like the engine: only orphaned stores go; every other id is skipped with the reason. */
+  async clearStores(ids: string[]): Promise<StoreClearResult> {
+    await this.maybeFailStores('clean up the project stores');
+    if (!ids.length) throw 'choose the stores to clean up';
+    const removed: string[] = [];
+    const skipped: StoreClearResult['skipped'] = [];
+    let freedBytes = 0;
+    for (const id of [...new Set(ids)]) {
+      const f = this.folders.find((x) => x.id === id);
+      if (!f) skipped.push({ id, reason: 'there is no such store' });
+      else if (f.state !== 'orphaned') skipped.push({ id, reason: STORE_KEPT[f.state] });
+      else {
+        removed.push(id);
+        freedBytes += f.bytes;
+      }
+    }
+    this.folders = this.folders.filter((f) => !removed.includes(f.id));
+    return { freedBytes, removed, skipped, cancelled: false };
+  }
+
+  async policy(): Promise<StoragePolicy> {
+    await this.maybeFailStores('read the clean-up setting');
+    return { autoCleanDays: this.autoCleanDays };
+  }
+
+  async setPolicy(policy: StoragePolicy): Promise<StoragePolicy> {
+    await this.maybeFailStores('save the clean-up setting');
+    const days = policy.autoCleanDays;
+    if (!Number.isInteger(days) || days < 0 || days > MAX_AUTO_CLEAN_DAYS) {
+      throw `automatic clean-up must be between 0 (off) and ${MAX_AUTO_CLEAN_DAYS} days`;
+    }
+    this.autoCleanDays = days;
+    return { autoCleanDays: days };
   }
 }

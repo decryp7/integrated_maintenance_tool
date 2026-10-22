@@ -61,6 +61,8 @@ pub struct SourceReport {
     /// Size of the file in bytes (of the archive member, decompressed).
     pub bytes: u64,
     pub problems: Vec<Problem>,
+    /// How the file was decoded (`None` for binary formats).
+    pub encoding: Option<super::encoding::EncodingInfo>,
 }
 
 /// Where event batches go: the store's single writer. It assigns event ids (in write order) and source

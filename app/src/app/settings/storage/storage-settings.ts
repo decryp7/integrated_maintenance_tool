@@ -4,6 +4,7 @@ import { formatBytes } from '../../ai/ai-format';
 import { ConfirmDialog } from '../../ui/confirm-dialog';
 import { DialogService } from '../../ui/dialog.service';
 import { StorageStore } from './storage.store';
+import { StorageStores } from './stores-block';
 import { StorageCategory, StorageCategoryClearResult, StorageCategoryId } from './storage.types';
 
 /** The category's name in the UI language (the engine's English label for ids this UI does not know). */
@@ -56,11 +57,12 @@ export function resultLine(r: StorageCategoryClearResult, label: string): string
 @Component({
   selector: 'imt-storage-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [StorageStores],
   template: `
     <div class="section-head">
       <h3 i18n="Settings section@@settings.storage.title">Disk usage</h3>
       <span class="spacer"></span>
-      <button class="btn" type="button" [disabled]="store.busy()" (click)="store.load()" i18n="@@settings.storage.refresh">Refresh</button>
+      <button class="btn" type="button" [disabled]="store.busy()" (click)="refresh()" i18n="@@settings.storage.refresh">Refresh</button>
       <button class="btn primary" type="button" [disabled]="store.busy() || !store.cacheBytes()" (click)="confirmClearCache()" i18n="@@settings.storage.clearCache">Clear cache…</button>
     </div>
     <p class="desc" i18n="@@settings.storage.desc">What IMT keeps on this computer. The cache is rebuilt when needed; data is yours and is removed one category at a time.</p>
@@ -154,6 +156,7 @@ export function resultLine(r: StorageCategoryClearResult, label: string): string
         </tfoot>
       </table>
     }
+    <imt-storage-stores />
   `,
   styles: `
     :host { display: flex; flex-direction: column; gap: 8px; }
@@ -197,6 +200,11 @@ export class StorageSettings {
     void this.store.load();
     // Settings may close while a clear runs; it goes on in Jobs and tells when it is done.
     inject(DestroyRef).onDestroy(() => this.store.detach());
+  }
+
+  protected refresh(): void {
+    void this.store.load();
+    void this.store.loadStores();
   }
 
   protected label(c: StorageCategory): string {

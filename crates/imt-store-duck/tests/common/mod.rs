@@ -28,6 +28,7 @@ const SKIP: &[&str] = &[
     "linux",
     "otel",
     "real-libraries",
+    "encodings",
 ];
 
 /// Every entry of `/samples` the built-in importers open.

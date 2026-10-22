@@ -93,6 +93,27 @@ export interface SourceInfo {
   problems?: SourceProblem[];
   /** Id of the library parser that read the source (ADR 0026); null or absent when none did. */
   parser?: string | null;
+  /** How the source's text was decoded; null or absent for binary formats. */
+  encoding?: EncodingInfo | null;
+}
+
+/** Where a source's text encoding came from: a byte-order mark, a guess, the profile's `[files] encoding`, or the user. */
+export type EncodingOrigin = 'bom' | 'detected' | 'profile' | 'manual';
+
+/** How a source's text was decoded (engine `ingest::EncodingInfo`). */
+export interface EncodingInfo {
+  /** Canonical name: "UTF-8", "UTF-16LE", "Shift_JIS", "GBK", "windows-1252"... */
+  label: string;
+  /** 0..100; 100 for a byte-order mark or the user's choice. */
+  confidence: number;
+  origin: EncodingOrigin;
+}
+
+/** One encoding the user can choose for a source (`list_encodings`). */
+export interface EncodingOption {
+  label: string;
+  /** English name including the languages it covers. */
+  name: string;
 }
 
 /**
@@ -2493,6 +2514,69 @@ export interface RedactionSummary {
   samples: RedactionSample[];
 }
 
+// ---------------------------------------------------------------------------------------------
+// Share a redacted copy of the project (.imtz) (crates/imt-core, app/src-tauri/src/share.rs)
+//   redacted_copy_choices  {}                              -> RedactedCopyChoices   (detectors, custom rules, what the profile selects)
+//   redacted_copy_preview  { options }                     -> RedactedCopyPreview   (`invalid`, field "options", when nothing is picked)
+//   export_redacted_copy   { path, name, options, ui, reports?, overwrite? } -> RedactedExport   (never replaces a file unless `overwrite`)
+// ---------------------------------------------------------------------------------------------
+
+/** The profile's `[redact]` section as the engine reports it. */
+export interface RedactCfg {
+  detectors: string[];
+  mode: RedactMode;
+  fields: string[];
+  onExport: boolean;
+  rule: { name: string; regex: string; replace?: string | null }[];
+}
+
+/** What the "Share redacted copy" dialog offers: every built-in detector, the profile's custom rules, and what the profile selects now. */
+export interface RedactedCopyChoices {
+  /** All built-in detector ids (kebab-case, see `RedactDetector`). */
+  detectors: string[];
+  /** Names of the profile's `[[redact.rule]]` entries. */
+  rules: string[];
+  selected: RedactCfg;
+}
+
+/** What to redact in the copy; every key absent = the profile's own choice. */
+export interface RedactedCopyOptions {
+  detectors?: string[];
+  mode?: RedactMode;
+  rules?: string[];
+}
+
+/** A source the copy leaves out (its format cannot be redacted) and why. */
+export interface RedactedExcluded {
+  name: string;
+  reason: string;
+}
+
+export interface RedactedCopyPreview {
+  summary: RedactionSummary;
+  excluded: RedactedExcluded[];
+  /** Sources that go into the copy. */
+  included: number;
+}
+
+export interface RedactedCopyRequest {
+  path: string;
+  name: string;
+  options: RedactedCopyOptions;
+  ui: unknown;
+  reports?: Report[];
+  overwrite?: boolean;
+}
+
+/** What `export_redacted_copy` wrote. */
+export interface RedactedExport {
+  bytes: number;
+  sources: number;
+  events: number;
+  excluded: RedactedExcluded[];
+  hits: RuleHits[];
+}
+
 /** What a dashboard tile shows (`[[dashboard.tile]] type`). */
 export type TileKind = 'chart' | 'stat' | 'table' | 'top' | 'alerts' | 'annotations';
 export const TILE_KINDS: readonly TileKind[] = ['chart', 'stat', 'table', 'top', 'alerts', 'annotations'];
@@ -3044,6 +3128,20 @@ export type {
 //                                                                     retries unrecognised files)
 //   parser_assign       { sourceId, parserId: string | null }      -> number   (job id: "Parse with…" re-reads one source with that
 //                                                                     parser; null = automatic choice)
+//   list_encodings      {}                                         -> EncodingOption[]   (the encodings "Encoding…" offers)
+//   set_source_encoding { sourceId, encoding: string | null }      -> number   (job id: "Encoding…" re-reads one source with that
+//                                                                     encoding; null or "auto" = detect it again)
+//   paste_log           { text, name: string | null }              -> WorkspaceSummary   ("Paste as log…": the engine saves the text as a
+//                                                                     source file in the project (name made safe and unique, e.g.
+//                                                                     "web01 errors (2).log"), opens it through the importers and
+//                                                                     returns the workspace like open_paths; invalid: empty text, or
+//                                                                     over 8 MiB of UTF-8 (the UI refuses early too))
+//   storage_stores        {}                                       -> StoreFolders        (Settings > Storage, "Project stores": the folders of
+//                                                                     the stores on disk, newest first, with their state)
+//   storage_stores_clear  { ids: string[] }                        -> StoreClearResult    (removes the orphaned ones among ids; the engine
+//                                                                     re-checks each and skips the rest with a reason)
+//   storage_policy        {}                                       -> StoragePolicy       (automatic clean-up of orphaned stores)
+//   storage_set_policy    { policy: StoragePolicy }                -> StoragePolicy       (autoCleanDays 0 = off, at most 365; else invalid)
 export type {
   BrokenParserDto,
   ParserDocDto,
