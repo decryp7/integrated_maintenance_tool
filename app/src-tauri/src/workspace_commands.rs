@@ -655,7 +655,7 @@ pub(crate) async fn open_project_file<R: Runtime>(
             } else {
                 StoreKind::Project
             };
-            let reopen = move || {
+            let reopen = move || -> Result<_, CmdError> {
                 let store = win.engine.reopen(&dir, kind)?;
                 crate::engine::annotate::run(&win, store.as_ref(), &|_| {});
                 Ok(store)

@@ -306,9 +306,9 @@ describe('MockShareBackend', () => {
     expect((await imt.validateProfile('[redact]\ndetectors = ["email"]')).ok).toBe(true);
   });
 
-  it('works over a non-mock workspace backend (no redacted view to switch)', async () => {
+  it('works over a non-mock workspace backend (the engine owns the redacted view; the mock leaves the summary as it is)', async () => {
     const other = new MockShareBackend({ workspaceSummary: () => imt.workspaceSummary(), getProfile: () => imt.getProfile() } as unknown as ImtBackend, new MockAnalysisBackend(recordsFrom(imt)));
-    await expect(other.setRedactedView(true)).rejects.toMatchObject({ code: 'unsupported' });
+    expect((await other.setRedactedView(true)).redactedView).toBe(false);
     expect((await other.setRedactedView(false)).redactedView).toBe(false);
   });
 });

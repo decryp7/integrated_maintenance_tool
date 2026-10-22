@@ -211,7 +211,7 @@ impl Worker {
                 let filter: Filter = body(filter.0)?;
                 let s = self.store(store)?;
                 let mut failed: Option<StoreError> = None;
-                controlled(probe, || {
+                cancellable(probe, || {
                     s.scan(
                         &filter,
                         &mut |batch| match imt_store_client::arrow_wire::encode(batch, protocol::MAX_MESSAGE_BYTES - 4096) {
@@ -374,6 +374,19 @@ impl Worker {
                 let r: ExportProject = body(b)?;
                 reply(&Projects::export_project(&s, &r.manifest, &r.out)?)
             }
+        }
+    }
+}
+
+/// Runs `f` under a control that the caller's cancel triggers (when there is a probe). A scan streams its own
+/// items, so it reports no progress.
+fn cancellable<R>(probe: Option<CancelProbe>, f: impl FnOnce() -> StoreResult<R>) -> StoreResult<R> {
+    match probe {
+        None => f(),
+        Some(p) => {
+            let control = QueryControl::new();
+            let _watch = Watch::start(p, control.clone());
+            DuckStore::with_control(&control, f)
         }
     }
 }
@@ -602,6 +615,77 @@ mod tests {
         );
         let status: WorkerStatus = serde_json::from_value(w.handle(StoreRequest::Status, None, &mut none).unwrap()).unwrap();
         assert_eq!(status.tuning, tuning);
+    }
+
+    #[test]
+    fn a_long_call_streams_its_changed_progress_and_a_panic_is_an_engine_error() {
+        use imt_core::ql::{QueryProgress, QueryStage};
+        let control = QueryControl::new();
+        let mut sent: Vec<QueryProgress> = Vec::new();
+        let c = control.clone();
+        let reply = with_progress(
+            &control,
+            &mut |bytes| {
+                sent.push(imt_ipc::wire::decode(&bytes).unwrap());
+                true
+            },
+            move || {
+                c.begin(QueryStage::Evaluating, 100);
+                c.advance(40);
+                std::thread::sleep(protocol::PROGRESS_EVERY * 3);
+                Ok(7)
+            },
+        )
+        .unwrap();
+        assert_eq!(reply, 7);
+        assert!(!sent.is_empty(), "progress reached the caller while the call ran");
+        assert_eq!(
+            sent[0],
+            QueryProgress {
+                stage: QueryStage::Evaluating,
+                done: 40,
+                total: 100
+            }
+        );
+        assert!(sent.windows(2).all(|w| w[0] != w[1]), "only changes are sent");
+
+        // The caller refusing an item (it is gone) stops the sending, not the call.
+        let control = QueryControl::new();
+        let c = control.clone();
+        let mut refused = 0;
+        let reply = with_progress(
+            &control,
+            &mut |_| {
+                refused += 1;
+                false
+            },
+            move || {
+                c.advance(1);
+                std::thread::sleep(protocol::PROGRESS_EVERY * 3);
+                Ok(1)
+            },
+        );
+        assert_eq!((reply.unwrap(), refused), (1, 1));
+
+        // A panic inside the call is an engine error of that call; the worker lives on.
+        let control = QueryControl::new();
+        let err = with_progress::<()>(&control, &mut none, || panic!("query exploded")).unwrap_err();
+        assert!(matches!(&err, StoreError::Engine(m) if m.contains("query exploded")), "{err}");
+    }
+
+    #[test]
+    fn a_cancel_reaches_a_running_call() {
+        let control = QueryControl::new();
+        control.cancel();
+        let c = control.clone();
+        let reply = with_progress(&control, &mut none, move || {
+            if c.is_cancelled() {
+                Err(StoreError::Cancelled)
+            } else {
+                Ok(())
+            }
+        });
+        assert_eq!(reply.unwrap_err(), StoreError::Cancelled);
     }
 
     #[test]

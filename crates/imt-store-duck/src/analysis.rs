@@ -418,7 +418,9 @@ impl Iterator for EventStream<'_> {
     /// At most the candidates of a time-ordered stream (within its limit), so the query language's progress has
     /// a total.
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let left = self.bound.map(|b| usize::try_from(b.saturating_sub(self.yielded)).unwrap_or(usize::MAX));
+        let left = self
+            .bound
+            .map(|b| usize::try_from(b.saturating_sub(self.yielded)).unwrap_or(usize::MAX));
         (0, if self.done { Some(0) } else { left })
     }
 

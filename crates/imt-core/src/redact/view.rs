@@ -137,7 +137,9 @@ impl Redactor {
         let mut merged: Vec<FacetValue> = Vec::with_capacity(held);
         let mut at: std::collections::HashMap<String, usize> = std::collections::HashMap::with_capacity(held);
         for v in facet.values.drain(..) {
-            let value = self.field(&facet.field, Cow::Borrowed(v.value.as_str()), &mut Counts::new()).into_owned();
+            let value = self
+                .field(&facet.field, Cow::Borrowed(v.value.as_str()), &mut Counts::new())
+                .into_owned();
             match at.get(&value) {
                 Some(&i) => merged[i].count += v.count,
                 None => {
@@ -147,7 +149,7 @@ impl Redactor {
             }
         }
         // A stable sort keeps the store's order among equal counts.
-        merged.sort_by(|a, b| b.count.cmp(&a.count));
+        merged.sort_by_key(|h| std::cmp::Reverse(h.count));
         facet.distinct = facet.distinct.saturating_sub(held - merged.len());
         facet.values = merged;
     }
@@ -186,7 +188,9 @@ impl Redactor {
         match tile {
             TileData::Table { columns, rows, .. } => self.view_table(columns, rows),
             TileData::Top { facet } => self.view_facet(facet),
-            TileData::Stat { text, label, value: None, .. } => self.view_field(label, text),
+            TileData::Stat {
+                text, label, value: None, ..
+            } => self.view_field(label, text),
             TileData::Stat { .. } | TileData::Chart { .. } | TileData::Alerts { .. } | TileData::Annotations { .. } => {}
         }
     }
@@ -303,7 +307,7 @@ mod tests {
 
     #[test]
     fn the_view_needs_rules_and_says_what_to_add() {
-        let e = view_redactor(&RedactCfg::default()).unwrap_err().to_string();
+        let e = view_redactor(&RedactCfg::default()).err().expect("no rules").to_string();
         assert!(e.contains("[redact]"), "{e}");
         let bad = cfg("[[redact.rule]]\nname = 'x'\nregex = '('");
         assert!(view_redactor(&bad).is_err());
@@ -335,7 +339,10 @@ mod tests {
     #[test]
     fn facets_merge_values_that_redact_alike_and_out_of_scope_fields_stay() {
         let r = redactor("detectors = ['email']\nfields = ['User']");
-        let v = |value: &str, count| FacetValue { value: value.into(), count };
+        let v = |value: &str, count| FacetValue {
+            value: value.into(),
+            count,
+        };
         let mut f = Facet {
             field: "User".into(),
             values: vec![v("a@b.io", 5), v("bob", 4), v("c@d.io", 2)],
@@ -367,7 +374,10 @@ mod tests {
                     line: 1,
                     text: "from 10.0.0.1".into(),
                 },
-                SourceLine { line: 2, text: "plain".into() },
+                SourceLine {
+                    line: 2,
+                    text: "plain".into(),
+                },
             ],
             note: None,
         };
@@ -386,7 +396,10 @@ mod tests {
         let QlResult::Table { rows, .. } = &ql else { unreachable!() };
         assert_eq!(rows[0], vec![json!("<email>"), json!("10.0.0.1"), json!(4)]);
         assert_eq!(rows[1][0], json!(["<email>"]));
-        let mut ids = QlResult::Events { ids: vec![1], fields: None };
+        let mut ids = QlResult::Events {
+            ids: vec![1],
+            fields: None,
+        };
         r.view_ql(&mut ids);
         assert!(matches!(ids, QlResult::Events { .. }));
         let mut table = TileData::Table {

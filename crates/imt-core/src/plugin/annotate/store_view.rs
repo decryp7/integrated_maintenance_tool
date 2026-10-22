@@ -130,9 +130,9 @@ impl<S: Query + ?Sized> AnnotationView for PortView<'_, S> {
 
     fn query(&self, query: &crate::query::Query, limit: usize) -> Result<Vec<ViewRecord>> {
         let limit = limit.min(MAX_VIEW_RECORDS);
-        let mut out = Vec::new();
+        let mut out: Vec<Record> = Vec::new();
         if limit == 0 {
-            return Ok(out);
+            return Ok(Vec::new());
         }
         self.each(query, |r| {
             out.push(r);

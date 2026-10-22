@@ -13,9 +13,9 @@ use imt_core::bundle::{BundleEstimate, BundleOptions};
 use imt_core::dashboard::{TileData, TileRequest};
 use imt_core::overwrite::check_overwrite;
 use imt_core::redact::RedactionPreview;
+use imt_core::redact::{RedactionPreviewRequest, RedactionSummary, RedactionSummaryRequest};
 use imt_core::report::html::HtmlRenderer;
 use imt_core::report::{Report, ReportRenderer, Theme};
-use imt_core::redact::{RedactionPreviewRequest, RedactionSummary, RedactionSummaryRequest};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -65,7 +65,11 @@ pub(crate) async fn set_redacted_view(state: CurrentWindow, op: OpId, enabled: b
         CmdError::invalid(e.to_string()).hint("Edit the profile: add detectors or [[redact.rule]] entries to its [redact] section.")
     })?;
     log::info!(Enabled = enabled; "Redacted view switched");
-    domain_event("redaction.toggled", op.as_deref(), &[("Enabled", if enabled { "true" } else { "false" })]);
+    domain_event(
+        "redaction.toggled",
+        op.as_deref(),
+        &[("Enabled", if enabled { "true" } else { "false" })],
+    );
     crate::workspace_commands::summary_of(&state).await
 }
 
@@ -485,9 +489,13 @@ mod tests {
         let (app, _d) = opened("share-view");
         let st = || main_window(&app);
         let _log = crate::activity::test_capture();
-        // The store has no redacted view yet: switching it on is refused with a message, off is fine.
-        let e = block(set_redacted_view(st(), OpId(Some("op-redact".into())), true)).unwrap_err();
-        assert_eq!(e.code, crate::ErrorCode::Unsupported);
+        // The profile has detectors, so the view switches on (a profile without rules is refused in the engine's tests).
+        let on = block(set_redacted_view(st(), OpId(Some("op-redact".into())), true)).unwrap().json();
+        assert_eq!(on["redactedView"], true);
+        assert_eq!(
+            crate::tools::tests::domain_event("redaction.toggled", "op-redact").props["Enabled"],
+            "true"
+        );
         let summary = block(set_redacted_view(st(), OpId(Some("op-off".into())), false)).unwrap().json();
         assert_eq!(summary["redactedView"], false);
         assert_eq!(
@@ -504,7 +512,8 @@ mod tests {
         .unwrap();
         assert_eq!(p.after, "<email>");
         let s: RedactionSummaryRequest = serde_json::from_value(json!({})).unwrap();
-        assert_eq!(block(redaction_summary(st(), s)).unwrap_err().code, crate::ErrorCode::Unsupported);
+        let sum = block(redaction_summary(st(), s)).unwrap();
+        assert!(sum.scanned > 0, "the summary reads the store's events");
         let t: TileRequest = serde_json::from_value(json!({"tile": {"id": "t", "type": "stat", "query": "| stats count()"}})).unwrap();
         let data = serde_json::to_value(block(dashboard_tile(st(), t)).unwrap()).unwrap();
         assert_eq!(data["kind"], "stat");

@@ -298,3 +298,30 @@ fn mixed_sources_imported_by_the_worker_read_like_in_process() {
     );
     w.shutdown();
 }
+
+/// The redaction summary over the worker equals the store's own, and is cancellable.
+#[test]
+fn the_redaction_summary_over_the_worker_answers_like_the_store() {
+    use imt_core::ports::Redaction;
+    let dir = TempDir::new("redact");
+    let profile = Profile::from_toml("name = 'Redacting'\n[redact]\ndetectors = ['email', 'ipv4']\n").unwrap();
+    let plugins = imt_plugin_host::Builtins::load(&imt_plugin_host::builtins::default_binary()).plugins();
+    let registry = imt_store_worker::server::install_plugins(plugins, &[]);
+    let local = DuckStore::create(&dir.0, profile.clone(), registry).unwrap();
+    local.open(&[samples().join("serilog-clef")]).unwrap().wait().unwrap();
+    let request: imt_core::redact::RedactionSummaryRequest = req(json!({"query": {}, "samples": 4}));
+    let expected = local.redaction_summary(&request).unwrap();
+    assert!(expected.changed > 0, "the samples hold something to redact");
+    drop(local);
+
+    let w = StoreWorker::new(WorkerConfig::new(env!("CARGO_BIN_EXE_imt-store-worker"))).unwrap();
+    let remote = w.open_store(&dir.0, profile, false, None).unwrap();
+    assert_eq!(j(remote.redaction_summary(&request).unwrap()), j(&expected));
+    let control = QueryControl::new();
+    control.cancel();
+    assert_eq!(
+        control.scope(|| remote.redaction_summary(&request)).unwrap_err(),
+        StoreError::Cancelled
+    );
+    w.shutdown();
+}

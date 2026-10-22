@@ -647,3 +647,53 @@ fn reports_problems_refuses_what_is_not_built_yet_and_reopens() {
         Err(StoreError::NotFound(_))
     ));
 }
+
+/// The redaction summary (the profile's `[redact]` rules over the matching events) of the store equals the
+/// in-memory reference's: the same events changed and the same hits per rule, for all events and for a query.
+#[test]
+fn the_redaction_summary_matches_the_workspace() {
+    use imt_core::ports::Redaction;
+    use imt_core::redact::RedactionSummaryRequest;
+    let profile = Profile::from_toml("name = 'Redacting'\n[redact]\ndetectors = ['email', 'ipv4']\n").unwrap();
+    let p = pair_of_samples(profile);
+    let sorted = |mut h: Vec<imt_core::redact::RuleHits>| {
+        h.sort_by(|a, b| a.rule.cmp(&b.rule));
+        h
+    };
+    for (name, query) in [
+        ("all", Filter::default()),
+        (
+            "errors",
+            Filter {
+                levels: vec![Level::Error, Level::Fatal],
+                ..Filter::default()
+            },
+        ),
+    ] {
+        let req = RedactionSummaryRequest { query, samples: 3 };
+        let w = p.ws.redaction_summary(&req).unwrap();
+        let d = Redaction::redaction_summary(&p.duck, &req).unwrap();
+        assert_eq!(sorted(d.hits.clone()), sorted(w.hits.clone()), "{name}: hits per rule");
+        assert_eq!(d.changed, w.changed, "{name}: events changed");
+        assert!(d.samples.len() <= 3 && w.samples.len() <= 3);
+        assert!(d.samples.iter().all(|s| s.before != s.after), "{name}: a sample shows a change");
+        assert!(!d.truncated && !w.truncated);
+        if name == "all" {
+            assert!(d.changed > 0 && !d.hits.is_empty(), "the samples hold emails or addresses");
+        }
+    }
+    // Nothing to redact without rules: both refuse alike.
+    let none = pair_of_samples(Profile::default_profile());
+    let req = RedactionSummaryRequest {
+        query: Filter::default(),
+        samples: 1,
+    };
+    assert_eq!(
+        Redaction::redaction_summary(&none.duck, &req).is_err(),
+        none.ws.redaction_summary(&req).is_err()
+    );
+}
+
+fn pair_of_samples(profile: Profile) -> Pair {
+    common::pair_of(profile, &common::log_samples())
+}
