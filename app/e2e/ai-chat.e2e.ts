@@ -16,7 +16,7 @@ test.describe('AI chat', () => {
 
     await ask(chat, 'What crashed?');
     const chip = chat.getByTestId('ai-tool-chip').first();
-    await expect(chip).toContainText('Query: 1 events');
+    await expect(chip).toContainText('Query · 1 event');
     await waitAnswered(chat);
     const answer = chat.getByTestId('ai-answer-0');
     await expect(answer).toContainText('OutOfMemoryException');

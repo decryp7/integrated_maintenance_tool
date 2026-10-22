@@ -79,7 +79,7 @@ import { AiRichText } from './rich-text';
               <ul class="tools" aria-label="Assistant activity" i18n-aria-label="@@ai.chat.tools.label">
                 @for (c of t.tools; track $index) {
                   <li class="tool chip" [class.running]="c.running" [class.err]="c.error" data-testid="ai-tool-chip">
-                    {{ label(c.name) }}@if (c.running) {<span class="dots" aria-hidden="true">…</span>}@if (c.summary) {<span class="sum">: {{ c.summary }}</span>}
+                    {{ label(c.name) }}@if (c.running) {<span class="dots" aria-hidden="true">…</span>}@if (c.summary) {<span class="sum"> · {{ c.summary }}</span>}
                   </li>
                 }
               </ul>

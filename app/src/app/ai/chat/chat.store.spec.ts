@@ -52,7 +52,7 @@ describe('ChatStore', () => {
       images: [],
     });
     const t = at(store.activeTurns(), 0);
-    expect(t.tools[0]).toMatchObject({ name: 'run_query', running: false, summary: '1 events' });
+    expect(t.tools[0]).toMatchObject({ name: 'run_query', running: false, summary: '1 event' });
     expect(t.text).toContain('OutOfMemoryException');
     expect(t.citations.length).toBe(2);
     await vi.waitFor(() => expect(store.sessions()[0]?.title).toBe('what crashed?'));

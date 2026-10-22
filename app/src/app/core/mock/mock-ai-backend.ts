@@ -1077,7 +1077,7 @@ export class MockAiBackend extends AiBackend {
         await tool(
           'run_query',
           '{"ql":"level = fatal"}',
-          '1 events',
+          '1 event',
           [ids.fatal],
           ['level = fatal'],
         );
