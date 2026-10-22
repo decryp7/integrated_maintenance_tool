@@ -1,11 +1,12 @@
 import { computed, DestroyRef, DOCUMENT, effect, inject, Injectable, Injector, signal } from '@angular/core';
 import { SettingsStore } from '../../settings/settings.store';
 import { effectiveTraits, resolveTokens, traitAttributes, withUiFont } from '../../theme/theme-tokens';
-import { themeById } from '../../theme/themes';
+import { resolveThemeId, themeById } from '../../theme/themes';
 import { Density, Scheme, ThemeDef, ThemeTraits, TokenSet } from '../../theme/theme.types';
 import { UiPrefsStore } from './ui-prefs.store';
 
 const LIGHT_QUERY = '(prefers-color-scheme: light)';
+const CONTRAST_QUERY = '(prefers-contrast: more)';
 
 /**
  * Applies the theme (ADR 0018) to the document: the token set of the chosen theme, scheme and density as CSS custom
@@ -19,11 +20,13 @@ export class ThemeService {
   private readonly root = inject(DOCUMENT).documentElement;
   private readonly injector = inject(Injector);
   private readonly media = typeof matchMedia === 'function' ? matchMedia(LIGHT_QUERY) : null;
+  private readonly contrastMedia = typeof matchMedia === 'function' ? matchMedia(CONTRAST_QUERY) : null;
+  private readonly systemContrast = signal(this.contrastMedia?.matches ?? false);
   private readonly systemScheme = signal<Scheme>(this.media?.matches ? 'light' : 'dark');
   private started = false;
 
   /** The theme in effect. */
-  readonly theme = computed<ThemeDef>(() => themeById(this.prefs.theme()));
+  readonly theme = computed<ThemeDef>(() => themeById(resolveThemeId(this.prefs.theme(), this.systemContrast())));
   /** The scheme in effect ("system" resolved). */
   readonly scheme = computed<Scheme>(() => {
     const mode = this.prefs.scheme();
@@ -41,6 +44,12 @@ export class ThemeService {
       const follow = (e: MediaQueryListEvent) => this.systemScheme.set(e.matches ? 'light' : 'dark');
       media.addEventListener('change', follow);
       inject(DestroyRef).onDestroy(() => media.removeEventListener('change', follow));
+    }
+    const contrast = this.contrastMedia;
+    if (contrast?.addEventListener) {
+      const follow = (e: MediaQueryListEvent) => this.systemContrast.set(e.matches);
+      contrast.addEventListener('change', follow);
+      inject(DestroyRef).onDestroy(() => contrast.removeEventListener('change', follow));
     }
   }
 

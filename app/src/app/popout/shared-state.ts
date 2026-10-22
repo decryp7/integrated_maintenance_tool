@@ -60,7 +60,7 @@ export function sharedUiState(injector: Injector): SyncedValue[] {
         if (isRecord(v) && typeof v['id'] === 'number') store.jumpTo(v['id']);
       },
     },
-    { key: 'theme', read: () => store.theme(), apply: (v) => isThemeId(v) && store.setTheme(v) },
+    { key: 'theme', read: () => store.theme(), apply: (v) => (v === null || isThemeId(v)) && store.setTheme(v) },
     { key: 'scheme', read: () => store.scheme(), apply: (v) => isSchemeMode(v) && store.setScheme(v) },
     { key: 'uiFont', read: () => store.uiFont(), apply: (v) => isUiFont(v) && store.setUiFont(v) },
     { key: 'lanesBySource', read: () => store.lanesBySource(), apply: (v) => (v === null || typeof v === 'boolean') && store.setLanesBySource(v) },

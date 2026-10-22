@@ -24,6 +24,21 @@ const PREVIEW = ['bg-0', 'bg-1', 'accent', 'src-1', 'src-2', 'src-3', 'mk-fatal'
     <fieldset data-testid="theme-setting">
       <legend i18n="@@settings.appearance.theme">Theme</legend>
       <div class="themes" role="radiogroup" aria-label="Theme" i18n-aria-label="@@settings.appearance.theme.aria">
+        <label class="theme" [class.on]="prefs.theme() === null" data-theme-card="system">
+          <input type="radio" name="imt-theme" [checked]="prefs.theme() === null" (change)="prefs.setTheme(null)" />
+          <span class="preview" aria-hidden="true" [style.background]="followed().swatches[0]" [style.border-color]="followed().swatches[1]">
+            <span class="panel" [style.background]="followed().swatches[1]">
+              <span class="bar" [style.background]="followed().swatches[2]"></span>
+              <span class="dots">
+                @for (c of followed().swatches.slice(3); track $index) {
+                  <span class="dot" [style.background]="c"></span>
+                }
+              </span>
+            </span>
+          </span>
+          <span class="name" i18n="@@settings.appearance.theme.system">Follow system</span>
+          <span class="about" i18n="@@settings.appearance.theme.system.about">Calm, or High contrast when your system asks for more contrast.</span>
+        </label>
         @for (t of themes(); track t.id) {
           <label class="theme" [class.on]="prefs.theme() === t.id" [attr.data-theme-card]="t.id">
             <input type="radio" name="imt-theme" [value]="t.id" [checked]="prefs.theme() === t.id" (change)="prefs.setTheme(t.id)" />
@@ -121,6 +136,11 @@ export class AppearanceSettings {
       return { id: t.id, name: THEME_NAMES[t.id], about: THEME_ABOUT[t.id], swatches: PREVIEW.map((n) => tokens[n] ?? '') };
     }),
   );
+  /** The card of the theme "Follow system" resolves to right now. */
+  protected readonly followed = computed(() => {
+    const id = this.theme.theme().id;
+    return this.themes().find((t) => t.id === id) ?? this.themes()[0]!;
+  });
   /** "Colour lanes by source" as it is in effect (the user's choice or the theme's default). */
   protected readonly bySource = computed(() => this.theme.traits().laneFill === 'bySource');
 
@@ -149,10 +169,12 @@ export const THEME_NAMES: Record<ThemeId, string> = {
   calm: $localize`:Theme name@@settings.appearance.theme.calm:Calm`,
   console: $localize`:Theme name@@settings.appearance.theme.console:Console`,
   precision: $localize`:Theme name@@settings.appearance.theme.precision:Precision`,
+  contrast: $localize`:Theme name@@settings.appearance.theme.contrast:High contrast`,
 };
 
 const THEME_ABOUT: Record<ThemeId, string> = {
   calm: $localize`:Theme description@@settings.appearance.theme.calm.about:Quiet and neutral; only the data has colour.`,
   console: $localize`:Theme description@@settings.appearance.theme.console.about:Soft cards and richer colour; problems stand out.`,
   precision: $localize`:Theme description@@settings.appearance.theme.precision.about:Paper and ink, hairlines and mono figures; the densest view.`,
+  contrast: $localize`:Theme description@@settings.appearance.theme.contrast.about:Black or white, AAA text contrast, strong outlines and focus rings.`,
 };

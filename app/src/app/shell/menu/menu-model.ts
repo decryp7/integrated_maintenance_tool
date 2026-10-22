@@ -98,7 +98,7 @@ export interface MenuState {
   views: readonly MenuView[];
   sidebarOpen: boolean;
   /** View › Theme: the look and the colour scheme. */
-  theme: ThemeId;
+  theme: ThemeId | null;
   scheme: 'system' | 'dark' | 'light';
   /** What the source colour marker stands for (View › Source colours); default by file. */
   sourceColors?: 'source' | 'instance' | 'off';
@@ -376,9 +376,11 @@ function viewMenu(state: MenuState, cmd: Cmd, sub: Sub): MenuNode[] {
     { kind: 'item', id: MENU_IDS.otherWindows, label: $localize`:@@shell.menu.view.otherWindows:Other windows…` },
     SEP,
     sub('view.theme', $localize`:@@shell.menu.view.theme:Theme`, [
+      cmd('view.theme.system', $localize`:Theme name@@shell.menu.view.theme.system:Follow system`, state.theme === null),
       cmd('view.theme.calm', $localize`:Theme name@@shell.menu.view.theme.calm:Calm`, state.theme === 'calm'),
       cmd('view.theme.console', $localize`:Theme name@@shell.menu.view.theme.console:Console`, state.theme === 'console'),
       cmd('view.theme.precision', $localize`:Theme name@@shell.menu.view.theme.precision:Precision`, state.theme === 'precision'),
+      cmd('view.theme.contrast', $localize`:Theme name@@shell.menu.view.theme.contrast:High contrast`, state.theme === 'contrast'),
       SEP,
       cmd('view.scheme.system', $localize`:Colour scheme option@@shell.menu.view.scheme.system:System`, state.scheme === 'system'),
       cmd('view.scheme.dark', $localize`:Colour scheme option@@shell.menu.view.scheme.dark:Dark`, state.scheme === 'dark'),

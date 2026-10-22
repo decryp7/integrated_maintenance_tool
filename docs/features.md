@@ -591,9 +591,17 @@ Settings ▸ Appearance (or *View ▸ Theme*, or the command palette) chooses ho
   shadows, one cobalt accent, 2 px corners, mono figures, barcode lane density, bracket runs and the tightest rows.
   Themes differ in shape as well as colour (Inter + JetBrains Mono for Calm, Geist + Geist Mono for Console, IBM
   Plex Sans + Plex Mono for Precision; the fonts are bundled).
+- **Follow system** (the default choice) uses Calm, or *High contrast* when the operating system asks for more
+  contrast (`prefers-contrast: more`), and changes live. *High contrast* is pure black or white with text at WCAG
+  AAA (at least 7:1 everywhere), borders, focus rings and markers at 4.5:1 or more, strong outlines instead of
+  shadows, slightly larger type and looser rows, in both colour schemes.
 - **Interface font.** *System* (the default) uses the operating system's font for menus, panels and dialogs (Segoe
   UI on Windows, San Francisco on macOS, the desktop's font on Linux), like other desktop apps; *Theme* uses the
   theme's own face. Log text is always monospaced.
+- **Keyboard shortcuts.** Settings ▸ Keyboard (or *Help ▸ Keyboard shortcuts ▸ Edit shortcuts…*) lists every
+  command with its key; *Change* records a new key, warns when another command or a built-in key already uses
+  it (Replace or Cancel), and the cheat sheet (F1), menus and palette show your keys. Overrides are kept for
+  your user. *Help ▸ What's new* shows the release notes (CHANGELOG.md), once automatically after an update.
 - **Colour scheme.** Light, dark, or *System* (the default), which follows the operating system as it changes.
 - **Density.** *Comfortable* or *Compact* row and lane heights, in every theme.
 - **Colour lanes by source.** Draws each lane's volume in its source colour instead of neutral grey; each theme

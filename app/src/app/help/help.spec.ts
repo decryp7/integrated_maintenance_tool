@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { all, el, provideFakeDock, provideTinyBackendBare, settle, text, typeInto } from '../../testing/helpers';
 import { CommandRegistry } from '../extensions/command-registry';
+import { KeybindingOverridesStore } from '../extensions/keybinding-overrides.store';
 import { IMT_COMMANDS, ImtCommand } from '../extensions/tokens';
 import { DialogService } from '../ui/dialog.service';
 import { CheatSheet, PRINT_CLASS } from './cheat-sheet';
@@ -61,7 +62,9 @@ describe('cheat sheet and help commands', () => {
     const open = vi.spyOn(TestBed.inject(SettingsDialogService), 'open').mockReturnValue(undefined);
     expect(await registry.run('parsers.manage')).toBe(true);
     expect(open).toHaveBeenCalledWith('@parsers');
-    expect(TestBed.inject(HelpCommands).commands.map((c) => c.id)).toEqual(['help.shortcuts', 'parsers.manage']);
+    expect(await registry.run('help.editShortcuts')).toBe(true);
+    expect(open).toHaveBeenCalledWith('@keyboard');
+    expect(TestBed.inject(HelpCommands).commands.map((c) => c.id)).toEqual(['help.shortcuts', 'help.whatsNew', 'help.editShortcuts', 'parsers.manage']);
   });
 
   it('lists registered bindings and fixed keys, searches, clears and prints only the sheet', async () => {
@@ -92,5 +95,45 @@ describe('cheat sheet and help commands', () => {
     expect(document.body.classList.contains(PRINT_CLASS)).toBe(false);
     vi.runAllTimers();
     vi.useRealTimers();
+  });
+});
+
+describe('cheat sheet with user key bindings', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
+  it('shows the effective binding, omits a cleared one and links to the editor', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideTinyBackendBare(),
+        provideFakeDock(),
+        provideHelp(),
+        {
+          provide: IMT_COMMANDS,
+          multi: true,
+          useValue: [cmd('t.open', 'Open files…', { category: 'File', keybinding: 'Mod+O' }), cmd('t.save', 'Save things', { category: 'File', keybinding: 'Mod+S' })],
+        },
+      ],
+    });
+    TestBed.inject(KeybindingOverridesStore).set({ 't.open': 'Alt+J', 't.save': null });
+    const registry = TestBed.inject(CommandRegistry);
+    expect(registry.find('t.open')?.keybinding).toBe('Alt+J');
+    expect(registry.declaredKeybinding('t.open')).toBe('Mod+O');
+    expect(registry.find('t.save')?.keybinding).toBeUndefined();
+    // The dispatcher honours the override and the cleared key, and pauses while the editor records.
+    expect(registry.runForKey(new KeyboardEvent('keydown', { key: 'o', ctrlKey: true }))).toBe(false);
+    registry.keysSuspended.set(true);
+    expect(registry.runForKey(new KeyboardEvent('keydown', { key: 'F1' }))).toBe(false);
+    registry.keysSuspended.set(false);
+    expect(registry.runForKey(new KeyboardEvent('keydown', { key: 'j', altKey: true }))).toBe(true);
+
+    const fixture = TestBed.createComponent(CheatSheet);
+    await settle(fixture);
+    const rows = all(fixture, '.cs-row').map((r) => r.textContent);
+    expect(rows.some((r) => r?.includes('Alt+J') && r.includes('Open files…'))).toBe(true);
+    expect(rows.some((r) => r?.includes('Save things'))).toBe(false);
+    const open = vi.spyOn(TestBed.inject(SettingsDialogService), 'open').mockReturnValue(undefined);
+    (fixture.nativeElement.querySelector('[data-testid=cheat-sheet-edit]') as HTMLButtonElement).click();
+    expect(open).toHaveBeenCalledWith('@keyboard');
   });
 });

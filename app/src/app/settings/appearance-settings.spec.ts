@@ -18,14 +18,21 @@ describe('AppearanceSettings', () => {
   it('offers every built-in theme as a radio card with a preview in the scheme in effect', async () => {
     const { fixture, prefs, theme } = await setup();
     const cards = all<HTMLInputElement>(fixture, 'input[type=radio][name=imt-theme]');
-    expect(cards.map((c) => c.value)).toEqual(['calm', 'console', 'precision']);
+    expect(cards.map((c) => c.closest('label')?.getAttribute('data-theme-card'))).toEqual(['system', 'calm', 'console', 'precision', 'contrast']);
     expect(cards[0]?.checked).toBe(true);
+    expect(prefs.theme()).toBeNull();
+    expect(text(fixture)).toContain('Follow system');
     expect(text(fixture)).toContain('Calm');
     expect(text(fixture)).toContain('Console');
     expect(text(fixture)).toContain('Precision');
-    cards[1]?.click();
+    cards[2]?.click();
     await settle(fixture);
     expect(prefs.theme()).toBe('console');
+    cards[0]?.click();
+    await settle(fixture);
+    expect(prefs.theme()).toBeNull();
+    cards[2]?.click();
+    await settle(fixture);
     expect(el(fixture, '[data-theme-card=console]').classList).toContain('on');
     // The preview shows the theme's own colours, for the scheme in effect.
     const panel = (id: string) => el<HTMLElement>(fixture, `[data-theme-card=${id}] .panel`).style.background;

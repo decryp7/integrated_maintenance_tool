@@ -25,9 +25,11 @@ const COMMANDS: [string, string, string?][] = [
   ['palette.open', 'Show all commands', 'Mod+K'],
   ['view.toggleSidebar', 'Toggle sidebar', 'Mod+B'],
   ['view.resetLayout', 'Reset layout'],
+  ['view.theme.system', 'Theme: Follow system'],
   ['view.theme.calm', 'Theme: Calm'],
   ['view.theme.console', 'Theme: Console'],
   ['view.theme.precision', 'Theme: Precision'],
+  ['view.theme.contrast', 'Theme: High contrast'],
   ['view.scheme.system', 'Colour scheme: system'],
   ['view.scheme.dark', 'Colour scheme: dark'],
   ['view.scheme.light', 'Colour scheme: light'],
@@ -76,6 +78,7 @@ const COMMANDS: [string, string, string?][] = [
   ['help.demo', 'Try the demo'],
   ['help.tour', 'Take the tour'],
   ['help.shortcuts', 'Keyboard shortcuts', 'F1'],
+  ['help.whatsNew', "What's new"],
   ['help.notices', 'Third-party notices'],
   ['help.about', 'About IMT'],
 ];
@@ -189,8 +192,8 @@ describe('menu model', () => {
     expect(items.find((i) => i.label === 'Explorer')).toMatchObject({ id: 'view.toggleSidebar', checked: true, keybinding: 'Mod+B' });
     expect(items.find((i) => i.label === 'Timeline')).toMatchObject({ id: 'view:timeline', checked: true });
     expect(items.find((i) => i.label === 'Metrics')).toMatchObject({ checked: false });
-    expect(labels(sub(v, 'Theme'))).toEqual(['Calm', 'Console', 'Precision', '—', 'System', 'Dark', 'Light']);
-    expect(sub(v, 'Theme').map((n) => n.kind === 'item' && n.checked)).toEqual([false, true, false, false, false, true, false]);
+    expect(labels(sub(v, 'Theme'))).toEqual(['Follow system', 'Calm', 'Console', 'Precision', 'High contrast', '—', 'System', 'Dark', 'Light']);
+    expect(sub(v, 'Theme').map((n) => n.kind === 'item' && n.checked)).toEqual([false, false, true, false, false, false, false, true, false]);
   });
 
   it('puts plugin views in Plugins, grouped by plugin, after the plugin manager', () => {
@@ -261,6 +264,8 @@ describe('menu model', () => {
       'Try the demo',
       'Take the tour',
       'Keyboard shortcuts',
+      '—',
+      "What's new",
       '—',
       'Restart in safe mode',
       '—',
