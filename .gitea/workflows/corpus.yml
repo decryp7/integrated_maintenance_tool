@@ -1,0 +1,39 @@
+# Nightly: real-world files that cannot be committed, downloaded at test time into a temporary folder.
+# EVTX-ATTACK-SAMPLES (GPL-3.0, pinned commit and SHA-256) through the Windows plugin's EVTX importer over the
+# real IPC: no panic, no plugin crash or memory-cap stop, events with timestamps. Failures name the file only.
+# See crates/imt-plugins/tests/evtx_corpus.rs. Never runs on push: it needs the network and takes minutes.
+
+name: corpus
+
+on:
+  schedule:
+    - cron: "43 3 * * *"
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  evtx:
+    name: real-world EVTX corpus
+    runs-on: ubuntu-latest
+    container:
+      image: catthehacker/ubuntu:act-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+            !target/debug/incremental
+          key: corpus-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: corpus-${{ runner.os }}-
+
+      - name: EVTX-ATTACK-SAMPLES through the EVTX importer
+        run: cargo test -p imt-plugins --test evtx_corpus -- --ignored
