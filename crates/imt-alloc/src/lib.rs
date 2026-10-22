@@ -33,6 +33,25 @@ const PURGE_DELAY_MS: c_long = 10;
 /// Arenas wait this many times as long.
 const ARENA_PURGE_FACTOR: c_long = 10;
 
+/// mimalloc's statistics as text (`mi_stats_print_out`): what IMT's Rust side has reserved and committed, for memory
+/// diagnostics (e.g. telling it apart from DuckDB's own allocator in a process).
+pub fn stats_text() -> String {
+    unsafe extern "C" fn collect(msg: *const std::os::raw::c_char, arg: *mut std::os::raw::c_void) {
+        if msg.is_null() || arg.is_null() {
+            return;
+        }
+        // SAFETY: mimalloc passes a NUL-terminated message and the `arg` given below, a live `String`.
+        unsafe {
+            let out = &mut *(arg as *mut String);
+            out.push_str(&std::ffi::CStr::from_ptr(msg).to_string_lossy());
+        }
+    }
+    let mut out = String::new();
+    // SAFETY: the callback only appends to `out`, which outlives the call.
+    unsafe { libmimalloc_sys::mi_stats_print_out(Some(collect), &mut out as *mut String as *mut std::os::raw::c_void) };
+    out
+}
+
 /// Sets the allocator's purge timing (see the module docs); call it first thing in `main`.
 pub fn tune() {
     // SAFETY: plain option setters of the linked mimalloc; any value is valid for these options.
@@ -71,6 +90,7 @@ mod tests {
         assert_eq!(get(ARENA_PURGE_MULT), 1, "arena_purge_mult");
         tune();
         assert_eq!((get(PURGE_DELAY), get(ARENA_PURGE_MULT)), (10, 10));
+        assert!(!stats_text().is_empty(), "mimalloc prints its statistics");
         purge_at_once();
         assert_eq!((get(PURGE_DELAY), get(ARENA_PURGE_MULT)), (0, 1));
         tune();
