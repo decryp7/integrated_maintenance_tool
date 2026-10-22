@@ -1,16 +1,14 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { HighlightEditor } from './highlight-editor';
 import { SavedQueries } from './saved-queries';
 
-/** The "Saved queries" panel: saved queries and highlight rules. Both are saved with the project. */
+/** The "Saved queries" panel: saved queries (highlight rules are line markers and live in the Markers view). Saved with the project. */
 @Component({
   selector: 'imt-saved-queries-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SavedQueries, HighlightEditor],
+  imports: [SavedQueries],
   template: `
     <div class="scroll" role="region" aria-label="Saved queries" i18n-aria-label="@@projects.view.region" tabindex="0">
       <section aria-labelledby="sq-h"><h2 id="sq-h" class="section-title" i18n="@@projects.view.queries">Saved queries</h2><imt-saved-queries /></section>
-      <section aria-labelledby="hl-h"><h2 id="hl-h" class="section-title" i18n="@@projects.view.highlights">Highlight rules</h2><imt-highlight-editor /></section>
     </div>
   `,
   styles: `
