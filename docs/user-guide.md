@@ -388,6 +388,41 @@ what each log source is, known errors and their fixes, facts about your environm
   is told which files were left out, so shorten or turn off what it does not need. They are background facts for
   the AI: they never replace IMT's own rules, and their text is never written to IMT's logs.
 
+### Known issues
+
+A knowledge file can declare errors you have already diagnosed. Add a fenced block labelled `known-issue`:
+
+````text
+```known-issue
+title: Connection pool exhausted
+pattern: (?i)timeout expired.*max pool size
+fix: Raise Max Pool Size in the connection string.
+  Then restart the service.
+```
+````
+
+Give `title`, `fix` and one of `pattern` (a regular expression over the message and exception) or `query` (a query-language
+filter); a line indented by two spaces continues the previous value. The **Problems** pane lists the declared issues
+that occur in the open data, with the number of events, the fix and *Show events*. **Suggest with AI** asks the
+model which of your notes fit the problems; the engine keeps only suggestions whose fix is quoted from your notes and
+whose query selects events (they are marked *AI suggested, verified*). Without a model the declared issues still work.
+
+## Incident summary report
+
+*Report: Incident summary…* builds a report from the open data in one step: the period and levels, key moments, the
+top anomalies, exceptions and error messages with the events that show them, the sources and hosts with most errors,
+import problems, matched known issues with their fixes and your notes. The engine computes every number; nothing
+is written by a model. With a model you can tick *Add an AI narrative*: a short write-up is added as its own first
+section, marked as AI-written, citing events (citations the engine could not verify are listed). Export it from the
+report view as HTML or PDF; the export has the redaction option.
+
+## Investigation playbooks
+
+*View: Playbooks* lists your playbooks and four templates (service crashed, errors after a change, slow requests,
+sign-in failures). A run steps through the playbook: queries, filters, views to open and checks that pass or fail,
+each with the engine's result; add a note to any step. Runs are saved with the project. Playbooks are JSON files you
+can import, export and share; see [playbooks.md](playbooks.md).
+
 ## AI runtime and model updates
 
 IMT checks for newer **inference runtimes** (the llama.cpp builds that run the model) and newer revisions or

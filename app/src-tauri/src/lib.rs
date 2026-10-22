@@ -43,6 +43,7 @@ mod file_commands;
 mod generated_types;
 mod insights;
 mod instance;
+mod investigate;
 mod jobs;
 mod lifecycle;
 mod live;
@@ -453,6 +454,19 @@ command_table! {
     Query [WINDOW] => share::preview_redaction,
     Query [WINDOW] => share::redaction_summary,
     Query [WINDOW] => share::dashboard_tile,
+    Query [WINDOW] => investigate::issues::known_issues_match,
+    Query [WINDOW] => investigate::issues::known_issues_suggest,
+    Query [WINDOW] => investigate::incident::incident_report_build,
+    Query [WINDOW] => investigate::incident::incident_narrative,
+    Query [WINDOW] => investigate::playbooks::playbook_library,
+    Mutation [WINDOW] => investigate::playbooks::playbook_save,
+    Mutation [WINDOW] => investigate::playbooks::playbook_remove,
+    Mutation [WINDOW] => investigate::playbooks::playbook_import,
+    Mutation [WINDOW] => investigate::playbooks::playbook_export,
+    Query [WINDOW] => investigate::playbooks::playbook_run_step,
+    Query [WINDOW] => investigate::playbooks::playbook_start,
+    Query [WINDOW] => investigate::playbooks::playbook_record,
+    Query [WINDOW] => investigate::playbooks::playbook_restore,
     Mutation [WINDOW] limit 32 * MIB => share::export_report,
     Mutation [WINDOW] limit 32 * MIB => share::save_visual,
     Query [WINDOW] => share::estimate_bundle,
