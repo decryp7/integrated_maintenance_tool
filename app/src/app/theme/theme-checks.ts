@@ -47,6 +47,8 @@ export const SOURCE_ROLES = ['src-1', 'src-2', 'src-3', 'src-4'] as const;
 export const SOURCE_SURFACES = ['bg-1', 'bg-2', 'bg-3', 'bg-hover', 'bg-active', 'bg-sel'] as const;
 /** Chart series colours and the chart surfaces. */
 export const SERIES_ROLES = ['s1', 's2', 's3', 's4'] as const;
+/** The compare view's two sides, checked as a pair on the same surfaces. */
+export const COMPARE_ROLES = ['cmp-a', 'cmp-b'] as const;
 export const SERIES_SURFACES = ['bg-1', 'bg-2', 'bg-3'] as const;
 
 function pairProblem(tokens: TokenSet, fg: string, bg: string, min: number): string | null {
@@ -86,5 +88,6 @@ export function paletteProblemsOf(tokens: TokenSet): string[] {
   return [
     ...paletteProblems(pick(SOURCE_ROLES), pick(SOURCE_SURFACES)).map((p) => `sources: ${p}`),
     ...paletteProblems(pick(SERIES_ROLES), pick(SERIES_SURFACES)).map((p) => `series: ${p}`),
+    ...paletteProblems(pick(COMPARE_ROLES), pick(SERIES_SURFACES)).map((p) => `compare: ${p}`),
   ];
 }

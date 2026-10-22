@@ -56,7 +56,7 @@ const TOP_VALUES = 5;
               <div class="fhead"><strong class="fname">{{ f.field }}</strong> <span class="muted nums" i18n="@@analysis.compare.distance">distance {{ dist(f.distance) }}</span></div>
               @for (v of shown(f); track v.value) {
                 <div class="share">
-                  <span class="val mono ellipsis" [title]="v.value">{{ v.value }}</span>
+                  <span class="val ellipsis" [class.mono]="isIdentifier(v.value)" [title]="v.value">{{ v.value }}</span>
                   <span class="pair">
                     <span class="track"><span class="fill a" [style.width.%]="w(v.shareA)"></span></span>
                     <span class="track"><span class="fill b" [style.width.%]="w(v.shareB)"></span></span>
@@ -117,11 +117,11 @@ const TOP_VALUES = 5;
       .nums { font-variant-numeric: tabular-nums; }
       .chip-ab { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--text); }
       .chip-ab .sw { inline-size: 10px; block-size: 10px; border-radius: 2px; }
-      .chip-ab.a .sw, .side.a { background: var(--s1); }
-      .chip-ab.b .sw, .side.b { background: var(--s2); }
+      .chip-ab.a .sw, .side.a { background: var(--cmp-a); }
+      .chip-ab.b .sw, .side.b { background: var(--cmp-b); }
       .side { background: none !important; }
-      .side.a { color: var(--s1); }
-      .side.b { color: var(--s2); }
+      .side.a { color: var(--cmp-a); }
+      .side.b { color: var(--cmp-b); }
       .btn[aria-disabled='true'] { cursor: default; }
       .summary { margin: 0 0 12px; color: var(--text); line-height: 1.5; max-width: 80ch; }
       .cards { grid-template-columns: 1fr 1fr; }
@@ -135,8 +135,8 @@ const TOP_VALUES = 5;
       .pair { display: flex; flex-direction: column; gap: 2px; flex: 1; }
       .track { height: 6px; background: var(--lane-bar); border-radius: 3px; overflow: hidden; }
       .fill { display: block; height: 100%; }
-      .fill.a { background: var(--s1); }
-      .fill.b { background: var(--s2); }
+      .fill.a { background: var(--cmp-a); }
+      .fill.b { background: var(--cmp-b); }
       .pcts { display: flex; gap: 12px; width: 150px; flex: none; font-size: var(--fs-xs); justify-content: flex-end; }
       .pcts span { width: 68px; text-align: right; white-space: nowrap; }
       .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -207,6 +207,11 @@ export class CompareView {
       if (!n.delete(field)) n.add(field);
       return n;
     });
+  }
+
+  /** Values that look like identifiers (dotted names, paths, ids) keep the monospace face; plain words do not. */
+  protected isIdentifier(value: string): boolean {
+    return /[./\\_:\d]/.test(value);
   }
 
   protected w(share: number): number {

@@ -120,6 +120,9 @@ export const COLOR_TOKENS = [
   's3',
   's4',
   's-other',
+  // Compare view: the A and B sides (an Okabe-Ito blue and orange, separable under every colour-vision deficiency)
+  'cmp-a',
+  'cmp-b',
   'src-1',
   'src-2',
   'src-3',
