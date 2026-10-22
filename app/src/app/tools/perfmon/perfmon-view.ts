@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { Icon } from '../../shared/icon';
+import { Switch } from '../../shared/switch';
+import { ImtSelect, SelectOption } from '../../settings/themed-select';
 import { HelpHint } from '../../ui/help-hint';
 import { LogFormat } from '../../core/tools.types';
 import { copyText } from '../clipboard';
@@ -13,7 +15,7 @@ import { PerfmonStore } from './perfmon.store';
 @Component({
   selector: 'imt-perfmon-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, HelpHint, ToolError, ToolUnavailable],
+  imports: [Icon, HelpHint, ImtSelect, Switch, ToolError, ToolUnavailable],
   template: `
     <div class="scroll" role="region" aria-label="Performance Monitor" i18n-aria-label="@@tools.perfmon.region" tabindex="0">
       <p class="intro">
@@ -83,13 +85,9 @@ import { PerfmonStore } from './perfmon.store';
           <label class="lbl"><ng-container i18n="@@tools.perfmon.interval">Interval (seconds)</ng-container>
             <input class="input" type="number" min="1" max="86400" [value]="store.draft().intervalSecs" (input)="store.patchDraft({ intervalSecs: +val($event) })" />
           </label>
-          <label class="lbl"><ng-container i18n="@@tools.perfmon.format">Format</ng-container>
-            <select class="select" [value]="store.draft().format" (change)="store.patchDraft({ format: fmt($event) })">
-              <option value="csv">CSV</option>
-              <option value="tsv">TSV</option>
-              <option value="blg" i18n="@@tools.perfmon.format.blg">BLG (binary)</option>
-            </select>
-          </label>
+          <div class="lbl"><ng-container i18n="@@tools.perfmon.format">Format</ng-container>
+            <imt-select data-testid="perfmon-format" ariaLabel="Format" i18n-ariaLabel="@@tools.perfmon.format.aria" [options]="formatOptions" [value]="store.draft().format" (valueChange)="store.patchDraft({ format: $any($event) })" />
+          </div>
           <label class="lbl"><ng-container i18n="@@tools.perfmon.maxSize">Maximum size (MB, circular)</ng-container>
             <input class="input" type="number" min="1" [disabled]="store.draft().format !== 'blg'" [value]="store.draft().maxSizeMb ?? ''" placeholder="BLG only" i18n-placeholder="@@tools.perfmon.maxSize.placeholder" (input)="store.patchDraft({ maxSizeMb: num($event) })" />
           </label>
@@ -149,7 +147,7 @@ import { PerfmonStore } from './perfmon.store';
           </div>
           <div class="inline">
             <button type="button" class="btn primary" [disabled]="!!store.busy()" (click)="store.importResults()" i18n="@@tools.perfmon.importResults">Import results</button>
-            <label class="check" i18n="@@tools.perfmon.liveTail"><input type="checkbox" [checked]="store.liveTail()" (change)="store.setLiveTail(checked($event))" /> Live tail</label>
+            <imt-switch [checked]="store.liveTail()" (checkedChange)="store.setLiveTail($event)"><ng-container i18n="@@tools.perfmon.liveTail">Live tail</ng-container></imt-switch>
           </div>
         </section>
       }
@@ -218,9 +216,12 @@ export class PerfmonView implements OnInit {
   }
   protected state = (preset: Parameters<typeof presetState>[0]) => presetState(preset, this.store.draft().counters);
   protected val = (e: Event) => (e.target as HTMLInputElement).value;
-  protected checked = (e: Event) => (e.target as HTMLInputElement).checked;
+  protected readonly formatOptions: SelectOption<LogFormat>[] = [
+    { value: 'csv', label: 'CSV' },
+    { value: 'tsv', label: 'TSV' },
+    { value: 'blg', label: $localize`:@@tools.perfmon.format.blg:BLG (binary)` },
+  ];
   protected num = (e: Event) => optionalNumber(this.val(e));
-  protected fmt = (e: Event) => this.val(e) as LogFormat;
 
   protected addProcess(input: HTMLInputElement): void {
     this.store.addProcess(input.value);

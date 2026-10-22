@@ -2,6 +2,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@angular/core';
 import { MaintenanceAction } from '../core/api.types';
 import { formatBytes, formatCount, formatDuration, formatEventRate, formatPercent, formatRelativeTime } from '../shared/format/units';
+import { Icon } from '../shared/icon';
 import { ConfirmDialog } from '../ui/confirm-dialog';
 import { DialogService } from '../ui/dialog.service';
 import { SqlConsole } from './sql-console';
@@ -25,7 +26,7 @@ const TAB_LABELS: Record<StoreTab, string> = {
 @Component({
   selector: 'imt-store-pane',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgTemplateOutlet, SqlConsole],
+  imports: [NgTemplateOutlet, SqlConsole, Icon],
   template: `
     <div class="tabs">
       <div class="tablist" role="tablist" aria-label="Store" i18n-aria-label="@@store.tabs">
@@ -35,7 +36,7 @@ const TAB_LABELS: Record<StoreTab, string> = {
       </div>
       <span class="grow"></span>
       @if (pane.tab() !== 'sql') {
-        <button type="button" class="btn" data-testid="store-refresh" (click)="pane.refresh()" i18n="@@store.refresh">Refresh</button>
+        <button type="button" class="icon-btn" data-testid="store-refresh" aria-label="Refresh" i18n-aria-label="@@store.refresh" title="Refresh" i18n-title="@@store.refresh.title" (click)="pane.refresh()"><imt-icon name="refresh" [size]="14" /></button>
       }
     </div>
     <div class="panel" id="store-panel" role="tabpanel" [attr.aria-labelledby]="'store-tab-' + pane.tab()" tabindex="0">
@@ -246,10 +247,10 @@ const TAB_LABELS: Record<StoreTab, string> = {
     .grow { flex: 1; }
     .panel { flex: 1; min-height: 0; overflow: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
     .panel:focus-visible { outline-offset: -2px; }
-    .facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
+    .facts { display: grid; grid-template-columns: 120px 1fr; gap: 6px 16px; margin: 0; font-size: var(--fs-md, 13px); font-variant-numeric: tabular-nums; }
     dt { color: var(--muted); }
     dd { margin: 0; min-width: 0; }
-    .path { overflow-wrap: anywhere; }
+    .path { overflow-wrap: anywhere; font-size: var(--fs-sm); }
     .bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .table-wrap { overflow: auto; border: 1px solid var(--border-2); border-radius: 6px; }
     table { border-collapse: collapse; width: 100%; font-size: var(--fs-sm); }

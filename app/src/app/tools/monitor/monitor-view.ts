@@ -69,9 +69,9 @@ const KIND_LABEL: Record<TargetKind, string> = {
           <label class="lbl"><ng-container i18n="@@tools.monitor.interval">Interval (ms)</ng-container>
             <input class="input" type="number" min="250" step="250" [value]="store.draft().intervalMs" (input)="store.patchDraft({ intervalMs: +val($event) })" />
           </label>
-          <label class="lbl"><ng-container i18n="@@tools.monitor.cpuShownAs">CPU shown as</ng-container>
+          <div class="lbl"><ng-container i18n="@@tools.monitor.cpuShownAs">CPU shown as</ng-container>
             <imt-select data-testid="cpu-mode" [ariaLabel]="cpuLabel" [options]="cpuOptions" [value]="store.draft().cpu" (valueChange)="edited.set(true); store.patchDraft({ cpu: $any($event) })" />
-          </label>
+          </div>
         </div>
         <imt-switch [checked]="store.draft().includeChildren" (checkedChange)="edited.set(true); store.patchDraft({ includeChildren: $event })"><ng-container i18n="@@tools.monitor.includeChildren">Include child processes</ng-container></imt-switch>
         <imt-switch [checked]="store.draft().dotnet" (checkedChange)="edited.set(true); store.patchDraft({ dotnet: $event })"><ng-container i18n="@@tools.monitor.dotnet">.NET runtime counters (Framework)</ng-container>

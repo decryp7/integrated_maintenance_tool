@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, settle, text, typeInto } from '../../../testing/helpers';
+import { pick } from '../../settings/themed-select.testing';
 import { Platform } from '../../core/platform';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { LifecycleService } from '../../lifecycle/lifecycle.service';
@@ -192,8 +193,7 @@ describe('PerfmonView', () => {
     // Options.
     typeInto(el(fixture, 'input[aria-label="Collector name"]'), 'Repro');
     typeInto(at(all<HTMLInputElement>(fixture, 'input[type=number]'), 0), '30');
-    const sel = el<HTMLSelectElement>(fixture, 'select');
-    typeInto(sel, 'blg', 'change');
+    await pick(fixture, 'imt-select[data-testid=perfmon-format] button', 'BLG');
     await settle(fixture);
     typeInto(at(all<HTMLInputElement>(fixture, 'input[type=number]'), 1), '256');
     typeInto(at(all<HTMLInputElement>(fixture, 'input[type=number]'), 2), '10');
