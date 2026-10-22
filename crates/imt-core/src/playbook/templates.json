@@ -1,0 +1,62 @@
+[
+  {
+    "version": 1, "id": "service-crashed", "title": "A service crashed or restarted",
+    "description": "Find when it stopped, what it logged just before, and whether it keeps happening.",
+    "tags": ["crash", "availability"],
+    "steps": [
+      {"id": "fatal", "title": "Fatal events", "instruction": "Any fatal event is the first suspect. Note the first one.",
+       "action": {"type": "check", "ql": "level = fatal", "expect": {"kind": "noMatch"}}},
+      {"id": "exceptions", "title": "Unhandled exceptions", "instruction": "Events with an exception at error level or worse.",
+       "action": {"type": "filter", "ql": "level >= error and exists(@exception)"}},
+      {"id": "by-source", "title": "Which sources are affected", "instruction": "Is it one process or many?",
+       "action": {"type": "query", "ql": "level >= error | stats count() as errors by @source | sort errors desc | head 10"}},
+      {"id": "problems", "title": "Check the Problems pane", "instruction": "Truncated or unreadable files can hide the moment of the crash.",
+       "action": {"type": "openView", "view": "problems"}},
+      {"id": "before", "title": "Read the last events before the first fatal event", "instruction": "Open the first fatal event in the Moment view and read what came before it.",
+       "action": {"type": "manual"}}
+    ]
+  },
+  {
+    "version": 1, "id": "errors-after-deploy", "title": "Errors started after a change",
+    "description": "Separate new errors from the usual ones.",
+    "tags": ["deploy", "regression"],
+    "steps": [
+      {"id": "errors", "title": "All errors", "instruction": "How many errors are there in total?",
+       "action": {"type": "query", "ql": "level >= error | stats count() as errors"}},
+      {"id": "top-messages", "title": "Most frequent error messages", "instruction": "Open the query view and group errors by message with Patterns; compare with the period before the change.",
+       "action": {"type": "openView", "view": "query"}},
+      {"id": "timeout", "title": "Timeouts", "instruction": "Timeouts after a change usually mean a dependency or a setting moved.",
+       "action": {"type": "filter", "ql": "message ~ \"(?i)time(d)? ?out\""}},
+      {"id": "compare", "title": "Compare before and after", "instruction": "Use Compare with the change time as the boundary.",
+       "action": {"type": "manual"}}
+    ]
+  },
+  {
+    "version": 1, "id": "slow-requests", "title": "Requests are slow",
+    "description": "Find slow operations and what they have in common.",
+    "tags": ["performance"],
+    "steps": [
+      {"id": "slow-words", "title": "Events that mention slowness", "instruction": "Look for slow, timeout or took.",
+       "action": {"type": "filter", "ql": "message ~ \"(?i)slow|timed? ?out|took [0-9]+ ?ms\""}},
+      {"id": "warnings", "title": "Warnings and errors per source", "instruction": "Which source reports the most?",
+       "action": {"type": "query", "ql": "level >= warning | stats count() as n by @source | sort n desc | head 10"}},
+      {"id": "no-fatal", "title": "Confirm nothing is failing outright", "instruction": "Slowness with fatal events is a different incident.",
+       "action": {"type": "check", "ql": "level = fatal", "expect": {"kind": "noMatch"}}},
+      {"id": "anomalies", "title": "Open the Overview", "instruction": "Slow outliers and rate changes show up in the health check.",
+       "action": {"type": "openView", "view": "overview"}}
+    ]
+  },
+  {
+    "version": 1, "id": "sign-in-failures", "title": "Sign-in or access failures",
+    "description": "Who or what is being refused, and is it new.",
+    "tags": ["security", "access"],
+    "steps": [
+      {"id": "denied", "title": "Denied or unauthorised", "instruction": "Access denied, unauthorised, forbidden, 401 and 403.",
+       "action": {"type": "filter", "ql": "message ~ \"(?i)denied|unauthori[sz]ed|forbidden|invalid (password|credentials)|\\\\b40[13]\\\\b\""}},
+      {"id": "count", "title": "How many", "instruction": "A few are normal; thousands in minutes are not.",
+       "action": {"type": "check", "ql": "message ~ \"(?i)denied|unauthori[sz]ed|forbidden\"", "expect": {"kind": "atMost", "n": 50}}},
+      {"id": "redact", "title": "Share carefully", "instruction": "Export the incident report with redaction on: it contains user names and addresses.",
+       "action": {"type": "manual"}}
+    ]
+  }
+]
