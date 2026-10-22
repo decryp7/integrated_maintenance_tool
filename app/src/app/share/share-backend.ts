@@ -4,6 +4,11 @@ import {
   BundleOpened,
   Finding,
   Query,
+  RedactedCopyChoices,
+  RedactedCopyOptions,
+  RedactedCopyPreview,
+  RedactedCopyRequest,
+  RedactedExport,
   RedactionPreview,
   RedactionPreviewRequest,
   RedactionSummary,
@@ -39,6 +44,12 @@ export abstract class ShareBackend {
   abstract openBundle(path: string): Promise<BundleOpened>;
   /** The automatic health check over the events of a query, most severe first (report findings), with its coverage. */
   abstract overview(query: Query): Promise<Analyzed<Finding[]>>;
+  /** What a redacted copy can be made of: all detectors, the profile's custom rules and what the profile selects. */
+  abstract redactedCopyChoices(): Promise<RedactedCopyChoices>;
+  /** What the copy would change and leave out (rejects `invalid`, field "options", when nothing is picked). */
+  abstract redactedCopyPreview(options: RedactedCopyOptions): Promise<RedactedCopyPreview>;
+  /** Writes the redacted copy as a project file (`.imtz`); never replaces a file unless `overwrite`. */
+  abstract exportRedactedCopy(request: RedactedCopyRequest): Promise<RedactedExport>;
 }
 
 /** Talks to the Rust shell (app/src-tauri/src/share.rs). */
@@ -71,5 +82,22 @@ export class TauriShareBackend extends ShareBackend {
   }
   overview(query: Query) {
     return this.call<Analyzed<Finding[]>>('overview', { request: { query } });
+  }
+  redactedCopyChoices() {
+    return this.call<RedactedCopyChoices>('redacted_copy_choices');
+  }
+  redactedCopyPreview(options: RedactedCopyOptions) {
+    return this.call<RedactedCopyPreview>('redacted_copy_preview', { options });
+  }
+  exportRedactedCopy(request: RedactedCopyRequest) {
+    const { path, name, options, ui, reports, overwrite } = request;
+    return this.call<RedactedExport>('export_redacted_copy', {
+      path,
+      name,
+      options,
+      ui,
+      ...(reports ? { reports } : {}),
+      ...(overwrite ? { overwrite } : {}),
+    });
   }
 }

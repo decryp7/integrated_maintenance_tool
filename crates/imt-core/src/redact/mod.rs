@@ -8,6 +8,7 @@
 //! removed without revealing it.
 
 mod config;
+pub mod copy;
 mod detectors;
 #[cfg(test)]
 mod tests;

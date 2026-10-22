@@ -90,6 +90,7 @@ fn importers() -> &'static Importers {
 
 fn env(cancel: &AtomicBool) -> ImportEnv<'_> {
     ImportEnv {
+        encodings: imt_core::ingest::EncodingPolicy::auto(),
         importers: importers(),
         parsers: parsers(),
         schema: Arc::new(EventSchema::plain()),

@@ -7,6 +7,7 @@ import { HelpHint } from '../ui/help-hint';
 import { CommandRegistry } from '../extensions/command-registry';
 import { RecentService } from '../core/recent/recent.service';
 import { RecentOpener } from '../shell/menu/recent-opener';
+import { formatOpenedAt } from '../core/recent/recent-date';
 import { READ_ONLY_DETAIL, READ_ONLY_PROMISE } from '../shared/read-only';
 
 /**
@@ -67,10 +68,10 @@ export function shortPath(path: string): string {
           <h2 class="section-title" i18n="@@welcome.recent">Recent</h2>
           <ul>
             @for (p of recentProjects(); track p.path) {
-              <li><button class="link" type="button" data-testid="welcome-recent-project" [title]="p.path" (click)="openRecentProject(p.path)"><imt-icon name="files" [size]="13" /> <strong>{{ p.name }}</strong> <span class="path mono">{{ short(p.path) }}</span></button></li>
+              <li><button class="link" type="button" data-testid="welcome-recent-project" [title]="p.path" (click)="openRecentProject(p.path)"><imt-icon name="files" [size]="13" /> <strong>{{ p.name }}</strong> <span class="path mono">{{ short(p.path) }}</span> <span class="when" data-testid="recent-when">{{ when(p.openedAt) }}</span></button></li>
             }
-            @for (p of recent(); track p) {
-              <li><button class="link mono" type="button" [title]="p" (click)="open(p)">{{ short(p) }}</button></li>
+            @for (p of recent(); track p.path) {
+              <li><button class="link" type="button" data-testid="welcome-recent-file" [title]="p.path" (click)="open(p.path)"><span class="mono">{{ short(p.path) }}</span> <span class="when" data-testid="recent-when">{{ when(p.openedAt) }}</span></button></li>
             }
           </ul>
         </div>
@@ -102,6 +103,7 @@ export function shortPath(path: string): string {
     .link { border: 0; background: transparent; color: var(--chip-text); cursor: pointer; padding: 3px 0; text-align: left; font-size: var(--fs-sm); }
     .link:hover { text-decoration: underline; }
     .link .path { color: var(--muted); margin-inline-start: 6px; }
+    .link .when { color: var(--muted); margin-inline-start: 8px; font-size: var(--fs-xs); }
     .how { margin-top: 18px; }
     .steps { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: 100%; }
     .steps li { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); color: var(--muted); font-size: var(--fs-sm); }
@@ -119,6 +121,7 @@ export class Welcome {
   protected readonly promise = READ_ONLY_PROMISE;
   protected readonly detail = READ_ONLY_DETAIL;
   protected readonly short = shortPath;
+  protected readonly when = (openedAt: number) => formatOpenedAt(openedAt);
   protected readonly demoLabel = computed(() => (this.demo.loading() ? $localize`:@@welcome.demo.opening:Opening the demo…` : $localize`:@@welcome.demo:Try a demo`));
 
   protected readonly workspaceHasSources = computed(() => (this.store.summary()?.sources.length ?? 0) > 0);

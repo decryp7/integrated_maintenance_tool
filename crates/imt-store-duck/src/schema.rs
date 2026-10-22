@@ -21,10 +21,12 @@ pub const CACHE_DDL: &str = "CREATE TABLE IF NOT EXISTS analysis_cache (
   PRIMARY KEY (version, kind, hash));";
 
 /// Tables added after the format was first written (created with a new store and, if missing, when a store opens):
-/// `clock_offsets` (a source file's clock-skew correction in ms, already applied to its events) and `tail_offsets`
+/// `source_encodings` (how each source file was decoded, by path; a `manual` row is the user's choice and is read
+/// with again on every re-import), `clock_offsets` (a source file's clock-skew correction in ms, already applied to its events) and `tail_offsets`
 /// (where live tail reads each followed file next: the byte and the line it continues at, the size it saw, whether
 /// it is read whole when it changes and why, whether its last event is held back and when it last grew).
-pub const ADDED_DDL: &str = "CREATE TABLE IF NOT EXISTS clock_offsets (path VARCHAR PRIMARY KEY, offset_ms BIGINT NOT NULL);
+pub const ADDED_DDL: &str = "CREATE TABLE IF NOT EXISTS source_encodings (path VARCHAR PRIMARY KEY, label VARCHAR NOT NULL, confidence UTINYINT NOT NULL, origin VARCHAR NOT NULL);
+CREATE TABLE IF NOT EXISTS clock_offsets (path VARCHAR PRIMARY KEY, offset_ms BIGINT NOT NULL);
 CREATE TABLE IF NOT EXISTS tail_offsets (
   source UINTEGER PRIMARY KEY, byte UBIGINT NOT NULL, line UBIGINT NOT NULL, size UBIGINT NOT NULL,
   whole BOOLEAN NOT NULL DEFAULT FALSE, held BOOLEAN NOT NULL DEFAULT FALSE, note VARCHAR, changed_ms BIGINT);";

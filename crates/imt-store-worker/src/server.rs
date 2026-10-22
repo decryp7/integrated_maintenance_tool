@@ -269,6 +269,11 @@ impl Worker {
                 let session = s.refresh(&p.paths)?;
                 reply(&self.session(session))
             }
+            StoreOp::SetSourceEncoding => {
+                let r: protocol::SetSourceEncoding = body(b)?;
+                let session = s.set_source_encoding(r.source, r.encoding.as_deref())?;
+                reply(&self.session(session))
+            }
             StoreOp::RemoveSource => reply(&s.remove_source(body::<Source>(b)?.id)?),
             StoreOp::Clear => reply(&s.clear()?),
             StoreOp::Restore => {
@@ -370,6 +375,7 @@ impl Worker {
             StoreOp::SqlPage => reply(&s.sql_page(&body(b)?)?),
             StoreOp::SqlIds => reply(&s.sql_ids(&body(b)?)?),
             StoreOp::SqlExport => run!(s.sql_export(&body(b)?)),
+            StoreOp::ExportRedactedProject => reply(&imt_core::ports::Redaction::export_redacted_project(&s, &body(b)?)?),
             StoreOp::RedactionSummary => run!(imt_core::ports::Redaction::redaction_summary(&s, &body(b)?)),
             StoreOp::ClockOffsets => reply(&imt_core::ports::Skew::clock_offsets(&s)?),
             StoreOp::SetClockOffsets => reply(&imt_core::ports::Skew::set_clock_offsets(&s, &body(b)?)?),

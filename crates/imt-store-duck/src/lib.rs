@@ -11,6 +11,7 @@ mod compact;
 mod console;
 mod context;
 mod diag;
+mod encodings;
 mod fts;
 mod hits;
 mod inspect;
@@ -286,6 +287,8 @@ impl Inner {
         if let Some(f) = &self.fts {
             f.wake();
         }
+        // The burst's free pages go back to the OS now: the process may idle afterwards.
+        imt_alloc::release();
     }
 
     pub(crate) fn conn(&self) -> StoreResult<Conn<'_>> {
@@ -348,7 +351,7 @@ impl Inner {
         let _writing = lock(&self.write_lock);
         let files = writer::segment_files(&conn, &self.dir).map_err(|e| engine(format!("{e:#}")))?;
         conn.execute_batch(
-            "BEGIN TRANSACTION; DELETE FROM segments; DELETE FROM segment_fields; DELETE FROM histogram; DELETE FROM ord; DELETE FROM diagnostics; DELETE FROM tail_offsets; DELETE FROM sources; COMMIT;",
+            "BEGIN TRANSACTION; DELETE FROM segments; DELETE FROM segment_fields; DELETE FROM histogram; DELETE FROM ord; DELETE FROM diagnostics; DELETE FROM tail_offsets; DELETE FROM source_encodings; DELETE FROM sources; COMMIT;",
         )
         .map_err(engine)?;
         writer::refresh_view(&conn, &self.dir, &self.schema).map_err(|e| engine(format!("{e:#}")))?;
@@ -386,10 +389,12 @@ impl Inner {
         }
         known.extend(self.unrecognized().into_iter().map(|u| u.path));
         let files = ingest::files_to_read(paths, &roots, &profile, &removed, &known);
+        let encodings = self.encoding_policy(&conn);
         let env = ImportEnv {
             importers: self.registry.importers(),
             parsers: &parser_set,
             schema: self.schema.clone(),
+            encodings: &encodings,
             cancel: progress.cancel_flag(),
         };
         let opts = ParallelOptions {
@@ -810,6 +815,10 @@ impl Ingest for DuckStore {
         // Reading the opened roots again reads what is not in the store: the changed and the new files.
         let roots: Vec<PathBuf> = read_lock(&self.inner.state).roots.iter().filter(|r| r.exists()).cloned().collect();
         self.open(&roots)
+    }
+
+    fn set_source_encoding(&self, source: SourceId, encoding: Option<&str>) -> StoreResult<ImportSession> {
+        self.assign_encoding(source, encoding)
     }
 
     fn remove_source(&self, id: SourceId) -> StoreResult<()> {

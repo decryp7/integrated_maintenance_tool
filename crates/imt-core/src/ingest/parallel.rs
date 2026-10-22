@@ -398,6 +398,7 @@ mod tests {
         let profile = ParserSet::of_compiled(CompiledProfile::compile(Profile::default_profile()).unwrap());
         let cancel = AtomicBool::new(false);
         let env = ImportEnv {
+            encodings: &Default::default(),
             importers: &importers,
             parsers: &profile,
             schema: Arc::new(EventSchema::plain()),
@@ -552,6 +553,7 @@ mod tests {
         let profile = ParserSet::of_compiled(CompiledProfile::compile(Profile::default_profile()).unwrap());
         let cancel = AtomicBool::new(false);
         let env = ImportEnv {
+            encodings: &Default::default(),
             importers: &importers,
             parsers: &profile,
             schema: Arc::new(EventSchema::plain()),

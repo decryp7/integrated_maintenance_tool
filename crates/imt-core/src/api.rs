@@ -53,6 +53,10 @@ pub struct SourceInfo {
     /// Id of the parser that read the source (ADR 0026).
     #[serde(default)]
     pub parser: Option<String>,
+    /// How the source's text was decoded and how sure that is (`None` for binary formats and sources read
+    /// before encodings were recorded).
+    #[serde(default)]
+    pub encoding: Option<crate::ingest::EncodingInfo>,
 }
 
 /// How a source is stored on disk: what "Open file", "Open at line" and "Show in folder" can do with it.

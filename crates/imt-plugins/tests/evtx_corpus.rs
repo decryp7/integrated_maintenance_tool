@@ -3,11 +3,16 @@
 //! attack techniques). The corpus is downloaded at test time, at a pinned commit and checked against a pinned
 //! SHA-256, into a temporary folder; it is never committed or redistributed.
 //!
-//! Ignored by default (it needs the network); the nightly `corpus` workflow runs it:
+//! Off by default (it needs the network): the test does nothing unless `IMT_EVTX_CORPUS=1` is set, which the
+//! nightly `corpus` workflow does. `IMT_CORPUS_CACHE` names a folder that keeps the verified archive between runs
+//! (the workflow caches it), so a night without a change downloads nothing:
 //!
 //! ```sh
-//! cargo test -p imt-plugins --test evtx_corpus -- --ignored
+//! IMT_EVTX_CORPUS=1 cargo test -p imt-plugins --test evtx_corpus
 //! ```
+//!
+//! The corpus is licensed GPL-3.0 (`LICENSE.GPL` in the repository): it is fetched for the test run and never
+//! committed, bundled or redistributed.
 //!
 //! Every file must import without the plugin crashing or being stopped at its memory cap, give events, and
 //! every event must have a timestamp. Failures name the file and what went wrong, never event content (the
@@ -35,6 +40,25 @@ impl Drop for TempDir {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.0);
     }
+}
+
+/// The archive: from the cache folder when one is set and holds a copy that still matches the pinned SHA-256,
+/// else downloaded (and then stored there).
+fn archive() -> Vec<u8> {
+    let cached = std::env::var_os("IMT_CORPUS_CACHE").map(|d| PathBuf::from(d).join(format!("evtx-attack-samples-{COMMIT}.zip")));
+    if let Some(bytes) = cached.as_ref().and_then(|p| std::fs::read(p).ok()) {
+        if bytes.len() as u64 <= MAX_ARCHIVE && hex(&Sha256::digest(&bytes)) == ARCHIVE_SHA256 {
+            return bytes;
+        }
+    }
+    let bytes = download();
+    if let Some(path) = cached {
+        if let Some(dir) = path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let _ = std::fs::write(&path, &bytes);
+    }
+    bytes
 }
 
 fn download() -> Vec<u8> {
@@ -138,12 +162,15 @@ fn check(path: &Path) -> Option<String> {
 }
 
 #[test]
-#[ignore = "downloads the EVTX-ATTACK-SAMPLES corpus; run by the nightly corpus workflow"]
 fn every_real_world_evtx_file_imports() {
+    if std::env::var_os("IMT_EVTX_CORPUS").is_none() {
+        eprintln!("skipped: set IMT_EVTX_CORPUS=1 to download the EVTX-ATTACK-SAMPLES corpus and import it");
+        return;
+    }
     let dir = TempDir(std::env::temp_dir().join(format!("imt-evtx-corpus-{}", std::process::id())));
     let _ = std::fs::remove_dir_all(&dir.0);
     std::fs::create_dir_all(&dir.0).unwrap();
-    let files = extract(&download(), &dir.0);
+    let files = extract(&archive(), &dir.0);
     assert!(files.len() >= MIN_FILES, "only {} .evtx files in the archive", files.len());
     let failures: Vec<String> = files
         .iter()
