@@ -472,7 +472,7 @@ mod tests {
             "RemoveSource",
             "Restore",
             "AppendTail",
-            "Summary",
+            "SetSourceEncoding",
         ];
         assert_eq!(WIRE_VERSION, 1);
         let names = wire_names();
