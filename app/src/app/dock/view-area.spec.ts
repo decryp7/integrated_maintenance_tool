@@ -1,4 +1,21 @@
+import { BUILTIN_VIEWS } from '../builtin/builtin-views';
+import { CONFIG_DIFF_VIEWS } from '../config-diff/provide-config-diff';
+import { SCHEDULES_VIEWS } from '../schedules/provide-schedules';
+import { REPORT_VIEWS } from '../share/report/report.views';
+import { viewKind } from './view-kind';
 import { ANALYSIS_TAB_CAP, analysisTabToClose, viewArea } from './view-area';
+
+describe('heavy editors (A4)', () => {
+  it('declare the document area, so they open as document tabs and never in a side panel', () => {
+    const all = [...BUILTIN_VIEWS, ...SCHEDULES_VIEWS, ...CONFIG_DIFF_VIEWS, ...REPORT_VIEWS];
+    for (const id of ['profile', 'parsers', 'metrics', 'collection-schedules', 'config-diff', 'report']) {
+      const view = all.find((v) => v.id === id);
+      expect(view?.area, id).toBe('document');
+      expect(viewArea(view), id).toBe('document');
+      expect(viewKind(view), id).toBe('document');
+    }
+  });
+});
 
 describe('viewArea', () => {
   it('is a document for a view that is not registered', () => {

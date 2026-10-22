@@ -15,7 +15,7 @@ export interface PopoutRequest {
   title?: string;
   params?: unknown;
   bounds?: Rect;
-  alwaysOnTop?: boolean;
+  keepOnTop?: boolean;
 }
 
 export interface PopoutInfo {
@@ -26,7 +26,7 @@ export interface PopoutInfo {
   params?: unknown;
   bounds: Rect | null;
   monitor: string | null;
-  alwaysOnTop: boolean;
+  keepOnTop: boolean;
 }
 
 export interface PopoutClosed {
@@ -81,7 +81,7 @@ export abstract class PopoutBackend {
    */
   abstract primaryButtonDown(): Promise<boolean | null>;
   /** Can a window be kept above the others here? (not in a browser) */
-  abstract readonly supportsAlwaysOnTop: boolean;
+  abstract readonly supportsKeepOnTop: boolean;
   /**
    * How a pop-out window is framed: `overlay` (macOS: native traffic lights over our title bar), `frameless`
    * (Windows/Linux: our own minimise / maximise / close), `browser` (a popup with the browser's frame).
@@ -101,7 +101,7 @@ export abstract class PopoutBackend {
   abstract syncPort(group: string, isHost: boolean, targets: () => readonly string[]): SyncPort;
   /** In a pop-out: closes this window, which docks its panel back into the host. */
   abstract dockSelf(route: PopoutRoute): Promise<void>;
-  abstract setAlwaysOnTop(on: boolean): Promise<void>;
+  abstract setKeepOnTop(on: boolean): Promise<void>;
   /** In a pop-out: is the host window gone (browser: the opener closed)? */
   abstract hostGone(): boolean;
 }
@@ -185,7 +185,7 @@ export class TauriPopoutBackend extends PopoutBackend {
   primaryButtonDown() {
     return this.call<boolean | null>('pointer_button_down');
   }
-  readonly supportsAlwaysOnTop = true;
+  readonly supportsKeepOnTop = true;
   readonly chrome: WindowChrome = isMac() ? 'overlay' : 'frameless';
   private async win() {
     const { getCurrentWindow } = await import('@tauri-apps/api/window');
@@ -225,7 +225,7 @@ export class TauriPopoutBackend extends PopoutBackend {
   dockSelf(route: PopoutRoute) {
     return this.dock(route.label);
   }
-  setAlwaysOnTop(on: boolean) {
+  setKeepOnTop(on: boolean) {
     return this.call<void>('set_popout_on_top', { on });
   }
   hostGone(): boolean {
@@ -311,7 +311,7 @@ export class BrowserPopoutBackend extends PopoutBackend {
     const features = b ? `popup,left=${Math.round(b.x)},top=${Math.round(b.y)},width=${Math.round(b.width)},height=${Math.round(b.height)}` : 'popup,width=560,height=420';
     const win = this.win.open(url, label, features);
     if (!win) throw new Error($localize`:@@popout.backend.blocked:The browser blocked the pop-out window; allow pop-ups for IMT`);
-    const info: PopoutInfo = { label, host, viewId: request.viewId, title: request.title ?? request.viewId, params: request.params, bounds: b ?? null, monitor: null, alwaysOnTop: false };
+    const info: PopoutInfo = { label, host, viewId: request.viewId, title: request.title ?? request.viewId, params: request.params, bounds: b ?? null, monitor: null, keepOnTop: false };
     this.windows.set(label, { win, info });
     this.watch();
     this.changed();
@@ -376,7 +376,7 @@ export class BrowserPopoutBackend extends PopoutBackend {
     return null;
   }
 
-  readonly supportsAlwaysOnTop = false;
+  readonly supportsKeepOnTop = false;
   readonly chrome: WindowChrome = 'browser';
 
   // The browser frames the popup: these are never offered.
@@ -407,7 +407,7 @@ export class BrowserPopoutBackend extends PopoutBackend {
     this.win.close();
   }
 
-  async setAlwaysOnTop(): Promise<void> {
+  async setKeepOnTop(): Promise<void> {
     /* not possible for a browser window; the toggle only remembers the choice */
   }
 

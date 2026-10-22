@@ -97,10 +97,15 @@ describe('DockService VS-style features', () => {
 
   it('auto hide all / pin all / toggle the active one / close an auto-hidden one', () => {
     const dock = setup();
-    dock.autoHideAll();
+    expect(dock.autoHideAll()).toEqual(['inspector']);
     expect(dock.autoHide().items.map((i) => i.id)).toEqual(['inspector']);
-    dock.pinAll();
+    // Nothing docked is left to hide.
+    expect(dock.autoHideAll()).toEqual([]);
+    // pinIds pins only what is still auto-hidden: an unknown or already pinned id is left alone.
+    dock.pinIds(['nope', 'inspector']);
     expect(dock.autoHide().items).toHaveLength(0);
+    dock.pinIds(['inspector']);
+    expect(api(dock).getPanel('inspector')).toBeDefined();
     api(dock).getPanel('inspector')!.api.setActive();
     dock.toggleAutoHideActive();
     expect(dock.autoHide().items).toHaveLength(1);

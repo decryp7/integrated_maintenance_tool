@@ -45,6 +45,8 @@ export class ProjectService {
   /** Project paths that no longer exist, from the last open (shown as a notice). */
   readonly missing = signal<string[]>([]);
   readonly recent = computed(() => this.recentStore.list());
+  /** Counts the projects the user opened (not the restored session): listeners such as Home react to a change. */
+  readonly openedCount = signal(0);
 
   /** Identity of what a project would save; compared with the key at the last save/open. */
   private readonly key = computed(() => `${(this.store.summary()?.sources ?? []).map((s) => s.path).join('|')}\n${this.registry.trackedSnapshot()}\n${this.reports.json()}`);
@@ -109,6 +111,7 @@ export class ProjectService {
         this.name.set(UNTITLED);
       }
       this.markClean();
+      if (!options.session) this.openedCount.update((n) => n + 1);
       if (opened.missing.length) {
         const n = opened.missing.length;
         this.store.setNotice(

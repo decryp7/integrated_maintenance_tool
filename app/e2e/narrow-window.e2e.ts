@@ -78,9 +78,7 @@ test.describe('narrow window', () => {
     await expectNoSeriousViolations(page, testInfo, 'narrow-600');
   });
 
-  // Known gap: the one-row filter bar (search 200 px + level chips 447 px + buttons) is wider than the window below
-  // ~1100 px, so its right-hand buttons (View options, Add filter) are clipped; it folds only below 860 px and does
-  // not wrap. Enable once the bar wraps or folds earlier.
+  // The filter bar wraps (or folds) so its right-hand buttons never leave the window.
   for (const width of [1024, 900, 600]) {
     test(`the filter bar's buttons stay inside a ${width} px window`, async ({ page }) => {
       await resize(page, width);
@@ -99,6 +97,25 @@ test.describe('narrow window', () => {
     await expect(sidebar(page)).toHaveCount(0);
     await page.keyboard.press('ControlOrMeta+b');
     await expect(sidebar(page)).toBeVisible();
+  });
+
+  test('side docks auto-hide below 1000 px and are pinned back when the window widens (H1)', async ({ page }) => {
+    // Pin the inspector so it is a docked tool window.
+    const bar = page.getByRole('navigation', { name: 'Auto-hidden tool windows (right)' });
+    await bar.getByRole('button', { name: 'Inspector' }).click();
+    await page.getByRole('region', { name: 'Inspector' }).getByRole('button', { name: 'Pin Inspector' }).click();
+    const tab = page.getByRole('tab', { name: 'Inspector' });
+    await expect(tab).toBeVisible();
+    await expect(bar).toHaveCount(0);
+
+    await resize(page, 960);
+    await expect(tab).toHaveCount(0);
+    await expect(bar.getByRole('button', { name: 'Inspector' })).toBeVisible();
+    expect(await noHorizontalScroll(page)).toBe(true);
+
+    await resize(page, 1440);
+    await expect(tab).toBeVisible();
+    await expect(bar).toHaveCount(0);
   });
 
   test('an Explorer the user closed stays closed when the window widens', async ({ page }) => {

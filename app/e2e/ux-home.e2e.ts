@@ -3,15 +3,10 @@ import { gridTotal, initialTotal, openApp, parseCount } from './app';
 import { expectNoSeriousViolations } from './axe';
 import { chooseMenu } from './menu-support';
 
-/** Turns "Home: show after every import" on (it is off by default). */
-async function enableAutoOpen(page: Page): Promise<void> {
-  await setAutoOpen(page, true);
-}
-
 async function setAutoOpen(page: Page, on: boolean): Promise<void> {
   await page.getByRole('button', { name: 'Settings' }).click();
   const dialog = page.getByRole('dialog', { name: 'Settings' });
-  const auto = dialog.getByRole('checkbox', { name: /Home: show after every import/ });
+  const auto = dialog.getByRole('checkbox', { name: /Home: show when files or a project open/ });
   if (on) await auto.check();
   else await auto.uncheck();
   await page.keyboard.press('Escape');
@@ -19,11 +14,15 @@ async function setAutoOpen(page: Page, on: boolean): Promise<void> {
 }
 
 test.describe('home (dashboard and health check)', () => {
-  test('by default: the headline is on the timeline header and Review opens Home', async ({ page }, testInfo) => {
+  test('by default Home opens after files open; the headline on the timeline header opens it again after it is closed', async ({ page }, testInfo) => {
     await openApp(page);
     const total = parseCount(await initialTotal(page));
+    await expect(page.locator('imt-home-view')).toHaveCount(0);
     await page.locator('imt-sidebar').getByRole('button', { name: 'Open files' }).click();
     await expect(page.locator('imt-sidebar')).toContainText('msinfo32.nfo', { timeout: 10_000 });
+    await expect(page.locator('imt-home-view')).toBeVisible();
+    // Close it (View > Home toggles): the headline is on the timeline header again.
+    await chooseMenu(page, 'View', 'Home');
     await expect(page.locator('imt-home-view')).toHaveCount(0);
     const headline = page.getByRole('toolbar', { name: 'Health check' });
     await expect(headline).toContainText(/crash/);
@@ -35,9 +34,8 @@ test.describe('home (dashboard and health check)', () => {
     await expect(headline).toHaveCount(0);
   });
 
-  test('opens after an import when turned on, shows the dashboard, and its actions work', async ({ page }, testInfo) => {
+  test('opens after an import, shows the dashboard, and its actions work', async ({ page }, testInfo) => {
     await openApp(page);
-    await enableAutoOpen(page);
     const total = parseCount(await initialTotal(page));
     await expect(page.locator('imt-home-view')).toHaveCount(0);
 
@@ -68,7 +66,6 @@ test.describe('home (dashboard and health check)', () => {
 
   test('can be turned off for later imports', async ({ page }) => {
     await openApp(page);
-    await enableAutoOpen(page);
     await page.locator('imt-sidebar').getByRole('button', { name: 'Open files' }).click();
     const home = page.locator('imt-home-view');
     await expect(home).toBeVisible({ timeout: 10_000 });
@@ -83,8 +80,6 @@ test.describe('home (dashboard and health check)', () => {
 
   test('can be turned off in General settings', async ({ page }) => {
     await openApp(page);
-    await enableAutoOpen(page);
-    await enableAutoOpen(page);
     await setAutoOpen(page, false);
     await page.locator('imt-sidebar').getByRole('button', { name: 'Open files' }).click();
     await expect(page.locator('imt-sidebar')).toContainText('msinfo32.nfo', { timeout: 10_000 });
@@ -93,10 +88,8 @@ test.describe('home (dashboard and health check)', () => {
 });
 
 test.describe('home quick actions and history', () => {
-  // Known gap (open): since Home is a document beside the timeline, a click in its history chart no longer narrows the range here.
-  test.fixme('quick actions open files and a click on the history sets the time range', async ({ page }) => {
+  test('quick actions open files and a click on the history sets the time range', async ({ page }) => {
     await openApp(page);
-    await enableAutoOpen(page);
     const total = parseCount(await initialTotal(page));
     await page.locator('imt-sidebar').getByRole('button', { name: 'Open files' }).click();
     const home = page.locator('imt-home-view');
@@ -107,6 +100,8 @@ test.describe('home quick actions and history', () => {
     // A click inside the history chart narrows the time range to that bar.
     const chart = home.getByTestId('home-history');
     await expect(chart).toBeVisible();
+    // Home is a document beside the timeline now: the chart can sit below the fold, where a click at its box would miss it.
+    await chart.scrollIntoViewIfNeeded();
     const box = await chart.boundingBox();
     expect(box).toBeTruthy();
     // Bars may not sit under the exact centre of a wide chart: try a few places along it until one narrows the range.
