@@ -438,4 +438,27 @@ mod tests {
         }
         assert!(!MetricUnit::Ms.plausible(-1.0) && !MetricUnit::S.plausible(1e8) && MetricUnit::Gb.plausible(3.5));
     }
+
+    #[test]
+    fn null_values_do_not_count_as_present() {
+        let records: Vec<ParsedPreview> = (0..10).map(|_| rec("x", json!({"Machine": null}))).collect();
+        let check = &check_identity(&["Machine".into()], &records)[0];
+        assert!(!check.accepted);
+        assert_eq!(check.distinct, 0);
+    }
+
+    #[test]
+    fn implausible_values_are_rejected_with_the_unit_in_the_reason() {
+        let records: Vec<ParsedPreview> = (0..10).map(|_| rec("took 99999999999999 units", Value::Null)).collect();
+        let rule = |name: &str, unit: &str| MetricRule {
+            name: name.into(),
+            regex: r"took (?P<value>\d+) units".into(),
+            unit: unit.into(),
+        };
+        let checks = check_metrics(&[rule("a", "ms"), rule("b", "s"), rule("c", "%"), rule("d", "count")], &records);
+        assert!(checks.iter().all(|c| !c.accepted), "{checks:?}");
+        assert!(checks[0].reason.contains("ms"), "{}", checks[0].reason);
+        assert!(checks[2].reason.contains("percent"), "{}", checks[2].reason);
+        assert!(checks[3].reason.contains("counts"), "{}", checks[3].reason);
+    }
 }

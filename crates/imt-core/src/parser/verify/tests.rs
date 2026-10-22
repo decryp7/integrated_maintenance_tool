@@ -244,3 +244,12 @@ fn blank_lines_are_not_counted_or_blamed() {
     assert_eq!(v.lines, 5, "blank lines are not lines of the log");
     assert!(v.failures.is_empty(), "{:?}", v.failures);
 }
+
+#[test]
+fn the_text_sent_for_analysis_is_cut_on_a_character_boundary() {
+    let s = "ab€cd"; // '€' occupies bytes 2..5
+    assert_eq!(floor(s, 3), 2, "inside the euro sign: back to its start");
+    assert_eq!(floor(s, 5), 5);
+    assert_eq!(floor(s, 99), s.len());
+    assert_eq!(floor("€", 1), 0);
+}

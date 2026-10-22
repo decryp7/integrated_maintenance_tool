@@ -457,4 +457,27 @@ mod tests {
         assert_eq!(find_key("a = 1\n  b= 2\n", "b"), Some(8));
         assert_eq!(find_key("bb = 1\n", "b"), None);
     }
+
+    #[test]
+    fn errors_print_the_position_they_know() {
+        let msg = |line, column| {
+            ParserError {
+                message: "bad".into(),
+                line,
+                column,
+            }
+            .to_string()
+        };
+        assert_eq!(msg(Some(3), Some(5)), "line 3, column 5: bad");
+        assert_eq!(msg(Some(3), None), "line 3: bad");
+        assert_eq!(msg(None, None), "bad");
+    }
+
+    #[test]
+    fn a_key_that_is_not_in_the_text_gives_an_error_without_a_position() {
+        let missing = ParserError::on_key("nope", "a = 1\n", "b");
+        assert_eq!((missing.line, missing.column), (None, None));
+        let found = ParserError::on_key("here", "a = 1\nb = 2\n", "b");
+        assert_eq!(found.line, Some(2));
+    }
 }
