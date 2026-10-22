@@ -163,7 +163,7 @@ fn written_offset_re() -> &'static Regex {
     })
 }
 
-/// The offsets (minutes east of UTC) written after the times of the first lines of 	ext (another file of the same
+/// The offsets (minutes east of UTC) written after the times of the first lines of a text (another file of the same
 /// machine, for [`ZoneEvidence::machine_offsets`]).
 pub fn offsets_in(text: &str) -> Vec<i32> {
     text.lines()
