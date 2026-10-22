@@ -278,7 +278,7 @@ pub fn preview_parse(
             dropped,
             records: records
                 .into_iter()
-                .take(req.limit.clamp(1, 1000))
+                .take(req.limit.clamp(1, crate::parser::verify::MAX_PREVIEW_RECORDS))
                 .map(|r| ParsedPreview {
                     markers: (0..kinds.len())
                         .filter(|i| r.markers & (1 << i) != 0)
