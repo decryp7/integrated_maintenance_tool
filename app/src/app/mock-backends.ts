@@ -27,3 +27,4 @@ export { MockToolsBackend } from './tools/mock/mock-tools-backend';
 export { MockUpdatesBackend } from './updates/mock-updates-backend';
 export { MockWindowingBackend } from './windowing/mock-windowing-backend';
 export { MockRecentBackend } from './core/recent/mock-recent-backend';
+export { MockHomeBackend } from './home/mock/mock-home-backend';
