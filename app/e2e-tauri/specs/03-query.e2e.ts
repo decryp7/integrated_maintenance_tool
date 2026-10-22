@@ -1,12 +1,8 @@
 import { $, $$, browser, expect } from '@wdio/globals';
-import { gridTotal, tab, waitForEvents, waitForShell } from '../support/app';
+import { gridTotal, waitForEvents, waitForShell } from '../support/app';
 
-/** Shows the Query view: its tab once it is docked, else Ctrl+/ (the focused first run opens it on demand). */
-async function showQuery(): Promise<void> {
-  const query = tab('Query');
-  if (await query.isExisting()) await query.click();
-  else await browser.keys(['Control', '/']);
-}
+/** The one search field of the filter bar: words search messages, a query (`level >= Error`) is applied as a filter. */
+const searchField = () => $('[data-testid=query-field]');
 
 describe('real app: query language', () => {
   it('a filter query narrows the grid to errors; clearing it restores the total', async () => {
@@ -14,18 +10,12 @@ describe('real app: query language', () => {
     await waitForEvents();
     const all = await gridTotal();
 
-    await showQuery();
-    const input = $('[role=combobox][aria-label="Query"]');
+    const input = searchField();
     await input.waitForDisplayed();
     await input.click();
     await input.setValue('level >= Error');
-    await browser.keys(['Control', 'Enter']);
-    await expect($('imt-query-view .applied')).toHaveText(
-      expect.stringContaining('level >= Error'),
-      { wait: 30_000 },
-    );
+    await browser.keys(['Enter']);
 
-    await tab('Events').click();
     // Wait for the narrowed total itself (the bar can be between two states).
     await browser.waitUntil(
       async () => {
@@ -39,9 +29,10 @@ describe('real app: query language', () => {
     for (const row of await rows.getElements())
       await expect(row).not.toHaveText(/\b(INF|WRN|DBG|VRB)\b/);
 
-    await showQuery();
-    await $('imt-query-view .applied').$(`.//button[normalize-space()='Clear']`).click();
-    await tab('Events').click();
+    await searchField().click();
+    await browser.keys(['Control', 'a']);
+    await browser.keys(['Backspace']);
+    await browser.keys(['Enter']);
     await browser.waitUntil(async () => (await gridTotal()) === all, {
       timeout: 30_000,
       timeoutMsg: `the total did not return to ${all}`,
