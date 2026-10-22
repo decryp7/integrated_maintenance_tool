@@ -16,7 +16,7 @@ import { momentAt, WIDTHS } from '../analysis/windows';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { ContextMenuService } from '../ui/context-menu.service';
 import { AnnotationVm, layoutAnnotations } from './annotation-layout';
-import { AnnotationHover, AnnotationTrack } from './annotation-track';
+import { AnnotationHover, AnnotationTrack, SpanMenu } from './annotation-track';
 import { TimelineAnnotations } from './annotations.store';
 import { layoutRuns, RunBandVm } from './run-layout';
 import { RunHover } from './run-track';
@@ -30,7 +30,7 @@ import { MainTimelineSource, TIMELINE_SOURCE, TimelineSource } from './timeline-
 import { LANE_DOTS, SourceColors } from '../sources/source-colors.store';
 import { buildLaneVms, DENSITY_VB, LABEL_W } from './timeline-lane-vm';
 import { HIST_VB, histogramPaths } from './histogram';
-import { LanesEmpty, MarkerHover, TimelineLanes } from './timeline-lanes';
+import { LanesEmpty, MarkerHover, MarkerMenu, TimelineLanes } from './timeline-lanes';
 import { TimelineHeader } from './timeline-header';
 import { TimelineLegend } from './timeline-legend';
 import { TimelineTooltips } from './timeline-tooltips';
@@ -112,12 +112,14 @@ function timelineSource(): TimelineSource {
           (showRun)="ann.showRun($event)"
           (showEvidence)="ann.showEvidence($event)"
           (openFolder)="data.pickAndOpen(true)"
+          (markerMenu)="markerMenu($event)"
+          (spanMenu)="spanMenu($event)"
         />
       </div>
 
       <div class="overlay" [style.left.px]="plotLeft()" [style.width.px]="plotWidth()">
         @if (annLayout().global.length) {
-          <imt-annotation-track class="global" [items]="annLayout().global" (hovered)="annHover.set($event)" (activated)="ann.showEvidence($event.ann)" />
+          <imt-annotation-track class="global" [items]="annLayout().global" (hovered)="annHover.set($event)" (activated)="ann.showEvidence($event.ann)" (menuRequested)="spanMenu($event)" />
         }
         <imt-profile-span-track [view]="range()" [width]="plotWidth()" />
         <imt-dump-marker-track [view]="range()" [width]="plotWidth()" />
@@ -348,6 +350,26 @@ export class TimelinePanel {
     const to = xToTs(Math.max(b.x0, b.x1), w, view);
     const tz = this.prefs.timezone();
     return `${formatTime(from, tz).slice(0, 8)} → ${formatTime(to, tz).slice(0, 8)} · ${formatDuration(to - from)}`;
+  }
+
+  /** Right-click on a marker: write a note on it (its kind's label and time), or show its event. */
+  protected markerMenu(m: MarkerMenu): void {
+    const { cluster, label } = m.marker;
+    this.menu.open(m.x, m.y, [
+      { label: $localize`:@@timeline.menu.noteMarker:Add note to this marker…`, run: () => void this.notes.write(anchors.marker(label, cluster.ts)) },
+      { label: $localize`:@@timeline.menu.showMarkerEvent:Show its event`, run: () => this.selection.jumpTo(cluster.id) },
+    ]);
+  }
+
+  /** Right-click on a run or an annotation: write a note on its span, or show its evidence. */
+  protected spanMenu(s: SpanMenu): void {
+    const a = s.ann;
+    this.menu.open(s.x, s.y, [
+      { label: $localize`:@@timeline.menu.noteSpan:Add note to this span…`, run: () => void this.notes.write(anchors.marker(a.label, a.from, a.to)) },
+      a.run
+        ? { label: $localize`:@@timeline.menu.showRun:Show this run`, run: () => this.ann.showRun(a) }
+        : { label: $localize`:@@timeline.menu.showEvidence:Show the evidence`, run: () => this.ann.showEvidence(a) },
+    ]);
   }
 
   /** Right-click on the time axis: analyse the moment under the pointer, or write a note on it (or on the selected range). */

@@ -177,6 +177,27 @@ fn drafts_parse_with_and_reread_work_on_the_window() {
         ..Default::default()
     };
     assert!(parser_draft(shared(), unknown).now().is_err());
+    // A quick fix's fragment (the Problems pane) changes a copy of the source's parser.
+    let fixed = parser_draft(
+        shared(),
+        ParserDraftRequest {
+            file_name: "a.clef".into(),
+            base: Some("serilog-clef".into()),
+            parser_override: Some("[format]\ntimestamp_formats = [\"%d.%m.%Y %H:%M:%S\"]\n".into()),
+            ..Default::default()
+        },
+    )
+    .now()
+    .unwrap();
+    assert_eq!((fixed.id.as_str(), fixed.origin), ("serilog-clef", ParserOrigin::Override));
+    assert!(fixed.toml.contains("%d.%m.%Y %H:%M:%S"), "{}", fixed.toml);
+    let broken = ParserDraftRequest {
+        file_name: "a.clef".into(),
+        base: Some("serilog-clef".into()),
+        parser_override: Some("[format".into()),
+        ..Default::default()
+    };
+    assert!(parser_draft(shared(), broken).now().is_err());
 
     // Saving it makes the window's CLEF sources stale; re-reading reads them with it.
     let saved = parser_save(app.handle().clone(), shared(), st(), draft.toml, Some("serilog-clef".into()), None)

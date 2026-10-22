@@ -441,7 +441,8 @@ See [ADR 0012](adr/0012-jobs.md).
 - **Saved queries** (the *Saved queries* panel): named queries and highlight rules saved with the project. They were
   called bookmarks; notes took over the job of marking a place.
 - **Notes** ([ADR 0021](adr/0021-notes.md); `Ctrl/⌘+D` on the selected event): Markdown observations on an event
-  (row menu, inspector), a moment or the selected range (the timeline's time axis menu), a source (Explorer menu), the
+  (row menu, inspector), a moment or the selected range (the timeline's time axis menu), a marker, run or annotation
+  (its context menu on the timeline), a chart point or moment (the chart's context menu), a source (Explorer menu), the
   project, or areas marked on an image of the workspace (Explorer ▸ Mark up: zoom, pan, draw rectangles). Rows show a
   glyph, the timeline a flag, sources a count; the Notes panel filters by kind, tag and text, jumps, edits and deletes.
   Notes are saved in the project (with a clean copy of annotated images), the AI reads them, and the report's "Notes"

@@ -34,7 +34,8 @@ validated by the UI. They are a subset of this and the wrong owner.
    clean copy). A note on an image region stores the content key (SHA-256 of the file); the engine keeps the clean
    copy in the project folder (`notes/images/<key>.png`), so an annotated image opens from a shared project without
    the original. The view zooms and pans, draws rectangles, shows regions as overlays and highlights a note's region.
-5. **UI.** "Add note" from the record context menu, the inspector, the timeline (point or dragged range), the
+5. **UI.** "Add note" from the record context menu, the inspector, the timeline (point or dragged range, and the
+   context menu of a marker, run or annotation), a chart's context menu (on a point, or a moment of the plot), the
    Explorer's sources and images, and the command palette; a glyph on noted rows, markers on the timeline for time
    notes, a count badge on sources; a dockable Notes panel lists, filters (kind, tag, text), jumps, edits and deletes
    (confirmed). Markdown is rendered by `MarkdownView` (text nodes only). Note edits are not on the undo stack.

@@ -6,7 +6,42 @@ interface BrushEndEvent {
   areas?: { coordRange?: [number, number] }[];
 }
 
-/** Thin ECharts host: owns the instance, resizes with its box, reports x-range brushes. */
+/** What ECharts passes to a series item's `contextmenu` handler (the parts IMT reads). */
+interface ItemMenuEvent {
+  componentType?: string;
+  seriesName?: string;
+  value?: unknown;
+  event?: { event?: MouseEvent };
+}
+
+/** What zrender passes for a right-click anywhere on the canvas. */
+interface ZrMenuEvent {
+  offsetX: number;
+  offsetY: number;
+  event?: MouseEvent;
+}
+
+/**
+ * A right-click (or the context-menu key) on a chart: on a data point (its series, x and y), or elsewhere on the plot
+ * (the x under the pointer; no series or value). `x` and `y` are client coordinates for the menu.
+ */
+export interface ChartPointMenu {
+  x: number;
+  y: number;
+  /** The x-axis value (epoch ms on IMT's time charts). */
+  at: number;
+  series: string | null;
+  value: number | null;
+}
+
+/** `[x, y]` of a series item's value (line and bar data are `[ts, value]` pairs); null when it is not one. */
+export function pointOf(value: unknown): { at: number; value: number | null } | null {
+  if (!Array.isArray(value) || typeof value[0] !== 'number' || !Number.isFinite(value[0])) return null;
+  const y: unknown = value[1];
+  return { at: value[0], value: typeof y === 'number' && Number.isFinite(y) ? y : null };
+}
+
+/** Thin ECharts host: owns the instance, resizes with its box, reports x-range brushes and right-clicks on the plot. */
 @Component({
   selector: 'imt-echart',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -22,6 +57,8 @@ export class EChart {
   readonly merge = input(false);
   /** Emits [from, to] (x-axis values) after the user drags across the plot. */
   readonly brushed = output<[number, number]>();
+  /** A right-click on a data point or the plot (the browser's own menu is suppressed); see `ChartPointMenu`. */
+  readonly pointMenu = output<ChartPointMenu>();
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly init = inject(ECHARTS_INIT);
@@ -43,6 +80,28 @@ export class EChart {
         const range = (e as BrushEndEvent).areas?.[0]?.coordRange;
         chart.dispatchAction({ type: 'brush', areas: [] });
         if (range && range[1] - range[0] > 0) this.brushed.emit([Math.floor(range[0]), Math.ceil(range[1])]);
+      });
+      // A right-click on a point names it. zrender reports every right-click, after the item's: the same click is
+      // taken once (by its native event); one on the empty plot gives the x under the pointer.
+      let itemClick: MouseEvent | null = null;
+      chart.on('contextmenu', (e) => {
+        const p = e as ItemMenuEvent;
+        const point = p.componentType === 'series' ? pointOf(p.value) : null;
+        const native = p.event?.event;
+        if (!point || !native) return;
+        itemClick = native;
+        native.preventDefault();
+        this.pointMenu.emit({ x: native.clientX, y: native.clientY, at: point.at, series: p.seriesName ?? null, value: point.value });
+      });
+      chart.getZr().on('contextmenu', (e) => {
+        const z = e as unknown as ZrMenuEvent;
+        if (z.event && z.event === itemClick) return;
+        const pixel = [z.offsetX, z.offsetY];
+        if (!z.event || !chart.containPixel({ gridIndex: 0 }, pixel)) return;
+        const at: unknown = (chart.convertFromPixel({ gridIndex: 0 }, pixel) as unknown as unknown[] | undefined)?.[0];
+        if (typeof at !== 'number' || !Number.isFinite(at)) return;
+        z.event.preventDefault();
+        this.pointMenu.emit({ x: z.event.clientX, y: z.event.clientY, at: Math.round(at), series: null, value: null });
       });
       const ro = new ResizeObserver(() => chart.resize());
       ro.observe(this.host.nativeElement);

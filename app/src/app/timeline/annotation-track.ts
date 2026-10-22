@@ -1,6 +1,14 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { AnnotationDto } from '../core/api.types';
 import { SeverityBadge } from '../live/severity-badge';
 import { AnnotationVm } from './annotation-layout';
+
+/** A right-click on a span (an annotation band or point, a run): where, for the menu, and which. */
+export interface SpanMenu {
+  x: number;
+  y: number;
+  ann: AnnotationDto;
+}
 
 /** Pointer position and the annotation under it, for the timeline's tooltip. */
 export interface AnnotationHover {
@@ -35,6 +43,7 @@ export interface AnnotationHover {
         [style.width.%]="v.point ? null : v.width"
         [attr.aria-label]="ariaLabel(v)"
         (click)="activated.emit(v)"
+        (contextmenu)="menu($event, v)"
         (focus)="hovered.emit({ x: $any($event.target).getBoundingClientRect().left, y: $any($event.target).getBoundingClientRect().bottom, vm: v })"
         (blur)="hovered.emit(null)"
         (pointerenter)="hovered.emit({ x: $event.clientX, y: $event.clientY, vm: v })"
@@ -67,6 +76,14 @@ export class AnnotationTrack {
   readonly items = input.required<readonly AnnotationVm[]>();
   readonly hovered = output<AnnotationHover | null>();
   readonly activated = output<AnnotationVm>();
+  /** A right-click on an annotation (the timeline offers "Add note…"). */
+  readonly menuRequested = output<SpanMenu>();
+
+  protected menu(e: MouseEvent, v: AnnotationVm): void {
+    e.preventDefault();
+    e.stopPropagation();
+    this.menuRequested.emit({ x: e.clientX, y: e.clientY, ann: v.ann });
+  }
 
   protected ariaLabel(v: AnnotationVm): string {
     const { label, severity, owner } = v.ann;
