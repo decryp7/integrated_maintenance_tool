@@ -177,7 +177,8 @@ const OP_LABELS: Record<FilterOp, string> = {
     .range { flex: 0 1 auto; min-width: 80px; overflow: hidden; }
     .range .ends { display: flex; gap: 4px; min-width: 0; overflow: hidden; white-space: nowrap; font-size: var(--fs-xs); }
     .range .end { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-    .lvl.none .code, .lvl.none .faint { opacity: 0.55; }
+    /* A chip that would add nothing ("0/403") keeps readable text (no opacity: AA contrast); only its dot fades. */
+    .lvl.none .dot { opacity: 0.35; }
     .pill { height: 24px; border-radius: 12px; flex: none; }
     .tz { height: 22px; padding: 0 6px; border: 0; border-radius: 4px; background: var(--bg-active); color: var(--muted); font-size: var(--fs-xs); cursor: pointer; }
     .anchor { position: relative; }
