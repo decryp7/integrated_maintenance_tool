@@ -43,7 +43,7 @@ export interface PanelFacts {
 /** The menu for one panel, in VS's order. */
 export function panelMenu(f: PanelFacts): PanelMenuItem[] {
   const items: PanelMenuItem[] = [
-    { action: 'float', label: $localize`:@@dock.panelMenu.float:Float inside window`, disabled: f.floating },
+    { action: 'float', label: $localize`:Verb, float a panel inside the window@@dock.panelMenu.float:Float`, disabled: f.floating },
     { action: 'popout', label: $localize`:@@dock.panelMenu.popOut:Pop out to window`, disabled: !f.canPopout },
     { action: 'dock', label: $localize`:Verb, dock a panel@@dock.panelMenu.dock:Dock`, disabled: !f.floating },
   ];

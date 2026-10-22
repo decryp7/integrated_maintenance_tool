@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
 import { ChatBrowserBackend } from './browser-backend';
-import { AgentDecision, BrowserEvent, ChatBrowserStatus, SourceInfo } from './browser.types';
+import { AgentDecision, BrowserEvent, ChatBrowserMode, chatBrowserMode, ChatBrowserStatus, SourceInfo } from './browser.types';
 
 interface ChatBrowserState {
   /** Per chat: read-along, agent mode, steps and allowed sites. */
@@ -98,6 +98,24 @@ export const ChatBrowserStore = signalStore(
 
       stop(id: string) {
         return status(() => backend.stop(id));
+      },
+
+      /**
+       * Puts a chat's browser access in one mode: agent mode ends (denying waiting steps) before read-along changes,
+       * and read-along is turned off for Off. Returns the status after the last change, null when one failed (the
+       * error is shown; the status stays as the shell last reported it).
+       */
+      async setMode(id: string, mode: ChatBrowserMode): Promise<ChatBrowserStatus | null> {
+        let s = store.statuses()[id] ?? null;
+        if (chatBrowserMode(s) === mode) return s;
+        if (mode === 'agent') return status(() => backend.setAgent(id, true));
+        if (s?.agent) {
+          s = await status(() => backend.setAgent(id, false));
+          if (!s) return null;
+        }
+        const readAlong = mode === 'readAlong';
+        if ((s?.readAlong ?? false) === readAlong) return s;
+        return status(() => backend.setReadAlong(id, readAlong));
       },
 
       continueTask(id: string) {

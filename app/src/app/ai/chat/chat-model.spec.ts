@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { QueryProposal, TurnRecord } from '../ai.types';
-import { ALL_CONTEXT, buildContext, ContextSources, describeContext, reduceTurn, startTurn, toolLabel, turnFromRecord } from './chat-model';
+import { ALL_CONTEXT, buildContext, ContextSources, contextModeLabel, contextToggles, describeContext, effectiveContextMode, reduceTurn, startTurn, toolLabel, turnFromRecord } from './chat-model';
 
 const q: QueryProposal = { kind: 'query', ql: 'level >= error', explanation: 'e', estimatedMatches: 2, repaired: false };
 const ev = { recordIds: [], queries: [] };
@@ -93,6 +93,16 @@ describe('helpers', () => {
     expect(none.map((l) => l.available)).toEqual([false, false, false, false, false]);
     expect(none.map((l) => l.label)).toEqual(['Filter: none', 'Time: whole workspace', 'Selected: none', 'Instance: all', 'View: none']);
     expect(describeContext({ ...src, selectedIds: [5] }, String)[2]?.label).toBe('Selected: 1 event (#5)');
+  });
+
+  it('maps the Context menu modes to what is sent, and chooses automatically until the user picks', () => {
+    expect(contextToggles('selection')).toEqual(ALL_CONTEXT);
+    expect(contextToggles('view')).toEqual({ ...ALL_CONTEXT, selection: false });
+    expect(Object.values(contextToggles('none')).some(Boolean)).toBe(false);
+    expect(effectiveContextMode(null, src)).toBe('selection');
+    expect(effectiveContextMode(null, { ...src, selectedIds: [] })).toBe('view');
+    expect(effectiveContextMode('none', src)).toBe('none');
+    expect([contextModeLabel('selection', 2), contextModeLabel('view', 2), contextModeLabel('none', 0)]).toEqual(['Selected events (2)', 'Current view', 'None']);
   });
 
   it('names tools for their chips', () => {

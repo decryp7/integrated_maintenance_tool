@@ -157,7 +157,7 @@ describe('DockService VS-style features', () => {
     const dock = setup();
     const menus = TestBed.inject(ContextMenuService);
     tabOf('inspector').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 20 }));
-    expect(menus.menu()!.items.map((i) => i.label)).toEqual(['Float inside window', 'Pop out to window', 'Dock', 'Dock as tabbed document', 'Auto hide', 'Pin tab', 'Close']);
+    expect(menus.menu()!.items.map((i) => i.label)).toEqual(['Float', 'Pop out to window', 'Dock', 'Dock as tabbed document', 'Auto hide', 'Pin tab', 'Close']);
     expect(menus.menu()).toMatchObject({ x: 10, y: 20 });
     menus.menu()!.items.find((i) => i.label === 'Auto hide')!.run();
     expect(dock.autoHide().items).toHaveLength(1);
@@ -174,9 +174,12 @@ describe('DockService VS-style features', () => {
     container.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
   });
 
-  it('pops out from the header button and from a tab dragged out of the window (pointer events)', async () => {
+  it('pops out from the group panel menu and from a tab dragged out of the window (pointer events)', async () => {
     const dock = setup();
-    container.querySelector<HTMLButtonElement>('.dv-groupview button[aria-label="Pop out to window"]')!.click();
+    const menus = TestBed.inject(ContextMenuService);
+    container.querySelector<HTMLButtonElement>('.dv-groupview button[aria-label="Panel menu"]')!.click();
+    menus.menu()!.items.find((i) => i.label === 'Pop out to window')!.run();
+    menus.close();
     expect(windows.calls[0]).toMatch(/^popOut:/);
     const pointer = (type: string, target: EventTarget, init: PointerEventInit) => target.dispatchEvent(new PointerEvent(type, { bubbles: true, button: 0, ...init }));
     pointer('pointerdown', tabOf('metrics'), { clientX: 10, clientY: 10, screenX: 10, screenY: 10 });
@@ -194,7 +197,7 @@ describe('DockService VS-style features', () => {
     expect(await dock.popOut('')).toBe(false);
   });
 
-  it('floats a tab released off the drop zones, with a cue while dragging that clears on drop zones and release', async () => {
+  it('cancels a tab released inside the window off the drop zones, with a cue for cancelling and for a new window', async () => {
     const dock = setup();
     const root = { left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
     container.getBoundingClientRect = () => root;
@@ -208,14 +211,13 @@ describe('DockService VS-style features', () => {
     const ghost = () => document.querySelector<HTMLElement>('.imt-float-cue')!;
     const pointer = (type: string, target: EventTarget, x: number, y: number) =>
       target.dispatchEvent(new PointerEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y, screenX: x, screenY: y }));
-    expect(dock.tabDropOutcome('metrics', { x: 400, y: 300 })).toBe('float');
+    expect(dock.tabDropOutcome('metrics', { x: 400, y: 300 })).toBe('cancel');
     expect(dock.tabDropOutcome('metrics', { x: 26, y: 300 })).toBe('dock');
     expect(dock.tabDropOutcome('metrics', { x: -20, y: 300 })).toBe('window');
-    expect(dock.tabDropOutcome('nope', { x: 400, y: 300 })).toBe('none');
     pointer('pointerdown', tabOf('metrics'), 10, 10);
     pointer('pointermove', window, 400, 300);
-    expect(ghost().hidden).toBe(false);
-    expect(ghost().textContent).toBe('Release to float');
+    expect(ghost().textContent).toBe('Release to cancel');
+    expect(ghost().style.left).toBe('414px');
     pointer('pointermove', window, 26, 300);
     expect(ghost().hidden).toBe(true);
     pointer('pointermove', window, -20, 300);
@@ -224,13 +226,9 @@ describe('DockService VS-style features', () => {
     pointer('pointerup', window, 400, 300);
     expect(ghost().hidden).toBe(true);
     await new Promise((r) => setTimeout(r));
-    const group = api(dock).getPanel('metrics')!.group;
-    expect(group.api.location.type).toBe('floating');
+    // Nothing floated and nothing popped out: the tab stays where it was.
+    expect(api(dock).getPanel('metrics')!.group.api.location.type).toBe('grid');
     expect(windows.calls.some((c) => c.startsWith('popOut:metrics'))).toBe(false);
-    // The only panel of a floating group does not float again (dockview moves the group itself).
-    expect(dock.tabDropOutcome('metrics', { x: 400, y: 300 })).toBe('none');
-    expect(dock.floatAt('metrics', { x: 400, y: 300 })).toBe(false);
-    expect(dock.floatAt('nope', { x: 400, y: 300 })).toBe(false);
     dock.detach();
     expect(document.querySelector('.imt-float-cue')).toBeNull();
   });

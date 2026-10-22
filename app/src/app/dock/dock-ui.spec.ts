@@ -159,6 +159,20 @@ describe('window layouts, dialogs and commands', () => {
     await run('window.popOut');
   });
 
+  it('floats the active docked panel from the Window menu command, and only a docked one', () => {
+    const { dock } = setup();
+    const commands = TestBed.inject(DockCommands).commands;
+    const float = commands.find((c) => c.id === 'window.float')!;
+    expect(float.title).toBe('Float panel');
+    dock.show('metrics');
+    expect(float.when!({} as never)).toBe(true);
+    float.run({} as never);
+    expect(dock['api']!.getPanel('metrics')!.group.api.location.type).toBe('floating');
+    expect(float.when!({} as never)).toBe(false);
+    expect(dock.floatActive()).toBe(false);
+    dock.detach();
+  });
+
   it('saves the whole arrangement in projects and sessions without marking them unsaved', async () => {
     const { dock } = setup();
     const c = dockLayoutContribution(dock);

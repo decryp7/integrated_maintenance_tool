@@ -509,6 +509,8 @@ textarea.input {
 .imt-panel-error { padding: 16px; color: var(--muted); }
 
 .imt-dock-actions { display: flex; align-items: center; gap: 2px; padding: 0 6px; height: 100%; }
+/* dockview's "N hidden tabs" chip: a 24 px target like the header buttons. */
+.dv-tabs-overflow-dropdown-default { min-width: 24px; min-height: 24px; }
 .imt-dock-action {
   width: 24px;
   height: 24px;

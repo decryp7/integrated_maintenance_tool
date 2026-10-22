@@ -35,6 +35,7 @@ export class DockCommands {
 
   readonly commands: ImtCommand[] = [
     { id: 'window.popOut', title: $localize`:@@dock.commands.popOut:Pop out to window`, category: CATEGORY, keybinding: 'Ctrl+Alt+O', when: () => !!this.windows?.canPopOut(), run: () => void this.dock.popOutActive() },
+    { id: 'window.float', title: $localize`:@@dock.commands.float:Float panel`, category: CATEGORY, when: () => this.dock.canFloatActive(), run: () => void this.dock.floatActive() },
     { id: 'window.panelMenu', title: $localize`:@@dock.commands.panelMenu:Panel menu (window position)`, category: CATEGORY, keybinding: 'Alt+-', run: () => this.dock.openActivePanelMenu() },
     { id: 'window.autoHide', title: $localize`:@@dock.commands.autoHide:Auto hide / pin tool window`, category: CATEGORY, keybinding: 'Ctrl+Alt+H', run: () => this.dock.toggleAutoHideActive() },
     { id: 'window.autoHideAll', title: $localize`:@@dock.commands.autoHideAll:Auto hide all tool windows`, category: CATEGORY, run: () => this.dock.autoHideAll() },

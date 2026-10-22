@@ -1,13 +1,18 @@
 import { Point, Rect } from './dock-geometry';
 
 /**
- * The cue shown while a tab is dragged off the dock's drop zones: a ghost of the panel where it will appear and a
- * "Release to float" (inside the window) or "Release to open in a new window" (outside it) hint. Geometry and the
+ * The cue shown while a tab is dragged off the dock's drop guides: outside the window a translucent ghost of the
+ * panel follows the pointer (held at the window's edge) with "Release to open in a new window"; inside the window,
+ * off every guide, a small "Release to cancel" next to the pointer while the dragged tab chip dims. Geometry and the
  * outcome are pure; `FloatCue` only draws them.
  */
 
-/** What releasing a dragged tab does where the pointer is. */
-export type TabDropOutcome = 'dock' | 'float' | 'window' | 'none';
+/**
+ * What releasing a dragged tab does where the pointer is: dock on a drop guide, open a new window outside the main
+ * window, or nothing (the drag is cancelled and the tab snaps back). A drag never floats a panel inside the window;
+ * that is done deliberately ("Float" in the tab menu, Window ▸ Float panel).
+ */
+export type TabDropOutcome = 'dock' | 'window' | 'cancel';
 
 export interface Size {
   width: number;
@@ -19,20 +24,17 @@ export interface DropContext {
   inside: boolean;
   /** Over a dock drop zone: a guide of the compass or the dock's edges, or a tab strip. */
   overDropZone: boolean;
-  /** The panel can float (it is docked, or one of several tabs of a floating group). */
-  canFloat: boolean;
   /** Another OS window can be opened for it. */
   canPopOut: boolean;
 }
 
-/** The outcome of a release: dockview docks it on a drop zone; elsewhere IMT floats it or opens it in a window. */
+/** The outcome of a release: dockview docks it on a drop zone; outside the window it pops out; elsewhere it is cancelled. */
 export function tabDropOutcome(c: DropContext): TabDropOutcome {
-  if (!c.inside) return c.canPopOut ? 'window' : 'none';
-  if (c.overDropZone) return 'dock';
-  return c.canFloat ? 'float' : 'none';
+  if (!c.inside) return c.canPopOut ? 'window' : 'cancel';
+  return c.overDropZone ? 'dock' : 'cancel';
 }
 
-/** Smallest and largest size of a panel floated by dragging, px (a big docked panel floats at a usable size). */
+/** Smallest size of the new-window preview, and the size of a panel floated from a menu, px. */
 export const FLOAT_MIN: Size = { width: 240, height: 160 };
 export const FLOAT_MAX: Size = { width: 560, height: 380 };
 /** Where the pointer holds the ghost, from its top-left corner (like a title bar; matches pop-out placement). */
@@ -42,11 +44,16 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.min(Math.max(v, lo), Math.max(lo, hi));
 }
 
-/** The size a dragged panel floats at: its docked size, within `FLOAT_MIN`..`FLOAT_MAX`. */
-export function floatSize(panel: Size | null): Size {
-  const w = panel?.width ?? FLOAT_MAX.width;
-  const h = panel?.height ?? FLOAT_MAX.height;
-  return { width: Math.round(clamp(w, FLOAT_MIN.width, FLOAT_MAX.width)), height: Math.round(clamp(h, FLOAT_MIN.height, FLOAT_MAX.height)) };
+/**
+ * The size of the new-window preview: the panel's size, at most half the window each way (so it can follow the
+ * pointer along the window's edge) and at least `FLOAT_MIN`.
+ */
+export function previewSize(panel: Size | null, viewport: Size): Size {
+  const p = panel ?? FLOAT_MAX;
+  return {
+    width: Math.round(clamp(p.width, FLOAT_MIN.width, viewport.width / 2)),
+    height: Math.round(clamp(p.height, FLOAT_MIN.height, viewport.height / 2)),
+  };
 }
 
 /**
@@ -61,21 +68,32 @@ export function ghostRect(cursor: Point, size: Size, bounds: Rect): Rect {
   return { x, y, width, height };
 }
 
-/** The hint for an outcome that shows the cue (null: no cue). */
+/** Where the "Release to cancel" hint sits: right of and below the pointer, under the dragged tab chip. */
+const CANCEL_HINT = { x: 14, y: 46 };
+
+/** The (zero-size) anchor of the "Release to cancel" hint for a pointer at `cursor`. */
+export function cancelHintRect(cursor: Point): Rect {
+  return { x: cursor.x + CANCEL_HINT.x, y: cursor.y + CANCEL_HINT.y, width: 0, height: 0 };
+}
+
+/** The hint for an outcome (null: no cue, dockview previews the drop on a guide). */
 export function cueHint(outcome: TabDropOutcome): string | null {
   switch (outcome) {
-    case 'float':
-      return $localize`:@@dock.floatCue.float:Release to float`;
     case 'window':
       return $localize`:@@dock.floatCue.window:Release to open in a new window`;
+    case 'cancel':
+      return $localize`:@@dock.floatCue.cancel:Release to cancel`;
     default:
       return null;
   }
 }
 
+/** The class on `<body>` while a release would cancel the drag: dims dockview's dragged tab chip. */
+export const DRAG_CANCEL_CLASS = 'imt-drag-cancel';
+
 /**
  * Draws the cue: a fixed layer over the whole window (no pointer events), plus a polite live region that announces
- * the hint when it changes. `show` with a non-cue outcome (or `hide`) clears it.
+ * the hint when it changes. `show` with an outcome without a hint (or `hide`) clears it.
  */
 export class FloatCue {
   private readonly ghost: HTMLElement;
@@ -116,6 +134,7 @@ export class FloatCue {
       this.ghost.dataset['outcome'] = outcome;
       this.hint.textContent = hint;
       this.live.textContent = hint;
+      this.doc.body.classList.toggle(DRAG_CANCEL_CLASS, outcome === 'cancel');
     }
     this.ghost.hidden = false;
     this.ghost.style.left = `${rect.x}px`;
@@ -130,9 +149,11 @@ export class FloatCue {
     this.ghost.hidden = true;
     delete this.ghost.dataset['outcome'];
     this.live.textContent = '';
+    this.doc.body.classList.remove(DRAG_CANCEL_CLASS);
   }
 
   dispose(): void {
+    this.hide();
     this.ghost.remove();
     this.live.remove();
   }
