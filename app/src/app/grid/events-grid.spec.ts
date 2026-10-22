@@ -308,6 +308,19 @@ describe('EventsGrid', () => {
     expect(store.matchTotal()).toBeNull();
   });
 
+  it('tells the inspector when a filter change hides the selected event (D4)', async () => {
+    const { fixture, store } = await render();
+    const info = (await TestBed.inject(ImtBackend).queryPage({ query: store.effectiveQuery(), offset: 0, limit: 50, descending: false })).rows.find((r) => r.level === 'Information')!;
+    store.select(info);
+    store.toggleLevel('Error');
+    await settle(fixture);
+    expect(store.selectedHidden()).toBe(true);
+    expect(store.selected()?.id).toBe(info.id);
+    store.toggleLevel('Error');
+    await settle(fixture);
+    expect(store.selectedHidden()).toBe(false);
+  });
+
   it('re-queries when the filter or sort changes', async () => {
     const { fixture, store } = await render();
     store.toggleLevel('Error');

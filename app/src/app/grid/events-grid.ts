@@ -484,6 +484,20 @@ export class EventsGrid {
     this.selection.set(EMPTY_SELECTION);
     this.setTop(0);
     this.rows.reset(query, descending);
+    void this.checkSelected(query, descending);
+  }
+
+  /** Asks the engine whether the event the inspector shows is still in the result, so the inspector can say when it is not. */
+  private async checkSelected(query: Parameters<PagedRowsStore['reset']>[0], descending: boolean): Promise<void> {
+    const id = untracked(() => this.sel.selected())?.id;
+    if (id === undefined) return;
+    const gen = this.rows.generation;
+    try {
+      const res = await this.backend.queryPage({ query, offset: 0, limit: 1, descending, anchor: id });
+      if (gen === this.rows.generation) this.sel.setSelectedHidden(id, res.anchorIndex === null);
+    } catch {
+      // Unknown: the inspector keeps the event without a note rather than claiming it is hidden.
+    }
   }
 
   /** Live tail changed the data: refetch what is on screen (old rows stay until the new ones arrive) and keep following. */
