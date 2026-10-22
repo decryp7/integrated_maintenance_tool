@@ -17,7 +17,7 @@ export const SET_KEY_PREFIX = 'Digit';
   host: { '(document:keydown)': 'onKey($event)' },
   template: `
     <div class="anchor" (imtClickOutside)="saving.set(false)" (keydown.escape)="saving.set(false)">
-      <button type="button" class="btn ghost lens-btn" data-testid="lens-button" [cdkMenuTriggerFor]="menu" aria-label="Lens" i18n-aria-label="@@lenses.select" [title]="buttonTitle()">
+      <button type="button" class="btn ghost lens-btn" data-testid="lens-button" [cdkMenuTriggerFor]="menu" [title]="buttonTitle()">
         <imt-icon name="search" [size]="14" />
         <span class="lens-name" data-testid="lens-name">{{ buttonLabel() }}</span>
         <imt-icon name="chevronDown" [size]="12" />

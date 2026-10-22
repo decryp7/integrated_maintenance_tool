@@ -39,17 +39,17 @@ const OP_LABELS: Record<FilterOp, string> = {
 
       <!-- One tab stop: the arrow keys move between the chips (roving tabindex). -->
       <div class="levels" role="toolbar" aria-label="Levels" i18n-aria-label="@@workspace.filterBar.levels" (keydown)="onLevelsKey($event)">
-        @for (l of levels; track l; let i = $index) {
+        @for (l of visibleLevels(); track l; let i = $index) {
           <button #lvl class="lvl" [attr.data-level]="l" [attr.tabindex]="i === levelFocus() ? 0 : -1" (focus)="levelFocused(i)" [class.on]="levelOn(l)" [class.none]="levelMatching(l) === 0" (click)="store.toggleLevel(l)" [attr.aria-pressed]="levelOn(l)" [title]="levelTitle(l)">
             <span class="dot" [style.background]="levelVar(l)"></span>
-            <span class="mono code">{{ code(l) }}</span>
-            <span class="mono faint">{{ levelCount(l) }}</span>
+            <span class="code">{{ code(l) }}</span>
+            <span class="faint">{{ levelCount(l) }}</span>
           </button>
         }
       </div>
 
       <button class="btn tall range" [class.fold]="compact()" (click)="store.hasRange() && zoom.fit()" [title]="rangeLabel() + ' · ' + rangeTitle()">
-        <span class="mono ends"><span class="end">{{ rangeEnds()[0] }}</span>@if (rangeEnds()[1]) {<span> → </span><span class="end">{{ rangeEnds()[1] }}</span>}</span>
+        <span class="ends"><span class="end">{{ rangeShort()[0] }}</span>@if (rangeShort()[1]) {<span> – </span><span class="end">{{ rangeShort()[1] }}</span>}</span>
         @if (store.hasRange()) {
           <span class="faint">({{ rangeSpan() }})</span>
           <imt-icon name="zoomOut" [size]="13" />
@@ -181,7 +181,8 @@ const OP_LABELS: Record<FilterOp, string> = {
     .lvl { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 9px; border: 0; border-right: 1px solid var(--border-2); background: var(--bg-2); color: var(--faint); font-size: var(--fs-sm); cursor: pointer; }
     .lvl:last-child { border-right: 0; }
     .lvl.on { background: var(--bg-active); color: var(--text); }
-    .lvl .code, .lvl .faint { font-size: var(--fs-xs); }
+    .lvl .code, .lvl .faint { font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+    .lvl .code { font-weight: 500; }
     .tall { height: 30px; flex: none; }
     /* The range shrinks (with an ellipsis) before anything else in the one-row bar. */
     .range { flex: 0 1 auto; min-width: 80px; overflow: hidden; }
@@ -233,7 +234,7 @@ export class FilterBar {
   private readonly levelButtons = viewChildren<ElementRef<HTMLButtonElement>>('lvl');
   /** The chip that holds the levels' one tab stop. */
   protected readonly levelFocus = signal(0);
-  private readonly levelNav = new RovingFocusNavigation(signal(LEVELS.length), inject(Injector), (i) => this.levelButtons()[i]?.nativeElement.focus(), { wrap: true, homeAndEnd: true });
+  private readonly levelNav = new RovingFocusNavigation(computed(() => this.visibleLevels().length), inject(Injector), (i) => this.levelButtons()[i]?.nativeElement.focus(), { wrap: true, homeAndEnd: true });
 
   protected readonly q = this.store.query;
   protected readonly rangeTitle = computed(() =>
@@ -258,6 +259,22 @@ export class FilterBar {
     const s = this.store.summary();
     if (q.from == null && q.to == null && s?.from == null) return [$localize`:@@workspace.filterBar.allTime:All time`, ''];
     return [formatDateTime(q.from ?? s?.from ?? null, tz), formatDateTime(q.to ?? s?.to ?? null, tz)];
+  });
+  /**
+   * The levels worth a chip: those the files contain, plus any that is filtered on (so it can be switched off). A level
+   * with no events is no information, so its chip is hidden.
+   */
+  protected readonly visibleLevels = computed(() => {
+    const present = this.store.summary()?.levels;
+    return LEVELS.filter((l) => !present || (present[l] ?? 0) > 0 || this.levelOn(l));
+  });
+  /** The range for the chip: times only when both ends fall on one day (the date is in the tooltip). */
+  protected readonly rangeShort = computed<[string, string]>(() => {
+    const [a, b] = this.rangeEnds();
+    if (!b) return [a, b];
+    const [da, ta] = [a.split(' ').slice(0, 2).join(' '), a.split(' ').slice(2).join(' ')];
+    const [db, tb] = [b.split(' ').slice(0, 2).join(' '), b.split(' ').slice(2).join(' ')];
+    return da === db && ta && tb ? [ta.slice(0, 5), tb.slice(0, 5)] : [a, b];
   });
   /** The range as one line, for the button's tooltip. */
   protected readonly rangeLabel = computed(() => this.rangeEnds().filter(Boolean).join(' → '));

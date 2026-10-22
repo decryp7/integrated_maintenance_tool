@@ -58,7 +58,8 @@ test.describe('home (dashboard and health check)', () => {
     await expect.poll(async () => parseCount(await gridTotal(page).innerText())).toBeLessThan(total);
 
     // The unrecognised file's action opens the format wizard.
-    // The list is virtualised: scroll to the end for the info findings.
+    // Only the first findings show until "Show all"; the list is virtualised: scroll to the end for the info findings.
+    await region.getByTestId('home-findings-toggle').click();
     await findings.evaluate((el) => el.scrollTo(0, el.scrollHeight));
     await findings.locator('.finding[data-severity=info]').getByRole('button', { name: 'Set up format…' }).first().click();
     await expect(page.getByRole('dialog', { name: 'Set up format' })).toBeVisible();

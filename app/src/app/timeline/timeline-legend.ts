@@ -124,7 +124,7 @@ let legendSeq = 0;
        is pushed out of reach. */
     .legend-row.collapsed { overflow-x: clip; }
     .legend-row.collapsed > div { flex-wrap: nowrap; flex: none; }
-    .legend-row { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; padding: 0 14px 4px; }
+    .legend-row { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 0 14px 6px; }
     .legend, .ann-legend, .run-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: var(--fs-sm); color: var(--muted); min-width: 0; }
     /* The button is a transparent 24px hit area (WCAG 2.5.8) around the visible pill; the negative margin keeps the row height. */
     .lg { display: inline-flex; align-items: center; min-height: 24px; margin: -2px 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }

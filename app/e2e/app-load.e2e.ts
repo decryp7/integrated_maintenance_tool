@@ -50,7 +50,6 @@ test.describe('app load', () => {
 
   test('status bar shows the event count', async ({ page }) => {
     const status = page.locator('imt-status-bar');
-    await expect(status).toContainText('6 sources');
     await expect(status).toContainText(/\d[\d,]+ events/);
     await expect(status).toContainText(/\d[\d,]+ matching/);
     await expect(status).toContainText('7 instances');

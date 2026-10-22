@@ -92,24 +92,30 @@ describe('FilterBar', () => {
     const { fixture } = await render();
     const chips = all<HTMLButtonElement>(fixture, '.lvl');
     const toolbar = el(fixture, '[role=toolbar][aria-label=Levels]');
-    expect(chips.map((c) => c.tabIndex)).toEqual([0, -1, -1, -1, -1, -1]);
+    expect(chips.map((c) => c.tabIndex)).toEqual([0, -1, -1, -1, -1]);
     const press = (key: string) => toolbar.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
     at(chips, 0).focus();
     press('ArrowRight');
     await settle(fixture);
     expect(document.activeElement).toBe(at(chips, 1));
-    expect(chips.map((c) => c.tabIndex)).toEqual([-1, 0, -1, -1, -1, -1]);
+    expect(chips.map((c) => c.tabIndex)).toEqual([-1, 0, -1, -1, -1]);
     press('ArrowLeft');
     press('ArrowLeft');
     await settle(fixture);
-    expect(document.activeElement).toBe(at(chips, 5));
+    expect(document.activeElement).toBe(at(chips, 4));
     press('Home');
     await settle(fixture);
     expect(document.activeElement).toBe(at(chips, 0));
     press('End');
     await settle(fixture);
-    expect(document.activeElement).toBe(at(chips, 5));
+    expect(document.activeElement).toBe(at(chips, 4));
     expect(press('x')).toBe(true);
+  });
+
+  it('hides the chip of a level with no events, unless it is filtered on', async () => {
+    const { fixture } = await render();
+    expect(all(fixture, '.lvl').length).toBeLessThan(6);
+    expect(all(fixture, '.lvl').map((c) => c.getAttribute('data-level'))).not.toContain('Verbose');
   });
 
   it('edits the group-by in View options', async () => {
@@ -174,12 +180,12 @@ describe('FilterBar', () => {
     expect(text(fixture)).toContain('(1 min 30 s)');
     el<HTMLButtonElement>(fixture, '[aria-label="Remove instance filter WEB01 · 100"]').click();
     expect(store.query().groups).toEqual([]);
-    buttonByText(fixture, /14 Oct/).click();
+    buttonByText(fixture, /\d\d:\d\d/).click();
     expect(store.hasRange()).toBe(false);
     store.setTimezone('utc'); // independent of the host's zone
     store.setRange(T0, null);
     await settle(fixture);
-    expect(text(fixture)).toContain('14 Oct 09:00:00 →');
+    expect(text(fixture)).toContain('09:00 –');
     store.resetRange();
 
     el<HTMLButtonElement>(fixture, '[data-testid=view-options]').click();
