@@ -41,6 +41,8 @@ const COMMANDS: [string, string, string?][] = [
   ['analyze.fit', 'Fit time range'],
   ['analyze.back', 'Previous time range'],
   ['analyze.forward', 'Next time range'],
+  ['nav.back', 'Go back', 'Alt+Left'],
+  ['nav.forward', 'Go forward', 'Alt+Right'],
   ['analyze.utc', 'Time in UTC'],
   ['analyze.local', 'Time in local zone'],
   ['analyze.toggleUtc', 'Toggle UTC / local time'],
@@ -60,12 +62,11 @@ const COMMANDS: [string, string, string?][] = [
   ['diagnostics.capture', 'Capture diagnostic screenshot', 'Mod+Shift+F12'],
   ['parsers.manage', 'Manage parsers…'],
   ['app.restartSafeMode', 'Restart in safe mode'],
-  ['window.layout.save', 'Save window layout…'],
-  ['window.layout.apply', 'Apply window layout…'],
-  ['window.layout.apply1', 'Apply window layout 1', 'Ctrl+Alt+1'],
-  ['window.layout.apply3', 'Apply window layout 3', 'Ctrl+Alt+3'],
-  ['window.layout.manage', 'Manage window layouts…'],
-  ['window.layout.reset', 'Reset window layout'],
+  ['window.layout.save', 'Save current as perspective…'],
+  ['window.perspective.1', 'Perspective: Investigate', 'Mod+1'],
+  ['window.perspective.3', 'Perspective: Live', 'Mod+3'],
+  ['window.layout.manage', 'Manage perspectives…'],
+  ['window.layout.reset', 'Reset perspective'],
   ['window.autoHideAll', 'Auto hide all tool windows'],
   ['window.pinAll', 'Pin all tool windows'],
   ['window.closeAllDocuments', 'Close all documents'],
@@ -235,10 +236,11 @@ describe('menu model', () => {
     const menus = buildMenus(state());
     const ids = menus.flatMap((m) => menuItems(m.items).map((i) => i.id));
     expect(new Set(ids).size).toBe(ids.length);
-    for (const demoted of ['palette.open', 'view.resetLayout', 'analyze.toggleUtc', 'ai.explain', 'notes.addSelected', 'skew.adjust', 'window.panelMenu', 'window.switcher', 'window.layout.apply']) {
+    for (const demoted of ['palette.open', 'view.resetLayout', 'analyze.toggleUtc', 'ai.explain', 'notes.addSelected', 'skew.adjust', 'window.panelMenu', 'window.switcher']) {
       expect(ids, demoted).not.toContain(demoted);
     }
     expect(ids).toContain('window.layout.reset');
+    expect(ids).toContain('window.perspective.1');
   });
 
   it('keeps every menu at most about 20 entries at the top level', () => {
@@ -253,10 +255,11 @@ describe('menu model', () => {
     expect(edit.find((n) => n.kind === 'item' && n.id === 'edit.find')).toMatchObject({ keybinding: 'Mod+F' });
   });
 
-  it('groups Window: layouts submenu, tool window actions, then the windows and pop-outs when there are several', () => {
+  it('groups Window: perspectives submenu, tool window actions, then the windows and pop-outs when there are several', () => {
     const w = menu(buildMenus(state()), 'window').items;
-    expect(labels(w)).toEqual(['Layouts', '—', 'Auto hide all tool windows', 'Pin all tool windows', 'Close all documents', '—', 'Float panel', 'Pop out to window', 'Full screen']);
-    expect(labels(sub(w, 'Layouts'))).toEqual(['Save window layout…', '—', 'Apply window layout 1', 'Apply window layout 3', '—', 'Manage window layouts…', 'Reset window layout']);
+    expect(labels(w)).toEqual(['Perspectives', '—', 'Auto hide all tool windows', 'Pin all tool windows', 'Close all documents', '—', 'Float panel', 'Pop out to window', 'Full screen']);
+    expect(labels(sub(w, 'Perspectives'))).toEqual(['Perspective: Investigate', 'Perspective: Live', '—', 'Save current as perspective…', '—', 'Manage perspectives…', 'Reset perspective']);
+    expect(menuItems(sub(w, 'Perspectives')).some((i) => i.checked)).toBe(false);
     const two = menu(
       buildMenus(
         state({
@@ -277,6 +280,34 @@ describe('menu model', () => {
       ],
       [['popout:inspector', 'Inspector', undefined]],
     ]);
+  });
+
+  it('puts Go back / Go forward in Analyze beside the time range steps, with their keys', () => {
+    const items = menuItems(menu(buildMenus(state()), 'analyze').items);
+    const ids = items.map((i) => i.id);
+    expect(ids.slice(ids.indexOf('analyze.fit'), ids.indexOf('analyze.fit') + 5)).toEqual(['analyze.fit', 'analyze.back', 'analyze.forward', 'nav.back', 'nav.forward']);
+    expect(items.find((i) => i.id === 'nav.back')).toMatchObject({ label: 'Go back', keybinding: 'Alt+Left' });
+    expect(items.find((i) => i.id === 'nav.forward')).toMatchObject({ label: 'Go forward', keybinding: 'Alt+Right' });
+  });
+
+  it('leaves Go back / Go forward out when they are unavailable', () => {
+    const without = new Map([...state().commands].filter(([id]) => !id.startsWith('nav.')));
+    const ids = menuItems(menu(buildMenus(state({ commands: without })), 'analyze').items).map((i) => i.id);
+    expect(ids).not.toContain('nav.back');
+    expect(ids).not.toContain('nav.forward');
+  });
+
+  it('checks the active perspective in Window > Perspectives', () => {
+    const checked = (active?: number) =>
+      menuItems(sub(menu(buildMenus(state({ activePerspective: active })), 'window').items, 'Perspectives'))
+        .filter((i) => i.checked)
+        .map((i) => i.id);
+    expect(checked()).toEqual([]);
+    expect(checked(1)).toEqual(['window.perspective.1']);
+    expect(checked(3)).toEqual(['window.perspective.3']);
+    // A perspective without a command (hidden, or beyond nine) checks nothing.
+    expect(checked(2)).toEqual([]);
+    expect(checked(0)).toEqual([]);
   });
 
   it('builds Help, with About and Check for updates in the app menu on macOS', () => {

@@ -9,12 +9,19 @@ import { ManageLayoutsDialog, SaveLayoutDialog } from './layout-dialogs';
 import { LAYOUT_STORE, toEnvelope } from './layout-store';
 import { NAMED_LAYOUT_STORE, NamedLayout, NamedLayoutStore } from './named-layouts';
 import { dockLayoutContribution } from './provide-docking';
+import { PERSPECTIVE_KEYS, PERSPECTIVE_STORE, PerspectiveState, PerspectiveStore, Perspectives } from './perspectives';
 import { WindowLayouts } from './window-layouts';
 import { loadDockview } from './dockview-loader';
 import { at } from '../../testing/must';
 
 // dockview is loaded on demand (see dockview-loader); load it once so attach() is synchronous here.
 beforeAll(() => loadDockview());
+
+/** Perspective state kept in memory, so specs do not share it through localStorage. */
+function memoryPerspectives(): PerspectiveStore {
+  let state: PerspectiveState = { active: 'investigate', layouts: {} };
+  return { load: () => state, save: (s) => void (state = s) };
+}
 
 describe('window layouts, dialogs and commands', () => {
   let container: HTMLElement;
@@ -27,13 +34,13 @@ describe('window layouts, dialogs and commands', () => {
     stored = [];
     const named: NamedLayoutStore = { load: () => [...stored], save: (l) => (stored = l) };
     TestBed.configureTestingModule({
-      providers: [provideDockTesting(), { provide: LAYOUT_STORE, useValue: { load: () => null, save: () => undefined, clear: () => undefined } }, { provide: NAMED_LAYOUT_STORE, useValue: named }, { provide: DIALOG_REF, useValue: { close, closed: Promise.resolve() } }],
+      providers: [provideDockTesting(), { provide: LAYOUT_STORE, useValue: { load: () => null, save: () => undefined, clear: () => undefined } }, { provide: NAMED_LAYOUT_STORE, useValue: named }, { provide: DIALOG_REF, useValue: { close, closed: Promise.resolve() } }, { provide: PERSPECTIVE_STORE, useValue: memoryPerspectives() }],
     });
     container = document.createElement('div');
     document.body.appendChild(container);
     const dock = TestBed.inject(DockService);
     dock.attach(container);
-    return { dock, layouts: TestBed.inject(WindowLayouts), store: TestBed.inject(WorkspaceStore) };
+    return { dock, layouts: TestBed.inject(WindowLayouts), store: TestBed.inject(WorkspaceStore), perspectives: TestBed.inject(Perspectives) };
   }
 
   afterEach(() => {
@@ -69,67 +76,120 @@ describe('window layouts, dialogs and commands', () => {
     expect(dock.isOpen('timeline')).toBe(true);
   });
 
-  it('the save dialog asks for a name and refuses an empty one', async () => {
-    setup();
+  it('the save dialog asks for a name, refuses an empty one and makes the saved perspective the active one', async () => {
+    const { perspectives } = setup();
     const fixture = TestBed.createComponent(SaveLayoutDialog);
     await settle(fixture);
     const el = fixture.nativeElement as HTMLElement;
     const input = el.querySelector<HTMLInputElement>('#imt-layout-name')!;
-    expect(input.value).toBe('Layout 1');
+    expect(input.value).toBe(`Perspective ${perspectives.list().length + 1}`);
     input.value = '   ';
     input.dispatchEvent(new Event('input'));
     el.querySelector('form')!.dispatchEvent(new Event('submit'));
     await settle(fixture);
     expect(el.querySelector('[role=alert]')!.textContent).toContain('Type a name');
+    expect(close).not.toHaveBeenCalled();
+    expect(perspectives.list().some((p) => !p.builtIn)).toBe(false);
     input.value = 'Mine';
     input.dispatchEvent(new Event('input'));
     el.querySelector('form')!.dispatchEvent(new Event('submit'));
     expect(close).toHaveBeenCalledWith('Mine');
+    expect(perspectives.active().id).toBe('saved:Mine');
   });
 
-  it('the manage dialog applies, renames, reorders, deletes and resets', async () => {
-    const { dock, layouts } = setup();
-    layouts.saveCurrent('One');
-    layouts.saveCurrent('Two');
+  it('the save dialog cancels without saving', async () => {
+    const { perspectives } = setup();
+    const fixture = TestBed.createComponent(SaveLayoutDialog);
+    await settle(fixture);
+    [...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent!.includes('Cancel'))!.click();
+    expect(close).toHaveBeenCalledWith();
+    expect(perspectives.list().some((p) => !p.builtIn)).toBe(false);
+  });
+
+  it('the manage dialog lists the perspectives with their keys and switches to one', async () => {
+    const { dock, perspectives } = setup();
+    const fixture = TestBed.createComponent(ManageLayoutsDialog);
+    await settle(fixture);
+    const el = fixture.nativeElement as HTMLElement;
+    const rows = [...el.querySelectorAll('[data-testid=perspective-row]')];
+    expect(rows.map((r) => r.querySelector('.name')!.textContent!.replace(/\s+/g, ' ').trim())).toEqual(['Investigate(current)', 'Diagnostics']);
+    expect(rows[0]!.textContent).toContain('1');
+    expect(rows[1]!.textContent).toContain('2');
+    // Built-in perspectives can be switched to, but not renamed, moved or deleted.
+    expect(el.querySelector('button[aria-label="Rename Diagnostics"]')).toBeNull();
+    expect(el.querySelector<HTMLButtonElement>('button[aria-label="Switch to Investigate"]')!.disabled).toBe(true);
+    el.querySelector<HTMLButtonElement>('button[aria-label="Switch to Diagnostics"]')!.click();
+    expect(perspectives.active().id).toBe('diagnostics');
+    expect(close).toHaveBeenCalled();
+    expect(dock.isOpen('timeline')).toBe(true);
+  });
+
+  it('the manage dialog renames, reorders and deletes saved perspectives', async () => {
+    const { perspectives } = setup();
+    perspectives.saveCurrent('One');
+    perspectives.saveCurrent('Two');
     const fixture = TestBed.createComponent(ManageLayoutsDialog);
     await settle(fixture);
     const el = fixture.nativeElement as HTMLElement;
     const button = (label: string) => el.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
-    expect(el.textContent).toContain('Ctrl+Alt+1');
+    const saved = () => perspectives.list().filter((p) => !p.builtIn).map((p) => p.name);
+    expect(button('Move One up').disabled).toBe(true);
+    expect(button('Move Two down').disabled).toBe(true);
     button('Move Two up').click();
-    expect(layouts.list().map((l) => l.name)).toEqual(['Two', 'One']);
+    expect(saved()).toEqual(['Two', 'One']);
+    await settle(fixture);
+    // Rename One (Enter confirms), keeping it where it is.
     button('Rename One').click();
     await settle(fixture);
     const input = el.querySelector<HTMLInputElement>('input[aria-label="New name for One"]')!;
     input.value = 'Uno';
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     await settle(fixture);
-    expect(layouts.list().map((l) => l.name)).toEqual(['Two', 'Uno']);
+    expect(saved()).toEqual(['Two', 'Uno']);
+    expect(el.querySelector('input')).toBeNull();
+    // Escape abandons a rename.
     button('Rename Uno').click();
     await settle(fixture);
-    el.querySelector('input')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    el.querySelector('input')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+    await settle(fixture);
+    expect(el.querySelector('input')).toBeNull();
+    expect(saved()).toEqual(['Two', 'Uno']);
+    // Deleting the active one falls back to Investigate.
+    expect(perspectives.active().id).toBe('saved:Two');
     button('Delete Two').click();
     await settle(fixture);
-    button('Apply Uno').click();
-    expect(close).toHaveBeenCalled();
+    expect(saved()).toEqual(['Uno']);
+    expect(perspectives.active().id).toBe('investigate');
+    expect(el.querySelectorAll('[data-testid=perspective-row]')).toHaveLength(3);
+  });
+
+  it('the manage dialog resets the active perspective', async () => {
+    const { dock, perspectives } = setup();
     dock.show('metrics');
-    dock.pin('inspector');
-    [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent!.includes('Reset window layout'))!.click();
+    expect(dock.isOpen('metrics')).toBe(true);
+    const fixture = TestBed.createComponent(ManageLayoutsDialog);
+    await settle(fixture);
+    [...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent!.includes('Reset perspective'))!.click();
     expect(dock.isOpen('metrics')).toBe(false);
     expect(dock.autoHide().items.map((i) => i.id)).toEqual(['inspector']);
-    layouts.remove('Uno');
-    await settle(fixture);
-    expect(el.textContent).toContain('No saved window layouts yet');
+    expect(perspectives.active().id).toBe('investigate');
+    expect(close).toHaveBeenCalled();
   });
 
   it('registers the window commands and runs them', async () => {
-    const { dock, layouts } = setup();
+    const { dock, perspectives } = setup();
     const open = vi.spyOn(TestBed.inject(DialogService), 'open');
     const commands = TestBed.inject(DockCommands).commands;
-    const run = (id: string) => commands.find((c) => c.id === id)!.run({} as never);
-    const when = (id: string) => commands.find((c) => c.id === id)!.when?.({} as never) ?? true;
-    expect(commands.find((c) => c.id === 'window.layout.apply1')!.keybinding).toBe('Ctrl+Alt+1');
-    expect(when('window.layout.apply1')).toBe(false);
+    const find = (id: string) => commands.find((c) => c.id === id)!;
+    const run = (id: string) => find(id).run({} as never);
+    const when = (id: string) => find(id).when?.({} as never) ?? true;
+    // The old numbered window-layout commands are gone; perspectives take Mod+1..9.
+    expect(commands.some((c) => c.id.startsWith('window.layout.apply'))).toBe(false);
+    expect(commands.filter((c) => c.id.startsWith('window.perspective.')).map((c) => c.keybinding)).toEqual(Array.from({ length: PERSPECTIVE_KEYS }, (_, i) => `Mod+${i + 1}`));
+    expect(find('window.perspective.2').title).toBe('Perspective: Diagnostics');
+    expect(find('window.perspective.5').title).toBe('Perspective: 5');
+    expect(when('window.perspective.1')).toBe(true);
+    expect(when('window.perspective.3')).toBe(false);
     expect(when('window.popOut')).toBe(false);
     // The inspector starts auto-hidden.
     expect(when('window.pinAll')).toBe(true);
@@ -137,11 +197,16 @@ describe('window layouts, dialogs and commands', () => {
     expect(when('window.pinAll')).toBe(false);
     run('window.layout.save');
     run('window.layout.manage');
-    run('window.layout.apply');
-    expect(open).toHaveBeenCalledTimes(3);
-    layouts.saveCurrent('A');
-    expect(when('window.layout.apply1')).toBe(true);
-    await run('window.layout.apply1');
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(open.mock.calls.map((c) => c[0])).toEqual([SaveLayoutDialog, ManageLayoutsDialog]);
+    perspectives.saveCurrent('A');
+    perspectives.switchTo('investigate');
+    expect(when('window.perspective.3')).toBe(true);
+    expect(find('window.perspective.3').title).toBe('Perspective: A');
+    run('window.perspective.3');
+    expect(perspectives.active().id).toBe('saved:A');
+    run('window.perspective.2');
+    expect(perspectives.active().id).toBe('diagnostics');
     await run('window.autoHideAll');
     expect(when('window.pinAll')).toBe(true);
     await run('window.pinAll');
@@ -154,6 +219,7 @@ describe('window layouts, dialogs and commands', () => {
     expect(dock.fullScreen()).toBe(true);
     await run('window.layout.reset');
     expect(dock.fullScreen()).toBe(false);
+    expect(perspectives.active().id).toBe('diagnostics');
     await run('window.closeAllDocuments');
     expect(dock.isOpen('timeline')).toBe(false);
     await run('window.popOut');

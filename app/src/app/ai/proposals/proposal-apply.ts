@@ -64,7 +64,7 @@ export class ProposalApply {
         this.query.load(p.ql);
         const result = await this.query.run();
         if (result === null) throw new Error(this.query.runError() ?? $localize`:@@ai.proposalApply.queryFailed:The query could not be run.`);
-        this.ctx.showView(result === 'table' ? 'query-results' : 'query');
+        if (result === 'table') this.ctx.showView('query-results');
         return {
           kind: 'applied',
           message:

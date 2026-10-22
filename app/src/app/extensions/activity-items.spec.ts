@@ -108,6 +108,60 @@ describe('ActivityItems', () => {
     expect(registry.isActive(cmd!)).toBe(false);
   });
 
+  it('is active only while its view is in front, not when it is open behind another tab or auto-hidden', () => {
+    const { registry, dock } = setup([item('v', { run: { view: 'v1' } })], { views: [view('v1')] });
+    const v = registry.all[0]!;
+    dock.openIds.set(new Set(['v1']));
+    expect(registry.isActive(v)).toBe(true);
+    dock.hidden.add('v1');
+    expect(registry.isActive(v)).toBe(false);
+  });
+
+  it('is open elsewhere when its view is open but not in front; never with its own active or without a view', () => {
+    const { registry, dock } = setup([item('v', { run: { view: 'v1' } }), item('own', { run: { view: 'v1' }, active: () => false }), item('cmd'), item('menu', { run: { menu: () => [] } })], {
+      views: [view('v1')],
+    });
+    const [v, own, cmd, menu] = registry.all;
+    // Closed: no dot.
+    expect(registry.isOpenElsewhere(v!)).toBe(false);
+    dock.openIds.set(new Set(['v1']));
+    expect(registry.isOpenElsewhere(v!)).toBe(false);
+    dock.hidden.add('v1');
+    expect(registry.isOpenElsewhere(v!)).toBe(true);
+    expect(registry.isOpenElsewhere(own!)).toBe(false);
+    expect(registry.isOpenElsewhere(cmd!)).toBe(false);
+    expect(registry.isOpenElsewhere(menu!)).toBe(false);
+  });
+
+  it('reports a fly-out as shown, open behind others, or neither; command entries say nothing about views', () => {
+    const { registry, dock } = setup(
+      [
+        item('menu', {
+          run: {
+            menu: () => [
+              { id: 'a', label: 'A', run: { view: 'v1' } },
+              { id: 'b', label: 'B', run: { view: 'v2' } },
+              { id: 'c', label: 'C', run: { command: 'test.run' } },
+            ],
+          },
+        }),
+        item('only-commands', { run: { menu: () => [{ id: 'c', label: 'C', run: { command: 'test.run' } }] } }),
+      ],
+      { views: [view('v1'), view('v2')] },
+    );
+    const [menu, onlyCommands] = registry.all;
+    expect(registry.menuState(menu!)).toBeNull();
+    dock.openIds.set(new Set(['v1', 'v2']));
+    dock.hidden.add('v1');
+    expect(registry.menuState(menu!)).toBe('shown');
+    dock.hidden.add('v2');
+    expect(registry.menuState(menu!)).toBe('open');
+    dock.openIds.set(new Set());
+    expect(registry.menuState(menu!)).toBeNull();
+    expect(registry.menuState(onlyCommands!)).toBeNull();
+    expect(registry.menuState(item('plain'))).toBeNull();
+  });
+
   it('reads the key binding from the item, its command, or its view toggle command', () => {
     const { registry } = setup([item('own', { keybinding: '/' }), item('cmd'), item('v', { run: { view: 'v1' } }), item('menu', { run: { menu: () => [] } })], {
       views: [view('v1')],

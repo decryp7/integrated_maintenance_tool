@@ -8,13 +8,13 @@ test.describe('did you mean', () => {
     await openApp(page);
     const input = await openQuery(page);
     await input.click();
-    await input.pressSequentially('MachinName = "WEB01"');
+    await input.pressSequentially('MachinName = WEB01 | stats count()');
     await expect(page.locator('#ql-error')).toContainText('Unknown field "MachinName"');
     const fix = page.getByTestId('did-you-mean').getByRole('button', { name: 'Replace with MachineName' });
     await expect(fix).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'did-you-mean', 'imt-query-view');
+    await expectNoSeriousViolations(page, testInfo, 'did-you-mean', 'imt-query-field');
     await fix.click();
-    await expect(input).toHaveValue('MachineName = "WEB01"');
+    await expect(input).toHaveValue('MachineName = WEB01 | stats count()');
     await expect(page.locator('#ql-error')).toHaveCount(0);
     await expect(input).toBeFocused();
   });

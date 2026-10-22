@@ -88,7 +88,6 @@ describe('AiCitations', () => {
       });
     expect(await c.query('level >= error')).toBeNull();
     expect(session.text()).toBe('level >= error');
-    expect(ctx.last('showView')).toEqual(['query']);
     expect(await c.query('| stats count()')).toBeNull();
     expect(ctx.last('showView')).toEqual(['query-results']);
     expect(await c.query('x')).toBe('bad syntax');

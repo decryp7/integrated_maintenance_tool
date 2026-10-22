@@ -8,6 +8,7 @@ import { isTextEntry } from '../shell/title-bar';
 import { ProfileUndo } from './profile-undo';
 import { provideUndo, REDO_COMMAND, UNDO_COMMAND, UndoCommands, undoResetContribution } from './provide-undo';
 import { QueryUndo, queryChangeLabel, trackedPart } from './query-undo';
+import { RangeUndo } from './range-undo';
 import { recordSnapshot } from './snapshot-undo';
 import { MERGE_WINDOW_MS, UNDO_LIMIT, UndoStack } from './undo-stack';
 
@@ -317,7 +318,7 @@ describe('undo commands', () => {
   it('the reset contribution saves nothing and also resets on restore', async () => {
     TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
     const undo = TestBed.inject(UndoStack);
-    const c = undoResetContribution(undo, TestBed.inject(QueryUndo));
+    const c = undoResetContribution(undo, TestBed.inject(QueryUndo), TestBed.inject(RangeUndo));
     expect(c.capture()).toBeUndefined();
     expect(c.tracksChanges).toBe(false);
     undo.record({ label: 'x', do: () => undefined, undo: () => undefined });

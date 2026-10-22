@@ -25,10 +25,10 @@ import { PanelAction, panelMenu, panelsToClose, pinnedIndex } from './panel-menu
 import { PanelTab, TAB_COMPONENT, tabPanelId } from './panel-tab';
 import { cycle, openSwitcher, selected, SwitcherState, switcherItems, touchMru } from './switcher';
 import { viewKind, ViewKind } from './view-kind';
-import { LayoutModeStore } from '../core/workspace/layout-mode';
+import { buildPerspective, BuiltInPerspective } from './perspective-layouts';
 
 export { PANEL } from './dock-context';
-export { defaultAutoHidden, QUERY_HEIGHT, QUERY_VIEW } from './dock-placement';
+export { defaultAutoHidden } from './dock-placement';
 export { keepGroupsUnscrolled, observeFloatingAria } from './dock-dom';
 
 /** An inline problem shown over the dock (e.g. a pop-out window could not be created), with an optional retry. */
@@ -59,7 +59,6 @@ export class DockService {
   private readonly lazy = inject(Injector);
   private readonly logger = inject(Logger);
   private readonly menus = inject(ContextMenuService);
-  private readonly layoutMode = inject(LayoutModeStore);
 
   private disposers: { dispose(): void }[] = [];
   /** True when the layout was built from defaults rather than restored from the store. */
@@ -91,6 +90,9 @@ export class DockService {
   /** The Ctrl+Tab navigator, when open. */
   readonly switcher = signal<SwitcherState | null>(null);
   readonly fullScreen = signal(false);
+  private readonly activeView = signal<string | null>(null);
+  /** The view whose tab was brought to the front last (null before any). */
+  readonly activeViewId = this.activeView.asReadonly();
   /** Ticks on every layout change of the dock (panels that keep native content in place follow it). */
   readonly layoutChanged = this.ctx.layoutVersion.asReadonly();
 
@@ -115,6 +117,14 @@ export class DockService {
 
   isOpen(id: string): boolean {
     return this.openIds().has(id);
+  }
+
+  /**
+   * Is the view in front: the active tab of its group, or the slid-out auto-hidden window? (`isOpen` is also true for
+   * a tab behind another, an auto-hidden window that is not slid out, and a pop-out.)
+   */
+  isVisible(id: string): boolean {
+    return this.ctx.shown().has(id) || this.ctx.autoHide().open === id || (this.ctx.windows()?.poppedIds().has(id) ?? false);
   }
 
   kindOf(id: string): ViewKind {
@@ -233,6 +243,8 @@ export class DockService {
         this.persistence.schedule();
       }),
       api.onDidActivePanelChange((e) => {
+        this.ctx.refreshShown();
+        this.activeView.set(e.panel?.id ?? null);
         if (e.panel) this.ctx.mru = touchMru(this.ctx.mru, e.panel.id);
       }),
     ];
@@ -280,15 +292,29 @@ export class DockService {
     this.ctx.autoHide.set(EMPTY_AUTO_HIDE);
   }
 
-  /** Restores the default arrangement and forgets the saved one. */
+  /** Restores the default arrangement (Investigate) and forgets the saved one. */
   reset(): void {
+    this.persistence.clear();
+    this.rebuild((api) => this.placement.buildDefault(api));
+  }
+
+  /** Replaces the arrangement with a built-in perspective's, built from scratch (see `buildPerspective`). */
+  buildPerspective(id: BuiltInPerspective): void {
+    this.rebuild((api) =>
+      buildPerspective(id, { api, buildDefault: () => this.placement.buildDefault(api), find: (v) => this.views.find(v) }),
+    );
+  }
+
+  /** Clears the dock (and pop-outs) and builds an arrangement into it; it is then persisted as the current one. */
+  private rebuild(build: (api: DockviewApi) => DockExtras): void {
     const api = this.api;
     if (!api) return;
-    this.persistence.clear();
+    const windows = this.ctx.windows();
+    for (const id of [...(windows?.poppedIds() ?? [])]) void windows?.discard(id);
     this.ctx.restoring = true;
     try {
       api.clear();
-      this.applyExtras(this.placement.buildDefault(api));
+      this.applyExtras(build(api));
     } finally {
       this.ctx.restoring = false;
     }
@@ -305,6 +331,10 @@ export class DockService {
   setTitle(id: string, title: string): void {
     const panel = this.api?.getPanel(id);
     if (panel && panel.title !== title) panel.api.setTitle(title);
+    // A tool window collapsed to a side-bar tab keeps counting too.
+    if (this.ctx.autoHide().items.some((i) => i.id === id && i.title !== title)) {
+      this.ctx.autoHide.update((s) => ({ ...s, items: s.items.map((i) => (i.id === id ? { ...i, title } : i)) }));
+    }
   }
 
   /** Opens the view if needed and brings it to the front. Unknown or unavailable views are ignored. */
@@ -750,7 +780,7 @@ export class DockService {
       this.wasAvailable.add(view.id);
       // Only views that ask for it open by themselves (the rest are offered); after a restore the user's layout
       // wins, so only newly available views are opened (in the background).
-      const autoOpen = view.autoOpen === true || (view.autoOpen === 'full' && this.layoutMode.full());
+      const autoOpen = view.autoOpen === true;
       if (autoOpen && becameAvailable && !open && (this.evaluated || this.fresh)) this.placement.addView(api, view, true);
     }
     this.evaluated = true;

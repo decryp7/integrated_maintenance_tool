@@ -23,7 +23,7 @@ test.describe('AI entry points', () => {
     await expectNoSeriousViolations(page, testInfo, 'ai-query-dialog', '[role=dialog]');
     await card.getByRole('button', { name: 'Apply query' }).click();
     await expect(dialog).toHaveCount(0);
-    await expect(page.locator('imt-query-view .applied')).toContainText('level = warning');
+    await expect(page.locator('[data-testid=query-applied]')).toContainText('level = warning');
     await expect.poll(async () => parseCount(await gridTotal(page).innerText())).toBeLessThan(before);
   });
 
@@ -124,7 +124,7 @@ test.describe('AI entry points', () => {
     await page.keyboard.press('Escape');
 
     await openQuery(page);
-    await expect(page.locator('imt-query-view')).toBeVisible();
+    await expect(page.getByTestId('query-field')).toBeVisible();
     await expect(page.getByTestId('ai-ask-query')).toHaveCount(0);
   });
 });

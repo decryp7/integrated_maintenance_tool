@@ -1,7 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { FakeDock, provideFakeDock, provideTinyBackend, settle } from '../../testing/helpers';
 import { WorkspaceStore } from '../core/workspace.store';
-import { LayoutModeStore } from '../core/workspace/layout-mode';
 import { CommandRegistry } from '../extensions/command-registry';
 import { VIEW_OPEN_PREFIX } from '../extensions/tokens';
 import { PaletteService } from '../palette/palette.service';
@@ -35,13 +34,8 @@ describe('built-in commands', () => {
     }
   });
 
-  it('switch the layout mode and the source colours', async () => {
+  it('switch the source colours', async () => {
     const registry = await setup();
-    const layout = TestBed.inject(LayoutModeStore);
-    await registry.run('view.layout.full');
-    expect(layout.mode()).toBe('full');
-    await registry.run('view.layout.focused');
-    expect(layout.mode()).toBe('focused');
     const prefs = TestBed.inject(SettingsStore);
     for (const mode of ['instance', 'off', 'source'] as const) {
       await registry.run(`view.sourceColors.${mode}`);

@@ -179,6 +179,24 @@ describe('EventsGrid', () => {
       expect(down({ metaKey: true })).toBe(true);
     });
 
+    it('rows are drag sources: dragging one selects it and carries the event (for the Notes panel)', async () => {
+      const { fixture } = await render();
+      const row = at(rows(fixture), 3);
+      expect(row.getAttribute('draggable')).toBe('true');
+      const data = new Map<string, string>();
+      const e = new Event('dragstart', { bubbles: true, cancelable: true }) as DragEvent;
+      Object.defineProperty(e, 'dataTransfer', { value: { effectAllowed: 'none', setData: (t: string, v: string) => void data.set(t, v) } });
+      row.dispatchEvent(e);
+      await settle(fixture);
+      const carried = JSON.parse(data.get('application/x-imt-event') ?? 'null') as { id: number; excerpt: string };
+      expect(carried.id).toBeGreaterThanOrEqual(0);
+      expect(data.get('text/plain')).toContain(carried.excerpt);
+      expect(selectedIndexes(fixture)).toEqual([3]);
+      // A drag without a data transfer (some test and automation environments) does nothing.
+      const bare = new Event('dragstart', { bubbles: true, cancelable: true });
+      expect(() => at(rows(fixture), 4).dispatchEvent(bare)).not.toThrow();
+    });
+
     it('shift+arrow extends the selection from the anchor', async () => {
       const { fixture, store } = await render();
       const vp = el(fixture, '.viewport');

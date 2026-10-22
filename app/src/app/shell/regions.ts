@@ -2,7 +2,6 @@ import { inject, Injectable } from '@angular/core';
 import { DockService } from '../dock/dock.service';
 import { PANEL } from '../dock/dock-context';
 import { ImtCommand } from '../extensions/tokens';
-import { matchesKeybinding } from '../extensions/keybinding';
 import { WorkspaceStore } from '../core/workspace.store';
 
 /** Marks a shell region (activity bar, side bar, filter bar, status bar): a landmark that F6 focuses. */
@@ -51,7 +50,7 @@ export function focusRegion(region: HTMLElement): void {
 
 /**
  * Keyboard movement between the window's regions (desktop-IDE conventions): F6 / Shift+F6 cycle them, Ctrl+0 the side
- * bar, Ctrl+1…9 the dock groups ({@link handleKey}), Ctrl+Shift+G the events grid.
+ * bar, Ctrl+Alt+1…9 the dock groups ({@link handleKey}), Ctrl+Shift+G the events grid.
  */
 @Injectable({ providedIn: 'root' })
 export class RegionNavigator {
@@ -89,14 +88,15 @@ export class RegionNavigator {
   }
 
   /**
-   * Ctrl+1…9 (⌘1…9 on macOS) focus dock group 1…9. Handled here rather than as nine palette commands; returns true
-   * when the key was one of them.
+   * Ctrl+Alt+1…9 focus dock group 1…9 (Ctrl+1…9 switch perspectives). Read from `e.code`: with Alt held, macOS
+   * reports a symbol in `e.key`, not the digit. Handled here rather than as nine palette commands; returns true when
+   * the key was one of them.
    */
   handleKey(e: KeyboardEvent): boolean {
-    if (!/^[1-9]$/.test(e.key) || e.shiftKey || e.altKey) return false;
-    if (!matchesKeybinding(`Mod+${e.key}`, e)) return false;
+    const digit = /^Digit([1-9])$/.exec(e.code ?? '')?.[1];
+    if (!digit || !e.ctrlKey || !e.altKey || e.shiftKey || e.metaKey) return false;
     e.preventDefault();
-    this.group(Number(e.key));
+    this.group(Number(digit));
     return true;
   }
 

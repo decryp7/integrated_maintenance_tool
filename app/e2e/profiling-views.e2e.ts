@@ -1,15 +1,17 @@
 import { expect, test } from '@playwright/test';
 import { expectNoSeriousViolations } from './axe';
-import { callTree, compare, flame, hotspotNames, hotspots, openProfiles, runCommand, threads } from './profiling-support';
+import { callTree, compare, flame, hotspotNames, hotspots, openProfiles, runCommand, showCaptures, threads } from './profiling-support';
 
 test.describe('Profiling views', () => {
   test('open a profile: hotspots sorted by self time, labelled sampled/exact, then group by module', async ({ page }, testInfo) => {
     await openProfiles(page);
     const view = hotspots(page);
-    await expect(page.locator('imt-captures-view')).toContainText('orders.speedscope.json');
-    await expect(page.locator('imt-captures-view')).toContainText('heap-3.heapsnapshot');
+    const captures = await showCaptures(page);
+    await expect(captures).toContainText('orders.speedscope.json');
+    await expect(captures).toContainText('heap-3.heapsnapshot');
     // Import notes make limits visible.
-    await expect(page.locator('imt-captures-view')).toContainText('Stack depth limit');
+    await expect(captures).toContainText('Stack depth limit');
+    await page.getByRole('tab', { name: 'Hotspots', exact: true }).click();
 
     // Default sort: self of the metric, descending.
     const selfHeader = view.getByRole('columnheader', { name: /Self %/ });
@@ -100,7 +102,7 @@ test.describe('Profiling views', () => {
   test('differential flame graph against a baseline, with the function diff', async ({ page }, testInfo) => {
     await openProfiles(page);
     // Make the regression the target, the baseline the original.
-    await page.locator('imt-captures-view').getByRole('button', { name: 'orders-regression.speedscope.json', exact: true }).click();
+    await (await showCaptures(page)).getByRole('button', { name: 'orders-regression.speedscope.json', exact: true }).click();
     await runCommand(page, 'Profiling: compare');
     const view = compare(page);
     await view.getByRole('combobox', { name: 'Baseline profile' }).selectOption({ label: 'orders.speedscope.json' });

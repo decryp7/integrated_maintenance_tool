@@ -19,6 +19,7 @@ import { provideProfiling } from './profiling/provide-profiling';
 import { provideDumps } from './dumps/provide-dumps';
 import { provideVideo } from './video/provide-video';
 import { provideHelp } from './help/help.commands';
+import { provideNavigation } from './navigation/provide-navigation';
 import { provideUndo } from './undo/provide-undo';
 import { provideHome } from './home/home.plugin';
 import { provideOnboarding } from './onboarding/onboarding.plugin';
@@ -66,6 +67,7 @@ export const appConfig: ApplicationConfig = {
     provideVideo(),
     provideHelp(),
     provideUndo(),
+    provideNavigation(),
     provideHome(),
     provideOnboarding(),
     provideDocking(),

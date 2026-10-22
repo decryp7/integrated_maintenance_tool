@@ -14,7 +14,7 @@ test.describe('activity bar', () => {
 
   test('lists the areas in order, Settings last', async ({ page }) => {
     const names = await bar(page).getByRole('button').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
-    expect(names).toEqual(['Explorer', 'Search', 'Timeline', 'Analysis', 'Metrics', 'Toggle live tail', 'AI assistant', 'Tools', 'Profile editor', 'Set up analysis for this folder', 'Jobs', 'Notifications', 'Settings']);
+    expect(names).toEqual(['Explorer', 'Perspectives', 'Search', 'Timeline', 'Analysis', 'Metrics', 'Toggle live tail', 'AI assistant', 'Tools', 'Profile editor', 'Set up analysis for this folder', 'Settings']);
     await expect(barButton(page, 'Explorer')).toHaveAttribute('title', /^Explorer \((Ctrl\+B|⌘B)\)$/);
     // Every button is at least 24×24 px (WCAG 2.2 target size).
     for (const box of await bar(page).getByRole('button').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()))) {

@@ -10,6 +10,7 @@ import {
   Pattern,
   QlError,
   QlQuery,
+  SearchInputKind,
   QueryOutcome,
   QueryProgress,
   QueryStreamEvent,
@@ -34,6 +35,8 @@ export abstract class AnalysisBackend {
   /** Runs `query.ql`. Query-language mistakes come back as `{ error }`, not as a rejection. */
   abstract runQuery(query: QlQuery): Promise<QueryOutcome>;
   abstract checkQuery(text: string): Promise<QlError | null>;
+  /** Is the search field's text a message search or a query? `fields`: the workspace's field names. */
+  abstract classifySearch(text: string, fields: readonly string[]): Promise<SearchInputKind>;
   /** `cursor` is a UTF-8 byte offset into `text`. */
   abstract completeQuery(text: string, cursor: number): Promise<Completion[]>;
   // The analyses resolve with their result and how much of the matching data they looked at (`Analyzed`).
@@ -109,6 +112,9 @@ export class TauriAnalysisBackend extends AnalysisBackend {
   }
   checkQuery(text: string) {
     return this.call<QlError | null>('check_query', { text });
+  }
+  classifySearch(text: string, fields: readonly string[]) {
+    return this.call<SearchInputKind>('classify_search', { text, fields });
   }
   completeQuery(text: string, cursor: number) {
     return this.call<Completion[]>('complete_query', { request: { text, cursor } });
