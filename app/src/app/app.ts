@@ -15,6 +15,7 @@ import { Welcome, WelcomeService } from './welcome/welcome';
 import { LifecycleBanners } from './lifecycle/lifecycle-banners';
 import { ImportToast, PartialImportBanner } from './import/import-ui';
 import { TourOverlay } from './onboarding/tour-overlay';
+import { NarrowWindow } from './shell/narrow-window';
 
 @Component({
   selector: 'imt-root',
@@ -55,7 +56,7 @@ import { TourOverlay } from './onboarding/tour-overlay';
     }
   `,
   styles: `
-    :host { display: flex; flex-direction: column; height: 100vh; min-width: 1024px; background: var(--bg-1); }
+    :host { display: flex; flex-direction: column; height: 100vh; min-width: 600px; background: var(--bg-1); }
     .body { flex: 1; min-height: 0; display: flex; }
     .center { flex: 1; min-width: 0; display: flex; flex-direction: column; }
     .stage { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; }
@@ -75,6 +76,7 @@ export class App {
   protected readonly hasData = computed(() => (this.store.summary()?.sources.length ?? 0) > 0);
 
   constructor() {
+    inject(NarrowWindow).start();
     const toasts = mountInToastStack(WorkspaceToasts, 'imt-workspace-toasts', inject(EnvironmentInjector), inject(ApplicationRef));
     inject(DestroyRef).onDestroy(() => toasts.destroy());
   }

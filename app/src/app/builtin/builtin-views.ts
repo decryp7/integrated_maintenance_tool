@@ -6,6 +6,6 @@ export const BUILTIN_VIEWS: ImtView[] = [
   { id: 'events', category: 'core', title: $localize`:@@builtin.view.events:Events`, icon: 'columns', defaultPosition: 'bottom', area: 'document', component: () => import('../grid/events-grid').then((m) => m.EventsGrid) },
   { id: 'inspector', category: 'core', title: $localize`:@@builtin.view.inspector:Inspector`, icon: 'panel', defaultPosition: 'right', component: () => import('../inspector/inspector').then((m) => m.Inspector) },
   { id: 'metrics', category: 'core', title: $localize`:@@builtin.view.metrics:Metrics`, icon: 'metrics', defaultPosition: 'center', component: () => import('../metrics/metrics-view').then((m) => m.MetricsView) },
-  { id: 'profile', category: 'core', title: $localize`:@@builtin.view.profile:Profile`, icon: 'profile', defaultPosition: 'center', component: () => import('../profile/profile-editor').then((m) => m.ProfileEditor) },
+  { id: 'profile', category: 'core', title: $localize`:@@builtin.view.profile:Profile`, icon: 'profile', defaultPosition: 'center', minSize: { width: 360, height: 240 }, component: () => import('../profile/profile-editor').then((m) => m.ProfileEditor) },
   { id: 'plugins', category: 'Plugins', title: $localize`:@@builtin.view.plugins:Plugins`, icon: 'puzzle', defaultPosition: 'center', area: 'status', component: () => import('../plugins-panel/plugins-view').then((m) => m.PluginsView) },
 ];

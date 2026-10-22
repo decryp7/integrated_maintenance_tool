@@ -31,6 +31,8 @@ export interface ImtView {
   defaultPosition?: ViewPosition;
   /** Its home area (see `ViewArea`); derived from the kind and `defaultPosition` when left out (`viewArea`). */
   area?: ViewArea;
+  /** The smallest the view's dock group may be made, px (a drag that would go below it is refused). Absent = dockview's default. */
+  minSize?: { width?: number; height?: number };
   /** Its place in the View menu (see `ViewCategory`). Defaults to the Plugins submenu. */
   category?: ViewCategory;
   /** Name of the plugin that contributes the view; groups plugin views in View ▸ Plugins. */

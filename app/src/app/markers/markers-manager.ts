@@ -45,8 +45,8 @@ function failureText(f: { message: string; line: number | null }): string {
             <th scope="col"><span class="sr" i18n="@@markers.manager.col.reorder">Reorder</span></th>
             <th scope="col"><span class="sr" i18n="@@markers.manager.col.look">Look</span></th>
             <th scope="col" i18n="@@markers.manager.col.label">Label</th>
-            <th scope="col" i18n="@@markers.manager.col.description">Description</th>
-            <th scope="col" i18n="@@markers.manager.col.matchesWhen">Matches when</th>
+            <th scope="col" class="narrow-hide" i18n="@@markers.manager.col.description">Description</th>
+            <th scope="col" class="narrow-hide" i18n="@@markers.manager.col.matchesWhen">Matches when</th>
             <th scope="col" class="num" i18n="@@markers.manager.col.events">Events</th>
             <th scope="col" i18n="@@markers.manager.col.on">On</th>
             <th scope="col"><span class="sr" i18n="@@markers.manager.col.actions">Actions</span></th>
@@ -57,12 +57,12 @@ function failureText(f: { message: string; line: number | null }): string {
             <tr cdkDrag [class.off]="!r.enabled" [attr.data-kind]="r.rule.kind">
               <td><span cdkDragHandle class="grip" aria-hidden="true"><imt-icon name="drag" [size]="14" /></span></td>
               <td><imt-marker-glyph [glyph]="glyph(r.rule)" [size]="20" /></td>
-              <th scope="row" class="lbl">{{ r.rule.label || r.rule.kind }}<span class="faint mono id">{{ r.rule.kind }}</span></th>
-              <td class="desc">{{ r.rule.description }}</td>
-              <td class="when">{{ when(r) }}</td>
+              <th scope="row" class="lbl" [title]="r.rule.description ?? ''">{{ r.rule.label || r.rule.kind }}<span class="faint mono id">{{ r.rule.kind }}</span></th>
+              <td class="desc narrow-hide">{{ r.rule.description }}</td>
+              <td class="when narrow-hide">{{ when(r) }}</td>
               <td class="num mono">{{ r.enabled ? (counts()[r.rule.kind] === undefined ? '…' : fmt(counts()[r.rule.kind]!)) : '–' }}</td>
               <td><input type="checkbox" [checked]="r.enabled" [attr.aria-label]="toggleLabel(r.enabled, r.rule.label || r.rule.kind)" (change)="toggle(i)" /></td>
-              <td class="actions">
+              <td class="actions narrow-wrap">
                 <button type="button" class="icon-btn" [disabled]="i === 0"  [attr.aria-label]="moveLabel('up', r.rule.label || r.rule.kind)" (click)="move(i, i - 1)">↑</button>
                 <button type="button" class="icon-btn" [disabled]="i === rows().length - 1"  [attr.aria-label]="moveLabel('down', r.rule.label || r.rule.kind)" (click)="move(i, i + 1)">↓</button>
                 <button type="button" class="btn" (click)="edit(r)" [attr.aria-label]="editLabel(r.rule.label || r.rule.kind)" i18n="@@markers.manager.edit">Edit</button>
@@ -89,8 +89,8 @@ function failureText(f: { message: string; line: number | null }): string {
               <th scope="col"><span class="sr" i18n="@@markers.manager.col.look">Look</span></th>
               <th scope="col" i18n="@@markers.manager.col.label">Label</th>
               <th scope="col" i18n="@@markers.manager.col.plugin">Plugin</th>
-              <th scope="col" i18n="@@markers.manager.col.description">Description</th>
-              <th scope="col" i18n="@@markers.manager.col.matchesWhen">Matches when</th>
+              <th scope="col" class="narrow-hide" i18n="@@markers.manager.col.description">Description</th>
+              <th scope="col" class="narrow-hide" i18n="@@markers.manager.col.matchesWhen">Matches when</th>
               <th scope="col" class="num" i18n="@@markers.manager.col.events">Events</th>
               <th scope="col" i18n="@@markers.manager.col.on">On</th>
               <th scope="col"><span class="sr" i18n="@@markers.manager.col.actions">Actions</span></th>
@@ -102,13 +102,13 @@ function failureText(f: { message: string; line: number | null }): string {
                 <td>
                   @if (p.info; as k) { <imt-marker-glyph [glyph]="{ kind: k.kind, color: k.color, icon: k.icon, badge: k.badge, shape: k.shape }" [size]="20" /> }
                 </td>
-                <th scope="row" class="lbl">{{ p.label }}<span class="faint mono id">{{ p.kind }}</span></th>
+                <th scope="row" class="lbl" [title]="p.info?.description ?? ''">{{ p.label }}<span class="faint mono id">{{ p.kind }}</span></th>
                 <td><span class="badge owner mono" [title]="ownerTitle(p.owner)">{{ p.owner }}</span>@if (p.info?.role; as role) { <span class="badge">{{ role }}</span> }</td>
-                <td class="desc">{{ p.info?.description }}</td>
-                <td class="when">{{ pluginWhen(p) }} <span class="badge ro" title="Rules of plugin markers cannot be edited" i18n-title="@@markers.manager.readOnlyTitle" i18n="@@markers.manager.readOnly">read-only</span></td>
+                <td class="desc narrow-hide">{{ p.info?.description }}</td>
+                <td class="when narrow-hide">{{ pluginWhen(p) }} <span class="badge ro" title="Rules of plugin markers cannot be edited" i18n-title="@@markers.manager.readOnlyTitle" i18n="@@markers.manager.readOnly">read-only</span></td>
                 <td class="num mono">{{ p.enabled && p.when.length ? (counts()[p.kind] === undefined ? '…' : fmt(counts()[p.kind]!)) : '–' }}</td>
                 <td><input type="checkbox" [checked]="p.enabled" [attr.aria-label]="toggleLabel(p.enabled, p.label)" (change)="togglePlugin(p)" /></td>
-                <td class="actions">
+                <td class="actions narrow-wrap">
                   <button type="button" class="btn" [disabled]="!p.enabled" [attr.aria-label]="restyleLabel(p.label)" (click)="restyle(p)" i18n="@@markers.manager.restyle">Restyle</button>
                   @if (p.restyled.length) {
                     <button type="button" class="btn ghost" [attr.aria-label]="resetLabel(p.label)" (click)="resetPluginStyle(p)" i18n="@@markers.manager.resetStyle">Reset style</button>

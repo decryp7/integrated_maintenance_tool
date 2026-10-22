@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, Injector, signal, viewChildren } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, ElementRef, inject, Injector, signal, viewChildren } from '@angular/core';
 import { RovingFocusNavigation } from '../shared/list-navigation';
 import { FilterOp, LEVELS, Level } from '../core/api.types';
 import { formatCompact, formatDateTime, formatDuration, tzLabel } from '../core/format';
@@ -11,6 +11,9 @@ import { Switch } from '../shared/switch';
 import { TimelineZoom } from '../timeline/zoom';
 import { QueryField, QueryStatus } from '../analysis/query-field';
 import { SearchField } from '../analysis/search-field';
+
+/** The filter bar folds its secondary controls into a menu when the bar is narrower than this, px (H1). */
+export const COMPACT_WIDTH_PX = 860;
 
 const OP_LABELS: Record<FilterOp, string> = {
   eq: '=',
@@ -43,14 +46,14 @@ const OP_LABELS: Record<FilterOp, string> = {
         }
       </div>
 
-      <button class="btn tall range" (click)="store.hasRange() && zoom.fit()" [title]="rangeLabel() + ' · ' + rangeTitle()">
+      <button class="btn tall range" [class.fold]="compact()" (click)="store.hasRange() && zoom.fit()" [title]="rangeLabel() + ' · ' + rangeTitle()">
         <span class="mono ends"><span class="end">{{ rangeEnds()[0] }}</span>@if (rangeEnds()[1]) {<span> → </span><span class="end">{{ rangeEnds()[1] }}</span>}</span>
         @if (store.hasRange()) {
           <span class="faint">({{ rangeSpan() }})</span>
           <imt-icon name="zoomOut" [size]="13" />
         }
       </button>
-      <button class="tz" (click)="store.setTimezone(store.timezone() === 'utc' ? 'local' : 'utc')" title="Toggle UTC / local time" i18n-title="@@workspace.filterBar.toggleTz">{{ tz() }}</button>
+      <button class="tz" [class.fold]="compact()" (click)="store.setTimezone(store.timezone() === 'utc' ? 'local' : 'utc')" title="Toggle UTC / local time" i18n-title="@@workspace.filterBar.toggleTz">{{ tz() }}</button>
       <div class="anchor" (imtClickOutside)="addOpen.set(false)">
         <button class="btn dashed pill" (click)="addOpen.set(!addOpen())" [attr.aria-expanded]="addOpen()" i18n="@@workspace.filterBar.addFilter">+ Add filter</button>
         @if (addOpen()) {
@@ -80,13 +83,30 @@ const OP_LABELS: Record<FilterOp, string> = {
       </div>
 
       @if (hasAnyFilter()) {
-        <button class="btn ghost pill" (click)="store.clearQuery()" i18n="@@workspace.filterBar.clearAll">Clear all</button>
+        <button class="btn ghost pill" [class.fold]="compact()" (click)="store.clearQuery()" i18n="@@workspace.filterBar.clearAll">Clear all</button>
       }
       <span class="spacer"></span>
+      @if (compact()) {
+        <!-- Narrow window (H1): what does not fit folds into this menu; the search and the levels always stay. -->
+        <div class="anchor" (imtClickOutside)="moreOpen.set(false)" (keydown.escape)="moreOpen.set(false)">
+          <button class="btn tall" data-testid="filter-more" aria-haspopup="menu" [attr.aria-expanded]="moreOpen()" aria-label="More filter controls" i18n-aria-label="@@workspace.filterBar.more" title="More filter controls" i18n-title="@@workspace.filterBar.moreTitle" (click)="moreOpen.set(!moreOpen())">
+            <imt-icon name="more" [size]="14" />
+          </button>
+          @if (moreOpen()) {
+            <div class="popover more-pop" role="menu" aria-label="More filter controls" i18n-aria-label="@@workspace.filterBar.more">
+              <button type="button" role="menuitem" class="opt" [disabled]="!store.hasRange()" (click)="moreOpen.set(false); zoom.fit()">{{ rangeLabel() }}</button>
+              <button type="button" role="menuitem" class="opt" (click)="moreOpen.set(false); store.setTimezone(store.timezone() === 'utc' ? 'local' : 'utc')" i18n="@@workspace.filterBar.moreTz">Time zone: {{ tz() }}</button>
+              @if (hasAnyFilter()) {
+                <button type="button" role="menuitem" class="opt" (click)="moreOpen.set(false); store.clearQuery()" i18n="@@workspace.filterBar.clearAll">Clear all</button>
+              }
+            </div>
+          }
+        </div>
+      }
       <div class="anchor" (imtClickOutside)="optionsOpen.set(false)" (keydown.escape)="optionsOpen.set(false)">
         <button class="btn tall" data-testid="view-options" aria-haspopup="dialog" [attr.aria-expanded]="optionsOpen()" aria-controls="imt-view-options" (click)="optionsOpen.set(!optionsOpen())">
           <imt-icon name="group" [size]="14" />
-          <span i18n="@@workspace.filterBar.viewOptions">View options</span>
+          <span [class.fold]="compact()" i18n="@@workspace.filterBar.viewOptions">View options</span>
           <imt-icon name="chevronDown" [size]="12" />
         </button>
         @if (optionsOpen()) {
@@ -166,6 +186,8 @@ const OP_LABELS: Record<FilterOp, string> = {
     .pill { height: 24px; border-radius: 12px; flex: none; }
     .tz { height: 22px; padding: 0 6px; border: 0; border-radius: 4px; background: var(--bg-active); color: var(--muted); font-size: var(--fs-xs); cursor: pointer; }
     .anchor { position: relative; }
+    .fold { display: none; }
+    .more-pop { top: 34px; right: 0; min-width: 220px; display: flex; flex-direction: column; gap: 2px; }
     .chip .field { color: var(--chip-text); }
     .x { border: 0; background: transparent; color: var(--faint); cursor: pointer; padding: 0 0 0 2px; font-size: var(--fs-lg); line-height: 1; }
     .x:hover { color: var(--text); }
@@ -195,6 +217,9 @@ export class FilterBar {
   protected readonly levels = LEVELS;
   protected readonly ops: FilterOp[] = ['eq', 'ne', 'contains', 'notContains', 'matches', 'exists', 'missing', 'gt', 'lt'];
   protected readonly optionsOpen = signal(false);
+  protected readonly moreOpen = signal(false);
+  /** The window is narrow (the bar is narrower than `COMPACT_WIDTH_PX`): the range, time zone and Clear all fold into the ⋯ menu. */
+  protected readonly compact = signal(false);
   protected readonly addOpen = signal(false);
   protected readonly newField = signal('');
   protected readonly newOp = signal<FilterOp>('eq');
@@ -234,6 +259,17 @@ export class FilterBar {
     const q = this.q();
     return q.from != null && q.to != null ? formatDuration(q.to - q.from) : '';
   });
+
+  constructor() {
+    const host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    const destroyRef = inject(DestroyRef);
+    afterNextRender(() => {
+      if (typeof ResizeObserver !== 'function') return;
+      const observer = new ResizeObserver((entries) => this.compact.set((entries[0]?.contentRect.width ?? Infinity) < COMPACT_WIDTH_PX));
+      observer.observe(host);
+      destroyRef.onDestroy(() => observer.disconnect());
+    });
+  }
 
   protected levelFocused(i: number): void {
     this.levelFocus.set(i);

@@ -86,6 +86,14 @@ export class DockPlacement {
    * docked panel, or null when the view went to the bottom side bar.
    */
   addView(api: DockviewApi, view: ImtView, inactive: boolean, id = view.id): IDockviewPanel | null {
+    const panel = this.place(api, view, inactive, id);
+    // The view's minimum size (A4): the dock refuses a split that would make the group smaller.
+    const min = view.minSize;
+    if (panel && min) panel.group.api.setConstraints({ ...(min.width ? { minimumWidth: min.width } : {}), ...(min.height ? { minimumHeight: min.height } : {}) });
+    return panel;
+  }
+
+  private place(api: DockviewApi, view: ImtView, inactive: boolean, id: string): IDockviewPanel | null {
     const base: AddPanel = { id, component: view.id, title: view.title, inactive };
     const fixed = FIXED[view.id];
     if (fixed && api.getPanel(fixed.referencePanel)) return api.addPanel({ ...base, position: fixed });
