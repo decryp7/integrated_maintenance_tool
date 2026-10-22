@@ -83,8 +83,53 @@ fn run_since(win: &WindowState, store: &dyn Store, since: Option<RecordCursor>) 
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
+    use imt_core::plugin::annotate::{AnnotationView, Annotator};
+    use std::sync::{Arc, Mutex};
+
+    /// An annotator that records the cursor of each run.
+    #[derive(Default)]
+    pub(crate) struct Recorder(pub Mutex<Vec<Option<RecordCursor>>>);
+
+    struct RecorderPlugin(Arc<Recorder>);
+
+    impl Annotator for Recorder {
+        fn id(&self) -> &str {
+            "test.recorder"
+        }
+        fn annotate(
+            &self,
+            _: &dyn AnnotationView,
+            since: Option<RecordCursor>,
+        ) -> anyhow::Result<Vec<imt_core::plugin::annotate::Annotation>> {
+            self.0.lock().unwrap().push(since);
+            Ok(Vec::new())
+        }
+    }
+
+    impl imt_core::Plugin for RecorderPlugin {
+        fn id(&self) -> &str {
+            "test.recorder-plugin"
+        }
+        fn name(&self) -> &str {
+            "Recorder"
+        }
+        fn version(&self) -> &str {
+            "1.0.0"
+        }
+        fn register(&self, registry: &mut imt_core::PluginRegistry) -> anyhow::Result<()> {
+            registry.add_annotator(self.0.clone()).map(|_| ())
+        }
+    }
+
+    /// A registry with an annotator that records its runs.
+    pub(crate) fn recording_registry() -> (imt_core::PluginRegistry, Arc<Recorder>) {
+        let recorder = Arc::new(Recorder::default());
+        let mut registry = imt_core::PluginRegistry::new();
+        registry.install_shared(Arc::new(RecorderPlugin(recorder.clone()))).unwrap();
+        (registry, recorder)
+    }
 
     #[test]
     fn skipped_refreshes_merge_into_the_earliest_cursor() {
@@ -97,5 +142,68 @@ mod tests {
             RecordCursor { id: 40, ts: Some(500) }
         );
         assert_eq!(cursor_of(NewEvents { id: u64::MAX, ts: None }).id, u32::MAX);
+    }
+
+    fn new_at(id: u64, ts: i64) -> Option<NewEvents> {
+        Some(NewEvents { id, ts: Some(ts) })
+    }
+
+    /// While live tail appends, the annotators run at most once per `TAIL_EVERY`; what arrived meanwhile waits,
+    /// merged, and the caller is told to ask again.
+    #[test]
+    fn the_tail_throttles_the_annotators_and_runs_what_waited_from_the_earliest_cursor() {
+        let (registry, recorder) = recording_registry();
+        let win = crate::windows::tests::window_state("annotate-throttle", registry);
+        let store = win.engine.store().unwrap();
+        let (mut pending, mut last) = (None, None);
+        let t0 = Instant::now();
+        let runs = || recorder.0.lock().unwrap().clone();
+
+        // The first refresh runs at once, from its own first new event.
+        assert!(!after_tail(&win, &*store, &mut pending, &mut last, new_at(50, 700), t0));
+        assert_eq!(runs(), [Some(RecordCursor { id: 50, ts: Some(700) })]);
+        assert_eq!(pending, None);
+
+        // Two more inside the window wait, merged into the earliest cursor; the caller must ask again.
+        assert!(after_tail(
+            &win,
+            &*store,
+            &mut pending,
+            &mut last,
+            new_at(90, 900),
+            t0 + TAIL_EVERY / 4
+        ));
+        assert!(after_tail(
+            &win,
+            &*store,
+            &mut pending,
+            &mut last,
+            new_at(70, 800),
+            t0 + TAIL_EVERY / 2
+        ));
+        assert_eq!(runs().len(), 1, "throttled");
+        assert_eq!(pending, Some(RecordCursor { id: 70, ts: Some(800) }));
+        // Asking again with nothing new is still too early.
+        assert!(after_tail(&win, &*store, &mut pending, &mut last, None, t0 + TAIL_EVERY / 2));
+        assert_eq!(runs().len(), 1);
+
+        // Once the window is over, a refresh with nothing new runs what waited, from the earliest cursor.
+        assert!(!after_tail(&win, &*store, &mut pending, &mut last, None, t0 + TAIL_EVERY));
+        assert_eq!(runs().len(), 2);
+        assert_eq!(runs()[1], Some(RecordCursor { id: 70, ts: Some(800) }));
+        assert_eq!(pending, None);
+        // Nothing pending and nothing new: nothing runs and nothing is asked.
+        assert!(!after_tail(&win, &*store, &mut pending, &mut last, None, t0 + TAIL_EVERY * 5));
+        assert_eq!(runs().len(), 2);
+    }
+
+    #[test]
+    fn without_annotators_the_tail_keeps_nothing_pending() {
+        let win = crate::windows::tests::window_state("annotate-none", imt_core::PluginRegistry::new());
+        let store = win.engine.store().unwrap();
+        let mut pending = Some(RecordCursor { id: 1, ts: None });
+        let mut last = None;
+        assert!(!after_tail(&win, &*store, &mut pending, &mut last, new_at(5, 5), Instant::now()));
+        assert_eq!((pending, last), (None, None));
     }
 }

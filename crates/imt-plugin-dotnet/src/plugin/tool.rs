@@ -153,7 +153,9 @@ impl Tool for DotnetTool {
                 Ok(serde_json::to_value(self.captures.stop(id).map_err(|e| anyhow!(e))?)?)
             }
             elevated::START | elevated::POLL | elevated::STOP | elevated::CANCEL => {
-                self.etw.get_or_init(EtwHost::default).invoke(op, args, ctx.data_dir())
+                self.etw
+                    .get_or_init(EtwHost::default)
+                    .invoke(op, args, ctx.data_dir(), ctx.outputs())
             }
             other => bail!("unknown operation {other}"),
         }

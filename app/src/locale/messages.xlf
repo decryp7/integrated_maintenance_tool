@@ -11552,28 +11552,28 @@
         <source>full dump</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">331</context>
+          <context context-type="linenumber">347</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.kind.heap" datatype="html">
         <source>minidump with heap</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">331</context>
+          <context context-type="linenumber">347</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.kind.mini" datatype="html">
         <source>minidump</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">331</context>
+          <context context-type="linenumber">347</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.stack.label" datatype="html">
         <source>Stack of thread <x id="id" equiv-text="id"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">351</context>
+          <context context-type="linenumber">367</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.findings.title" datatype="html">
@@ -11650,28 +11650,28 @@
         <source>Opened <x id="count" equiv-text="opened"/> file.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dumps.store.ts</context>
-          <context context-type="linenumber">191</context>
+          <context context-type="linenumber">200</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.opened.other" datatype="html">
         <source>Opened <x id="count" equiv-text="opened"/> files.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dumps.store.ts</context>
-          <context context-type="linenumber">191</context>
+          <context context-type="linenumber">200</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.missing.one" datatype="html">
         <source><x id="count" equiv-text="n"/> file was not found: <x id="names" equiv-text="names"/>.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dumps.store.ts</context>
-          <context context-type="linenumber">198</context>
+          <context context-type="linenumber">207</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.missing.other" datatype="html">
         <source><x id="count" equiv-text="n"/> files were not found: <x id="names" equiv-text="names"/>.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dumps.store.ts</context>
-          <context context-type="linenumber">199</context>
+          <context context-type="linenumber">208</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.views.dump" datatype="html">
@@ -11831,102 +11831,123 @@
           <context context-type="linenumber">23</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="dumps.symbols.downloading" datatype="html">
+        <source>Downloading…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">25</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="dumps.symbols.noIdentityHint" datatype="html">
         <source>The dump records no PDB name, GUID and age for this module, so no PDB can be matched to it.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
-          <context context-type="linenumber">35</context>
+          <context context-type="linenumber">37</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.symbols.missingHint" datatype="html">
         <source>No PDB with this module&apos;s name, GUID and age is in the symbol folders or the cache. Add its PDB to a symbol folder and open the dump again.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
-          <context context-type="linenumber">37</context>
+          <context context-type="linenumber">39</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.symbols.serversDisabledHint" datatype="html">
         <source>No PDB with this module&apos;s identity was found locally. Turn on symbol servers in Settings &gt; Symbols, or add the PDB to a symbol folder, and open the dump again.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
-          <context context-type="linenumber">39</context>
+          <context context-type="linenumber">41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.symbols.notOnServerHint" datatype="html">
         <source>None of the symbol servers has this build&apos;s PDB. Add it to a symbol folder, or add the server that has it in Settings &gt; Symbols.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
-          <context context-type="linenumber">41</context>
+          <context context-type="linenumber">43</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.symbols.mismatchHint" datatype="html">
         <source>A PDB of this name was found, but of another build, so it was not used. Get the PDB that was built with this module.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
-          <context context-type="linenumber">43</context>
+          <context context-type="linenumber">45</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.symbols.unreadableHint" datatype="html">
         <source>A PDB with this module&apos;s identity was found but could not be read. Replace the file and open the dump again.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
-          <context context-type="linenumber">45</context>
+          <context context-type="linenumber">47</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.symbols.downloadFailedHint" datatype="html">
         <source>Downloading the PDB failed. Check the network and the symbol servers in Settings &gt; Symbols, then open the dump again.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
-          <context context-type="linenumber">47</context>
+          <context context-type="linenumber">49</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.downloadingHint" datatype="html">
+        <source>The PDB is being downloaded (see the Jobs pane, where it can be cancelled). The dump updates when it arrives.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">51</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.symbols.line.serversDisabled" datatype="html">
         <source><x id="count" equiv-text="p.serversDisabled"/> without symbols: downloads are off (Settings &gt; Symbols).</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
-          <context context-type="linenumber">59</context>
+          <context context-type="linenumber">63</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.symbols.line.missing" datatype="html">
         <source><x id="count" equiv-text="p.missing"/> without symbols: no matching PDB in the symbol folders or the cache.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
-          <context context-type="linenumber">60</context>
+          <context context-type="linenumber">64</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.symbols.line.notOnServer" datatype="html">
         <source><x id="count" equiv-text="p.notOnServer"/> not on any symbol server.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
-          <context context-type="linenumber">61</context>
+          <context context-type="linenumber">65</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.symbols.line.mismatch" datatype="html">
         <source><x id="count" equiv-text="p.mismatch"/> only found as another build&apos;s PDB.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
-          <context context-type="linenumber">62</context>
+          <context context-type="linenumber">66</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.symbols.line.unreadable" datatype="html">
         <source><x id="count" equiv-text="p.unreadable"/> with a PDB that could not be read.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
-          <context context-type="linenumber">63</context>
+          <context context-type="linenumber">67</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.symbols.line.downloadFailed" datatype="html">
         <source><x id="count" equiv-text="p.downloadFailed"/> whose download failed.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
-          <context context-type="linenumber">64</context>
+          <context context-type="linenumber">68</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.line.downloading" datatype="html">
+        <source><x id="count" equiv-text="p.downloading"/> still downloading from the symbol servers.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">69</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.symbols.line.noIdentity" datatype="html">
         <source><x id="count" equiv-text="p.noIdentity"/> record no PDB identity.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
-          <context context-type="linenumber">65</context>
+          <context context-type="linenumber">70</context>
         </context-group>
       </trans-unit>
       <trans-unit id="umdh.target" datatype="html">
@@ -16230,8 +16251,15 @@
           <context context-type="linenumber">37,39</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="live.settings.flushTitle" datatype="html">
+        <source>A new event is written once the file has been quiet this long, so the newest line is not held back while it might still be growing. 0 writes it at once.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/live/live-tail-settings.ts</context>
+          <context context-type="linenumber">40</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="live.settings.flush" datatype="html">
-        <source>Flush a partial line after</source>
+        <source>Write the newest event after</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/live-tail-settings.ts</context>
           <context context-type="linenumber">40,41</context>

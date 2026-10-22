@@ -8,6 +8,7 @@
 //! `app/src/app/core/generated/dumps.ts`.
 
 use crate::paths::WindowGrants;
+use crate::symbols::{Download, Opened};
 use crate::windows::CurrentWindow;
 use crate::{CmdError, CmdResult, ErrorCode};
 use imt_core::plugin::services::Service;
@@ -216,6 +217,7 @@ pub async fn dumps_open<R: tauri::Runtime>(
     path: String,
 ) -> CmdResult<DumpDocSummary> {
     let docs = state.dumps.docs.clone();
+    let label = state.label().to_string();
     let symbols = crate::symbols::of(&app);
     tauri::async_runtime::spawn_blocking(move || {
         let granted = grants.read_file(&path, &[])?;
@@ -255,13 +257,96 @@ pub async fn dumps_open<R: tauri::Runtime>(
                 .unwrap_or_default(),
         };
         let doc = importer.import(&name, source.clone(), &options).map_err(cmd_error)?;
-        // The missing PDBs are asked of the user's symbol servers (when they turned them on), then the dump is read again.
-        let doc = symbols.complete(doc, limits.max_text, || importer.import(&name, source, &options));
+        // The dump opens now with what is there. Its missing PDBs are asked of the user's symbol servers (when they
+        // turned them on) by a job after it is open, which reads the dump again when they arrive.
+        let (doc, download) = match symbols.begin(doc, limits.max_text) {
+            Opened::Final(doc) => (doc, None),
+            Opened::Downloading(doc, download) => (doc, Some(download)),
+        };
         let path = canonical.to_string_lossy().into_owned();
-        crate::sync::write(&docs).insert(&name, Some(&path), doc).map_err(cmd_error)
+        let summary = crate::sync::write(&docs).insert(&name, Some(&path), doc).map_err(cmd_error)?;
+        if let Some(download) = download {
+            let reimport = move || importer.import(&name, source, &options);
+            let target = SymbolsTarget {
+                label,
+                docs,
+                id: summary.id,
+                title: summary.name.clone(),
+                path,
+                max_text: limits.max_text,
+            };
+            let _ = start_symbols_job(&app, target, download, reimport);
+        }
+        Ok(summary)
     })
     .await
     .map_err(join_error)?
+}
+
+/// Event to the window when the symbols of one of its dumps changed (the PDBs arrived, or the download ended).
+pub(crate) const SYMBOLS_EVENT: &str = "imt://dump-symbols";
+
+/// What `imt://dump-symbols` carries: the document, which the view reads again.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SymbolsChanged {
+    pub id: u32,
+}
+
+/// The dump a symbol download is for.
+struct SymbolsTarget {
+    label: String,
+    docs: Arc<RwLock<DumpDocs>>,
+    id: u32,
+    title: String,
+    path: String,
+    max_text: usize,
+}
+
+/// Runs the download of a dump's missing PDBs as a Jobs job (Cancel is the job's), after the dump is open. The
+/// document is updated when the PDBs arrive and the window is told; a document closed meanwhile is left alone. When
+/// no job can be queued the modules go back to missing, so none stays "downloading".
+fn start_symbols_job<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    target: SymbolsTarget,
+    download: Download,
+    reimport: impl FnOnce() -> imt_dump::Result<imt_dump::Document> + Send + 'static,
+) -> Option<crate::jobs::JobId> {
+    use crate::jobs::{self, Controls, Done, JobCtx, JobKind, JobLink, JobProgress, JobSpec};
+    let spec = JobSpec::new(JobKind::Download, format!("Symbols for {}", target.title))
+        .window(&target.label)
+        .link(JobLink::Path { path: target.path.clone() });
+    let (docs, id, label, max_text) = (target.docs.clone(), target.id, target.label.clone(), target.max_text);
+    let handle = app.clone();
+    let download = Arc::new(download);
+    let job = download.clone();
+    let queued = jobs::spawn(app, spec, Controls::default(), move |ctx: &JobCtx| -> Result<Done<()>, String> {
+        let cancel = ctx.cancel_flag();
+        let update = job.run(
+            &cancel,
+            &|done, total| ctx.progress(JobProgress::counts(done as u64, total as u64)),
+            reimport,
+        );
+        let failure = update.failure();
+        let changed = update.apply(&docs, id, max_text);
+        if changed {
+            crate::windows::emit_to_window(&handle, &label, SYMBOLS_EVENT, SymbolsChanged { id });
+        }
+        match failure {
+            Some(why) => Err(format!("The symbol download failed: {why}")),
+            None => Ok(Done::new(()).cancelled_if(cancel.load(std::sync::atomic::Ordering::Relaxed))),
+        }
+    });
+    match queued {
+        Ok(job) => Some(job),
+        Err(why) => {
+            log::warn!("The symbol download could not be queued: {why}");
+            if download.abandoned().apply(&target.docs, target.id, target.max_text) {
+                crate::windows::emit_to_window(app, &target.label, SYMBOLS_EVENT, SymbolsChanged { id: target.id });
+            }
+            None
+        }
+    }
 }
 
 #[tauri::command]
@@ -514,6 +599,175 @@ mod tests {
         let reader = docs.pick("x.dmp", &bytes).unwrap();
         assert!(reader.import("x.dmp", Arc::new(bytes), &opts()).is_ok());
         assert!(!DumpsSlot::default().docs.read().unwrap().has_importers());
+    }
+
+    /// A symbol server that fetches by a script: `ok` PDB names arrive, the others fail with `error`; the first
+    /// request waits until `release` is set (so a test can cancel while it is running).
+    struct Scripted {
+        ok: Vec<String>,
+        error: Option<imt_symbols::fetch::FetchError>,
+        started: std::sync::atomic::AtomicBool,
+        release: Arc<std::sync::atomic::AtomicBool>,
+        wait: bool,
+    }
+
+    impl imt_symbols::fetch::Fetcher for Scripted {
+        fn fetch(&self, key: &imt_symbols::id::PdbKey, cache: &Path) -> Result<std::path::PathBuf, imt_symbols::fetch::FetchError> {
+            use std::sync::atomic::Ordering;
+            if self.wait && !self.started.swap(true, Ordering::SeqCst) {
+                let t = std::time::Instant::now();
+                while !self.release.load(Ordering::SeqCst) && t.elapsed() < Duration::from_secs(20) {
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+            }
+            if self.ok.contains(&key.name().to_string()) {
+                return Ok(cache.join("fetched.pdb"));
+            }
+            Err(self
+                .error
+                .clone()
+                .unwrap_or_else(|| imt_symbols::fetch::FetchError::NotFound(key.name().to_string())))
+        }
+    }
+
+    fn scripted(ok: &[String], error: Option<imt_symbols::fetch::FetchError>, wait: bool) -> Arc<Scripted> {
+        Arc::new(Scripted {
+            ok: ok.to_vec(),
+            error,
+            started: Default::default(),
+            release: Default::default(),
+            wait,
+        })
+    }
+
+    fn module_statuses(docs: &RwLock<DumpDocs>, id: u32) -> Vec<(String, SymbolStatusDto)> {
+        let page = crate::sync::read(docs)
+            .modules(&ModulesRequest {
+                id,
+                offset: 0,
+                limit: 100,
+                filter: None,
+            })
+            .unwrap();
+        page.rows.into_iter().filter_map(|r| r.debug_file.map(|f| (f, r.symbols))).collect()
+    }
+
+    /// Symbol downloads are Jobs jobs run after the dump is open: a late arrival updates the open dump and tells the
+    /// window, Cancel stops asking for more, a download that could not reach the servers fails, and a dump closed
+    /// meanwhile is left alone.
+    #[test]
+    fn symbol_downloads_are_jobs_that_update_the_open_dump() {
+        use crate::test_support::{job_end, test_app};
+        use imt_dump::model::{Document, SymbolStatus};
+        use std::sync::atomic::Ordering;
+        use std::sync::Mutex;
+        use tauri::{Listener, Manager};
+
+        let app = test_app(None);
+        let told: Arc<Mutex<Vec<serde_json::Value>>> = Arc::default();
+        let t = told.clone();
+        app.handle().listen_any(SYMBOLS_EVENT, move |e| {
+            t.lock().unwrap().push(serde_json::from_str(e.payload()).unwrap());
+        });
+        let cache = crate::test_support::TempDir::new("symbols-job");
+        let missing = || {
+            let mut d = imt_dump::testing::sample_dump();
+            for m in &mut d.modules {
+                m.symbols = SymbolStatus::Missing;
+            }
+            d
+        };
+        let names: Vec<String> = imt_dump::symbols::missing(&missing(), 100)
+            .iter()
+            .map(|k| k.name().to_string())
+            .collect();
+        assert!(names.len() >= 3);
+        // Opens the dump with its missing modules downloading; the job gets `fetcher`.
+        let begin = |fetcher: Arc<Scripted>, reimport_loads: Option<String>| {
+            let dump = missing();
+            let download = Download::with_fetcher(&dump, &cache.0, fetcher);
+            let mut marked = dump.clone();
+            imt_dump::symbols::mark_downloading(&mut marked, &imt_dump::symbols::missing(&dump, 100));
+            let docs = Arc::new(RwLock::new(DumpDocs::new(Vec::new(), Limits::default())));
+            let id = crate::sync::write(&docs)
+                .insert("a.dmp", Some("/x/a.dmp"), Document::Dump(marked))
+                .unwrap()
+                .id;
+            let target = SymbolsTarget {
+                label: "main".into(),
+                docs: docs.clone(),
+                id,
+                title: "a.dmp".into(),
+                path: "/x/a.dmp".into(),
+                max_text: 120,
+            };
+            let reimport = move || {
+                let mut d = missing();
+                for m in d
+                    .modules
+                    .iter_mut()
+                    .filter(|m| m.debug_file.as_deref() == reimport_loads.as_deref())
+                {
+                    m.symbols = SymbolStatus::Loaded;
+                }
+                Ok(Document::Dump(d))
+            };
+            let job = start_symbols_job(app.handle(), target, download, reimport).expect("queued");
+            (docs, id, job)
+        };
+        let status_of = |rows: &[(String, SymbolStatusDto)], name: &str| rows.iter().find(|(f, _)| f == name).unwrap().1.clone();
+
+        // A late arrival: the dump was open (downloading) before the PDB came, then it is read again and the window told.
+        let (docs, id, job) = begin(scripted(&names[..1], None, false), Some(names[0].clone()));
+        let end = job_end(&app, job.0);
+        assert_eq!(end.state, crate::jobs::JobState::Done, "{end:?}");
+        let rows = module_statuses(&docs, id);
+        assert_eq!(status_of(&rows, &names[0]), SymbolStatusDto::Loaded);
+        assert_eq!(status_of(&rows, &names[1]), SymbolStatusDto::NotOnServer);
+        assert!(
+            told.lock().unwrap().contains(&serde_json::json!({ "id": id })),
+            "{:?}",
+            told.lock().unwrap()
+        );
+
+        // Failure: no server could be reached, so the job fails with the reason and the modules say so.
+        let down = Some(imt_symbols::fetch::FetchError::Network("offline".into()));
+        let (docs, id, job) = begin(scripted(&[], down, false), None);
+        let end = job_end(&app, job.0);
+        assert_eq!(end.state, crate::jobs::JobState::Failed, "{end:?}");
+        assert!(end.error.unwrap_or_default().contains("offline"));
+        assert!(matches!(
+            status_of(&module_statuses(&docs, id), &names[0]),
+            SymbolStatusDto::DownloadFailed { .. }
+        ));
+
+        // Cancel while the first PDB is being asked: no more are asked, the rest go back to missing.
+        let fetcher = scripted(&[], None, true);
+        let (docs, id, job) = begin(fetcher.clone(), None);
+        let t = std::time::Instant::now();
+        while !fetcher.started.load(Ordering::SeqCst) && t.elapsed() < Duration::from_secs(20) {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(matches!(
+            status_of(&module_statuses(&docs, id), &names[1]),
+            SymbolStatusDto::Downloading
+        ));
+        app.state::<crate::jobs::Jobs>().cancel(job).unwrap();
+        fetcher.release.store(true, Ordering::SeqCst);
+        let end = job_end(&app, job.0);
+        assert_eq!(end.state, crate::jobs::JobState::Cancelled, "{end:?}");
+        let rows = module_statuses(&docs, id);
+        assert!(rows.iter().all(|(_, s)| *s != SymbolStatusDto::Downloading), "{rows:?}");
+        assert_eq!(status_of(&rows, &names[1]), SymbolStatusDto::Missing);
+
+        // A dump closed before the PDBs came: nothing changes and nothing is announced.
+        let before = told.lock().unwrap().len();
+        let fetcher = scripted(&[], None, true);
+        let (docs, id, job) = begin(fetcher.clone(), None);
+        assert!(crate::sync::write(&docs).close(id));
+        fetcher.release.store(true, Ordering::SeqCst);
+        assert_eq!(job_end(&app, job.0).state, crate::jobs::JobState::Done);
+        assert_eq!(told.lock().unwrap().len(), before);
     }
 
     fn ipc(

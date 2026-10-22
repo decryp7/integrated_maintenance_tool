@@ -636,6 +636,51 @@ mod tests {
         assert!(apply_changes(&st(), &[]).is_empty());
     }
 
+    /// Annotators run at most once a second while live tail appends. A refresh that has to wait for that keeps what
+    /// arrived pending and asks for a follow-up (`flush_wanted`); the follow-up runs them and stops asking.
+    #[test]
+    fn throttled_annotators_ask_for_a_follow_up_refresh_that_runs_them() {
+        use crate::engine::annotate::{tests::recording_registry, TAIL_EVERY};
+        let (registry, recorder) = recording_registry();
+        let win = crate::windows::tests::window_state("live-annotate", registry);
+        let dir = TempDir::new("live-annotate");
+        let log = dir.0.join("a.log");
+        let line = |s: u32| format!("2026-10-14 10:00:{s:02} INFO event {s}\n");
+        std::fs::write(&log, line(0)).unwrap();
+        crate::test_support::import(&win, std::slice::from_ref(&log));
+        let runs = || recorder.0.lock().unwrap().len();
+        let pending = || crate::sync::lock(&win.live.annotating).0.is_some();
+        let grow = |lines: &[u32]| {
+            use std::io::Write;
+            let mut f = std::fs::OpenOptions::new().append(true).open(&log).unwrap();
+            for s in lines {
+                f.write_all(line(*s).as_bytes()).unwrap();
+            }
+        };
+        // The newest event of a refresh is held back until the file is idle, so each refresh writes the one before.
+        grow(&[1, 2]);
+        let first = apply_changes(&win, std::slice::from_ref(&log));
+        assert_eq!(first.appended, 1, "{first:?}");
+        assert_eq!(runs(), 1, "the first refresh runs the annotators at once");
+        assert!(!pending());
+
+        // Another refresh right away is throttled: its events wait, and a follow-up is wanted.
+        grow(&[3]);
+        let second = apply_changes(&win, std::slice::from_ref(&log));
+        assert_eq!(second.appended, 1, "{second:?}");
+        assert_eq!(runs(), 1, "throttled");
+        assert!(pending(), "what arrived waits for the next run");
+        assert!(win.live.flush_wanted.load(Ordering::SeqCst), "the follow-up is wanted");
+
+        // The follow-up (no paths) once the window is over writes the held event, runs the annotators and stops asking.
+        std::thread::sleep(TAIL_EVERY.max(Duration::from_millis(tail_options(&win).carry_flush_ms)) + Duration::from_millis(200));
+        let again = apply_changes(&win, &[]);
+        assert_eq!(again.appended, 1, "{again:?}");
+        assert_eq!(runs(), 2, "the waiting events were annotated by the follow-up");
+        assert!(!pending());
+        assert!(!win.live.flush_wanted.load(Ordering::SeqCst), "nothing is left to follow up");
+    }
+
     /// The tray (main thread) and `set_live` stop a session at once; a stopped session applies nothing.
     #[test]
     fn stopping_returns_at_once_and_a_stopped_session_applies_nothing() {

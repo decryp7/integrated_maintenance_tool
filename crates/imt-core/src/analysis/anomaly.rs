@@ -298,6 +298,12 @@ pub trait AnomalyInputs {
     /// The values of `field` at the `ranks` (0-based, ascending) of all its values sorted.
     fn values_at(&mut self, field: &str, ranks: &[usize]) -> Result<Vec<f64>, Self::Error>;
 
+    /// [`Self::latency`] of each of `fields`, in order. The default asks one field at a time; a database reads
+    /// them all in one scan.
+    fn latencies(&mut self, fields: &[String]) -> Result<Vec<Latency>, Self::Error> {
+        fields.iter().map(|f| self.latency(f)).collect()
+    }
+
     /// The count of `field`'s numbers with their median and 99th percentile. The default reads them through
     /// [`Self::value_count`] and [`Self::values_at`]; a database answers in one pass.
     fn latency(&mut self, field: &str) -> Result<Latency, Self::Error> {
@@ -594,8 +600,8 @@ fn slow_outliers<I: AnomalyInputs + ?Sized>(
     cfg: &AnomalyConfig,
 ) -> Result<Vec<Anomaly>, I::Error> {
     let mut out = Vec::new();
-    for field in &cfg.latency_fields {
-        let Latency { count, median: med, p99 } = inputs.latency(field)?;
+    let stats = inputs.latencies(&cfg.latency_fields)?;
+    for (field, Latency { count, median: med, p99 }) in cfg.latency_fields.iter().zip(stats) {
         if count < MIN_LATENCY_VALUES {
             continue;
         }

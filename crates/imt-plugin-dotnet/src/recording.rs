@@ -4,11 +4,67 @@
 //! caller holds.
 
 use crate::{DotnetError, Finished, Recording};
-use std::path::PathBuf;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
+
+/// Where an ETW recording writes its bytes. A sink dropped without [`CaptureSink::finish`] leaves nothing behind (a
+/// failed or cancelled recording has no partial file).
+pub trait CaptureSink: Write + Send {
+    /// Completes the capture and returns its size in bytes.
+    fn finish(self: Box<Self>) -> Result<u64, DotnetError>;
+}
+
+/// A [`CaptureSink`] writing a file at a path (the normal process; tests): removed when dropped unfinished.
+pub struct FileSink {
+    file: Option<std::fs::File>,
+    path: PathBuf,
+}
+
+impl FileSink {
+    /// Creates (or truncates) the file at `path`.
+    pub fn create(path: &Path) -> std::io::Result<FileSink> {
+        Ok(FileSink {
+            file: Some(std::fs::File::create(path)?),
+            path: path.to_path_buf(),
+        })
+    }
+}
+
+impl Write for FileSink {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        match self.file.as_mut() {
+            Some(f) => f.write(buf),
+            None => Err(std::io::Error::other("the capture file was already finished")),
+        }
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.file.as_mut().map_or(Ok(()), Write::flush)
+    }
+}
+
+impl CaptureSink for FileSink {
+    fn finish(mut self: Box<Self>) -> Result<u64, DotnetError> {
+        let file = self
+            .file
+            .take()
+            .ok_or_else(|| DotnetError::Protocol("the capture was already finished".into()))?;
+        file.sync_all()?;
+        Ok(file.metadata()?.len())
+    }
+}
+
+impl Drop for FileSink {
+    fn drop(&mut self) {
+        if self.file.take().is_some() {
+            let _ = std::fs::remove_file(&self.path);
+        }
+    }
+}
 
 /// Shared between the caller and the recording thread.
 #[derive(Debug, Default)]
@@ -160,6 +216,22 @@ mod tests {
             truncated: false,
             notes: Vec::new(),
         }
+    }
+
+    #[test]
+    fn a_file_sink_is_removed_unless_finished() {
+        let dir = tempfile::tempdir().unwrap();
+        let (a, b) = (dir.path().join("a"), dir.path().join("b"));
+        let mut s = FileSink::create(&a).unwrap();
+        s.write_all(b"abc").unwrap();
+        s.flush().unwrap();
+        drop(s);
+        assert!(!a.exists(), "an unfinished capture leaves no partial file");
+        let mut s = Box::new(FileSink::create(&b).unwrap());
+        s.write_all(b"abcd").unwrap();
+        assert_eq!(s.finish().unwrap(), 4);
+        assert!(b.exists());
+        assert!(FileSink::create(&dir.path().join("no/such/dir")).is_err());
     }
 
     #[test]

@@ -151,7 +151,8 @@ impl Collector for SystemCollector {
 
 #[cfg(windows)]
 fn start_etw(info: &ProcessInfo, preset: Preset, out: &Path, limits: Limits) -> Result<Box<dyn Recording>, DotnetError> {
-    Ok(Box::new(etw::session::record(info, preset, out, limits)?))
+    let sink = recording::FileSink::create(out)?;
+    Ok(Box::new(etw::session::record(info, preset, Box::new(sink), out, limits)?))
 }
 
 #[cfg(not(windows))]

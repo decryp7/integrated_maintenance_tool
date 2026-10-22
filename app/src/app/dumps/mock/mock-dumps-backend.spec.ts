@@ -21,6 +21,16 @@ describe('MockDumpsBackend', () => {
     await expect(b.overview(again.id)).rejects.toMatchObject({ code: 'notFound' });
   });
 
+  it('tells listeners when symbols changed until they stop listening', async () => {
+    const b = new MockDumpsBackend();
+    const seen: number[] = [];
+    const off = await b.onSymbolsChanged((id) => seen.push(id));
+    b.notifySymbolsChanged(1);
+    off();
+    b.notifySymbolsChanged(2);
+    expect(seen).toEqual([1]);
+  });
+
   it('answers the dump queries', async () => {
     const b = new MockDumpsBackend();
     const { id } = await b.open(MOCK_DUMP_PATHS[0]!);

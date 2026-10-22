@@ -24,6 +24,10 @@ import { reportBackendFailures } from '../core/failure-reporter';
 import { Logger, withFailureLogging } from '../core/logger';
 import { browserMocks } from '../core/mock-registry';
 import { isTauri } from '../core/platform';
+import { listenHere, PayloadListenFn, Unlisten } from '../windowing/window-events';
+
+/** Emitted to the window when the symbols of one of its dumps changed (PDBs arrived or the download ended): `{ id }`. */
+export const DUMP_SYMBOLS_EVENT = 'imt://dump-symbols';
 
 /**
  * The dump engine as the UI sees it (commands in `app/src-tauri/src/dumps.rs`, ADR 0023). The engine reads,
@@ -50,11 +54,16 @@ export abstract class DumpsBackend {
   abstract markers(): Promise<DumpMarker[]>;
   /** The engine's compact, redacted question for "Explain with AI". */
   abstract explain(request: DumpFindingsRequest): Promise<string>;
+  /** Told with the document's id when its symbols changed (downloaded PDBs arrived): views read the dump again. */
+  abstract onSymbolsChanged(handler: (id: number) => void): Promise<Unlisten>;
 }
 
 /** Talks to the Rust shell; `invoke` is Tauri's (tests pass a fake). */
 export class TauriDumpsBackend extends DumpsBackend {
-  constructor(private readonly invoke: typeof tauriInvoke = tauriInvoke) {
+  constructor(
+    private readonly invoke: typeof tauriInvoke = tauriInvoke,
+    private readonly listen: PayloadListenFn = listenHere,
+  ) {
     super();
   }
 
@@ -99,6 +108,12 @@ export class TauriDumpsBackend extends DumpsBackend {
   }
   explain(request: DumpFindingsRequest) {
     return this.invoke<string>('dumps_explain', { request });
+  }
+  onSymbolsChanged(handler: (id: number) => void) {
+    return this.listen(DUMP_SYMBOLS_EVENT, (p) => {
+      const id = (p as { id?: unknown } | null)?.id;
+      if (typeof id === 'number') handler(id);
+    });
   }
 }
 

@@ -21,6 +21,8 @@ export function symbolStatusLabel(s: DumpSymbolStatus): string {
       return $localize`:@@dumps.symbols.unreadable:Unreadable`;
     case 'downloadFailed':
       return $localize`:@@dumps.symbols.downloadFailed:Download failed`;
+    case 'downloading':
+      return $localize`:@@dumps.symbols.downloading:Downloading…`;
   }
 }
 
@@ -45,12 +47,14 @@ export function symbolStatusHint(s: DumpSymbolStatus): string | null {
       return $localize`:@@dumps.symbols.unreadableHint:A PDB with this module's identity was found but could not be read. Replace the file and open the dump again.` + detail;
     case 'downloadFailed':
       return $localize`:@@dumps.symbols.downloadFailedHint:Downloading the PDB failed. Check the network and the symbol servers in Settings > Symbols, then open the dump again.` + detail;
+    case 'downloading':
+      return $localize`:@@dumps.symbols.downloadingHint:The PDB is being downloaded (see the Jobs pane, where it can be cancelled). The dump updates when it arrives.`;
   }
 }
 
-/** How many modules have no symbols, over all causes. */
+/** How many modules have no symbols (yet), over all causes. */
 export function symbolProblemTotal(p: DumpSymbolProblems): number {
-  return p.missing + p.serversDisabled + p.notOnServer + p.mismatch + p.unreadable + p.downloadFailed + p.noIdentity;
+  return p.missing + p.serversDisabled + p.notOnServer + p.mismatch + p.unreadable + p.downloadFailed + p.noIdentity + p.downloading;
 }
 
 /** One line per cause that occurred. */
@@ -62,6 +66,7 @@ export function symbolProblemLines(p: DumpSymbolProblems): string[] {
   if (p.mismatch) lines.push($localize`:@@dumps.symbols.line.mismatch:${p.mismatch}:count: only found as another build's PDB.`);
   if (p.unreadable) lines.push($localize`:@@dumps.symbols.line.unreadable:${p.unreadable}:count: with a PDB that could not be read.`);
   if (p.downloadFailed) lines.push($localize`:@@dumps.symbols.line.downloadFailed:${p.downloadFailed}:count: whose download failed.`);
+  if (p.downloading) lines.push($localize`:@@dumps.symbols.line.downloading:${p.downloading}:count: still downloading from the symbol servers.`);
   if (p.noIdentity) lines.push($localize`:@@dumps.symbols.line.noIdentity:${p.noIdentity}:count: record no PDB identity.`);
   return lines;
 }

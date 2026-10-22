@@ -2,15 +2,19 @@
 //!
 //! A dump is opened by the dumps plugin, which names frames from the symbol folders (the user's, then IMT's symbol
 //! cache) by PDB identity (name, GUID, age) and records each module's [`SymbolStatus`]. The modules whose PDB is
-//! missing are then asked of the user's symbol servers here, into the cache, and the dump is read again with the
-//! new PDBs. Downloads are off until the user turns them on; nothing is requested while they are off.
+//! missing are then asked of the user's symbol servers here, into the cache, as a Jobs job (cancellable, with
+//! progress) that runs after the dump is open: the dump shows at once with those modules "downloading", and is read
+//! again with the new PDBs when they arrive. Downloads are off until the user turns them on; nothing is requested
+//! while they are off.
 
 use imt_core::settings::{Configurable, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
 use imt_dump::model::{Document, SymbolStatus};
+use imt_dump::DumpDocs;
 use imt_symbols::fetch::{FetchError, Fetcher};
 use imt_symbols::id::PdbKey;
-use imt_symbols::servers::{get_all, Gate, Outcome, ServersConfig, MAX_CONCURRENT, MAX_SERVERS};
-use std::path::{Path, PathBuf};
+use imt_symbols::servers::{get_all, get_all_observed, Gate, Outcome, ServersConfig, MAX_CONCURRENT, MAX_SERVERS};
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, RwLock};
 use tauri::{AppHandle, Manager, Runtime};
 
@@ -59,80 +63,214 @@ impl Symbols {
         self.get().cache_folder.or_else(|| self.default_cache.clone())
     }
 
-    /// The dump with the PDBs of its missing modules fetched from the symbol servers (when the user turned them on),
-    /// and every module's status updated. `reimport` reads the dump again once PDBs were added to the cache.
-    pub fn complete(&self, doc: Document, max_text: usize, reimport: impl FnOnce() -> imt_dump::Result<Document>) -> Document {
-        let Some(cache) = self.cache_dir() else { return doc };
+    /// Starts completing a freshly read dump: its missing modules are marked from what the user's settings allow.
+    /// With downloads off (or no cache folder, or a bad address) that is final at once. With them on, the dump is
+    /// handed back with its missing modules marked [`SymbolStatus::Downloading`] and the [`Download`] to run as a
+    /// job: opening a dump never waits for the network.
+    pub fn begin(&self, doc: Document, max_text: usize) -> Opened {
+        let Some(cache) = self.cache_dir() else { return Opened::Final(doc) };
         let settings = self.get();
         let gate = crate::sync::read(&self.gate).clone();
-        match settings.servers.servers() {
-            Ok(servers) => fill_missing(
-                doc,
-                &cache,
-                servers.as_ref().map(|s| s as &dyn Fetcher),
-                &gate,
-                max_text,
-                reimport,
-                &settings.servers,
-            ),
+        let servers = match settings.servers.servers() {
+            Ok(s) => s,
             Err(e) => {
                 let detail = e.to_string();
                 let mut doc = doc;
                 if let Document::Dump(d) = &mut doc {
                     imt_dump::symbols::mark_missing(d, |_| Some(SymbolStatus::DownloadFailed { detail: detail.clone() }), max_text);
                 }
-                doc
+                return Opened::Final(doc);
             }
+        };
+        let Document::Dump(dump) = &doc else { return Opened::Final(doc) };
+        let keys = imt_dump::symbols::missing(dump, MAX_DOWNLOADS);
+        if keys.is_empty() {
+            return Opened::Final(doc);
+        }
+        let Some(fetcher) = servers else {
+            // Off: the cache is the only place to look, and it is quick.
+            let outcomes = get_all(None, &keys, &cache, &gate);
+            let mut doc = doc;
+            Update {
+                reimported: None,
+                outcomes,
+            }
+            .mark(&mut doc, max_text);
+            return Opened::Final(doc);
+        };
+        let mut doc = doc;
+        if let Document::Dump(d) = &mut doc {
+            imt_dump::symbols::mark_downloading(d, &keys);
+        }
+        Opened::Downloading(
+            doc,
+            Download {
+                keys,
+                cache,
+                fetcher: Arc::new(fetcher),
+                gate,
+                config: settings.servers,
+            },
+        )
+    }
+}
+
+/// A dump read, and whether its symbols are still being downloaded.
+pub enum Opened {
+    /// Nothing more to do (or nothing that can be done: downloads are off).
+    Final(Document),
+    /// The dump as read, with the modules being downloaded marked; the download is yet to run.
+    Downloading(Document, Download),
+}
+
+/// The PDBs of one dump's missing modules, to get from the user's symbol servers (a Jobs job).
+pub struct Download {
+    keys: Vec<PdbKey>,
+    cache: PathBuf,
+    fetcher: Arc<dyn Fetcher>,
+    gate: Arc<Gate>,
+    config: ServersConfig,
+}
+
+impl Download {
+    /// A download of `dump`'s missing PDBs through `fetcher` (tests).
+    #[cfg(test)]
+    pub(crate) fn with_fetcher(dump: &imt_dump::model::Dump, cache: &std::path::Path, fetcher: Arc<dyn Fetcher>) -> Download {
+        Download {
+            keys: imt_dump::symbols::missing(dump, MAX_DOWNLOADS),
+            cache: cache.to_path_buf(),
+            fetcher,
+            gate: Arc::new(Gate::new(1)),
+            config: ServersConfig::default(),
+        }
+    }
+
+    /// How many PDBs are asked.
+    #[cfg(test)]
+    pub fn len(&self) -> usize {
+        self.keys.len()
+    }
+
+    #[cfg(test)]
+    pub fn is_empty(&self) -> bool {
+        self.keys.is_empty()
+    }
+
+    /// Gets the PDBs into the cache. No new one is started once `cancel` is set (a running one finishes within its
+    /// own limits); `progress(done, total)` is told as each PDB is settled. When any arrived, `reimport` reads the
+    /// dump again with them (a dump that cannot be read again keeps its first reading).
+    pub fn run(
+        &self,
+        cancel: &AtomicBool,
+        progress: &(dyn Fn(usize, usize) + Sync),
+        reimport: impl FnOnce() -> imt_dump::Result<Document>,
+    ) -> Update {
+        let total = self.keys.len();
+        let done = AtomicUsize::new(0);
+        let outcomes = get_all_observed(Some(&*self.fetcher), &self.keys, &self.cache, &self.gate, cancel, &|_, _| {
+            progress(done.fetch_add(1, Ordering::Relaxed) + 1, total);
+        });
+        let arrived = outcomes.iter().any(|(_, o)| matches!(o, Outcome::Downloaded(_)));
+        let reimported = if arrived {
+            imt_symbols::cache::prune(&self.cache, self.config.cache_max_bytes);
+            reimport().ok()
+        } else {
+            None
+        };
+        Update { reimported, outcomes }
+    }
+
+    /// What to apply when the download could not even be started: the modules go back to missing.
+    pub fn abandoned(&self) -> Update {
+        Update {
+            reimported: None,
+            outcomes: Vec::new(),
         }
     }
 }
 
-/// What a download outcome says about the module's symbols (`None`: nothing new to say).
-fn status_of(outcome: &Outcome) -> Option<SymbolStatus> {
+/// What a download came to, ready to be put into the open document.
+pub struct Update {
+    reimported: Option<Document>,
+    outcomes: Vec<(PdbKey, Outcome)>,
+}
+
+impl Update {
+    /// Whether any PDB was downloaded.
+    #[cfg(test)]
+    pub fn arrived(&self) -> bool {
+        self.outcomes.iter().any(|(_, o)| matches!(o, Outcome::Downloaded(_)))
+    }
+
+    /// Why the download failed, when nothing arrived and a server or the network could not be reached (a PDB that
+    /// is simply not on the servers is not a failure).
+    pub fn failure(&self) -> Option<String> {
+        if self
+            .outcomes
+            .iter()
+            .any(|(_, o)| matches!(o, Outcome::Downloaded(_) | Outcome::Cached(_)))
+        {
+            return None;
+        }
+        self.outcomes.iter().find_map(|(_, o)| match o {
+            Outcome::Failed(e) if e.is_transient() => Some(e.to_string()),
+            _ => None,
+        })
+    }
+
+    fn mark(&self, doc: &mut Document, max_text: usize) {
+        if let Document::Dump(d) = doc {
+            mark_outcomes(d, &self.outcomes, max_text);
+        }
+    }
+
+    /// Puts the result into the open document `id`: the dump read again with the new PDBs, or the modules' statuses
+    /// in the document as it is. `false` when the document was closed (or reopened) meanwhile: nothing is changed.
+    pub fn apply(self, docs: &RwLock<DumpDocs>, id: u32, max_text: usize) -> bool {
+        match self.reimported {
+            Some(mut doc) => {
+                if let Document::Dump(d) = &mut doc {
+                    mark_outcomes(d, &self.outcomes, max_text);
+                }
+                crate::sync::write(docs).replace(id, doc).unwrap_or(false)
+            }
+            None => crate::sync::write(docs).update(id, |doc| {
+                if let Document::Dump(d) = doc {
+                    mark_outcomes(d, &self.outcomes, max_text);
+                }
+            }),
+        }
+    }
+}
+
+/// Gives every module still missing or downloading the status its PDB's outcome says (none heard: missing).
+fn mark_outcomes(d: &mut imt_dump::model::Dump, outcomes: &[(PdbKey, Outcome)], max_text: usize) {
+    imt_dump::symbols::mark_missing(
+        d,
+        |k| {
+            Some(
+                outcomes
+                    .iter()
+                    .find(|(key, _)| key == k)
+                    .map_or(SymbolStatus::Missing, |(_, o)| status_of(o)),
+            )
+        },
+        max_text,
+    );
+}
+
+/// What a download outcome says about the module's symbols, for a module that is still without them (one whose PDB
+/// arrived and loaded is not touched: the dump was read again).
+fn status_of(outcome: &Outcome) -> SymbolStatus {
     match outcome {
-        Outcome::Cached(_) | Outcome::Downloaded(_) => None,
-        Outcome::Disabled => Some(SymbolStatus::ServersDisabled),
-        Outcome::Failed(FetchError::NotFound(_)) => Some(SymbolStatus::NotOnServer),
-        Outcome::Failed(FetchError::Mismatch(m)) => Some(SymbolStatus::Mismatch {
+        Outcome::Cached(_) | Outcome::Downloaded(_) | Outcome::Cancelled => SymbolStatus::Missing,
+        Outcome::Disabled => SymbolStatus::ServersDisabled,
+        Outcome::Failed(FetchError::NotFound(_)) => SymbolStatus::NotOnServer,
+        Outcome::Failed(FetchError::Mismatch(m)) => SymbolStatus::Mismatch {
             detail: format!("the symbol server's {m}"),
-        }),
-        Outcome::Failed(e) => Some(SymbolStatus::DownloadFailed { detail: e.to_string() }),
+        },
+        Outcome::Failed(e) => SymbolStatus::DownloadFailed { detail: e.to_string() },
     }
-}
-
-/// Gets the missing PDBs of a dump into `cache` through `fetcher` (`None`: downloads are off), reads the dump again
-/// when any arrived, and records what became of the others.
-fn fill_missing(
-    doc: Document,
-    cache: &Path,
-    fetcher: Option<&dyn Fetcher>,
-    gate: &Gate,
-    max_text: usize,
-    reimport: impl FnOnce() -> imt_dump::Result<Document>,
-    config: &ServersConfig,
-) -> Document {
-    let Document::Dump(dump) = &doc else { return doc };
-    let keys = imt_dump::symbols::missing(dump, MAX_DOWNLOADS);
-    if keys.is_empty() {
-        return doc;
-    }
-    let outcomes: Vec<(PdbKey, Outcome)> = get_all(fetcher, &keys, cache, gate);
-    let mut doc = doc;
-    if outcomes.iter().any(|(_, o)| matches!(o, Outcome::Downloaded(_))) {
-        imt_symbols::cache::prune(cache, config.cache_max_bytes);
-        // A dump that cannot be read again keeps the first reading, with its PDBs still marked missing.
-        if let Ok(again) = reimport() {
-            doc = again;
-        }
-    }
-    if let Document::Dump(d) = &mut doc {
-        imt_dump::symbols::mark_missing(
-            d,
-            |k| outcomes.iter().find(|(key, _)| key == k).and_then(|(_, o)| status_of(o)),
-            max_text,
-        );
-    }
-    doc
 }
 
 /// Settings ▸ Symbols.
@@ -274,7 +412,7 @@ mod tests {
     use super::*;
     use imt_dump::model::Dump;
     use imt_dump::testing::sample_dump;
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::path::Path;
     use std::sync::Mutex;
 
     /// Answers each PDB by name from a table; counts the requests.
@@ -330,24 +468,68 @@ mod tests {
             .unwrap_or_else(|| panic!("no module with {pdb}"))
     }
 
-    fn run(fetcher: Option<&dyn Fetcher>, reimport: impl FnOnce() -> imt_dump::Result<Document>) -> Dump {
-        let cache = tempfile::tempdir().unwrap();
-        dump_of(fill_missing(
-            Document::Dump(missing_dump()),
-            cache.path(),
-            fetcher,
-            &Gate::new(2),
-            120,
-            reimport,
-            &ServersConfig::default(),
-        ))
+    fn download(fetcher: Arc<dyn Fetcher>, dump: &Dump, cache: &Path) -> Download {
+        Download::with_fetcher(dump, cache, fetcher)
+    }
+
+    /// The dump with its missing modules marked, in a document set under id 1.
+    fn opened(dump: &Dump, download: &Download) -> (RwLock<DumpDocs>, u32) {
+        let mut marked = dump.clone();
+        imt_dump::symbols::mark_downloading(&mut marked, &download.keys);
+        let mut docs = DumpDocs::new(Vec::new(), imt_dump::Limits::default());
+        let id = docs.insert("a.dmp", Some("/x/a.dmp"), Document::Dump(marked)).unwrap().id;
+        (RwLock::new(docs), id)
+    }
+
+    fn stored(docs: &RwLock<DumpDocs>, id: u32) -> Dump {
+        let rows = crate::sync::read(docs)
+            .modules(&imt_dump::api::ModulesRequest {
+                id,
+                offset: 0,
+                limit: 100,
+                filter: None,
+            })
+            .unwrap();
+        let mut d = missing_dump();
+        for m in &mut d.modules {
+            let Some(row) = rows.rows.iter().find(|r| r.debug_file.is_some() && r.debug_file == m.debug_file) else {
+                continue;
+            };
+            m.symbols = match row.symbols.clone() {
+                imt_dump::api::SymbolStatusDto::Downloading => SymbolStatus::Downloading,
+                imt_dump::api::SymbolStatusDto::Loaded => SymbolStatus::Loaded,
+                imt_dump::api::SymbolStatusDto::Missing => SymbolStatus::Missing,
+                imt_dump::api::SymbolStatusDto::NotOnServer => SymbolStatus::NotOnServer,
+                imt_dump::api::SymbolStatusDto::DownloadFailed { detail } => SymbolStatus::DownloadFailed { detail },
+                imt_dump::api::SymbolStatusDto::Mismatch { detail } => SymbolStatus::Mismatch { detail },
+                other => panic!("unexpected {other:?}"),
+            };
+        }
+        d
+    }
+
+    fn settings_on(cache: &Path) -> Symbols {
+        let symbols = Symbols::new(Some(cache.to_path_buf()));
+        symbols.set(SymbolSettings {
+            servers: ServersConfig {
+                enabled: true,
+                ..ServersConfig::default()
+            },
+            cache_folder: None,
+        });
+        symbols
     }
 
     #[test]
-    fn with_downloads_off_every_missing_module_says_so_and_nothing_is_read_again() {
+    fn with_downloads_off_every_missing_module_says_so_at_once() {
         let first = missing_names(&missing_dump());
         assert!(!first.is_empty());
-        let d = run(None, || panic!("nothing was downloaded"));
+        let cache = tempfile::tempdir().unwrap();
+        let symbols = Symbols::new(Some(cache.path().to_path_buf()));
+        let Opened::Final(doc) = symbols.begin(Document::Dump(missing_dump()), 120) else {
+            panic!("with downloads off nothing is left to do in the background");
+        };
+        let d = dump_of(doc);
         for pdb in &first {
             assert_eq!(status(&d, pdb), SymbolStatus::ServersDisabled, "{pdb}");
         }
@@ -355,26 +537,59 @@ mod tests {
     }
 
     #[test]
-    fn a_failed_download_says_why_and_a_downloaded_one_reads_the_dump_again() {
+    fn with_downloads_on_the_dump_opens_at_once_with_its_missing_modules_downloading() {
+        let cache = tempfile::tempdir().unwrap();
+        let symbols = settings_on(cache.path());
+        let Opened::Downloading(doc, download) = symbols.begin(Document::Dump(missing_dump()), 120) else {
+            panic!("a download was expected");
+        };
+        let d = dump_of(doc);
+        let names = missing_names(&missing_dump());
+        assert_eq!(download.len(), names.len());
+        assert!(!download.is_empty());
+        for pdb in &names {
+            assert_eq!(status(&d, pdb), SymbolStatus::Downloading, "{pdb}");
+        }
+        assert!(missing_names(&d).is_empty(), "none is both missing and downloading");
+        // Nothing missing, or a UMDH log: nothing to download.
+        assert!(matches!(symbols.begin(Document::Dump(sample_dump()), 120), Opened::Final(_)));
+        let umdh = Document::Umdh(imt_dump::testing::sample_umdh(imt_dump::model::UmdhKind::Diff, 0, &[(1, 2, 3)]));
+        assert!(matches!(symbols.begin(umdh, 120), Opened::Final(_)));
+    }
+
+    #[test]
+    fn a_late_arrival_updates_the_open_dump_and_failures_say_why() {
         let names = missing_names(&missing_dump());
         assert!(names.len() >= 3, "{names:?}");
-        let fetcher = table(vec![
+        let fetcher = Arc::new(table(vec![
             (&names[0], Ok(())),
             (&names[1], Err(FetchError::Network("timed out".into()))),
             (&names[2], Err(FetchError::Mismatch("answer is another build".into()))),
-        ]);
-        let again = AtomicUsize::new(0);
+        ]));
+        let cache = tempfile::tempdir().unwrap();
+        let dl = download(fetcher.clone(), &missing_dump(), cache.path());
+        let (docs, id) = opened(&missing_dump(), &dl);
+        assert_eq!(status(&stored(&docs, id), &names[0]), SymbolStatus::Downloading);
+        let settled = Mutex::new(Vec::new());
         let first = names[0].clone();
-        let d = run(Some(&fetcher), || {
-            again.fetch_add(1, Ordering::SeqCst);
-            // The second reading finds the downloaded PDB.
-            let mut d = missing_dump();
-            for m in d.modules.iter_mut().filter(|m| m.debug_file.as_deref() == Some(&first)) {
-                m.symbols = SymbolStatus::Loaded;
-            }
-            Ok(Document::Dump(d))
-        });
-        assert_eq!(again.load(Ordering::SeqCst), 1);
+        let update = dl.run(
+            &AtomicBool::new(false),
+            &|done, total| settled.lock().unwrap().push((done, total)),
+            || {
+                // The second reading finds the downloaded PDB.
+                let mut d = missing_dump();
+                for m in d.modules.iter_mut().filter(|m| m.debug_file.as_deref() == Some(&first)) {
+                    m.symbols = SymbolStatus::Loaded;
+                }
+                Ok(Document::Dump(d))
+            },
+        );
+        assert!(update.arrived());
+        assert_eq!(update.failure(), None, "one PDB arrived");
+        let total = names.len();
+        assert_eq!(*settled.lock().unwrap(), (1..=total).map(|n| (n, total)).collect::<Vec<_>>());
+        assert!(update.apply(&docs, id, 120));
+        let d = stored(&docs, id);
         assert_eq!(status(&d, &names[0]), SymbolStatus::Loaded);
         assert!(matches!(status(&d, &names[1]), SymbolStatus::DownloadFailed { detail } if detail.contains("timed out")));
         assert!(matches!(status(&d, &names[2]), SymbolStatus::Mismatch { detail } if detail.contains("another build")));
@@ -385,42 +600,77 @@ mod tests {
     }
 
     #[test]
-    fn a_dump_that_cannot_be_read_again_keeps_its_first_reading() {
+    fn a_download_that_failed_everywhere_is_a_failure_but_not_on_the_servers_is_not() {
         let names = missing_names(&missing_dump());
-        let fetcher = table(vec![(&names[0], Ok(()))]);
-        let d = run(Some(&fetcher), || {
-            Err(imt_dump::DumpError::new(imt_dump::ErrorCode::Invalid, "gone"))
-        });
-        // Downloaded, but not loaded: it stays missing rather than claiming symbols it does not have.
-        assert_eq!(status(&d, &names[0]), SymbolStatus::Missing);
-        assert_eq!(status(&d, &names[1]), SymbolStatus::NotOnServer);
+        let cache = tempfile::tempdir().unwrap();
+        let broken = Arc::new(table(
+            names
+                .iter()
+                .map(|n| (n.as_str(), Err(FetchError::Network("offline".into()))))
+                .collect(),
+        ));
+        let dl = download(broken, &missing_dump(), cache.path());
+        let (docs, id) = opened(&missing_dump(), &dl);
+        let update = dl.run(&AtomicBool::new(false), &|_, _| {}, || panic!("nothing arrived"));
+        assert!(!update.arrived());
+        assert!(update.failure().unwrap().contains("offline"));
+        assert!(update.apply(&docs, id, 120));
+        assert!(matches!(status(&stored(&docs, id), &names[0]), SymbolStatus::DownloadFailed { .. }));
+        // Not on any server is an answer, not a failure.
+        let none = Arc::new(table(vec![]));
+        let dl = download(none, &missing_dump(), cache.path());
+        let update = dl.run(&AtomicBool::new(false), &|_, _| {}, || panic!("nothing arrived"));
+        assert_eq!(update.failure(), None);
     }
 
     #[test]
-    fn umdh_logs_and_dumps_with_nothing_missing_are_left_alone() {
+    fn cancelling_stops_asking_and_puts_the_modules_back_to_missing() {
+        let names = missing_names(&missing_dump());
+        let fetcher = Arc::new(table(vec![]));
         let cache = tempfile::tempdir().unwrap();
-        let umdh = Document::Umdh(imt_dump::testing::sample_umdh(imt_dump::model::UmdhKind::Diff, 0, &[(1, 2, 3)]));
-        let out = fill_missing(
-            umdh.clone(),
-            cache.path(),
-            None,
-            &Gate::new(1),
-            100,
-            || panic!("no"),
-            &ServersConfig::default(),
-        );
-        assert_eq!(out, umdh);
-        let all = sample_dump();
-        let out = fill_missing(
-            Document::Dump(all.clone()),
-            cache.path(),
-            None,
-            &Gate::new(1),
-            100,
-            || panic!("no"),
-            &ServersConfig::default(),
-        );
-        assert_eq!(out, Document::Dump(all));
+        let dl = download(fetcher.clone(), &missing_dump(), cache.path());
+        let (docs, id) = opened(&missing_dump(), &dl);
+        let cancel = AtomicBool::new(false);
+        // Cancel after the first PDB is settled.
+        let update = dl.run(&cancel, &|_, _| cancel.store(true, Ordering::SeqCst), || panic!("nothing arrived"));
+        assert_eq!(fetcher.asked.load(Ordering::SeqCst), 1);
+        assert!(update.apply(&docs, id, 120));
+        let d = stored(&docs, id);
+        assert_eq!(status(&d, &names[0]), SymbolStatus::NotOnServer, "the one that was asked");
+        for other in &names[1..] {
+            assert_eq!(
+                status(&d, other),
+                SymbolStatus::Missing,
+                "{other}: not asked, so nothing is claimed"
+            );
+        }
+    }
+
+    #[test]
+    fn a_dump_that_cannot_be_read_again_keeps_its_first_reading_and_a_closed_one_is_left_alone() {
+        let names = missing_names(&missing_dump());
+        let cache = tempfile::tempdir().unwrap();
+        let dl = download(Arc::new(table(vec![(&names[0], Ok(()))])), &missing_dump(), cache.path());
+        let (docs, id) = opened(&missing_dump(), &dl);
+        let update = dl.run(&AtomicBool::new(false), &|_, _| {}, || {
+            Err(imt_dump::DumpError::new(imt_dump::ErrorCode::Invalid, "gone"))
+        });
+        assert!(update.arrived());
+        assert!(update.apply(&docs, id, 120));
+        let d = stored(&docs, id);
+        // Downloaded, but not loaded: it stays missing rather than claiming symbols it does not have.
+        assert_eq!(status(&d, &names[0]), SymbolStatus::Missing);
+        assert_eq!(status(&d, &names[1]), SymbolStatus::NotOnServer);
+        // The document was closed while the PDBs came: the late result changes nothing and does not fail.
+        let (docs, id) = opened(&missing_dump(), &dl);
+        assert!(crate::sync::write(&docs).close(id));
+        assert!(!dl
+            .run(&AtomicBool::new(false), &|_, _| {}, || Ok(Document::Dump(missing_dump())))
+            .apply(&docs, id, 120));
+        // A download that could not even start puts the modules back.
+        let (docs, id) = opened(&missing_dump(), &dl);
+        assert!(dl.abandoned().apply(&docs, id, 120));
+        assert_eq!(status(&stored(&docs, id), &names[0]), SymbolStatus::Missing);
     }
 
     fn values(extra: serde_json::Value) -> Result<SymbolSettings, anyhow::Error> {
@@ -458,14 +708,16 @@ mod tests {
             },
             cache_folder: None,
         });
-        let d = dump_of(symbols.complete(Document::Dump(missing_dump()), 120, || panic!("no download happened")));
+        let Opened::Final(doc) = symbols.begin(Document::Dump(missing_dump()), 120) else {
+            panic!("a bad address is final");
+        };
         let names = missing_names(&missing_dump());
-        assert!(matches!(status(&d, &names[0]), SymbolStatus::DownloadFailed { .. }));
+        assert!(matches!(status(&dump_of(doc), &names[0]), SymbolStatus::DownloadFailed { .. }));
         // Without a cache folder nothing is asked at all.
         let none = Symbols::new(None);
-        assert_eq!(
-            none.complete(Document::Dump(missing_dump()), 120, || panic!("no")),
-            Document::Dump(missing_dump())
-        );
+        let Opened::Final(doc) = none.begin(Document::Dump(missing_dump()), 120) else {
+            panic!("no cache")
+        };
+        assert_eq!(doc, Document::Dump(missing_dump()));
     }
 }

@@ -1,5 +1,5 @@
 import { computed, inject, Injectable } from '@angular/core';
-import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
+import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { DumpDocSummary } from '../core/api.types';
 import { errorText } from '../analysis/async-resource';
 import { CmdError } from '../core/cmd-error';
@@ -43,6 +43,8 @@ interface DumpsShape {
   umdhBase: number | null;
   /** Bumped whenever the open documents change (the timeline's markers reload). */
   version: number;
+  /** The last document whose symbols changed (downloaded PDBs arrived) and how many times any did: views read it again. */
+  symbols: { id: number; rev: number } | null;
 }
 
 const isDump = (d: DumpDocSummary) => d.kind === 'dump';
@@ -59,7 +61,7 @@ export function bySnapshotTime(docs: readonly DumpDocSummary[]): DumpDocSummary[
  */
 export const DumpsStore = signalStore(
   { providedIn: 'root' },
-  withState<DumpsShape>({ docs: [], loading: false, error: null, failedPaths: [], notice: null, activeDump: null, umdhTarget: null, umdhBase: null, version: 0 }),
+  withState<DumpsShape>({ docs: [], loading: false, error: null, failedPaths: [], notice: null, activeDump: null, umdhTarget: null, umdhBase: null, version: 0, symbols: null }),
   withComputed((s) => ({
     dumps: computed(() => s.docs().filter(isDump)),
     umdh: computed(() => bySnapshotTime(s.docs().filter(isUmdh))),
@@ -174,11 +176,18 @@ export const DumpsStore = signalStore(
         return failed.length ? openPaths(failed) : refresh();
       },
       dismiss: () => patchState(s, { error: null, notice: null, failedPaths: [] }),
+      /** The engine read document `id` again with downloaded PDBs: whoever shows it reloads. */
+      noteSymbolsChanged: (id: number) => patchState(s, { symbols: { id, rev: (s.symbols()?.rev ?? 0) + 1 } }),
       setActiveDump: (id: number | null) => patchState(s, { activeDump: id }),
       setUmdh(target: number | null, base: number | null): void {
         patchState(s, { umdhTarget: target, umdhBase: base === target ? null : base });
       },
     };
+  }),
+  withHooks({
+    onInit(store, backend = inject(DumpsBackend)) {
+      void backend.onSymbolsChanged((id) => store.noteSymbolsChanged(id)).catch(() => undefined);
+    },
   }),
 );
 

@@ -464,6 +464,47 @@ impl AnomalyInputs for SqlInputs<'_> {
         })
     }
 
+    fn latencies(&mut self, fields: &[String]) -> StoreResult<Vec<Latency>> {
+        // One scan for all the fields: each one's count, median and 99th percentile.
+        let present: Vec<usize> = (0..fields.len()).filter(|&i| self.may_have(&fields[i])).collect();
+        let mut out = vec![Latency::default(); fields.len()];
+        if present.is_empty() {
+            return Ok(out);
+        }
+        let columns = present
+            .iter()
+            .enumerate()
+            .map(|(k, &i)| Ok(format!("{} AS v{k}", self.number(&fields[i])?)))
+            .collect::<StoreResult<Vec<String>>>()?
+            .join(", ");
+        let stats = (0..present.len())
+            .map(|k| format!("count(v{k}), quantile_cont(v{k}, 0.5), quantile_cont(v{k}, 0.99)"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let sql = format!("SELECT {stats} FROM (SELECT {columns} FROM {FROM} WHERE {})", self.filter);
+        let row = self.rows(&sql, |r| {
+            (0..present.len())
+                .map(|k| {
+                    Ok((
+                        r.get::<_, u64>(3 * k)?,
+                        r.get::<_, Option<f64>>(3 * k + 1)?,
+                        r.get::<_, Option<f64>>(3 * k + 2)?,
+                    ))
+                })
+                .collect::<duckdb::Result<Vec<_>>>()
+        })?;
+        for (k, &i) in present.iter().enumerate() {
+            if let Some((n, Some(median), Some(p99))) = row.first().and_then(|r| r.get(k)) {
+                out[i] = Latency {
+                    count: *n as usize,
+                    median: *median,
+                    p99: *p99,
+                };
+            }
+        }
+        Ok(out)
+    }
+
     fn value_count(&mut self, field: &str) -> StoreResult<usize> {
         let sql = format!("SELECT count({}) FROM {FROM} WHERE {}", self.number(field)?, self.filter);
         Ok(self.rows(&sql, |r| r.get::<_, u64>(0))?.first().copied().unwrap_or(0) as usize)
@@ -547,56 +588,75 @@ impl AnomalyInputs for SqlInputs<'_> {
     }
 
     fn growth_series(&mut self, cfg: &TrendConfig, f: &mut dyn FnMut(GrowthSeries)) -> StoreResult<()> {
-        // The instances' growth fields, one field at a time, in instance then time order.
-        for field in &cfg.fields {
-            if !self.may_have(field) {
-                continue;
-            }
+        // The instances' growth fields, all in one scan (one sort, however many fields): in instance then time
+        // order, each event with the numbers it has; an instance's series are handed over when it ends.
+        let fields: Vec<&String> = cfg.fields.iter().filter(|f| self.may_have(f)).collect();
+        if !fields.is_empty() {
+            let numbers = fields.iter().map(|f| self.number(f)).collect::<StoreResult<Vec<String>>>()?;
+            let columns = numbers
+                .iter()
+                .enumerate()
+                .map(|(k, n)| format!("{n} AS v{k}"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let any = (0..fields.len())
+                .map(|k| format!("v{k} IS NOT NULL"))
+                .collect::<Vec<_>>()
+                .join(" OR ");
+            let values = (0..fields.len()).map(|k| format!("v{k}")).collect::<Vec<_>>().join(", ");
             let sql = format!(
-                "SELECT i, ts, v, CAST(id AS UBIGINT) FROM (
-                   SELECT t.i AS i, e.ts AS ts, {} AS v, e.id AS id, e.source AS source, e.line AS line FROM {})
-                 WHERE v IS NOT NULL ORDER BY i, ts, source, line, id",
-                self.number(field)?,
+                "SELECT i, ts, CAST(id AS UBIGINT), {values} FROM (
+                   SELECT t.i AS i, e.ts AS ts, {columns}, e.id AS id, e.source AS source, e.line AS line FROM {})
+                 WHERE {any} ORDER BY i, ts, source, line, id",
                 self.from()
             );
             let names = &self.names;
-            let mut current: Option<(i32, GrowthSeries)> = None;
+            let blank = |instance: i32| -> Vec<GrowthSeries> {
+                let place = usize::try_from(instance)
+                    .ok()
+                    .and_then(|i| names.get(i))
+                    .cloned()
+                    .unwrap_or_default();
+                fields
+                    .iter()
+                    .map(|field| GrowthSeries {
+                        place: place.clone(),
+                        name: (*field).clone(),
+                        counter: false,
+                        points: Vec::new(),
+                    })
+                    .collect()
+            };
+            let mut current: Option<(i32, Vec<GrowthSeries>)> = None;
             self.stream(&sql, &mut |rb| {
-                let (k, ts, v, id) = (
+                let (k, ts, id) = (
                     column::<Int32Array>(rb, 0)?,
                     column::<Int64Array>(rb, 1)?,
-                    column::<Float64Array>(rb, 2)?,
-                    column::<UInt64Array>(rb, 3)?,
+                    column::<UInt64Array>(rb, 2)?,
                 );
+                let vs = (0..fields.len())
+                    .map(|n| column::<Float64Array>(rb, 3 + n))
+                    .collect::<StoreResult<Vec<_>>>()?;
                 for row in 0..rb.num_rows() {
                     let instance = k.value(row);
                     if current.as_ref().is_none_or(|s| s.0 != instance) {
                         if let Some((_, done)) = current.take() {
-                            f(done);
+                            done.into_iter().filter(|s| !s.points.is_empty()).for_each(&mut *f);
                         }
-                        let place = usize::try_from(instance)
-                            .ok()
-                            .and_then(|i| names.get(i))
-                            .cloned()
-                            .unwrap_or_default();
-                        current = Some((
-                            instance,
-                            GrowthSeries {
-                                place,
-                                name: field.clone(),
-                                counter: false,
-                                points: Vec::new(),
-                            },
-                        ));
+                        current = Some((instance, blank(instance)));
                     }
-                    if let Some((_, s)) = &mut current {
-                        s.points.push((ts.value(row), v.value(row), sample_id(id.value(row))));
+                    if let Some((_, series)) = &mut current {
+                        for (s, v) in series.iter_mut().zip(&vs) {
+                            if !v.is_null(row) {
+                                s.points.push((ts.value(row), v.value(row), sample_id(id.value(row))));
+                            }
+                        }
                     }
                 }
                 Ok(())
             })?;
             if let Some((_, done)) = current {
-                f(done);
+                done.into_iter().filter(|s| !s.points.is_empty()).for_each(&mut *f);
             }
         }
         // PerfMon counters, one series per machine, process and counter, in time then instance order.

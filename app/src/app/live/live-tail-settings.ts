@@ -37,7 +37,7 @@ export function parseLimit(text: string): number | null {
           <option value="drop" [selected]="opts().deletedFiles === 'drop'" i18n="@@live.tailStatus.deletedDrop">Drop their events</option>
         </select>
       </label>
-      <label class="lbl"><span i18n="@@live.settings.flush">Flush a partial line after</span>
+      <label class="lbl" title="A new event is written once the file has been quiet this long, so the newest line is not held back while it might still be growing. 0 writes it at once." i18n-title="@@live.settings.flushTitle"><span i18n="@@live.settings.flush">Write the newest event after</span>
         <span class="with-unit"><input class="input mono num" type="number" min="0" step="100" [value]="opts().carryFlushMs ?? 500" (change)="setCarry($any($event.target).value)" /><span class="unit" aria-hidden="true">ms</span></span>
       </label>
       <label class="lbl" title="The live anomaly detectors (error spikes, crashes, slow outliers...) run at most this often. 0 runs them after every batch." i18n-title="@@live.tailStatus.detectTitle"><span i18n="@@live.settings.detectEvery">Run detectors every</span>
