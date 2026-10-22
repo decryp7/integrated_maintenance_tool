@@ -306,6 +306,19 @@ mod tests {
     }
 
     #[test]
+    fn tables_are_left_alone_when_no_column_is_in_scope() {
+        let r = redactor("detectors = ['email']\nfields = ['@message']");
+        let cols = vec!["host".to_string(), "n".to_string()];
+        let mut rows = vec![vec![json!("a@b.io"), json!(1)]];
+        r.view_table(&cols, &mut rows);
+        assert_eq!(rows[0][0], "a@b.io", "a column outside the scope is shown as it is");
+        let wide = redactor("detectors = ['email']\nfields = ['host']");
+        wide.view_table(&cols, &mut rows);
+        assert_eq!(rows[0][0], "<email>");
+        assert_eq!(rows[0][1], 1, "numbers stay");
+    }
+
+    #[test]
     fn the_view_needs_rules_and_says_what_to_add() {
         let e = view_redactor(&RedactCfg::default()).err().expect("no rules").to_string();
         assert!(e.contains("[redact]"), "{e}");
