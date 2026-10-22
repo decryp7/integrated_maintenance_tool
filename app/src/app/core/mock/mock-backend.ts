@@ -40,6 +40,7 @@ import { ProfileModel } from '../profile.model';
 import { DEMO_START, generateDemo, generateExtraSource, MockDataset, MockRecord } from './mock-data';
 import { mockAnnotations } from './mock-annotations';
 import { mockPreviewSpans, mockQueryRuns, mockRunAnnotations, RunContext, spanRules } from './mock-runs';
+import { WatchedFolderInfo } from '../api.types';
 import { RunsReply, RunsRequest, SpanPreview, SpanPreviewRequest } from '../api.types';
 import { MockEngine, safeRegex } from './mock-engine';
 import { MOCK_PLUGIN_KINDS, MOCK_WINDOWS_PLUGIN, MockPluginKind } from './mock-plugin-markers';
@@ -687,6 +688,60 @@ export class MockBackend implements ImtBackend {
 
   unmuteAlerts(target: AlertTarget): Promise<void> {
     return this.delay(() => this.mutes.unmute(target), 5);
+  }
+
+  /** The window the last import was asked to read (tests); null: everything. */
+  importWindow: { from: number | null; to: number | null } | null = null;
+  private watched: WatchedFolderInfo[] = [];
+  private readonly watchedHandlers = new Set<(files: number) => void>();
+
+  setImportWindow(from: number | null, to: number | null): Promise<void> {
+    return this.delay(() => {
+      if (from !== null && to !== null && to < from) throw new Error('the end of the import window is before its start');
+      this.importWindow = from === null && to === null ? null : { from, to };
+    }, 5);
+  }
+
+  watchedFolders(): Promise<WatchedFolderInfo[]> {
+    return this.delay(() => this.watched.map((w) => ({ ...w })), 5);
+  }
+
+  addWatchedFolder(path: string): Promise<WatchedFolderInfo[]> {
+    return this.delay(() => {
+      if (this.watched.some((w) => w.path === path)) return this.watched.map((w) => ({ ...w }));
+      if (this.watched.length >= 8) throw new Error('at most 8 folders can be watched in a window; remove one first');
+      this.watched.push({ path, enabled: true, importedFiles: 0, pending: 1, message: '' });
+      // A file settles in the folder a moment later and is imported, like the engine's poller does.
+      this.clock.setTimeout(() => {
+        const w = this.watched.find((x) => x.path === path);
+        if (!w?.enabled) return;
+        this.addExtra(`${path.replace(/[\\/]+$/, '')}/dropped.log`);
+        this.apply();
+        w.importedFiles++;
+        w.pending = 0;
+        for (const h of this.watchedHandlers) h(1);
+      }, 400);
+      return this.watched.map((w) => ({ ...w }));
+    }, 5);
+  }
+
+  removeWatchedFolder(path: string): Promise<WatchedFolderInfo[]> {
+    return this.delay(() => {
+      this.watched = this.watched.filter((w) => w.path !== path);
+      return this.watched.map((w) => ({ ...w }));
+    }, 5);
+  }
+
+  setWatchedFolderEnabled(path: string, enabled: boolean): Promise<WatchedFolderInfo[]> {
+    return this.delay(() => {
+      for (const w of this.watched) if (w.path === path) w.enabled = enabled;
+      return this.watched.map((w) => ({ ...w }));
+    }, 5);
+  }
+
+  onWatchedImported(handler: (files: number) => void): Promise<() => void> {
+    this.watchedHandlers.add(handler);
+    return Promise.resolve(() => void this.watchedHandlers.delete(handler));
   }
 
   openPathsLive(paths: string[], startAtEnd: boolean): Promise<WorkspaceSummary> {

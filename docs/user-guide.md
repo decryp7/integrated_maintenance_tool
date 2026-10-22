@@ -453,6 +453,16 @@ that occur in the open data, with the number of events, the fix and *Show events
 model which of your notes fit the problems; the engine keeps only suggestions whose fix is quoted from your notes and
 whose query selects events (they are marked *AI suggested, verified*). Without a model the declared issues still work.
 
+## Watched folders and opening a time range
+
+**Open a time range…** (the clock-like button in the Explorer) asks for a folder, then for a start and an end in UTC; only
+events inside the range are imported. Leave one end empty for "from here" or "until here".
+
+**Watched folders** (View ▸ Tools ▸ Watched folders): *Watch a folder…* picks a folder; files that appear in it are
+imported into the project once they stop changing. Untick a folder to pause it, press the bin to stop watching. If your
+knowledge files declare known issues, a new one found in the imported data is announced once; allow desktop
+notifications to hear about it while IMT is in the background.
+
 ## Pattern trends and placeholder values
 
 In the **Patterns** view each template has a small bar chart of when it occurred: the time range of the analysed

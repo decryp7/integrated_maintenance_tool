@@ -1,7 +1,6 @@
 # 48. Watched folders
 
-- Status: accepted (2026-10-22); the headless driver (`imt watch`) is built, the app's settings UI and desktop
-  notifications are not yet
+- Status: accepted (2026-10-22); drivers: `imt watch` and the app (`watched.rs`)
 - Date: 2026-10-22
 - Related: ADR 0012 (jobs and notifications), ADR 0039 (known issues), ADR 0044 (command line), ADR 0047
 
@@ -31,5 +30,11 @@ forever (a locked or huge file).
 ## Consequences
 
 - A growing log is refreshed whenever it settles, not tailed; live tail (ADR 0037) remains the tool for that.
-- The desktop app needs a driver of its own (settings for the folders, a background task per project, notification
-  centre entries); it reuses `WatchState` unchanged.
+- The app's driver (`app/src-tauri/src/watched.rs`) reuses `WatchState` unchanged. Each window has its own list of
+  at most eight folders and one polling thread (a background task the tray can stop; stopped when the window closes).
+  Files are imported as ordinary import jobs of the window, so the Jobs pane shows them; a new known issue (from the
+  knowledge files) is posted once to the notification centre and, subject to the notification setting and the OS
+  permission (asked once when the first folder is watched), as a desktop notification. The commands are
+  `watched_folders`, `add_watched_folder` (the path must be one the user chose), `remove_watched_folder` and
+  `set_watched_folder_enabled`. The list is saved with the project by the UI (`ProjectUiState`, key `watchedFolders`)
+  and applied again when the project opens.

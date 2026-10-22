@@ -52,6 +52,7 @@ export class WorkspaceStore {
   readonly applyImported = this.data.applyImported;
   readonly openPaths = this.data.openPaths;
   readonly pickAndOpen = this.data.pickAndOpen;
+  readonly openInRange = this.data.openInRange;
   readonly removeSource = this.data.removeSource;
   readonly clearWorkspace = this.data.clearWorkspace;
   readonly reload = this.data.reload;

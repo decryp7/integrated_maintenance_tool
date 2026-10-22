@@ -29,5 +29,6 @@ time in the pipeline, the Parquet segments and the full-text index.
 
 - The window applies to files read after it is set; a kept store keeps what it already holds, so changing the window
   means `clear` and reading again.
-- The app's open dialog does not offer a range picker yet; the engine and the port are ready for it.
+- The app offers it as *Open a time range…* in the Explorer: after the native picker a small dialog asks for the UTC
+  range, the shell command `set_import_window` sets it, the paths are opened and the window is cleared again.
 - Seeking by binary search over sorted text files is a possible later optimisation behind the same setting.
