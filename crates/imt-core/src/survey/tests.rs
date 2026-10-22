@@ -1437,3 +1437,59 @@ fn a_word_with_a_value_that_has_no_digit_is_not_an_instance_name() {
     let fields = field_summaries(&events);
     assert!(instance_candidates(&events, &fields, &[]).iter().all(|c| c.field != "Worker"));
 }
+
+#[test]
+fn dashboards_and_charts_are_snippets_and_regexes_of_one_file_share_a_parser() {
+    let t = fragment_toml(&[Fragment::Dashboard {
+        dashboard: crate::dashboard::DashboardCfg {
+            id: "ops".into(),
+            title: "Ops".into(),
+            columns: 12,
+            tile: vec![],
+        },
+    }])
+    .unwrap();
+    assert!(t.contains("[[dashboard]]") && t.contains("id = \"ops\""), "{t}");
+    let regex = |r: &str| Fragment::ParseRegex {
+        regex: r.into(),
+        file_name: "notes.txt".into(),
+    };
+    let drafts = crate::survey::parser_drafts(&[
+        regex("^(?P<message>a.*)$"),
+        regex("^(?P<message>.*)$"),
+        Fragment::ParseRegex {
+            regex: "^(?P<message>.*)$".into(),
+            file_name: "other.txt".into(),
+        },
+    ])
+    .unwrap();
+    assert_eq!(drafts.len(), 2, "one parser per file name");
+    let first = crate::parser::Parser::from_toml(&drafts[0]).unwrap();
+    assert_eq!(first.format.regexes.len(), 2, "both regexes, in order");
+    assert_eq!(first.format.regexes[0], "^(?P<message>a.*)$");
+}
+
+#[test]
+fn mining_handles_serilog_templates_and_events_without_a_time() {
+    let mut events: Vec<Sample> = (0..4).map(|i| info(i, &format!("Handled order {i}"), json!({}))).collect();
+    for e in &mut events {
+        e.rec.template = Some("Handled order {OrderId}".into());
+        e.rec.ts = None;
+    }
+    let mined = templates::mine(&events);
+    assert_eq!(mined.templates.len(), 1);
+    assert_eq!(mined.templates[0].kind, TemplateKind::Serilog);
+    assert_eq!(mined.templates[0].template, "Handled order {OrderId}");
+    assert!(mined.templates[0].times.is_empty(), "no timestamps to remember");
+}
+
+#[test]
+fn a_constant_message_at_one_instant_is_not_periodic() {
+    // 30 identical timestamps: every gap is zero, so there is no interval to speak of.
+    assert_eq!(templates::noise_reason("Cache refreshed", &[5_000; 30]), None);
+    let steady: Vec<i64> = (0..30).map(|i| i * 1_000).collect();
+    assert_eq!(
+        templates::noise_reason("Cache refreshed", &steady),
+        Some(NoiseReason::Periodic { interval_ms: 1_000 })
+    );
+}
