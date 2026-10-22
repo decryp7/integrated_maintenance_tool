@@ -22,7 +22,7 @@ const closed = vi.fn();
 async function setup() {
   closed.mockClear();
   TestBed.configureTestingModule({
-    providers: [...provideToolsTesting(), { provide: ImtBackend, useValue: tinyBackend({ memoryStoreFeatures: true }) }, provideMockShare(), { provide: DIALOG_REF, useValue: { close: closed, closed: Promise.resolve(undefined) } }],
+    providers: [...provideToolsTesting(), { provide: ImtBackend, useValue: tinyBackend() }, provideMockShare(), { provide: DIALOG_REF, useValue: { close: closed, closed: Promise.resolve(undefined) } }],
   });
   const store = TestBed.inject(WorkspaceStore);
   await settle();
@@ -71,10 +71,10 @@ describe('RedactionService and commands', () => {
 
   it('says calmly that the redacted view is not available yet with the log store', async () => {
     const { service, store } = await setup();
-    vi.spyOn(TestBed.inject(ShareBackend), 'setRedactedView').mockRejectedValueOnce(mockUnsupported('the redacted view is not available with the new log store yet', 'Exports can still be redacted.'));
+    vi.spyOn(TestBed.inject(ShareBackend), 'setRedactedView').mockRejectedValueOnce(mockUnsupported('the redacted view is not available here', 'Exports can still be redacted.'));
     expect(await service.set(true)).toBe(false);
     expect(store.error()).toBeNull();
-    expect(store.notice()).toBe('The redacted view is not available with the new log store yet. Exports can still be redacted.');
+    expect(store.notice()).toBe('The redacted view is not available here. Exports can still be redacted.');
   });
 
   it('reads the export default from the profile', async () => {

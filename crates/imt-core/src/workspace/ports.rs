@@ -537,6 +537,31 @@ impl crate::ports::Skew for WorkspaceStore {
 
 /// Opening at the end; the per-file state is the workspace's own (`Workspace::tail_status`).
 impl crate::ports::Tail for WorkspaceStore {
+    fn tail_files(&self) -> StoreResult<Vec<crate::ports::TailFile>> {
+        let ws = self.read();
+        let records: std::collections::HashMap<u32, usize> = ws.sources().iter().map(|s| (s.id, s.records)).collect();
+        Ok(ws
+            .tail_status()
+            .files
+            .into_iter()
+            .map(|f| crate::ports::TailFile {
+                source: f.source_id,
+                lines: records.get(&f.source_id).copied().unwrap_or(0) as u64,
+                read: if f.state == crate::workspace::TailFileState::Whole {
+                    crate::ports::TailRead::Whole
+                } else {
+                    crate::ports::TailRead::Append
+                },
+                path: f.path,
+                name: f.name,
+                offset: f.offset,
+                size: f.size,
+                note: None,
+                changed_ms: f.last_event,
+            })
+            .collect())
+    }
+
     fn open_at_end(&self, paths: &[PathBuf]) -> StoreResult<ImportSession> {
         self.done(|ws| ws.open_with(paths, &crate::workspace::OpenOptions { start_at_end: true }))
     }

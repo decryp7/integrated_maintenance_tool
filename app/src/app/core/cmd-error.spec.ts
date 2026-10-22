@@ -48,12 +48,12 @@ describe('CmdError', () => {
 
 describe('operations the log store does not offer yet, and the next step', () => {
   it('tells an unsupported operation apart and says so as a sentence of its own', () => {
-    const refused = mockUnsupported('the redacted view is not available with the new log store yet', 'Exports can still be redacted.');
+    const refused = mockUnsupported('the redacted view is not available here', 'Exports can still be redacted.');
     expect(refused).toMatchObject({ code: 'unsupported', retryable: false });
     expect(isUnsupported(refused)).toBe(true);
     expect(isUnsupported(new CmdError({ code: 'failed', message: 'x', retryable: true }))).toBe(false);
     expect(isUnsupported(new Error('unsupported'))).toBe(false);
-    expect(sentenceText(refused)).toBe('The redacted view is not available with the new log store yet. Exports can still be redacted.');
+    expect(sentenceText(refused)).toBe('The redacted view is not available here. Exports can still be redacted.');
     expect(sentenceText(mockUnsupported('done already.'))).toBe('Done already.');
     expect(sentenceText('plain')).toBe('Plain.');
     expect(mockUnsupported('no hint').hint).toBeUndefined();

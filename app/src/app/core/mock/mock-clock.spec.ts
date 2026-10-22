@@ -80,7 +80,7 @@ describe('mock clock', () => {
 
   it('live tail ticks and alert mutes run on the backend clock', async () => {
     const clock = new ManualClock();
-    const b = new MockBackend({ latency: false, dataset: tinyDataset, pluginMarkerKinds: [], liveRate: 20, liveAlertMs: 1_000, liveRotateMs: 0, memoryStoreFeatures: true, clock });
+    const b = new MockBackend({ latency: false, dataset: tinyDataset, pluginMarkerKinds: [], liveRate: 20, liveAlertMs: 1_000, liveRotateMs: 0, clock });
     const alerts: string[] = [];
     await b.onLiveAlert((a) => alerts.push(a.kind));
     await b.setLive(true);

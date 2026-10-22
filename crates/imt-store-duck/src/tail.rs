@@ -447,12 +447,7 @@ impl DuckStore {
         }
         let _importing = Importing(self.inner.clone());
         let roots: Vec<PathBuf> = read_lock(&self.inner.state).roots.clone();
-        // Only what is under an opened root is followed (a watcher may name anything).
-        let hint: Vec<PathBuf> = changed
-            .iter()
-            .map(|p| canonical(p))
-            .filter(|p| roots.iter().any(|r| p.starts_with(r) || r.starts_with(p)))
-            .collect();
+        let hint: Vec<PathBuf> = changed.iter().map(|p| canonical(p)).collect();
         let mut out = TailAppend::default();
         let conn = self.inner.conn()?;
         let actions = self.inner.plan_tail(&conn, &hint)?;
@@ -474,7 +469,13 @@ impl DuckStore {
         // Files to read in full: the ones above, and files that appeared under an opened folder.
         let known: HashSet<String> = followed(&conn)?.iter().map(|f| file_of(&f.path).to_string()).collect();
         let mut paths: Vec<PathBuf> = reread.iter().map(|(f, _, _)| PathBuf::from(file_of(&f.path))).collect();
-        paths.extend(hint.iter().filter(|h| !known.contains(h.to_string_lossy().as_ref())).cloned());
+        // New files are only looked for under the opened roots (a watcher may name anything).
+        paths.extend(
+            hint.iter()
+                .filter(|h| !known.contains(h.to_string_lossy().as_ref()))
+                .filter(|h| roots.iter().any(|r| h.starts_with(r) || r.starts_with(h)))
+                .cloned(),
+        );
         paths.sort();
         paths.dedup();
         if paths.is_empty() {

@@ -153,7 +153,7 @@ describe('MockShareBackend', () => {
   let imt: MockBackend;
   let share: MockShareBackend;
   beforeEach(() => {
-    imt = new MockBackend({ latency: false, memoryStoreFeatures: true });
+    imt = new MockBackend({ latency: false });
     share = new MockShareBackend(imt, new MockAnalysisBackend(recordsFrom(imt)));
   });
 

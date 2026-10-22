@@ -284,7 +284,7 @@ describe('MockToolsBackend', () => {
   });
 
   it('keeps clock offsets in projects and the session, by source path, like the engine', async () => {
-    const imt = new MockBackend({ latency: false, dataset: tinyDataset, pluginMarkerKinds: [], memoryStoreFeatures: true });
+    const imt = new MockBackend({ latency: false, dataset: tinyDataset, pluginMarkerKinds: [] });
     const b = new MockToolsBackend(
       { ...MOCK_DEFAULTS },
       () => imt.workspaceSummary(),

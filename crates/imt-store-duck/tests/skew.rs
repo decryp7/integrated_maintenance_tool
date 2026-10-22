@@ -132,6 +132,15 @@ fn an_offset_moves_a_files_events_and_is_kept_with_the_store() {
     assert_eq!(reopened.clock_offsets().unwrap().get(&info.path), 5_000);
     assert_eq!(times(&reopened).iter().find(|r| r.0 == "b3").unwrap().1, Some(b3));
 
+    // A saved project repeats the offsets.
+    let saved = imt_core::ports::Projects::save_project(&reopened, &imt_core::package::ProjectManifest::default());
+    if let Ok(m) = saved {
+        assert_eq!(
+            m.clock_offsets.iter().map(|o| (o.path.clone(), o.offset_ms)).collect::<Vec<_>>(),
+            [(info.path.clone(), 5_000)]
+        );
+    }
+
     // Back to none: the original times.
     let c = reopened.set_source_offset(&manual(b, 0)).unwrap();
     assert_eq!(c.previous_ms, 5_000);

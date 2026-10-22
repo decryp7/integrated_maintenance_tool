@@ -8,6 +8,7 @@ use common::{store_with, TempDir};
 use imt_core::api::WorkspaceState;
 use imt_core::ports::{Ingest, PageQuery, Positions, Query, Search, SearchRequest, Tail, TailRead, HOLD_IDLE};
 use imt_core::Profile;
+use imt_store_duck::DuckStore;
 use std::io::Write;
 use std::time::Duration;
 
@@ -277,4 +278,28 @@ fn events_out_of_time_order_renumber_the_positions() {
         page.rows.iter().map(|r| r.id).collect::<Vec<_>>(),
         "positions follow the page order"
     );
+}
+
+#[test]
+fn a_store_written_before_live_tail_state_gains_its_tables_when_opened() {
+    let logs = TempDir::new("tail-old-logs");
+    let a = logs.0.join("a.clef");
+    std::fs::write(&a, format!("{}{}", clef(0), clef(1))).unwrap();
+    let dir = TempDir::new("tail-old-store");
+    {
+        let (store, _) = store_with(&dir, Profile::default_profile(), std::slice::from_ref(&logs.0)).unwrap();
+        assert_eq!(store.summary().unwrap().total, 2);
+    }
+    {
+        // As an older build left it: without the tables added since.
+        let conn = duckdb::Connection::open(dir.0.join(imt_store_duck::DB_FILE)).unwrap();
+        conn.execute_batch("DROP TABLE tail_offsets; DROP TABLE clock_offsets;").unwrap();
+    }
+    let store = DuckStore::open(&dir.0, Profile::default_profile(), imt_core::PluginRegistry::new()).unwrap();
+    assert_eq!(store.tail_files().unwrap().len(), 1);
+    assert!(imt_core::ports::Skew::clock_offsets(&store).unwrap().is_empty());
+    append(&a, &clef(2));
+    let r = store.append_tail(std::slice::from_ref(&a)).unwrap();
+    assert_eq!(r.appended, 1, "{r:?}");
+    assert_eq!(store.summary().unwrap().total, 3);
 }
