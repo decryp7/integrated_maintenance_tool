@@ -99,7 +99,7 @@ test.describe('timeline and analysis', () => {
 
   test('a failed timeline request shows an inline error with Retry', async ({ page }) => {
     // The panel asks again when its width is measured, so more than one request fails before Retry succeeds.
-    await openAppWith(page, '?mockFail=queryTimeline:3');
+    await openAppWith(page, '?mockFail=queryTimeline:3&mockSnapshots=off');
     const card = page.locator('imt-timeline-panel .err-card');
     await expect(card).toContainText("Couldn't load the timeline.");
     await expect(card).toContainText('Simulated queryTimeline failure');

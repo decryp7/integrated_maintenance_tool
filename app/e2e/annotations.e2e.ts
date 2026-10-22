@@ -70,7 +70,7 @@ test.describe('plugin annotations on the timeline', () => {
 test('annotations come back after a failed request with Retry', async ({ page }) => {
   // Load the app once, with the failure (no prior load to wait for), and sync on the timeline's lanes: the
   // annotations are requested only once the timeline has data, so the error can only appear after them.
-  await openAppWith(page, '?mockFail=annotations:1');
+  await openAppWith(page, '?mockFail=annotations:1&mockSnapshots=off');
   const timeline = page.locator('imt-timeline-panel');
   await expect(timeline.locator('.lane').first()).toBeVisible();
   const legend = timeline.getByRole('group', { name: 'Annotations' });

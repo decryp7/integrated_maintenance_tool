@@ -33,7 +33,7 @@ test.describe('panel error boundaries', () => {
 
   test('a failed page request shows an inline error with Retry', async ({ page }, testInfo) => {
     // The grid asks for its first page again when the workspace summary arrives, so two requests fail before one succeeds.
-    await openAppWith(page, '?mockFail=queryPage:2');
+    await openAppWith(page, '?mockFail=queryPage:2&mockSnapshots=off');
     const err = page.locator('imt-events-grid .err-card');
     await expect(err).toContainText("Couldn't load events.");
     // The backend's own message is folded under Technical details.
@@ -50,7 +50,7 @@ test.describe('panel error boundaries', () => {
   });
 
   test('a failed facet request shows an inline error with Retry', async ({ page }) => {
-    await openAppWith(page, '?mockFail=queryFacet:1');
+    await openAppWith(page, '?mockFail=queryFacet:1&mockSnapshots=off');
     // Open the popover only once the workspace has settled: a query change while it is open reloads the facet,
     // and that newer (successful) request would supersede the failing one before its error is shown.
     await expect(gridRows(page).first()).toBeVisible();

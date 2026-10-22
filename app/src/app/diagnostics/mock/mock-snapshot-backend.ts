@@ -17,7 +17,11 @@ export class MockSnapshotBackend extends SnapshotBackend {
   private readonly items: { info: SnapshotInfo; url: string }[] = [];
   private listeners = new Set<(e: EngineError) => void>();
   private n = 0;
-  enabled = true;
+  /**
+   * Settings ▸ "Take error snapshots automatically" (`?mockSnapshots=off` turns it off, for UI tests of error states
+   * that are not about snapshots: rendering the window to an image blocks the page for seconds on a loaded runner).
+   */
+  enabled = typeof window === 'undefined' || new URLSearchParams(window.location.search).get('mockSnapshots') !== 'off';
   /** Calls made by the UI, for assertions. */
   readonly exports: { path: string; ids: string[] }[] = [];
   /** Problem reports "saved" by the UI, for assertions. */
