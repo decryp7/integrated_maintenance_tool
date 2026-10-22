@@ -1,5 +1,6 @@
 //! Delimited files (CSV, semicolon, tab, pipe) with or without a header row.
 
+use super::text::{finish, MAX_EVENT_BYTES};
 use super::{first_lines, ImportCtx, Imported, Importer};
 use crate::model::{auto_value, Level, Record};
 use crate::time::detect_day_first;
@@ -67,8 +68,8 @@ impl Importer for CsvImporter {
         let delim = delimiter(&cfg.delimiter, content).ok_or_else(|| anyhow!("could not detect the column delimiter"))?;
         let has_header = cfg.has_header && !first_row_is_data(ctx, delim, content);
         let (headers, rows) = read_rows(delim, has_header, content)?;
-        let layout = Layout::new(ctx, headers, &rows);
-        Ok(layout.records(rows))
+        let layout = Layout::new(ctx, delim, headers, &rows);
+        Ok(layout.records(content, rows))
     }
 
     fn import_tail(&self, ctx: &ImportCtx, head: &str, tail: &str) -> Option<Result<Imported>> {
@@ -76,8 +77,8 @@ impl Importer for CsvImporter {
         let delim = delimiter(&cfg.delimiter, head)?;
         // The header (and the column roles) come from the file's start.
         let has_header = cfg.has_header && !first_row_is_data(ctx, delim, head);
-        let layout = read_rows(delim, has_header, head).map(|(headers, rows)| Layout::new(ctx, headers, &rows));
-        Some(layout.and_then(|layout| read_rows(delim, false, tail).map(|(_, rows)| layout.records(rows))))
+        let layout = read_rows(delim, has_header, head).map(|(headers, rows)| Layout::new(ctx, delim, headers, &rows));
+        Some(layout.and_then(|layout| read_rows(delim, false, tail).map(|(_, rows)| layout.records(tail, rows))))
     }
 }
 
@@ -87,7 +88,9 @@ fn first_row_is_data(ctx: &ImportCtx, delim: u8, content: &str) -> bool {
     let Ok((_, rows)) = read_rows(delim, false, first_lines(content, 1).next().unwrap_or("")) else {
         return false;
     };
-    let Some((_, first)) = rows.first() else { return false };
+    let Some(Row { record: first, .. }) = rows.first() else {
+        return false;
+    };
     let parser = &ctx.profile.timestamps;
     first.iter().any(|cell| parser.parse(cell).is_some() || is_date(cell))
 }
@@ -119,7 +122,14 @@ fn is_time(s: &str) -> bool {
 /// Most rows looked at to find the level and message columns of a file without a header.
 const SAMPLE_ROWS: usize = 50;
 
-type Rows = Vec<(u32, csv::StringRecord)>;
+/// One row of the file: its line number, the byte offset its text starts at and its cells.
+struct Row {
+    line: u32,
+    start: usize,
+    record: csv::StringRecord,
+}
+
+type Rows = Vec<Row>;
 
 /// The rows of `content` and, with `has_header`, its header row.
 fn read_rows(delim: u8, has_header: bool, content: &str) -> Result<(Option<Vec<String>>, Rows)> {
@@ -129,10 +139,26 @@ fn read_rows(delim: u8, has_header: bool, content: &str) -> Result<(Option<Vec<S
         .flexible(true)
         .trim(csv::Trim::All)
         .from_reader(content.as_bytes());
+    // The reader's positions count a CRLF as two line ends and can point at the `\n` of the previous line: the line
+    // number and the start of a row's text come from the content itself (rows ascend, so one pass counts the lines).
+    let (mut counted_to, mut line) = (0usize, 1u32);
     let rows: Rows = reader
         .records()
         .filter_map(|r| r.ok())
-        .map(|r| (r.position().map(|p| p.line() as u32).unwrap_or(0), r))
+        .map(|record| {
+            let at = record.position().map_or(0, |p| p.byte() as usize).min(content.len());
+            let start = at
+                + content
+                    .get(at..)
+                    .map_or(0, |rest| rest.len() - rest.trim_start_matches(['\r', '\n']).len());
+            if start >= counted_to {
+                line += content
+                    .get(counted_to..start)
+                    .map_or(0, |s| s.bytes().filter(|&b| b == b'\n').count()) as u32;
+                counted_to = start;
+            }
+            Row { line, start, record }
+        })
         .collect();
     let headers = if has_header {
         Some(reader.headers()?.iter().map(|h| h.to_string()).collect())
@@ -150,15 +176,19 @@ struct Layout {
     time_col: Option<usize>,
     level_col: Option<usize>,
     message_col: Option<usize>,
+    /// How many columns a row has when the message is the last of them: more cells mean the message held the
+    /// delimiter without quotes (`…,Unhandled exception, the service stops`), and the rest of the line is the message.
+    message_last: Option<usize>,
+    delim: u8,
     parser: crate::time::TimestampParser,
 }
 
 impl Layout {
-    fn new(ctx: &ImportCtx, headers: Option<Vec<String>>, rows: &Rows) -> Layout {
+    fn new(ctx: &ImportCtx, delim: u8, headers: Option<Vec<String>>, rows: &Rows) -> Layout {
         let cfg = &ctx.profile.format.csv;
         let has_header = headers.is_some();
         let headers: Vec<String> = headers.unwrap_or_else(|| {
-            let width = rows.iter().map(|(_, r)| r.len()).max().unwrap_or(0);
+            let width = rows.iter().map(|r| r.record.len()).max().unwrap_or(0);
             // Names from the profile for a file without a header, then col<N> for the rest.
             (1..=width)
                 .map(|i| {
@@ -179,7 +209,7 @@ impl Layout {
             headers.iter().position(|h| names.contains(&h.to_ascii_lowercase().as_str()))
         };
         let parser = &ctx.profile.timestamps;
-        let sample: Vec<&csv::StringRecord> = rows.iter().take(SAMPLE_ROWS).map(|(_, r)| r).collect();
+        let sample: Vec<&csv::StringRecord> = rows.iter().take(SAMPLE_ROWS).map(|r| &r.record).collect();
         let joined = |r: &csv::StringRecord, d: usize, t: usize| format!("{},{}", r.get(d).unwrap_or(""), r.get(t).unwrap_or(""));
 
         // `timestamp = "Date+Time"` joins two named columns.
@@ -238,41 +268,76 @@ impl Layout {
         });
 
         let parser = match (ts_col, parser.day_first()) {
-            (Some(c), None) => parser.with_day_first(detect_day_first(rows.iter().take(2000).filter_map(|(_, r)| r.get(c)))),
+            (Some(c), None) => parser.with_day_first(detect_day_first(rows.iter().take(2000).filter_map(|r| r.record.get(c)))),
             _ => parser.clone(),
         };
+        // The named columns: the header's, else the profile's `columns`.
+        let named_width = if has_header { width } else { cfg.columns.len() };
+        let message_last = message_col.filter(|&m| m + 1 == named_width).map(|_| named_width);
         Layout {
             headers,
             ts_col,
             time_col,
             level_col,
             message_col,
+            message_last,
+            delim,
             parser,
         }
     }
 
-    fn records(&self, rows: Rows) -> Imported {
+    /// The events of `rows` (read from `content`).
+    ///
+    /// With a timestamp column, a row whose timestamp does not parse and that has fewer cells than the layout is a
+    /// continuation line of the event before it (a multi-line message or exception written without quotes): its
+    /// text, as written, joins that event.
+    fn records(&self, content: &str, rows: Rows) -> Imported {
         let Layout {
             headers,
             ts_col,
             time_col,
             level_col,
             message_col,
+            message_last,
+            delim,
             parser,
         } = self;
         let (ts_col, time_col, level_col, message_col) = (*ts_col, *time_col, *level_col, *message_col);
+        let width = message_last.unwrap_or(headers.len());
         let mut out = Imported::default();
-        for (line, row) in rows {
+        let mut current: Option<Record> = None;
+        let mut extra = String::new();
+        for Row { line, start, record: row } in rows {
             if row.iter().all(|c| c.is_empty()) {
                 continue;
             }
+            let ts = ts_col
+                .and_then(|c| row.get(c))
+                .and_then(|value| match time_col.and_then(|t| row.get(t)) {
+                    Some(time) => parser.parse(&format!("{value},{time}")),
+                    None => parser.parse(value),
+                });
+            if ts.is_none() && ts_col.is_some() && current.is_some() && row.len() < width {
+                if extra.len() < MAX_EVENT_BYTES {
+                    if !extra.is_empty() {
+                        extra.push('\n');
+                    }
+                    extra.push_str(raw_line(content, start));
+                }
+                continue;
+            }
+            if let Some(prev) = current.take() {
+                out.records.push(finish(prev, std::mem::take(&mut extra)));
+            }
             let mut rec = Record::new(line);
+            let overflow = message_last.is_some_and(|n| row.len() > n);
             for (i, value) in row.iter().enumerate() {
-                if Some(i) == ts_col {
-                    rec.ts = match time_col.and_then(|t| row.get(t)) {
-                        Some(time) => parser.parse(&format!("{value},{time}")),
-                        None => parser.parse(value),
-                    };
+                if overflow && message_col.is_some_and(|m| i > m) {
+                    // Part of the message.
+                } else if overflow && Some(i) == message_col {
+                    rec.message = rest_after(raw_line(content, start), *delim, i).unwrap_or(value).trim().to_string();
+                } else if Some(i) == ts_col {
+                    rec.ts = ts;
                 } else if Some(i) == time_col {
                     // Part of the timestamp.
                 } else if Some(i) == level_col {
@@ -297,10 +362,39 @@ impl Layout {
                     .collect::<Vec<_>>()
                     .join(" · ");
             }
-            out.records.push(rec);
+            current = Some(rec);
+        }
+        if let Some(rec) = current.take() {
+            out.records.push(finish(rec, extra));
         }
         out
     }
+}
+
+/// The line of `content` starting at byte `start`, without its line break.
+fn raw_line(content: &str, start: usize) -> &str {
+    let rest = content.get(start..).unwrap_or("");
+    rest[..rest.find('\n').unwrap_or(rest.len())].trim_end_matches('\r')
+}
+
+/// The text of `line` after its `n`-th delimiter outside quotes.
+fn rest_after(line: &str, delim: u8, n: usize) -> Option<&str> {
+    if n == 0 {
+        return Some(line);
+    }
+    let mut quoted = false;
+    let mut seen = 0;
+    for (i, b) in line.bytes().enumerate() {
+        if b == b'"' {
+            quoted = !quoted;
+        } else if b == delim && !quoted {
+            seen += 1;
+            if seen == n {
+                return line.get(i + 1..);
+            }
+        }
+    }
+    None
 }
 
 /// The configured delimiter, or the candidate that splits the first lines
@@ -483,6 +577,57 @@ mod tests {
             ":\"MSG:[Changed]\\srv01\\data\\unit7\\a_b.cfg    Src:Sat Jun  1 08:29:59 2024    Dest:Fri May 31 08:29:58 2024\""
         );
         assert_eq!(r.fields["col10"], "copier:42");
+    }
+
+    /// The log4net CSV layout writes the message last and unquoted, and an exception on the lines below it (invented values).
+    const CSV_EXCEPTION: &str = "2024/05/03,11:00:00.000+02:00,INFO,7,svc,90,Started\n\
+        2024/05/03,11:00:01.000+02:00,ERROR,8,svc,90,Copy failed, retrying\n\
+        System.IO.IOException: The disk is full (unit 3, slot 1)\n\
+        \x20  at Copier.Run() in C:\\src\\Copier.cs:line 12\n\
+        2024/05/03,11:00:02.000+02:00,WARN,9,svc,90,\"Quoted, with a comma\"\n\
+        2024/05/03,11:00:03.000+02:00,INFO,9,svc,90,Line one\n\
+        line two of the same message\n";
+
+    // Regression: a message with commas became an extra column, and the exception lines empty events without a time.
+    #[test]
+    fn headerless_unquoted_last_message_and_continuation_lines() {
+        let profile = "[format.csv]\ndelimiter = ','\nhas_header = false\ncolumns = ['Date', 'Time', 'Level', 'Code', 'Process', 'Pid', 'Message']\ntimestamp = 'Date+Time'\nlevel = 'Level'\nmessage = 'Message'";
+        let out = run(profile, CSV_EXCEPTION).unwrap();
+        let msgs: Vec<&str> = out.records.iter().map(|r| r.message.as_str()).collect();
+        assert_eq!(
+            msgs,
+            [
+                "Started",
+                "Copy failed, retrying",
+                "Quoted, with a comma",
+                "Line one\nline two of the same message"
+            ]
+        );
+        assert!(out.records.iter().all(|r| r.ts.is_some()));
+        let failed = &out.records[1];
+        assert_eq!(
+            failed.exception.as_deref(),
+            Some("System.IO.IOException: The disk is full (unit 3, slot 1)\n   at Copier.Run() in C:\\src\\Copier.cs:line 12")
+        );
+        assert!(!failed.fields.contains_key("col8"), "the rest of the line is the message");
+        assert_eq!(failed.fields["Pid"], 90);
+        assert_eq!(out.records[3].line, 6);
+        let crlf = run(profile, &CSV_EXCEPTION.replace('\n', "\r\n")).unwrap();
+        assert_eq!(crlf.records.len(), 4);
+        assert_eq!(
+            crlf.records[1].exception, failed.exception,
+            "the line breaks are not part of the text"
+        );
+        assert_eq!(crlf.records[1].message, "Copy failed, retrying");
+    }
+
+    #[test]
+    fn rest_after_the_nth_delimiter_skips_quoted_ones() {
+        assert_eq!(rest_after("a,\"b,c\",d, e", b',', 2), Some("d, e"));
+        assert_eq!(rest_after("a,b", b',', 0), Some("a,b"));
+        assert_eq!(rest_after("a,b", b',', 3), None);
+        assert_eq!(raw_line("x\r\ny", 0), "x");
+        assert_eq!(raw_line("x", 9), "");
     }
 
     #[test]

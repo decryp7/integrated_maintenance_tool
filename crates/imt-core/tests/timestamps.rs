@@ -145,9 +145,7 @@ fn no_sample_is_flagged() {
         .filter(|s| s.timestamp_issue.is_some())
         .map(|s| s.name)
         .collect();
-    // Known bug (ignored test in real_libraries.rs): the log4net CSV parser turns the lines of a multi-line exception
-    // into untimed events. Expect nothing flagged once it is fixed.
-    assert_eq!(flagged, ["real-libraries/log4net-csv.log"]);
+    assert!(flagged.is_empty(), "{flagged:?}");
 }
 
 // Regression: a log4net CSV layout without a header, its date and time split by the comma delimiter. The first

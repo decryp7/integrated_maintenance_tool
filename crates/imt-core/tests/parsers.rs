@@ -50,6 +50,35 @@ fn every_text_builtin_parses_its_sample() {
     }
 }
 
+// Regression: NLog's `${message:withexception=true}` writes `message|Exception: …`; the exception stayed in the message.
+#[test]
+fn nlog_exception_after_the_bar_and_bars_inside_a_message() {
+    let ws = Workspace::new(Profile::default_profile()).unwrap();
+    let pv = ws.preview_parse(&ParsePreviewRequest {
+        toml: file("nlog").toml.to_string(),
+        profile: String::new(),
+        sample: "2026-03-01 10:00:00.0000|INFO|Shop.Cart|a | b | c\n\
+            2026-03-01 10:00:01.0000|ERROR|Shop.Cart|Checkout failed|System.ArgumentException: Bad sku | 7\n\
+            \x20  at Cart.Checkout()\n\
+            2026-03-01 10:00:02.0000|ERROR|Shop.Cart|Lookup failed|KeyNotFoundError: sku\n"
+            .into(),
+        file_name: "shop.log".into(),
+        limit: 10,
+    });
+    assert_eq!(pv.parser.as_deref(), Some("nlog"));
+    let r = &pv.records;
+    assert_eq!((r[0].message.as_str(), r[0].exception.as_deref()), ("a | b | c", None));
+    assert_eq!(r[1].message, "Checkout failed");
+    assert_eq!(
+        r[1].exception.as_deref(),
+        Some("System.ArgumentException: Bad sku | 7\n   at Cart.Checkout()")
+    );
+    assert_eq!(
+        (r[2].message.as_str(), r[2].exception.as_deref()),
+        ("Lookup failed", Some("KeyNotFoundError: sku"))
+    );
+}
+
 #[test]
 fn builtins_keep_details_of_their_format() {
     let ws = Workspace::new(Profile::default_profile()).unwrap();
@@ -201,6 +230,71 @@ fn a_mixed_folder_uses_a_parser_per_file_and_a_disabled_parser_is_skipped() {
     ws.reload().unwrap();
     let csv = ws.sources().iter().find(|s| s.name == "orders-log4net.csv").unwrap();
     assert_eq!(csv.parser.as_deref(), Some("orders-csv"));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// The instance (lane) of each event of each source, through the store's facet on `@group`.
+fn lanes_by_source(ws: &Workspace) -> std::collections::BTreeMap<String, std::collections::BTreeSet<String>> {
+    let mut out = std::collections::BTreeMap::<String, std::collections::BTreeSet<String>>::new();
+    for s in ws.sources() {
+        let facet = ws
+            .facet(&imt_core::api::FacetRequest {
+                query: imt_core::query::Query {
+                    sources: vec![s.id],
+                    ..Default::default()
+                },
+                field: "@group".into(),
+                limit: 1000,
+            })
+            .unwrap();
+        out.insert(s.name.clone(), facet.values.into_iter().map(|v| v.value).collect());
+    }
+    out
+}
+
+// Regression: an identity field a parser declares (hadoop-spark's `Logger`) joined the instance key of the whole
+// workspace and split the timeline of another file that also writes a `Logger` field (log4net's PatternLayout).
+#[test]
+fn a_parsers_identity_fields_split_only_the_sources_it_reads() {
+    let dir = std::env::temp_dir().join(format!("imt-parsers-identity-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    for id in ["hadoop-spark", "log4net-pattern"] {
+        let f = file(id);
+        std::fs::write(dir.join(f.sample_name), f.sample).unwrap();
+    }
+    let mut ws = Workspace::new(Profile::default_profile()).unwrap();
+    ws.open(std::slice::from_ref(&dir)).unwrap();
+    let spark = file("hadoop-spark").sample_name;
+    let log4net = file("log4net-pattern").sample_name;
+    let lanes = lanes_by_source(&ws);
+    assert!(lanes[spark].len() > 1, "Spark is split by its loggers: {lanes:?}");
+    assert_eq!(
+        lanes[log4net].iter().collect::<Vec<_>>(),
+        [&log4net.to_string()],
+        "the log4net file is one lane, not one per logger"
+    );
+    // The same lanes for the page rows and the instance selection.
+    let some_spark_lane = lanes[spark].iter().next().unwrap().clone();
+    let page = ws
+        .page(&imt_core::api::PageRequest {
+            query: imt_core::query::Query {
+                groups: vec![some_spark_lane.clone(), log4net.to_string()],
+                ..Default::default()
+            },
+            offset: 0,
+            limit: 1000,
+            descending: false,
+            anchor: None,
+        })
+        .unwrap();
+    let log4net_events = ws
+        .records()
+        .iter()
+        .filter(|r| ws.sources().iter().any(|s| s.id == r.source && s.name == log4net))
+        .count();
+    assert!(page.rows.iter().all(|r| r.group == some_spark_lane || r.group == log4net));
+    assert_eq!(page.rows.iter().filter(|r| r.group == log4net).count(), log4net_events);
     std::fs::remove_dir_all(&dir).ok();
 }
 

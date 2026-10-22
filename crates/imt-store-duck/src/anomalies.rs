@@ -2,6 +2,13 @@
 //! over the matching events, so detecting needs memory for per-instance counts and a few sample ids, not
 //! per event. Instances are grouped by the instance key's SQL ([`crate::sql::group_key_expr`]); "time order"
 //! is the stores' order (time, source, line, id).
+//!
+//! The key is built once per event, when the instances are found: it also gives each combination of a source and
+//! the values the key is made of (its parts) its instance, and every later statement finds an event's instance
+//! by those values (an equi-join on a few short columns) instead of building its key again. Building the key
+//! (a few dozen `CASE`s and map lookups per event) made each of the ~20 statements of a detection need 57-59 MB
+//! of DuckDB's memory with 4 threads, at the edge of the analysis memory test's 64 MB limit (out of memory in a
+//! third of its Linux runs); the join needs 44-46 MB and runs 40% faster.
 
 use crate::engine;
 use crate::sql::{double, lit, number_expr, text_expr, Fields, FROM};
@@ -33,9 +40,14 @@ pub(crate) struct SqlInputs<'c> {
     filter: String,
     /// The instance key of an event.
     key: String,
+    /// The SQL of the values the key is made of (besides the source).
+    parts: Vec<String>,
     fields: &'c Fields,
     /// The temporary table of instances: `i` (index, in key order), `k`, `n`, `first`, `last`.
     table: String,
+    /// The temporary table giving each combination of a source and key parts its instance: `src`, `p0`.., `i`,
+    /// `last` (the instance's).
+    of: String,
     /// Each instance's key and events (by index).
     names: Vec<String>,
     events: Vec<u64>,
@@ -43,7 +55,10 @@ pub(crate) struct SqlInputs<'c> {
 
 impl Drop for SqlInputs<'_> {
     fn drop(&mut self) {
-        let _ = self.conn.execute_batch(&format!("DROP TABLE IF EXISTS {}", self.table));
+        let _ = self.conn.execute_batch(&format!(
+            "DROP TABLE IF EXISTS {0}; DROP TABLE IF EXISTS {0}_parts; DROP TABLE IF EXISTS {1}",
+            self.table, self.of
+        ));
     }
 }
 
@@ -117,21 +132,38 @@ fn column<T: 'static>(rb: &RecordBatch, i: usize) -> StoreResult<&T> {
 }
 
 impl<'c> SqlInputs<'c> {
-    pub(crate) fn new(conn: &'c Connection, filter: &str, key: &str, fields: &'c Fields) -> SqlInputs<'c> {
+    /// The inputs over the events of `filter`, whose instance key is `key`, made of the source and the values
+    /// `parts` (see [`crate::sql::group_key_expr`]: the SQL of its fields' text).
+    pub(crate) fn new(conn: &'c Connection, filter: &str, key: &str, parts: Vec<String>, fields: &'c Fields) -> SqlInputs<'c> {
+        let n = NEXT_TABLE.fetch_add(1, Ordering::Relaxed);
         SqlInputs {
             conn,
             filter: format!("({filter}) AND e.ts IS NOT NULL"),
             key: key.to_string(),
+            parts,
             fields,
-            table: format!("anomaly_instances_{}", NEXT_TABLE.fetch_add(1, Ordering::Relaxed)),
+            table: format!("anomaly_instances_{n}"),
+            of: format!("anomaly_instance_of_{n}"),
             names: Vec::new(),
             events: Vec::new(),
         }
     }
 
-    /// `FROM <events> JOIN <instances> t ... WHERE <filter>`: the events with their instance `t.i`.
+    /// `JOIN <instance of> t ON ...`: an event's instance `t.i` (and its `t.last`), by its source and key parts.
+    fn join(&self) -> String {
+        let mut on = vec!["t.src = e.source".to_string()];
+        on.extend(
+            self.parts
+                .iter()
+                .enumerate()
+                .map(|(j, p)| format!("t.p{j} IS NOT DISTINCT FROM ({p})")),
+        );
+        format!("JOIN {} t ON {}", self.of, on.join(" AND "))
+    }
+
+    /// `FROM <events> JOIN <instance of> t ... WHERE <filter>`: the events with their instance `t.i`.
     fn from(&self) -> String {
-        format!("{FROM} JOIN {} t ON t.k = ({}) WHERE {}", self.table, self.key, self.filter)
+        format!("{FROM} {} WHERE {}", self.join(), self.filter)
     }
 
     fn bucket(layout: &Layout) -> String {
@@ -206,11 +238,22 @@ impl AnomalyInputs for SqlInputs<'_> {
     type Error = StoreError;
 
     fn instances(&mut self) -> StoreResult<Vec<Instance>> {
+        // The one statement that builds the key: per source and key parts (a few per source), then per key.
+        let part_values: String = self.parts.iter().enumerate().map(|(j, p)| format!(", ({p}) AS p{j}")).collect();
+        let part_columns: String = (0..self.parts.len()).map(|j| format!(", p.p{j}")).collect();
         self.conn
             .execute_batch(&format!(
-                "CREATE OR REPLACE TEMP TABLE {} AS SELECT CAST(row_number() OVER (ORDER BY k) - 1 AS INTEGER) AS i, k, n, first, last FROM (
-                   SELECT ({}) AS k, count(*) AS n, min(e.ts) AS first, max(e.ts) AS last FROM {FROM} WHERE {} GROUP BY 1)",
-                self.table, self.key, self.filter
+                "CREATE OR REPLACE TEMP TABLE {t}_parts AS
+                   SELECT e.source AS src{part_values}, ({key}) AS k, count(*) AS n, min(e.ts) AS first, max(e.ts) AS last
+                   FROM {FROM} WHERE {filter} GROUP BY ALL;
+                 CREATE OR REPLACE TEMP TABLE {t} AS SELECT CAST(row_number() OVER (ORDER BY k) - 1 AS INTEGER) AS i, k, n, first, last FROM (
+                   SELECT k, CAST(sum(n) AS BIGINT) AS n, min(first) AS first, max(last) AS last FROM {t}_parts GROUP BY k);
+                 CREATE OR REPLACE TEMP TABLE {of} AS SELECT p.src{part_columns}, t.i, t.last FROM {t}_parts p JOIN {t} t ON t.k = p.k;
+                 DROP TABLE {t}_parts;",
+                t = self.table,
+                of = self.of,
+                key = self.key,
+                filter = self.filter,
             ))
             .map_err(engine)?;
         let mut instances = self.rows(&format!("SELECT k, n, first, last FROM {} ORDER BY i", self.table), |r| {
@@ -259,10 +302,9 @@ impl AnomalyInputs for SqlInputs<'_> {
             return Ok(Vec::new());
         };
         let events = format!(
-            "SELECT v.r AS r, e.id AS id, e.ts AS ts, e.source AS source, e.line AS line FROM {FROM} JOIN {} t ON t.k = ({})
+            "SELECT v.r AS r, e.id AS id, e.ts AS ts, e.source AS source, e.line AS line FROM {FROM} {}
              JOIN {v} ON v.i = t.i AND e.ts BETWEEN v.a AND v.z WHERE {} AND e.level >= {}",
-            self.table,
-            self.key,
+            self.join(),
             self.filter,
             Level::Error.index()
         );
@@ -276,8 +318,9 @@ impl AnomalyInputs for SqlInputs<'_> {
         // The instance and time of each event, sorted (a sort spills to disk; DuckDB's window operator does not,
         // and ran out of memory on large instances): the gaps are counted here, one instance at a time.
         let sql = format!(
-            "SELECT t.i AS i, e.ts AS ts FROM {FROM} JOIN {} t ON t.k = ({}) JOIN {v} ON v.i = t.i WHERE {} ORDER BY i, ts",
-            self.table, self.key, self.filter
+            "SELECT t.i AS i, e.ts AS ts FROM {FROM} {} JOIN {v} ON v.i = t.i WHERE {} ORDER BY i, ts",
+            self.join(),
+            self.filter
         );
         let wanted: HashMap<usize, usize> = instances.iter().enumerate().map(|(r, i)| (*i, r)).collect();
         let mut out: Vec<Gaps> = vec![Gaps::default(); instances.len()];
@@ -358,9 +401,8 @@ impl AnomalyInputs for SqlInputs<'_> {
             return Ok(Vec::new());
         };
         let events = format!(
-            "SELECT v.r AS r, e.id AS id, e.ts AS ts, e.source AS source, e.line AS line FROM {FROM} JOIN {} t ON t.k = ({}) JOIN {v} ON v.i = t.i WHERE {} AND e.level >= {}",
-            self.table,
-            self.key,
+            "SELECT v.r AS r, e.id AS id, e.ts AS ts, e.source AS source, e.line AS line FROM {FROM} {} JOIN {v} ON v.i = t.i WHERE {} AND e.level >= {}",
+            self.join(),
             self.filter,
             Level::Error.index()
         );

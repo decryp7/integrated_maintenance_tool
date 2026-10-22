@@ -77,6 +77,15 @@ syslog and journald `Host`, `App`, `ProcId`; EVTX `Computer`, `ProcessId`; Docke
 `Container`, `ContainerId`. The default `[instance] candidates` add `Host`, `HostName`, `App`, `AppName`,
 `ProcId`, `Pid`; candidates match field names ignoring case.
 
+**Amendment (2026-10, identity fields are scoped to their sources).** An identity field an importer or a parser
+(ADR 0026, `[format] identity`) declares, and that is not one of the profile's `[instance] candidates`, applies only
+to the sources whose importer or parser declares it (`imt_core::instance::KeyScopes`). Before, hadoop-spark's
+`Logger` or the console parser's `Category` joined the key of the whole workspace and split every other file that
+writes a field of that name (a log4net `Logger`, an EVTX `Category`) into one lane per value. The scopes are part
+of the default key: per-source presence ignores a scoped field in other sources, the group key of an event leaves
+it out (`query::group_key_in`, `CompiledQuery::new_scoped`, the instance selection), and the DuckDB store's key SQL
+reads it only for those sources (`CASE WHEN s.name IN (...)`). A `group_by` the query names applies everywhere.
+
 ### 4. The automatic instance key is chosen per source
 
 `imt_core::instance::instance_key` (pure; the workspace feeds it per-source field counts that its field index

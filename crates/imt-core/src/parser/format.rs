@@ -20,6 +20,16 @@ pub struct FormatCfg {
     pub timestamp_formats: Vec<String>,
     /// Zone of timestamps without an offset: `UTC`, `local` or `+08:00`.
     pub assume_timezone: String,
+    /// Where `assume_timezone` came from when the engine decided it (ADR 0032): `timestamps`, `same-machine`,
+    /// `modification-time`, `text-hint`, `asked` or `user`. Informational.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub timezone_source: String,
+    /// How sure the engine was of `assume_timezone` (0..1). Informational.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timezone_confidence: Option<f64>,
+    /// The boot time (RFC 3339) `uptime` timestamps count from; empty = the Unix epoch.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub boot_time: String,
     /// Ambiguous dates like 03/04/2026: `"auto"` (decided per file), true or false.
     pub day_first: DayFirst,
     pub json: JsonCfg,
@@ -35,6 +45,9 @@ impl Default for FormatCfg {
             regexes: Vec::new(),
             timestamp_formats: Vec::new(),
             assume_timezone: "UTC".into(),
+            timezone_source: String::new(),
+            timezone_confidence: None,
+            boot_time: String::new(),
             day_first: DayFirst::Text("auto".into()),
             json: JsonCfg::default(),
             csv: CsvCfg::default(),

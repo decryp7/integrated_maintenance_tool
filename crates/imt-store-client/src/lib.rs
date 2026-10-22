@@ -4,6 +4,7 @@
 //!
 //! This crate links no database: the app depends on it, the worker binary (`imt-store-worker`) on the store.
 
+pub mod allocator;
 pub mod arrow_wire;
 pub mod client;
 pub mod protocol;

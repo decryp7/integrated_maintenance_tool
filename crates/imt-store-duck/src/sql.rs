@@ -9,11 +9,13 @@
 //! Statements read events `e` joined with their source `s` ([`FROM`]).
 
 use imt_core::batch::{ColumnType, EventSchema};
+use imt_core::instance::KeyScopes;
 use imt_core::model::Level;
 use imt_core::ports::{Filter, StoreError, StoreResult};
 use imt_core::ql::{CmpOp, Expr, NumOp, Operand};
 use imt_core::query::CompiledQuery;
 use imt_core::row::{FieldKey, Pseudo};
+use std::sync::Arc;
 
 /// Events with their source (for `@source`): `events_wide`, so promoted `p_<key>` columns can be read.
 pub const FROM: &str = "events_wide e JOIN sources s ON s.id = e.source";
@@ -262,11 +264,25 @@ pub fn number_expr(name: &str, schema: &dyn FieldSource) -> Option<String> {
 /// SQL of the instance key, as `imt_core::query::group_key`: the values from the first present field to the
 /// last present one joined with " · " ("–" for a missing one in between), led by the source name when the
 /// first field is missing; the source name when none is present; "all" without fields.
-pub fn group_key_expr(fields: &[String], schema: &dyn FieldSource) -> Option<String> {
+///
+/// An identity field that applies only to some sources (`scopes`) is missing on the events of the others.
+pub fn group_key_expr(fields: &[String], scopes: &KeyScopes, schema: &dyn FieldSource) -> Option<String> {
     if fields.is_empty() {
         return Some("'all'".into());
     }
-    let texts: Vec<String> = fields.iter().map(|f| text_expr(f, schema)).collect::<Option<_>>()?;
+    let texts: Vec<String> = fields
+        .iter()
+        .map(|f| {
+            let text = text_expr(f, schema)?;
+            Some(match scopes.sources_of(f) {
+                None => text,
+                Some(names) => {
+                    let names = names.iter().map(|n| lit(n)).collect::<Option<Vec<_>>>()?;
+                    format!("(CASE WHEN s.name IN ({}) THEN {text} END)", names.join(", "))
+                }
+            })
+        })
+        .collect::<Option<_>>()?;
     let present: Vec<String> = texts.iter().map(|t| format!("coalesce({t}, '') <> ''")).collect();
     let any = |range: &[String]| {
         if range.is_empty() {
@@ -449,11 +465,11 @@ pub fn expr_sql(e: &Expr, schema: &dyn FieldSource, group_by: &[String]) -> Opti
                 format!("coalesce({}, FALSE)", parts.join(" AND "))
             }
         }
-        Expr::Group { set, .. } => {
+        Expr::Group { set, scopes, .. } => {
             if set.is_empty() {
                 return Some("FALSE".into());
             }
-            let key = group_key_expr(group_by, schema)?;
+            let key = group_key_expr(group_by, scopes, schema)?;
             let values = set.iter().map(|v| lit(v)).collect::<Option<Vec<_>>>()?;
             format!("coalesce({key} IN ({}), FALSE)", values.join(", "))
         }
@@ -522,16 +538,28 @@ pub fn compile_query(cq: &CompiledQuery, schema: &dyn FieldSource) -> SqlFilter 
 }
 
 /// Validates the filter (as the in-memory store does) and compiles what SQL can express.
+#[cfg(test)]
 pub fn compile(
     q: &Filter,
     default_group_by: &[String],
     marker_kinds: &[String],
     schema: &dyn FieldSource,
 ) -> StoreResult<(SqlFilter, CompiledQuery)> {
+    compile_scoped(q, default_group_by, &Arc::default(), marker_kinds, schema)
+}
+
+/// [`compile`] with the scopes of the default key's identity fields.
+pub fn compile_scoped(
+    q: &Filter,
+    default_group_by: &[String],
+    key_scopes: &Arc<KeyScopes>,
+    marker_kinds: &[String],
+    schema: &dyn FieldSource,
+) -> StoreResult<(SqlFilter, CompiledQuery)> {
     if q.window.is_some() {
         return Err(StoreError::unsupported("live time windows", "6c"));
     }
-    let cq = CompiledQuery::new(q, default_group_by, marker_kinds).map_err(|e| StoreError::Invalid(format!("{e:#}")))?;
+    let cq = CompiledQuery::new_scoped(q, default_group_by, key_scopes, marker_kinds).map_err(|e| StoreError::Invalid(format!("{e:#}")))?;
     Ok((compile_query(&cq, schema), cq))
 }
 
@@ -743,8 +771,8 @@ mod tests {
         for p in ["@level", "@message", "@exception", "@template", "@line"] {
             assert!(text_expr(p, &schema).is_some());
         }
-        assert_eq!(group_key_expr(&[], &schema).unwrap(), "'all'");
-        let k = group_key_expr(&["Host".into(), "Ms".into()], &schema).unwrap();
+        assert_eq!(group_key_expr(&[], &KeyScopes::default(), &schema).unwrap(), "'all'");
+        let k = group_key_expr(&["Host".into(), "Ms".into()], &KeyScopes::default(), &schema).unwrap();
         assert!(k.starts_with("CASE WHEN (coalesce(e.extra['Host'], '') <> '' OR"), "{k}");
         assert!(k.ends_with("ELSE s.name END"), "{k}");
     }
@@ -754,7 +782,7 @@ mod tests {
     fn group_key_sql_matches_the_engine() {
         let schema = EventSchema::plain();
         let names: Vec<String> = ["A", "B", "C"].map(String::from).to_vec();
-        let expr = group_key_expr(&names, &schema).unwrap();
+        let expr = group_key_expr(&names, &KeyScopes::default(), &schema).unwrap();
         let conn = duckdb::Connection::open_in_memory().unwrap();
         for mask in 0u8..8 {
             let mut rec = imt_core::model::Record::new(1);

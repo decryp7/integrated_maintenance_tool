@@ -133,15 +133,17 @@ impl Workspace {
             self.generation += 1;
         }
         self.refresh_field_infos();
-        let group_by = self.pick_group_by();
-        let regrouped = group_by != self.default_group_by;
-        self.default_group_by = group_by;
+        let (group_by, scopes) = self.pick_group_by();
+        let regrouped = group_by != self.default_group_by || scopes != self.key_scopes;
+        (self.default_group_by, self.key_scopes) = (group_by, scopes);
         {
             let mut cache = self.cache.lock().unwrap_or_else(|p| p.into_inner());
             if regrouped {
                 cache.clear();
             } else {
-                let compile = |q: &Query| crate::query::CompiledQuery::new(q, &self.default_group_by, &self.marker_kinds).ok();
+                let compile = |q: &Query| {
+                    crate::query::CompiledQuery::new_scoped(q, &self.default_group_by, &self.key_scopes, &self.marker_kinds).ok()
+                };
                 let name = |s: u32| self.source_name(s);
                 cache.apply(&change, &self.records, &compile, &name);
             }
@@ -224,7 +226,7 @@ impl Workspace {
         *self.anomaly_cache.lock().unwrap_or_else(|p| p.into_inner()) = None;
         self.generation += 1;
         self.refresh_field_infos();
-        self.default_group_by = self.pick_group_by();
+        (self.default_group_by, self.key_scopes) = self.pick_group_by();
         self.recount(&touched);
         self.tail.evicted += k;
         report.evicted += k;
@@ -270,7 +272,7 @@ impl Workspace {
         }
         let mut map: HashMap<String, InstanceSeen> = HashMap::new();
         for r in &self.records {
-            let key = group_key(&self.default_group_by, r, self.source_name(r.source));
+            let key = self.default_key_of(r);
             let e = map.entry(key).or_default();
             e.count += 1;
             if let Some(ts) = r.ts {
@@ -325,6 +327,7 @@ impl Workspace {
             inserted,
             names: &name,
             group_by: &self.default_group_by,
+            scopes: &self.key_scopes,
             marker_kinds: &self.marker_kinds,
             instances,
             mutes: &self.tail.mutes,

@@ -135,13 +135,58 @@ pub(crate) fn finish(mut rec: Record, extra: String) -> Record {
     }
     let looks_like_exception =
         extra.contains("Exception") || extra.contains("\n   at ") || extra.trim_start().starts_with("at ") || extra.contains("Traceback");
-    if looks_like_exception && rec.exception.is_none() {
-        rec.exception = Some(extra.trim_end().to_string());
-    } else {
-        rec.message.push('\n');
-        rec.message.push_str(extra.trim_end());
+    match &mut rec.exception {
+        None if looks_like_exception => {
+            // Message lines (a scope, a multi-line message) can come before the exception's first line.
+            let (more, exception) = match exception_start(&extra) {
+                Some(at) if at > 0 => extra.split_at(at),
+                _ => ("", extra.as_str()),
+            };
+            if !more.trim().is_empty() {
+                rec.message.push('\n');
+                rec.message.push_str(more.trim_end());
+            }
+            rec.exception = Some(exception.trim_end().to_string());
+        }
+        // The exception started on the event's line (NLog's `${message:withexception=true}`): its stack trace follows.
+        Some(exception) if looks_like_exception || extra.trim_start().starts_with("---> ") => {
+            exception.push('\n');
+            exception.push_str(extra.trim_end());
+        }
+        _ => {
+            rec.message.push('\n');
+            rec.message.push_str(extra.trim_end());
+        }
     }
     rec
+}
+
+/// Byte offset of the line of `text` that starts an exception: `Namespace.SomeException: …` (.NET, Java),
+/// `Exception in thread …`, a Python `Traceback`, or a first stack frame `at …`.
+fn exception_start(text: &str) -> Option<usize> {
+    let mut offset = 0;
+    for line in text.split_inclusive('\n') {
+        if starts_exception(line.trim()) {
+            return Some(offset);
+        }
+        offset += line.len();
+    }
+    None
+}
+
+fn starts_exception(line: &str) -> bool {
+    if line.starts_with("Traceback") || line.starts_with("Exception in thread") || line.starts_with("at ") {
+        return true;
+    }
+    // A dotted type name ending in Exception/Error/Throwable, followed by nothing, `:` or a space.
+    let name_len = line
+        .find(|c: char| !(c.is_alphanumeric() || matches!(c, '.' | '_' | '$' | '`')))
+        .unwrap_or(line.len());
+    let name = &line[..name_len];
+    let rest = &line[name_len..];
+    (name.ends_with("Exception") || name.ends_with("Error") || name.ends_with("Throwable"))
+        && name.chars().next().is_some_and(char::is_alphabetic)
+        && (rest.is_empty() || rest.starts_with(':') || rest.starts_with(' '))
 }
 
 /// `{Message:lj} {Properties:j}` renders a JSON object after the message;
@@ -398,11 +443,60 @@ mod tests {
         let mut m = String::from("braces {x}");
         split_trailing_properties(&mut m, &mut f);
         assert_eq!(m, "braces {x}");
-        // Exception text after an event that already has one goes to the message.
+        // The stack trace below an exception that started on the event's line continues that exception; other text is
+        // the message.
         let mut r = Record::new(1);
-        r.exception = Some("first".into());
-        let r = finish(r, "   at Foo()".into());
-        assert_eq!(r.message, "\n   at Foo()");
+        r.exception = Some("System.Exception: first".into());
+        let r = finish(r, " ---> System.IO.IOException: inner\n   at Foo()".into());
+        assert_eq!(
+            r.exception.as_deref(),
+            Some("System.Exception: first\n ---> System.IO.IOException: inner\n   at Foo()")
+        );
+        assert_eq!(r.message, "");
+        let r = finish(r, "a note".into());
+        assert_eq!(r.message, "\na note");
+    }
+
+    // Regression: the message and scope lines above an exception (Microsoft.Extensions.Logging console) became part of it.
+    #[test]
+    fn message_lines_before_the_exception_stay_the_message() {
+        let mut r = Record::new(1);
+        r.message = "App.Jobs[7]".into();
+        let r = finish(
+            r,
+            "      => Job:4\n      Nightly copy failed\n      System.IO.IOException: full\n         at Copy()".into(),
+        );
+        assert_eq!(r.message, "App.Jobs[7]\n      => Job:4\n      Nightly copy failed");
+        assert_eq!(
+            r.exception.as_deref(),
+            Some("      System.IO.IOException: full\n         at Copy()")
+        );
+        // No recognisable first line: all of it is the exception, as before.
+        let r = finish(Record::new(2), "something about an Exception".into());
+        assert_eq!(r.exception.as_deref(), Some("something about an Exception"));
+        for start in [
+            "System.InvalidOperationException: x",
+            "java.lang.IllegalStateException",
+            "ValueError: bad",
+            "Traceback (most recent call last):",
+            "Exception in thread \"main\" java.lang.Error",
+            "at Foo.Bar()",
+        ] {
+            assert!(starts_exception(start), "{start}");
+        }
+        for not in ["Errors: 3 found", "the Exception list", "=> Error", "MyErrorHandler started", ""] {
+            assert!(!starts_exception(not), "{not}");
+        }
+    }
+
+    #[test]
+    fn formats_without_a_year_take_the_files_year() {
+        // The file was last written on 2026-10-14 (see `import`): December is the year before, October this year.
+        let profile = "[format]\noutput_templates = []\ntimestamp_formats = ['%b %e %H:%M:%S']\nregexes = ['^(?P<timestamp>\\w{3} [ \\d]\\d \\d{2}:\\d{2}:\\d{2}) (?P<level>\\w+) (?P<message>.*)$']";
+        let out = import(profile, "Dec 31 23:00:00 INFO old\nOct 13 10:00:00 INFO recent\n");
+        let year = |i: usize| chrono::DateTime::from_timestamp_millis(out.records[i].ts.unwrap()).unwrap().year();
+        use chrono::Datelike;
+        assert_eq!((year(0), year(1)), (2025, 2026));
     }
 
     #[test]
