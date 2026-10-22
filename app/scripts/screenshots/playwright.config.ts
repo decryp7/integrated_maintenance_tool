@@ -13,8 +13,8 @@ export default defineConfig({
   use: {
     ...devices['Desktop Chrome'],
     baseURL: `http://localhost:${PORT}`,
-    viewport: { width: 1600, height: 1000 },
-    deviceScaleFactor: 1,
+    viewport: { width: 1440, height: 900 },
+    deviceScaleFactor: 2,
     actionTimeout: 8_000,
     navigationTimeout: 30_000,
   },
