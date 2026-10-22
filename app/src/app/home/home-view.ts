@@ -61,20 +61,16 @@ const VISIBLE_ROWS = 6;
               <div><dt i18n="@@home.view.events">Events</dt><dd>{{ count(s.events) }}</dd></div>
               <div><dt i18n="@@home.view.sources">Sources</dt><dd>{{ count(s.sources) }}</dd></div>
               <div [class.bad]="s.errors > 0">
-                <dt i18n="@@home.view.errors">Errors</dt><dd>{{ count(s.errors) }}</dd>
-                <button class="cover" type="button" data-testid="home-tile-errors" (click)="showLevels(['Error', 'Fatal'])" aria-label="Show the errors and fatal events" i18n-aria-label="@@home.view.showErrors"></button>
+                <dt i18n="@@home.view.errors">Errors</dt><dd>{{ count(s.errors) }}<button class="cover" type="button" data-testid="home-tile-errors" (click)="showLevels(['Error', 'Fatal'])" aria-label="Show the errors and fatal events" i18n-aria-label="@@home.view.showErrors"></button></dd>
                 @if (errorSpark(); as d) { <svg class="spark bad" [attr.viewBox]="viewBox" preserveAspectRatio="none" aria-hidden="true"><path [attr.d]="d" /></svg> }
               </div>
               <div [class.warn]="s.warnings > 0">
-                <dt i18n="@@home.view.warnings">Warnings</dt><dd>{{ count(s.warnings) }}</dd>
-                <button class="cover" type="button" data-testid="home-tile-warnings" (click)="showLevels(['Warning'])" aria-label="Show the warning events" i18n-aria-label="@@home.view.showWarnings"></button>
+                <dt i18n="@@home.view.warnings">Warnings</dt><dd>{{ count(s.warnings) }}<button class="cover" type="button" data-testid="home-tile-warnings" (click)="showLevels(['Warning'])" aria-label="Show the warning events" i18n-aria-label="@@home.view.showWarnings"></button></dd>
                 @if (warningSpark(); as d) { <svg class="spark warn" [attr.viewBox]="viewBox" preserveAspectRatio="none" aria-hidden="true"><path [attr.d]="d" /></svg> }
               </div>
               <div [class.bad]="crashes() > 0"><dt i18n="@@home.view.crashes">Crashes</dt><dd>{{ count(crashes()) }}</dd></div>
-              <div><dt i18n="@@home.view.anomalies">Anomalies</dt><dd [attr.aria-busy]="!s.analysed">{{ s.analysed ? count(s.anomalyCount) : '…' }}</dd>
-                <button class="cover" type="button" data-testid="home-tile-anomalies" (click)="show('anomalies')" aria-label="Open the Anomalies view" i18n-aria-label="@@home.view.showAnomalies"></button></div>
-              <div><dt i18n="@@home.view.exceptions">Exception groups</dt><dd [attr.aria-busy]="!s.analysed">{{ s.analysed ? count(s.exceptionGroups) : '…' }}</dd>
-                <button class="cover" type="button" data-testid="home-tile-exceptions" (click)="show('exceptions')" aria-label="Open the Exceptions view" i18n-aria-label="@@home.view.showExceptions"></button></div>
+              <div><dt i18n="@@home.view.anomalies">Anomalies</dt><dd [attr.aria-busy]="!s.analysed">{{ s.analysed ? count(s.anomalyCount) : '…' }}<button class="cover" type="button" data-testid="home-tile-anomalies" (click)="show('anomalies')" aria-label="Open the Anomalies view" i18n-aria-label="@@home.view.showAnomalies"></button></dd></div>
+              <div><dt i18n="@@home.view.exceptions">Exception groups</dt><dd [attr.aria-busy]="!s.analysed">{{ s.analysed ? count(s.exceptionGroups) : '…' }}<button class="cover" type="button" data-testid="home-tile-exceptions" (click)="show('exceptions')" aria-label="Open the Exceptions view" i18n-aria-label="@@home.view.showExceptions"></button></dd></div>
               <div class="wide"><dt i18n="@@home.view.timeSpan">Time span</dt><dd>{{ span() }}</dd></div>
               @if (home.storeOverview.data(); as o) {
                 <div><dt i18n="@@home.view.storeSize">Store</dt><dd>{{ bytes(o.sizeBytes) }}</dd></div>

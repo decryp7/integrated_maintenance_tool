@@ -1,6 +1,6 @@
 import { DialogRef } from '@angular/cdk/dialog';
 import { ChangeDetectionStrategy, Component, computed, inject, Injector } from '@angular/core';
-import { formatTime } from '../core/format';
+import { formatCount, formatTime } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
 import { ActiveDescendantNavigation } from '../shared/list-navigation';
 import { ResultRow } from './search-everything.model';
@@ -51,7 +51,7 @@ let nextId = 0;
         <div class="group" role="group" [attr.aria-labelledby]="listId + '-' + g.kind" [attr.data-testid]="'search-group-' + g.kind">
           <div class="head" role="presentation" [id]="listId + '-' + g.kind">
             <span class="title">{{ g.title }}</span>
-            <span class="count">{{ g.total }}</span>
+            <span class="count">{{ count(g.total) }}</span>
           </div>
           @if (g.notice) {
             <div class="notice" role="presentation">{{ g.notice }}</div>
@@ -96,6 +96,7 @@ let nextId = 0;
 })
 export class SearchEverythingPalette {
   protected readonly store = inject(SearchEverythingStore);
+  protected readonly count = formatCount;
   private readonly workspace = inject(WorkspaceStore);
   private readonly navigator = inject(SearchEverythingNavigator);
   private readonly dialog = inject(DialogRef, { optional: true });
