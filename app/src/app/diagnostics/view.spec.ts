@@ -77,14 +77,22 @@ describe('ErrorSnapshotsView', () => {
     await flush(f);
     const el: HTMLElement = f.nativeElement;
     expect(el.textContent).toContain('No error snapshots yet');
+    expect(el.textContent).toMatch(/press (Ctrl\+Shift\+F12|⌘⇧F12) or Capture now/);
     const exportButton = () => [...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Export diagnostics'))!;
-    expect(exportButton().disabled).toBe(true);
+    // Nothing captured: only the empty-state sentence and Capture now, the primary action; no claim that a screenshot was saved (E6).
+    expect(exportButton()).toBeUndefined();
+    expect(el.textContent).not.toContain('IMT saved a screenshot');
+    expect(el.querySelector('label.all')).toBeNull();
+    expect([...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Capture now'))?.classList.contains('primary')).toBe(true);
 
     const a = await backend.save(IMAGE, { reason: 'manual', message: 'one', manual: false });
     const b = await backend.save(IMAGE, { reason: 'manual', message: 'two', manual: false });
     const store = TestBed.inject(SnapshotsStore);
     await store.refresh();
     await flush(f);
+    expect(exportButton().classList.contains('primary')).toBe(true);
+    expect([...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Capture now'))?.classList.contains('primary')).toBe(false);
+    expect(el.textContent).toContain('IMT saved a screenshot');
 
     // Export all when nothing is ticked.
     const exported = vi.spyOn(backend, 'exportDiagnostics');
