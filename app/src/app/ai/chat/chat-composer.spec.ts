@@ -152,6 +152,12 @@ describe('ChatComposer', () => {
     typeInto(el<HTMLTextAreaElement>(env.f, 'textarea'), '  why does WEB02 deny access?  ');
     el<HTMLButtonElement>(env.f, '[data-testid=chat-research]').click();
     expect(research).toHaveBeenLastCalledWith({ sessionId: env.store.activeId(), question: 'why does WEB02 deny access?' });
+    // With no draft, the chat's last question.
+    await env.store.send('what crashed?');
+    await until(env.f, () => !env.store.running());
+    typeInto(el<HTMLTextAreaElement>(env.f, 'textarea'), '');
+    el<HTMLButtonElement>(env.f, '[data-testid=chat-research]').click();
+    expect(research).toHaveBeenLastCalledWith({ sessionId: env.store.activeId(), question: 'what crashed?' });
   });
 
   it('says why images cannot be attached and questions not sent without a model', async () => {

@@ -299,11 +299,15 @@ describe('ResearchDialog', () => {
     expect(research.mock.calls[0]?.[0]).toMatchObject({ question: 'why does it fail?', query: 'UnauthorizedAccessException IIS', recordId: null, confirmed: false });
   });
 
-  it('lets the AI write the text first and never runs without one; data from the logs needs "Research anyway"', async () => {
+  it('lets the AI suggest the text first and never runs without one; data from the logs needs "Research anyway"', async () => {
     const { f, close, ai, root } = open({ question: 'why is WEB01 slow?' });
     const research = vi.spyOn(ai, 'research');
-    expect(el(f, '[data-testid=research-run]').textContent).toContain('Write the search text');
-    el<HTMLButtonElement>(f, '[data-testid=research-run]').click();
+    const start = el<HTMLButtonElement>(f, '[data-testid=research-run]');
+    expect(start.textContent).toContain('Start research');
+    expect(start.disabled).toBe(true);
+    expect(start.title).toBe('Write a search text, or let the AI suggest one');
+    expect(el(f, '[data-testid=research-draft]').textContent).toContain('Suggest search text');
+    el<HTMLButtonElement>(f, '[data-testid=research-draft]').click();
     await until(f, () => !!el<HTMLInputElement>(f, '[data-testid=research-query]').value);
     expect(research).not.toHaveBeenCalled();
     expect(el<HTMLInputElement>(f, '[data-testid=research-query]').value).toBe('WEB01 slow');
@@ -312,6 +316,19 @@ describe('ResearchDialog', () => {
     el<HTMLButtonElement>(f, '[data-testid=research-run]').click();
     await until(f, () => close.mock.calls.length > 0);
     expect(research.mock.calls[0]?.[0]).toMatchObject({ query: 'WEB01 slow', confirmed: true });
+  });
+
+  it('needs a question before anything can be suggested or started', () => {
+    const { f } = open({});
+    const suggest = el<HTMLButtonElement>(f, '[data-testid=research-draft]');
+    expect(suggest.disabled).toBe(true);
+    expect(suggest.title).toBe('Say what the AI should find out first');
+    expect(el<HTMLButtonElement>(f, '[data-testid=research-run]').title).toBe('Say what the AI should find out first');
+    typeInto(el<HTMLTextAreaElement>(f, '[data-testid=research-question]'), 'why?');
+    typeInto(el<HTMLInputElement>(f, '[data-testid=research-query]'), 'why');
+    f.detectChanges();
+    expect(suggest.disabled).toBe(false);
+    expect(el<HTMLButtonElement>(f, '[data-testid=research-run]').title).toContain('the answer arrives in the chat');
   });
 
   it('shows a failed draft and the engine fallback', async () => {

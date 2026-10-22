@@ -294,9 +294,10 @@ export class ChatComposer {
     if (id) void this.browser.setMode(id, mode);
   }
 
-  /** "Research…": the research dialog, prefilled with the draft. */
+  /** "Research…": the research dialog, prefilled with the draft (or, with none, the chat's last question). */
   protected research(): void {
-    void this.launcher.askResearch({ sessionId: this.sessionId(), question: this.draft().trim() || undefined });
+    const question = this.draft().trim() || this.store.activeTurns().at(-1)?.user || undefined;
+    void this.launcher.askResearch({ sessionId: this.sessionId(), question });
   }
 
   /**

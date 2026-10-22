@@ -147,7 +147,8 @@ test.describe('research', () => {
     await chat.getByTestId('chat-research').click();
     const dialog = page.getByRole('dialog', { name: 'Research the web' });
     await dialog.getByLabel('What should the AI find out?').fill('why does WEB02 deny access?');
-    await dialog.getByTestId('research-run').click();
+    await expect(dialog.getByRole('button', { name: 'Start research' })).toBeDisabled();
+    await dialog.getByRole('button', { name: 'Suggest search text' }).click();
     await expect(dialog.getByTestId('research-flagged')).toContainText('WEB02');
     // Nothing was searched: the AI wrote the search text and the dialog shows it, with who wrote it.
     await expect(dialog.getByLabel('Search text', { exact: true })).toHaveValue('WEB02 deny access');
