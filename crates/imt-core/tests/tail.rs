@@ -1139,13 +1139,24 @@ fn a_burst_of_ten_thousand_writes_is_one_refresh() {
         Box::new(|_, _| {}),
     );
     let sink = factory.sinks.lock().unwrap()[0].clone();
+    let burst = Instant::now();
     for _ in 0..10_000 {
         sink(WatchSignal::Paths(vec![d.0.join("app.log")]));
     }
+    let burst = burst.elapsed();
     assert!(wait_until(|| !batches.lock().unwrap().is_empty()));
     std::thread::sleep(Duration::from_millis(400));
     let got = batches.lock().unwrap().clone();
-    assert_eq!(got, [vec![d.0.join("app.log")]]);
+    // One refresh per `max_delay_ms` of burst (plus one: the watcher may still be draining the sends when the
+    // sender is done) at most, each naming the file once: a slow debug or coverage build needs more than one
+    // window for the ten thousand sends.
+    let windows = 2 + (burst.as_millis() / u128::from(WatchSettings::default().max_delay_ms)) as usize;
+    assert!(
+        !got.is_empty() && got.len() <= windows,
+        "{} refreshes for a burst of {burst:?}",
+        got.len()
+    );
+    assert!(got.iter().all(|b| b == &[d.0.join("app.log")]), "{got:?}");
     assert_eq!(live.mode_of(&d.0.join("app.log")), WatchMode::Events);
     drop(live);
 
