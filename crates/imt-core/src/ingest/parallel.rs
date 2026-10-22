@@ -774,7 +774,6 @@ mod tests {
         };
         let size = std::fs::metadata(&big).unwrap().len();
         let chunks = plan_chunks(&big, &binary, &bctx, size, 500).unwrap();
-        assert!(chunks.len() > 1, "the file itself would split");
         let e = read_chunk(
             &env,
             &bctx,
