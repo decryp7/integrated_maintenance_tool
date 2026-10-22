@@ -904,6 +904,7 @@ impl Workspace {
             plugins: self.registry.plugins(),
             exporters: self.registry.exporter_infos(),
             dashboards: self.profile.profile.dashboard.clone(),
+            lenses: self.profile.profile.lens.clone(),
             redacted_view: self.view_redaction.is_some(),
         }
     }

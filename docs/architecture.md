@@ -71,6 +71,7 @@ flowchart LR
 | `imt-monitor` | library + CLI | Process sampling (and Windows PDH counters) into rolling CLEF files. |
 | `imt-collect` | library + CLI | The diagnostics collector writing redacted `.imtz` bundles. |
 | `imt-agent` | library + CLI / service | Headless scheduled and triggered collection ([ADR 0005](adr/0005-headless-agent.md)). |
+| `imt-cli` | library + CLI (`imt`) | The headless command line: import, query-language queries, analyses and the incident report over the store worker ([ADR 0044](adr/0044-headless-command-line.md), [cli.md](cli.md)). |
 | `imt-pdf` | adapter | PDF output for incident reports, implementing `imt-core`'s `ReportRenderer` port, with embedded font subsets ([ADR 0007](adr/0007-reports-pdf-and-redaction.md)). |
 | `imt-plugin-registry`, `-windows`, `-web`, `-formats`, `-otel`, `-syslog` | plugins | Format importers, marker kinds, annotators and configuration parsers. `-windows` also has the Process Monitor CSV and minidump importers and the Event Log follower; `-formats` has log4j/log4net/NLog XML, SQL Server ERRORLOG, Docker json-file and Kubernetes CRI. |
 | `imt-plugin-api`, `imt-plugin-host`, `imt-plugins`, `imt-ipc` | contract, host adapter, plugins binary, transport | Every plugin runs in its own sandboxed process ([ADR 0017](adr/0017-one-ipc-out-of-process-plugins.md)): `imt-plugin-api` is the contract plugins depend on (no `imt-core`), `imt-plugin-host` the adapter that starts them and registers proxy contributions into the `PluginRegistry`, `imt-plugins` the binary that serves every built-in (`--plugin <id>`, `--manifests`), and `imt-ipc` the frames, supervisor, launcher and sandbox shared with the AI and store workers. |
@@ -145,6 +146,11 @@ error snapshots, [ADR 0034](adr/0034-native-window-capture.md)), `video/` and `i
 | [0040](adr/0040-text-encodings.md) | Text encodings: detection with confidence (`chardetng`, `encoding_rs`), per-source override, profile default. |
 | [0041](adr/0041-redacted-project-copy.md) | Redacted project copy: rebuilt from redacted text so nothing derived can leak; text sources only. |
 | [0042](adr/0042-store-port-table.md) | One port table for the store worker protocol: a single declarative list expands into the operation enum, the client and the worker's dispatch; the order is the wire format. |
+| [0044](adr/0044-headless-command-line.md) | A headless command line (`imt`) over the store worker: pure parsing and rendering, exit codes and `--json` as contract, bounded output. |
+| [0045](adr/0045-error-outliers.md) | Error outliers: a pure function over the `Query` port (facets and counts), G-test ranking, bounded, no new store operation. |
+| [0046](adr/0046-pattern-trends-and-placeholder-values.md) | Pattern trends and placeholder values: a growing shared time scale folded to 24 buckets, Space-Saving summaries per placeholder, both inside the miner. |
+| [0047](adr/0047-time-window-import.md) | Time-window import: an `ImportWindow` set on the store (`Ingest::set_import_window`) filters events before the pipeline; old files are skipped by modification time. |
+| [0048](adr/0048-watched-folders.md) | Watched folders: a pure `WatchState` decides readiness (debounce, retry, give-up, bounds); polling scans; `imt watch` is the first driver. |
 
 
 ## Plugin runtime (ADR 0003, ADR 0017)

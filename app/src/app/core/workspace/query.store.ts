@@ -1,6 +1,7 @@
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { FieldFilter, Level, Query } from '../api.types';
+import { FilterSetStore } from '../../lenses/filter-set.store';
 import { WorkspaceDataStore } from './workspace-data.store';
 
 export const EMPTY_QUERY: Query = {
@@ -29,15 +30,19 @@ interface QueryState {
 export const QueryStore = signalStore(
   { providedIn: 'root' },
   withState<QueryState>({ query: EMPTY_QUERY, textInput: '' }),
-  withComputed((store, data = inject(WorkspaceDataStore)) => {
+  withComputed((store, data = inject(WorkspaceDataStore), sets = inject(FilterSetStore)) => {
     const effectiveGroupBy = computed(() => {
       const q = store.query();
       return q.groupBy.length ? q.groupBy : (data.summary()?.defaultGroupBy ?? []);
     });
     return {
       effectiveGroupBy,
-      /** The query with the profile's default grouping filled in. */
-      effectiveQuery: computed<Query>(() => ({ ...store.query(), groupBy: effectiveGroupBy() })),
+      /** The query with the profile's default grouping filled in and the filters of the enabled filter sets added. */
+      effectiveQuery: computed<Query>(() => {
+        const q = store.query();
+        const extra = sets.enabledFilters();
+        return { ...q, filters: extra.length ? [...q.filters, ...extra] : q.filters, groupBy: effectiveGroupBy() };
+      }),
       hasRange: computed(() => store.query().from != null || store.query().to != null),
       markedOnly: computed(() => store.query().markers.length > 0),
     };

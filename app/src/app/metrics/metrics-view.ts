@@ -5,6 +5,7 @@ import { DockService } from '../dock/dock.service';
 import { WorkspaceStore } from '../core/workspace.store';
 import { Icon } from '../shared/icon';
 import { TimelineZoom } from '../timeline/zoom';
+import { LensStore } from '../lenses/lens.store';
 import { AdhocCharts } from './adhoc-charts';
 import { ChartCard } from './chart-card';
 import { NextSteps } from '../ui/next-steps';
@@ -121,7 +122,13 @@ export class MetricsView {
   protected readonly unit = signal('');
 
   protected readonly profileCharts = computed(() => this.store.summary()?.charts ?? []);
-  protected readonly charts = computed(() => [...this.profileCharts(), ...this.adhoc()]);
+  private readonly lenses = inject(LensStore);
+  /** Profile charts (the active lens's chart first), then the ad-hoc ones. */
+  protected readonly charts = computed(() => {
+    const first = this.lenses.focusChart();
+    const profile = this.profileCharts();
+    return [...profile.filter((c) => c.id === first), ...profile.filter((c) => c.id !== first), ...this.adhoc()];
+  });
   protected readonly splitChoices = computed(() => {
     const fields = (this.store.summary()?.fields ?? []).filter((f) => f.distinct <= 200).map((f) => f.name);
     return ['@level', '@source', ...fields];

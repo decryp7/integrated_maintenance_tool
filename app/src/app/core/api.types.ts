@@ -301,6 +301,8 @@ export interface WorkspaceSummary {
   pipeline: PipelineStat[];
   /** The profile's `[[dashboard]]`s. */
   dashboards: DashboardCfg[];
+  /** The profile's `[[lens]]`s: named view presets. */
+  lenses: LensCfg[];
   /** Pages, facets and source context are redacted (the window's "Redacted view"). */
   redactedView: boolean;
   /** Events without a timestamp (counted in `total`; in the grid, not on the timeline). */
@@ -834,6 +836,7 @@ export interface InferredRegex {
  *   query_patterns   { request: { query } }                 -> Analyzed<Pattern[]>
  *   query_exceptions { request: { query } }                 -> Analyzed<ExceptionGroup[]>
  *   query_anomalies  { request: { query } }                 -> Analyzed<Anomaly[]>
+ *   query_outliers   { request: OutlierRequest }            -> Analyzed<OutlierReport>
  *   compare_windows  { request: { a, b } }                  -> Analyzed<Comparison>
  *   field_stats      { request: { query, field, buckets } } -> FieldStats
  *   correlate        { request: { field, value } }          -> Analyzed<number[]>
@@ -892,6 +895,30 @@ export interface Pattern {
   lastTs: number | null;
   sampleIds: number[];
   source: 'Serilog' | 'Mined';
+  /** Occurrences per time bucket on a scale shared by every pattern of the run (ADR 0046); empty without timestamps. */
+  trend: number[];
+  /** Start of the first trend bucket (epoch ms). */
+  trendFrom: number | null;
+  /** Width of a trend bucket (ms); 0 without a trend. */
+  trendBucketMs: number;
+  /** The values behind the template's `<*>`s, mined templates only. */
+  placeholders: Placeholder[];
+}
+
+/** The most frequent values of one `<*>` of a mined template (Rust `patterns::Placeholder`). */
+export interface Placeholder {
+  /** Which `<*>` of the template text, from 0. */
+  index: number;
+  values: PlaceholderValue[];
+  /** Events that filled it. */
+  total: number;
+  /** Every distinct value is listed with exact counts. */
+  exact: boolean;
+}
+
+export interface PlaceholderValue {
+  value: string;
+  count: number;
 }
 
 export interface ExceptionGroup {
@@ -917,6 +944,42 @@ export interface Anomaly {
   score: number;
   message: string;
   sampleIds: number[];
+}
+
+/** What to compare (Rust `analysis::outliers::OutlierRequest`, ADR 0045). */
+export interface OutlierRequest {
+  /** The window: the events compared (a filter without `|` stages). */
+  query: QlQuery;
+  /** The subset as a query-language filter; empty: error and fatal events. */
+  subset: string;
+  /** Only these fields; empty: every field with a handful of values. */
+  fields: string[];
+  /** Outliers returned (0: the engine's default). */
+  limit: number;
+}
+
+/** A value over-represented in the subset against the rest of the window. */
+export interface Outlier {
+  field: string;
+  value: string;
+  subsetCount: number;
+  restCount: number;
+  /** How many times more likely the value is in the subset than in the rest. */
+  lift: number;
+  /** The G statistic (larger is stronger). */
+  significance: number;
+  pValue: number;
+  /** Filter selecting the subset events with this value. */
+  query: string;
+  sampleIds: number[];
+}
+
+export interface OutlierReport {
+  subset: string;
+  subsetTotal: number;
+  restTotal: number;
+  fieldsChecked: number;
+  outliers: Outlier[];
 }
 
 export interface LevelCount {
@@ -2589,6 +2652,32 @@ export interface TileCfg {
   unit?: string;
   /** A sliding window of its own ("15m"); absent = the window's query. */
   window?: string;
+}
+
+/** A row colour rule of a lens (`[[lens.highlight]]`; Rust `lens::LensHighlight`). */
+export interface LensHighlight {
+  field: string;
+  op: 'eq' | 'ne' | 'contains' | 'notContains' | 'exists' | 'missing' | 'gt' | 'lt';
+  value: string;
+  /** `#rrggbb`. */
+  color: string;
+}
+
+/** `[[lens]]`: a named view preset of the profile (Rust `lens::LensCfg`; absent keys are empty). */
+export interface LensCfg {
+  id: string;
+  title: string;
+  description?: string;
+  levels?: Level[];
+  text?: string;
+  regex?: boolean;
+  ql?: string;
+  markers?: string[];
+  filter?: FieldFilter[];
+  columns?: string[];
+  highlight?: LensHighlight[];
+  /** Id of the profile chart to show first. */
+  chart?: string;
 }
 
 /** `[[dashboard]]`. */

@@ -140,12 +140,12 @@ describe('PatternsView', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]?.textContent).toContain('120');
     expect(rows[0]?.textContent).toContain('Order {OrderId} placed');
-    expect(el(fixture, '[role=img]').getAttribute('aria-label')).toBe('Information 100, Warning 15, Error 5');
+    expect(el(fixture, '.bars').getAttribute('aria-label')).toBe('Information 100, Warning 15, Error 5');
     expect(rows[0]?.querySelectorAll('.bars span')).toHaveLength(3);
     // Bar length is relative to the most frequent pattern (120 → 90px, 30 → 23px).
     const bars = all<HTMLElement>(fixture, '.bars');
     expect([bars[0]?.style.width, bars[1]?.style.width]).toEqual(['90px', '23px']);
-    expect(all(fixture, '[role=img]')[1]?.getAttribute('aria-label')).toBe('Information 30');
+    expect(all(fixture, '.bars')[1]?.getAttribute('aria-label')).toBe('Information 30');
     expect(text(fixture)).toContain('2 templates');
   });
 
@@ -165,9 +165,40 @@ describe('PatternsView', () => {
     expect(ctx.last('setQuery')).toEqual([{ ql: '(level >= warning or Ms > 5) and @template = "Order {OrderId} placed" | head 10' }]);
   });
 
+  it('draws a sparkline for patterns with a trend and leaves the others blank', async () => {
+    const { fixture } = await mount(PatternsView);
+    const sparks = all<SVGElement>(fixture, '[data-testid=pattern-trend]');
+    expect(sparks).toHaveLength(1);
+    expect(sparks[0]?.querySelectorAll('rect')).toHaveLength(6);
+    expect(sparks[0]?.getAttribute('aria-label')).toMatch(/^Occurrences over time, busiest around /);
+    expect(all(fixture, '.spark-slot')).toHaveLength(1);
+  });
+
+  it('shows the values behind the placeholders and filters by one', async () => {
+    const { fixture, ctx } = await mount(PatternsView);
+    const buttons = all<HTMLButtonElement>(fixture, '.values-btn');
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]?.getAttribute('aria-expanded')).toBe('false');
+    expect(all(fixture, '[data-testid=pattern-values]')).toHaveLength(0);
+    at(buttons, 0).click();
+    fixture.detectChanges();
+    const panel = el(fixture, '[data-testid=pattern-values]');
+    expect(buttons[0]?.getAttribute('aria-expanded')).toBe('true');
+    expect(panel.textContent).toContain('Value 1 · 30 events');
+    expect(panel.textContent).toContain('approximate');
+    const values = all<HTMLButtonElement>(fixture, '.vrow .link');
+    expect(values.map((v) => v.textContent?.trim())).toEqual(['12', '15']);
+    expect(all(fixture, '.vrow .num').map((n) => n.textContent?.trim())).toEqual(['9', '4']);
+    at(values, 0).click();
+    expect(ctx.last('setQuery')).toEqual([{ ql: '(@message ~ "Took .+ ms") and @message contains "12"' }]);
+    at(buttons, 0).click();
+    fixture.detectChanges();
+    expect(all(fixture, '[data-testid=pattern-values]')).toHaveLength(0);
+  });
+
   it('jumps to an example event of a pattern that has samples', async () => {
     const { fixture, ctx } = await mount(PatternsView);
-    const examples = all<HTMLButtonElement>(fixture, 'li .sample');
+    const examples = all<HTMLButtonElement>(fixture, 'li button.sample');
     expect(examples).toHaveLength(1);
     expect(examples[0]?.getAttribute('aria-label')).toBe('Show an example event of Order {OrderId} placed');
     at(examples, 0).click();

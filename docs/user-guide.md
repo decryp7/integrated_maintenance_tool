@@ -453,6 +453,27 @@ that occur in the open data, with the number of events, the fix and *Show events
 model which of your notes fit the problems; the engine keeps only suggestions whose fix is quoted from your notes and
 whose query selects events (they are marked *AI suggested, verified*). Without a model the declared issues still work.
 
+## Pattern trends and placeholder values
+
+In the **Patterns** view each template has a small bar chart of when it occurred: the time range of the analysed
+events is split into 24 equal buckets, the same for every pattern, so you can tell a burst from a steady stream. Hover
+it for the busiest time. Patterns with `<*>` placeholders have a **Values** button that lists, for each placeholder,
+the most frequent values and how many events carried them ("which user, which order, which host"). Click a value to
+filter the events by the pattern and that value. With very many distinct values the engine keeps the most frequent ones
+and says the counts are approximate. Patterns from structured templates (Serilog `{Property}`) have no placeholders:
+their properties are fields, so use the facets.
+
+## Error outliers
+
+*Analyze: Show error outliers* answers "what do the failing events have in common?". It compares the events you select
+(errors and fatals by default; type any filter such as `host = "B"` in the box and press **Compare**) with the rest of
+the current window and lists the field values that are clearly more common in the selection: for each, how many
+selected events and how many other events carry it, the **lift** (how many times more likely it is in the selection) and
+the p-value of the difference. Values need at least three selected events, a lift of 1.5 or more and p < 0.001 to be
+listed. Click a row to filter the events by it, or an evidence button to jump to one event. The window is the current
+query and time range, which must not contain `|` stages. The same analysis runs from the command line with
+`imt analyze outliers`.
+
 ## Incident summary report
 
 *Report: Incident summary…* builds a report from the open data in one step: the period and levels, key moments, the
@@ -620,7 +641,12 @@ IMT runs once per user: a second launch hands its paths to the running instance 
 which opens them as set in *Settings → Window & tray* and focuses its window. Paths that do not
 exist are ignored; the rest are canonicalised.
 
-Two headless tools ship in the workspace for servers and customer machines:
+The `imt` command line imports files, runs queries and analyses and writes the incident report without the app
+(`imt import logs/ --store ./s`, `imt query 'where level = "Error"' --store ./s --format csv`,
+`imt analyze exceptions --store ./s --json`, `imt report --open logs/ --out incident.pdf`); exit codes and `--json` make it
+usable in CI. See [cli.md](cli.md).
+
+Two other headless tools ship in the workspace for servers and customer machines:
 
 ```sh
 imt-collect [--plan plan.json|plan.toml] [--out dir] [--print-default-plan]

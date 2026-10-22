@@ -122,6 +122,11 @@ pub type StoreResult<T> = std::result::Result<T, StoreError>;
 /// Writing: opening, reloading and removing data. Imports run in the background as an
 /// [`ImportSession`]; readers are not blocked meanwhile.
 pub trait Ingest: Send + Sync {
+    /// Limits what later imports read to the events inside `window` (ADR 0047); an empty window (both ends open)
+    /// imports everything again. Applies to `open`, `reload` and `refresh`, not to live tail.
+    fn set_import_window(&self, _window: &crate::ingest::ImportWindow) -> StoreResult<()> {
+        Err(StoreError::unsupported("importing a time window", "ADR 0047"))
+    }
     /// Imports files and folders (recursively); files already read are skipped.
     fn open(&self, paths: &[PathBuf]) -> StoreResult<ImportSession>;
     /// Re-imports every opened root.

@@ -6,7 +6,7 @@
 use crate::engine::with_store;
 use crate::windows::CurrentWindow;
 use crate::CmdResult;
-use imt_core::analysis::{Anomaly, Comparison, FieldStats, RequestSpan, WaterfallRow};
+use imt_core::analysis::{error_outliers, Anomaly, Comparison, FieldStats, OutlierReport, OutlierRequest, RequestSpan, WaterfallRow};
 use imt_core::api::{
     CompareRequest, CompletionRequest, CorrelateRequest, FieldStatsRequest, MomentRequest, MomentSummary, ParsePreview,
     ParsePreviewRequest, QueryRequest, RequestsRequest, TraceRequest, TraceSummary,
@@ -123,6 +123,20 @@ pub async fn query_anomalies<R: Runtime>(
 ) -> CmdResult<Analyzed<Vec<Anomaly>>> {
     let ql = request.query.ql.clone();
     analysis(&app, &state, "Detect anomalies", "anomalies", &ql, move |s| s.anomalies(&request)).await
+}
+
+/// Values over-represented among errors (or any subset) against the rest of the same window (ADR 0045).
+#[tauri::command]
+pub async fn query_outliers<R: Runtime>(
+    app: AppHandle<R>,
+    state: CurrentWindow,
+    request: OutlierRequest,
+) -> CmdResult<Analyzed<OutlierReport>> {
+    let ql = request.query.ql.clone();
+    analysis(&app, &state, "Find error outliers", "outliers", &ql, move |s| {
+        error_outliers(s, &request)
+    })
+    .await
 }
 
 #[tauri::command]

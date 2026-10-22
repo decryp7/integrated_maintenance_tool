@@ -208,4 +208,16 @@ x = 9
 y = 4
 w = 3
 h = 2
+
+[[lens]]
+id = "errors"
+title = "Errors only"
+description = "Errors and fatal failures"
+levels = ["Error", "Fatal"]
+
+[[lens]]
+id = "warnings"
+title = "Warnings and worse"
+levels = ["Warning", "Error", "Fatal"]
+columns = ["SourceContext"]
 `;

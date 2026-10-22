@@ -11,6 +11,7 @@ import {
   mockExceptions,
   mockFieldStats,
   mockMoment,
+  mockOutliers,
   mockPatterns,
   mockRequests,
   mockTraces,
@@ -122,6 +123,10 @@ export class MockAnalysisBackend extends AnalysisBackend {
   async queryAnomalies(query: QlQuery) {
     const m = await this.matched(query);
     return analysed(mockAnomalies(m), m.length);
+  }
+  async queryOutliers(query: QlQuery, _subset: string, fields: readonly string[]) {
+    const m = await this.matched(query);
+    return analysed(mockOutliers(m, fields), m.length);
   }
   async compareWindows(a: QlQuery, b: QlQuery) {
     const [ma, mb] = [await this.matched(a), await this.matched(b)];

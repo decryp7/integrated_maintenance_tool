@@ -373,3 +373,53 @@ on_export = false
 # window = "15m"
 # w = 3
 # h = 2
+
+# Lenses: named view presets, one click each in the filter bar's lens menu.
+# A lens sets the query (it replaces the current levels, search text, field
+# filters, query-language filter and marker kinds; the time range, instance
+# selection and filter sets stay), and may also add grid columns, row
+# highlights and bring one chart forward. Every key but `id` and `title` is
+# optional; at most 32 lenses, 16 filters / columns / highlights each.
+#
+#   id, title, description
+#   levels      = ["Error", "Fatal"]        (Verbose Debug Information Warning Error Fatal)
+#   text        = "timeout"                 the search box; regex = true for a regular expression
+#   ql          = 'level >= error'          a query-language filter
+#   markers     = ["restart"]               only records carrying one of these marker kinds
+#   columns     = ["SourceContext"]         extra grid columns, in order
+#   chart       = "<[[chart]] id>"          shown first in Metrics
+#   [[lens.filter]]     field, op (eq ne contains notContains matches exists missing gt lt), value
+#   [[lens.highlight]]  field, op (eq ne contains notContains exists missing gt lt), value, color = "#rrggbb"
+#
+# Users also save their own lenses (current query, columns, highlights) in the
+# project; the profile's lenses are the shared, built-in ones.
+#
+# [[lens]]
+# id = "slow"
+# title = "Slow requests"
+# ql = 'duration_ms > 1000'
+# columns = ["duration_ms", "SourceContext"]
+# [[lens.highlight]]
+# field = "duration_ms"
+# op = "gt"
+# value = "1000"
+# color = "#e9ae3f"
+
+[[lens]]
+id = "errors"
+title = "Errors only"
+description = "Errors and fatal failures"
+levels = ["Error", "Fatal"]
+
+[[lens]]
+id = "warnings"
+title = "Warnings and worse"
+levels = ["Warning", "Error", "Fatal"]
+
+[[lens]]
+id = "exceptions"
+title = "With exceptions"
+description = "Events that carry an exception"
+[[lens.filter]]
+field = "@exception"
+op = "exists"

@@ -285,7 +285,7 @@ fn read_chunk(
     let mut chunks = ReaderChunks::new(file.take(len), plan.encoding, start.byte_offset).starting_at_line(start.line);
     let mut lines = LineReader::new(&mut chunks);
     let mut shared = SharedRef(sink);
-    let mut batcher = RecordBatcher::new(ctx.profile, env.schema.clone(), id, name, &mut shared, env.cancel);
+    let mut batcher = RecordBatcher::new(ctx.profile, env.schema.clone(), id, name, &mut shared, env.cancel).with_window(env.window);
     let skipped = match plan.kind {
         PlanKind::Text { format, day_first, .. } => text::import_text(ctx, format, day_first, &mut lines, &mut batcher)?,
         PlanKind::Json(shape) => json::import_json(ctx, shape, len, &mut lines, &mut batcher)?,
@@ -408,6 +408,7 @@ mod tests {
             parsers: &profile,
             schema: Arc::new(EventSchema::plain()),
             cancel: &cancel,
+            window: None,
         };
         let shared = Shared::default();
         let progress = ImportProgress::default();
@@ -563,6 +564,7 @@ mod tests {
             parsers: &profile,
             schema: Arc::new(EventSchema::plain()),
             cancel: &cancel,
+            window: None,
         };
         let sink = FailSome(Shared::default());
         let progress = ImportProgress::default();
@@ -654,6 +656,7 @@ mod tests {
             parsers: &profile,
             schema: Arc::new(EventSchema::plain()),
             cancel: &cancel,
+            window: None,
         };
         let progress = Arc::new(ImportProgress::default());
         let sink = Shared {
@@ -740,6 +743,7 @@ mod tests {
             parsers: &profile_set,
             schema: Arc::new(EventSchema::plain()),
             cancel: &cancel,
+            window: None,
         };
         let shared = Shared::default();
         let split = Split {

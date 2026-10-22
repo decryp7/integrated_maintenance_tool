@@ -13,6 +13,7 @@ pub mod chart;
 pub mod condition;
 pub mod config;
 pub mod dashboard;
+pub mod lens;
 pub mod events;
 pub mod exceptions;
 pub mod export;
@@ -57,6 +58,7 @@ pub mod svg;
 pub mod template;
 pub mod tiles;
 pub mod timestamp_issue;
+pub mod watch;
 pub mod words;
 pub mod workspace;
 

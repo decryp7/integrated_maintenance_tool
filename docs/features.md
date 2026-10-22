@@ -196,9 +196,10 @@ Analysis runs in the engine and is available from the command palette (`Ctrl/⌘
 | View | What it does |
 |---|---|
 | **Moment** | Everything around a point in time or a selected range: per-instance counts, top patterns, metrics against the previous window, and what users were doing. `Ctrl/⌘+Shift+M`. |
-| **Patterns** | Clusters similar messages into templates so 100k lines become a short list, with first/last seen and level colouring. |
+| **Patterns** | Clusters similar messages into templates so 100k lines become a short list, with first/last seen and level colouring. Each pattern has a **trend sparkline** (occurrences over the time of the analysed events, one scale for every pattern, so a burst, a steady stream and a new pattern look different at a glance) and a **Values** inspector: the most frequent values behind each `<*>` of a mined template with their counts (approximate, and labelled so, when there are very many distinct values); click a value to filter by it ([ADR 0046](adr/0046-pattern-trends-and-placeholder-values.md)). |
 | **Exceptions** | Groups exceptions by type and normalised stack with counts, first/last seen and affected instances. |
 | **Anomalies** | Error-rate spikes, slow-request outliers and crashes, listed with their time window and instance. |
+| **Error outliers** | The fields and values that are over-represented among errors (or any selection you type as a filter) compared with the rest of the same window, ranked by lift and significance (a G-test, with its p-value). "Only host B", "only build 3.1" instead of "errors rose". Each row filters the workspace to those events and links to evidence events; the result says what bounded it ([ADR 0045](adr/0045-error-outliers.md)). `imt analyze outliers` does the same from the command line. |
 | **Compare** | Two windows side by side ("current vs previous", before/after a time, or any two selections): changed fields, new values and event mix. |
 | **Field statistics** | Distributions and percentiles for a field. |
 | **Traces** | Follows trace/span/request ids (for example from OpenTelemetry). |
@@ -344,6 +345,15 @@ the live counter source. Like any plugin it can be disabled or quarantined, and 
 safe mode; the shell then still checks administrator rights itself, and the tools say why they are
 unavailable. Files the tools write (collector-set XML, bundles, agent configuration) are never
 replaced without confirmation.
+
+## Command line (`imt`)
+
+The same engine without a window, for scripts, CI and headless machines: `imt import` reads files and folders into
+a store you can keep with `--store`, `imt query` runs the query language (table, CSV or JSON), `imt analyze` runs the
+anomaly, pattern, exception and known-issue analyses (with `--fail-on-findings` for CI gates), and `imt report`
+writes the incident summary as HTML or PDF. Exit codes are 0 done, 1 failed, 2 wrong command line, 3 findings; with
+`--json` every command prints exactly one JSON object. Output is bounded (rows, items and cell length) and the store
+runs in the same worker process as in the app. `--since` and `--until` import only a time range of very large inputs (events outside it never reach the store; files that stopped growing before it are not opened; [ADR 0047](adr/0047-time-window-import.md)). `imt watch DIR` imports files as they settle in a folder (debounced, partial writes and temporary names ignored, locked files retried, huge files reported) and announces known issues from your knowledge files ([ADR 0048](adr/0048-watched-folders.md)). Reference: [cli.md](cli.md).
 
 ## Scheduled and triggered collection (`imt-agent`)
 

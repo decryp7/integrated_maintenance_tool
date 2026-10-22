@@ -179,6 +179,8 @@ pub struct WorkspaceSummary {
     pub exporters: Vec<ExporterInfo>,
     /// The profile's dashboards.
     pub dashboards: Vec<crate::dashboard::DashboardCfg>,
+    /// The profile's lenses (named view presets).
+    pub lenses: Vec<crate::lens::LensCfg>,
     /// Pages, facets and source context are redacted (the "Redacted view").
     pub redacted_view: bool,
 }

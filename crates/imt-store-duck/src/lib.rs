@@ -201,6 +201,8 @@ pub(crate) struct Inner {
     /// Bumped by every change to the events (keys read caches).
     pub(crate) generation: Arc<AtomicU64>,
     pub(crate) importing: AtomicBool,
+    /// The time window later imports read (ADR 0047).
+    pub(crate) import_window: RwLock<imt_core::ingest::ImportWindow>,
     /// Held by whatever rewrites the catalog (an import, compaction, positions, removal).
     pub(crate) write_lock: Arc<Mutex<()>>,
     /// The full-text index and its indexing thread (`None` when the index cannot be opened: search then
@@ -393,6 +395,10 @@ impl Inner {
             schema: self.schema.clone(),
             encodings: &encodings,
             cancel: progress.cancel_flag(),
+            window: {
+                let w = *read_lock(&self.import_window);
+                (w.from.is_some() || w.to.is_some()).then_some(w)
+            },
         };
         let opts = ParallelOptions {
             threads: read_lock(&self.options).parse_threads.max(1),
@@ -645,6 +651,7 @@ impl DuckStore {
                 }),
                 generation: Arc::new(AtomicU64::new(0)),
                 importing: AtomicBool::new(false),
+                import_window: RwLock::new(Default::default()),
                 write_lock,
                 fts,
                 fts_error,
@@ -732,6 +739,12 @@ impl DuckStore {
 }
 
 impl Ingest for DuckStore {
+    fn set_import_window(&self, window: &imt_core::ingest::ImportWindow) -> StoreResult<()> {
+        imt_core::ingest::ImportWindow::new(window.from, window.to).map_err(StoreError::Invalid)?;
+        *write_lock(&self.inner.import_window) = *window;
+        Ok(())
+    }
+
     fn open(&self, paths: &[PathBuf]) -> StoreResult<ImportSession> {
         if self.inner.importing.swap(true, Ordering::SeqCst) {
             return Err(StoreError::Busy("an import is running; wait for it or cancel it".into()));

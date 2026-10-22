@@ -70,3 +70,58 @@ export function templateQl(template: string, mined: boolean): string {
     .join('.+');
   return `@message ~ ${qlQuote(regex)}`;
 }
+
+/** "4.2×" (a lift: how many times more likely a value is in the subset). */
+export function formatLift(lift: number): string {
+  if (!Number.isFinite(lift)) return '—';
+  return `${lift >= 100 ? Math.round(lift) : Math.round(lift * 10) / 10}×`;
+}
+
+/** "p < 0.001" or "p = 0.012". */
+export function formatP(p: number): string {
+  if (!Number.isFinite(p)) return '—';
+  return p < 0.001 ? 'p < 0.001' : `p = ${p.toFixed(3)}`;
+}
+
+/** One bar of a sparkline: position and height in the unit square scaled by the caller. */
+export interface SparkBar {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Bars for a trend in a `width` by `height` box: heights relative to the largest bucket, at least 1 for a non-empty
+ * bucket (so a single event stays visible), none for an empty one.
+ */
+export function sparkBars(trend: readonly number[], width: number, height: number): SparkBar[] {
+  const max = Math.max(0, ...trend);
+  if (trend.length === 0 || max <= 0) return [];
+  const step = width / trend.length;
+  const bars: SparkBar[] = [];
+  trend.forEach((n, i) => {
+    if (n <= 0) return;
+    const h = Math.max(1, Math.round((n / max) * height));
+    bars.push({ x: Math.round(i * step * 100) / 100, y: height - h, width: Math.max(1, Math.round((step - 0.5) * 100) / 100), height: h });
+  });
+  return bars;
+}
+
+/** Index of the busiest bucket of a trend, or -1 for none. */
+export function peakBucket(trend: readonly number[]): number {
+  let best = -1;
+  let max = 0;
+  trend.forEach((n, i) => {
+    if (n > max) {
+      max = n;
+      best = i;
+    }
+  });
+  return best;
+}
+
+/** The query-language filter for events of a mined template whose message also contains `value`. */
+export function templateValueQl(template: string, mined: boolean, value: string): string {
+  return `(${templateQl(template, mined)}) and @message contains ${qlQuote(value)}`;
+}
