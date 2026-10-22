@@ -196,6 +196,8 @@ fn probe(renderers: &Arc<Renderers>, engine: SearchEngine, query: &str, out: &Pa
             let (v, n) = verdict(&r.outcome, first.as_ref());
             (v, n, Some(r))
         }
+        // A page that waits for a person (consent, CAPTCHA) is the recognised hand-off, not a failure.
+        Err(e) if e.contains("still needs you") => (Verdict::Warn, format!("handed to the user: {e}"), None),
         Err(e) => (Verdict::Fail, e, None),
     };
     let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
