@@ -10600,63 +10600,63 @@
         <source>Pin (dock it again)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">77</context>
+          <context context-type="linenumber">80</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.hideTitle" datatype="html">
         <source>Hide (Esc)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">80</context>
+          <context context-type="linenumber">83</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.retry" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">92,94</context>
+          <context context-type="linenumber">95,97</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.dismiss" datatype="html">
         <source>Dismiss</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">94,96</context>
+          <context context-type="linenumber">97,99</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.barLeft" datatype="html">
         <source>Auto-hidden tool windows (left)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">231</context>
+          <context context-type="linenumber">234</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.barRight" datatype="html">
         <source>Auto-hidden tool windows (right)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">233</context>
+          <context context-type="linenumber">236</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.barBottom" datatype="html">
         <source>Auto-hidden tool windows (bottom)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">235</context>
+          <context context-type="linenumber">238</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.pinLabel" datatype="html">
         <source>Pin <x id="title" equiv-text="title"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">240</context>
+          <context context-type="linenumber">243</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.hideLabel" datatype="html">
         <source>Hide <x id="title" equiv-text="title"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">244</context>
+          <context context-type="linenumber">247</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.floatCue.window" datatype="html">
@@ -15622,6 +15622,192 @@
           <context context-type="linenumber">56</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="lenses.filterSets.defaultName" datatype="html">
+        <source>Set <x id="number" equiv-text="store.sets().length + 1"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/filter-set.store.ts</context>
+          <context context-type="linenumber">28</context>
+        </context-group>
+        <note priority="1" from="meaning">Default name of a filter set</note>
+      </trans-unit>
+      <trans-unit id="lenses.filterSets.undoAdd" datatype="html">
+        <source>new filter set</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/filter-set.store.ts</context>
+          <context context-type="linenumber">29</context>
+        </context-group>
+        <note priority="1" from="meaning">Undo history entry</note>
+      </trans-unit>
+      <trans-unit id="lenses.filterSets.undoToggle" datatype="html">
+        <source>filter set switch</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/filter-set.store.ts</context>
+          <context context-type="linenumber">33</context>
+        </context-group>
+        <note priority="1" from="meaning">Undo history entry</note>
+      </trans-unit>
+      <trans-unit id="lenses.filterSets.undoRename" datatype="html">
+        <source>filter set rename</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/filter-set.store.ts</context>
+          <context context-type="linenumber">35</context>
+        </context-group>
+        <note priority="1" from="meaning">Undo history entry</note>
+      </trans-unit>
+      <trans-unit id="lenses.filterSets.undoRemove" datatype="html">
+        <source>filter set removal</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/filter-set.store.ts</context>
+          <context context-type="linenumber">36</context>
+        </context-group>
+        <note priority="1" from="meaning">Undo history entry</note>
+      </trans-unit>
+      <trans-unit id="lenses.bar" datatype="html">
+        <source>Lenses and filter sets</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens-bar.ts</context>
+          <context context-type="linenumber">17</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lenses.label" datatype="html">
+        <source>Lens</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens-bar.ts</context>
+          <context context-type="linenumber">19,20</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lenses.select" datatype="html">
+        <source>Lens</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens-bar.ts</context>
+          <context context-type="linenumber">20</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lenses.none" datatype="html">
+        <source>Pick a lens…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens-bar.ts</context>
+          <context context-type="linenumber">21,22</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lenses.group.profile" datatype="html">
+        <source>Profile</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens-bar.ts</context>
+          <context context-type="linenumber">23</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lenses.group.saved" datatype="html">
+        <source>Saved</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens-bar.ts</context>
+          <context context-type="linenumber">28</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lenses.name" datatype="html">
+        <source>Name</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens-bar.ts</context>
+          <context context-type="linenumber">34</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lenses.namePlaceholder" datatype="html">
+        <source>Name</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens-bar.ts</context>
+          <context context-type="linenumber">34</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lenses.save.title" datatype="html">
+        <source>Save the current view (query, columns, highlights) as a lens</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens-bar.ts</context>
+          <context context-type="linenumber">35</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lenses.save" datatype="html">
+        <source>Save lens</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens-bar.ts</context>
+          <context context-type="linenumber">35,36</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lenses.set.title" datatype="html">
+        <source>Move the current filters into a filter set you can switch on and off</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens-bar.ts</context>
+          <context context-type="linenumber">39</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lenses.set" datatype="html">
+        <source>Filters → set</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens-bar.ts</context>
+          <context context-type="linenumber">39,40</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lenses.set.toggleTitle" datatype="html">
+        <source>Switch on or off (Alt+<x id="key" equiv-text="index + 1"/>)</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens-bar.ts</context>
+          <context context-type="linenumber">91</context>
+        </context-group>
+        <note priority="1" from="meaning">Filter set chip tooltip</note>
+      </trans-unit>
+      <trans-unit id="lenses.set.toggleTitleNoKey" datatype="html">
+        <source>Switch on or off</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens-bar.ts</context>
+          <context context-type="linenumber">91</context>
+        </context-group>
+        <note priority="1" from="meaning">Filter set chip tooltip</note>
+      </trans-unit>
+      <trans-unit id="lenses.deleteAria" datatype="html">
+        <source>Delete lens <x id="name" equiv-text="name"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens-bar.ts</context>
+          <context context-type="linenumber">94</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lenses.set.removeAria" datatype="html">
+        <source>Delete filter set <x id="name" equiv-text="name"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens-bar.ts</context>
+          <context context-type="linenumber">97</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lenses.defaultName" datatype="html">
+        <source>Lens <x id="number" equiv-text="store.saved().length + 1"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens.store.ts</context>
+          <context context-type="linenumber">43</context>
+        </context-group>
+        <note priority="1" from="meaning">Default name of a saved lens</note>
+      </trans-unit>
+      <trans-unit id="lenses.undoSave" datatype="html">
+        <source>saved lens</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens.store.ts</context>
+          <context context-type="linenumber">54</context>
+        </context-group>
+        <note priority="1" from="meaning">Undo history entry</note>
+      </trans-unit>
+      <trans-unit id="lenses.undoRename" datatype="html">
+        <source>lens rename</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens.store.ts</context>
+          <context context-type="linenumber">58</context>
+        </context-group>
+        <note priority="1" from="meaning">Undo history entry</note>
+      </trans-unit>
+      <trans-unit id="lenses.undoRemove" datatype="html">
+        <source>lens removal</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lenses/lens.store.ts</context>
+          <context context-type="linenumber">60</context>
+        </context-group>
+        <note priority="1" from="meaning">Undo history entry</note>
+      </trans-unit>
       <trans-unit id="lifecycle.banners.safeMode" datatype="html">
         <source>Running in safe mode: plugins and saved profile are off.</source>
         <context-group purpose="location">
@@ -18890,168 +19076,168 @@
         <source>Metrics</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">21,22</context>
+          <context context-type="linenumber">22,23</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.summary" datatype="html">
         <source><x id="INTERPOLATION" equiv-text="{{ store.summary()?.profileName }}"/> · <x id="ICU" equiv-text="{charts().length, plural, =1 {{{ charts().length }} chart} other {{{ charts().length }} charts}}" xid="5176110073694288316"/> · drag across a chart to zoom</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">22,23</context>
+          <context context-type="linenumber">23,24</context>
         </context-group>
       </trans-unit>
       <trans-unit id="6310326226909925335" datatype="html">
         <source>{VAR_PLURAL, plural, =1 {<x id="INTERPOLATION"/> chart} other {<x id="INTERPOLATION"/> charts}}</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">22</context>
+          <context context-type="linenumber">23</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.resetZoom" datatype="html">
         <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;zoomOut&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;zoomOut&quot; [size]=&quot;13&quot; /&gt;"/> Reset zoom</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">26,28</context>
+          <context context-type="linenumber">27,29</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.addChartToggle" datatype="html">
         <source>+ Add chart</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">28,29</context>
+          <context context-type="linenumber">29,30</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.editInProfile" datatype="html">
         <source>Edit charts in profile</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">29,32</context>
+          <context context-type="linenumber">30,33</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.builder.title" datatype="html">
         <source>Title</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">34</context>
+          <context context-type="linenumber">35</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.builder.title.placeholder" datatype="html">
         <source>e.g. CPU %</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">34</context>
+          <context context-type="linenumber">35</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.builder.aggregate" datatype="html">
         <source>Aggregate</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">35,36</context>
+          <context context-type="linenumber">36,37</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.builder.field" datatype="html">
         <source>Field</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">41,42</context>
+          <context context-type="linenumber">42,43</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.builder.chooseField" datatype="html">
         <source>Choose a numeric field</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">43,44</context>
+          <context context-type="linenumber">44,45</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.builder.bucket" datatype="html">
         <source>Bucket</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">48,49</context>
+          <context context-type="linenumber">49,50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.builder.splitBy" datatype="html">
         <source>Split by</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">53,54</context>
+          <context context-type="linenumber">54,55</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.builder.type" datatype="html">
         <source>Type</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">58,59</context>
+          <context context-type="linenumber">59,60</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.builder.type.line" datatype="html">
         <source>line</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">60,61</context>
+          <context context-type="linenumber">61,62</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.builder.type.bar" datatype="html">
         <source>bar</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">61,62</context>
+          <context context-type="linenumber">62,63</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.builder.type.stacked" datatype="html">
         <source>stacked bars</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">62,64</context>
+          <context context-type="linenumber">63,65</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.builder.unit" datatype="html">
         <source>Unit</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">65</context>
+          <context context-type="linenumber">66</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.builder.cancel" datatype="html">
         <source>Cancel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">67,68</context>
+          <context context-type="linenumber">68,69</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.builder.add" datatype="html">
         <source>Add chart</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">68,70</context>
+          <context context-type="linenumber">69,71</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.charts.region" datatype="html">
         <source>Charts</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">73</context>
+          <context context-type="linenumber">74</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.empty.title" datatype="html">
         <source>No charts defined.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">82,83</context>
+          <context context-type="linenumber">83,84</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.empty.hint" datatype="html">
         <source>Add [[chart]] sections to the profile, or build one here from any numeric field.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">83,84</context>
+          <context context-type="linenumber">84,85</context>
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.openProfile" datatype="html">
         <source>Open the profile</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
-          <context context-type="linenumber">85,87</context>
+          <context context-type="linenumber">86,88</context>
         </context-group>
       </trans-unit>
       <trans-unit id="navigation.category" datatype="html">
@@ -43054,7 +43240,7 @@
         <source>matches</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">23</context>
+          <context context-type="linenumber">24</context>
         </context-group>
         <note priority="1" from="meaning">Filter operator</note>
       </trans-unit>
@@ -43062,7 +43248,7 @@
         <source>exists</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">24</context>
+          <context context-type="linenumber">25</context>
         </context-group>
         <note priority="1" from="meaning">Filter operator</note>
       </trans-unit>
@@ -43070,7 +43256,7 @@
         <source>missing</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">25</context>
+          <context context-type="linenumber">26</context>
         </context-group>
         <note priority="1" from="meaning">Filter operator</note>
       </trans-unit>
@@ -43078,166 +43264,166 @@
         <source>Levels</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">40</context>
+          <context context-type="linenumber">41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.toggleTz" datatype="html">
         <source>Toggle UTC / local time</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">57</context>
+          <context context-type="linenumber">58</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.addFilter" datatype="html">
         <source>+ Add filter</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">59,61</context>
+          <context context-type="linenumber">60,62</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.field" datatype="html">
         <source>Field</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">62,63</context>
+          <context context-type="linenumber">63,64</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.operator" datatype="html">
         <source>Operator</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">68,69</context>
+          <context context-type="linenumber">69,70</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.value" datatype="html">
         <source>Value</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">74,75</context>
+          <context context-type="linenumber">75,76</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.cancel" datatype="html">
         <source>Cancel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">79,80</context>
+          <context context-type="linenumber">80,81</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.add" datatype="html">
         <source>Add</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">80,82</context>
+          <context context-type="linenumber">81,83</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.clearAll" datatype="html">
         <source>Clear all</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">87,89</context>
+          <context context-type="linenumber">88,90</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">101,103</context>
+          <context context-type="linenumber">102,104</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.more" datatype="html">
         <source>More filter controls</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">93</context>
+          <context context-type="linenumber">94</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">97</context>
+          <context context-type="linenumber">98</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.moreTitle" datatype="html">
         <source>More filter controls</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">93</context>
+          <context context-type="linenumber">94</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.moreTz" datatype="html">
         <source>Time zone: <x id="INTERPOLATION" equiv-text="{{ tz() }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">99,100</context>
+          <context context-type="linenumber">100,101</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.viewOptionsAria" datatype="html">
         <source>View options</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">108</context>
+          <context context-type="linenumber">109</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">114</context>
+          <context context-type="linenumber">115</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.viewOptions" datatype="html">
         <source>View options</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">110,111</context>
+          <context context-type="linenumber">111,112</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.groupLanesBy" datatype="html">
         <source>Group events into timeline lanes by</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">116</context>
+          <context context-type="linenumber">117</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.groupLanesHelp" datatype="html">
         <source>Events with equal values in these fields form one lane.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">117,119</context>
+          <context context-type="linenumber">118,120</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.groupCandidates" datatype="html">
         <source>Add a field to the group-by</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">124</context>
+          <context context-type="linenumber">125</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.profileDefault" datatype="html">
         <source>Use profile default</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">130,132</context>
+          <context context-type="linenumber">131,133</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.markedOnly" datatype="html">
         <source>Marked only</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">134,135</context>
+          <context context-type="linenumber">135,136</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.alwaysLifecycle" datatype="html">
         <source>Always show start / stop</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">135,138</context>
+          <context context-type="linenumber">136,139</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.filters" datatype="html">
         <source>Filters</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">144</context>
+          <context context-type="linenumber">145</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.alsoSearch" datatype="html">
         <source>also search</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">147,149</context>
+          <context context-type="linenumber">148,150</context>
         </context-group>
         <note priority="1" from="meaning">A message search that applies besides the query</note>
       </trans-unit>
@@ -43245,63 +43431,63 @@
         <source>instance</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">162,163</context>
+          <context context-type="linenumber">163,164</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.removeAlsoSearch" datatype="html">
         <source>Remove the message search</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">219</context>
+          <context context-type="linenumber">221</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.resetRange" datatype="html">
         <source>Reset to the full range</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">239</context>
+          <context context-type="linenumber">241</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.dragToZoom" datatype="html">
         <source>Drag on the timeline to zoom</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">240</context>
+          <context context-type="linenumber">242</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.allTime" datatype="html">
         <source>All time</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">257</context>
+          <context context-type="linenumber">259</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.levelMatching" datatype="html">
         <source><x id="level" equiv-text="l"/>: <x id="matching" equiv-text="matching"/> of <x id="total" equiv-text="total"/> match the other filters</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">313</context>
+          <context context-type="linenumber">315</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.removeAria" datatype="html">
         <source>Remove <x id="name" equiv-text="name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">320</context>
+          <context context-type="linenumber">322</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.removeFilterAria" datatype="html">
         <source>Remove filter <x id="field" equiv-text="field"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">323</context>
+          <context context-type="linenumber">325</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.removeInstanceAria" datatype="html">
         <source>Remove instance filter <x id="group" equiv-text="group"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/workspace/filter-bar.ts</context>
-          <context context-type="linenumber">326</context>
+          <context context-type="linenumber">328</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.liveTail.cannotStart" datatype="html">
