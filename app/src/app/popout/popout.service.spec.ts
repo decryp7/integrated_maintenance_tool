@@ -10,6 +10,22 @@ import { POPOUT_ROUTE } from './popout-route';
 import { BOUNDS_KEY, MAX_POPOUTS, PopoutService } from './popout.service';
 import { FakeBackend } from './popout-testing';
 import { loadDockview } from '../dock/dockview-loader';
+import { DragGhostBackend, GhostRequest, NoDragGhost } from './drag-ghost-backend';
+
+/** A ghost that records its requests and was last at `at`. */
+class RecordingGhost extends DragGhostBackend {
+  readonly available = true;
+  requests: GhostRequest[] = [];
+  at = { x: 1500, y: 300, width: 560, height: 420 };
+  async start(r: GhostRequest) {
+    this.requests.push(r);
+    return true;
+  }
+  async show() {}
+  async end() {
+    return this.at;
+  }
+}
 
 // dockview is loaded on demand (see dockview-loader); load it once so attach() is synchronous here.
 beforeAll(() => loadDockview());
@@ -18,7 +34,7 @@ describe('PopoutService (host side)', () => {
   let backend: FakeBackend;
   let container: HTMLElement;
 
-  async function setup(route: unknown = null) {
+  async function setup(route: unknown = null, ghost: DragGhostBackend = new NoDragGhost()) {
     localStorage.clear();
     backend = new FakeBackend();
     const store: LayoutStore = { load: () => null, save: () => undefined, clear: () => undefined };
@@ -30,6 +46,7 @@ describe('PopoutService (host side)', () => {
         { provide: PopoutBackend, useValue: backend },
         { provide: PANEL_WINDOWS, useExisting: PopoutService },
         { provide: POPOUT_ROUTE, useValue: route },
+        { provide: DragGhostBackend, useValue: ghost },
       ],
     });
     container = document.createElement('div');
@@ -134,6 +151,30 @@ describe('PopoutService (host side)', () => {
     await popouts.dockBack('metrics');
     await popouts.popOut('metrics');
     expect(backend.opened.at(-1)!.bounds).toEqual({ x: 10, y: 20, width: 600, height: 400 });
+  });
+
+  it('a dragged tab gets a ghost of the window it would open, which then opens exactly where the ghost was', async () => {
+    const ghost = new RecordingGhost();
+    const { popouts } = await setup(null, ghost);
+    const preview = popouts.beginDragOut('metrics')!;
+    expect(preview.native).toBe(true);
+    preview.show(true);
+    const at = await preview.finish();
+    expect(at).toEqual(ghost.at);
+    const r = ghost.requests[0]!;
+    expect(r).toMatchObject({ title: 'Metrics', grabY: 12, dark: document.documentElement.getAttribute('data-scheme') === 'dark' });
+    expect(r.width).toBeGreaterThanOrEqual(320);
+    expect(r.grabX).toBe(Math.min(120, r.width / 2));
+    expect(await popouts.popOut('metrics', { rect: at! })).toBe(true);
+    expect(backend.opened[0]?.bounds).toEqual(ghost.at);
+    // Popped out already, or a view that does not exist: no ghost.
+    expect(popouts.beginDragOut('metrics')).toBeNull();
+    expect(popouts.beginDragOut('nope')).toBeNull();
+  });
+
+  it('without a ghost (a browser) a dragged tab gets none: the dock draws its own preview', async () => {
+    const { popouts } = await setup();
+    expect(popouts.beginDragOut('metrics')).toBeNull();
   });
 
   it('adopts pop-outs the shell already has (the host UI reloaded)', async () => {
