@@ -79,6 +79,13 @@ describe('TimelinePanel', () => {
     expect(text(fixture)).toContain('Fatal');
     expect(text(fixture)).toContain('3 instances');
     expect(all(fixture, '.fatal-line')).toHaveLength(1);
+    // The title row stays short: how to zoom and pan is behind a (?) with this platform's key (F6, F7).
+    expect(el(fixture, '.hint').textContent).not.toContain('drag');
+    expect(el<HTMLButtonElement>(fixture, 'imt-help button').getAttribute('aria-label')).toContain('Zoom and pan');
+    el<HTMLButtonElement>(fixture, 'imt-help button').click();
+    await settle(fixture);
+    expect(text(fixture)).toContain('Ctrl+wheel zooms');
+    expect(text(fixture)).not.toContain('⌘/Ctrl');
   });
 
   it('jumps to an event when a marker is clicked and shows a tooltip on hover', async () => {
