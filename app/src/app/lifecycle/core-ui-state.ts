@@ -27,7 +27,9 @@ export class CoreUiState {
     {
       key: 'query',
       // The search box text counts as applied even while its debounce is pending, so saving right after typing is consistent.
-      capture: () => ({ query: { ...this.store.query(), text: this.store.textInput() }, textInput: this.store.textInput() }),
+      // How the text matches (`textMode`) is not saved: smart search derives it from the text again after a restore, and
+      // its switches (the debounce applying, the partial-match scan finishing) must not mark the project unsaved.
+      capture: () => ({ query: { ...this.store.query(), text: this.store.textInput(), textMode: undefined }, textInput: this.store.textInput() }),
       restore: (v) => {
         const saved = (v ?? {}) as { query?: unknown; textInput?: unknown };
         const query = sanitizeQuery(saved.query);
