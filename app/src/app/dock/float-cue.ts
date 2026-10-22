@@ -123,7 +123,11 @@ export class FloatCue {
     return this.outcome;
   }
 
-  show(outcome: TabDropOutcome, rect: Rect): void {
+  /**
+   * Shows the cue for an outcome at `rect`. `drawn` false announces the hint without drawing it (outside the window
+   * the shell's ghost window shows the new window instead).
+   */
+  show(outcome: TabDropOutcome, rect: Rect, drawn = true): void {
     const hint = cueHint(outcome);
     if (!hint) {
       this.hide();
@@ -136,7 +140,7 @@ export class FloatCue {
       this.live.textContent = hint;
       this.doc.body.classList.toggle(DRAG_CANCEL_CLASS, outcome === 'cancel');
     }
-    this.ghost.hidden = false;
+    this.ghost.hidden = !drawn;
     this.ghost.style.left = `${rect.x}px`;
     this.ghost.style.top = `${rect.y}px`;
     this.ghost.style.width = `${rect.width}px`;

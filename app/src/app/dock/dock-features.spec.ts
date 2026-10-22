@@ -26,7 +26,7 @@ function fakeWindows(): PanelWindows & { calls: string[]; ids: ReturnType<typeof
     poppedIds: ids,
     canPopOut: () => true,
     popOut: async (id, o) => {
-      calls.push(`popOut:${id}${o?.at ? `@${o.at.x},${o.at.y}` : ''}`);
+      calls.push(`popOut:${id}${o?.at ? `@${o.at.x},${o.at.y}` : ''}${o?.rect ? `#${o.rect.x},${o.rect.y},${o.rect.width}x${o.rect.height}` : ''}`);
       return true;
     },
     focus: (id) => void calls.push(`focus:${id}`),
@@ -34,6 +34,7 @@ function fakeWindows(): PanelWindows & { calls: string[]; ids: ReturnType<typeof
     discard: async (id) => void calls.push(`discard:${id}`),
     records: (): PoppedOutPanel[] => [],
     restore: async (r) => void calls.push(`restore:${r.map((x) => x.id).join(',')}`),
+    beginDragOut: () => null,
   };
 }
 
@@ -231,6 +232,54 @@ describe('DockService VS-style features', () => {
     expect(windows.calls.some((c) => c.startsWith('popOut:metrics'))).toBe(false);
     dock.detach();
     expect(document.querySelector('.imt-float-cue')).toBeNull();
+  });
+
+  it('outside the window the ghost window of the shell replaces the in-window preview, and the pop-out opens where the ghost was', async () => {
+    const dock = setup();
+    const root = { left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
+    container.getBoundingClientRect = () => root;
+    Object.defineProperty(document, 'elementsFromPoint', { value: () => [], configurable: true });
+    Object.defineProperty(document, 'elementFromPoint', { value: () => null, configurable: true });
+    onTestFinished(() => {
+      delete (document as { elementsFromPoint?: unknown }).elementsFromPoint;
+      delete (document as { elementFromPoint?: unknown }).elementFromPoint;
+    });
+    const shown: boolean[] = [];
+    let finished = 0;
+    const begun: string[] = [];
+    windows.beginDragOut = (id) => {
+      begun.push(id);
+      return {
+        native: true,
+        show: (outside) => void shown.push(outside),
+        finish: async () => (finished++, { x: 700, y: 50, width: 560, height: 420 }),
+      };
+    };
+    const cue = () => document.querySelector<HTMLElement>('.imt-float-cue')!;
+    const pointer = (type: string, target: EventTarget, x: number, y: number) =>
+      target.dispatchEvent(new PointerEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y, screenX: x, screenY: y }));
+    pointer('pointerdown', tabOf('metrics'), 10, 10);
+    pointer('pointermove', window, 400, 300);
+    pointer('pointermove', window, -20, 300);
+    expect(begun).toEqual(['metrics']);
+    expect(shown).toEqual([false, true]);
+    // The ghost window shows the new window; the hint is still announced.
+    expect(cue().hidden).toBe(true);
+    expect([...document.querySelectorAll('[role="status"]')].map((e) => e.textContent)).toContain('Release to open in a new window');
+    pointer('pointerup', window, -20, 300);
+    expect(finished).toBe(1);
+    await new Promise((r) => setTimeout(r));
+    expect(windows.calls).toContain('popOut:metrics#700,50,560x420');
+    expect(dock.isOpen('metrics')).toBe(true);
+    // Escape outside the window: the ghost ends and nothing pops out.
+    windows.calls.length = 0;
+    pointer('pointerdown', tabOf('events'), 10, 10);
+    pointer('pointermove', window, -20, 300);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(finished).toBe(2);
+    pointer('pointerup', window, -20, 300);
+    await new Promise((r) => setTimeout(r));
+    expect(windows.calls.some((c) => c.startsWith('popOut:'))).toBe(false);
   });
 
   it('shows guides for and docks a panel dropped from outside dockview (a pop-out over the window)', () => {

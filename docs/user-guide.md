@@ -427,8 +427,8 @@ the developer tools (`F12`, `Mod+Shift+I`).
 
 To float a panel inside the window, choose **Float** in its tab menu or **Window ▸ Float panel**. A
 tab dragged off the docking guides and released inside the window goes back where it was
-(**Release to cancel**); release it outside the window (**Release to open in a new window**) to pop
-it out.
+(**Release to cancel**); drag it outside the window and a ghost of the new window follows the pointer
+(also over other apps and monitors): release it to open the panel there.
 
 ## Command line
 

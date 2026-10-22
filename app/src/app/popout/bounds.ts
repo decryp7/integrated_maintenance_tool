@@ -81,9 +81,15 @@ export function placeNextToHost(host: Rect | null, size: { width: number; height
   return monitor ? fitInto(chosen, monitor) : chosen;
 }
 
+/** Where the pointer holds a window dragged by its title bar, from its top-left corner: near its left, in the title bar. */
+export function dragGrab(size: { width: number; height: number }): Point {
+  return { x: Math.min(120, size.width / 2), y: 12 };
+}
+
 /** A pop-out dragged out of the window opens under the pointer (its title bar at the cursor). */
 export function placeAtPointer(p: Point, size: { width: number; height: number }, areas: readonly WorkArea[]): Rect {
-  const b = { x: p.x - Math.min(120, size.width / 2), y: p.y - 12, ...size };
+  const grab = dragGrab(size);
+  const b = { x: p.x - grab.x, y: p.y - grab.y, ...size };
   const a = areaAt(p, areas);
   return a ? fitInto(b, a) : b;
 }

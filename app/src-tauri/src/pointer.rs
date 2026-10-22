@@ -9,13 +9,13 @@ pub async fn pointer_button_down() -> Option<bool> {
 }
 
 #[cfg(target_os = "macos")]
-fn primary_button_down() -> Option<bool> {
+pub(crate) fn primary_button_down() -> Option<bool> {
     // Bit 0 is the primary button, already mapped for left-handed setups by the system.
     Some(objc2_app_kit::NSEvent::pressedMouseButtons() & 1 == 1)
 }
 
 #[cfg(windows)]
-fn primary_button_down() -> Option<bool> {
+pub(crate) fn primary_button_down() -> Option<bool> {
     use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON, VK_RBUTTON};
     use windows::Win32::UI::WindowsAndMessaging::{GetSystemMetrics, SM_SWAPBUTTON};
     // GetAsyncKeyState reports physical buttons: with swapped buttons the primary one is the right button.
@@ -31,7 +31,7 @@ fn primary_button_down() -> Option<bool> {
 }
 
 #[cfg(not(any(target_os = "macos", windows)))]
-fn primary_button_down() -> Option<bool> {
+pub(crate) fn primary_button_down() -> Option<bool> {
     None
 }
 

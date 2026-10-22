@@ -1,0 +1,76 @@
+/* The drag ghost: a translucent window outline with a title bar and a dimmed snapshot of the panel. */
+:root {
+  --ghost-bg: rgba(246, 247, 249, 0.72);
+  --ghost-bar: rgba(255, 255, 255, 0.92);
+  --ghost-fg: #1f2329;
+  --ghost-edge: #2f6fde;
+  color-scheme: light;
+}
+:root[data-scheme='dark'] {
+  --ghost-bg: rgba(30, 32, 36, 0.72);
+  --ghost-bar: rgba(44, 47, 53, 0.94);
+  --ghost-fg: #e6e8eb;
+  --ghost-edge: #5b9bff;
+  color-scheme: dark;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+  cursor: default;
+}
+.ghost {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 2px solid var(--ghost-edge);
+  border-radius: 8px;
+  background: var(--ghost-bg);
+  color: var(--ghost-fg);
+  font: 13px/1.2 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  overflow: hidden;
+}
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: 28px;
+  padding: 0 10px;
+  background: var(--ghost-bar);
+  border-bottom: 1px solid var(--ghost-edge);
+}
+.icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.icon:not([data-on]) {
+  display: none;
+}
+.title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.snapshot {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: left top;
+  opacity: 0.55;
+}
+.snapshot[hidden] {
+  display: none;
+}

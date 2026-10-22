@@ -16,6 +16,7 @@ import { DockTarget } from './dock-target';
 import { FloatCue, TabDropOutcome } from './float-cue';
 import { FloatingMove } from './floating-move';
 import { TabDragOut } from './tab-drag-out';
+import { DragOutCue } from './drag-out-cue';
 import { DropGuides } from './drop-guides';
 import { FullScreenPrefs, OsWindow } from './os-window';
 import { GroupActions } from './group-actions';
@@ -193,14 +194,20 @@ export class DockService {
     // drag is cancelled. A cue says which while dragging (pointer events: see `dndStrategy`).
     const cue = new FloatCue();
     const floatingMove = new FloatingMove(container);
+    // Outside the window the shell's ghost window shows where the pop-out will open (where it has one); a release
+    // there opens the window exactly where the ghost was.
+    const dragCue = new DragOutCue(cue, {
+      cueRect: (id, p, outcome) => this.placement.cueRect(id, p, outcome),
+      beginDragOut: (id) => this.ctx.windows()?.beginDragOut(id) ?? null,
+    });
     const tabDrag = new TabDragOut(container, {
       outcome: (id, p) => this.tabDropOutcome(id, p),
-      popOut: (id, at) => void this.popOut(id, at),
-      cue: (id, p, outcome) => {
-        const rect = this.placement.cueRect(id, p, outcome);
-        if (rect && outcome) cue.show(outcome, rect);
-        else cue.hide();
+      popOut: (id, at) => {
+        const ending = dragCue.takeEnd();
+        if (!ending) void this.popOut(id, { at });
+        else void ending.then((rect) => this.popOut(id, rect ? { rect } : { at }));
       },
+      cue: (id, p, outcome) => dragCue.update(id, p, outcome),
     });
     container.addEventListener('keydown', onKey);
     container.addEventListener('contextmenu', onContextMenu);
@@ -210,6 +217,7 @@ export class DockService {
       { dispose: () => container.removeEventListener('keydown', onKey) },
       { dispose: () => container.removeEventListener('contextmenu', onContextMenu) },
       tabDrag,
+      dragCue,
       floatingMove,
       cue,
       guides,
@@ -387,6 +395,13 @@ export class DockService {
     return this.placement.panelRect(id);
   }
 
+  /** The panel's content as shown (for a snapshot of it); null when another panel of its group is in front. */
+  panelContent(id: string): HTMLElement | null {
+    const panel = this.api?.getPanel(id);
+    if (!panel || panel.group.activePanel?.id !== id) return null;
+    return panel.group.element.querySelector<HTMLElement>('.dv-content-container');
+  }
+
   /** Removes a panel from the layout without closing its view (it moved to a pop-out window). */
   takeOut(id: string): void {
     const panel = this.api?.getPanel(id);
@@ -397,11 +412,11 @@ export class DockService {
 
   /* --------------------------------------------------------------- pop-outs */
 
-  /** Pops a panel out into a real window ("Pop out to window"). */
-  async popOut(id: string, at?: Point): Promise<boolean> {
+  /** Pops a panel out into a real window ("Pop out to window"), exactly at `rect` or under the screen point `at` (a dragged tab). */
+  async popOut(id: string, where: { at?: Point; rect?: Rect } = {}): Promise<boolean> {
     const windows = this.ctx.windows();
     if (!windows || !id || !this.api?.getPanel(id)) return false;
-    return windows.popOut(id, at ? { at } : {});
+    return windows.popOut(id, where.rect ? { rect: where.rect } : where.at ? { at: where.at } : {});
   }
 
   /** Pops out the active panel (keyboard command). */

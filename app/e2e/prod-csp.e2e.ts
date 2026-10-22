@@ -34,3 +34,36 @@ test('production build loads under the Tauri CSP without violations', async ({ p
   const violations = await page.evaluate(() => (window as unknown as { __cspViolations: string[] }).__cspViolations);
   expect([...problems, ...violations.map((v) => `violation: ${v}`)]).toEqual([]);
 });
+
+// The drag ghost's page (`public/drag-ghost.html`, shown in the shell's ghost window) also runs under the CSP: its
+// script and styles are files of the app, and what the shell hands it is shown as text, an SVG path and an image.
+test('the drag ghost page renders its content under the Tauri CSP without violations', async ({ page }) => {
+  const problems: string[] = [];
+  page.on('console', (msg) => {
+    if (/Content Security Policy|Refused to/i.test(msg.text())) problems.push(`console: ${msg.text()}`);
+  });
+  page.on('pageerror', (err) => problems.push(`pageerror: ${err.message}`));
+  await page.addInitScript(() => {
+    const w = window as unknown as { __cspViolations: string[] };
+    w.__cspViolations = [];
+    document.addEventListener('securitypolicyviolation', (e) => w.__cspViolations.push(`${e.violatedDirective} ${e.blockedURI}`));
+  });
+  const response = await page.goto('/drag-ghost.html');
+  expect(response?.headers()['content-security-policy']).toContain("default-src 'self'");
+  await page.waitForFunction(() => typeof (window as unknown as { imtGhost?: unknown }).imtGhost === 'function');
+  // A 1×1 PNG.
+  const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  await page.evaluate(
+    (snapshot) => (window as unknown as { imtGhost: (c: unknown) => void }).imtGhost({ title: '<b>Inspector</b>', icon: 'M6 9l6 6l6-6', snapshot, dark: true }),
+    png,
+  );
+  await expect(page.locator('.title')).toHaveText('<b>Inspector</b>');
+  await expect(page.locator('.title b')).toHaveCount(0);
+  await expect(page.locator('html')).toHaveAttribute('data-scheme', 'dark');
+  await expect(page.locator('.icon path')).toHaveAttribute('d', 'M6 9l6 6l6-6');
+  await expect(page.locator('.snapshot')).toBeVisible();
+  expect(await page.locator('.snapshot').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBe(1);
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+  const violations = await page.evaluate(() => (window as unknown as { __cspViolations: string[] }).__cspViolations);
+  expect([...problems, ...violations.map((v) => `violation: ${v}`)]).toEqual([]);
+});

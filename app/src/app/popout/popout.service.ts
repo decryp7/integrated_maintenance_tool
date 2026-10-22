@@ -4,12 +4,17 @@ import { DockSlot, Point, Rect } from '../dock/dock-geometry';
 import { DockTarget, PopoutDrag, PopoutDragEvent, popoutDragReduce, screenToClient } from '../dock/dock-target';
 import { DockService } from '../dock/dock.service';
 import { PoppedOutPanel } from '../dock/layout-store';
-import { PanelWindows } from '../dock/panel-windows';
+import { DragOutPreview, PanelWindows } from '../dock/panel-windows';
 import { CommandRegistry } from '../extensions/command-registry';
 import { ViewRegistry } from '../extensions/view-registry';
 import { ProjectService } from '../projects/project.service';
 import { errorMessage } from '../tools/tool-errors';
-import { clampToWorkAreas, placeAtPointer, placeNextToHost, sizeForPanel } from './bounds';
+import { clampToWorkAreas, dragGrab, placeAtPointer, placeNextToHost, sizeForPanel } from './bounds';
+import { DragGhostBackend, GhostRequest } from './drag-ghost-backend';
+import { GhostSession } from './drag-ghost-session';
+import { snapshotPanel, SNAPSHOT_TIMEOUT_MS } from './panel-snapshot';
+import { ICON_PATHS, isImtIcon } from '../shared/material/imt-icons';
+import { ImtView } from '../extensions/tokens';
 import { PopoutBackend, PopoutClosed, PopoutInfo } from './popout-backend';
 import { POPOUT_ROUTE } from './popout-route';
 import { PopoutState } from './popout-state';
@@ -52,7 +57,9 @@ interface RememberedBounds {
 }
 
 export interface PopOutOptions {
-  /** Open at this screen point (a tab dragged out of the window). */
+  /** Open exactly here (screen, logical px): where the ghost of a tab dragged out of the window was. */
+  rect?: Rect;
+  /** Open at this screen point (a tab dragged out of the window, without a ghost). */
   at?: Point;
   /** Saved bounds and monitor (restoring a layout). */
   bounds?: Rect | null;
@@ -97,6 +104,7 @@ function saveBounds(all: Record<string, RememberedBounds>): void {
 @Injectable({ providedIn: 'root' })
 export class PopoutService implements PanelWindows {
   private readonly backend = inject(PopoutBackend);
+  private readonly ghost = inject(DragGhostBackend);
   private readonly dock = inject(DockService);
   private readonly views = inject(ViewRegistry);
   private readonly sync = inject(UiSync);
@@ -178,14 +186,41 @@ export class PopoutService implements PanelWindows {
     }
   }
 
-  /** Where the window goes: saved bounds (clamped to the visible monitors), under the pointer, or next to this window. */
+  /**
+   * Where the window goes: where its drag ghost was (the shell already kept that on a monitor), saved bounds (clamped
+   * to the visible monitors), under the pointer, or next to this window.
+   */
   private async placement(id: string, options: PopOutOptions): Promise<Rect> {
+    if (options.rect) return { ...options.rect };
     const areas = await this.backend.workAreas().catch(() => []);
     const remembered = options.bounds ? { bounds: options.bounds, monitor: options.monitor ?? null } : options.at ? null : (loadBounds()[id] ?? null);
     if (remembered?.bounds) return clampToWorkAreas(remembered.bounds, areas, remembered.monitor);
     const size = sizeForPanel(this.dock.panelRect(id));
     if (options.at) return placeAtPointer(options.at, size, areas);
     return placeNextToHost(await this.backend.windowBounds().catch(() => null), size, areas);
+  }
+
+  beginDragOut(id: string): DragOutPreview | null {
+    const view = this.views.find(id);
+    if (this.route || !view || !this.ghost.available || this.popped().has(id) || !this.canPopOut()) return null;
+    return new GhostSession(this.ghost, this.ghostRequest(id, view));
+  }
+
+  /** The ghost of a dragged panel: the size its window will get, its icon and name, and a snapshot taken now. */
+  private async ghostRequest(id: string, view: ImtView): Promise<GhostRequest> {
+    const size = sizeForPanel(this.dock.panelRect(id));
+    const grab = dragGrab(size);
+    const snapshot = await snapshotPanel(this.dock.panelContent(id), size, undefined, SNAPSHOT_TIMEOUT_MS);
+    return {
+      title: view.title,
+      ...(isImtIcon(view.icon) && ICON_PATHS[view.icon] ? { icon: ICON_PATHS[view.icon] } : {}),
+      ...(snapshot ? { snapshot } : {}),
+      dark: typeof document !== 'undefined' && document.documentElement.getAttribute('data-scheme') === 'dark',
+      width: size.width,
+      height: size.height,
+      grabX: grab.x,
+      grabY: grab.y,
+    };
   }
 
   focus(id: string): void {

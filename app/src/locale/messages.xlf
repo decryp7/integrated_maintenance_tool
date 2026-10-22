@@ -19255,14 +19255,14 @@
         <source>At most <x id="max" equiv-text="MAX_POPOUTS"/> panels can be popped out of one window; dock one back first.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/popout/popout.service.ts</context>
-          <context context-type="linenumber">157</context>
+          <context context-type="linenumber">165</context>
         </context-group>
       </trans-unit>
       <trans-unit id="popout.service.failed" datatype="html">
         <source>Could not pop out <x id="title" equiv-text="view.title"/>: <x id="error" equiv-text="errorMessage(e)"/>. It stays docked.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/popout/popout.service.ts</context>
-          <context context-type="linenumber">174</context>
+          <context context-type="linenumber">182</context>
         </context-group>
       </trans-unit>
       <trans-unit id="problems.status.none" datatype="html">
@@ -28045,7 +28045,7 @@
         <source>Now</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/performance/performance-extras.ts</context>
-          <context context-type="linenumber">36</context>
+          <context context-type="linenumber">35,36</context>
         </context-group>
       </trans-unit>
       <trans-unit id="performance.table.suggested" datatype="html">
@@ -28073,7 +28073,7 @@
         <source>The current values are already these.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/performance/performance-extras.ts</context>
-          <context context-type="linenumber">54,58</context>
+          <context context-type="linenumber">54,57</context>
         </context-group>
       </trans-unit>
       <trans-unit id="performance.environment" datatype="html">
