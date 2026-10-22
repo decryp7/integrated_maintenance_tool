@@ -354,7 +354,7 @@ pub fn analyze(store: &dyn Store, kind: AnalyzeKind, filter: &str, limit: usize,
         AnalyzeKind::Patterns => {
             let a = store.patterns(&req).map_err(store_message)?;
             let mut p = a.result;
-            p.sort_by(|x, y| y.count.cmp(&x.count));
+            p.sort_by_key(|x| std::cmp::Reverse(x.count));
             found.total = p.len();
             for x in p.iter().take(limit) {
                 found.lines.push(format!("{:>8}  {}", x.count, x.template));
@@ -365,7 +365,7 @@ pub fn analyze(store: &dyn Store, kind: AnalyzeKind, filter: &str, limit: usize,
         AnalyzeKind::Exceptions => {
             let a = store.exception_groups(&req).map_err(store_message)?;
             let mut g = a.result;
-            g.sort_by(|x, y| y.count.cmp(&x.count));
+            g.sort_by_key(|x| std::cmp::Reverse(x.count));
             found.total = g.len();
             for x in g.iter().take(limit) {
                 found
