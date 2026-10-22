@@ -66,7 +66,7 @@ describe('mock import, files and profile history', () => {
 
   it('reads ?mockSlowImport from the URL (capped)', () => {
     expect(mockOptionsFromSearch('?mockSlowImport=600').slowImportMs).toBe(600);
-    expect(mockOptionsFromSearch('?mockSlowImport=999999').slowImportMs).toBe(10_000);
+    expect(mockOptionsFromSearch('?mockSlowImport=999999').slowImportMs).toBe(120_000);
     expect(mockOptionsFromSearch('?mockSlowImport=x').slowImportMs).toBeUndefined();
   });
 

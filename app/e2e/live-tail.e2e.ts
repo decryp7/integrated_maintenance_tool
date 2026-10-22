@@ -21,8 +21,21 @@ function liveCalls(page: Page) {
   return page.evaluate(() => (globalThis as unknown as { __imtMockLiveCalls?: { enabled: boolean; options: Record<string, unknown> | null }[] }).__imtMockLiveCalls ?? []);
 }
 
+/** Live alerts on Playwright's clock: one live tick every 500 ms (few ticks to run), the alert interval added per test. */
+const ALERTS = '?mockMemoryFeatures=1&mockLive=1&mockLiveRate=20&mockLiveMs=500&mockLiveRotateMs=0';
+
 async function openView(page: Page, name: 'Alerts' | 'Tail status'): Promise<void> {
   await chooseMenu(page, 'View', 'Live', name);
+}
+
+/**
+ * Opens the app on Playwright's clock: the page's timers (and so every mock timer, see core/mock/mock-clock.ts) still
+ * run in real time, and `page.clock.runFor` moves them on at once, so alerts due every second arrive on cue however
+ * loaded the runner is.
+ */
+async function openOnClock(page: Page, search: string): Promise<void> {
+  await page.clock.install();
+  await openAppWith(page, search);
 }
 
 test.describe('live tail: follow now', () => {
@@ -85,10 +98,12 @@ test.describe('live tail: follow now', () => {
 
 test.describe('live tail: alerts', () => {
   test('an alert toast says its severity in words; Show applies the evidence query', async ({ page }, testInfo) => {
-    await openAppWith(page, '?mockMemoryFeatures=1&mockLive=1&mockLiveRate=20&mockLiveRotateMs=0&mockLiveAlertMs=1500');
+    await openOnClock(page, `${ALERTS}&mockLiveAlertMs=1500`);
     await liveOn(page);
-    const toast = page.getByTestId('alert-toast').first();
-    await expect(toast).toBeVisible({ timeout: 10_000 });
+    // The first alert (an error spike) is due 1.5 s of live ticks after live tail starts.
+    await page.clock.runFor(2_000);
+    const toast = page.getByTestId('alert-toast').filter({ hasText: 'Error spike' }).first();
+    await expect(toast).toBeVisible();
     await expect(toast).toContainText('Critical');
     await expect(toast).toContainText('Error spike');
     await expectNoSeriousViolations(page, testInfo, 'alert-toast', 'imt-alert-toasts');
@@ -103,39 +118,49 @@ test.describe('live tail: alerts', () => {
   });
 
   test('mute this kind for 15 min stops its toasts', async ({ page }) => {
-    // Alerts come on the mock's real timers, which a loaded runner (and headless WebKit) slows down.
-    test.setTimeout(120_000);
-    await openAppWith(page, '?mockMemoryFeatures=1&mockLive=1&mockLiveRate=20&mockLiveRotateMs=0&mockLiveAlertMs=1000');
+    // Not waiting on timers (the clock moves them on) but rendering every simulated frame of ~9 s of live tail.
+    test.slow();
+    await openOnClock(page, `${ALERTS}&mockLiveAlertMs=1000`);
     // The alerts panel lists every alert received, so the test can tell when the next error spike was due.
     await openView(page, 'Alerts');
     await liveOn(page);
+    // One alert a second, in turn: error spike, rule, silence.
+    await page.clock.runFor(1_500);
     const toast = page.getByTestId('alert-toast').filter({ hasText: 'Error spike' }).first();
-    await expect(toast).toBeVisible({ timeout: 10_000 });
+    await expect(toast).toBeVisible();
     await toast.getByRole('button', { name: 'Mute this kind for 15 min' }).click();
     await expect(page.getByTestId('alert-toast').filter({ hasText: 'Error spike' })).toHaveCount(0);
     // The next alerts of other kinds still toast.
-    await expect(page.getByTestId('alert-toast').filter({ hasText: /Rule: payment errors|Silence/ }).first()).toBeVisible({ timeout: 10_000 });
-    // The simulation raises error spike, rule, silence in turn: two more rule alerts mean an error spike was due in
-    // between, and it was not toasted (the engine holds muted kinds back).
+    await page.clock.runFor(1_000);
+    await expect(page.getByTestId('alert-toast').filter({ hasText: /Rule: payment errors|Silence/ }).first()).toBeVisible();
+    // Two more rule alerts mean an error spike was due in between, and it was not toasted (the engine holds muted
+    // kinds back).
     const ruleRows = page.locator('imt-alerts-view').getByTestId('alert-row').filter({ hasText: 'Rule: payment errors' });
     const rules = await ruleRows.count();
-    // A rule alert comes every third alert (about 3 s); headless WebKit runs timers slower, so allow for that.
-    await expect.poll(() => ruleRows.count(), { timeout: 60_000 }).toBeGreaterThanOrEqual(rules + 2);
+    await page.clock.runFor(6_000);
+    await expect.poll(() => ruleRows.count()).toBeGreaterThanOrEqual(rules + 2);
     await expect(page.getByTestId('alert-toast').filter({ hasText: 'Error spike' })).toHaveCount(0);
   });
 
   test('the alerts panel lists, filters, clears, counts on its tab, and passes axe', async ({ page }, testInfo) => {
-    test.setTimeout(90_000);
-    await openAppWith(page, '?mockMemoryFeatures=1&mockLive=1&mockLiveRate=20&mockLiveRotateMs=0&mockLiveAlertMs=700');
+    // Two axe scans and every simulated frame of live tail rendered: CPU work, not waiting on timers.
+    test.slow();
+    await openOnClock(page, `${ALERTS}&mockLiveAlertMs=500`);
     await openView(page, 'Alerts');
     const panel = page.locator('imt-alerts-view');
     await expect(panel).toContainText('No alerts yet');
     await liveOn(page);
-    await expect.poll(() => panel.getByTestId('alert-row').count(), { timeout: 30_000 }).toBeGreaterThanOrEqual(3);
+    // Three alerts (one of each kind) are due within 1.5 s of live ticks.
+    await page.clock.runFor(2_000);
+    await expect.poll(() => panel.getByTestId('alert-row').count()).toBeGreaterThanOrEqual(3);
     await expect(page.locator('.imt-tab-label', { hasText: /^Alerts \(\d+\)$/ })).toBeVisible();
     await expectNoSeriousViolations(page, testInfo, 'alerts-panel', 'imt-alerts-view');
     await liveButton(page).click();
     await expect(liveButton(page)).toHaveAttribute('aria-pressed', 'false');
+    // The toasts float over the panel (critical ones stay until closed): close them so they cannot cover its buttons.
+    const dismiss = page.getByRole('button', { name: 'Dismiss alert' });
+    // (A warning toast may time out on its own between the count and the click.)
+    while (await dismiss.count()) await dismiss.first().click({ timeout: 2_000 }).catch(() => undefined);
     const filters = panel.getByRole('group', { name: 'Filter by severity' });
     await filters.getByRole('button', { name: /Critical/ }).click();
     await expect(filters.getByRole('button', { name: /Critical/ })).toHaveAttribute('aria-pressed', 'true');
@@ -214,17 +239,19 @@ test.describe('live tail: status, sources and opening', () => {
   });
 
   test('rolling files of one log collapse into a group that expands, with a rotated badge', async ({ page }, testInfo) => {
-    await openAppWith(page, '?mockMemoryFeatures=1&mockLive=1&mockLiveRate=20&mockLiveRotateMs=1000&mockLiveAlertMs=0');
+    await openOnClock(page, '?mockMemoryFeatures=1&mockLive=1&mockLiveRate=20&mockLiveRotateMs=1000&mockLiveAlertMs=0');
     await liveOn(page);
+    // Two rotations are due within 2 s of live ticks.
+    await page.clock.runFor(2_500);
     const group = page.getByTestId('source-group').first();
-    await expect(group).toBeVisible({ timeout: 10_000 });
+    await expect(group).toBeVisible();
     await expect(group).toHaveAttribute('aria-expanded', 'false');
     await expect(group).toContainText(/\d+ files/);
     await group.click();
     await expect(group).toHaveAttribute('aria-expanded', 'true');
     const members = page.locator('imt-sidebar .src.member');
     await expect.poll(() => members.count()).toBeGreaterThanOrEqual(2);
-    await expect(page.locator('imt-sidebar .state', { hasText: 'Rotated' }).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('imt-sidebar .state', { hasText: 'Rotated' }).first()).toBeVisible();
     await expectNoSeriousViolations(page, testInfo, 'source-groups', 'imt-sidebar');
     await group.click();
     await expect(members).toHaveCount(0);

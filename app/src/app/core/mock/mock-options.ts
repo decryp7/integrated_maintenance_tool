@@ -48,7 +48,7 @@ export function mockOptionsFromSearch(search: string): MockBackendOptions {
   }
   if (p.get('mockCorrupt') === 'markers') options.corruptMarkers = true;
   const slow = positiveInt(p.get('mockSlowImport'));
-  if (slow) options.slowImportMs = Math.min(slow, 10_000);
+  if (slow) options.slowImportMs = Math.min(slow, 120_000);
   const fail: Partial<Record<Failable, number>> = {};
   for (const part of (p.get('mockFail') ?? '').split(',')) {
     const [name, count] = part.split(':');
