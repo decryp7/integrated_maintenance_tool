@@ -1,0 +1,25 @@
+[package]
+name = "chromium-driver"
+license.workspace = true
+repository.workspace = true
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+description = "Self-contained Chromium renderer driver: discovery, supervised launch, a minimal DevTools-protocol client, readiness and challenge detection (no application types; meant to be copied between apps)"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+sha2 = { workspace = true }
+zip = { workspace = true }
+# A small synchronous WebSocket client for the DevTools endpoint on 127.0.0.1 (MIT OR Apache-2.0).
+tungstenite = { version = "0.30", default-features = false, features = ["handshake"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
