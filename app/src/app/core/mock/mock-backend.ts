@@ -129,8 +129,6 @@ export class MockBackend implements ImtBackend {
   private liveOptions: LiveOptions | undefined;
   private liveSim: MockLiveSim;
   private readonly mutes = new MockAlertMutes(() => this.clock.now());
-  /** Records evicted by the simulated retention limit. */
-  private evicted = 0;
   /** Every `setLive` call, in order (tests spy on it). */
   readonly liveCalls: MockLiveCall[] = [];
   /** The redacted view (see `setMockRedaction`); null while off. */
@@ -187,9 +185,9 @@ export class MockBackend implements ImtBackend {
     return (this.options.syntheticTotal ?? 0) + this.liveAdded;
   }
 
-  private apply(): void {
+  private apply(keepIds = false): void {
     const t0 = this.clock.elapsed();
-    this.engine.rebuild(this.dataset.records, this.dataset.sources, this.profile);
+    this.engine.rebuild(this.dataset.records, this.dataset.sources, this.profile, keepIds);
     this.loadMs = Math.round(this.clock.elapsed() - t0);
   }
 
@@ -292,7 +290,6 @@ export class MockBackend implements ImtBackend {
       profileName: this.profile.name ?? 'Unnamed profile',
       loadMs: this.loadMs,
       dropped: [...e.droppedBySource.values()].reduce((a, b) => a + b, 0),
-      evicted: this.evicted,
       plugins: MOCK_PLUGINS,
       exporters: MOCK_EXPORTERS,
       pipeline: e.pipelineStats,
@@ -596,7 +593,7 @@ export class MockBackend implements ImtBackend {
     return (
       this.failing('sourceContext') ??
       this.delay(() => {
-        const rec = this.engine.records[request.recordId];
+        const rec = this.engine.records[this.engine.indexOf(request.recordId) ?? -1];
         if (!rec) throw new Error('That event is no longer in the workspace.');
         const before = Math.max(0, Math.min(500, Math.floor(request.before)));
         const after = Math.max(0, Math.min(500, Math.floor(request.after)));
@@ -676,7 +673,7 @@ export class MockBackend implements ImtBackend {
     return this.delay(() => {
       const counts = new Map<number, number>();
       for (const r of this.engine.records) counts.set(r.source, (counts.get(r.source) ?? 0) + 1);
-      return this.liveSim.status(this.dataset.sources, (id) => counts.get(id) ?? 0, mockWatchMode(this.liveOn, this.liveOptions), this.evicted, this.engine.records.length);
+      return this.liveSim.status(this.dataset.sources, (id) => counts.get(id) ?? 0, mockWatchMode(this.liveOn, this.liveOptions), this.engine.records.length);
     }, 15);
   }
 
@@ -735,7 +732,6 @@ export class MockBackend implements ImtBackend {
       this.liveAdded += batch.records.length;
       report.appended = appended.length;
       report.sourcesChanged = [...new Set([...batch.records.map((r) => r.source), ...report.added])];
-      this.applyRetention(report);
       alerts = batch.alerts.filter((a) => !this.mutes.covers(a));
     }
     report.newestTs = this.engine.newestTs();
@@ -757,27 +753,6 @@ export class MockBackend implements ImtBackend {
       if (r && !last.has(r.source)) last.set(r.source, r);
     }
     return last;
-  }
-
-  /** Simulated retention: the oldest records beyond `maxRecords` or older than `maxAgeMs` are evicted. */
-  private applyRetention(report: TailReport): void {
-    const retention = this.liveOptions?.retention;
-    const newest = this.engine.newestTs();
-    const maxAge = retention?.maxAgeMs ?? null;
-    const maxRecords = retention?.maxRecords ?? null;
-    if (maxAge === null && maxRecords === null) return;
-    const before = this.dataset.records.length;
-    let kept = maxAge !== null && newest !== null ? this.dataset.records.filter((r) => r.ts === null || r.ts >= newest - maxAge) : this.dataset.records;
-    if (maxRecords !== null && kept.length > maxRecords) {
-      kept = [...kept].sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0)).slice(kept.length - maxRecords);
-    }
-    const evicted = before - kept.length;
-    if (evicted <= 0) return;
-    this.dataset.records = kept;
-    this.apply();
-    this.evicted += evicted;
-    report.evicted = evicted;
-    report.idsChangedFrom = 0;
   }
 
   inferRegex(lines: string[]): Promise<InferredRegex> {
@@ -831,17 +806,14 @@ export class MockBackend implements ImtBackend {
     return this.delay(() => {
       const before = this.engine.records;
       const { source, offsetMs } = resolveOffset(request, before, this.dataset.sources);
-      const keys = (request.track ?? []).map((id) => (before[id] ? recordKey(before[id]) : null));
       const previousMs = shiftSource(this.dataset.records, this.dataset.sources, source, offsetMs);
-      this.apply();
-      const after = new Map(this.engine.records.map((r) => [recordKey(r), r.id]));
+      this.apply(true);
       return {
         source,
         offsetMs,
         previousMs,
         // The log store keeps event ids stable when events move.
         idsChangedFrom: null,
-        tracked: keys.map((k) => (k === null ? null : (after.get(k) ?? null))),
       };
     });
   }

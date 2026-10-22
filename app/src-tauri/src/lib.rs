@@ -434,13 +434,8 @@ command_table! {
     Mutation [WINDOW] => ai::vision::ai_image_close,
     Mutation [WINDOW] => ai::vision::ai_model_install_projector,
     Mutation [WINDOW] => ai::vision::ai_model_add_projector,
-    Query [WINDOW] => browser::commands::browser_state,
     Mutation [WINDOW] => browser::commands::browser_open,
     Query [WINDOW] => browser::commands::browser_event_query,
-    Mutation [WINDOW] => browser::commands::browser_nav,
-    Mutation [WINDOW] => browser::commands::browser_close,
-    Quiet [WINDOW] => browser::commands::browser_place,
-    Mutation [WINDOW] => browser::commands::browser_open_external,
     Mutation [WINDOW] => browser::commands::browser_capture,
     Query [WINDOW] => browser::commands::browser_sources,
     Mutation [WINDOW] => browser::commands::browser_discard_sources,
@@ -451,6 +446,10 @@ command_table! {
     Mutation [WINDOW] => browser::commands::browser_agent_continue,
     Mutation [WINDOW] => browser::commands::browser_agent_respond,
     Mutation [WINDOW] => browser::commands::browser_open_suggested,
+    Mutation [WINDOW] => browser::commands::browser_stop,
+    Query [WINDOW] => browser::runtime::browser_runtime_status,
+    Mutation [WINDOW] => browser::runtime::browser_runtime_install,
+    Mutation [WINDOW] => browser::runtime::browser_runtime_remove,
     Query [WINDOW] => ai::runtime_commands::ai_runtimes,
     Mutation [WINDOW] => ai::runtime_commands::ai_runtime_install,
     Mutation [WINDOW] => ai::runtime_commands::ai_runtime_add_archives,
@@ -555,7 +554,7 @@ pub fn run() {
         .on_window_event(window_manager::on_window_event)
         // Every IPC command is logged (with the UI's operation id) before it runs: see `activity`. A web page
         // in the internal browser gets no command at all: see `browser::guard`.
-        .invoke_handler(browser::guard(commands::guard(activity::logged(handler!()))))
+        .invoke_handler(commands::guard(activity::logged(handler!())))
         .build(context)
         .expect("error while building IMT")
         .run(on_run_event);
@@ -860,7 +859,7 @@ pub(crate) mod test_support {
     pub fn test_app_with_commands(profile_dir: Option<PathBuf>) -> tauri::App<MockRuntime> {
         let app = mock_builder()
             .on_window_event(window_manager::on_window_event)
-            .invoke_handler(browser::guard(commands::guard(activity::logged(handler!()))))
+            .invoke_handler(commands::guard(activity::logged(handler!())))
             .build(mock_context(noop_assets()))
             .unwrap();
         manage(app, profile_dir)
@@ -870,7 +869,7 @@ pub(crate) mod test_support {
     pub fn test_app_safe_mode() -> tauri::App<MockRuntime> {
         let app = mock_builder()
             .on_window_event(window_manager::on_window_event)
-            .invoke_handler(browser::guard(commands::guard(activity::logged(handler!()))))
+            .invoke_handler(commands::guard(activity::logged(handler!())))
             .build(mock_context(noop_assets()))
             .unwrap();
         manage_in(app, None, true)

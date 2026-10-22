@@ -224,13 +224,10 @@ test.describe('live tail: status, sources and opening', () => {
     await form.getByLabel('Poll every').fill('500');
     await form.getByLabel('Poll every').press('Tab');
     await expect.poll(async () => (await liveCalls(page)).at(-1)?.options?.['pollIntervalMs']).toBe(500);
-    await form.getByLabel('Keep at most').first().fill('100000');
-    await form.getByLabel('Keep at most').first().press('Tab');
-    await expect.poll(async () => ((await liveCalls(page)).at(-1)?.options?.['retention'] as { maxRecords?: number })?.maxRecords).toBe(100000);
     await form.getByLabel('Deleted files').selectOption('drop');
     await expect.poll(async () => (await liveCalls(page)).at(-1)?.options?.['deletedFiles']).toBe('drop');
-    await form.getByLabel('Flush a partial line after').fill('750');
-    await form.getByLabel('Flush a partial line after').press('Tab');
+    await form.getByLabel('Write the newest event after').fill('750');
+    await form.getByLabel('Write the newest event after').press('Tab');
     await expect.poll(async () => (await liveCalls(page)).at(-1)?.options?.['carryFlushMs']).toBe(750);
     // Detector interval: applied, and clamped to the engine's range (0 .. 600000 ms).
     const detect = form.getByTestId('detect-every');

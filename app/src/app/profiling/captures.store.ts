@@ -9,6 +9,7 @@ import { plural } from '../i18n/locale';
 import { profilingErrorCode } from './profiling-errors';
 import { isHeap, isProfile } from './profiling-format';
 import { ProfileViewState } from './profile-view-state';
+import { RecentService } from '../core/recent/recent.service';
 import { browserMocks } from '../core/mock-registry';
 
 /* v8 ignore start: the native dialog exists only inside Tauri */
@@ -81,6 +82,7 @@ export const CapturesStore = signalStore(
     const backend = inject(ProfilingBackend);
     const state = inject(ProfileViewState);
     const picker = inject(CapturePicker);
+    const recent = inject(RecentService);
 
     /** Keeps the active profile/heap valid after the list changed. */
     const settleActive = (preferProfile: number | null, preferHeap: number | null) => {
@@ -120,9 +122,11 @@ export const CapturesStore = signalStore(
       const errors: string[] = [];
       const failed: string[] = [];
       const missing: string[] = [];
+      const openedPaths: string[] = [];
       for (const path of paths) {
         try {
           opened.push(await backend.open(path));
+          openedPaths.push(path);
         } catch (e) {
           if (missingIsNotice && profilingErrorCode(e) === 'notFound') {
             missing.push(path);
@@ -132,6 +136,8 @@ export const CapturesStore = signalStore(
           failed.push(path);
         }
       }
+      // Rust lists them itself; the browser mock is told here (and the list refreshes).
+      if (openedPaths.length) void recent.opened([], undefined, openedPaths);
       return finishOpen(opened, errors, failed, missing);
     };
 

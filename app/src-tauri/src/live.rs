@@ -5,14 +5,13 @@
 //! module wires it to the OS, the owning window and the background task registry.
 //! Alerts and the per-file tail status come from the window's [`LiveSession`] over the store's ports; an event held back
 //! at the end of a file (plain text events may continue on the next lines) is written by a follow-up refresh once the
-//! file has been idle for [`HOLD_IDLE`].
+//! file has been idle for `TailOptions::carry_flush_ms`.
 
 use crate::background::{BackgroundTasks, TaskKind, TaskSpec};
 use crate::notify::{notify, NotificationKind};
 use crate::windows::{emit_to_window, CurrentWindow, WindowState, Windows};
 use crate::{CmdError, CmdResult};
 use imt_core::live::LiveSession;
-use imt_core::ports::HOLD_IDLE;
 use imt_core::workspace::{
     AlertTarget, FileWatcher, LiveTail, StopToken, TailOptions, TailReport, TailStatus, WatchMode, WatchPreference, WatchSettings,
     WatchSignal, WatchSink, WatcherFactory,
@@ -84,6 +83,8 @@ pub(crate) struct LiveSlot {
     flush_wanted: AtomicBool,
     /// A follow-up refresh is waiting for the idle time.
     flush_scheduled: AtomicBool,
+    /// The annotators' pending cursor (first new event since they last ran) and when they last ran.
+    annotating: Mutex<(Option<imt_core::plugin::annotate::RecordCursor>, Option<std::time::Instant>)>,
 }
 
 impl LiveSlot {
@@ -380,19 +381,34 @@ fn release_off_worker(state: Arc<WindowState>) {
         .spawn(move || drop(state));
 }
 
-/// Reads what was appended to `paths` (the store writes new segments) and evaluates the live alerts; a failure is
-/// logged and reported as no change.
-pub(crate) fn apply_changes(state: &WindowState, paths: &[PathBuf]) -> TailReport {
-    let options = state
+/// The engine-side tail options in effect for a window.
+fn tail_options(state: &WindowState) -> TailOptions {
+    state
         .live
         .options()
         .clone()
         .unwrap_or_else(|| LiveOptions::default().resolved())
-        .tail;
+        .tail
+}
+
+/// Reads what was appended to `paths` (the store writes new segments) and evaluates the live alerts; a failure is
+/// logged and reported as no change.
+pub(crate) fn apply_changes(state: &WindowState, paths: &[PathBuf]) -> TailReport {
+    let options = tail_options(state);
     let done = state.engine.store().map_err(|e| e.message).and_then(|store| {
         let appended = store.append_tail(paths).map_err(|e| e.to_string())?;
-        state.live.flush_wanted.store(!appended.held.is_empty(), Ordering::SeqCst);
-        Ok(state.live.session().after_refresh(&*store, &appended, &options))
+        let report = state.live.session().after_refresh(&*store, &appended, &options);
+        let annotating_later = {
+            let mut a = crate::sync::lock(&state.live.annotating);
+            let (pending, last) = &mut *a;
+            crate::engine::annotate::after_tail(state, &*store, pending, last, appended.first_new, std::time::Instant::now())
+        };
+        // Held events and throttled annotators are both picked up by asking again after the wait.
+        state
+            .live
+            .flush_wanted
+            .store(!appended.held.is_empty() || annotating_later, Ordering::SeqCst);
+        Ok(report)
     });
     match done {
         Ok(report) => report,
@@ -403,7 +419,7 @@ pub(crate) fn apply_changes(state: &WindowState, paths: &[PathBuf]) -> TailRepor
     }
 }
 
-/// After [`HOLD_IDLE`] asks the store again, with no paths, for the events it held back at the end of idle files
+/// After `carry_flush_ms` (the tail option) asks the store again, with no paths, for the events it held back at the end of idle files
 /// (once per wait, however many refreshes asked); repeats while it still holds some. Stops with the session.
 fn schedule_flush<R: Runtime>(app: &AppHandle<R>, state: &Weak<WindowState>, label: &str, stop: &StopToken) {
     let Some(strong) = state.upgrade() else { return };
@@ -413,7 +429,10 @@ fn schedule_flush<R: Runtime>(app: &AppHandle<R>, state: &Weak<WindowState>, lab
     drop(strong);
     let (app, state, label, stop) = (app.clone(), state.clone(), label.to_string(), stop.clone());
     let spawned = std::thread::Builder::new().name("imt-live-flush".into()).spawn(move || loop {
-        std::thread::sleep(HOLD_IDLE + Duration::from_millis(100));
+        let Some(win) = state.upgrade() else { return };
+        let wait = Duration::from_millis(tail_options(&win).carry_flush_ms);
+        drop(win);
+        std::thread::sleep(wait + Duration::from_millis(100));
         let Some(win) = state.upgrade() else { return };
         if stop.is_stopped() {
             win.live.flush_scheduled.store(false, Ordering::SeqCst);
@@ -505,12 +524,10 @@ mod tests {
             "watch": "polling",
             "pollIntervalMs": 5,
             "deletedFiles": "drop",
-            "retention": { "maxRecords": 1000 },
             "carryFlushMs": 50
         }))
         .unwrap();
         assert_eq!(o.watch, WatchPreference::Polling);
-        assert_eq!(o.tail.retention.max_records, Some(1000));
         assert_eq!(o.tail.carry_flush_ms, 50);
         let s = watch_settings(Duration::from_millis(750), &o);
         assert_eq!(
@@ -608,13 +625,60 @@ mod tests {
         let report = apply_changes(&st(), std::slice::from_ref(&b));
         assert_eq!(report.appended, 0, "the last line is held back until the file is idle: {report:?}");
         assert!(st().live.flush_wanted.load(Ordering::SeqCst));
-        std::thread::sleep(HOLD_IDLE + Duration::from_millis(200));
+        std::thread::sleep(Duration::from_millis(
+            imt_core::workspace::TailOptions::default().carry_flush_ms + 200,
+        ));
         let report = apply_changes(&st(), &[]);
         assert_eq!(report.appended, 1, "{report:?}");
         assert!(!st().live.flush_wanted.load(Ordering::SeqCst));
         assert_eq!(crate::test_support::store_summary(&st()).total, 3);
         // A refresh that changes nothing is reported as no change.
         assert!(apply_changes(&st(), &[]).is_empty());
+    }
+
+    /// Annotators run at most once a second while live tail appends. A refresh that has to wait for that keeps what
+    /// arrived pending and asks for a follow-up (`flush_wanted`); the follow-up runs them and stops asking.
+    #[test]
+    fn throttled_annotators_ask_for_a_follow_up_refresh_that_runs_them() {
+        use crate::engine::annotate::{tests::recording_registry, TAIL_EVERY};
+        let (registry, recorder) = recording_registry();
+        let win = crate::windows::tests::window_state("live-annotate", registry);
+        let dir = TempDir::new("live-annotate");
+        let log = dir.0.join("a.log");
+        let line = |s: u32| format!("2026-10-14 10:00:{s:02} INFO event {s}\n");
+        std::fs::write(&log, line(0)).unwrap();
+        crate::test_support::import(&win, std::slice::from_ref(&log));
+        let runs = || recorder.0.lock().unwrap().len();
+        let pending = || crate::sync::lock(&win.live.annotating).0.is_some();
+        let grow = |lines: &[u32]| {
+            use std::io::Write;
+            let mut f = std::fs::OpenOptions::new().append(true).open(&log).unwrap();
+            for s in lines {
+                f.write_all(line(*s).as_bytes()).unwrap();
+            }
+        };
+        // The newest event of a refresh is held back until the file is idle, so each refresh writes the one before.
+        grow(&[1, 2]);
+        let first = apply_changes(&win, std::slice::from_ref(&log));
+        assert_eq!(first.appended, 1, "{first:?}");
+        assert_eq!(runs(), 1, "the first refresh runs the annotators at once");
+        assert!(!pending());
+
+        // Another refresh right away is throttled: its events wait, and a follow-up is wanted.
+        grow(&[3]);
+        let second = apply_changes(&win, std::slice::from_ref(&log));
+        assert_eq!(second.appended, 1, "{second:?}");
+        assert_eq!(runs(), 1, "throttled");
+        assert!(pending(), "what arrived waits for the next run");
+        assert!(win.live.flush_wanted.load(Ordering::SeqCst), "the follow-up is wanted");
+
+        // The follow-up (no paths) once the window is over writes the held event, runs the annotators and stops asking.
+        std::thread::sleep(TAIL_EVERY.max(Duration::from_millis(tail_options(&win).carry_flush_ms)) + Duration::from_millis(200));
+        let again = apply_changes(&win, &[]);
+        assert_eq!(again.appended, 1, "{again:?}");
+        assert_eq!(runs(), 2, "the waiting events were annotated by the follow-up");
+        assert!(!pending());
+        assert!(!win.live.flush_wanted.load(Ordering::SeqCst), "nothing is left to follow up");
     }
 
     /// The tray (main thread) and `set_live` stop a session at once; a stopped session applies nothing.

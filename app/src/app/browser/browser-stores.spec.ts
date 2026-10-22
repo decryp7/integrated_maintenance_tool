@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Logger } from '../core/logger';
 import { MemoryLogger, settle } from '../../testing/helpers';
 import { BrowserBackend, ChatBrowserBackend, TauriBrowserBackend } from './browser-backend';
-import { BrowserStore, MAX_NOTICES } from './browser.store';
+import { BrowserActivityStore } from './browser-activity.store';
 import { BrowserEvent } from './browser.types';
 import { ChatBrowserStore } from './chat-browser.store';
 import { MockBrowserBackend, mockSearchUrl, MockWeb, resetMockWeb } from './mock-browser-backend';
@@ -17,7 +17,7 @@ function setup(web: MockWeb = resetMockWeb()) {
       { provide: Logger, useClass: MemoryLogger },
     ],
   });
-  return { backend, web, browser: TestBed.inject(BrowserStore), chats: TestBed.inject(ChatBrowserStore) };
+  return { backend, web, activity: TestBed.inject(BrowserActivityStore), chats: TestBed.inject(ChatBrowserStore) };
 }
 
 describe('TauriBrowserBackend', () => {
@@ -49,14 +49,10 @@ describe('TauriBrowserBackend', () => {
       return () => undefined;
     });
     const cases: [() => Promise<unknown>, string, unknown][] = [
-      [() => b.state(), 'browser_state', undefined],
       [() => b.open({ kind: 'search', query: 'x' }), 'browser_open', { target: { kind: 'search', query: 'x' } }],
       [() => b.eventQuery(4), 'browser_event_query', { recordId: 4 }],
-      [() => b.nav('back'), 'browser_nav', { command: 'back' }],
-      [() => b.place({ visible: true, rect: { x: 1, y: 2, width: 3, height: 4 }, scale: 2 }), 'browser_place', { placement: { visible: true, rect: { x: 1, y: 2, width: 3, height: 4 }, scale: 2 } }],
-      [() => b.close(), 'browser_close', undefined],
       [() => b.driving(), 'browser_driving', undefined],
-      [() => b.openExternal('https://e.org/'), 'browser_open_external', { url: 'https://e.org/' }],
+      [() => b.stopAll(), 'browser_stop', undefined],
       [() => b.capture('c'), 'browser_capture', { sessionId: 'c' }],
       [() => b.sources('c'), 'browser_sources', { sessionId: 'c' }],
       [() => b.discardSources('c'), 'browser_discard_sources', { sessionId: 'c' }],
@@ -75,98 +71,66 @@ describe('TauriBrowserBackend', () => {
     }
     const seen: BrowserEvent[] = [];
     await b.onEvent((e) => seen.push(e));
-    handlers[0]?.({ type: 'notice', kind: 'popup', url: 'u', message: '' });
+    handlers[0]?.({ type: 'status', text: 'Reading 1 of 3 results' });
     handlers[0]?.('junk');
     handlers[0]?.(null);
     expect(seen).toHaveLength(1);
   });
 });
 
-describe('BrowserStore', () => {
+describe('BrowserActivityStore', () => {
   afterEach(() => TestBed.resetTestingModule());
 
-  it('opens pages and searches and follows the page shown', async () => {
-    const { browser, web } = setup();
-    expect(browser.engine()).toBeNull();
-    await browser.load();
-    expect(browser.loaded() && !browser.page().open).toBe(true);
-    expect(browser.engine()).toBe(web.engine);
-    expect(await browser.go('connection reset by peer')).toBe(true);
+  it('follows who drives and what the AI window does, and forgets it when the AI lets go', async () => {
+    const { activity, web } = setup();
     await settle();
-    expect(browser.page().url).toBe(mockSearchUrl('google', 'connection reset by peer'));
-    browser.setEngine('bing');
-    await browser.go('learn.microsoft.com/dotnet');
-    await settle();
-    expect(browser.page().url).toBe('https://learn.microsoft.com/dotnet');
-    await browser.open({ kind: 'search', query: 'x', engine: 'duckDuckGo' });
-    await settle();
-    expect(browser.page().url).toContain('duckduckgo.com');
-    await browser.nav('back');
-    await settle();
-    expect(browser.page().url).toBe('https://learn.microsoft.com/dotnet');
-    await browser.nav('forward');
-    await browser.nav('reload');
-    await settle();
-    expect(web.history).toHaveLength(3);
-    expect(await browser.openExternal(browser.page().url)).toBe(true);
-    expect(web.external).toEqual([web.page.url]);
-    await browser.close();
-    await settle();
-    expect(browser.page().open).toBe(false);
-    // Loading again keeps the engine the user picked.
-    await browser.load();
-    expect(browser.engine()).toBe('bing');
+    expect(activity.driver()).toBeNull();
+    web.drive({ kind: 'research' });
+    web.report('reading', 'learn.example.com', 'Reading 3 of 5 results');
+    expect(activity.driver()).toEqual({ kind: 'research' });
+    expect(activity.text()).toBe('Reading 3 of 5 results');
+    expect(activity.activity()).toBe('reading');
+    expect(activity.host()).toBe('learn.example.com');
+    web.report('waitingForYou', 'bank.example', undefined);
+    expect(activity.activity()).toBe('waitingForYou');
+    expect(activity.text()).toBe('Reading 3 of 5 results');
+    web.drive(null);
+    expect(activity.driver()).toBeNull();
+    expect([activity.text(), activity.activity(), activity.host()]).toEqual([null, null, null]);
   });
 
-  it('keeps failures for the inline error and retries them', async () => {
-    const { browser, backend } = setup();
-    expect(await browser.go('javascript:alert(1)')).toBe(false);
-    expect(browser.error()).toContain('http and https');
-    browser.dismissError();
-    expect(browser.error()).toBeNull();
-    const fail = vi.spyOn(backend, 'state').mockRejectedValueOnce('engine down');
-    await browser.load();
-    expect(browser.error()).toBe('engine down');
-    await browser.retry();
-    expect(fail).toHaveBeenCalledTimes(2);
-    expect(browser.error()).toBeNull();
-    vi.spyOn(backend, 'nav').mockRejectedValueOnce({});
-    await browser.nav('reload');
-    expect(browser.error()).toBe('The browser did not answer.');
-  });
-
-  it('collects notices, newest last, without duplicates', async () => {
-    const { browser, web } = setup();
+  it('starts from who drives now, but an event wins over a slower answer', async () => {
+    const web = resetMockWeb();
+    web.driver = { kind: 'agent', sessionId: 'c-1' };
+    const { activity } = setup(web);
     await settle();
-    for (let i = 0; i < MAX_NOTICES + 2; i++) web.emit({ type: 'notice', kind: 'popup', url: `https://p${i}.example/`, message: '' });
-    web.emit({ type: 'notice', kind: 'popup', url: `https://p${MAX_NOTICES + 1}.example/`, message: '' });
-    expect(browser.notices()).toHaveLength(MAX_NOTICES);
-    expect(browser.notices().at(-1)?.url).toBe(`https://p${MAX_NOTICES + 1}.example/`);
-    browser.dismiss(browser.notices()[0]!.id);
-    expect(browser.notices()).toHaveLength(MAX_NOTICES - 1);
-    web.emit({ type: 'sources', sessionId: 'x', sources: [] });
-    expect(browser.notices()).toHaveLength(MAX_NOTICES - 1);
-  });
-
-  it('knows who drives, whether the page is docked, and numbers the keys taken from the page', async () => {
-    const { browser, web, backend } = setup();
+    expect(activity.driver()).toEqual({ kind: 'agent', sessionId: 'c-1' });
+    activity.onEvent({ type: 'driving', by: null });
     web.driver = { kind: 'research' };
-    vi.spyOn(backend, 'state').mockResolvedValueOnce({ page: web.page, engine: 'google', customEngine: false, docked: false });
-    await browser.load();
-    expect(browser.docked()).toBe(false);
-    expect(browser.driver()).toEqual({ kind: 'research' });
-    web.drive({ kind: 'agent', sessionId: 'c-1' });
-    expect(browser.driver()).toEqual({ kind: 'agent', sessionId: 'c-1' });
-    // A load after an event keeps what the event said.
-    web.driver = null;
-    await browser.load();
-    expect(browser.driver()).toEqual({ kind: 'agent', sessionId: 'c-1' });
-    expect(browser.key()).toBeNull();
-    web.emit({ type: 'key', action: 'focusAddress' });
-    web.emit({ type: 'key', action: 'focusAddress' });
-    expect(browser.key()).toEqual({ seq: 2, key: { action: 'focusAddress' } });
-    web.emit({ type: 'key', action: 'shortcut', key: 'p', ctrl: true, shift: true, alt: false, meta: false });
-    expect(browser.key()?.key).toEqual({ action: 'shortcut', key: 'p', ctrl: true, shift: true, alt: false, meta: false });
+    await activity.load();
+    expect(activity.driver()).toBeNull();
+  });
+
+  it('stays hidden when the engine does not answer', async () => {
+    const { activity, backend } = setup();
+    vi.spyOn(backend, 'driving').mockRejectedValueOnce(new Error('down'));
+    await activity.load();
+    expect(activity.driver()).toBeNull();
+  });
+
+  it('the mock opens addresses in the default browser and stops everything at once', async () => {
+    const { backend, web, chats } = setup();
+    expect(await backend.open({ kind: 'search', query: 'a b' })).toBe(mockSearchUrl('google', 'a b'));
+    expect(await backend.open({ kind: 'address', text: 'learn.microsoft.com/dotnet', engine: 'bing' })).toBe('https://learn.microsoft.com/dotnet');
+    expect(web.external).toHaveLength(2);
+    await expect(backend.open({ kind: 'address', text: 'javascript:alert(1)' })).rejects.toThrow('http and https');
+    await expect(backend.open({ kind: 'search', query: ' ' })).rejects.toThrow('empty');
+    expect(await backend.stopAll()).toBe(false);
+    await chats.setAgent('chat-1', true);
+    web.drive({ kind: 'agent', sessionId: 'chat-1' });
+    expect(await backend.stopAll()).toBe(true);
+    expect(web.driver).toBeNull();
+    expect(web.status('chat-1').agent).toBe(false);
   });
 });
 
@@ -200,10 +164,10 @@ describe('ChatBrowserStore', () => {
   });
 
   it('adds pages for the next question and answers approvals', async () => {
-    const { chats, browser } = setup(web);
+    const { chats } = setup(web);
     expect(await chats.capture('chat-1')).toBe(false);
-    expect(chats.error()).toContain('not open');
-    await browser.go('https://learn.example.com/a');
+    expect(chats.error()).toContain('No page is open');
+    web.show('https://learn.example.com/a');
     expect(await chats.capture('chat-1')).toBe(true);
     expect(chats.sourcesOf('chat-1').map((s) => s.url)).toEqual(['https://learn.example.com/a']);
     expect(chats.sourcesOf(null)).toEqual([]);

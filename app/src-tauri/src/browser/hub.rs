@@ -3,17 +3,13 @@
 //! handed to a chat, links a chat suggested, and each chat's hold on the browser (`imt_ai::browser::ChatBrowser`).
 //! Plain Rust, no Tauri.
 
-use super::geometry::View;
 use imt_ai::browser::{AgentLimits, ChatBrowser, PageCapture, ResearchSettings, SearchSettings};
 use serde::Serialize;
 use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, Condvar, Mutex, MutexGuard, RwLock};
-use std::time::{Duration, Instant};
+use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 
 /// Pages a chat may hold for its next question.
 pub const MAX_ATTACHMENTS: usize = 3;
-/// Popups remembered for "open in your browser" (the newest win).
-const MAX_POPUPS: usize = 5;
 /// Links remembered per chat for "Open".
 const MAX_SUGGESTED: usize = 50;
 /// The hold of a research job is the chat key `research:<job id>`.
@@ -42,36 +38,19 @@ pub struct BrowserSettings {
     pub agent: AgentLimits,
     /// Research mode: automatic or offered, and how many results it reads.
     pub research: ResearchSettings,
-}
-
-/// The page a window's browser shows, for the Browser panel.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PageState {
-    pub open: bool,
-    pub url: String,
-    pub title: String,
-    pub loading: bool,
-    /// Increments with every finished page load.
-    #[serde(skip)]
-    pub loads: u64,
+    /// A browser the user chose (empty: the installed or discovered one).
+    pub browser_path: Option<std::path::PathBuf>,
 }
 
 #[derive(Default)]
 struct Owner {
-    page: PageState,
     chats: HashMap<String, Arc<ChatBrowser>>,
     /// The chat whose agent turn drives the browser now.
     driving: Option<String>,
     /// The driver last announced to the windows ([`BrowserHub::driving_changed`]).
     announced: Option<AiDriver>,
-    popups: VecDeque<String>,
     attachments: HashMap<String, Vec<PageCapture>>,
     suggested: HashMap<String, VecDeque<String>>,
-    /// The window the Browser panel is in (the owner, or one of its pop-outs), as the panel last said.
-    host: Option<String>,
-    /// Where the panel last placed the page.
-    view: Option<View>,
 }
 
 impl Owner {
@@ -92,7 +71,6 @@ impl Owner {
 #[derive(Default)]
 pub struct BrowserHub {
     owners: Mutex<HashMap<String, Owner>>,
-    loaded: Condvar,
     settings: RwLock<BrowserSettings>,
 }
 
@@ -111,95 +89,6 @@ impl BrowserHub {
 
     pub fn set_settings(&self, s: BrowserSettings) {
         *crate::sync::write(&self.settings) = s;
-    }
-
-    // ---- the page ----
-
-    pub fn page(&self, owner: &str) -> PageState {
-        self.lock().get(owner).map(|o| o.page.clone()).unwrap_or_default()
-    }
-
-    /// Updates the page state; returns the new state.
-    pub fn update_page(&self, owner: &str, f: impl FnOnce(&mut PageState)) -> PageState {
-        let state = self.with(owner, |o| {
-            let before = o.page.loads;
-            f(&mut o.page);
-            (o.page.clone(), o.page.loads != before)
-        });
-        if state.1 {
-            self.loaded.notify_all();
-        }
-        state.0
-    }
-
-    /// The page was closed: the page is gone, a driving agent stops, popups are forgotten.
-    pub fn closed(&self, owner: &str) -> PageState {
-        let page = self.update_page(owner, |p| {
-            *p = PageState {
-                loads: p.loads + 1,
-                ..PageState::default()
-            }
-        });
-        self.with(owner, |o| {
-            o.popups.clear();
-            if let Some(c) = o.driving.as_ref().and_then(|id| o.chats.get(id)) {
-                c.stop();
-            }
-        });
-        page
-    }
-
-    /// Waits until a page load finishes after `since` loads (or `timeout` passes); true when one did.
-    pub fn wait_loaded(&self, owner: &str, since: u64, timeout: Duration) -> bool {
-        let deadline = Instant::now() + timeout;
-        let mut guard = self.lock();
-        loop {
-            let loads = guard.get(owner).map_or(since, |o| o.page.loads);
-            if loads > since {
-                return true;
-            }
-            let left = deadline.saturating_duration_since(Instant::now());
-            if left.is_zero() {
-                return false;
-            }
-            guard = self.loaded.wait_timeout(guard, left).unwrap_or_else(|p| p.into_inner()).0;
-        }
-    }
-
-    // ---- where the page is ----
-
-    /// The Browser panel of `owner`, in window `host`, placed the page (hidden, or at a place).
-    pub fn set_placement(&self, owner: &str, host: &str, view: View) {
-        self.with(owner, |o| {
-            o.host = Some(host.to_string());
-            o.view = Some(view);
-        });
-    }
-
-    /// The window the panel is in (none reported yet) and where it placed the page (hidden until it says).
-    pub fn placement(&self, owner: &str) -> (Option<String>, View) {
-        self.lock()
-            .get(owner)
-            .map_or((None, View::Hidden), |o| (o.host.clone(), o.view.unwrap_or(View::Hidden)))
-    }
-
-    // ---- popups ----
-
-    pub fn note_popup(&self, owner: &str, url: &str) {
-        self.with(owner, |o| {
-            o.popups.retain(|u| u != url);
-            o.popups.push_back(url.to_string());
-            while o.popups.len() > MAX_POPUPS {
-                o.popups.pop_front();
-            }
-        });
-    }
-
-    /// Whether `url` may open in the system browser: the page shown, or a popup it asked for.
-    pub fn may_open_externally(&self, owner: &str, url: &str) -> bool {
-        self.lock()
-            .get(owner)
-            .is_some_and(|o| o.page.url == url || o.popups.iter().any(|u| u == url))
     }
 
     // ---- chats ----
@@ -236,7 +125,6 @@ impl BrowserHub {
                 c.stop();
             }
         }
-        self.loaded.notify_all();
     }
 
     /// The chat that drives the browser now: Ok when it may (no other chat drives it).
@@ -259,6 +147,7 @@ impl BrowserHub {
     }
 
     /// The driving chat's hold, if a chat drives the browser.
+    #[cfg(test)]
     pub fn driver(&self, owner: &str) -> Option<Arc<ChatBrowser>> {
         self.lock()
             .get(owner)
@@ -286,6 +175,15 @@ impl BrowserHub {
             o.announced = now.clone();
             now
         })
+    }
+
+    /// Stop: every hold of the window stops (agent turns, read-along, research).
+    pub fn stop_all(&self, owner: &str) {
+        self.with(owner, |o| {
+            for c in o.chats.values() {
+                c.stop();
+            }
+        });
     }
 
     /// Stop of research: every research hold of the window stops at once (its job ends soon after).
@@ -365,50 +263,6 @@ mod tests {
             truncated: false,
             removed: vec![],
         }
-    }
-
-    #[test]
-    fn page_loads_wake_waiters_and_closing_resets_the_page() {
-        let hub = Arc::new(BrowserHub::default());
-        assert_eq!(hub.page("main"), PageState::default());
-        let since = hub.page("main").loads;
-        let h = hub.clone();
-        let t = std::thread::spawn(move || h.wait_loaded("main", since, Duration::from_secs(5)));
-        std::thread::sleep(Duration::from_millis(20));
-        let s = hub.update_page("main", |p| {
-            p.open = true;
-            p.url = "https://e.org/".into();
-            p.loads += 1;
-        });
-        assert!(t.join().unwrap());
-        assert!(s.open && s.url == "https://e.org/");
-        assert!(
-            !hub.wait_loaded("main", s.loads, Duration::from_millis(10)),
-            "no new load: times out"
-        );
-        let c = hub.chat("main", "chat-1");
-        c.set_agent(true, AgentLimits::default());
-        assert!(hub.begin_driving("main", "chat-1"));
-        let closed = hub.closed("main");
-        assert!(!closed.open && closed.url.is_empty());
-        assert!(!c.may_act(), "closing the browser stops the agent");
-    }
-
-    #[test]
-    fn only_the_shown_page_or_a_popup_opens_externally() {
-        let hub = BrowserHub::default();
-        hub.update_page("main", |p| p.url = "https://e.org/a".into());
-        assert!(hub.may_open_externally("main", "https://e.org/a"));
-        assert!(!hub.may_open_externally("main", "https://evil.example/"));
-        for i in 0..7 {
-            hub.note_popup("main", &format!("https://p{i}.example/"));
-        }
-        assert!(hub.may_open_externally("main", "https://p6.example/"));
-        assert!(
-            !hub.may_open_externally("main", "https://p0.example/"),
-            "only the newest popups are kept"
-        );
-        assert!(!hub.may_open_externally("w-2", "https://e.org/a"), "per window");
     }
 
     #[test]
@@ -502,8 +356,8 @@ mod tests {
         agent(&hub, "c-1");
         assert!(hub.begin_driving("main", "c-1"));
         assert!(hub.driving_changed("main").is_some_and(|d| d.is_some()));
-        hub.closed("main");
-        assert_eq!(hub.driving_changed("main"), Some(None), "the browser window was closed");
+        hub.stop_all("main");
+        assert_eq!(hub.driving_changed("main"), Some(None), "stopped: the AI no longer acts");
         hub.end_driving("main", "c-1");
         agent(&hub, "c-1");
         assert!(hub.begin_driving("main", "c-1"));
@@ -551,30 +405,6 @@ mod tests {
             serde_json::to_value(AiDriver::Research).unwrap(),
             serde_json::json!({"kind": "research"})
         );
-    }
-
-    #[test]
-    fn the_panel_placement_is_kept_per_window_until_the_window_goes() {
-        use super::super::geometry::PhysicalRect;
-        let hub = BrowserHub::default();
-        assert_eq!(
-            hub.placement("main"),
-            (None, View::Hidden),
-            "nothing reported: hidden in its own window"
-        );
-        let at = View::At(PhysicalRect {
-            x: 1,
-            y: 2,
-            width: 3,
-            height: 4,
-        });
-        hub.set_placement("main", "p-main-1", at);
-        assert_eq!(hub.placement("main"), (Some("p-main-1".into()), at));
-        hub.closed("main");
-        assert_eq!(hub.placement("main").1, at, "closing the page keeps where the panel is");
-        assert_eq!(hub.placement("w-2"), (None, View::Hidden), "per window");
-        hub.forget_owner("main");
-        assert_eq!(hub.placement("main"), (None, View::Hidden));
     }
 
     #[test]

@@ -1,4 +1,4 @@
-//! Settings ▸ Web browser: the search engine of the address box and "Search the web for this error" (with a
+//! Settings ▸ Web browser: the browser to drive, the search engine for research and "Search the web for this error" (with a
 //! user-defined URL template), and the limits of agent mode.
 
 use super::hub::{BrowserHub, BrowserSettings};
@@ -13,6 +13,8 @@ use std::sync::Arc;
 
 pub struct BrowserSection {
     pub hub: Arc<BrowserHub>,
+    /// Told which browser the user chose (none in tests).
+    pub renderers: Option<Arc<super::renderer::Renderers>>,
 }
 
 fn int(min: u32, max: u32) -> FieldKind {
@@ -36,6 +38,11 @@ pub fn to_settings(values: &ValidValues) -> anyhow::Result<BrowserSettings> {
     if engine == SearchEngine::Custom && custom.is_none() {
         anyhow::bail!("set the custom search address (with {{q}} where the search text goes) or choose another engine");
     }
+    let browser_path = values
+        .text("browserPath")
+        .map(str::trim)
+        .filter(|p| !p.is_empty())
+        .map(std::path::PathBuf::from);
     let num = |k: &str, d: u32| values.int(k).and_then(|v| u32::try_from(v).ok()).unwrap_or(d);
     Ok(BrowserSettings {
         search: SearchSettings { engine, custom },
@@ -47,6 +54,7 @@ pub fn to_settings(values: &ValidValues) -> anyhow::Result<BrowserSettings> {
             auto: values.bool("autoResearch").unwrap_or(true),
             max_results: clamp_results(values.text("researchResults").and_then(|t| t.parse().ok())),
         },
+        browser_path,
     })
 }
 
@@ -55,7 +63,7 @@ impl Configurable for BrowserSection {
         let engines = SearchEngine::ALL.iter().map(|e| EnumOption::new(e.id(), e.label())).collect();
         SettingsSection::new(SECTION, "Web browser", SectionOwner::App)
             .describe(
-                "IMT's internal browser: you browse; the AI sees a page only when you add it to a chat, turn on read-along or agent mode for a chat. Its cookies and history are kept apart from IMT.",
+                "The AI's browser: research, Read along and Agent mode drive a real Chromium-based browser (its own throwaway profile; the window shows next to IMT). The AI sees a page only through research, read-along or agent mode, or when you add one to a chat. Links you open go to your default browser.",
             )
             .field(
                 SettingField::new("searchEngine", "Search engine", FieldKind::Enum { options: engines }, SearchEngine::default().id())
@@ -72,6 +80,11 @@ impl Configurable for BrowserSection {
                     "",
                 )
                 .describe("For the Custom engine: an https address with {q} where the search text goes, for example https://search.example.org/?q={q}."),
+            )
+            .field(
+                SettingField::new("browserPath", "Browser to use", FieldKind::Text { max_len: 1024, pattern: None }, "").describe(
+                    "Research and the chat's browser modes drive a Chromium-based browser (Edge, Chrome or Chromium). Leave empty to use the downloaded Chromium or the one found on this computer.",
+                ),
             )
             .field(
                 SettingField::new("agentStepLimit", "Agent steps per task", int(MIN_STEP_LIMIT, MAX_STEP_LIMIT), DEFAULT_STEP_LIMIT)
@@ -106,6 +119,9 @@ impl Configurable for BrowserSection {
 
     fn apply_settings(&self, values: &ValidValues) -> anyhow::Result<()> {
         self.hub.set_settings(to_settings(values)?);
+        if let Some(r) = &self.renderers {
+            r.set_configured(self.hub.settings().browser_path);
+        }
         Ok(())
     }
 }

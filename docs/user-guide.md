@@ -6,11 +6,20 @@ first walk-through, see the two-minute tour in the [README](../README.md#quick-s
 
 - [Glossary](#glossary)
 - [First run and layout](#first-run-and-layout)
+- [Projects](#projects)
+- [Appearance](#appearance)
 - [Supported inputs](#supported-inputs)
 - [Profiles](#profiles)
 - [Query language](#query-language)
-- [Internal web browser](#internal-web-browser)
-- [Keyboard shortcuts](#keyboard-shortcuts)
+- [The Store pane and the SQL console](#the-store-pane-and-the-sql-console)
+- [The AI's browser](#the-ais-browser)
+- [Knowledge files](#knowledge-files-teach-the-ai-your-systems), [known issues](#known-issues), the [incident summary](#incident-summary-report) and [playbooks](#investigation-playbooks)
+- [AI runtime and model updates](#ai-runtime-and-model-updates)
+- [Disk usage and project stores](#disk-usage-and-project-stores)
+- [Keyboard shortcuts](#keyboard-shortcuts) and [changing them](#change-a-shortcut)
+- [Video sources](#video-sources)
+- [Dump symbols](#dump-symbols)
+- [Share a redacted copy](#share-a-redacted-copy)
 - [Command line](#command-line)
 - [Troubleshooting](#troubleshooting)
 
@@ -31,7 +40,7 @@ One word, one meaning: menus, the palette, Settings and these docs use these ter
 ## First run and layout
 
 With nothing open, IMT shows the welcome page: **Open folder…**, **Open files…** or **Try a demo** (or drop
-files anywhere). After opening data you get the **Focused** layout: the timeline over the events grid, with
+files anywhere). After opening data you get the **Investigate** perspective: the timeline over the events grid, with
 the inspector sliding out from the right when you select an event.
 
 - **Filter bar** (one row): search (`.*` regex, `Aa` match case), level chips, the time range (click to
@@ -52,11 +61,22 @@ the inspector sliding out from the right when you select an event.
 - **Sidebar**: the Explorer; the **Fields** section starts collapsed (click its header; IMT remembers).
 - **Set up analysis…** for a folder of several files is offered in Notifications (the bell).
 
+- **Home** (*View ▸ Home*) is the dashboard of everything opened: live tiles for events, sources, errors and warnings with
+  their trend, crashes, anomalies, exception groups, time span, store size and memory; the history of events by level
+  (click a bar or drag across it to set the time range); the health check, most severe first, each finding with a button
+  to jump to the time, show the events or fix the cause; recent activity and quick actions. The counts appear at once and
+  the slower analyses fill in after. A checkbox on Home opens it after every import.
+- **Timeline minimap**: a thin strip above the histogram shows the whole data range with a window for what is visible. Drag
+  the window to pan, drag an edge to zoom, click the strip to centre the window, double-click to fit; with the window
+  focused the arrow keys pan and `Home`/`End` go to the ends.
+- **Search everything** (`Ctrl/⌘+Shift+F`) searches events, sources, fields and values, marker kinds, exception groups,
+  notes and knowledge files at once and opens the match you choose.
+
 ### Perspectives
 
 A perspective is a named window arrangement. **Investigate** (the default) is the timeline over the events;
 **Profiling** opens with the captures list (open a capture or profile a process); **Live** adds tail status and
-alerts below the events; **Diagnostics** adds problems, jobs, error snapshots, the store and plugin health. Switch
+alerts below the events; **Diagnostics** adds problems, jobs, error snapshots and the store. Switch
 with the activity bar's *Perspectives* button, *Window ▸ Perspectives* or `Ctrl/⌘+1…9`; each perspective
 remembers how you left it, and *Reset perspective* rebuilds it. *Save current as perspective…* adds your own, and
 *Manage perspectives…* renames, reorders and deletes them. Opening a performance capture switches to Profiling
@@ -86,7 +106,7 @@ Everything applies at once, in every window, and is kept for your user (not in p
 
 | Setting | Choices | Also in |
 |---|---|---|
-| **Theme** | *Calm* (default): neutral and quiet, colour only for the data. *Console*: soft cards, violet accent, richer colour. *Precision*: paper and ink, hairlines, mono figures, the densest view. | *View ▸ Theme*; palette *Theme: Calm* / *Theme: Console* / *Theme: Precision* |
+| **Theme** | *Calm* (default): neutral and quiet, colour only for the data. *Console*: soft cards, violet accent, richer colour. *Precision*: paper and ink, hairlines, mono figures, the densest view. *High contrast*: black or white with WCAG AAA text and strong outlines. *Follow system* (default) uses Calm, or High contrast when the operating system asks for more contrast. | *View ▸ Theme*; palette *Theme: Calm* / *Theme: Console* / *Theme: Precision* |
 | **Interface font** | *System* (default): the operating system's font, like other desktop apps. *Theme*: the theme's own font. Log text stays monospaced | |
 | **Colour scheme** | *System* (default, follows the operating system), *Light*, *Dark* | *View ▸ Theme*; palette *Colour scheme: …* |
 | **Density** | *Comfortable* (default) or *Compact* rows and timeline lanes | |
@@ -367,14 +387,19 @@ FROM events WHERE fields['ElapsedMs'] IS NOT NULL GROUP BY path ORDER BY p95 DES
 SELECT n.text, e.message FROM notes n JOIN events e ON e.id = n.event_id;
 ```
 
-## Internal web browser
+## The AI's browser
 
-*Search the web for this error* and the address box of the **Browser** panel (Tools ▸ Browser) open pages in
-the panel itself. It docks like any other panel: drag its tab next to Timeline or Events, split it, maximise it
-or pop it out into a window of its own. Searches use **Google** unless you pick another engine: Settings ▸ Web
-browser ▸ Search engine sets it for every search (DuckDuckGo, Bing, or *Custom* with your own
-address containing `{q}`), and the picker next to the address box or in the search dialog changes it for one
-search.
+*Search the web for this error* opens the search in your **default browser**, and so do links from events, exceptions and
+research results. Searches use **Google** unless you pick another engine: Settings ▸ Web browser ▸ Search engine sets it
+for every search (DuckDuckGo, Bing, or *Custom* with your own address containing `{q}`), and the picker in the search
+dialog changes it for one search.
+
+Research and the chat's **Browser** menu (*Off*, *Read along*, *Agent*) use a real Chromium-based browser that IMT starts
+for the AI: Edge, Chrome or Chromium from your computer, or a Chromium you download in Settings ▸ Web browser (*Download
+Chromium*, about 200 MB, checksum verified, on request only). *Read along* and *Agent* show its window next to IMT;
+research keeps it out of sight. When a page needs you (a cookie consent or a "verify you are human" check) the window comes
+to the front, you deal with it, and the AI goes on. The browser has a throwaway profile (no cookies of yours, nothing
+kept) and the real user agent. If no browser is found, research and the modes say so and point to Settings.
 
 **The search text.** For *Search the web for this error* and *Research this*, the AI writes the search from your
 question and the event: it keeps the exception type, the decisive words of the message, error codes and the
@@ -384,23 +409,13 @@ what looks private or comes from your logs is taken out; in *Research this*, it 
 or edit it (*Research anyway*). Either way you see the text and can change it before anything is searched;
 *Let the AI write it* drafts it again. Without a model, IMT builds the text itself, as before.
 
-**Keyboard.** Ctrl+L (⌘+L) puts you in the address box, also while you are in the page; Esc in the page gives the
-keyboard back to IMT; IMT's own shortcuts (Ctrl+Shift+…, Alt+…, F1) work while you are in the page. On macOS and
-Linux, keys typed in the page stay with the page: click into IMT first.
-
-**Menus and dialogs.** The page is drawn by the system's web view, above IMT. While a menu, dialog, toast or the
-drag guides of a panel would cover it, the page steps aside and the panel says so; it comes back when they close.
-
-When a chat's **agent mode** or a **research** drives the browser, the Browser panel says so in its header:
-*AI is browsing*, what the AI does (the step, or the result page it reads) and **Stop**; its tab reads
-"Browser · AI is browsing". **Stop** ends agent mode for the chat (a step waiting for your approval is denied) or
-cancels the research, the same as Stop in the chat. It goes away as soon as the AI lets go of the browser: after
-Stop, when the answer or the research is done, cancelled or failed, when you turn agent mode off, or when you
-close the page or its IMT window. The header is part of IMT, not of the web page: a page cannot show, hide or
-press it. When the AI opens a page, the Browser panel opens without taking the focus.
-
-On Linux the page opens in a window of its own (the system's web view cannot be placed inside the panel there);
-the panel keeps the address box, the notices and *AI is browsing* with Stop.
+**How you can tell the AI is driving a page.** Every indicator is outside the page (IMT never puts anything into a web
+page): Chrome's banner "Chrome is being controlled by automated test software", a window frame in IMT's accent colour
+(best effort; some browser versions ignore it), and in IMT a **status chip** with what the AI does ("Reading 3 of 5
+results"), the site and **Stop**. Stop ends the browser process at once, denies a step waiting for your approval and ends
+agent mode or cancels the research, the same as Stop in the chat. The chip goes away as soon as the AI lets go: after Stop,
+when the answer or the research is done, cancelled or failed, or when you turn agent mode off. The research log lists every
+page it opened and skipped.
 
 ## Knowledge files: teach the AI your systems
 
@@ -499,11 +514,12 @@ turns it off, and the largest value is 365.
 | Shortcut | Action |
 |---|---|
 | `Mod+K` | Command palette (every action is in it) |
-| `F1` | Keyboard shortcuts (searchable, printable; generated from the commands) |
+| `F1` | Keyboard shortcuts (searchable, printable; generated from the commands; *Edit shortcuts…* changes them, see below) |
 | `Mod+Z` / `Mod+Shift+Z` | Undo / redo the last edit (filters, marker and highlight rules, profile edits, dashboards, reports) |
 | `Mod+O` / `Mod+Shift+O` | Open files / open folder |
 | `Mod+F` | Find: focus the search box (*Edit ▸ Find*) |
 | `Mod+/` | Focus the search field |
+| `Mod+Shift+F` | Search everything |
 | `Mod+Enter` | Run the query (in the search field) |
 | `Mod+Shift+M` | Analyse this moment |
 | `Mod+Shift+N` | New window |
@@ -512,6 +528,9 @@ turns it off, and the largest value is 365.
 | `Mod+Shift+E` | Export events |
 | `Mod+Shift+V` | Paste as log (Edit menu) |
 | `Mod+Shift+X` | Toggle the redacted view |
+| `Mod+Shift+F12` | Capture a diagnostic screenshot (error snapshot) |
+| `Ctrl+Alt+O` / `Ctrl+Alt+H` | Pop the panel out to a window / auto-hide or pin a tool window |
+| `Shift+Alt+Enter` | Full screen |
 | `Mod+B` | Toggle the sidebar |
 | `F6` / `Shift+F6` | Next / previous region: activity bar, side bar, filter bar, each panel group, status bar |
 | `Mod+0` | Focus the side bar |
@@ -533,6 +552,32 @@ To float a panel inside the window, choose **Float** in its tab menu or **Window
 tab dragged off the docking guides and released inside the window goes back where it was
 (**Release to cancel**); drag it outside the window and a ghost of the new window follows the pointer
 (also over other apps and monitors): release it to open the panel there.
+
+## Change a shortcut
+
+*Settings ▸ Keyboard* (or *Help ▸ Keyboard shortcuts ▸ Edit shortcuts…*) lists every command with its key. *Change* records a new
+key and warns when another command or a built-in key already uses it (Replace or Cancel); the cheat sheet, the menus and the
+palette show your keys. Overrides are kept for your user. *High contrast* is chosen automatically when the operating system
+asks for more contrast (or in *View ▸ Theme*), and *Help ▸ What's new* shows the release notes, once after an update.
+
+## Video sources
+
+*File ▸ Open video…* (or drop a recording) analyses a screen recording and puts its moments next to the logs. The first time,
+*Settings ▸ Video* downloads a pinned FFmpeg build (about 55 to 80 MB, checked before use) or lets you pick an `ffmpeg` of your
+own; on macOS you provide it (for example Homebrew's). The **Video** view shows the player, the frame strip (drop frames, add
+the one at the player position, switch between *changes* and *interval* mode and analyse again), the alignment with its
+evidence ("the clock in frame 4 read 10:42:07", the container's creation time, the file time or a start you set), the
+model's description and your note for each frame, *Explain with AI* and *Find related logs*. The video is a source with its
+own lane; it stays referenced by SHA-256 unless you choose *Include the video in the project*. Up to 120 frames per video,
+600 per project and 6 hours of video; a model without vision is never sent the frames.
+
+## Dump symbols
+
+Frames of a dump are named from PDBs whose identity (name, GUID, age) matches the module's: a PDB of the same name but another
+build is never used. *Settings ▸ Dumps* sets the local symbol folders; *Settings ▸ Symbols* turns on HTTPS symbol servers
+(off by default; only the PDB's name, GUID and age are sent), their size and time limits and the cache folder, which is
+trimmed to its size cap. The Modules table says per module why it has no names (not needed, not found, not on the server, a
+different build, unreadable, download failed) and what to do next. UMDH logs keep the names UMDH wrote.
 
 ## Share a redacted copy
 

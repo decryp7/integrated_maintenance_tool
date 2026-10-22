@@ -3,6 +3,7 @@ import { DIALOG_REF } from '../ui/dialog.service';
 import { AiSettingsExtras } from '../ai/settings/ai-settings-extras';
 import { PerformanceExtras } from './performance/performance-extras';
 import { LiveTailSettings } from '../live/live-tail-settings';
+import { BrowserRuntimeSettings } from '../browser/browser-runtime-settings';
 import { UpdatesSettings } from '../updates/updates-settings';
 import { KnowledgeSettings } from '../ai/knowledge/knowledge-settings';
 import { EngineSettingsStore } from './engine-settings.store';
@@ -33,7 +34,7 @@ import { SettingField, SettingsSection } from './settings.types';
 @Component({
   selector: 'imt-settings-screen',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, KnowledgeSettings, StorageSettings, PerformanceExtras, LiveTailSettings, UpdatesSettings, KeyboardSettings, VideoSettings],
+  imports: [GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, KnowledgeSettings, StorageSettings, PerformanceExtras, LiveTailSettings, BrowserRuntimeSettings, UpdatesSettings, KeyboardSettings, VideoSettings],
   host: { '(keydown.escape)': 'onEscape($event)' },
   template: `
     <div class="top">
@@ -185,6 +186,9 @@ import { SettingField, SettingsSection } from './settings.types';
           }
           @if (s.id === liveTail) {
             <imt-live-tail-settings />
+          }
+          @if (s.id === 'browser') {
+            <imt-browser-runtime-settings />
           }
           @if (hiddenAdvanced(s); as n) {
             <p class="muted" i18n="@@settings.screen.hiddenAdvanced">{n, plural, =1 {{{ n }} advanced setting hidden.} other {{{ n }} advanced settings hidden.}} <button class="link" type="button" (click)="store.setShowAdvanced(true)">Show advanced</button></p>

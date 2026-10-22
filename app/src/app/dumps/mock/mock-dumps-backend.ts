@@ -24,6 +24,7 @@ import {
   UmdhTreeRequest,
 } from '../../core/api.types';
 import { CmdError } from '../../core/cmd-error';
+import { Unlisten } from '../../windowing/window-events';
 import { DumpsBackend } from '../dumps-backend';
 
 /** The demo files the browser build opens (File ▸ Open dump… and Open UMDH snapshots…). */
@@ -187,6 +188,18 @@ export class MockDumpsBackend extends DumpsBackend {
     return summary;
   }
 
+  private readonly symbolListeners = new Set<(id: number) => void>();
+
+  async onSymbolsChanged(handler: (id: number) => void): Promise<Unlisten> {
+    this.symbolListeners.add(handler);
+    return () => this.symbolListeners.delete(handler);
+  }
+
+  /** Tells the listeners the symbols of document `id` changed, as the engine does when downloaded PDBs arrive. */
+  notifySymbolsChanged(id: number): void {
+    for (const h of this.symbolListeners) h(id);
+  }
+
   async list(): Promise<DumpDocSummary[]> {
     return this.docs.map((d) => d.summary);
   }
@@ -236,7 +249,7 @@ export class MockDumpsBackend extends DumpsBackend {
       threads: THREADS.length,
       modules: MODULES.length,
       modulesWithSymbols: MODULES.filter((m) => m.symbols.kind === 'loaded').length,
-      symbolProblems: { missing: 0, serversDisabled: 1, notOnServer: 1, mismatch: 0, unreadable: 0, downloadFailed: 0, noIdentity: 0 },
+      symbolProblems: { missing: 0, serversDisabled: 1, notOnServer: 1, mismatch: 0, unreadable: 0, downloadFailed: 0, noIdentity: 0, downloading: 0 },
       framesSymbolised: 14,
       frames: 14,
       handles: { total: 412, byType: [{ name: 'Event', count: 200 }, { name: 'File', count: 120 }, { name: 'Key', count: 92 }] },

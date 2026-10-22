@@ -107,12 +107,39 @@ export function mockSections(): SettingsSection[] {
       description:
         'Where IMT finds the symbols (PDB files) that name the functions in a crash dump. A PDB is used only when it matches the module identity (name, GUID and age). Downloads are off until you turn them on.',
       owner: { kind: 'app' },
-      group: 'advanced',
+      group: 'symbols',
       fields: [
         f('serversEnabled', 'Download symbols from symbol servers', { type: 'bool' }, false, { description: 'Off by default: nothing is requested from the network while it is off.' }),
         f('serverUrls', 'Symbol servers', { type: 'stringList', maxItems: 8 }, ['https://msdl.microsoft.com/download/symbols'], { description: 'HTTPS addresses, asked in order.' }),
         f('downloadLimit', 'Longest download', { type: 'duration', minMs: 1000, maxMs: 600_000 }, 30_000, { description: 'How long one PDB may take to download.' }),
         f('concurrent', 'Downloads at the same time', int(1, 8), 2, { description: 'Across every dump being opened.' }),
+      ],
+    }),
+    section({
+      id: 'browser',
+      title: 'Web browser',
+      description:
+        "The AI's browser: research, Read along and Agent mode drive a real Chromium-based browser (its own throwaway profile; the window shows next to IMT). The AI sees a page only through read-only extraction.",
+      owner: { kind: 'app' },
+      group: 'app',
+      fields: [
+        f('searchEngine', 'Search engine', options(['google', 'Google'], ['duckDuckGo', 'DuckDuckGo'], ['bing', 'Bing'], ['custom', 'Custom']), 'google', {
+          description: 'Used by the address box and by Search the web for this error.',
+        }),
+        f('customSearchUrl', 'Custom search address', { type: 'text', maxLen: 512, pattern: null }, '', {
+          description: 'For the Custom engine: an https address with {q} where the search text goes.',
+        }),
+        f('browserPath', 'Browser to use', { type: 'text', maxLen: 1024, pattern: null }, '', {
+          description: "Research and the chat's browser modes drive a Chromium-based browser (Edge, Chrome or Chromium). Leave empty to use the downloaded Chromium or the one found on this computer.",
+        }),
+        f('agentStepLimit', 'Agent steps per task', int(5, 100), 25, { description: 'Agent mode stops after this many steps and asks whether to continue.' }),
+        f('agentActionsPerMinute', 'Agent actions per minute', int(5, 60), 20, { description: 'Agent mode browses at a human pace.' }),
+        f('autoResearch', 'Let the AI research the web automatically', { type: 'bool' }, true, {
+          description: 'The AI searches and reads the top results by itself (read-only) when a question needs outside information.',
+        }),
+        f('researchResults', 'Results to read per search', options(['5', '5'], ['10', '10'], ['20', '20'], ['30', '30']), '10', {
+          description: 'Research reads this many results the AI picked, then answers.',
+        }),
       ],
     }),
     section({

@@ -98,6 +98,28 @@ impl DumpDocs {
         Ok(summary(doc))
     }
 
+    /// Replaces the body of the open document `id` (a dump read again once its PDBs arrived). `Ok(false)`: it is not
+    /// open any more (closed, or reopened as another document), and nothing changed.
+    pub fn replace(&mut self, id: u32, body: Document) -> Result<bool> {
+        crate::wire::check(&body, &self.limits)?;
+        let Some(doc) = self.docs.iter_mut().find(|d| d.id == id) else {
+            return Ok(false);
+        };
+        doc.body = body;
+        self.forget_growth();
+        Ok(true)
+    }
+
+    /// Changes the open document `id` in place; `false` when it is not open any more.
+    pub fn update(&mut self, id: u32, f: impl FnOnce(&mut Document)) -> bool {
+        let Some(doc) = self.docs.iter_mut().find(|d| d.id == id) else {
+            return false;
+        };
+        f(&mut doc.body);
+        self.forget_growth();
+        true
+    }
+
     pub fn list(&self) -> Vec<DumpDocSummary> {
         self.docs.iter().map(summary).collect()
     }

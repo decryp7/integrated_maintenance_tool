@@ -13,6 +13,10 @@ export type RecentProject = { path: string, name: string,
  */
 openedAt: number, };
 
-export type RecentLists = { files: Array<RecentFile>, projects: Array<RecentProject>, };
+export type RecentLists = { files: Array<RecentFile>, projects: Array<RecentProject>, 
+/**
+ * Performance captures (profiles and heap snapshots) opened in the Profiling views.
+ */
+captures: Array<RecentFile>, };
 
-export type RecentKind = "files" | "projects";
+export type RecentKind = "files" | "projects" | "captures";

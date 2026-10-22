@@ -73,9 +73,13 @@ export type HandlesDto = { total: number, byType: Array<HandleTypeDto>, };
 
 export type MemoryDto = { regions: number, committed: number, reserved: number, free: number, image: number, mapped: number, private: number, largestFree: number, };
 
-export type DumpSymbolStatus = { "kind": "notNeeded" } | { "kind": "loaded" } | { "kind": "noIdentity" } | { "kind": "missing" } | { "kind": "serversDisabled" } | { "kind": "notOnServer" } | { "kind": "mismatch", detail: string, } | { "kind": "unreadable", detail: string, } | { "kind": "downloadFailed", detail: string, };
+export type DumpSymbolStatus = { "kind": "notNeeded" } | { "kind": "loaded" } | { "kind": "noIdentity" } | { "kind": "missing" } | { "kind": "serversDisabled" } | { "kind": "notOnServer" } | { "kind": "mismatch", detail: string, } | { "kind": "unreadable", detail: string, } | { "kind": "downloadFailed", detail: string, } | { "kind": "downloading" };
 
-export type DumpSymbolProblems = { missing: number, serversDisabled: number, notOnServer: number, mismatch: number, unreadable: number, downloadFailed: number, noIdentity: number, };
+export type DumpSymbolProblems = { missing: number, serversDisabled: number, notOnServer: number, mismatch: number, unreadable: number, downloadFailed: number, 
+/**
+ * Modules whose PDB is being downloaded now (not a problem yet).
+ */
+downloading: number, noIdentity: number, };
 
 export type DumpOverview = { summary: DumpDocSummary, 
 /**

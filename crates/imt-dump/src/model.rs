@@ -191,6 +191,8 @@ pub enum SymbolStatus {
     Unreadable { detail: String },
     /// Downloading its PDB failed (network, size limit, an answer that is not a PDB).
     DownloadFailed { detail: String },
+    /// Its PDB is being asked of the symbol servers (a Jobs job); the dump is read again when it arrives.
+    Downloading,
 }
 
 impl SymbolStatus {

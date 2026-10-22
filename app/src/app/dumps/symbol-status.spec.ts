@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DumpSymbolProblems, DumpSymbolStatus } from '../core/api.types';
 import { symbolProblemLines, symbolProblemTotal, symbolStatusHint, symbolStatusLabel } from './symbol-status';
 
-const NONE: DumpSymbolProblems = { missing: 0, serversDisabled: 0, notOnServer: 0, mismatch: 0, unreadable: 0, downloadFailed: 0, noIdentity: 0 };
+const NONE: DumpSymbolProblems = { missing: 0, serversDisabled: 0, notOnServer: 0, mismatch: 0, unreadable: 0, downloadFailed: 0, noIdentity: 0, downloading: 0 };
 
 describe('symbol status', () => {
   it('labels every status and gives the next step for each problem', () => {
@@ -16,6 +16,7 @@ describe('symbol status', () => {
       { kind: 'mismatch', detail: 'GUID differs' },
       { kind: 'unreadable', detail: 'not a PDB' },
       { kind: 'downloadFailed', detail: 'timed out' },
+      { kind: 'downloading' },
     ];
     expect(new Set(kinds.map(symbolStatusLabel)).size).toBe(kinds.length);
     expect(symbolStatusHint({ kind: 'loaded' })).toBeNull();
@@ -30,9 +31,10 @@ describe('symbol status', () => {
   it('counts and lists the causes that occurred', () => {
     expect(symbolProblemTotal(NONE)).toBe(0);
     expect(symbolProblemLines(NONE)).toEqual([]);
-    const all = { missing: 1, serversDisabled: 2, notOnServer: 3, mismatch: 4, unreadable: 5, downloadFailed: 6, noIdentity: 7 };
-    expect(symbolProblemTotal(all)).toBe(28);
-    expect(symbolProblemLines(all)).toHaveLength(7);
+    const all = { missing: 1, serversDisabled: 2, notOnServer: 3, mismatch: 4, unreadable: 5, downloadFailed: 6, noIdentity: 7, downloading: 8 };
+    expect(symbolProblemTotal(all)).toBe(36);
+    expect(symbolProblemLines(all)).toHaveLength(8);
+    expect(symbolProblemLines({ ...NONE, downloading: 2 })).toEqual(['2 still downloading from the symbol servers.']);
     expect(symbolProblemLines({ ...NONE, notOnServer: 3 })).toEqual(['3 not on any symbol server.']);
   });
 });

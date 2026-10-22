@@ -68,8 +68,20 @@ export class DockAutoHide {
     else if (this.ctx.api?.activePanel) this.unpin(this.ctx.api.activePanel.id);
   }
 
-  unpinAll(): void {
-    for (const p of [...(this.ctx.api?.panels ?? [])]) if (this.ctx.kindOf(p.id) === 'tool' && p.group.api.location.type === 'grid') this.unpin(p.id);
+  /** Auto-hides every docked tool window and returns their ids. */
+  unpinAll(): string[] {
+    const ids: string[] = [];
+    for (const p of [...(this.ctx.api?.panels ?? [])]) {
+      if (this.ctx.kindOf(p.id) !== 'tool' || p.group.api.location.type !== 'grid') continue;
+      this.unpin(p.id);
+      ids.push(p.id);
+    }
+    return ids;
+  }
+
+  /** Pins these tool windows back, those that are still auto-hidden (one the user pinned or closed since is left alone). */
+  pinIds(ids: readonly string[]): void {
+    for (const id of ids) if (this.ctx.autoHide().items.some((i) => i.id === id)) this.pin(id);
   }
 
   pinAll(): void {

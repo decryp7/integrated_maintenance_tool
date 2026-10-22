@@ -47,14 +47,17 @@ Every feature, with screenshots, is in [docs/features.md](docs/features.md).
 
 - **Timeline per instance.** One lane per process on a shared time axis, with lifecycle markers and drag-to-zoom ([details](docs/features.md#timeline-per-instance-with-lifecycle-markers)).
 - **Events grid.** A virtualised grid with an inspector for every property ([grid](docs/features.md#events-grid-with-virtualisation), [inspector](docs/features.md#inspector)).
+- **Home and search.** A dashboard of everything opened with a health check, a timeline minimap, and *Search everything* across events, sources, fields, notes and knowledge ([Home](docs/features.md#easy-to-start-hard-to-get-wrong), [search](docs/features.md#filters-facets-and-the-query-language)).
 - **Filters and query language.** Facets, chips and a pipe query language with `stats` ([details](docs/features.md#filters-facets-and-the-query-language)).
 - **Many formats, extensible by plugins.** Detected from content; add more with profiles or Rust plugins that run out of process in a sandbox, shipped as signed `.imtplugin` packages ([details](docs/features.md#many-formats-extensible-by-plugins), [SDK](docs/plugin-sdk.md)).
 - **Profiles and pipelines.** Extractors, cleanup steps, markers and badges in editable TOML ([details](docs/features.md#profiles-extractors-pipelines-markers-and-badges)).
 - **Charts and analysis.** Anomalies, patterns, exceptions, comparisons, clock-skew correction and configuration diff ([charts](docs/features.md#charts), [analysis](docs/features.md#analysis)).
+- **Known issues, incident summary and playbooks.** Declare errors you have diagnosed, build an incident report in one step and follow repeatable investigations, all without a model ([details](docs/features.md#known-issues-the-incident-summary-and-playbooks)).
+- **Video sources.** Turn a screen recording into frames described by the local model and aligned to the logs ([details](docs/features.md#video-sources)).
 - **Live tail and alerts.** Follow growing files and raise alerts as events arrive ([details](docs/features.md#live-tail-and-alerts)).
 - **Windows diagnostics.** Event logs, registry exports, Performance Monitor, process monitor and the diagnostics collector ([details](docs/features.md#performance-monitor-process-monitor-and-diagnostics-collector)).
 - **Profiling and dumps.** Analyse profiler captures and heap snapshots, record .NET and native processes, and read crash dumps and UMDH heap logs ([profiling](docs/features.md#profiling), [dumps](docs/features.md#crash-dumps-and-umdh-heap-logs)).
-- **Local AI assistant, internal browser and Research.** Models run on your machine and can read screenshots and your Markdown knowledge files; when a question needs the web, the AI researches it itself in IMT's own docked, read-only browser and answers with citations ([assistant](docs/features.md#local-ai-assistant), [browser and Research](docs/features.md#internal-web-browser)).
+- **Local AI assistant, Chromium browser and Research.** Models run on your machine and can read screenshots and your Markdown knowledge files; when a question needs the web, the AI researches it itself read-only in a real Chromium browser it starts for the purpose (you see it and can stop it) and answers with citations ([assistant](docs/features.md#local-ai-assistant), [browser and Research](docs/features.md#the-ais-browser-real-chromium)).
 - **Jobs and notifications.** Long tasks run as jobs, with a pane and a notification centre ([details](docs/features.md#jobs-and-notifications)).
 - **Sharing and reports.** Projects, redacted exports, incident reports and `.imtz` bundles ([projects](docs/features.md#projects-sessions-and-export), [share](docs/features.md#explain-and-share)).
 - **Dockable workspace.** Panels, multiple windows, themes and accessibility ([details](docs/features.md#dockable-workspace)).
@@ -103,8 +106,9 @@ The built-in browser demo (`npm start`, below) loads similar data without instal
 |---|---|
 | [docs/features.md](docs/features.md) | Every feature, with screenshots |
 | [docs/user-guide.md](docs/user-guide.md) | Supported inputs, profiles, the query language, keyboard shortcuts, command line |
-| [docs/architecture.md](docs/architecture.md) | Overview, crates, the plugin runtime, windows and sessions, C4 and UML diagrams |
+| [docs/architecture.md](docs/architecture.md) | Overview, crates, the plugin runtime, windows and sessions, the ADR index, C4 and UML diagrams |
 | [docs/design.md](docs/design.md) | All design diagrams on one page |
+| [docs/playbooks.md](docs/playbooks.md) | The investigation playbook file format |
 | [docs/plugins.md](docs/plugins.md) | Extending IMT: profiles, Rust plugins, UI plugins, process plugins |
 | [docs/plugin-sdk.md](docs/plugin-sdk.md) | Writing, testing, signing and installing a third-party plugin |
 | [docs/units.md](docs/units.md) | How quantities are typed in transit and formatted in one place |
@@ -115,6 +119,8 @@ The built-in browser demo (`npm start`, below) loads similar data without instal
 | [docs/fuzzing.md](docs/fuzzing.md) | Fuzzing and property-based tests |
 | [docs/comparison.md](docs/comparison.md) | IMT compared with other log tools |
 | [docs/roadmap.md](docs/roadmap.md) | Planned work, engineering follow-ups and open redesign items |
+| [docs/ux-audit/](docs/ux-audit/README.md) | The 2026-10-22 usability audit that led to perspectives and Home (a point-in-time record) |
+| [CHANGELOG.md](CHANGELOG.md) | What changed for users, per release (feeds *Help ▸ What's new*) |
 | [docs/adr/](docs/adr/0001-architecture.md) | Architecture decision records, starting at 0001 |
 | [samples/README.md](samples/README.md) | The sample logs, their formats and the views they show |
 

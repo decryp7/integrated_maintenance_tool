@@ -33,7 +33,7 @@ import { Segments } from './chat-cards';
       <option value="20" i18n="@@browser.researchDialog.results20">20</option>
       <option value="30" i18n="@@browser.researchDialog.results30">30</option>
     </select>
-    <p class="muted small" i18n="@@browser.researchDialog.note">The AI searches with your search engine in IMT's browser and reads the result pages only (no logins, forms or typing). It runs as a job; the answer arrives in the chat with its sources.</p>
+    <p class="muted small" i18n="@@browser.researchDialog.note">The AI searches with your search engine in a real browser window next to the app and reads the result pages only (no logins, forms or typing). It runs as a job; the answer arrives in the chat with its sources.</p>
     @if (error(); as e) {
       <p class="err" role="alert">{{ e }}</p>
     }

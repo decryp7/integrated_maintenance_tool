@@ -70,7 +70,7 @@ export class DropGuides {
   private start(): void {
     this.active = true;
     this.layer.classList.add('on');
-    // While shown it covers the dock: the internal browser's native page steps aside (`OverlayTracker`).
+    // Marked as an overlay while shown (pop-out snapshots leave overlays out).
     this.layer.setAttribute('data-imt-overlay', '');
     this.drawEdges();
   }

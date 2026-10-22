@@ -47,4 +47,22 @@ describe('TauriDumpsBackend', () => {
     expect(calls[5]![1]).toEqual({ request: req });
     expect(calls[13]![1]).toEqual({ request: { ids: [1] } });
   });
+
+  it('tells the handler which document got its symbols, ignoring malformed events', async () => {
+    let deliver: (payload: unknown) => void = () => undefined;
+    let event = '';
+    const listen = (async (name: string, h: (p: unknown) => void) => {
+      event = name;
+      deliver = h;
+      return () => undefined;
+    }) as never;
+    const b = new TauriDumpsBackend((async () => null) as never, listen);
+    const ids: number[] = [];
+    await b.onSymbolsChanged((id) => ids.push(id));
+    expect(event).toBe('imt://dump-symbols');
+    deliver({ id: 3 });
+    deliver({ id: 'x' });
+    deliver(null);
+    expect(ids).toEqual([3]);
+  });
 });

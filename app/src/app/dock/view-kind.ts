@@ -35,6 +35,6 @@ const DOCUMENT_VIEWS: ReadonlySet<string> = new Set(['events', 'query-results', 
 export function viewKind(view: Pick<ImtView, 'id' | 'defaultPosition' | 'area'> | undefined | null): ViewKind {
   if (!view) return 'document';
   if (view.area === 'side' || view.area === 'status' || TOOL_VIEWS.has(view.id)) return 'tool';
-  if (DOCUMENT_VIEWS.has(view.id)) return 'document';
+  if (view.area === 'document' || DOCUMENT_VIEWS.has(view.id)) return 'document';
   return view.defaultPosition === 'right' ? 'tool' : 'document';
 }

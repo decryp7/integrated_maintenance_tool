@@ -5,7 +5,7 @@ use super::Workspace;
 use crate::model::Record;
 use crate::skew::{
     align_offset, checked_offset, suggest, ClockOffsets, IdEvent, OffsetChange, OffsetSpec, SetOffsetRequest, SkewError, SuggestRequest,
-    SuggestResult, MAX_TRACKED,
+    SuggestResult,
 };
 use std::collections::HashMap;
 
@@ -41,8 +41,7 @@ impl Workspace {
     }
 
     /// Sets a source's offset (manually or by aligning two events) and moves
-    /// its records. Ids before the first moved record stay; the new ids of
-    /// the tracked records are returned. Fails, changing nothing, for an
+    /// its records. Ids before the first moved record stay. Fails, changing nothing, for an
     /// unknown source or record, an untimed event, two events of one source
     /// or an offset beyond [`crate::skew::MAX_OFFSET_MS`].
     pub fn set_source_offset(&mut self, req: &SetOffsetRequest) -> Result<OffsetChange, SkewError> {
@@ -67,22 +66,6 @@ impl Workspace {
         let delta = offset - previous;
         // Offsets belong to files: the logical sources a route split from the file move together.
         let moved: Vec<u32> = self.sources.iter().filter(|s| s.path == path).map(|s| s.id).collect();
-        // Where each tracked record will sort after the move.
-        let keys: Vec<Option<(i64, u32, u32)>> = req
-            .track
-            .iter()
-            .take(MAX_TRACKED)
-            .map(|id| {
-                self.records.get(*id as usize).map(|r| {
-                    let ts = if moved.contains(&r.source) {
-                        crate::skew::shift(r.ts, delta)
-                    } else {
-                        r.ts
-                    };
-                    (ts.unwrap_or(i64::MAX), r.source, r.line)
-                })
-            })
-            .collect();
         for s in self.sources.iter_mut().filter(|s| s.path == path) {
             s.offset_ms = offset;
         }
@@ -90,23 +73,11 @@ impl Workspace {
         if delta != 0 {
             self.run_annotators(None);
         }
-        let tracked = keys
-            .into_iter()
-            .map(|k| {
-                let k = k?;
-                let pos = self.records.partition_point(|r| (r.ts.unwrap_or(i64::MAX), r.source, r.line) < k);
-                self.records
-                    .get(pos)
-                    .filter(|r| (r.ts.unwrap_or(i64::MAX), r.source, r.line) == k)
-                    .map(|r| r.id)
-            })
-            .collect();
         Ok(OffsetChange {
             source,
             offset_ms: offset,
             previous_ms: previous,
             ids_changed_from,
-            tracked,
         })
     }
 

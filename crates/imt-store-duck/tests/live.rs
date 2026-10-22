@@ -176,3 +176,29 @@ fn the_status_lists_followed_files_with_their_rate_and_watch_mode() {
     assert_eq!(st.totals.records, 6);
     let _ = store.tail_files().unwrap();
 }
+
+#[test]
+fn a_deleted_file_keeps_its_events_unless_the_option_drops_it() {
+    use imt_core::workspace::DeletedFiles;
+    for (deleted_files, expected) in [(DeletedFiles::Keep, 2), (DeletedFiles::Drop, 0)] {
+        let (_logs, _dir, store, path) = store_with_profile(
+            "",
+            "app.clef",
+            &format!("{}{}", line(0, "Information", "m1", "a"), line(1, "Information", "m1", "b")),
+        );
+        let mut session = LiveSession::default();
+        session.start(&store).unwrap();
+        std::fs::remove_file(&path).unwrap();
+        let appended = imt_core::ports::Ingest::append_tail(&store, std::slice::from_ref(&path)).unwrap();
+        assert_eq!(appended.deleted.len(), 1);
+        session.after_refresh(
+            &store,
+            &appended,
+            &TailOptions {
+                deleted_files,
+                ..options()
+            },
+        );
+        assert_eq!(store.summary().unwrap().total, expected, "{deleted_files:?}");
+    }
+}

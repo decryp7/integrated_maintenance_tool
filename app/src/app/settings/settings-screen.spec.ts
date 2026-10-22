@@ -12,6 +12,8 @@ import { UpdatesBackend } from '../updates/updates-backend';
 import { at } from '../../testing/must';
 import { MockVideoBackend } from '../video/mock/mock-video-backend';
 import { VideoBackend } from '../video/video-backend';
+import { BrowserRuntimeBackend } from '../browser/browser-runtime-backend';
+import { MockBrowserRuntimeBackend } from '../browser/mock-browser-runtime-backend';
 
 async function setup(backend = new MockSettingsBackend(), withRef = true) {
   const closed = vi.fn();
@@ -26,6 +28,7 @@ async function setup(backend = new MockSettingsBackend(), withRef = true) {
       { provide: UpdatesBackend, useValue: new MockUpdatesBackend('', 1) },
       { provide: SettingsFiles, useValue: files },
       { provide: VideoBackend, useFactory: () => new MockVideoBackend() },
+      { provide: BrowserRuntimeBackend, useFactory: () => new MockBrowserRuntimeBackend() },
       { provide: LifecycleService, useValue: { restartKeepingSession: restart } },
       ...(withRef ? [{ provide: DIALOG_REF, useValue: { close: closed, closed: Promise.resolve() } }] : []),
     ],
@@ -43,6 +46,15 @@ const escape = (fixture: Parameters<typeof el>[0]) => {
 };
 
 describe('SettingsScreen', () => {
+  it('shows the browser for research under Web browser, below the generated fields, with the Browser to use field', async () => {
+    const { fixture } = await setup();
+    nav(fixture, 'Web browser').click();
+    await settle(fixture);
+    expect(text(fixture)).toContain('Browser to use');
+    expect(el(fixture, 'imt-browser-runtime-settings')).toBeTruthy();
+    expect(text(fixture)).toContain('Browser for research');
+  });
+
   it('shows the FFmpeg runtime under Video', async () => {
     const { fixture } = await setup();
     nav(fixture, 'Video').click();
@@ -62,13 +74,14 @@ describe('SettingsScreen', () => {
       'Appearance',
       'Keyboard shortcuts',
       'Window & tray',
+      'Web browser',
       'Updates',
       'Disk usage',
       'Performance',
-      'Symbols',
       'Parsers',
       'Video',
       'Live tail',
+      'Symbols',
       'AI assistant not installed',
       'Plugins',
       'Windows diagnostics',
@@ -192,7 +205,7 @@ describe('SettingsScreen', () => {
     }
   });
 
-  it('the Live tail page holds the engine delay and the watch, retention and detector options (I2)', async () => {
+  it('the Live tail page holds the engine delay and the watch and detector options (I2)', async () => {
     const { fixture } = await setup();
     nav(fixture, 'Live tail').click();
     await settle(fixture);

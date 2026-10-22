@@ -57,7 +57,7 @@ export class FakeBackend extends PopoutBackend {
     if (this.fail) throw this.fail;
     const existing = [...this.infos.values()].find((i) => i.viewId === r.viewId);
     if (existing) return existing;
-    const info: PopoutInfo = { label: `p-main-${++this.n}`, host: 'main', viewId: r.viewId, title: r.title ?? r.viewId, bounds: r.bounds ?? null, monitor: null, alwaysOnTop: false };
+    const info: PopoutInfo = { label: `p-main-${++this.n}`, host: 'main', viewId: r.viewId, title: r.title ?? r.viewId, bounds: r.bounds ?? null, monitor: null, keepOnTop: false };
     this.infos.set(info.label, info);
     return info;
   }
@@ -90,7 +90,7 @@ export class FakeBackend extends PopoutBackend {
   windowDrag = false;
   /** What `primaryButtonDown` answers (null: the platform cannot tell). */
   buttonDown: boolean | null = null;
-  supportsAlwaysOnTop = true;
+  supportsKeepOnTop = true;
   chrome: 'overlay' | 'frameless' | 'browser' = 'frameless';
   windowCalls: string[] = [];
   maximized = false;
@@ -139,7 +139,7 @@ export class FakeBackend extends PopoutBackend {
   async dockSelf() {
     this.docked.push('self');
   }
-  async setAlwaysOnTop(on: boolean) {
+  async setKeepOnTop(on: boolean) {
     if (this.fail) throw this.fail;
     this.onTop.push(on);
   }

@@ -9,46 +9,38 @@ import {
   AgentDecision,
   AiDriver,
   BrowserEvent,
-  BrowserStateDto,
   ChatBrowserStatus,
   EventQuery,
-  NavCommand,
   OpenTarget,
-  Placement,
   SourceInfo,
 } from './browser.types';
 
 export const BROWSER_EVENT = 'imt://browser';
 
 /**
- * The browser of this IMT window, as the Browser panel drives it. Injected as a class token: the Tauri
- * commands in the desktop app, the mock in the browser build (dev and UI tests).
+ * The AI's browser of this IMT window: a real Chromium window that research and the chat's browser modes drive over
+ * DevTools, plus the user's default browser for links. Injected as a class token: the Tauri commands in the desktop
+ * app, the mock in the browser build (dev and UI tests).
  */
 @Injectable({ providedIn: 'root', useFactory: () => createBrowserBackends().browser })
 export abstract class BrowserBackend {
-  abstract state(): Promise<BrowserStateDto>;
-  /** Opens the browser (or loads the page in it); resolves with the address opened. */
+  /** Opens the address or the search in the user's default browser; resolves with the address opened. */
   abstract open(target: OpenTarget): Promise<string>;
   /** The engine-built, redacted search text for an event of the loaded logs. */
   abstract eventQuery(recordId: number): Promise<EventQuery>;
-  abstract nav(command: NavCommand): Promise<void>;
-  /** Where the Browser panel's page area is and whether the page may show (ADR 0024); resolves with whether it shows. */
-  abstract place(placement: Placement): Promise<boolean>;
-  /** Closes the page (the panel stays); false when none was open. */
-  abstract close(): Promise<boolean>;
   /** Stops the research reading pages in this window's browser; resolves with how many stopped. */
   abstract researchStop(): Promise<number>;
-  /** Who drives this window's browser now (null: nobody, the browser is the user's). */
+  /** Who drives this window's browser now (null: nobody). */
   abstract driving(): Promise<AiDriver | null>;
-  /** Opens the page shown, or a popup it asked for, in the system browser (anything else is refused). */
-  abstract openExternal(url: string): Promise<void>;
+  /** Ends every AI hold on this window's browser and closes the Chromium at once; resolves with whether one was running. */
+  abstract stopAll(): Promise<boolean>;
   abstract onEvent(handler: (e: BrowserEvent) => void): Promise<Unlisten>;
 }
 
 /** What a chat may do with the browser: hand-off pages, read-along, suggested links and agent mode. */
 @Injectable({ providedIn: 'root', useFactory: () => createBrowserBackends().chat })
 export abstract class ChatBrowserBackend {
-  /** "Add page to AI context": the visible page, redacted, for the chat's next question. */
+  /** "Add the open page to the question": the page open in the AI's browser window, redacted; rejects with a message when none is open. */
   abstract capture(sessionId: string): Promise<SourceInfo[]>;
   abstract sources(sessionId: string): Promise<SourceInfo[]>;
   abstract discardSources(sessionId: string): Promise<SourceInfo[]>;
@@ -60,7 +52,7 @@ export abstract class ChatBrowserBackend {
   /** Grants another batch of steps after the step cap. */
   abstract continueTask(sessionId: string): Promise<ChatBrowserStatus>;
   abstract respond(sessionId: string, requestId: number, decision: AgentDecision): Promise<boolean>;
-  /** Opens a link the chat suggested in the internal browser (other links are refused). */
+  /** Opens a link the chat suggested in the user's default browser (other links are refused). */
   abstract openSuggested(sessionId: string, url: string): Promise<void>;
   /** "Open and let AI read it": opens a suggested link, adds the page to the chat and lets the chat go on (a new turn; its job). */
   abstract openAndRead(sessionId: string, url: string): Promise<number>;
@@ -76,23 +68,11 @@ export class TauriBrowserBackend implements BrowserBackend, ChatBrowserBackend {
     private readonly listen: PayloadListenFn = listenHere,
   ) {}
 
-  state() {
-    return this.call<BrowserStateDto>('browser_state');
-  }
   open(target: OpenTarget) {
     return this.call<string>('browser_open', { target });
   }
   eventQuery(recordId: number) {
     return this.call<EventQuery>('browser_event_query', { recordId });
-  }
-  place(placement: Placement) {
-    return this.call<boolean>('browser_place', { placement });
-  }
-  nav(command: NavCommand) {
-    return this.call<void>('browser_nav', { command });
-  }
-  close() {
-    return this.call<boolean>('browser_close');
   }
   /** Stops the window's research by cancelling its jobs (the banner clears with them). */
   researchStop() {
@@ -101,8 +81,8 @@ export class TauriBrowserBackend implements BrowserBackend, ChatBrowserBackend {
   driving() {
     return this.call<AiDriver | null>('browser_driving');
   }
-  openExternal(url: string) {
-    return this.call<void>('browser_open_external', { url });
+  stopAll() {
+    return this.call<boolean>('browser_stop');
   }
   capture(sessionId: string) {
     return this.call<SourceInfo[]>('browser_capture', { sessionId });

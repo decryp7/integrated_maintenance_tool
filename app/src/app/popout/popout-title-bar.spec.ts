@@ -28,13 +28,13 @@ describe('PopoutTitleBar', () => {
     return { fixture, el, backend, button, host: fixture.componentInstance };
   }
 
-  it('shows the panel and host titles, Dock back and Always on top, all reachable by keyboard', async () => {
+  it('shows the panel and host titles, Dock back and Keep on top of Debrief, all reachable by keyboard', async () => {
     const { el, button, host, fixture } = await render();
     expect(el.querySelector('h1')!.textContent).toBe('Inspector');
     expect(el.querySelector('.host')!.textContent).toBe('Incident');
     button('Dock back into the main window')!.click();
     expect(host.docked).toBe(1);
-    const onTop = button('Always on top')!;
+    const onTop = button('Keep on top of Debrief')!;
     expect(onTop.getAttribute('aria-pressed')).toBe('false');
     expect(onTop.querySelector('path')!.getAttribute('fill')).toBe('none');
     onTop.click();

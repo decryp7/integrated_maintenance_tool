@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, input, output, signal } from '@angular/core';
+import { PRODUCT_NAME } from '../core/product';
 import { PopoutBackend, ResizeDirection } from './popout-backend';
 import { POPOUT_ROUTE } from './popout-route';
 import { UiSync } from './ui-sync';
@@ -16,7 +17,7 @@ const EDGES: readonly { dir: ResizeDirection; cls: string }[] = [
 
 /**
  * A pop-out window's own compact title bar (VS / VS Code tool window style): drag it to move the window (and drop
- * it on a guide of the main window to dock it), double-click to maximise or restore, Dock back, Always on top.
+ * it on a guide of the main window to dock it), double-click to maximise or restore, Dock back, Keep on top of Debrief.
  * On macOS the native traffic lights sit at its left (overlay title bar); on Windows/Linux the window is frameless
  * and this bar draws minimise / maximise / close and the resize edges. It dims while the window is inactive.
  */
@@ -34,8 +35,8 @@ const EDGES: readonly { dir: ResizeDirection; cls: string }[] = [
       <button type="button" class="tb-btn icon" (click)="dockBack.emit()" aria-label="Dock back into the main window" title="Dock back into the main window" i18n-aria-label="@@popout.titleBar.dockBack" i18n-title="@@popout.titleBar.dockBackTitle">
         <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 10h16M12 13v4M10 15l2 2 2-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
       </button>
-      @if (backend.supportsAlwaysOnTop) {
-        <button type="button" class="tb-btn icon" [class.on]="onTop()" [attr.aria-pressed]="onTop()" [attr.aria-label]="alwaysOnTopLabel" [title]="onTop() ? alwaysOnTopOnTitle : alwaysOnTopLabel" (click)="toggleOnTop.emit()">
+      @if (backend.supportsKeepOnTop) {
+        <button type="button" class="tb-btn icon" [class.on]="onTop()" [attr.aria-pressed]="onTop()" [attr.aria-label]="keepOnTopLabel" [title]="onTop() ? keepOnTopOnTitle : keepOnTopLabel" (click)="toggleOnTop.emit()">
           <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5M8 3h8l-1 7 3 3H6l3-3z" [attr.fill]="onTop() ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linejoin="round" /></svg>
         </button>
       }
@@ -109,8 +110,8 @@ export class PopoutTitleBar {
   readonly dockBack = output<void>();
   readonly toggleOnTop = output<void>();
   protected readonly edges = EDGES;
-  protected readonly alwaysOnTopLabel = $localize`:@@popout.titleBar.alwaysOnTop:Always on top`;
-  protected readonly alwaysOnTopOnTitle = $localize`:@@popout.titleBar.alwaysOnTopOn:Always on top (on): click to stop`;
+  protected readonly keepOnTopLabel = $localize`:@@popout.titleBar.keepOnTop:Keep on top of ${PRODUCT_NAME}:product:`;
+  protected readonly keepOnTopOnTitle = $localize`:@@popout.titleBar.keepOnTopOn:Keep on top of ${PRODUCT_NAME}:product: (on): click to stop`;
   protected readonly restoreLabel = $localize`:@@popout.titleBar.restore:Restore`;
   protected readonly maximiseLabel = $localize`:@@popout.titleBar.maximise:Maximise`;
   protected readonly maximized = signal(false);

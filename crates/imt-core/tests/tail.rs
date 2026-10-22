@@ -10,7 +10,7 @@ use imt_core::importers::{BinaryImporter, ImportCtx, Imported, Importer, Importe
 use imt_core::model::{Level, Record};
 use imt_core::query::Query;
 use imt_core::workspace::{
-    identity_of, Coalescer, DeletedFiles, FileWatcher, LiveTail, OpenOptions, Retention, TailFileState, TailOptions, TimeWindow, WatchMode,
+    identity_of, Coalescer, DeletedFiles, FileWatcher, LiveTail, OpenOptions, TailFileState, TailOptions, TimeWindow, WatchMode,
     WatchPreference, WatchSettings, WatchSignal, WatchSink, WatcherFactory,
 };
 use imt_core::{LogStore, Profile, Workspace};
@@ -451,42 +451,6 @@ fn start_at_end_skips_history() {
     );
     let first = ws.records().iter().find(|r| r.message == "unterminated").unwrap();
     assert_eq!(first.line, 51);
-}
-
-#[test]
-fn retention_evicts_in_bulk() {
-    let d = Dir::new("retention");
-    let p = d.write("app.log", &lines(0..10, "A"));
-    let mut ws = ws_on(&d.0);
-    ws.set_tail_options(TailOptions {
-        retention: Retention {
-            max_records: Some(10),
-            max_age_ms: None,
-        },
-        ..TailOptions::default()
-    });
-    d.append("app.log", &lines(10..11, "A"));
-    assert_eq!(ws.refresh_tail(std::slice::from_ref(&p)).unwrap().evicted, 0);
-    d.append("app.log", &lines(11..20, "A"));
-    let r = ws.refresh_tail(std::slice::from_ref(&p)).unwrap();
-    assert_eq!(r.evicted, 10);
-    assert_eq!(r.ids_changed_from, Some(0));
-    assert_eq!(ws.summary().total, 10);
-    assert_eq!(ws.summary().evicted, 10);
-    assert_eq!(ws.records()[0].message, "event 10");
-    assert_eq!(ws.records()[0].id, 0);
-    assert_eq!(source_of(&ws, "app.log").records, 10);
-    assert_eq!(ws.tail_status().totals.evicted, 10);
-    // By age: keep the last 5 seconds.
-    ws.set_tail_options(TailOptions {
-        retention: Retention {
-            max_records: None,
-            max_age_ms: Some(5_000),
-        },
-        ..TailOptions::default()
-    });
-    assert_eq!(ws.summary().total, 6);
-    assert_eq!(ws.records()[0].message, "event 14");
 }
 
 /// A binary format: 4-byte magic then one record per remaining byte.

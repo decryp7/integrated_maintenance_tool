@@ -24,6 +24,16 @@ describe('DumpsStore', () => {
     expect(store.version()).toBeGreaterThan(0);
   });
 
+  it('notes which document got its symbols, from the engine and once per change', async () => {
+    expect(store.symbols()).toBeNull();
+    const backend = t.backend as MockDumpsBackend;
+    backend.notifySymbolsChanged(4);
+    await Promise.resolve();
+    expect(store.symbols()).toEqual({ id: 4, rev: 1 });
+    backend.notifySymbolsChanged(4);
+    expect(store.symbols()).toEqual({ id: 4, rev: 2 });
+  });
+
   it('compares the oldest and the newest snapshot by default', async () => {
     await store.pickAndOpen('umdh');
     const logs = store.umdh();

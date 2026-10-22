@@ -252,7 +252,7 @@ Captures are cancellable jobs with size and duration caps.
 
 ## Native (C/C++) captures
 
-*Tools ▸ Profile native process…* records a running native process with the native profiling plugin
+*Profile native process…* (command palette) records a running native process with the native profiling plugin
 (`crates/imt-plugin-native`, ADR 0022). Nothing is loaded into the target. Two modes:
 
 | Mode | Rights | How | What it gives |

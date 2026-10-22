@@ -4,13 +4,13 @@ export const HOME_AUTO_OPEN_KEY = 'imt.home.autoOpen.v1';
 
 function readAutoOpen(): boolean {
   try {
-    return localStorage.getItem(HOME_AUTO_OPEN_KEY) === 'true';
+    return localStorage.getItem(HOME_AUTO_OPEN_KEY) !== 'false';
   } catch {
-    return false;
+    return true;
   }
 }
 
-/** Whether Home opens by itself after files are opened (a per-browser convenience; default off: the timeline over the events stays the first thing you see). */
+/** Whether Home opens by itself after files or a project are opened (a per-browser convenience; default on: Home is the home screen). */
 @Injectable({ providedIn: 'root' })
 export class HomePrefs {
   private readonly auto = signal(readAutoOpen());

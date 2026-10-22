@@ -67,18 +67,42 @@ pub(crate) fn refresh_view(conn: &Connection, dir: &Path, schema: &EventSchema) 
 
 /// Lists a closed segment with its field catalog and histogram (inside the caller's transaction).
 pub(crate) fn insert_segment(conn: &Connection, seg: &Segment, live: u64, indexed: bool) -> Result<()> {
-    conn.execute(
-        "INSERT INTO segments (file, first_id, end_id, rows, live, indexed, promoted) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        params![seg.file, seg.first_id, seg.end_id, seg.rows, live, indexed, seg.promotion.encode()],
-    )?;
+    insert_segments(conn, std::slice::from_ref(seg), |_| (live, indexed))
+}
+
+/// Lists closed segments (their `live` rows and whether they are `indexed` come from `state`) with their field
+/// catalogs and histograms, in bulk: one appender per table however many segments there are (a statement per
+/// row is parsed, bound and optimised each time; the appender is not), inside the caller's transaction.
+pub(crate) fn insert_segments(conn: &Connection, segs: &[Segment], state: impl Fn(&Segment) -> (u64, bool)) -> Result<()> {
+    if segs.is_empty() {
+        return Ok(());
+    }
+    let mut app = conn.appender("segments")?;
+    for seg in segs {
+        let (live, indexed) = state(seg);
+        app.append_row(params![
+            seg.file,
+            seg.first_id,
+            seg.end_id,
+            seg.rows,
+            live,
+            indexed,
+            seg.promotion.encode()
+        ])?;
+    }
+    app.flush()?;
     let mut app = conn.appender("segment_fields")?;
-    for f in &seg.fields {
-        app.append_row(params![seg.file, f.key, f.rows, f.numeric_rows, f.distinct, f.top])?;
+    for seg in segs {
+        for f in &seg.fields {
+            app.append_row(params![seg.file, f.key, f.rows, f.numeric_rows, f.distinct, f.top])?;
+        }
     }
     app.flush()?;
     let mut app = conn.appender("histogram")?;
-    for (b, n) in &seg.histogram {
-        app.append_row(params![seg.file, b.minute, b.level, b.source, n])?;
+    for seg in segs {
+        for (b, n) in &seg.histogram {
+            app.append_row(params![seg.file, b.minute, b.level, b.source, n])?;
+        }
     }
     app.flush()?;
     Ok(())
@@ -96,11 +120,15 @@ pub(crate) fn delete_segment(conn: &Connection, file: &str) -> Result<()> {
     Ok(())
 }
 
-/// Lists a finished source as ready, with its diagnostics.
-fn write_ready(conn: &Connection, r: &SourceReport) -> Result<()> {
-    conn.execute(
-        "INSERT INTO sources (id, path, name, importer, file_kind, events, skipped, dropped, ts_from, ts_to, bytes, ready, parser_id, parser_version, parser_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?, ?)",
-        params![
+/// Lists finished sources as ready, with their diagnostics, in bulk (one appender per table: a statement per
+/// source is parsed, bound and optimised each time, which dominated an import of many small files).
+fn write_ready(conn: &Connection, reports: &[SourceReport]) -> Result<()> {
+    if reports.is_empty() {
+        return Ok(());
+    }
+    let mut app = conn.appender("sources")?;
+    for r in reports {
+        app.append_row(params![
             r.id.0,
             r.path,
             r.name,
@@ -112,18 +140,24 @@ fn write_ready(conn: &Connection, r: &SourceReport) -> Result<()> {
             r.from,
             r.to,
             r.bytes,
+            true,
             r.parser.id,
             r.parser.version,
             r.parser.hash,
-        ],
-    )?;
-    if let Some(e) = &r.encoding {
-        crate::encodings::record(conn, &r.path, e)?;
+        ])?;
     }
+    app.flush()?;
+    let encodings: Vec<(&str, &imt_core::ingest::EncodingInfo)> = reports
+        .iter()
+        .filter_map(|r| r.encoding.as_ref().map(|e| (r.path.as_str(), e)))
+        .collect();
+    crate::encodings::record_many(conn, &encodings)?;
     let mut app = conn.appender("diagnostics")?;
-    for p in &r.problems {
-        let samples = serde_json::to_string(&p.sample_lines)?;
-        app.append_row(params![r.id.0, p.kind.id(), format!("{:?}", p.kind.severity()), p.count, samples])?;
+    for r in reports {
+        for p in &r.problems {
+            let samples = serde_json::to_string(&p.sample_lines)?;
+            app.append_row(params![r.id.0, p.kind.id(), format!("{:?}", p.kind.severity()), p.count, samples])?;
+        }
     }
     app.flush()?;
     Ok(())
@@ -289,12 +323,8 @@ impl SegmentSink {
         let ready = completed(&mut lock(&self.sources), &segs);
         conn.execute_batch("BEGIN TRANSACTION")?;
         let done = (|| -> Result<()> {
-            for seg in &segs {
-                insert_segment(conn, seg, seg.rows, false)?;
-            }
-            for r in &ready {
-                write_ready(conn, r)?;
-            }
+            insert_segments(conn, &segs, |seg| (seg.rows, false))?;
+            write_ready(conn, &ready)?;
             let (event, source) = {
                 let ids = lock(&self.ids);
                 (ids.event, ids.source)

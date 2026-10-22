@@ -11,7 +11,6 @@ export const CLEAR_CACHE_COMMAND = 'help.clearCache';
 export type StorageCategoryId =
   | 'bundle-extracts'
   | 'webview-cache'
-  | 'web-profile'
   | 'ai-runtimes-outdated'
   | 'ai-runtimes'
   | 'ai-models'

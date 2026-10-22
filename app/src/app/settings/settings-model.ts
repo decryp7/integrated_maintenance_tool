@@ -65,7 +65,7 @@ export function navLayout(sections: readonly SettingsSection[]): NavGroup[] {
     {
       id: 'data',
       title: $localize`:Settings group@@settings.group.data:Data`,
-      items: [{ id: PARSERS_ID, title: titles.parsers }, { id: VIDEO_SETTINGS_ID, title: titles.video }, ...by((s) => s.id === LIVE_TAIL_SECTION)],
+      items: [{ id: PARSERS_ID, title: titles.parsers }, { id: VIDEO_SETTINGS_ID, title: titles.video }, ...by((s) => s.id === LIVE_TAIL_SECTION), ...by(inGroup('symbols'))],
     },
     { id: 'ai', title: $localize`:Settings group@@settings.group.ai:AI`, items: by(inGroup('ai')) },
     { id: 'plugins', title: $localize`:Settings group@@settings.group.plugins:Plugins`, items: by(inGroup('plugins')) },

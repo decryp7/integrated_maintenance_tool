@@ -33,6 +33,7 @@ export class MockRecentBackend extends RecentBackend {
     this.calls.push(`remove:${kind}`);
     const l = this.read();
     if (kind === 'files') l.files = l.files.filter((f) => f.path !== path);
+    else if (kind === 'captures') l.captures = l.captures.filter((f) => f.path !== path);
     else l.projects = l.projects.filter((p) => p.path !== path);
     this.write(l);
   }
@@ -41,13 +42,15 @@ export class MockRecentBackend extends RecentBackend {
     this.calls.push(`clear:${kind}`);
     const l = this.read();
     if (kind === 'files') l.files = [];
+    else if (kind === 'captures') l.captures = [];
     else l.projects = [];
     this.write(l);
   }
 
-  async opened(files: string[], project?: Omit<RecentProject, 'openedAt'>): Promise<void> {
+  async opened(files: string[], project?: Omit<RecentProject, 'openedAt'>, captures: string[] = []): Promise<void> {
     const l = this.read();
     const openedAt = this.now();
+    if (captures.length) l.captures = [...captures.map((path) => ({ path, openedAt })), ...l.captures.filter((f) => !captures.includes(f.path))].slice(0, MOCK_RECENT_FILES_MAX);
     if (files.length) l.files = [...files.map((path) => ({ path, openedAt })), ...l.files.filter((f) => !files.includes(f.path))].slice(0, MOCK_RECENT_FILES_MAX);
     if (project) l.projects = [{ ...project, openedAt }, ...l.projects.filter((p) => p.path !== project.path)].slice(0, MOCK_RECENT_PROJECTS_MAX);
     this.write(l);
@@ -61,13 +64,14 @@ export class MockRecentBackend extends RecentBackend {
   private read(): RecentLists {
     try {
       const parsed = JSON.parse(localStorage.getItem(this.key) ?? 'null') as { version?: number } & Partial<RecentLists> | null;
-      if (!parsed || parsed.version !== 2) return { files: [], projects: [] };
+      if (!parsed || parsed.version !== 2) return { files: [], projects: [], captures: [] };
       return {
         files: Array.isArray(parsed.files) ? parsed.files.filter(isRecentFile) : [],
         projects: Array.isArray(parsed.projects) ? parsed.projects.filter(isRecentProject) : [],
+        captures: Array.isArray(parsed.captures) ? parsed.captures.filter(isRecentFile) : [],
       };
     } catch {
-      return { files: [], projects: [] };
+      return { files: [], projects: [], captures: [] };
     }
   }
 

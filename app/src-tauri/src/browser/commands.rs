@@ -2,16 +2,12 @@
 //! browser), run page work off the main thread and turn errors into messages.
 
 use super::approvals::{Approvals, DecisionDto};
-use super::hub::{BrowserHub, PageState};
-use super::page::TauriPage;
-use super::view::{self, open, page_webview};
+use super::hub::BrowserHub;
 use super::{emit, BrowserEvent, BrowserState, ChatStatusDto, SourceInfo};
 use crate::windows::CurrentWindow;
 use crate::{err, CmdResult};
 use imt_ai::browser::draft::without_flagged;
-use imt_ai::browser::{
-    check_store_query, query::search_for_event, scripts, small_for_agent, PageReader, QuerySource, SearchEngine, WebUrl,
-};
+use imt_ai::browser::{check_store_query, query::search_for_event, small_for_agent, PageReader, QuerySource, SearchEngine, WebUrl};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri::{AppHandle, Manager, Runtime};
@@ -55,31 +51,6 @@ async fn blocking<T: Send + 'static>(f: impl FnOnce() -> CmdResult<T> + Send + '
     crate::sync::blocking("the browser task", f).await
 }
 
-/// The Browser panel's view of its window's browser.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BrowserStateDto {
-    pub page: PageState,
-    /// The engine from Settings ▸ Web browser (the panel's picker starts there).
-    pub engine: SearchEngine,
-    /// A custom search address is set.
-    pub custom_engine: bool,
-    /// The page shows in the panel (Windows, macOS); false: in a window of its own (Linux, see `view`).
-    pub docked: bool,
-}
-
-#[tauri::command]
-pub async fn browser_state<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<BrowserStateDto> {
-    let hub = hub(&app)?;
-    let s = hub.settings();
-    Ok(BrowserStateDto {
-        page: hub.page(win.label()),
-        engine: s.search.engine,
-        custom_engine: s.search.custom.is_some(),
-        docked: view::DOCKED,
-    })
-}
-
 /// What to open: the address box's text (a page or a search) or a search.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
@@ -88,10 +59,9 @@ pub enum OpenTarget {
     Search { query: String, engine: Option<SearchEngine> },
 }
 
-/// Opens the caller's browser (or loads the page in it). Async: a window must not be created from a
-/// synchronous command (it deadlocks on Windows).
+/// Opens the address or the search in the user's default browser (ADR 0043): links never load inside IMT.
 #[tauri::command]
-pub async fn browser_open<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, target: OpenTarget) -> CmdResult<String> {
+pub async fn browser_open<R: Runtime>(app: AppHandle<R>, _win: CurrentWindow, target: OpenTarget) -> CmdResult<String> {
     let hub = hub(&app)?;
     let search = hub.settings().search;
     let url = match target {
@@ -99,8 +69,8 @@ pub async fn browser_open<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, tar
         OpenTarget::Search { query, engine } => search.search_url(engine.unwrap_or(search.engine), &bounded("the search", &query)?),
     }
     .map_err(err)?;
-    open(&app, win.label(), &url, true)?;
     crate::activity::domain_event("browser.open", None, &[("Site", url.site().as_str())]);
+    crate::opener::open_url(url.as_str())?;
     Ok(url.as_str().to_string())
 }
 
@@ -152,61 +122,6 @@ pub async fn browser_event_query<R: Runtime>(app: AppHandle<R>, win: CurrentWind
     .await
 }
 
-/// Back, forward, reload or stop in the caller's browser.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum NavCommand {
-    Back,
-    Forward,
-    Reload,
-    Stop,
-}
-
-#[tauri::command]
-pub async fn browser_nav<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, command: NavCommand) -> CmdResult<()> {
-    let w = page_webview(&app, win.label()).ok_or("the browser is not open")?;
-    let js = match command {
-        NavCommand::Back => "history.back()",
-        NavCommand::Forward => "history.forward()",
-        NavCommand::Reload => scripts::RELOAD,
-        NavCommand::Stop => scripts::STOP_LOADING,
-    };
-    crate::error::lift(w.eval(js).map_err(err))
-}
-
-/// Closes the page (the panel stays); false when none was open.
-#[tauri::command]
-pub async fn browser_close<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<bool> {
-    crate::error::lift(view::close(&app, win.label()))
-}
-
-/// Where the Browser panel's page area is, from the window the panel is in (the IMT window or its pop-out): the page
-/// webview takes that place, or hides (ADR 0024). Validated here; frequent while the user resizes, so quiet.
-#[tauri::command]
-pub async fn browser_place<R: Runtime>(
-    app: AppHandle<R>,
-    window: tauri::Window<R>,
-    win: CurrentWindow,
-    placement: super::Placement,
-) -> CmdResult<bool> {
-    let placement = placement
-        .validated()
-        .map_err(|e| crate::CmdError::new(crate::ErrorCode::Invalid, e))?;
-    let view = crate::error::lift(view::place(&app, win.label(), window.label(), placement))?;
-    Ok(matches!(view, super::geometry::View::At(_)))
-}
-
-/// Opens the page shown (or a popup it asked for) in the system browser; any other address is refused.
-#[tauri::command]
-pub async fn browser_open_external<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, url: String) -> CmdResult<()> {
-    let u = WebUrl::parse(&url).map_err(err)?;
-    if !hub(&app)?.may_open_externally(win.label(), &url) {
-        return Err("refused: only the page shown or a window it asked to open can be opened".into());
-    }
-    crate::activity::domain_event("browser.openExternal", None, &[("Site", u.site().as_str())]);
-    crate::opener::open_url(u.as_str())
-}
-
 fn sources_event<R: Runtime>(app: &AppHandle<R>, owner: &str, chat: &str, hub: &BrowserHub) -> Vec<SourceInfo> {
     let sources: Vec<SourceInfo> = hub.attachments(owner, chat).iter().map(SourceInfo::from).collect();
     emit(
@@ -226,11 +141,7 @@ pub async fn browser_capture<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, 
     let chat = chat_of(&win, &session_id)?;
     let hub = hub(&app)?;
     let owner = win.label().to_string();
-    let page = TauriPage {
-        app: app.clone(),
-        owner: owner.clone(),
-        chat: None,
-    };
+    let page = super::reader_page(&app, &owner).ok_or("no web page is open: ask the AI to research or browse first")?;
     let captured = blocking(move || crate::error::lift(page.capture().map_err(err))).await?;
     if captured.text.trim().is_empty() {
         return Err("the page has no readable text yet; wait for it to load and try again".into());
@@ -342,9 +253,7 @@ pub async fn browser_agent_stop<R: Runtime>(app: AppHandle<R>, win: CurrentWindo
     hub.chat(win.label(), &chat).stop();
     approvals(&app)?.deny_chat(win.label(), &chat);
     if hub.is_driving(win.label(), &chat) {
-        if let Some(w) = page_webview(&app, win.label()) {
-            let _ = w.eval(scripts::STOP_LOADING);
-        }
+        super::renderers(&app).map(|r| r.kill(win.label()));
     }
     super::driving::refresh(&app, win.label());
     crate::activity::domain_event("browser.agent.stop", None, &[("Chat", chat.as_str())]);
@@ -391,15 +300,11 @@ pub async fn browser_open_and_read<R: Runtime>(app: AppHandle<R>, win: CurrentWi
     crate::error::lift(
         tauri::async_runtime::spawn_blocking(move || {
             let owner = w.label().to_string();
-            let before = h.page(&owner).loads;
-            open(&a, &owner, &u, true)?;
-            h.wait_loaded(&owner, before, std::time::Duration::from_secs(15));
-            let page = super::page::TauriPage {
-                app: a.clone(),
-                owner: owner.clone(),
-                chat: None,
-            };
-            let capture = imt_ai::browser::PageReader::capture(&page).map_err(err)?;
+            let page = super::reader_page(&a, &owner)
+                .or_else(|| super::visible_page(&a, &owner))
+                .ok_or_else(|| "the browser could not be started".to_string())?;
+            imt_ai::browser::PageDriver::navigate(&page, &u).map_err(err)?;
+            let capture = page.capture().map_err(err)?;
             let title = capture.title.clone();
             h.attach(&owner, &chat, capture);
             crate::activity::domain_event("browser.openAndRead", None, &[("Site", u.site().as_str())]);
@@ -417,7 +322,7 @@ pub async fn browser_open_and_read<R: Runtime>(app: AppHandle<R>, win: CurrentWi
     )
 }
 
-/// Opens a link a chat suggested, in the internal browser. Only links that chat suggested are opened.
+/// Opens a link a chat suggested in the user's default browser. Only links that chat suggested are opened.
 #[tauri::command]
 pub async fn browser_open_suggested<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String, url: String) -> CmdResult<()> {
     let chat = chat_of(&win, &session_id)?;
@@ -425,7 +330,22 @@ pub async fn browser_open_suggested<R: Runtime>(app: AppHandle<R>, win: CurrentW
     if !hub(&app)?.was_suggested(win.label(), &chat, u.as_str()) {
         return Err("refused: this link was not suggested in this chat".into());
     }
-    open(&app, win.label(), &u, true)?;
+    crate::opener::open_url(u.as_str())?;
     crate::activity::domain_event("browser.openSuggested", None, &[("Site", u.site().as_str())]);
     Ok(())
+}
+
+/// Stop (the status chip): every AI hold on the window's browser ends, waiting approvals are denied and the browser
+/// process is ended at once. Returns whether a browser was running.
+#[tauri::command]
+pub async fn browser_stop<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<bool> {
+    let hub = hub(&app)?;
+    hub.stop_all(win.label());
+    for chat in win.ai.chats.list() {
+        approvals(&app)?.deny_chat(win.label(), &chat.id);
+    }
+    let killed = super::renderers(&app).is_some_and(|r| r.kill(win.label()));
+    super::driving::refresh(&app, win.label());
+    crate::activity::domain_event("browser.stop", None, &[("Killed", if killed { "true" } else { "false" })]);
+    Ok(killed)
 }

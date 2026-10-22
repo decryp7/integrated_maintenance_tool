@@ -18,7 +18,7 @@ describe('live reports', () => {
         { sourceId: 2, state: { kind: 'tailing' } },
       ],
     });
-    const b = report({ appended: 3, updated: 1, sourcesChanged: [1, 2], idsChangedFrom: 20, newestTs: 5, instancesChanged: ['a', 'b'], evicted: 4, alertsRaised: 1, elapsedMs: 2, added: [3], truncated: [2], deleted: [4], reimported: [5], fileStates: [{ sourceId: 2, state: { kind: 'truncated' } }] });
+    const b = report({ appended: 3, updated: 1, sourcesChanged: [1, 2], idsChangedFrom: 20, newestTs: 5, instancesChanged: ['a', 'b'], alertsRaised: 1, elapsedMs: 2, added: [3], truncated: [2], deleted: [4], reimported: [5], fileStates: [{ sourceId: 2, state: { kind: 'truncated' } }] });
     expect(mergeReports(a, b)).toEqual({
       appended: 5,
       updated: 1,
@@ -28,7 +28,6 @@ describe('live reports', () => {
       truncated: [2],
       deleted: [4],
       reimported: [5],
-      evicted: 4,
       idsChangedFrom: 20,
       newestTs: 10,
       instancesChanged: ['a', 'b'],
@@ -46,7 +45,7 @@ describe('live reports', () => {
   it('tells appends from structural changes', () => {
     expect(isStructural(report({ appended: 10 }))).toBe(false);
     expect(isStructural(report({ rotated: [{ sourceId: 1, from: 'a', to: 'b' }], added: [2] }))).toBe(false);
-    for (const p of [{ idsChangedFrom: 0 }, { evicted: 1 }, { updated: 1 }, { truncated: [1] }, { deleted: [1] }, { reimported: [1] }]) {
+    for (const p of [{ idsChangedFrom: 0 }, { updated: 1 }, { truncated: [1] }, { deleted: [1] }, { reimported: [1] }]) {
       expect(isStructural(report(p))).toBe(true);
     }
     expect(isStructural(unknownChange())).toBe(true);

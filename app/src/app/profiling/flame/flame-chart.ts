@@ -116,7 +116,7 @@ interface Tip {
     table.grid th, table.grid td { padding: 2px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
     table.grid .num { text-align: right; font-family: var(--font-mono); }
     tr.sel td { background: var(--bg-sel); }
-    .link { background: none; border: 0; padding: 0; font: inherit; color: var(--chip-text); cursor: pointer; text-align: left; }
+    .link { display: inline-flex; align-items: center; min-height: 24px; min-width: 24px; /* WCAG 2.5.8 target size */ background: none; border: 0; padding: 0; font: inherit; color: var(--chip-text); cursor: pointer; text-align: left; }
     .link:focus-visible { outline: 2px solid var(--focus-ring); }
     .tag { margin-left: 6px; font-family: var(--font-mono); font-size: var(--fs-2xs); padding: 0 4px; border: 1px solid var(--border-3); border-radius: 3px; }
   `,

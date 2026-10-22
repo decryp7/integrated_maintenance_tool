@@ -1,6 +1,8 @@
 # 28. Native feel: IMT's windows behave like a desktop application, not a web page
 
-- Status: accepted (2026-10-21)
+- Status: accepted (2026-10-21), amended by [ADR 0034](0034-native-window-capture.md) (the picture in an error snapshot is
+  taken by the platform webview, not by rasterising the page) and [ADR 0035](0035-view-areas-and-perspectives.md) (`Alt+←`/`Alt+→`
+  and the mouse's back/forward buttons are IMT's own history, not browser navigation)
 - Related: ADR 0018 (themes), ADR 0024 (docked browser), `app/src/app/core/native-feel.ts`,
   `app/src-tauri/src/native_feel.rs`
 

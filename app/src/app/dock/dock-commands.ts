@@ -43,7 +43,7 @@ export class DockCommands {
     { id: 'window.float', title: $localize`:@@dock.commands.float:Float panel`, category: CATEGORY, when: () => this.dock.canFloatActive(), run: () => void this.dock.floatActive() },
     { id: 'window.panelMenu', title: $localize`:@@dock.commands.panelMenu:Panel menu (window position)`, category: CATEGORY, keybinding: 'Alt+-', run: () => this.dock.openActivePanelMenu() },
     { id: 'window.autoHide', title: $localize`:@@dock.commands.autoHide:Auto hide / pin tool window`, category: CATEGORY, keybinding: 'Ctrl+Alt+H', run: () => this.dock.toggleAutoHideActive() },
-    { id: 'window.autoHideAll', title: $localize`:@@dock.commands.autoHideAll:Auto hide all tool windows`, category: CATEGORY, run: () => this.dock.autoHideAll() },
+    { id: 'window.autoHideAll', title: $localize`:@@dock.commands.autoHideAll:Auto hide all tool windows`, category: CATEGORY, run: () => void this.dock.autoHideAll() },
     { id: 'window.pinAll', title: $localize`:@@dock.commands.pinAll:Pin all tool windows`, category: CATEGORY, when: () => this.dock.autoHide().items.length > 0, run: () => this.dock.pinAll() },
     { id: 'window.closeAllDocuments', title: $localize`:@@dock.commands.closeAllDocuments:Close all documents`, category: CATEGORY, run: () => this.dock.closeAllDocuments() },
     { id: 'window.switcher', title: $localize`:@@dock.commands.switcher:Switch panel (Ctrl+Tab)`, category: CATEGORY, run: () => this.dock.switch() },

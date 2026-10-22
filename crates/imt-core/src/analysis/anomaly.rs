@@ -298,6 +298,46 @@ pub trait AnomalyInputs {
     /// The values of `field` at the `ranks` (0-based, ascending) of all its values sorted.
     fn values_at(&mut self, field: &str, ranks: &[usize]) -> Result<Vec<f64>, Self::Error>;
 
+    /// [`Self::latency`] of each of `fields`, in order. The default asks one field at a time; a database reads
+    /// them all in one scan.
+    fn latencies(&mut self, fields: &[String]) -> Result<Vec<Latency>, Self::Error> {
+        fields.iter().map(|f| self.latency(f)).collect()
+    }
+
+    /// The count of `field`'s numbers with their median and 99th percentile. The default reads them through
+    /// [`Self::value_count`] and [`Self::values_at`]; a database answers in one pass.
+    fn latency(&mut self, field: &str) -> Result<Latency, Self::Error> {
+        let n = self.value_count(field)?;
+        if n == 0 {
+            return Ok(Latency::default());
+        }
+        // The median as `median_sorted` takes it, and the 99th percentile.
+        let middle = if n % 2 == 1 { (n / 2, n / 2) } else { (n / 2 - 1, n / 2) };
+        let (lo, hi, frac) = percentile_ranks(n, 99.0);
+        let mut ranks = vec![middle.0, middle.1, lo, hi];
+        ranks.sort_unstable();
+        ranks.dedup();
+        let values = self.values_at(field, &ranks)?;
+        let at = |r: usize| {
+            ranks
+                .iter()
+                .position(|x| *x == r)
+                .and_then(|i| values.get(i))
+                .copied()
+                .unwrap_or(0.0)
+        };
+        let median = if middle.0 == middle.1 {
+            at(middle.0)
+        } else {
+            (at(middle.0) + at(middle.1)) / 2.0
+        };
+        Ok(Latency {
+            count: n,
+            median,
+            p99: at(lo) + (at(hi) - at(lo)) * frac,
+        })
+    }
+
     /// The events whose `field` is above `above` and at least `at_least`, per bucket (ascending).
     fn outliers(&mut self, field: &str, above: f64, at_least: f64, layout: &Layout) -> Result<Vec<OutlierBucket>, Self::Error>;
 
@@ -545,6 +585,14 @@ fn percentile_ranks(n: usize, p: f64) -> (usize, usize, f64) {
     (lo, hi, rank - lo as f64)
 }
 
+/// How many numbers a field has, and their median and 99th percentile.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Latency {
+    pub count: usize,
+    pub median: f64,
+    pub p99: f64,
+}
+
 fn slow_outliers<I: AnomalyInputs + ?Sized>(
     inputs: &mut I,
     layout: &Layout,
@@ -552,32 +600,11 @@ fn slow_outliers<I: AnomalyInputs + ?Sized>(
     cfg: &AnomalyConfig,
 ) -> Result<Vec<Anomaly>, I::Error> {
     let mut out = Vec::new();
-    for field in &cfg.latency_fields {
-        let n = inputs.value_count(field)?;
-        if n < MIN_LATENCY_VALUES {
+    let stats = inputs.latencies(&cfg.latency_fields)?;
+    for (field, Latency { count, median: med, p99 }) in cfg.latency_fields.iter().zip(stats) {
+        if count < MIN_LATENCY_VALUES {
             continue;
         }
-        // The median as `median_sorted` takes it, and the 99th percentile.
-        let middle = if n % 2 == 1 { (n / 2, n / 2) } else { (n / 2 - 1, n / 2) };
-        let (lo, hi, frac) = percentile_ranks(n, 99.0);
-        let mut ranks = vec![middle.0, middle.1, lo, hi];
-        ranks.sort_unstable();
-        ranks.dedup();
-        let values = inputs.values_at(field, &ranks)?;
-        let at = |r: usize| {
-            ranks
-                .iter()
-                .position(|x| *x == r)
-                .and_then(|i| values.get(i))
-                .copied()
-                .unwrap_or(0.0)
-        };
-        let med = if middle.0 == middle.1 {
-            at(middle.0)
-        } else {
-            (at(middle.0) + at(middle.1)) / 2.0
-        };
-        let p99 = at(lo) + (at(hi) - at(lo)) * frac;
         for group in inputs.outliers(field, p99, 3.0 * med, layout)? {
             let (from, to) = layout.span_of(group.bucket, group.bucket);
             let first_instance = instances.get(group.first_instance).map_or("", |i| i.key.as_str());

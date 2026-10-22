@@ -1,22 +1,19 @@
 import { mockJobs } from '../jobs/mock-jobs';
 /**
- * The internal browser for the browser build (dev and UI tests): a pretend page per IMT window, pages handed
- * to chats, and the per-chat read-along and agent switches the scripted AI mock plays with. It mimics the
- * contract of `app/src-tauri/src/browser` only; the engine (`crates/imt-ai/src/browser`) is the reference.
+ * The AI's browser for the browser build (dev and UI tests): a pretend page open in the AI's browser window, pages
+ * handed to chats, who drives, and the per-chat read-along and agent switches the scripted AI mock plays with. It
+ * mimics the contract of `app/src-tauri/src/browser` only; the engine (`crates/imt-ai/src/browser`) is the reference.
  */
 import { Unlisten } from '../windowing/window-events';
 import { BrowserBackend, ChatBrowserBackend } from './browser-backend';
 import {
   AgentDecision,
   AiDriver,
+  BrowserActivityKind,
   BrowserEvent,
-  BrowserStateDto,
   ChatBrowserStatus,
   EventQuery,
-  NavCommand,
   OpenTarget,
-  Placement,
-  PageState,
   SearchEngine,
   SourceInfo,
 } from './browser.types';
@@ -45,17 +42,16 @@ function titleFor(url: string): string {
 
 /** The shared pretend world: one page, chats' pages and switches, and waiting approvals. */
 export class MockWeb {
-  page: PageState = { open: false, url: '', title: '', loading: false };
+  /** The page open in the AI's browser window (`?mockPage=open` starts with one). */
+  page: OpenPage = mockPageParam() ? pageOf('https://learn.example.com/dotnet/timeouts') : { open: false, url: '', title: '' };
   /** Settings ▸ Web browser ▸ Search engine (the engine's default: Google). */
   engine: SearchEngine = 'google';
-  readonly history: string[] = [];
-  at = -1;
   readonly handlers = new Set<(e: BrowserEvent) => void>();
   readonly sources = new Map<string, SourceInfo[]>();
   readonly statuses = new Map<string, ChatBrowserStatus>();
   readonly suggested = new Map<string, Set<string>>();
   readonly approvals = new Map<string, (d: AgentDecision) => void>();
-  /** Addresses "opened" in the system browser (the browser build never leaves the page). */
+  /** Addresses opened in the user's default browser (the browser build never leaves the page). */
   readonly external: string[] = [];
   /** The step limit of a new task (Settings ▸ Web browser). */
   stepLimit = 25;
@@ -65,11 +61,7 @@ export class MockWeb {
   /** "Open and let AI read it" hands the page to the chat; the mock AI backend sets this to ask the follow-up. */
   continueChat: ((sessionId: string, title: string) => Promise<number>) | null = null;
 
-  /** The Browser panel's last `browser_place` (the page webview's place in the desktop app); e2e tests read it from
-   * `window.__imtMockBrowserView`. */
-  placement: Placement | null = null;
-
-  /** Who drives the pretend browser (`?mockDriving=agent` or `research` starts with one, for the banner's e2e). */
+  /** Who drives the pretend browser (`?mockDriving=agent` or `research` starts with one, for the status chip's e2e). */
   driver: AiDriver | null = mockDrivingParam();
 
   emit(e: BrowserEvent): void {
@@ -83,18 +75,16 @@ export class MockWeb {
     this.emit({ type: 'driving', by });
   }
 
-  /** Loads a page and asks the window to show the Browser panel (`activate`: the user's own; the AI's do not). */
-  show(url: string, activate = true): void {
-    this.history.splice(this.at + 1);
-    this.history.push(url);
-    this.at = this.history.length - 1;
-    this.setPage(url);
-    this.emit({ type: 'reveal', activate });
+  /** A page opens in the AI's browser window. */
+  show(url: string): void {
+    this.page = pageOf(url);
   }
 
-  setPage(url: string): void {
-    this.page = { open: true, url, title: titleFor(url), loading: false };
-    this.emit({ type: 'state', ...this.page });
+  /** What the AI's window does now, as the shell reports it (`status` line and `activity`). */
+  report(activity: BrowserActivityKind, host: string, text?: string): void {
+    if (text) this.emit({ type: 'status', text });
+    const label = activity === 'reading' ? 'Reading' : activity === 'searching' ? 'Searching' : 'Waiting for you';
+    this.emit({ type: 'activity', activity, host, title: `IMT AI — ${label}: ${host}` });
   }
 
   status(sessionId: string): ChatBrowserStatus {
@@ -143,6 +133,21 @@ export class MockWeb {
   }
 }
 
+/** The page open in the AI's browser window. */
+export interface OpenPage {
+  open: boolean;
+  url: string;
+  title: string;
+}
+
+function pageOf(url: string): OpenPage {
+  return { open: true, url, title: titleFor(url) };
+}
+
+function mockPageParam(): boolean {
+  return typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('mockPage') === 'open';
+}
+
 function mockDrivingParam(): AiDriver | null {
   if (typeof window === 'undefined') return null;
   const p = new URLSearchParams(window.location.search).get('mockDriving');
@@ -175,9 +180,7 @@ const later = <T>(f: () => T): Promise<T> =>
 export class MockBrowserBackend implements BrowserBackend, ChatBrowserBackend {
   constructor(private readonly w: MockWeb = mockWeb()) {}
 
-  state() {
-    return later((): BrowserStateDto => ({ page: { ...this.w.page }, engine: this.w.engine, customEngine: false, docked: true }));
-  }
+  /** Like the shell: the address or search opens in the user's default browser, nothing shows here. */
   open(target: OpenTarget) {
     return later(() => {
       const engine = target.engine ?? this.w.engine;
@@ -191,7 +194,7 @@ export class MockBrowserBackend implements BrowserBackend, ChatBrowserBackend {
         if (/^(javascript|file|data):/i.test(t)) throw new Error(`only http and https pages open in the browser (not ${t.split(':')[0]}:)`);
         url = /^https?:\/\//i.test(t) ? t : /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(t) ? `https://${t}` : mockSearchUrl(engine, t);
       }
-      this.w.show(url);
+      this.w.external.push(url);
       return url;
     });
   }
@@ -201,42 +204,9 @@ export class MockBrowserBackend implements BrowserBackend, ChatBrowserBackend {
       return { query: 'System.TimeoutException The operation has timed out', removed: ['1 value from your logs'], source: 'model' };
     });
   }
-  /** Like the shell: the page shows while the panel says it may and its area has a size (there is no native page here). */
-  place(placement: Placement) {
-    return later(() => {
-      const { rect } = placement;
-      if (!Number.isFinite(placement.scale) || placement.scale < 0.25 || placement.scale > 8) throw new Error(`the scale ${placement.scale} is out of range`);
-      const shown = placement.visible && !!rect && rect.width * placement.scale >= 1 && rect.height * placement.scale >= 1;
-      this.w.placement = placement;
-      if (typeof window !== 'undefined') (window as unknown as { __imtMockBrowserView?: unknown }).__imtMockBrowserView = { ...placement, shown };
-      return shown;
-    });
-  }
-  nav(command: NavCommand) {
-    return later(() => {
-      if (!this.w.page.open) throw new Error('the browser is not open');
-      if (command === 'back' && this.w.at > 0) this.w.setPage(this.w.history[--this.w.at] ?? '');
-      if (command === 'forward' && this.w.at < this.w.history.length - 1) this.w.setPage(this.w.history[++this.w.at] ?? '');
-      if (command === 'reload') this.w.setPage(this.w.page.url);
-    });
-  }
-  close() {
-    return later(() => {
-      const was = this.w.page.open;
-      this.w.page = { open: false, url: '', title: '', loading: false };
-      this.w.emit({ type: 'state', ...this.w.page });
-      return was;
-    });
-  }
-  openExternal(url: string) {
-    return later(() => {
-      if (url !== this.w.page.url) throw new Error('refused: only the page shown or a window it asked to open can be opened');
-      this.w.external.push(url);
-    });
-  }
   capture(sessionId: string) {
     return later(() => {
-      if (!this.w.page.open) throw new Error('the browser is not open; open it from the Browser panel first');
+      if (!this.w.page.open) throw new Error('No page is open in the AI browser window. Open one there (or turn on Agent mode) first.');
       const list = (this.w.sources.get(sessionId) ?? []).filter((s) => s.url !== this.w.page.url);
       list.push({ title: this.w.page.title, url: this.w.page.url, chars: 1834, truncated: false, removed: [] });
       this.w.sources.set(sessionId, list.slice(-3));
@@ -294,11 +264,12 @@ export class MockBrowserBackend implements BrowserBackend, ChatBrowserBackend {
   openSuggested(sessionId: string, url: string) {
     return later(() => {
       if (!this.w.suggested.get(sessionId)?.has(url)) throw new Error('refused: this link was not suggested in this chat');
-      this.w.show(url);
+      this.w.external.push(url);
     });
   }
   async openAndRead(sessionId: string, url: string): Promise<number> {
-    await this.openSuggested(sessionId, url);
+    if (!this.w.suggested.get(sessionId)?.has(url)) throw new Error('refused: this link was not suggested in this chat');
+    this.w.show(url);
     await this.capture(sessionId);
     return this.w.continueChat ? this.w.continueChat(sessionId, this.w.page.title) : 0;
   }
@@ -310,6 +281,17 @@ export class MockBrowserBackend implements BrowserBackend, ChatBrowserBackend {
   }
   driving() {
     return later(() => this.w.driver);
+  }
+  stopAll() {
+    return later(() => {
+      const was = this.w.driver !== null;
+      for (const k of this.w.statuses.keys()) {
+        this.w.denyAll(k);
+        if (this.w.status(k).agent) this.w.update(k, { agent: false });
+      }
+      this.w.drive(null);
+      return was;
+    });
   }
   private stopDriving(sessionId: string): void {
     const d = this.w.driver;

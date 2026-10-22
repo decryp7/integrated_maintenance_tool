@@ -106,12 +106,9 @@ describe('ClockSkewStore', () => {
     expect(skew.reference()).toBeNull();
   });
 
-  it('drops a reference whose record no longer exists and reports suggestion failures', async () => {
+  it('reports suggestion failures', async () => {
     const { skew } = setup();
     await settle();
-    skew.setReference({ id: 999, ts: 1, tsState: 'parsed', source: 0, sourceName: 'x', message: 'gone', level: 'Information', template: null, exception: null, fields: {}, line: 1, byteOffset: 0, group: '', markers: [] });
-    await skew.apply({ kind: 'manual', source: 1, offsetMs: 10 });
-    expect(skew.reference()).toBeNull();
     const backend = TestBed.inject(SkewBackend);
     vi.spyOn(backend, 'suggestOffsets').mockRejectedValueOnce('engine unavailable');
     await skew.suggest();

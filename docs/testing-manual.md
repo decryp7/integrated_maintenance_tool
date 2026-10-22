@@ -50,7 +50,7 @@ Write down the platform, build and anything that differs from the expected resul
 | 21 | Tray → *Show IMT* (or a window's name in the list). | That window is shown and focused. |
 | 22 | Tray → *Recent projects* → a project. | It opens per *Open files from other apps in*. A project that no longer exists opens nothing. |
 | 23 | Start live tail and the process monitor (and a PerfMon collector on Windows), then open Tray → *Background work*. | Each item is listed with a Stop entry, and the tooltip says "N background tasks running". Stop ends it, and the status bar's *Background work* popover and the window's Live button update. |
-| 24 | Tray → *Capture diagnostic screenshot*. | The last-focused window comes to the front and an error snapshot is saved (see *Tools → Show error snapshots*) with a picture of the window's content (no title bar) as it was on screen, at most 1600 px wide (on a Retina Mac: the window's width in points). The window stays responsive meanwhile. |
+| 24 | Tray → *Capture diagnostic screenshot*. | The last-focused window comes to the front and an error snapshot is saved (see *View ▸ Diagnostics ▸ Error snapshots*) with a picture of the window's content (no title bar) as it was on screen, at most 1600 px wide (on a Retina Mac: the window's width in points). The window stays responsive meanwhile. |
 | 25 | Tray → *Quit IMT*. | IMT exits, including hidden windows. The next start does not report a crash. |
 | 26 | Set *Start in the system tray*, then restart. | IMT starts with only the tray icon. Tray → *Show IMT* shows the window. |
 | 27 | macOS: switch the menu bar between light and dark. | The tray icon (a template image) follows. |
@@ -117,7 +117,7 @@ Child processes' standard error and start/exit lines go to `<IMT log folder>/chi
 
 Build the fixture once: `dotnet build crates/imt-plugin-dotnet/tests/fixtures/Busy -c Release -f net462` (and
 `-p:PlatformTarget=x86 -o <dir>` for 32-bit, `-f net10.0` for .NET 10); run `Busy.exe 600` (it burns CPU, allocates,
-throws, contends on a lock and sleeps for 10 minutes). *Tools ▸ Profile .NET process…* lists it.
+throws, contends on a lock and sleeps for 10 minutes). the command palette's *Profile .NET process…* lists it.
 
 | # | Steps | Expected |
 |---|-------|----------|
@@ -137,7 +137,7 @@ throws, contends on a lock and sleeps for 10 minutes). *Tools ▸ Profile .NET p
 Build the fixture once: `cargo build -p imt-plugin-native --example native-busy` (32-bit:
 `rustup target add i686-pc-windows-msvc`, then add `--target i686-pc-windows-msvc`); run
 `target\debug\examples\native-busy.exe all 600` (a busy loop, four threads contending for a lock, a heap that
-grows). *Tools ▸ Profile native process…* lists it.
+grows). the command palette's *Profile native process…* lists it.
 
 | # | Steps | Expected |
 |---|-------|----------|
@@ -162,8 +162,28 @@ ETW automated tests (elevated shell): `set IMT_ETW_TESTS=1`, then
 | 73 | Open the three `samples/dumps/umdh/OrderService-4120-snap-*.txt` files with File ▸ Open UMDH snapshots…. | The UMDH heap growth view lists the growing stacks, the module and culprit-function groupings and the findings. |
 | 74 | Windows: Tools ▸ Create dump of process… on a running process of your own (a small dump), into a folder you choose. Then try a protected process. | A `.dmp` appears in the folder and opens in the Dump view. The protected process fails with a message that offers *Restart as administrator*; nothing is injected into the target. |
 | 75 | Save a project (`Ctrl/⌘+S`) of the samples as `.imtz`, close IMT, move the `samples` folder away, open the project. | It opens with its events, profile, notes and layout; search, the timeline and analyses work; the search box finds words in a moment, with a *+N* partial count. |
-| 76 | Build a plugin with `cargo imt-plugin new` and `cargo imt-plugin package`; in the Plugins panel choose *Install from file*. | An unsigned package is refused with a message about developer mode. With developer mode on (Settings ▸ Plugin trust) it installs after a warning that shows the publisher and the requested permissions. A revoked permission restarts the plugin with fewer rights. |
+| 76 | Build a plugin with `cargo imt-plugin new` and `cargo imt-plugin package`; in the Plugins view choose *Install from file*. | An unsigned package is refused with a message about developer mode. With developer mode on (Settings ▸ Plugin trust) it installs after a warning that shows the publisher and the requested permissions. A revoked permission restarts the plugin with fewer rights. |
 | 77 | With a plugin installed, kill its process from the Task Manager / `kill -9`, then use the plugin again. | The call fails with an error naming the plugin; the next use starts a new process; IMT keeps running. |
+| 78 | Settings ▸ Video: *Install* the FFmpeg runtime (Windows, Linux), or point it at your own `ffmpeg` (macOS, for example Homebrew's). Then open a short screen recording with File ▸ Open video…. | The runtime passes its self-test and shows its version; the Video view opens, the frame strip fills, the alignment names its evidence, and the video appears as its own lane. With the network off the install fails with a message, not a hang. |
+| 79 | In the Video view, drop a frame, add the frame at the player position, then *Include the video in the project* and save. Move the original video and reopen the project. | The frames and notes survive; the included copy plays; a referenced (not included) video asks to be located and is accepted only with the same SHA-256. |
+| 80 | Windows: Settings ▸ Symbols: turn symbol servers on with a Microsoft symbol server address, then open a dump whose modules have no local PDBs. | The Modules table shows a status per module (loaded, not on server, download failed...); downloaded PDBs land in the cache folder; with servers off nothing is requested. |
+| 81 | Move a window to a second monitor, minimise another, then press `Ctrl/⌘+Shift+F12` in each. | The snapshot shows the window as it was on screen; a minimised or covered window on macOS gets the placeholder and "No screenshot: …" instead of a failure. |
+| 82 | File ▸ Share redacted copy…, pick *Hash* and a few detectors, write the copy, then open it and search for an e-mail address from the original. | The preview counted what changes; the copy opens, finds no unredacted value, and says which sources (binary, CSV, XML) were left out. |
+
+## The AI's browser (real Chromium, ADR 0043)
+
+Needs Edge, Chrome or Chromium (or the download in Settings ▸ Web browser) and a local model.
+
+| # | Steps | Expected |
+|---|---|---|
+| 83 | Settings ▸ Web browser on a machine with no Chromium-based browser. | The panel says none was found and offers *Download Chromium* (about 200 MB). Start a research: it fails with a message pointing to Settings. |
+| 84 | Press *Download Chromium*, wait, then *Remove downloaded Chromium*. | Status goes downloading, installed (pinned version) and back to none; a download whose checksum does not match is refused and nothing is installed. |
+| 85 | In a chat set *Browser* to *Agent* and ask it to look something up. | A Chromium window opens next to IMT with Chrome's banner "controlled by automated test software" and a window frame in IMT's accent colour (a browser version that ignores it is fine). IMT shows the status chip with the activity, the site and *Stop*. Nothing is added to the pages themselves. |
+| 86 | Press *Stop* on the chip during a step. | The Chromium window closes at once, the chip clears, the chat says the browser was stopped, and no Chromium process is left (`ps`/Task Manager). |
+| 87 | Research a topic with *Research this* on an event. | The window stays out of sight; the chip shows "Reading n of m results"; the research log lists every page opened or skipped. |
+| 88 | Research when the engine shows a consent page or a CAPTCHA. | The window comes to the front, the chip says it is waiting for you; after you finish the check the research continues and the window goes away. |
+| 89 | *Search the web for this error* and a link card's *Open*. | The pages open in your default browser, not in IMT. |
+| 90 | Quit IMT while a research is running. | No Chromium process remains. |
 
 ## Smoke tests of the real app (WebdriverIO + tauri-driver)
 

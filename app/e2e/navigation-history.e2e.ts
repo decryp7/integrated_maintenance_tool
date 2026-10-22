@@ -79,8 +79,7 @@ test.describe('navigation history', () => {
     await expectEvent(page, 7);
   });
 
-  // Known gap (open): the second Back stays on the first place back; one step back and forward-after-back are not yet reliable.
-  test.fixme('Alt+Left twice reaches the first event and Alt+Right walks forward again', async ({ page }) => {
+  test('Alt+Left twice reaches the first event and Alt+Right walks forward again', async ({ page }) => {
     await selectEvent(page, 1);
     await selectEvent(page, 5);
     await selectEvent(page, 9);

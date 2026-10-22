@@ -13,8 +13,6 @@
     "e2e:tauri:build": "node scripts/build-sidecars.mjs --debug && tauri build --debug --no-bundle",
     "e2e:tauri:driver": "node e2e-tauri/scripts/fetch-msedgedriver.mjs",
     "e2e:tauri": "wdio run e2e-tauri/wdio.conf.ts",
-    "e2e:tauri:build:live": "node scripts/build-sidecars.mjs --debug && tauri build --debug --no-bundle --features live-search-probe",
-    "e2e:tauri:live": "wdio run e2e-tauri/wdio.live.conf.ts",
     "screenshots": "playwright test -c scripts/screenshots/playwright.config.ts",
     "whats-new": "node scripts/whats-new.mjs",
     "i18n": "ng extract-i18n && node scripts/i18n/build-locales.mjs"

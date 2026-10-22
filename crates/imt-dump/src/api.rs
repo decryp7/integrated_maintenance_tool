@@ -328,6 +328,8 @@ pub enum SymbolStatusDto {
     Unreadable { detail: String },
     /// The download failed.
     DownloadFailed { detail: String },
+    /// Its PDB is being downloaded; the view updates when it arrives.
+    Downloading,
 }
 
 impl From<&crate::model::SymbolStatus> for SymbolStatusDto {
@@ -343,6 +345,7 @@ impl From<&crate::model::SymbolStatus> for SymbolStatusDto {
             S::Mismatch { detail } => SymbolStatusDto::Mismatch { detail: detail.clone() },
             S::Unreadable { detail } => SymbolStatusDto::Unreadable { detail: detail.clone() },
             S::DownloadFailed { detail } => SymbolStatusDto::DownloadFailed { detail: detail.clone() },
+            S::Downloading => SymbolStatusDto::Downloading,
         }
     }
 }
@@ -358,6 +361,8 @@ pub struct SymbolProblems {
     pub mismatch: u32,
     pub unreadable: u32,
     pub download_failed: u32,
+    /// Modules whose PDB is being downloaded now (not a problem yet).
+    pub downloading: u32,
     pub no_identity: u32,
 }
 

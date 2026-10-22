@@ -164,6 +164,13 @@ npm run screenshots     # writes docs/screenshots/*.png
 The script is [`app/scripts/screenshots/capture.ts`](../app/scripts/screenshots/capture.ts); set
 `IMT_SHOT_PORT` to use another dev-server port.
 
+### Diagrams and What's new
+
+Edit a diagram's `.drawio` source, then run `scripts/export-diagrams.sh` (draw.io desktop; on macOS it is found at
+`/Applications/draw.io.app`) and commit the SVGs in `docs/diagrams/svg/` with it. `CHANGELOG.md` is curated by hand and feeds
+*Help ▸ What's new*: after editing it run `npm run whats-new` in `app/` (`npm start` and `npm run build` do it too) and
+commit the regenerated `app/src/app/whats-new/changelog.generated.ts`; a node test fails when it is stale.
+
 ### App icon
 
 The icon is drawn as SVG in [`app/src-tauri/icons-src/`](../app/src-tauri/icons-src/): a blue tile
@@ -231,32 +238,23 @@ cargo deny --workspace check
 
 ### Live search test
 
-AI research reads the results page of the user's search engine in IMT's own browser. Search engines serve the
-system webview (WebView2, WebKitGTK) other pages than a desktop browser, and change them without notice, so a live
-test searches once with every built-in engine (Google, DuckDuckGo, Bing) in the real app, through the
-real collector script and the real Rust rules (`research::search`, `research::read_results`).
-
-The app does the searching itself: the `live-search-probe` feature of `imt-app` (`app/src-tauri/src/browser/live_probe.rs`)
-compiles only into debug builds (a release build with it does not compile) and adds no command or capability. When
-`IMT_E2E_LIVE_SEARCH_OUT` names a folder at start-up, it searches with each engine in the main window's browser and
-writes `live-search.json` and, on Windows, a screenshot of each page there. The WebdriverIO spec (`app/e2e-tauri/live`)
-starts the app and judges the report: an engine passes with at least 3 result links and its first result opening
-(directly, or through the engine's own redirect where the engine hides result addresses, as Google does for the
-system webview); a recognised consent,
-human-check or redirect page is a warning; anything else fails, with the page's host and path (never the query string),
-title, readyState, DOM quiet time, link counts and whether the results region was found.
+AI research reads the results page of the user's search engine in a real Chromium (ADR 0043). Search engines change
+their pages without notice, so a live test searches once with every built-in engine (Google, DuckDuckGo, Bing) through
+the real page scripts and the real Rust rules (`research::search`, `research::read_results`, `research::open_result`),
+using the same `ChromiumPage` research uses. It is an ignored test of `imt-app` (`app/src-tauri/src/browser/live.rs`)
+and needs an installed Edge, Chrome or Chromium and the network. An engine passes with at least 3 result links and its
+first result opening; a recognised consent, human-check or redirect page is a warning (the page comes to the front for
+a user in the real app); anything else fails, with the page's host and path (never the query string), title,
+readyState, DOM quiet time, link counts, whether the results region was found and a screenshot.
 
 ```sh
-cd app
-npm run e2e:tauri:driver        # Windows: msedgedriver matching the installed WebView2
-npm run e2e:tauri:build:live    # debug binary with the probe (the sidecars too)
-npm run e2e:tauri:live          # Windows; on Linux: xvfb-run -a npm run e2e:tauri:live
+IMT_LIVE_SEARCH=1 IMT_E2E_LIVE_SEARCH_OUT=/tmp/live-search cargo test -p imt-app --lib live_search -- --ignored --nocapture
 ```
 
-The report and screenshots land in `app/e2e-tauri/.artifacts/live-search/`. `IMT_E2E_LIVE_SEARCH_QUERY` replaces the
-default query (`System.TimeoutException`); use neutral text only, never anything from real logs. CI runs it in the
-real-app smoke job on the nightly schedule and on manual runs, never on pushes or pull requests: engines rate-limit
-automated traffic, so keep runs rare.
+The report (`live-search.json`) and screenshots land in the folder `IMT_E2E_LIVE_SEARCH_OUT` names.
+`IMT_E2E_LIVE_SEARCH_QUERY` replaces the default query (`System.TimeoutException`) and `IMT_E2E_LIVE_SEARCH_ENGINES`
+limits the engines (`google,bing`); use neutral text only, never anything from real logs. CI runs it on the nightly
+schedule and on manual runs, never on pushes or pull requests: engines rate-limit automated traffic, so keep runs rare.
 
 ### Allocator and memory budgets
 
@@ -265,6 +263,8 @@ The binaries that parse and analyse (the app, `imt-store-worker`, `imt-plugins`)
 thing in `main`. mimalloc v3 keeps freed memory for a second before returning it to the OS, which added 150-200 MB to
 the worker's import peak, so `tune()` sets v2's purge timing (10 ms). The options are set in code because the
 workers start with a cleared environment (no `MIMALLOC_*` variables). Measurements: ADR 0014's performance notes.
+`imt_alloc::release()` gives free but still resident memory back at once; the store calls it when an import, an index build or
+an analysis ends, so the worker does not idle at the size of its last burst.
 
 Budgets (ADR 0014; tests measure peak resident memory and fail above them): the app process stays flat, under
 250 MB whatever the data size; the store worker stays under 300 MB idle or querying and under 768 MB while importing;
@@ -272,6 +272,9 @@ the store worker is stopped at a **2 GiB hard cap**. Plugin processes have a cap
 at most 4 GiB). Every cap is enforced the same way on every platform: the host (`watch_memory` in
 `crates/imt-ipc/src/process.rs`) watches the child's resident memory and stops it over the limit with a message that
 says so. There are no memory rlimits: they count address space that allocators reserve up front.
+
+The query budget (300 MB) is measured on a release build, because unoptimised code keeps about 50 MB more resident: the
+`analysis_memory` test skips itself in debug builds and CI runs it with `cargo test --release` on Linux.
 
 ### UI responsiveness rules
 
@@ -297,7 +300,7 @@ result is at most 1600 px wide (on macOS at most the window's width in points, s
 logical size) and 3 MiB. Any failure (unsupported platform, the webview refusing, the 10 s timeout, undecodable or
 oversized data) saves the snapshot with a placeholder picture and "No screenshot: …". On macOS WebKit draws nothing
 for a window that is not on screen (minimised, covered, on another desktop), so such a window gets no picture. The platform halves need the
-real webview, so check them by hand on each OS: Tray → *Capture diagnostic screenshot*, then *Tools → Show error
+real webview, so check them by hand on each OS: Tray → *Capture diagnostic screenshot*, then *View ▸ Diagnostics ▸ Error
 snapshots* (manual test 24 in [testing-manual.md](testing-manual.md)).
 
 ## CI/CD
@@ -344,14 +347,16 @@ scope). Dependencies are updated by Renovate, which also pins CI actions to comm
 │   └── scripts/                   README screenshot generator, build info for the About dialog,
 │                                  i18n/ (locale and pseudo-locale generator)
 ├── crates/
-│   ├── imt-core/                  engine: importers, profile, query/ql, workspace (live tail), analysis,
-│   │                              export, redaction, reports, dashboards, bundles, clock skew, config diff,
-│   │                              templates, plugin runtime, event bus
+│   ├── imt-core/                  engine: importers, profile, query/ql, ports (the Store traits), workspace (reference
+│   │                              store), live, home, search_all, analysis, known issues, incident, playbooks, export,
+│   │                              redaction, reports, dashboards, bundles, clock skew, config diff, templates,
+│   │                              plugin runtime, event bus
 │   ├── imt-batch/                 the event batch: stable ids, the fixed Arrow schema, a validated builder
 │   ├── imt-alloc/                 the global allocator (mimalloc v3) and its start-up tuning
 │   ├── imt-store-duck/            the store (ADR 0014): Parquet segments, DuckDB catalog and SQL, Tantivy search
-│   ├── imt-store-client/          IMT's side of the store worker: protocol, supervision, `RemoteStore` (no DuckDB)
-│   ├── imt-store-worker/          the store worker process hosting every window's store
+│   ├── imt-store-client/          IMT's side of the store worker: protocol, supervision, `RemoteStore` (no DuckDB),
+│   │                              the port table (`port_table.rs`, ADR 0042)
+│   ├── imt-store-worker/          the store worker process hosting every window's store (`dispatch.rs`)
 │   ├── imt-ipc/                   the one IPC (ADR 0017): frames, supervisor, launcher, sandbox, memory watcher
 │   ├── imt-plugin-api/            the contract plugins build against (never `imt-core`); the SDK crate
 │   ├── imt-plugin-host/           starts plugin processes and registers their contributions in the engine
@@ -374,7 +379,8 @@ scope). Dependencies are updated by Renovate, which also pins CI actions to comm
 │   │                              heapsnapshot
 │   ├── imt-plugin-dotnet/         .NET profiling by ETW and EventPipe (ADR 0019)
 │   ├── imt-plugin-native/         native profiling by ETW or suspend-and-sample (ADR 0022)
-│   ├── imt-etw/, imt-symbols/     ETW decoders and the NetTrace writer; PDB/DbgHelp symbols
+│   ├── imt-etw/, imt-symbols/     ETW decoders and the NetTrace writer; PDBs by identity, symbol servers, cache (ADR 0036)
+│   ├── imt-video/                 video sources: FFmpeg runtime, sandboxed runs, frame selection, alignment (ADR 0033)
 │   ├── imt-dump/                  dump and UMDH engine (ADR 0023); `imt-plugin-dumps` holds the readers
 │   ├── imt-notes/                 notes anchored to events, times, sources and image regions (ADR 0021)
 │   ├── imt-ai/, imt-ai-worker/    local AI layer (assistant, browser rules, knowledge, vision) and its worker
