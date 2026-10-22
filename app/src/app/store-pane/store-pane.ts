@@ -1,3 +1,4 @@
+import { Tabs } from '../shared/tabs';
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@angular/core';
 import { MaintenanceAction } from '../core/api.types';
@@ -26,14 +27,10 @@ const TAB_LABELS: Record<StoreTab, string> = {
 @Component({
   selector: 'imt-store-pane',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgTemplateOutlet, SqlConsole, Icon],
+  imports: [NgTemplateOutlet, SqlConsole, Icon, Tabs],
   template: `
     <div class="tabs">
-      <div class="tablist" role="tablist" aria-label="Store" i18n-aria-label="@@store.tabs">
-        @for (t of tabs; track t) {
-          <button type="button" role="tab" class="tab" [id]="'store-tab-' + t" [attr.data-testid]="'store-tab-' + t" [attr.aria-selected]="pane.tab() === t" [attr.tabindex]="pane.tab() === t ? 0 : -1" aria-controls="store-panel" (click)="pane.show(t)" (keydown)="onTabKey($event)">{{ label(t) }}</button>
-        }
-      </div>
+      <imt-tabs label="Store" i18n-label="@@store.tabs" idPrefix="store-tab-" [items]="tabItems" [selected]="pane.tab()" [panelId]="panelOf" (selectedChange)="pane.show($any($event))" />
       <span class="grow"></span>
       @if (pane.tab() !== 'sql') {
         <button type="button" class="icon-btn" data-testid="store-refresh" aria-label="Refresh" i18n-aria-label="@@store.refresh" title="Refresh" i18n-title="@@store.refresh.title" (click)="pane.refresh()"><imt-icon name="refresh" [size]="14" /></button>
@@ -240,10 +237,7 @@ const TAB_LABELS: Record<StoreTab, string> = {
   `,
   styles: `
     :host { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); }
-    .tabs { display: flex; align-items: center; gap: 2px; padding: 6px 12px 0; border-bottom: 1px solid var(--border-2); }
-    .tablist { display: flex; gap: 2px; }
-    .tab { background: none; border: none; border-bottom: 2px solid transparent; padding: 6px 10px; color: var(--muted); cursor: pointer; font: inherit; }
-    .tab[aria-selected='true'] { color: var(--text); border-bottom-color: var(--accent); }
+    .tabs { display: flex; align-items: center; gap: 2px; padding: 0 12px; border-bottom: 1px solid var(--border-2); }
     .grow { flex: 1; }
     .panel { flex: 1; min-height: 0; overflow: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
     .panel:focus-visible { outline-offset: -2px; }
@@ -308,16 +302,8 @@ export class StorePane implements OnInit {
     return maintenanceText(a).title;
   }
 
-  /** Arrow keys move between tabs (the tab list is one tab stop). */
-  protected onTabKey(e: KeyboardEvent): void {
-    const i = this.tabs.indexOf(this.pane.tab());
-    const next = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? this.tabs.length - 1 : null;
-    if (next === null) return;
-    e.preventDefault();
-    const tab = this.tabs[(next + this.tabs.length) % this.tabs.length] ?? 'overview';
-    void this.pane.show(tab);
-    (e.currentTarget as HTMLElement).parentElement?.querySelector<HTMLElement>(`#store-tab-${tab}`)?.focus();
-  }
+  protected readonly tabItems = STORE_TABS.map((t) => ({ id: t, label: TAB_LABELS[t] }));
+  protected readonly panelOf = () => 'store-panel';
 
   protected async maintain(action: MaintenanceAction): Promise<void> {
     const t = maintenanceText(action);

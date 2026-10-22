@@ -1,3 +1,4 @@
+import { Tabs } from '../shared/tabs';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { AiBackend } from '../ai/ai-backend';
 import { formatDuration } from '../core/format';
@@ -20,14 +21,10 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
 @Component({
   selector: 'imt-jobs-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, KindFilter, PanelEmpty],
+  imports: [Icon, KindFilter, PanelEmpty, Tabs],
   template: `
     <div class="bar" role="toolbar" aria-label="Job filters" i18n-aria-label="@@jobs.panel.filters">
-      <div class="seg" role="group" aria-label="Show" i18n-aria-label="@@jobs.panel.show" data-testid="jobs-view">
-        @for (v of views; track v.id) {
-          <button type="button" class="btn small" [attr.aria-pressed]="store.view() === v.id" (click)="store.setView(v.id)" [attr.data-testid]="'jobs-view-' + v.id">{{ v.label }}@if (store.viewCounts()[v.id]; as n) { <span class="faint count">{{ n }}</span> }</button>
-        }
-      </div>
+      <imt-tabs kind="filter" label="Show" i18n-label="@@jobs.panel.show" idPrefix="jobs-view-" data-testid="jobs-view" [items]="viewItems()" [selected]="store.view()" (selectedChange)="store.setView($any($event))" />
       <imt-kind-filter label="Kind" i18n-label="@@jobs.panel.kind" [options]="kindOptions()" [selected]="store.kinds()" (toggled)="store.toggleKind($any($event))" (cleared)="store.setKinds([])" />
       <span class="spacer"></span>
       <button type="button" class="btn ghost small" [disabled]="!store.finished().length" (click)="store.clearFinished()" data-testid="jobs-clear" i18n="@@jobs.panel.clear">Clear finished</button>
@@ -152,6 +149,7 @@ export class JobsPanel {
   private readonly viewer = inject(JobViewer);
   private readonly ai = inject(AiBackend);
   private readonly ctx = inject(COMMAND_CONTEXT);
+  protected readonly viewItems = computed(() => this.views.map((v) => ({ id: v.id, label: v.label, count: this.store.viewCounts()[v.id] })));
   protected readonly views: readonly { id: JobsView; label: string }[] = [
     { id: 'all', label: $localize`:@@jobs.panel.view.all:All` },
     { id: 'running', label: $localize`:@@jobs.panel.view.running:Running` },
