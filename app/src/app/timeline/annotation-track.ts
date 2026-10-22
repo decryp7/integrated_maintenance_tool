@@ -19,7 +19,7 @@ export interface AnnotationHover {
 
 /**
  * The annotations of one lane (or the full-height ones): translucent bands for spans and glyphs for points.
- * Severity is shown by an icon (octagon, triangle, circle) and a fill pattern (hatched, dotted, plain), never by
+ * Severity is shown by an icon (octagon, triangle, circle) and a flat tint (critical also gets a thicker edge), never by
  * colour alone. Clicking applies the annotation's evidence query; brushing across a band still zooms.
  *
  * Bands and glyphs are pointer shortcuts and stay out of the tab order: event markers sit on top of them (so a band
@@ -59,8 +59,8 @@ export interface AnnotationHover {
     /* Event markers (z-index 1) stay on top of annotations, so a crash glyph never hides the crash marker. */
     .ann:hover { border-color: var(--accent); }
     .ann:focus-visible { border-color: var(--accent); z-index: 2; }
-    .ann.sev-critical { --ann-fill: var(--ann-critical); --ann-border: var(--ann-critical-border); background-image: repeating-linear-gradient(135deg, var(--ann-critical-border) 0 1px, transparent 1px 6px); }
-    .ann.sev-warning { --ann-fill: var(--ann-warning); --ann-border: var(--ann-warning-border); background-image: radial-gradient(var(--ann-warning-border) 0.8px, transparent 1px); background-size: 5px 5px; }
+    .ann.sev-critical { --ann-fill: var(--ann-critical); --ann-border: var(--ann-critical-border); border-inline-start-width: 3px; }
+    .ann.sev-warning { --ann-fill: var(--ann-warning); --ann-border: var(--ann-warning-border); }
     .ann.sev-info { --ann-fill: var(--ann-info); --ann-border: var(--ann-info-border); }
     .mark { display: inline-flex; }
     /* A point is a transparent 24px hit area (WCAG 2.5.8) holding the visible 18px circle at the lane's top. */
