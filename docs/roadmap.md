@@ -286,14 +286,17 @@ done by redesigning, not by compatibility code.
   - `engineResource()` on Angular `resource()` with an `AbortSignal` mapped to a request id and a Rust
     `cancel(requestId)`, replacing the hand-copied stale-response guards;
   - an engine "view" operation (timeline, annotations and runs for one query and generation in one reply);
-  - split the large stores and components (`WorkspaceStore` into query, data, timeline, preferences and theme
-    stores; `PagedRowsStore` out of the grid; typed `busy` state; import UI driven by its job);
   - domain rules move to the engine: highlight rules (an index per row in `Page`), profile edits through `toml_edit`
     (keeps the user's comments), regex validity and mask preview, lane values instead of parsing lane keys;
-  - accessibility: CDK key managers everywhere, the grid announces the active row, one tab stop per timeline lane;
+  - accessibility: CDK key managers in the lists and trees that still handle arrow keys by hand;
   - mocks become fixtures validated against golden JSON emitted by Rust tests.
-- **6b Problems pane** (R2, R5): diagnostics from import with engine-verified quick fixes (including an AI-proposed
-  fix). The store already has `Diagnostics` and `evaluate_fix`; the pane is not built.
+
+  Done since the plan: the workspace stores are split (query, data, timeline, selection, preferences, theme,
+  status), `PagedRowsStore` is out of the grid, the busy state is typed (`WorkspaceBusy`), the import UI follows its
+  job, the grid names its active row (`aria-activedescendant`), timeline lanes have one tab stop each, and the
+  Problems pane (6b) is built: import diagnostics by file and kind with counts (tab title, status-bar badge), jumps
+  to the lines, engine-checked quick fixes (`evaluate_fix`, applied as a `[format]` change of the source's parser
+  through `parser_draft`), and "Ask the AI to fix" through the existing parser proposal.
 - **Store performance and promotion (ADR 0014, "Deviations and open points"):** at 10M events several operations are
   still over the 0.5 s target (filtered and word-search pages, timelines with instance lanes, charts, field stats,
   correlate, Moment, runs); field promotion is decided per segment (sticky promotion and re-promotion on compaction
