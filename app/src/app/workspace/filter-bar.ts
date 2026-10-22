@@ -87,7 +87,8 @@ const OP_LABELS: Record<FilterOp, string> = {
       @if (hasAnyFilter()) {
         <button class="btn ghost pill" [class.fold]="compact()" (click)="store.clearQuery()" i18n="@@workspace.filterBar.clearAll">Clear all</button>
       }
-      <span class="spacer"></span>
+      <!-- The lens and view options stay together: when the bar wraps they move to the next line as one right-aligned group. -->
+      <div class="tools">
       <imt-lens-bar />
       @if (compact()) {
         <!-- Narrow window (H1): what does not fit folds into this menu; the search and the levels always stay. -->
@@ -139,6 +140,7 @@ const OP_LABELS: Record<FilterOp, string> = {
           </div>
         }
       </div>
+      </div>
     </div>
     <imt-query-status (pick)="qf.useSuggestion($event)" />
 
@@ -172,22 +174,20 @@ const OP_LABELS: Record<FilterOp, string> = {
   `,
   styles: `
     :host { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg-1); }
-    .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .row:first-child { flex-wrap: nowrap; }
+    .row { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; }
     /* A narrow bar (H1) wraps: the search field gets a line of its own and the rest follows below. */
     :host(.compact) .row:first-child { flex-wrap: wrap; }
     :host(.compact) imt-query-field { flex: 1 1 100%; }
     .levels { flex: none; display: flex; height: 30px; border: 1px solid var(--border-2); border-radius: 6px; overflow: hidden; }
-    .lvl { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 9px; border: 0; border-right: 1px solid var(--border-2); background: var(--bg-2); color: var(--faint); font-size: var(--fs-sm); cursor: pointer; }
+    .lvl { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 7px; border: 0; border-right: 1px solid var(--border-2); background: var(--bg-2); color: var(--faint); font-size: var(--fs-sm); cursor: pointer; }
     .lvl:last-child { border-right: 0; }
     .lvl.on { background: var(--bg-active); color: var(--text); }
     .lvl .code, .lvl .faint { font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
     .lvl .code { font-weight: 500; }
     .tall { height: 30px; flex: none; }
-    /* The range shrinks (with an ellipsis) before anything else in the one-row bar. */
-    .range { flex: 0 1 auto; min-width: 80px; overflow: hidden; }
-    .range .ends { display: flex; gap: 4px; min-width: 0; overflow: hidden; white-space: nowrap; font-size: var(--fs-xs); }
-    .range .end { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    /* The bar wraps before anything is squeezed: the range keeps its full text, the title carries the dates. */
+    .range { flex: none; }
+    .range .ends { display: flex; gap: 4px; white-space: nowrap; font-size: var(--fs-xs); }
     /* A chip that would add nothing ("0/403") keeps readable text (no opacity: AA contrast); only its dot fades. */
     .lvl.none .dot { opacity: 0.35; }
     .pill { height: 24px; border-radius: 12px; flex: none; }
@@ -198,7 +198,7 @@ const OP_LABELS: Record<FilterOp, string> = {
     .chip .field { color: var(--chip-text); }
     .x { border: 0; background: transparent; color: var(--faint); cursor: pointer; padding: 0 0 0 2px; font-size: var(--fs-lg); line-height: 1; }
     .x:hover { color: var(--text); }
-    .spacer { flex: 1; }
+    .tools { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
     .options-pop { top: 34px; right: 0; width: 340px; display: flex; flex-direction: column; gap: 12px; }
     .opt-section { display: flex; flex-direction: column; gap: 8px; }
     .opt-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; font-size: var(--fs-sm); }
