@@ -21,6 +21,22 @@ async function pressAndDrag(page: Page, name: string): Promise<void> {
   await page.mouse.move(s.x + s.width / 2 + 20, s.y + s.height / 2 + 20, { steps: 5 });
 }
 
+/** Drags the floating window by the empty part of its tab strip (as one moves a window by its title bar). */
+async function moveFloatingByHeader(page: Page): Promise<void> {
+  const before = (await floating(page).boundingBox())!;
+  const header = (await floating(page).locator('.dv-void-container').boundingBox())!;
+  const start = { x: header.x + header.width / 2, y: header.y + header.height / 2 };
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x - 60, start.y + 50, { steps: 10 });
+  // Moving a window docks nothing: no dock guides.
+  await expect(page.locator('.imt-drop-guides.on')).toHaveCount(0);
+  await page.mouse.up();
+  await expect.poll(async () => (await floating(page).boundingBox())!.x).toBeLessThan(before.x - 40);
+  const after = (await floating(page).boundingBox())!;
+  expect(after.y).toBeGreaterThan(before.y + 30);
+}
+
 test.describe('dragging a panel out to float', () => {
   test.beforeEach(async ({ page }) => {
     await openApp(page);
@@ -52,6 +68,22 @@ test.describe('dragging a panel out to float', () => {
     await expect(cue(page)).toBeHidden();
     await expect(floating(page)).toBeVisible();
     await expect(floating(page).getByRole('tab', { name: 'Metrics', exact: true })).toBeVisible();
+  });
+
+  test('a panel floated by a drag can be moved afterwards by its header', async ({ page }) => {
+    await pressAndDrag(page, 'Metrics');
+    const free = await freeSpot(page);
+    await page.mouse.move(free.x, free.y, { steps: 10 });
+    await expect(cue(page)).toHaveText('Release to float');
+    await page.mouse.up();
+    await expect(floating(page)).toBeVisible();
+    await moveFloatingByHeader(page);
+  });
+
+  test('a panel floated from its group menu can be moved by its header', async ({ page }) => {
+    await page.locator('.dv-groupview', { has: tab(page, 'Metrics') }).getByRole('button', { name: 'Float panel' }).click();
+    await expect(floating(page)).toBeVisible();
+    await moveFloatingByHeader(page);
   });
 
   test('Escape cancels the drag: the cue clears and nothing floats', async ({ page }) => {

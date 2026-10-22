@@ -49,7 +49,7 @@ const COMMANDS: [string, string, string?][] = [
   ['live.rules', 'Edit live alert rules…'],
   ['report.new', 'New incident report'],
   ['report.addTimeline', 'Add timeline to report'],
-  ['bookmarks.addSelected', 'Bookmark selected event', 'Mod+D'],
+  ['notes.addSelected', 'Add note to the selected event…', 'Mod+D'],
   ['skew.adjust', "Adjust clock of the selected event's source…"],
   ['tools.collect', 'Collect diagnostics bundle…'],
   ['diagnostics.capture', 'Capture diagnostic screenshot', 'Mod+Shift+F12'],
@@ -174,7 +174,7 @@ describe('menu model', () => {
       '—',
       'Theme',
     ]);
-    // The analyses in a fixed order; other analysis views (markers, bookmarks, plugins') after them.
+    // The analyses in a fixed order; other analysis views (markers, notes, plugins') after them.
     expect(labels(sub(v, 'Analysis'))).toEqual(['Query results', 'Moment', 'Anomalies', 'Patterns', 'Exceptions', 'Compare', 'Field statistics', 'Traces', '—', 'Markers']);
     expect(labels(sub(v, 'Live'))).toEqual(['Alerts', 'Tail status']);
     // Granular profiling views are reached from inside the profiling views (and the palette), not the menu.
@@ -207,7 +207,7 @@ describe('menu model', () => {
     const menus = buildMenus(state());
     const ids = menus.flatMap((m) => menuItems(m.items).map((i) => i.id));
     expect(new Set(ids).size).toBe(ids.length);
-    for (const demoted of ['palette.open', 'view.resetLayout', 'analyze.toggleUtc', 'ai.explain', 'bookmarks.addSelected', 'skew.adjust', 'window.panelMenu', 'window.switcher', 'window.layout.apply']) {
+    for (const demoted of ['palette.open', 'view.resetLayout', 'analyze.toggleUtc', 'ai.explain', 'notes.addSelected', 'skew.adjust', 'window.panelMenu', 'window.switcher', 'window.layout.apply']) {
       expect(ids, demoted).not.toContain(demoted);
     }
     expect(ids).toContain('window.layout.reset');

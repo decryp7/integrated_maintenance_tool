@@ -25,7 +25,7 @@ interface Entry extends UndoableAction {
 }
 
 /**
- * Command-pattern undo/redo for user edits (filters, marker and highlight rules, bookmarks, profile edits,
+ * Command-pattern undo/redo for user edits (filters, marker and highlight rules, profile edits,
  * dashboards, reports). Features register what they did; undo and redo replay the closures in order, one
  * at a time. Engine-changing actions undo by re-applying the previous state through the normal validated
  * save path (see `ProfileUndo`). Failures are reported, never thrown, and leave the history where it was.

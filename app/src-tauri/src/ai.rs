@@ -15,6 +15,7 @@ pub(crate) mod commands;
 mod core;
 pub(crate) mod error;
 pub(crate) mod folder_setup;
+pub(crate) mod knowledge;
 pub(crate) mod manual;
 pub(crate) mod requests;
 pub(crate) mod runtime_commands;
@@ -52,6 +53,8 @@ pub struct WindowAi {
     ops: Mutex<Vec<Arc<AtomicBool>>>,
     /// Images the window opened for the AI (clean copies, bounded; ADR 0025).
     pub images: vision::ImageCache,
+    /// The project's knowledge files (ADR 0029), saved with the project.
+    pub knowledge: knowledge::ProjectKnowledge,
 }
 
 impl WindowAi {

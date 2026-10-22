@@ -8,6 +8,7 @@ use imt_ai::assistant::{Assistant, AssistantConfig};
 use imt_ai::catalog::Catalog;
 use imt_ai::gguf::{self, GgufInfo};
 use imt_ai::hardware::{Hardware, HardwareProbe, SystemProbe};
+use imt_ai::knowledge::{KnowledgeFile, KnowledgeProvider};
 use imt_ai::llm::{LazyProvider, LlmProvider, LoadState, ModelLoader};
 use imt_ai::models::source::{ModelSource, Progress};
 use imt_ai::models::store::InstalledProjector;
@@ -268,6 +269,8 @@ pub struct AiCore {
     setup: Mutex<Option<Arc<Progress>>>,
     /// Runtime installs and the cached build report.
     pub(super) jobs: RuntimeJobs,
+    /// The global knowledge files (`<dir>/knowledge`, ADR 0029).
+    knowledge: super::knowledge::GlobalKnowledge,
 }
 
 impl AiCore {
@@ -287,7 +290,9 @@ impl AiCore {
         for w in &warnings {
             log::warn!("AI: {w}");
         }
+        let knowledge = super::knowledge::GlobalKnowledge::open(dir.as_ref().map(|d| d.join("knowledge")));
         let core = AiCore {
+            knowledge,
             dir,
             default_models_dir: models_dir,
             safe_mode,
@@ -431,14 +436,33 @@ impl AiCore {
         }
     }
 
-    /// An assistant on the active model with the current settings and its own cancel flag.
-    pub fn assistant(&self, cancel: Arc<AtomicBool>) -> AiResult<Assistant<Arc<dyn LlmProvider>>> {
-        self.assistant_with_rounds(cancel, MAX_TOOL_ROUNDS)
+    /// The global knowledge files.
+    pub fn knowledge(&self) -> &super::knowledge::GlobalKnowledge {
+        &self.knowledge
+    }
+
+    /// The active model reading the enabled knowledge files: the window's `project` ones, then the global ones
+    /// (ADR 0029). Every AI feature's assistant is made on it.
+    pub fn provider_with_knowledge(&self, project: &[KnowledgeFile]) -> AiResult<Arc<dyn LlmProvider>> {
+        let provider = self.provider()?;
+        let global = self.knowledge.snapshot();
+        Ok(Arc::new(KnowledgeProvider::new(provider, project, global.files())))
+    }
+
+    /// An assistant on the active model with the current settings, the knowledge files (`project`: the window's) and
+    /// its own cancel flag.
+    pub fn assistant(&self, project: &[KnowledgeFile], cancel: Arc<AtomicBool>) -> AiResult<Assistant<Arc<dyn LlmProvider>>> {
+        self.assistant_with_rounds(project, cancel, MAX_TOOL_ROUNDS)
     }
 
     /// Like [`Self::assistant`] with more tool rounds (agent mode takes a round per browser step).
-    pub fn assistant_with_rounds(&self, cancel: Arc<AtomicBool>, rounds: usize) -> AiResult<Assistant<Arc<dyn LlmProvider>>> {
-        let provider = self.provider()?;
+    pub fn assistant_with_rounds(
+        &self,
+        project: &[KnowledgeFile],
+        cancel: Arc<AtomicBool>,
+        rounds: usize,
+    ) -> AiResult<Assistant<Arc<dyn LlmProvider>>> {
+        let provider = self.provider_with_knowledge(project)?;
         let s = self.settings();
         Ok(Assistant::new(
             provider,

@@ -5,6 +5,7 @@ import { formatDateTime, formatDuration } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
 import { AnalysisState } from '../analysis/analysis-state';
 import { AsyncResource, errorText } from '../analysis/async-resource';
+import { headlineText } from './dump-headline';
 import { DumpsBackend } from './dumps-backend';
 import { DumpFindings, DumpsExplainer, DUMPS_STYLES, formatBytes, formatCount, NoDump } from './dumps-shared';
 import { DumpsStore } from './dumps.store';
@@ -48,7 +49,7 @@ const TRUST_LABEL: Record<FrameTrust, string> = {
             }
           </select>
         </label>
-        <span class="ellipsis grow" data-testid="dump-headline">{{ doc.headline }}</span>
+        <span class="ellipsis grow" data-testid="dump-headline">{{ headline(doc.headline) }}</span>
         <button class="btn ghost" type="button" (click)="store.close(doc.id)" i18n="@@dumps.view.close">Close</button>
       </div>
       @if (store.error(); as e) {
@@ -347,5 +348,6 @@ export class DumpView {
   }
 
   protected readonly bytes = formatBytes;
+  protected readonly headline = headlineText;
   protected readonly count = formatCount;
 }

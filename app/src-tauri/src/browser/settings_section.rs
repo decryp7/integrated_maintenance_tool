@@ -6,7 +6,7 @@ use super::SECTION;
 use imt_ai::browser::pace::{
     DEFAULT_ACTIONS_PER_MINUTE, DEFAULT_STEP_LIMIT, MAX_ACTIONS_PER_MINUTE, MAX_STEP_LIMIT, MIN_ACTIONS_PER_MINUTE, MIN_STEP_LIMIT,
 };
-use imt_ai::browser::research::{DEFAULT_RESULTS, MAX_RESULTS, MIN_RESULTS};
+use imt_ai::browser::research::{DEFAULT_RESULTS, RESULT_CHOICES};
 use imt_ai::browser::{clamp_results, AgentLimits, ResearchSettings, SearchEngine, SearchSettings, SearchTemplate};
 use imt_core::settings::{Configurable, EnumOption, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
 use std::sync::Arc;
@@ -45,7 +45,7 @@ pub fn to_settings(values: &ValidValues) -> anyhow::Result<BrowserSettings> {
         },
         research: ResearchSettings {
             auto: values.bool("autoResearch").unwrap_or(true),
-            max_results: clamp_results(values.int("researchResults")),
+            max_results: clamp_results(values.text("researchResults").and_then(|t| t.parse().ok())),
         },
     })
 }
@@ -95,10 +95,12 @@ impl Configurable for BrowserSection {
                 SettingField::new(
                     "researchResults",
                     "Results to read per search",
-                    int(u32::from(MIN_RESULTS), u32::from(MAX_RESULTS)),
-                    u32::from(DEFAULT_RESULTS),
+                    FieldKind::Enum {
+                        options: RESULT_CHOICES.iter().map(|n| EnumOption::new(n.to_string(), n.to_string())).collect(),
+                    },
+                    DEFAULT_RESULTS.to_string(),
                 )
-                .describe("How many result pages research opens and reads (a request can ask for another number, up to 10)."),
+                .describe("Research reads this many results the AI picked, over the engine's next results pages when needed, then answers."),
             )
     }
 

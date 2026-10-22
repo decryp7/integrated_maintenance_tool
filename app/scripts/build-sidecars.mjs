@@ -5,8 +5,9 @@
 //   imt-plugins      serves every built-in plugin, each in its own sandboxed process (ADR 0017)
 //   imt-store-worker hosts every window's DuckDB store and full-text index (ADR 0014)
 // At run time IMT finds them next to its executable. The store worker links libduckdb (duckdb.dll / libduckdb.so /
-// libduckdb.dylib): it is copied from DUCKDB_LIB_DIR (crates/imt-store-duck/scripts/fetch-libduckdb.sh) into
-// src-tauri/binaries/lib/, which the installers ship as the resource folder `lib/` (tauri.sidecars.conf.json).
+// libduckdb.dylib): it is copied from DUCKDB_LIB_DIR into src-tauri/binaries/lib/; when DUCKDB_LIB_DIR is not set,
+// crates/imt-store-duck/scripts/fetch-libduckdb.sh fetches the pinned, checksummed library into <target>/libduckdb
+// first. The installers ship src-tauri/binaries/lib/ as the resource folder `lib/` (tauri.sidecars.conf.json).
 //
 // Run by the release build (`npx tauri build --config src-tauri/tauri.sidecars.conf.json` chains it after the
 // UI build). Tauri passes the target in TAURI_ENV_TARGET_TRIPLE; `universal-apple-darwin` builds both macOS
@@ -17,6 +18,7 @@ import { execFileSync } from 'node:child_process';
 import { chmodSync, copyFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { fetchLibduckdb } from './libduckdb.mjs';
 
 export const SIDECARS = ['imt-ai-worker', 'imt-plugins', 'imt-store-worker'];
 
@@ -48,7 +50,7 @@ export function sidecarPlan({ target, host, profile, targetDir }) {
   return { builds, binaries, ext };
 }
 
-function main() {
+async function main() {
   const app = join(dirname(fileURLToPath(import.meta.url)), '..');
   const root = join(app, '..');
   const args = process.argv.slice(2);
@@ -69,6 +71,13 @@ function main() {
     execFileSync(cmd, argv, { cwd: root, stdio: 'inherit' });
   };
 
+  // The store worker links libduckdb: fetch the pinned library unless the caller already did (CI, the docs).
+  if (!process.env.DUCKDB_LIB_DIR) {
+    // In Node, not the shell script: Windows has no bash.
+    const script = join(root, 'crates', 'imt-store-duck', 'scripts', 'fetch-libduckdb.sh');
+    console.log('DUCKDB_LIB_DIR is not set: fetching the pinned libduckdb');
+    Object.assign(process.env, await fetchLibduckdb(script, join(targetDir, 'libduckdb')));
+  }
   const { builds, binaries, ext } = sidecarPlan({ target, host, profile, targetDir });
   for (const argv of builds) run('cargo', argv);
   for (const { file, built } of binaries) {
@@ -80,14 +89,17 @@ function main() {
   }
   // The store worker's database library, shipped as the resource folder `lib/`.
   const libDir = process.env.DUCKDB_LIB_DIR;
-  if (!libDir) {
-    throw new Error('DUCKDB_LIB_DIR is not set: run eval "$(crates/imt-store-duck/scripts/fetch-libduckdb.sh)" first');
-  }
   const lib = libduckdbFile(target);
   const libOut = join(outDir, 'lib');
   mkdirSync(libOut, { recursive: true });
   copyFileSync(join(libDir, lib), join(libOut, lib));
   console.log(`library: ${join(libOut, lib)}`);
+  // And next to the built worker, where an app run straight from the target folder (development, the end-to-end
+  // builds) finds it.
+  for (const built of binaries.find((b) => b.name === 'imt-store-worker').built) {
+    copyFileSync(join(libDir, lib), join(dirname(built), lib));
+    console.log(`library: ${join(dirname(built), lib)}`);
+  }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

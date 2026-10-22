@@ -177,7 +177,7 @@ type Step = 'survey' | 'proposals' | 'review' | 'apply';
               <button type="button" class="btn" (click)="openView(changed('dashboard') ? 'dashboards' : 'metrics')" i18n="@@ai.folderSetup.openCharts">Open charts</button>
             }
             @if (changed('savedQuery')) {
-              <button type="button" class="btn" (click)="openView('bookmarks')" i18n="@@ai.folderSetup.openQueries">Open saved queries</button>
+              <button type="button" class="btn" (click)="openView('saved-queries')" i18n="@@ai.folderSetup.openQueries">Open saved queries</button>
             }
             <button type="button" class="btn" (click)="openView('profile')" i18n="@@ai.folderSetup.openProfile">Open the profile</button>
             <button type="button" class="btn ghost" (click)="close()" i18n="@@ai.folderSetup.done">Done</button>

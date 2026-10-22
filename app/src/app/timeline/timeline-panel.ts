@@ -8,6 +8,8 @@ import { LaidMarker } from './marker-layout';
 import { Range, xToTs } from './zoom';
 import { AnalysisTargets } from '../analysis/analysis-targets';
 import { TimeCursor, TimeCursorLine } from '../analysis/time-cursor';
+import { anchors, NoteActions } from '../notes/note-actions';
+import { NoteTimelineTrack } from '../notes/note-timeline-track';
 import { bucketsForWidth, RESIZE_SETTLE_MS } from '../shared/bucket-count';
 import { Debouncer } from '../shared/throttle';
 import { momentAt, WIDTHS } from '../analysis/windows';
@@ -47,7 +49,7 @@ function timelineSource(): TimelineSource {
 @Component({
   selector: 'imt-timeline-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TimeCursorLine, AnnotationTrack, ProfileSpanTrack, DumpMarkerTrack, TimelineHeader, TimelineLegend, TimelineLanes, TimelineTooltips, TimelineInteraction],
+  imports: [TimeCursorLine, AnnotationTrack, ProfileSpanTrack, DumpMarkerTrack, NoteTimelineTrack, TimelineHeader, TimelineLegend, TimelineLanes, TimelineTooltips, TimelineInteraction],
   // One store per panel: an additional timeline gets its own `TimelineInstanceStore` (created only when used).
   providers: [TimelineInstanceStore, { provide: TIMELINE_SOURCE, useFactory: timelineSource }],
   host: { '[class.instance]': '!src.main' },
@@ -119,6 +121,7 @@ function timelineSource(): TimelineSource {
         }
         <imt-profile-span-track [view]="range()" [width]="plotWidth()" />
         <imt-dump-marker-track [view]="range()" [width]="plotWidth()" />
+        <imt-note-timeline-track [view]="range()" [width]="plotWidth()" />
         @for (x of fatalLines(); track $index) {
           <!-- The band shows only where the theme asks for it (data-crash-band); the rule always. -->
           <div class="crash-band" [style.left.%]="x" aria-hidden="true"></div>
@@ -206,6 +209,7 @@ export class TimelinePanel {
   private readonly targets = inject(AnalysisTargets);
   private readonly commands = inject(COMMAND_CONTEXT);
   private readonly menu = inject(ContextMenuService);
+  private readonly notes = inject(NoteActions);
 
   protected readonly tl = this.src.timeline;
   protected readonly ann = inject(TimelineAnnotations);
@@ -346,12 +350,13 @@ export class TimelinePanel {
     return `${formatTime(from, tz).slice(0, 8)} → ${formatTime(to, tz).slice(0, 8)} · ${formatDuration(to - from)}`;
   }
 
-  /** Right-click on the time axis: analyse the moment under the pointer. */
+  /** Right-click on the time axis: analyse the moment under the pointer, or write a note on it (or on the selected range). */
   protected axisMenu(e: MouseEvent): void {
     const view = this.range();
     if (!view) return;
     e.preventDefault();
     const ts = xToTs(clamp(this.interaction().localX(e), 0, this.plotWidth()), this.plotWidth(), view);
+    const selected = this.cursor.selection();
     this.menu.open(e.clientX, e.clientY, [
       {
         label: $localize`:@@timeline.menu.analyseMoment:Analyse this moment`,
@@ -360,6 +365,10 @@ export class TimelinePanel {
           this.commands.showView('moment');
         },
       },
+      { label: $localize`:@@timeline.menu.noteMoment:Add note at this moment…`, run: () => void this.notes.write(anchors.instant(ts)) },
+      ...(selected && selected.to > selected.from
+        ? [{ label: $localize`:@@timeline.menu.noteRange:Add note to the selected range…`, run: () => void this.notes.write(anchors.range(selected.from, selected.to)) }]
+        : []),
     ]);
   }
 }

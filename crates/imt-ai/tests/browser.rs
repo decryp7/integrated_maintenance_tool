@@ -574,7 +574,7 @@ fn the_model_researches_by_itself_and_the_answer_cites_the_pages() {
         vec![],
         "what does HRESULT 0x80070005 mean for IIS?",
     );
-    assert_eq!(r.asked.lock().unwrap()[0].2, 10, "the model's max_results is clamped to 10");
+    assert_eq!(r.asked.lock().unwrap()[0].2, 30, "the model may ask for 10, 20 or 30 results");
     let system = &a.provider().requests()[0].system;
     assert!(
         system.contains("call web_research instead of guessing"),

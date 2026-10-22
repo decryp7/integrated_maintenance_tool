@@ -34,6 +34,7 @@ import { provideJobs } from './jobs/provide-jobs';
 import { provideNotifications } from './notifications/provide-notifications';
 import { provideNativeFeel } from './core/native-feel';
 import { provideWorkspace } from './core/workspace/provide-workspace';
+import { provideNotes } from './notes/provide-notes';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -73,5 +74,6 @@ export const appConfig: ApplicationConfig = {
     provideUpdates(),
     provideJobs(),
     provideNotifications(),
+    provideNotes(),
   ],
 };

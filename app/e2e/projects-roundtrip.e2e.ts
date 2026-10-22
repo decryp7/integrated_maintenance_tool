@@ -3,7 +3,7 @@ import { expectNoSeriousViolations } from './axe';
 import { openAppWith, runCommand } from './tools-support';
 
 test.describe('projects', () => {
-  test('save, change, reopen: the query and bookmarks come back and the unsaved dot follows', async ({ page }) => {
+  test('save, change, reopen: the query comes back and the unsaved dot follows', async ({ page }) => {
     await openAppWith(page);
     const title = page.getByTestId('project-title');
     await expect(title).toContainText('Untitled');

@@ -106,7 +106,7 @@ fn spec(owner: &str, req: &ResearchRequest, session: Option<&str>) -> JobSpec {
 /// One research on the job's thread: holds the window's browser for the run (no chat may drive it meanwhile).
 fn run_research<R: Runtime>(app: &AppHandle<R>, owner: &str, req: &ResearchRequest, ctx: &JobCtx) -> AiResult<ResearchReport> {
     let core = crate::ai::commands::core(app)?;
-    let assistant = core.assistant(ctx.cancel_flag())?;
+    let assistant = core.assistant(&crate::ai::knowledge::project_of(app, owner), ctx.cancel_flag())?;
     let hub: Arc<BrowserHub> = app
         .try_state::<super::BrowserState>()
         .map(|s| s.0.clone())
@@ -197,6 +197,7 @@ impl<R: Runtime> Researcher for TurnResearcher<R> {
         match handle.wait() {
             Ok(Ok(report)) => Ok(report),
             Ok(Err(e)) if e.code == AiErrorCode::Cancelled => Err(imt_ai::AiError::Cancelled),
+            Ok(Err(e)) if e.code == AiErrorCode::Browser => Err(imt_ai::AiError::Browser(e.message)),
             Ok(Err(e)) => Err(imt_ai::AiError::Engine(e.message)),
             Err(jobs::Stopped::Cancelled | jobs::Stopped::Interrupted(_)) => Err(imt_ai::AiError::Cancelled),
             Err(e) => Err(imt_ai::AiError::Engine(e.to_string())),
@@ -387,7 +388,13 @@ pub(crate) fn draft_search<R: Runtime>(
     // Without an event, the search text used to be the question itself: it still is when the model cannot draft.
     let fallback = engine.or_else(|| record_id.is_none().then(|| question.clone()));
     let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let assistant = crate::ai::commands::core(app).ok().and_then(|c| c.assistant(cancel.clone()).ok());
+    let assistant = crate::ai::commands::core(app).ok().and_then(|c| {
+        let focus = imt_notes::context::Focus {
+            events: record_id.map(u64::from).into_iter().collect(),
+            ..Default::default()
+        };
+        c.assistant(&crate::ai::knowledge::for_window(win, &focus), cancel.clone()).ok()
+    });
     let model = assistant.as_ref().map(WithModel);
     let timer = cancel.clone();
     std::thread::spawn(move || {

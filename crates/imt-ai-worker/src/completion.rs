@@ -22,6 +22,33 @@ pub fn token_count(v: &Value) -> Option<usize> {
     v.get("tokens")?.as_array().map(Vec::len)
 }
 
+/// The media marker IMT renders prompts with (llama.cpp's default, `llm::prompted::MEDIA_MARKER`).
+pub const DEFAULT_MEDIA_MARKER: &str = "<__media__>";
+
+/// The server's media marker from its `/props` (`media_marker`): llama-server builds choose their own marker and look
+/// only for it, so a prompt with the default one counted no markers ("number of media markers in text (0) does not
+/// match number of bitmaps (1)"). `None` when the server does not say (older builds use the default).
+pub fn media_marker(props: &Value) -> Option<String> {
+    props
+        .get("media_marker")
+        .and_then(Value::as_str)
+        .filter(|m| !m.trim().is_empty() && m.len() <= 128)
+        .map(str::to_string)
+}
+
+/// `prompt` with IMT's markers turned into the server's `marker`. Any text that already looks like the server's
+/// marker is removed first, so only IMT's markers (one per image) remain.
+pub fn with_media_marker(prompt: &str, marker: &str) -> String {
+    if marker == DEFAULT_MEDIA_MARKER {
+        return prompt.to_string();
+    }
+    let mut cleaned = prompt.to_string();
+    while cleaned.contains(marker) {
+        cleaned = cleaned.replace(marker, "");
+    }
+    cleaned.replace(DEFAULT_MEDIA_MARKER, marker)
+}
+
 /// The `prompt` of `/completion`: the text, or with images llama-server's multimodal form (the text with one
 /// media marker per image, and the images' base64 in the same order).
 fn prompt_of(p: &ChatParams) -> Value {
@@ -141,6 +168,41 @@ pub fn server_error(status: u16, v: &Value) -> RpcError {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn prompts_use_the_servers_own_media_marker() {
+        let props = json!({"media_marker": "<__media_ab12__>"});
+        let m = media_marker(&props).unwrap();
+        assert_eq!(
+            with_media_marker(
+                "<__media__>
+what is this?",
+                &m
+            ),
+            "<__media_ab12__>
+what is this?"
+        );
+        // Text that already looks like the server's marker cannot claim an image slot.
+        assert_eq!(
+            with_media_marker(
+                "<__media__>
+log says <__media_ab12__> here",
+                &m
+            ),
+            "<__media_ab12__>
+log says  here"
+        );
+        assert_eq!(with_media_marker("<__media__>x", DEFAULT_MEDIA_MARKER), "<__media__>x");
+        for bad in [
+            json!({}),
+            json!({"media_marker": ""}),
+            json!({"media_marker": 5}),
+            json!({"media_marker": "x".repeat(200)}),
+        ] {
+            assert_eq!(media_marker(&bad), None, "{bad}");
+        }
+    }
+
     use super::*;
 
     fn params(temp: f32, schema: Option<Value>) -> ChatParams {

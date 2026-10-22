@@ -126,7 +126,7 @@ interface Column {
     .card.off { opacity: 0.7; }
     .warn { color: var(--warn-text); }
     .err { padding: 6px 14px; color: var(--danger-text); }
-    .scroll { flex: 1; overflow: auto; padding: 0 14px 14px; }
+    .scroll { position: relative; flex: 1; overflow: auto; padding: 0 14px 14px; }
     .grid { width: 100%; border-collapse: collapse; font-size: var(--fs-md); }
     .grid th, .grid td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
     .grid thead th { position: sticky; top: 0; background: var(--bg-1); color: var(--muted); font-weight: 500; }

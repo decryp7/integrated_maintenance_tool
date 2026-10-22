@@ -15,7 +15,7 @@ const MAX_INSTANCE: usize = 3;
 const MAX_METRIC_EXTRACTORS: usize = 6;
 const RECOMMENDED_EXTRACTORS: usize = 3;
 const MAX_QUERIES: usize = 3;
-/// Text formats tried on unrecognised files (named groups as in `[parse] regexes`).
+/// Text formats tried on unrecognised files (named groups as in a parser's `[format] regexes`).
 const FORMATS: &[(&str, &str)] = &[
     (
         "day-first or US date",

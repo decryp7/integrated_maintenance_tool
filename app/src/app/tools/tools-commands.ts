@@ -19,7 +19,7 @@ export function toolsViews(tools: ToolListing): ImtView[] {
     { id: 'process-monitor', category: 'Tools', title: $localize`:@@tools.view.processMonitor:Process Monitor`, icon: 'metrics', defaultPosition: 'center', component: () => import('./monitor/monitor-view').then((m) => m.MonitorView), enabled: () => tools.listed(TOOL_IDS.processMonitor) },
     { id: 'event-log-follower', category: 'Tools', title: $localize`:@@tools.view.eventLog:Event Log Follower`, icon: 'file', defaultPosition: 'center', component: () => import('./eventlog/eventlog-view').then((m) => m.EventLogView), enabled: () => tools.listed(TOOL_IDS.eventLog) },
     { id: 'plugin-health', category: 'Diagnostics', title: $localize`:@@tools.view.pluginHealth:Plugin health`, icon: 'puzzle', defaultPosition: 'center', component: () => import('./health/plugin-health-view').then((m) => m.PluginHealthView) },
-    { id: 'bookmarks', category: 'Analysis', title: $localize`:@@tools.view.bookmarks:Bookmarks`, icon: 'file', defaultPosition: 'right', component: () => import('../projects/bookmarks/bookmarks-view').then((m) => m.BookmarksView) },
+    { id: 'saved-queries', category: 'Analysis', title: $localize`:@@tools.view.savedQueries:Saved queries`, icon: 'file', defaultPosition: 'right', component: () => import('../projects/bookmarks/saved-queries-view').then((m) => m.SavedQueriesView) },
   ];
 }
 

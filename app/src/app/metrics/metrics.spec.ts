@@ -151,10 +151,13 @@ describe('ChartTheme', () => {
   it('takes the tokens of the theme and scheme in effect, and follows changes', () => {
     const theme = TestBed.inject(ChartTheme);
     const prefs = TestBed.inject(UiPrefsStore);
+    // The default theme, whatever an earlier test left behind.
+    prefs.setTheme('calm');
     prefs.setScheme('dark');
     expect(theme.tokens().series).toHaveLength(4);
     expect(theme.tokens().text).toBe('#e7e8eb');
-    expect(theme.tokens().fontSans).toContain('Inter');
+    // The interface font defaults to the operating system's (native feel, ADR 0028).
+    expect(theme.tokens().fontSans).toContain('system-ui');
     prefs.setScheme('light');
     expect(theme.tokens().text).toBe('#1a1c20');
     prefs.setTheme('console');

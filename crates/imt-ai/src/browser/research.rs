@@ -26,15 +26,25 @@ use crate::assistant::{Assistant, WebSource};
 use crate::llm::{ChatMessage, LlmProvider};
 use crate::{AiError, Result};
 use serde::Serialize;
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-/// Results read per search unless the user or the model asks for another number.
-pub const DEFAULT_RESULTS: u8 = 5;
-pub const MIN_RESULTS: u8 = 1;
-pub const MAX_RESULTS: u8 = 10;
-/// The whole research ends after this long (pages not read by then are skipped).
-pub const TOTAL_TIME: Duration = Duration::from_secs(180);
+/// How many result pages research reads before it answers (Settings ▸ Web browser, the research dialog, the model's
+/// tool): it reads every result the model picked, up to this many, over as many results pages as needed.
+pub const RESULT_CHOICES: [u8; 3] = [10, 20, 30];
+pub const DEFAULT_RESULTS: u8 = 10;
+pub const MIN_RESULTS: u8 = 10;
+pub const MAX_RESULTS: u8 = 30;
+/// The longest a research may take (pages not read by then are skipped); a research of `n` results gets
+/// [`TIME_PER_RESULT`] each, within this.
+pub const TOTAL_TIME: Duration = Duration::from_secs(30 * 60);
+/// Time a research may spend per result it reads (opening the page and the model's notes on it).
+const TIME_PER_RESULT: Duration = Duration::from_secs(45);
+/// All notes together, so the answer's prompt fits the model's context however many results were read.
+const NOTES_CHARS: usize = 16_000;
+/// Candidate links of one results page the model picks from.
+const MAX_CANDIDATES_SHOWN: usize = found::MAX_CANDIDATES;
 /// Pause between two page loads (a human pace for the sites).
 pub const PAGE_PACE: Duration = Duration::from_millis(1500);
 /// Page text given to the model per page.
@@ -51,10 +61,11 @@ const PAGE_POLLS: usize = 30;
 /// How often a wait looks at Cancel.
 const SLICE: Duration = Duration::from_millis(100);
 
-/// The number of results to read, clamped to 1..=10; `None` is the default.
+/// The number of results to read: the smallest of [`RESULT_CHOICES`] that is at least `n` (at most the largest);
+/// `None` is the default.
 pub fn clamp_results(n: Option<i64>) -> u8 {
     match n {
-        Some(v) => v.clamp(i64::from(MIN_RESULTS), i64::from(MAX_RESULTS)) as u8,
+        Some(v) => RESULT_CHOICES.into_iter().find(|c| i64::from(*c) >= v).unwrap_or(MAX_RESULTS),
         None => DEFAULT_RESULTS,
     }
 }
@@ -240,7 +251,8 @@ pub trait ResearchModel {
     /// The answer from the numbered notes (`[n] title: note`).
     fn answer(&self, question: &str, notes: &str) -> Result<String>;
     /// Which of the numbered candidate links (`results::pick_prompt`, addresses and titles only) are organic
-    /// results: the raw reply, parsed by `results::parse_picks`. Asked only when the rules found none.
+    /// results: the raw reply, parsed by `results::parse_picks`. Asked for every results page; the rules' links are the
+    /// fallback when the model cannot answer or picks none.
     fn pick(&self, question: &str, links: &str) -> Result<String>;
 }
 
@@ -296,7 +308,7 @@ impl ResearchEnv<'_> {
 }
 
 fn browser_error(e: BrowserError) -> AiError {
-    AiError::Engine(format!("the browser: {e}"))
+    AiError::Browser(format!("The browser could not finish: {e}"))
 }
 
 /// Searches `query` with the engine of `env` in the browser (the engine's ordinary results page) and returns its
@@ -323,88 +335,121 @@ pub fn research(
     let started = (env.now)();
     on_step(&ResearchStep::Searching);
     let search_url = search(env, &req.query)?;
-    // The result links are collected once, from the results page itself (never from a page shown before it, nor
-    // later from a result page); then each result is opened directly by its address, or through the engine's own
-    // redirect when the engine hides the address behind it (one redirect, to whatever site the engine sends it).
-    let links = match collect_results(env, model, &question, &search_url, max)? {
-        Found::Links(links) => links,
-        Found::Nothing(why) => return Ok(nothing_found(env, req, &search_url, why)),
-    };
+    // The model picks the results from each results page itself (never from a page shown before it, nor later from a
+    // result page); each result is opened directly by its address, or through the engine's own redirect when the
+    // engine hides the address behind it (one redirect, to whatever site the engine sends it). Every picked result is
+    // read, up to `max`, over the engine's next results pages when needed; then the model answers from the notes.
+    let budget = env.total.min(TIME_PER_RESULT * max as u32);
+    let note_chars = (NOTES_CHARS / max).clamp(300, NOTE_CHARS);
+    let mut results_page = search_url.clone();
+    let mut page_no = 0;
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut tried = 0usize;
     let mut read: Vec<ReadPage> = Vec::new();
     let mut notes: Vec<String> = Vec::new();
     let mut skipped: Vec<SkippedPage> = Vec::new();
-    let of = links.len();
-    for (i, (link, title)) in links.iter().enumerate() {
-        let step = (i + 1) as u32;
-        let via_engine = found::through_engine(link, &search_url);
-        let skip = |reason: &str| SkippedPage {
-            title: title.clone(),
-            url: link.as_str().to_string(),
-            reason: reason.to_string(),
+    'pages: loop {
+        // A later results page that fails ends the paging; what was read so far still makes the answer.
+        let links = match collect_results(env, model, &question, &results_page, max - tried) {
+            Ok(Found::Links(links)) => links,
+            Ok(Found::Nothing(why)) if page_no == 0 => return Ok(nothing_found(env, req, &search_url, why)),
+            Err(e) if page_no == 0 || matches!(e, AiError::Cancelled) => return Err(e),
+            Ok(Found::Nothing(_)) | Err(_) => break,
         };
-        if (env.now)().duration_since(started) >= env.total {
-            skipped.push(skip("not read: the research took long enough"));
-            continue;
+        let fresh: Vec<(WebUrl, String)> = links.into_iter().filter(|(u, _)| seen.insert(u.as_str().to_string())).collect();
+        if fresh.is_empty() {
+            break;
         }
-        if i > 0 {
-            env.wait(env.pace)?;
-        }
-        on_step(&ResearchStep::Reading {
-            page: i + 1,
-            of,
-            site: if via_engine {
-                format!("{} (via {})", clip(title, 60), engine_name(env, &search_url))
+        for (link, title) in &fresh {
+            if tried >= max {
+                break 'pages;
+            }
+            tried += 1;
+            let step = tried as u32;
+            let via_engine = found::through_engine(link, &results_page);
+            let skip = |reason: &str| SkippedPage {
+                title: title.clone(),
+                url: link.as_str().to_string(),
+                reason: reason.to_string(),
+            };
+            if (env.now)().duration_since(started) >= budget {
+                skipped.push(skip("not read: the research took long enough"));
+                continue;
+            }
+            if tried > 1 {
+                env.wait(env.pace)?;
+            }
+            on_step(&ResearchStep::Reading {
+                page: tried,
+                of: max,
+                site: if via_engine {
+                    format!("{} (via {})", clip(title, 60), engine_name(env, &search_url))
+                } else {
+                    link.site().to_string()
+                },
+            });
+            let OpenedResult { url, page } = match open_result(env, link, &results_page, step)? {
+                Ok(opened) => opened,
+                Err(reason) => {
+                    skipped.push(skip(&reason));
+                    continue;
+                }
+            };
+            let url = &url;
+            let skip = |reason: &str| SkippedPage {
+                title: title.clone(),
+                url: url.as_str().to_string(),
+                reason: reason.to_string(),
+            };
+            if let Some(h) = page.hand_off {
+                env.log("research.skip", Some(url.site().to_string()), ActionOutcome::HandedBack, step);
+                skipped.push(skip(&format!("skipped: {}", h.describe())));
+                continue;
+            }
+            let capture = match env.reader.capture() {
+                Ok(c) => c,
+                Err(e) => {
+                    skipped.push(skip(&format!("could not be read ({e})")));
+                    continue;
+                }
+            };
+            if capture.text.trim().is_empty() {
+                skipped.push(skip("the page has no readable text"));
+                continue;
+            }
+            let quoted = quote_capped(&capture.url, &capture.text, PAGE_CHARS.min(MAX_CAPTURE_CHARS));
+            let note = clip(model.extract(&question, &quoted)?.trim(), note_chars);
+            if note.is_empty() || note.eq_ignore_ascii_case("nothing") || note.eq_ignore_ascii_case("nothing.") {
+                skipped.push(skip("nothing relevant to the question"));
+                continue;
+            }
+            let n = read.len() + 1;
+            let page_title = if capture.title.trim().is_empty() {
+                title.clone()
             } else {
-                link.site().to_string()
-            },
-        });
-        let OpenedResult { url, page } = match open_result(env, link, &search_url, step)? {
-            Ok(opened) => opened,
-            Err(reason) => {
-                skipped.push(skip(&reason));
-                continue;
-            }
-        };
-        let url = &url;
-        let skip = |reason: &str| SkippedPage {
-            title: title.clone(),
-            url: url.as_str().to_string(),
-            reason: reason.to_string(),
-        };
-        if let Some(h) = page.hand_off {
-            env.log("research.skip", Some(url.site().to_string()), ActionOutcome::HandedBack, step);
-            skipped.push(skip(&format!("skipped: {}", h.describe())));
-            continue;
+                clip(capture.title.trim(), 200)
+            };
+            notes.push(format!("[{n}] {page_title} ({}): {note}", url.as_str()));
+            read.push(ReadPage {
+                n,
+                title: page_title,
+                url: url.as_str().to_string(),
+            });
         }
-        let capture = match env.reader.capture() {
-            Ok(c) => c,
-            Err(e) => {
-                skipped.push(skip(&format!("could not be read ({e})")));
-                continue;
-            }
-        };
-        if capture.text.trim().is_empty() {
-            skipped.push(skip("the page has no readable text"));
-            continue;
+        if tried >= max || (env.now)().duration_since(started) >= budget {
+            break;
         }
-        let quoted = quote_capped(&capture.url, &capture.text, PAGE_CHARS.min(MAX_CAPTURE_CHARS));
-        let note = clip(model.extract(&question, &quoted)?.trim(), NOTE_CHARS);
-        if note.is_empty() || note.eq_ignore_ascii_case("nothing") || note.eq_ignore_ascii_case("nothing.") {
-            skipped.push(skip("nothing relevant to the question"));
-            continue;
-        }
-        let n = read.len() + 1;
-        let page_title = if capture.title.trim().is_empty() {
-            title.clone()
-        } else {
-            clip(capture.title.trim(), 200)
+        // The engine's next results page, when it has one this research can ask for.
+        page_no += 1;
+        let Ok(Some(next)) = env.search.results_page_url(env.search.engine, &req.query, page_no) else {
+            break;
         };
-        notes.push(format!("[{n}] {page_title} ({}): {note}", url.as_str()));
-        read.push(ReadPage {
-            n,
-            title: page_title,
-            url: url.as_str().to_string(),
-        });
+        env.wait(env.pace)?;
+        if env.driver.navigate(&next).is_err() {
+            break;
+        }
+        env.log("research.search", Some(next.site().to_string()), ActionOutcome::Done, 0);
+        results_page = next;
     }
     if env.cancelled() {
         return Err(AiError::Cancelled);
@@ -586,12 +631,12 @@ fn nothing_found(env: &ResearchEnv<'_>, req: &ResearchRequest, search: &WebUrl, 
     }
 }
 
-/// What the results page showed, by the rules alone ([`read_results`]).
+/// What the results page showed ([`read_results`]): the links the model picks from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResultsOutcome {
-    /// Result links, best first.
+    /// The page's candidate result links ([`found::candidates`]), in-region first.
     Links(Vec<(WebUrl, String)>),
-    /// The results page showed; the rules found no result links on it.
+    /// The results page showed without any candidate result links.
     NoLinks,
     /// A consent, human-check or redirect page instead of the results: the user's to handle.
     HandOff(PageKind),
@@ -611,7 +656,7 @@ pub struct ResultsRead {
     pub ready: bool,
 }
 
-/// The results page's links by the rules, read with the results-page collector (never the snapshot) once the page is
+/// The results page's candidate links ([`found::candidates`]), read with the results-page collector (never the snapshot) once the page is
 /// ready ([`readiness::readiness`]: complete, results in its region, the DOM quiet), looking every
 /// [`readiness::LOOK_EVERY`] for at most [`readiness::LOOK_FOR`]. Consent and human-check pages end the wait at once;
 /// a redirect page or a page of another site is looked at again (it usually goes on to the results).
@@ -623,7 +668,8 @@ pub fn read_results(env: &ResearchEnv<'_>, search: &WebUrl, max: usize) -> Resul
     let mut redirect = false;
     let looks = readiness::max_looks();
     let read = |p: found::ResultsPage, looks: usize, ready: bool| {
-        let links = found::result_links(&p, search, max);
+        let mut links = found::candidates(&p, search);
+        links.truncate(max);
         ResultsRead {
             outcome: if links.is_empty() {
                 ResultsOutcome::NoLinks
@@ -689,54 +735,46 @@ pub fn read_results(env: &ResearchEnv<'_>, search: &WebUrl, max: usize) -> Resul
     })
 }
 
-/// The results page's links, by the rules first ([`read_results`]); when they find nothing, the model picks from the
-/// candidates.
+/// The results page's links: the model reads the page's links (addresses and titles, never page text: the candidates of
+/// [`read_results`]) and picks the results ([`pick_with_model`]), at most `max`. Consent, human-check and redirect pages
+/// are handed to the user.
 fn collect_results(env: &ResearchEnv<'_>, model: &dyn ResearchModel, question: &str, search: &WebUrl, max: usize) -> Result<Found> {
-    let read = read_results(env, search, max)?;
-    let page = match read.outcome {
-        ResultsOutcome::Links(links) => {
-            env.log("research.links.rules", Some(search.site().to_string()), ActionOutcome::Done, 0);
-            log::info!(
-                "Research took {} result links from the results page by the rules after {} looks (ready: {})",
-                links.len(),
-                read.looks,
-                read.ready
-            );
-            return Ok(Found::Links(links));
-        }
+    let read = read_results(env, search, MAX_CANDIDATES_SHOWN)?;
+    match read.outcome {
+        ResultsOutcome::Links(_) | ResultsOutcome::NoLinks => {}
         ResultsOutcome::HandOff(PageKind::Consent) => return Ok(Found::Nothing(NoResults::Consent)),
         ResultsOutcome::HandOff(PageKind::Captcha) => return Ok(Found::Nothing(NoResults::Captcha)),
         ResultsOutcome::HandOff(_) => return Ok(Found::Nothing(NoResults::Redirect)),
         ResultsOutcome::NotShown => return Ok(Found::Nothing(NoResults::NotShown)),
-        ResultsOutcome::NoLinks => match read.page {
-            Some(p) => p,
-            None => return Ok(Found::Nothing(NoResults::NoLinks)),
-        },
-    };
-    // Counts only: the page's title and addresses carry the query, which may come from the user's logs.
-    log::info!(
-        "Research found no result links by the rules: {} links on the page ({} collected, {} in the results region, region found: {}), readyState {:?}, quiet {:?} ms, ready: {}",
-        page.total_links,
-        page.links.len(),
-        page.links_in_region(),
-        page.region_found,
-        page.ready_state,
-        page.quiet_ms,
-        read.ready
-    );
-    let picked = match pick_with_model(env, model, question, &page, search, max)? {
-        Ok(picked) => picked,
-        Err(why) => return Ok(Found::Nothing(NoResults::NoModel(why))),
-    };
-    if picked.is_empty() {
-        return Ok(Found::Nothing(NoResults::NoLinks));
     }
-    env.log("research.links.ai", Some(search.site().to_string()), ActionOutcome::Done, 0);
-    log::info!("Research took {} result links picked by the model", picked.len());
-    Ok(Found::Links(picked))
+    let Some(page) = &read.page else {
+        return Ok(Found::Nothing(NoResults::NoLinks));
+    };
+    match pick_with_model(env, model, question, page, search, max)? {
+        Ok(picked) if !picked.is_empty() => {
+            env.log("research.links.ai", Some(search.site().to_string()), ActionOutcome::Done, 0);
+            log::info!("Research took {} result links picked by the model", picked.len());
+            Ok(Found::Links(picked))
+        }
+        Ok(_) => {
+            // Counts only: the page's title and addresses carry the query, which may come from the user's logs.
+            log::info!(
+                "Research found no result links: {} links on the page ({} collected, {} in the results region, region found: {}), readyState {:?}, quiet {:?} ms, ready: {}",
+                page.total_links,
+                page.links.len(),
+                page.links_in_region(),
+                page.region_found,
+                page.ready_state,
+                page.quiet_ms,
+                read.ready
+            );
+            Ok(Found::Nothing(NoResults::NoLinks))
+        }
+        Err(why) => Ok(Found::Nothing(NoResults::NoModel(why))),
+    }
 }
 
-/// The fallback: the model answers with the numbers of the organic results among the candidates (addresses and titles,
+/// The model answers with the numbers of the organic results among the candidates (addresses and titles,
 /// never page text); only those addresses are used. A model that is still loading is waited for (the provider waits,
 /// Cancel still cancels); one that cannot answer (not set up, failed to load) gives why, so the report says so instead
 /// of claiming the engine showed nothing.
@@ -997,7 +1035,20 @@ mod tests {
         }
         fn pick(&self, _question: &str, links: &str) -> Result<String> {
             assert!(links.contains("Links:"), "a numbered list of links, never page text");
-            Ok("none".into())
+            // Judges like a model would: every candidate in its order except the engine's menus, up to what was asked.
+            const MENUS: [&str; 6] = ["Sign in", "Help", "Settings", "Tab", "Maps", "Images"];
+            let at_most: usize = links
+                .lines()
+                .find_map(|l| l.strip_prefix("Pick at most ")?.trim_end_matches('.').parse().ok())
+                .unwrap_or(usize::MAX);
+            let numbers: Vec<String> = links
+                .lines()
+                .filter(|l| !l.rsplit_once(" | ").is_some_and(|(_, title)| MENUS.contains(&title.trim())))
+                .filter_map(|l| l.split_once(". ").and_then(|(n, _)| n.parse::<usize>().ok()))
+                .take(at_most)
+                .map(|n| n.to_string())
+                .collect();
+            Ok(if numbers.is_empty() { "none".into() } else { numbers.join(", ") })
         }
     }
 
@@ -1109,7 +1160,7 @@ mod tests {
         let log = MemoryLog::default();
         let (r, steps) = run(&w, &m, 5, &AtomicBool::new(false), &log);
         let r = r.unwrap();
-        let visited = w.visited.lock().unwrap().clone();
+        let visited = visits(&w);
         assert_eq!(
             visited,
             [
@@ -1136,16 +1187,16 @@ mod tests {
         assert!(r.answer.contains("[1]") && r.answer.contains("**Read:**") && r.answer.contains("**Skipped:**"));
         assert!(m.answers.lock().unwrap()[0].starts_with("[1] Access denied in IIS"));
         assert_eq!(steps[0], "searching");
-        assert_eq!(steps[1], "Reading result 1 of 5: learn.microsoft.com");
+        assert_eq!(steps[1], "Reading result 1 of 10: learn.microsoft.com");
         assert_eq!(steps.last().unwrap(), "writing the answer");
         // Every navigation is in the activity log (sites only).
         let entries = log.entries.lock().unwrap();
         assert_eq!(
             entries.len(),
-            8,
-            "the search, how the links were found, five pages opened (one failed), one hand-off"
+            9,
+            "the search, how the links were picked, five pages opened (one failed), one hand-off, the next results page"
         );
-        assert!(entries.iter().any(|e| e.action == "research.links.rules"));
+        assert!(entries.iter().any(|e| e.action == "research.links.ai"));
         assert!(entries.iter().all(|e| e.chat == "research:1"));
         assert!(entries.iter().any(|e| e.outcome == ActionOutcome::HandedBack));
     }
@@ -1221,22 +1272,23 @@ mod tests {
         let (r, steps) = run(&w, &model(), 3, &AtomicBool::new(false), &log);
         let r = r.unwrap();
         assert_eq!(
-            *w.visited.lock().unwrap(),
+            visits(&w),
             [
                 SEARCH,
                 "https://site1.example.org/answer",
                 "https://site2.example.org/answer",
                 "https://site3.example.org/answer",
+                "https://site4.example.org/answer",
             ],
-            "exactly results 1, 2 and 3, in order; nothing from inside a result page, no ad, no engine page"
+            "the picked results in order; nothing from inside a result page, no ad, no engine page"
         );
         assert_eq!(r.read.len(), 3, "each page read once it was really shown: {:?}", r.skipped);
         assert_eq!(
             steps[1..4],
             [
-                "Reading result 1 of 3: site1.example.org",
-                "Reading result 2 of 3: site2.example.org",
-                "Reading result 3 of 3: site3.example.org"
+                "Reading result 1 of 10: site1.example.org",
+                "Reading result 2 of 10: site2.example.org",
+                "Reading result 3 of 10: site3.example.org"
             ]
         );
     }
@@ -1274,26 +1326,53 @@ mod tests {
     }
 
     #[test]
-    fn the_number_of_results_is_clamped_and_overridable() {
+    fn the_number_of_results_is_one_of_the_choices() {
         assert_eq!(clamp_results(None), DEFAULT_RESULTS);
-        assert_eq!(clamp_results(Some(0)), 1);
-        assert_eq!(clamp_results(Some(99)), 10);
-        assert_eq!(clamp_results(Some(3)), 3);
+        assert_eq!(DEFAULT_RESULTS, 10);
+        for (asked, got) in [(0, 10), (3, 10), (10, 10), (11, 20), (20, 20), (21, 30), (99, 30)] {
+            assert_eq!(clamp_results(Some(asked)), got, "{asked}");
+        }
         assert_eq!(
             ResearchSettings::default(),
             ResearchSettings {
                 auto: true,
-                max_results: 5
+                max_results: 10
             }
         );
+        // A request below the smallest choice still tries every result the model picked, up to 10.
         let w = web();
         let log = MemoryLog::default();
         let (r, _) = run(&w, &model(), 1, &AtomicBool::new(false), &log);
-        assert_eq!(w.visited.lock().unwrap().len(), 2, "the search and one result");
-        assert_eq!(r.unwrap().read.len(), 1);
-        let w = web();
-        let _ = run(&w, &model(), 0, &AtomicBool::new(false), &log);
-        assert_eq!(w.visited.lock().unwrap().len(), 2, "at least one result");
+        let r = r.unwrap();
+        assert!(r.read.len() + r.skipped.len() > 1, "{r:?}");
+    }
+
+    /// The pages visited, without the engine's next results pages (asked for when fewer than the limit were read; see
+    /// `fewer_results_than_the_limit_go_on_to_the_engines_next_results_page`).
+    fn visits(w: &FakeWeb) -> Vec<String> {
+        w.visited
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|u| !u.contains("&start="))
+            .cloned()
+            .collect()
+    }
+
+    #[test]
+    fn fewer_results_than_the_limit_go_on_to_the_engines_next_results_page() {
+        let w = three_results();
+        let log = MemoryLog::default();
+        let (r, _) = run(&w, &model(), 10, &AtomicBool::new(false), &log);
+        r.unwrap();
+        let all = w.visited.lock().unwrap().clone();
+        assert_eq!(
+            all.last().map(String::as_str),
+            Some("https://www.google.com/search?q=HRESULT+0x80070005+IIS&start=10"),
+            "{all:?}"
+        );
+        // That page failing to show ends the paging; the answer still comes from what was read.
+        assert!(log.entries.lock().unwrap().iter().any(|e| e.action == "research.links.ai"));
     }
 
     #[test]
@@ -1305,7 +1384,7 @@ mod tests {
         let empty = FakeWeb::default();
         let (r, _) = run(&empty, &model(), 5, &AtomicBool::new(false), &log);
         assert!(
-            matches!(r, Err(AiError::Engine(m)) if m.contains("browser")),
+            matches!(&r, Err(AiError::Browser(m)) if m.starts_with("The browser could not")),
             "the results page did not load"
         );
         let mut no_links = FakeWeb::default();
@@ -1428,7 +1507,7 @@ mod tests {
         use super::super::results::fixtures;
         let w = fixture_web(fixtures::GOOGLE, fixtures::google());
         let r = run_with(&w, &model(), SearchEngine::Google, "HttpRequestException 504").unwrap();
-        let visited = w.visited.lock().unwrap().clone();
+        let visited = visits(&w);
         assert_eq!(
             visited[1..],
             [
@@ -1480,7 +1559,7 @@ mod tests {
         let m = WithModel(&assistant);
         let w = fixture_web(GOOGLE, product_page());
         let r = run_with(&w, &m, SearchEngine::Google, "HttpRequestException 504").unwrap();
-        let visited = w.visited.lock().unwrap().clone();
+        let visited = visits(&w);
         assert_eq!(
             visited[1..],
             [
@@ -1500,12 +1579,9 @@ mod tests {
         assert!(!list.contains("preferences"), "{list}");
         assert!(r.no_results.is_none());
         // The model finds nothing either: an honest report with the results page to open.
-        let none = FakeModel {
-            notes: vec![],
-            answers: Mutex::new(vec![]),
-        };
+        let picks_none = Assistant::new(ScriptedProvider::new(vec![Reply::Text("none".into())]), AssistantConfig::default());
         let w = fixture_web(GOOGLE, product_page());
-        let r = run_with(&w, &none, SearchEngine::Google, "HttpRequestException 504").unwrap();
+        let r = run_with(&w, &WithModel(&picks_none), SearchEngine::Google, "HttpRequestException 504").unwrap();
         assert_eq!(r.no_results.as_deref(), Some("Google showed no result links."));
         assert_eq!(r.results_page.as_deref(), Some(GOOGLE));
         assert!(r.answer.contains("Open the results page"));

@@ -226,4 +226,24 @@ describe('DropGuides', () => {
     document.elementFromPoint = original;
     root.remove();
   });
+
+  it('shows no guides while a floating window is moved by its tab strip; Shift+drag (redock) shows them', () => {
+    const root = document.createElement('div');
+    root.innerHTML = '<div class="dv-resize-container"><div class="dv-void-container"></div></div>';
+    document.body.appendChild(root);
+    const guides = new DropGuides(root);
+    const layer = root.querySelector('.imt-drop-guides')!;
+    const handle = root.querySelector('.dv-void-container')!;
+    const pointer = (type: string, target: EventTarget, x: number, shiftKey = false) =>
+      target.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 0, button: 0, pointerType: 'mouse', shiftKey }));
+    pointer('pointerdown', handle, 0);
+    pointer('pointermove', window, 100);
+    expect(layer.classList.contains('on')).toBe(false);
+    pointer('pointerup', window, 100);
+    pointer('pointerdown', handle, 0, true);
+    pointer('pointermove', window, 100);
+    expect(layer.classList.contains('on')).toBe(true);
+    guides.dispose();
+    root.remove();
+  });
 });

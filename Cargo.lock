@@ -3080,6 +3080,7 @@ dependencies = [
  "imt-core",
  "imt-dump",
  "imt-ipc",
+ "imt-notes",
  "imt-pdf",
  "imt-plugin-api",
  "imt-plugin-dumps",
@@ -3280,6 +3281,18 @@ dependencies = [
  "sysinfo",
  "tempfile",
  "windows",
+]
+
+[[package]]
+name = "imt-notes"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "thiserror 2.0.21",
+ "ts-rs",
 ]
 
 [[package]]

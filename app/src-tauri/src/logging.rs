@@ -519,8 +519,18 @@ mod tests {
         .is_ok());
         log::logger().flush();
 
-        let text = std::fs::read(&log_file).unwrap();
-        let written = String::from_utf8_lossy(&text[before.min(text.len())..]).into_owned();
+        // Async commands log when their task ends, which can be after the reply: wait (bounded) for their lines.
+        let read = || {
+            let text = std::fs::read(&log_file).unwrap_or_default();
+            String::from_utf8_lossy(&text[before.min(text.len())..]).into_owned()
+        };
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let mut written = read();
+        while !written.contains("IPC run_query from main") && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            log::logger().flush();
+            written = read();
+        }
         assert!(
             written.contains("IPC run_query from main"),
             "the commands were logged to the file: {written}"

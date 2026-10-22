@@ -84,7 +84,7 @@ const STATUS_LABEL: Record<RunStatus, string> = {
   `,
   styles: `
     :host { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); }
-    .scroll { flex: 1; min-height: 0; overflow: auto; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
+    .scroll { position: relative; flex: 1; min-height: 0; overflow: auto; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
     .scroll:focus-visible { outline-offset: -2px; }
     .inline { display: flex; gap: 8px; align-items: center; }
     .spacer { flex: 1; }

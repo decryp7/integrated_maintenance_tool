@@ -23,8 +23,13 @@ pub struct JobLimits {
 }
 
 impl JobLimits {
+    /// The job of a child the host started: the host watches its memory (`process::watch_memory`, the same on every
+    /// platform), so the job caps the rest.
     pub fn of(spec: &crate::process::SpawnSpec) -> JobLimits {
-        JobLimits::from_sandbox(&spec.sandbox)
+        JobLimits {
+            memory: None,
+            ..JobLimits::from_sandbox(&spec.sandbox)
+        }
     }
 
     pub fn from_sandbox(s: &crate::sandbox::SandboxSpec) -> JobLimits {

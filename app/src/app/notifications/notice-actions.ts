@@ -45,6 +45,39 @@ export function actionLabel(a: NoticeAction): string {
   }
 }
 
+/** The job an action works on (View, Review proposals, Retry, Show in folder); null for actions that need none. */
+export function actionJob(a: NoticeAction): number | null {
+  switch (a.type) {
+    case 'viewJob':
+    case 'reviewProposals':
+    case 'retryJob':
+    case 'showInFolder':
+      return a.jobId;
+    default:
+      return null;
+  }
+}
+
+/**
+ * Whether `a` can still run: false for a job action whose job is no longer in the Jobs list (cleared, or gone with a
+ * restart) — the engine no longer has its result, the message keeps the outcome. `listed` is null while the list is
+ * not loaded yet (then every action stays offered).
+ */
+export function actionAvailable(a: NoticeAction, listed: ReadonlySet<number> | null): boolean {
+  const job = actionJob(a);
+  return job === null || listed === null || listed.has(job);
+}
+
+/** The ids of the window's listed jobs, or null while the list has not loaded. */
+export function listedJobs(jobs: InstanceType<typeof JobsStore>): ReadonlySet<number> | null {
+  return jobs.loaded() ? new Set(jobs.snapshot().jobs.map((j) => j.id)) : null;
+}
+
+/** The note shown instead of the actions of a job that was cleared from Jobs. */
+export function jobClearedNote(): string {
+  return $localize`:@@notifications.action.jobCleared:This job was cleared from Jobs; the outcome above is all that is kept.`;
+}
+
 /** Actions that answer the message: once done it is dismissed (an AI update was installed, put off or skipped). */
 function answers(a: NoticeAction): boolean {
   return a.type === 'updateAi' || a.type === 'laterAiUpdate' || a.type === 'skipAiUpdate';
@@ -74,6 +107,7 @@ export class NoticeActions {
 
   private async perform(a: NoticeAction): Promise<string | null> {
     const ctx = this.injector.get(COMMAND_CONTEXT);
+    if (!actionAvailable(a, listedJobs(this.injector.get(JobsStore)))) return jobClearedNote();
     switch (a.type) {
       case 'viewJob':
       case 'reviewProposals': {

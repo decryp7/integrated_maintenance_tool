@@ -64,7 +64,7 @@ function sameWindow(q: Query, ms: number | null): boolean {
  * "Follow now": while live tail is on and following, the query carries a sliding window
  * (`{ kind: 'live', lastMs }`) that the ENGINE resolves against the newest record, so the timeline, charts,
  * facets and grid all slide together. A fixed range set by anything else (zoom, pan, brush, an alert's "Show",
- * a bookmark) pauses following until Resume.
+ * a note) pauses following until Resume.
  */
 export const LiveFollow = signalStore(
   { providedIn: 'root' },

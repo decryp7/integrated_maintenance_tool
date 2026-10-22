@@ -8,7 +8,7 @@ import { DumpsBackend } from './dumps-backend';
 import { DumpsStore } from './dumps.store';
 import { setupDumps } from './testing/dumps-test-support';
 
-const marker = (id: number, timeMs: number, kind: DumpMarker['kind'] = 'dump'): DumpMarker => ({ id, name: `m${id}`, kind, timeMs, headline: 'h', severity: 'critical' });
+const marker = (id: number, timeMs: number, kind: DumpMarker['kind'] = 'dump'): DumpMarker => ({ id, name: `m${id}`, kind, timeMs, headline: { type: 'exception', name: 'h', location: null }, severity: 'critical' });
 
 describe('layoutMarkers', () => {
   it('places markers in the range and stacks nearby labels', () => {

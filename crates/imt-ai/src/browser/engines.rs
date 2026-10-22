@@ -137,6 +137,24 @@ impl SearchSettings {
         Ok(WebUrl::parse(&template.replace(QUERY_PLACEHOLDER, &encoded))?)
     }
 
+    /// The engine's results page `page` (0 = the first, [`SearchSettings::search_url`]) for `text`, `None` when this
+    /// research cannot ask the engine for further pages: Google (`start`) and Bing (`first`) take the offset in the
+    /// address; DuckDuckGo loads more results by script and a custom engine's paging is unknown.
+    pub fn results_page_url(&self, engine: SearchEngine, text: &str, page: usize) -> Result<Option<WebUrl>, SearchError> {
+        let first = self.search_url(engine, text)?;
+        if page == 0 {
+            return Ok(Some(first));
+        }
+        let offset = match engine {
+            SearchEngine::Google => ("start", page * 10),
+            SearchEngine::Bing => ("first", page * 10 + 1),
+            SearchEngine::DuckDuckGo | SearchEngine::Custom => return Ok(None),
+        };
+        let mut url = first.url().clone();
+        url.query_pairs_mut().append_pair(offset.0, &offset.1.to_string());
+        Ok(Some(WebUrl::parse(url.as_str())?))
+    }
+
     /// What the address box opens: a web address as is (`https://` added to a bare host name), anything
     /// else as a search with `engine`. Other schemes (`file:`, `javascript:`) are refused.
     pub fn resolve_address(&self, input: &str, engine: SearchEngine) -> Result<WebUrl, SearchError> {

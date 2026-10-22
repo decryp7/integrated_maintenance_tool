@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { ImtCommand } from '../../extensions/tokens';
 import { QuerySession } from '../../analysis/query-session';
-import { BookmarkStore } from '../../projects/bookmarks/bookmark.store';
+import { NotesStore } from '../../notes/notes.store';
 import { TimelineAnnotations } from '../../timeline/annotations.store';
 import { DialogService } from '../../ui/dialog.service';
 import { ReportActions } from './report-actions';
@@ -15,7 +15,7 @@ export class ReportCommands {
   private readonly actions = inject(ReportActions);
   private readonly reports = inject(ReportStore);
   private readonly ws = inject(WorkspaceStore);
-  private readonly bookmarks = inject(BookmarkStore);
+  private readonly notes = inject(NotesStore);
   private readonly session = inject(QuerySession);
   private readonly annotations = inject(TimelineAnnotations);
   private readonly dialogs = inject(DialogService);
@@ -37,7 +37,7 @@ export class ReportCommands {
       },
     },
     { id: 'report.addSelected', title: $localize`:@@share.reportCommands.addSelected:Add selected event to report`, category: $localize`:@@share.commands.categoryAnalyze:Analyze`, when: () => !!this.ws.selected(), run: (ctx) => this.add(ctx, this.actions.addSelectedEvent()) },
-    { id: 'report.addBookmarks', title: $localize`:@@share.reportCommands.addBookmarks:Add bookmarks to report`, category: $localize`:@@share.commands.categoryAnalyze:Analyze`, when: () => this.bookmarks.items().length > 0, run: (ctx) => this.add(ctx, this.actions.addBookmarks()) },
+    { id: 'report.addNotes', title: $localize`:@@share.reportCommands.addNotes:Add notes to report`, category: $localize`:@@share.commands.categoryAnalyze:Analyze`, when: () => this.notes.items().length > 0, run: (ctx) => this.add(ctx, this.actions.addNotes()) },
     { id: 'report.addTimeline', title: $localize`:@@share.reportCommands.addTimeline:Add timeline to report`, category: $localize`:@@share.commands.categoryAnalyze:Analyze`, when: () => !!this.ws.timeline(), run: (ctx) => this.add(ctx, this.actions.addTimeline()) },
     { id: 'report.addFindings', title: $localize`:@@share.reportCommands.addFindings:Add health-check findings to report`, category: $localize`:@@share.commands.categoryAnalyze:Analyze`, when: () => !!this.ws.summary()?.total, run: async (ctx) => this.add(ctx, await this.actions.addFindings()) },
     { id: 'report.addAnomalies', title: $localize`:@@share.reportCommands.addAnomalies:Add anomalies to report as findings`, category: $localize`:@@share.commands.categoryAnalyze:Analyze`, when: () => !!this.ws.summary()?.total, run: async (ctx) => this.add(ctx, await this.actions.addAnomalies()) },

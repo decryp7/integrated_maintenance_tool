@@ -2,7 +2,9 @@
 //! error and not a hang, a hang is cut off, and a contained plugin cannot read the user's files.
 
 use imt_ipc::peer::code;
-use imt_plugin_test::{Launch, PluginUnderTest};
+#[cfg(windows)]
+use imt_plugin_test::Launch;
+use imt_plugin_test::PluginUnderTest;
 use std::time::{Duration, Instant};
 
 const FIXTURE: &str = env!("CARGO_BIN_EXE_imt-plugin-test-fixture");

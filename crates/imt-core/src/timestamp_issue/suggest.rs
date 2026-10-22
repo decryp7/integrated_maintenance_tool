@@ -1,6 +1,6 @@
 //! Proposes a timestamp format for lines whose timestamps IMT could not read. It finds the first
 //! date/time-shaped text of each line, describes its tokens as a strftime format (what
-//! `[parse] timestamp_formats` takes) and keeps the format only when it really parses the samples.
+//! a parser's `[format] timestamp_formats` takes) and keeps the format only when it really parses the samples.
 //! Pure and panic-free on any input.
 
 use crate::time::TimestampParser;

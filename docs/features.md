@@ -43,7 +43,7 @@ covers inputs, profiles, the query language and shortcuts, and [development](dev
 - Millions of rows stay smooth: only visible rows are rendered, results are paged from the engine.
 - Choose columns, sort oldest/newest first, group by any fields, follow growing files with **Live**
   (live tail), and jump from a marker or a metric to the exact rows behind it.
-- Row actions on a selection: highlight, mark, extract a value, mask, drop, bookmark, and "same
+- Row actions on a selection: highlight, mark, extract a value, mask, drop, add a note, and "same
   CorrelationId".
 - **Source colours**: a thin stripe at the start of each row tells which file the line came from, with
   matching dots in the Explorer, the inspector and the timeline lane labels; hover one for the file
@@ -299,7 +299,9 @@ The set-up wizard checks your hardware and, only when you ask, downloads a model
 llama.cpp `llama-server` build for your platform (CPU, Vulkan, CUDA, Metal and others); downloads
 are resumable and checked against pinned SHA-256 hashes. Builds are not bundled and nothing needs
 compiling ([ADR 0009](adr/0009-prebuilt-llama-server-runtimes.md)). Settings ▸ AI chooses the
-build, or a `llama-server` of your own.
+build, or a `llama-server` of your own. *Knowledge files* (Settings ▸ AI ▸ Knowledge, [ADR 0029](adr/0029-knowledge-files.md))
+are Markdown notes about your systems that every AI feature reads as background: per project (saved with it) and
+global, each enabled or disabled, within size limits relative to the model's context window.
 
 Downloads trust the operating system's certificate store (the same roots as your browser), so they work
 behind TLS-inspecting corporate proxies such as Zscaler once IT has installed the proxy's root
@@ -390,8 +392,13 @@ See [ADR 0012](adr/0012-jobs.md).
 ## Projects, sessions and export
 
 - **Projects** (`.imtproj`): sources, profile, filters, time range, zoom history, columns and
-  bookmarks saved and reopened (`Ctrl/⌘+S`); recent projects; file association.
-- **Bookmarks** on events and time ranges (`Ctrl/⌘+D`).
+  notes saved and reopened (`Ctrl/⌘+S`); recent projects; file association.
+- **Notes** ([ADR 0021](adr/0021-notes.md); `Ctrl/⌘+D` on the selected event): Markdown observations on an event
+  (row menu, inspector), a moment or the selected range (the timeline's time axis menu), a source (Explorer menu), the
+  project, or areas marked on an image of the workspace (Explorer ▸ Mark up: zoom, pan, draw rectangles). Rows show a
+  glyph, the timeline a flag, sources a count; the Notes panel filters by kind, tag and text, jumps, edits and deletes.
+  Notes are saved in the project (with a clean copy of annotated images), the AI reads them, and the report's "Notes"
+  button adds them.
 - **Export** the filtered events to CSV or Serilog CLEF (re-importable), and query results to CSV.
 - **Sessions are autosaved** per window: after a crash IMT offers to restore your work.
 
@@ -406,7 +413,7 @@ See [ADR 0012](adr/0012-jobs.md).
   exports, reports and bundles can be redacted too, with a preview of what will be masked.
 - **Images**: charts and the timeline export as PNG or SVG (light or dark). The timeline SVG is
   drawn from the timeline model, not a screenshot; every SVG is sanitised by the engine.
-- **Incident reports**: collect bookmarks, events, charts, timeline snapshots, query results,
+- **Incident reports**: collect notes, events, charts, timeline snapshots, query results,
   health-check findings and annotations into sections with Markdown notes, reorder them, and
   export a self-contained HTML file (no scripts) or a PDF with selectable text and vector charts.
   Reports are saved in the project.

@@ -735,7 +735,8 @@ export class MockAiBackend extends AiBackend {
       const segments = query.split(/(\bWEB0\d\b)/i).filter((t) => t).map((t) => ({ text: t, leak: mockLeaks(t) ? ('logValue' as const) : null }));
       return { status: 'confirm', question, checked: { query, needsConfirm: true, segments } };
     }
-    const max = Math.max(1, Math.min(10, args.maxResults ?? 5));
+    // Like the engine: 10, 20 or 30 results (the smallest choice at least the one asked for).
+    const max = [10, 20, 30].find((c) => c >= (args.maxResults ?? 10)) ?? 30;
     const jobId = startMockResearch(question, max, this.stepMs, args.sessionId ?? null, (r) => this.recordAnswer(args.sessionId ?? null, `Research: ${question}`, r.answer, webCitations(r)));
     return { status: 'started', jobId };
   }

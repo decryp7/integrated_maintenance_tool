@@ -168,6 +168,8 @@ import { WindowingBackend } from '../../windowing/windowing-backend';
 import { RecentBackend } from '../recent/recent-backend';
 import { JobsBackend } from '../../jobs/jobs-backend';
 import { NotificationsBackend } from '../../notifications/notifications-backend';
+import { KnowledgeBackend } from '../../ai/knowledge/knowledge-backend';
+import { NotesBackend } from '../../notes/notes-backend';
 import { at, must } from '../../../testing/must';
 
 const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
@@ -206,4 +208,6 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   RecentBackend,
   JobsBackend,
   NotificationsBackend,
+  KnowledgeBackend,
+  NotesBackend,
 };

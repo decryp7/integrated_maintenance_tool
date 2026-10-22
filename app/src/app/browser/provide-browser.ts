@@ -70,13 +70,13 @@ export function worthSearching(r: RecordView): boolean {
   template: `<div class="pad">
     <button type="button" class="btn" (click)="launcher.searchEvent(record().id)" data-testid="inspector-search-web" i18n="@@browser.inspector.search">Search the web for this error…</button>
     <span class="research">
-      <button type="button" class="btn primary" (click)="research()" data-testid="inspector-research" title="The AI searches the web, reads the top results (read-only) and answers in the chat with citations" i18n-title="@@browser.inspector.researchTitle" i18n="@@browser.inspector.research">Research this</button>
+      <button type="button" class="btn primary" (click)="research()" data-testid="inspector-research" title="The AI searches the web, picks and reads the results (read-only) and answers in the chat with citations" i18n-title="@@browser.inspector.researchTitle" i18n="@@browser.inspector.research">Research this</button>
       <label class="sr-only" for="inspector-research-results" i18n="@@browser.inspector.resultsLabel">Results to read</label>
       <select id="inspector-research-results" class="select" [value]="results()" (change)="results.set(asValue($event))" data-testid="inspector-research-results">
         <option value="" i18n="@@browser.inspector.resultsDefault">Default</option>
-        <option value="3" i18n="@@browser.inspector.results3">3 results</option>
-        <option value="5" i18n="@@browser.inspector.results5">5 results</option>
         <option value="10" i18n="@@browser.inspector.results10">10 results</option>
+        <option value="20" i18n="@@browser.inspector.results20">20 results</option>
+        <option value="30" i18n="@@browser.inspector.results30">30 results</option>
       </select>
     </span>
     @if (note(); as n) { <p class="err small" role="alert">{{ n }}</p> }

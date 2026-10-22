@@ -1,6 +1,5 @@
 import { TestBed } from '@angular/core/testing';
 import { provideTinyBackend, settle } from '../../testing/helpers';
-import { RecordView } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { Platform } from '../core/platform';
 import { WorkspaceStore } from '../core/workspace.store';
@@ -9,17 +8,12 @@ import { newRule } from '../live/live-rules.model';
 import { MarkerProfile } from '../markers/marker-profile';
 import { ProfileDraft } from '../profile/profile-draft';
 import { ProfileEdits } from '../profile/profile-edits';
-import { BookmarkStore } from '../projects/bookmarks/bookmark.store';
 import { HighlightRules } from '../projects/bookmarks/highlight';
 import { SavedQueryStore } from '../projects/bookmarks/saved-query.store';
 import { DashboardStore } from '../share/dashboard/dashboard.store';
 import { ReportStore } from '../share/report/report.store';
 import { UndoStack } from './undo-stack';
 import { at } from '../../testing/must';
-
-const record = (id = 7): RecordView => ({
-  id, ts: 1_700_000_000_000, tsState: 'parsed', level: 'Error', message: 'Failed', template: null, exception: null, fields: {}, source: 0, sourceName: 'a', line: 1, byteOffset: 0, group: 'g', markers: [],
-});
 
 async function setup() {
   TestBed.configureTestingModule({ providers: [provideTinyBackend(), { provide: Platform, useValue: { pickProfileToOpen: async () => null, pickProfileToSave: async () => null, onFilesDropped: async () => () => undefined } }, ProfileDraft] });
@@ -31,33 +25,6 @@ async function setup() {
 const profileText = async () => (await TestBed.inject(ImtBackend).getProfile()).toml;
 
 describe('undoable UI-state edits', () => {
-  it('bookmarks: add, note (merged while typing), remove', async () => {
-    const { store, undo } = await setup();
-    const b = TestBed.inject(BookmarkStore);
-    expect(b.addSelected()).toBe(false);
-    expect(b.addRange()).toBe(false);
-    store.select(record());
-    b.addSelected();
-    store.setRange(1, 2);
-    b.addRange('r');
-    const id = at(b.items(), 0).id;
-    b.setNote(id, 'a');
-    b.setNote(id, 'ab');
-    b.remove(id);
-    expect(undo.undoLabel()).toBe('bookmark removal');
-    await undo.undo();
-    expect(b.items().length).toBe(2);
-    expect(undo.undoLabel()).toBe('bookmark note edit');
-    await undo.undo();
-    expect(b.items()[0]?.note).toBe('');
-    await undo.undo();
-    await undo.undo();
-    expect(b.items()).toEqual([]);
-    // Restoring a project's bookmarks is not an edit.
-    b.replace([]);
-    expect(undo.canUndo()).toBe(false);
-  });
-
   it('highlight rules and saved queries', async () => {
     const { undo, store } = await setup();
     const h = TestBed.inject(HighlightRules);

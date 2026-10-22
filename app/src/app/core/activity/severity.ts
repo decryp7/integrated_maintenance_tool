@@ -41,6 +41,8 @@ const EXPECTED: Record<ErrorCode, boolean> = {
   noRuntime: true,
   noVision: true,
   engine: false,
+  // A page of the research or agent browser failing (not open, slow, changed) is the web's, not an IMT bug.
+  browser: true,
   contextOverflow: true,
   malformed: false,
   toolLoopLimit: true,

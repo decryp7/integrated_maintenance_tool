@@ -42,6 +42,10 @@ fn side(model: &Path, ext: &str) -> PathBuf {
     PathBuf::from(s)
 }
 
+/// The media marker this server advertises in `/props` and requires, like real llama-server builds, which choose
+/// their own marker rather than llama.cpp's default `<__media__>`.
+const MEDIA_MARKER: &str = "<__media_fake_7f3a__>";
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let here = std::env::current_exe()
@@ -185,7 +189,7 @@ fn handle(mut s: TcpStream, script: &Script) {
         "/props" => respond(
             &mut s,
             200,
-            &json!({"default_generation_settings": {"n_ctx": script.n_ctx}, "modalities": {"vision": script.mmproj}}),
+            &json!({"default_generation_settings": {"n_ctx": script.n_ctx}, "modalities": {"vision": script.mmproj}, "media_marker": MEDIA_MARKER}),
         ),
         "/tokenize" => respond(&mut s, 200, &json!({"tokens": (0..tokens).collect::<Vec<_>>()})),
         "/completion" => completion(&mut s, script, &req, prompt, tokens),
@@ -221,7 +225,7 @@ fn completion(s: &mut TcpStream, script: &Script, req: &Value, prompt: &str, tok
             &json!({"error": {"code": 500, "type": "server_error", "message": "image input is not supported - hint: if this is unexpected, you may need to provide the mmproj"}}),
         );
     }
-    if images != prompt.matches("<__media__>").count() {
+    if images != prompt.matches(MEDIA_MARKER).count() {
         return respond(
             s,
             400,

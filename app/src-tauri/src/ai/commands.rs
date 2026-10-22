@@ -433,7 +433,13 @@ pub(crate) fn run_turn(
     let session = turn.session.clone();
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<(), TurnError> {
         let rounds = browser.map_or(6, |b| b.rounds());
-        let assistant = core.assistant_with_rounds(turn.cancel.clone(), rounds).map_err(TurnError::Before)?;
+        let assistant = core
+            .assistant_with_rounds(
+                &super::knowledge::for_window(win, &super::knowledge::chat_focus(ctx)),
+                turn.cancel.clone(),
+                rounds,
+            )
+            .map_err(TurnError::Before)?;
         // Each tool call takes a short read lock; live tail and imports never wait for the model.
         let access = WindowStore(win.clone());
         let browser_env = browser.map(|b| b.env());

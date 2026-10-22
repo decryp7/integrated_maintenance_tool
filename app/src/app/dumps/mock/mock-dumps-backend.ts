@@ -172,14 +172,14 @@ export class MockDumpsBackend extends DumpsBackend {
     const snapshot = kind === 'umdh' ? Math.max(0, MOCK_UMDH_PATHS.indexOf(path)) : null;
     const summary: DumpDocSummary =
       kind === 'dump'
-        ? { id, name: name(path), path, kind: 'dump', timeMs: CRASH_MS, headline: 'CLR_EXCEPTION in KERNELBASE.dll!RaiseException+0x6c', process: 'OrderService.exe', severity: 'critical' }
+        ? { id, name: name(path), path, kind: 'dump', timeMs: CRASH_MS, headline: { type: 'exception', name: 'CLR_EXCEPTION', location: 'KERNELBASE.dll!RaiseException+0x6c' }, process: 'OrderService.exe', severity: 'critical' }
         : {
             id,
             name: name(path),
             path,
             kind: 'umdhSnapshot' as DocKind,
             timeMs: CRASH_MS - (11 - 5 * (snapshot ?? 0)) * 60_000,
-            headline: `${UMDH.length} allocation stacks, ${(UMDH.reduce((n, s) => n + s.bytes[snapshot ?? 0]!, 0) / (1 << 20)).toFixed(1)} MB`,
+            headline: { type: 'umdhSnapshot', stacks: UMDH.length, bytes: UMDH.reduce((n, s) => n + s.bytes[snapshot ?? 0]!, 0) },
             process: null,
             severity: 'info',
           };

@@ -154,7 +154,7 @@ test.describe('research', () => {
     await expect(dialog.getByTestId('research-source')).toContainText('The AI wrote it');
     await expectNoSeriousViolations(page, testInfo, 'research-dialog', '[role=dialog]');
     await dialog.getByLabel('Search text', { exact: true }).fill('IIS access denied 0x80070005');
-    await dialog.getByLabel('Results to read').selectOption('3');
+    await dialog.getByLabel('Results to read').selectOption('10');
     await dialog.getByTestId('research-run').click();
     await expect(dialog).toHaveCount(0);
     const toast = page.getByTestId('notice-toast').filter({ hasText: 'Research finished' });
