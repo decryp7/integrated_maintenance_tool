@@ -143,6 +143,37 @@ describe('ChatComposer', () => {
     await until(f, () => el(f, '[data-testid=ai-browser-menu]').textContent!.includes('Browser: Read along'));
   });
 
+  it('Read along, Agent and Off update the backend and the button label, and Agent says a real browser window will open', async () => {
+    const web = resetMockWeb();
+    const env = setup();
+    const { f, store } = env;
+    await ready(env);
+    const id = store.activeId()!;
+    await TestBed.inject(ChatBrowserStore).load(id);
+    const label = () => el(f, '[data-testid=ai-browser-menu]').textContent ?? '';
+    const choose = async (mode: string) => {
+      el<HTMLButtonElement>(f, '[data-testid=ai-browser-menu]').click();
+      f.detectChanges();
+      await until(f, () => !!document.querySelector(`[data-testid=ai-browser-${mode}]`));
+      document.querySelector<HTMLButtonElement>(`[data-testid=ai-browser-${mode}]`)!.click();
+    };
+    expect(label()).toContain('Browser: Off');
+    await choose('agent');
+    await until(f, () => web.status(id).agent && label().includes('Browser: Agent'));
+    expect(web.status(id).readAlong).toBe(false);
+    await choose('readAlong');
+    await until(f, () => web.status(id).readAlong && label().includes('Browser: Read along'));
+    expect(web.status(id).agent).toBe(false);
+    el<HTMLButtonElement>(f, '[data-testid=ai-browser-menu]').click();
+    f.detectChanges();
+    await until(f, () => !!document.querySelector('[data-testid=ai-browser-agent]'));
+    expect(document.querySelector('[data-testid=ai-browser-agent]')?.textContent).toContain('A real browser window will open next to the app');
+    expect(document.querySelector('[data-testid=ai-browser-readAlong]')?.textContent).toContain('browser window it opens next to the app');
+    document.querySelector<HTMLButtonElement>('[data-testid=ai-browser-off]')!.click();
+    await until(f, () => !web.status(id).readAlong && label().includes('Browser: Off'));
+    expect(web.status(id).agent).toBe(false);
+  });
+
   it('opens Research… prefilled with the draft', async () => {
     const env = setup();
     await ready(env);

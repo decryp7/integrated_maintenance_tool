@@ -10,7 +10,7 @@ pub enum Challenge {
 }
 
 const CONSENT_HOSTS: &[&str] = &["consent.google.", "consent.youtube."];
-const HUMAN_URL: &[&str] = &["/sorry/", "captcha", "/challenge", "cdn-cgi/challenge"];
+const HUMAN_URL: &[&str] = &["/sorry/", "captcha", "cdn-cgi/challenge"];
 const HUMAN_TEXT: &[&str] = &[
     "verify you are human",
     "verify you're human",
@@ -49,20 +49,51 @@ mod tests {
 
     #[test]
     fn captcha_pages() {
-        assert_eq!(detect("https://www.google.com/sorry/index?continue=x", "", ""), Some(Challenge::HumanCheck));
-        assert_eq!(detect("https://x.test/", "Just a moment", "Verify you are human by completing the action below"), Some(Challenge::HumanCheck));
-        assert_eq!(detect("https://x.test/", "", "Our systems have detected unusual traffic"), Some(Challenge::HumanCheck));
+        assert_eq!(
+            detect("https://www.google.com/sorry/index?continue=x", "", ""),
+            Some(Challenge::HumanCheck)
+        );
+        assert_eq!(
+            detect(
+                "https://x.test/",
+                "Just a moment",
+                "Verify you are human by completing the action below"
+            ),
+            Some(Challenge::HumanCheck)
+        );
+        assert_eq!(
+            detect("https://x.test/", "", "Our systems have detected unusual traffic"),
+            Some(Challenge::HumanCheck)
+        );
     }
 
     #[test]
     fn consent_pages() {
-        assert_eq!(detect("https://consent.google.com/ml?x=1", "Before you continue", ""), Some(Challenge::Consent));
-        assert_eq!(detect("https://a.test/", "", "We use cookies. Accept all  Reject all"), Some(Challenge::Consent));
+        assert_eq!(
+            detect("https://consent.google.com/ml?x=1", "Before you continue", ""),
+            Some(Challenge::Consent)
+        );
+        assert_eq!(
+            detect("https://a.test/", "", "We use cookies. Accept all  Reject all"),
+            Some(Challenge::Consent)
+        );
+    }
+
+    #[test]
+    fn a_path_named_challenge_alone_is_not_a_challenge() {
+        assert_eq!(detect("https://coding.test/challenge/42", "Daily challenge", "Solve it"), None);
     }
 
     #[test]
     fn ordinary_pages_are_not_challenges() {
-        assert_eq!(detect("https://docs.test/a", "NullReferenceException", "How to fix a null reference. We use cookies."), None);
+        assert_eq!(
+            detect(
+                "https://docs.test/a",
+                "NullReferenceException",
+                "How to fix a null reference. We use cookies."
+            ),
+            None
+        );
         let long = "word ".repeat(2000) + " accept all reject all we use cookies";
         assert_eq!(detect("https://docs.test/a", "t", &long), None);
     }

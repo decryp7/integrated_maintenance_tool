@@ -115,8 +115,8 @@ export class AgentApprovalCard {
       <p><strong>{{ link().title }}</strong> <span class="muted small">{{ kindText() }}</span></p>
       <p><imt-segments [segments]="segments()" /></p>
       <div class="row">
-        <button type="button" class="btn ghost" (click)="open.emit(link().url)" i18n="@@browser.link.open">Open</button>
-        <button type="button" class="btn" (click)="read.emit(link().url)" data-testid="link-card-read" title="Opens the page in IMT's browser, adds it to this chat as untrusted web content, and the AI goes on with it" i18n-title="@@browser.link.readTitle" i18n="@@browser.link.read">Open and let AI read it</button>
+        <button type="button" class="btn ghost" (click)="open.emit(link().url)" title="Opens the link in your default browser" i18n-title="@@browser.link.openTitle" i18n="@@browser.link.open">Open</button>
+        <button type="button" class="btn" (click)="read.emit(link().url)" data-testid="link-card-read" title="Opens the page in the AI's browser window, adds it to this chat as untrusted web content, and the AI goes on with it" i18n-title="@@browser.link.readTitle" i18n="@@browser.link.read">Open and let AI read it</button>
       </div>
     </section>
   `,
@@ -150,7 +150,7 @@ export class LinkCard {
         <p class="warn small" role="note" i18n="@@browser.research.confirmNote">Highlighted parts come from your logs or look private: check the search text before it is sent.</p>
       }
       <div class="row">
-        <button type="button" class="btn ghost" (click)="agent.emit()" data-testid="research-offer-agent" title="Turns on agent mode for this chat only: the AI drives the browser step by step and asks before new sites, typing and forms" i18n-title="@@browser.research.agentTitle" i18n="@@browser.research.agent">Let the AI drive the browser</button>
+        <button type="button" class="btn ghost" (click)="agent.emit()" data-testid="research-offer-agent" title="Turns on agent mode for this chat only: the AI drives a browser window step by step and asks before new sites, typing and forms" i18n-title="@@browser.research.agentTitle" i18n="@@browser.research.agent">Let the AI drive the browser</button>
         <button type="button" class="btn primary" (click)="research.emit()" data-testid="research-offer-run" title="The AI searches and reads the top results by itself, read-only, and answers with citations" i18n-title="@@browser.research.runTitle" i18n="@@browser.research.run">Research this</button>
       </div>
     </section>

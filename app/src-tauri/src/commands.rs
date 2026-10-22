@@ -258,8 +258,9 @@ mod tests {
         }
     }
 
-    /// Capabilities name IMT's webviews, never windows: the browser's page webview lives in an IMT window (ADR 0024),
-    /// and a window pattern would grant it that window's permissions. No capability allows remote origins.
+    /// Capabilities name IMT's webviews, never windows: a window pattern would grant every webview in the window (any
+    /// future child view) that window's permissions. No capability allows remote origins. (The AI's browser is a
+    /// separate Chromium process, ADR 0043; IMT hosts no web page.)
     #[test]
     fn capabilities_are_scoped_to_imt_webviews_and_never_reach_the_page() {
         // A capability label pattern: a literal, or a prefix ending in `*`.

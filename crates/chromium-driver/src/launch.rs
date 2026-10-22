@@ -88,7 +88,10 @@ pub fn write_theme(data_dir: &Path, accent: u32) -> std::io::Result<()> {
     let dir = data_dir.join("Default");
     std::fs::create_dir_all(&dir)?;
     let file = dir.join("Preferences");
-    let mut root: Value = std::fs::read_to_string(&file).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_else(|| json!({}));
+    let mut root: Value = std::fs::read_to_string(&file)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_else(|| json!({}));
     merge(&mut root, theme_preferences(accent));
     std::fs::write(file, root.to_string())
 }
@@ -117,7 +120,10 @@ pub struct Chromium {
 }
 
 fn unique_dir() -> PathBuf {
-    let n = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+    let n = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
     std::env::temp_dir().join(format!("chromium-driver-{}-{n}", std::process::id()))
 }
 
@@ -266,14 +272,18 @@ mod tests {
     fn keeps_the_automation_banner_and_hides_nothing() {
         let a = args(Path::new("/tmp/p"), Visibility::OffScreen);
         assert!(a.contains(&"--enable-automation".to_string()));
-        assert!(a.iter().all(|x| !x.contains("AutomationControlled") && !x.contains("user-agent") && !x.contains("headless")));
+        assert!(a
+            .iter()
+            .all(|x| !x.contains("AutomationControlled") && !x.contains("user-agent") && !x.contains("headless")));
         assert!(a.contains(&"--window-position=-32000,-32000".to_string()));
         assert!(a.contains(&"--user-data-dir=/tmp/p".to_string()));
     }
 
     #[test]
     fn on_screen_has_no_offscreen_position() {
-        assert!(!args(Path::new("/p"), Visibility::OnScreen).iter().any(|x| x.starts_with("--window-position")));
+        assert!(!args(Path::new("/p"), Visibility::OnScreen)
+            .iter()
+            .any(|x| x.starts_with("--window-position")));
     }
 
     #[test]
@@ -291,7 +301,10 @@ mod tests {
 
     #[test]
     fn missing_executable_is_a_launch_error() {
-        let exe = Browser { flavor: crate::Flavor::Chromium, path: "/nonexistent/chrome".into() };
+        let exe = Browser {
+            flavor: crate::Flavor::Chromium,
+            path: "/nonexistent/chrome".into(),
+        };
         let e = Chromium::launch(&exe, &LaunchOptions::default()).err().unwrap();
         assert!(matches!(e, Error::Launch(_)));
     }

@@ -88,14 +88,6 @@ fn files() -> Vec<(&'static str, String)> {
                 decl(crate::paths::PickRequest::decl())
             ),
         ),
-        (
-            "browser.ts",
-            format!(
-                "{header}{}\n{}",
-                decl(crate::browser::geometry::CssRect::decl()),
-                decl(crate::browser::geometry::Placement::decl())
-            ),
-        ),
         ("plugins.ts", crate::plugin_packages::dto::generated(header)),
         ("parsers.ts", crate::parsers::dto::generated(header)),
         ("store.ts", {

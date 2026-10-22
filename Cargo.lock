@@ -3120,6 +3120,7 @@ dependencies = [
  "base64 0.23.1",
  "block2",
  "cairo-rs",
+ "chromium-driver",
  "chrono",
  "dirs",
  "image",

@@ -245,7 +245,7 @@ describe('AiChatPanel and the browser', () => {
     f.detectChanges();
     await until(f, () => !!store.activeId() && !el<HTMLTextAreaElement>(f, 'textarea').disabled);
     const id = store.activeId()!;
-    // A page added from the Web panel is cited in the next answer.
+    // A page added with "Add the open page to the question" is cited in the next answer.
     web.show('https://learn.example.com/timeouts');
     web.sources.set(id, [{ title: 'Timeouts', url: 'https://learn.example.com/timeouts', chars: 10, truncated: false, removed: [] }]);
     await ask(f, 'what does it say?');
@@ -287,10 +287,10 @@ describe('AiChatPanel and the browser', () => {
     const id = store.activeId()!;
     await ask(f, 'suggest a link for this');
     await until(f, () => !store.running() && !!root.querySelector('[data-testid=link-card]'));
-    expect(web.page.open).toBe(false);
+    expect(web.external).toEqual([]);
     buttonByText(f, /^Open$/).click();
-    await until(f, () => web.page.open);
-    expect(web.page.url).toContain('google.com/search');
+    await until(f, () => web.external.length > 0);
+    expect(web.external[0]).toContain('google.com/search');
     // A step cap notice offers Continue, which grants more steps and goes on.
     await TestBed.inject(ChatBrowserStore).setAgent(id, true);
     store.onEvent({ sessionId: id, seq: 0, type: 'agentPaused', reason: 'stepCap', steps: 25, handOff: null });

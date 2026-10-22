@@ -54,7 +54,11 @@ mod tests {
     use super::*;
 
     fn o(load: bool, items: Option<usize>, ms: u64) -> Observation {
-        Observation { load_finished: load, region_items: items, quiet: Duration::from_millis(ms) }
+        Observation {
+            load_finished: load,
+            region_items: items,
+            quiet: Duration::from_millis(ms),
+        }
     }
 
     #[test]

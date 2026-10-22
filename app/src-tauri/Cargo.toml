@@ -13,11 +13,6 @@ rust-version.workspace = true
 name = "imt_app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
-[features]
-# The live test of research against the real search engines (`browser::live_probe`, `npm run e2e:tauri:build:live`).
-# Debug end-to-end builds only: a release build with it fails to compile, so it never ships.
-live-search-probe = []
-
 [build-dependencies]
 tauri-build = { version = "2.7.3", features = [] }
 
@@ -33,6 +28,7 @@ imt-symbols = { path = "../../crates/imt-symbols", default-features = false, fea
 imt-notes = { path = "../../crates/imt-notes" }
 # Video sources (ADR 0033): the FFmpeg runtime, the sandboxed analysis and the project's video records.
 imt-video = { path = "../../crates/imt-video" }
+chromium-driver = { path = "../../crates/chromium-driver" }
 imt-agent = { path = "../../crates/imt-agent" }
 # Plugins run out of process (ADR 0017): the host side only; no plugin is linked into the app.
 imt-plugin-host = { path = "../../crates/imt-plugin-host" }

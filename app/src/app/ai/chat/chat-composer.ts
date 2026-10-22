@@ -281,11 +281,11 @@ export class ChatComposer {
   protected browserHint(mode: ChatBrowserMode): string {
     switch (mode) {
       case 'off':
-        return $localize`:@@ai.chat.browser.offHint:The AI does not use IMT's browser in this chat`;
+        return $localize`:@@ai.chat.browser.offHint:The AI does not use a browser in this chat`;
       case 'readAlong':
-        return $localize`:@@ai.chat.browser.readAlongHint:When you ask about it, the AI may read the page you have open in IMT's browser. It never browses by itself.`;
+        return $localize`:@@ai.chat.browser.readAlongHint:When you ask about it, the AI may read the page open in the browser window it opens next to the app. It never browses by itself.`;
       case 'agent':
-        return $localize`:@@ai.chat.browser.agentHint:The AI drives IMT's browser step by step for this chat; it asks before new sites, typing and forms.`;
+        return $localize`:@@ai.chat.browser.agentHint:A real browser window will open next to the app and the AI drives it step by step for this chat; it asks before new sites, typing and forms.`;
     }
   }
 

@@ -15,7 +15,7 @@ Kept short on purpose; each line links to where it is described.
 | Sources | Windows (EVTX, registry, msinfo32, Process Monitor, IIS, ERRORLOG, minidump), syslog/journald, web server logs, XML layouts, OpenTelemetry, Docker/Kubernetes, HAR, configuration diff, per-line mixed formats ([0020](adr/0020-mixed-sources.md)), the parser library and AI-generated parsers ([0026](adr/0026-parser-library.md), [0032](adr/0032-ai-parser-generation.md)), text encodings ([0040](adr/0040-text-encodings.md)), paste as log, video sources ([0033](adr/0033-video-sources-ffmpeg-runtime.md)) |
 | Collecting | Process monitor, Event Log follower, Performance Monitor sets, the diagnostics collector, the headless agent (`imt-agent`, [0005](adr/0005-headless-agent.md)) |
 | Profiling and dumps | The profiling engine and views, .NET capture by ETW and EventPipe ([0019](adr/0019-dotnet-profiling.md)), native capture ([0022](adr/0022-native-profiling.md)), `.etl` import, crash dumps and UMDH ([0023](adr/0023-dumps-and-umdh.md)) with PDB symbols by identity and symbol servers ([0036](adr/0036-dump-symbols-by-pdb-identity.md)) |
-| AI | Local assistant, vision, knowledge files ([0029](adr/0029-knowledge-files.md)), the docked internal browser and Research ([0011](adr/0011-internal-browser.md), [0024](adr/0024-docked-browser.md)), jobs and notifications ([0012](adr/0012-jobs.md)) |
+| AI | Local assistant, vision, knowledge files ([0029](adr/0029-knowledge-files.md)), the AI's Chromium browser and Research ([0011](adr/0011-internal-browser.md), [0043](adr/0043-chromium-renderer.md)), jobs and notifications ([0012](adr/0012-jobs.md)) |
 | Platform | DuckDB store with Tantivy search ([0014](adr/0014-database-first-engine.md)), the Store pane and SQL console ([0030](adr/0030-store-pane-and-sql-console.md)), performance settings ([0031](adr/0031-performance-settings.md)), the store port table ([0042](adr/0042-store-port-table.md)), out-of-process Rust plugins ([0017](adr/0017-one-ipc-out-of-process-plugins.md)) and the signed plugin SDK ([0027](adr/0027-plugin-sdk.md)), Rhai scripting, auto-update, settings import/export, i18n readiness |
 | Workbench | Docking, multiple timelines and windows, command palette, themes including high contrast, the shortcut editor, view areas and perspectives ([0035](adr/0035-view-areas-and-perspectives.md)), Home and the timeline minimap, search everything, native error snapshots ([0034](adr/0034-native-window-capture.md)), What's new |
 
@@ -45,7 +45,7 @@ plugin catalogue (2026-10-18), the CLR Profiling API "deep mode" agent, and the 
 - **WebView2 apps**: track the `msedgewebview2.exe` family under the host and attach over the Chrome DevTools Protocol for
   console messages, network requests, `Performance.getMetrics`, JS heap snapshots and CPU profiles.
 - **Snapshot automation**: take heap snapshots on a schedule or when Private Bytes grows by N MB.
-- **Vision for agent mode**: send a screenshot of the browser panel alongside the DOM snapshot
+- **Vision for agent mode**: send a screenshot of the AI's browser window alongside the DOM snapshot
   ([ADR 0025](adr/0025-vision-one-model.md) already reads images in the chat). Local only; text-only models keep working.
 
 ## Open: platform

@@ -80,7 +80,10 @@ pub fn locate_executable(root: &Path, os: Os) -> Option<Browser> {
             if p.is_dir() {
                 stack.push(p);
             } else if p.file_name().and_then(|n| n.to_str()).is_some_and(|n| want.contains(&n)) && !p.to_string_lossy().contains("Helper") {
-                return Some(Browser { flavor: Flavor::Chromium, path: p });
+                return Some(Browser {
+                    flavor: Flavor::Chromium,
+                    path: p,
+                });
             }
         }
     }

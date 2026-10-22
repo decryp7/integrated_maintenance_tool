@@ -407,37 +407,41 @@ profile's time zone) and with the same text, and lists them with a reason for ea
 matches lane OrderWorker*, *text 'HttpRequestException'*). Without a readable time it says the links come from text
 and title only; when the clocks disagree it says by how much and offers the clock-offset correction.
 
-## Internal web browser
+## The AI's browser (real Chromium)
 
-*Search the web for this error* (the event's context menu, the inspector, the chat, the palette) opens the
-page in IMT's **Browser** panel (*View ▸ Tools ▸ Browser*), which docks like Timeline or Events: tabs, splits,
-maximise, pop-out. The AI writes the search from the event (the exception type, the decisive words of the
-message, error codes, the framework and its version, without ids, names, paths, ports or timestamps);
-whatever looks private or comes from your logs is taken out, and you can edit it before anything opens
-(without a model, IMT builds it). The page has its own cookies and history; the panel has back and
-forward, the address box (Ctrl+L) with your search engine (Google by default; DuckDuckGo, Bing
-or your own URL template with `{q}`, chosen in Settings ▸ Web browser and per search), *Add page
-to AI context* and *Open in your browser*. While a menu, dialog or message is open over the page, the page
-steps aside for that moment. The AI never searches the web by itself. It sees a page only when you add it
-to a chat (as cited, untrusted web content it must not take instructions from), when you set the chat's
-*Browser* menu to *Read along*, or to **Agent**: then it drives the visible browser one step at a time,
-asks before new sites, typing and forms, highlights data from your logs headed into an address or a field,
-stops for logins, payments and CAPTCHAs, and logs every step; *Stop* takes the browser back at once. It
-can also suggest a search or a page as a card that opens only when you click it; *Open and let AI read
-it* opens it and the chat goes on with the page. Pages get no access to IMT at all; downloads and popups
-are blocked. On Linux the page shows in a window of its own next to the panel. See
-[ADR 0011](adr/0011-internal-browser.md) and [ADR 0024](adr/0024-docked-browser.md).
+*Search the web for this error* (the event's context menu, the inspector, the chat, the palette) opens the search in
+your **default browser**; links from events, exceptions and research results open there too. The AI writes the
+search from the event (the exception type, the decisive words of the message, error codes, the framework and its
+version, without ids, names, paths, ports or timestamps); whatever looks private or comes from your logs is taken out,
+and you can edit it before anything opens (without a model, IMT builds it). Your search engine is Google by default;
+DuckDuckGo, Bing or your own URL template with `{q}` are chosen in Settings ▸ Web browser and per search.
 
-**"AI is browsing" in the Browser panel:** while agent mode or research drives the browser, the panel's
-header says *AI is browsing* with what the AI does (the step, or the result page it reads) and a *Stop*
-button, and its tab reads "Browser · AI is browsing"; nothing is ever put into the page. It clears as soon
-as the AI lets go: Stop (there or in the chat), the answer or the research is done, cancelled or failed,
-agent mode is turned off, or the page or its IMT window is closed. See
-[ADR 0013](adr/0013-ai-browsing-banner.md) and [ADR 0024](adr/0024-docked-browser.md).
+Research and the chat's *Browser* menu drive a **real Chromium-based browser** (Edge, Chrome or Chromium found on
+your computer, or a pinned Chromium you download in Settings ▸ Web browser, about 200 MB, checksum verified, only when
+you ask) over the DevTools protocol, with a throwaway profile. The AI never searches the web by itself. It sees a page
+only when you add it to a chat (as cited, untrusted web content it must not take instructions from), when you set the
+chat's *Browser* menu to *Read along* (the browser window opens next to IMT and the AI may read the page you have
+open), or to **Agent**: then it drives that window one step at a time, asks before new sites, typing and forms,
+highlights data from your logs headed into an address or a field, stops for logins, payments and CAPTCHAs, and logs
+every step; *Stop* ends the browser at once. A consent wall or CAPTCHA brings the window to the front for you; when you
+have dealt with it the AI goes on. Research keeps the window out of sight until a page needs you. It can also suggest a
+search or a page as a card that opens in your default browser only when you click it; *Open and let AI read it* opens it
+in the AI's browser and the chat goes on with the page. Downloads are blocked, and the real user agent is used: nothing
+is hidden from sites. Without any Chromium-based browser (and without the download) research and the browser modes are
+unavailable, with a message that says what to do. See [ADR 0043](adr/0043-chromium-renderer.md) (it supersedes the
+docked Browser panel of [ADR 0024](adr/0024-docked-browser.md); [ADR 0011](adr/0011-internal-browser.md) still sets the rules).
+
+**It is always obvious when a page is driven by the AI**, with indicators that are all outside the page (nothing is ever
+injected into a page): Chrome's own banner "controlled by automated test software", a window frame in IMT's accent
+colour (best effort, depends on the browser version), a status chip in IMT with what the AI does ("Reading 3 of 5
+results"), the site, and a *Stop* button, and the research log that lists every page opened and skipped. The window title
+text ("IMT AI: reading example.com") is carried by the chip's events. The chip clears as soon as the AI lets go: Stop,
+the answer or the research is done, cancelled or failed, or agent mode is turned off. See
+[ADR 0043](adr/0043-chromium-renderer.md).
 
 **Research mode:** when a question needs outside information (an error code, an exception, how a product
 behaves), or you say "search" or "look up", the AI researches by itself, read-only: it writes the search
-text, searches with your engine in the visible browser, and the model picks the results worth reading from the
+text, searches with your engine in the AI's browser, and the model picks the results worth reading from the
 results page (the rules that skip the engine's own pages, ads and redirect hosts stay as a safety filter). It reads
 10, 20 or 30 of them (10 by default; Settings ▸ Web browser, or "read 30 results"), going on to the engine's next
 results pages for Google and Bing when it needs more candidates, in order ("Reading result 2 of 10:
@@ -448,7 +452,7 @@ confirm or edit it first. *Research this* (an event, the inspector, the chat's *
 demand, with a 10/20/30 picker: the AI drafts the search text from your question and the event and shows it to
 you first (edit it, or *Let the AI write it* again); nothing is searched until you press *Research*. Turn
 automatic research off and the AI only offers the button. Research runs as a job you can stop from the Jobs
-pane or the Browser panel.
+pane or the status chip.
 
 ## Jobs and notifications
 

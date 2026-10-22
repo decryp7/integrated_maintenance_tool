@@ -1,7 +1,7 @@
 # 24. The internal browser is a docked panel; the AI writes the search text
 
-- Status: accepted (amends [ADR 0011](0011-internal-browser.md) and supersedes the banner window of
-  [ADR 0013](0013-ai-browsing-banner.md))
+- Status: superseded by [ADR 0043](0043-chromium-renderer.md) (was: accepted, amending [ADR 0011](0011-internal-browser.md) and superseding the banner window of
+  [ADR 0013](0013-ai-browsing-banner.md)); the AI-writes-the-search-text part stays
 - Date: 2026-10-21
 
 ## Context

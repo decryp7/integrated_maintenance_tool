@@ -71,7 +71,11 @@ impl Connection {
             .name("cdp-io".into())
             .spawn(move || io_loop(ws, rx, i2))
             .map_err(|e| Error::Connection(e.to_string()))?;
-        Ok(Connection { out, inner, next: AtomicU64::new(1) })
+        Ok(Connection {
+            out,
+            inner,
+            next: AtomicU64::new(1),
+        })
     }
 
     pub fn is_closed(&self) -> bool {

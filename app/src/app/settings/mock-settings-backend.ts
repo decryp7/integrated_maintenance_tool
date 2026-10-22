@@ -116,6 +116,33 @@ export function mockSections(): SettingsSection[] {
       ],
     }),
     section({
+      id: 'browser',
+      title: 'Web browser',
+      description:
+        "The AI's browser: research, Read along and Agent mode drive a real Chromium-based browser (its own throwaway profile; the window shows next to IMT). The AI sees a page only through read-only extraction.",
+      owner: { kind: 'app' },
+      group: 'app',
+      fields: [
+        f('searchEngine', 'Search engine', options(['google', 'Google'], ['duckDuckGo', 'DuckDuckGo'], ['bing', 'Bing'], ['custom', 'Custom']), 'google', {
+          description: 'Used by the address box and by Search the web for this error.',
+        }),
+        f('customSearchUrl', 'Custom search address', { type: 'text', maxLen: 512, pattern: null }, '', {
+          description: 'For the Custom engine: an https address with {q} where the search text goes.',
+        }),
+        f('browserPath', 'Browser to use', { type: 'text', maxLen: 1024, pattern: null }, '', {
+          description: "Research and the chat's browser modes drive a Chromium-based browser (Edge, Chrome or Chromium). Leave empty to use the downloaded Chromium or the one found on this computer.",
+        }),
+        f('agentStepLimit', 'Agent steps per task', int(5, 100), 25, { description: 'Agent mode stops after this many steps and asks whether to continue.' }),
+        f('agentActionsPerMinute', 'Agent actions per minute', int(5, 60), 20, { description: 'Agent mode browses at a human pace.' }),
+        f('autoResearch', 'Let the AI research the web automatically', { type: 'bool' }, true, {
+          description: 'The AI searches and reads the top results by itself (read-only) when a question needs outside information.',
+        }),
+        f('researchResults', 'Results to read per search', options(['5', '5'], ['10', '10'], ['20', '20'], ['30', '30']), '10', {
+          description: 'Research reads this many results the AI picked, then answers.',
+        }),
+      ],
+    }),
+    section({
       id: 'workspace',
       title: 'Live tail',
       description: 'How IMT follows files that change while they are open.',

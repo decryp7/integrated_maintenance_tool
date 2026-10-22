@@ -1,7 +1,8 @@
 /**
- * Wire contract of the internal web browser (camelCase JSON), mirrored by the Rust DTOs in
- * `app/src-tauri/src/browser` and `crates/imt-ai/src/browser`. The chat events of read-along, suggested links
- * and agent mode are part of `ChatEvent` in `../ai/ai.types.ts`.
+ * Wire contract of the AI's browser (camelCase JSON), mirrored by the Rust DTOs in `app/src-tauri/src/browser` and
+ * `crates/imt-ai/src/browser`. Research and the chat's browser modes drive a real Chromium window of their own over
+ * DevTools; links open in the user's default browser. The chat events of read-along, suggested links and agent mode
+ * are part of `ChatEvent` in `../ai/ai.types.ts`.
  */
 
 export type SearchEngine = 'google' | 'duckDuckGo' | 'bing' | 'custom';
@@ -9,26 +10,7 @@ export type SearchEngine = 'google' | 'duckDuckGo' | 'bing' | 'custom';
 /** Every engine in the order the engine lists them (`SearchEngine::ALL`: Google, the default, first). */
 export const SEARCH_ENGINES: readonly SearchEngine[] = ['google', 'duckDuckGo', 'bing', 'custom'];
 
-/** The page a window's browser shows. */
-export interface PageState {
-  open: boolean;
-  url: string;
-  title: string;
-  loading: boolean;
-}
-
-/** `browser_state`. */
-export interface BrowserStateDto {
-  page: PageState;
-  /** The engine from Settings ▸ Web browser. */
-  engine: SearchEngine;
-  /** A custom search address is set (the Custom engine can be used). */
-  customEngine: boolean;
-  /** The page shows in the Browser panel (Windows, macOS); false: in a window of its own (Linux). */
-  docked: boolean;
-}
-
-/** What `browser_open` opens: the address box's text (a page or a search), or a search. */
+/** What `browser_open` opens in the default browser: the address box's text (a page or a search), or a search. */
 export type OpenTarget =
   | { kind: 'address'; text: string; engine?: SearchEngine | null }
   | { kind: 'search'; query: string; engine?: SearchEngine | null };
@@ -43,18 +25,6 @@ export interface EventQuery {
   removed: string[];
   source: QuerySource;
 }
-
-export type NavCommand = 'back' | 'forward' | 'reload' | 'stop';
-
-// `browser_place`: where the Browser panel's page area is, and whether the page may show there (ADR 0024).
-// Generated from `browser::geometry`.
-export type { CssRect, Placement } from '../core/generated/browser';
-
-/** A key IMT took from the page (`key` event): Ctrl/⌘+L, Esc, or one of IMT's shortcuts to replay. */
-export type PageKey =
-  | { action: 'focusAddress' }
-  | { action: 'returnFocus' }
-  | { action: 'shortcut'; key: string; ctrl: boolean; shift: boolean; alt: boolean; meta: boolean };
 
 /** A page handed to a chat ("Add page to AI context"), without its text. */
 export interface SourceInfo {
@@ -84,7 +54,7 @@ export interface ChatBrowserStatus {
 }
 
 /**
- * How a chat uses IMT's browser (the composer's "Browser" menu): not at all, read-along (the AI may read the page you
+ * How a chat uses the AI's browser window (the composer's "Browser" menu): not at all, read-along (the AI may read the page you
  * have open, never browsing by itself) or agent mode (the AI drives the browser step by step). Exclusive.
  */
 export type ChatBrowserMode = 'off' | 'readAlong' | 'agent';
@@ -95,22 +65,36 @@ export function chatBrowserMode(s: Pick<ChatBrowserStatus, 'readAlong' | 'agent'
   return s?.readAlong ? 'readAlong' : 'off';
 }
 
-export type NoticeKind = 'blocked' | 'download' | 'popup' | 'agentBlocked';
-
 /** Who drives the window's browser now (`browser_driving` and the `driving` event): a chat's agent mode, or research. */
 export type AiDriver = { kind: 'agent'; sessionId: string } | { kind: 'research' };
 
+/** What the AI's browser window is doing (`activity` events): the window title reads "<product> AI — <activity>: <host>". */
+export type BrowserActivityKind = 'reading' | 'searching' | 'waitingForYou';
+
 /** `imt://browser`, to the window that owns the browser and its pop-out panels. */
 export type BrowserEvent =
-  | ({ type: 'state' } & PageState)
-  | { type: 'notice'; kind: NoticeKind; url: string; message: string }
   | { type: 'sources'; sessionId: string; sources: SourceInfo[] }
   | ({ type: 'chatStatus' } & ChatBrowserStatus)
   /** The AI started (`by`) or stopped (`null`) driving the browser. */
   | { type: 'driving'; by: AiDriver | null }
-  /** The browser opened or loaded a page: show the Browser panel (`activate`: as the active tab). */
-  | { type: 'reveal'; activate: boolean }
-  | ({ type: 'key' } & PageKey);
+  /** A line like "Reading 3 of 5 results". */
+  | { type: 'status'; text: string }
+  | { type: 'activity'; activity: BrowserActivityKind; host: string; title: string };
+
+/** Where the Chromium that research and the browser modes drive comes from. */
+export type RuntimeSource = 'configured' | 'installed' | 'found' | 'none';
+
+/** `browser_runtime_status` (and what install and remove return). */
+export interface RuntimeStatus {
+  /** A browser can be started now. */
+  available: boolean;
+  source: RuntimeSource;
+  path: string | null;
+  installedVersion: string | null;
+  pinnedVersion: string;
+  /** There is a pinned download for this platform. */
+  canInstall: boolean;
+}
 
 /** The user's answer on an agent approval card. */
 export type AgentDecision = 'allow' | 'allowSite' | 'deny';

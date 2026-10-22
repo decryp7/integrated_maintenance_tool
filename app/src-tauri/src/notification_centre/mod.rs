@@ -243,9 +243,7 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
 
 /// Whether some IMT window has the focus (the user sees in-app toasts).
 fn imt_focused<R: Runtime>(app: &AppHandle<R>) -> bool {
-    app.windows()
-        .iter()
-        .any(|(label, w)| !crate::browser::is_browser_label(label) && w.is_focused().unwrap_or(false))
+    app.windows().iter().any(|(_, w)| w.is_focused().unwrap_or(false))
 }
 
 fn emit_snapshot<R: Runtime>(app: &AppHandle<R>, centre: &NotificationCentre, label: &str, posted: Option<&Notice>) {

@@ -9,6 +9,10 @@
 //! * [`cue`]: the text of the title that marks a window as AI-driven. Nothing is ever injected into a page.
 //! * [`install`]: verified install of a pinned Chromium archive.
 
+// This crate depends on nothing of IMT, so it cannot use `imt_core::process::quiet_command`; the processes it starts
+// are the browser (a GUI program) and `taskkill`, which is started without a console window.
+#![allow(clippy::disallowed_methods)]
+
 pub mod cdp;
 pub mod challenge;
 pub mod cue;

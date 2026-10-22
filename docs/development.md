@@ -238,32 +238,23 @@ cargo deny --workspace check
 
 ### Live search test
 
-AI research reads the results page of the user's search engine in IMT's own browser. Search engines serve the
-system webview (WebView2, WebKitGTK) other pages than a desktop browser, and change them without notice, so a live
-test searches once with every built-in engine (Google, DuckDuckGo, Bing) in the real app, through the
-real collector script and the real Rust rules (`research::search`, `research::read_results`).
-
-The app does the searching itself: the `live-search-probe` feature of `imt-app` (`app/src-tauri/src/browser/live_probe.rs`)
-compiles only into debug builds (a release build with it does not compile) and adds no command or capability. When
-`IMT_E2E_LIVE_SEARCH_OUT` names a folder at start-up, it searches with each engine in the main window's browser and
-writes `live-search.json` and, on Windows, a screenshot of each page there. The WebdriverIO spec (`app/e2e-tauri/live`)
-starts the app and judges the report: an engine passes with at least 3 result links and its first result opening
-(directly, or through the engine's own redirect where the engine hides result addresses, as Google does for the
-system webview); a recognised consent,
-human-check or redirect page is a warning; anything else fails, with the page's host and path (never the query string),
-title, readyState, DOM quiet time, link counts and whether the results region was found.
+AI research reads the results page of the user's search engine in a real Chromium (ADR 0043). Search engines change
+their pages without notice, so a live test searches once with every built-in engine (Google, DuckDuckGo, Bing) through
+the real page scripts and the real Rust rules (`research::search`, `research::read_results`, `research::open_result`),
+using the same `ChromiumPage` research uses. It is an ignored test of `imt-app` (`app/src-tauri/src/browser/live.rs`)
+and needs an installed Edge, Chrome or Chromium and the network. An engine passes with at least 3 result links and its
+first result opening; a recognised consent, human-check or redirect page is a warning (the page comes to the front for
+a user in the real app); anything else fails, with the page's host and path (never the query string), title,
+readyState, DOM quiet time, link counts, whether the results region was found and a screenshot.
 
 ```sh
-cd app
-npm run e2e:tauri:driver        # Windows: msedgedriver matching the installed WebView2
-npm run e2e:tauri:build:live    # debug binary with the probe (the sidecars too)
-npm run e2e:tauri:live          # Windows; on Linux: xvfb-run -a npm run e2e:tauri:live
+IMT_LIVE_SEARCH=1 IMT_E2E_LIVE_SEARCH_OUT=/tmp/live-search cargo test -p imt-app --lib live_search -- --ignored --nocapture
 ```
 
-The report and screenshots land in `app/e2e-tauri/.artifacts/live-search/`. `IMT_E2E_LIVE_SEARCH_QUERY` replaces the
-default query (`System.TimeoutException`); use neutral text only, never anything from real logs. CI runs it in the
-real-app smoke job on the nightly schedule and on manual runs, never on pushes or pull requests: engines rate-limit
-automated traffic, so keep runs rare.
+The report (`live-search.json`) and screenshots land in the folder `IMT_E2E_LIVE_SEARCH_OUT` names.
+`IMT_E2E_LIVE_SEARCH_QUERY` replaces the default query (`System.TimeoutException`) and `IMT_E2E_LIVE_SEARCH_ENGINES`
+limits the engines (`google,bing`); use neutral text only, never anything from real logs. CI runs it on the nightly
+schedule and on manual runs, never on pushes or pull requests: engines rate-limit automated traffic, so keep runs rare.
 
 ### Allocator and memory budgets
 

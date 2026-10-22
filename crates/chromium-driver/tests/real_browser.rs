@@ -18,7 +18,11 @@ fn serve() -> u16 {
             let mut s = s;
             let mut b = [0u8; 2048];
             let _ = s.read(&mut b);
-            let _ = write!(s, "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{PAGE}", PAGE.len());
+            let _ = write!(
+                s,
+                "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{PAGE}",
+                PAGE.len()
+            );
         }
     });
     port
@@ -31,7 +35,11 @@ fn renders_a_scripted_page_and_leaves_nothing_behind() {
         return;
     };
     let port = serve();
-    let opts = LaunchOptions { accent: Some(0x2a7de1), visibility: Visibility::OffScreen, ..LaunchOptions::default() };
+    let opts = LaunchOptions {
+        accent: Some(0x2a7de1),
+        visibility: Visibility::OffScreen,
+        ..LaunchOptions::default()
+    };
     let mut b = Chromium::launch(&exe, &opts).expect("launch");
     let dir = b.profile_dir().to_path_buf();
     let pid = b.pid().unwrap();
@@ -41,10 +49,15 @@ fn renders_a_scripted_page_and_leaves_nothing_behind() {
 
     let page = b.new_page().expect("page");
     page.block_heavy(true).unwrap();
-    page.navigate(&format!("http://127.0.0.1:{port}/"), Duration::from_secs(15)).expect("navigate");
+    page.navigate(&format!("http://127.0.0.1:{port}/"), Duration::from_secs(15))
+        .expect("navigate");
     let mut n = 0;
     for _ in 0..40 {
-        n = page.evaluate("document.querySelectorAll('#r li').length").unwrap().as_u64().unwrap();
+        n = page
+            .evaluate("document.querySelectorAll('#r li').length")
+            .unwrap()
+            .as_u64()
+            .unwrap();
         if n == 3 {
             break;
         }
@@ -56,7 +69,13 @@ fn renders_a_scripted_page_and_leaves_nothing_behind() {
     // The real automation signals stay on (no stealth) ...
     assert_eq!(page.evaluate("navigator.webdriver").unwrap(), json!(true));
     // ... and nothing of ours is in the page: no injected nodes, attributes or script, only what the server sent.
-    assert_eq!(page.evaluate("document.documentElement.outerHTML.includes('debrief') || document.documentElement.outerHTML.includes('AI is browsing')").unwrap(), json!(false));
+    assert_eq!(
+        page.evaluate(
+            "document.documentElement.outerHTML.includes('debrief') || document.documentElement.outerHTML.includes('AI is browsing')"
+        )
+        .unwrap(),
+        json!(false)
+    );
     assert_eq!(page.evaluate("document.querySelectorAll('script').length").unwrap(), json!(1));
     assert_eq!(page.text_excerpt().unwrap().trim(), "item 1\nitem 2\nitem 3");
     assert!(page.challenge().unwrap().is_none());

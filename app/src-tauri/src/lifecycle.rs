@@ -557,6 +557,8 @@ pub fn exit_teardown<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
         }
     });
     let a = app.clone();
+    teardown_step("browser", TEARDOWN_STEP_LIMIT, move || crate::browser::shutdown(&a));
+    let a = app.clone();
     teardown_step("jobs", TEARDOWN_STEP_LIMIT, move || crate::jobs::shutdown(&a));
     // After the jobs (their end posts messages): the debounced notifications reach the disk.
     let a = app.clone();

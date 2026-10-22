@@ -45,7 +45,6 @@ pub struct Folders<'a> {
     /// The previous run crashed: its sessions are kept so they can be restored.
     pub previous_crash: bool,
     /// An internal browser window is open (it holds its profile's files).
-    pub browser_open: bool,
     pub ai: Option<&'a dyn AiPort>,
 }
 
@@ -187,7 +186,6 @@ pub fn categories(f: &Folders<'_>) -> Vec<Category> {
     let mut out = vec![
         bundle_extracts(f),
         webview_cache(f),
-        web_profile(f),
         ai_runtimes_outdated(f),
         ai_runtimes(f),
         ai_models(f),
@@ -228,24 +226,6 @@ fn webview_cache(f: &Folders<'_>) -> Category {
             c.clearable = Err("macOS manages the web view's cache".into());
         } else {
             c.note = Some("Files the running web view holds open are removed after IMT restarts.".into());
-        }
-    }
-    c
-}
-
-/// The internal browser's profile (`browser::WEB_PROFILE_DIR` in the data folder): clearing signs out of
-/// every site and forgets its history; IMT's own web view is not affected.
-fn web_profile(f: &Folders<'_>) -> Category {
-    let dir = f.data.as_ref().map(|d| d.join(crate::browser::WEB_PROFILE_DIR));
-    let mut c = Category::new(CategoryId::WebProfile, dir.clone(), dir.clone());
-    if let Some(dir) = &dir {
-        c.items = entries(dir).into_iter().map(Item::path).collect();
-        if cfg!(target_os = "macos") {
-            c.clearable = Err("macOS keeps the internal browser's data in its own web data store".into());
-        } else if f.browser_open {
-            c.clearable = Err("close the internal browser first; it uses these files".into());
-        } else {
-            c.note = Some("Clearing signs you out of the sites you visited in IMT's browser.".into());
         }
     }
     c

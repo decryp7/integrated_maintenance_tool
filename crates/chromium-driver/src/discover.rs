@@ -96,7 +96,10 @@ pub fn find() -> Option<Browser> {
 
 pub fn find_with(os: Os, env: &dyn Fn(&str) -> Option<String>, exists: &dyn Fn(&Path) -> bool) -> Option<Browser> {
     if let Some(p) = env("CHROMIUM_PATH").map(PathBuf::from).filter(|p| exists(p)) {
-        return Some(Browser { flavor: Flavor::Chromium, path: p });
+        return Some(Browser {
+            flavor: Flavor::Chromium,
+            path: p,
+        });
     }
     candidates(os, env).into_iter().find(|b| exists(&b.path))
 }
@@ -140,7 +143,10 @@ mod tests {
         let b = find_with(Os::Linux, &env, &|p| p == only).unwrap();
         assert_eq!(b.flavor, Flavor::Chromium);
         let over = |k: &str| (k == "CHROMIUM_PATH").then(|| "/x/chrome".to_string());
-        assert_eq!(find_with(Os::Linux, &over, &|p| p == Path::new("/x/chrome")).unwrap().path, PathBuf::from("/x/chrome"));
+        assert_eq!(
+            find_with(Os::Linux, &over, &|p| p == Path::new("/x/chrome")).unwrap().path,
+            PathBuf::from("/x/chrome")
+        );
         assert!(find_with(Os::Linux, &env, &|_| false).is_none());
     }
 }

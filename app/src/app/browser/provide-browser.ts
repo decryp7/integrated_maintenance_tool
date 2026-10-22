@@ -1,28 +1,20 @@
-import { ChangeDetectionStrategy, Component, EnvironmentProviders, inject, Injectable, input, makeEnvironmentProviders, provideEnvironmentInitializer, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EnvironmentProviders, inject, Injectable, input, makeEnvironmentProviders, signal } from '@angular/core';
 import { AiLauncher } from '../ai/ai-launcher';
 import { IMT_RECORD_MENU_ITEMS, RecordMenuContribution } from '../context/record-actions';
 import { RecordView } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
-import { DockService } from '../dock/dock.service';
-import { IMT_COMMANDS, IMT_INSPECTOR_SECTIONS, IMT_VIEWS, ImtCommand, ImtInspectorSection, ImtView } from '../extensions/tokens';
+import { IMT_COMMANDS, IMT_INSPECTOR_SECTIONS, ImtCommand, ImtInspectorSection } from '../extensions/tokens';
 import { DialogService } from '../ui/dialog.service';
-import { POPOUT_ROUTE } from '../popout/popout-route';
-import { BrowserBackend } from './browser-backend';
-import { BrowserEvent } from './browser.types';
 
-export const WEB_VIEW = 'web';
-
-/** Opens the Browser panel and "Search the web for this error" from anywhere (menus, inspector, chat, palette). */
+/** "Search the web for this error" from anywhere (menus, inspector, chat, palette). */
 @Injectable({ providedIn: 'root' })
 export class BrowserLauncher {
   private readonly dialogs = inject(DialogService);
-  private readonly dock = inject(DockService);
 
-  showPanel(): void {
-    this.dock.show(WEB_VIEW);
-  }
-
-  /** The AI drafts the search text from the event (the engine without a model); the user edits it, then the page opens. */
+  /**
+   * The AI drafts the search text from the event (the engine without a model); the user edits it, then the search
+   * opens in their default browser.
+   */
   async searchEvent(recordId: number): Promise<void> {
     const { SearchWebDialog } = await import('./search-web-dialog');
     const ref = this.dialogs.open<boolean>(SearchWebDialog, {
@@ -30,31 +22,7 @@ export class BrowserLauncher {
       width: 560,
       inputs: { recordId },
     });
-    if (await ref.closed) this.showPanel();
-  }
-}
-
-/**
- * Shows the Browser panel when the browser opens or loads a page (`reveal` events): the user's own pages bring it to the
- * front, the AI's (agent mode, research) only open it without taking the focus. The IMT window does it, not its
- * pop-outs (they hear the same events).
- */
-@Injectable({ providedIn: 'root' })
-export class BrowserReveal {
-  private readonly dock = inject(DockService);
-  private readonly backend = inject(BrowserBackend);
-  private readonly popout = inject(POPOUT_ROUTE);
-  private started = false;
-
-  start(): void {
-    if (this.started || this.popout) return;
-    this.started = true;
-    void this.backend.onEvent((e) => this.onEvent(e)).catch(() => undefined);
-  }
-
-  onEvent(e: BrowserEvent): void {
-    if (e.type !== 'reveal') return;
-    if (e.activate || !this.dock.isOpen(WEB_VIEW)) this.dock.show(WEB_VIEW, { inactive: !e.activate });
+    await ref.closed;
   }
 }
 
@@ -109,23 +77,9 @@ export const WEB_INSPECTOR_SECTION: ImtInspectorSection = {
   when: worthSearching,
 };
 
-export function browserViews(): ImtView[] {
-  return [
-    {
-      id: WEB_VIEW,
-      title: $localize`:View title@@browser.view.title:Browser`,
-      icon: 'globe',
-      category: 'Tools',
-      defaultPosition: 'right',
-      component: () => import('./web-panel').then((m) => m.WebPanel),
-    },
-  ];
-}
-
 export function browserCommands(launcher: BrowserLauncher, store: InstanceType<typeof WorkspaceStore>): ImtCommand[] {
   const category = $localize`:Command palette category@@browser.category:Web`;
   return [
-    { id: 'browser.show', title: $localize`:@@browser.cmd.show:Web: Open the browser panel`, category, run: () => launcher.showPanel() },
     {
       id: 'browser.searchSelected',
       title: $localize`:@@browser.cmd.searchSelected:Web: Search the web for the selected event…`,
@@ -147,14 +101,11 @@ export function browserRecordMenu(launcher: BrowserLauncher, ai?: AiLauncher): R
   ];
 }
 
-/** One line in `app.config.ts`: the Browser view (Tools ▸ and View ▸ Tools), its commands and menu entries, and the
- * browser's requests to show it. */
+/** One line in `app.config.ts`: the browser's commands, menu entries and inspector section. */
 export function provideBrowser(): EnvironmentProviders {
   return makeEnvironmentProviders([
-    { provide: IMT_VIEWS, multi: true, useFactory: browserViews },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => browserCommands(inject(BrowserLauncher), inject(WorkspaceStore)) },
     { provide: IMT_RECORD_MENU_ITEMS, multi: true, useFactory: () => browserRecordMenu(inject(BrowserLauncher), inject(AiLauncher)) },
     { provide: IMT_INSPECTOR_SECTIONS, multi: true, useValue: [WEB_INSPECTOR_SECTION] },
-    provideEnvironmentInitializer(() => inject(BrowserReveal).start()),
   ]);
 }
