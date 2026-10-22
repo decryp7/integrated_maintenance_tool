@@ -547,6 +547,41 @@ mod tests {
     }
 
     #[test]
+    fn files_no_parser_reads_are_read_whole_with_the_reason() {
+        with_env(|env| {
+            let mut sink = Memory::default();
+            // Lines with a time of day only match no parser of the default library: the reason says so.
+            let (p, src) = temp("tod.log", b"10:00:00 INFO a\n10:00:01 INFO b\n10:00:02 INFO c\n");
+            let start = TailStart { byte: 16, line: 2 };
+            let r = read_appended(env, &p, &src, SourceId(0), start, false, &mut sink).unwrap();
+            assert!(matches!(&r, Region::Whole(why) if why.contains("no enabled parser")), "{r:?}");
+            assert!(begin_at_end(env, &p, &src, &mut sink).unwrap().is_err());
+            // Bytes no importer recognises: the reason comes from choosing the importer or the plan.
+            let (p, src) = temp("blob.bin", &[0u8, 1, 2, 3, 0, 0, 9, 9, 0, 1, 255, 254, 0, 0]);
+            let r = read_appended(env, &p, &src, SourceId(0), TailStart { byte: 0, line: 1 }, false, &mut sink).unwrap();
+            let Region::Whole(why) = r else { panic!("{r:?}") };
+            assert!(!why.is_empty());
+            assert!(
+                sink.finished.is_empty() && sink.batches.is_empty(),
+                "nothing is written for a file read whole"
+            );
+        });
+    }
+
+    #[test]
+    fn lines_that_belong_to_no_event_are_reported_while_the_last_event_is_held() {
+        let (p, src) = temp("p.log", b"2026-10-14 10:00:00 INFO one\n");
+        with_env(|env| {
+            let mut sink = Memory::default();
+            // The appended text starts mid-event: its first line has no timestamp and no event to continue.
+            append(&p, b"orphan continuation\n2026-10-14 10:00:01 INFO two\n");
+            let r = read(env, &p, &src, TailStart { byte: 29, line: 2 }, false, &mut sink);
+            assert!(r.held, "{r:?}");
+            assert!(!r.batched.problems.is_empty(), "the stray line is counted: {r:?}");
+        });
+    }
+
+    #[test]
     fn a_file_begun_at_its_end_has_no_events_and_continues_after_its_lines() {
         let (p, src) = temp("e.log", b"2026-10-14 10:00:00 INFO old\n2026-10-14 10:00:01 INFO old2\npartial");
         with_env(|env| {
