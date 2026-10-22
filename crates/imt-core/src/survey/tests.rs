@@ -640,3 +640,364 @@ fn run_rules_on_existing_markers_are_previewed_by_the_engine_and_invalid_ones_sk
     );
     std::fs::remove_dir_all(dir).ok();
 }
+
+// ---- validation: more previews and failure reasons ----
+
+fn extractor_fragment(name: &str, regex: &str) -> Fragment {
+    Fragment::Extractor {
+        extractor: ExtractCfg {
+            name: name.into(),
+            from: "@message".into(),
+            regex: regex.into(),
+            when: vec![],
+            fields: BTreeMap::new(),
+        },
+    }
+}
+
+fn run_validate(
+    ws: &crate::workspace::WorkspaceStore,
+    cands: Vec<Candidate>,
+    tweak: impl FnOnce(&mut FolderSurvey),
+) -> (Vec<SetupProposal>, Vec<SkippedProposal>) {
+    let (mut survey, sampled) = survey_only(ws, &SurveyRequest::default(), &SurveyControl::new()).unwrap();
+    tweak(&mut survey);
+    validate(ws, DEFAULT_PROFILE_TOML, &survey, &sampled, cands, &SurveyControl::new()).unwrap()
+}
+
+fn skipped_reason(skipped: &[SkippedProposal], id: &str) -> String {
+    skipped
+        .iter()
+        .find(|s| s.id == id)
+        .map(|s| s.reason.clone())
+        .unwrap_or_else(|| panic!("{id} was not skipped: {skipped:?}"))
+}
+
+#[test]
+fn previews_reject_proposals_that_do_nothing_useful() {
+    let (ws, dir) = store_with(&log_lines());
+    let chart = |id: &str, y: &str| {
+        candidate(
+            id,
+            ProposalGroup::Charts,
+            vec![Fragment::Chart {
+                chart: crate::profile::ChartCfg {
+                    id: Some(id.into()),
+                    title: id.into(),
+                    y: y.into(),
+                    bucket: "auto".into(),
+                    split_by: vec!["@level".into()],
+                    kind: "line".into(),
+                    unit: String::new(),
+                    when: vec![],
+                },
+            }],
+            vec![],
+        )
+    };
+    let cands = vec![
+        chart("chart-count", "count()"),
+        chart("chart-no-number", "avg(NoSuchField)"),
+        chart("chart-bad-y", "median(x)"),
+        candidate(
+            "no-extract",
+            ProposalGroup::Extractors,
+            vec![extractor_fragment("none", r"zzz(?P<Z>\d+)")],
+            vec![],
+        ),
+        candidate(
+            "no-conditions",
+            ProposalGroup::Markers,
+            vec![Fragment::Marker {
+                marker: MarkerCfg {
+                    kind: "empty".into(),
+                    label: None,
+                    lifecycle: false,
+                    color: None,
+                    icon: None,
+                    badge: None,
+                    shape: None,
+                    description: None,
+                    when: vec![],
+                },
+            }],
+            vec![],
+        ),
+        candidate(
+            "query-none",
+            ProposalGroup::Queries,
+            vec![Fragment::SavedQuery {
+                name: "q".into(),
+                ql: "level >= fatal".into(),
+            }],
+            vec![],
+        ),
+        candidate(
+            "query-ok",
+            ProposalGroup::Queries,
+            vec![Fragment::SavedQuery {
+                name: "all".into(),
+                ql: "level >= information".into(),
+            }],
+            vec![],
+        ),
+        candidate(
+            "dash",
+            ProposalGroup::Charts,
+            vec![Fragment::Dashboard {
+                dashboard: crate::dashboard::DashboardCfg {
+                    id: "d".into(),
+                    title: "D".into(),
+                    columns: 12,
+                    tile: vec![],
+                },
+            }],
+            vec![],
+        ),
+    ];
+    let (ok, skipped) = run_validate(&ws, cands, |_| {});
+    let by = |id: &str| ok.iter().find(|p| p.id == id).map(|p| &p.preview);
+    match by("chart-count") {
+        Some(ProposalPreview::Chart { points, series }) => {
+            assert_eq!(*points, 41);
+            assert!(!series.is_empty());
+        }
+        p => panic!("{p:?} / {skipped:?}"),
+    }
+    assert!(skipped_reason(&skipped, "chart-no-number").contains("no sampled event has a number in “NoSuchField”"));
+    assert!(skipped_reason(&skipped, "chart-bad-y").contains("unknown aggregate"));
+    assert!(skipped_reason(&skipped, "no-extract").contains("extracts nothing"));
+    assert!(skipped_reason(&skipped, "no-conditions").contains("no conditions"));
+    assert!(skipped_reason(&skipped, "query-none").contains("finds no events"));
+    assert!(
+        matches!(by("query-ok"), Some(ProposalPreview::Query { matches: 41 })),
+        "{skipped:?}"
+    );
+    assert!(matches!(by("dash"), Some(ProposalPreview::Dashboard { tiles: 0 })), "{skipped:?}");
+    std::fs::remove_dir_all(dir).ok();
+}
+
+#[test]
+fn an_instance_key_with_too_many_lanes_is_unreadable() {
+    let mut lines = String::new();
+    for i in 0..(super::fields::MAX_LANES + 6) {
+        lines.push_str(&format!("2026-10-14 09:00:00.{i:03} +00:00 [INF] worker-{i} idle\n"));
+    }
+    let (ws, dir) = store_with(&lines);
+    let key = |name: &str| {
+        candidate(
+            "many",
+            ProposalGroup::Instances,
+            vec![
+                extractor_fragment("w", r"worker-(?P<Worker>\d+)"),
+                Fragment::InstanceKey { key: vec![name.into()] },
+            ],
+            vec![],
+        )
+    };
+    let (ok, skipped) = run_validate(&ws, vec![key("Worker")], |_| {});
+    assert!(ok.is_empty());
+    assert!(skipped_reason(&skipped, "many").contains("unreadable"), "{skipped:?}");
+    std::fs::remove_dir_all(dir).ok();
+}
+
+#[test]
+fn pipeline_steps_show_what_they_change_and_reject_no_ops() {
+    let (ws, dir) = store_with(&log_lines());
+    let step = |id: &str, s: StepCfg| candidate(id, ProposalGroup::Noise, vec![Fragment::Pipeline { step: s }], vec![]);
+    let cands = vec![
+        step(
+            "set-field",
+            StepCfg {
+                step: "set".into(),
+                field: Some("Env".into()),
+                value: Some("prod".into()),
+                ..StepCfg::default()
+            },
+        ),
+        step(
+            "drop-booted",
+            StepCfg {
+                step: "drop".into(),
+                when: vec![ConditionCfg {
+                    field: "@message".into(),
+                    op: "contains".into(),
+                    value: Some(CondValue::Text("Booted".into())),
+                }],
+                ..StepCfg::default()
+            },
+        ),
+        step(
+            "noop",
+            StepCfg {
+                step: "set".into(),
+                field: Some("Never".into()),
+                value: Some("x".into()),
+                when: vec![ConditionCfg {
+                    field: "@message".into(),
+                    op: "contains".into(),
+                    value: Some(CondValue::Text("never written".into())),
+                }],
+                ..StepCfg::default()
+            },
+        ),
+        step(
+            "bad-step",
+            StepCfg {
+                step: "no_such_step".into(),
+                ..StepCfg::default()
+            },
+        ),
+    ];
+    let (ok, skipped) = run_validate(&ws, cands, |_| {});
+    match &ok.iter().find(|p| p.id == "set-field").expect("valid").preview {
+        ProposalPreview::Pipeline {
+            sampled,
+            kept,
+            dropped,
+            changed,
+            examples,
+        } => {
+            assert_eq!((*sampled, *kept, *dropped, *changed), (41, 41, 0, 41));
+            assert_eq!(examples.len(), 3);
+            assert!(examples[0].after.contains("[Env=prod]"), "{:?}", examples[0]);
+        }
+        p => panic!("{p:?}"),
+    }
+    match &ok.iter().find(|p| p.id == "drop-booted").expect("valid").preview {
+        ProposalPreview::Pipeline { dropped, examples, .. } => {
+            assert_eq!(*dropped, 1);
+            assert!(examples[0].before.contains("Booted") && examples[0].after.is_empty());
+        }
+        p => panic!("{p:?}"),
+    }
+    assert!(skipped_reason(&skipped, "noop").contains("changes none"));
+    assert!(!skipped_reason(&skipped, "bad-step").is_empty());
+    std::fs::remove_dir_all(dir).ok();
+}
+
+#[test]
+fn run_rules_per_field_and_without_starts() {
+    let mut lines = String::new();
+    for (i, msg) in [
+        "Application started worker-1",
+        "Application started worker-2",
+        "Application stopped worker-1",
+    ]
+    .iter()
+    .enumerate()
+    {
+        lines.push_str(&format!("2026-10-14 09:00:{i:02}.000 +00:00 [INF] {msg}\n"));
+    }
+    let (ws, dir) = store_with(&lines);
+    let span = |per: &str, start: &str| Fragment::Span {
+        span: crate::spans::SpanCfg {
+            kind: "run".into(),
+            label: None,
+            start: crate::spans::OneOrMany::One(start.into()),
+            stop: crate::spans::OneOrMany::One("stop".into()),
+            per: per.into(),
+            color: None,
+            max_duration: None,
+            restart_on_start: false,
+            enabled: true,
+        },
+    };
+    let with_worker = |s: Fragment| vec![s, extractor_fragment("w", r"(?P<Worker>worker-\d+)")];
+    let cands = vec![
+        candidate(
+            "per-field",
+            ProposalGroup::Markers,
+            with_worker(span("field:Worker", "start")),
+            vec![],
+        ),
+        candidate("no-start", ProposalGroup::Markers, vec![span("instance", "crash")], vec![]),
+    ];
+    let (ok, skipped) = run_validate(&ws, cands, |_| {});
+    let run = ok.iter().find(|p| p.id == "per-field").unwrap_or_else(|| panic!("{skipped:?}"));
+    match &run.preview {
+        ProposalPreview::Runs {
+            runs, closed, open, lanes, ..
+        } => assert_eq!((*runs, *closed, *open, *lanes), (2, 1, 1, 1)),
+        p => panic!("{p:?}"),
+    }
+    assert_eq!(skipped_reason(&skipped, "no-start"), "no run starts in the sampled events");
+    std::fs::remove_dir_all(dir).ok();
+}
+
+#[test]
+fn formats_for_unrecognised_files_keep_the_best_reading_and_explain_the_rest() {
+    let (ws, dir) = store_with(&log_lines());
+    let lines: Vec<String> = (0..10)
+        .map(|i| {
+            let level = if i < 7 { "INFO" } else { "WARN" };
+            format!("2026-10-14 09:00:{i:02} {level} widget {i} ready")
+        })
+        .collect();
+    let group = |ext: &str, lines: Vec<String>| UnrecognisedGroup {
+        extension: ext.into(),
+        file_count: 1,
+        files: vec![format!("x.{ext}")],
+        reason: "no importer recognises this format".into(),
+        sample_file: Some(format!("x.{ext}")),
+        sample_lines: lines,
+    };
+    let format = |id: &str, regex: &str, file: &str, origin: ProposalOrigin| {
+        let mut c = candidate(
+            id,
+            ProposalGroup::Formats,
+            vec![Fragment::ParseRegex {
+                regex: regex.into(),
+                file_name: file.into(),
+            }],
+            vec![],
+        );
+        c.origin = origin;
+        c
+    };
+    let all = r"^(?P<timestamp>\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) (?P<level>\w+) (?P<message>.*)$";
+    let info_only = r"^(?P<timestamp>\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) (?P<level>INFO) (?P<message>.*)$";
+    let few = r"^(?P<timestamp>\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) (?P<level>WARN) (?P<message>widget 7 .*)$";
+    let cands = vec![
+        format("format:thing:1", info_only, "x.thing", ProposalOrigin::Heuristic),
+        format("format:thing:2", all, "x.thing", ProposalOrigin::Heuristic),
+        format("format:thing:3", info_only, "x.thing", ProposalOrigin::Ai),
+        format("format:thing:4", few, "x.thing", ProposalOrigin::Heuristic),
+        format("format:nolines:1", all, "x.nolines", ProposalOrigin::Heuristic),
+        format("format:broken:1", "(", "x.broken", ProposalOrigin::Heuristic),
+    ];
+    let (ok, skipped) = run_validate(&ws, cands, |s| {
+        s.unrecognised = vec![
+            group("thing", lines.clone()),
+            group("nolines", vec![]),
+            group("broken", lines.clone()),
+        ];
+    });
+    let ids: Vec<&str> = ok.iter().map(|p| p.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        ["format:thing:2", "format:thing:3"],
+        "best heuristic format plus the AI one: {skipped:?}"
+    );
+    match &ok[0].preview {
+        ProposalPreview::Parse {
+            parsed,
+            lines,
+            with_timestamp,
+            examples,
+        } => {
+            assert_eq!((*lines, *with_timestamp), (10, 10));
+            assert_eq!(*parsed, 10);
+            assert!(examples.len() <= 3 && examples[0].contains("widget"));
+        }
+        p => panic!("{p:?}"),
+    }
+    assert_eq!(
+        skipped_reason(&skipped, "format:thing:1"),
+        "another format reads more of these files"
+    );
+    assert!(skipped_reason(&skipped, "format:thing:4").contains("sample lines with a timestamp"));
+    assert!(skipped_reason(&skipped, "format:nolines:1").contains("no sample lines"));
+    assert!(skipped_reason(&skipped, "format:broken:1").contains("not valid"), "{skipped:?}");
+    std::fs::remove_dir_all(dir).ok();
+}
