@@ -78,6 +78,7 @@ mod tools;
 mod tray;
 mod ui_dispatch;
 mod updater;
+mod window_capture;
 mod window_manager;
 mod window_prefs;
 mod window_scoped;
@@ -245,6 +246,7 @@ command_table! {
     Query [WINDOW] => demo::demo_paths,
     Mutation [WINDOW] limit 8 * MIB => snapshots::save_error_snapshot,
     Query [WINDOW] => snapshots::list_error_snapshots,
+    Query [WINDOW] => window_capture::capture_window_image,
     Query [WINDOW] => snapshots::read_error_snapshot,
     Mutation [WINDOW] => snapshots::delete_error_snapshot,
     Mutation [WINDOW] => snapshots::open_snapshots_folder,

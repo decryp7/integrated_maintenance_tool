@@ -10192,11 +10192,18 @@
           <context context-type="linenumber">62</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="diagnostics.snapshot.noScreenshot" datatype="html">
+        <source>No screenshot: <x id="reason" equiv-text="reason"/>.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/diagnostics/snapshot.types.ts</context>
+          <context context-type="linenumber">22</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="diagnostics.snapshot.notice" datatype="html">
         <source>IMT saved a screenshot of this error locally to help diagnose it. Nothing is sent anywhere.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/snapshot.types.ts</context>
-          <context context-type="linenumber">15</context>
+          <context context-type="linenumber">28</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.snapshots.folder" datatype="html">

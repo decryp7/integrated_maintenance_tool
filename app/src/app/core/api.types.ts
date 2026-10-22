@@ -982,7 +982,8 @@ export interface MomentSummary {
 
 /*
  * Mirrors app/src-tauri/src/snapshots.rs:
- *   save_error_snapshot    { image: base64, mime, context: SnapshotContext } -> SnapshotSaveResult
+ *   capture_window_image   {}                     -> WindowCapture  (app/src-tauri/src/window_capture, ADR 0034)
+ *   save_error_snapshot   { image: base64, mime, context: SnapshotContext } -> SnapshotSaveResult
  *   list_error_snapshots   {}                     -> SnapshotInfo[]  (newest first)
  *   read_error_snapshot    { id }                 -> string (data: URL)
  *   delete_error_snapshot  { id }                 -> void
@@ -1013,6 +1014,20 @@ export interface SnapshotContext {
   /** The user asked for it; allowed even when automatic snapshots are off. */
   manual: boolean;
 }
+
+/**
+ * Result of `capture_window_image` (Rust `window_capture::WindowCapture`): a native picture of the calling window's
+ * webview, bounded (at most 1600 px wide, PNG or JPEG) and ready for `save_error_snapshot`, or why there is none.
+ */
+export type WindowCapture =
+  | {
+      status: 'captured';
+      /** Base64, without the `data:` prefix. */
+      image: string;
+      mime: 'image/png' | 'image/jpeg';
+      bytes: number;
+    }
+  | { status: 'unavailable'; reason: string };
 
 /** Result of `save_error_snapshot` (Rust `SaveResult`). */
 export interface SnapshotSaveResult {
