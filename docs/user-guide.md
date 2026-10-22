@@ -37,6 +37,13 @@ the inspector sliding out from the right when you select an event.
 *View ▸ Layout ▸ Full* restores the richer default (the query bar in the default layout and the Overview
 opening after every import). The choice applies to new layouts (*Reset layout*); layouts you saved are kept.
 
+## Projects
+
+*Save project* (`Ctrl/⌘+S`) writes the window's store as one `.imtz` file: the imported events, the profile, filters,
+time range, columns, notes, saved queries and the layout. A project opens, searches and analyses **without the
+original logs** (the search index is rebuilt in the background), so it can be shared as it is. IMT also autosaves a session per window (`last-session.imtproj`) and offers to
+restore it after a crash. Opening a project that was saved by a newer IMT is refused with a message saying so.
+
 ## Appearance
 
 **Settings ▸ Appearance** (`Ctrl/⌘+,`, or the palette command *Open settings: Appearance*) sets how IMT looks.
@@ -79,6 +86,7 @@ are detected by magic bytes and expanded (with size caps against zip bombs).
 | Performance Monitor logs | `.csv`/`.tsv` (PDH), `.blg` | `imt-plugin-windows` | `.blg` is converted with `relog` (Windows only) |
 | Process Monitor exports | `.csv` (Sysinternals ProcMon) | `imt-plugin-windows` | One record per row; the level follows `Result`; optional columns are kept |
 | Windows minidumps | `.dmp` | `imt-plugin-windows` | A short summary: system, process, exception (code, address, module), the crashing thread's stack (scanned, not a verified unwind) and loaded modules |
+| Crash and memory dumps (minidump, heap, full) and UMDH heap logs | `.dmp`, UMDH `.txt` | `imt-plugin-dumps` | Opened with *File ▸ Open dump…* / *Open UMDH snapshots…* (or dropped) in the Dump and UMDH views, not as log events; see [features](features.md#crash-dumps-and-umdh-heap-logs). |
 | Windows registry exports | `.reg` | `imt-plugin-registry` | One record per key/value, shown as a tree in the Registry panel |
 | IIS / W3C extended, Apache / Nginx common and combined | `.log` | `imt-plugin-web` | Also the comma-separated W3C variant (Exchange tracking logs), forwarded-for client lists and extra trailing fields (Traefik) |
 | HAR captures | `.har` | `imt-plugin-web` | One record per request |
@@ -212,9 +220,9 @@ A query is an optional filter followed by `|` stages.
 
 | Syntax | Meaning |
 |---|---|
-| `timeout` or `"connection reset"` | full text over message, exception and template |
+| `timeout` or `"connection reset"` | full text over message, exception and template: words, the last one as a prefix (the search box's smart search, with partial matches added after the word matches) |
 | `level >= warning` | compare a field (`= != > >= < <=`); levels are ordered |
-| `RequestPath contains "/capture"` / `!contains` | substring |
+| `RequestPath contains "/capture"` / `!contains` | substring of that field's text (always a substring, unlike the search box and bare words) |
 | `message ~ "time(d)? ?out"` / `!~` | regular expression |
 | `StatusCode in (500, 502, 504)` | one of a list |
 | `exists(Exception)` / `missing(CorrelationId)` | field present or absent |

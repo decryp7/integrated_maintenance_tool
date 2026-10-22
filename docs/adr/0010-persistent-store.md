@@ -1,8 +1,12 @@
 # 10. Large workspaces use a persistent DuckDB store in a worker process, with a Tantivy index
 
 - Status: amended by [ADR 0014](0014-database-first-engine.md) (2026-10-20): DuckDB is the only store, not an option for large
-  workspaces; accepted 2026-10-18 after the spike in [store-spike.md](../store-spike.md)
+  workspaces; accepted 2026-10-18 after a spike (DuckDB and DataFusion with Tantivy on 10M events; the spike and its write-up were removed on 2026-10-22, its results are summarised below)
 - Date: 2026-10-18
+
+> **Amended by [ADR 0014](0014-database-first-engine.md) (2026-10-20):** DuckDB is the only store, not an option for large
+> workspaces, and the app runs on it since phase 6c. The in-memory store is no longer the default. The rest of this
+> record (DuckDB in a worker process, a Tantivy index, the measurements) stands.
 
 ## Context
 
@@ -15,7 +19,7 @@ instant reopen, background indexing with progress and cancel, and a SQL console,
 
 The spike compared DuckDB 1.5.6 (duckdb-rs, official prebuilt libduckdb) with DataFusion 55 over
 Parquet. Each used the same Tantivy 0.27 full-text index and ran against the in-memory Workspace on
-the samples scaled to 10M events. Summary at 10M (details, method and machine in the spike page):
+the samples scaled to 10M events. Summary at 10M (the spike crate and its page are gone; it was never shipped):
 
 | | DuckDB | DataFusion + Parquet |
 |---|---|---|
@@ -71,7 +75,7 @@ The costs we accept:
   DuckDB compression settings and column types before release; stores are caches and can be
   deleted from Settings.
 - **Distribution:** the worker links the official prebuilt libduckdb, fetched at **build time** in
-  CI by `crates/imt-store-spike/scripts/fetch-libduckdb.sh` (pinned SHA-256 per platform; never the
+  CI by `crates/imt-store-duck/scripts/fetch-libduckdb.sh` (and `app/scripts/libduckdb.mjs` for builds) (pinned SHA-256 per platform; never the
   `bundled` C++ build) and shipped next to the worker; on macOS both are signed with the app.
   duckdb-rs is version-locked to the library.
 
@@ -173,8 +177,8 @@ stable on all three platforms, **migrate to it**:
 ### Licences and dependencies
 
 DuckDB and duckdb-rs are MIT; Tantivy is MIT; Arrow (in the worker and adapter) is Apache-2.0; all
-on `deny.toml`'s allow-list. DataFusion is not adopted. The spike crate stays outside the workspace
-(`exclude`), `publish = false`, as the benchmark harness for regressions until the adapter lands.
+on `deny.toml`'s allow-list. DataFusion is not adopted. The spike crate was removed on 2026-10-22: the store crates
+(`imt-store-duck`, `imt-store-worker`) carry their own tests and benchmarks (ADR 0014).
 
 ## Consequences
 
@@ -190,4 +194,4 @@ on `deny.toml`'s allow-list. DataFusion is not adopted. The spike crate stays ou
 - A native library per platform to pin, verify and sign (build time only, no runtime download), and
   larger stores on disk than Parquet would give.
 - DataFusion remains the fallback if the native-library or disk costs ever outweigh speed: the
-  spike's DataFusion adapter shows the way.
+  spike's DataFusion adapter (in the repository history) shows the way.

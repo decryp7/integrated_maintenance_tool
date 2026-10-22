@@ -14,6 +14,16 @@ git tag v1.2.0 && git push origin v1.2.0
 The version in the tag must match `app/src-tauri/tauri.conf.json` / `Cargo.toml` (it is what IMT compares
 against). Pre-releases are not offered to users: updaters read `latest.json` of the *latest* release.
 
+## What an installer contains
+
+Besides the app, every installer ships the helper processes IMT starts (built by `node app/scripts/build-sidecars.mjs`,
+which `tauri build` runs): the store worker, the plugins binary, the AI worker, and the official prebuilt
+**libduckdb** next to the store worker (a `lib/` resource folder). The release jobs fetch libduckdb from the pinned,
+SHA-256-checked download in `crates/imt-store-duck/scripts/fetch-libduckdb.sh`; the sidecar build does the same
+through `app/scripts/libduckdb.mjs` when `DUCKDB_LIB_DIR` is not set. If the library is missing at run time, IMT says
+so in a clear message instead of failing to start the store. Third-party plugin packages are signed with their
+publishers' own keys, not with the updater key (see [plugin-sdk.md](plugin-sdk.md)).
+
 ## How updates work
 
 - **Opt-in.** IMT never checks on its own unless the user turns on Settings ▸ Updates ▸ "Check for updates

@@ -1,8 +1,8 @@
 # 18. Themes: token sets plus traits, three built-in themes
 
 - Status: accepted (2026-10-20)
-- Related: the design directions in docs/design/ (Calm IDE, Observability console, Precision instrument), the
-  redesign plan (docs/redesign-2026-10.md, R5), AGENTS.md (CSS custom properties for theme tokens, WCAG 2.2 AA)
+- Related: the three design directions that were prototyped as mockups (Calm IDE, Observability console, Precision
+  instrument; the mockups were removed once the themes shipped), the 2026-10 redesign plan (R6), AGENTS.md (CSS custom properties for theme tokens, WCAG 2.2 AA)
 
 ## Context
 

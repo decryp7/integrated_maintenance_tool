@@ -95,7 +95,8 @@ does:
 | Files | AppContainer: only its program folder (read) and data folder (read/write) | landlock: same, plus system libraries (read) | sandbox profile: same |
 | Network | only with `network` (AppContainer capability) | only with `network` (seccomp) | only with `network` |
 | Other programs | only with `runPrograms` (job object, same container) | only with `runPrograms` | only with `runPrograms` |
-| Memory, CPU | job object cap (1 GiB unless the plugin asks for another, at most 4 GiB) | `RLIMIT_AS`, `RLIMIT_CPU` | rlimits |
+| Memory | resident memory watched by IMT; the process is stopped over the cap (1 GiB unless the plugin asks for another, at most 4 GiB). No rlimits: they count the address space that allocators reserve up front | same | same |
+| CPU | job object limits | `RLIMIT_CPU` | `RLIMIT_CPU` |
 
 - Files the user opens reach your importer through IMT (read in chunks over the connection); you never see a path.
 - Your tools' `ToolCtx::data_dir()` is your private data folder, kept across updates and removed with the plugin.

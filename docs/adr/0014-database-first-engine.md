@@ -5,7 +5,7 @@
 - Amends: [ADR 0010](0010-persistent-store.md) (DuckDB stays the engine, Tantivy the full-text index, a worker
   process hosts both; the in-memory `Workspace` is no longer kept as the default for normal sizes)
 - Related: ADR 0002 (worker processes), ADR 0004 (plugins), ADR 0012 (jobs)
-- Extended by the redesign plan [redesign-2026-10.md](../redesign-2026-10.md), phase R2 (stable ids, one row
+- Extended by the 2026-10 redesign plan, phase R2 (stable ids, one row
   interface, one predicate language, file plans for chunking, classified profile changes)
 
 ## Context
@@ -360,7 +360,8 @@ compression of it is the native writer's bottleneck; zstd Parquet is 8.7× small
   one gRPC call `Call(method, store, JSON body)` (replaced in R3, ADR 0017: `StoreRequest` frames over `imt_ipc`,
   `Call { store, op: StoreOp, body }` with the body still JSON until 6c);
   `StoreWorker` supervises it with `imt_ipc::Supervisor` (lazy start, backoff, quarantine, killed with IMT) and a
-  1 GiB memory cap (since R3 the launcher's `SandboxSpec::memory_limit`: a job object on Windows, `RLIMIT_AS` on Unix);
+  2 GiB hard cap (`DEFAULT_MEMORY_CAP`; since R3 the launcher's `SandboxSpec::memory_limit`, watched by the host from the
+  worker's resident memory on every platform, no rlimit);
   `RemoteStore` implements Ingest, Query (summary, page, timeline, facet), Positions, Profiles (active, validate),
   Diagnostics (problems) and Search; it reopens its store after a restart, and a call that saw a crash fails with a
   retryable `StoreError::Engine`. `scan` and the other Query/Analysis operations answer `Unsupported` over the worker

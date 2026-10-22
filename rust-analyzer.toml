@@ -19,8 +19,8 @@ enable = true
 enable = false
 
 [files]
-# Build output, fuzz corpora and the store spike are never edited by hand.
-exclude = ["target", "app/src-tauri/target", "fuzz/target", "fuzz/corpus", "crates/imt-store-spike", "app/node_modules"]
+# Build output and fuzz corpora are never edited by hand.
+exclude = ["target", "app/src-tauri/target", "fuzz/target", "fuzz/corpus", "app/node_modules"]
 
 [lru]
 # Fewer cached syntax trees (default 128).

@@ -1,7 +1,7 @@
 import { ThemeDef } from '../theme.types';
 
 /**
- * Observability console (docs/design/tokens-observability.md): soft cards on a tinted canvas, a violet accent and richer
+ * Observability console: soft cards on a tinted canvas, a violet accent and richer
  * severity colour. Gradients and tints appear only where they encode something: lane volume in the source colour and
  * the band around a crash.
  *
