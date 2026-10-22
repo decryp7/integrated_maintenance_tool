@@ -514,7 +514,26 @@ fn every_query_store_is_a_search_source() {
     assert_eq!(reply.events.total, 3);
     assert_eq!(reply.sources.total, 0);
     assert_eq!(SearchSource::summary(dynamic).unwrap().total, 4);
+    let facet = SearchSource::facet(
+        dynamic,
+        &FacetRequest {
+            query: Default::default(),
+            field: "@level".into(),
+            limit: 5,
+        },
+    )
+    .unwrap();
+    assert!(!facet.values.is_empty());
     std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn only_the_head_of_a_long_text_is_searched() {
+    let p = plan(&req("needle")).unwrap().unwrap();
+    let long = format!("{}needle", "x".repeat(MAX_SCAN_CHARS));
+    assert!(!p.matches(&long));
+    assert!(p.matches(&format!("{} needle", "x".repeat(MAX_SCAN_CHARS - 10))));
+    assert!(p.matches_all(&["title", "has a needle"]));
 }
 
 // ---- snippets ----
