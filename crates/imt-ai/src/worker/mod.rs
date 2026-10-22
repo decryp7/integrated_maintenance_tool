@@ -10,7 +10,10 @@ pub mod supervisor;
 pub mod transport;
 
 pub use backend::{current_rss_bytes, WorkerBackend};
-pub use frames::{default_worker_path, fixed_env, run_worker, worker_file_name, FramesLauncher, FramesTransport, WorkerEnv};
+pub use frames::{
+    default_worker_path, fixed_env, run_worker, worker_file_name, CappedLauncher, FramesLauncher, FramesTransport, WorkerEnv,
+    WorkerMemoryCap,
+};
 pub use supervisor::{EngineState, EngineStatus, Health, Supervisor, WorkerConfig, WorkerEngine, WorkerRuntime};
 pub use transport::{CallOpts, TransportError, WorkerLauncher, WorkerTransport};
 

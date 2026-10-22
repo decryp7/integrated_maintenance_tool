@@ -293,7 +293,21 @@ impl FramesTransport {
     /// Starts the worker program and accepts its connection (private endpoint, per-launch token, cleared
     /// environment but what llama-server needs, below-normal priority, a job object on Windows).
     pub fn spawn(exe: &std::path::Path, args: &[String], env: &[(String, String)]) -> Result<FramesTransport, TransportError> {
+        Self::spawn_capped(exe, args, env, None, None)
+    }
+
+    /// [`FramesTransport::spawn`] with a memory cap on the worker's own process (llama-server, which holds the model,
+    /// is its own process and not counted) and a listener for the host's memory watcher (ADR 0030).
+    pub fn spawn_capped(
+        exe: &std::path::Path,
+        args: &[String],
+        env: &[(String, String)],
+        memory_cap: Option<u64>,
+        listener: Option<imt_ipc::memory_watch::MemoryListener>,
+    ) -> Result<FramesTransport, TransportError> {
         let mut spec = SpawnSpec::new(exe.to_path_buf(), "the AI engine");
+        spec.sandbox.memory_limit = memory_cap;
+        spec.memory_listener = listener;
         spec.args = args.to_vec();
         spec.env = env.to_vec();
         spec.keep_env = super::WORKER_ENV;
@@ -478,6 +492,30 @@ pub struct FramesLauncher {
 impl WorkerLauncher for FramesLauncher {
     fn launch(&self) -> Result<Box<dyn WorkerTransport>, TransportError> {
         Ok(Box::new(FramesTransport::spawn(&self.exe, &self.args, &(self.env)())?))
+    }
+}
+
+/// The AI worker's memory cap, evaluated at every launch (a changed setting reaches the next worker); `None`: no cap.
+pub type WorkerMemoryCap = Arc<dyn Fn() -> Option<u64> + Send + Sync>;
+
+/// Starts workers as child processes with a memory cap on the worker's own process (Settings ▸ Performance).
+pub struct CappedLauncher {
+    pub launcher: FramesLauncher,
+    pub memory_cap: WorkerMemoryCap,
+    /// Hears the host's memory watcher (warning at 80% of the cap, the stop, the peak).
+    pub listener: Option<imt_ipc::memory_watch::MemoryListener>,
+}
+
+impl WorkerLauncher for CappedLauncher {
+    fn launch(&self) -> Result<Box<dyn WorkerTransport>, TransportError> {
+        let l = &self.launcher;
+        Ok(Box::new(FramesTransport::spawn_capped(
+            &l.exe,
+            &l.args,
+            &(l.env)(),
+            (self.memory_cap)(),
+            self.listener.clone(),
+        )?))
     }
 }
 
