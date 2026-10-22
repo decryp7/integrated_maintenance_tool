@@ -111,6 +111,16 @@ minidump summaries, IIS/Apache/Nginx logs, HAR, OpenTelemetry, syslog/journald, 
 XML events, SQL Server `ERRORLOG` and Docker and Kubernetes container logs. Gzip and zip archives
 are read transparently. See [Supported inputs](user-guide.md#supported-inputs).
 
+A folder can mix formats: the format is decided per line, a file can hold several logical sources, and the instance
+key is per source ([ADR 0020](adr/0020-mixed-sources.md)).
+
+Third-party plugins are Rust programs written against the `imt-plugin-api` SDK and shipped as signed `.imtplugin`
+packages. The **Plugins panel** installs one from a file (or a drop), shows its publisher, signature and requested
+permissions before it is installed, revokes permissions, and enables, disables or removes it. Each runs contained from
+its first instruction (files, network, programs and memory limited; see [plugin-sdk.md](plugin-sdk.md)). Settings ▸
+Plugin trust lists the publisher keys you trust; developer mode accepts unsigned packages after a warning
+([ADR 0027](adr/0027-plugin-sdk.md)).
+
 ![Setting up a format for a file IMT did not recognise](screenshots/format-wizard.png)
 
 Files IMT cannot read yet are listed with a **Set up format** button: mark the timestamp, level and
@@ -227,6 +237,13 @@ runs in the `imt-profile` engine:
 - **Automatic findings** linking to the evidence, and **heap snapshots**: top types, snapshot diff,
   growth over three or more snapshots, dominator tree with retained sizes and paths to GC roots.
 
+**Record a .NET process** with *Tools ▸ Profile .NET process…* ([ADR 0019](adr/0019-dotnet-profiling.md)): pick the
+process and a kind (*CPU and waits*, *Allocations*, *Heap snapshot*). Nothing is loaded into the target. IMT records
+it with ETW (needs administrator rights; the ETW recorder runs in an elevated plugin process, and a missing right is
+reported with the *Restart as administrator* hint) or with EventPipe (no elevation), and converts the trace to the same NetTrace
+captures that every view reads. A heap snapshot opens as a heap snapshot. `.etl` traces open after you pick the
+process in them (Windows only).
+
 **Record a native (C/C++) process** with *Tools ▸ Profile native process…*: without administrator rights
 IMT samples it from outside (it pauses one thread at a time for microseconds and copies its stack), with them it
 records it with ETW (every CPU sample, waits with the thread that ended them, heap allocations by call stack).
@@ -235,9 +252,30 @@ symbol server only when you enable them), and the capture opens on its findings:
 source line, where threads wait for locks, and which call paths keep heap memory. `.etl` traces from WPR or xperf
 open the same way.
 
+Native captures are documented in [ADR 0022](adr/0022-native-profiling.md).
+
 Values are labelled *sampled* (an estimate) or *exact*. Open captures and the profiling view state
 are kept in projects and sessions. Details, limits and how to regenerate the sample captures are in
 [docs/profiling.md](profiling.md).
+
+## Crash dumps and UMDH heap logs
+
+*File ▸ Open dump…* reads a Windows crash or memory dump (`.dmp`: minidump, heap or full), and *Open UMDH snapshots…*
+reads heap logs of the User-Mode Dump Heap tool ([ADR 0023](adr/0023-dumps-and-umdh.md)). Dropped files are routed by
+content. The files are parsed in a sandboxed reader plugin (no network, no writes), a full dump is never copied whole
+(the host lends byte ranges), and the engine computes the answers, leading with the problem:
+
+- **Dump view:** the crash cause (exception code with its name and meaning, access kind and address, null-pointer and
+  fast-fail hints), the likely culprit frame, threads with their state and stacks, loaded and unloaded modules,
+  recursion in a stack overflow, heap corruption, threads blocked on locks grouped by the frame that takes them
+  (a deadlock hint), hang dumps, the .NET runtime found in the process, and missing symbols. Symbols come from the
+  local symbol folders you configure in the plugin's settings; nothing is downloaded. Managed frames show without names
+  (the data access component is not loaded).
+- **UMDH heap growth:** two or more snapshots are diffed in the engine by stack, module and culprit function; growth
+  that continues across three or more snapshots and single large allocations are findings.
+- **On the timeline:** a dump or snapshot is a marker at the time it was written; clicking it opens the view.
+- **Create dump of process…** (Tools; Windows) writes a dump of a running process into a folder you choose through
+  the documented API, without changing the process; it asks for administrator rights when it must.
 
 ## Performance Monitor, process monitor and diagnostics collector
 
@@ -317,6 +355,8 @@ is checked the same way.
 **Images (text + images, one model).** A model marked *Text + images* reads screenshots too: its multimodal
 projector (the `mmproj` file of the same repository, made for that model) is downloaded and verified with it and
 loaded into the same engine, so there is never a second model in memory ([ADR 0025](adr/0025-vision-one-model.md)).
+The projector is stored beside the model as `<model>.mmproj.gguf`; the worker reads the server's media marker from
+its `/props` (llama-server builds choose their own) instead of assuming one.
 The default Qwen3.5 9B reads images; Qwen3.6 35B-A3B is the best-quality choice (needs 32 GB RAM). *Add image
 support* installs the projector of a model you already have; nothing is downloaded without asking. Attach an image
 in the chat (button, drag and drop, paste) or open one from the Explorer: IMT decodes it itself, within limits, and
@@ -335,8 +375,8 @@ maximise, pop-out. The AI writes the search from the event (the exception type, 
 message, error codes, the framework and its version, without ids, names, paths, ports or timestamps);
 whatever looks private or comes from your logs is taken out, and you can edit it before anything opens
 (without a model, IMT builds it). The page has its own cookies and history; the panel has back and
-forward, the address box (Ctrl+L) with your search engine (Google by default; DuckDuckGo, Bing, Stack
-Overflow or your own URL template with `{q}`, chosen in Settings ▸ Web browser and per search), *Add page
+forward, the address box (Ctrl+L) with your search engine (Google by default; DuckDuckGo, Bing
+or your own URL template with `{q}`, chosen in Settings ▸ Web browser and per search), *Add page
 to AI context* and *Open in your browser*. While a menu, dialog or message is open over the page, the page
 steps aside for that moment. The AI never searches the web by itself. It sees a page only when you add it
 to a chat (as cited, untrusted web content it must not take instructions from), when you turn on *Let AI
@@ -357,13 +397,15 @@ agent mode is turned off, or the page or its IMT window is closed. See
 
 **Research mode:** when a question needs outside information (an error code, an exception, how a product
 behaves), or you say "search" or "look up", the AI researches by itself, read-only: it writes the search
-text, searches with your engine in the visible browser, takes the result links of that results page once
-and reads up to five of them by their address, in order ("Reading result 2 of 5: example.org"; 1–10 in
-Settings ▸ Web browser, or "read 10 results"), never follows links further, types nothing and fills no
+text, searches with your engine in the visible browser, and the model picks the results worth reading from the
+results page (the rules that skip the engine's own pages, ads and redirect hosts stay as a safety filter). It reads
+10, 20 or 30 of them (10 by default; Settings ▸ Web browser, or "read 30 results"), going on to the engine's next
+results pages for Google and Bing when it needs more candidates, in order ("Reading result 2 of 10:
+example.org"), then answers. It never follows links further, types nothing and fills no
 forms, skips logins, payments and CAPTCHAs, and answers with a summary, likely causes and fixes as steps, a
 citation per claim, and the pages it read or skipped. If the search text contains data from your logs, you
 confirm or edit it first. *Research this* (an event, the inspector, the chat's *Research…*) does the same on
-demand, with a 3/5/10 picker: the AI drafts the search text from your question and the event and shows it to
+demand, with a 10/20/30 picker: the AI drafts the search text from your question and the event and shows it to
 you first (edit it, or *Let the AI write it* again); nothing is searched until you press *Research*. Turn
 automatic research off and the AI only offers the button. Research runs as a job you can stop from the Jobs
 pane or the Browser panel.
@@ -391,8 +433,13 @@ See [ADR 0012](adr/0012-jobs.md).
 
 ## Projects, sessions and export
 
-- **Projects** (`.imtproj`): sources, profile, filters, time range, zoom history, columns and
-  notes saved and reopened (`Ctrl/⌘+S`); recent projects; file association.
+- **Projects** (`.imtz`, [ADR 0014](adr/0014-database-first-engine.md)): a project is the window's store, saved as one
+  self-contained file with its profile, filters, time range, zoom history, columns, notes and layout (`Ctrl/⌘+S`). It
+  holds the imported events, so it opens, searches and analyses **without the original log files** (the search
+  index is rebuilt in the background); recent projects; file association. The autosaved session of a window is a
+  separate small `.imtproj` file.
+- **Saved queries** (the *Saved queries* panel): named queries and highlight rules saved with the project. They were
+  called bookmarks; notes took over the job of marking a place.
 - **Notes** ([ADR 0021](adr/0021-notes.md); `Ctrl/⌘+D` on the selected event): Markdown observations on an event
   (row menu, inspector), a moment or the selected range (the timeline's time axis menu), a source (Explorer menu), the
   project, or areas marked on an image of the workspace (Explorer ▸ Mark up: zoom, pan, draw rectangles). Rows show a
@@ -516,8 +563,6 @@ their pure logic but have not been checked on every desktop environment.
 ## Themes, colour schemes and density
 
 ![The workspace in the light colour scheme of the Calm theme](screenshots/light-theme.png)
-
-![The workspace in the Console theme, dark](screenshots/theme-console.png)
 
 Settings ▸ Appearance (or *View ▸ Theme*, or the command palette) chooses how IMT looks:
 

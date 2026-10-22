@@ -5,7 +5,7 @@
 
 ## Context
 
-The shell review of 2026-10-20 (redesign phase R4, `docs/redesign-2026-10.md`) found that the Tauri shell had
+The shell review of 2026-10-20 (redesign phase R4 of the 2026-10 plan) found that the Tauri shell had
 grown by accretion: 225 commands, half of them sync (run on the main thread), listed in one macro and again,
 by name, in three classification tables of the activity log; three error contracts (plain text, the AI's
 `{code, message}`, the updater's `{kind, message, nextStep}`) told apart by substring matching; several

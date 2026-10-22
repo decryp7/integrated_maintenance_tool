@@ -1,6 +1,6 @@
 # IMT (Integrated Maintenance Tool): core map
 
-Desktop IDE for analysing logs/diagnostic files. Rust engine + Tauri 2 shell + Angular UI. Pre-v1: redesign freely, no backward-compat code (docs/redesign-2026-10.md is the active plan).
+Desktop IDE for analysing logs/diagnostic files. Rust engine + Tauri 2 shell + Angular UI. Pre-v1: redesign freely, no backward-compat code (open redesign items: docs/roadmap.md).
 
 ## Source map
 - `crates/imt-core`: engine, single source of truth (parsing, timestamps, profiles/pipelines, query language, analysis, exports, projects, plugin registry/guards). Details: `mem:engine/core`.
@@ -9,7 +9,7 @@ Desktop IDE for analysing logs/diagnostic files. Rust engine + Tauri 2 shell + A
 - `app/src`: Angular UI, presentation only. Details: `mem:ui/core`.
 - `crates/imt-ai`, `imt-ai-worker`: AI assistant + llama-server worker; `imt-ipc`: pipes/sockets, supervisor, job objects; `imt-plugin-*`: plugins; `imt-collect`, `imt-monitor`, `imt-agent`, `imt-profile`, `imt-pdf`.
 - `xtask/`: `cargo xtask gen-samples`. `samples/`: generated test corpus (never hand-edit). `fuzz/`: separate cargo workspace.
-- `docs/adr/`: architecture decisions (0014 database-first engine; check numbering before adding — numbers are taken by parallel work). `docs/redesign-2026-10.md`: phased redesign R0–R5.
+- `docs/adr/`: architecture decisions (0014 database-first engine; check numbering before adding — numbers are taken by parallel work).
 - CI and runners: `mem:ci/core`.
 
 ## Invariants

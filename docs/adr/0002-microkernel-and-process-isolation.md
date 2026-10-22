@@ -1,8 +1,8 @@
 # 2. Small core, everything else a plugin; native code out of process
 
-- Status: accepted; the process-isolation tiers and the wire protocol are superseded by
-  [ADR 0017](0017-one-ipc-out-of-process-plugins.md) (2026-10-20): every plugin runs out of process over one framed
-  postcard IPC, sandboxed; there is no in-process plugin mode, no isolated mode and no gRPC
+- Status: accepted, amended by [ADR 0017](0017-one-ipc-out-of-process-plugins.md) (2026-10-20): the process-isolation tiers and the wire
+  protocol are superseded; every plugin runs out of process over one framed postcard IPC, sandboxed, with no
+  in-process plugin mode, no isolated mode and no gRPC
 - Date: 2026-10-17
 
 ## Context

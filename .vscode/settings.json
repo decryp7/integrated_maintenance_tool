@@ -5,7 +5,7 @@
   "rust-analyzer.check.command": "clippy",
   "rust-analyzer.check.extraArgs": ["--all-targets"],
   "rust-analyzer.rustfmt.extraArgs": ["--config-path", "${workspaceFolder}/rustfmt.toml"],
-  "rust-analyzer.files.exclude": ["app/node_modules", "app/dist", "fuzz/target", "crates/imt-store-spike"],
+  "rust-analyzer.files.exclude": ["app/node_modules", "app/dist", "fuzz/target"],
   "[rust]": {
     "editor.defaultFormatter": "rust-lang.rust-analyzer",
     "editor.formatOnSave": true

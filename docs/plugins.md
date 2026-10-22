@@ -526,9 +526,13 @@ The details are in [ADR 0017](adr/0017-one-ipc-out-of-process-plugins.md); what 
   `Welcome` with its own protocol version, then reads the manifest. A wrong token or process id closes the
   connection; a protocol it cannot serve is refused with a message saying which side to update.
 - **Sandbox.** The launcher starts the child with a cleared environment inside the sandbox of `sandbox_for`:
-  Windows runs it under a job object (memory, CPU and child-process limits) at low integrity; Linux uses
-  rlimits, landlock and a seccomp filter that denies network sockets and `execve`; macOS uses a sandbox
-  profile. Permissions widen it as in the table above.
+  Windows runs it under a job object (CPU and child-process limits) at low integrity; Linux uses
+  `RLIMIT_CPU`, landlock and a seccomp filter that denies network sockets and `execve`; macOS uses a sandbox
+  profile. Permissions widen it as in the table above. The memory cap (1 GiB unless the manifest asks for more, at most
+  4 GiB) is the same on every platform: a host watcher (`watch_memory` in `crates/imt-ipc/src/process.rs`) reads the
+  child's resident memory and stops it over the cap with a message that says so. There are no memory rlimits, because
+  they count the address space that allocators such as mimalloc reserve up front. File confinement is kept on all
+  platforms: landlock and seccomp on Linux, an AppContainer on Windows, a sandbox profile on macOS.
 - **Host files.** For a file, the host opens it and the plugin reads ranges through the connection
   (up to 1 MiB per read, for the duration of the call); the plugin sees a file reference and a name, never a
   path, unless it was granted `OpenedFilePaths`.

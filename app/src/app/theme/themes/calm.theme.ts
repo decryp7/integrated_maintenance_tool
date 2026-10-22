@@ -1,7 +1,7 @@
 import { ThemeDef } from '../theme.types';
 
 /**
- * Calm IDE (docs/design/tokens-calm.md): neutral graphite surfaces, one blue accent for focus, selection and primary
+ * Calm IDE: neutral graphite surfaces, one blue accent for focus, selection and primary
  * actions, crisp 1 px structure. The data (markers, sources) is the only thing with colour. The default theme.
  *
  * Every value is checked by `theme-checks.spec.ts` (text contrast, categorical palettes under colour-vision deficiency).
