@@ -249,11 +249,14 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
   // Home: the dashboard (tiles, history by level, findings, activity).
   await fresh(page, theme);
   await growTimeline(page);
+  // Home is a scrolling page: a taller window shows its first screen whole (nothing cut mid-card).
   await shot(page, 'home', async () => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
     await command(page, 'Show Home');
     await expect(page.locator('imt-home-view [data-testid=home-history]')).toBeVisible();
     await page.waitForTimeout(800);
   }, 'Home');
+  await page.setViewportSize({ width: 1440, height: 900 });
 }
 
 test('capture README screenshots', async ({ page }) => {
