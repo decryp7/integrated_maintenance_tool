@@ -22,17 +22,24 @@ use std::path::PathBuf;
 pub struct Delegating<'a, S> {
     pub inner: &'a S,
     pub problems: Option<StoreResult<Vec<DiagnosticRow>>>,
+    /// Makes `remove_source` fail with this error instead of removing anything.
+    pub remove_source_error: Option<StoreError>,
 }
 
 impl<'a, S> Delegating<'a, S> {
     pub fn new(inner: &'a S) -> Self {
-        Delegating { inner, problems: None }
+        Delegating {
+            inner,
+            problems: None,
+            remove_source_error: None,
+        }
     }
 
     pub fn with_problems(inner: &'a S, problems: StoreResult<Vec<DiagnosticRow>>) -> Self {
         Delegating {
             inner,
             problems: Some(problems),
+            remove_source_error: None,
         }
     }
 }
@@ -51,7 +58,10 @@ impl<S: Ingest> Ingest for Delegating<'_, S> {
         self.inner.set_source_encoding(source, encoding)
     }
     fn remove_source(&self, id: SourceId) -> StoreResult<()> {
-        self.inner.remove_source(id)
+        match &self.remove_source_error {
+            Some(e) => Err(e.clone()),
+            None => self.inner.remove_source(id),
+        }
     }
     fn clear(&self) -> StoreResult<()> {
         self.inner.clear()

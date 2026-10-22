@@ -1,10 +1,13 @@
 //! `LiveSession` (alerts, mutes, the tail status) over the ports, with the in-memory workspace as the store: the
 //! same behaviour the DuckDB store's tests check, without a database.
 
+mod common;
+
+use common::delegate::Delegating;
 use imt_core::api::Severity;
 use imt_core::live::LiveSession;
 use imt_core::model::Level;
-use imt_core::ports::{Ingest, Tail, TailAppend};
+use imt_core::ports::{Ingest, Query, Tail, TailAppend};
 use imt_core::workspace::{AlertTarget, TailFileState, TailOptions, TailReport, WatchMode, WorkspaceStore};
 use imt_core::{Profile, Workspace};
 use std::io::Write;
@@ -277,4 +280,31 @@ fn many_refreshes_keep_a_bounded_rate_history() {
     // 64 samples of one line each within the window: 6.4 lines per second.
     assert!((st.files[0].lines_per_sec - 6.4).abs() < 0.2, "{}", st.files[0].lines_per_sec);
     assert_eq!(st.files[0].size.max(1), st.files[0].size);
+}
+
+#[test]
+fn a_source_that_cannot_be_dropped_with_its_deleted_file_is_logged_and_the_refresh_goes_on() {
+    let dir = Dir::new("drop-fails");
+    let (store, path) = open_store("", &dir, &line(1, "INF", "WEB01", "first"));
+    let mut failing = Delegating::new(&store);
+    failing.remove_source_error = Some(imt_core::ports::StoreError::Busy("importing".into()));
+    let mut session = LiveSession::default();
+    let appended = TailAppend {
+        deleted: vec![0],
+        ..TailAppend::default()
+    };
+    let options = TailOptions {
+        deleted_files: imt_core::workspace::DeletedFiles::Drop,
+        detect_every_ms: 0,
+        ..TailOptions::default()
+    };
+    let report = session.after_refresh(&failing, &appended, &options);
+    // The failure is reported by the log only: the file is still marked deleted and the source is still there.
+    assert_eq!(report.deleted, vec![0]);
+    assert!(report
+        .file_states
+        .iter()
+        .any(|c| c.source_id == 0 && c.state == TailFileState::Deleted));
+    assert!(store.summary().unwrap().sources.iter().any(|s| s.id == 0));
+    assert!(path.exists());
 }

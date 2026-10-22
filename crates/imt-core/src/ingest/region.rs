@@ -632,15 +632,17 @@ mod tests {
     }
 
     #[test]
-    fn a_resumed_read_passes_on_lines_that_are_not_events() {
+    fn a_resumed_read_passes_on_lines_that_are_not_events_after_the_confirmed_one() {
         let (p, src, resume) = clef_two();
         with_env(|env| {
             let mut sink = Memory::default();
-            append(&p, b"this is not json\n{\"@t\":\"2026-10-14T10:00:02Z\",\"@m\":\"m2\"}\n");
+            let ok = |n: u32| format!("{{\"@t\":\"2026-10-14T10:00:0{n}Z\",\"@m\":\"m{n}\"}}\n");
+            append(&p, format!("{}this is not json\n{}", ok(2), ok(3)).as_bytes());
             let Region::Read(r) = resumed(env, &p, &src, resume, &mut sink) else {
                 panic!("whole")
             };
-            assert_eq!((r.skipped, r.batched.events), (1, 1));
+            assert_eq!((r.skipped, r.batched.events), (1, 2));
+            assert_eq!(sink.messages(), [(3, "m2".to_string()), (5, "m3".to_string())]);
         });
     }
 
