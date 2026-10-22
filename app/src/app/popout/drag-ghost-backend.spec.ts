@@ -29,12 +29,14 @@ describe('drag ghost backends', () => {
     expect(await none.end()).toBeNull();
     expect(mockGhostRequested('?mockGhost=1')).toBe(true);
     expect(mockGhostRequested('?mockGhost=0&x=1')).toBe(false);
-    expect(TestBed.runInInjectionContext(() => createDragGhostBackend())).toBeInstanceOf(NoDragGhost);
+    const created = TestBed.runInInjectionContext(() => createDragGhostBackend());
+    expect(created.available).toBe(false);
+    expect(await created.start({ title: 'x', width: 1, height: 1, grabX: 0, grabY: 0 })).toBe(false);
   });
 
   it('the mock follows the pointer at the grab point while shown and reports where it was', async () => {
     const m = new MockDragGhostBackend(window);
-    const move = (x: number, y: number) => window.dispatchEvent(new PointerEvent('pointermove', { screenX: x, screenY: y }));
+    const move = (x: number, y: number) => window.dispatchEvent(new PointerEvent('pointermove', { clientX: x - window.screenX, clientY: y - window.screenY }));
     await m.show(true);
     expect(m.state.visible).toBe(false);
     expect(await m.start({ title: 'Metrics', snapshot: 'data:image/png;base64,AA==', width: 560, height: 420, grabX: 120, grabY: 12 })).toBe(true);

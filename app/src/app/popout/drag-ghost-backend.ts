@@ -1,5 +1,6 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { invoke } from '../core/activity/ipc';
+import { Logger, withFailureLogging } from '../core/logger';
 import { isTauri } from '../core/platform';
 import { Rect } from '../dock/dock-geometry';
 
@@ -42,9 +43,16 @@ export function mockGhostRequested(search: string): boolean {
   return new URLSearchParams(search).get('mockGhost') === '1';
 }
 
+/** Read when the app loads, before the router rewrites the URL. */
+const MOCK_GHOST = typeof window !== 'undefined' && mockGhostRequested(window.location.search);
+
 export function createDragGhostBackend(): DragGhostBackend {
-  if (isTauri()) return new TauriDragGhostBackend();
-  return typeof window !== 'undefined' && mockGhostRequested(window.location.search) ? new MockDragGhostBackend() : new NoDragGhost();
+  const real = isTauri()
+    ? new TauriDragGhostBackend()
+    : MOCK_GHOST
+      ? new MockDragGhostBackend()
+      : new NoDragGhost();
+  return withFailureLogging<DragGhostBackend>(real, inject(Logger), { category: 'ui.popout' });
 }
 
 export class TauriDragGhostBackend extends DragGhostBackend {
@@ -98,7 +106,8 @@ export class MockDragGhostBackend extends DragGhostBackend {
 
   constructor(private readonly win: Window = window) {
     super();
-    win.addEventListener('pointermove', (e) => this.moved(e.screenX, e.screenY), true);
+    // The window's position plus the client point: some engines report no screen position for synthetic moves.
+    win.addEventListener('pointermove', (e) => this.moved(win.screenX + e.clientX, win.screenY + e.clientY), true);
     (win as unknown as { __imtMockGhost?: MockGhostState }).__imtMockGhost = this.state;
   }
 
