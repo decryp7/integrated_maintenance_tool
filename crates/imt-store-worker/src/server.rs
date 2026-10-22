@@ -113,6 +113,9 @@ impl Worker {
         } else {
             DuckStore::open_with(&dir, req.profile, registry, opts)?
         };
+        if let Some(setup) = &req.parsers {
+            imt_core::ports::Profiles::set_parsers(&store, setup)?;
+        }
         let h = self.next.fetch_add(1, Ordering::SeqCst) + 1;
         lock(&self.stores).insert(h, (dir, store));
         Ok(Handle { store: h })
@@ -122,6 +125,9 @@ impl Worker {
         std::fs::create_dir_all(&req.dest_root)?;
         let registry = (self.registry)(&req.disabled_plugins, req.safe_mode);
         let (store, manifest) = DuckStore::open_project(&req.path, &req.dest_root, req.profile, registry)?;
+        if let Some(setup) = &req.parsers {
+            imt_core::ports::Profiles::set_parsers(&store, setup)?;
+        }
         if let Some(l) = req.limits {
             store.configure(StoreOptions {
                 parse_threads: l.parse_threads,
@@ -300,7 +306,7 @@ impl Worker {
             StoreOp::ClassifyParser => reply(&s.classify_parser(&body(b)?)?),
             StoreOp::AssignParser => {
                 let r: protocol::AssignParser = body(b)?;
-                let session = s.assign_parser(r.source, &r.parser)?;
+                let session = s.assign_parser(r.source, r.parser.as_deref())?;
                 reply(&self.session(session))
             }
             StoreOp::EvaluateSpanRule => run!(s.evaluate_span_rule(&body(b)?)),
@@ -309,6 +315,11 @@ impl Worker {
             StoreOp::Search => reply(&s.search(&body(b)?)?),
             StoreOp::IndexStatus => reply(&s.index_status()?),
             StoreOp::PartialMatches => run!(s.partial_matches(&body(b)?)),
+            StoreOp::SetParsers => reply(&s.set_parsers(&body(b)?)?),
+            StoreOp::RereadParsers => {
+                let session = s.reread_parsers()?;
+                reply(&self.session(session))
+            }
             StoreOp::SaveProject => reply(&Projects::save_project(&s, &body::<ProjectManifest>(b)?)?),
             StoreOp::ExportProject => {
                 let r: ExportProject = body(b)?;

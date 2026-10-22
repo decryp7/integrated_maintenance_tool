@@ -873,13 +873,13 @@ mod tests {
         let problems = block(import_problems(main_window(&app))).unwrap();
         assert!(!problems.is_empty(), "the unreadable timestamps are a problem");
         let fix: imt_core::ports::QuickFix =
-            serde_json::from_value(json!({"profileOverride": "[parse]\ntimestamp_formats = ['%d.%m.%Y %H:%M:%S']\n"})).unwrap();
+            serde_json::from_value(json!({"parserOverride": "[format]\ntimestamp_formats = ['%d.%m.%Y %H:%M:%S']\n"})).unwrap();
         let e = block(evaluate_fix(main_window(&app), fix)).unwrap();
         assert!(
             e.fixed <= e.checked && (e.checked > 0 || !e.notes.is_empty()),
             "the store says what it checked: {e:?}"
         );
-        let bad: imt_core::ports::QuickFix = serde_json::from_value(json!({"profileOverride": "[parse"})).unwrap();
+        let bad: imt_core::ports::QuickFix = serde_json::from_value(json!({"parserOverride": "[format"})).unwrap();
         assert_eq!(
             block(evaluate_fix(main_window(&app), bad)).unwrap_err().code,
             crate::ErrorCode::Invalid
@@ -1203,6 +1203,7 @@ mod tests {
             routed_from: None,
             problems: Vec::new(),
             identity: Vec::new(),
+            parser: None,
         };
         assert_eq!(timestamp_notice(&source), None);
         source.timestamp_issue = Some(TimestampIssue {
@@ -1213,7 +1214,7 @@ mod tests {
             suggestion: Some(TimestampSuggestion {
                 format: "%a %b %d %H:%M:%S %Y".into(),
                 sample: "Sat Nov 08 00:04:37 2025".into(),
-                profile_snippet: String::new(),
+                parser_snippet: String::new(),
                 parsed_samples: 4,
                 checked_samples: 4,
             }),

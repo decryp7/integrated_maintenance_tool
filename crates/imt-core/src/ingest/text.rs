@@ -274,13 +274,9 @@ Oct 14 10:00:00 host app: no format reads this
 
     #[test]
     fn time_only_formats_roll_over_midnight() {
-        let p = CompiledProfile::compile(
-            Profile::from_toml(
-                "[parse]\noutput_templates = [\"[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}\"]\nregexes = []",
-            )
-            .unwrap(),
-        )
-        .unwrap();
+        let p = crate::parser::testing::compiled(
+            "[format]\noutput_templates = [\"[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}\"]\nregexes = []",
+        );
         let (out, _) = stream(&p, "[23:59:59 INF] late\n[00:00:01 WRN] early\n", 8);
         let (a, b) = (out.events[0].record.ts.unwrap(), out.events[1].record.ts.unwrap());
         assert_eq!(b - a, 2000);

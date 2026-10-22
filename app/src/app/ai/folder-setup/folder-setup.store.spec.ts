@@ -9,6 +9,7 @@ import { WorkspaceStore } from '../../core/workspace.store';
 import { SavedQueryStore } from '../../projects/bookmarks/saved-query.store';
 import { UndoStack } from '../../undo/undo-stack';
 import { MemoryLogger } from '../../../testing/helpers';
+import { ParsersBackend } from '../../settings/parsers/parsers-backend';
 import { AiError } from '../ai-backend';
 import { FolderSetupBackend } from './folder-setup-backend';
 import { FolderRefinement } from './folder-setup.types';
@@ -128,6 +129,23 @@ describe('FolderSetupStore', () => {
     expect(saved.items()).toEqual([]);
     expect(await undo.redo()).toBe(true);
     expect(saved.items().length).toBe(1);
+  });
+
+  it('adds the new format parsers to the library and reads the files again with them', async () => {
+    const { store, backend } = setup();
+    const ws = TestBed.inject(WorkspaceStore);
+    await ws.init();
+    await store.start();
+    const compose = backend.compose.bind(backend);
+    vi.spyOn(backend, 'compose').mockImplementation(async (f) => ({ ...(await compose(f)), parsers: ['schema = 1\nid = "web-log"\nname = "Web log"\nversion = "1.0.0"\n'] }));
+    const parsers = TestBed.inject(ParsersBackend);
+    const save = vi.spyOn(parsers, 'save');
+    const reread = vi.spyOn(parsers, 'reread');
+    await store.review();
+    expect(await store.apply()).toBe(true);
+    expect(save).toHaveBeenCalledWith(expect.stringContaining('id = "web-log"'), { overwrite: true });
+    expect(reread).toHaveBeenCalled();
+    expect((await parsers.get('web-log')).origin).toBe('user');
   });
 
   it('a failed compose or save keeps the user where they were, with the message', async () => {

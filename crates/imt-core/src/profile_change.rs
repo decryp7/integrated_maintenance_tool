@@ -15,8 +15,7 @@ pub enum ChangeClass {
     Presentation,
     /// Fields and markers are re-derived from each event's raw text (extractors, pipeline, marker rules).
     Derivation,
-    /// Sources are read again (which files, line formats, timestamp formats, time zone, JSON/CSV
-    /// settings).
+    /// Sources are read again (which files; a parser's format changes are classified per parser, ADR 0026).
     Parsing,
 }
 
@@ -25,7 +24,7 @@ pub enum ChangeClass {
 #[serde(rename_all = "camelCase")]
 pub struct ProfileChange {
     pub class: ChangeClass,
-    /// Changed sections, e.g. `parse`, `extract`, `marker.when`, `chart`.
+    /// Changed sections, e.g. `files`, `extract`, `marker.when`, `chart`.
     pub sections: Vec<String>,
 }
 
@@ -65,7 +64,6 @@ pub fn classify(old: &Profile, new: &Profile) -> ProfileChange {
         }
     };
     note("files", json(&old.files) != json(&new.files), ChangeClass::Parsing);
-    note("parse", json(&old.parse) != json(&new.parse), ChangeClass::Parsing);
     note("extract", json(&old.extract) != json(&new.extract), ChangeClass::Derivation);
     note("pipeline", json(&old.pipeline) != json(&new.pipeline), ChangeClass::Derivation);
     note("marker.when", marker_rules(old) != marker_rules(new), ChangeClass::Derivation);
@@ -115,10 +113,10 @@ mod tests {
         assert_eq!(classify(&base, &chart).class, ChangeClass::Presentation);
         let extract = with("[[extract]]\nname = \"ms\"\nregex = '(?P<ms>\\d+)ms'");
         assert_eq!(classify(&base, &extract).class, ChangeClass::Derivation);
-        let parse = with("[parse]\ntimestamp_formats = [\"%d/%m/%Y %H:%M:%S\"]");
+        let parse = with("[files]\ninclude = [\"**/*.log\"]");
         let c = classify(&base, &parse);
         assert_eq!(c.class, ChangeClass::Parsing);
-        assert_eq!(c.sections, vec!["parse".to_string()]);
+        assert_eq!(c.sections, vec!["files".to_string()]);
         // A marker's look is presentation; its rule is derivation.
         let marker = |color: &str, value: &str| {
             with(&format!(
@@ -130,7 +128,7 @@ mod tests {
         let c = classify(&a, &marker("#f00", "boot"));
         assert_eq!((c.class, c.sections), (ChangeClass::Derivation, vec!["marker.when".to_string()]));
         // The largest class wins.
-        let both = with("name = \"y\"\n[parse]\ntimestamp_formats = [\"%Y\"]\n[[extract]]\nname = \"a\"\nregex = '(?P<a>x)'");
+        let both = with("name = \"y\"\n[files]\nexclude = []\n[[extract]]\nname = \"a\"\nregex = '(?P<a>x)'");
         assert_eq!(classify(&base, &both).class, ChangeClass::Parsing);
     }
 }

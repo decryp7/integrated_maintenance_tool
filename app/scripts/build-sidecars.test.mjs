@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { libduckdbEnv, libduckdbFile, sidecarPlan } from './build-sidecars.mjs';
+import { libduckdbFile, sidecarPlan } from './build-sidecars.mjs';
 
 const select = [
   '-p',
@@ -76,16 +76,4 @@ test('the store worker ships the prebuilt libduckdb of its platform', () => {
   assert.equal(libduckdbFile('x86_64-pc-windows-msvc'), 'duckdb.dll');
   assert.equal(libduckdbFile('x86_64-unknown-linux-gnu'), 'libduckdb.so');
   assert.equal(libduckdbFile('universal-apple-darwin'), 'libduckdb.dylib');
-});
-
-test('the build takes the library folders fetch-libduckdb.sh exports', () => {
-  const dir = '/Volumes/d/target/libduckdb/1.5.6/libduckdb-osx-universal';
-  const mac = `export DUCKDB_LIB_DIR='${dir}' DUCKDB_INCLUDE_DIR='${dir}'\nexport DYLD_LIBRARY_PATH='${dir}':"\${DYLD_LIBRARY_PATH:-}"\n`;
-  assert.deepEqual(libduckdbEnv(mac), {
-    DUCKDB_LIB_DIR: dir,
-    DUCKDB_INCLUDE_DIR: dir,
-  });
-  const win = "export DUCKDB_LIB_DIR='C:/t/libduckdb-windows-amd64' DUCKDB_INCLUDE_DIR='C:/t/libduckdb-windows-amd64'\n";
-  assert.equal(libduckdbEnv(win).DUCKDB_LIB_DIR, 'C:/t/libduckdb-windows-amd64');
-  assert.throws(() => libduckdbEnv('no pinned libduckdb for Haiku-x86_64'), /printed no DUCKDB_LIB_DIR/);
 });

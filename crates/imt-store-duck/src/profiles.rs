@@ -9,11 +9,11 @@
 
 use crate::{engine, read_lock, write_lock, DuckStore, Importing, Inner};
 use imt_core::api::{ExtractPreview, ExtractPreviewRequest, FileKind, ParsePreview, ParsePreviewRequest};
+use imt_core::parser::ParserSet;
 use imt_core::ports::{ImportReport, ImportSession, Profiles, StoreError, StoreResult};
-use imt_core::profile::{CompiledProfile, Profile};
+use imt_core::profile::Profile;
 use imt_core::profile_change::{classify, ChangeClass};
 use imt_core::workspace::{preview_parse, preview_profile, ExtractPreviewer};
-use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
@@ -59,8 +59,12 @@ impl Inner {
         self.import(&roots, progress)
     }
 
-    fn swap_profile(&self, compiled: CompiledProfile) {
-        write_lock(&self.state).profile = Arc::new(compiled);
+    /// Makes `parsers` (the library compiled with the new profile) current.
+    fn swap_profile(&self, parsers: ParserSet) {
+        let mut s = write_lock(&self.state);
+        s.profile = parsers.base().clone();
+        s.parsers = Arc::new(parsers);
+        drop(s);
         // The field list and instance key depend on the profile.
         *crate::lock(&self.derived) = None;
     }
@@ -99,10 +103,12 @@ impl Profiles for DuckStore {
     }
 
     fn set_profile(&self, profile: Profile) -> StoreResult<ImportSession> {
-        let compiled = self.inner.registry().compile_profile(profile).map_err(crate::invalid)?;
+        let setup = self.inner.parser_set().setup().clone();
+        let parsers = self.inner.registry().compile_parsers(&profile, &setup).map_err(crate::invalid)?;
+        let compiled = parsers.base().clone();
         let change = classify(&self.inner.profile().profile, &compiled.profile);
         if change.class == ChangeClass::Presentation {
-            self.inner.swap_profile(compiled);
+            self.inner.swap_profile(parsers);
             return ImportSession::spawn(self.inner.progress.clone(), |_| Ok(ImportReport::default()));
         }
         if !imt_core::ingest::schema_for(&compiled).same_columns(&self.inner.schema) {
@@ -123,50 +129,39 @@ impl Profiles for DuckStore {
                 if missing.len() > shown.len() { ", ..." } else { "" }
             )));
         }
-        // Only the sources read with another parser are read again (ADR 0026: per parser; today every source
-        // shares the profile, so all of them).
-        let stale: Vec<PathBuf> = self
-            .inner
-            .sources_not_read_with(&imt_core::ports::ParserRef::of_profile(&compiled.profile))?
-            .into_iter()
-            .map(|(_, path)| PathBuf::from(path.split(imt_core::archive::ENTRY_SEPARATOR).next().unwrap_or(&path)))
-            .collect();
-        self.inner.swap_profile(compiled);
-        if stale.is_empty() {
-            return ImportSession::spawn(self.inner.progress.clone(), |_| Ok(ImportReport::default()));
-        }
-        let all = {
-            let conn = self.inner.conn()?;
-            let n: u64 = conn
-                .query_row("SELECT count(*) FROM sources WHERE ready", [], |r| r.get(0))
-                .map_err(engine)?;
-            n as usize <= stale.len()
-        };
-        if all {
-            let guard = self.begin_job()?;
-            let inner = self.inner.clone();
-            return ImportSession::spawn(self.inner.progress.clone(), move |progress| {
-                let _guard = guard;
-                inner.reimport(progress)
-            });
-        }
-        imt_core::ports::Ingest::refresh(self, &stale)
+        // The profile's extractors, pipeline and markers apply to every source whatever its parser, so a
+        // derivation or parsing change reads every source again (a parser change reads only its sources).
+        self.inner.swap_profile(parsers);
+        let guard = self.begin_job()?;
+        let inner = self.inner.clone();
+        ImportSession::spawn(self.inner.progress.clone(), move |progress| {
+            let _guard = guard;
+            inner.reimport(progress)
+        })
     }
 
     fn preview_parse(&self, req: &ParsePreviewRequest) -> StoreResult<ParsePreview> {
-        Ok(preview_parse(self.inner.registry(), req))
+        Ok(preview_parse(self.inner.registry(), &self.inner.parser_set(), req))
     }
 
     fn parsers(&self) -> StoreResult<Vec<imt_core::ports::ParserUse>> {
         self.inner.parser_uses()
     }
 
+    fn set_parsers(&self, setup: &imt_core::parser::ParserSetup) -> StoreResult<Vec<imt_core::batch::SourceId>> {
+        self.replace_parsers(setup)
+    }
+
+    fn reread_parsers(&self) -> StoreResult<ImportSession> {
+        DuckStore::reread_parsers(self)
+    }
+
     fn classify_parser(&self, parser: &imt_core::ports::ParserDef) -> StoreResult<imt_core::ports::ParserChange> {
         self.classify_parser_change(parser)
     }
 
-    fn assign_parser(&self, _source: imt_core::batch::SourceId, _parser: &imt_core::ports::ParserDef) -> StoreResult<ImportSession> {
-        Err(StoreError::unsupported("assigning a parser to a source", "ADR 0026"))
+    fn assign_parser(&self, source: imt_core::batch::SourceId, parser: Option<&str>) -> StoreResult<ImportSession> {
+        self.assign(source, parser)
     }
 
     fn preview_spans(&self, req: &imt_core::spans::SpanPreviewRequest) -> StoreResult<imt_core::spans::SpanPreview> {

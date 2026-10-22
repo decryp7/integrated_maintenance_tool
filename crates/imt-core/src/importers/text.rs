@@ -170,7 +170,7 @@ mod tests {
     use std::path::Path;
 
     fn import(profile: &str, content: &str) -> Imported {
-        let p = CompiledProfile::compile(Profile::from_toml(profile).unwrap()).unwrap();
+        let p = crate::parser::testing::compiled(profile);
         let ctx = ImportCtx {
             profile: &p,
             path: Path::new("x.log"),
@@ -331,7 +331,7 @@ mod tests {
     #[test]
     fn custom_template_and_console_rollover() {
         let out = import(
-            "[parse]\noutput_templates = [\"[{Timestamp:HH:mm:ss} {Level:u3}] [{MachineName}] {Message:lj}{NewLine}{Exception}\"]\nregexes = []",
+            "[format]\noutput_templates = [\"[{Timestamp:HH:mm:ss} {Level:u3}] [{MachineName}] {Message:lj}{NewLine}{Exception}\"]\nregexes = []",
             "[23:59:59 INF] [WEB01] late\n[00:00:01 WRN] [WEB01] early\n",
         );
         assert_eq!(out.records[0].fields["MachineName"], "WEB01");
@@ -342,7 +342,7 @@ mod tests {
     #[test]
     fn day_first_detected_per_file() {
         let out = import(
-            "[parse]\nregexes = ['^(?P<timestamp>\\d\\d/\\d\\d/\\d{4} \\d\\d:\\d\\d:\\d\\d) (?P<message>.*)$']\noutput_templates = []",
+            "[format]\nregexes = ['^(?P<timestamp>\\d\\d/\\d\\d/\\d{4} \\d\\d:\\d\\d:\\d\\d) (?P<message>.*)$']\noutput_templates = []",
             "03/04/2026 10:00:00 a\n25/04/2026 10:00:00 b\n",
         );
         let first = chrono::DateTime::from_timestamp_millis(out.records[0].ts.unwrap()).unwrap();
@@ -353,7 +353,7 @@ mod tests {
     fn profile_day_order_wins_over_detection() {
         // The second line would detect day-first; the profile says month-first.
         let out = import(
-            "[parse]\nday_first = false\nregexes = ['^(?P<timestamp>\\d\\d/\\d\\d/\\d{4} \\d\\d:\\d\\d:\\d\\d) (?P<message>.*)$']\noutput_templates = []",
+            "[format]\nday_first = false\nregexes = ['^(?P<timestamp>\\d\\d/\\d\\d/\\d{4} \\d\\d:\\d\\d:\\d\\d) (?P<message>.*)$']\noutput_templates = []",
             "03/04/2026 10:00:00 a\n25/04/2026 10:00:00 b\n",
         );
         let first = chrono::DateTime::from_timestamp_millis(out.records[0].ts.unwrap()).unwrap();
@@ -378,7 +378,7 @@ mod tests {
     #[test]
     fn explicit_exception_and_properties_groups() {
         let out = import(
-            "[parse]\noutput_templates = []\nregexes = ['^(?P<timestamp>\\S+ \\S+) (?P<level>\\w+) (?P<message>[^|]*)\\|(?P<exception>[^|]*)\\|(?P<__props>.*)$']",
+            "[format]\noutput_templates = []\nregexes = ['^(?P<timestamp>\\S+ \\S+) (?P<level>\\w+) (?P<message>[^|]*)\\|(?P<exception>[^|]*)\\|(?P<__props>.*)$']",
             "2026-10-14 10:00:00 ERR boom|System.Exception: x|{\"A\": 1}\n2026-10-14 10:00:01 INF fine| |not json\nnot an event\n",
         );
         assert_eq!(out.records[0].exception.as_deref(), Some("System.Exception: x"));

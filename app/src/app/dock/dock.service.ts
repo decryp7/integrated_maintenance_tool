@@ -7,13 +7,14 @@ import { AngularContentRenderer, MissingViewRenderer } from './angular-panel';
 import { AutoHideEvent, EMPTY_AUTO_HIDE } from './auto-hide';
 import { DockAutoHide } from './dock-auto-hide';
 import { DockContext } from './dock-context';
-import { keepGroupsUnscrolled, observeFloatingAria } from './dock-dom';
+import { keepGroupsUnscrolled, labelTabOverflow, observeFloatingAria } from './dock-dom';
 import { DockSlot, isLayoutTarget, Point, Rect, resolveGuideDrop } from './dock-geometry';
 import { DockPersistence } from './dock-persistence';
 import { DockPlacement } from './dock-placement';
 import { DockPolicy } from './dock-policy';
 import { DockTarget } from './dock-target';
 import { FloatCue, TabDropOutcome } from './float-cue';
+import { FloatingMove } from './floating-move';
 import { TabDragOut } from './tab-drag-out';
 import { DropGuides } from './drop-guides';
 import { FullScreenPrefs, OsWindow } from './os-window';
@@ -142,6 +143,9 @@ export class DockService {
     const api = lib.createDockview(container, {
       theme: { name: 'imt', className: 'imt-dockview' },
       floatingGroupBounds: 'boundedWithinViewport',
+      // A floating panel moves by the empty part of its tab strip, as a window by its title bar. dockview's default
+      // is a separate blank bar above the tabs, which nothing marks as a handle: the panel looked stuck.
+      floatingGroupDragHandle: 'tabbar',
       disableTabsOverflowList: false,
       // Tabs and groups are dragged with pointer events, not HTML5 drag-and-drop: in Tauri on Windows the native
       // file-drop handler (which gives dropped files' paths) swallows HTML5 drags, and pointer events also tell
@@ -195,6 +199,7 @@ export class DockService {
     // A tab dragged off the drop zones floats where it is released, or pops out when released outside the window
     // (pointer events: see `dndStrategy`); a cue shows which while dragging.
     const cue = new FloatCue();
+    const floatingMove = new FloatingMove(container);
     const tabDrag = new TabDragOut(container, {
       outcome: (id, p) => this.tabDropOutcome(id, p),
       popOut: (id, at) => void this.popOut(id, at),
@@ -214,10 +219,12 @@ export class DockService {
       { dispose: () => container.removeEventListener('keydown', onKey) },
       { dispose: () => container.removeEventListener('contextmenu', onContextMenu) },
       tabDrag,
+      floatingMove,
       cue,
       guides,
       observeFloatingAria(container),
       keepGroupsUnscrolled(container),
+      labelTabOverflow(container),
       api.onDidAddPanel(() => this.ctx.refreshOpen()),
       api.onDidRemovePanel(() => this.ctx.refreshOpen()),
       api.onDidLayoutFromJSON(() => this.ctx.refreshOpen()),

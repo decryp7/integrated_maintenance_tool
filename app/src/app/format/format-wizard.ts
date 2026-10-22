@@ -2,19 +2,18 @@ import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, injec
 import { AiButton } from '../ai/ai-button';
 import { AiLauncher } from '../ai/ai-launcher';
 import { selectionWithin } from '../context/selection';
-import { ParsePreview } from '../core/api.types';
+import { ParserDocDto, ParserDraftRequest, ParsePreview } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { formatFull } from '../core/format';
 import { describeError } from '../core/logger';
-import { ProfileModel } from '../core/profile.model';
 import { WorkspaceStore } from '../core/workspace.store';
 import { SettingsStore } from '../settings/settings.store';
-import { ProfileEdits } from '../profile/profile-edits';
+import { ParsersBackend } from '../settings/parsers/parsers-backend';
+import { ParsersStore } from '../settings/parsers/parsers.store';
 import { HelpHint } from '../ui/help-hint';
 import { DIALOG_REF } from '../ui/dialog.service';
 import { DIALOG_FORM_STYLES } from '../context/dialog-styles';
 import { FormatPart, Marks, regexFromMarks } from './format-parse';
-import { TemplatesService } from '../templates/templates.service';
 
 /** Sample lines offered for marking, and records the engine previews. */
 const PREVIEW_LINES = 50;
@@ -27,7 +26,11 @@ const PARTS: { id: FormatPart; label: string }[] = [
   { id: 'message', label: $localize`:@@format.wizard.part.message:Message` },
 ];
 
-/** "Set up format": teaches IMT how to read a file it did not recognise, from marks on a sample line or a Serilog template. */
+/**
+ * "Set up format": teaches IMT how to read a file, from marks on a sample line or a Serilog template (a new parser,
+ * ADR 0026), or how its parser reads the timestamps (a changed copy of that parser). The engine composes the
+ * candidate parser (`parser_draft`) and previews it; Save adds it to the library and reads the files again.
+ */
 @Component({
   selector: 'imt-format-wizard',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -36,11 +39,11 @@ const PARTS: { id: FormatPart; label: string }[] = [
   template: `
     @if (mode() === 'timestamps') {
       <p i18n="@@format.wizard.timestampsIntro">IMT read the lines of <span class="mono">{{ name() }}</span> but not their timestamps, so those events are missing from the timeline. Tell it how the timestamps are written.</p>
+    } @else if (baseParser()) {
+      <p i18n="@@format.wizard.newParserIntro">Show IMT how a log line of <span class="mono">{{ name() }}</span> is built: it saves a new parser for this kind of file (now read with {{ baseParser() }}).</p>
     } @else {
     <p><ng-container i18n="@@format.wizard.intro">IMT did not recognise <span class="mono">{{ name() }}</span>. Show it how a log line is built and it will read this kind of file from now on.</ng-container>&ngsp;<imt-help label="Format wizard" i18n-label="@@format.wizard.helpLabel" i18n-text="@@format.wizard.helpText" text="Select the timestamp, then the level, then the message on a sample line and press the matching button. IMT builds a regular expression from your marks and shows how the first lines parse." /></p>
     }
-
-    <p class="tpl-hint" i18n="@@format.wizard.templateHint">Written by a common logging library or server? <button type="button" class="btn ghost" data-testid="start-from-template" (click)="fromTemplate()">Start from a template…</button></p>
 
     @if (loadError(); as e) {
       <div class="err" role="alert">{{ e }} <button type="button" class="btn" (click)="loadHead()" i18n="@@format.wizard.retry">Retry</button></div>
@@ -88,7 +91,7 @@ const PARTS: { id: FormatPart; label: string }[] = [
         @if (suggested()) {
           <ng-container i18n="@@format.wizard.timestampSuggested">IMT checked this format against the lines it could not read.</ng-container>&ngsp;
         }
-        <ng-container i18n="@@format.wizard.timestampHint">.NET style (dd/MM/yyyy HH:mm:ss.fff) or strftime (%d/%m/%Y %H:%M:%S%.f). It is added to the profile's timestamp formats.</ng-container>
+        <ng-container i18n="@@format.wizard.timestampHint">.NET style (dd/MM/yyyy HH:mm:ss.fff) or strftime (%d/%m/%Y %H:%M:%S%.f). It is added to the timestamp formats of the parser that reads this file.</ng-container>
       </div>
     } @else {
       <label class="lbl"><ng-container i18n="@@format.wizard.outputTemplate">Output template</ng-container>
@@ -102,7 +105,7 @@ const PARTS: { id: FormatPart; label: string }[] = [
       <div><imt-ai-button label="Suggest regex with AI" i18n-label="@@format.wizard.aiLabel" hint="The local model proposes a pattern for these lines; the preview checks it" i18n-hint="@@format.wizard.aiHint" testId="ai-format-regex" [disabled]="!lines().length" (pressed)="suggestWithAi()" /></div>
     }
 
-    @if (mutation()) {
+    @if (request()) {
       <div class="status" role="status" data-testid="format-summary">
         @if (previewError() ?? preview()?.error; as pe) { <span class="err">{{ pe }}</span> }
         @else if (!preview()) { <ng-container i18n="@@format.wizard.checking">Checking the sample…</ng-container> }
@@ -144,9 +147,9 @@ export class FormatWizard implements OnInit {
   protected readonly ref = inject(DIALOG_REF);
   private readonly backend = inject(ImtBackend);
   private readonly settings = inject(SettingsStore);
-  private readonly edits = inject(ProfileEdits);
   private readonly store = inject(WorkspaceStore);
-  private readonly templates = inject(TemplatesService);
+  private readonly parsers = inject(ParsersBackend);
+  private readonly library = inject(ParsersStore);
   private readonly ai = inject(AiLauncher);
 
   readonly path = input.required<string>();
@@ -161,7 +164,7 @@ export class FormatWizard implements OnInit {
   protected readonly parts = PARTS;
   protected readonly markHint = $localize`:@@format.wizard.markHint:Mark a timestamp and a message to generate a pattern.`;
   protected readonly applying = $localize`:@@format.wizard.applying:Applying…`;
-  protected readonly saveLabel = $localize`:@@format.wizard.save:Save and re-import`;
+  protected readonly saveLabel = $localize`:@@format.wizard.save:Save parser and re-read`;
   protected readonly mode = signal<'marks' | 'template' | 'timestamps'>('marks');
   /** The timestamp format being tried (starts as the engine's proposal). */
   protected readonly tsFormat = signal('');
@@ -185,34 +188,21 @@ export class FormatWizard implements OnInit {
   /** A pattern the local AI suggested (replaces the one generated from the marks until they change). */
   private readonly aiRegex = signal<string | null>(null);
   protected readonly regex = computed(() => (this.mode() === 'marks' ? (this.aiRegex() ?? regexFromMarks(this.sample(), this.marks())) : null));
-  /** The change to the profile this wizard would save; also what the engine previews. Null until there is something to try. */
-  protected readonly mutation = computed<((m: ProfileModel) => void) | null>(() => {
+  /** The parser that read this file (what a timestamp fix changes); null for a file no parser read. */
+  protected readonly baseParser = computed(() => this.store.summary()?.sources.find((s) => s.path === this.path())?.parser ?? null);
+  /** What the engine composes the candidate parser from; null until there is something to try. */
+  protected readonly request = computed<ParserDraftRequest | null>(() => {
     const template = this.template().trim();
     const regex = this.regex();
     const tsFormat = this.tsFormat().trim();
-    if (this.mode() === 'timestamps') {
-      if (!tsFormat) return null;
-      return (m) => {
-        m.parse = { ...(m.parse ?? {}) };
-        m.parse.timestamp_formats = [tsFormat, ...(m.parse.timestamp_formats ?? []).filter((f) => f !== tsFormat)];
-      };
-    }
-    // New formats go first so they win over the generic patterns.
-    if (this.mode() === 'template' && template) {
-      return (m) => {
-        m.parse = { ...(m.parse ?? {}) };
-        m.parse.output_templates = [this.template(), ...(m.parse.output_templates ?? [])];
-      };
-    }
-    if (this.mode() === 'marks' && regex) {
-      return (m) => {
-        m.parse = { ...(m.parse ?? {}) };
-        m.parse.regexes = [regex, ...(m.parse.regexes ?? [])];
-      };
-    }
-    return null;
+    const fileName = this.name();
+    if (this.mode() === 'timestamps') return tsFormat ? { fileName, base: this.baseParser(), regex: null, template: null, timestampFormat: tsFormat } : null;
+    if (this.mode() === 'template') return template ? { fileName, base: null, regex: null, template: this.template(), timestampFormat: null } : null;
+    return regex ? { fileName, base: null, regex, template: null, timestampFormat: null } : null;
   });
-  protected readonly canSave = computed(() => !!this.mutation() && !!this.preview() && !this.preview()!.error && !this.previewError() && this.preview()!.total > 0);
+  /** The parser the engine composed for the current request: what Save adds to the library. */
+  protected readonly candidate = signal<ParserDocDto | null>(null);
+  protected readonly canSave = computed(() => !!this.request() && !!this.candidate() && !!this.preview() && !this.preview()!.error && !this.previewError() && this.preview()!.total > 0);
   protected readonly segments = computed(() => {
     const line = this.sample();
     const ranges = (Object.entries(this.marks()) as [FormatPart, { start: number; end: number }][]).sort((a, b) => a[1].start - b[1].start);
@@ -228,27 +218,22 @@ export class FormatWizard implements OnInit {
   });
 
   constructor() {
-    // Ask the engine how the candidate profile reads the sample (after a short pause while typing).
+    // Ask the engine for the candidate parser and how it reads the sample (after a short pause while typing).
     effect((onCleanup) => {
-      const mutation = this.mutation();
+      const request = this.request();
       const head = this.head();
-      if (!mutation || !head) {
+      if (!request || !head) {
         untracked(() => {
           this.previewSeq++;
+          this.candidate.set(null);
           this.preview.set(null);
           this.previewError.set(null);
         });
         return;
       }
-      const timer = setTimeout(() => untracked(() => void this.runPreview(mutation, head)), PREVIEW_DEBOUNCE_MS);
+      const timer = setTimeout(() => untracked(() => void this.runPreview(request, head)), PREVIEW_DEBOUNCE_MS);
       onCleanup(() => clearTimeout(timer));
     });
-  }
-
-  /** Swaps the wizard for the templates gallery, previewing them against this file. */
-  protected fromTemplate(): void {
-    this.ref.close();
-    void this.templates.open({ path: this.path(), name: this.name() });
   }
 
   ngOnInit(): void {
@@ -269,15 +254,18 @@ export class FormatWizard implements OnInit {
     }
   }
 
-  private async runPreview(mutation: (m: ProfileModel) => void, sample: string): Promise<void> {
+  private async runPreview(request: ParserDraftRequest, sample: string): Promise<void> {
     const mine = ++this.previewSeq;
+    this.candidate.set(null);
     this.preview.set(null);
     this.previewError.set(null);
     try {
-      const { model } = await this.edits.current();
-      mutation(model);
-      const result = await this.backend.previewParse({ toml: this.edits.toToml(model), sample, fileName: this.name(), limit: PREVIEW_LINES });
-      if (mine === this.previewSeq) this.preview.set(result);
+      const draft = await this.parsers.draft(request);
+      if (mine !== this.previewSeq) return;
+      const result = await this.backend.previewParse({ toml: draft.toml, sample, fileName: this.name(), limit: PREVIEW_LINES });
+      if (mine !== this.previewSeq) return;
+      this.candidate.set(draft);
+      this.preview.set(result);
     } catch (e) {
       if (mine === this.previewSeq) this.previewError.set(describeError(e));
     }
@@ -316,13 +304,17 @@ export class FormatWizard implements OnInit {
   }
 
   protected async save(): Promise<void> {
-    const mutation = this.mutation();
-    if (!mutation) return;
+    const candidate = this.candidate();
+    if (!candidate || !this.canSave()) return;
+    const base = this.request()?.base ?? null;
     this.saving.set(true);
     this.error.set(null);
     try {
-      await this.edits.apply(mutation);
-      this.store.setNotice($localize`:@@format.wizard.saved:Saved the format; files were re-imported.`);
+      // A timestamp fix replaces the file's parser (a built-in's becomes an override); a new format is a new parser.
+      await this.library.save(candidate.toml, { previousId: base, overwrite: base !== null });
+      void this.library.reread();
+      const id = candidate.id;
+      this.store.setNotice($localize`:@@format.wizard.saved:Saved the parser ${id}:id:; the files are read again.`);
       this.ref.close(true);
     } catch (e) {
       this.error.set(describeError(e));

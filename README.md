@@ -34,8 +34,9 @@ scale to that. IMT is built for exactly this job:
   on one box lines up with the errors it caused on another.
 - **Format-agnostic.** The format is detected from the file *content*, not the extension; anything
   unusual is taught to IMT with a profile or the format wizard, not code.
-- **Fast on big inputs.** Parsing runs in parallel in a Rust engine; the grid is virtualised and
-  every large result is paged or bucketed.
+- **Fast on big inputs.** Parsing runs in parallel in a Rust engine and streams into a DuckDB store in a
+  worker process with a full-text index, so memory stays flat whatever the folder size; the grid is virtualised
+  and every large result is paged or bucketed. A saved project (`.imtz`) opens without the original logs.
 - **Safe on hostile input.** Files are untrusted. Parsers never panic, enforce limits, and are
   fuzzed. IMT only reads your files and never modifies them.
 - **Local only.** No telemetry and no network calls to analyse your data.
@@ -47,13 +48,13 @@ Every feature, with screenshots, is in [docs/features.md](docs/features.md).
 - **Timeline per instance.** One lane per process on a shared time axis, with lifecycle markers and drag-to-zoom ([details](docs/features.md#timeline-per-instance-with-lifecycle-markers)).
 - **Events grid.** A virtualised grid with an inspector for every property ([grid](docs/features.md#events-grid-with-virtualisation), [inspector](docs/features.md#inspector)).
 - **Filters and query language.** Facets, chips and a pipe query language with `stats` ([details](docs/features.md#filters-facets-and-the-query-language)).
-- **Many formats, extensible by plugins.** Detected from content; add more with profiles or Rust plugins that run out of process in a sandbox ([details](docs/features.md#many-formats-extensible-by-plugins)).
+- **Many formats, extensible by plugins.** Detected from content; add more with profiles or Rust plugins that run out of process in a sandbox, shipped as signed `.imtplugin` packages ([details](docs/features.md#many-formats-extensible-by-plugins), [SDK](docs/plugin-sdk.md)).
 - **Profiles and pipelines.** Extractors, cleanup steps, markers and badges in editable TOML ([details](docs/features.md#profiles-extractors-pipelines-markers-and-badges)).
 - **Charts and analysis.** Anomalies, patterns, exceptions, comparisons, clock-skew correction and configuration diff ([charts](docs/features.md#charts), [analysis](docs/features.md#analysis)).
 - **Live tail and alerts.** Follow growing files and raise alerts as events arrive ([details](docs/features.md#live-tail-and-alerts)).
 - **Windows diagnostics.** Event logs, registry exports, Performance Monitor, process monitor and the diagnostics collector ([details](docs/features.md#performance-monitor-process-monitor-and-diagnostics-collector)).
-- **Profiling.** Analyse profiler captures and heap snapshots ([details](docs/features.md#profiling)).
-- **Local AI assistant, internal browser and Research.** Models run on your machine; when a question needs the web, the AI researches it itself in IMT's own read-only browser and answers with citations ([assistant](docs/features.md#local-ai-assistant), [browser and Research](docs/features.md#internal-web-browser)).
+- **Profiling and dumps.** Analyse profiler captures and heap snapshots, record .NET and native processes, and read crash dumps and UMDH heap logs ([profiling](docs/features.md#profiling), [dumps](docs/features.md#crash-dumps-and-umdh-heap-logs)).
+- **Local AI assistant, internal browser and Research.** Models run on your machine and can read screenshots and your Markdown knowledge files; when a question needs the web, the AI researches it itself in IMT's own docked, read-only browser and answers with citations ([assistant](docs/features.md#local-ai-assistant), [browser and Research](docs/features.md#internal-web-browser)).
 - **Jobs and notifications.** Long tasks run as jobs, with a pane and a notification centre ([details](docs/features.md#jobs-and-notifications)).
 - **Sharing and reports.** Projects, redacted exports, incident reports and `.imtz` bundles ([projects](docs/features.md#projects-sessions-and-export), [share](docs/features.md#explain-and-share)).
 - **Dockable workspace.** Panels, multiple windows, themes and accessibility ([details](docs/features.md#dockable-workspace)).
@@ -105,22 +106,24 @@ The built-in browser demo (`npm start`, below) loads similar data without instal
 | [docs/architecture.md](docs/architecture.md) | Overview, crates, the plugin runtime, windows and sessions, C4 and UML diagrams |
 | [docs/design.md](docs/design.md) | All design diagrams on one page |
 | [docs/plugins.md](docs/plugins.md) | Extending IMT: profiles, Rust plugins, UI plugins, process plugins |
+| [docs/plugin-sdk.md](docs/plugin-sdk.md) | Writing, testing, signing and installing a third-party plugin |
+| [docs/units.md](docs/units.md) | How quantities are typed in transit and formatted in one place |
 | [docs/profiling.md](docs/profiling.md) | The profiling engine and its views |
 | [docs/development.md](docs/development.md) | Building, packaging, testing, CI/CD and the project layout |
 | [docs/releasing.md](docs/releasing.md) | Releases and signed updates |
 | [docs/testing-manual.md](docs/testing-manual.md) | Manual tests that need a real desktop |
 | [docs/fuzzing.md](docs/fuzzing.md) | Fuzzing and property-based tests |
 | [docs/comparison.md](docs/comparison.md) | IMT compared with other log tools |
-| [docs/roadmap.md](docs/roadmap.md) | Planned work |
-| [docs/backlog.md](docs/backlog.md) | Engineering follow-ups |
-| [docs/store-spike.md](docs/store-spike.md) | Persistent store measurements (DuckDB, DataFusion) |
+| [docs/roadmap.md](docs/roadmap.md) | Planned work, engineering follow-ups and open redesign items |
 | [docs/adr/](docs/adr/0001-architecture.md) | Architecture decision records, starting at 0001 |
 | [samples/README.md](samples/README.md) | The sample logs, their formats and the views they show |
 
 ## Building from source
 
 Prerequisites: Rust (stable, with `rustfmt` and `clippy`), Node.js 24.15 or later with npm, and the
-[Tauri 2 platform dependencies](https://v2.tauri.app/start/prerequisites/).
+[Tauri 2 platform dependencies](https://v2.tauri.app/start/prerequisites/). The store links the official prebuilt
+libduckdb: `npx tauri build` fetches and verifies it itself, and plain `cargo` builds need
+`node app/scripts/libduckdb.mjs` first ([docs/development.md](docs/development.md#prerequisites)).
 
 ```sh
 cd app
@@ -135,8 +138,9 @@ tests and CI are in [docs/development.md](docs/development.md).
 
 ## Plugins and roadmap
 
-Extend IMT with profiles (TOML), Rust plugins (each runs in its own sandboxed process) or Angular UI plugins:
-see [docs/plugins.md](docs/plugins.md) and
+Extend IMT with profiles (TOML), Rust plugins (each runs in its own sandboxed process, with a memory cap, and as a
+signed `.imtplugin` package when third-party) or Angular UI plugins:
+see [docs/plugins.md](docs/plugins.md), the [plugin SDK](docs/plugin-sdk.md) and
 [ADR 0017](docs/adr/0017-one-ipc-out-of-process-plugins.md). Planned work is in [docs/roadmap.md](docs/roadmap.md).
 
 ## Contributing

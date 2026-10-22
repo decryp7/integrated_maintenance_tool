@@ -46,21 +46,35 @@ fn timestamp_candidates(raw: &str) -> Vec<&str> {
     out
 }
 
-/// The override that adds `format` to the profile's timestamp formats (lists replace in an override,
+/// The parser override that adds `format` to the parser's timestamp formats (lists replace in an override,
 /// so the current ones are repeated).
 fn timestamp_override(profile: &CompiledProfile, format: &str) -> String {
     let mut formats: Vec<toml::Value> = profile
-        .profile
-        .parse
+        .format
         .timestamp_formats
         .iter()
         .map(|f| toml::Value::String(f.clone()))
         .collect();
     formats.push(toml::Value::String(format.to_string()));
-    format!("[parse]\ntimestamp_formats = {}\n", toml::Value::Array(formats))
+    format!("[format]\ntimestamp_formats = {}\n", toml::Value::Array(formats))
 }
 
 impl Inner {
+    /// The parser id a source was read with.
+    fn parser_id_of(&self, conn: &duckdb::Connection, source: u32) -> Option<String> {
+        conn.query_row("SELECT parser_id FROM sources WHERE id = ?", params![source], |r| {
+            r.get::<_, Option<String>>(0)
+        })
+        .ok()
+        .flatten()
+    }
+
+    /// The profile compiled with the parser that read `source`, if that parser is in the library.
+    fn source_profile(&self, conn: &duckdb::Connection, source: u32) -> Option<std::sync::Arc<CompiledProfile>> {
+        let id = self.parser_id_of(conn, source)?;
+        self.parser_set().profile_of(&id).cloned()
+    }
+
     fn source_paths(&self, conn: &duckdb::Connection) -> StoreResult<Vec<(u32, String, String)>> {
         let mut stmt = conn.prepare("SELECT id, name, path FROM sources").map_err(engine)?;
         let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).map_err(engine)?;
@@ -78,7 +92,7 @@ impl Inner {
         let Some(p) = suggest::propose(&refs, &profile.timestamps) else {
             return Ok(None);
         };
-        let profile_override = timestamp_override(profile, &p.format);
+        let parser_override = timestamp_override(profile, &p.format);
         Ok(Some(DiagnosticFix {
             title: format!(
                 "Read timestamps like \"{}\" ({})",
@@ -86,13 +100,13 @@ impl Inner {
                 p.format
             ),
             timestamp: Some(TimestampSuggestion {
-                profile_snippet: profile_override.clone(),
+                parser_snippet: parser_override.clone(),
                 parsed_samples: p.texts.len(),
                 checked_samples: refs.len(),
                 sample: p.texts.first().cloned().unwrap_or_default(),
                 format: p.format,
             }),
-            profile_override,
+            parser_override,
         }))
     }
 
@@ -138,6 +152,7 @@ impl Inner {
         untimed.sort_by_key(|&i| std::cmp::Reverse(out[i].count));
         for i in untimed.into_iter().take(MAX_FIXES) {
             if let Some(SourceId(source)) = out[i].source {
+                let profile = self.source_profile(&conn, source).unwrap_or_else(|| profile.clone());
                 out[i].fix = self.timestamp_fix(&conn, source, &profile)?;
             }
         }
@@ -158,17 +173,17 @@ impl Inner {
     }
 
     /// Re-parses the stored text of the untimed events of the fix's sources (all sources with unreadable
-    /// timestamps when it names none) with the candidate profile.
+    /// timestamps when it names none) with each source's parser changed by the fix (ADR 0026).
     fn evaluate_fix(&self, fix: &QuickFix) -> StoreResult<FixEvaluation> {
-        let active = self.profile();
-        let candidate = active
-            .profile
-            .with_override(&fix.profile_override)
-            .map_err(|e| StoreError::Invalid(format!("the fix is not a valid profile override: {e}")))?;
-        let compiled = self
-            .registry()
-            .compile_profile(candidate)
-            .map_err(|e| StoreError::Invalid(format!("{e:#}")))?;
+        let set = self.parser_set();
+        let base = self.profile();
+        // The fix must apply to a parser: checked once on the generic one, so a bad fragment fails at once.
+        imt_core::parser::builtin::generic()
+            .with_override(&fix.parser_override)
+            .map_err(|e| StoreError::Invalid(format!("the fix is not a valid parser change: {e}")))?;
+        // (active, candidate) compiled profiles per parser id.
+        let mut compiled_by: std::collections::HashMap<String, (std::sync::Arc<CompiledProfile>, CompiledProfile)> =
+            std::collections::HashMap::new();
         let conn = self.conn()?;
         let wanted: Vec<u32> = fix.sources.iter().map(|s| s.0).collect();
         let affected: Vec<(u32, u64)> = {
@@ -201,9 +216,27 @@ impl Inner {
             if raws.is_empty() {
                 continue;
             }
+            let parser_id = self.parser_id_of(&conn, source).unwrap_or_else(|| "generic".into());
+            if !compiled_by.contains_key(&parser_id) {
+                let (parser, active) = match (set.parser(&parser_id), set.profile_of(&parser_id)) {
+                    (Some((p, _)), Some(active)) => (p.clone(), active.clone()),
+                    _ => (imt_core::parser::builtin::generic(), base.clone()),
+                };
+                let changed = parser
+                    .with_override(&fix.parser_override)
+                    .map_err(|e| StoreError::Invalid(format!("the fix does not apply to the parser \"{parser_id}\": {e}")))?;
+                let candidate = self
+                    .registry()
+                    .compile_profile_for(base.profile.clone(), &changed)
+                    .map_err(|e| StoreError::Invalid(format!("{e:#}")))?;
+                compiled_by.insert(parser_id.clone(), (active, candidate));
+            }
+            let Some((active, compiled)) = compiled_by.get(&parser_id) else {
+                continue;
+            };
             let file = Path::new(path.split(imt_core::archive::ENTRY_SEPARATOR).next().unwrap_or(path));
             let ctx = ImportCtx {
-                profile: &compiled,
+                profile: compiled,
                 path: file,
                 file_date: None,
             };
@@ -272,12 +305,13 @@ mod tests {
 
     #[test]
     fn timestamp_overrides_keep_the_current_formats() {
-        let profile =
-            CompiledProfile::compile(imt_core::Profile::from_toml("[parse]\ntimestamp_formats = [\"%Y-%m-%d %H:%M:%S\"]").unwrap())
-                .unwrap();
+        let parser = imt_core::parser::builtin::generic()
+            .with_override("[format]\ntimestamp_formats = [\"%Y-%m-%d %H:%M:%S\"]")
+            .unwrap();
+        let profile = CompiledProfile::compile_for(imt_core::Profile::default_profile(), &parser, &Default::default()).unwrap();
         let o = timestamp_override(&profile, "%d|%m|%Y %H.%M.%S");
-        assert_eq!(o, "[parse]\ntimestamp_formats = [\"%Y-%m-%d %H:%M:%S\", \"%d|%m|%Y %H.%M.%S\"]\n");
-        let merged = profile.profile.with_override(&o).unwrap();
-        assert_eq!(merged.parse.timestamp_formats.len(), 2);
+        assert_eq!(o, "[format]\ntimestamp_formats = [\"%Y-%m-%d %H:%M:%S\", \"%d|%m|%Y %H.%M.%S\"]\n");
+        let merged = parser.with_override(&o).unwrap();
+        assert_eq!(merged.format.timestamp_formats.len(), 2);
     }
 }

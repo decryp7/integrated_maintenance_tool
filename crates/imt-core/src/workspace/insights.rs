@@ -211,23 +211,50 @@ impl Workspace {
     /// (importer selection, extractors, pipeline, markers) without touching
     /// the workspace. Powers the "teach a format" wizard and profile previews.
     pub fn preview_parse(&self, req: &crate::api::ParsePreviewRequest) -> crate::api::ParsePreview {
-        preview_parse(&self.registry, req)
+        preview_parse(&self.registry, &self.parsers, req)
     }
 }
 
-/// Parses sample text with a candidate profile exactly as an import would (importer selection,
-/// extractors, pipeline, markers), touching no store.
-pub fn preview_parse(registry: &crate::PluginRegistry, req: &crate::api::ParsePreviewRequest) -> crate::api::ParsePreview {
+/// Parses sample text with a candidate parser and profile exactly as an import would (parser choice,
+/// importer selection, extractors, pipeline, markers), touching no store. `parsers` is the active library
+/// (its profile is the active one).
+pub fn preview_parse(
+    registry: &crate::PluginRegistry,
+    parsers: &crate::parser::ParserSet,
+    req: &crate::api::ParsePreviewRequest,
+) -> crate::api::ParsePreview {
     use crate::api::{ParsePreview, ParsedPreview};
     let run = || -> Result<ParsePreview> {
-        let profile = crate::profile::Profile::from_toml(&req.toml).map_err(|e| anyhow::anyhow!(e.to_string()))?;
-        let compiled = registry.compile_profile(profile)?;
+        let profile = if req.profile.trim().is_empty() {
+            parsers.base().profile.clone()
+        } else {
+            crate::profile::Profile::from_toml(&req.profile).map_err(|e| anyhow::anyhow!("the profile: {e}"))?
+        };
         let name = if req.file_name.is_empty() {
             "sample.log"
         } else {
             req.file_name.as_str()
         };
         let path = std::path::Path::new(name);
+        let compiled = if req.toml.trim().is_empty() {
+            // The parser the library would choose for this sample.
+            let set = registry.compile_parsers(&profile, parsers.setup())?;
+            let text = crate::ingest::score_text(req.sample.as_bytes(), true);
+            let candidate = crate::parser::set::Candidate {
+                source: name,
+                path,
+                rel: name,
+                file_date: None,
+                bytes: req.sample.as_bytes(),
+                text: text.as_deref(),
+            };
+            let choice = set.choose(&candidate, &registry.importers).map_err(|e| anyhow::anyhow!(e))?;
+            let parser = choice.parser.clone();
+            registry.compile_profile_for(profile, &parser)?
+        } else {
+            let parser = crate::parser::Parser::from_toml(&req.toml).map_err(|e| anyhow::anyhow!("{e}"))?;
+            registry.compile_profile_for(profile, &parser)?
+        };
         let ctx = crate::importers::ImportCtx {
             profile: &compiled,
             path,
@@ -244,6 +271,7 @@ pub fn preview_parse(registry: &crate::PluginRegistry, req: &crate::api::ParsePr
         let kinds: Vec<&str> = compiled.markers.iter().map(|m| m.kind.as_str()).collect();
         Ok(ParsePreview {
             importer: Some(importer.id().to_string()),
+            parser: Some(compiled.parser.id.clone()),
             total: records.len(),
             skipped: imported.skipped,
             dropped,

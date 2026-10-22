@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { invoke } from './activity/ipc';
-import { ImportProgress, ProfileDoc, ProfileTemplate, ProfileVersionInfo } from './api.types';
+import { ImportProgress, ProfileDoc, ProfileVersionInfo } from './api.types';
 import { ImtBackend } from './backend';
 import { reportBackendFailures } from './failure-reporter';
 import { Logger, withFailureLogging } from './logger';
@@ -9,8 +9,8 @@ import { browserMocks } from './mock-registry';
 import { cancelActiveJobs } from '../jobs/job-cancel';
 
 /**
- * The engine commands behind the ease-of-use features: import progress and cancel, profile history,
- * profile templates and the bundled demo. Provided in root (Tauri inside the app, the mock over the mock
+ * The engine commands behind the ease-of-use features: import progress and cancel, profile history and
+ * the bundled demo. Provided in root (Tauri inside the app, the mock over the mock
  * workspace in a browser), so features and tests need no extra provider.
  */
 @Injectable({ providedIn: 'root', useFactory: createUxBackend })
@@ -23,8 +23,6 @@ export abstract class UxBackend {
   abstract profileHistory(): Promise<ProfileVersionInfo[]>;
   /** One previous version's text (applied only when saved again). */
   abstract profileVersion(file: string): Promise<ProfileDoc>;
-  /** Ready-made profiles for common formats. */
-  abstract profileTemplates(): Promise<ProfileTemplate[]>;
   /** The bundled sample folders to open for the demo; empty when they are not installed. */
   abstract demoPaths(): Promise<string[]>;
 }
@@ -47,9 +45,6 @@ export class TauriUxBackend extends UxBackend {
   }
   profileVersion(file: string) {
     return this.call<ProfileDoc>('profile_version', { file });
-  }
-  profileTemplates() {
-    return this.call<ProfileTemplate[]>('profile_templates');
   }
   demoPaths() {
     return this.call<string[]>('demo_paths');

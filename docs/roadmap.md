@@ -3,14 +3,15 @@
 IMT aims to cover the whole maintenance loop: **collect** diagnostics from a machine,
 **analyse** them across instances and sources, **explain** what went wrong, and **share** the
 result. Phases are ordered by value and by what later features build on. Engineering
-follow-ups (fuzzing, signing, etc.) live in [backlog.md](backlog.md).
+follow-ups (signing, accessibility review, i18n of engine text) and the open items of the 2026-10 redesign plan are
+at the end of this page.
 
 ## Phase 1: make analyses reusable *(done)*
 
 - **Projects:** `.imtproj` save/load with sources, profile, filters, time range, zoom history,
   columns and tabs; recent projects; file association. *(Done.)*
-- **Bookmarks and notes** on events and time ranges, listed in a side panel and kept in the
-  project. *(Done.)*
+- **Notes** anchored to events, time ranges, sources, the project and regions of images, listed in a Notes panel and
+  kept in the project ([ADR 0021](adr/0021-notes.md)). Bookmarks became **Saved queries**. *(Done.)*
 - **Export:** filtered events (CSV, CLEF), charts and timeline (PNG/SVG), incident report
   (HTML/PDF), shareable `.imtz` bundle (project + profile + logs). *(Done.)*
 - **Saved queries and filter presets**, plus **highlight rules** (colour rows matching a
@@ -66,7 +67,7 @@ follow-ups (fuzzing, signing, etc.) live in [backlog.md](backlog.md).
 
 ## Phase 4: collect, not just read
 
-- **Process monitor** with system-tray mode (see backlog): CPU, memory, handles and I/O per
+- **Process monitor** with system-tray mode: CPU, memory, handles and I/O per
   process; Windows performance counters; .NET runtime counters (GC, exceptions/sec, thread
   pool); process start/exit and crash detection; elevated helper only when needed. *(Done: process
   monitor with tray mode, live charts, Windows counters via PDH, and .NET Framework runtime counters.
@@ -78,6 +79,13 @@ follow-ups (fuzzing, signing, etc.) live in [backlog.md](backlog.md).
   the Windows service is type-checked here and exercised on the Windows CI runner only.)*
 
 ## Phase 4b: profiling
+
+**Status.** Done: the profiling engine and views over imported captures, event-based **.NET capture** with ETW and
+EventPipe ([ADR 0019](adr/0019-dotnet-profiling.md); no CLR Profiling API agent), **native (C/C++) capture** by ETW
+or suspend-and-sample with PDB symbols ([ADR 0022](adr/0022-native-profiling.md)), `.etl` import, and **crash dumps
+and UMDH heap logs** with problem-first findings and a dump-capture tool ([ADR 0023](adr/0023-dumps-and-umdh.md)).
+The deep-mode agent, `.gcdump`, WebView2 and Linux/macOS native collectors described below remain planned or dropped
+as marked.
 
 Profiler plugins = a collector (start/stop capture with the platform's official tools) plus an
 importer; IMT adds two generic views shared by all of them: a **flame graph** (CPU stacks, from
@@ -184,18 +192,23 @@ planned.)*
   - No stealth or bot-detection evasion. Remote pages get no IPC at all: page results come back as the
     return values of scripts IMT evaluates, each checked against a one-shot nonce, the expected origin and
     a size cap. *(Not yet verified on macOS hardware.)*
-  - **Later: vision for agent mode** *(planned, not started)*. When a vision-capable local model is
-    loaded (llama-server with a multimodal projector, e.g. a Qwen2.5-VL GGUF), send a screenshot of the
-    browser window alongside the DOM snapshot. It helps on visually complex pages (canvas content,
-    image buttons, layout cues). Text-only models keep working as today. It stays local; no cloud model.
+  - **Vision for agent mode** *(planned, not started)*. The local model can already read images in the chat
+    ([ADR 0025](adr/0025-vision-one-model.md): one model plus its `<model>.mmproj.gguf` projector). Sending a
+    screenshot of the browser panel alongside the DOM snapshot is the next step; it helps on visually complex pages
+    (canvas content, image buttons, layout cues). Text-only models keep working as today. It stays local; no cloud model.
 - **Jobs and notifications** *(Done, [ADR 0012](adr/0012-jobs.md))*: every long task (AI requests, research,
   imports, long queries and analyses, exports, downloads, survey, storage clean-up, collections) is a job
   with per-kind queues and limits enforced in Rust, a Jobs pane with progress, Cancel, Retry and View, toasts
   and OS notifications for long jobs, history saved with the project, and a notification centre for what needs
   attention (deduplicated, capped, saved per project and per app).
-- **Research mode** *(Done, ADR 0012 amending 0011)*: the AI researches the web by itself, read-only: results
-  page links only, 1–10 pages, CAPTCHA/login/payment pages skipped, a citation per claim; a confirmation when
-  the search text contains workspace data. *(The real browser flow is not yet verified on every webview.)*
+- **Research mode** *(Done, ADR 0012 amending 0011, ADR 0024)*: the AI researches the web by itself, read-only: it
+  picks the results from the engine's results page (Google, DuckDuckGo, Bing or a custom engine), reads 10, 20 or 30
+  of them (default 10) over the next results pages, skips CAPTCHA, login and payment pages, and answers with a
+  citation per claim; a confirmation when the search text contains workspace data. A live search test checks the real
+  engines in the real app (nightly and manual only, [development.md](development.md#live-search-test)). *(The real
+  browser flow is not yet verified on every webview, macOS in particular.)*
+- **Knowledge files** *(Done, [ADR 0029](adr/0029-knowledge-files.md))*: Markdown notes about the user's systems that
+  every AI feature reads, per project and global.
 - **Redaction / PII masking** rules (emails, tokens, IPs, custom regexes) applied to views,
   exports and bundles. *(Done: `[redact]`, redacted view, redacted exports, reports and bundles.)*
 - **Incident report builder:** pick bookmarks, charts and notes into a narrative report.
@@ -205,15 +218,17 @@ planned.)*
 
 ## Phase 6: scale and platform
 
-- **Persistent store** behind `LogStore`: data larger than RAM, instant reopen, background
-  indexing with progress and cancel, SQL console tab for power users; the in-memory store stays
-  for normal sizes. *(Spike done: DuckDB vs. DataFusion + Parquet, each with Tantivy, on 10M events —
-  see [store-spike.md](store-spike.md). ADR 0010 (accepted): DuckDB in a supervised worker process with a
-  Tantivy index, moving to DuckDB 2.0's server mode once it is released and supported;
-  implementation not started.)*
+- **Persistent store** behind the store ports: data larger than RAM, instant reopen, background
+  indexing with progress and cancel, projects that work without the original logs. *(Done: ADR 0014, phase 6c. Every
+  window runs on the DuckDB store in the store worker process, with Tantivy word search; the in-memory workspace is no
+  longer used by the app. The original spike, DuckDB against DataFusion + Parquet on 10M events, was removed once its
+  results were in ADR 0010.)* Still open: a SQL console tab for power users, and moving to DuckDB 2.0's server mode once
+  it is released and supported.
 - **Very large UIs**: scaled grid scrolling (50M rows), virtualised facet lists and trees. *(Done.)*
 - **Plugins:** Rust plugins on `imt-plugin-api`, each in its own sandboxed process over one IPC (ADR 0017; the gRPC `imt.plugin.v1` contract and the C# SDK it replaced are gone).
-  *(Done.)* ~~WASM components and a plugin catalogue~~ *(dropped 2026-10-18).*
+  *(Done.)* **Plugin SDK and signed packages** *(Done, [ADR 0027](adr/0027-plugin-sdk.md))*: `cargo imt-plugin`, the
+  test harness, `.imtplugin` packages with ed25519 signatures, the Plugins panel and trust settings; see
+  [plugin-sdk.md](plugin-sdk.md). ~~WASM components and a plugin catalogue~~ *(dropped 2026-10-18).*
 - **Scripting** for custom transforms where profiles aren't enough. *(Done: Rhai `script` step,
   sandboxed and bounded per record.)*
 - **Workbench UX:** dockable/split panes, multiple timelines, command palette with every action,
@@ -225,4 +240,62 @@ planned.)*
   - Settings import/export. *(Done.)*
   - i18n. *(Readiness done: every UI string marked, runtime locale loading, pseudo-locale, CI
     check; engine-produced text still English.)*
-  - WCAG 2.2 AA review and opt-in crash reports: see [backlog.md](backlog.md).
+  - WCAG 2.2 AA review and opt-in crash reports: see "Engineering follow-ups" below.
+
+## Engineering follow-ups
+
+Done in the 2026-10-18 pass, for reference: security and supply chain (user-regex and line-size limits, cargo-deny,
+npm audit, least-privilege capabilities, strict CSP, Renovate, SBOMs, generated release notes, signed auto-update),
+tests (fuzzing, proptest, insta snapshots, criterion, cargo-mutants, Playwright, WebdriverIO + tauri-driver),
+robustness (typed errors, cancellable queries, import progress, rolling logs without file contents) and process
+(Conventional Commits check, lefthook, TypeScript `strict`). Still open:
+
+- **Signing:** Windows Authenticode and macOS Developer ID + notarisation (needs certificates and a self-hosted Mac
+  runner). The auto-update key pair and secrets: see [releasing.md](releasing.md).
+- **WCAG 2.2 AA review:** axe runs WCAG 2.2 A/AA rules in every e2e check and passes, target size (2.5.8) included
+  (dense timeline markers share one target; annotation bands are reached through the "Evidence..." menu). Still to do
+  by hand: focus-not-obscured (2.4.11) with docked and auto-hidden panels, chart table alternatives everywhere, a
+  screen-reader pass (NVDA, VoiceOver).
+- **Opt-in crash reports:** local capture exists (crash marker and restore, error snapshots, "Report a problem"
+  bundle). Uploading needs a server and a privacy review; not planned.
+- **i18n of engine text:** settings schema labels, error messages, analysis sentences and AI text come from Rust in
+  English; they need message ids (the UI already parses one of them, the `pipeline step N (kind):` prefix, which first
+  needs a structured error code).
+- **Linux/macOS checks:** code paths only reviewed on Windows (llama-server child lifetime on Linux/macOS, macOS runtime
+  signing, non-Windows stubs of the Windows plugins, the Linux and macOS sandboxes) are covered by the Linux and macOS
+  CI runners only. A macOS CI job waits for a runner with the `macos-latest` label.
+- **Batch queries:** the monitor live charts (11 charts) and multiple timelines send one request each; a batched
+  `query_charts` / `query_timelines` would save round-trips if they show up as slow.
+
+## Open items from the 2026-10 redesign plan
+
+The plan (four architecture reviews, phases R0 to R6) is done except for the items below. IMT is pre-v1, so each is
+done by redesigning, not by compatibility code.
+
+- **R0, not verified:** the "R" row (lock recovery in analysis caches, caches keyed by generation plus hash, an event
+  size cap with a diagnostic, reporting when a cap drops records) needs a pass; U2 to U4 (pointer moves, resize
+  debouncing, stores that stop querying when their view closes) are described in the responsiveness rules of
+  [development.md](development.md) but have no regression test named for them.
+- **R3 (ADR 0017, "Deferred"):** split `imt-ai` into `imt-ai-proto`, `imt-ai-runtime`, `imt-ai` and
+  `imt-browser-agent` with one `SafeHttp` and the assistant on the `Query`/`Analysis` ports; one redactor
+  (`imt_core::redact`) shared by AI privacy and child-log scrubbing; `imt-perfmon` and the event-log follower as
+  libraries instead of through `imt-collect`/`imt-monitor` (the tools plugin still links `imt-core`); importer plugins
+  streaming batches to the store worker directly with credits (needs postcard store DTOs instead of JSON bodies).
+- **R5, the UI:**
+  - ports mirroring ADR 0014 (`QueryPort`, `IngestPort`, `AnalysisPort`, `ProfilePort`), one DI token each;
+  - `engineResource()` on Angular `resource()` with an `AbortSignal` mapped to a request id and a Rust
+    `cancel(requestId)`, replacing the hand-copied stale-response guards;
+  - an engine "view" operation (timeline, annotations and runs for one query and generation in one reply);
+  - split the large stores and components (`WorkspaceStore` into query, data, timeline, preferences and theme
+    stores; `PagedRowsStore` out of the grid; typed `busy` state; import UI driven by its job);
+  - domain rules move to the engine: highlight rules (an index per row in `Page`), profile edits through `toml_edit`
+    (keeps the user's comments), regex validity and mask preview, lane values instead of parsing lane keys;
+  - accessibility: CDK key managers everywhere, the grid announces the active row, one tab stop per timeline lane;
+  - mocks become fixtures validated against golden JSON emitted by Rust tests.
+- **6b Problems pane** (R2, R5): diagnostics from import with engine-verified quick fixes (including an AI-proposed
+  fix). The store already has `Diagnostics` and `evaluate_fix`; the pane is not built.
+- **Store performance and promotion (ADR 0014, "Deviations and open points"):** at 10M events several operations are
+  still over the 0.5 s target (filtered and word-search pages, timelines with instance lanes, charts, field stats,
+  correlate, Moment, runs); field promotion is decided per segment (sticky promotion and re-promotion on compaction
+  are open).
+- **Format gaps** listed under Phase 3.

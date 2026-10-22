@@ -57,7 +57,7 @@ pub struct RegexProposal {
 #[serde(rename_all = "camelCase")]
 pub struct ProfileProposal {
     pub name: String,
-    /// The complete candidate profile (TOML), ready to open in the profile editor.
+    /// The candidate parser (TOML, ADR 0026) for the library; empty when the library already reads the file.
     pub toml: String,
     pub importer: Option<String>,
     pub parsed: usize,

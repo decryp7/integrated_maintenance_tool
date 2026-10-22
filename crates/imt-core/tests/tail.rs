@@ -429,7 +429,7 @@ fn new_files_in_the_folder_honour_include_and_exclude() {
 #[test]
 fn start_at_end_skips_history() {
     let d = Dir::new("atend");
-    d.write("app.log", &(lines(0..50, "A") + "2026-10-14 10:00:59 INFO unterminat"));
+    d.write("app.log", &(lines(0..50, "A") + "2026-10-14 10:00:59.000 +00:00 [INF] unterminat"));
     d.write("data.csv", "Timestamp,Message\n2026-10-14 10:00:00,a\n");
     let mut ws = Workspace::new(Profile::default_profile()).unwrap();
     let mut store: &mut dyn LogStore = &mut ws;

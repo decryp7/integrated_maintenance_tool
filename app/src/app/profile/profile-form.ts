@@ -1,6 +1,5 @@
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { LEVELS } from '../core/api.types';
 import { ChartRule, Condition, MarkerRule, ProfileModel } from '../core/profile.model';
 import { WorkspaceStore } from '../core/workspace.store';
 import { Icon } from '../shared/icon';
@@ -13,8 +12,10 @@ import { FlowOverview } from './flow-overview';
 import { PipelineEditor } from './pipeline-editor';
 import { ProfileDraft } from './profile-draft';
 import { StringList } from './string-list';
+import { SettingsDialogService } from '../settings/settings-dialog';
+import { PARSERS_ID } from '../settings/parsers/parsers.types';
 
-type Section = 'general' | 'files' | 'parse' | 'json' | 'csv' | 'instance' | 'extract' | 'pipeline' | 'marker' | 'chart';
+type Section = 'general' | 'files' | 'instance' | 'extract' | 'pipeline' | 'marker' | 'chart';
 type Obj = Record<string, unknown>;
 
 /** Returns m[key] as an object, creating it when missing. */
@@ -56,80 +57,16 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
         @case ('general') {
           <h2 i18n="@@profile.form.general.title">General</h2>
           <label class="lbl"><ng-container i18n="@@profile.form.general.name">Profile name</ng-container><input class="input" [value]="m().name ?? ''" (input)="set([], 'name', $any($event.target).value)" /></label>
-          <p class="help" i18n="@@profile.form.general.help">A profile is a pipeline: which files to read, how to parse them, what identifies an instance, which values to extract, which events are important, and which charts to draw. Extracted values become fields on the event, usable like any Serilog property.</p>
+          <p class="help" i18n="@@profile.form.general.help">A profile is a pipeline: which files to read, what identifies an instance, which values to extract, which events are important, and which charts to draw. Extracted values become fields on the event, usable like any Serilog property.</p>
         }
         @case ('files') {
           <h2><ng-container i18n="@@profile.form.files.title">Files</ng-container> <imt-help label="Files" i18n-label="@@profile.form.files.helpLabel" [text]="helpText.files" /></h2>
-          <p class="help" i18n="@@profile.form.files.help">Globs matched against the path relative to the opened folder. Extensions do not matter: the format is detected from the content.</p>
+          <p class="help" i18n="@@profile.form.files.help">Globs matched against the path relative to the opened folder. Extensions do not matter: each file is read by the parser that recognises it.</p>
+          <p class="help" data-testid="profile-parsers-hint"><ng-container i18n="@@profile.form.files.parsersHint">Formats are parsers:</ng-container>&ngsp;<button type="button" class="link" (click)="openParsers()" i18n="@@profile.form.files.parsersLink">Settings ▸ Parsers</button></p>
           <div class="lbl" i18n="@@profile.form.files.include">Include</div>
           <imt-string-list label="glob" i18n-label="@@profile.form.glob" [values]="m().files?.include ?? []" (changed)="set(['files'], 'include', $event)" />
           <div class="lbl" i18n="@@profile.form.files.exclude">Exclude</div>
           <imt-string-list label="glob" i18n-label="@@profile.form.glob" [values]="m().files?.exclude ?? []" (changed)="set(['files'], 'exclude', $event)" />
-        }
-        @case ('parse') {
-          <h2><ng-container i18n="@@profile.form.parse.title">Parsing</ng-container> <imt-help label="Parsing" i18n-label="@@profile.form.parse.helpLabel" [text]="helpText.parse" /></h2>
-          <div class="grid3">
-            <label class="lbl"><ng-container i18n="@@profile.form.parse.format">Format</ng-container>
-              <select class="select" [value]="m().parse?.format ?? 'auto'" (change)="set(['parse'], 'format', $any($event.target).value)">
-                @for (f of formats; track f) { <option [value]="f" [selected]="f === (m().parse?.format ?? 'auto')">{{ f }}</option> }
-              </select>
-            </label>
-            <label class="lbl"><ng-container i18n="@@profile.form.parse.timezone">Timezone for timestamps without offset</ng-container>
-              <input class="input mono" [value]="m().parse?.assume_timezone ?? 'UTC'" placeholder="UTC, local, +08:00" (input)="set(['parse'], 'assume_timezone', $any($event.target).value)" />
-            </label>
-            <label class="lbl"><ng-container i18n="@@profile.form.parse.dayFirst">Day first (03/04 = 3 April)</ng-container>
-              <select class="select" [value]="dayFirst()" (change)="set(['parse'], 'day_first', $any($event.target).value)">
-                <option value="auto" i18n="@@profile.form.parse.autoPerFile">auto (per file)</option>
-                <option value="true">true</option>
-                <option value="false">false</option>
-              </select>
-            </label>
-          </div>
-          <div class="lbl" i18n="@@profile.form.parse.templates">Serilog output templates (plain-text files, tried in order)</div>
-          <imt-string-list label="template" i18n-label="@@profile.form.template" [values]="m().parse?.output_templates ?? []" (changed)="set(['parse'], 'output_templates', $event)" />
-          <div class="lbl" i18n="@@profile.form.parse.regexes">Regexes (named groups: timestamp, level, message; others become fields)</div>
-          <imt-string-list label="regex" i18n-label="@@profile.form.regex" [values]="m().parse?.regexes ?? []" (changed)="set(['parse'], 'regexes', $event)" />
-          <div class="lbl" i18n="@@profile.form.parse.formats">Extra timestamp formats (.NET "dd/MM/yyyy HH:mm:ss.fff" or strftime "%d/%m/%Y %H:%M:%S")</div>
-          <imt-string-list label="format" i18n-label="@@profile.form.format" [values]="m().parse?.timestamp_formats ?? []" (changed)="set(['parse'], 'timestamp_formats', $event)" />
-        }
-        @case ('json') {
-          <h2 i18n="@@profile.form.json.title">JSON logs</h2>
-          <p class="help" i18n="@@profile.form.json.help">JSON lines or a whole-file array. Keys are tried in order; nested keys use dots ("log.level"). Covers Serilog CLEF, JsonFormatter, NLog, ECS and most JSON loggers.</p>
-          <div class="grid2">
-            @for (k of jsonKeys; track k.key) {
-              <div>
-                <div class="lbl">{{ k.label }}</div>
-                <imt-string-list label="key" i18n-label="@@profile.form.key" [values]="jsonList(k.key)" (changed)="set(['parse', 'json'], k.key, $event)" />
-              </div>
-            }
-          </div>
-          <label class="lbl narrow"><ng-container i18n="@@profile.form.json.defaultLevel">Default level (when absent)</ng-container>
-            <select class="select" [value]="m().parse?.json?.default_level ?? 'Information'" (change)="set(['parse', 'json'], 'default_level', $any($event.target).value)">
-              @for (l of levels; track l) { <option [value]="l" [selected]="l === (m().parse?.json?.default_level ?? 'Information')">{{ l }}</option> }
-            </select>
-          </label>
-        }
-        @case ('csv') {
-          <h2 i18n="@@profile.form.csv.title">CSV / delimited</h2>
-          <div class="grid3">
-            <label class="lbl"><ng-container i18n="@@profile.form.csv.delimiter">Delimiter</ng-container>
-              <select class="select mono" [value]="m().parse?.csv?.delimiter ?? 'auto'" (change)="set(['parse', 'csv'], 'delimiter', $any($event.target).value)">
-                <option value="auto">auto</option>
-                <option value=",">,</option>
-                <option value=";">;</option>
-                <option value="\t" i18n="@@profile.form.csv.tab">tab</option>
-                <option value="|">|</option>
-              </select>
-            </label>
-            <label class="lbl row" i18n="@@profile.form.csv.header"><input type="checkbox" [checked]="m().parse?.csv?.has_header ?? true" (change)="set(['parse', 'csv'], 'has_header', $any($event.target).checked)" /> First row is a header</label>
-          </div>
-          <div class="grid3">
-            @for (c of csvCols; track c) {
-              <label class="lbl">{{ csvLabel(c) }}
-                <input class="input mono" [value]="csvCol(c)" placeholder="auto" (input)="set(['parse', 'csv'], c, $any($event.target).value || 'auto')" />
-              </label>
-            }
-          </div>
         }
         @case ('instance') {
           <h2><ng-container i18n="@@profile.form.instance.title">Instance</ng-container> <imt-help label="Instance" i18n-label="@@profile.form.instance.helpLabel" [text]="helpText.instance" /></h2>
@@ -248,6 +185,7 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
     .body { flex: 1; min-width: 0; overflow: auto; padding: 16px 20px 40px; display: flex; flex-direction: column; gap: 10px; max-width: 1100px; }
     h2 { margin: 0 0 4px; font-size: var(--fs-lg); font-weight: 600; }
     .help { margin: 0; color: var(--muted); line-height: 1.5; max-width: 760px; }
+    .link { border: 0; background: none; padding: 0; color: var(--text); cursor: pointer; text-decoration: underline; font: inherit; }
     .lbl { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); color: var(--muted); }
     .lbl.row, .row { flex-direction: row; align-items: center; gap: 6px; display: flex; }
     .narrow { max-width: 240px; }
@@ -275,6 +213,7 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
 export class ProfileForm {
   protected readonly draft = inject(ProfileDraft);
   private readonly store = inject(WorkspaceStore);
+  private readonly settings = inject(SettingsDialogService);
   protected readonly m = this.draft.model;
   protected readonly section = signal<Section>('general');
   protected readonly selExtract = signal(0);
@@ -282,32 +221,17 @@ export class ProfileForm {
 
   protected readonly helpText = {
     files: $localize`:@@profile.form.files.helpText:Which files in an opened folder IMT reads. Include and exclude are glob patterns; anything that is not a log is skipped.`,
-    parse: $localize`:@@profile.form.parse.helpText:How a file becomes events: IMT detects the format and tries your templates and regexes in order to find timestamp, level and message.`,
     instance: $localize`:@@profile.form.instance.helpText:An instance is one running copy of a service. The key fields decide which events share a timeline lane, for example MachineName + ProcessId.`,
     extract: $localize`:@@profile.form.extract.helpText:Extractors read a value out of the message text (for example CPU %) and store it as a typed field you can filter and chart.`,
     marker: $localize`:@@profile.form.marker.helpText:Markers highlight important events (start, crash, deployment) on the timeline. The first matching rule is the primary marker.`,
     chart: $localize`:@@profile.form.chart.helpText:Charts on the Metrics panel: an aggregate of a numeric field per time bucket, optionally one line per value of other fields.`,
   };
   protected readonly unnamed = $localize`:@@profile.form.extract.unnamed:(unnamed)`;
-  protected readonly formats = ['auto', 'json', 'text', 'csv'];
-  protected readonly levels = LEVELS;
   protected readonly aggs = AGGS;
-  protected readonly csvCols = ['timestamp', 'level', 'message'] as const;
-  protected readonly jsonKeys = [
-    { key: 'timestamp', label: $localize`:@@profile.form.json.timestampKeys:Timestamp keys` },
-    { key: 'level', label: $localize`:@@profile.form.json.levelKeys:Level keys` },
-    { key: 'message', label: $localize`:@@profile.form.json.messageKeys:Message keys` },
-    { key: 'template', label: $localize`:@@profile.form.json.templateKeys:Template keys` },
-    { key: 'exception', label: $localize`:@@profile.form.json.exceptionKeys:Exception keys` },
-    { key: 'properties', label: $localize`:@@profile.form.json.propertyContainers:Property containers` },
-  ];
 
   protected readonly sections: { id: Section; label: string; count?: () => number }[] = [
     { id: 'general', label: $localize`:Profile editor section|@@profile.form.nav.general:General` },
     { id: 'files', label: $localize`:Profile editor section|@@profile.form.nav.files:Files` },
-    { id: 'parse', label: $localize`:Profile editor section|@@profile.form.nav.parse:Parsing` },
-    { id: 'json', label: 'JSON' },
-    { id: 'csv', label: 'CSV' },
     { id: 'instance', label: $localize`:Profile editor section|@@profile.form.nav.instance:Instance` },
     { id: 'extract', label: $localize`:Profile editor section|@@profile.form.nav.extract:Extractors`, count: () => this.m().extract?.length ?? 0 },
     { id: 'pipeline', label: $localize`:Profile editor section|@@profile.form.nav.pipeline:Pipeline`, count: () => this.m().pipeline?.length ?? 0 },
@@ -316,30 +240,12 @@ export class ProfileForm {
   ];
 
   protected readonly fieldChoices = computed(() => ['@level', '@message', '@exception', '@template', '@source', '@line', ...this.store.fieldNames()]);
-  protected readonly dayFirst = computed(() => String(this.m().parse?.day_first ?? 'auto'));
 
-  protected csvLabel(c: 'timestamp' | 'level' | 'message'): string {
-    switch (c) {
-      case 'timestamp':
-        return $localize`:@@profile.form.csv.timestampColumn:timestamp column`;
-      case 'level':
-        return $localize`:@@profile.form.csv.levelColumn:level column`;
-      case 'message':
-        return $localize`:@@profile.form.csv.messageColumn:message column`;
-    }
-  }
   protected deleteExtractorLabel(name: string): string {
     return $localize`:@@profile.form.extract.deleteAria:Delete extractor ${name}:name:`;
   }
   protected deleteMarkerLabel(kind: string): string {
     return $localize`:@@profile.form.marker.deleteAria:Delete marker ${kind}:kind:`;
-  }
-  protected jsonList(key: string): string[] {
-    return ((this.m().parse?.json as Obj | undefined)?.[key] as string[] | undefined) ?? [];
-  }
-  protected csvCol(c: string): string {
-    const v = (this.m().parse?.csv as Obj | undefined)?.[c];
-    return typeof v === 'string' && v !== 'auto' ? v : '';
   }
   protected outputNames(fields: Record<string, unknown> | undefined): string {
     return Object.keys(fields ?? {}).join(', ') || $localize`:@@profile.form.extract.noOutputs:no outputs`;
@@ -349,6 +255,11 @@ export class ProfileForm {
   }
   protected yField(c: ChartRule): string {
     return /\(([^)]*)\)/.exec(c.y)?.[1] ?? '';
+  }
+
+  /** Formats are parsers (ADR 0026): Settings ▸ Parsers. */
+  protected openParsers(): void {
+    this.settings.open(PARSERS_ID);
   }
 
   /** Sets path.key, creating intermediate tables. */

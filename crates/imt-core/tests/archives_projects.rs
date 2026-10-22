@@ -280,7 +280,7 @@ fn saves_and_restores_projects() {
         .unwrap();
     assert_eq!(missing, [d.0.join("solo.log").to_string_lossy().into_owned()]);
     assert_eq!(store.summary().total, 6);
-    let bad = Profile::from_toml("[parse]\nregexes = ['(']").unwrap();
+    let bad = Profile::from_toml("[[extract]]\nname = 'x'\nregex = '('").unwrap();
     assert!(store.restore(bad, &WorkspaceState::default()).is_err());
     assert!(Path::new(&file).exists());
 }

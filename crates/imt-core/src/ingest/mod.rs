@@ -24,7 +24,7 @@ mod text;
 pub use batcher::{column_type, schema_for, BatchedSource, RecordBatcher};
 pub use chunk::{Chunk, ChunkSource, Encoding, Line, LineReader, LineSpan, OwnedLine, ReaderChunks, TextChunks, CHUNK_BYTES};
 pub use parallel::{default_threads, import_files_parallel, ParallelOptions, SharedRef, SharedSink, MAX_DEFAULT_THREADS};
-pub use plan::{detect_encoding, plan, scan_chunk_starts, ChunkStart, FilePlan, JsonShape, PlanKind, CHUNK_TARGET, HEAD_BYTES};
+pub use plan::{detect_encoding, plan, scan_chunk_starts, score_text, ChunkStart, FilePlan, JsonShape, PlanKind, CHUNK_TARGET, HEAD_BYTES};
 pub use problems::{Problem, ProblemKind, Problems, MAX_SAMPLES};
 pub use sink::{BatchSink, EventSink, ImportCancelled, NewSource, ParsedEvent, SourceReport};
 pub use source::{import_path, ImportEnv, Outcome};

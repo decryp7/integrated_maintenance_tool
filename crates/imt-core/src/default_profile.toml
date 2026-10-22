@@ -1,9 +1,15 @@
-# IMT parsing profile.
+# IMT analysis profile.
 #
-# A profile is a pipeline: which files to read, how to parse them into events,
-# what identifies an instance, which values to extract, which events are
-# important (markers) and which charts to draw. Everything an extractor
-# produces becomes a field on the event, usable like any Serilog property.
+# A profile says how the workspace analyses events, whatever their format:
+# which files to read, what identifies an instance, which values to extract,
+# which events are important (markers) and which charts to draw. Everything an
+# extractor produces becomes a field on the event, usable like any Serilog
+# property.
+#
+# How a file's lines become events is not part of the profile: formats are
+# parsers, one TOML file per log format, in the parser library (Settings ▸
+# Parsers; the built-in `generic` parser documents their schema). IMT picks a
+# parser per file. A profile with a [parse] section is refused.
 #
 # Field names in conditions/split_by/key may be any property, an extracted
 # field, or a pseudo-field: @level @message @exception @template @source @line.
@@ -12,85 +18,9 @@ name = "Default (Serilog)"
 
 [files]
 # Globs matched against the path relative to the opened folder. Extensions do
-# not matter: the format is detected from the file content.
+# not matter: the parser of a file is chosen from its content.
 include = ["**/*"]
 exclude = ["**/*-filtered.*", "**/*.imtprofile.toml", "**/*.imtproj", "**/*.exe", "**/*.dll", "**/.*"]
-
-[parse]
-# auto | json | text | csv
-format = "auto"
-# Serilog output templates (as written in appsettings.json) for plain-text
-# files. Named holes other than Timestamp/Level/Message/NewLine/Exception/
-# Properties become fields.
-#
-# Every line is read with the first template or regex (templates first, in
-# order) that matches it, so one file may mix formats (a log server writing
-# several products) and JSON lines with a [parse.json] timestamp key. A line
-# that matches none continues the event above; when it looks like an event
-# (starts with a date, a time, a syslog priority or month), it is reported as
-# an unmatched line in the source's problems.
-output_templates = [
-  "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
-  "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
-]
-# Raw regexes with named groups (timestamp, level, message; others become
-# fields), tried after the templates.
-regexes = [
-  # log4net / NLog: %date [%thread] %-5level %logger [%ndc] - %message
-  '^(?P<timestamp>\d{4}-\d{2}-\d{2}[ T,]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?: ?(?:Z|[+-]\d{2}:?\d{2}))?)\s+\[(?P<Thread>[^\]]+)\]\s+(?P<level>[A-Za-z]+)\s+(?P<Logger>\S+)\s+(?:\[?(?P<Ndc>[^\]\s]*)\]?\s+)?-\s(?P<message>.*)$',
-  # Python logging: %(asctime)s - %(name)s - %(levelname)s - %(message)s
-  '^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:[.,]\d{1,6})?) - (?P<Logger>\S+) - (?P<level>[A-Za-z]+) - (?P<message>.*)$',
-  # Generic: a timestamp, maybe in brackets or followed by "," or " - " (log4j,
-  # Kafka, Elasticsearch, ZooKeeper, CBS), then maybe a thread or process number
-  # and a level in any case (MySQL, OpenStack), then the message.
-  '^\[?(?P<timestamp>\d{4}[-/.]\d{2}[-/.]\d{2}[ T,]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?: ?(?:Z|[+-]\d{2}:?\d{2}))?)(?:\],?\s*|,?\s+)(?:-\s+)?(?:(?:\d+\s+)?\[?(?P<level>(?i:VRB|DBG|INF|WRN|ERR|FTL|TRACE|DEBUG|INFO|NOTICE|NOTE|WARN|WARNING|ERROR|FATAL|CRITICAL|VERBOSE|INFORMATION))\s*(?:\][:|-]?\s*|[:|-]?\s+))?(?P<message>.*)$',
-]
-# Extra timestamp formats, .NET style ("dd/MM/yyyy HH:mm:ss.fff") or strftime
-# ("%d/%m/%Y %H:%M:%S%.f"). Common ISO/RFC/Serilog/epoch formats are always
-# recognised.
-# A format without a year ("%b %e %H:%M:%S", BSD syslog) takes the current year,
-# or the previous one when that would be more than a day in the future.
-# A comma before the fraction stays a comma (.NET "HH:mm:ss,fff", strftime
-# "%H:%M:%S,%3f"). When many lines of a file have no readable timestamp, IMT
-# proposes a format for this list (checked against those lines) in the Explorer
-# and the Notifications centre.
-timestamp_formats = []
-# Timezone for timestamps without an offset: "UTC", "local" or "+08:00".
-assume_timezone = "UTC"
-# For ambiguous dates like 03/04/2026: "auto" (decided per file), "true", "false".
-day_first = "auto"
-
-[parse.json]
-# JSON lines (one object per line) or a whole-file JSON array. Keys are tried in
-# order; nested keys use dots ("log.level"). Covers Serilog CLEF (@t/@mt/@l/@x),
-# Serilog JsonFormatter, NLog/ECS-style and most JSON loggers ("timeMillis" is
-# log4j2's JsonLayout, "stacktrace" Elasticsearch's). An object may span lines.
-timestamp = ["@t", "Timestamp", "timestamp", "@timestamp", "time", "ts", "date", "datetime", "timeMillis"]
-level = ["@l", "Level", "level", "log.level", "severity", "lvl", "loglevel"]
-message = ["@m", "RenderedMessage", "Message", "message", "msg", "text"]
-template = ["@mt", "MessageTemplate"]
-exception = ["@x", "Exception", "exception", "error.stack_trace", "stack_trace", "stacktrace", "error"]
-# Objects whose members are lifted to top-level fields; other nested objects
-# are flattened with dotted names.
-properties = ["Properties", "properties", "fields", "context"]
-# CLEF omits @l for Information.
-default_level = "Information"
-
-[parse.csv]
-# "auto" sniffs , ; tab and |
-delimiter = "auto"
-# A header row may be there. A first row holding a timestamp or a date is an event, not a header, so files
-# without a header (most logs, e.g. log4net's CSV layouts) need no setting; `false` never reads a header.
-has_header = true
-# Names for the columns of a file without a header, in order (the rest are col1, col2, …), e.g.
-# columns = ["Date", "Time", "Level", "Code", "Process", "Pid"]
-columns = []
-# Column names, or "auto" to guess from the header. Without a header, "auto" finds the timestamp (also a date and
-# a time in two columns, as in `2026/10/14,10:00:00.123+01:00` with "," as the delimiter), the column of level
-# names and the longest text as the message. Two columns joined: timestamp = "Date+Time".
-timestamp = "auto"
-level = "auto"
-message = "auto"
 
 [instance]
 # Fields forming the instance key (one timeline lane per value). Empty = the

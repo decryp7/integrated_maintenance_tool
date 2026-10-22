@@ -307,6 +307,7 @@ fn composing_keeps_defaults_puts_new_markers_first_and_rejects_duplicates() {
         span,
         Fragment::ParseRegex {
             regex: "^(?P<message>.*)$".into(),
+            file_name: "notes.txt".into(),
         },
     ];
     let (before, after) = compose_toml("name = \"Mine\"\n", &frags).unwrap();
@@ -316,7 +317,15 @@ fn composing_keeps_defaults_puts_new_markers_first_and_rejects_duplicates() {
     assert_eq!(p.instance.key, vec!["Host".to_string()]);
     assert_eq!(p.marker[0].kind, "svc-start");
     assert!(p.marker.iter().any(|m| m.kind == "fatal"), "the built-in markers are kept");
-    assert!(p.parse.regexes.len() > 1 && p.parse.regexes.last().unwrap() == "^(?P<message>.*)$");
+    // A format is a new parser, not a profile change (ADR 0026).
+    assert!(!after.contains("regexes"));
+    let parsers = crate::survey::parser_drafts(&frags).unwrap();
+    assert_eq!(parsers.len(), 1);
+    let parser = crate::parser::Parser::from_toml(&parsers[0]).unwrap();
+    assert_eq!(
+        (parser.id.as_str(), parser.format.regexes.as_slice()),
+        ("custom-notes", &["^(?P<message>.*)$".to_string()][..])
+    );
     let t: toml::Table = toml::from_str(&after).unwrap();
     let spans = t["span"].as_array().unwrap();
     // Like the Runs editor: the default list is kept, and a rule of the same kind is replaced in place.

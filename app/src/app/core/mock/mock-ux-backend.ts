@@ -1,9 +1,8 @@
-import { ImportProgress, ProfileDoc, ProfileTemplate, ProfileVersionInfo } from '../api.types';
+import { ImportProgress, ProfileDoc, ProfileVersionInfo } from '../api.types';
 import type { ImtBackend } from '../backend';
 import type { UxBackend } from '../ux-backend';
 import { MockBackend } from './mock-backend';
 import { IDLE_PROGRESS, MOCK_DEMO_PATHS } from './mock-import';
-import { MOCK_TEMPLATES } from './mock-templates';
 
 /**
  * Browser stand-in for the ease-of-use commands, over the mock workspace (progress, history and the demo
@@ -30,10 +29,6 @@ export class MockUxBackend implements UxBackend {
 
   profileVersion(file: string): Promise<ProfileDoc> {
     return this.mock()?.profileVersion(file) ?? Promise.reject(new Error('no profile history'));
-  }
-
-  profileTemplates(): Promise<ProfileTemplate[]> {
-    return Promise.resolve(MOCK_TEMPLATES.map((t) => ({ ...t })));
   }
 
   demoPaths(): Promise<string[]> {

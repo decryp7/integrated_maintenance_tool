@@ -198,14 +198,18 @@ snapshots and other files apart without importing anything: the best importer's 
 
 ### Deferred formats
 
-- **`.gcdump`** (dotnet-gcdump / PerfView heap snapshots): the format is TraceEvent's
-  FastSerialization of a `GCHeapDump` object graph, and is documented only by the TraceEvent
-  source. Per ADR 0004, .NET-specific decoding belongs in the Windows/.NET helper process, which
-  uses TraceEvent itself. That helper will turn a `.gcdump` into a `HeapSnapshot` (types plus graph)
-  through the protobuf contract.
+- **`.gcdump`** (dotnet-gcdump / PerfView heap snapshots): not read. The format is TraceEvent's
+  FastSerialization of a `GCHeapDump` object graph and is documented only by the TraceEvent source. IMT takes .NET
+  heap snapshots itself instead: *Profile .NET process…* with the *Heap snapshot* kind records the runtime's heap-walk
+  events and builds a `HeapSnapshot` from them ([ADR 0019](adr/0019-dotnet-profiling.md); a NetTrace with heap-walk
+  events imports as a heap snapshot). Plugins are Rust only ([ADR 0017](adr/0017-one-ipc-out-of-process-plugins.md)),
+  so there is no .NET helper process.
 - **`.etl`** (WPR/PerfView/logman): read on Windows by the native profiling plugin (`imt-plugin-native`,
   ADR 0022), which converts one process (.NET or native) to NetTrace with symbols; see
   [Native (C/C++) captures](#native-cc-captures).
+
+Crash dumps and UMDH heap logs are not profiles; they have their own engine (`imt-dump`) and views
+([ADR 0023](adr/0023-dumps-and-umdh.md), [features](features.md#crash-dumps-and-umdh-heap-logs)).
 
 ## Samples
 
@@ -234,6 +238,17 @@ The pairs `orders.folded` / `orders-regression.folded` and `orders.speedscope.js
 `orders-regression.speedscope.json` show a regression: serialisation grows from about 10% to
 about 30%, and `Shop.Orders.AuditLog.Write` is new. In the heap snapshots, `Order` grows steadily
 from 50 to 100 to 150 instances, and `AuditLog` first appears in the second snapshot.
+
+## .NET captures
+
+`crates/imt-plugin-dotnet` ([ADR 0019](adr/0019-dotnet-profiling.md)) records a running .NET process without loading
+anything into it: ETW for .NET Framework and Core (administrator rights; the recorder runs in an elevated plugin
+process), EventPipe over the runtime's diagnostics IPC for .NET Core (no elevation). Presets are *CPU and waits*,
+*Allocations* (an allocation sample about every 100 KB, with its type and stack) and *Heap snapshot* (the runtime
+induces one GC and describes the heap). The trace is written as NetTrace, so the existing importer and every view
+serve it; ETW-only data (waits, native frames as `module+0xoffset`) travels in IMT's `IMT-Windows-Kernel` events.
+`imt-etw` holds the ETW decoders, the converter and the `.etl` reader that both this plugin and the native plugin use.
+Captures are cancellable jobs with size and duration caps.
 
 ## Native (C/C++) captures
 

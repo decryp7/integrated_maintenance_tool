@@ -7,7 +7,7 @@ import { ProposalApply } from './proposal-apply';
 
 const TITLES: Record<Proposal['kind'], string> = {
   regex: $localize`:@@ai.proposalCard.title.regex:Regular expression`,
-  profile: $localize`:@@ai.proposalCard.title.profile:Parsing profile`,
+  profile: $localize`:@@ai.proposalCard.title.parser:Parser`,
   pipeline: $localize`:@@ai.proposalCard.title.pipeline:Pipeline steps`,
   markers: $localize`:@@ai.proposalCard.title.markers:Markers`,
   extractors: $localize`:@@ai.proposalCard.title.extractors:Extractors`,
@@ -16,7 +16,7 @@ const TITLES: Record<Proposal['kind'], string> = {
 
 const APPLY: Record<Proposal['kind'], string> = {
   regex: $localize`:@@ai.proposalCard.apply.regex:Add as highlight…`,
-  profile: $localize`:@@ai.proposalCard.apply.profile:Save as profile`,
+  profile: $localize`:@@ai.proposalCard.apply.parser:Add to parsers`,
   pipeline: $localize`:@@ai.proposalCard.apply.addToProfile:Add to profile`,
   markers: $localize`:@@ai.proposalCard.apply.addToProfile:Add to profile`,
   extractors: $localize`:@@ai.proposalCard.apply.addToProfile:Add to profile`,
@@ -62,7 +62,11 @@ const APPLY: Record<Proposal['kind'], string> = {
                 <tbody>@for (row of r.preview.slice(0, 5); track $index) {<tr><td>{{ row.line }}</td><td>{{ row.level }}</td><td class="msg">{{ row.message }}</td></tr>}</tbody>
               </table>
             }
-            <details><summary i18n="@@ai.proposalCard.profileToml">Profile TOML</summary><pre class="mono">{{ r.toml }}</pre></details>
+            @if (r.toml) {
+              <details><summary i18n="@@ai.proposalCard.parserToml">Parser TOML</summary><pre class="mono">{{ r.toml }}</pre></details>
+            } @else {
+              <p class="facts" i18n="@@ai.proposalCard.parserKnown">IMT's parsers already read this file.</p>
+            }
           }
         }
         @case ('pipeline') {

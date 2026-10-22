@@ -131,6 +131,22 @@ export const WorkspaceDataStore = signalStore(
           );
           if (!status.error()) patchState(store, (s) => ({ profileVersion: s.profileVersion + 1 }));
         },
+        /**
+         * Follows a re-read the parser library started (`parsers_reread`, `parser_assign`: ADR 0026) like an import:
+         * the status bar shows its progress and the new summary applies. A failed re-read shows its reason.
+         */
+        async followReread(jobId: number): Promise<void> {
+          const label = $localize`:@@core.workspace.busy.rereading:Reading files again with their parsers…`;
+          await run(
+            { kind: 'import', label, jobId },
+            async () => {
+              const end = await jobs.wait(jobId);
+              if (end.state === 'failed') throw new Error(end.error ?? $localize`:@@core.workspace.rereadFailed:The files could not be read again.`);
+              return backend.workspaceSummary();
+            },
+            'reread',
+          );
+        },
         async init() {
           await run({ kind: 'op', label: $localize`:@@core.workspace.busy.loading:Loading workspace…` }, () => backend.workspaceSummary(), 'loaded');
         },

@@ -1,5 +1,15 @@
-import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, InjectionToken, input, Signal, viewChild } from '@angular/core';
 import { ProfileDraft } from './profile-draft';
+
+/** The text a `TomlEditor` edits and the problem to pin to a line. */
+export interface TomlDocument {
+  readonly text: Signal<string>;
+  setText(text: string): void;
+  readonly problem: Signal<{ message: string; line?: number | null; column?: number | null } | null>;
+}
+
+/** Provide it to edit another TOML than the active profile (a parser, ADR 0026); without it the editor edits `ProfileDraft`. */
+export const TOML_DOCUMENT = new InjectionToken<TomlDocument>('TOML_DOCUMENT');
 
 /** Plain TOML editing with line numbers; the backend's validation error is pinned to its line. */
 @Component({
@@ -16,7 +26,7 @@ import { ProfileDraft } from './profile-draft';
         #area
         class="mono"
         spellcheck="false"
-        aria-label="Profile TOML" i18n-aria-label="@@profile.toml.label"
+        [attr.aria-label]="label() || profileLabel"
         [value]="draft.text()"
         (input)="draft.setText($any($event.target).value)"
         (scroll)="syncScroll()"
@@ -25,7 +35,13 @@ import { ProfileDraft } from './profile-draft';
     </div>
     @if (draft.problem(); as p) {
       <div class="problem" role="status">
-        @if (p.line) { <button class="link mono" (click)="goToLine(p.line)" i18n="@@profile.toml.line">Line {{ p.line }}</button> }
+        @if (p.line) {
+          @if (p.column) {
+            <button class="link mono" (click)="goToLine(p.line)" i18n="@@profile.toml.lineColumn">Line {{ p.line }}, column {{ p.column }}</button>
+          } @else {
+            <button class="link mono" (click)="goToLine(p.line)" i18n="@@profile.toml.line">Line {{ p.line }}</button>
+          }
+        }
         <span>{{ p.message }}</span>
       </div>
     }
@@ -41,7 +57,10 @@ import { ProfileDraft } from './profile-draft';
   `,
 })
 export class TomlEditor {
-  protected readonly draft = inject(ProfileDraft);
+  protected readonly draft: TomlDocument = inject(TOML_DOCUMENT, { optional: true }) ?? inject(ProfileDraft);
+  /** Accessible name of the text area (default: "Profile TOML"). */
+  readonly label = input('');
+  protected readonly profileLabel = $localize`:@@profile.toml.label:Profile TOML`;
   private readonly gutter = viewChild.required<ElementRef<HTMLElement>>('gutter');
   private readonly area = viewChild.required<ElementRef<HTMLTextAreaElement>>('area');
 

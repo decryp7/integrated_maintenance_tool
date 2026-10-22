@@ -31,14 +31,14 @@ test('format wizard: mark a sample line, preview the parse and save', async ({ p
   await mark('Order 1042 accepted for customer 77', /^Message/);
 
   await expect(dialog.getByTestId('format-regex')).toContainText('(?P<timestamp>');
-  // The engine (here its mock) reads the sample with the candidate profile.
+  // The engine (here its mock) drafts a parser for the file and reads the sample with it.
   await expect(dialog.getByTestId('format-summary')).toContainText('4 events parsed', { timeout: 15_000 });
   await expect(dialog.getByRole('table', { name: 'Parse preview' })).toBeVisible();
   await expect(dialog.getByRole('table', { name: 'Parse preview' })).toContainText('Payment capture failed for order 1042', { timeout: 15_000 });
   await expectNoSeriousViolations(page, testInfo, 'format-wizard');
-  await dialog.getByRole('button', { name: 'Save and re-import' }).click();
+  await dialog.getByRole('button', { name: 'Save parser and re-read' }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole('status').filter({ hasText: 'Saved the format' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: /Saved the parser .*; the files are read again./ })).toBeVisible();
 });
 
 test('format wizard: a Serilog output template', async ({ page }) => {

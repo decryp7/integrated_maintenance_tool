@@ -154,6 +154,7 @@ import { DumpsBackend } from '../../dumps/dumps-backend';
 import { SchedulesBackend } from '../../schedules/schedules-backend';
 import { SettingsBackend } from '../../settings/settings-backend';
 import { StorageBackend } from '../../settings/storage/storage-backend';
+import { ParsersBackend } from '../../settings/parsers/parsers-backend';
 import { ShareBackend } from '../../share/share-backend';
 import { SkewBackend } from '../skew-backend';
 import { FilesBackend } from '../files-backend';
@@ -195,6 +196,7 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   SchedulesBackend,
   SettingsBackend,
   StorageBackend,
+  ParsersBackend,
   ShareBackend,
   SkewBackend,
   FilesBackend,

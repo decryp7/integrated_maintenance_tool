@@ -1,7 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideTinyBackendBare, tinyBackend } from '../../testing/helpers';
 import { ImtBackend } from './backend';
-import { MockBackend } from './mock/mock-backend';
 import { MOCK_DEMO_PATHS } from './mock/mock-import';
 import { MockUxBackend } from './mock/mock-ux-backend';
 import { TauriUxBackend, UxBackend } from './ux-backend';
@@ -15,7 +14,6 @@ describe('UxBackend', () => {
     await t.cancelImport();
     await t.profileHistory();
     await t.profileVersion('a.toml');
-    await t.profileTemplates();
     await t.demoPaths();
     expect(calls).toEqual([
       ['import_progress', undefined],
@@ -23,7 +21,6 @@ describe('UxBackend', () => {
       ['jobs_cancel', { id: 4 }],
       ['profile_history', undefined],
       ['profile_version', { file: 'a.toml' }],
-      ['profile_templates', undefined],
       ['demo_paths', undefined],
     ]);
   });
@@ -45,7 +42,6 @@ describe('UxBackend', () => {
     await imt.saveProfile('name = "Second"\n');
     const v = at(await ux.profileHistory(), 0);
     expect((await ux.profileVersion(v.file)).toml).toBe(before);
-    expect((await ux.profileTemplates()).length).toBeGreaterThan(0);
   });
 
   it('the mock degrades over a backend that is not the mock workspace', async () => {
@@ -54,12 +50,5 @@ describe('UxBackend', () => {
     await expect(ux.cancelImport()).resolves.toBeUndefined();
     expect(await ux.profileHistory()).toEqual([]);
     await expect(ux.profileVersion('x')).rejects.toThrow('no profile history');
-  });
-
-  it('the mock templates are fresh copies', async () => {
-    const ux = new MockUxBackend(new MockBackend({ latency: false }));
-    const a = at(await ux.profileTemplates(), 0);
-    a.name = 'changed';
-    expect(at((await ux.profileTemplates()), 0).name).not.toBe('changed');
   });
 });

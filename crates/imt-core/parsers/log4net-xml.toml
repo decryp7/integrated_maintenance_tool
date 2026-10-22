@@ -1,0 +1,11 @@
+# log4net XmlLayout / log4j XML events, read by the Formats plugin's importer.
+schema = 1
+id = "log4net-xml"
+name = "log4net / log4j XML"
+version = "1.0.0"
+category = ".NET"
+description = "XML events from log4net's XmlLayout (or log4j's schema), read by the Formats plugin: logger, thread, level and message, with exceptions."
+
+[format]
+kind = "log4j-xml"
+identity = ["Logger", "Thread"]

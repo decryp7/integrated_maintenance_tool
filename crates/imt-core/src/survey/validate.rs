@@ -513,8 +513,14 @@ fn parse<S: SurveyStore + ?Sized>(store: &S, survey: &FolderSurvey, c: &Candidat
         .find(|g| g.extension == ext)
         .filter(|g| !g.sample_lines.is_empty())
         .ok_or("there are no sample lines to try it on")?;
+    let parser = super::fragment::parser_drafts(&c.fragments)
+        .map_err(|e| format!("{e:#}"))?
+        .into_iter()
+        .next()
+        .ok_or("it adds no format")?;
     let req = ParsePreviewRequest {
-        toml: toml.to_string(),
+        toml: parser,
+        profile: toml.to_string(),
         sample: group.sample_lines.join("\n"),
         file_name: group.sample_file.clone().unwrap_or_default(),
         limit: 200,

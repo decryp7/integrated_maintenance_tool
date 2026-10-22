@@ -268,7 +268,7 @@ describe('FlowOverview and form integration', () => {
     const fixture = TestBed.createComponent(ProfileForm);
     await settle(fixture);
     const helps: string[] = [];
-    for (const label of ['Files', 'Parsing', 'Instance', 'Extractors', 'Pipeline', 'Markers', 'Charts']) {
+    for (const label of ['Files', 'Instance', 'Extractors', 'Pipeline', 'Markers', 'Charts']) {
       all<HTMLButtonElement>(fixture, '.nav-item').find((b) => b.textContent?.includes(label))!.click();
       await settle(fixture);
       const q = el<HTMLButtonElement>(fixture, '.body imt-help .q');
@@ -277,7 +277,7 @@ describe('FlowOverview and form integration', () => {
       await settle(fixture);
       expect(el(fixture, '.body imt-help .tip').textContent!.length).toBeGreaterThan(20);
     }
-    expect(helps).toEqual(['Help: Files', 'Help: Parsing', 'Help: Instance', 'Help: Field extractors', 'Help: Pipeline', 'Help: Markers', 'Help: Charts']);
+    expect(helps).toEqual(['Help: Files', 'Help: Instance', 'Help: Field extractors', 'Help: Pipeline', 'Help: Markers', 'Help: Charts']);
   });
 
   it('FlowOverview shows zero counts without a workspace', async () => {

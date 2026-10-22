@@ -730,11 +730,29 @@ impl PluginRegistry {
     /// Compiles a profile against the installed plugins: their transforms
     /// and their marker kinds (see [`markers`]).
     pub fn compile_profile(&self, profile: crate::profile::Profile) -> Result<crate::profile::CompiledProfile> {
-        let mut compiled = crate::profile::CompiledProfile::compile_with(profile, &self.transforms)?;
+        self.compile_profile_for(profile, &crate::parser::builtin::generic())
+    }
+
+    /// [`PluginRegistry::compile_profile`] with a parser (ADR 0026).
+    pub fn compile_profile_for(
+        &self,
+        profile: crate::profile::Profile,
+        parser: &crate::parser::Parser,
+    ) -> Result<crate::profile::CompiledProfile> {
+        let mut compiled = crate::profile::CompiledProfile::compile_for(profile, parser, &self.transforms)?;
         let notes = markers::apply(&mut compiled, &self.marker_kinds)?;
         compiled.resolve_spans();
         *self.marker_notes.lock().unwrap_or_else(|p| p.into_inner()) = notes;
         Ok(compiled)
+    }
+
+    /// The parser library compiled with `profile` against the installed plugins.
+    pub fn compile_parsers(
+        &self,
+        profile: &crate::profile::Profile,
+        setup: &crate::parser::ParserSetup,
+    ) -> Result<crate::parser::ParserSet> {
+        crate::parser::ParserSet::compile(profile, setup, &|p, parser| self.compile_profile_for(p, parser))
     }
 
     /// Bits of `markers` that may be shown now (kinds of unavailable plugins are hidden).

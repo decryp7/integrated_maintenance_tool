@@ -121,6 +121,16 @@ fn decode_head(head: &[u8], encoding: Encoding, start: usize, whole: bool) -> St
     text
 }
 
+/// The decoded start of a file the parsers are scored on (at most [`crate::parser::set::SCORE_CHARS`]
+/// characters, from the first 256 KiB), or `None` when it does not look like text.
+pub fn score_text(head: &[u8], whole: bool) -> Option<String> {
+    const SCORE_BYTES: usize = 256 * 1024;
+    let (encoding, data_start) = detect_encoding(head);
+    let cut = head.len() > SCORE_BYTES;
+    let text = decode_head(&head[..head.len().min(SCORE_BYTES)], encoding, data_start as usize, whole && !cut);
+    (!looks_binary(&text)).then(|| text.chars().take(crate::parser::set::SCORE_CHARS).collect())
+}
+
 /// Plans reading a file from its first bytes (`head`, at most [`HEAD_BYTES`]; `whole` when that is the
 /// entire file). The error is the reason shown for an unrecognised file.
 pub fn plan(importers: &Importers, ctx: &ImportCtx, head: &[u8], whole: bool) -> Result<FilePlan, String> {
@@ -230,11 +240,11 @@ pub fn scan_chunk_starts<R: Read>(mut reader: R, encoding: Encoding, data_start:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::profile::{CompiledProfile, Profile};
+    use crate::profile::CompiledProfile;
     use std::path::Path;
 
     fn compiled(toml: &str) -> CompiledProfile {
-        CompiledProfile::compile(Profile::from_toml(toml).unwrap()).unwrap()
+        crate::parser::testing::compiled(toml)
     }
 
     fn plan_of(profile: &CompiledProfile, bytes: &[u8], whole: bool) -> Result<FilePlan, String> {
@@ -249,7 +259,7 @@ mod tests {
     #[test]
     fn plans_text_with_format_and_day_order() {
         let p = compiled(
-            "[parse]\nregexes = ['^(?P<timestamp>\\d\\d/\\d\\d/\\d{4} \\d\\d:\\d\\d:\\d\\d) (?P<message>.*)$']\noutput_templates = []",
+            "[format]\nregexes = ['^(?P<timestamp>\\d\\d/\\d\\d/\\d{4} \\d\\d:\\d\\d:\\d\\d) (?P<message>.*)$']\noutput_templates = []",
         );
         let plan = plan_of(&p, b"03/04/2026 10:00:00 a\n25/04/2026 10:00:00 b\n", true).unwrap();
         assert_eq!(plan.importer, "text");
@@ -264,7 +274,7 @@ mod tests {
         assert!(plan.multiline && plan.splittable);
         assert_eq!((plan.encoding, plan.data_start), (Encoding::Utf8, 0));
         // The profile's day order wins.
-        let p = compiled("[parse]\nday_first = false\nregexes = ['^(?P<timestamp>\\d\\d/\\d\\d/\\d{4} \\d\\d:\\d\\d:\\d\\d) (?P<message>.*)$']\noutput_templates = []");
+        let p = compiled("[format]\nday_first = false\nregexes = ['^(?P<timestamp>\\d\\d/\\d\\d/\\d{4} \\d\\d:\\d\\d:\\d\\d) (?P<message>.*)$']\noutput_templates = []");
         let plan = plan_of(&p, b"25/04/2026 10:00:00 b\n", true).unwrap();
         assert!(matches!(
             plan.kind,
@@ -278,7 +288,7 @@ mod tests {
     #[test]
     fn time_only_text_is_not_splittable() {
         let p =
-            compiled("[parse]\noutput_templates = [\"[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}\"]\nregexes = []");
+            compiled("[format]\noutput_templates = [\"[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}\"]\nregexes = []");
         let plan = plan_of(&p, b"[23:59:59 INF] late\n", true).unwrap();
         assert!(matches!(plan.kind, PlanKind::Text { time_only: true, .. }));
         assert!(!plan.splittable);
@@ -313,7 +323,7 @@ mod tests {
             plan_of(&p, &[0u8, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 1, 2, 3], true).unwrap_err(),
             "binary file"
         );
-        let forced = compiled("[parse]\nformat = 'text'\nregexes = ['^(?P<timestamp>NEVER) (?P<message>.*)$']\noutput_templates = []");
+        let forced = compiled("[format]\nkind = 'text'\nregexes = ['^(?P<timestamp>NEVER) (?P<message>.*)$']\noutput_templates = []");
         assert_eq!(
             plan_of(&forced, b"2026-10-14 10:00:00 INFO a\n", true).unwrap_err(),
             "no output template or regex in the profile matches this file"

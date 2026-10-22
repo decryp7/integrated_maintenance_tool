@@ -227,6 +227,10 @@ export class Sidebar {
       const file = s.routedFrom;
       lines.push($localize`:@@shell.sidebar.sourceTitle.routedFrom:Split from ${file}:file: by a profile route`);
     }
+    if (s.parser) {
+      const parser = s.parser;
+      lines.push($localize`:@@shell.sidebar.sourceTitle.parser:Read with the parser ${parser}:parser:`);
+    }
     for (const p of s.problems ?? []) lines.push(problemText(p));
     lines.push(range);
     return lines.join('\n');
@@ -309,12 +313,20 @@ export class Sidebar {
       r ? r.bottom : event.clientY,
       [
         ...this.files.items(s),
+        { label: $localize`:@@shell.sidebar.menu.parseWith:Parse with…`, run: () => void this.parseWith(s) },
         { label: $localize`:@@shell.sidebar.menu.addNote:Add note…`, run: () => void this.noteActions.write(anchors.source(s.path)) },
         { label: $localize`:@@shell.sidebar.menu.adjustClock:Adjust clock…`, run: () => this.adjustClock(s) },
         { label: $localize`:Context menu item@@shell.sidebar.menu.remove:Remove`, run: () => void this.store.removeSource(s.id) },
       ],
       anchor,
     );
+  }
+
+  /** Explorer ▸ "Parse with…": read this source again with another parser of the library (ADR 0026). */
+  protected async parseWith(s: SourceInfo): Promise<void> {
+    const { ParseWithDialog } = await import('../settings/parsers/parse-with-dialog');
+    const name = s.name;
+    this.dialogs.open(ParseWithDialog, { title: $localize`:@@shell.sidebar.dialog.parseWith:Parse ${name}:name: with`, inputs: { source: s }, width: 520 });
   }
 
   protected async openLive(): Promise<void> {

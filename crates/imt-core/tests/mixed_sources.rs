@@ -288,11 +288,11 @@ impl BatchSink for Counting {
 #[test]
 fn the_streaming_import_reads_the_file_the_same_way() {
     let importers = Importers::default();
-    let profile = CompiledProfile::compile(Profile::default_profile()).unwrap();
+    let profile = imt_core::parser::ParserSet::of_compiled(CompiledProfile::compile(Profile::default_profile()).unwrap());
     let cancel = AtomicBool::new(false);
     let env = ImportEnv {
         importers: &importers,
-        profile: &profile,
+        parsers: &profile,
         schema: Arc::new(EventSchema::plain()),
         cancel: &cancel,
     };

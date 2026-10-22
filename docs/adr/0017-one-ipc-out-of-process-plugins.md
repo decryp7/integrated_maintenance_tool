@@ -6,7 +6,7 @@
   transport part of [ADR 0002](0002-microkernel-and-process-isolation.md) ("Wire protocol for out-of-process
   plugins": gRPC, Arrow IPC inside gRPC, in-process by default with opt-in isolation)
 - Related: ADR 0014 (store worker, event batches), ADR 0016 (path grants, jobs, `CmdError`), ADR 0019 (.NET
-  profiling: the ETW collector needs administrator rights), redesign plan R3 (`docs/redesign-2026-10.md`)
+  profiling: the ETW collector needs administrator rights), redesign plan R3
 
 ## Context
 
@@ -163,7 +163,7 @@ it; a path the user did not choose is refused with `notGranted`. Outputs a tool 
 
 | | Windows | Linux | macOS |
 |---|---|---|---|
-| Memory | job object `ProcessMemoryLimit` | `RLIMIT_DATA` (memory used; not `RLIMIT_AS`, which counts malloc arena reservations) | `RLIMIT_AS` (advisory on macOS) |
+| Memory | resident memory watched by the host (`watch_memory`, `imt-ipc` `process.rs`); no rlimit or job limit, because both count the reservations that allocators such as mimalloc make up front (changed 2026-10-21; an elevated child caps itself with a job object) | the same watcher | the same watcher |
 | CPU | job CPU rate cap; per-process user time | `RLIMIT_CPU` | `RLIMIT_CPU` |
 | Child processes | job `ActiveProcessLimit = 1` unless allowed | `RLIMIT_NPROC` / seccomp `fork` denied | profile `process-fork` denied |
 | Network | (not enforced; low integrity cannot reach the app's pipes) | seccomp: `socket(AF_INET/AF_INET6)` → `EACCES` | profile `network*` denied |
@@ -311,7 +311,7 @@ What landed, and where it differs from the text above:
   elevated .NET process writes into the captures folder of that host-given data folder under a file name it
   checks; it never writes at a path it receives.
 
-Deferred (tracked in `docs/redesign-2026-10.md`, R3):
+Deferred (tracked in docs/roadmap.md, "Open items from the 2026-10 redesign plan"):
 
 - Splitting `imt-ai` into `imt-ai-proto` / `imt-ai-runtime` / `imt-ai` / `imt-browser-agent`, one `SafeHttp`, the
   assistant on the `Query`/`Analysis` ports (§8); the worker already links only `imt-ai`'s worker module and

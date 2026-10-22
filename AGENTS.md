@@ -14,20 +14,20 @@ Apply these deliberately. They are not decoration:
 - **Open/closed.** Extend by adding, not editing: new file formats are new `Importer`
   implementations registered in `Importers`; new behaviour for users is profile
   configuration (extractors, markers, charts), not hard-coded special cases.
-- **Liskov.** Every `Importer`, `LogStore` or UI backend implementation must honour the
+- **Liskov.** Every `Importer`, `Store` (and its port traits) or UI backend implementation must honour the
   documented contract of its trait/interface: same error semantics, no surprising panics.
 - **Interface segregation.** Keep traits and TypeScript interfaces small and purpose-built;
   don't make consumers depend on methods they don't use.
 - **Dependency inversion / code against abstractions.**
-  - The Tauri shell depends on the `LogStore` trait, never on a concrete store, so the
-    in-memory engine can be replaced (e.g. by DuckDB) without touching commands or the UI.
+  - The Tauri shell depends on the `imt_core::ports::Store` traits, never on a concrete store, so the
+    store engine (DuckDB in the store worker today) can be replaced without touching commands or the UI.
   - Importers are reached only through the `Importer` trait.
   - Angular components never call Tauri `invoke` directly: they go through the backend
     service injected by DI token (real Tauri backend or the mock for browser dev/tests),
     and state lives in SignalStores.
 - **Pure core, thin edges.** Parsing, query evaluation, geometry, formatting and zoom math
   are pure functions that are trivially unit-testable; I/O and framework glue stay thin.
-- **Ports and adapters.** `imt-core` is the core; `Importer` and `LogStore` are its ports;
+- **Ports and adapters.** `imt-core` is the core; `Importer` and `Store` (`imt_core::ports`) are its ports;
   Tauri, future stores (DuckDB) and file-format plugins are adapters. The core never
   depends on an adapter.
 - **Parse, don't validate.** Convert untrusted input (file bytes, IPC JSON, profile TOML)
@@ -73,7 +73,7 @@ The app reads untrusted, possibly huge files and renders their content:
 - **The Rust engine is the single source of truth** for data and behaviour: parsing, timestamp
   handling, profiles and pipelines, filtering and the query language, aggregation, analysis
   (anomalies, patterns, exceptions, comparisons), exports, projects and plugins. Results are
-  computed in Rust and returned through `LogStore` and Tauri commands.
+  computed in Rust and returned through the `Store` ports and Tauri commands.
 - **Angular is the presentation layer**: layout, interaction state (selection, zoom, open panels,
   unsaved form edits), rendering and formatting of what the engine returns. It must not
   re-implement domain rules. If the UI needs a computation (e.g. a parse preview, a validation,

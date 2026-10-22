@@ -136,7 +136,8 @@ fn profile_proposal_is_compiled_and_previewed() {
     assert!(p.parsed >= 38 && p.with_timestamp >= 38, "{} {}", p.parsed, p.with_timestamp);
     assert!(p.toml.contains("Thread") && p.importer.is_some());
     assert_eq!(p.preview.len(), 5);
-    assert!(imt_core::Profile::from_toml(&p.toml).is_ok());
+    let parser = imt_core::parser::Parser::from_toml(&p.toml).unwrap();
+    assert_eq!((parser.id.as_str(), parser.format.kind.as_str()), ("custom-billing", "text"));
     assert!(a.provider().requests()[0].messages[0].content.contains("billing.log"));
 }
 
@@ -156,7 +157,8 @@ fn a_regex_that_does_not_fit_is_replaced_by_the_one_the_engine_assembled() {
 fn files_the_built_in_settings_already_read_need_no_model() {
     let a = assistant(&[]);
     let p = a.propose_profile(store(), &billing_sample(40), "billing.log").unwrap();
-    assert_eq!(p.name, "Built-in profile");
+    assert_eq!(p.name, "Built-in parsers");
+    assert!(p.toml.is_empty(), "nothing to add to the library");
     assert!(p.parsed >= 38 && p.rationale.contains("already read"));
     assert!(a.provider().requests().is_empty(), "the model was not asked");
 }

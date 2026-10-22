@@ -3,7 +3,7 @@
 This page ties together the design diagrams in [`docs/diagrams/`](diagrams/). The decisions behind
 them are in [ADR 0001](adr/0001-architecture.md); extension points are in [plugins.md](plugins.md);
 planned work is in [roadmap.md](roadmap.md). In short: a Rust engine (`crates/imt-core`) behind the
-`LogStore` and `Importer` ports, a thin Tauri 2 shell (`app/src-tauri`), and an Angular UI
+store ports (`imt_core::ports`) and `Importer` port, a thin Tauri 2 shell (`app/src-tauri`), and an Angular UI
 (`app/src/app`) that only talks to the engine through the `ImtBackend` service.
 
 The diagrams follow [diagrams/STYLE.md](diagrams/STYLE.md): planned work (not built yet) is drawn
@@ -13,18 +13,24 @@ multiple windows, live tail and annotations in text.
 ## Overview
 
 The Rust engine is the single source of truth for data and behaviour; Angular only presents what the
-engine returns. The Tauri shell depends on the `LogStore` trait and importers on the `Importer` trait
-(ports and adapters), so the in-memory store can later be replaced without touching commands or UI.
+engine returns. The Tauri shell depends on the store ports (`imt_core::ports`: `Ingest`, `Query`, `Analysis`,
+`Profiles`, `Search`, `Projects` and others, combined as `Store`) and importers on the `Importer` trait (ports and
+adapters). The store behind the ports is DuckDB, hosted in a separate worker process
+([ADR 0014](adr/0014-database-first-engine.md)): events are imported once into Parquet segments with a DuckDB catalog
+and a Tantivy full-text index, so the app process holds only the page on screen, never the records. The in-memory
+`Workspace` (with the older `LogStore` trait) is kept as the reference implementation that the DuckDB store is tested
+against, and for engine tests that need no database.
 
 ```mermaid
 flowchart LR
   files["Log files<br/>(untrusted)"] --> imp["Importers<br/>(Importer trait)"]
-  plugins["Plugins<br/>(registry, windows, web, otel, syslog,<br/>tools, profiling)"] -. "guarded adapters" .-> imp
+  plugins["Plugins (own sandboxed processes:<br/>registry, windows, web, otel, syslog,<br/>tools, profiling, dumps, third party)"] -. "guarded adapters" .-> imp
   subgraph core["imt-core (Rust engine)"]
     imp --> prof["Profile: extract, pipeline, markers"]
-    prof --> ws["Workspace<br/>(LogStore)"]
+    prof --> ws["Store ports<br/>(imt_core::ports)"]
     ws --> q["Query, timeline, charts,<br/>analysis, export"]
   end
+  ws -. "imt-ipc frames" .- worker["Store worker<br/>(DuckDB + Tantivy)"]
   subgraph shell["app/src-tauri (Tauri 2 shell)"]
     cmds["Commands (validate IPC)"]
   end
@@ -69,7 +75,11 @@ flowchart LR
 | `imt-plugin-registry`, `-windows`, `-web`, `-formats`, `-otel`, `-syslog` | plugins | Format importers, marker kinds, annotators and configuration parsers. `-windows` also has the Process Monitor CSV and minidump importers and the Event Log follower; `-formats` has log4j/log4net/NLog XML, SQL Server ERRORLOG, Docker json-file and Kubernetes CRI. |
 | `imt-plugin-api`, `imt-plugin-host`, `imt-plugins`, `imt-ipc` | contract, host adapter, plugins binary, transport | Every plugin runs in its own sandboxed process ([ADR 0017](adr/0017-one-ipc-out-of-process-plugins.md)): `imt-plugin-api` is the contract plugins depend on (no `imt-core`), `imt-plugin-host` the adapter that starts them and registers proxy contributions into the `PluginRegistry`, `imt-plugins` the binary that serves every built-in (`--plugin <id>`, `--manifests`), and `imt-ipc` the frames, supervisor, launcher and sandbox shared with the AI and store workers. |
 | `imt-ai`, `imt-ai-worker` | library, worker process | The local AI layer (including the internal browser's rules, [ADR 0011](adr/0011-internal-browser.md)) and the worker that runs a downloaded `llama-server` ([ADR 0009](adr/0009-prebuilt-llama-server-runtimes.md)). |
-| `imt-store-spike` | spike (outside the workspace) | DuckDB and DataFusion measurements behind [ADR 0010](adr/0010-persistent-store.md); see [store-spike.md](store-spike.md). |
+| `imt-store-duck`, `imt-store-client`, `imt-store-worker`, `imt-batch` | the store ([ADR 0014](adr/0014-database-first-engine.md)) | `imt-store-duck` is the DuckDB store: events as Parquet segments with a DuckDB catalog, queries compiled to SQL, a Tantivy full-text index (word and prefix matches first, then partial matches; the query language's `contains` stays a substring test), projects as the store folder (`.imtz`, which opens without the original logs). `imt-store-worker` hosts every window's store in a supervised child process (2 GiB hard cap); `imt-store-client` is IMT's side (`RemoteStore` over `imt-ipc`, no DuckDB linked); `imt-batch` is the event batch (stable ids, the fixed Arrow schema) importers, store and plugins share. |
+| `imt-alloc` | library | The global allocator of the binaries that parse and analyse (the app, the store worker, the plugins process): mimalloc v3 with v2's purge timing set at start-up. |
+| `imt-notes`, `imt-dump`, `imt-etw`, `imt-symbols` | libraries | Notes anchored to events, times, sources and image regions ([ADR 0021](adr/0021-notes.md)); the crash dump and UMDH engine ([ADR 0023](adr/0023-dumps-and-umdh.md)); ETW decoders and the NetTrace writer, and native symbols ([ADR 0022](adr/0022-native-profiling.md)). |
+| `imt-plugin-dotnet`, `imt-plugin-native`, `imt-plugin-dumps` | plugins | .NET profiling by ETW and EventPipe ([ADR 0019](adr/0019-dotnet-profiling.md)), native profiling ([ADR 0022](adr/0022-native-profiling.md)), dump and UMDH readers and the dump capture tool ([ADR 0023](adr/0023-dumps-and-umdh.md)). |
+| `imt-plugin-package`, `imt-plugin-test`, `imt-plugin-e2e`, `cargo-imt-plugin` | plugin SDK ([ADR 0027](adr/0027-plugin-sdk.md)) | The signed `.imtplugin` package format, the test harness for plugin authors, end-to-end tests of a third-party plugin, and the `cargo imt-plugin` tool. See [plugin-sdk.md](plugin-sdk.md). |
 | `app/src-tauri` (`imt-app`) | shell | Tauri commands, windows, tray, sessions; depends on ports only. |
 
 The engine modules added for sharing and analysis are `redact/` (one redactor for the redacted
@@ -86,20 +96,35 @@ view, exports, reports and bundles), `report/` (versioned report model, Markdown
 | ADR | Decision |
 |---|---|
 | [0001](adr/0001-architecture.md) | Desktop architecture: Rust engine, Tauri shell, Angular UI. |
-| [0002](adr/0002-microkernel-and-process-isolation.md) | Small core, everything else a plugin; native code out of process. Its wire protocol (gRPC, opt-in isolation) is superseded by 0017. |
-| [0003](adr/0003-plugin-dependencies-services-events.md) | Plugin dependencies, services, extension points and events. |
+| [0002](adr/0002-microkernel-and-process-isolation.md) | Small core, everything else a plugin; native code out of process. Amended: its wire protocol, in-process default and opt-in isolation are superseded by 0017. |
+| [0003](adr/0003-plugin-dependencies-services-events.md) | Plugin dependencies, services, extension points and events (engine-internal machinery since 0017; plugins cannot use it). |
 | [0004](adr/0004-stable-plugin-abi.md) | Superseded by 0017. Stable plugin ABI: protobuf and gRPC for plugin processes (the WebAssembly tier was dropped on 2026-10-18). |
 | [0005](adr/0005-headless-agent.md) | Headless collection agent (`imt-agent`). |
 | [0006](adr/0006-clock-skew-applied-on-load.md) | Clock-skew offsets are applied when records enter the workspace. |
 | [0007](adr/0007-reports-pdf-and-redaction.md) | Incident reports: engine-side model, HTML and pure-Rust PDF; one redactor. |
 | [0008](adr/0008-menus-one-model-native-on-macos.md) | Menus: one model, native on macOS. |
 | [0009](adr/0009-prebuilt-llama-server-runtimes.md) | AI inference runs the official prebuilt `llama-server`, downloaded on demand. |
-| [0010](adr/0010-persistent-store.md) | Amended by 0014. A persistent DuckDB store in a worker process with a Tantivy index. |
+| [0010](adr/0010-persistent-store.md) | Amended by 0014. A persistent DuckDB store in a worker process with a Tantivy index (after a spike that is no longer in the repository). |
 | [0011](adr/0011-internal-browser.md) | The AI gets web content only through an internal browser the user drives (no AI web search); pages get no IPC. Amended by 0012: read-only research mode; by 0024: docked panel. |
 | [0012](adr/0012-jobs.md) | Jobs and notifications: every long task is a job with per-kind queues and limits in Rust; a notification centre for what needs attention; research mode as a job. |
-| [0013](adr/0013-ai-browsing-banner.md) | "AI is browsing" while agent mode or research drives the browser; the state comes from the browser hub. Superseded by 0024: the banner is the Browser panel's header. |
+| [0013](adr/0013-ai-browsing-banner.md) | Superseded by 0024. "AI is browsing" while agent mode or research drives the browser; now the Browser panel's header. |
+| [0014](adr/0014-database-first-engine.md) | Database-first engine: DuckDB is the only store, in a store worker; imports stream in parallel; projects are self-contained `.imtz` files. Amends 0010. Implemented (phase 6c). |
+| [0015](adr/0015-ai-update-checks.md) | Update checks for AI runtimes and models. |
+| [0016](adr/0016-shell-command-table-typed-contract-services.md) | Shell: one command table, typed contract, one error type, Tauri-free services, path grants. |
 | [0017](adr/0017-one-ipc-out-of-process-plugins.md) | One IPC: framed postcard over a private local stream; plugins and workers only out of process and sandboxed; supersedes 0004 and the transport of 0002. |
-| [0024](adr/0024-docked-browser.md) | The internal browser is a docked Browser panel: a child webview (multi-webview) kept over the panel's page area, hidden behind IMT overlays, capabilities scoped by webview label; Linux gets a page window of its own. The AI drafts the search text, checked by the leak guard and shown before it is searched. |
+| [0018](adr/0018-themes.md) | Themes: token sets plus traits; Calm (default), Console and Precision. |
+| [0019](adr/0019-dotnet-profiling.md) | .NET profiling by ETW and EventPipe, written as one NetTrace path. |
+| [0020](adr/0020-mixed-sources.md) | Mixed sources: per-line formats, logical sources and per-source instance keys. |
+| [0021](adr/0021-notes.md) | Notes anchored anywhere, including regions of images. Bookmarks became saved queries. |
+| [0022](adr/0022-native-profiling.md) | Native (C/C++) profiling by ETW and suspend-and-sample as NetTrace, with one symbol library. |
+| [0023](adr/0023-dumps-and-umdh.md) | Crash and memory dumps and UMDH heap logs: a sandboxed reader plugin, an engine crate, problem-first views. |
+| [0024](adr/0024-docked-browser.md) | The internal browser is a docked Browser panel (child webview, multi-webview); the AI drafts the search text. Amends 0011, supersedes 0013. |
+| [0025](adr/0025-vision-one-model.md) | Vision: one model reads text and images; the engine finds the related logs. |
+| [0026](adr/0026-parser-library.md) | Parsers are individual TOML files in a library, matched per file; profiles keep the analysis. |
+| [0027](adr/0027-plugin-sdk.md) | A Rust-only plugin SDK; third-party plugins as signed, contained `.imtplugin` packages. |
+| [0028](adr/0028-native-feel.md) | Native feel: IMT's windows behave like a desktop application, not a web page. |
+| [0029](adr/0029-knowledge-files.md) | Knowledge files: the user's Markdown notes as background for every AI feature. |
+
 
 ## Plugin runtime (ADR 0003, ADR 0017)
 
@@ -239,7 +264,7 @@ and fill pattern, not colour alone); clicking one applies its evidence query.
 | [uml-seq-open-folder](diagrams/uml-seq-open-folder.drawio) | `open_paths`: files are imported in parallel (archive, importer selection, ingest), merged, indexed and announced to hooks; the UI polls progress and can cancel. |
 | [uml-seq-query-timeline](diagrams/uml-seq-query-timeline.drawio) | A filter change fanning out to the grid, timeline and chart queries (side-effect free; stale replies are dropped), a marker click with an anchored page and `source_context`, and the query panel, which streams progress and can be cancelled. |
 | [uml-seq-moment](diagrams/uml-seq-moment.drawio) | What happened around a moment: `MomentView` asks `query_moment` for the selected range; `Workspace::moment` summarises it against the window before it. |
-| [uml-seq-plugin-registration](diagrams/uml-seq-plugin-registration.drawio) | Each window builds a `PluginRegistry`: built-ins run out of process over `imt-ipc` frames (the diagram predates ADR 0017 and still shows gRPC); every contribution is wrapped in a `Guarded*` adapter before the `Workspace` compiles the profile. |
+| [uml-seq-plugin-registration](diagrams/uml-seq-plugin-registration.drawio) | Each window builds a `PluginRegistry`: every built-in plugin runs in its own sandboxed process over `imt-ipc` frames (the `.drawio` was updated on 2026-10-22; the SVG used by design.md still shows the old gRPC labels until it is re-exported with draw.io); every contribution is wrapped in a `Guarded*` adapter before the `Workspace` compiles the profile. |
 | [uml-activity-ingest](diagrams/uml-activity-ingest.drawio) | Ingest of one file (`import_file`, `import_bytes`, `CompiledProfile::ingest`: extractors, pipeline, markers). Every failure lists the file as unrecognised with its reason; the rest of the import continues. |
 | [uml-state-perfmon](diagrams/uml-state-perfmon.drawio) | A Data Collector Set as IMT drives it: `PerfmonController` (`imt-plugin-tools`) runs `logman`; the Performance Monitor view installs, starts, stops, queries, deletes and imports its output. |
 | [uml-state-live-tail](diagrams/uml-state-live-tail.drawio) | `set_live` drives a live-tail worker per window; `Workspace::refresh_tail` follows changed files and evaluates live alerts. |

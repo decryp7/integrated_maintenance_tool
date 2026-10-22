@@ -18,16 +18,9 @@ import { execFileSync } from 'node:child_process';
 import { chmodSync, copyFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { fetchLibduckdb } from './libduckdb.mjs';
 
 export const SIDECARS = ['imt-ai-worker', 'imt-plugins', 'imt-store-worker'];
-
-/** The variables fetch-libduckdb.sh exports for the build (its `export NAME='value'` lines); the rest is ignored. */
-export function libduckdbEnv(script) {
-  const env = {};
-  for (const m of script.matchAll(/(DUCKDB_(?:LIB|INCLUDE)_DIR)='([^']*)'/g)) env[m[1]] = m[2];
-  if (!env.DUCKDB_LIB_DIR) throw new Error(`fetch-libduckdb.sh printed no DUCKDB_LIB_DIR:\n${script}`);
-  return env;
-}
 
 /** The file name of the prebuilt libduckdb for a target triple. */
 export function libduckdbFile(target) {
@@ -57,7 +50,7 @@ export function sidecarPlan({ target, host, profile, targetDir }) {
   return { builds, binaries, ext };
 }
 
-function main() {
+async function main() {
   const app = join(dirname(fileURLToPath(import.meta.url)), '..');
   const root = join(app, '..');
   const args = process.argv.slice(2);
@@ -80,10 +73,10 @@ function main() {
 
   // The store worker links libduckdb: fetch the pinned library unless the caller already did (CI, the docs).
   if (!process.env.DUCKDB_LIB_DIR) {
+    // In Node, not the shell script: Windows has no bash.
     const script = join(root, 'crates', 'imt-store-duck', 'scripts', 'fetch-libduckdb.sh');
-    console.log(`DUCKDB_LIB_DIR is not set: fetching libduckdb with ${script}`);
-    const out = execFileSync('bash', [script, join(targetDir, 'libduckdb')], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
-    Object.assign(process.env, libduckdbEnv(out));
+    console.log('DUCKDB_LIB_DIR is not set: fetching the pinned libduckdb');
+    Object.assign(process.env, await fetchLibduckdb(script, join(targetDir, 'libduckdb')));
   }
   const { builds, binaries, ext } = sidecarPlan({ target, host, profile, targetDir });
   for (const argv of builds) run('cargo', argv);
@@ -109,4 +102,4 @@ function main() {
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

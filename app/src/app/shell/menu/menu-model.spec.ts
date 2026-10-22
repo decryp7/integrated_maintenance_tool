@@ -53,7 +53,7 @@ const COMMANDS: [string, string, string?][] = [
   ['skew.adjust', "Adjust clock of the selected event's source…"],
   ['tools.collect', 'Collect diagnostics bundle…'],
   ['diagnostics.capture', 'Capture diagnostic screenshot', 'Mod+Shift+F12'],
-  ['profile.newFromTemplate', 'New profile from template…'],
+  ['parsers.manage', 'Manage parsers…'],
   ['app.restartSafeMode', 'Restart in safe mode'],
   ['window.layout.save', 'Save window layout…'],
   ['window.layout.apply', 'Apply window layout…'],

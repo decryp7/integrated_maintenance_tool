@@ -7,7 +7,8 @@ import { ProfileDraft } from './profile-draft';
 import { ProfileForm } from './profile-form';
 import { TomlEditor } from './toml-editor';
 import { ProfileHistory } from './history/profile-history';
-import { TemplatesService } from '../templates/templates.service';
+import { SettingsDialogService } from '../settings/settings-dialog';
+import { PARSERS_ID } from '../settings/parsers/parsers.types';
 
 @Component({
   selector: 'imt-profile-editor',
@@ -32,7 +33,7 @@ import { TemplatesService } from '../templates/templates.service';
         <button role="tab" class="btn" [class.active]="mode() === 'toml'" [attr.aria-selected]="mode() === 'toml'" (click)="mode.set('toml')">TOML</button>
         <button role="tab" class="btn" [class.active]="mode() === 'history'" [attr.aria-selected]="mode() === 'history'" (click)="mode.set('history')" i18n="@@profile.editor.tab.history">History</button>
       </div>
-      <button class="btn ghost" [disabled]="draft.dirty()" [title]="templateHint()" (click)="fromTemplate()" i18n="@@profile.editor.fromTemplate">New from template…</button>
+      <button class="btn ghost" data-testid="profile-parsers" title="File formats are parsers: Settings ▸ Parsers" i18n-title="@@profile.editor.parsersHint" (click)="openParsers()" i18n="@@profile.editor.parsers">Parsers…</button>
       <imt-ai-button label="Propose…" i18n-label="@@profile.editor.propose" [disabled]="draft.dirty()" [hint]="proposeHint()" testId="ai-profile-propose" (pressed)="proposeWithAi()" />
       <button class="btn ghost" (click)="draft.importFile()" i18n="@@profile.editor.import">Import…</button>
       <button class="btn ghost" (click)="draft.exportFile()" i18n="@@profile.editor.export">Export…</button>
@@ -81,16 +82,11 @@ import { TemplatesService } from '../templates/templates.service';
 export class ProfileEditor {
   protected readonly draft = inject(ProfileDraft);
   protected readonly mode = signal<'form' | 'toml' | 'history'>('form');
-  private readonly templates = inject(TemplatesService);
+  private readonly settings = inject(SettingsDialogService);
   private readonly ai = inject(AiLauncher);
   private readonly workspace = inject(WorkspaceStore);
 
   protected readonly builtInDefault = $localize`:@@profile.editor.builtInDefault:built-in default`;
-  protected readonly templateHint = computed(() =>
-    this.draft.dirty()
-      ? $localize`:@@profile.editor.saveFirst:Save or revert your edits first`
-      : $localize`:@@profile.editor.templateHint:Start from a ready-made profile for a common log format`,
-  );
   protected readonly proposeHint = computed(() =>
     this.draft.dirty()
       ? $localize`:@@profile.editor.saveFirst:Save or revert your edits first`
@@ -110,9 +106,9 @@ export class ProfileEditor {
     void this.ai.propose('pipeline', { recordId: this.workspace.selected()?.id ?? null }, '', { chooseKind: true });
   }
 
-  /** Opens the templates gallery; a template that was applied is loaded into the editor. */
-  protected async fromTemplate(): Promise<void> {
-    if (await this.templates.open()) await this.draft.load();
+  /** How files are read is the parsers' business (ADR 0026): Settings ▸ Parsers. */
+  protected openParsers(): void {
+    this.settings.open(PARSERS_ID);
   }
 
   protected onKey(e: KeyboardEvent): void {

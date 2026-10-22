@@ -1,0 +1,10 @@
+# IIS W3C extended logs (u_ex*.log), read by the Web plugin's W3C importer: the #Fields header names the columns.
+schema = 1
+id = "iis-w3c"
+name = "IIS W3C extended"
+version = "1.0.0"
+category = "Web servers"
+description = "IIS access logs (u_ex*.log) in the W3C extended format, read by the Web plugin: method, URL, status, client and time taken as fields."
+
+[format]
+kind = "w3c"

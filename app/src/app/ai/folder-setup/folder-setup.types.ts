@@ -140,7 +140,8 @@ export type ProposalOrigin = 'heuristic' | 'ai';
  * keys, see `default_profile.toml`); the UI shows them and sends them back, and the engine re-validates.
  */
 export type Fragment =
-  | { kind: 'parseRegex'; regex: string }
+  /** A new parser (ADR 0026) for the format of `fileName`, from a line regex. */
+  | { kind: 'parseRegex'; regex: string; fileName: string }
   | { kind: 'instanceKey'; key: string[] }
   | { kind: 'extractor'; extractor: Record<string, unknown> }
   | { kind: 'marker'; marker: Record<string, unknown> }
@@ -211,6 +212,8 @@ export type DiffOp = 'same' | 'add' | 'remove';
 
 export interface ComposedProfile {
   toml: string;
+  /** New parser TOMLs the selected fragments add to the library (format proposals do not change the profile). */
+  parsers: string[];
   diff: { op: DiffOp; text: string }[];
   added: number;
   removed: number;

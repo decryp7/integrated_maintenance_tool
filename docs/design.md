@@ -145,7 +145,9 @@ compiled into the profile; safe mode.
 
 ![Plugin registration sequence](diagrams/svg/uml-seq-plugin-registration.svg)
 
-Source: [uml-seq-plugin-registration.drawio](diagrams/uml-seq-plugin-registration.drawio)
+Source: [uml-seq-plugin-registration.drawio](diagrams/uml-seq-plugin-registration.drawio). Note: the source was
+updated for ADR 0017 (imt-ipc frames instead of gRPC); this SVG still shows the older labels until it is re-exported
+with `scripts/export-diagrams.sh`.
 
 ## States
 

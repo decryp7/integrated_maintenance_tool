@@ -1,0 +1,10 @@
+# Apache httpd / Nginx access logs in the combined or common format, read by the Web plugin's importer.
+schema = 1
+id = "access-combined"
+name = "Apache / Nginx access (combined)"
+version = "1.0.0"
+category = "Web servers"
+description = "Access logs in the combined or common format used by Apache httpd and Nginx, read by the Web plugin: client, user, request, status and size."
+
+[format]
+kind = "access-log"

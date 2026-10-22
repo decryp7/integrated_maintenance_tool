@@ -86,8 +86,10 @@ pub(crate) fn preview(
     name: &str,
 ) -> std::result::Result<(String, ParsePreview), String> {
     let toml = toml::to_string(profile).map_err(|e| format!("the profile cannot be written: {e}"))?;
+    // The candidate profile with the parser the library chooses for the sample.
     let req = ParsePreviewRequest {
-        toml: toml.clone(),
+        toml: String::new(),
+        profile: toml.clone(),
         sample: sample.to_string(),
         file_name: name.to_string(),
         limit: 1000,

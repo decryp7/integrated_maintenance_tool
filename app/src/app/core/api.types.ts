@@ -24,7 +24,7 @@
  *   export_events          { request: ExportRequest }      -> number   (an export job; built-in formats "csv" and "clef")
  *   source_context         { request: ContextRequest }     -> SourceContext (original lines around an event)
  *   read_file_head         { path: string, maxBytes?: number } -> string   (only files in the workspace)
- *   preview_parse          { request: ParsePreviewRequest } -> ParsePreview
+ *   preview_parse          { request: ParsePreviewRequest } -> ParsePreview  (request.toml is a parser TOML, ADR 0026)
  *   set_live               { enabled: boolean, options?: LiveOptions } -> number (watched folders; call again after opening more files)
  *   tail_status            {}                              -> TailStatus    (per-file live tail state and totals)
  *   live_state             {}                              -> LiveState     (live tail on/off and its effective options)
@@ -39,7 +39,7 @@
  *   plugin_events          {}                              -> SubscriberMetrics[] (event-bus delivery counters per subscriber)
  *
  * Analysis commands: see the "Analysis" section below. Error snapshot commands: see "Error snapshots". Dump and UMDH
- * commands (`dumps_*`): see "Dumps".
+ * commands (`dumps_*`): see "Dumps". Parser library commands (`parsers_*`, `parser_*`): see "Parsers".
  *
  * Events (Tauri): "imt://workspace-changed" (payload `TailReport`; listeners must accept none) after live tail changed the workspace
  * (at most about four per second); "imt://live-alert" (`LiveAlert`) for each alert a live refresh raised;
@@ -90,6 +90,8 @@ export interface SourceInfo {
   routedFrom?: string | null;
   /** Import problems of this source, one entry per kind (the engine always sends it, maybe empty). */
   problems?: SourceProblem[];
+  /** Id of the library parser that read the source (ADR 0026); null or absent when none did. */
+  parser?: string | null;
 }
 
 /**
@@ -157,13 +159,13 @@ export interface TimestampIssue {
   suggestion: TimestampSuggestion | null;
 }
 
-/** A strftime format for `[parse] timestamp_formats`, verified by the engine to parse the sample lines. */
+/** A strftime format for a parser's `[format] timestamp_formats`, verified by the engine to parse the sample lines. */
 export interface TimestampSuggestion {
   format: string;
   /** The timestamp text of the first sample, as the format reads it. */
   sample: string;
-  /** The profile lines that add the format. */
-  profileSnippet: string;
+  /** The parser lines that add the format: a `[format]` fragment (`[format]\ntimestamp_formats = ["%a %b %d %H:%M:%S %Y"]\n`). */
+  parserSnippet: string;
   /** Sample lines (without a readable timestamp) the format reads. */
   parsedSamples: number;
   /** Sample lines the format was checked against. */
@@ -644,8 +646,10 @@ export interface SourceContext {
 }
 
 export interface ParsePreviewRequest {
-  /** Candidate profile (may be unsaved). */
+  /** Candidate parser TOML (may be unsaved); empty = the parser the library would choose for the sample. */
   toml: string;
+  /** Candidate profile TOML (may be unsaved); empty or absent = the active profile. */
+  profile?: string;
   /** Sample content, e.g. the first lines of a file. */
   sample: string;
   fileName: string;
@@ -670,6 +674,8 @@ export interface ParsePreview {
   skipped: number;
   dropped: number;
   error: string | null;
+  /** Id of the library parser that read the sample (ADR 0026); null for a candidate parser or none. */
+  parser?: string | null;
 }
 
 // ---- Regex assistance -----------------------------------------------------------------------
@@ -2476,12 +2482,11 @@ export interface BundleOpened {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Ease of use: import progress, profile history and templates, the demo, overwrite protection
-// (crates/imt-core/src/{workspace,templates}, app/src-tauri/src/{workspace_commands,profile}.rs)
+// Ease of use: import progress, profile history, the demo, overwrite protection
+// (crates/imt-core/src/workspace, app/src-tauri/src/{workspace_commands,profile}.rs)
 //   import_progress    {}                         -> ImportProgress   (readable while an import runs)
 //   profile_history    {}                         -> ProfileVersionInfo[]  (newest first, at most 20)
 //   profile_version    { file }                   -> ProfileDoc       (not applied until saved again)
-//   profile_templates  {}                         -> ProfileTemplate[]  (ready-made profiles, built into the engine)
 //   demo_paths         {}                         -> string[]         (the bundled sample folders; empty when not installed)
 //
 // Every command that writes a file the user chose takes `overwrite` (default false): export_events
@@ -2528,22 +2533,6 @@ export interface ProfileVersionInfo {
   savedAtMs: number | null;
 }
 
-/** A ready-made profile for a common log format (crates/imt-core/templates). */
-export interface ProfileTemplate {
-  id: string;
-  name: string;
-  /** One or two sentences: which logs it reads and what it sets up. */
-  description: string;
-  /** Groups templates in the gallery, e.g. ".NET", "Web servers", "System", "Generic". */
-  category: string;
-  /** The profile. Applied only through validate + save. */
-  toml: string;
-  /** File name of its sample, used as `fileName` when previewing `sampleText`. */
-  sampleName: string;
-  /** A few lines in the format, for a preview when no file of the user's is chosen. */
-  sampleText: string;
-}
-
 // ---- Cancellable queries -------------------------------------------------------------------
 
 /**
@@ -2585,8 +2574,8 @@ export type ProblemKind =
 /** An engine-proposed fix of an import problem (Rust `ports::DiagnosticFix`). */
 export interface DiagnosticFix {
   title: string;
-  /** TOML merged over the active profile. */
-  profileOverride: string;
+  /** A `[format]` fragment merged over the parser of the affected sources. */
+  parserOverride: string;
   timestamp?: TimestampSuggestion;
 }
 
@@ -2604,9 +2593,9 @@ export interface DiagnosticRow {
   fix?: DiagnosticFix;
 }
 
-/** A proposed profile override for some sources (`evaluate_fix` argument `fix`). */
+/** A proposed parser override for some sources (`evaluate_fix` argument `fix`): a `[format]` fragment merged over their parser. */
 export interface QuickFix {
-  profileOverride: string;
+  parserOverride: string;
   sources?: number[];
 }
 
@@ -2860,6 +2849,44 @@ export type {
   UmdhTreeRequest,
 } from './generated/dumps';
 
+// ---- Parsers (ADR 0026; app/src-tauri/src/parsers.rs, crates/imt-core/src/parser) ----
+// A parser is one TOML file describing one log format; the library holds the built-in parsers, the user's and
+// overrides of built-ins. Parsing, validation, matching and drafting are the engine's; the UI sends TOML text and ids.
+//   parsers_list        {}                                         -> ParserLibraryDto   (stale = sources of this window read with a
+//                                                                     parser that has since changed, been disabled or removed)
+//   parser_get          { id }                                     -> ParserDocDto
+//   parser_validate     { toml }                                   -> ParserValidationDto   (errors with line/column)
+//   parser_save         { toml, previousId?: string|null, overwrite?: boolean } -> ParserLibraryDto
+//                       (creates/updates a user parser; saving with a built-in's id creates an override; if a USER parser
+//                       with that id exists and previousId !== id and !overwrite it fails with code "fileExists"; retry with overwrite)
+//   parser_duplicate    { id }                                     -> ParserDocDto      (a saved copy with a new id, e.g. "<id>-copy")
+//   parser_remove       { id }                                     -> ParserLibraryDto  (user parsers and overrides only; removing
+//                                                                     an override restores the built-in)
+//   parser_set_enabled  { id, enabled }                            -> ParserLibraryDto
+//   parser_import_check { path }                                   -> ParserImportCheckDto  (reads + validates a .toml the user
+//                                                                     picked; relation vs the library)
+//   parser_export       { id, path, overwrite?: boolean }          -> void   (FILE_EXISTS without overwrite)
+//   parser_draft        { request: ParserDraftRequest }            -> ParserDocDto   (the format wizard's candidate: a new parser
+//                                                                     from a regex or Serilog template, or a copy of `base` with a
+//                                                                     timestamp format added; NOT saved)
+//   parsers_reread      {}                                         -> number   (job id: re-reads this window's stale sources and
+//                                                                     retries unrecognised files)
+//   parser_assign       { sourceId, parserId: string | null }      -> number   (job id: "Parse with…" re-reads one source with that
+//                                                                     parser; null = automatic choice)
+export type {
+  BrokenParserDto,
+  ParserDocDto,
+  ParserDraftRequest,
+  ParserEntryDto,
+  ParserErrorDto,
+  ParserExistingDto,
+  ParserImportCheckDto,
+  ParserLibraryDto,
+  ParserOrigin,
+  ParserRelation,
+  ParserSourceDto,
+  ParserValidationDto,
+} from './generated/parsers';
 // Notes (ADR 0021): generated from `imt_notes` and `notes::commands`.
 export type {
   Note,

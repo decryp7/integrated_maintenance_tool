@@ -31,19 +31,32 @@ files ──▶ archive expansion (.gz/.zip) ──▶ importer (binary first, t
 
 Every extension point sits on one of these arrows, so a plugin never needs to know about the others.
 
-## Level 1: profiles (no code)
+## Level 1: parsers and profiles (no code)
 
-A profile is a TOML file describing how files are parsed and enriched. The built-in default,
-`crates/imt-core/src/default_profile.toml`, documents every key, and
+A **parser** is a TOML file describing one log format: how IMT recognises its files and how their lines
+become events (ADR 0026). Parsers live in the library (Settings ▸ Parsers), can be shared as files, and IMT
+picks one per file. The built-in `crates/imt-core/parsers/generic.toml` documents every key:
+
+```toml
+schema = 1
+id = "orders"
+name = "Order service"
+version = "1.0.0"
+[match]
+files = ["orders-*.log"]
+[format]                              # teach IMT a text layout (Serilog outputTemplate or regex)
+kind = "text"
+output_templates = ["{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{MachineName}] {Message:lj}{NewLine}{Exception}"]
+```
+
+A **profile** is a TOML file describing how events are analysed and enriched, whatever their format. The
+built-in default, `crates/imt-core/src/default_profile.toml`, documents every key, and
 `samples/profiles/orderservice.imtprofile.toml` is a worked example. In the app, the Profile panel
 edits profiles as a form or TOML, with live previews.
 
 Common tasks:
 
 ```toml
-[parse]                               # teach IMT a text layout (Serilog outputTemplate or regex)
-output_templates = ["{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{MachineName}] {Message:lj}{NewLine}{Exception}"]
-
 [[extract]]                           # numbers out of text, usable in charts and filters
 name = "latency"
 regex = 'took (?P<ElapsedMs>[\d.]+) ?ms'
@@ -513,9 +526,13 @@ The details are in [ADR 0017](adr/0017-one-ipc-out-of-process-plugins.md); what 
   `Welcome` with its own protocol version, then reads the manifest. A wrong token or process id closes the
   connection; a protocol it cannot serve is refused with a message saying which side to update.
 - **Sandbox.** The launcher starts the child with a cleared environment inside the sandbox of `sandbox_for`:
-  Windows runs it under a job object (memory, CPU and child-process limits) at low integrity; Linux uses
-  rlimits, landlock and a seccomp filter that denies network sockets and `execve`; macOS uses a sandbox
-  profile. Permissions widen it as in the table above.
+  Windows runs it under a job object (CPU and child-process limits) at low integrity; Linux uses
+  `RLIMIT_CPU`, landlock and a seccomp filter that denies network sockets and `execve`; macOS uses a sandbox
+  profile. Permissions widen it as in the table above. The memory cap (1 GiB unless the manifest asks for more, at most
+  4 GiB) is the same on every platform: a host watcher (`watch_memory` in `crates/imt-ipc/src/process.rs`) reads the
+  child's resident memory and stops it over the cap with a message that says so. There are no memory rlimits, because
+  they count the address space that allocators such as mimalloc reserve up front. File confinement is kept on all
+  platforms: landlock and seccomp on Linux, an AppContainer on Windows, a sandbox profile on macOS.
 - **Host files.** For a file, the host opens it and the plugin reads ranges through the connection
   (up to 1 MiB per read, for the duration of the call); the plugin sees a file reference and a name, never a
   path, unless it was granted `OpenedFilePaths`.

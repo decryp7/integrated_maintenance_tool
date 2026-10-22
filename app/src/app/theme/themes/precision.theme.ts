@@ -1,7 +1,7 @@
 import { ThemeDef } from '../theme.types';
 
 /**
- * Precision instrument (docs/design/tokens-precision.md): maximum data, minimum ink. Paper and ink surfaces, one cobalt
+ * Precision instrument: maximum data, minimum ink. Paper and ink surfaces, one cobalt
  * accent, 2 px radii, hairlines instead of shadows, mono numerals, barcode lane density and bracket runs, and the
  * tightest rows. For experts comparing many instances on big screens.
  *

@@ -20,17 +20,23 @@ contributors are in [AGENTS.md](../AGENTS.md); the design is in [architecture.md
   - *macOS:* Xcode Command Line Tools.
   - *Windows:* Microsoft C++ Build Tools and the WebView2 runtime. The installer is NSIS only (`tauri build`
     fetches NSIS itself).
-- **libduckdb 1.5.6** (the store, ADR 0014), prebuilt and checksum-verified by
-  `crates/imt-store-duck/scripts/fetch-libduckdb.sh` (never compiled: the `bundled` feature needs several GB of
-  RAM). Every cargo build of the workspace needs it; in each shell, before cargo:
+- **libduckdb 1.5.6** (the store, ADR 0014), the official prebuilt library, never compiled (the `bundled` feature
+  needs several GB of RAM). The pins (version, assets, SHA-256) live in
+  `crates/imt-store-duck/scripts/fetch-libduckdb.sh`. Every cargo build of the workspace needs
+  `DUCKDB_LIB_DIR`/`DUCKDB_INCLUDE_DIR`; in each shell, before cargo, either:
 
   ```sh
-  eval "$(bash crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+  eval "$(bash crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"   # sh, CI
+  node app/scripts/libduckdb.mjs                                                                  # any OS: prints the lines to run
   ```
 
-  It sets `DUCKDB_LIB_DIR`/`DUCKDB_INCLUDE_DIR` and puts the library on `PATH` / `LD_LIBRARY_PATH` /
-  `DYLD_LIBRARY_PATH`, where the store worker (`imt-store-worker`) finds it in development builds; installers
-  ship it next to the worker.
+  `node app/scripts/libduckdb.mjs [cache-dir]` is the way on Windows, which has no bash: it reads the same pins from
+  the script, checks the SHA-256 before unpacking, and prints PowerShell lines (`$env:DUCKDB_LIB_DIR = ...`, and the
+  library folder added to `PATH`) or `export` lines for sh. `npm run tauri build` and
+  `node app/scripts/build-sidecars.mjs` fetch the library themselves when `DUCKDB_LIB_DIR` is not set. The sidecar
+  build copies the library into the installer's `lib/` resource folder and also next to the built store worker, so an
+  app run straight from the target folder (development, the end-to-end builds) finds it. The worker finds it on
+  `PATH` / `LD_LIBRARY_PATH` / `DYLD_LIBRARY_PATH` otherwise.
 
 ### Develop
 
@@ -227,6 +233,21 @@ default query (`System.TimeoutException`); use neutral text only, never anything
 real-app smoke job on the nightly schedule and on manual runs, never on pushes or pull requests: engines rate-limit
 automated traffic, so keep runs rare.
 
+### Allocator and memory budgets
+
+The binaries that parse and analyse (the app, `imt-store-worker`, `imt-plugins`) use **mimalloc v3** through the
+`imt-alloc` crate: each declares `imt_alloc::MiMalloc` as its global allocator and calls `imt_alloc::tune()` first
+thing in `main`. mimalloc v3 keeps freed memory for a second before returning it to the OS, which added 150-200 MB to
+the worker's import peak, so `tune()` sets v2's purge timing (10 ms). The options are set in code because the
+workers start with a cleared environment (no `MIMALLOC_*` variables). Measurements: ADR 0014's performance notes.
+
+Budgets (ADR 0014; tests measure peak resident memory and fail above them): the app process stays flat, under
+250 MB whatever the data size; the store worker stays under 300 MB idle or querying and under 768 MB while importing;
+the store worker is stopped at a **2 GiB hard cap**. Plugin processes have a cap in their manifest (1 GiB by default,
+at most 4 GiB). Every cap is enforced the same way on every platform: the host (`watch_memory` in
+`crates/imt-ipc/src/process.rs`) watches the child's resident memory and stops it over the limit with a message that
+says so. There are no memory rlimits: they count address space that allocators reserve up front.
+
 ### UI responsiveness rules
 
 - Dock panels are attached to Angular's change detection only while visible (`dock/angular-panel.ts`): a hidden
@@ -258,7 +279,7 @@ Gitea Actions workflows live in [`.gitea/workflows/`](../.gitea/workflows/):
   4. *release*: on a `v*` tag, creates a Gitea release with all installers, release notes
      (git-cliff), CycloneDX SBOMs for the Rust and UI dependencies and the signed updater manifest
      `latest.json` ([docs/releasing.md](releasing.md)).
-- **`fuzz.yml`** fuzzes every parser nightly (and on demand) in four shards and uploads reproducers on failure.
+- **`fuzz.yml`** fuzzes every parser nightly (and on demand) in five shards and uploads reproducers on failure.
 - **`bench.yml`** runs the engine benchmarks on pushes to `main` that change `crates/imt-core`, nightly and
   on demand, and uploads the criterion report.
 - **`mutants.yml`** runs cargo-mutants weekly over `imt-core` and, on pull requests, over the changed lines.
@@ -288,27 +309,44 @@ scope). Dependencies are updated by Renovate, which also pins CI actions to comm
 │   ├── imt-core/                  engine: importers, profile, query/ql, workspace (live tail), analysis,
 │   │                              export, redaction, reports, dashboards, bundles, clock skew, config diff,
 │   │                              templates, plugin runtime, event bus
+│   ├── imt-batch/                 the event batch: stable ids, the fixed Arrow schema, a validated builder
+│   ├── imt-alloc/                 the global allocator (mimalloc v3) and its start-up tuning
+│   ├── imt-store-duck/            the store (ADR 0014): Parquet segments, DuckDB catalog and SQL, Tantivy search
+│   ├── imt-store-client/          IMT's side of the store worker: protocol, supervision, `RemoteStore` (no DuckDB)
+│   ├── imt-store-worker/          the store worker process hosting every window's store
+│   ├── imt-ipc/                   the one IPC (ADR 0017): frames, supervisor, launcher, sandbox, memory watcher
+│   ├── imt-plugin-api/            the contract plugins build against (never `imt-core`); the SDK crate
+│   ├── imt-plugin-host/           starts plugin processes and registers their contributions in the engine
+│   ├── imt-plugins/               the binary that serves every built-in plugin (`--plugin <id>`)
+│   ├── imt-plugin-package/        the signed `.imtplugin` package format (ADR 0027)
+│   ├── imt-plugin-test/           test harness for plugin authors (the real launcher and sandbox)
+│   ├── imt-plugin-e2e/            end-to-end tests of a third-party plugin from package to import
+│   ├── cargo-imt-plugin/          `cargo imt-plugin`: new, test, package, sign
 │   ├── imt-plugin-registry/       .reg importer
 │   ├── imt-plugin-windows/        .evtx, msinfo32 .nfo, Performance Monitor (.csv/.blg), Process Monitor CSV and
 │   │                              minidump import, Event Log follower, Windows marker kinds and annotators
 │   ├── imt-plugin-tools/          tools plugin: Performance Monitor templates and logman control, process
 │   │                              monitor, Event Log follower, diagnostics collector, elevation
-│   ├── imt-profile/               profiling engine (pure): profile and heap model, every profiling view
-│   ├── imt-plugin-profiling/      capture importers: nettrace, perf script, folded, pprof, Chrome, speedscope,
-│   │                              heapsnapshot
 │   ├── imt-plugin-web/            IIS/W3C, Apache/Nginx, HAR
 │   ├── imt-plugin-formats/        log4j/log4net/NLog XML, SQL Server ERRORLOG, Docker json-file, Kubernetes CRI
 │   ├── imt-plugin-otel/           OpenTelemetry OTLP/JSON
 │   ├── imt-plugin-syslog/         syslog and journald
+│   ├── imt-profile/               profiling engine (pure): profile and heap model, every profiling view
+│   ├── imt-plugin-profiling/      capture importers: nettrace, perf script, folded, pprof, Chrome, speedscope,
+│   │                              heapsnapshot
+│   ├── imt-plugin-dotnet/         .NET profiling by ETW and EventPipe (ADR 0019)
+│   ├── imt-plugin-native/         native profiling by ETW or suspend-and-sample (ADR 0022)
+│   ├── imt-etw/, imt-symbols/     ETW decoders and the NetTrace writer; PDB/DbgHelp symbols
+│   ├── imt-dump/                  dump and UMDH engine (ADR 0023); `imt-plugin-dumps` holds the readers
+│   ├── imt-notes/                 notes anchored to events, times, sources and image regions (ADR 0021)
+│   ├── imt-ai/, imt-ai-worker/    local AI layer (assistant, browser rules, knowledge, vision) and its worker
 │   ├── imt-monitor/               process monitor with .NET runtime counters (library and `imt-monitor` CLI)
 │   ├── imt-collect/               diagnostics collector (library and `imt-collect` CLI)
 │   ├── imt-agent/                 headless scheduled/triggered collection (library, CLI and service)
-│   ├── imt-pdf/                   PDF output of incident reports (pdf-writer + svg2pdf, embedded fonts)
-│   ├── imt-store-duck/            the store (ADR 0014): Parquet segments, DuckDB catalog and SQL, Tantivy search
-│   ├── imt-store-client/          IMT's side of the store worker: protocol, supervision, `RemoteStore` (no DuckDB)
-│   ├── imt-store-worker/          the store worker process hosting every window's store
-│   └── imt-store-spike/           persistent-store spike (DuckDB, DataFusion); excluded from the workspace
-├── docs/                          architecture, roadmap, backlog, plugins, fuzzing, ADRs, draw.io diagrams, screenshots
+│   └── imt-pdf/                   PDF output of incident reports (pdf-writer + svg2pdf, embedded fonts)
+├── examples/plugins/              one example plugin per kind (importer, transform, tool, collector, annotator)
+├── xtask/                         `cargo xtask` (gen-samples and other tasks)
+├── docs/                          architecture, roadmap, plugins, fuzzing, ADRs, draw.io diagrams, screenshots
 ├── fuzz/                          cargo-fuzz targets
 ├── samples/                       generated sample logs, profiler captures (profiling/) and an example profile
 ├── scripts/

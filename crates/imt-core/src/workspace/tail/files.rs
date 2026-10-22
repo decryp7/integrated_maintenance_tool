@@ -88,7 +88,7 @@ impl Workspace {
     pub(super) fn reimport(&mut self, id: u32, st: &mut TailState, reason: &str, delta: &mut Delta, report: &mut TailReport) {
         let name = self.source_name(id).to_string();
         let path_s = st.path.to_string_lossy().into_owned();
-        let results = import_file(&self.registry.importers, &self.profile, &st.path, &name, &self.removed);
+        let results = import_file(&self.registry.importers, &self.parsers, &st.path, &name, &self.removed);
         match results.into_iter().find(|(p, ..)| *p == path_s).map(|(_, _, r)| r) {
             Some(Ok(loaded)) => {
                 delta.remove_from(id, None);
@@ -242,7 +242,7 @@ impl Workspace {
         let mut rest = Vec::new();
         for path in files {
             let seed = crate::guard::catch("IMT", || Ok(self.seed_at_end(&path))).ok().flatten();
-            let Some((importer, seed)) = seed else {
+            let Some((importer, seed, parser)) = seed else {
                 rest.push(path);
                 continue;
             };
@@ -254,13 +254,17 @@ impl Workspace {
                 0,
                 Vec::new(),
             );
+            if let Some(s) = self.sources.last_mut() {
+                s.parser = Some(parser.id.clone());
+            }
+            self.parser_refs.insert(id, parser);
             self.tail.track(id, &path, &name, seed);
         }
         self.sources.sort_by(|a, b| a.name.cmp(&b.name));
         rest
     }
 
-    fn seed_at_end(&self, path: &Path) -> Option<(String, TailSeed)> {
+    fn seed_at_end(&self, path: &Path) -> Option<(String, TailSeed, crate::ports::ParserRef)> {
         let len = std::fs::metadata(path).ok()?.len();
         let src = FileBytes { path, len };
         let head = src.read(0, HEAD_TEXT_BYTES).ok()?;
@@ -270,8 +274,20 @@ impl Workspace {
         let file_date = mtime(path)
             .and_then(|t| t.duration_since(std::time::SystemTime::UNIX_EPOCH).ok())
             .and_then(|d| crate::time::utc_date_of(d.as_millis() as i64));
+        let text = crate::ingest::score_text(&head, head.len() as u64 == len)?;
+        let source = path.to_string_lossy();
+        let name = display_name(path, &self.roots);
+        let candidate = crate::parser::set::Candidate {
+            source: &source,
+            path,
+            rel: &name,
+            file_date,
+            bytes: &head,
+            text: Some(&text),
+        };
+        let choice = self.parsers.choose(&candidate, &self.registry.importers).ok()?;
         let ctx = ImportCtx {
-            profile: &self.profile,
+            profile: choice.profile,
             path,
             file_date,
         };
@@ -308,6 +324,7 @@ impl Workspace {
                     importer: importer.id().to_string(),
                 },
             },
+            choice.reference.clone(),
         ))
     }
 }

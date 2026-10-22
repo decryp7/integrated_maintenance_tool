@@ -115,6 +115,10 @@ pub(crate) struct Engine {
     current: RwLock<Option<Current>>,
     /// The profile a new store starts with (the window's).
     profile: Mutex<Profile>,
+    /// The parser library every store of the window reads with (ADR 0026; the app's, shared by all windows).
+    parsers: Mutex<imt_core::parser::ParserSetup>,
+    /// Sources of the store read with a parser that has since changed (the last library change said so).
+    stale_parsers: Mutex<usize>,
     /// The import report of the last import (load time, problems).
     last_report: Mutex<Option<imt_core::ports::ImportReport>>,
     /// The running import's progress (`import_progress`), as its job last read it.
@@ -132,6 +136,8 @@ impl Engine {
             label: label.to_string(),
             current: RwLock::default(),
             profile: Mutex::new(profile),
+            parsers: Mutex::new(imt_core::parser::ParserSetup::builtins()),
+            stale_parsers: Mutex::new(0),
             last_report: Mutex::default(),
             progress: Mutex::new(imt_core::workspace::ProgressSnapshot::stopped()),
         }
@@ -158,11 +164,39 @@ impl Engine {
         let dir = self.scratch_dir();
         let profile = crate::sync::lock(&self.profile).clone();
         let store = self.host.create(&dir, &profile).map_err(|e| unavailable(&e))?;
+        self.hand_parsers(store.as_ref());
         *slot = Some(Current {
             store: store.clone(),
             kind: StoreKind::Scratch,
         });
         Ok(store)
+    }
+
+    /// Hands the window's parser library to `store`; remembers how many of its sources need reading again.
+    fn hand_parsers(&self, store: &dyn Store) {
+        let setup = crate::sync::lock(&self.parsers).clone();
+        match store.set_parsers(&setup) {
+            Ok(stale) => *crate::sync::lock(&self.stale_parsers) = stale.len(),
+            Err(e) => log::warn!("the parser library could not be handed to the store: {e}"),
+        }
+    }
+
+    /// The parser library changed: new stores read with `setup`, and the open store is told at once.
+    pub(crate) fn set_parsers(&self, setup: imt_core::parser::ParserSetup) {
+        *crate::sync::lock(&self.parsers) = setup;
+        if let Some(store) = self.opened() {
+            self.hand_parsers(store.as_ref());
+        }
+    }
+
+    /// Sources of the open store read with a parser that has since changed.
+    pub(crate) fn stale_parsers(&self) -> usize {
+        *crate::sync::lock(&self.stale_parsers)
+    }
+
+    /// The stale sources were read again.
+    pub(crate) fn clear_stale_parsers(&self) {
+        *crate::sync::lock(&self.stale_parsers) = 0;
     }
 
     /// The store if one is open (no worker start): for cheap questions such as "is anything loaded".
@@ -188,6 +222,7 @@ impl Engine {
 
     /// Makes `store` the window's store; the one before is closed (and its scratch folder deleted).
     pub(crate) fn replace(&self, store: SharedStore, kind: StoreKind) {
+        self.hand_parsers(store.as_ref());
         let previous = crate::sync::write(&self.current).replace(Current { store, kind });
         if let Some(p) = previous {
             retire(p);

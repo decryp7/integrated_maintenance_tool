@@ -27,8 +27,8 @@ Write down the platform, build and anything that differs from the expected resul
 
 | # | Steps | Expected |
 |---|-------|----------|
-| 11 | macOS: double-click an `.imtproj` (or "Open with → IMT") while IMT runs. | Follows *Open files from other apps in*. With IMT not running, it starts and opens the project in the first window (no extra empty window). |
-| 12 | Windows/Linux: double-click an `.imtproj` while IMT runs. | Same as 1 to 4 (it is a second launch). |
+| 11 | macOS: double-click an `.imtz` project (or "Open with → IMT") while IMT runs. | Follows *Open files from other apps in*. With IMT not running, it starts and opens the project in the first window (no extra empty window). |
+| 12 | Windows/Linux: double-click an `.imtz` project while IMT runs. | Same as 1 to 4 (it is a second launch). |
 | 13 | macOS: hide every window in the tray, then click the Dock icon. | A window is shown again. |
 
 ## Windows
@@ -103,7 +103,7 @@ Child processes' standard error and start/exit lines go to `<IMT log folder>/chi
 
 | # | Steps | Expected |
 |---|-------|----------|
-| 45 | Turn plugin isolation on, open the samples, then *Help ▸ Report a problem…*. | The file list shows `manifest.json`, `processes.json`, `session-recovery.json` and `logs/children/plugin-host-*.log` with summaries such as "Isolated plugin: 1 run, running". |
+| 45 | Open the samples, then *Help ▸ Report a problem…*. | The file list shows `manifest.json`, `processes.json`, `session-recovery.json` and `logs/children/plugin-host-*.log` with summaries such as "Isolated plugin: 1 run, running". |
 | 46 | Ask the AI assistant something, kill `llama-server` in Task Manager / `kill -9`, ask again, then report a problem. | `logs/children/llama-server.log` has a `Crashed: llama-server … ended with …` line and a second `Started llama-server (… run 2)`; `processes.json` shows 1 restart. No prompt text and no API key appear in any child log. |
 | 47 | Close IMT. Run `imt-app --export-diagnostics` (debug: with `IMT_DATA_DIR` set) from a terminal. | No window opens; the zip's path is printed (in Documents, else Downloads) and the exit code is 0. |
 | 48 | Run `imt-app --export-diagnostics out.zip` twice, then with `--force`; then `imt-app --export-diagnostics missing/out.zip` and `… out.txt`. | The second run fails (exit 1, "already exists; add --force"); `--force` replaces it; the missing folder and the wrong extension fail with a message saying what to fix. |
@@ -154,6 +154,17 @@ grows). *Tools ▸ Profile native process…* lists it.
 ETW automated tests (elevated shell): `set IMT_ETW_TESTS=1`, then
 `cargo test -p imt-plugin-native --test real_process -- --ignored --nocapture`.
 
+## Dumps, projects and third-party plugins
+
+| # | Steps | Expected |
+|---|-------|----------|
+| 72 | Open `samples/dumps/OrderService.exe.4120.full.dmp` (File ▸ Open dump…, then again by drag and drop). | The Dump view opens with the crash cause and the likely culprit frame; threads, modules and findings are listed. Opening a file that is not a dump says so and names the file. |
+| 73 | Open the three `samples/dumps/umdh/OrderService-4120-snap-*.txt` files with File ▸ Open UMDH snapshots…. | The UMDH heap growth view lists the growing stacks, the module and culprit-function groupings and the findings. |
+| 74 | Windows: Tools ▸ Create dump of process… on a running process of your own (a small dump), into a folder you choose. Then try a protected process. | A `.dmp` appears in the folder and opens in the Dump view. The protected process fails with a message that offers *Restart as administrator*; nothing is injected into the target. |
+| 75 | Save a project (`Ctrl/⌘+S`) of the samples as `.imtz`, close IMT, move the `samples` folder away, open the project. | It opens with its events, profile, notes and layout; search, the timeline and analyses work; the search box finds words in a moment, with a *+N* partial count. |
+| 76 | Build a plugin with `cargo imt-plugin new` and `cargo imt-plugin package`; in the Plugins panel choose *Install from file*. | An unsigned package is refused with a message about developer mode. With developer mode on (Settings ▸ Plugin trust) it installs after a warning that shows the publisher and the requested permissions. A revoked permission restarts the plugin with fewer rights. |
+| 77 | With a plugin installed, kill its process from the Task Manager / `kill -9`, then use the plugin again. | The call fails with an error naming the plugin; the next use starts a new process; IMT keeps running. |
+
 ## Smoke tests of the real app (WebdriverIO + tauri-driver)
 
 `app/e2e-tauri/` holds a few automated smoke tests of the real app: the Rust engine, the Tauri shell and the
@@ -189,7 +200,7 @@ with "session not created"); pass a version to pin one.
 Build and run (from `app/`):
 
 ```sh
-npm run e2e:tauri:build      # sidecars (imt-ai-worker, imt-plugins) + tauri build --debug --no-bundle, in <target>/debug
+npm run e2e:tauri:build      # sidecars (imt-ai-worker, imt-plugins, imt-store-worker, with libduckdb) + tauri build --debug --no-bundle, in <target>/debug
 npm run e2e:tauri            # Windows
 xvfb-run -a npm run e2e:tauri   # Linux (CI also wraps it in dbus-run-session)
 ```
