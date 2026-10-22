@@ -35,3 +35,13 @@ export function progressLine(p: ImportProgress): string {
   if (eta) parts.push(eta);
   return parts.join(' · ');
 }
+
+/**
+ * The status-bar sentence: "Importing 3 of 12 files · …", or "Scanning for files…" while the engine has not counted
+ * them yet (a folder is still being walked), instead of a "0 of 0 files" that reads as broken.
+ */
+export function importStatusText(p: ImportProgress): string {
+  if (p.total <= 0) return $localize`:@@import.format.scanning:Scanning for files…`;
+  const line = progressLine(p);
+  return $localize`:@@import.format.importing:Importing ${line}:line:`;
+}

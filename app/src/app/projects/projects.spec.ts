@@ -68,6 +68,22 @@ describe('ProjectService', () => {
     expect(document.title).toBe('● Untitled — IMT');
   });
 
+  it('shows no unsaved dot when an untitled project has nothing open, e.g. after Close workspace (E2)', async () => {
+    const { projects, store, picker } = await setup();
+    store.patchQuery({ text: 'x' }); store.setTextInput('x');
+    expect(projects.dirty()).toBe(true);
+    await store.clearWorkspace();
+    expect(store.summary()?.sources).toEqual([]);
+    expect(projects.dirty()).toBe(false);
+    expect(projects.title()).toBe('Untitled — IMT');
+    // A saved project that was emptied still has unsaved changes.
+    picker.save = '/p/empty.imtz';
+    await store.openPaths(['/demo/extra']);
+    await projects.saveAs();
+    await store.clearWorkspace();
+    expect(projects.dirty()).toBe(true);
+  });
+
   it('ignores selection and layout changes for the unsaved flag, but not sources', async () => {
     const { projects, store } = await setup();
     store.jumpTo(1);

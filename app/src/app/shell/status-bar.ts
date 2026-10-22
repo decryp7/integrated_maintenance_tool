@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { formatCount, tzLabel } from '../core/format';
+import { formatDuration } from '../shared/format/units';
+import { WorkspaceStatusStore } from '../core/workspace/status.store';
 import { WorkspaceStore } from '../core/workspace.store';
 import { LiveTail } from '../workspace/live-tail';
 import { BackgroundWork } from '../windowing/background-work';
@@ -13,8 +15,9 @@ import { ProblemsBadge } from '../problems/problems-badge';
   imports: [BackgroundWork, ImportStatus, StatusJobs, ProblemsBadge],
   template: `
     @if (store.summary(); as s) {
+      @if (s.sources.length) {
       <span class="strong" i18n="@@shell.statusBar.sources">{s.sources.length, plural, =1 {{{ s.sources.length }} source} other {{{ s.sources.length }} sources}}</span>
-      <span class="keep" i18n="@@shell.statusBar.events">{{ fmt(s.total) }} events</span>
+      <span class="keep" [title]="indexedTitle(s.loadMs)" i18n="@@shell.statusBar.events">{{ fmt(s.total) }} events</span>
       @if (s.untimed > 0) {
         <span data-testid="status-untimed" title="Events without a timestamp: in the grid, not on the timeline" i18n-title="@@shell.statusBar.untimedTitle" i18n="@@shell.statusBar.untimed">{{ fmt(s.untimed) }} without a time</span>
       }
@@ -26,10 +29,19 @@ import { ProblemsBadge } from '../problems/problems-badge';
         <span class="dropped" title="Events removed by the profile pipeline" i18n-title="@@shell.statusBar.droppedTitle" i18n="@@shell.statusBar.dropped">{{ fmt(s.dropped) }} dropped by pipeline</span>
       }
       <span i18n="@@shell.statusBar.group">Group: {{ store.effectiveGroupBy().join(', ') || '—' }}</span>
+      @if (s.profileName) {
+        <span data-testid="status-profile" title="The parsing profile in use" i18n-title="@@shell.statusBar.profileTitle" i18n="@@shell.statusBar.profile">Profile: {{ s.profileName }}</span>
+      }
+      } @else {
+        <span i18n="@@shell.statusBar.noFiles">No files open</span>
+      }
     } @else {
       <span i18n="@@shell.statusBar.noWorkspace">No workspace</span>
     }
     <span class="spacer"></span>
+    @if (otherBusy(); as busy) {
+      <span class="busy keep" role="status" data-testid="status-busy"><span class="spinner" aria-hidden="true"></span>{{ busy }}</span>
+    }
     <imt-import-status />
     <button
       type="button"
@@ -62,6 +74,10 @@ import { ProblemsBadge } from '../problems/problems-badge';
     .keep, .strong { flex: none; }
     .strong { font-weight: 600; color: var(--statusbar-strong); }
     .spacer { flex: 1; }
+    .busy { display: inline-flex; align-items: center; gap: 6px; }
+    .spinner { width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--border-3); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
     .tz { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 0; font-size: var(--fs-sm); }
     .tz:hover { text-decoration: underline; }
     .live { display: inline-flex; align-items: center; gap: 6px; height: 18px; padding: 0 8px; border-radius: 9px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; font-size: var(--fs-xs); font-weight: 600; }
@@ -87,6 +103,13 @@ export class StatusBar {
       : $localize`:@@shell.statusBar.liveOpenFiles:Open files to follow them live`;
   });
   protected readonly fmt = formatCount;
+  private readonly status = inject(WorkspaceStatusStore);
+  /** Work other than an import (its own item shows imports): "Applying the profile…", "Clearing workspace…". */
+  protected readonly otherBusy = computed(() => (this.status.importing() ? null : this.status.busyLabel()));
+  protected indexedTitle(loadMs: number): string {
+    const took = formatDuration(loadMs);
+    return $localize`:@@shell.statusBar.indexedTitle:Indexed in ${took}:duration:`;
+  }
   protected readonly tz = computed(() => tzLabel(this.store.timezone()));
   protected readonly importers = computed(() => {
     const ids = [...new Set((this.store.summary()?.sources ?? []).map((s) => s.importer))];
