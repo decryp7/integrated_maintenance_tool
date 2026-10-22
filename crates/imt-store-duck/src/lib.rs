@@ -5,6 +5,7 @@
 //!
 //! Operations not offered yet answer [`StoreError::Unsupported`] naming the phase that adds them.
 
+pub mod allocator;
 mod analysis;
 mod anomalies;
 mod compact;

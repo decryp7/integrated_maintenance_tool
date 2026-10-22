@@ -30,6 +30,12 @@ pub fn conf(arenas: usize, existing: Option<&str>) -> Option<String> {
 /// Gives DuckDB's allocator `arenas` arenas. Call it first thing in `main`, while the process has one thread
 /// and before any database opens (later it has no effect: jemalloc has read its options).
 pub fn configure(arenas: usize) {
+    if cfg!(target_os = "linux") {
+        apply(arenas);
+    }
+}
+
+fn apply(arenas: usize) {
     if let Some(value) = conf(arenas, std::env::var(CONF_VAR).ok().as_deref()) {
         std::env::set_var(CONF_VAR, value);
     }
@@ -46,5 +52,21 @@ mod tests {
         assert_eq!(conf(100_000, None).as_deref(), Some("narenas:256"));
         assert_eq!(conf(2, Some("")).as_deref(), Some("narenas:2"));
         assert_eq!(conf(2, Some("narenas:8,dirty_decay_ms:0")), None);
+        assert_eq!(conf(2, Some("  ")).as_deref(), Some("narenas:2"));
+    }
+
+    #[test]
+    fn configure_sets_the_variable_on_linux_only_and_keeps_a_developers_value() {
+        // One test owns the variable: tests of a process share its environment.
+        std::env::remove_var(CONF_VAR);
+        configure(3);
+        if cfg!(target_os = "linux") {
+            assert_eq!(std::env::var(CONF_VAR).as_deref(), Ok("narenas:3"));
+            configure(5);
+            assert_eq!(std::env::var(CONF_VAR).as_deref(), Ok("narenas:3"));
+        } else {
+            assert!(std::env::var(CONF_VAR).is_err());
+        }
+        std::env::remove_var(CONF_VAR);
     }
 }

@@ -81,6 +81,7 @@ fn req<T: serde::de::DeserializeOwned>(v: serde_json::Value) -> T {
 
 #[test]
 fn analyses_stay_within_the_query_budget() {
+    imt_store_duck::allocator::configure(imt_store_duck::allocator::ARENAS);
     imt_alloc::tune();
     let events: u64 = std::env::var("IMT_BENCH_EVENTS")
         .ok()
