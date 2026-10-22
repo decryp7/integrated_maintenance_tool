@@ -77,16 +77,16 @@ describe('GeneralSettings', () => {
     el<HTMLInputElement>(fixture, 'input[type=checkbox]').click();
     expect(store.alwaysShowLifecycle()).toBe(false);
     const overview = TestBed.inject(HomePrefs);
-    expect(overview.autoOpen()).toBe(false);
-    el<HTMLInputElement>(fixture, '[data-testid=home-auto-open]').click();
     expect(overview.autoOpen()).toBe(true);
-    expect(localStorage.getItem(HOME_AUTO_OPEN_KEY)).toBe('true');
+    el<HTMLInputElement>(fixture, '[data-testid=home-auto-open]').click();
+    expect(overview.autoOpen()).toBe(false);
+    expect(localStorage.getItem(HOME_AUTO_OPEN_KEY)).toBe('false');
     await settle(fixture);
     expect(all(fixture, '[aria-pressed=true]').map((b) => b.textContent?.trim())).toEqual(['Local', 'ISO']);
     // The look moved to Appearance.
     expect(text(fixture)).not.toContain('Theme');
     expect(text(fixture)).toContain('Always show start/stop markers');
-    expect(text(fixture)).toContain('Home: show after every import');
+    expect(text(fixture)).toContain('Home: show when files or a project open');
   });
 
   it('resets the layout and says so', async () => {

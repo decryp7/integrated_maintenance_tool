@@ -6,6 +6,8 @@
 //! empty) and are app-wide: every window shows the same lists. A change is announced with
 //! [`RECENT_EVENT`] and refreshes the tray menu.
 //!
+//! Three lists: files and folders opened as logs, projects, and performance captures (profiles and heap snapshots).
+//!
 //! Commands: `recent_list`, `recent_remove`, `recent_clear`.
 
 use crate::config_store::{Config, ConfigStore};
@@ -20,6 +22,8 @@ pub const RECENT_EVENT: &str = "imt://recent-changed";
 pub const MAX_FILES: usize = 8;
 /// Recent projects kept.
 pub const MAX_PROJECTS: usize = 10;
+/// Recent performance captures kept.
+pub const MAX_CAPTURES: usize = 8;
 const VERSION: u32 = 1;
 const FILE: &str = "recent.json";
 const MAX_NAME: usize = 120;
@@ -39,6 +43,9 @@ pub struct RecentProject {
 pub struct RecentLists {
     pub files: Vec<String>,
     pub projects: Vec<RecentProject>,
+    /// Performance captures (profiles and heap snapshots) opened in the Profiling views.
+    #[serde(default)]
+    pub captures: Vec<String>,
 }
 
 /// Which list a command means.
@@ -48,6 +55,7 @@ pub struct RecentLists {
 pub enum RecentKind {
     Files,
     Projects,
+    Captures,
 }
 
 /// Managed state: the lists and where they are kept.
@@ -73,6 +81,11 @@ impl Recents {
         self.list().files.iter().any(|f| same(f, path))
     }
 
+    /// Whether `path` is a recent performance capture.
+    pub fn has_capture(&self, path: &str) -> bool {
+        self.list().captures.iter().any(|f| same(f, path))
+    }
+
     /// Whether `path` is a recent project.
     pub fn has_project(&self, path: &str) -> bool {
         self.list().projects.iter().any(|p| same(&p.path, path))
@@ -85,6 +98,18 @@ impl Recents {
             next.extend(l.files.iter().filter(|f| !paths.iter().any(|p| same(p, f))).cloned());
             next.truncate(MAX_FILES);
             l.files = next;
+        })
+    }
+
+    /// Puts an opened performance capture at the front (deduplicated, capped).
+    pub fn record_capture(&self, path: &str) -> bool {
+        if !keepable(path) {
+            return false;
+        }
+        self.change(|l| {
+            l.captures.retain(|f| !same(f, path));
+            l.captures.insert(0, path.to_string());
+            l.captures.truncate(MAX_CAPTURES);
         })
     }
 
@@ -112,6 +137,7 @@ impl Recents {
         self.change(|l| match kind {
             RecentKind::Files => l.files.retain(|f| !same(f, path)),
             RecentKind::Projects => l.projects.retain(|p| !same(&p.path, path)),
+            RecentKind::Captures => l.captures.retain(|f| !same(f, path)),
         })
     }
 
@@ -119,6 +145,7 @@ impl Recents {
         self.change(|l| match kind {
             RecentKind::Files => l.files.clear(),
             RecentKind::Projects => l.projects.clear(),
+            RecentKind::Captures => l.captures.clear(),
         })
     }
 
@@ -162,6 +189,8 @@ fn clean(mut lists: RecentLists) -> RecentLists {
     lists.files.truncate(MAX_FILES);
     lists.projects.retain(|p| keepable(&p.path));
     lists.projects.truncate(MAX_PROJECTS);
+    lists.captures.retain(|f| keepable(f));
+    lists.captures.truncate(MAX_CAPTURES);
     lists
 }
 
@@ -184,6 +213,13 @@ fn changed<R: Runtime>(app: &AppHandle<R>) {
 /// Records files and folders opened in a window (they were granted).
 pub fn opened_files<R: Runtime>(app: &AppHandle<R>, paths: &[String]) {
     if recents(app).record_files(paths) {
+        changed(app);
+    }
+}
+
+/// Records a performance capture opened in a window (it was granted).
+pub fn opened_capture<R: Runtime>(app: &AppHandle<R>, path: &str) {
+    if recents(app).record_capture(path) {
         changed(app);
     }
 }
@@ -256,6 +292,46 @@ mod tests {
         assert!(again.clear(RecentKind::Files));
         assert!(!again.clear(RecentKind::Files));
         assert!(Recents::load(Some(&t.0)).list().files.is_empty());
+    }
+
+    #[test]
+    fn captures_are_a_third_list_that_is_deduplicated_capped_cleaned_and_kept() {
+        let t = TempDir::new("recent-captures");
+        let r = Recents::load(Some(&t.0));
+        assert!(r.record_capture(&abs("a.folded")));
+        assert!(r.record_capture(&abs("b.nettrace")));
+        assert!(r.record_capture(&abs("a.folded")), "moves to the front");
+        assert_eq!(r.list().captures, vec![abs("a.folded"), abs("b.nettrace")]);
+        assert!(!r.record_capture("relative.folded"), "only absolute paths are kept");
+        assert!(r.has_capture(&abs("b.nettrace")) && !r.has_capture(&abs("c")));
+        assert!(!r.has_file(&abs("a.folded")), "separate from the log files");
+        for i in 0..20 {
+            r.record_capture(&abs(&format!("c{i}")));
+        }
+        assert_eq!(r.list().captures.len(), MAX_CAPTURES);
+        assert_eq!(Recents::load(Some(&t.0)).list().captures, r.list().captures);
+        assert!(r.remove(RecentKind::Captures, &abs("c19")));
+        assert!(!r.has_capture(&abs("c19")));
+        assert!(r.clear(RecentKind::Captures));
+        assert!(!r.clear(RecentKind::Captures));
+        assert!(r.list().captures.is_empty());
+    }
+
+    #[test]
+    fn a_file_written_before_captures_existed_still_loads() {
+        let t = TempDir::new("recent-old");
+        let file = abs("old.log");
+        std::fs::write(
+            t.0.join(FILE),
+            format!(
+                r#"{{"version":1,"files":[{}],"projects":[]}}"#,
+                serde_json::to_string(&file).unwrap()
+            ),
+        )
+        .unwrap();
+        let lists = Recents::load(Some(&t.0)).list();
+        assert_eq!(lists.files, vec![file]);
+        assert!(lists.captures.is_empty());
     }
 
     #[test]

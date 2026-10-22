@@ -11,6 +11,8 @@ export class RecentService {
   private readonly backend = inject(RecentBackend);
   readonly files = signal<string[]>([]);
   readonly projects = signal<RecentProject[]>([]);
+  /** Performance captures (profiles and heap snapshots) opened before, newest first. */
+  readonly captures = signal<string[]>([]);
   /** The first load (tests wait for it). */
   readonly ready: Promise<void>;
 
@@ -28,9 +30,9 @@ export class RecentService {
   }
 
   /** The UI opened files or a project (Rust recorded them; the mock records them now). */
-  async opened(files: string[], project?: RecentProject): Promise<void> {
+  async opened(files: string[], project?: RecentProject, captures: string[] = []): Promise<void> {
     try {
-      await this.backend.opened(files, project);
+      await this.backend.opened(files, project, captures);
     } catch {
       /* a convenience only */
     }
@@ -58,5 +60,6 @@ export class RecentService {
   private apply(lists: RecentLists): void {
     this.files.set(lists.files);
     this.projects.set(lists.projects);
+    this.captures.set(lists.captures);
   }
 }

@@ -28,18 +28,19 @@ export abstract class RecentBackend {
    * The UI opened or saved these. Rust has recorded them already (nothing to do there); the browser
    * mock, which has no engine behind it, records them here.
    */
-  abstract opened(files: string[], project?: RecentProject): Promise<void>;
+  abstract opened(files: string[], project?: RecentProject, captures?: string[]): Promise<void>;
   abstract onChanged(handler: (lists: RecentLists) => void): Promise<Unlisten>;
 }
 
 /** Parses the lists from the wire (anything malformed reads as empty). */
 export function parseRecentLists(value: unknown): RecentLists {
-  const v = (value ?? {}) as { files?: unknown; projects?: unknown };
+  const v = (value ?? {}) as { files?: unknown; projects?: unknown; captures?: unknown };
   const files = Array.isArray(v.files) ? v.files.filter((p): p is string => typeof p === 'string') : [];
+  const captures = Array.isArray(v.captures) ? v.captures.filter((p): p is string => typeof p === 'string') : [];
   const projects = Array.isArray(v.projects)
     ? v.projects.filter((p): p is RecentProject => !!p && typeof (p as RecentProject).path === 'string' && typeof (p as RecentProject).name === 'string')
     : [];
-  return { files, projects };
+  return { files, projects, captures };
 }
 
 /** Talks to the Rust shell. `call` and `listen` are injectable for tests. */

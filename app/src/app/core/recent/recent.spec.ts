@@ -34,7 +34,7 @@ describe('MockRecentBackend', () => {
     localStorage.setItem(MOCK_RECENT_KEY, '{nope');
     expect((await b.list()).files).toEqual([]);
     localStorage.setItem(MOCK_RECENT_KEY, JSON.stringify({ version: 1, files: ['/ok', 5], projects: [{ path: '/p' }, null] }));
-    expect(await b.list()).toEqual({ files: ['/ok'], projects: [] });
+    expect(await b.list()).toEqual({ files: ['/ok'], projects: [], captures: [] });
     const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('quota');
     });
@@ -43,12 +43,27 @@ describe('MockRecentBackend', () => {
   });
 });
 
+describe('recent captures', () => {
+  it('the mock keeps captures apart from files, newest first and without duplicates, and removes and clears them', async () => {
+    localStorage.clear();
+    const b = new MockRecentBackend();
+    await b.opened(['/log.log'], undefined, ['/a.folded', '/b.nettrace']);
+    await b.opened([], undefined, ['/b.nettrace']);
+    expect(await b.list()).toEqual({ files: ['/log.log'], projects: [], captures: ['/b.nettrace', '/a.folded'] });
+    await b.remove('captures', '/b.nettrace');
+    expect((await b.list()).captures).toEqual(['/a.folded']);
+    await b.clear('captures');
+    expect(await b.list()).toEqual({ files: ['/log.log'], projects: [], captures: [] });
+    localStorage.clear();
+  });
+});
+
 describe('TauriRecentBackend', () => {
   it('calls the recent commands and parses the change event', async () => {
     const calls: [string, unknown][] = [];
     const call = (async (cmd: string, args?: unknown) => {
       calls.push([cmd, args]);
-      return cmd === 'recent_list' ? { files: ['/a', 3], projects: [{ path: '/p', name: 'P' }] } : undefined;
+      return cmd === 'recent_list' ? { files: ['/a', 3], projects: [{ path: '/p', name: 'P' }], captures: ['/c.folded', 7] } : undefined;
     }) as never;
     let handler: ((p: unknown) => void) | undefined;
     const listen = async (event: string, h: (p: unknown) => void) => {
@@ -57,7 +72,7 @@ describe('TauriRecentBackend', () => {
       return () => undefined;
     };
     const b = new TauriRecentBackend(call, listen);
-    expect(await b.list()).toEqual({ files: ['/a'], projects: [{ path: '/p', name: 'P' }] });
+    expect(await b.list()).toEqual({ files: ['/a'], projects: [{ path: '/p', name: 'P' }], captures: ['/c.folded'] });
     await b.remove('files', '/a');
     await b.clear('projects');
     await b.opened();
@@ -69,8 +84,8 @@ describe('TauriRecentBackend', () => {
     const got: RecentLists[] = [];
     await b.onChanged((l) => got.push(l));
     handler?.({ files: ['/b'] });
-    expect(got).toEqual([{ files: ['/b'], projects: [] }]);
-    expect(parseRecentLists(null)).toEqual({ files: [], projects: [] });
+    expect(got).toEqual([{ files: ['/b'], projects: [], captures: [] }]);
+    expect(parseRecentLists(null)).toEqual({ files: [], projects: [], captures: [] });
   });
 });
 

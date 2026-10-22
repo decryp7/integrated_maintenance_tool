@@ -13,6 +13,8 @@ import { ViewRegistry } from '../extensions/view-registry';
 import { ShareBackend } from '../share/share-backend';
 import { HomeBackend, TauriHomeBackend } from './home-backend';
 import { HOME_AUTO_OPEN_KEY, HomePrefs } from './home-prefs';
+import { ProjectBackend } from '../core/tools-backend';
+import { ProjectService } from '../projects/project.service';
 import { HomeAutoOpen, provideHome } from './home.plugin';
 import { HomeStore, RefreshLimiter } from './home.store';
 import { HomeView } from './home-view';
@@ -35,12 +37,12 @@ class FakeCtx implements CommandContext {
 describe('HomePrefs', () => {
   afterEach(() => localStorage.removeItem(HOME_AUTO_OPEN_KEY));
 
-  it('defaults to not opening, remembers the choice and survives broken storage', () => {
-    expect(TestBed.inject(HomePrefs).autoOpen()).toBe(false);
-    TestBed.inject(HomePrefs).setAutoOpen(true);
-    expect(localStorage.getItem(HOME_AUTO_OPEN_KEY)).toBe('true');
-    TestBed.resetTestingModule();
+  it('defaults to opening, remembers the choice and survives broken storage', () => {
     expect(TestBed.inject(HomePrefs).autoOpen()).toBe(true);
+    TestBed.inject(HomePrefs).setAutoOpen(false);
+    expect(localStorage.getItem(HOME_AUTO_OPEN_KEY)).toBe('false');
+    TestBed.resetTestingModule();
+    expect(TestBed.inject(HomePrefs).autoOpen()).toBe(false);
     TestBed.resetTestingModule();
     const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('denied');
@@ -49,11 +51,11 @@ describe('HomePrefs', () => {
       throw new Error('denied');
     });
     const prefs = TestBed.inject(HomePrefs);
-    expect(prefs.autoOpen()).toBe(false);
-    prefs.setAutoOpen(true);
     expect(prefs.autoOpen()).toBe(true);
     prefs.setAutoOpen(false);
     expect(prefs.autoOpen()).toBe(false);
+    prefs.setAutoOpen(true);
+    expect(prefs.autoOpen()).toBe(true);
     get.mockRestore();
     set.mockRestore();
   });
@@ -191,9 +193,9 @@ describe('HomeView', () => {
     const { fixture } = setup([]);
     await settle(fixture, 8);
     const box = fixture.nativeElement.querySelector('input[type=checkbox]') as HTMLInputElement;
-    expect(box.checked).toBe(false);
+    expect(box.checked).toBe(true);
     box.click();
-    expect(TestBed.inject(HomePrefs).autoOpen()).toBe(true);
+    expect(TestBed.inject(HomePrefs).autoOpen()).toBe(false);
   });
 
   it('reads its numbers from the Home backend', async () => {
@@ -273,21 +275,28 @@ describe('provideHome', () => {
     localStorage.removeItem(HOME_AUTO_OPEN_KEY);
   });
 
-  it('does not open the view after an import by default', async () => {
+  it('opens the view after an import by default, and after a project is opened (not a restored session)', async () => {
     const dock = new FakeDock();
-    TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock), provideHome()] });
+    TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock), { provide: ProjectBackend, useValue: {} }, provideHome()] });
     TestBed.inject(HomeAutoOpen);
     const store = TestBed.inject(WorkspaceStore);
+    const projects = TestBed.inject(ProjectService);
     await settle();
     await store.openPaths(['/x.log']);
     await settle();
-    expect(dock.calls).toEqual([]);
+    expect(dock.calls).toEqual(['show:home']);
+    projects.openedCount.update((n) => n + 1);
+    await settle();
+    expect(dock.calls).toEqual(['show:home', 'show:home']);
+    TestBed.inject(HomePrefs).setAutoOpen(false);
+    projects.openedCount.update((n) => n + 1);
+    await settle();
+    expect(dock.calls).toEqual(['show:home', 'show:home']);
   });
 
   it('registers the view (a document) and command, and opens the view after each import unless turned off', async () => {
     const dock = new FakeDock();
-    TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock), provideHome()] });
-    TestBed.inject(HomePrefs).setAutoOpen(true);
+    TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock), { provide: ProjectBackend, useValue: {} }, provideHome()] });
     TestBed.inject(HomeAutoOpen);
     const store = TestBed.inject(WorkspaceStore);
     await settle();

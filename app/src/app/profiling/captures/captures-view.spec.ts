@@ -9,6 +9,8 @@ import { ProfileViewState } from '../profile-view-state';
 import { openDemoCaptures, provideProfilingTesting, setupProfiling } from '../testing/profiling-test-support';
 import { MOCK_CAPTURE_PATHS } from '../../core/mock/mock-profiling-data';
 import { IMT_COMMANDS, ImtCommand } from '../../extensions/tokens';
+import { RecentService } from '../../core/recent/recent.service';
+import { MOCK_RECENT_KEY } from '../../core/recent/mock-recent-backend';
 import { CapturesView } from './captures-view';
 
 async function mount(opts: Parameters<typeof setupProfiling>[0] = {}, open = true) {
@@ -23,10 +25,33 @@ async function mount(opts: Parameters<typeof setupProfiling>[0] = {}, open = tru
 const cap = (f: ComponentFixture<unknown>, name: string) => all(f, 'li.cap').find((l) => l.querySelector('.name')!.textContent === name)!;
 
 describe('CapturesView', () => {
+  beforeEach(() => localStorage.removeItem(MOCK_RECENT_KEY));
+
   it('shows the empty state', async () => {
     const { fixture } = await mount({}, false);
     expect(text(fixture)).toContain('No profiles or heap snapshots are open.');
     expect(all(fixture, 'li.cap')).toHaveLength(0);
+  });
+
+  it('the landing lists recent captures, opens one on click and clears the list', async () => {
+    const { fixture } = await mount({}, false);
+    expect(el(fixture, '[data-testid=captures-landing]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid=recent-captures]')).toBeNull();
+    const recent = TestBed.inject(RecentService);
+    await recent.opened([], undefined, [MOCK_CAPTURE_PATHS[0]!, '/demo/profiles/other.folded']);
+    fixture.detectChanges();
+    const items = all(fixture, '[data-testid=recent-captures] li button');
+    expect(items.map((b) => b.getAttribute('title'))).toEqual([MOCK_CAPTURE_PATHS[0], '/demo/profiles/other.folded']);
+    expect(items[1]!.textContent).toBe('other.folded');
+    items[0]!.click();
+    await settle(fixture, 6);
+    expect(TestBed.inject(CapturesStore).captures().length).toBe(1);
+    TestBed.inject(CapturesStore).closeAll();
+    await settle(fixture, 4);
+    buttonByText(fixture, 'Clear recent captures').click();
+    await settle(fixture, 4);
+    expect(fixture.nativeElement.querySelector('[data-testid=recent-captures]')).toBeNull();
+    expect(recent.captures()).toEqual([]);
   });
 
   it('shows Loading… while the first listing is in flight', async () => {
