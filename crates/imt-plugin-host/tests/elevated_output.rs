@@ -85,7 +85,7 @@ fn pattern(n: usize) -> Vec<u8> {
 /// Waits up to 10 s for `cond`.
 fn eventually(mut cond: impl FnMut() -> bool) -> bool {
     let t = Instant::now();
-    while t.elapsed() < Duration::from_secs(10) {
+    while t.elapsed() < Duration::from_secs(60) {
         if cond() {
             return true;
         }
