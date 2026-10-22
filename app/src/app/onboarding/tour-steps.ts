@@ -27,10 +27,10 @@ export const TOUR_STEPS: readonly TourStep[] = [
   },
   {
     id: 'query',
-    title: $localize`:@@onboarding.tour.query.title:Query bar`,
-    text: $localize`:@@onboarding.tour.query.text:Ask precise questions, like level >= error and MachineName = "WEB01". It completes field names as you type and points at mistakes.`,
-    view: 'query',
-    target: 'imt-query-view',
+    title: $localize`:@@onboarding.tour.query.title:Search or query`,
+    text: $localize`:@@onboarding.tour.query.textField:Type words to search the messages, or ask precise questions like level >= error and MachineName = "WEB01" and press Enter. It completes field names as you type and points at mistakes.`,
+    view: 'events',
+    target: 'imt-query-field',
   },
   {
     id: 'moment',

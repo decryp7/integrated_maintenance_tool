@@ -798,6 +798,7 @@ export interface InferredRegex {
  *   run_query        { request: { query } }                 -> { result: QlResult } | { error: QlError }
  *   check_query      { text }                               -> QlError | null
  *   complete_query   { request: { text, cursor } }          -> Completion[]
+ *   classify_search  { text, fields }                       -> SearchInputKind
  *   query_patterns   { request: { query } }                 -> Analyzed<Pattern[]>
  *   query_exceptions { request: { query } }                 -> Analyzed<ExceptionGroup[]>
  *   query_anomalies  { request: { query } }                 -> Analyzed<Anomaly[]>
@@ -833,6 +834,12 @@ export type QlResult =
   | { kind: 'table'; columns: string[]; rows: unknown[][] };
 
 export type QueryOutcome = { result: QlResult } | { error: QlError };
+
+/**
+ * What the filter bar's one search field holds (`ql::InputKind`): words to find in messages, or a query-language
+ * query. The engine decides (`classify_search`); `fields` are the workspace's field names.
+ */
+export type SearchInputKind = 'text' | 'query';
 
 export type CompletionKind = 'field' | 'keyword' | 'operator' | 'function' | 'value';
 
@@ -3101,3 +3108,124 @@ export type {
 } from './generated/store';
 /** A console run's outcome (`sql_run`). Mirrors `store_pane::SqlOutcome`. */
 export type SqlOutcome = { result: import('./generated/store').SqlResult } | { error: QlError } | { cancelled: true };
+
+// ---- Known issues, incident summary and playbooks (ADR 0039; crates/imt-core/src/{known_issues,incident,playbook}) ----
+
+/** How a known issue is recognised: a regex over the message and exception, or a query-language filter. */
+export type IssueMatcher = { type: 'pattern'; pattern: string } | { type: 'query'; ql: string };
+
+/** A known issue declared in a knowledge file (or suggested by the AI and verified by the engine). */
+export interface KnownIssue {
+  id: string;
+  title: string;
+  fix: string;
+  matcher: IssueMatcher;
+  /** The knowledge file that declares it. */
+  file: string;
+}
+
+/** Who found the match: the user's declared rule, or an AI suggestion the engine verified. */
+export type IssueOrigin = 'rule' | 'ai';
+
+/** A known issue present in the open data, with the evidence. */
+export interface IssueMatch {
+  issue: KnownIssue;
+  origin: IssueOrigin;
+  /** The filter that selects the events. */
+  query: string;
+  count: number;
+  /** Up to 5 events that show it. */
+  sampleIds: number[];
+}
+
+/** `known_issues_match`: what is present, and what the user should fix in their knowledge files. */
+export interface IssueReport {
+  matches: IssueMatch[];
+  checked: number;
+  truncated: number;
+  warnings: string[];
+}
+
+/** `incident_report_build` arguments. */
+export interface IncidentRequest {
+  title?: string;
+  /** Epoch ms. */
+  from?: number | null;
+  to?: number | null;
+  /** Entries per ranking, 1 to 10 (5 when absent). */
+  top?: number | null;
+}
+
+export type PlaybookExpect = { kind: 'noMatch' } | { kind: 'anyMatch' } | { kind: 'atLeast'; n: number } | { kind: 'atMost'; n: number };
+
+/** What a playbook step does. */
+export type PlaybookAction =
+  | { type: 'manual' }
+  | { type: 'query'; ql: string }
+  | { type: 'filter'; ql: string }
+  | { type: 'openView'; view: string }
+  | { type: 'check'; ql: string; expect: PlaybookExpect };
+
+export interface PlaybookStep {
+  id: string;
+  title: string;
+  instruction: string;
+  action: PlaybookAction;
+}
+
+/** A saved investigation (a versioned JSON file; see docs/playbooks.md). */
+export interface Playbook {
+  version: number;
+  id: string;
+  title: string;
+  description: string;
+  tags: string[];
+  steps: PlaybookStep[];
+}
+
+export type PlaybookStatus = 'pass' | 'fail' | 'info' | 'error' | 'skipped';
+
+/** What running a step found; the engine computes it. */
+export interface PlaybookStepResult {
+  status: PlaybookStatus;
+  summary: string;
+  count: number | null;
+  sampleIds: number[];
+  columns: string[];
+  rows: unknown[][];
+}
+
+export interface PlaybookStepRecord {
+  stepId: string;
+  status: PlaybookStatus;
+  summary: string;
+  count: number | null;
+  sampleIds: number[];
+  note: string;
+  at: number;
+}
+
+/** One execution of a playbook, with the playbook as it was. Saved in the project. */
+export interface PlaybookRun {
+  id: string;
+  playbook: Playbook;
+  startedAt: number;
+  steps: PlaybookStepRecord[];
+}
+
+/** The runs a project keeps (`PlaybookRecord` v1; the project's UI state key `playbooks`). */
+export interface PlaybookRecord {
+  version: number;
+  runs: PlaybookRun[];
+}
+
+export interface PlaybookLibrary {
+  playbooks: Playbook[];
+  templates: Playbook[];
+  warnings: string[];
+}
+
+export interface PlaybookRestore {
+  record: PlaybookRecord;
+  warnings: string[];
+}

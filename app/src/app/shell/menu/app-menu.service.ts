@@ -1,5 +1,4 @@
 import { SettingsStore } from '../../settings/settings.store';
-import { LayoutModeStore } from '../../core/workspace/layout-mode';
 import { SidebarSections } from '../sidebar-sections';
 import { afterNextRender, computed, inject, Injectable, InjectionToken, Injector } from '@angular/core';
 import { isTauri } from '../../core/platform';
@@ -10,6 +9,7 @@ import { CommandRegistry } from '../../extensions/command-registry';
 import { isMac } from '../../extensions/keybinding';
 import { ViewRegistry } from '../../extensions/view-registry';
 import { PaletteService } from '../../palette/palette.service';
+import { Perspectives } from '../../dock/perspectives';
 import { UndoStack } from '../../undo/undo-stack';
 import { WindowingService } from '../../windowing/windowing.service';
 import { RecentService } from '../../core/recent/recent.service';
@@ -33,12 +33,12 @@ export class AppMenu {
   private readonly dock = inject(DockService);
   private readonly store = inject(WorkspaceStore);
   private readonly undo = inject(UndoStack);
+  private readonly perspectives = inject(Perspectives);
   private readonly windowing = inject(WindowingService);
   private readonly palette = inject(PaletteService);
   private readonly panelWindows = inject(PANEL_WINDOWS, { optional: true });
   private readonly injector = inject(Injector);
   private readonly prefs = inject(SettingsStore);
-  private readonly layout = inject(LayoutModeStore);
   private readonly sections = inject(SidebarSections);
   private readonly recent = inject(RecentService);
   readonly mode = inject(MENU_MODE);
@@ -55,7 +55,7 @@ export class AppMenu {
       theme: this.store.theme(),
       scheme: this.store.scheme(),
       sourceColors: this.prefs.sourceColors(),
-      layoutMode: this.layout.mode(),
+      activePerspective: this.perspectives.activeNumber(),
       timezone: this.store.timezone(),
       markedOnly: this.store.markedOnly(),
       undoLabel: this.undo.undoLabel(),

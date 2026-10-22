@@ -5,19 +5,19 @@ import { expectNoSeriousViolations } from './axe';
 test('an empty grid says why and offers the next step', async ({ page }, testInfo) => {
   await openApp(page);
   const total = await initialTotal(page);
-  await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('zzz-no-such-text-zzz');
+  await page.getByTestId('query-field').fill('zzz-no-such-text-zzz');
   const grid = page.getByRole('grid', { name: 'Events' });
   await expect(grid).toContainText('No events match the current filters.');
   await expect(grid).toContainText('Filters may be hiding events.');
   await expectNoSeriousViolations(page, testInfo, 'empty-grid', 'imt-events-grid');
   await grid.getByRole('button', { name: 'Clear all filters' }).click();
   await expect(gridTotal(page)).toHaveText(total);
-  await expect(page.getByRole('textbox', { name: 'Search messages and exceptions' })).toHaveValue('');
+  await expect(page.getByTestId('query-field')).toHaveValue('');
 });
 
 test('an empty analysis view suggests what to do', async ({ page }) => {
   await openApp(page);
-  await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('zzz-no-such-text-zzz');
+  await page.getByTestId('query-field').fill('zzz-no-such-text-zzz');
   await page.keyboard.press('ControlOrMeta+k');
   await page.getByRole('combobox', { name: 'Type a command' }).fill('Show exceptions');
   await page.keyboard.press('Enter');

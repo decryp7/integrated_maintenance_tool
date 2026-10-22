@@ -11,10 +11,16 @@ export async function runCommand(page: Page, title: string): Promise<void> {
   await expect(input).toHaveCount(0);
 }
 
-/** Opens the query bar (Ctrl/⌘+/: the Focused layout does not open it by itself) and returns its input. */
+/** The filter bar's one search field (words search messages live; a query runs with Enter or Ctrl/Cmd+Enter). */
+export function searchField(page: Page) {
+  return page.getByTestId('query-field');
+}
+
+/** Returns the search field, visible and focused (it is always in the filter bar; Ctrl/Cmd+/ focuses it). */
 export async function openQuery(page: Page) {
-  const input = page.getByRole('combobox', { name: 'Query' });
-  if (!(await input.isVisible())) await page.keyboard.press('ControlOrMeta+/');
+  const input = searchField(page);
   await expect(input).toBeVisible();
+  await input.click();
+  await expect(input).toBeFocused();
   return input;
 }

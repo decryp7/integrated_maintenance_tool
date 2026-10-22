@@ -1,6 +1,10 @@
+import { inject } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideDockTesting, settle, text } from '../testing/helpers';
 import { App } from './app';
+import { MockAnalysisBackend, recordsFrom } from './analysis/mock/mock-analysis-backend';
+import { AnalysisBackend } from './core/analysis-backend';
+import { ImtBackend } from './core/backend';
 import { WorkspaceStore } from './core/workspace.store';
 import { DockService } from './dock/dock.service';
 import { provideToolsBackend } from './core/tools-backend';
@@ -10,7 +14,7 @@ describe('App', () => {
   beforeEach(() => localStorage.clear());
 
   async function render() {
-    TestBed.configureTestingModule({ providers: [provideDockTesting(), provideToolsBackend()] });
+    TestBed.configureTestingModule({ providers: [provideDockTesting(), provideToolsBackend(), { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(ImtBackend))) }] });
     const fixture = TestBed.createComponent(App);
     await settle(fixture, 8);
     // The panels load lazily: a busy machine needs more than the default second.

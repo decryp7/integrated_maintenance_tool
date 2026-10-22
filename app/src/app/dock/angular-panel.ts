@@ -4,6 +4,14 @@ import { reportFailure } from '../core/failure-reporter';
 import { PANEL_VISIBLE } from '../core/panel-visibility';
 import { describeError, Logger, redactPaths } from '../core/logger';
 
+/** A panel narrower than this (px) is `data-narrow`: its content may fold toolbars and stack tables (A4). */
+export const NARROW_PANEL_PX = 420;
+
+/** The `data-narrow` attribute of a panel for a width; absent from wide panels and from a width not measured yet. */
+export function narrowFlag(width: number): '' | null {
+  return width > 0 && width < NARROW_PANEL_PX ? '' : null;
+}
+
 /** Id of the dock panel a view is rendered in; differs from the view id for a view opened several times (`timeline#2`). */
 export const DOCK_PANEL_ID = new InjectionToken<string>('DOCK_PANEL_ID');
 
@@ -25,6 +33,7 @@ export class AngularContentRenderer implements IContentRenderer {
   private disposed = false;
   private mounted = false;
   private visibility?: { dispose(): void };
+  private resizeObserver?: ResizeObserver;
   private card: HTMLElement | null = null;
   private lastDetails = '';
   private failure: unknown = null;
@@ -44,6 +53,15 @@ export class AngularContentRenderer implements IContentRenderer {
   ) {
     this.element.className = 'imt-panel';
     this.logger = injector.get(Logger, null);
+    // Panels are styled by their own width (`.imt-panel[data-narrow]`), not the window's: a docked panel is often narrow in a wide window.
+    if (typeof ResizeObserver === 'function') {
+      this.resizeObserver = new ResizeObserver((entries) => {
+        const flag = narrowFlag(entries[0]?.contentRect.width ?? 0);
+        if (flag === null) this.element.removeAttribute('data-narrow');
+        else this.element.setAttribute('data-narrow', flag);
+      });
+      this.resizeObserver.observe(this.element);
+    }
   }
 
   /** The component is created when the panel is first visible, so hidden tabs cost nothing until opened. */
@@ -200,6 +218,7 @@ export class AngularContentRenderer implements IContentRenderer {
   dispose(): void {
     this.disposed = true;
     this.visibility?.dispose();
+    this.resizeObserver?.disconnect();
     this.destroyComponent();
     this.element.remove();
   }

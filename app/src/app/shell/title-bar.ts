@@ -84,6 +84,8 @@ export class TitleBar {
     }
     // Inside a text field, Mod+Z / Mod+Shift+Z undo the typing (the browser's own undo), not the last edit.
     if (isTextEntry(target) && (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'z') return;
+    // Alt+arrows inside a text field move the caret (by word on macOS); Go back / Go forward are for everywhere else.
+    if (isTextEntry(target) && e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return;
     if (this.regions.handleKey(e)) return;
     this.registry.runForKey(e);
   }

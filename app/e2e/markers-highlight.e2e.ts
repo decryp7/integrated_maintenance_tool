@@ -3,7 +3,7 @@ import { openApp } from './app';
 import { expectNoSeriousViolations } from './axe';
 
 async function selectRowWithMessage(page: Page, text: string): Promise<void> {
-  await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill(text);
+  await page.getByTestId('query-field').fill(text);
   const row = page.locator('imt-events-grid [role=row].row').first();
   await expect(row).toContainText(text);
   await row.click();

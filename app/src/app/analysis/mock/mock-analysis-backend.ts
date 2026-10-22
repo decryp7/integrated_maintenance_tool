@@ -2,7 +2,7 @@ import { ImtBackend } from '../../core/backend';
 import { EMPTY_QUERY } from '../../core/workspace.store';
 import { RecordView } from '../../core/api.types';
 import { AnalysisBackend } from '../../core/analysis-backend';
-import { Analyzed, fullCoverage, QlQuery, QueryOutcome, QueryProgress, StreamedQueryOutcome } from '../../core/api.types';
+import { Analyzed, fullCoverage, QlQuery, QueryOutcome, QueryProgress, SearchInputKind, StreamedQueryOutcome } from '../../core/api.types';
 import {
   filterRecords,
   mockAnomalies,
@@ -94,6 +94,17 @@ export class MockAnalysisBackend extends AnalysisBackend {
     if (syntax) return syntax;
     const all = await this.records();
     return mockUnknownField(text, [...new Set(all.slice(0, 500).flatMap((r) => Object.keys(r.fields)))]);
+  }
+  /** Close enough to the engine's `classify_input` for browser development: a pipe, `exists(`/`missing(`, or a known name before an operator. */
+  async classifySearch(text: string, fields: readonly string[]): Promise<SearchInputKind> {
+    if (!text.trim() || /'|"[^"]*$/.test(text)) return 'text';
+    if (/\||`|\b(exists|missing)\s*\(/i.test(text)) return 'query';
+    const known = new Set(['level', 'message', 'exception', 'template', 'source', ...fields].map((f) => f.toLowerCase()));
+    for (const m of text.matchAll(/(@?[\w.]+)\s*(>=|<=|!=|!~|=|>|<|~|!?contains\s+\S|in\s*\()/gi)) {
+      const name = (m[1] ?? '').toLowerCase();
+      if (name.startsWith('@') || known.has(name)) return 'query';
+    }
+    return 'text';
   }
   async completeQuery(text: string, cursor: number) {
     const all = await this.records();

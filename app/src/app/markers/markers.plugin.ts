@@ -38,7 +38,7 @@ export class MarkersCommands {
 export function provideMarkers(): EnvironmentProviders {
   return makeEnvironmentProviders([
     provideImtPlugin({
-      views: [{ id: 'markers', category: 'Analysis', title: $localize`:View title|@@markers.view.title:Markers`, icon: 'alert', defaultPosition: 'center', component: () => import('./markers-manager').then((m) => m.MarkersManager) }],
+      views: [{ id: 'markers', category: 'Analysis', title: $localize`:View title|@@markers.view.title:Markers`, icon: 'alert', defaultPosition: 'center', area: 'analysis', component: () => import('./markers-manager').then((m) => m.MarkersManager) }],
     }),
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(MarkersCommands).commands },
   ]);
