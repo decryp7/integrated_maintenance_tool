@@ -62,15 +62,19 @@ const VISIBLE_ROWS = 6;
               <div><dt i18n="@@home.view.sources">Sources</dt><dd>{{ count(s.sources) }}</dd></div>
               <div [class.bad]="s.errors > 0">
                 <dt i18n="@@home.view.errors">Errors</dt><dd>{{ count(s.errors) }}</dd>
+                <button class="cover" type="button" data-testid="home-tile-errors" (click)="showLevels(['Error', 'Fatal'])" aria-label="Show the errors and fatal events" i18n-aria-label="@@home.view.showErrors"></button>
                 @if (errorSpark(); as d) { <svg class="spark bad" [attr.viewBox]="viewBox" preserveAspectRatio="none" aria-hidden="true"><path [attr.d]="d" /></svg> }
               </div>
               <div [class.warn]="s.warnings > 0">
                 <dt i18n="@@home.view.warnings">Warnings</dt><dd>{{ count(s.warnings) }}</dd>
+                <button class="cover" type="button" data-testid="home-tile-warnings" (click)="showLevels(['Warning'])" aria-label="Show the warning events" i18n-aria-label="@@home.view.showWarnings"></button>
                 @if (warningSpark(); as d) { <svg class="spark warn" [attr.viewBox]="viewBox" preserveAspectRatio="none" aria-hidden="true"><path [attr.d]="d" /></svg> }
               </div>
               <div [class.bad]="crashes() > 0"><dt i18n="@@home.view.crashes">Crashes</dt><dd>{{ count(crashes()) }}</dd></div>
-              <div><dt i18n="@@home.view.anomalies">Anomalies</dt><dd [attr.aria-busy]="!s.analysed">{{ s.analysed ? count(s.anomalyCount) : '…' }}</dd></div>
-              <div><dt i18n="@@home.view.exceptions">Exception groups</dt><dd [attr.aria-busy]="!s.analysed">{{ s.analysed ? count(s.exceptionGroups) : '…' }}</dd></div>
+              <div><dt i18n="@@home.view.anomalies">Anomalies</dt><dd [attr.aria-busy]="!s.analysed">{{ s.analysed ? count(s.anomalyCount) : '…' }}</dd>
+                <button class="cover" type="button" data-testid="home-tile-anomalies" (click)="show('anomalies')" aria-label="Open the Anomalies view" i18n-aria-label="@@home.view.showAnomalies"></button></div>
+              <div><dt i18n="@@home.view.exceptions">Exception groups</dt><dd [attr.aria-busy]="!s.analysed">{{ s.analysed ? count(s.exceptionGroups) : '…' }}</dd>
+                <button class="cover" type="button" data-testid="home-tile-exceptions" (click)="show('exceptions')" aria-label="Open the Exceptions view" i18n-aria-label="@@home.view.showExceptions"></button></div>
               <div class="wide"><dt i18n="@@home.view.timeSpan">Time span</dt><dd>{{ span() }}</dd></div>
               @if (home.storeOverview.data(); as o) {
                 <div><dt i18n="@@home.view.storeSize">Store</dt><dd>{{ bytes(o.sizeBytes) }}</dd></div>
@@ -184,6 +188,9 @@ const VISIBLE_ROWS = 6;
     .tiles .wide dd { font-size: var(--fs-sm); font-weight: 500; }
     .tiles > div.bad dd { color: var(--danger-text); }
     .tiles > div.warn dd { color: var(--warn-text); }
+    .cover { position: absolute; inset: 0; border: 0; border-radius: 6px; background: transparent; cursor: pointer; }
+    .cover:hover { background: var(--bg-hover); opacity: 0.35; }
+    .cover:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     .spark { position: absolute; right: 6px; bottom: 6px; width: 44%; height: 16px; fill: none; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
     .spark path { vector-effect: non-scaling-stroke; }
     .spark.bad { stroke: var(--danger-text); }
@@ -272,6 +279,15 @@ export class HomeView {
 
   constructor() {
     this.home.gate.use();
+  }
+
+  protected show(view: string): void {
+    this.ctx.showView(view);
+  }
+
+  protected showLevels(levels: Level[]): void {
+    this.ctx.setQuery({ levels });
+    this.ctx.showView('events');
   }
 
   protected run(id: string): void {

@@ -307,3 +307,20 @@ describe('provideHome', () => {
     expect(dock.calls).toEqual(['show:home', 'show:home']);
   });
 });
+
+describe('HomeView tiles link to the views instead of repeating their lists', () => {
+  it('opens Anomalies and Exceptions, and filters the events by level', async () => {
+    const charts = new FakeECharts();
+    const ctx = new FakeCtx();
+    TestBed.configureTestingModule({
+      providers: [provideTinyBackend(), provideFakeDock(), charts.provider, { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(ImtBackend))) }, { provide: ShareBackend, useValue: { overview: async () => ({ result: [], coverage: fullCoverage(0) }) } }, { provide: COMMAND_CONTEXT, useValue: ctx }],
+    });
+    const fixture = TestBed.createComponent(HomeView);
+    await settle(fixture, 8);
+    const click = (id: string) => (fixture.nativeElement.querySelector(`[data-testid=${id}]`) as HTMLElement).click();
+    click('home-tile-anomalies');
+    click('home-tile-exceptions');
+    click('home-tile-warnings');
+    expect(ctx.calls).toEqual(['show:anomalies', 'show:exceptions', 'query:{"levels":["Warning"]}', 'show:events']);
+  });
+});
