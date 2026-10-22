@@ -168,18 +168,4 @@ test.describe('menus', () => {
       await page.keyboard.press('Escape');
     }
   });
-
-  test('screenshot: View ▸ Analysis', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium' || !process.env['IMT_MENU_SCREENSHOTS'], 'documentation screenshots on request');
-    await chooseMenu(page, 'View', 'Theme', 'Dark');
-    await openMenuPath(page, 'View', 'Analysis');
-    await page.screenshot({ path: '../docs/screenshots/menu-view-browser.png', clip: { x: 0, y: 0, width: 900, height: 760 } });
-    await page.keyboard.press('Escape');
-    await page.keyboard.press('Escape');
-    await openMenuPath(page, 'Window', 'Perspectives');
-    await page.screenshot({ path: '../docs/screenshots/menu-window-browser.png', clip: { x: 0, y: 0, width: 900, height: 520 } });
-    await page.keyboard.press('Escape');
-    await page.keyboard.press('Escape');
-    await page.screenshot({ path: '../docs/screenshots/menu-default-layout-browser.png' });
-  });
 });
