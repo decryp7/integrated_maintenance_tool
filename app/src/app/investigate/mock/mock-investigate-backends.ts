@@ -29,7 +29,7 @@ export class MockKnownIssuesBackend implements KnownIssuesBackend {
             {
               issue: { id: 'payment-gateway-timeouts', title: 'Payment gateway timeouts', fix: 'Raise the gateway timeout to 30 s and check the provider status page.', matcher: { type: 'pattern', pattern: '(?i)timed out' }, file: 'Payments' },
               origin: 'rule',
-              query: '@message ~ "(?i)timed out" or @exception ~ "(?i)timed out"',
+              query: 'message contains "timed out" or exception contains "timed out"',
               count: m.count,
               sampleIds: m.ids,
             },

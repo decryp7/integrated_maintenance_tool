@@ -245,7 +245,7 @@ describe('PlaybookStore', () => {
 
   it('refuses without an active run, and keeps working after a backend failure', async () => {
     const { store, backend } = provide();
-    expect(await store.recordManual(stepOf(), 'pass')).Falsy;
+    expect(await store.recordManual(stepOf(), 'pass')).toBe(false);
     expect(await store.setNote(stepOf(), 'x')).toBe(false);
     const run = must(await store.startRun(book()));
     vi.spyOn(backend, 'runStep').mockRejectedValueOnce(rejecting('engine down'));
@@ -434,7 +434,7 @@ describe('PlaybooksPanel', () => {
     const { fixture, store } = await open();
     click(fixture, 'pb-new');
     await settle(fixture);
-    expect(el(fixture, '[data-testid="pb-editor"]')).toBeTruthy();
+    expect(el(fixture, '[data-testid="playbook-editor"]')).toBeTruthy();
     click(fixture, 'pb-cancel');
     await settle(fixture);
     await store.save(book());
@@ -487,7 +487,7 @@ describe('PlaybookRunView', () => {
       stepOf({ id: 'view', title: 'Problems', action: { type: 'openView', view: 'problems' } }),
       stepOf({ id: 'man', title: 'By hand' }),
     ];
-    const { fixture, store, context, refresh } = await runOf(steps);
+    const { fixture, store, context, backend, refresh } = await runOf(steps);
     expect(status(fixture, 'chk')).toContain('Not run');
     expect(text(fixture)).toContain('At least n events match (2)');
     expect(el(fixture, '[data-testid="pb-run-step-chk"] code').textContent).toBe('level = fatal');
@@ -500,6 +500,7 @@ describe('PlaybookRunView', () => {
     expect(text(fixture)).toContain('1 of 4 steps');
     expect(buttonByText(fixture, 'Run again')).toBeTruthy();
 
+    vi.spyOn(backend, 'runStep').mockResolvedValueOnce({ status: 'info', summary: 'Found 3', count: 3, sampleIds: [4, 5], columns: [], rows: [] });
     click(fixture, 'pb-run-qry');
     await settle(fixture);
     await refresh();
@@ -587,7 +588,7 @@ describe('PlaybookEditor', () => {
     await settle(fixture);
     const saved = must(store.library().playbooks.find((p) => p.id === 'e'));
     expect(saved).toMatchObject({ title: 'Renamed', description: 'Why' });
-    expect(saved.steps.map((s) => s.title)).toEqual(['New step', 'B'].sort((x, y) => (saved.steps[0]?.title === x ? -1 : 1) * (x < y ? -1 : 1)).length ? saved.steps.map((s) => s.title) : []);
+    expect(saved.steps.map((s) => s.title).sort()).toEqual(['B', 'First']);
     expect(saved.steps.length).toBe(2);
     expect(store.editing()).toBeNull();
   });
@@ -635,6 +636,9 @@ describe('PlaybookEditor', () => {
     await settle(fixture);
     expect(all(fixture, '[data-testid="pb-editor-problem"]').length).toBe(0);
 
+  });
+
+  it('shows the engine message when the save fails', async () => {
     const n = await edit(book({ id: 'Bad Id' }), false);
     el<HTMLButtonElement>(n.fixture, '[data-testid="pb-save"]').click();
     await settle(n.fixture);

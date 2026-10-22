@@ -25,8 +25,6 @@ test('a declared known issue shows its fix, count and Rule badge, and Show event
 
   const before = await gridRows(page).count();
   await card.getByRole('button', { name: 'Show events' }).click();
-  await page.waitForTimeout(1500);
-  await page.screenshot({ path: '/tmp/ki-dbg.png' });
   await expect(gridRows(page).first()).toBeVisible();
   await expect(page.locator('imt-status-bar')).toContainText('events');
   await expect.poll(async () => gridRows(page).count()).toBeLessThanOrEqual(before);
