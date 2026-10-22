@@ -620,7 +620,12 @@ IMT runs once per user: a second launch hands its paths to the running instance 
 which opens them as set in *Settings → Window & tray* and focuses its window. Paths that do not
 exist are ignored; the rest are canonicalised.
 
-Two headless tools ship in the workspace for servers and customer machines:
+The `imt` command line imports files, runs queries and analyses and writes the incident report without the app
+(`imt import logs/ --store ./s`, `imt query 'where level = "Error"' --store ./s --format csv`,
+`imt analyze exceptions --store ./s --json`, `imt report --open logs/ --out incident.pdf`); exit codes and `--json` make it
+usable in CI. See [cli.md](cli.md).
+
+Two other headless tools ship in the workspace for servers and customer machines:
 
 ```sh
 imt-collect [--plan plan.json|plan.toml] [--out dir] [--print-default-plan]

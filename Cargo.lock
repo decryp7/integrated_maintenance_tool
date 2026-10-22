@@ -3187,6 +3187,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "imt-cli"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "imt-core",
+ "imt-pdf",
+ "imt-store-client",
+ "imt-store-duck",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "imt-collect"
 version = "0.1.0"
 dependencies = [

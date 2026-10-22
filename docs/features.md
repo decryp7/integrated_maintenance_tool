@@ -345,6 +345,15 @@ safe mode; the shell then still checks administrator rights itself, and the tool
 unavailable. Files the tools write (collector-set XML, bundles, agent configuration) are never
 replaced without confirmation.
 
+## Command line (`imt`)
+
+The same engine without a window, for scripts, CI and headless machines: `imt import` reads files and folders into
+a store you can keep with `--store`, `imt query` runs the query language (table, CSV or JSON), `imt analyze` runs the
+anomaly, pattern, exception and known-issue analyses (with `--fail-on-findings` for CI gates), and `imt report`
+writes the incident summary as HTML or PDF. Exit codes are 0 done, 1 failed, 2 wrong command line, 3 findings; with
+`--json` every command prints exactly one JSON object. Output is bounded (rows, items and cell length) and the store
+runs in the same worker process as in the app. Reference: [cli.md](cli.md).
+
 ## Scheduled and triggered collection (`imt-agent`)
 
 `imt-agent` collects unattended on servers, without the IMT app running: schedules are cron

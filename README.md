@@ -108,6 +108,7 @@ The built-in browser demo (`npm start`, below) loads similar data without instal
 | [docs/user-guide.md](docs/user-guide.md) | Supported inputs, profiles, the query language, keyboard shortcuts, command line |
 | [docs/architecture.md](docs/architecture.md) | Overview, crates, the plugin runtime, windows and sessions, the ADR index, C4 and UML diagrams |
 | [docs/design.md](docs/design.md) | All design diagrams on one page |
+| [docs/cli.md](docs/cli.md) | The `imt` command line: import, query, analyse and report headlessly |
 | [docs/playbooks.md](docs/playbooks.md) | The investigation playbook file format |
 | [docs/plugins.md](docs/plugins.md) | Extending IMT: profiles, Rust plugins, UI plugins, process plugins |
 | [docs/plugin-sdk.md](docs/plugin-sdk.md) | Writing, testing, signing and installing a third-party plugin |
