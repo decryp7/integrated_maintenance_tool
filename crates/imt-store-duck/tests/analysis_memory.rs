@@ -81,7 +81,25 @@ fn req<T: serde::de::DeserializeOwned>(v: serde_json::Value) -> T {
 
 #[test]
 fn analyses_stay_within_the_query_budget() {
-    imt_store_duck::allocator::configure(imt_store_duck::allocator::ARENAS);
+    // DuckDB's jemalloc reads its options when libduckdb loads, before this test runs: like the store worker, the
+    // measured process gets them in its environment at start. On Linux the test runs itself once more with them.
+    if let Some((key, value)) = imt_store_client::allocator::worker_env(None) {
+        if std::env::var(&key).ok().as_deref() != Some(value.as_str()) {
+            #[allow(clippy::disallowed_methods)] // Linux only: no console window to hide.
+            let status = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "analyses_stay_within_the_query_budget",
+                    "--exact",
+                    "--nocapture",
+                    "--test-threads=1",
+                ])
+                .env(&key, &value)
+                .status()
+                .unwrap();
+            assert!(status.success(), "the measured run failed: {status}");
+            return;
+        }
+    }
     imt_alloc::tune();
     let events: u64 = std::env::var("IMT_BENCH_EVENTS")
         .ok()

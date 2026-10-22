@@ -11,10 +11,8 @@ pub use imt_store_client::{protocol, MemoryMode, RemoteStore, StoreTuning, Store
 /// names (ADR 0027), each started on first use, in the memory mode its command line names (low memory mode gives
 /// freed memory back at once) with the tuning it names (ADR 0031). Exits with status 1 when it cannot connect.
 pub fn main() {
-    // First of all, while the process has one thread and before any database opens (jemalloc reads its options once).
-    let tuning = StoreTuning::from_args(std::env::args());
-    imt_store_duck::allocator::configure(tuning.allocator_arenas.unwrap_or(imt_store_duck::allocator::ARENAS));
     let mode = MemoryMode::from_args(std::env::args());
+    let tuning = StoreTuning::from_args(std::env::args());
     if mode == MemoryMode::Low {
         imt_alloc::purge_at_once();
     }

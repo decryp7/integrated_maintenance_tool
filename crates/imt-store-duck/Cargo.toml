@@ -28,6 +28,8 @@ tantivy = { workspace = true, features = ["mmap", "lz4-compression"] }
 [dev-dependencies]
 # The store worker's allocator, so the benchmarks measure what ships (tests/bench.rs, tests/bench_reads.rs).
 imt-alloc = { path = "../imt-alloc" }
+# The worker's allocator environment (`allocator::worker_env`), so the memory budget test measures what ships.
+imt-store-client = { path = "../imt-store-client" }
 # Current resident set size on Windows, macOS and Linux (MIT OR Apache-2.0), for the memory budget test.
 memory-stats.workspace = true
 getrandom.workspace = true

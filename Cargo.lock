@@ -3624,6 +3624,7 @@ dependencies = [
  "getrandom 0.4.3",
  "imt-alloc",
  "imt-core",
+ "imt-store-client",
  "log",
  "memory-stats",
  "parquet",
