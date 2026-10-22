@@ -32,7 +32,9 @@ test('a drop step added in the pipeline flow removes events and shows its effect
   await page.getByRole('button', { name: 'Save & apply' }).click();
   await expect(page.getByText('● Unsaved')).toHaveCount(0);
 
-  await expect(page.locator('imt-status-bar')).toContainText('dropped by pipeline');
+  await page.getByTestId('status-details').click();
+  await expect(page.getByTestId('status-details-popover')).toContainText('Dropped by pipeline');
+  await page.keyboard.press('Escape');
   await expect(card.locator('.stat')).toContainText(/in → .* out \(−/);
   await expect(page.locator('imt-sidebar .src[title*="dropped by pipeline"]').first()).toBeVisible();
   await expect(page.locator('imt-flow-overview')).toContainText('1 step');

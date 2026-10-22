@@ -252,19 +252,24 @@ describe('StatusBar', () => {
     await settle(fixture);
     store.setMatchTotal(3);
     await settle(fixture);
-    expect(text(fixture)).toContain('2 sources');
     expect(text(fixture)).toContain('11 events');
-    expect(el(fixture, '[data-testid=status-untimed]').textContent).toContain('1 without a time');
     expect(text(fixture)).toMatch(/\d+ instances/);
+    // The rarely needed facts live in the Details popover, not in the bar.
+    expect(text(fixture)).not.toContain('Importers');
+    el<HTMLButtonElement>(fixture, '[data-testid=status-details]').click();
+    fixture.detectChanges();
+    const pop = document.querySelector('[data-testid=status-details-popover]')!;
+    expect(pop.textContent).toContain('Sources');
+    expect(pop.textContent).toContain('json · text');
+    expect(pop.querySelector('[data-testid=status-untimed]')!.textContent).toContain('Without a time');
     expect(text(fixture)).toContain('3 matching');
-    expect(text(fixture)).toContain('Importers: json · text');
     expect(el(fixture, '[data-testid=status-profile]').textContent).toContain('Profile: ');
     expect(all(fixture, 'span').find((s) => /\d+ events/.test(s.textContent ?? ''))?.title).toMatch(/^Indexed in \d/);
     el<HTMLButtonElement>(fixture, '.tz').click();
     expect(store.timezone()).toBe('local');
     await store.clearWorkspace();
     await settle(fixture);
-    expect(text(fixture)).toContain('Importers: —');
+    expect(document.querySelector('[data-testid=status-details-popover]')!.textContent).toContain('Importers—');
     // Nothing open: no counts, group or profile that describe nothing.
     expect(text(fixture)).toContain('No files open');
     expect(text(fixture)).not.toContain('0 sources');
@@ -276,10 +281,13 @@ describe('StatusBar', () => {
   it('shows how many events the pipeline dropped', async () => {
     const { fixture, store, backend } = setup(StatusBar);
     await settle(fixture);
-    expect(text(fixture)).not.toContain('dropped by pipeline');
+    el<HTMLButtonElement>(fixture, '[data-testid=status-details]').click();
+    fixture.detectChanges();
+    const pop = () => document.querySelector('[data-testid=status-details-popover]')!.textContent;
+    expect(pop()).not.toContain('Dropped by pipeline');
     await store.applyProfile(await backend.saveProfile(DROP_DEBUG_PROFILE));
     await settle(fixture);
-    expect(text(fixture)).toContain('1 dropped by pipeline');
+    expect(pop()).toContain('Dropped by pipeline1');
   });
 
   it('has a Live tail toggle that reflects and switches the live state', async () => {
@@ -322,12 +330,14 @@ describe('StatusBar', () => {
     expect(button.title).toBe('Live tail failed: watch limit reached');
   });
 
-  it('pluralises one source', async () => {
+  it('counts the sources in the Details popover', async () => {
     const { fixture, store } = setup(StatusBar);
     await settle(fixture);
     await store.removeSource(1);
     await settle(fixture);
-    expect(el(fixture, '.strong').textContent?.trim()).toBe('1 source');
+    el<HTMLButtonElement>(fixture, '[data-testid=status-details]').click();
+    fixture.detectChanges();
+    expect(document.querySelector('[data-testid=status-details-popover]')!.textContent).toContain('Sources1');
   });
 });
 
