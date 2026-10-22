@@ -117,9 +117,7 @@ fn an_offset_moves_a_files_events_and_is_kept_with_the_store() {
     let mut f = std::fs::OpenOptions::new().append(true).open(logs.0.join("b.log")).unwrap();
     f.write_all(b"2026-10-14 10:00:30 INFO b3\n2026-10-14 10:00:40 INFO b4\n").unwrap();
     drop(f);
-    let idle = || std::thread::sleep(imt_core::ports::HOLD_IDLE + std::time::Duration::from_millis(150));
     store.append_tail(&[logs.0.join("b.log")]).unwrap();
-    idle();
     store.append_tail(&[]).unwrap();
     let now = times(&store);
     let b3 = now.iter().find(|r| r.0 == "b3").unwrap().1.unwrap();

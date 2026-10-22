@@ -22,7 +22,8 @@ pub enum DeletedFiles {
 #[serde(default, rename_all = "camelCase")]
 pub struct TailOptions {
     pub deleted_files: DeletedFiles,
-    /// An unterminated last line is parsed anyway after this long without a newline.
+    /// The newest event of a multi-line file is written once its file has not grown for this long (the store holds
+    /// it back meanwhile, as it may still get continuation lines).
     pub carry_flush_ms: u64,
     /// The live anomaly detectors run at most this often (rules and silences every batch).
     pub detect_every_ms: u64,
@@ -44,7 +45,7 @@ impl Default for TailOptions {
     fn default() -> Self {
         TailOptions {
             deleted_files: DeletedFiles::Keep,
-            carry_flush_ms: 2_000,
+            carry_flush_ms: 500,
             detect_every_ms: 1_000,
         }
     }

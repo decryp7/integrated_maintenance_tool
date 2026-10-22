@@ -17,11 +17,12 @@
 
 use crate::analysis::AnomalyKind;
 use crate::api::{QueryRequest, Severity, TimelineRequest};
-use crate::ports::{Analysis, PageQuery, Profiles, Query as QueryPort, StoreResult, Tail, TailAppend, TailFile, TailRead};
+use crate::batch::SourceId;
+use crate::ports::{Analysis, Ingest, PageQuery, Profiles, Query as QueryPort, StoreResult, Tail, TailAppend, TailFile, TailRead};
 use crate::query::Query;
 use crate::workspace::{
-    group_of, AlertMutes, AlertTarget, LiveAlert, LiveRules, TailFileChange, TailFileState, TailFileStatus, TailOptions, TailReport,
-    TailStatus, TailTotals, WatchMode,
+    group_of, AlertMutes, AlertTarget, DeletedFiles, LiveAlert, LiveRules, TailFileChange, TailFileState, TailFileStatus, TailOptions,
+    TailReport, TailStatus, TailTotals, WatchMode,
 };
 use anyhow::Result;
 use std::collections::{HashMap, VecDeque};
@@ -39,9 +40,9 @@ const RATE_WINDOW: Duration = Duration::from_secs(10);
 const RATE_SAMPLES: usize = 64;
 
 /// The store ports a live session reads.
-pub trait LivePorts: QueryPort + Analysis + Profiles + Tail {}
+pub trait LivePorts: QueryPort + Analysis + Profiles + Tail + Ingest {}
 
-impl<T: QueryPort + Analysis + Profiles + Tail + ?Sized> LivePorts for T {}
+impl<T: QueryPort + Analysis + Profiles + Tail + Ingest + ?Sized> LivePorts for T {}
 
 /// Lines per second over the last seconds.
 #[derive(Debug, Clone, Default)]
@@ -165,6 +166,14 @@ impl LiveSession {
                 source_id: *id,
                 state: state.clone(),
             }));
+        }
+        // Files that disappeared lose their source when the option says so (the default keeps the history).
+        if options.deleted_files == DeletedFiles::Drop {
+            for id in &appended.deleted {
+                if let Err(e) = store.remove_source(SourceId(*id)) {
+                    log::warn!("the source {id} of a deleted file could not be removed: {e}");
+                }
+            }
         }
         if !appended.is_empty() {
             if let Ok(files) = store.tail_files() {

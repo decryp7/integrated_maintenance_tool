@@ -54,12 +54,9 @@ pub struct TailAppend {
     /// Sources whose file disappeared (their events stay).
     pub deleted: Vec<u32>,
     /// Sources holding back their last event until the file stops growing (plain text events may continue on the
-    /// lines that follow): ask again with no paths after [`HOLD_IDLE`] and the held event is written.
+    /// lines that follow): ask again with no paths once the file has stopped growing (`TailOptions::carry_flush_ms`) and the held event is written.
     pub held: Vec<u32>,
 }
-
-/// How long a file must not have grown before the event held back at its end is written.
-pub const HOLD_IDLE: std::time::Duration = std::time::Duration::from_millis(500);
 
 impl TailAppend {
     /// Whether nothing changed (a held event is not a change, it is a reason to ask again).

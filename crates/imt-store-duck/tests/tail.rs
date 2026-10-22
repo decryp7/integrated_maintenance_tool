@@ -6,7 +6,7 @@ mod common;
 
 use common::{store_with, TempDir};
 use imt_core::api::WorkspaceState;
-use imt_core::ports::{Ingest, PageQuery, Positions, Query, Search, SearchRequest, Tail, TailRead, HOLD_IDLE};
+use imt_core::ports::{Ingest, PageQuery, Positions, Query, Search, SearchRequest, Tail, TailRead};
 use imt_core::Profile;
 use imt_store_duck::DuckStore;
 use std::io::Write;
@@ -15,11 +15,6 @@ use std::time::Duration;
 fn append(path: &std::path::Path, text: &str) {
     let mut f = std::fs::OpenOptions::new().append(true).open(path).unwrap();
     f.write_all(text.as_bytes()).unwrap();
-}
-
-/// Waits out the idle time after which a held-back last event is written.
-fn idle() {
-    std::thread::sleep(HOLD_IDLE + Duration::from_millis(150));
 }
 
 #[test]
@@ -47,15 +42,11 @@ fn appended_lines_new_files_and_truncation_are_followed() {
     let r = store.append_tail(std::slice::from_ref(&a)).unwrap();
     assert_eq!((r.appended, r.held.len()), (1, 1), "{r:?}");
     assert_eq!(store.summary().unwrap().total, 2);
-    // Asking again at once finds nothing due (unless a slow machine took longer than the idle time meanwhile).
-    let early = store.append_tail(&[]).unwrap();
-    assert!(early.appended + early.held.len() == 1, "{early:?}");
-    idle();
-    let r = if early.appended == 1 {
-        early
-    } else {
-        store.append_tail(&[]).unwrap()
-    };
+    // Naming the file again does not write the held event (the file may still be growing); asking for the held
+    // events (no paths, after the caller waited for the file to stop growing) does.
+    let again = store.append_tail(std::slice::from_ref(&a)).unwrap();
+    assert_eq!((again.appended, again.held.len()), (0, 1), "{again:?}");
+    let r = store.append_tail(&[]).unwrap();
     assert_eq!((r.appended, r.held.len()), (1, 0), "{r:?}");
     assert_eq!(store.summary().unwrap().total, 3);
     // Ids are stable: the first event kept its id; positions follow the new events.
@@ -302,4 +293,54 @@ fn a_store_written_before_live_tail_state_gains_its_tables_when_opened() {
     let r = store.append_tail(std::slice::from_ref(&a)).unwrap();
     assert_eq!(r.appended, 1, "{r:?}");
     assert_eq!(store.summary().unwrap().total, 3);
+}
+
+fn messages(store: &DuckStore) -> Vec<String> {
+    store
+        .page(&PageQuery {
+            limit: 50,
+            ..PageQuery::default()
+        })
+        .unwrap()
+        .rows
+        .iter()
+        .map(|r| r.message.clone())
+        .collect()
+}
+
+/// Continuation lines (a stack trace) that arrive after a file was imported and then followed belong to the last
+/// imported event: the source is read again so they are not separate untimed events.
+#[test]
+fn continuation_lines_after_import_then_follow_join_the_last_event() {
+    let logs = TempDir::new("tail-cont-logs");
+    let a = logs.0.join("a.log");
+    std::fs::write(&a, "2026-10-14 10:00:00 INFO first\n2026-10-14 10:00:01 ERROR boom\n").unwrap();
+    let dir = TempDir::new("tail-cont-store");
+    let (store, _) = store_with(&dir, Profile::default_profile(), std::slice::from_ref(&logs.0)).unwrap();
+    assert_eq!(store.summary().unwrap().total, 2);
+    append(&a, "   at Foo.Bar() in Foo.cs:line 12\n   at Baz.Run()\n");
+    let r = store.append_tail(std::slice::from_ref(&a)).unwrap();
+    assert_eq!(r.reimported.len(), 1, "the source was read again: {r:?}");
+    let all = messages(&store);
+    assert_eq!(all.len(), 2, "no separate untimed events: {all:?}");
+    // Following goes on from the new source.
+    append(&a, "2026-10-14 10:00:09 INFO later\n");
+    store.append_tail(std::slice::from_ref(&a)).unwrap();
+    store.append_tail(&[]).unwrap();
+    assert_eq!(messages(&store).len(), 3);
+}
+
+/// New events after an imported file are appended as before when nothing continued the last one (it is not
+/// written twice).
+#[test]
+fn the_last_imported_event_is_not_written_twice_when_nothing_continued_it() {
+    let logs = TempDir::new("tail-once-logs");
+    let a = logs.0.join("a.log");
+    std::fs::write(&a, "2026-10-14 10:00:00 INFO first\n2026-10-14 10:00:01 INFO second\n").unwrap();
+    let dir = TempDir::new("tail-once-store");
+    let (store, _) = store_with(&dir, Profile::default_profile(), std::slice::from_ref(&logs.0)).unwrap();
+    append(&a, "2026-10-14 10:00:02 INFO third\n2026-10-14 10:00:03 INFO fourth\n");
+    store.append_tail(std::slice::from_ref(&a)).unwrap();
+    store.append_tail(&[]).unwrap();
+    assert_eq!(messages(&store), ["first", "second", "third", "fourth"]);
 }

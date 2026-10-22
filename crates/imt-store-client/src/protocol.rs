@@ -4,11 +4,11 @@
 //! [`WireError`], so the client gets the same [`StoreError`] back; anything else (a crash, a hang, garbage, an
 //! oversized frame) is a failure of the worker process.
 
+pub use crate::port_table::{ty, wire_names, WIRE_VERSION};
 use imt_core::batch::SourceId;
 use imt_core::ports::StoreError;
 use imt_core::Profile;
 use imt_ipc::RemoteError;
-pub use crate::port_table::{ty, wire_names, WIRE_VERSION};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::path::PathBuf;
@@ -456,7 +456,16 @@ mod tests {
     /// changes the encoding, so it bumps `WIRE_VERSION` and this snapshot.
     #[test]
     fn the_wire_format_is_append_only() {
-        const V1: &[&str] = &["Clear", "Open", "Reload", "Refresh", "RemoveSource", "Restore", "AppendTail", "Summary"];
+        const V1: &[&str] = &[
+            "Clear",
+            "Open",
+            "Reload",
+            "Refresh",
+            "RemoveSource",
+            "Restore",
+            "AppendTail",
+            "Summary",
+        ];
         assert_eq!(WIRE_VERSION, 1);
         let names = wire_names();
         assert_eq!(&names[..V1.len()], V1, "the operations' order is the wire encoding");

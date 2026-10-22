@@ -28,9 +28,9 @@ pub mod ty {
     pub use imt_core::analysis::{Anomaly, Comparison, FieldStats, RequestSpan, WaterfallRow};
     pub use imt_core::api::{
         ChartData, ChartRequest, CompareRequest, CompletionRequest, ContextRequest, CorrelateRequest, ExportRequest, ExportResult,
-        ExtractPreview, ExtractPreviewRequest, Facet, FacetRequest, FieldStatsRequest, Finding, MomentRequest, MomentSummary,
-        ParsePreview, ParsePreviewRequest, QueryRequest, RequestsRequest, SourceContext, Timeline, TimelineRequest, TraceRequest,
-        TraceSummary, WorkspaceState,
+        ExtractPreview, ExtractPreviewRequest, Facet, FacetRequest, FieldStatsRequest, Finding, MomentRequest, MomentSummary, ParsePreview,
+        ParsePreviewRequest, QueryRequest, RequestsRequest, SourceContext, Timeline, TimelineRequest, TraceRequest, TraceSummary,
+        WorkspaceState,
     };
     pub use imt_core::batch::{EventId, SourceId};
     pub use imt_core::exceptions::ExceptionGroup;
@@ -41,9 +41,9 @@ pub mod ty {
         Analysis, Analyzed, Console, DiagnosticRow, Diagnostics, EventView, EventsRequest, Filter, FixEvaluation, ImportSession,
         IndexStatus, Ingest, Inspect, Maintain, MaintenanceAction, MaintenanceReport, PageQuery, PageReply, ParserChange, ParserDef,
         ParserUse, PartialMatches, Positions, Profiles, Projects, Query, QuickFix, Redaction, Search, SearchReply, SearchRequest,
-        SegmentsPage, SegmentsRequest, Skew, SqlExportRequest, SqlExportResult, SqlIds, SqlIdsRequest, SqlPage, SqlPageRequest,
-        SqlRequest, SqlResult, SqlSchema, StoreError, StoreFields, StoreIndex, StoreMemory, StoreOverview, StoreResult, SummaryReply,
-        Tail, TailAppend, TailFile,
+        SegmentsPage, SegmentsRequest, Skew, SqlExportRequest, SqlExportResult, SqlIds, SqlIdsRequest, SqlPage, SqlPageRequest, SqlRequest,
+        SqlResult, SqlSchema, StoreError, StoreFields, StoreIndex, StoreMemory, StoreOverview, StoreResult, SummaryReply, Tail, TailAppend,
+        TailFile,
     };
     pub use imt_core::ql::{Completion, QlError, QlResult, QueryControl};
     pub use imt_core::redact::{RedactionSummary, RedactionSummaryRequest};

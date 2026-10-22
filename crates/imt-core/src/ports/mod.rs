@@ -36,7 +36,7 @@ pub use dto::{
     ImportReport, IndexStatus, PageQuery, PageReply, ParserChange, ParserDef, ParserRef, ParserUse, PartialMatches, QuickFix, SearchMatch,
     SearchReply, SearchRequest, SummaryReply, MAX_PAGE_ROWS,
 };
-pub use live::{TailAppend, TailFile, TailRead, HOLD_IDLE};
+pub use live::{TailAppend, TailFile, TailRead};
 pub use session::ImportSession;
 
 use crate::analysis::{Anomaly, Comparison, FieldStats, RequestSpan, WaterfallRow};

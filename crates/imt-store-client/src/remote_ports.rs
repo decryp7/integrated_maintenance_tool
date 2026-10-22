@@ -4,9 +4,9 @@
 
 use super::*;
 use crate::protocol::ty::*;
+use crate::protocol::AssignParser;
 #[cfg(test)]
 use crate::store_ops_enum;
-use crate::protocol::AssignParser;
 
 /// Expands the table into the client's trait impls.
 macro_rules! remote_impls {
