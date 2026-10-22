@@ -147,7 +147,9 @@ fn reopening_recovers_from_a_crash_and_refuses_damage() {
     let store = DuckStore::open(&dir.0, Profile::default_profile(), PluginRegistry::new()).unwrap();
     assert_eq!(store.summary().unwrap().total, report.events);
     assert!(files(&dir).iter().all(|f| !f.contains("ffffff")), "{:?}", files(&dir));
-    // Moved elsewhere (a shared project): the view follows the folder.
+    // Moved elsewhere (a shared project): the view follows the folder. The index is built in the background after
+    // opening and writes into the folder, so it is finished before the folder is copied.
+    store.wait_for_index(std::time::Duration::from_secs(60)).unwrap();
     drop(store);
     let moved = TempDir::new("recover-moved");
     std::fs::remove_dir_all(&moved.0).unwrap();
