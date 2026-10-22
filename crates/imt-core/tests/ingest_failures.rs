@@ -95,6 +95,7 @@ fn env(cancel: &AtomicBool) -> ImportEnv<'_> {
         parsers: parsers(),
         schema: Arc::new(EventSchema::plain()),
         cancel,
+        window: None,
     }
 }
 
