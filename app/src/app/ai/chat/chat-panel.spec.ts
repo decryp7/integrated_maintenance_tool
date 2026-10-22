@@ -152,28 +152,49 @@ describe('AiChatPanel', () => {
     const { f, store, platform, backend } = setup();
     f.detectChanges();
     await until(f, () => !!store.activeId() && !el<HTMLTextAreaElement>(f, 'textarea').disabled);
-    expect(buttonByText(f, 'Export…').disabled).toBe(true);
+    const menuItem = (name: string) => [...document.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find((b) => b.textContent?.trim() === name)!;
+    const choose = (name: string) => {
+      el<HTMLButtonElement>(f, '[data-testid=ai-chat-actions]').click();
+      f.detectChanges();
+      menuItem(name).click();
+    };
+    // The header: the chat, New chat and one menu; the model's state on a line below.
+    expect(el(f, 'button[aria-label="New chat"]')).not.toBeNull();
+    el<HTMLButtonElement>(f, '[data-testid=ai-chat-actions]').click();
+    f.detectChanges();
+    expect(menuItem('Export…').getAttribute('aria-disabled')).toBe('true');
+    el<HTMLButtonElement>(f, '[data-testid=ai-chat-actions]').click();
+    f.detectChanges();
     await ask(f, 'q');
     await until(f, () => !store.running());
-    buttonByText(f, 'Export…').click();
+    choose('Export…');
     await until(f, () => !!(f.nativeElement as HTMLElement).querySelector('.ok.banner'));
     expect(platform.pickSavePath).toHaveBeenCalledWith('Export chat', 'q.md', [{ name: 'Markdown', extensions: ['md'] }]);
     expect(el(f, '.ok.banner').textContent).toContain('Exported to /tmp/chat.md');
     // Exporting to the same file again asks before replacing it.
-    buttonByText(f, 'Export…').click();
+    choose('Export…');
     const dialogs = TestBed.inject(DialogService);
     await until(f, () => dialogs.stack().length === 1);
     at(dialogs.stack(), 0).ref.close(true);
     await settle();
     vi.spyOn(backend, 'chatExportMarkdown').mockRejectedValueOnce(new AiError('io', 'disk full'));
-    buttonByText(f, 'Export…').click();
+    choose('Export…');
     await until(f, () => el(f, '.ok.banner').textContent!.includes('Not exported: disk full'));
-    buttonByText(f, 'New chat').click();
+    el<HTMLButtonElement>(f, 'button[aria-label="New chat"]').click();
     await until(f, () => store.sessions().length === 2);
     const select = el<HTMLSelectElement>(f, 'select');
     typeInto(select, at(store.sessions(), 0).id, 'change');
     await until(f, () => store.activeId() === at(store.sessions(), 0).id);
-    el<HTMLButtonElement>(f, 'button[aria-label="Delete this chat"]').click();
+    // Delete chat… asks first: cancelled, nothing is deleted.
+    choose('Delete chat…');
+    await until(f, () => dialogs.stack().length === 1);
+    expect(at(dialogs.stack(), 0).options.title).toBe('Delete this chat?');
+    at(dialogs.stack(), 0).ref.close();
+    await settle();
+    expect(store.sessions()).toHaveLength(2);
+    choose('Delete chat…');
+    await until(f, () => dialogs.stack().length === 1);
+    at(dialogs.stack(), 0).ref.close(true);
     await until(f, () => store.sessions().length === 1);
   });
 

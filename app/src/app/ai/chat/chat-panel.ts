@@ -1,6 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, signal, untracked, viewChild } from '@angular/core';
 import { Platform } from '../../core/platform';
 import { OverwriteGuard } from '../../ui/overwrite-guard';
+import { ConfirmDialog } from '../../ui/confirm-dialog';
+import { DialogService } from '../../ui/dialog.service';
+import { Icon } from '../../shared/icon';
+import { CdkMenu, CdkMenuItem, CdkMenuTrigger } from '@angular/cdk/menu';
 import { AiBackend, toAiError } from '../ai-backend';
 import { AiChatPersistence } from '../ai-chat-persistence';
 import { AiLauncher } from '../ai-launcher';
@@ -27,7 +31,7 @@ import { AiRichText } from './rich-text';
 @Component({
   selector: 'imt-ai-chat-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AiRichText, AiProposalCard, AgentApprovalCard, LinkCard, AgentPaused, ChatBrowserBar, ResearchOfferCard, ChatComposer],
+  imports: [AiRichText, AiProposalCard, AgentApprovalCard, LinkCard, AgentPaused, ChatBrowserBar, ResearchOfferCard, ChatComposer, Icon, CdkMenu, CdkMenuItem, CdkMenuTrigger],
   template: `
     <div class="bar" role="toolbar" aria-label="Chat" i18n-aria-label="@@ai.chat.toolbar.label">
       <label class="sr-only" for="ai-chat-session" i18n="@@ai.chat.session.label">Chat</label>
@@ -36,12 +40,17 @@ import { AiRichText } from './rich-text';
           <option [value]="s.id">{{ sessionLabel(s) }}</option>
         }
       </select>
-      <button type="button" class="btn ghost" (click)="store.newChat()" i18n="@@ai.chat.newChat">New chat</button>
-      <button type="button" class="btn ghost" [disabled]="!store.activeTurns().length" (click)="exportMarkdown()" i18n="@@ai.chat.export">Export…</button>
-      <button type="button" class="btn ghost" [disabled]="!store.activeId()" aria-label="Delete this chat" i18n-aria-label="@@ai.chat.delete.label" title="Delete this chat" i18n-title="@@ai.chat.delete.title" (click)="deleteChat()" i18n="@@ai.chat.delete">Delete</button>
-      <span class="spacer"></span>
-      <span class="engine muted" data-testid="ai-engine-state">{{ engineLine() }}</span>
+      <button type="button" class="icon-btn" (click)="store.newChat()" aria-label="New chat" i18n-aria-label="@@ai.chat.newChat" title="New chat" i18n-title="@@ai.chat.newChat"><imt-icon name="plus" [size]="16" /></button>
+      <button type="button" class="icon-btn" [cdkMenuTriggerFor]="chatMenu" aria-label="Chat actions" i18n-aria-label="@@ai.chat.actions" title="Chat actions" i18n-title="@@ai.chat.actions" data-testid="ai-chat-actions"><imt-icon name="more" [size]="16" /></button>
     </div>
+    <p class="engine muted" data-testid="ai-engine-state">{{ engineLine() }}</p>
+
+    <ng-template #chatMenu>
+      <div cdkMenu class="menu" aria-label="Chat actions" i18n-aria-label="@@ai.chat.actions">
+        <button type="button" cdkMenuItem class="mi" [cdkMenuItemDisabled]="!store.activeTurns().length" (cdkMenuItemTriggered)="exportMarkdown()" i18n="@@ai.chat.export">Export…</button>
+        <button type="button" cdkMenuItem class="mi danger" [cdkMenuItemDisabled]="!store.activeId()" (cdkMenuItemTriggered)="deleteChat()" i18n="@@ai.chat.deleteChat">Delete chat…</button>
+      </div>
+    </ng-template>
 
     @if (status.needsSetup()) {
       <div class="setup" role="note">
@@ -146,10 +155,16 @@ import { AiRichText } from './rich-text';
   `,
   styles: `
     :host { display: flex; flex-direction: column; height: 100%; min-height: 0; font-size: var(--fs-md); }
-    .bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-    .bar .select { max-width: 220px; }
-    .spacer { flex: 1; }
-    .engine { font-size: var(--fs-xs); }
+    .bar { display: flex; align-items: center; gap: 4px; padding: 6px 8px 2px; flex-wrap: wrap; }
+    .bar .select { flex: 1; min-width: 0; max-width: 320px; }
+    .engine { margin: 0; padding: 0 8px 4px; font-size: var(--fs-xs); border-bottom: 1px solid var(--border); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .menu { min-width: 180px; display: flex; flex-direction: column; padding: 4px; border-radius: 8px; background: var(--bg-2); border: 1px solid var(--border-3); box-shadow: var(--shadow); }
+    .menu:focus { outline: none; }
+    .mi { display: flex; align-items: center; min-height: 28px; padding: 0 10px; border: 0; border-radius: 5px; background: transparent; color: var(--text-2); cursor: pointer; text-align: start; font: inherit; }
+    .mi:hover:not([aria-disabled='true']), .mi:focus { background: var(--bg-active); color: var(--text); outline: none; }
+    .mi:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+    .mi[aria-disabled='true'] { color: var(--muted); cursor: default; }
+    .mi.danger:not([aria-disabled='true']) { color: var(--danger-text, var(--lvl-error)); }
     .setup { padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--bg-1); }
     .setup p { margin: 0 0 8px; }
     /* Positioned, so the text for screen readers in it stays in the list (else the dock scrolled past the panel). */
@@ -195,6 +210,7 @@ export class AiChatPanel {
   private readonly backend = inject(AiBackend);
   private readonly platform = inject(Platform);
   private readonly overwrite = inject(OverwriteGuard);
+  private readonly dialogs = inject(DialogService);
   private readonly persistence = inject(AiChatPersistence);
   private readonly browser = inject(ChatBrowserStore);
   private readonly logEl = viewChild<ElementRef<HTMLElement>>('log');
@@ -315,9 +331,21 @@ export class AiChatPanel {
     if (err) this.notice.set(err);
   }
 
+  /** "Delete chat…": asks first (the chat and its answers cannot be brought back). */
   async deleteChat(): Promise<void> {
     const id = this.store.activeId();
-    if (id) await this.store.deleteChat(id);
+    if (!id) return;
+    const title = this.store.active()?.title || $localize`:@@ai.chat.session.untitled:New chat`;
+    const ref = this.dialogs.open<boolean>(ConfirmDialog, {
+      title: $localize`:@@ai.chat.delete.title:Delete this chat?`,
+      width: 420,
+      inputs: {
+        message: $localize`:@@ai.chat.delete.message:"${title}:title:" and its answers are deleted. This cannot be undone.`,
+        confirmLabel: $localize`:@@ai.chat.delete.confirm:Delete chat`,
+        danger: true,
+      },
+    });
+    if ((await ref.closed) === true) await this.store.deleteChat(id);
   }
 
   async exportMarkdown(): Promise<void> {

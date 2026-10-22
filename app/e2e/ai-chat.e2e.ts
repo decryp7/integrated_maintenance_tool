@@ -51,10 +51,12 @@ test.describe('AI chat', () => {
 
     await ask(chat, 'What crashed?');
     await waitAnswered(chat);
-    await chat.getByRole('button', { name: 'Export…' }).click();
+    await chat.getByRole('button', { name: 'Chat actions' }).click();
+    await page.getByRole('menuitem', { name: 'Export…' }).click();
     await expect(chat.getByRole('status').filter({ hasText: 'Exported to' })).toBeVisible();
     // The same path again: the overwrite guard asks first.
-    await chat.getByRole('button', { name: 'Export…' }).click();
+    await chat.getByRole('button', { name: 'Chat actions' }).click();
+    await page.getByRole('menuitem', { name: 'Export…' }).click();
     const replace = page.getByRole('dialog', { name: 'Replace file?' });
     await expect(replace).toBeVisible();
     await replace.getByRole('button', { name: 'Replace' }).click();
@@ -63,7 +65,10 @@ test.describe('AI chat', () => {
     await chat.getByRole('button', { name: 'New chat' }).click();
     await expect(chat.getByTestId('ai-chat-sessions').locator('option')).toHaveCount(2);
     await expect(chat.getByTestId('ai-answer-0')).toHaveCount(0);
-    await chat.getByRole('button', { name: 'Delete this chat' }).click();
+    await chat.getByRole('button', { name: 'Chat actions' }).click();
+    await page.getByRole('menuitem', { name: 'Delete chat…' }).click();
+    const confirm = page.getByRole('dialog', { name: 'Delete this chat?' });
+    await confirm.getByRole('button', { name: 'Delete chat' }).click();
     await expect(chat.getByTestId('ai-chat-sessions').locator('option')).toHaveCount(1);
     await expect(chat.getByTestId('ai-answer-0')).toContainText('OutOfMemoryException');
   });
