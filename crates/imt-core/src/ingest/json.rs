@@ -267,6 +267,25 @@ mod tests {
     }
 
     #[test]
+    fn an_object_continued_by_a_too_long_line_is_given_up_and_the_long_line_reported() {
+        let content = format!("{{\"@m\":\"x\",\n{}\n}}\n{{\"@m\":\"y\"}}\n", "a".repeat(60));
+        let p = CompiledProfile::compile(Profile::default_profile()).unwrap();
+        let ctx = ImportCtx {
+            profile: &p,
+            path: Path::new("x.json"),
+            file_date: None,
+        };
+        let mut src = ReaderChunks::with_limits(content.as_bytes(), Encoding::Utf8, 0, 8, 20);
+        let mut lines = LineReader::new(&mut src);
+        let mut out = Events::default();
+        let skipped = import_json(&ctx, JsonShape::Lines, content.len() as u64, &mut lines, &mut out).unwrap();
+        assert_eq!(out.events.len(), 1, "only the complete object after the broken one is an event");
+        assert_eq!(out.events[0].record.message, "y");
+        assert!(skipped >= 1);
+        assert_eq!(out.problems.count(ProblemKind::LineTooLong), 1);
+    }
+
+    #[test]
     fn blank_lines_between_json_lines_are_not_events_or_problems() {
         let content = "\n{\"@t\":\"2026-10-14T10:00:00Z\",\"@m\":\"a\"}\n   \n\n{\"@t\":\"2026-10-14T10:00:01Z\",\"@m\":\"b\"}\n";
         let (out, skipped) = run(content, JsonShape::Lines, 1 << 20);
