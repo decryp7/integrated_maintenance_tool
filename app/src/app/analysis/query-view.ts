@@ -76,6 +76,8 @@ export function progressText(p: QueryProgress | null): string | null {
       @if (errorText(); as msg) {
         <!-- On the bar's own line: the dock gives the query bar one line, so a line below it may be scrolled away. -->
         <span id="ql-error" class="err-inline" role="alert" [title]="msg"><span aria-hidden="true">⚠ </span>{{ msg }}</span>
+        <!-- Its fix beside it: below the input, the completions popup would cover it. -->
+        <imt-ql-suggestions class="dym-inline" [error]="session.error()" (pick)="useSuggestion($event)" />
       }
       <button class="btn primary" type="button" (click)="run()" [disabled]="session.running()" [title]="runTitle" i18n="Run a query|Button@@analysis.queryView.run">Run</button>
       @if (session.running()) {
@@ -101,8 +103,8 @@ export function progressText(p: QueryProgress | null): string | null {
             <progress [value]="session.progress()!.done" [max]="session.progress()!.total" aria-label="Query progress" i18n-aria-label="@@analysis.queryView.progress"></progress> {{ t }}
           }
         </span>
-      } @else if (session.error(); as e) {
-        <imt-ql-suggestions [error]="e" (pick)="useSuggestion($event)" />
+      } @else if (session.error()) {
+        <!-- The error and its suggestions are on the bar's line. -->
       } @else if (session.runError(); as r) {
         <span class="err-msg">⚠ {{ r }}</span>
       } @else if (session.cancelled()) {
@@ -148,6 +150,7 @@ export function progressText(p: QueryProgress | null): string | null {
     .history .clear { border-top: 1px solid var(--border); font-family: var(--font-sans); color: var(--muted); }
     .status { min-height: 16px; font-size: var(--fs-sm); }
     .err-msg { color: var(--danger-text); }
+    .dym-inline { flex: none; white-space: nowrap; }
     .err-inline { flex: 0 1 auto; min-width: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--danger-text); }
     .muted { color: var(--muted); }
     .applied code, .muted code { color: var(--text); }

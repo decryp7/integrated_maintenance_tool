@@ -1,4 +1,5 @@
 import { ConsoleMessage, expect, Page, test } from '@playwright/test';
+import { APP_LOAD_TIMEOUT } from './app';
 import { chooseMenu } from './menu-support';
 
 // Error capture: every failure is logged once, with the operation that caused it. The browser build logs to the
@@ -30,7 +31,7 @@ test('a view that throws is contained and logged with the operation that opened 
   test.setTimeout(120_000);
   const lines = collect(page);
   await page.goto('/?imtFault=view:*');
-  await expect(page.locator('.imt-panel-failed').first()).toBeVisible();
+  await expect(page.locator('.imt-panel-failed').first()).toBeVisible({ timeout: APP_LOAD_TIMEOUT });
 
   // Every view the app offers, from View ▸ Other windows….
   await chooseMenu(page, 'View', 'Other windows…');
@@ -62,7 +63,8 @@ test('a view that throws is contained and logged with the operation that opened 
       expect(fresh.props['Error']).toContain('Injected fault');
       const op = fresh.props['OperationId'];
       if (op) {
-        expect(lines.some((l) => l.category === 'IMT.Activity' && l.props['OperationId'] === op)).toBe(true);
+        // The operation is logged when it ends, which may be after the panel failed inside it.
+        await expect.poll(() => lines.some((l) => l.category === 'IMT.Activity' && l.props['OperationId'] === op), { timeout: 5000 }).toBe(true);
         correlated++;
       }
     }
@@ -76,7 +78,7 @@ test('a view that throws is contained and logged with the operation that opened 
 test('uncaught errors and unhandled rejections are logged with their type, stack and the current operation', async ({ page }) => {
   const lines = collect(page);
   await page.goto('/');
-  await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible();
+  await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible({ timeout: APP_LOAD_TIMEOUT });
   await page.evaluate(() => {
     setTimeout(() => {
       throw new TypeError('async boom in /Users/alice/secret/file.log');
