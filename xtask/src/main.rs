@@ -169,11 +169,9 @@ mod tests {
             assert_eq!(step.env, vec![("IMT_REGENERATE_SAMPLES".to_owned(), "1".to_owned())]);
             assert!(step.args.ends_with(&["--".into(), "--ignored".into(), "regenerate_".into()]));
         }
-        assert!(
-            plan[1]
-                .display()
-                .starts_with("IMT_REGENERATE_SAMPLES=1 cargo test -p imt-plugin-profiling --no-default-features")
-        );
+        assert!(plan[1]
+            .display()
+            .starts_with("IMT_REGENERATE_SAMPLES=1 cargo test -p imt-plugin-profiling --no-default-features"));
         assert_eq!(plan.last().map(|s| s.args[2].as_str()), Some("imt-plugin-windows"));
     }
 
