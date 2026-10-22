@@ -20,7 +20,7 @@ describe('TauriPasteBackend', () => {
   it('is the mock in a browser, with failures logged', async () => {
     TestBed.configureTestingModule({ providers: [{ provide: Logger, useFactory: () => new MemoryLogger() }, { provide: ImtBackend, useValue: tinyBackend() }] });
     const backend = TestBed.inject(PasteBackend);
-    expect((await backend.pasteLog('one line', 'x')).sources.some((s) => s.name === 'x.log')).toBe(true);
+    expect((await backend.pasteLog('one line', 'x')).sources.some((s) => s.name === 'pasted/x.log')).toBe(true);
     await expect(backend.pasteLog('   ', null)).rejects.toBeDefined();
     expect((TestBed.inject(Logger) as MemoryLogger).entries.some((e) => e.level === 'error' || e.level === 'warn')).toBe(true);
   });
@@ -31,7 +31,7 @@ describe('MockPasteBackend', () => {
     const imt = tinyBackend();
     const b = new MockPasteBackend(imt);
     const summary = await b.pasteLog('2026-10-14 ERROR boom\nplain line\nWARN careful\n\n', 'C:\\x\\web01 errors');
-    const source = summary.sources.find((s) => s.name === 'web01 errors.log');
+    const source = summary.sources.find((s) => s.name === 'pasted/web01 errors.log');
     expect(source?.records).toBe(3);
     expect(summary.total).toBeGreaterThanOrEqual(3);
   });
@@ -41,8 +41,8 @@ describe('MockPasteBackend', () => {
     await b.pasteLog('a', 'dup');
     const second = await b.pasteLog('b', 'dup');
     const third = await b.pasteLog('c', null);
-    expect(second.sources.map((s) => s.name)).toContain('dup (2).log');
-    expect(third.sources.map((s) => s.name)).toContain('Pasted log.log');
+    expect(second.sources.map((s) => s.name)).toContain('pasted/dup (2).log');
+    expect(third.sources.map((s) => s.name)).toContain('pasted/Pasted log.log');
   });
 
   it('refuses empty text, text over 8 MiB, and a non-mock workspace', async () => {

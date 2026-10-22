@@ -75,7 +75,7 @@ describe('Paste as log dialog', () => {
     addButton(fixture).click();
     await vi.waitFor(() => expect(ref.close).toHaveBeenCalledWith(true));
     expect(add).toHaveBeenCalledWith('ERROR boom', 'web01 errors');
-    expect(workspace.summary()?.sources.some((s) => s.name === 'web01 errors.log')).toBe(true);
+    expect(workspace.summary()?.sources.some((s) => s.name === 'pasted/web01 errors.log')).toBe(true);
   });
 
   it('sends null for an empty name', async () => {

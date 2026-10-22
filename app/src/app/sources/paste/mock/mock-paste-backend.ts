@@ -18,7 +18,7 @@ export class MockPasteBackend implements PasteBackend {
     if (overCap(byteLength(text))) {
       throw new CmdError({ code: 'invalid', message: 'the text is over 8 MiB; save it as a file and open that instead', retryable: false });
     }
-    const taken = new Set((await this.imt.workspaceSummary()).sources.map((s) => s.name));
+    const taken = new Set((await this.imt.workspaceSummary()).sources.map((s) => s.name.replace(/^pasted\//, '')));
     return this.imt.addPastedSource(uniqueName(safeLogName(name), taken), text);
   }
 }
