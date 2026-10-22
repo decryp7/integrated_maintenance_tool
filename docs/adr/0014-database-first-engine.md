@@ -861,3 +861,5 @@ analyses 220-237 MB -> 206-216 MB (release build), each analysis's start 265-280
 294-301 MB -> 276-283 MB. The live store (reader, caches, fragmentation of long-lived small objects) still holds about
 40 MB more than a freshly opened one; no single owner was found, so the 300 MB query budget stays and the anomaly working
 set (about +75-100 MB over the baseline, DuckDB's limit plus its threads' caches) is its main consumer.
+
+The 300 MB query budget is measured on a release build (unoptimised code keeps about 50 MB more resident): `analysis_memory` skips itself in debug builds and CI runs it with `cargo test --release` on Linux.
