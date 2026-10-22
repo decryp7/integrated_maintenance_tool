@@ -81,7 +81,6 @@ fn clock_offsets_are_suggested_set_kept_and_refused_through_the_ports() {
                 source: sb,
                 offset_ms: for_b.suggested_ms,
             },
-            track: vec![],
         })
         .unwrap();
     assert_eq!((change.source, change.offset_ms, change.previous_ms), (sb, 3_980, 0));
@@ -95,7 +94,6 @@ fn clock_offsets_are_suggested_set_kept_and_refused_through_the_ports() {
                 source: sb,
                 offset_ms: i64::MAX / 4,
             },
-            track: vec![],
         })
         .unwrap_err();
     assert!(matches!(err, StoreError::Invalid(ref m) if m.contains("too large")), "{err:?}");
