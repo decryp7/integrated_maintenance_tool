@@ -387,7 +387,10 @@ fn line_diff_marks_added_and_removed_lines() {
 // ---- validation ----
 
 fn store_with(lines: &str) -> (crate::workspace::WorkspaceStore, std::path::PathBuf) {
-    let dir = std::env::temp_dir().join(format!("imt-survey-{}-{}", std::process::id(), lines.len()));
+    // Unique per call: tests run in parallel and each removes its folder when done.
+    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let dir = std::env::temp_dir().join(format!("imt-survey-{}-{n}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let file = dir.join("app.log");
     std::fs::write(&file, lines).unwrap();
