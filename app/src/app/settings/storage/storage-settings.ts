@@ -171,7 +171,7 @@ export function resultLine(r: StorageCategoryClearResult, label: string): string
     .lines .error { color: var(--danger-text); }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 6px 8px; text-align: start; vertical-align: top; border-bottom: 1px solid var(--border); }
-    thead th { font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    thead th { font-size: var(--fs-sm); font-weight: 600; color: var(--muted); }
     tbody th { font-weight: 500; color: var(--text); }
     .name { margin-inline-end: 6px; }
     .badge { display: inline-block; padding: 0 6px; border-radius: 8px; font-size: var(--fs-xs); color: var(--text-2); border: 1px solid var(--border-3); }

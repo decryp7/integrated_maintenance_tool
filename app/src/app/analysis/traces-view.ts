@@ -32,7 +32,6 @@ export function waterfallTotal(rows: readonly WaterfallRow[]): number {
   imports: [AnalysisState, CoverageNote],
   template: `
     <div class="bar">
-      <span class="section-title" i18n="@@analysis.traces.title">Traces &amp; requests</span>
       <div class="seg" role="group" aria-label="Show" i18n-aria-label="Show a kind of item|Group label@@analysis.traces.show">
         <button class="btn" type="button" [class.active]="mode() === 'traces'" [attr.aria-pressed]="mode() === 'traces'" (click)="mode.set('traces')" i18n="@@analysis.traces.modeTraces">Traces</button>
         <button class="btn" type="button" [class.active]="mode() === 'requests'" [attr.aria-pressed]="mode() === 'requests'" (click)="mode.set('requests')" i18n="@@analysis.traces.modeRequests">Requests</button>

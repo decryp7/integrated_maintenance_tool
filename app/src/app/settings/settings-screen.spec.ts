@@ -68,7 +68,7 @@ describe('SettingsScreen', () => {
     const { fixture } = await setup();
     const groups = all(fixture, 'nav .group').map((g) => g.textContent?.trim());
     expect(groups).toEqual(['Application', 'Data', 'AI', 'Plugins', 'Diagnostics']);
-    const items = all(fixture, 'nav .nav').map((b) => [...b.querySelectorAll('.name, .badge')].map((x) => x.textContent?.trim()).join(' ') || b.textContent?.trim());
+    const items = all(fixture, 'nav .nav').map((b) => [...b.querySelectorAll('.name, .status')].map((x) => x.textContent?.trim()).join(' ') || b.textContent?.trim());
     expect(items).toEqual([
       'General',
       'Appearance',

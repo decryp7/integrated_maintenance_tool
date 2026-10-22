@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { Switch } from '../shared/switch';
 import { DIALOG_REF } from '../ui/dialog.service';
 import { AiSettingsExtras } from '../ai/settings/ai-settings-extras';
 import { PerformanceExtras } from './performance/performance-extras';
@@ -34,12 +35,12 @@ import { SettingField, SettingsSection } from './settings.types';
 @Component({
   selector: 'imt-settings-screen',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, KnowledgeSettings, StorageSettings, PerformanceExtras, LiveTailSettings, BrowserRuntimeSettings, UpdatesSettings, KeyboardSettings, VideoSettings],
+  imports: [Switch, GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, KnowledgeSettings, StorageSettings, PerformanceExtras, LiveTailSettings, BrowserRuntimeSettings, UpdatesSettings, KeyboardSettings, VideoSettings],
   host: { '(keydown.escape)': 'onEscape($event)' },
   template: `
     <div class="top">
       <input class="input search" type="search" placeholder="Search settings" aria-label="Search settings" i18n-placeholder="@@settings.screen.search.placeholder" i18n-aria-label="@@settings.screen.search.label" [value]="store.query()" (input)="store.setQuery($any($event.target).value)" />
-      <label class="adv" i18n="@@settings.screen.showAdvancedToggle"><input type="checkbox" [checked]="store.showAdvanced()" (change)="store.setShowAdvanced($any($event.target).checked)" /> Show advanced</label>
+      <imt-switch class="adv" size="small" [checked]="store.showAdvanced()" (checkedChange)="store.setShowAdvanced($event)"><ng-container i18n="@@settings.screen.showAdvancedToggle">Show advanced</ng-container></imt-switch>
     </div>
 
     @if (store.restartPending()) {
@@ -76,7 +77,7 @@ import { SettingField, SettingsSection } from './settings.types';
             <button class="nav sub" type="button" [attr.aria-current]="isSelected(i.id) ? 'page' : null" [attr.data-testid]="'settings-nav-' + navKey(i.id)" (click)="store.select(i.id)">
               <span class="name">{{ i.title }}</span>
               @if (i.section && status(i.section); as st) {
-                <span class="badge">{{ st }}</span>
+                <span class="status">{{ st }}</span>
               }
               @if (isDirty(i.id)) {
                 <span class="dot" role="img" aria-label="unsaved changes" title="Unsaved changes" i18n-aria-label="@@settings.screen.dirtyDot.label" i18n-title="@@settings.screen.dirtyDot.title"></span>
@@ -149,7 +150,7 @@ import { SettingField, SettingsSection } from './settings.types';
           <div class="section-head">
             <h3>{{ titleOf(s) }}</h3>
             @if (status(s); as st) {
-              <span class="badge">{{ st }}</span>
+              <span class="status">{{ st }}</span>
             }
             <span class="spacer"></span>
             @if (s.fields.length) {
@@ -229,7 +230,8 @@ import { SettingField, SettingsSection } from './settings.types';
     .nav:hover { background: var(--bg-hover); }
     .nav[aria-current='page'] { background: var(--bg-active); color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
     .nav .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .group { margin-top: 10px; padding: 0 8px 2px; font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .group { margin-top: 10px; padding: 0 8px 2px; font-size: var(--fs-sm); font-weight: 600; color: var(--muted); }
+    .status { flex: none; color: var(--muted); font-size: var(--fs-xs); }
     .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
     .content { flex: 1; min-width: 0; overflow: auto; padding-inline-end: 4px; }
     h3 { margin: 0 0 4px; font-size: var(--fs-lg); font-weight: 600; }

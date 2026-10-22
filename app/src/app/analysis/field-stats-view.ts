@@ -36,7 +36,6 @@ export function histogramOption(stats: NumericStats, t: ChartTokens): EChartsCor
   imports: [AnalysisState, EChart],
   template: `
     <div class="bar">
-      <span class="section-title" i18n="@@analysis.fieldStats.title">Field statistics</span>
       <label class="lbl"><ng-container i18n="@@analysis.fieldStats.field">Field</ng-container>
         <select class="select mono" aria-label="Field" i18n-aria-label="@@analysis.fieldStats.fieldLabel" (change)="targets.setField($any($event.target).value || null)">
           <option value="" [selected]="!targets.field()" i18n="@@analysis.fieldStats.chooseField">Choose a field</option>

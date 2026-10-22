@@ -5,6 +5,7 @@ import { SOURCE_COLOR_LABELS } from '../sources/source-colors';
 import { resolveTokens } from '../theme/theme-tokens';
 import { BUILT_IN_THEMES } from '../theme/themes';
 import { Density, DENSITIES, SCHEME_MODES, SchemeMode, ThemeId, UI_FONTS, UiFont } from '../theme/theme.types';
+import { THEMED_CONTROLS } from './themed-controls';
 import { HelpHint } from '../ui/help-hint';
 import { SettingsStore, SOURCE_COLOR_MODES } from './settings.store';
 
@@ -90,10 +91,12 @@ const PREVIEW = ['bg-0', 'bg-1', 'accent', 'src-1', 'src-2', 'src-3', 'mk-fatal'
       </div>
     </fieldset>
   `,
-  styles: `
+  styles: [
+    THEMED_CONTROLS,
+    `
     :host { display: flex; flex-direction: column; gap: var(--s-4); }
     fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-    legend { padding: 0 0 6px; font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    legend { padding: 0 0 6px; font-size: var(--fs-sm); font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 6px; }
     .seg { display: flex; gap: var(--s-1); flex-wrap: wrap; }
     .seg .btn { text-transform: capitalize; }
         .themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--s-3); }
@@ -110,6 +113,7 @@ const PREVIEW = ['bg-0', 'bg-1', 'accent', 'src-1', 'src-2', 'src-3', 'mk-fatal'
     .name { font-weight: 600; color: var(--text); }
     .about { font-size: var(--fs-xs); color: var(--muted); }
   `,
+  ],
 })
 export class AppearanceSettings {
   protected readonly prefs = inject(UiPrefsStore);

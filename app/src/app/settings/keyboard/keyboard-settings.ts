@@ -108,7 +108,7 @@ interface PendingConflict {
     .conflict span { flex: 1; }
     .table { width: 100%; border-collapse: collapse; }
     th, td { text-align: start; padding: 4px 6px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-    thead th { position: sticky; top: 0; background: var(--bg-1); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+    thead th { position: sticky; top: 0; background: var(--bg-1); font-size: var(--fs-sm); color: var(--muted); font-weight: 600; }
     tbody th.title { font-weight: 400; color: var(--text); }
     .cat, .def { color: var(--text-2); }
     .scoped { margin-inline-start: 6px; font-size: var(--fs-xs); color: var(--muted); }

@@ -78,7 +78,7 @@ describe('GeneralSettings', () => {
     expect(store.alwaysShowLifecycle()).toBe(false);
     const overview = TestBed.inject(HomePrefs);
     expect(overview.autoOpen()).toBe(true);
-    el<HTMLInputElement>(fixture, '[data-testid=home-auto-open]').click();
+    el<HTMLInputElement>(fixture, '#home-auto-open').click();
     expect(overview.autoOpen()).toBe(false);
     expect(localStorage.getItem(HOME_AUTO_OPEN_KEY)).toBe('false');
     await settle(fixture);

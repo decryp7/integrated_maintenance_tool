@@ -8,7 +8,6 @@ import { QuerySession } from './query-session';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="bar">
-      <span class="section-title" i18n="@@analysis.queryResults.title">Query results</span>
       @if (table(); as t) {
         <span class="faint" i18n="@@analysis.queryResults.size">{t.rows.length, plural, =1 {1 row} other {{{ t.rows.length }} rows}} · {t.columns.length, plural, =1 {1 column} other {{{ t.columns.length }} columns}}</span>
       }

@@ -23,7 +23,6 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
   imports: [AnalysisState, ProfileMomentSection, AiButton, CoverageNote],
   template: `
     <div class="bar">
-      <span class="section-title" i18n="@@analysis.moment.title">Moment</span>
       <span class="mono">{{ time.range(range()) }}</span>
       <span class="spacer"></span>
       <button class="btn" type="button" [disabled]="!range()" (click)="zoom()" i18n="@@analysis.moment.zoom">Zoom to this range</button>
