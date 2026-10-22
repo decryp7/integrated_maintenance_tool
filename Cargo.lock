@@ -9209,6 +9209,13 @@ checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
 [[package]]
 name = "xtask"
 version = "0.0.0"
+dependencies = [
+ "sha2 0.11.1",
+ "tempfile",
+ "toml 1.1.8+spec-1.1.0",
+ "ureq",
+ "zip",
+]
 
 [[package]]
 name = "yaml-rust2"

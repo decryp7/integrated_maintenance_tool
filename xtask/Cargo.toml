@@ -9,3 +9,12 @@ publish = false
 description = "Repository chores for IMT developers (`cargo xtask <task>`); never part of the app"
 
 [dependencies]
+sha2.workspace = true
+toml.workspace = true
+# The pinned libduckdb download (`cargo xtask libduckdb`): the OS trust store, as in imt-ai, so TLS-inspecting
+# proxies work; the proxy itself comes from the environment.
+ureq = { version = "3", default-features = false, features = ["rustls", "platform-verifier"] }
+zip.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
