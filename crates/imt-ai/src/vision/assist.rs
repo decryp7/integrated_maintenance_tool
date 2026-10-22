@@ -22,6 +22,9 @@ cause and what to check next in the logs.";
 /// Most links described to the model when it explains the matches.
 const EXPLAINED_LINKS: usize = 8;
 
+/// Most images sent in one request by [`Assistant::explain_images`].
+pub const MAX_IMAGES_PER_REQUEST: usize = 4;
+
 /// What "find related logs" is doing (for the job's progress).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -141,6 +144,28 @@ impl<P: LlmProvider> Assistant<P> {
         no_vision(&self.provider)?;
         let q = question.map(str::trim).filter(|q| !q.is_empty()).unwrap_or(DEFAULT_QUESTION);
         let req = self.request(EXPLAIN_SYSTEM, vec![ChatMessage::user_with_images(q, vec![image.clone()])]);
+        let r = self.complete(&req)?;
+        Ok(Narrative {
+            text: r.text,
+            citations: vec![],
+            evidence: Evidence::default(),
+            usage: r.usage.unwrap_or_default(),
+        })
+    }
+
+    /// Several images in one request (up to [`MAX_IMAGES_PER_REQUEST`], e.g. the frames of a range of a video),
+    /// each introduced in `question` by the caller; the answer is plain text.
+    pub fn explain_images(&self, images: &[ImageInput], question: &str) -> Result<Narrative> {
+        no_vision(&self.provider)?;
+        if images.is_empty() || images.len() > MAX_IMAGES_PER_REQUEST {
+            return Err(AiError::Malformed(format!(
+                "between 1 and {MAX_IMAGES_PER_REQUEST} images can be explained at once, not {}",
+                images.len()
+            )));
+        }
+        let q = question.trim();
+        let q = if q.is_empty() { DEFAULT_QUESTION } else { q };
+        let req = self.request(EXPLAIN_SYSTEM, vec![ChatMessage::user_with_images(q, images.to_vec())]);
         let r = self.complete(&req)?;
         Ok(Narrative {
             text: r.text,
@@ -318,6 +343,19 @@ mod tests {
         assert!(a.provider().requests()[0].messages[0]
             .content
             .contains("Explain what this screenshot shows"));
+    }
+
+    #[test]
+    fn explaining_several_images_is_bounded_and_needs_vision() {
+        let a = assistant(vec![Reply::Text("Frame 1 shows a login, frame 2 an error.".into())]);
+        let n = a.explain_images(&[image(), image()], "Frame 1 at 0:01, frame 2 at 0:09.").unwrap();
+        assert!(n.text.contains("login"));
+        assert_eq!(a.provider().requests()[0].messages[0].images.len(), 2);
+        assert!(matches!(a.explain_images(&[], "x"), Err(AiError::Malformed(_))));
+        let five: Vec<_> = (0..5).map(|_| image()).collect();
+        assert!(matches!(a.explain_images(&five, "x"), Err(AiError::Malformed(_))));
+        let blind = Assistant::new(ScriptedProvider::text(&["unused"]), AssistantConfig::default());
+        assert_eq!(blind.explain_images(&[image()], "").unwrap_err(), AiError::NoVision);
     }
 
     #[test]
