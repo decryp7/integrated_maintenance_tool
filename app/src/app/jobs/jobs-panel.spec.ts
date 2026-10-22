@@ -240,14 +240,17 @@ describe('JobsPanel', () => {
     view('all').click();
     f.detectChanges();
 
+    // K5: the list is a CDK listbox in an overlay (outside the panel's own element).
+    const list = () => document.querySelector<HTMLElement>('[data-testid=kind-filter-list]');
     el<HTMLButtonElement>(f, '[data-testid=kind-filter]').click();
     f.detectChanges();
-    const kind = (k: string) => el<HTMLInputElement>(f, `[data-testid=kind-${k}]`);
-    expect(el(f, '[data-testid=kind-filter-list] label:first-of-type').textContent?.replace(/\s+/g, ' ').trim()).toBe('AI3');
-    expect(kind('ai').checked).toBe(false);
+    const kind = (k: string) => document.querySelector<HTMLElement>(`[data-testid=kind-${k}]`)!;
+    expect(list()?.querySelector('[role=listbox]')?.getAttribute('aria-multiselectable')).toBe('true');
+    expect(list()?.querySelector('[role=option]')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('AI3');
+    expect(kind('ai').getAttribute('aria-selected')).toBe('false');
     kind('export').click();
     f.detectChanges();
-    expect(kind('export').checked).toBe(true);
+    expect(kind('export').getAttribute('aria-selected')).toBe('true');
     expect(el(f, '[data-testid=kind-filter]').textContent).toContain('Kind: 1');
     expect(all(f, '[data-testid^=job-state-]')).toHaveLength(1);
     kind('import').click();
@@ -255,14 +258,14 @@ describe('JobsPanel', () => {
     expect(all(f, '[data-testid^=job-state-]')).toHaveLength(2);
     // The counts of the views follow the kind filter.
     expect(view('failed').textContent).toContain('1');
-    el<HTMLButtonElement>(f, '[data-testid=kind-filter-clear]').click();
+    document.querySelector<HTMLButtonElement>('[data-testid=kind-filter-clear]')!.click();
     f.detectChanges();
     expect(all(f, '[data-testid^=job-state-]')).toHaveLength(5);
-    expect(kind('import').checked).toBe(false);
+    expect(kind('import').getAttribute('aria-selected')).toBe('false');
     // Escape closes the list.
-    el<HTMLElement>(f, '[data-testid=kind-filter-list]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    list()!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     f.detectChanges();
-    expect(f.nativeElement.querySelector('[data-testid=kind-filter-list]')).toBeNull();
+    expect(list()).toBeNull();
   });
 
   it('clears finished jobs', async () => {
