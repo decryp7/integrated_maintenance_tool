@@ -89,17 +89,20 @@ test.describe('dock layout', () => {
   });
 
   test('a group can be floated inside the window and closed', async ({ page }) => {
-    await groupOf(page, 'Events').getByRole('button', { name: 'Float panel' }).click();
+    await groupOf(page, 'Events').getByRole('button', { name: 'Panel menu', exact: true }).click();
+    await page.getByRole('menu', { name: 'Actions' }).getByRole('menuitem', { name: 'Float', exact: true }).click();
     const floating = page.locator('.dv-resize-container');
     await expect(floating).toBeVisible();
     await expectNoSeriousViolations(page, test.info(), 'floating');
     // Dock it back.
-    await page.getByRole('button', { name: 'Dock panel back into the window' }).click();
+    await floating.getByRole('button', { name: 'Panel menu', exact: true }).click();
+    await page.getByRole('menu', { name: 'Actions' }).getByRole('menuitem', { name: 'Dock', exact: true }).click();
     await expect(floating).toHaveCount(0);
     await expect(groups(page)).toHaveCount(3);
     // Float again and close its only tab with the keyboard.
     await ensureInspector(page);
-    await groupOf(page, 'Inspector').getByRole('button', { name: 'Float panel' }).click();
+    await groupOf(page, 'Inspector').getByRole('button', { name: 'Panel menu', exact: true }).click();
+    await page.getByRole('menu', { name: 'Actions' }).getByRole('menuitem', { name: 'Float', exact: true }).click();
     await expect(floating).toBeVisible();
     await floating.getByRole('tab').first().focus();
     await page.keyboard.press('Delete');

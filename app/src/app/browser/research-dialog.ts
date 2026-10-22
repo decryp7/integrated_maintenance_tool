@@ -7,7 +7,7 @@ import { Segments } from './chat-cards';
 /**
  * Research the web: the question, the search text the AI drafted from it and the event (the engine's text without a
  * model), with what the leak guard found in it, and how many results to read. Nothing is searched before the user has
- * seen the search text here: they edit it, or let the AI write it again. With workspace data in it, the user confirms
+ * seen the search text here: they write it, or let the AI suggest it ("Suggest search text"), and edit it. With workspace data in it, the user confirms
  * it ("Research anyway"). The research then runs as a job and its answer goes to the chat.
  */
 @Component({
@@ -17,10 +17,7 @@ import { Segments } from './chat-cards';
   template: `
     <label for="research-question" i18n="@@browser.researchDialog.question">What should the AI find out?</label>
     <textarea id="research-question" class="input" rows="2" maxlength="1000" [value]="q()" (input)="q.set(asValue($event))" data-testid="research-question"></textarea>
-    <div class="query-head">
-      <label for="research-query" i18n="@@browser.researchDialog.query">Search text</label>
-      <button type="button" class="btn ghost small" [disabled]="!q().trim() || busy()" (click)="draft()" data-testid="research-draft" i18n="@@browser.researchDialog.draft">Let the AI write it</button>
-    </div>
+    <label for="research-query" i18n="@@browser.researchDialog.query">Search text</label>
     <input id="research-query" class="input" type="text" maxlength="300" [value]="text()" (input)="edit(asValue($event))" aria-describedby="research-query-note" data-testid="research-query" />
     <p id="research-query-note" class="muted small" data-testid="research-source">{{ sourceNote() }}</p>
     @if (flagged().length) {
@@ -42,7 +39,8 @@ import { Segments } from './chat-cards';
     }
     <div class="foot">
       <button type="button" class="btn ghost" (click)="ref.close()" i18n="@@browser.researchDialog.cancel">Cancel</button>
-      <button type="button" class="btn primary" [disabled]="!q().trim() || busy()" (click)="run()" data-testid="research-run">{{ runLabel() }}</button>
+      <button type="button" class="btn" [disabled]="!q().trim() || busy()" [title]="q().trim() ? suggestTitle : needQuestion" (click)="draft()" data-testid="research-draft" i18n="@@browser.researchDialog.suggest">Suggest search text</button>
+      <button type="button" class="btn primary" [disabled]="!q().trim() || !text().trim() || busy()" [title]="startTitle()" (click)="run()" data-testid="research-run">{{ runLabel() }}</button>
     </div>
   `,
   styles: `
@@ -51,7 +49,6 @@ import { Segments } from './chat-cards';
     .small { font-size: var(--fs-xs); }
     .warn { color: var(--warn-text); }
     .err { color: var(--danger-text, var(--lvl-error)); }
-    .query-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .flagged { border: 1px solid var(--warn-text); border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; }
     .foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
   `,
@@ -76,13 +73,17 @@ export class ResearchDialog {
   protected readonly results = linkedSignal(() => (this.maxResults() ? String(this.maxResults()) : ''));
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly suggestTitle = $localize`:@@browser.researchDialog.suggestTitle:The AI writes the search text from the question; nothing is searched yet`;
+  protected readonly needQuestion = $localize`:@@browser.researchDialog.needQuestion:Say what the AI should find out first`;
   protected readonly runLabel = computed(() =>
-    !this.text().trim()
-      ? $localize`:@@browser.researchDialog.draftFirst:Write the search text`
-      : this.flagged().length
-        ? $localize`:@@browser.researchDialog.anyway:Research anyway`
-        : $localize`:@@browser.researchDialog.start:Research`,
+    this.flagged().length ? $localize`:@@browser.researchDialog.anyway:Research anyway` : $localize`:@@browser.researchDialog.startResearch:Start research`,
   );
+  /** Why Start research is off, or what it does. */
+  protected readonly startTitle = computed(() => {
+    if (!this.q().trim()) return this.needQuestion;
+    if (!this.text().trim()) return $localize`:@@browser.researchDialog.needText:Write a search text, or let the AI suggest one`;
+    return $localize`:@@browser.researchDialog.startTitle:Searches with this text and reads the results; the answer arrives in the chat`;
+  });
   protected readonly sourceNote = computed(() => {
     switch (this.by()) {
       case 'model':
@@ -122,8 +123,8 @@ export class ResearchDialog {
   }
 
   protected async run(): Promise<void> {
-    // The search never runs on a text the user has not seen: without one, the AI writes it first.
-    if (!this.text().trim()) return this.draft();
+    // The search never runs on a text the user has not seen.
+    if (!this.text().trim()) return;
     this.busy.set(true);
     this.error.set(null);
     try {

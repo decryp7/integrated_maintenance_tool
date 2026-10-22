@@ -16,7 +16,7 @@ test.describe('AI chat', () => {
 
     await ask(chat, 'What crashed?');
     const chip = chat.getByTestId('ai-tool-chip').first();
-    await expect(chip).toContainText('Query: 1 events');
+    await expect(chip).toContainText('Query · 1 event');
     await waitAnswered(chat);
     const answer = chat.getByTestId('ai-answer-0');
     await expect(answer).toContainText('OutOfMemoryException');
@@ -29,26 +29,34 @@ test.describe('AI chat', () => {
     await expect(selected.locator('.lvl')).toContainText('FTL');
   });
 
-  test('the context chip lists what is sent and can be toggled; chats are created and exported', async ({ page }) => {
+  test('the Context menu chooses what is sent; chats are created and exported', async ({ page }, testInfo) => {
     await openAiApp(page);
     await page.locator('imt-events-grid [role=row].row').first().click();
     await hideInspectorFlyout(page);
     const chat = await openChat(page);
-    const chip = chat.getByTestId('ai-context-chip');
-    await expect(chip).toContainText('selected');
-    await chip.click();
-    await expect(chip).toHaveAttribute('aria-expanded', 'true');
-    const selected = chat.getByRole('checkbox', { name: /^Selected: 1 event/ });
-    await expect(selected).toBeChecked();
-    await selected.uncheck();
-    await expect(chip).not.toContainText('selected');
+    const context = chat.getByTestId('ai-context-menu');
+    await expect(context).toContainText('Context: Selected events (1)');
+    // Keyboard reachable: Enter on the button opens the menu with its first item focused.
+    await context.focus();
+    await page.keyboard.press('Enter');
+    const menu = page.getByRole('menu', { name: 'Context sent with your question' });
+    await expect(menu.getByRole('menuitemradio', { name: /^Selected events \(1\)/ })).toHaveAttribute('aria-checked', 'true');
+    await expect(menu).toContainText('Nothing leaves this computer.');
+    await expectNoSeriousViolations(page, testInfo, 'ai-context-menu', '[role=menu]');
+    // Keyboard: the menu takes the arrow keys and Enter.
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect(menu).toHaveCount(0);
+    await expect(context).toContainText('Context: Current view');
 
     await ask(chat, 'What crashed?');
     await waitAnswered(chat);
-    await chat.getByRole('button', { name: 'Export…' }).click();
+    await chat.getByRole('button', { name: 'Chat actions' }).click();
+    await page.getByRole('menuitem', { name: 'Export…' }).click();
     await expect(chat.getByRole('status').filter({ hasText: 'Exported to' })).toBeVisible();
     // The same path again: the overwrite guard asks first.
-    await chat.getByRole('button', { name: 'Export…' }).click();
+    await chat.getByRole('button', { name: 'Chat actions' }).click();
+    await page.getByRole('menuitem', { name: 'Export…' }).click();
     const replace = page.getByRole('dialog', { name: 'Replace file?' });
     await expect(replace).toBeVisible();
     await replace.getByRole('button', { name: 'Replace' }).click();
@@ -57,7 +65,10 @@ test.describe('AI chat', () => {
     await chat.getByRole('button', { name: 'New chat' }).click();
     await expect(chat.getByTestId('ai-chat-sessions').locator('option')).toHaveCount(2);
     await expect(chat.getByTestId('ai-answer-0')).toHaveCount(0);
-    await chat.getByRole('button', { name: 'Delete this chat' }).click();
+    await chat.getByRole('button', { name: 'Chat actions' }).click();
+    await page.getByRole('menuitem', { name: 'Delete chat…' }).click();
+    const confirm = page.getByRole('dialog', { name: 'Delete this chat?' });
+    await confirm.getByRole('button', { name: 'Delete chat' }).click();
     await expect(chat.getByTestId('ai-chat-sessions').locator('option')).toHaveCount(1);
     await expect(chat.getByTestId('ai-answer-0')).toContainText('OutOfMemoryException');
   });
@@ -126,7 +137,7 @@ test.describe('AI chat', () => {
     );
     expect(scrolled).toBe(0);
     const panel = (await chat.boundingBox())!;
-    const composer = (await chat.locator('form.composer').boundingBox())!;
+    const composer = (await chat.locator('imt-chat-composer').boundingBox())!;
     expect(Math.abs(composer.y + composer.height - (panel.y + panel.height))).toBeLessThan(2);
   });
 });

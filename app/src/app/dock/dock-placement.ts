@@ -4,7 +4,7 @@ import { ImtView, ViewPosition } from '../extensions/tokens';
 import { DockContext, PANEL, rectOf } from './dock-context';
 import { adjacentNeighbour, atEdge, DockSlot, Point, Rect } from './dock-geometry';
 import { DockTarget, GroupBox, hitDockTarget, outsideViewport, targetPreview } from './dock-target';
-import { FLOAT_MAX, floatSize, ghostRect, TabDropOutcome, tabDropOutcome } from './float-cue';
+import { cancelHintRect, FLOAT_MAX, ghostRect, previewSize, TabDropOutcome, tabDropOutcome } from './float-cue';
 import { AutoHideItem } from './auto-hide';
 import { DockExtras, EMPTY_EXTRAS } from './layout-store';
 import { viewKind } from './view-kind';
@@ -224,17 +224,9 @@ export class DockPlacement {
     if (api && group.api.location.type !== 'floating') api.addFloatingGroup(group.panels.length > 1 ? panel : group, { ...FLOAT_SIZE, x: 140, y: 100 });
   }
 
-  /** Can this panel float by dragging (docked, or one of several tabs of a floating group)? */
-  private canFloat(id: string): boolean {
-    const group = this.ctx.api?.getPanel(id)?.group;
-    if (!group) return false;
-    const where = group.api.location.type;
-    return where === 'grid' || (where === 'floating' && group.panels.length > 1);
-  }
-
   /* ------------------------------------------- a tab dragged off the drop zones */
 
-  /** What releasing a dragged tab at a client point does: dockview docks it on a drop zone, else it floats or pops out. */
+  /** What releasing a dragged tab at a client point does: dockview docks it on a drop zone, outside it pops out, else nothing. */
   tabDropOutcome(id: string, p: Point): TabDropOutcome {
     const container = this.ctx.container;
     const root = this.ctx.rootRect();
@@ -244,32 +236,21 @@ export class DockPlacement {
     return tabDropOutcome({
       inside: !outsideViewport(p, { width: window.innerWidth, height: window.innerHeight }),
       overDropZone: onStrip || onGuide,
-      canFloat: this.canFloat(id),
       canPopOut: this.ctx.windows()?.canPopOut() ?? false,
     });
   }
 
-  /** The ghost of the drag cue: the floating panel (inside the dock) or the new window (at the window's edge). */
-  cueRect(id: string, p: Point, outcome: TabDropOutcome): Rect | null {
-    const panel = this.panelRect(id);
-    if (outcome === 'float') {
-      const root = this.ctx.rootRect();
-      return root ? ghostRect(p, floatSize(panel), root) : null;
+  /**
+   * Where the drag cue is drawn: the panel's preview at (about) its size at the pointer, held inside the window (a new
+   * window), or the anchor of the "Release to cancel" hint; null for no cue.
+   */
+  cueRect(id: string, p: Point, outcome: TabDropOutcome | null): Rect | null {
+    if (outcome === 'window') {
+      const viewport = { width: window.innerWidth, height: window.innerHeight };
+      return ghostRect(p, previewSize(this.panelRect(id), viewport), { x: 0, y: 0, ...viewport });
     }
-    if (outcome === 'window') return ghostRect(p, panel ?? floatSize(null), { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight });
+    if (outcome === 'cancel') return cancelHintRect(p);
     return null;
-  }
-
-  /** Floats a panel where a dragged tab was released (the ghost's place). */
-  floatAt(id: string, p: Point): boolean {
-    const api = this.ctx.api;
-    const panel = api?.getPanel(id);
-    const root = this.ctx.rootRect();
-    if (!api || !panel || !root || !this.canFloat(id)) return false;
-    const r = ghostRect(p, floatSize(this.panelRect(id)), root);
-    api.addFloatingGroup(panel.group.panels.length > 1 ? panel : panel.group, { x: r.x - root.x, y: r.y - root.y, width: r.width, height: r.height });
-    panel.api.setActive();
-    return true;
   }
 
   /* ------------------------------------------- drops from outside dockview */

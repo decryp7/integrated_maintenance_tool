@@ -9,14 +9,13 @@ describe('TabDragOut', () => {
     document.body.appendChild(root);
     const out: string[] = [];
     const cues: string[] = [];
-    // A dock whose drop zone is the band y < 100; elsewhere inside it floats, outside it opens a window.
+    // A dock whose drop zone is the band y < 100; elsewhere inside it nothing happens, outside it opens a window.
     const outcome = (_: string, p: { x: number; y: number }): TabDropOutcome =>
-      outsideViewport(p, { width: 1000, height: 800 }) ? 'window' : p.y < 100 ? 'dock' : 'float';
+      outsideViewport(p, { width: 1000, height: 800 }) ? 'window' : p.y < 100 ? 'dock' : 'cancel';
     const drag = new TabDragOut(root, {
       outcome,
       popOut: (id, at) => out.push(`pop ${id}@${at.x},${at.y}`),
-      float: (id, at) => out.push(`float ${id}@${at.x},${at.y}`),
-      cue: (id, p, o) => cues.push(`${o}@${p.x},${p.y}`),
+      cue: (id, p, o) => cues.push(`${o ?? 'clear'}@${p.x},${p.y}`),
     });
     const tab = root.querySelector<HTMLElement>('[role=tab]')!;
     const p = (type: string, target: EventTarget, x: number, y: number, extra: PointerEventInit = {}) =>
@@ -40,7 +39,7 @@ describe('TabDragOut', () => {
     done();
   });
 
-  it('floats a tab released inside the window away from the drop zones; drops on a zone are left to dockview', () => {
+  it('does nothing for a tab released inside the window, on or off the drop zones (dockview docks on a zone)', () => {
     const { out, p, label, done } = setup();
     p('pointerdown', label, 10, 10);
     p('pointermove', window, 300, 400);
@@ -48,7 +47,7 @@ describe('TabDragOut', () => {
     p('pointerdown', label, 10, 10);
     p('pointermove', window, 300, 50);
     p('pointerup', window, 300, 50);
-    expect(out).toEqual(['float metrics@300,400']);
+    expect(out).toEqual([]);
     done();
   });
 
@@ -61,7 +60,7 @@ describe('TabDragOut', () => {
     p('pointermove', window, 300, 50);
     p('pointermove', window, -10, 50);
     p('pointerup', window, -10, 50);
-    expect(cues).toEqual(['float@300,400', 'dock@300,50', 'window@-10,50', 'none@-10,50']);
+    expect(cues).toEqual(['cancel@300,400', 'dock@300,50', 'window@-10,50', 'clear@-10,50']);
     done();
   });
 
@@ -77,7 +76,7 @@ describe('TabDragOut', () => {
     expect(cancelled).toHaveBeenCalledTimes(1);
     p('pointerup', window, 300, 400);
     expect(out).toEqual([]);
-    expect(cues.at(-1)).toBe('none@300,400');
+    expect(cues.at(-1)).toBe('clear@300,400');
     // Escape without a drag is left alone.
     const idle = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
     window.dispatchEvent(idle);
@@ -101,7 +100,7 @@ describe('TabDragOut', () => {
     p('pointercancel', window, 0, 0);
     p('pointerup', window, -20, 300);
     expect(out).toEqual([]);
-    expect(cues).toEqual(['float@300,400', 'none@300,400']);
+    expect(cues).toEqual(['cancel@300,400', 'clear@300,400']);
     done();
   });
 

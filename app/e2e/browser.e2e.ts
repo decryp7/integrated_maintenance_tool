@@ -41,9 +41,9 @@ test.describe('internal browser', () => {
   test('agent mode asks before new sites, highlights data from the logs, and Stop ends it', async ({ page }, testInfo) => {
     await openAiApp(page);
     const chat = await openChat(page);
-    await chat.getByLabel('Agent mode').check();
-    const stop = chat.getByTestId('chat-agent-stop');
-    await expect(stop).toBeVisible();
+    await chat.getByTestId('ai-browser-menu').click();
+    await page.getByRole('menu', { name: 'Browser for this chat' }).getByRole('menuitemradio', { name: /^Agent/ }).click();
+    await expect(chat.getByTestId('ai-browser-menu')).toContainText('Browser: Agent');
     await expect(chat).toContainText('New sites, typing and forms need your approval');
 
     await ask(chat, 'find out on the web why the gateway times out');
@@ -71,7 +71,7 @@ test.describe('internal browser', () => {
     await expect(page.locator('imt-web-panel').getByTestId('ai-browsing')).toHaveCount(0);
     await runCommand(page, 'AI: Open the assistant chat');
     await expect(chat.getByTestId('agent-paused')).toContainText('You stopped the AI');
-    await expect(chat.getByTestId('chat-agent-stop')).toHaveCount(0);
+    await expect(chat.getByTestId('ai-browser-menu')).toContainText('Browser: Off');
   });
 
   test('suggested links open in the browser only when clicked', async ({ page }) => {

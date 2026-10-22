@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, signal, untracked, viewChild } from '@angular/core';
-import { formatTime } from '../../core/format';
 import { Platform } from '../../core/platform';
-import { WorkspaceStore } from '../../core/workspace.store';
 import { OverwriteGuard } from '../../ui/overwrite-guard';
+import { ConfirmDialog } from '../../ui/confirm-dialog';
+import { DialogService } from '../../ui/dialog.service';
+import { Icon } from '../../shared/icon';
+import { CdkMenu, CdkMenuItem, CdkMenuTrigger } from '@angular/cdk/menu';
 import { AiBackend, toAiError } from '../ai-backend';
 import { AiChatPersistence } from '../ai-chat-persistence';
 import { AiLauncher } from '../ai-launcher';
@@ -12,19 +14,14 @@ import { AgentDecision } from '../../browser/browser.types';
 import { AgentApprovalCard, AgentPaused, LinkCard, ResearchOfferCard } from '../../browser/chat-cards';
 import { ChatBrowserBar } from '../../browser/chat-browser-bar';
 import { ChatBrowserStore } from '../../browser/chat-browser.store';
-import { describeContext, ResearchOfferView, toolLabel, TurnView } from './chat-model';
+import { ResearchOfferView, toolLabel, TurnView } from './chat-model';
+import { ChatComposer } from './chat-composer';
 import { ChatStore } from './chat.store';
 import { JobsStore } from '../../jobs/jobs.store';
 import { queuedLabel } from '../../jobs/jobs-text';
 import { AiCitations } from './citation-actions';
 import { isNotFound } from './markdown';
 import { AiRichText } from './rich-text';
-import { Icon } from '../../shared/icon';
-import { AiImage } from '../ai.types';
-import { AiImageStore } from '../vision/ai-image.store';
-import { dragHasFiles, imageFilesOf, imageFilter, MAX_IMAGES_PER_QUESTION } from '../vision/image-files';
-import { AiNoVisionCard } from '../vision/no-vision-card';
-import { DropTargets } from '../../core/dropped-files';
 
 /**
  * The AI assistant chat (a dock view). Answers stream in with the tools the model used, proposals to
@@ -34,7 +31,7 @@ import { DropTargets } from '../../core/dropped-files';
 @Component({
   selector: 'imt-ai-chat-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AiRichText, AiProposalCard, AgentApprovalCard, LinkCard, AgentPaused, ChatBrowserBar, ResearchOfferCard, Icon, AiNoVisionCard],
+  imports: [AiRichText, AiProposalCard, AgentApprovalCard, LinkCard, AgentPaused, ChatBrowserBar, ResearchOfferCard, ChatComposer, Icon, CdkMenu, CdkMenuItem, CdkMenuTrigger],
   template: `
     <div class="bar" role="toolbar" aria-label="Chat" i18n-aria-label="@@ai.chat.toolbar.label">
       <label class="sr-only" for="ai-chat-session" i18n="@@ai.chat.session.label">Chat</label>
@@ -43,12 +40,17 @@ import { DropTargets } from '../../core/dropped-files';
           <option [value]="s.id">{{ sessionLabel(s) }}</option>
         }
       </select>
-      <button type="button" class="btn ghost" (click)="store.newChat()" i18n="@@ai.chat.newChat">New chat</button>
-      <button type="button" class="btn ghost" [disabled]="!store.activeTurns().length" (click)="exportMarkdown()" i18n="@@ai.chat.export">Export…</button>
-      <button type="button" class="btn ghost" [disabled]="!store.activeId()" aria-label="Delete this chat" i18n-aria-label="@@ai.chat.delete.label" title="Delete this chat" i18n-title="@@ai.chat.delete.title" (click)="deleteChat()" i18n="@@ai.chat.delete">Delete</button>
-      <span class="spacer"></span>
-      <span class="engine muted" data-testid="ai-engine-state">{{ engineLine() }}</span>
+      <button type="button" class="icon-btn" (click)="store.newChat()" aria-label="New chat" i18n-aria-label="@@ai.chat.newChat" title="New chat" i18n-title="@@ai.chat.newChat"><imt-icon name="plus" [size]="16" /></button>
+      <button type="button" class="icon-btn" [cdkMenuTriggerFor]="chatMenu" aria-label="Chat actions" i18n-aria-label="@@ai.chat.actions" title="Chat actions" i18n-title="@@ai.chat.actions" data-testid="ai-chat-actions"><imt-icon name="more" [size]="16" /></button>
     </div>
+    <p class="engine muted" data-testid="ai-engine-state">{{ engineLine() }}</p>
+
+    <ng-template #chatMenu>
+      <div cdkMenu class="menu" aria-label="Chat actions" i18n-aria-label="@@ai.chat.actions">
+        <button type="button" cdkMenuItem class="mi" [cdkMenuItemDisabled]="!store.activeTurns().length" (cdkMenuItemTriggered)="exportMarkdown()" i18n="@@ai.chat.export">Export…</button>
+        <button type="button" cdkMenuItem class="mi danger" [cdkMenuItemDisabled]="!store.activeId()" (cdkMenuItemTriggered)="deleteChat()" i18n="@@ai.chat.deleteChat">Delete chat…</button>
+      </div>
+    </ng-template>
 
     @if (status.needsSetup()) {
       <div class="setup" role="note">
@@ -86,7 +88,7 @@ import { DropTargets } from '../../core/dropped-files';
               <ul class="tools" aria-label="Assistant activity" i18n-aria-label="@@ai.chat.tools.label">
                 @for (c of t.tools; track $index) {
                   <li class="tool chip" [class.running]="c.running" [class.err]="c.error" data-testid="ai-tool-chip">
-                    {{ label(c.name) }}@if (c.running) {<span class="dots" aria-hidden="true">…</span>}@if (c.summary) {<span class="sum">: {{ c.summary }}</span>}
+                    {{ label(c.name) }}@if (c.running) {<span class="dots" aria-hidden="true">…</span>}@if (c.summary) {<span class="sum"> · {{ c.summary }}</span>}
                   </li>
                 }
               </ul>
@@ -149,82 +151,20 @@ import { DropTargets } from '../../core/dropped-files';
       <imt-chat-browser-bar [sessionId]="sid" />
     }
 
-    <div class="context">
-      <button type="button" class="chip ctx" [attr.aria-expanded]="contextOpen()" aria-controls="ai-chat-context" (click)="contextOpen.set(!contextOpen())" data-testid="ai-context-chip" i18n="@@ai.chat.context.chip">
-        Context: {{ contextSummary() }}
-      </button>
-      @if (contextOpen()) {
-        <fieldset id="ai-chat-context" class="ctx-list">
-          <legend class="sr-only" i18n="@@ai.chat.context.legend">What is sent with your question</legend>
-          @for (c of contextLines(); track c.key) {
-            <label class="ctx-item" [class.off]="!c.available">
-              <input type="checkbox" [checked]="store.toggles()[c.key] && c.available" [disabled]="!c.available" (change)="store.toggle(c.key)" />
-              {{ c.label }}
-            </label>
-          }
-          <p class="muted small" i18n="@@ai.chat.context.note">The engine checks these and reads the events itself. Nothing leaves this computer.</p>
-        </fieldset>
-      }
-    </div>
-
-    @if (images.noVision()) {
-      <imt-ai-no-vision class="no-vision" />
-    }
-    @if (attachError(); as e) {
-      <p class="err banner" role="alert" data-testid="ai-attach-error">{{ e }} <button type="button" class="link" (click)="retryAttach()" i18n="@@ai.vision.retry">Retry</button> <button type="button" class="link" (click)="attachError.set(null)" i18n="@@ai.vision.dismiss">Dismiss</button></p>
-    }
-    @if (store.attachments().length) {
-      <ul class="attachments" aria-label="Attached images" i18n-aria-label="@@ai.vision.chat.attachments">
-        @for (a of store.attachments(); track a.id) {
-          <li class="attachment chip" data-testid="ai-attachment">
-            <img class="thumb" [src]="a.dataUrl" [alt]="a.name" />
-            <span class="att-name" [title]="a.name">{{ a.name }}</span>
-            <button type="button" class="link small" [disabled]="store.running() || !status.hasModel()" (click)="store.sendRelated(a)" i18n="@@ai.vision.chat.related">Find related logs</button>
-            <button type="button" class="icon-btn" [attr.aria-label]="removeLabel(a.name)" [attr.title]="removeLabel(a.name)" (click)="store.detach(a.id)"><imt-icon name="close" [size]="12" /></button>
-          </li>
-        }
-      </ul>
-    }
-
-    <form #composer class="composer" [class.dropping]="dropping()" (submit)="$event.preventDefault(); submit()" (dragover)="onDragOver($event)" (dragleave)="dropping.set(false)" (drop)="onDrop($event)">
-      <button
-        type="button"
-        class="icon-btn attach"
-        aria-label="Attach an image"
-        i18n-aria-label="@@ai.vision.chat.attach"
-        title="Attach an image (or paste or drop one)"
-        i18n-title="@@ai.vision.chat.attachTitle"
-        data-testid="ai-attach"
-        [disabled]="!status.hasModel() || images.opening() || store.attachments().length >= maxImages"
-        (click)="attachFile()"
-      ><imt-icon name="image" [size]="16" /></button>
-      <label class="sr-only" for="ai-chat-input" i18n="@@ai.chat.input.label">Ask about the logs</label>
-      <textarea
-        id="ai-chat-input"
-        class="input"
-        rows="2"
-        maxlength="8000"
-        placeholder="Ask about the logs…"
-        i18n-placeholder="@@ai.chat.input.placeholder"
-        [value]="draft()"
-        [disabled]="!status.hasModel()"
-        (input)="draft.set(asValue($event))"
-        (keydown.enter)="onEnter($event)"
-        (paste)="onPaste($event)"
-      ></textarea>
-      @if (store.running()) {
-        <button type="button" class="btn" (click)="store.cancel()" i18n="@@ai.chat.stop">Stop</button>
-      } @else {
-        <button type="submit" class="btn primary" [disabled]="!draft().trim() || !status.hasModel()" i18n="@@ai.chat.send">Send</button>
-      }
-    </form>
+    <imt-chat-composer [sessionId]="store.activeId()" />
   `,
   styles: `
     :host { display: flex; flex-direction: column; height: 100%; min-height: 0; font-size: var(--fs-md); }
-    .bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-    .bar .select { max-width: 220px; }
-    .spacer { flex: 1; }
-    .engine { font-size: var(--fs-xs); }
+    .bar { display: flex; align-items: center; gap: 4px; padding: 6px 8px 2px; flex-wrap: wrap; }
+    .bar .select { flex: 1; min-width: 0; max-width: 320px; }
+    .engine { margin: 0; padding: 0 8px 4px; font-size: var(--fs-xs); border-bottom: 1px solid var(--border); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .menu { min-width: 180px; display: flex; flex-direction: column; padding: 4px; border-radius: 8px; background: var(--bg-2); border: 1px solid var(--border-3); box-shadow: var(--shadow); }
+    .menu:focus { outline: none; }
+    .mi { display: flex; align-items: center; min-height: 28px; padding: 0 10px; border: 0; border-radius: 5px; background: transparent; color: var(--text-2); cursor: pointer; text-align: start; font: inherit; }
+    .mi:hover:not([aria-disabled='true']), .mi:focus { background: var(--bg-active); color: var(--text); outline: none; }
+    .mi:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+    .mi[aria-disabled='true'] { color: var(--muted); cursor: default; }
+    .mi.danger:not([aria-disabled='true']) { color: var(--danger-text, var(--lvl-error)); }
     .setup { padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--bg-1); }
     .setup p { margin: 0 0 8px; }
     /* Positioned, so the text for screen readers in it stays in the list (else the dock scrolled past the panel). */
@@ -248,21 +188,8 @@ import { DropTargets } from '../../core/dropped-files';
     .banner { padding: 4px 12px; font-size: var(--fs-sm); }
     .link { all: unset; cursor: pointer; color: var(--accent-text); text-decoration: underline; }
     .link:focus-visible { outline: 2px solid var(--focus-ring); }
-    .context { padding: 4px 8px 0; }
-    .ctx { cursor: pointer; font-size: var(--fs-xs); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ctx-list { border: 1px solid var(--border); border-radius: 6px; margin: 4px 0 0; padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-sm); }
-    .ctx-item.off { color: var(--muted); }
-    .small { margin: 4px 0 0; font-size: var(--fs-xs); }
-    .composer { display: flex; gap: 6px; padding: 8px; align-items: flex-end; }
-    .composer textarea { flex: 1; resize: vertical; min-height: 38px; font-family: inherit; }
-    .composer.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; }
-    .attach { align-self: center; }
-    .attachments { list-style: none; margin: 0; padding: 6px 8px 0; display: flex; flex-wrap: wrap; gap: 6px; }
-    .attachment { display: flex; align-items: center; gap: 6px; max-width: 100%; font-size: var(--fs-xs); }
-    .att-name { max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .thumb { width: 40px; height: 28px; object-fit: cover; border-radius: 3px; border: 1px solid var(--border); background: var(--bg-1); }
     .user-images { align-self: flex-end; display: flex; gap: 4px; }
-    .no-vision { display: block; margin: 6px 8px 0; }
   `,
 })
 export class AiChatPanel {
@@ -283,32 +210,12 @@ export class AiChatPanel {
   private readonly backend = inject(AiBackend);
   private readonly platform = inject(Platform);
   private readonly overwrite = inject(OverwriteGuard);
+  private readonly dialogs = inject(DialogService);
   private readonly persistence = inject(AiChatPersistence);
-  private readonly workspace = inject(WorkspaceStore);
   private readonly browser = inject(ChatBrowserStore);
   private readonly logEl = viewChild<ElementRef<HTMLElement>>('log');
-  private readonly composerEl = viewChild<ElementRef<HTMLElement>>('composer');
-  private readonly dropTargets = inject(DropTargets);
 
-  protected readonly images = inject(AiImageStore);
-  protected readonly maxImages = MAX_IMAGES_PER_QUESTION;
-  /** Why the last attach failed (Retry repeats it). */
-  protected readonly attachError = signal<string | null>(null);
-  protected readonly dropping = signal(false);
-  private lastAttach: (() => Promise<void>) | null = null;
-
-  protected readonly draft = signal('');
-  protected readonly contextOpen = signal(false);
   protected readonly notice = signal<string | null>(null);
-
-  protected readonly contextLines = computed(() => describeContext(this.store.sources(), (ms) => formatTime(ms, this.workspace.timezone())));
-  protected readonly contextSummary = computed(() => {
-    const on = this.store.toggles();
-    const parts = this.contextLines()
-      .filter((c) => c.available && on[c.key])
-      .map((c) => (c.label.split(':')[0] ?? '').toLowerCase());
-    return parts.length ? parts.join(', ') : $localize`:@@ai.chat.context.none:nothing selected`;
-  });
   protected readonly engineLine = computed(() => {
     const s = this.status.status();
     if (!s) return '';
@@ -318,12 +225,6 @@ export class AiChatPanel {
   });
 
   constructor() {
-    // The composer takes images dropped from the desktop (the shell routes OS drops by target, ADR 0025).
-    effect((onCleanup) => {
-      const el = this.composerEl()?.nativeElement;
-      if (!el) return;
-      onCleanup(this.dropTargets.register({ kind: 'aiImages', element: el, accept: (paths) => this.acceptDroppedPaths(paths) }));
-    });
     void this.store.init();
     let first = true;
     effect(() => {
@@ -410,115 +311,6 @@ export class AiChatPanel {
     if (await this.browser.continueTask(id)) await this.store.send($localize`:@@ai.chat.continueTask:Continue.`);
   }
 
-  protected onEnter(e: Event): void {
-    const k = e as KeyboardEvent;
-    if (k.shiftKey || k.isComposing) return;
-    k.preventDefault();
-    void this.submit();
-  }
-
-  protected removeLabel(name: string): string {
-    return $localize`:@@ai.vision.chat.remove:Remove ${name}:name:`;
-  }
-
-  /** A text-only model is not given images: the no-vision message says what to do instead. */
-  private canAttach(): boolean {
-    if (this.status.status()?.vision === false) {
-      this.images.refuseNoVision();
-      return false;
-    }
-    return true;
-  }
-
-  /** Opens an image through the engine (it decodes it) and attaches the clean copy. */
-  private async attachVia(open: () => Promise<AiImage | null>): Promise<void> {
-    const run = async () => {
-      this.attachError.set(null);
-      const img = await open();
-      if (img) {
-        this.store.attach(img);
-        return;
-      }
-      // Shown here, with its own Retry, rather than in the image view.
-      this.attachError.set(this.images.openError());
-      this.images.dismissOpenError();
-    };
-    this.lastAttach = run;
-    await run();
-  }
-
-  protected async retryAttach(): Promise<void> {
-    await this.lastAttach?.();
-  }
-
-  /** The attach button: the platform's file picker (Rust reads the path the user chose). */
-  async attachFile(): Promise<void> {
-    if (!this.canAttach()) return;
-    const path = await this.platform.pickOpenPath($localize`:@@ai.vision.chat.pickTitle:Attach an image`, imageFilter());
-    if (path) await this.attachVia(() => this.images.openPath(path, false));
-  }
-
-  /**
-   * Files dropped from the desktop onto the composer (the OS drop, routed here by the shell as an `aiImages` target):
-   * each is opened by the engine, which recognises images by their content; what it refuses is not claimed and opens
-   * as logs. With a text-only model the drop is claimed and the offer to add image support is shown.
-   */
-  async acceptDroppedPaths(paths: readonly string[]): Promise<readonly string[]> {
-    if (!this.canAttach()) return paths;
-    const room = Math.max(0, MAX_IMAGES_PER_QUESTION - this.store.attachments().length);
-    const claimed: string[] = [];
-    for (const path of paths.slice(0, room)) {
-      const img = await this.images.openPath(path, false);
-      if (img) {
-        this.store.attach(img);
-        claimed.push(path);
-      } else {
-        this.images.dismissOpenError();
-      }
-    }
-    if (paths.length > room) this.store.setNotice($localize`:@@ai.vision.chat.tooMany:At most ${MAX_IMAGES_PER_QUESTION}:max: images go with one question.`);
-    return claimed;
-  }
-
-  /** Pasted or dropped image files: their bytes go to the engine as they are (never decoded here). */
-  private async attachFiles(files: File[]): Promise<void> {
-    if (!this.canAttach()) return;
-    const room = Math.max(0, MAX_IMAGES_PER_QUESTION - this.store.attachments().length);
-    if (files.length > room) this.store.setNotice($localize`:@@ai.vision.chat.tooMany:At most ${MAX_IMAGES_PER_QUESTION}:max: images go with one question.`);
-    for (const f of files.slice(0, room)) await this.attachVia(() => this.images.pasteFile(f, false));
-  }
-
-  protected onPaste(e: ClipboardEvent): void {
-    const files = imageFilesOf(e.clipboardData);
-    if (!files.length) return; // text: the textarea pastes it
-    e.preventDefault();
-    void this.attachFiles(files);
-  }
-
-  protected onDragOver(e: DragEvent): void {
-    if (!dragHasFiles(e.dataTransfer)) return;
-    e.preventDefault();
-    this.dropping.set(true);
-  }
-
-  protected onDrop(e: DragEvent): void {
-    this.dropping.set(false);
-    if (!dragHasFiles(e.dataTransfer)) return;
-    // Never let the browser open a dropped file.
-    e.preventDefault();
-    e.stopPropagation();
-    const files = imageFilesOf(e.dataTransfer);
-    if (!files.length) {
-      this.store.setNotice($localize`:@@ai.vision.chat.notImage:Only PNG, JPEG, BMP, GIF and WebP images can be attached.`);
-      return;
-    }
-    void this.attachFiles(files);
-  }
-
-  async submit(): Promise<void> {
-    if (await this.store.send(this.draft())) this.draft.set('');
-  }
-
   async ask(question: string): Promise<void> {
     await this.store.send(question);
   }
@@ -539,9 +331,21 @@ export class AiChatPanel {
     if (err) this.notice.set(err);
   }
 
+  /** "Delete chat…": asks first (the chat and its answers cannot be brought back). */
   async deleteChat(): Promise<void> {
     const id = this.store.activeId();
-    if (id) await this.store.deleteChat(id);
+    if (!id) return;
+    const title = this.store.active()?.title || $localize`:@@ai.chat.session.untitled:New chat`;
+    const ref = this.dialogs.open<boolean>(ConfirmDialog, {
+      title: $localize`:@@ai.chat.delete.title:Delete this chat?`,
+      width: 420,
+      inputs: {
+        message: $localize`:@@ai.chat.delete.message:"${title}:title:" and its answers are deleted. This cannot be undone.`,
+        confirmLabel: $localize`:@@ai.chat.delete.confirm:Delete chat`,
+        danger: true,
+      },
+    });
+    if ((await ref.closed) === true) await this.store.deleteChat(id);
   }
 
   async exportMarkdown(): Promise<void> {
