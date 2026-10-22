@@ -12,7 +12,7 @@ use imt_core::api::{
 use imt_core::exceptions::ExceptionGroup;
 use imt_core::patterns::Pattern;
 use imt_core::ql::{Completion, QlError, QlResult};
-use imt_core::workspace::{ImportProgress, OpenOptions, Retention, TailOptions};
+use imt_core::workspace::{ImportProgress, OpenOptions, TailOptions};
 use imt_core::{LogStore, Profile, Workspace};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -67,15 +67,6 @@ fn workspace_answers_context_progress_and_tail_options_through_the_trait() {
     let progress = store.progress().snapshot();
     assert!(!progress.running);
 
-    // Retention through the trait evicts the oldest records.
-    store.set_tail_options(TailOptions {
-        retention: Retention {
-            max_records: Some(1),
-            ..Retention::default()
-        },
-        ..TailOptions::default()
-    });
-    assert_eq!(store.summary().total, 1);
     assert!(store.plugin_settings().is_empty());
 }
 
@@ -270,14 +261,8 @@ fn stores_without_live_tail_or_plugins_get_safe_defaults() {
     assert!(store.suggest_offsets(&Default::default()).suggestions.is_empty());
     assert!(store.tool_host().is_none());
     store.shutdown_plugins();
-    // Tail options are accepted and ignored: nothing is evicted.
-    store.set_tail_options(TailOptions {
-        retention: Retention {
-            max_records: Some(1),
-            ..Retention::default()
-        },
-        ..TailOptions::default()
-    });
+    // Tail options are accepted; nothing is evicted.
+    store.set_tail_options(TailOptions::default());
     assert_eq!(store.summary().total, 7);
     // Nothing to mute: accepted and ignored.
     let target = imt_core::workspace::AlertTarget::Rule("r".into());

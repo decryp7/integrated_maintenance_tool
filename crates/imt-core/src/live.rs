@@ -220,7 +220,6 @@ impl LiveSession {
             errors: files.iter().filter(|f| matches!(f.state, TailFileState::Error { .. })).count(),
             bytes: files.iter().map(|f| f.offset).sum(),
             lines_per_sec: files.iter().map(|f| f.lines_per_sec).sum(),
-            evicted: 0,
             records,
         };
         Ok(TailStatus { files, totals })

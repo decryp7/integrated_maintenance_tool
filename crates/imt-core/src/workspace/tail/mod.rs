@@ -218,7 +218,6 @@ pub(super) struct TailState {
 pub(super) struct TailBook {
     states: BTreeMap<u32, TailState>,
     pub(super) options: TailOptions,
-    pub(super) evicted: usize,
     /// Unrecognised files with the size and time seen; retried only when they change.
     unrecognized_seen: HashMap<String, (u64, Option<SystemTime>)>,
     alerts: AlertState,
@@ -382,12 +381,10 @@ fn normalize(p: &Path) -> PathBuf {
 }
 
 impl Workspace {
-    /// Live tail options (deleted files, retention, carry timeout, detector
+    /// Live tail options (deleted files, hold time, detector
     /// throttle); out-of-range values are clamped ([`TailOptions::clamped`]).
     pub fn set_tail_options(&mut self, options: TailOptions) {
         self.tail.options = options.clamped();
-        let mut report = TailReport::default();
-        self.evict(&mut report);
     }
 
     pub fn tail_options(&self) -> TailOptions {
@@ -490,7 +487,6 @@ impl Workspace {
         report
             .sources_changed
             .extend(sources.iter().filter(|s| self.sources.iter().any(|x| x.id == **s)));
-        self.evict(report);
         report.newest_ts = self.newest_ts();
         let inserted = change.map(|c| c.inserted).unwrap_or_default();
         self.track_instances(&inserted, report);

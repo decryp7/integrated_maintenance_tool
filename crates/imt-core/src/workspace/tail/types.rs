@@ -17,22 +17,11 @@ pub enum DeletedFiles {
     Drop,
 }
 
-/// Bounded memory for long live sessions. Both limits are off by default.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
-#[serde(default, rename_all = "camelCase")]
-pub struct Retention {
-    /// Keep at most this many records (the newest).
-    pub max_records: Option<usize>,
-    /// Keep only records at most this old, relative to the newest record.
-    pub max_age_ms: Option<i64>,
-}
-
 /// Engine-side live tail settings (the watcher settings live with the shell).
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct TailOptions {
     pub deleted_files: DeletedFiles,
-    pub retention: Retention,
     /// An unterminated last line is parsed anyway after this long without a newline.
     pub carry_flush_ms: u64,
     /// The live anomaly detectors run at most this often (rules and silences every batch).
@@ -55,7 +44,6 @@ impl Default for TailOptions {
     fn default() -> Self {
         TailOptions {
             deleted_files: DeletedFiles::Keep,
-            retention: Retention::default(),
             carry_flush_ms: 2_000,
             detect_every_ms: 1_000,
         }
@@ -99,10 +87,8 @@ pub struct TailReport {
     pub deleted: Vec<u32>,
     /// Sources read again in full (binary formats, archives, inconsistencies).
     pub reimported: Vec<u32>,
-    /// Records removed by the retention limit.
-    pub evicted: usize,
     /// Record ids at and after this one changed (records were inserted before
-    /// newer ones, removed or evicted); `None` when every existing id is stable.
+    /// newer ones, or removed); `None` when every existing id is stable.
     pub ids_changed_from: Option<u32>,
     /// Timestamp of the newest record.
     pub newest_ts: Option<i64>,
@@ -130,7 +116,6 @@ impl TailReport {
             && self.truncated.is_empty()
             && self.deleted.is_empty()
             && self.reimported.is_empty()
-            && self.evicted == 0
             && self.file_states.is_empty()
             && self.alerts.is_empty()
     }
@@ -205,8 +190,6 @@ pub struct TailTotals {
     pub errors: usize,
     pub bytes: u64,
     pub lines_per_sec: f64,
-    /// Records evicted by retention since the workspace was opened.
-    pub evicted: usize,
     pub records: usize,
 }
 
