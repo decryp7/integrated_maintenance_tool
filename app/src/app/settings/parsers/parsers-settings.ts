@@ -5,6 +5,7 @@ import { WorkspaceStore } from '../../core/workspace.store';
 import { Switch } from '../../shared/switch';
 import { DialogService } from '../../ui/dialog.service';
 import { ParsersStore } from './parsers.store';
+import { AiLauncher } from '../../ai/ai-launcher';
 
 /** How many source names a parser row lists before "and N more". */
 const NAMES_SHOWN = 3;
@@ -24,6 +25,7 @@ const NAMES_SHOWN = 3;
       <h3 i18n="Settings section|The log formats IMT reads@@settings.parsers.title">Parsers</h3>
       <span class="spacer"></span>
       <button type="button" class="btn" data-testid="parsers-new-from-file" [disabled]="busy() || !sources().length" [cdkMenuTriggerFor]="fileMenu" i18n="@@settings.parsers.newFromFile">New from a file…</button>
+      <button type="button" class="btn" data-testid="parsers-generate-ai" [disabled]="busy() || !sources().length" [cdkMenuTriggerFor]="aiMenu" i18n="@@settings.parsers.generateAi">Generate with AI…</button>
       <button type="button" class="btn" data-testid="parsers-import" [disabled]="busy()" (click)="store.importFromFile()" i18n="@@settings.parsers.import">Import .toml…</button>
       <button type="button" class="btn" data-testid="parsers-new-blank" [disabled]="busy()" (click)="store.newBlank()" i18n="@@settings.parsers.newBlank">New blank</button>
     </div>
@@ -93,6 +95,14 @@ const NAMES_SHOWN = 3;
       <p class="muted" i18n="@@settings.parsers.brokenHint">Broken files are never used. Fix them in a text editor, or import a corrected copy.</p>
     }
 
+    <ng-template #aiMenu>
+      <div cdkMenu class="menu" aria-label="Generate a parser for a file of this window" i18n-aria-label="@@settings.parsers.aiMenu">
+        @for (s of sources(); track s.id) {
+          <button type="button" cdkMenuItem class="mi" (cdkMenuItemTriggered)="generateWithAi(s)">{{ s.name }}</button>
+        }
+      </div>
+    </ng-template>
+
     <ng-template #fileMenu>
       <div cdkMenu class="menu" aria-label="Files of this window" i18n-aria-label="@@settings.parsers.fileMenu">
         @for (s of sources(); track s.id) {
@@ -141,6 +151,7 @@ export class ParsersSettings implements OnInit {
   protected readonly store = inject(ParsersStore);
   private readonly workspace = inject(WorkspaceStore);
   private readonly dialogs = inject(DialogService);
+  private readonly ai = inject(AiLauncher);
 
   protected readonly sources = computed<SourceInfo[]>(() => this.workspace.summary()?.sources ?? []);
   protected readonly busy = computed(() => this.store.busy() !== null);
@@ -193,6 +204,11 @@ export class ParsersSettings implements OnInit {
   }
 
   /** "New from a file…": the format wizard teaches a new parser from that file. */
+  /** The local model drafts a parser for the file; the engine checks every draft on it (ADR 0032). */
+  protected async generateWithAi(s: SourceInfo): Promise<void> {
+    await this.ai.propose('parser', { sourceId: s.id, fileName: s.name });
+  }
+
   protected async newFromFile(s: SourceInfo): Promise<void> {
     const { FormatWizard } = await import('../../format/format-wizard');
     this.dialogs.open(FormatWizard, { title: $localize`:@@settings.parsers.wizardTitle:New parser from ${s.name}:name:`, inputs: { path: s.path, name: s.name }, width: 760 });

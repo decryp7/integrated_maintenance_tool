@@ -6,6 +6,7 @@
 //! - [`builtin`]: the parsers shipped with IMT; [`library`]: the user's parser folder and its index.
 //! - [`set`]: the library as the engine uses it: every parser compiled with the profile, the per-file choice.
 //! - [`draft`]: new parsers and changed copies composed for the format wizard and quick fixes.
+//! - [`verify`]: the engine's verdict on a candidate parser (ADR 0032): score, failing lines, timestamps, zone.
 
 pub mod builtin;
 pub mod draft;
@@ -13,6 +14,7 @@ pub mod format;
 pub mod library;
 pub mod matching;
 pub mod set;
+pub mod verify;
 
 use crate::ports::{content_hash, ParserRef};
 use crate::profile::ExtractCfg;

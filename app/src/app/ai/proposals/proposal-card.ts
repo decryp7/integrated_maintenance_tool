@@ -4,6 +4,7 @@ import { plural } from '../../i18n/locale';
 import { toAiError } from '../ai-backend';
 import { Proposal } from '../ai.types';
 import { ProposalApply } from './proposal-apply';
+import { ParserVerdictView } from './parser-verdict';
 
 const TITLES: Record<Proposal['kind'], string> = {
   regex: $localize`:@@ai.proposalCard.title.regex:Regular expression`,
@@ -31,6 +32,7 @@ const APPLY: Record<Proposal['kind'], string> = {
 @Component({
   selector: 'imt-ai-proposal-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ParserVerdictView],
   template: `
     <section class="card" [attr.aria-label]="ariaLabel()" data-testid="ai-proposal">
       <header>
@@ -56,6 +58,7 @@ const APPLY: Record<Proposal['kind'], string> = {
         @case ('parser') {
           @if (profile(); as r) {
             <p class="facts" i18n="@@ai.proposalCard.profile.facts">{{ r.name }} · {{ r.importer ?? noImporter }} · parses {{ r.parsed }} entries, {{ r.withTimestamp }} with a timestamp</p>
+            <imt-ai-parser-verdict [p]="r" />
             @if (r.preview.length) {
               <table class="preview">
                 <thead><tr><th scope="col" i18n="@@ai.proposalCard.col.line">Line</th><th scope="col" i18n="log level|@@ai.proposalCard.col.level">Level</th><th scope="col" i18n="@@ai.proposalCard.col.message">Message</th></tr></thead>

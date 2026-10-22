@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, provideTinyBackend, settle, text, tinyBackend } from '../../../testing/helpers';
+import { AiLauncher } from '../../ai/ai-launcher';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { FormatWizard } from '../../format/format-wizard';
 import { DialogService } from '../../ui/dialog.service';
@@ -111,6 +112,16 @@ describe('ParsersSettings', () => {
     item!.click();
     await vi.waitFor(() => expect(dialogs.stack().at(-1)?.component).toBe(FormatWizard), { timeout: 10_000 });
     expect(dialogs.stack().at(-1)?.options).toMatchObject({ title: 'New parser from app.log', inputs: { path: '/logs/web02/app.log', name: 'app.log' } });
+  });
+
+  it('generates a parser with the AI for a file of the window (ADR 0032)', async () => {
+    const { fixture } = await setup();
+    const propose = vi.spyOn(TestBed.inject(AiLauncher), 'propose').mockResolvedValue();
+    buttonByText(fixture, 'Generate with AI…').click();
+    await settle(fixture);
+    const item = [...document.querySelectorAll<HTMLButtonElement>('[cdkmenuitem], .mi')].find((b) => b.textContent?.includes('app.log'));
+    item!.click();
+    await vi.waitFor(() => expect(propose).toHaveBeenCalledWith('parser', expect.objectContaining({ sourceId: expect.any(Number), fileName: 'app.log' })));
   });
 
   it('shows a failed listing with Retry', async () => {

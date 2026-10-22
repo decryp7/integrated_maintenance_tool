@@ -16,7 +16,7 @@ impl View<'_> {
         ViewRecord {
             record: r.clone(),
             source: source.to_string(),
-            instance: crate::query::group_key(&self.0.default_group_by, r, source),
+            instance: self.0.default_key_of(r),
         }
     }
 
@@ -65,7 +65,7 @@ impl AnnotationView for View<'_> {
         self.0
             .records
             .iter()
-            .map(|r| crate::query::group_key(&self.0.default_group_by, r, self.0.source_name(r.source)))
+            .map(|r| self.0.default_key_of(r))
             .filter(|k| seen.insert(k.clone()))
             .collect()
     }

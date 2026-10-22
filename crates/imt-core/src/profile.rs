@@ -471,7 +471,12 @@ impl CompiledProfile {
         }
         let text_format_set = crate::user_regex::compile_set(&patterns).ok();
 
-        let timestamps = TimestampParser::new(&format.timestamp_formats, &format.assume_timezone, format.day_first.resolve()?)?;
+        let mut timestamps = TimestampParser::new(&format.timestamp_formats, &format.assume_timezone, format.day_first.resolve()?)?;
+        if !format.boot_time.trim().is_empty() {
+            let boot = chrono::DateTime::parse_from_rfc3339(format.boot_time.trim())
+                .map_err(|e| anyhow!("format.boot_time must be an RFC 3339 time like \"2026-10-14T08:00:00Z\": {e}"))?;
+            timestamps = timestamps.with_boot(boot.timestamp_millis());
+        }
 
         let mut extractors = Vec::new();
         for e in parser.extract.iter().chain(&profile.extract) {

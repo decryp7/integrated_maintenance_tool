@@ -6,7 +6,7 @@ use crate::analysis::{EventStream, MAX_ANALYSED};
 use crate::sql::{expr_sql, order_by, row_columns, Columns, FROM};
 use crate::Inner;
 use imt_core::ports::{Analyzed, Filter, StoreError, StoreResult};
-use imt_core::query::{group_key, CompiledQuery};
+use imt_core::query::{group_key_in, CompiledQuery};
 use imt_core::row::{OwnedRow, RowRef};
 use imt_core::spans::infer::{propose, EvaluatedCandidate, SpanEvaluation, SpanEvaluator, SpanProposal, SpanRuleCheck, SpanRuleRequest};
 use std::collections::HashMap;
@@ -82,10 +82,10 @@ impl Inner {
         let mut p = imt_core::spans::preview::SpanPreviewer::new(req, &profile, ctx.default_group_by.clone());
         drop(conn);
         if p.wants_events() {
-            let group_by = ctx.default_group_by.clone();
+            let (group_by, scopes) = (ctx.default_group_by.clone(), ctx.key_scopes.clone());
             self.stream_rows(&Filter::default(), MAX_ANALYSED, &mut |r| {
                 if r.rec.ts.is_some() {
-                    let lane = group_key(&group_by, &r.rec, &r.source);
+                    let lane = group_key_in(&group_by, &scopes, &r.rec, &r.source);
                     p.add(&r.rec, &r.source, &lane);
                 }
             })?;
@@ -129,7 +129,7 @@ impl Inner {
         );
         let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, true, MAX_ANALYSED)?;
         for r in stream.by_ref() {
-            let lane = group_key(&ctx.default_group_by, &r.rec, &r.source);
+            let lane = group_key_in(&ctx.default_group_by, &ctx.key_scopes, &r.rec, &r.source);
             evaluator.add(&r.rec, &r.source, &lane);
         }
         let coverage = stream.finish()?;

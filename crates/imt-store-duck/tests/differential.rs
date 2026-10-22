@@ -616,6 +616,37 @@ fn answers_like_the_workspace_on_a_file_of_several_products() {
     assert_eq!(unmatched(&d.sources), unmatched(&w.sources));
 }
 
+/// A parser's identity field (hadoop-spark's `Logger`) splits only the sources that parser reads: another file with a
+/// `Logger` field (log4net's PatternLayout) stays one lane, in the database's SQL as in the workspace.
+#[test]
+fn identity_fields_split_only_the_sources_of_their_parser() {
+    let dir = common::TempDir::new("identity");
+    let mut paths = Vec::new();
+    for id in ["hadoop-spark", "log4net-pattern"] {
+        let f = imt_core::parser::builtin::file(id).unwrap();
+        let path = dir.0.join(f.sample_name);
+        std::fs::write(&path, f.sample).unwrap();
+        paths.push(path);
+    }
+    let p = common::pair_of(Profile::default_profile(), &paths);
+    check_summary(&p);
+    check_facets(&p);
+    check_timelines(&p);
+    let log4net = imt_core::parser::builtin::file("log4net-pattern").unwrap().sample_name;
+    let summary = p.duck.summary().unwrap();
+    let source = summary.sources.iter().find(|s| s.name.ends_with(log4net)).unwrap();
+    let req = FacetRequest {
+        query: Filter {
+            sources: vec![source.id],
+            ..Filter::default()
+        },
+        field: "@group".into(),
+        limit: 50,
+    };
+    let lanes: Vec<String> = p.duck.facet(&req).unwrap().values.into_iter().map(|v| v.value).collect();
+    assert_eq!(lanes, std::slice::from_ref(&source.name), "one lane for the log4net file");
+}
+
 #[test]
 fn reports_problems_refuses_what_is_not_built_yet_and_reopens() {
     let dir = TempDir::new("misc");

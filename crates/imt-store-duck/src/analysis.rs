@@ -21,7 +21,7 @@ use imt_core::patterns::{MinerConfig, Pattern, PatternMiner, MAX_CLUSTERS};
 use imt_core::ports::{Analysis, Analyzed, Coverage, Filter, StoreError, StoreResult};
 use imt_core::profile::compile_conditions;
 use imt_core::ql::{Expr, QueryControl};
-use imt_core::query::{group_key_row, CompiledQuery};
+use imt_core::query::CompiledQuery;
 use imt_core::row::{to_record, ArrowRow, BatchSlots, FieldKeys, OwnedRow, RowRef};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -733,8 +733,9 @@ impl Inner {
         let ctx = self.ctx(&conn)?;
         let (sf, cq) = self.compile(&ctx, q)?;
         let ungroupable = || StoreError::Invalid("the instance fields cannot be grouped (a name contains a NUL character)".into());
-        let key = group_key_expr(&cq.group_by, &ctx.fields).ok_or_else(ungroupable)?;
-        // What the key is made of besides the source (its name): the fields' text.
+        let key = group_key_expr(&cq.group_by, cq.key_scopes(), &ctx.fields).ok_or_else(ungroupable)?;
+        // What the key is made of besides the source (its name): the fields' text. Scopes depend on the source
+        // alone, so the source and these unscoped texts still determine the scoped key.
         let parts: Vec<String> = cq
             .group_by
             .iter()
@@ -853,7 +854,7 @@ impl Inner {
         let unreadable = |f: &str| StoreError::Invalid(format!("the field name {f:?} cannot be read"));
         let text = |f: &str| text_expr(f, &ctx.fields).ok_or_else(|| unreadable(f));
         let number = |f: &str| number_expr(f, &ctx.fields).ok_or_else(|| unreadable(f));
-        let key = group_key_expr(&cq.group_by, &ctx.fields)
+        let key = group_key_expr(&cq.group_by, cq.key_scopes(), &ctx.fields)
             .ok_or_else(|| StoreError::Invalid("the instance fields cannot be grouped (a name contains a NUL character)".into()))?;
         let (machine, instance, counter, value) = (text("MachineName")?, text("Instance")?, text("Counter")?, number("Value")?);
         let is_counter = format!("(({counter}) IS NOT NULL AND ({value}) IS NOT NULL)");
@@ -979,7 +980,7 @@ impl Inner {
         let conn = self.conn()?;
         let ctx = self.ctx(&conn)?;
         if !rules.is_empty() {
-            let cq = CompiledQuery::new(&Filter::default(), &ctx.default_group_by, &ctx.marker_kinds)
+            let cq = CompiledQuery::new_scoped(&Filter::default(), &ctx.default_group_by, &ctx.key_scopes, &ctx.marker_kinds)
                 .map_err(|e| StoreError::Invalid(format!("{e:#}")))?;
             // The message (for regex rules and run texts), the per-field rules' fields and the lanes' fields.
             let per = rules.iter().filter_map(|(r, _)| match &r.per {
@@ -989,7 +990,7 @@ impl Inner {
             let select = row_columns(&self.schema, &Columns::only(true, per.chain(ctx.default_group_by.iter().cloned())));
             let mut stream = EventStream::ordered(&conn, &select, "e.ts IS NOT NULL", self.schema.clone(), &ctx, &cq, true, usize::MAX)?;
             for r in stream.by_ref() {
-                let lane = imt_core::query::group_key(&ctx.default_group_by, &r.rec, &r.source);
+                let lane = cq.group_key(&r.rec, &r.source);
                 book::feed_one(&r.rec, &r.source, &lane, &rules, &mut pairers);
             }
             stream.finish()?;
@@ -1231,7 +1232,7 @@ impl Inner {
         let key_sql = if def.split_by.is_empty() {
             lit(&def.title)
         } else {
-            group_key_expr(&def.split_by, &ctx.fields)
+            group_key_expr(&def.split_by, &Default::default(), &ctx.fields)
         };
         let value_sql = match &field {
             None => Some("CAST(1 AS DOUBLE)".to_string()),
@@ -1308,7 +1309,7 @@ impl Inner {
                 lifecycle.push(LifecycleEvent {
                     kind: ctx.marker_kinds[m.trailing_zeros() as usize].clone(),
                     ts: r.ts().unwrap_or_default(),
-                    group: group_key_row(cq.group_keys(), &r),
+                    group: cq.group_key_of(&r),
                     id: u32::try_from(r.id).unwrap_or(u32::MAX),
                 });
                 if lifecycle.len() >= MAX_LIFECYCLE {

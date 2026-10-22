@@ -40,7 +40,7 @@ fn feed<'s>(
 
 impl Workspace {
     fn lane_of(&self, r: &Record) -> String {
-        crate::query::group_key(&self.default_group_by, r, self.source_name(r.source))
+        self.default_key_of(r)
     }
 
     /// Enabled rules with their classifiers.

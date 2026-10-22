@@ -2,6 +2,9 @@
 //! ISO 8601 / RFC 3339, RFC 2822, Serilog defaults, slash/dot separated dates
 //! in either day-first or month-first order, month names, 12-hour clocks,
 //! epoch seconds/milliseconds, plus user-supplied .NET or strftime formats.
+//! Also Japanese dates (`2026年10月14日 10時00分03秒`) and, by name in the formats, C `asctime`
+//! (`Tue Oct 14 10:00:03 2026`, format `asctime`) and numeric clocks: `epoch_s`, `epoch_ms`, `epoch_us`, `epoch_ns`, `dotnet_ticks`, `filetime` and `uptime`
+//! (seconds since boot, `[ 12.345]`, anchored at a boot time).
 
 use anyhow::{bail, Result};
 use chrono::{DateTime, Datelike, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
@@ -23,17 +26,87 @@ pub enum AssumedZone {
 #[derive(Debug, Clone)]
 pub struct TimestampParser {
     custom: Vec<String>,
+    /// Numeric clocks named in the formats, tried before them.
+    clocks: Vec<NumberClock>,
+    /// The formats name `asctime`.
+    asctime: bool,
     zone: AssumedZone,
     /// None = decide from the value itself (falls back to month-first).
     day_first: Option<bool>,
+    /// The boot time (ms since the epoch) `uptime` values count from.
+    boot_ms: i64,
+    /// The time formats without a year are read near (the file's modification time); `None` = now.
+    reference_ms: Option<i64>,
+}
+
+/// A timestamp written as one number, named in `timestamp_formats`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NumberClock {
+    /// Seconds since 1970-01-01 UTC (with an optional fraction).
+    EpochSeconds,
+    /// Milliseconds since the Unix epoch.
+    EpochMillis,
+    /// Microseconds since the Unix epoch.
+    EpochMicros,
+    /// Nanoseconds since the Unix epoch.
+    EpochNanos,
+    /// .NET `DateTime.Ticks`: 100 ns since 0001-01-01.
+    DotnetTicks,
+    /// Windows FILETIME: 100 ns since 1601-01-01.
+    FileTime,
+    /// Seconds since boot (Linux `dmesg` `[   12.345678]`).
+    Uptime,
+}
+
+impl NumberClock {
+    /// The clock a format names (`epoch_ms`, `dotnet_ticks`, `filetime`, `uptime`...), ignoring case.
+    pub fn named(name: &str) -> Option<NumberClock> {
+        Some(match name.trim().to_ascii_lowercase().as_str() {
+            "epoch" | "epoch_s" | "unix" | "unix_s" => NumberClock::EpochSeconds,
+            "epoch_ms" | "unix_ms" => NumberClock::EpochMillis,
+            "epoch_us" | "unix_us" => NumberClock::EpochMicros,
+            "epoch_ns" | "unix_ns" => NumberClock::EpochNanos,
+            "ticks" | "dotnet_ticks" => NumberClock::DotnetTicks,
+            "filetime" => NumberClock::FileTime,
+            "uptime" => NumberClock::Uptime,
+            _ => return None,
+        })
+    }
+
+    /// Milliseconds since the Unix epoch of `s` (an uptime counts from `boot_ms`).
+    pub fn read(self, s: &str, boot_ms: i64) -> Option<i64> {
+        let s = s.trim().trim_matches(|c: char| c == '[' || c == ']' || c.is_whitespace());
+        if s.is_empty() || !s.bytes().all(|b| b.is_ascii_digit() || b == b'.') || s.bytes().filter(|&b| b == b'.').count() > 1 {
+            return None;
+        }
+        // 100 ns units between 0001-01-01 / 1601-01-01 and the Unix epoch.
+        const TICKS_TO_UNIX: i128 = 621_355_968_000_000_000;
+        const FILETIME_TO_UNIX: i128 = 116_444_736_000_000_000;
+        let whole = |s: &str| s.split('.').next().unwrap_or("").parse::<i128>().ok();
+        let ms: i128 = match self {
+            NumberClock::EpochSeconds => (s.parse::<f64>().ok()? * 1000.0) as i128,
+            NumberClock::EpochMillis => s.parse::<f64>().ok()? as i128,
+            NumberClock::EpochMicros => whole(s)? / 1000,
+            NumberClock::EpochNanos => whole(s)? / 1_000_000,
+            NumberClock::DotnetTicks => (whole(s)? - TICKS_TO_UNIX) / 10_000,
+            NumberClock::FileTime => (whole(s)? - FILETIME_TO_UNIX) / 10_000,
+            NumberClock::Uptime => boot_ms as i128 + (s.parse::<f64>().ok()? * 1000.0) as i128,
+        };
+        // Years 1970..2200 only: anything else is not this clock.
+        (0..7_258_118_400_000).contains(&ms).then_some(ms as i64)
+    }
 }
 
 impl Default for TimestampParser {
     fn default() -> Self {
         TimestampParser {
             custom: Vec::new(),
+            clocks: Vec::new(),
+            asctime: false,
             zone: AssumedZone::Utc,
             day_first: None,
+            boot_ms: 0,
+            reference_ms: None,
         }
     }
 }
@@ -67,6 +140,33 @@ fn named_month_re() -> &'static Regex {
     })
 }
 
+/// `2026年10月14日 10時00分03秒`, `2026年10月14日(火) 午後 3:04:05.120`, `2026/10/14 10時00分`.
+fn japanese_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(
+            r"(?x)^(?P<y>\d{4})\s*(?:年|/|-)\s*(?P<m>\d{1,2})\s*(?:月|/|-)\s*(?P<d>\d{1,2})\s*日?
+            \s*(?:[(（][^)）]{1,3}[)）])?\s*(?P<ampm>午前|午後)?\s*
+            (?P<h>\d{1,2})\s*(?:時|:)\s*(?P<mi>\d{1,2})\s*(?:分|:)?\s*(?:(?P<s>\d{1,2})(?:[.,](?P<f>\d{1,9}))?\s*秒?)?
+            \s*(?P<zone>Z|UTC|GMT|[+-]\d{2}:?\d{2})?\s*$",
+        )
+        .unwrap()
+    })
+}
+
+/// C `asctime` / `ctime`: `Tue Oct 14 10:00:03 2026` (optionally with a fraction, AM/PM or an offset before the year).
+fn asctime_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(
+            r"(?x)^(?:[A-Za-z]{3,9},?\s+)?(?P<m>[A-Za-z]{3,9})\s+(?P<d>\d{1,2})\s+
+            (?P<time>\d{1,2}:\d{2}:\d{2}(?:[.,]\d{1,9})?)\s*(?P<ampm>[AaPp][Mm])?\s+
+            (?:(?P<zone>Z|UTC|GMT|[+-]\d{2}:?\d{2})\s+)?(?P<y>\d{4})\s*$",
+        )
+        .unwrap()
+    })
+}
+
 fn time_only_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| Regex::new(r"^(\d{1,2}:\d{2}:\d{2}(?:[.,]\d{1,9})?)\s*([AaPp][Mm])?$").unwrap())
@@ -83,8 +183,52 @@ impl TimestampParser {
                 None => bail!("assume_timezone must be \"UTC\", \"local\" or an offset like \"+08:00\", got \"{zone}\""),
             },
         };
-        let custom = formats.iter().map(|f| to_strftime(f)).collect();
-        Ok(TimestampParser { custom, zone, day_first })
+        let is_asctime = |f: &String| f.trim().eq_ignore_ascii_case("asctime");
+        let clocks = formats.iter().filter_map(|f| NumberClock::named(f)).collect();
+        let custom = formats
+            .iter()
+            .filter(|f| NumberClock::named(f).is_none() && !is_asctime(f))
+            .map(|f| to_strftime(f))
+            .collect();
+        Ok(TimestampParser {
+            custom,
+            clocks,
+            asctime: formats.iter().any(is_asctime),
+            zone,
+            day_first,
+            boot_ms: 0,
+            reference_ms: None,
+        })
+    }
+
+    /// This parser with `uptime` values counted from `boot_ms`.
+    pub fn with_boot(&self, boot_ms: i64) -> Self {
+        TimestampParser { boot_ms, ..self.clone() }
+    }
+
+    /// This parser reading formats without a year near `reference_ms` (a file's modification time) instead of now.
+    pub fn with_reference(&self, reference_ms: Option<i64>) -> Self {
+        TimestampParser {
+            reference_ms,
+            ..self.clone()
+        }
+    }
+
+    /// C `asctime` text (`Tue Oct 14 10:00:03 2026`, also with a fraction, AM/PM or an offset before the year).
+    fn parse_asctime(&self, s: &str) -> Option<i64> {
+        let c = asctime_re().captures(s)?;
+        let date = NaiveDate::from_ymd_opt(c["y"].parse().ok()?, month_number(&c["m"])?, c["d"].parse().ok()?)?;
+        self.finish(
+            date,
+            Some(&c["time"]),
+            c.name("ampm").map(|m| m.as_str()),
+            c.name("zone").map(|m| m.as_str()),
+        )
+    }
+
+    /// Whether the formats name the `uptime` clock.
+    pub fn uses_uptime(&self) -> bool {
+        self.clocks.contains(&NumberClock::Uptime)
     }
 
     /// The configured date order: `Some(true)` day first, `Some(false)` month first, `None` decided per value.
@@ -99,6 +243,17 @@ impl TimestampParser {
 
     /// This parser with `format` (.NET style or strftime) tried before its own formats.
     pub fn with_format(&self, format: &str) -> Self {
+        if format.trim().eq_ignore_ascii_case("asctime") {
+            return TimestampParser {
+                asctime: true,
+                ..self.clone()
+            };
+        }
+        if let Some(clock) = NumberClock::named(format) {
+            let mut clocks = vec![clock];
+            clocks.extend(self.clocks.iter().copied());
+            return TimestampParser { clocks, ..self.clone() };
+        }
         let mut custom = vec![to_strftime(format)];
         custom.extend(self.custom.iter().cloned());
         TimestampParser { custom, ..self.clone() }
@@ -109,6 +264,11 @@ impl TimestampParser {
         let s = s.trim().trim_matches(|c| c == '[' || c == ']' || c == '"');
         if s.is_empty() {
             return None;
+        }
+        for clock in &self.clocks {
+            if let Some(ms) = clock.read(s, self.boot_ms) {
+                return Some(ms);
+            }
         }
         for fmt in &self.custom {
             if let Some(ms) = self.parse_with_format(s, fmt) {
@@ -165,6 +325,21 @@ impl TimestampParser {
         if let Ok(dt) = DateTime::parse_from_rfc2822(s) {
             return Some(dt.timestamp_millis());
         }
+        if self.asctime {
+            if let Some(ms) = self.parse_asctime(s) {
+                return Some(ms);
+            }
+        }
+        if let Some(c) = japanese_re().captures(s) {
+            let date = NaiveDate::from_ymd_opt(c["y"].parse().ok()?, c["m"].parse().ok()?, c["d"].parse().ok()?)?;
+            let mut time = format!("{}:{}:{}", &c["h"], &c["mi"], c.name("s").map_or("0", |m| m.as_str()));
+            if let Some(f) = c.name("f") {
+                time.push('.');
+                time.push_str(f.as_str());
+            }
+            let ampm = c.name("ampm").map(|m| if m.as_str() == "午後" { "PM" } else { "AM" });
+            return self.finish(date, Some(&time), ampm, c.name("zone").map(|m| m.as_str()));
+        }
         None
     }
 
@@ -187,7 +362,7 @@ impl TimestampParser {
             return self.localize(date.and_hms_opt(0, 0, 0)?);
         }
         if !fmt.contains("%Y") && !fmt.contains("%y") {
-            return self.parse_without_year(s, fmt, Utc::now().timestamp_millis());
+            return self.parse_without_year(s, fmt, self.reference_ms.unwrap_or_else(|| Utc::now().timestamp_millis()));
         }
         None
     }
@@ -561,6 +736,57 @@ mod tests {
         assert_eq!(
             zoned.parse_without_year("Oct 14 18:00:00 +0800", "%b %e %H:%M:%S %z", utc(2026, 10, 17, 0)),
             Some(utc(2026, 10, 14, 10))
+        );
+    }
+
+    #[test]
+    fn japanese_asctime_and_number_clocks() {
+        let t = |s: &str| p().parse(s);
+        assert_eq!(t("2026年10月14日 10時00分03秒"), Some(ms(2026, 10, 14, 10, 0, 3, 0)));
+        assert_eq!(t("2026年10月14日(火) 午後 3:04:05.120"), Some(ms(2026, 10, 14, 15, 4, 5, 120)));
+        assert_eq!(t("2026年1月4日 午前12時05分"), Some(ms(2026, 1, 4, 0, 5, 0, 0)));
+        assert_eq!(t("2026年10月14日 10時00分03秒 +09:00"), Some(ms(2026, 10, 14, 1, 0, 3, 0)));
+        assert_eq!(t("2026年13月14日 10時00分03秒"), None);
+        assert_eq!(t("Tue Oct 14 10:00:03 2026"), None, "asctime is named in the formats");
+        let a = TimestampParser::new(&["asctime".to_string()], "UTC", None).unwrap();
+        assert_eq!(a.parse("Tue Oct 14 10:00:03 2026"), Some(ms(2026, 10, 14, 10, 0, 3, 0)));
+        assert_eq!(a.parse("Tue Oct  4 10:00:03.250 PM 2026"), Some(ms(2026, 10, 4, 22, 0, 3, 250)));
+        assert_eq!(a.parse("Oct 14 10:00:03 +02:00 2026"), Some(ms(2026, 10, 14, 8, 0, 3, 0)));
+        assert_eq!(
+            p().with_format("asctime").parse("Tue Oct 14 10:00:03 2026"),
+            Some(ms(2026, 10, 14, 10, 0, 3, 0))
+        );
+        let f = |fmt: &str, s: &str| TimestampParser::new(&[fmt.to_string()], "UTC", None).unwrap().parse(s);
+        let at = ms(2026, 10, 14, 10, 0, 3, 0);
+        assert_eq!(f("epoch_s", "1791972003"), Some(at));
+        assert_eq!(f("epoch_ms", "1791972003000"), Some(at));
+        assert_eq!(f("epoch_us", "1791972003000123"), Some(at));
+        assert_eq!(f("epoch_ns", "1791972003000123456"), Some(at));
+        assert_eq!(
+            f("dotnet_ticks", &(at as i128 * 10_000 + 621_355_968_000_000_000).to_string()),
+            Some(at)
+        );
+        assert_eq!(
+            f("FILETIME", &(at as i128 * 10_000 + 116_444_736_000_000_000).to_string()),
+            Some(at)
+        );
+        assert_eq!(f("filetime", "12"), None, "before 1970");
+        assert_eq!(f("epoch_ms", "12a"), None);
+        let up = TimestampParser::new(&["uptime".to_string()], "UTC", None).unwrap();
+        assert!(up.uses_uptime() && !p().uses_uptime());
+        assert_eq!(up.with_boot(at).parse("[   12.345678]"), Some(at + 12_345));
+        assert_eq!(up.with_format("epoch_ms").parse("1791972003000"), Some(at));
+        assert_eq!(NumberClock::named("nope"), None);
+        // Formats without a year are read near the reference time (the file's), with the year rolling back.
+        let yearless = TimestampParser::new(&["%b %e %H:%M:%S".to_string()], "UTC", None).unwrap();
+        let jan = ms(2027, 1, 2, 0, 0, 0, 0);
+        assert_eq!(
+            yearless.with_reference(Some(jan)).parse("Dec 31 23:00:00"),
+            Some(ms(2026, 12, 31, 23, 0, 0, 0))
+        );
+        assert_eq!(
+            yearless.with_reference(Some(jan)).parse("Jan  1 01:00:00"),
+            Some(ms(2027, 1, 1, 1, 0, 0, 0))
         );
     }
 

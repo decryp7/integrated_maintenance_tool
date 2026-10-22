@@ -169,9 +169,10 @@ export const ProblemsStore = signalStore(
         },
 
         /**
-         * "Ask the AI to fix": the AI proposes a parser from the lines around the first problem (the stored event
-         * there, else the start of the file); the proposal opens for the user to review and apply. Nothing changes
-         * until they do.
+         * "Ask the AI to fix": the AI generates a parser (ADR 0032). For a file of this window, Rust reads the file and
+         * the engine checks each draft on it; otherwise the lines around the first problem (the stored event there,
+         * else the start of the file) are the sample. The proposal opens for the user to review and apply. Nothing
+         * changes until they do.
          */
         async askAi(key: string): Promise<void> {
           const row = rowOf(key);
@@ -180,6 +181,10 @@ export const ProblemsStore = signalStore(
           try {
             const line = row.sampleLines[0];
             const recordId = line !== undefined ? await eventAt(row, line) : null;
+            if (workspace.summary()?.sources.some((s) => s.id === row.source)) {
+              await ai.propose('parser', { sourceId: row.source, recordId, fileName: row.sourceName });
+              return;
+            }
             if (recordId !== null) {
               await ai.propose('parser', { recordId, fileName: row.sourceName });
               return;

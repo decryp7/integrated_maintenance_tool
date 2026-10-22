@@ -97,6 +97,9 @@ export class AiProposeDialog implements OnInit {
       const n = s.sample.split(/\r?\n/).length;
       return $localize`:@@ai.propose.sample.given:Sample: ${n}:count: lines you provided.`;
     }
+    if (s.sourceId != null && s.fileName) {
+      return $localize`:@@ai.propose.sample.source:File: ${s.fileName}:name:. The engine checks each draft on it; the model sees only parts of it.`;
+    }
     if (s.recordId != null) return $localize`:@@ai.propose.sample.event:Sample: the lines around event ${s.recordId}:id: in its file.`;
     return $localize`:@@ai.propose.sample.none:Select an event first: its file is the sample.`;
   });
@@ -122,7 +125,9 @@ export class AiProposeDialog implements OnInit {
     const recordId = src.recordId ?? null;
     const sample = src.sample ?? null;
     const op = this.current();
-    return op === 'parser' ? { op, recordId, sample, fileName: src.fileName ?? null } : { op, goal, recordId, sample };
+    return op === 'parser'
+      ? { op, recordId, sample, fileName: src.fileName ?? null, ...(src.sourceId != null ? { sourceId: src.sourceId } : {}) }
+      : { op, goal, recordId, sample };
   }
 
   /** Starts the proposal as an AI job and shows it here when it is done (if the dialog is still open). */
