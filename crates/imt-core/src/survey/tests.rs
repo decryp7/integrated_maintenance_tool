@@ -1342,3 +1342,98 @@ fn a_step_that_only_changes_the_level_shows_the_message_as_it_is() {
     assert!(!examples[0].after.contains(" ["), "no added fields to list: {}", examples[0].after);
     std::fs::remove_dir_all(dir).ok();
 }
+
+// ---- propose and fields: caps and tails ----
+
+#[test]
+fn a_trailing_literal_run_is_used_and_long_titles_are_cut() {
+    let w = crate::patterns::WILDCARD;
+    let long = format!("{w} ab {w} cd then the final literal words {} end", "padding ".repeat(12));
+    let survey = FolderSurvey {
+        errors: vec![TemplateSummary {
+            template: long.clone(),
+            template_kind: TemplateKind::Mined,
+            count: 3,
+            level: Level::Error,
+            share: 0.1,
+            example: long,
+        }],
+        ..FolderSurvey::default()
+    };
+    let list = propose::propose(&survey, &Profile::default_profile());
+    let q = list.iter().find(|c| c.group == ProposalGroup::Queries).expect("a query");
+    let Fragment::SavedQuery { ql, .. } = &q.fragments[0] else {
+        panic!("{:?}", q.fragments)
+    };
+    assert!(ql.contains("then the final literal words"), "{ql}");
+    assert!(q.title.ends_with("…”"), "cut to 60 characters: {}", q.title);
+}
+
+#[test]
+fn a_measurement_like_numeric_field_gets_its_own_chart_per_instance() {
+    let field = |name: &str, kind: FieldKind| FieldSummary {
+        name: name.into(),
+        kind,
+        present: 10,
+        coverage: 1.0,
+        distinct: 5,
+        distinct_capped: false,
+        top: vec![],
+        min: Some(1.0),
+        max: Some(9.0),
+    };
+    let survey = FolderSurvey {
+        fields: vec![field("Label", FieldKind::Text), field("ElapsedMs", FieldKind::Number)],
+        ..FolderSurvey::default()
+    };
+    let list = propose::propose(&survey, &Profile::default_profile());
+    let chart = candidate_by(&list, "chart:elapsedms-by-instance");
+    let Fragment::Chart { chart } = &chart.fragments[0] else {
+        panic!("{:?}", chart.fragments)
+    };
+    assert_eq!(chart.y, "avg(ElapsedMs)");
+}
+
+#[test]
+fn field_statistics_stop_growing_at_their_caps() {
+    let mut events: Vec<Sample> = (0..300).map(|i| info(i, "x", json!({ "Code": format!("c{i}") }))).collect();
+    for (i, e) in events.iter_mut().enumerate().take(260) {
+        e.rec.fields.insert(format!("Field{i:03}"), json!(1));
+    }
+    let fields = field_summaries(&events);
+    assert_eq!(fields.len(), 200, "new field names stop at the cap");
+    let code = fields.iter().find(|f| f.name == "Code").expect("Code is seen first");
+    assert!(code.distinct_capped && code.distinct == 256, "{code:?}");
+}
+
+#[test]
+fn many_lanes_score_lower_and_a_configured_name_scores_higher() {
+    let events_of = |lanes: usize| -> Vec<Sample> {
+        (0..lanes * 4)
+            .map(|i| info(i, "x", json!({ "Region": format!("r{}", i % lanes) })))
+            .collect()
+    };
+    let score = |lanes: usize, configured: &[String]| {
+        let events = events_of(lanes);
+        let fields = field_summaries(&events);
+        instance_candidates(&events, &fields, configured)
+            .into_iter()
+            .find(|c| c.field == "Region")
+            .map(|c| c.score)
+    };
+    let few = score(4, &[]);
+    let some = score(20, &[]);
+    let many = score(40, &[]);
+    assert!(few > some && some > many, "{few:?} {some:?} {many:?}");
+    // The configured name adds its bonus and lifts the unknown-name penalty.
+    assert_eq!(score(4, &["region".to_string()]).unwrap() - few.unwrap(), 2.0);
+}
+
+#[test]
+fn a_word_with_a_value_that_has_no_digit_is_not_an_instance_name() {
+    let events: Vec<Sample> = (0..100)
+        .map(|i| info(i, &format!("worker alpha{} idle", if i % 2 == 0 { "" } else { "x" }), json!({})))
+        .collect();
+    let fields = field_summaries(&events);
+    assert!(instance_candidates(&events, &fields, &[]).iter().all(|c| c.field != "Worker"));
+}
