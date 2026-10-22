@@ -1660,3 +1660,23 @@ severity = "warning"
     let r = ws.refresh_tail(std::slice::from_ref(&p)).unwrap();
     assert!(r.alerts.iter().all(|a| a.kind != "rule"), "{:?}", r.alerts);
 }
+
+#[test]
+fn the_session_hands_out_its_stop_token_and_stops_it_when_dropped() {
+    let d = Dir::new("stop-token");
+    let factory = Arc::new(FakeFactory::default());
+    let live = LiveTail::start(
+        std::slice::from_ref(&d.0),
+        WatchSettings {
+            tick_ms: 60_000,
+            ..WatchSettings::default()
+        },
+        factory,
+        Box::new(|_| {}),
+        Box::new(|_, _| {}),
+    );
+    let token = live.stop_token();
+    assert!(!token.is_stopped());
+    drop(live);
+    assert!(token.is_stopped(), "dropping the session stops everything holding its token");
+}

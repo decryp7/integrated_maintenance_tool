@@ -180,3 +180,19 @@ fn detect_every_is_clamped() {
     });
     assert_eq!(ws.tail_options().detect_every_ms, 0);
 }
+
+#[test]
+fn recounting_no_sources_changes_nothing_and_recounting_one_refreshes_its_range() {
+    let d = Dir::new("recount");
+    let (mut ws, _, _) = workspace(&d, "");
+    let before = ws.sources().to_vec();
+    ws.recount(&BTreeSet::new());
+    assert_eq!(ws.sources().len(), before.len());
+    let id = before[0].id;
+    ws.recount(&BTreeSet::from([id]));
+    let after = &ws.sources()[0];
+    assert_eq!(
+        (after.records, after.from, after.to),
+        (before[0].records, before[0].from, before[0].to)
+    );
+}
