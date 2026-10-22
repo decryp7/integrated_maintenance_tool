@@ -25,6 +25,19 @@ test.describe('filters', () => {
     await expect(total).toHaveText(all);
   });
 
+  test('the status bar and the grid agree on the match count, also when nothing matches', async ({ page }) => {
+    const total = gridTotal(page);
+    const all = await initialTotal(page);
+    const status = page.locator('imt-status-bar span', { hasText: 'matching' });
+    await expect(status).toHaveText(`${all} matching`);
+    await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('zzqx-nothing-says-this');
+    await expect(total).toHaveText('0');
+    await expect(status).toHaveText('0 matching');
+    await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('');
+    await expect(total).toHaveText(all);
+    await expect(status).toHaveText(`${all} matching`);
+  });
+
   test('text search narrows results and clearing restores them', async ({ page }) => {
     const total = gridTotal(page);
     const all = await initialTotal(page);

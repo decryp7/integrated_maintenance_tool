@@ -289,6 +289,25 @@ describe('EventsGrid', () => {
     expect(rows(fixture).every((r) => !r.style.getPropertyValue('--hl'))).toBe(true);
   });
 
+  it('publishes the match count of the query in view, never one for an older query (D3)', async () => {
+    const { fixture, store } = await render();
+    expect(store.matchTotal()).toBe(11);
+    store.setTextInput('no event says this');
+    store.toggleLevel('Error');
+    fixture.detectChanges();
+    // The new query's first page is not here yet: no count rather than the old one.
+    expect(store.matchTotal()).toBeNull();
+    await settle(fixture);
+    expect(el(fixture, '.total').textContent).toBe(String(store.matchTotal()));
+    store.toggleLevel('Error');
+    store.setTextInput('');
+    await settle(fixture);
+    expect(store.matchTotal()).toBe(11);
+    // With the grid closed nothing keeps the count current, so the status bar hides it.
+    fixture.destroy();
+    expect(store.matchTotal()).toBeNull();
+  });
+
   it('re-queries when the filter or sort changes', async () => {
     const { fixture, store } = await render();
     store.toggleLevel('Error');

@@ -396,7 +396,11 @@ export class EventsGrid {
 
   constructor() {
     const destroyRef = inject(DestroyRef);
-    destroyRef.onDestroy(() => this.rows.dispose());
+    destroyRef.onDestroy(() => {
+      this.rows.dispose();
+      // Nothing keeps the count current once the grid is gone: the status bar hides it instead of showing an old one.
+      this.sel.setMatchTotal(null);
+    });
 
     // New query, sort order or data: start from the top, except that a live refresh keeps the position.
     effect(() => {
