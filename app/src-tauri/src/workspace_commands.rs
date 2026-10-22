@@ -198,7 +198,7 @@ pub(crate) async fn open_paths<R: Runtime>(app: AppHandle<R>, state: CurrentWind
 
 /// What an import reported to the user and the logs: files not imported, crashes (typed engine errors),
 /// unreadable timestamps.
-fn after_import<R: Runtime>(
+pub(crate) fn after_import<R: Runtime>(
     app: &AppHandle<R>,
     state: &CurrentWindow,
     before: &crate::engine_errors::HealthSnapshot,
@@ -272,6 +272,15 @@ pub(crate) fn log_unrecognized(files: &[imt_core::api::UnrecognizedFile]) {
     if files.len() > MAX_LOGGED_FILES {
         log::warn!(More = (files.len() - MAX_LOGGED_FILES) as u64; "More files not imported");
     }
+}
+
+/// Limits what the next imports of the window read to a time range (epoch ms; both open: everything), ADR 0047.
+#[tauri::command]
+pub(crate) async fn set_import_window(state: CurrentWindow, from: Option<i64>, to: Option<i64>) -> CmdResult<()> {
+    let window = imt_core::ingest::ImportWindow::new(from, to)
+        .map_err(CmdError::invalid)?
+        .unwrap_or_default();
+    with_store(&state, move |s| s.set_import_window(&window)).await
 }
 
 #[tauri::command]

@@ -346,6 +346,18 @@ safe mode; the shell then still checks administrator rights itself, and the tool
 unavailable. Files the tools write (collector-set XML, bundles, agent configuration) are never
 replaced without confirmation.
 
+## Watched folders and time-range import
+
+*Watched folders* (View ▸ Tools, or the command *Show watched folders*) imports files into the open project as they
+appear in folders you choose. A file is read once it has stopped changing; copies in progress (`*.part`, `*.tmp`, ...),
+empty files and files over 4 GiB are left alone and say so; a locked file is retried a few times and then reported.
+When a known issue from your knowledge files shows up in the new data it is announced once in the notification centre
+and as a desktop notification (subject to the notification setting and the OS permission). The list is saved with the
+project, up to eight folders per window.
+*Open a time range…* (Explorer toolbar) picks a folder and asks for a UTC start and end: only events inside the range
+are imported, so a huge folder costs only the hour you wanted. See [ADR 0047](adr/0047-time-window-import.md) and
+[ADR 0048](adr/0048-watched-folders.md).
+
 ## Command line (`imt`)
 
 The same engine without a window, for scripts, CI and headless machines: `imt import` reads files and folders into

@@ -946,6 +946,18 @@ export interface Anomaly {
   sampleIds: number[];
 }
 
+/** A folder a window watches for new files (Rust `watched::WatchedFolderInfo`, ADR 0048). */
+export interface WatchedFolderInfo {
+  path: string;
+  enabled: boolean;
+  /** Files imported since the folder was added. */
+  importedFiles: number;
+  /** Files waiting for their quiet time or a retry. */
+  pending: number;
+  /** The last thing worth saying (a file given up on, a file too large), or empty. */
+  message: string;
+}
+
 /** What to compare (Rust `analysis::outliers::OutlierRequest`, ADR 0045). */
 export interface OutlierRequest {
   /** The window: the events compared (a filter without `|` stages). */

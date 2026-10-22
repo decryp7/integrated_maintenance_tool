@@ -18,6 +18,7 @@ import { SourceColors } from '../sources/source-colors.store';
 import { SourceFileActions } from '../sources/source-file-actions';
 import { SourceSwatch } from '../sources/source-swatch';
 import { TimestampWarning } from './timestamp-warning';
+import { ImportRange } from '../import/import-range';
 import { AiLauncher } from '../ai/ai-launcher';
 import { AiStatusStore } from '../ai/ai-status.store';
 import { isImagePath } from '../ai/vision/image-files';
@@ -61,6 +62,7 @@ function shortPath(path: string): string {
       <span class="tools">
         <button class="icon-btn" aria-label="Open files" title="Open files" i18n-aria-label="@@shell.sidebar.openFiles" i18n-title="@@shell.sidebar.openFilesTitle" (click)="store.pickAndOpen(false)"><imt-icon name="file" [size]="14" /></button>
         <button class="icon-btn" aria-label="Open folder" title="Open folder" i18n-aria-label="@@shell.sidebar.openFolder" i18n-title="@@shell.sidebar.openFolderTitle" (click)="store.pickAndOpen(true)"><imt-icon name="folder" [size]="14" /></button>
+        <button class="icon-btn" aria-label="Open a time range" title="Open a time range…" i18n-aria-label="@@shell.sidebar.openRange" i18n-title="@@shell.sidebar.openRangeTitle" data-testid="open-range" (click)="importRange.pickAndOpen(true)"><imt-icon name="metrics" [size]="14" /></button>
         <button class="icon-btn" aria-label="Open for live tail" title="Open for live tail…" i18n-aria-label="@@shell.sidebar.openLive" i18n-title="@@shell.sidebar.openLiveTitle" (click)="openLive()"><imt-icon name="timeline" [size]="14" /></button>
         <button class="icon-btn" aria-label="Re-import all" title="Re-import all" i18n-aria-label="@@shell.sidebar.reimportAll" i18n-title="@@shell.sidebar.reimportAllTitle" (click)="store.reload()"><imt-icon name="refresh" [size]="14" /></button>
       </span>
@@ -212,6 +214,7 @@ function shortPath(path: string): string {
 })
 export class Sidebar {
   protected readonly store = inject(WorkspaceStore);
+  protected readonly importRange = inject(ImportRange);
   private readonly dialogs = inject(DialogService);
 
   protected readonly compact = formatCompact;

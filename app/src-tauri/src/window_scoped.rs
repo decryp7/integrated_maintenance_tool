@@ -95,6 +95,14 @@ pub fn install<R: Runtime>(app: &AppHandle<R>) {
             }
         }),
     );
+    register(
+        app,
+        Scope::on_destroyed("watched folders", |app, label| {
+            if let Ok(win) = crate::windows::CurrentWindow::of(app, label) {
+                win.watched.stop();
+            }
+        }),
+    );
     register(app, Scope::on_destroyed("jobs", crate::jobs::forget_window));
     register(app, Scope::on_destroyed("notifications", crate::notification_centre::forget_window));
     register(

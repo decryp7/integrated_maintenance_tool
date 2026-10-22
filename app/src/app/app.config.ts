@@ -15,6 +15,7 @@ import { REGISTRY_PLUGIN } from './plugins/registry/registry.plugin';
 import { provideWindowing } from './windowing/provide-windowing';
 import { provideClockSkew } from './skew/skew.plugin';
 import { provideShare } from './share/share.plugin';
+import { provideWatched } from './watched/watched.plugin';
 import { provideProfiling } from './profiling/provide-profiling';
 import { provideDumps } from './dumps/provide-dumps';
 import { provideVideo } from './video/provide-video';
@@ -65,6 +66,7 @@ export const appConfig: ApplicationConfig = {
     provideWindowing(),
     provideClockSkew(),
     provideShare(),
+    provideWatched(),
     provideProfiling(),
     provideDumps(),
     provideVideo(),

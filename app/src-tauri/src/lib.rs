@@ -85,6 +85,7 @@ mod tray;
 mod ui_dispatch;
 mod updater;
 mod video;
+mod watched;
 mod window_capture;
 mod window_manager;
 mod window_prefs;
@@ -146,6 +147,11 @@ command_table! {
     Mutation [WINDOW] => file_commands::open_source_file,
     Quiet [MAIN] => workspace_commands::take_pending_open,
     Mutation [WINDOW] => workspace_commands::set_live,
+    Mutation [WINDOW] => workspace_commands::set_import_window,
+    Query [WINDOW] => watched::watched_folders,
+    Mutation [WINDOW] => watched::add_watched_folder,
+    Mutation [WINDOW] => watched::remove_watched_folder,
+    Mutation [WINDOW] => watched::set_watched_folder_enabled,
     Quiet [WINDOW] => workspace_commands::import_progress,
     Query [WINDOW] => workspace_commands::overview,
     Query [WINDOW] => workspace_commands::home_summary,

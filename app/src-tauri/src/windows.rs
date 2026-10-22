@@ -44,6 +44,8 @@ pub struct WindowState {
     pending_ask: Mutex<Vec<String>>,
     /// The running live tail session, if any.
     pub(crate) live: LiveSlot,
+    /// The folders this window watches for new files (ADR 0048).
+    pub(crate) watched: crate::watched::WatchedSlot,
     /// The window title the UI set (project name), for the tray's window list.
     title: Mutex<String>,
     /// The project this window last opened or saved.
@@ -72,6 +74,7 @@ impl WindowState {
             pending: Mutex::default(),
             pending_ask: Mutex::default(),
             live: LiveSlot::default(),
+            watched: crate::watched::WatchedSlot::default(),
             title: Mutex::new(String::new()),
             project: Mutex::default(),
             loaded: AtomicBool::new(false),
