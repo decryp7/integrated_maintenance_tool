@@ -24,6 +24,9 @@ pub struct Delegating<'a, S> {
     pub problems: Option<StoreResult<Vec<DiagnosticRow>>>,
     /// Makes `remove_source` fail with this error instead of removing anything.
     pub remove_source_error: Option<StoreError>,
+    /// Makes every `page` call from this call number on (0-based) fail with `Busy`.
+    pub page_fails_from: Option<usize>,
+    pages: std::sync::atomic::AtomicUsize,
 }
 
 impl<'a, S> Delegating<'a, S> {
@@ -32,6 +35,16 @@ impl<'a, S> Delegating<'a, S> {
             inner,
             problems: None,
             remove_source_error: None,
+            page_fails_from: None,
+            pages: Default::default(),
+        }
+    }
+
+    /// A store whose `page` calls fail from the `n`th on.
+    pub fn failing_pages_from(inner: &'a S, n: usize) -> Self {
+        Delegating {
+            page_fails_from: Some(n),
+            ..Self::new(inner)
         }
     }
 
@@ -39,7 +52,7 @@ impl<'a, S> Delegating<'a, S> {
         Delegating {
             inner,
             problems: Some(problems),
-            remove_source_error: None,
+            ..Self::new(inner)
         }
     }
 }
@@ -79,6 +92,10 @@ impl<S: Query> Query for Delegating<'_, S> {
         self.inner.summary()
     }
     fn page(&self, req: &PageQuery) -> StoreResult<PageReply> {
+        let call = self.pages.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        if self.page_fails_from.is_some_and(|n| call >= n) {
+            return Err(StoreError::Busy("paging is unavailable".into()));
+        }
         self.inner.page(req)
     }
     fn events(&self, req: &EventsRequest) -> StoreResult<Vec<EventView>> {
