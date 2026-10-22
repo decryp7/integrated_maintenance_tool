@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { el, provideDockTesting, settle, text } from '../testing/helpers';
+import { provideDockTesting, settle, text } from '../testing/helpers';
 import { App } from './app';
 import { WorkspaceStore } from './core/workspace.store';
 import { DockService } from './dock/dock.service';
