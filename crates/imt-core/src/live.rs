@@ -275,7 +275,12 @@ impl LiveSession {
     }
 
     /// The alerts of this refresh and the newest event's time.
-    fn alerts(&mut self, store: &(impl LivePorts + ?Sized), appended: &TailAppend, options: &TailOptions) -> Result<(Vec<LiveAlert>, Option<i64>)> {
+    fn alerts(
+        &mut self,
+        store: &(impl LivePorts + ?Sized),
+        appended: &TailAppend,
+        options: &TailOptions,
+    ) -> Result<(Vec<LiveAlert>, Option<i64>)> {
         let summary = store.summary()?;
         let rules = store.active_profile()?.live.compile()?;
         let now = if rules.wall_clock {
@@ -305,9 +310,7 @@ impl LiveSession {
     }
 
     fn detect_due(&mut self, every_ms: u64) -> bool {
-        let due = self
-            .last_detect_at
-            .is_none_or(|t| t.elapsed() >= Duration::from_millis(every_ms));
+        let due = self.last_detect_at.is_none_or(|t| t.elapsed() >= Duration::from_millis(every_ms));
         if due {
             self.last_detect_at = Some(Instant::now());
         }
@@ -406,10 +409,7 @@ impl LiveSession {
                 severity: kind_severity(AnomalyKind::Silence),
                 from: last,
                 to: now,
-                message: format!(
-                    "{key} has not logged for {}",
-                    crate::analysis::util::fmt_duration(now - last)
-                ),
+                message: format!("{key} has not logged for {}", crate::analysis::util::fmt_duration(now - last)),
                 evidence_query: Query {
                     from: Some(last - rules.window),
                     to: Some(now),

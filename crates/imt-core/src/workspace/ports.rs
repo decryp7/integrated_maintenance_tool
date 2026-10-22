@@ -169,6 +169,7 @@ impl Ingest for WorkspaceStore {
             truncated: r.truncated,
             reimported: r.reimported,
             deleted: r.deleted,
+            held: Vec::new(),
         })
     }
 }
@@ -527,9 +528,7 @@ impl crate::ports::Skew for WorkspaceStore {
         ws.restore(profile, &state).map(|_| ()).map_err(invalid)
     }
     fn set_source_offset(&self, req: &crate::skew::SetOffsetRequest) -> StoreResult<crate::skew::OffsetChange> {
-        self.write()
-            .set_source_offset(req)
-            .map_err(|e| StoreError::Invalid(e.to_string()))
+        self.write().set_source_offset(req).map_err(|e| StoreError::Invalid(e.to_string()))
     }
     fn suggest_offsets(&self, req: &crate::skew::SuggestRequest) -> StoreResult<crate::skew::SuggestResult> {
         Ok(self.read().suggest_offsets(req))

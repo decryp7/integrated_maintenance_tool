@@ -448,24 +448,42 @@ mod tests {
             let mut sink = Memory::default();
             let start = resume_after(&p, TailStart { byte: 0, line: 1 }, 29).unwrap();
             assert_eq!(start, TailStart { byte: 29, line: 2 });
-            // A last line without its newline waits.
+            // A last line without its newline waits; the event read last is held (plain text events may continue
+            // on following lines), so nothing is written yet and the next read starts at it.
             append(&p, b"2026-10-14 10:00:01 INFO two\n2026-10-14 10:00:02 INFO thr");
             let r = read(env, &p, &src, start, false, &mut sink);
-            assert_eq!(sink.messages(), [(2, "two".to_string())]);
-            assert_eq!((r.batched.events, r.held, r.next), (1, false, TailStart { byte: 58, line: 3 }));
+            assert_eq!((sink.messages(), r.batched.events, r.held, r.next), (vec![], 0, true, start));
+            // The line completes: the first event is released by the second, which is held in turn.
             append(&p, b"ee\n");
             let r = read(env, &p, &src, r.next, false, &mut sink);
-            assert_eq!(sink.messages().last().unwrap(), &(3, "three".to_string()));
-            assert_eq!(r.next.line, 4);
-            // Nothing new: nothing read.
+            assert_eq!(sink.messages(), [(2, "two".to_string())]);
+            assert_eq!((r.held, r.next), (true, TailStart { byte: 58, line: 3 }));
+            // Nothing new: the held event is read and held again, nothing is written twice.
             let again = read(env, &p, &src, r.next, false, &mut sink);
-            assert_eq!((again.batched.events, again.next), (0, r.next));
-            // Flushed: an unterminated line is read anyway.
+            assert_eq!((again.batched.events, again.next, again.held), (0, r.next, true));
+            assert_eq!(sink.messages().len(), 1);
+            // Flushed (the file stopped growing): the held event and an unterminated last line are read.
             append(&p, b"2026-10-14 10:00:03 INFO four");
             let f = read(env, &p, &src, r.next, true, &mut sink);
-            assert_eq!(sink.messages().last().unwrap(), &(4, "four".to_string()));
-            assert_eq!(f.next.line, 5);
+            let all = sink.messages();
+            assert_eq!(&all[1..], [(3, "three".to_string()), (4, "four".to_string())]);
+            assert_eq!((f.next.line, f.held), (5, false));
             assert_eq!(f.size, std::fs::metadata(&p).unwrap().len());
+        });
+    }
+
+    #[test]
+    fn events_of_one_line_are_not_held_back() {
+        // CLEF: one JSON object per line, so a complete line is a complete event.
+        let line = |n: u32| format!("{{\"@t\":\"2026-10-14T10:00:0{n}Z\",\"@m\":\"m{n}\"}}\n");
+        let (p, src) = temp("j.clef", format!("{}{}", line(0), line(1)).as_bytes());
+        with_env(|env| {
+            let mut sink = Memory::default();
+            let start = resume_after(&p, TailStart { byte: 0, line: 1 }, std::fs::metadata(&p).unwrap().len()).unwrap();
+            assert_eq!(start.line, 3);
+            append(&p, line(2).as_bytes());
+            let r = read(env, &p, &src, start, false, &mut sink);
+            assert_eq!((sink.messages(), r.held), (vec![(3, "m2".to_string())], false));
         });
     }
 
@@ -482,7 +500,11 @@ mod tests {
             append(&p, b"   at Foo.Bar()\n2026-10-14 10:00:02 INFO after\n");
             let r = read(env, &p, &src, r.next, false, &mut sink);
             assert_eq!(sink.messages(), [(2, "boom".to_string())]);
-            let raw: Vec<String> = sink.batches.iter().flat_map(|b| b.rows().map(|r| r.raw().to_string()).collect::<Vec<_>>()).collect();
+            let raw: Vec<String> = sink
+                .batches
+                .iter()
+                .flat_map(|b| b.rows().map(|r| r.raw().to_string()).collect::<Vec<_>>())
+                .collect();
             assert!(raw[0].contains("at Foo.Bar()"), "{raw:?}");
             assert_eq!(r.next.line, 4);
             let f = read(env, &p, &src, r.next, true, &mut sink);
@@ -501,10 +523,22 @@ mod tests {
             let (p, src) = temp("a.zip", b"PK\x03\x04rest");
             let r = read_appended(env, &p, &src, SourceId(0), TailStart { byte: 0, line: 1 }, false, &mut sink).unwrap();
             assert!(matches!(&r, Region::Whole(why) if why.contains("archive")), "{r:?}");
-            assert!(matches!(begin_at_end(env, &p, &src, &mut sink).unwrap(), Err(_)));
+            assert!(begin_at_end(env, &p, &src, &mut sink).unwrap().is_err());
             let (p, src) = temp("empty.log", b"");
-            assert!(matches!(read_appended(env, &p, &src, SourceId(0), TailStart { byte: 0, line: 1 }, false, &mut sink).unwrap(), Region::Whole(_)));
-            assert!(read_appended(env, &p.with_extension("gone"), &src, SourceId(0), TailStart { byte: 0, line: 1 }, false, &mut sink).is_err());
+            assert!(matches!(
+                read_appended(env, &p, &src, SourceId(0), TailStart { byte: 0, line: 1 }, false, &mut sink).unwrap(),
+                Region::Whole(_)
+            ));
+            assert!(read_appended(
+                env,
+                &p.with_extension("gone"),
+                &src,
+                SourceId(0),
+                TailStart { byte: 0, line: 1 },
+                false,
+                &mut sink
+            )
+            .is_err());
             assert!(resume_after(&p.with_extension("gone"), TailStart { byte: 0, line: 1 }, 0).is_none());
         });
     }
@@ -519,7 +553,12 @@ mod tests {
             assert_eq!(sink.finished.len(), 1);
             assert_eq!(at.next, TailStart { byte: 59, line: 3 });
             append(&p, b" line\n");
-            read(env, &p, &src, at.next, false, &mut sink);
+            let held = read(env, &p, &src, at.next, false, &mut sink);
+            assert!(
+                held.held && sink.messages().is_empty(),
+                "the completed line waits for a possible continuation"
+            );
+            read(env, &p, &src, at.next, true, &mut sink);
             assert_eq!(sink.messages().len(), 1, "the completed partial line is the first new event");
             assert_eq!(sink.messages()[0].0, 3);
         });
@@ -537,10 +576,22 @@ mod tests {
         with_env(|env| {
             let mut sink = Memory::default();
             let start = resume_after(&p, TailStart { byte: 2, line: 1 }, first.len() as u64).unwrap();
-            assert_eq!(start, TailStart { byte: first.len() as u64, line: 2 });
-            let more: Vec<u8> = "2026-10-14 10:00:01 INFO two\n".encode_utf16().flat_map(|u| u.to_le_bytes()).collect();
+            assert_eq!(
+                start,
+                TailStart {
+                    byte: first.len() as u64,
+                    line: 2
+                }
+            );
+            let more: Vec<u8> = "2026-10-14 10:00:01 INFO two\n"
+                .encode_utf16()
+                .flat_map(|u| u.to_le_bytes())
+                .collect();
             append(&p, &more);
             let r = read(env, &p, &src, start, false, &mut sink);
+            assert!(r.held && sink.messages().is_empty());
+            assert_eq!(r.next, start, "the held event is read again from its own start");
+            let r = read(env, &p, &src, start, true, &mut sink);
             assert_eq!(sink.messages(), [(2, "two".to_string())]);
             assert_eq!(r.next.byte, (first.len() + more.len()) as u64);
         });

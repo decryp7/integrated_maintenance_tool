@@ -20,6 +20,15 @@ pub const CACHE_DDL: &str = "CREATE TABLE IF NOT EXISTS analysis_cache (
   version UBIGINT NOT NULL, kind VARCHAR NOT NULL, hash VARCHAR NOT NULL, query VARCHAR NOT NULL, value VARCHAR NOT NULL,
   PRIMARY KEY (version, kind, hash));";
 
+/// Tables added after the format was first written (created with a new store and, if missing, when a store opens):
+/// `clock_offsets` (a source file's clock-skew correction in ms, already applied to its events) and `tail_offsets`
+/// (where live tail reads each followed file next: the byte and the line it continues at, the size it saw, whether
+/// it is read whole when it changes and why, whether its last event is held back and when it last grew).
+pub const ADDED_DDL: &str = "CREATE TABLE IF NOT EXISTS clock_offsets (path VARCHAR PRIMARY KEY, offset_ms BIGINT NOT NULL);
+CREATE TABLE IF NOT EXISTS tail_offsets (
+  source UINTEGER PRIMARY KEY, byte UBIGINT NOT NULL, line UBIGINT NOT NULL, size UBIGINT NOT NULL,
+  whole BOOLEAN NOT NULL DEFAULT FALSE, held BOOLEAN NOT NULL DEFAULT FALSE, note VARCHAR, changed_ms BIGINT);";
+
 /// The DuckDB type of a declared column.
 fn sql_type(t: ColumnType) -> &'static str {
     match t {
@@ -74,7 +83,8 @@ CREATE TABLE ord (pos UBIGINT NOT NULL, id UBIGINT NOT NULL);
 CREATE TABLE events_empty (
   id UBIGINT NOT NULL, ts BIGINT, ts_state UTINYINT NOT NULL, level UTINYINT NOT NULL, source UINTEGER NOT NULL,
   line UINTEGER NOT NULL, byte_offset UBIGINT NOT NULL, message VARCHAR NOT NULL, template VARCHAR, exception VARCHAR,
-  markers UBIGINT NOT NULL, raw VARCHAR NOT NULL{declared}, extra MAP(VARCHAR, VARCHAR) NOT NULL);"
+  markers UBIGINT NOT NULL, raw VARCHAR NOT NULL{declared}, extra MAP(VARCHAR, VARCHAR) NOT NULL);
+{ADDED_DDL}"
     )
 }
 

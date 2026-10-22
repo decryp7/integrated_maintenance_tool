@@ -369,6 +369,16 @@ impl Worker {
             StoreOp::SqlRun => run!(s.sql_run(&body(b)?)),
             StoreOp::SqlPage => reply(&s.sql_page(&body(b)?)?),
             StoreOp::RedactionSummary => run!(imt_core::ports::Redaction::redaction_summary(&s, &body(b)?)),
+            StoreOp::ClockOffsets => reply(&imt_core::ports::Skew::clock_offsets(&s)?),
+            StoreOp::SetClockOffsets => reply(&imt_core::ports::Skew::set_clock_offsets(&s, &body(b)?)?),
+            StoreOp::SetSourceOffset => reply(&imt_core::ports::Skew::set_source_offset(&s, &body(b)?)?),
+            StoreOp::SuggestOffsets => run!(imt_core::ports::Skew::suggest_offsets(&s, &body(b)?)),
+            StoreOp::TailFiles => reply(&imt_core::ports::Tail::tail_files(&s)?),
+            StoreOp::OpenAtEnd => {
+                let p: Paths = body(b)?;
+                let session = imt_core::ports::Tail::open_at_end(&s, &p.paths)?;
+                reply(&self.session(session))
+            }
             StoreOp::SaveProject => reply(&Projects::save_project(&s, &body::<ProjectManifest>(b)?)?),
             StoreOp::ExportProject => {
                 let r: ExportProject = body(b)?;

@@ -53,10 +53,16 @@ pub struct TailAppend {
     pub reimported: Vec<u32>,
     /// Sources whose file disappeared (their events stay).
     pub deleted: Vec<u32>,
+    /// Sources holding back their last event until the file stops growing (plain text events may continue on the
+    /// lines that follow): ask again with no paths after [`HOLD_IDLE`] and the held event is written.
+    pub held: Vec<u32>,
 }
 
+/// How long a file must not have grown before the event held back at its end is written.
+pub const HOLD_IDLE: std::time::Duration = std::time::Duration::from_millis(500);
+
 impl TailAppend {
-    /// Whether nothing changed.
+    /// Whether nothing changed (a held event is not a change, it is a reason to ask again).
     pub fn is_empty(&self) -> bool {
         self.appended == 0
             && self.sources_changed.is_empty()
@@ -90,6 +96,8 @@ mod tests {
         assert_eq!(serde_json::from_value::<TailFile>(json).unwrap(), f);
         let mut a = TailAppend::default();
         assert!(a.is_empty());
+        a.held.push(2);
+        assert!(a.is_empty(), "a held event is not a change");
         a.deleted.push(1);
         assert!(!a.is_empty());
         let back: TailAppend = serde_json::from_str(&serde_json::to_string(&a).unwrap()).unwrap();

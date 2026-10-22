@@ -325,3 +325,124 @@ fn the_redaction_summary_over_the_worker_answers_like_the_store() {
     );
     w.shutdown();
 }
+
+/// The same live tail and clock-skew session on any store, answers as JSON with file names for paths.
+fn live_session<S: imt_core::ports::Store>(s: &S, logs: &std::path::Path) -> Vec<(String, Value)> {
+    let name = |v: Value| -> Value { serde_json::from_str(&v.to_string().replace(&logs.to_string_lossy().into_owned(), "")).unwrap() };
+    let clef = |host: &str, n: i64, skew: i64| {
+        format!("{{\"@t\":\"{}\",\"@m\":\"{host} {n}\",\"CorrelationId\":\"c{n}\"}}\n", {
+            let ms = 1_791_972_000_000 + n * 7_000 + skew;
+            chrono::DateTime::from_timestamp_millis(ms)
+                .unwrap()
+                .format("%Y-%m-%dT%H:%M:%S%.3fZ")
+                .to_string()
+        })
+    };
+    let mut out = Vec::new();
+    s.open(&[logs.to_path_buf()]).unwrap().wait().unwrap();
+    out.push(("tailFiles".to_string(), name(j(s.tail_files().unwrap()))));
+    let suggest = s.suggest_offsets(&req(json!({}))).unwrap();
+    out.push((
+        "suggest".into(),
+        j(suggest
+            .suggestions
+            .iter()
+            .map(|x| (x.suggested_ms, x.pairs, x.agreeing))
+            .collect::<Vec<_>>()),
+    ));
+    let web02 = s.summary().unwrap().sources.iter().find(|x| x.path.contains("web02")).unwrap().id;
+    let change = s
+        .set_source_offset(&req(json!({"kind": "manual", "source": web02, "offsetMs": 2500, "track": []})))
+        .unwrap();
+    out.push(("change".into(), j(change)));
+    out.push(("offsets".into(), name(j(s.clock_offsets().unwrap()))));
+    let mut f = std::fs::OpenOptions::new().append(true).open(logs.join("web02/app.clef")).unwrap();
+    std::io::Write::write_all(&mut f, clef("web02", 9, -2_500).as_bytes()).unwrap();
+    drop(f);
+    let r = s.append_tail(&[logs.join("web02/app.clef")]).unwrap();
+    out.push((
+        "appendTail".into(),
+        j((
+            r.appended,
+            r.held.len(),
+            r.added.len(),
+            r.truncated.len(),
+            r.reimported.len(),
+            r.deleted.len(),
+        )),
+    ));
+    let page = s.page(&req(json!({"query": {}, "limit": 100}))).unwrap();
+    out.push((
+        "times".into(),
+        j(page.rows.iter().map(|r| (r.message.clone(), r.ts)).collect::<Vec<_>>()),
+    ));
+    out.push((
+        "tailFilesAfter".into(),
+        name(j(s
+            .tail_files()
+            .unwrap()
+            .iter()
+            .map(|f| (f.name.clone(), f.offset, f.lines, f.read))
+            .collect::<Vec<_>>())),
+    ));
+    out
+}
+
+/// Clock skew and live tail over the worker answer exactly what the store answers in process.
+#[test]
+fn clock_skew_and_live_tail_over_the_worker_answer_like_the_store() {
+    let make_logs = |tag: &str| {
+        let logs = TempDir::new(tag);
+        for (host, skew) in [("web01", 0i64), ("web02", -2_500)] {
+            std::fs::create_dir_all(logs.0.join(host)).unwrap();
+            let text: String = (0..8i64)
+                .map(|n| {
+                    let ms = 1_791_972_000_000 + n * 7_000 + skew;
+                    let t = chrono::DateTime::from_timestamp_millis(ms)
+                        .unwrap()
+                        .format("%Y-%m-%dT%H:%M:%S%.3fZ")
+                        .to_string();
+                    format!("{{\"@t\":\"{t}\",\"@m\":\"{host} {n}\",\"CorrelationId\":\"c{n}\"}}\n")
+                })
+                .collect();
+            std::fs::write(logs.0.join(host).join("app.clef"), text).unwrap();
+        }
+        logs
+    };
+    let (l1, l2) = (make_logs("skew-local"), make_logs("skew-remote"));
+    let (d1, d2) = (TempDir::new("skew-store-local"), TempDir::new("skew-store-remote"));
+    let plugins = imt_plugin_host::Builtins::load(&imt_plugin_host::builtins::default_binary()).plugins();
+    let registry = imt_store_worker::server::install_plugins(plugins, &[]);
+    let local = DuckStore::create(&d1.0, Profile::default_profile(), registry).unwrap();
+    let expected = live_session(&local, &std::fs::canonicalize(&l1.0).unwrap());
+    let w = StoreWorker::new(WorkerConfig::new(env!("CARGO_BIN_EXE_imt-store-worker"))).unwrap();
+    let remote = w.open_store(&d2.0, Profile::default_profile(), true, None).unwrap();
+    let got = live_session(&remote, &std::fs::canonicalize(&l2.0).unwrap());
+    for ((name, e), (_, g)) in expected.iter().zip(&got) {
+        assert_eq!(e, g, "{name} differs over the worker");
+    }
+    assert!(
+        expected
+            .iter()
+            .any(|(n, v)| n == "suggest" && v.as_array().is_some_and(|a| !a.is_empty())),
+        "{expected:?}"
+    );
+
+    // Opening at the end goes through the worker too; a cancelled suggestion fails as cancelled.
+    let at_end = TempDir::new("skew-at-end");
+    std::fs::write(at_end.0.join("x.clef"), "{\"@t\":\"2026-10-14T10:00:00Z\",\"@m\":\"old\"}\n").unwrap();
+    let report = imt_core::ports::Tail::open_at_end(&remote, std::slice::from_ref(&at_end.0))
+        .unwrap()
+        .wait()
+        .unwrap();
+    assert_eq!(report.events, 0);
+    let control = QueryControl::new();
+    control.cancel();
+    assert_eq!(
+        control
+            .scope(|| imt_core::ports::Skew::suggest_offsets(&remote, &req(json!({}))))
+            .unwrap_err(),
+        StoreError::Cancelled
+    );
+    w.shutdown();
+}

@@ -663,7 +663,7 @@ impl Ingest for RemoteStore {
         let s = self.call(StoreOp::Restore, state)?;
         self.session(s)
     }
-    fn append_tail(&self, changed: &[PathBuf]) -> StoreResult<usize> {
+    fn append_tail(&self, changed: &[PathBuf]) -> StoreResult<imt_core::ports::TailAppend> {
         self.call_with(StoreOp::AppendTail, &Paths { paths: changed.to_vec() }, LONG_TIMEOUT)
     }
 }
@@ -875,6 +875,32 @@ impl Inspect for RemoteStore {
     /// The store's memory with the worker process's (resident memory, Low memory mode).
     fn store_memory(&self) -> StoreResult<StoreMemory> {
         self.call(StoreOp::StoreMemory, &())
+    }
+}
+
+impl imt_core::ports::Skew for RemoteStore {
+    fn clock_offsets(&self) -> StoreResult<imt_core::skew::ClockOffsets> {
+        self.call(StoreOp::ClockOffsets, &())
+    }
+    /// Moves the events of every file whose offset changes: a long call.
+    fn set_clock_offsets(&self, offsets: &imt_core::skew::ClockOffsets) -> StoreResult<()> {
+        self.call_with(StoreOp::SetClockOffsets, offsets, LONG_TIMEOUT)
+    }
+    fn set_source_offset(&self, req: &imt_core::skew::SetOffsetRequest) -> StoreResult<imt_core::skew::OffsetChange> {
+        self.call_with(StoreOp::SetSourceOffset, req, LONG_TIMEOUT)
+    }
+    fn suggest_offsets(&self, req: &imt_core::skew::SuggestRequest) -> StoreResult<imt_core::skew::SuggestResult> {
+        self.analysis(StoreOp::SuggestOffsets, req)
+    }
+}
+
+impl imt_core::ports::Tail for RemoteStore {
+    fn tail_files(&self) -> StoreResult<Vec<imt_core::ports::TailFile>> {
+        self.call(StoreOp::TailFiles, &())
+    }
+    fn open_at_end(&self, paths: &[PathBuf]) -> StoreResult<ImportSession> {
+        let s = self.call(StoreOp::OpenAtEnd, &Paths { paths: paths.to_vec() })?;
+        self.session(s)
     }
 }
 

@@ -224,13 +224,29 @@ fn after_import<R: Runtime>(
 
 /// Opens paths that were checked already (granted, or IMT's own): see [`open_request`].
 pub(crate) async fn open_granted<R: Runtime>(app: &AppHandle<R>, state: &CurrentWindow, paths: Vec<String>) -> CmdResult<WorkspaceSummary> {
+    open_granted_at(app, state, paths, false).await
+}
+
+/// [`open_granted`], optionally at the end of the files: only the lines written from now on are read.
+pub(crate) async fn open_granted_at<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &CurrentWindow,
+    paths: Vec<String>,
+    at_end: bool,
+) -> CmdResult<WorkspaceSummary> {
     let paths = crate::activity::report::open::divert(app, state.label(), paths).await;
     if paths.is_empty() {
         return summary_of(state).await;
     }
     let before = crate::engine_errors::HealthSnapshot::new(&state.host.registry.plugins(), &[]);
     let files: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
-    let report = crate::engine::import::run(app, state, open_spec(&paths), Box::new(move |store| store.open(&files))).await?;
+    let report = crate::engine::import::run(
+        app,
+        state,
+        open_spec(&paths),
+        Box::new(move |store| if at_end { store.open_at_end(&files) } else { store.open(&files) }),
+    )
+    .await?;
     after_import(app, state, &before, &report);
     let summary = summary_of(state).await?;
     crate::window_manager::import_finished(app, state.label(), summary.total as u64);

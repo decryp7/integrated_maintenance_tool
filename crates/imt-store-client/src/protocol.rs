@@ -58,7 +58,7 @@ ops! {
     Clear,
     /// [`imt_core::api::WorkspaceState`] → [`Session`]
     Restore,
-    /// [`Paths`] → events appended
+    /// [`Paths`] → [`imt_core::ports::TailAppend`]
     AppendTail,
     /// [`Session`] → [`imt_core::workspace::ProgressSnapshot`] of the store's running (or last) import
     SessionProgress,
@@ -151,6 +151,18 @@ ops! {
     SqlPage,
     /// [`imt_core::redact::RedactionSummaryRequest`] → [`imt_core::redact::RedactionSummary`] (cancellable)
     RedactionSummary,
+    /// → [`imt_core::skew::ClockOffsets`]
+    ClockOffsets,
+    /// [`imt_core::skew::ClockOffsets`] → ()
+    SetClockOffsets,
+    /// [`imt_core::skew::SetOffsetRequest`] → [`imt_core::skew::OffsetChange`]
+    SetSourceOffset,
+    /// [`imt_core::skew::SuggestRequest`] → [`imt_core::skew::SuggestResult`] (cancellable)
+    SuggestOffsets,
+    /// → `Vec<`[`imt_core::ports::TailFile`]`>`
+    TailFiles,
+    /// [`Paths`] → [`Session`]: opens files and folders at their end
+    OpenAtEnd,
 }
 
 /// "Parse with…": reads one source with the library's parser `parser` (`None`: the automatic choice; ADR 0026).
