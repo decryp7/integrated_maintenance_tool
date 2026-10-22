@@ -81,12 +81,12 @@ test.describe('analysis views', () => {
     await runCommand(page, 'Compare: before / after selected time');
     const view = page.locator('imt-compare-view');
     await expect(view).toBeVisible();
-    await expect(view.getByRole('heading', { name: 'Summary' })).toBeVisible();
+    await expect(view.getByTestId('compare-summary')).toBeVisible();
     await expect(view.getByText(/Window B has/)).toBeVisible();
     await expect(view.locator('.card')).toHaveCount(2);
     await expect(view.getByRole('heading', { name: 'Numeric changes' })).toBeVisible();
     await view.getByRole('button', { name: 'Current range vs previous' }).click();
-    await expect(view.locator('.windows')).toContainText('A');
+    await expect(view.getByTestId('window-a')).toContainText('A:');
     await expectNoSeriousViolations(page, testInfo, 'compare', 'imt-compare-view');
   });
 

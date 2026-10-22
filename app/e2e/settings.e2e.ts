@@ -55,7 +55,7 @@ test('settings dialog changes the theme, colour scheme, date format and density,
   expect(csp).toEqual([]);
 });
 
-test('the selected segment of a segmented control is filled with the accent, not only outlined (G3)', async ({ page }) => {
+test('the selected segment of a segmented control is a tint with accent text, never a filled primary (G3)', async ({ page }) => {
   await openApp(page);
   await openWithShortcut(page);
   const dialog = settingsDialog(page);
@@ -64,6 +64,7 @@ test('the selected segment of a segmented control is filled with the accent, not
   await scheme.getByRole('button', { name: 'dark' }).click();
   const selected = scheme.getByRole('button', { name: 'dark' });
   await expect(selected).toHaveAttribute('aria-pressed', 'true');
+  const tint = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--chip-bg').trim());
   const accent = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
   const bg = (b: typeof selected) => b.evaluate((el) => getComputedStyle(el).backgroundColor);
   const probe = await page.evaluate((c) => {
@@ -73,8 +74,17 @@ test('the selected segment of a segmented control is filled with the accent, not
     const rgb = getComputedStyle(d).color;
     d.remove();
     return rgb;
+  }, tint);
+  const filled = await page.evaluate((c) => {
+    const d = document.createElement('div');
+    d.style.color = c;
+    document.body.append(d);
+    const rgb = getComputedStyle(d).color;
+    d.remove();
+    return rgb;
   }, accent);
   expect(await bg(selected)).toBe(probe);
+  expect(await bg(selected)).not.toBe(filled);
   expect(await bg(scheme.getByRole('button', { name: 'light' }))).not.toBe(probe);
 });
 
@@ -119,11 +129,12 @@ test('engine settings: shortcut, validation error, automatic apply with Undo, re
   await expect(dialog.getByTestId('settings-notice')).toContainText('saved');
   await dialog.getByRole('button', { name: 'Reset to default: Log file size' }).click();
   await expect(size).toHaveValue('10');
-  await dialog.getByLabel('Log level', { exact: true }).selectOption('debug');
+  await dialog.getByLabel(/^Log level/).click();
+  await page.getByRole('option', { name: /debug/i }).click();
   await expect(dialog.getByTestId('settings-notice')).toContainText('saved.');
   await dialog.getByRole('button', { name: 'Reset section' }).click();
   await expect(dialog.getByText('Diagnostics reset to defaults.')).toBeVisible();
-  await expect(dialog.getByLabel('Log level', { exact: true })).toHaveValue('info');
+  await expect(dialog.getByLabel(/^Log level/)).toContainText(/info/i);
   await expect(size).toHaveValue('10');
 
   // Advanced settings are hidden until asked for.

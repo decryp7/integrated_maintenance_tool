@@ -34,7 +34,7 @@ import { TimeCursor } from './time-cursor';
       </div>
       <ul class="list body" aria-label="Anomalies" i18n-aria-label="@@analysis.anomalies.listLabel">
         @for (g of groups(); track g.kind) {
-          <li class="group" role="presentation"><span class="kind" aria-hidden="true">{{ icon(g.kind) }}</span><span class="gname">{{ label(g.kind) }}</span><span class="count">{{ g.items.length }}</span></li>
+          <li class="group"><span class="kind" aria-hidden="true">{{ icon(g.kind) }}</span><span class="gname">{{ label(g.kind) }}</span><span class="count">{{ g.items.length }}</span></li>
           @for (a of g.items; track a.kind + ':' + a.instance + ':' + a.from + ':' + a.to) {
           <li>
             <button class="row" type="button" (click)="open(a)" (mouseenter)="cursor.hover(a.from)" (focus)="cursor.hover(a.from)" (mouseleave)="cursor.hover(null)" (blur)="cursor.hover(null)">

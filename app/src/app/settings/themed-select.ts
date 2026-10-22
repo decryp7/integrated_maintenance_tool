@@ -23,7 +23,7 @@ export interface SelectOption<T extends string | number = string> {
       cdkOverlayOrigin
       #origin="cdkOverlayOrigin"
       aria-haspopup="listbox"
-      [attr.aria-label]="ariaLabel() || null"
+      [attr.aria-label]="ariaLabel() ? ariaLabel() + ': ' + current() : null"
       [attr.aria-expanded]="open()"
       [disabled]="disabled()"
       (click)="open.set(!open())"

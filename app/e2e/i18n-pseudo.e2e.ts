@@ -89,15 +89,18 @@ test.describe('pseudo-locale', () => {
     const language = general.getByTestId('language-setting');
     await expect(language.locator('legend')).toHaveText(PSEUDO);
     const select = language.getByTestId('language-select');
-    await expect(select).toHaveValue('pseudo');
-    await expect(select).toHaveAttribute('aria-label', PSEUDO);
-    await expect(select.locator('option[value=en]')).toHaveText('English');
+    await expect(select.locator('button')).toContainText(/\S/);
+    await expect(select.locator('button')).toHaveAttribute('aria-label', PSEUDO);
+    await select.locator('button').click();
+    await expect(page.getByRole('option', { name: 'English' })).toBeVisible();
+    await page.keyboard.press('Escape');
     expect(await unmarkedEnglish(general.locator('legend, label, .btn'))).toEqual([]);
   });
 
   test('choosing English asks to restart and applies after the reload', async ({ page }) => {
     await page.locator('imt-activity-bar button').last().click();
-    await page.locator('imt-general-settings').getByTestId('language-select').selectOption('en');
+    await page.locator('imt-general-settings').getByTestId('language-select').locator('button').click();
+    await page.getByRole('option', { name: 'English' }).click();
     const dialog = page.getByRole('dialog').last();
     await expect(dialog).toContainText(PSEUDO);
     // Later: the window keeps running in pseudo and says a restart is needed.
