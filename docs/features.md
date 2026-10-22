@@ -492,10 +492,18 @@ in the tab menu or the group's ⋯ panel menu, or **Window ▸ Float panel**; a 
 Dragging a tab shows where it goes. On a docking guide (the compass over a group, the guides at
 the dock's edges) or a tab strip it docks there. Anywhere else in the window a release cancels the
 drag: the dragged tab dims, a small **Release to cancel** shows by the pointer, and the tab stays
-where it was. Outside the window a translucent preview of the panel follows the pointer along the
-window's edge with **Release to open in a new window**, and releasing there pops the panel out into
-its own window. `Esc` cancels the drag. The hint is also announced to screen readers, and the
-preview does not animate when reduced motion is on.
+where it was. Outside the window a ghost of the new window follows the pointer, over other apps and
+onto other monitors: a translucent outline of the window's size with its title bar (the panel's icon
+and name) under the pointer and a dimmed snapshot of the panel. Releasing there opens the panel in
+its own window exactly where the ghost was; back over the window the ghost goes and the guides
+return. `Esc` cancels the drag. The ghost never takes the focus and lets clicks through, and it is
+never left behind (it also hides when the drag is lost or IMT loses the focus). Where the system
+does not let an app place its windows (Linux on Wayland), or in the browser build, a translucent
+preview with **Release to open in a new window** follows the pointer along the window's edge
+instead. The hint is also announced to screen readers, and the preview does not animate when
+reduced motion is on. On macOS the ghost's transparency uses Tauri's `macos-private-api` (an IMT
+build with it cannot be published in the Mac App Store); where a snapshot cannot be made (WebKit
+refuses to read back a rendered page), the ghost shows the icon, the name and the outline only.
 
 IMT behaves like a desktop app, not a web page: right-clicking toolbars, tabs and other chrome
 shows IMT's own menus or nothing (text fields and selected text keep the system Copy/Paste menu),
