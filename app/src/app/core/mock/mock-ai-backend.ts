@@ -250,6 +250,17 @@ export class MockAiBackend extends AiBackend {
       safeMode: false,
       setupRunning: this.setupRunning,
       vision: !!this.installed.find((m) => m.fileName === this.activeFile)?.vision,
+      server: this.activeFile
+        ? {
+            context: 8192,
+            vision: !!this.installed.find((m) => m.fileName === this.activeFile)?.vision,
+            audio: false,
+            mediaMarker: '<__media_mock__>',
+            model: this.activeFile,
+            build: 'b0-mock',
+            chatTemplate: true,
+          }
+        : null,
     };
   }
 

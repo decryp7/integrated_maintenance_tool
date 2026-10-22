@@ -3,10 +3,9 @@
 //! the free memory the build reports, falls back to the next build when one does not start, restarts a
 //! server that died, and maps everything to the worker protocol's typed errors.
 
+use crate::capabilities::{file_stem, server_info, Capabilities};
 use crate::child::{run_briefly, ServerChild, StartError};
-use crate::completion::{
-    completion_body, media_marker, parse_stream_line, server_error, token_count, tokenize_body, with_media_marker, Event,
-};
+use crate::completion::{completion_body, parse_stream_line, server_error, token_count, tokenize_body, with_media_marker, Event};
 use crate::devices::{best_gpu, parse_list_devices, Device};
 use crate::http::{Call, HttpError};
 use crate::locate::LlamaConfig;
@@ -86,16 +85,24 @@ impl Probe {
 struct Launch {
     exe: PathBuf,
     args: Vec<String>,
+    /// The context asked for, used when the server does not report its own.
+    context: usize,
+    /// Pixels per image token along one side of the model's projector, when it was loaded.
+    projector_token_px: Option<u32>,
 }
 
 struct Running {
     child: ServerChild,
     launch: Launch,
-    n_ctx: usize,
-    /// Pixels per image token along one side, when the model's projector is loaded (images accepted).
-    image_token_px: Option<u32>,
-    /// The server's media marker (`/props`), when it is not llama.cpp's default.
-    media_marker: Option<String>,
+    /// What the running server reported, re-read after every restart.
+    caps: Capabilities,
+}
+
+impl Running {
+    /// Pixels per image token, when this server accepts images.
+    fn image_token_px(&self) -> Option<u32> {
+        self.launch.projector_token_px.filter(|_| self.caps.vision)
+    }
 }
 
 /// Tokens an image of `w`×`h` takes, estimated from the projector's token size (llama-server's `/tokenize`
@@ -172,30 +179,37 @@ impl ServerBackend {
         r.json()
     }
 
+    /// What a freshly started server can do, from its `/props` (an unanswered `/props` reports nothing, so the
+    /// request and llama.cpp's defaults apply).
+    fn capabilities(&self, child: &ServerChild, launch: &Launch) -> Capabilities {
+        let reported = self.props(child).as_ref().map(server_info).unwrap_or_default();
+        Capabilities::decide(reported, launch.context, launch.projector_token_px.is_some())
+    }
+
+    /// What the running server reported about itself (diagnostics, tests).
+    pub fn server_info(&self) -> Option<&imt_ai::worker::protocol::ServerInfo> {
+        self.running.as_ref().map(|r| &r.caps.reported)
+    }
+
     /// Starts llama-server again after it died, with the arguments of the last load.
     fn restart(&mut self) -> Result<(), RpcError> {
-        let Some(r) = self.running.as_mut() else {
+        let Some(mut r) = self.running.take() else {
             return Err(RpcError::new(code::NOT_LOADED, "no model is loaded"));
         };
         if r.child.alive() {
+            self.running = Some(r);
             return Ok(());
         }
         let died = r.child.describe_exit(None);
         match ServerChild::start(&r.launch.exe, &r.launch.args, self.timeouts.ready, &|| false) {
             Ok(child) => {
-                // A new server may choose another media marker.
-                let marker = self.props(&child).as_ref().and_then(media_marker);
-                let Some(r) = self.running.as_mut() else {
-                    return Err(RpcError::new(code::NOT_LOADED, "no model is loaded"));
-                };
+                // Never assume the restarted server is the one before: read what it can do again.
+                r.caps = self.capabilities(&child, &r.launch);
                 r.child = child;
-                r.media_marker = marker;
+                self.running = Some(r);
                 Ok(())
             }
-            Err(e) => {
-                self.running = None;
-                Err(engine(format!("{died}; restarting it failed: {e}. Load the model again.")))
-            }
+            Err(e) => Err(engine(format!("{died}; restarting it failed: {e}. Load the model again."))),
         }
     }
 }
@@ -312,15 +326,16 @@ impl WorkerBackend for ServerBackend {
             let args = server_args(model, projector.as_ref().map(|(p, _)| *p), context, layers, moe_to_cpu, threads);
             match ServerChild::start(&build.exe, &args, self.timeouts.ready, &|| false) {
                 Ok(child) => {
-                    let props = self.props(&child);
-                    let n_ctx = props
-                        .as_ref()
-                        .and_then(|v| v.pointer("/default_generation_settings/n_ctx").or_else(|| v.get("n_ctx")))
-                        .and_then(Value::as_u64)
-                        .map(|n| n as usize)
-                        .filter(|n| *n > 0)
-                        .unwrap_or(context);
-                    let media_marker = props.as_ref().and_then(media_marker);
+                    let launch = Launch {
+                        exe: build.exe.clone(),
+                        args,
+                        context,
+                        projector_token_px: projector.as_ref().map(|(_, info)| info.token_side_px()),
+                    };
+                    let caps = self.capabilities(&child, &launch);
+                    if launch.projector_token_px.is_some() && !caps.vision {
+                        notes.push("llama-server reports that it cannot read images with this model's projector".into());
+                    }
                     let mut backend = match (&gpu, layers) {
                         (Some(g), n) if n > 0 => g.backend(),
                         _ => "CPU".to_string(),
@@ -328,29 +343,18 @@ impl WorkerBackend for ServerBackend {
                     if !notes.is_empty() {
                         backend = format!("{backend} (fallback: {})", notes.join("; "));
                     }
-                    let name = info
-                        .name
-                        .clone()
-                        .unwrap_or_else(|| model.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default());
+                    let name = info.name.clone().unwrap_or_else(|| file_stem(model));
                     let pid = child.pid();
-                    let image_token_px = projector.as_ref().map(|(_, info)| info.token_side_px());
-                    self.running = Some(Running {
-                        child,
-                        launch: Launch {
-                            exe: build.exe.clone(),
-                            args,
-                        },
-                        n_ctx,
-                        image_token_px,
-                        media_marker,
-                    });
-                    return Ok(LoadResult {
+                    let result = LoadResult {
                         backend,
-                        context: n_ctx,
+                        context: caps.n_ctx,
                         name,
                         rss_bytes: rss_with(pid),
-                        vision: image_token_px.is_some(),
-                    });
+                        vision: caps.vision,
+                        server: Some(caps.reported.clone()),
+                    };
+                    self.running = Some(Running { child, launch, caps });
+                    return Ok(result);
                 }
                 Err(e) => {
                     let why = match e {
@@ -385,9 +389,13 @@ impl WorkerBackend for ServerBackend {
             return Ok(cancelled_result(0, String::new(), 0));
         }
         WireImage::check_all(&p.images)?;
-        let image_tokens: usize = match (r.image_token_px, p.images.is_empty()) {
+        let image_tokens: usize = match (r.image_token_px(), p.images.is_empty()) {
             (_, true) => 0,
             (Some(px), false) => p.images.iter().map(|i| image_tokens(i.width, i.height, px)).sum(),
+            (None, false) if r.launch.projector_token_px.is_some() => return Err(RpcError::new(
+                code::INVALID_PARAMS,
+                "llama-server reports that it cannot read images with this model's projector; try another inference build in Settings → AI",
+            )),
             (None, false) => {
                 return Err(RpcError::new(
                     code::INVALID_PARAMS,
@@ -395,18 +403,17 @@ impl WorkerBackend for ServerBackend {
                 ))
             }
         };
-        let n_ctx = r.n_ctx;
+        let n_ctx = r.caps.n_ctx;
         // With images, the prompt carries the server's own media marker (one per image).
         let marked;
-        let p = match (&r.media_marker, p.images.is_empty()) {
-            (Some(m), false) => {
-                marked = ChatParams {
-                    prompt: with_media_marker(&p.prompt, m),
-                    ..p.clone()
-                };
-                &marked
-            }
-            _ => p,
+        let p = if p.images.is_empty() {
+            p
+        } else {
+            marked = ChatParams {
+                prompt: with_media_marker(&p.prompt, &r.caps.media_marker),
+                ..p.clone()
+            };
+            &marked
         };
         let body = tokenize_body(&p.prompt).to_string();
         let call = Call {

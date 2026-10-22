@@ -5,7 +5,14 @@
 //!
 //! Behaviour is scripted by files, because the worker starts it with an empty environment:
 //! - `<model>.fake.json` next to the model: `{"mode": "normal" | "slow" | "crash_on_chat" | "never_ready"
-//!   | "exit_on_start", "reply": "...", "loading_ms": 100, "n_ctx": 4096}`;
+//!   | "exit_on_start" | "colour_blind", "reply": "...", "loading_ms": 100, "n_ctx": 4096, "media_marker": ...,
+//!   "vision": false, "props": false}`:
+//!   - `media_marker`: a string is the marker advertised in `/props` and required in prompts; `false` advertises
+//!     none (like older builds) and requires llama.cpp's default `<__media__>`; absent, `<__media_fake_7f3a__>`;
+//!   - `vision: false` reports `modalities.vision = false` (and refuses images) even with `--mmproj`;
+//!   - `props: false` answers `/props` with 404 (a build that reports nothing);
+//!   - asked for the colour of an image (the runtime self-test), it answers "Red." unless `colour_blind`, which
+//!     answers "I cannot tell." (a build whose image path is broken);
 //! - next to this executable: `devices.txt` (printed by `--list-devices`), `list-fail` (`--list-devices`
 //!   fails), `start-fail` (exits at once when serving).
 //!
@@ -29,7 +36,13 @@ struct Script {
     n_ctx: usize,
     ready_at: Instant,
     key: Option<String>,
-    mmproj: bool,
+    /// The marker advertised (`None`: not in `/props`) and the one prompts must use.
+    advertised_marker: Option<String>,
+    marker: String,
+    /// What `/props` says about images (started with `--mmproj` and not scripted to deny them).
+    vision: bool,
+    /// `/props` answers at all.
+    props: bool,
 }
 
 fn arg(args: &[String], name: &str) -> Option<String> {
@@ -45,6 +58,8 @@ fn side(model: &Path, ext: &str) -> PathBuf {
 /// The media marker this server advertises in `/props` and requires, like real llama-server builds, which choose
 /// their own marker rather than llama.cpp's default `<__media__>`.
 const MEDIA_MARKER: &str = "<__media_fake_7f3a__>";
+/// llama.cpp's default marker, required by a server that does not advertise one.
+const DEFAULT_MARKER: &str = "<__media__>";
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -84,7 +99,17 @@ fn main() {
         std::process::exit(1);
     }
     let port: u16 = arg(&args, "--port").and_then(|p| p.parse().ok()).unwrap_or(9931);
+    let advertised_marker = match &cfg["media_marker"] {
+        Value::Bool(false) => None,
+        Value::String(m) => Some(m.clone()),
+        _ => Some(MEDIA_MARKER.to_string()),
+    };
+    let mmproj = arg(&args, "--mmproj").is_some();
     let script = Arc::new(Script {
+        marker: advertised_marker.clone().unwrap_or_else(|| DEFAULT_MARKER.to_string()),
+        advertised_marker,
+        vision: mmproj && cfg["vision"].as_bool() != Some(false),
+        props: cfg["props"].as_bool() != Some(false),
         n_ctx: cfg["n_ctx"]
             .as_u64()
             .map(|n| n as usize)
@@ -93,7 +118,6 @@ fn main() {
         reply: cfg["reply"].as_str().unwrap_or("Hello from the fake server.").to_string(),
         ready_at: Instant::now() + Duration::from_millis(cfg["loading_ms"].as_u64().unwrap_or(100)),
         key: std::env::var("LLAMA_API_KEY").ok(),
-        mmproj: arg(&args, "--mmproj").is_some(),
         model,
         mode,
     });
@@ -186,11 +210,19 @@ fn handle(mut s: TcpStream, script: &Script) {
         .unwrap_or("");
     let tokens = prompt.split_whitespace().count() + 1;
     match path.as_str() {
-        "/props" => respond(
-            &mut s,
-            200,
-            &json!({"default_generation_settings": {"n_ctx": script.n_ctx}, "modalities": {"vision": script.mmproj}, "media_marker": MEDIA_MARKER}),
-        ),
+        "/props" if script.props => {
+            let mut props = json!({
+                "default_generation_settings": {"n_ctx": script.n_ctx},
+                "modalities": {"vision": script.vision, "audio": false},
+                "model_path": script.model.to_string_lossy(),
+                "build_info": "b0-fake",
+                "chat_template": "{{ messages }}",
+            });
+            if let Some(m) = &script.advertised_marker {
+                props["media_marker"] = json!(m);
+            }
+            respond(&mut s, 200, &props)
+        }
         "/tokenize" => respond(&mut s, 200, &json!({"tokens": (0..tokens).collect::<Vec<_>>()})),
         "/completion" => completion(&mut s, script, &req, prompt, tokens),
         _ => respond(
@@ -218,14 +250,14 @@ fn completion(s: &mut TcpStream, script: &Script, req: &Value, prompt: &str, tok
         );
     }
     let images = req["prompt"]["multimodal_data"].as_array().map_or(0, Vec::len);
-    if images > 0 && !script.mmproj {
+    if images > 0 && !script.vision {
         return respond(
             s,
             500,
             &json!({"error": {"code": 500, "type": "server_error", "message": "image input is not supported - hint: if this is unexpected, you may need to provide the mmproj"}}),
         );
     }
-    if images != prompt.matches(MEDIA_MARKER).count() {
+    if images != prompt.matches(script.marker.as_str()).count() {
         return respond(
             s,
             400,
@@ -249,6 +281,9 @@ fn completion(s: &mut TcpStream, script: &Script, req: &Value, prompt: &str, tok
             .filter(|p| !p.starts_with('<') || preserved.contains(p))
             .map(|p| p.to_string())
             .collect()
+    } else if images > 0 && prompt.contains("colour") {
+        let answer = if script.mode == "colour_blind" { "I cannot tell." } else { "Red." };
+        vec![answer.to_string()]
     } else if images > 0 {
         format!("I see {images} image(s). {}", script.reply)
             .split_inclusive(' ')

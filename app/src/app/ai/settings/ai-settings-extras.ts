@@ -16,6 +16,9 @@ import { AiUpdatesPanel } from '../updates/ai-updates-panel';
         <button type="button" class="btn" data-testid="ai-settings-models" (click)="launcher.openModels()" i18n="@@ai.settings.models">Manage models…</button>
       </div>
       <p class="muted" data-testid="ai-settings-status">{{ statusLine() }}</p>
+      @if (serverLine(); as line) {
+        <p class="muted" data-testid="ai-settings-server">{{ line }}</p>
+      }
       <imt-ai-updates-panel />
     } @else {
       <p class="note" role="note" data-testid="ai-settings-unavailable">
@@ -51,6 +54,22 @@ export class AiSettingsExtras {
     if (s.rssBytes) parts.push($localize`:@@ai.settings.status.memory:${formatBytes(s.rssBytes)}:size: in memory`);
 
     if (s.reason) parts.push(s.reason);
+    return parts.join(' · ');
+  });
+  /** What the running llama-server reported about itself (diagnostics). */
+  protected readonly serverLine = computed(() => {
+    const v = this.status.status()?.server;
+    if (!v) return '';
+    const build = v.build ?? $localize`:@@ai.settings.server.unknownBuild:unknown build`;
+    const parts = [$localize`:@@ai.settings.server.build:llama-server ${build}:build:`];
+    if (v.context !== null) parts.push($localize`:@@ai.settings.server.context:${v.context}:tokens: tokens of context`);
+    if (v.vision === true) parts.push($localize`:@@ai.settings.server.vision:reads images`);
+    if (v.vision === false) parts.push($localize`:@@ai.settings.server.noVision:text only`);
+    parts.push(
+      v.mediaMarker
+        ? $localize`:@@ai.settings.server.marker:image marker ${v.mediaMarker}:marker:`
+        : $localize`:@@ai.settings.server.defaultMarker:default image marker`,
+    );
     return parts.join(' · ');
   });
 }

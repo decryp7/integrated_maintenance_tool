@@ -52,7 +52,9 @@ export type AiErrorCode =
   /** A path the user did not choose in a dialog (imports and exports). */
   | 'notGranted'
   /** A bounded resource ran out (a knowledge file too large to import). */
-  | 'limit';
+  | 'limit'
+  /** A new inference runtime failed its self-test with the active model; the previous one stays in use. */
+  | 'selfTestFailed';
 
 export interface AiErrorPayload {
   code: AiErrorCode;
@@ -76,6 +78,20 @@ export interface AiStatus {
   setupRunning: boolean;
   /** The active model reads images ("Text + images"): its projector is installed (ADR 0025). */
   vision: boolean;
+  /** What the running inference server reported about itself (`/props`), once a model is loaded. */
+  server?: AiServerInfo | null;
+}
+
+/** What a running llama-server reported (ADR 0009); `null` fields were not reported by that build. */
+export interface AiServerInfo {
+  context: number | null;
+  vision: boolean | null;
+  audio: boolean | null;
+  /** `null`: the server named none, so llama.cpp's default `<__media__>` is used. */
+  mediaMarker: string | null;
+  model: string | null;
+  build: string | null;
+  chatTemplate: boolean;
 }
 
 export interface Gpu {
@@ -329,6 +345,8 @@ export type AiRuntimeEvent =
     }
   | { stage: 'unpacking'; id: string; asset: string }
   | { stage: 'finishing'; id: string }
+  /** The unpacked build answers with the active model before IMT switches to it (ADR 0009). */
+  | { stage: 'testing'; id: string }
   | { stage: 'ready'; id: string; runtime: AiInstalledRuntime }
   | { stage: 'failed'; id: string; code: AiErrorCode; message: string }
   | { stage: 'cancelled'; id: string };

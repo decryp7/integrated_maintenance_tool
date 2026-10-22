@@ -7,6 +7,7 @@
 //! - [`http`], [`completion`]: the local HTTP client and the `/completion` wire format;
 //! - [`server`]: the backend; [`listing`]: the `--list-builds` report for Settings → AI.
 
+pub mod capabilities;
 pub mod child;
 pub mod completion;
 pub mod devices;

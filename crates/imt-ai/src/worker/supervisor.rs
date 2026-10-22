@@ -533,6 +533,7 @@ impl ModelRuntime for WorkerRuntime {
         Ok(Loaded {
             provider: Arc::new(PromptedProvider::new(engine, prompt_format_of(&req.info))),
             backend: l.backend,
+            server: l.server,
         })
     }
 }

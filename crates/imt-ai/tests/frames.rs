@@ -24,6 +24,7 @@ impl WorkerBackend for Backend {
                     name: "m".into(),
                     rss_bytes: 7,
                     vision: p.mmproj_path.is_some(),
+                    server: None,
                 })
             }
         }

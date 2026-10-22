@@ -59,6 +59,7 @@ describe('runtime view helpers', () => {
       'Unpacking CPU…',
     );
     expect(runtimeStageLabel({ stage: 'finishing', id: 'cpu' }, 'CPU')).toBe('Finishing CPU…');
+    expect(runtimeStageLabel({ stage: 'testing', id: 'cpu' }, 'CPU')).toBe('Testing CPU with your model…');
     expect(runtimePercent(tick)).toBe(50);
     expect(runtimePercent({ stage: 'finishing', id: 'cpu' })).toBeNull();
     expect(runtimePercent(null)).toBeNull();

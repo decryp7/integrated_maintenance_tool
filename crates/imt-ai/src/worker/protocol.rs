@@ -72,6 +72,36 @@ pub struct LoadResult {
     /// The server loaded the projector and accepts images.
     #[serde(default)]
     pub vision: bool,
+    /// What the running llama-server reported about itself (`/props`), when it answered.
+    #[serde(default)]
+    pub server: Option<ServerInfo>,
+}
+
+/// What a running llama-server reports about itself (`GET /props`), read once after it starts. Every field is
+/// optional: builds differ, and the worker never assumes what a build does not say (ADR 0009).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ServerInfo {
+    /// The context the server actually allocated.
+    #[serde(default)]
+    pub n_ctx: Option<usize>,
+    /// `modalities.vision`: the server reads images (its projector loaded).
+    #[serde(default)]
+    pub vision: Option<bool>,
+    /// `modalities.audio`.
+    #[serde(default)]
+    pub audio: Option<bool>,
+    /// The marker the server looks for in a multimodal prompt; `None` means llama.cpp's default `<__media__>`.
+    #[serde(default)]
+    pub media_marker: Option<String>,
+    /// The model the server says it loaded (alias or file name, never a full path).
+    #[serde(default)]
+    pub model: Option<String>,
+    /// The server's build (`build_info`, e.g. "b6800-abc1234").
+    #[serde(default)]
+    pub build: Option<String>,
+    /// The server has a chat template for the model.
+    #[serde(default)]
+    pub chat_template: bool,
 }
 
 /// Most images in one chat request, and most bytes of their (base64) data together.
@@ -185,6 +215,12 @@ mod tests {
         assert!(c.json_schema.is_none() && c.images.is_empty());
         let old: LoadParams = serde_json::from_value(json!({"model_path": "m", "gpu_layers": 0, "context": 1, "threads": 0})).unwrap();
         assert_eq!(old.mmproj_path, None);
+        // A worker that does not report the server (older protocol) still parses.
+        let l: LoadResult =
+            serde_json::from_value(json!({"backend": "CPU", "context": 4096, "name": "m", "rss_bytes": 1, "vision": true})).unwrap();
+        assert_eq!(l.server, None);
+        let partial: ServerInfo = serde_json::from_value(json!({"n_ctx": 2048})).unwrap();
+        assert_eq!((partial.n_ctx, partial.vision, partial.chat_template), (Some(2048), None, false));
         let img = |mime: &str, data: &str| WireImage {
             mime: mime.into(),
             data: data.into(),

@@ -67,6 +67,8 @@ pub enum ErrorCode {
     Integrity,
     Disk,
     Refused,
+    /// A new inference runtime failed its self-test with the active model; the previous one stays in use.
+    SelfTestFailed,
     // ---- profiling ----
     NotACapture,
     // ---- updates ----
