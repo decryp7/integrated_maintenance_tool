@@ -426,11 +426,9 @@ mod tests {
     impl Tail for Bare {}
 
     fn unavailable<T>(r: StoreResult<T>) -> String {
-        match r {
-            Err(e @ StoreError::Unsupported { .. }) => e.to_string(),
-            Err(e) => panic!("expected Unsupported, got {e:?}"),
-            Ok(_) => panic!("expected Unsupported, got a value"),
-        }
+        let e = r.err().expect("an operation the store does not offer fails");
+        assert!(matches!(e, StoreError::Unsupported { .. }), "{e:?}");
+        e.to_string()
     }
 
     #[test]
@@ -494,5 +492,13 @@ mod tests {
         }
         let e = unavailable(Minimal.set_source_encoding(SourceId(0), Some("Shift_JIS")));
         assert!(e.contains("text encoding") && e.contains("ADR 0040"), "{e}");
+        // The required operations are the store's own.
+        let busy = StoreError::Busy("x".into());
+        assert_eq!(Minimal.open(&[]).err(), Some(busy.clone()));
+        assert_eq!(Minimal.reload().err(), Some(busy.clone()));
+        assert_eq!(Minimal.refresh(&[]).err(), Some(busy.clone()));
+        assert_eq!(Minimal.restore(&Default::default()).err(), Some(busy.clone()));
+        assert_eq!(Minimal.append_tail(&[]).err(), Some(busy));
+        assert!(Minimal.remove_source(SourceId(0)).is_ok() && Minimal.clear().is_ok());
     }
 }
