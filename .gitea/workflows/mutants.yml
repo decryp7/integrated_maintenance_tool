@@ -11,6 +11,11 @@ on:
     paths: ["crates/imt-core/**"]
   workflow_dispatch:
 
+# A newer push to the same branch supersedes a running pull request run (the weekly run has its own group).
+concurrency:
+  group: mutants-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
 
