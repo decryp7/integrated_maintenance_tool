@@ -5,7 +5,7 @@ use super::{DEFAULT_ID_FIELDS, DEFAULT_MAX_DELTA_MS, DEFAULT_TOLERANCE_MS};
 use serde::{Deserialize, Serialize};
 
 /// How a source's new offset is given.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum OffsetSpec {
     /// An explicit offset in milliseconds (0 clears it).
@@ -16,7 +16,7 @@ pub enum OffsetSpec {
 }
 
 /// `set_source_offset` request.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SetOffsetRequest {
     #[serde(flatten)]
@@ -31,20 +31,21 @@ pub struct SetOffsetRequest {
 pub const MAX_TRACKED: usize = 10_000;
 
 /// What `set_source_offset` changed.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OffsetChange {
     pub source: u32,
     pub offset_ms: i64,
     pub previous_ms: i64,
-    /// Ids at and after this one were renumbered (records moved in time).
+    /// Ids at and after this one were renumbered (records moved in time). The log store keeps event ids
+    /// stable when events move (an id is not a position there): it always answers `None`.
     pub ids_changed_from: Option<u32>,
-    /// New id of each tracked id (none when it did not exist).
+    /// New id of each tracked id (none when it did not exist); the log store answers the same ids.
     pub tracked: Vec<Option<u32>>,
 }
 
 /// How [`suggest`] pairs events.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SuggestRequest {
     /// Correlation-id fields; empty = [`DEFAULT_ID_FIELDS`].
@@ -92,7 +93,7 @@ impl SuggestRequest {
 }
 
 /// A suggested offset for one source.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OffsetSuggestion {
     pub source: u32,
@@ -112,7 +113,7 @@ pub struct OffsetSuggestion {
 }
 
 /// Suggestions, and the reference they were computed against.
-#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SuggestResult {
     pub reference: Option<u32>,

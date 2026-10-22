@@ -21,6 +21,7 @@ pub mod guard;
 pub mod icons;
 pub mod importers;
 pub mod ingest;
+pub mod live;
 pub mod instance;
 pub mod overwrite;
 pub mod package;
