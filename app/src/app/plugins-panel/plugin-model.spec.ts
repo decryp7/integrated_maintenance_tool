@@ -1,4 +1,6 @@
 import { ProcessMemory } from '../settings/performance/performance.types';
+import { InstalledPluginDto } from '../core/api.types';
+import { packageRow } from './plugins-table';
 import { contributionKind, memoryView, provideGroups, statusLabel } from './plugin-model';
 
 const row = (patch: Partial<ProcessMemory>): ProcessMemory => ({ process: { kind: 'plugin', pluginId: 'p' }, name: null, capMb: 1000, overrideMb: null, usedMb: null, peakMb: null, state: null, ...patch });
@@ -29,5 +31,23 @@ describe('plugin model', () => {
 
   it('words every status', () => {
     expect(['active', 'disabled', 'quarantined', 'inactive'].map((s) => statusLabel(s as never))).toEqual(['Running', 'Disabled', 'Quarantined', 'Not running']);
+  });
+});
+
+describe('packageRow', () => {
+  const pkg = (patch: Partial<InstalledPluginDto>): InstalledPluginDto => ({
+    id: 'p.x', name: 'X', version: '1.0.0', publisher: 'P', description: '', signature: { kind: 'unsigned', signer: null }, warning: null,
+    requested: [], granted: [], enabled: true, state: 'ready', problem: null, installedAtMs: 0, ...patch,
+  });
+
+  it('maps a package the engine is not running to a table row', () => {
+    expect(packageRow(pkg({ state: 'running' })).status).toBe('active');
+    expect(packageRow(pkg({ state: 'disabled' })).status).toBe('disabled');
+    const quarantined = packageRow(pkg({ state: 'quarantined', problem: 'Crashed' }));
+    expect(quarantined).toMatchObject({ status: 'quarantined', lastError: 'Crashed' });
+    const waiting = packageRow(pkg({ state: 'pendingRestart' }));
+    expect(waiting).toMatchObject({ status: 'inactive', inactiveReason: 'pending restart' });
+    expect(packageRow(pkg({ state: 'unavailable', problem: 'Needs a newer IMT' })).inactiveReason).toBe('Needs a newer IMT');
+    expect(packageRow(pkg({ warning: 'Developer mode' })).warnings).toEqual(['Developer mode']);
   });
 });

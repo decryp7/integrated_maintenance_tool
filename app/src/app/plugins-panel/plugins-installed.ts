@@ -6,6 +6,7 @@ import { Icon } from '../shared/icon';
 import { PluginMemoryStore } from '../settings/performance/plugin-memory.store';
 import { ExporterInfo, PluginInfo } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
+import { PluginPackagesStore } from './plugin-packages.store';
 import { InstalledPackages } from './installed-packages';
 
 /** Importers that ship with IMT (plugins can add more). */
@@ -35,7 +36,8 @@ export function contributionLabel(contribution: string): string {
           <button type="button" class="btn primary" (click)="health.restart()" i18n="@@pluginsPanel.restartApply">Restart to apply</button>
         </div>
       }
-      @if (plugins().length) {
+      <imt-installed-packages />
+      @if (plugins().length || packages.plugins().length) {
         <imt-plugins-table />
       } @else {
         <div class="empty" data-testid="plugins-empty">
@@ -44,8 +46,6 @@ export function contributionLabel(contribution: string): string {
           <p i18n="@@pluginsPanel.none">IMT works with its built-in importers and exporters. Install a plugin from a file to add more.</p>
         </div>
       }
-
-      <imt-installed-packages />
 
       <h2 class="section-title" i18n="@@pluginsPanel.builtIn">Built in</h2>
       <div class="builtin">
@@ -83,6 +83,7 @@ export class PluginsInstalled {
   private readonly store = inject(WorkspaceStore);
   private readonly memory = inject(PluginMemoryStore);
   protected readonly health = inject(PluginHealthStore);
+  protected readonly packages = inject(PluginPackagesStore);
 
   constructor() {
     void this.memory.load();

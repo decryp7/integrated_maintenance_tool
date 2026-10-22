@@ -3,9 +3,32 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { PluginHealthStore, PluginRow } from '../tools/health/plugin-health.store';
 import { Icon } from '../shared/icon';
 import { PluginMemoryStore } from '../settings/performance/plugin-memory.store';
+import { InstalledPluginDto, PluginStatus } from '../core/api.types';
+import { signatureText, stateLabel } from './package-labels';
 import { PluginDetail } from './plugin-detail';
 import { memoryView, provideGroups, ProvideGroup, statusLabel } from './plugin-model';
 import { PluginPackagesStore } from './plugin-packages.store';
+
+/** A package the engine is not running, as a table row (the engine reports only what it loaded). */
+export function packageRow(k: InstalledPluginDto): PluginRow {
+  const status: PluginStatus = k.state === 'quarantined' ? 'quarantined' : k.state === 'disabled' ? 'disabled' : k.state === 'running' ? 'active' : 'inactive';
+  return {
+    id: k.id,
+    name: k.name,
+    version: k.version,
+    contributes: [],
+    status,
+    failures: 0,
+    lastError: k.state === 'quarantined' ? k.problem : null,
+    requires: [],
+    provides: [],
+    inactiveReason: k.state === 'unavailable' || k.state === 'pendingRestart' ? (k.problem ?? stateLabel(k.state)) : null,
+    dependents: [],
+    warnings: k.warning ? [k.warning] : [],
+    hung: false,
+    pendingEnabled: null,
+  };
+}
 
 /** The installed plugins as one table (name, version, what they provide, memory, status); a row opens its side panel. */
 @Component({
@@ -19,6 +42,7 @@ import { PluginPackagesStore } from './plugin-packages.store';
           <tr>
             <th scope="col" i18n="@@pluginsPanel.col.plugin">Plugin</th>
             <th scope="col" i18n="@@pluginsPanel.col.version">Version</th>
+            <th scope="col" i18n="@@pluginsPanel.col.source">Source</th>
             <th scope="col" i18n="@@pluginsPanel.col.provides">Provides</th>
             <th scope="col" i18n="@@pluginsPanel.col.memory">Memory</th>
             <th scope="col" i18n="@@pluginsPanel.col.status">Status</th>
@@ -33,6 +57,14 @@ import { PluginPackagesStore } from './plugin-packages.store';
                 <span class="muted pub">{{ publisher(p) }}</span>
               </td>
               <td class="ver">{{ p.version }}</td>
+              <td class="src" data-testid="plugin-source">
+                @if (pkgOf(p.id); as k) {
+                  <span i18n="@@pluginsPanel.source.package">Package</span>
+                  @if (k.signature.kind !== 'trusted') { <span class="sigwarn" data-testid="package-signature">{{ signature(k.signature) }}</span> }
+                } @else {
+                  <span class="muted" i18n="@@pluginsPanel.source.builtIn">Built in</span>
+                }
+              </td>
               <td>
                 <span class="provides">
                   @for (g of groups(p); track g.kind) {
@@ -74,12 +106,12 @@ import { PluginPackagesStore } from './plugin-packages.store';
     <ng-template #rowMenu let-p>
       <div cdkMenu class="menu" [attr.aria-label]="p.name">
         @if (p.status === 'quarantined') {
-          <button type="button" cdkMenuItem class="mi" data-testid="plugin-reset" (cdkMenuItemTriggered)="health.reset(p.id)" i18n="reset a quarantined plugin|@@pluginsPanel.menu.reset">Reset</button>
+          <button type="button" cdkMenuItem class="mi" data-testid="plugin-reset" (cdkMenuItemTriggered)="reset(p.id)" i18n="reset a quarantined plugin|@@pluginsPanel.menu.reset">Reset</button>
         }
         @if (isOn(p)) {
-          <button type="button" cdkMenuItem class="mi" data-testid="plugin-disable" (cdkMenuItemTriggered)="health.setEnabled(p.id, false)" i18n="@@pluginsPanel.menu.disable">Disable</button>
+          <button type="button" cdkMenuItem class="mi" data-testid="plugin-disable" (cdkMenuItemTriggered)="setEnabled(p.id, false)" i18n="@@pluginsPanel.menu.disable">Disable</button>
         } @else {
-          <button type="button" cdkMenuItem class="mi" data-testid="plugin-enable" (cdkMenuItemTriggered)="health.setEnabled(p.id, true)" i18n="@@pluginsPanel.menu.enable">Enable</button>
+          <button type="button" cdkMenuItem class="mi" data-testid="plugin-enable" (cdkMenuItemTriggered)="setEnabled(p.id, true)" i18n="@@pluginsPanel.menu.enable">Enable</button>
         }
         @if (isPackage(p.id)) {
           <hr class="sep" />
@@ -100,6 +132,8 @@ import { PluginPackagesStore } from './plugin-packages.store';
     .name { font-size: var(--fs-md); font-weight: 600; }
     .pub { font-size: var(--fs-xs); }
     .muted { color: var(--muted); }
+    .src { line-height: 1.3; }
+    .sigwarn { display: block; font-size: var(--fs-xs); color: var(--warn-text); }
     .ver { font-variant-numeric: tabular-nums; font-weight: 600; }
     .provides { display: inline-flex; gap: 10px; align-items: center; }
     .grp { display: inline-flex; align-items: center; gap: 4px; color: var(--text-2); }
@@ -132,7 +166,14 @@ export class PluginsTable {
   protected readonly health = inject(PluginHealthStore);
   protected readonly packages = inject(PluginPackagesStore);
   private readonly memories = inject(PluginMemoryStore);
-  protected readonly rows = this.health.plugins;
+  /** What the engine runs, plus packages it is not running (disabled, unavailable, waiting for a restart): one table, one row each. */
+  protected readonly rows = computed<PluginRow[]>(() => {
+    const running = this.health.plugins();
+    const known = new Set(running.map((p) => p.id));
+    const rest = this.packages.plugins().filter((k) => !known.has(k.id)).map((k) => packageRow(k));
+    return [...running, ...rest];
+  });
+  protected readonly signature = signatureText;
   protected readonly selectedId = signal<string | null>(null);
   protected readonly selected = computed(() => this.rows().find((p) => p.id === this.selectedId()) ?? null);
   protected readonly status = (p: PluginRow): string => (p.pendingEnabled === null ? statusLabel(p.status) : p.pendingEnabled ? $localize`:@@pluginsPanel.status.willEnable:Starts after restart` : $localize`:@@pluginsPanel.status.willDisable:Stops after restart`);
@@ -147,11 +188,25 @@ export class PluginsTable {
   protected publisher(p: PluginRow): string {
     return this.packages.plugins().find((x) => x.id === p.id)?.publisher ?? $localize`:@@pluginsPanel.publisher.builtIn:Built in`;
   }
+  protected pkgOf(id: string): InstalledPluginDto | null {
+    return this.packages.plugins().find((x) => x.id === id) ?? null;
+  }
   protected isPackage(id: string): boolean {
     return this.packages.plugins().some((x) => x.id === id);
   }
   protected isOn(p: PluginRow): boolean {
+    const k = this.pkgOf(p.id);
+    if (k) return k.enabled;
     return p.pendingEnabled ?? p.status !== 'disabled';
+  }
+  /** Packages are enabled and reset through the package store (it owns their record); built-in plugins through the health store. */
+  protected setEnabled(id: string, on: boolean): void {
+    if (this.isPackage(id)) void this.packages.setEnabled(id, on);
+    else void this.health.setEnabled(id, on);
+  }
+  protected reset(id: string): void {
+    if (this.isPackage(id)) void this.packages.reset(id);
+    else void this.health.reset(id);
   }
   protected groupLabel(g: ProvideGroup): string {
     return $localize`:@@pluginsPanel.groupAria:${g.items.length}:count: ${g.kind}:kind:`;

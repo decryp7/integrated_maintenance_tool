@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { all, el, settle, text } from '../../testing/helpers';
-import { provideToolsTesting } from '../tools/mock/test-support';
+import { mockPackages, provideToolsTesting } from '../tools/mock/test-support';
 import { WorkspaceStore } from '../core/workspace.store';
 import { contributionLabel, PluginsView } from './plugins-view';
 import { PluginsTabs } from './plugins-tabs';
@@ -16,7 +16,7 @@ describe('PluginsView', () => {
     TestBed.configureTestingModule({ providers: provideToolsTesting() });
     const fixture = TestBed.createComponent(PluginsView);
     await settle(fixture);
-    expect(all(fixture, 'tr.plugin .name').map((e) => e.textContent)).toEqual(['Windows registry importer', 'Windows event logs', 'Web server logs', 'OpenTelemetry']);
+    expect(all(fixture, 'tr.plugin .name').map((e) => e.textContent)).toEqual(['Windows registry importer', 'Windows event logs', 'Web server logs', 'OpenTelemetry', 'SAP log importer']);
     expect(all(fixture, 'tr.plugin .ver').map((e) => e.textContent)).toContain('0.1.0');
     // One table, no per-row forms; the capability identifiers are in the side panel only.
     expect(all(fixture, 'table.plugins')).toHaveLength(1);
@@ -24,9 +24,10 @@ describe('PluginsView', () => {
     expect(text(fixture)).not.toContain('importer:registry');
     expect(all(fixture, '.builtin .badge').map((e) => e.textContent)).toEqual(['json', 'text', 'csv', 'csv', 'clef']);
     expect(text(fixture)).toContain('About plugins');
-    // Third-party packages have their own section.
-    expect(text(fixture)).toContain('Installed from packages');
-    expect(all(fixture, 'imt-installed-packages .package strong').map((e) => e.textContent)).toEqual(['SAP log importer']);
+    // Third-party packages are rows of the same table, told apart by their Source column (no cards).
+    expect(all(fixture, 'imt-installed-packages .package')).toHaveLength(0);
+    expect(all(fixture, 'tr.plugin [data-testid=plugin-source]').map((e) => e.textContent?.trim())).toEqual(['Built in', 'Built in', 'Built in', 'Built in', 'Package']);
+    expect(text(fixture)).toContain('Install from file');
   });
 
   it('has Installed and Health tabs in one view (I4), opened on a chosen one and moved with the arrow keys', async () => {
@@ -89,6 +90,7 @@ describe('PluginsView', () => {
     TestBed.configureTestingModule({ providers: provideToolsTesting() });
     const fixture = TestBed.createComponent(PluginsView);
     const store = TestBed.inject(WorkspaceStore);
+    await mockPackages().removePackage('com.contoso.sap-logs');
     await settle(fixture);
     store.applySummary({ ...store.summary()!, plugins: [], exporters: [] });
     await settle(fixture);

@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, output } f
 import { PluginRow } from '../tools/health/plugin-health.store';
 import { Icon } from '../shared/icon';
 import { DialogService } from '../ui/dialog.service';
-import { permissionTitle } from './package-labels';
+import { permissionTitle, signatureText, stateLabel } from './package-labels';
 import { PluginMemory } from './plugin-memory';
 import { PluginPackagesStore } from './plugin-packages.store';
 import { PluginPermissionsDialog } from './plugin-permissions-dialog';
@@ -27,6 +27,15 @@ import { provideGroups, statusLabel } from './plugin-model';
         <h4 i18n="@@pluginsPanel.detail.id">Plugin id</h4>
         <code class="mono id">{{ plugin().id }}</code>
       </section>
+      @if (pkg(); as k) {
+        <section data-testid="plugin-package">
+          <h4 i18n="@@pluginsPanel.detail.source">Source</h4>
+          <p>{{ k.publisher }}</p>
+          <p class="muted" data-testid="package-signature">{{ signature(k.signature) }}</p>
+          <p class="muted" data-testid="package-state">{{ state(k.state) }}</p>
+          @if (k.problem) { <p class="danger" data-testid="package-problem">{{ k.problem }}</p> }
+        </section>
+      }
       @if (plugin().lastError || plugin().inactiveReason || plugin().warnings.length) {
         <section>
           <h4 i18n="@@pluginsPanel.detail.problems">Problems</h4>
@@ -97,6 +106,8 @@ export class PluginDetail {
   /** The package this plugin was installed from, if it was. */
   protected readonly pkg = computed(() => this.packages.plugins().find((p) => p.id === this.plugin().id) ?? null);
   protected readonly title = permissionTitle;
+  protected readonly signature = signatureText;
+  protected readonly state = stateLabel;
 
   protected permissions(): void {
     const p = this.pkg();
