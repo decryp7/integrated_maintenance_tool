@@ -297,7 +297,7 @@ impl FramesTransport {
     }
 
     /// [`FramesTransport::spawn`] with a memory cap on the worker's own process (llama-server, which holds the model,
-    /// is its own process and not counted) and a listener for the host's memory watcher (ADR 0030).
+    /// is its own process and not counted) and a listener for the host's memory watcher (ADR 0031).
     pub fn spawn_capped(
         exe: &std::path::Path,
         args: &[String],

@@ -1,4 +1,4 @@
-//! What the host's memory watcher tells about a capped child (ADR 0030 §5): the pure [`MemoryWatch`] that turns
+//! What the host's memory watcher tells about a capped child (ADR 0031 §5): the pure [`MemoryWatch`] that turns
 //! samples of the memory a child uses into [`MemoryEvent`]s (the peak, a warning at [`WARN_PERCENT`] of the cap with
 //! hysteresis, the stop over the cap), and the [`MemoryListener`] a host passes in [`crate::process::SpawnSpec`] to
 //! hear them. The sampling thread is in [`crate::process`].

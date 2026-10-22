@@ -1,8 +1,8 @@
-# 30. Performance settings: memory caps, CPU, DuckDB, warnings and suggested values
+# 31. Performance settings: memory caps, CPU, DuckDB, warnings and suggested values
 
 - Status: accepted (2026-10-22)
 - Related: ADR 0014 (DuckDB store, memory budgets), ADR 0017 (out-of-process plugins and workers, sandbox),
-  ADR 0012 (jobs, notification centre), AGENTS.md (engine is the source of truth, validate in Rust, versioned
+  ADR 0012 (jobs, notification centre), ADR 0030 (Store pane, SQL console), AGENTS.md (engine is the source of truth, validate in Rust, versioned
   persistent state, bounded resources)
 
 ## Context
@@ -77,4 +77,10 @@ other values, and when a cap stops a process the user saw only an error in the p
   after `open_db`, the watcher's thresholds and events, and the notification flow in the UI.
 - Settings that give a process more memory than the machine has are the user's choice; Suggest settings is the guard
   rail, and the warning before the stop gives time to act.
-- The Store pane (memory section) can subscribe to the same events when it lands; nothing here depends on it.
+- The plugin processes the store worker starts for its imports get the same caps and CPU share (through
+  `--tuning`), but their watcher events stay in the worker's log: forwarding them over the worker's IPC is left for
+  later.
+- The Store pane's SQL console (ADR 0030) keeps its own connection and its locked limits; these settings tune the
+  stores' main connection only.
+- Opening an exported project applies the memory limit and threads at once (`DuckStore::configure`); the spill
+  folder and the index writer apply when a store is opened or created.

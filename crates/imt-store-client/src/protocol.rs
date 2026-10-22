@@ -281,7 +281,7 @@ pub const TUNING_ARG: &str = "--tuning=";
 /// Longest `--tuning` argument the worker reads (a spill folder path and a few numbers).
 const MAX_TUNING_ARG: usize = 8 * 1024;
 
-/// The store worker's knobs from Settings ▸ Performance (ADR 0030), sent on its command line and applied to every
+/// The store worker's knobs from Settings ▸ Performance (ADR 0031), sent on its command line and applied to every
 /// store it opens; each one left out keeps the memory mode's value. Parsed once at the worker's edge
 /// ([`StoreTuning::from_args`]) and bounded there ([`StoreTuning::bounded`]).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

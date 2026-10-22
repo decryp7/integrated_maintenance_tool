@@ -421,7 +421,7 @@ fn a_store_open_in_another_worker_is_locked_with_a_typed_error() {
     first.shutdown();
 }
 
-/// Settings ▸ Performance (ADR 0030): the worker starts with the tuning it is given, and a change reaches its next
+/// Settings ▸ Performance (ADR 0031): the worker starts with the tuning it is given, and a change reaches its next
 /// start (here after a crash) without a new client.
 #[test]
 fn the_worker_starts_with_its_tuning_and_the_next_start_takes_a_changed_one() {

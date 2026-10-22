@@ -70,7 +70,7 @@ pub struct WorkerPlugins {
     builtins_exe: PathBuf,
     builtins: OnceLock<Builtins>,
     third_party: Mutex<HashMap<String, Started>>,
-    /// Settings ▸ Performance's limits of the plugin processes (ADR 0030).
+    /// Settings ▸ Performance's limits of the plugin processes (ADR 0031).
     limits: PluginLimits,
 }
 

@@ -1,4 +1,4 @@
-//! The AI worker's own memory cap (Settings ▸ Performance, ADR 0030): the host's watcher stops a worker over it and
+//! The AI worker's own memory cap (Settings ▸ Performance, ADR 0031): the host's watcher stops a worker over it and
 //! tells the listener, and the cap is read at every launch.
 
 use imt_ai::worker::{fixed_env, CappedLauncher, FramesLauncher, WorkerLauncher};

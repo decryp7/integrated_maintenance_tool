@@ -590,7 +590,7 @@ fn launcher_command(spec: &SpawnSpec) -> (PathBuf, Vec<String>) {
 }
 
 /// The nice level of a below-normal child on Unix: 10, or 19 (the lowest) when its sandbox asks for a CPU share below
-/// 100% (Unix has no hard CPU cap for one process, so a share only lowers the priority; ADR 0030 §1).
+/// 100% (Unix has no hard CPU cap for one process, so a share only lowers the priority; ADR 0031 §1).
 #[cfg_attr(not(unix), allow(dead_code))]
 fn unix_nice(sandbox: &crate::sandbox::SandboxSpec) -> i32 {
     match sandbox.cpu_rate_percent {

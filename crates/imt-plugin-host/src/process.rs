@@ -116,7 +116,7 @@ impl PluginSpec {
     }
 }
 
-/// What Settings ▸ Performance puts on plugin processes (ADR 0030): memory caps over what the manifests ask for, the
+/// What Settings ▸ Performance puts on plugin processes (ADR 0031): memory caps over what the manifests ask for, the
 /// CPU share, and who hears the memory watcher. Read at every start of a plugin's process.
 #[derive(Debug, Clone, Default)]
 pub struct PluginLimits {

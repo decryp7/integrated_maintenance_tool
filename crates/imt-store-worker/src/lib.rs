@@ -9,7 +9,7 @@ pub use imt_store_client::{protocol, MemoryMode, RemoteStore, StoreTuning, Store
 
 /// The worker program: serves IMT with the built-in plugins next to it and the installed third-party plugins IMT
 /// names (ADR 0027), each started on first use, in the memory mode its command line names (low memory mode gives
-/// freed memory back at once) with the tuning it names (ADR 0030). Exits with status 1 when it cannot connect.
+/// freed memory back at once) with the tuning it names (ADR 0031). Exits with status 1 when it cannot connect.
 pub fn main() {
     let mode = MemoryMode::from_args(std::env::args());
     let tuning = StoreTuning::from_args(std::env::args());
