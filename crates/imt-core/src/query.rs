@@ -1,6 +1,7 @@
 //! Query model shared by the grid, timeline, facets and charts.
 
 use crate::condition::Condition;
+use crate::instance::KeyScopes;
 use crate::model::{Level, MarkerMask, Record};
 use crate::ql::{Expr, TextSearch};
 use crate::row::{FieldKey, FieldKeys, RecordRow, RowRef};
@@ -120,6 +121,8 @@ pub struct CompiledQuery {
     pub group_by: Vec<String>,
     keys: FieldKeys,
     group_keys: Vec<FieldKey>,
+    /// Where the identity fields of the instance key apply (only when the query uses the default key).
+    scopes: Arc<KeyScopes>,
     /// Sources, time range, field filters and instance selection, in that order (all must hold).
     structural: Vec<Expr>,
     /// Levels, markers, the search box and the query language (all must hold).
@@ -128,6 +131,12 @@ pub struct CompiledQuery {
 
 impl CompiledQuery {
     pub fn new(q: &Query, default_group_by: &[String], marker_kinds: &[String]) -> Result<CompiledQuery> {
+        Self::new_scoped(q, default_group_by, &Arc::default(), marker_kinds)
+    }
+
+    /// [`new`](Self::new) with the scopes of the default instance key's identity fields
+    /// ([`KeyScopes`]); a query that names its own `group_by` applies its fields everywhere.
+    pub fn new_scoped(q: &Query, default_group_by: &[String], scopes: &Arc<KeyScopes>, marker_kinds: &[String]) -> Result<CompiledQuery> {
         if q.sources.len() > MAX_QUERY_SOURCES {
             anyhow::bail!(
                 "the query restricts to {} sources, more than the maximum of {MAX_QUERY_SOURCES}; clear the source selection",
@@ -184,16 +193,17 @@ impl CompiledQuery {
         for f in &q.filters {
             structural.push(Condition::new(&f.field, &f.op, f.value.as_deref())?.check().lower(&mut keys));
         }
-        let group_by = if q.group_by.is_empty() {
-            default_group_by.to_vec()
+        let (group_by, scopes) = if q.group_by.is_empty() {
+            (default_group_by.to_vec(), scopes.clone())
         } else {
-            q.group_by.clone()
+            (q.group_by.clone(), Arc::default())
         };
         let group_keys: Vec<FieldKey> = group_by.iter().map(|f| keys.key(f)).collect();
         if !q.groups.is_empty() {
             structural.push(Expr::Group {
                 by: group_keys.clone(),
                 set: Arc::new(q.groups.iter().cloned().collect()),
+                scopes: scopes.clone(),
             });
         }
         Ok(CompiledQuery {
@@ -202,9 +212,15 @@ impl CompiledQuery {
             group_by,
             keys,
             group_keys,
+            scopes,
             structural,
             content,
         })
+    }
+
+    /// Where the identity fields of the instance key apply.
+    pub fn key_scopes(&self) -> &KeyScopes {
+        &self.scopes
     }
 
     pub fn has_range(&self) -> bool {
@@ -266,11 +282,11 @@ impl CompiledQuery {
     }
 
     pub fn group_key(&self, rec: &Record, source_name: &str) -> String {
-        group_key_row(&self.group_keys, &RecordRow { rec, source: source_name })
+        group_key_row_in(&self.group_keys, &self.scopes, &RecordRow { rec, source: source_name })
     }
 
     pub fn group_key_of(&self, row: &dyn RowRef) -> String {
-        group_key_row(&self.group_keys, row)
+        group_key_row_in(&self.group_keys, &self.scopes, row)
     }
 }
 
@@ -290,9 +306,33 @@ pub fn group_key(fields: &[String], rec: &Record, source_name: &str) -> String {
     group_key_with(fields.len(), |i| rec.field_text(&fields[i], source_name), source_name)
 }
 
+/// [`group_key`] where an identity field counts only for the sources it applies to ([`KeyScopes`]).
+pub fn group_key_in(fields: &[String], scopes: &KeyScopes, rec: &Record, source_name: &str) -> String {
+    group_key_with(
+        fields.len(),
+        |i| {
+            scopes
+                .applies(&fields[i], source_name)
+                .then(|| rec.field_text(&fields[i], source_name))
+                .flatten()
+        },
+        source_name,
+    )
+}
+
 /// [`group_key`] of any event, with interned fields.
 pub fn group_key_row(fields: &[FieldKey], row: &dyn RowRef) -> String {
     group_key_with(fields.len(), |i| row.text(&fields[i]), row.source_name())
+}
+
+/// [`group_key_in`] of any event, with interned fields.
+pub fn group_key_row_in(fields: &[FieldKey], scopes: &KeyScopes, row: &dyn RowRef) -> String {
+    let source = row.source_name();
+    group_key_with(
+        fields.len(),
+        |i| scopes.applies(fields[i].name(), source).then(|| row.text(&fields[i])).flatten(),
+        source,
+    )
 }
 
 fn group_key_with<'a>(n: usize, text: impl Fn(usize) -> Option<Cow<'a, str>>, source_name: &str) -> String {
@@ -533,6 +573,37 @@ mod tests {
             "the source first when the first field is missing"
         );
         assert!(!g.structural(&r, "s", Some("other")));
+        // A scoped identity field is part of the key only in the sources that declare it, and only for the default key.
+        let declares = vec!["M".to_string()];
+        let scopes = Arc::new(KeyScopes::new(
+            &crate::profile::InstanceCfg {
+                key: Vec::new(),
+                candidates: Vec::new(),
+            },
+            [("a.log", declares.as_slice()), ("b.log", &[][..])],
+        ));
+        assert_eq!(group_key_in(&["M".into()], &scopes, &r, "a.log"), "WEB01");
+        assert_eq!(group_key_in(&["M".into()], &scopes, &r, "b.log"), "b.log");
+        let pick = Query {
+            groups: vec!["b.log".into()],
+            ..Default::default()
+        };
+        let scoped = CompiledQuery::new_scoped(&pick, &["M".into()], &scopes, &[]).unwrap();
+        assert_eq!(
+            (scoped.group_key(&r, "a.log"), scoped.group_key(&r, "b.log")),
+            ("WEB01".into(), "b.log".into())
+        );
+        assert!(
+            scoped.matches(&r, "b.log") && !scoped.matches(&r, "a.log"),
+            "the instance selection uses the scopes"
+        );
+        let own = Query {
+            group_by: vec!["M".into()],
+            ..Default::default()
+        };
+        let own = CompiledQuery::new_scoped(&own, &["M".into()], &scopes, &[]).unwrap();
+        assert_eq!(own.group_key(&r, "b.log"), "WEB01", "a key the query names applies everywhere");
+        assert!(own.key_scopes().is_empty());
         let d = CompiledQuery::new(&Query::default(), &["@source".into()], &[]).unwrap();
         assert_eq!(d.group_key(&r, "file.log"), "file.log");
         assert_eq!(group_key(&[], &r, "s"), "all");

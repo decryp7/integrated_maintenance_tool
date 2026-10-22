@@ -29,6 +29,6 @@ Written on 22 Oct 2026 on Windows 11 (machine time zone Singapore, UTC+08:00) wi
 | `mel-console.log` | Microsoft.Extensions.Logging simple console | parser `mel-console` | time of the run, with offset (+08:00) |
 
 Tests: `crates/imt-core/tests/real_libraries.rs` (the text and JSON files) and
-`crates/imt-plugins/tests/real_libraries.rs` (the XML). Known gaps they record as ignored tests: the log4net
-CSV layout's unquoted messages with commas and multi-line exceptions, NLog's exception after the `|` of
-`${message:withexception=true}`, and the console formatter's message moving into the exception.
+`crates/imt-plugins/tests/real_libraries.rs` (the XML). They also hold the regression tests for the gaps these
+files showed: the log4net CSV layout's unquoted messages with commas and multi-line exceptions, NLog's exception
+after the `|` of `${message:withexception=true}`, and the console formatter's message moving into the exception.

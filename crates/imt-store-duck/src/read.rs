@@ -13,10 +13,11 @@ use imt_core::api::{
 };
 use imt_core::batch::{BatchRow, EventBatch, EventSchema, BATCH_ROWS};
 use imt_core::ingest::SourceReport;
+use imt_core::instance::KeyScopes;
 use imt_core::model::Level;
 use imt_core::ports::{EventView, Filter, PageQuery, PageReply, Query, StoreResult, SummaryReply};
 use imt_core::ql::{Completion, QlError, QlResult};
-use imt_core::query::{group_key, CompiledQuery};
+use imt_core::query::CompiledQuery;
 use imt_core::row::{to_record, ArrowRow, BatchSlots, FieldKeys, RowRef};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ops::ControlFlow;
@@ -32,6 +33,7 @@ const MAX_LANES: usize = 500;
 pub(crate) struct Derived {
     fields: Vec<FieldInfo>,
     default_group_by: Vec<String>,
+    key_scopes: Arc<KeyScopes>,
 }
 
 fn file_kind(s: &str) -> FileKind {
@@ -112,6 +114,8 @@ pub(crate) struct Ctx {
     pub(crate) visible: u64,
     pub(crate) lifecycle: u64,
     pub(crate) default_group_by: Vec<String>,
+    /// Where the identity fields of the default key apply (ADR 0020).
+    pub(crate) key_scopes: Arc<KeyScopes>,
     /// Where fields are read from (declared and promoted columns).
     pub(crate) fields: Fields,
 }
@@ -198,6 +202,7 @@ impl Inner {
             visible: self.registry().visible_markers(&profile.markers),
             lifecycle: profile.lifecycle_mask,
             default_group_by: self.derived(conn)?.default_group_by.clone(),
+            key_scopes: self.derived(conn)?.key_scopes.clone(),
             fields: self.fields(conn)?,
         })
     }
@@ -255,8 +260,12 @@ impl Inner {
         let cache_key =
             serde_json::to_string(&(&profile.profile.instance, &profile.profile.extract, &profile.profile.pipeline)).unwrap_or_default();
         if let Some(value) = self.cache_get(conn, "fields", &cache_key)? {
-            if let Ok((fields, default_group_by)) = serde_json::from_str::<(Vec<FieldInfo>, Vec<String>)>(&value) {
-                let d = Arc::new(Derived { fields, default_group_by });
+            if let Ok((fields, default_group_by, key_scopes)) = serde_json::from_str::<(Vec<FieldInfo>, Vec<String>, KeyScopes)>(&value) {
+                let d = Arc::new(Derived {
+                    fields,
+                    default_group_by,
+                    key_scopes: Arc::new(key_scopes),
+                });
                 *crate::lock(&self.derived) = Some((generation, d.clone()));
                 return Ok(d);
             }
@@ -336,12 +345,13 @@ impl Inner {
             })
             .collect();
         infos.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.name.cmp(&b.name)));
-        let default_group_by = self.instance_key(conn, &profile, &infos)?;
+        let (default_group_by, key_scopes) = self.instance_key(conn, &profile, &infos)?;
         let d = Arc::new(Derived {
             fields: infos,
             default_group_by,
+            key_scopes: Arc::new(key_scopes),
         });
-        if let Ok(value) = serde_json::to_string(&(&d.fields, &d.default_group_by)) {
+        if let Ok(value) = serde_json::to_string(&(&d.fields, &d.default_group_by, &*d.key_scopes)) {
             self.cache_put(conn, "fields", &cache_key, &value)?;
         }
         *crate::lock(&self.derived) = Some((generation, d.clone()));
@@ -350,52 +360,65 @@ impl Inner {
 
     /// The automatic instance key, its candidates checked per source as the workspace checks them
     /// (`imt_core::instance`, ADR 0020): one grouped count over the events of the candidate fields present.
+    /// Also where its identity fields apply: only to the sources whose importer or parser declares them.
     fn instance_key(
         &self,
         conn: &Connection,
         profile: &imt_core::profile::CompiledProfile,
         infos: &[FieldInfo],
-    ) -> StoreResult<Vec<String>> {
+    ) -> StoreResult<(Vec<String>, KeyScopes)> {
         let cfg = &profile.profile.instance;
         if !cfg.key.is_empty() {
-            return Ok(cfg.key.clone());
+            return Ok((cfg.key.clone(), KeyScopes::default()));
         }
-        // The identity fields the sources' importers declare.
-        let mut identity: Vec<String> = Vec::new();
+        // The identity fields each source's importer and parser (ADR 0026) declare, by source id.
+        let mut declared: Vec<(u32, String, Vec<String>)> = Vec::new();
         {
-            let mut stmt = conn.prepare("SELECT DISTINCT importer FROM sources WHERE ready").map_err(engine)?;
-            let ids = stmt.query_map([], |r| r.get::<_, Option<String>>(0)).map_err(engine)?;
-            let importers = self.registry().importers();
-            for id in ids {
-                let Some(id) = id.map_err(engine)? else { continue };
-                let declared = match importers.find(&id) {
-                    Some(i) => i.identity_fields(),
-                    None => importers
-                        .binary_importers()
-                        .find(|b| b.id() == id)
-                        .map(|b| b.identity_fields())
-                        .unwrap_or_default(),
-                };
-                for f in declared {
-                    if !identity.contains(&f) {
-                        identity.push(f);
-                    }
-                }
-            }
-            // And those of the sources' parsers (ADR 0026).
             let mut stmt = conn
-                .prepare("SELECT DISTINCT parser_id FROM sources WHERE ready AND parser_id IS NOT NULL ORDER BY parser_id")
+                .prepare("SELECT id, name, importer, parser_id FROM sources WHERE ready ORDER BY id")
                 .map_err(engine)?;
-            let ids = stmt.query_map([], |r| r.get::<_, String>(0)).map_err(engine)?;
+            let rows = stmt
+                .query_map([], |r| {
+                    Ok((
+                        r.get::<_, u32>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, Option<String>>(2)?,
+                        r.get::<_, Option<String>>(3)?,
+                    ))
+                })
+                .map_err(engine)?;
+            let importers = self.registry().importers();
             let set = self.parser_set();
-            for id in ids {
-                for f in set.identity_of(&id.map_err(engine)?) {
-                    if !identity.contains(f) {
-                        identity.push(f.clone());
+            for row in rows {
+                let (id, name, importer, parser) = row.map_err(engine)?;
+                let mut fields = match importer.as_deref() {
+                    Some(i) => match importers.find(i) {
+                        Some(imp) => imp.identity_fields(),
+                        None => importers
+                            .binary_importers()
+                            .find(|b| b.id() == i)
+                            .map(|b| b.identity_fields())
+                            .unwrap_or_default(),
+                    },
+                    None => Vec::new(),
+                };
+                if let Some(p) = parser {
+                    for f in set.identity_of(&p) {
+                        if !fields.contains(f) {
+                            fields.push(f.clone());
+                        }
                     }
                 }
+                declared.push((id, name, fields));
             }
         }
+        let mut identity: Vec<String> = Vec::new();
+        for f in declared.iter().flat_map(|(_, _, fields)| fields) {
+            if !identity.contains(f) {
+                identity.push(f.clone());
+            }
+        }
+        let scopes = KeyScopes::new(cfg, declared.iter().map(|(_, name, fields)| (name.as_str(), fields.as_slice())));
         let candidates = imt_core::instance::candidates(cfg, &identity);
         let fields = self.fields(conn)?;
         // Every field a candidate names (any case variant), at most 64.
@@ -406,6 +429,7 @@ impl Inner {
             .take(64)
             .collect();
         let mut events: Vec<usize> = Vec::new();
+        let mut names: Vec<String> = Vec::new();
         let mut presence = Presence::default();
         if !counted.is_empty() {
             let select: String = counted.iter().map(|(_, x)| format!(", count(nullif({x}, ''))")).collect();
@@ -414,6 +438,14 @@ impl Inner {
             let mut rows = stmt.query([]).map_err(engine)?;
             while let Some(r) = rows.next().map_err(engine)? {
                 let i = events.len();
+                let source = r.get::<_, u32>(0).map_err(engine)?;
+                names.push(
+                    declared
+                        .iter()
+                        .find(|(id, _, _)| *id == source)
+                        .map(|(_, n, _)| n.clone())
+                        .unwrap_or_default(),
+                );
                 events.push(r.get::<_, u64>(1).map_err(engine)? as usize);
                 for (k, (name, _)) in counted.iter().enumerate() {
                     let n = r.get::<_, u64>(k + 2).map_err(engine)? as usize;
@@ -423,7 +455,12 @@ impl Inner {
         } else {
             events = vec![0; count(conn, "SELECT count(*) FROM sources WHERE ready")?];
         }
-        Ok(imt_core::instance::instance_key(cfg, &identity, infos, &events, &presence))
+        let presence = imt_core::instance::ScopedPresence {
+            inner: &presence,
+            scopes: &scopes,
+            names: &names,
+        };
+        Ok((imt_core::instance::instance_key(cfg, &identity, infos, &events, &presence), scopes))
     }
 
     pub(crate) fn compile(&self, ctx: &Ctx, q: &Filter) -> StoreResult<(SqlFilter, CompiledQuery)> {
@@ -434,7 +471,7 @@ impl Inner {
             inner: self,
             keep: std::cell::RefCell::new(Vec::new()),
         };
-        let (mut f, cq) = sql::compile(q, &ctx.default_group_by, &ctx.marker_kinds, &source)?;
+        let (mut f, cq) = sql::compile_scoped(q, &ctx.default_group_by, &ctx.key_scopes, &ctx.marker_kinds, &source)?;
         f.keep = source.keep.into_inner();
         Ok((f, cq))
     }
@@ -471,7 +508,7 @@ impl Inner {
             .get_or_write(&key, generation, || index.all_ids(words, crate::fts::MAX_FILTER_HITS))
     }
 
-    fn view(&self, ctx: &Ctx, row: &BatchRow<'_>, group_by: &[String]) -> EventView {
+    fn view(&self, ctx: &Ctx, row: &BatchRow<'_>, cq: &CompiledQuery) -> EventView {
         let rec = to_record(row);
         let source_name = ctx.name(row.source().0).to_string();
         EventView {
@@ -479,7 +516,7 @@ impl Inner {
             ts: row.ts(),
             ts_state: row.ts_state(),
             level: rec.level,
-            group: group_key(group_by, &rec, &source_name),
+            group: cq.group_key(&rec, &source_name),
             markers: ctx.marker_names(rec.markers),
             message: rec.message,
             template: rec.template,
@@ -548,7 +585,7 @@ impl Inner {
             if req.descending {
                 wanted.reverse();
             }
-            let rows = self.rows_by_id(&conn, &ctx, &wanted, &cq.group_by)?;
+            let rows = self.rows_by_id(&conn, &ctx, &wanted, &cq)?;
             return Ok(PageReply {
                 total,
                 offset,
@@ -593,7 +630,7 @@ impl Inner {
                 .map_err(engine)?
                 .collect::<Result<Vec<u64>, _>>()
                 .map_err(engine)?;
-            let rows = self.rows_by_id(&conn, &ctx, &wanted, &cq.group_by)?;
+            let rows = self.rows_by_id(&conn, &ctx, &wanted, &cq)?;
             return Ok(PageReply {
                 total,
                 offset,
@@ -615,7 +652,7 @@ impl Inner {
         let offset = offset.min(total);
         let end = (offset + limit).min(total);
         let wanted: Vec<u64> = (offset..end).map(|i| ids[display(i, total)]).collect();
-        let rows = self.rows_by_id(&conn, &ctx, &wanted, &cq.group_by)?;
+        let rows = self.rows_by_id(&conn, &ctx, &wanted, &cq)?;
         Ok(PageReply {
             total,
             offset,
@@ -640,11 +677,11 @@ impl Inner {
         };
         let (_, cq) = self.compile(&ctx, &q)?;
         let ids: Vec<u64> = req.ids.iter().map(|i| i.0).collect();
-        self.rows_by_id(&conn, &ctx, &ids, &cq.group_by)
+        self.rows_by_id(&conn, &ctx, &ids, &cq)
     }
 
     /// The grid rows of `ids` (at most a page), in that order.
-    fn rows_by_id(&self, conn: &Connection, ctx: &Ctx, ids: &[u64], group_by: &[String]) -> StoreResult<Vec<EventView>> {
+    fn rows_by_id(&self, conn: &Connection, ctx: &Ctx, ids: &[u64], cq: &CompiledQuery) -> StoreResult<Vec<EventView>> {
         if ids.is_empty() {
             return Ok(Vec::new());
         }
@@ -680,7 +717,7 @@ impl Inner {
         );
         for_each_batch(conn, &sql, &self.schema, &mut |batch| {
             for r in batch.rows() {
-                by_id.insert(r.id().0, self.view(ctx, &r, group_by));
+                by_id.insert(r.id().0, self.view(ctx, &r, cq));
             }
             ControlFlow::Continue(())
         })?;
@@ -772,7 +809,7 @@ impl Inner {
         let (f, cq) = self.compile(&ctx, &req.query)?;
         let limit = req.limit.clamp(1, 1000);
         let expr = if req.field == "@group" {
-            group_key_expr(&cq.group_by, &ctx.fields)
+            group_key_expr(&cq.group_by, cq.key_scopes(), &ctx.fields)
         } else {
             text_expr(&req.field, &ctx.fields)
         };
@@ -967,7 +1004,7 @@ impl Inner {
         } else {
             0
         };
-        match group_key_expr(&cq.group_by, &ctx.fields) {
+        match group_key_expr(&cq.group_by, cq.key_scopes(), &ctx.fields) {
             Some(key) if f.exact => {
                 if let Some(t) = self.timeline_histogram(&conn, &ctx, &cq, &key, req, buckets, lifecycle)? {
                     return Ok(t);
