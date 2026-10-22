@@ -209,6 +209,19 @@ filter and analysis follows it; offsets are kept per source path (they survive r
 projects), bounded to ±7 days, and shown in the inspector's *Clock* section. See
 [ADR 0006](adr/0006-clock-skew-applied-on-load.md).
 
+## Text encodings
+
+Each text source's encoding is detected on import (byte-order mark first, then a statistical guess among
+UTF-8, UTF-16, Shift_JIS, GBK, gb18030, EUC-KR, Big5, EUC-JP and the windows-125x pages) and shown as a
+badge with its confidence; a doubtful guess is flagged. *Encoding…* in the Explorer reads one source again
+with an encoding you choose (or detects it again), and the profile's `[files] encoding` key sets a default.
+
+## Paste as log
+
+*Edit ▸ Paste as log…* (`Mod+Shift+V`), or dropping plain text on the window, adds pasted text to the project as a log
+file (`pasted/`, up to 8 MiB) named safely and uniquely by the engine and opened through the normal importer detection;
+a saved project carries it.
+
 ## Configuration diff
 
 *Compare configuration files…* (Tools) diffs two configuration-like files or folders by path, not by
@@ -480,6 +493,11 @@ See [ADR 0012](adr/0012-jobs.md).
   filtered (optionally redacted) events as CLEF, reports, dashboards and a manifest with SHA-256
   hashes, with a size estimate before writing. Opening one extracts it to a temporary folder
   (archive limits, no path may leave it), checks the hashes and opens it read-only.
+- **Share a redacted copy.** *File ▸ Share redacted copy…* writes a project copy (`.imtz`) built from the
+  redacted text of every text source, so events, search index, notes, AI chats, saved queries and reports hold
+  no unredacted value of the detectors and rules you pick (mask, hash or drop). A live preview shows counts per
+  rule, before/after samples and what is left out: binary, CSV and XML sources, note images, attachments and
+  video frames, and the profile's own rules.
 
 ## Dockable workspace
 
@@ -571,6 +589,10 @@ their pure logic but have not been checked on every desktop environment.
 - **Disk usage.** Settings ▸ Disk usage lists what IMT keeps on disk (opened-bundle copies, the web view
   cache, AI runtimes and models, logs, error snapshots, session backups) with sizes. *Clear cache…*
   says what goes and how much, then removes it.
+- **Project stores.** Under the categories, Settings ▸ Storage lists the store folders on disk with size, last use
+  and state (open, kept for session restore, in use by another IMT, orphaned). Only orphaned stores can be cleaned up,
+  after a confirmation, and an open store never; an optional automatic clean-up removes orphaned stores unused for N
+  days (off by default).
 - **Language.** All UI text is marked for translation and extracted to an XLF file; a generated
   pseudo-locale checks for hard-coded text and overflow. Settings ▸ General ▸ Language offers system
   default, English and the pseudo-locale (used after a restart); only English ships today. Log text and

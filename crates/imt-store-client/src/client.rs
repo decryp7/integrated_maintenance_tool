@@ -656,6 +656,16 @@ impl Ingest for RemoteStore {
         let s = self.call(StoreOp::Refresh, &Paths { paths: changed.to_vec() })?;
         self.session(s)
     }
+    fn set_source_encoding(&self, source: SourceId, encoding: Option<&str>) -> StoreResult<ImportSession> {
+        let s = self.call(
+            StoreOp::SetSourceEncoding,
+            &crate::protocol::SetSourceEncoding {
+                source,
+                encoding: encoding.map(str::to_string),
+            },
+        )?;
+        self.session(s)
+    }
     fn remove_source(&self, id: SourceId) -> StoreResult<()> {
         self.call(StoreOp::RemoveSource, &Source { id })
     }
@@ -910,6 +920,12 @@ impl imt_core::ports::Tail for RemoteStore {
 impl imt_core::ports::Redaction for RemoteStore {
     fn redaction_summary(&self, req: &imt_core::redact::RedactionSummaryRequest) -> StoreResult<imt_core::redact::RedactionSummary> {
         self.analysis(StoreOp::RedactionSummary, req)
+    }
+    fn export_redacted_project(
+        &self,
+        req: &imt_core::redact::copy::RedactedExportRequest,
+    ) -> StoreResult<imt_core::redact::copy::RedactedExport> {
+        self.call_with(StoreOp::ExportRedactedProject, req, LONG_TIMEOUT)
     }
 }
 

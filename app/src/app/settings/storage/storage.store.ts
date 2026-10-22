@@ -3,7 +3,8 @@ import { patchState, signalStore, withComputed, withMethods, withState } from '@
 import { errorMessage } from '../../tools/tool-errors';
 import { StorageBackend } from './storage-backend';
 import { JobsBackend } from '../../jobs/jobs-backend';
-import { StorageCategory, StorageCategoryId, StorageClearResult, StorageUsage } from './storage.types';
+import { orphaned, stillOrphaned } from './stores-format';
+import { StorageCategory, StorageCategoryId, StorageClearResult, StoragePolicy, StorageUsage, StoreClearResult, StoreFolder, StoreFolders } from './storage.types';
 
 interface StorageState {
   usage: StorageUsage | null;
@@ -22,9 +23,28 @@ interface StorageState {
   retry: { kind: 'clear'; ids: StorageCategoryId[] } | { kind: 'reveal'; id: StorageCategoryId } | null;
   /** The folder "Show in folder" opened last. */
   revealed: string | null;
+  /** The store folders on disk (Project stores). */
+  stores: StoreFolders | null;
+  storesLoading: boolean;
+  /** Listing the stores failed (shown with Retry). */
+  storesError: string | null;
+  /** The orphaned stores ticked for clean-up. */
+  selected: string[];
+  /** A store clean-up is running. */
+  storesClearing: boolean;
+  /** What the last store clean-up did. */
+  storesResult: StoreClearResult | null;
+  /** The last store clean-up failed. */
+  storesActionError: string | null;
+  /** The automatic clean-up setting; null until read. */
+  policy: StoragePolicy | null;
+  /** Reading or saving the setting failed (the engine's message). */
+  policyError: string | null;
 }
 
-const INITIAL: StorageState = { usage: null, loading: false, loadError: null, clearing: null, job: null, result: null, actionError: null, retry: null, revealed: null };
+const INITIAL: StorageState = { usage: null, loading: false, loadError: null, clearing: null, job: null, result: null, actionError: null, retry: null, revealed: null,
+  stores: null, storesLoading: false, storesError: null, selected: [], storesClearing: false, storesResult: null, storesActionError: null, policy: null, policyError: null,
+};
 
 /**
  * State of Settings ▸ Storage: the engine's usage report and the outcome of clearing. The engine decides
@@ -42,6 +62,10 @@ export const StorageStore = signalStore(
       cache,
       cacheBytes: computed(() => cache().reduce((n, c) => n + c.clearableBytes, 0)),
       busy: computed(() => store.loading() || store.clearing() !== null),
+      folders: computed<StoreFolder[]>(() => store.stores()?.folders ?? []),
+      orphanedFolders: computed<StoreFolder[]>(() => orphaned(store.stores()?.folders ?? [])),
+      /** What cleaning up the ticked stores would free. */
+      selectedBytes: computed(() => (store.stores()?.folders ?? []).filter((f) => store.selected().includes(f.id)).reduce((n, f) => n + f.bytes, 0)),
     };
   }),
   withMethods((store, backend = inject(StorageBackend), jobs = inject(JobsBackend)) => {
@@ -81,9 +105,62 @@ export const StorageStore = signalStore(
         patchState(store, { actionError: errorMessage(e), retry: { kind: 'reveal', id } });
       }
     };
+    const loadStores = async (): Promise<void> => {
+      patchState(store, { storesLoading: true, storesError: null });
+      try {
+        const stores = await backend.stores();
+        patchState(store, (s) => ({ stores, selected: stillOrphaned(s.selected, stores.folders) }));
+      } catch (e) {
+        patchState(store, { storesError: errorMessage(e) });
+      } finally {
+        patchState(store, { storesLoading: false });
+      }
+    };
+    const clearStores = async (ids: string[]): Promise<void> => {
+      if (!ids.length || store.storesClearing()) return;
+      patchState(store, { storesClearing: true, storesActionError: null, storesResult: null });
+      try {
+        patchState(store, { storesResult: await backend.clearStores(ids) });
+      } catch (e) {
+        patchState(store, { storesActionError: errorMessage(e) });
+      } finally {
+        patchState(store, { storesClearing: false });
+      }
+      await loadStores();
+    };
+    const loadPolicy = async (): Promise<void> => {
+      try {
+        patchState(store, { policy: await backend.policy(), policyError: null });
+      } catch (e) {
+        patchState(store, { policyError: errorMessage(e) });
+      }
+    };
     return {
       load,
       clear,
+      loadStores,
+      loadPolicy,
+      clearStores,
+      /** Ticks or unticks a store; only an orphaned one can be ticked. */
+      toggleStore(id: string, on: boolean): void {
+        if (!store.orphanedFolders().some((f) => f.id === id)) return;
+        patchState(store, (s) => ({ selected: on ? [...new Set([...s.selected, id])] : s.selected.filter((x) => x !== id) }));
+      },
+      /** Cleans up the ticked stores. */
+      clearSelectedStores: () => clearStores(store.selected()),
+      /** Cleans up every orphaned store. */
+      clearAllOrphaned: () => clearStores(store.orphanedFolders().map((f) => f.id)),
+      dismissStores: () => patchState(store, { storesResult: null, storesActionError: null }),
+      /** Saves the automatic clean-up setting; a refusal (out of range) is kept as `policyError`. */
+      async setAutoCleanDays(autoCleanDays: number): Promise<void> {
+        try {
+          patchState(store, { policy: await backend.setPolicy({ autoCleanDays }), policyError: null });
+        } catch (e) {
+          patchState(store, { policyError: errorMessage(e) });
+        }
+      },
+      /** Shows a message about the setting (for input the UI already refused). */
+      setPolicyError: (policyError: string | null) => patchState(store, { policyError }),
       reveal,
       /** Settings closed while a clear runs: stop following it (its message tells the outcome). */
       detach(): void {

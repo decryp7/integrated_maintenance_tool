@@ -160,6 +160,11 @@ export const WorkspaceDataStore = signalStore(
           const appended = sameSources(store.summary(), summary);
           patchState(store, (s) => (appended ? { summary, appendVersion: s.appendVersion + 1 } : { summary, sourcesVersion: s.sourcesVersion + 1 }));
         },
+        /** Applies the summary of text the engine saved and opened as a source (Paste as log), like an open does. */
+        applyImported(summary: WorkspaceSummary): void {
+          applySummary(summary);
+          patchState(store, (s) => ({ importVersion: s.importVersion + 1 }));
+        },
         openPaths: (paths: string[]): Promise<void> => open(paths),
         async pickAndOpen(directory: boolean) {
           try {

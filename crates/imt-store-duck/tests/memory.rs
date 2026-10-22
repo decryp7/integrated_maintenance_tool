@@ -108,6 +108,7 @@ fn parse_only(paths: &[PathBuf]) -> usize {
     let profile = parsers.base().clone();
     let progress = imt_core::workspace::ImportProgress::default();
     let env = ImportEnv {
+        encodings: &Default::default(),
         importers: registry.importers(),
         parsers: &parsers,
         schema: Arc::new(ingest::schema_for(&profile)),

@@ -2156,4 +2156,28 @@ for t in rtimes(prnd2, START + timedelta(seconds=1), END, 50.0):
         mp.append(f"Polly retry {prnd2.randint(1, 3)}/3 for capture {order}")
 write_text("\n".join(mp) + "\n", "mel-console", "payments01", "payments-adapter-20261014.log")
 
+# Text encodings (invented messages, one file each): the same short story told in the encodings IMT detects at
+# import. The text is made up for these files; the ASCII timestamps and levels are plain Serilog text lines.
+# `encodings/utf16le-bom.log` has a byte-order mark, `encodings/utf16be-nomark.log` has none.
+ENC_LINES = {
+    "shift-jis": ("shift_jis", ["サービスを起動しました", "設定ファイルを読み込んでいます", "データベースへの接続に失敗しました", "再試行します", "注文の処理が完了しました", "サービスを停止します"]),
+    "gbk": ("gbk", ["服务已启动", "正在读取配置文件", "数据库连接失败", "正在重试", "订单处理完成", "服务即将停止"]),
+    "euc-kr": ("euc_kr", ["서비스를 시작했습니다", "설정 파일을 읽는 중입니다", "데이터베이스 연결에 실패했습니다", "다시 시도합니다", "주문 처리가 완료되었습니다", "서비스를 중지합니다"]),
+    "big5": ("big5", ["服務已啟動", "正在讀取設定檔", "資料庫連線失敗", "正在重試", "訂單處理完成", "服務即將停止"]),
+    "windows-1251": ("cp1251", ["Служба запущена", "Чтение файла настроек", "Не удалось подключиться к базе данных", "Повторная попытка", "Заказ обработан", "Служба останавливается"]),
+    "windows-1252": ("cp1252", ["Dienst gestartet", "Konfigurationsdatei wird gelesen", "Verbindung zur Datenbank fehlgeschlagen: Zeitüberschreitung", "Neuer Versuch in 5 Sekunden", "Bestellung für Müller & Söhne abgeschlossen", "Dienst wird beendet"]),
+    "utf16le-bom": ("utf-16-le", ["Service started", "Reading the configuration file", "Database connection failed", "Retrying", "Order completed", "Service stopping"]),
+    "utf16be-nomark": ("utf-16-be", ["Service started", "Reading the configuration file", "Database connection failed", "Retrying", "Order completed", "Service stopping"]),
+}
+ENC_LEVELS = ["INF", "INF", "ERR", "WRN", "INF", "INF"]
+for enc_name, (codec, messages) in ENC_LINES.items():
+    rows = []
+    for i, msg in enumerate(messages):
+        t = START + timedelta(minutes=i * 7, seconds=i)
+        rows.append(f"{t.strftime('%Y-%m-%d %H:%M:%S')}.{i * 111 % 1000:03d} +00:00 [{ENC_LEVELS[i]}] {msg}")
+    data = ("\n".join(rows) + "\n").encode(codec)
+    if enc_name == "utf16le-bom":
+        data = b"\xff\xfe" + data
+    write_bytes(data, "encodings", f"{enc_name}.log")
+
 print("samples written to", ROOT)

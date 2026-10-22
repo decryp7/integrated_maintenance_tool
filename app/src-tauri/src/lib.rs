@@ -35,6 +35,7 @@ mod dev_overrides;
 mod diagnostics;
 mod drag_ghost;
 mod dumps;
+mod encodings;
 mod engine;
 mod engine_errors;
 mod error;
@@ -55,6 +56,7 @@ mod notify;
 mod opener;
 mod panel_windows;
 mod parsers;
+mod paste;
 mod paths;
 mod performance;
 mod plugin_config;
@@ -64,6 +66,7 @@ mod profile;
 mod profiling;
 mod query_cancel;
 mod recent;
+mod redacted_copy;
 mod services;
 mod settings;
 mod share;
@@ -266,6 +269,12 @@ command_table! {
     Query [WINDOW] limit MIB => parsers::commands::parser_draft,
     Mutation [WINDOW] => parsers::commands::parsers_reread,
     Mutation [WINDOW] => parsers::commands::parser_assign,
+    Mutation [WINDOW] limit 16 * MIB => paste::paste_log,
+    Query [WINDOW] => redacted_copy::redacted_copy_choices,
+    Query [WINDOW] => redacted_copy::redacted_copy_preview,
+    Mutation [WINDOW] limit 64 * MIB => redacted_copy::export_redacted_copy,
+    Query [WINDOW] => encodings::list_encodings,
+    Mutation [WINDOW] => encodings::set_source_encoding,
     Query [WINDOW] => demo::demo_paths,
     Mutation [WINDOW] limit 8 * MIB => snapshots::save_error_snapshot,
     Query [WINDOW] => snapshots::list_error_snapshots,
@@ -275,6 +284,10 @@ command_table! {
     Mutation [WINDOW] => snapshots::export_diagnostics,
     Query [WINDOW] => storage::storage_usage,
     Mutation [MAIN] => storage::storage_clear,
+    Query [WINDOW] => storage::storage_stores,
+    Mutation [MAIN] => storage::storage_stores_clear,
+    Query [WINDOW] => storage::storage_policy,
+    Mutation [MAIN] => storage::storage_set_policy,
     Mutation [WINDOW] => storage::storage_reveal,
     Query [WINDOW] limit MIB => activity::report::problem_report_preview,
     Mutation [WINDOW] limit MIB => activity::report::save_problem_report,
@@ -564,8 +577,11 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     shared.plugins.warm_up();
     // Scratch stores no window or session will use again (left by a crash) are removed in the background.
     {
-        let (root, keep) = (shared.store_root.clone(), life.session_stores());
-        std::thread::spawn(move || engine::sweep_scratch(&root, &keep));
+        let (root, keep, config) = (shared.store_root.clone(), life.session_stores(), ctx.config.clone());
+        std::thread::spawn(move || {
+            engine::sweep_scratch(&root, &keep);
+            storage::auto_clean_stores(config, &root, &keep);
+        });
     }
     app_context::install(app.handle(), ctx);
     let windows = windows::Windows::new(shared.factory());

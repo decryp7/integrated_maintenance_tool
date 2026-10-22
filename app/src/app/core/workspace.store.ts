@@ -49,6 +49,7 @@ export class WorkspaceStore {
   readonly followReread = this.data.followReread;
   readonly init = this.data.init;
   readonly refreshSummary = this.data.refreshSummary;
+  readonly applyImported = this.data.applyImported;
   readonly openPaths = this.data.openPaths;
   readonly pickAndOpen = this.data.pickAndOpen;
   readonly removeSource = this.data.removeSource;

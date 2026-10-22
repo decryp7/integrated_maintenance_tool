@@ -21,6 +21,11 @@ name = "Default (Serilog)"
 # not matter: the parser of a file is chosen from its content.
 include = ["**/*"]
 exclude = ["**/*-filtered.*", "**/*.imtprofile.toml", "**/*.imtproj", "**/*.exe", "**/*.dll", "**/.*"]
+# Text encoding of the files. "auto" detects it per file from a byte-order mark or the first 64 KiB: UTF-8, UTF-16
+# (with or without a mark), Shift_JIS, GBK/gb18030, EUC-KR, Big5, EUC-JP, windows-125x... A label (for example
+# "Shift_JIS" or "windows-1252") reads every file as that encoding; a source can still be set on its own in the
+# Sources panel. Decoding is lossy: bytes that are invalid in the encoding become U+FFFD.
+encoding = "auto"
 
 [instance]
 # Fields forming the instance key (one timeline lane per value). Empty = the

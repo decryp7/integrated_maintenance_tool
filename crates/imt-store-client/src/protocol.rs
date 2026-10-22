@@ -167,6 +167,18 @@ ops! {
     TailFiles,
     /// [`Paths`] → [`Session`]: opens files and folders at their end
     OpenAtEnd,
+    /// [`SetSourceEncoding`] → [`Session`]
+    SetSourceEncoding,
+    /// [`imt_core::redact::copy::RedactedExportRequest`] → [`imt_core::redact::copy::RedactedExport`]
+    ExportRedactedProject,
+}
+
+/// "Encoding…": reads one source again as `encoding` (`None`: detected again).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetSourceEncoding {
+    pub source: SourceId,
+    pub encoding: Option<String>,
 }
 
 /// "Parse with…": reads one source with the library's parser `parser` (`None`: the automatic choice; ADR 0026).

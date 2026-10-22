@@ -12,6 +12,7 @@ const COMMANDS: [string, string, string?][] = [
   ['project.recent', 'Open recent project…'],
   ['project.save', 'Save project', 'Mod+S'],
   ['project.saveAs', 'Save project as…', 'Mod+Shift+S'],
+  ['share.redactedCopy', 'Share redacted copy…'],
   ['file.reimport', 'Re-import all'],
   ['live.toggle', 'Toggle live tail'],
   ['file.export', 'Export events…', 'Mod+Shift+E'],
@@ -21,6 +22,7 @@ const COMMANDS: [string, string, string?][] = [
   ['edit.redo', 'Redo', 'Mod+Shift+Z'],
   ['edit.copy', 'Copy'],
   ['edit.copyJson', 'Copy as JSON'],
+  ['edit.pasteLog', 'Paste as log…', 'Mod+Shift+V'],
   ['edit.find', 'Find', 'Mod+F'],
   ['palette.open', 'Show all commands', 'Mod+K'],
   ['view.toggleSidebar', 'Toggle sidebar', 'Mod+B'],
@@ -224,8 +226,8 @@ describe('menu model', () => {
 
   it('labels Undo and Redo with what they would take back', () => {
     const edit = menu(buildMenus(state()), 'edit').items;
-    // Then Copy, Copy as JSON and Find (F4).
-    expect(labels(edit)).toEqual(['Undo level filter change', 'Redo (nothing to redo)', '—', 'Copy', 'Copy as JSON', '—', 'Find']);
+    // Then Copy, Copy as JSON, Paste as log and Find (F4).
+    expect(labels(edit)).toEqual(['Undo level filter change', 'Redo (nothing to redo)', '—', 'Copy', 'Copy as JSON', '—', 'Paste as log…', '—', 'Find']);
     expect(edit.find((n) => n.kind === 'item' && n.id === 'edit.find')).toMatchObject({ keybinding: 'Mod+F' });
   });
 

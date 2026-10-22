@@ -10,6 +10,7 @@ import { IMT_COMMANDS } from '../extensions/tokens';
 import { provideImtPlugin } from '../extensions/provide';
 import { BundleCommands } from './bundle/bundle.commands';
 import { DashboardCommands } from './dashboard/dashboard.commands';
+import { RedactedCopyCommands } from './redacted-copy/redacted-copy-commands';
 import { RedactionCommands } from './redaction/redaction.commands';
 import { ReportCommands } from './report/report.commands';
 import { reportMenuItems } from './report/report-menu';
@@ -36,6 +37,7 @@ export function provideShare(): EnvironmentProviders {
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(DashboardCommands).commands },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(BundleCommands).commands },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(VisualCommands).commands },
+    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(RedactedCopyCommands).commands },
     provideImtPlugin({ views: SHARE_VIEWS }),
   ]);
 }

@@ -128,6 +128,11 @@ pub trait Ingest: Send + Sync {
     fn reload(&self) -> StoreResult<ImportSession>;
     /// Re-reads changed files and reads new files under opened folders.
     fn refresh(&self, changed: &[PathBuf]) -> StoreResult<ImportSession>;
+    /// "Encoding…": reads one source again as `encoding` (a label such as `Shift_JIS`; `None` or `auto`: detected
+    /// again). The choice is kept with the store and applies whenever the file is read again.
+    fn set_source_encoding(&self, _source: SourceId, _encoding: Option<&str>) -> StoreResult<ImportSession> {
+        Err(StoreError::unsupported("choosing a source's text encoding", "ADR 0040"))
+    }
     /// Drops one source and its events; folder scans will not bring it back.
     fn remove_source(&self, id: SourceId) -> StoreResult<()>;
     /// Forgets every source and event.
@@ -316,6 +321,15 @@ pub trait Console: Send + Sync {
 /// rules. The redacted view itself is applied to replies by their caller ([`crate::redact::view`]). Cancellable through
 /// the thread's [`QueryControl`].
 pub trait Redaction: Send + Sync {
+    /// Writes a copy of the store as an `.imtz` project in which every copyable source holds redacted text only (see
+    /// [`crate::redact::copy`]); the store itself is not changed. Sources that cannot be copied are listed in the
+    /// reply. A configuration without rules or that does not compile is [`StoreError::Invalid`].
+    fn export_redacted_project(
+        &self,
+        _req: &crate::redact::copy::RedactedExportRequest,
+    ) -> StoreResult<crate::redact::copy::RedactedExport> {
+        Err(StoreError::unsupported("the redacted project copy", "ADR 0039"))
+    }
     fn redaction_summary(&self, _req: &crate::redact::RedactionSummaryRequest) -> StoreResult<crate::redact::RedactionSummary> {
         Err(StoreError::unsupported("the redaction summary", "ADR 0014 6c"))
     }

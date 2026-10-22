@@ -1,0 +1,6 @@
+2026-10-14 09:00:00.000 +00:00 [INF] Dienst gestartet
+2026-10-14 09:07:01.111 +00:00 [INF] Konfigurationsdatei wird gelesen
+2026-10-14 09:14:02.222 +00:00 [ERR] Verbindung zur Datenbank fehlgeschlagen: Zeitüberschreitung
+2026-10-14 09:21:03.333 +00:00 [WRN] Neuer Versuch in 5 Sekunden
+2026-10-14 09:28:04.444 +00:00 [INF] Bestellung für Müller & Söhne abgeschlossen
+2026-10-14 09:35:05.555 +00:00 [INF] Dienst wird beendet
