@@ -77,7 +77,7 @@ export function historyOption(summary: HomeSummary, t: ChartTokens, tz: TimeZone
   const present = STACK.filter((level) => summary.histogram.some((b) => (b[LEVELS.indexOf(level)] ?? 0) > 0));
   const markArea = {
     silent: false,
-    itemStyle: { color: t.accentSoft, opacity: 0.5 },
+    itemStyle: { color: t.accentSoft, opacity: 0.3 },
     label: { show: false },
     data: summary.anomalies.map((a) => [{ xAxis: a.from, name: `${labels.anomaly}: ${a.message}` }, { xAxis: Math.max(a.to, a.from + 1) }]),
   };

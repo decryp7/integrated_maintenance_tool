@@ -158,7 +158,7 @@ function shortPath(path: string): string {
           <span class="notes-badge" data-testid="source-notes-badge" role="img" [title]="notesLabel(n)" [attr.aria-label]="notesLabel(n)"><imt-icon name="note" [size]="11" />{{ n }}</span>
         }
         @if (encodingShown(s); as enc) {
-          <span class="enc mono" data-testid="encoding-badge" [class.low]="isLowConfidence(enc)" role="img" [title]="encodingTitle(enc)" [attr.aria-label]="encodingTitle(enc)">{{ encodingBadge(enc) }}</span>
+          <span class="enc mono" data-testid="encoding-badge" [class.low]="isLowConfidence(enc)" role="img" [title]="encodingTitle(enc)" [attr.aria-label]="encodingTitle(enc)"><imt-icon name="alert" [size]="12" /><span class="sr">{{ encodingBadge(enc) }}</span></span>
         }
         <span class="count">{{ compact(s.records) }}</span>
         <span class="actions">
@@ -210,8 +210,9 @@ function shortPath(path: string): string {
     .state.deleted { border-style: dashed; }
     .state.error { border-color: var(--danger-text); color: var(--danger-text); }
     .notes-badge { flex: none; display: inline-flex; align-items: center; gap: 2px; font-size: var(--fs-2xs); color: var(--accent-text); }
-    .enc { flex: none; font-size: var(--fs-2xs); padding: 0 5px; border-radius: 7px; border: 1px solid var(--border-3); color: var(--text-2); }
-    .enc.low { border-color: var(--warn-text, var(--accent)); color: var(--warn-text, var(--text-2)); }
+    /* A guessed encoding is a small warning mark; the encoding itself is in the tooltip and read by screen readers. */
+    .enc { flex: none; display: inline-flex; color: var(--faint); }
+    .enc.low { color: var(--warn-text); }
     .skew { flex: none; font-size: var(--fs-2xs); padding: 0 5px; border-radius: 7px; border: 1px solid var(--accent); color: var(--text-2); }
   `,
 })
