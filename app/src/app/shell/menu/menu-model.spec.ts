@@ -1,4 +1,4 @@
-import { buildMenus, menuItems, MenuNode, MenuState, MenuView, tidy, TopMenu, topLevelSize } from './menu-model';
+import { buildMenus, menuItems, recentLabel, RECENT_MENU_FILES, RECENT_MENU_PROJECTS, MenuNode, MenuState, MenuView, tidy, TopMenu, topLevelSize } from './menu-model';
 import { at } from '../../../testing/must';
 
 const COMMANDS: [string, string, string?][] = [
@@ -25,9 +25,11 @@ const COMMANDS: [string, string, string?][] = [
   ['palette.open', 'Show all commands', 'Mod+K'],
   ['view.toggleSidebar', 'Toggle sidebar', 'Mod+B'],
   ['view.resetLayout', 'Reset layout'],
+  ['view.theme.system', 'Theme: Follow system'],
   ['view.theme.calm', 'Theme: Calm'],
   ['view.theme.console', 'Theme: Console'],
   ['view.theme.precision', 'Theme: Precision'],
+  ['view.theme.contrast', 'Theme: High contrast'],
   ['view.scheme.system', 'Colour scheme: system'],
   ['view.scheme.dark', 'Colour scheme: dark'],
   ['view.scheme.light', 'Colour scheme: light'],
@@ -76,6 +78,7 @@ const COMMANDS: [string, string, string?][] = [
   ['help.demo', 'Try the demo'],
   ['help.tour', 'Take the tour'],
   ['help.shortcuts', 'Keyboard shortcuts', 'F1'],
+  ['help.whatsNew', "What's new"],
   ['help.notices', 'Third-party notices'],
   ['help.about', 'About IMT'],
 ];
@@ -89,7 +92,7 @@ const VIEWS: MenuView[] = [
   view('metrics', 'Metrics', 'core'),
   view('profile', 'Profile', 'core'),
   view('query', 'Query', 'core', { open: true }),
-  view('overview', 'Overview', 'core'),
+  view('home', 'Home', 'core'),
   view('plugins', 'Plugins', 'Plugins'),
   view('markers', 'Markers', 'Analysis'),
   ...(
@@ -162,7 +165,7 @@ describe('menu model', () => {
       'Events',
       'Metrics',
       'Query',
-      'Overview',
+      'Home',
       'Profile editor',
       '—',
       'Analysis',
@@ -189,8 +192,8 @@ describe('menu model', () => {
     expect(items.find((i) => i.label === 'Explorer')).toMatchObject({ id: 'view.toggleSidebar', checked: true, keybinding: 'Mod+B' });
     expect(items.find((i) => i.label === 'Timeline')).toMatchObject({ id: 'view:timeline', checked: true });
     expect(items.find((i) => i.label === 'Metrics')).toMatchObject({ checked: false });
-    expect(labels(sub(v, 'Theme'))).toEqual(['Calm', 'Console', 'Precision', '—', 'System', 'Dark', 'Light']);
-    expect(sub(v, 'Theme').map((n) => n.kind === 'item' && n.checked)).toEqual([false, true, false, false, false, true, false]);
+    expect(labels(sub(v, 'Theme'))).toEqual(['Follow system', 'Calm', 'Console', 'Precision', 'High contrast', '—', 'System', 'Dark', 'Light']);
+    expect(sub(v, 'Theme').map((n) => n.kind === 'item' && n.checked)).toEqual([false, false, true, false, false, false, false, true, false]);
   });
 
   it('puts plugin views in Plugins, grouped by plugin, after the plugin manager', () => {
@@ -198,6 +201,27 @@ describe('menu model', () => {
     expect(labels(plugins)).toEqual(['Manage plugins', '—', 'Other plugins', 'Windows events', 'Windows registry']);
     const registry = plugins.find((n) => n.kind === 'group' && n.label === 'Windows registry');
     expect(registry?.kind === 'group' && registry.items.map((i) => i.id)).toEqual(['view:registry']);
+  });
+
+  it('File > Open recent lists projects, then files, then Clear recent; it is absent when nothing was opened (F5)', () => {
+    const fileMenu = (s: MenuState) => menu(buildMenus(s), 'file').items;
+    expect(labels(fileMenu(state()))).not.toContain('Open recent');
+    const files = Array.from({ length: RECENT_MENU_FILES + 3 }, (_, i) => `C:\\logs\\web01\\app-${i}.log`);
+    const projects = Array.from({ length: RECENT_MENU_PROJECTS + 2 }, (_, i) => ({ path: `/p/proj-${i}.imtproj`, name: `Proj ${i}` }));
+    const recent = sub(fileMenu(state({ recent: { projects, files } })), 'Open recent');
+    const items = recent.map((n) => (n.kind === 'item' ? n.label : '—'));
+    expect(items).toHaveLength(RECENT_MENU_PROJECTS + 1 + RECENT_MENU_FILES + 1 + 1);
+    expect(items[0]).toBe('Proj 0');
+    expect(items[RECENT_MENU_PROJECTS]).toBe('—');
+    expect(items[RECENT_MENU_PROJECTS + 1]).toBe('web01/app-0.log');
+    expect(items.at(-1)).toBe('Clear recent');
+    expect(menuItems(recent).map((i) => i.id)).toContain('recent:project:/p/proj-0.imtproj');
+    expect(menuItems(recent).map((i) => i.id)).toContain('menu.recentClear');
+    // Only files: no separator between the groups.
+    const onlyFiles = sub(fileMenu(state({ recent: { projects: [], files: ['/a/b.log'] } })), 'Open recent');
+    expect(onlyFiles.map((n) => (n.kind === 'item' ? n.label : '—'))).toEqual(['a/b.log', '—', 'Clear recent']);
+    expect(recentLabel('single')).toBe('single');
+    expect(recentLabel('')).toBe('');
   });
 
   it('leaves out commands that are not available, and menus and submenus that end up empty', () => {
@@ -261,6 +285,8 @@ describe('menu model', () => {
       'Try the demo',
       'Take the tour',
       'Keyboard shortcuts',
+      '—',
+      "What's new",
       '—',
       'Restart in safe mode',
       '—',

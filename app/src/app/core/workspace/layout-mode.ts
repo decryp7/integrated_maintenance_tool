@@ -2,8 +2,8 @@ import { computed, Injectable, signal } from '@angular/core';
 
 /**
  * How much the window shows by itself:
- * - `focused` (default): after opening data, the timeline over the events; Overview, Query and Metrics open on demand;
- * - `full`: the richer layout, where the query bar is part of the default layout and the Overview opens after imports.
+ * - `focused` (default): after opening data, the timeline over the events; Home, Query and Metrics open on demand;
+ * - `full`: the richer layout, where the query bar is part of the default layout and Home opens after imports.
  */
 export type LayoutMode = 'focused' | 'full';
 

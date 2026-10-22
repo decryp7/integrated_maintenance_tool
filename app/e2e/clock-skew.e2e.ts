@@ -2,9 +2,9 @@ import { expect, Page, test } from '@playwright/test';
 import { expectNoSeriousViolations } from './axe';
 import { openAppWith, runCommand } from './tools-support';
 
-/** The sidebar row of a source, by the end of its path. */
+/** The sidebar row of a source, by the end of its path (the row's tooltip starts with the path; rows show only the name under a folder heading). */
 function sourceRow(page: Page, path: string) {
-  return page.locator('imt-sidebar .src', { hasText: path });
+  return page.locator(`imt-sidebar .src[title*="${path}"]`);
 }
 
 /** Searches the messages and selects the first matching event. */

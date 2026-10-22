@@ -24,19 +24,22 @@ test.describe('demo and guided tour', () => {
   test('the demo opens the sample incident and the tour can be completed with the keyboard', async ({ page }, testInfo) => {
     await startDemo(page);
     await expect(tour(page)).toBeVisible();
-    await expect(tour(page)).toContainText('Step 1 of 7');
+    await expect(tour(page)).toContainText('Step 1 of 6');
+    await expect(tour(page).getByRole('heading', { name: 'Timeline' })).toBeVisible();
+    // Anchored to the timeline with a spotlight, not a centred modal.
+    await expect(page.locator('.spot')).toBeVisible();
     await expect(tour(page).getByRole('button', { name: 'Next' })).toBeFocused();
     await expectNoSeriousViolations(page, testInfo, 'tour', '[data-testid=tour]');
 
-    const titles = ['Timeline', 'Events', 'Query bar', 'Moment', 'Markers', 'Overview'];
+    const titles = ['Events', 'Query bar', 'Moment', 'Markers', 'Home'];
     for (const [i, title] of titles.entries()) {
       await page.keyboard.press('ArrowRight');
-      await expect(tour(page)).toContainText(`Step ${i + 2} of 7`);
+      await expect(tour(page)).toContainText(`Step ${i + 2} of 6`);
       await expect(tour(page).getByRole('heading', { name: title })).toBeVisible();
     }
-    await expect(page.locator('imt-overview-view')).toBeVisible();
+    await expect(page.locator('imt-home-view')).toBeVisible();
     await page.keyboard.press('ArrowLeft');
-    await expect(tour(page)).toContainText('Step 6 of 7');
+    await expect(tour(page)).toContainText('Step 5 of 6');
     await tour(page).getByRole('button', { name: 'Next' }).click();
     await tour(page).getByRole('button', { name: 'Finish' }).click();
     await expect(tour(page)).toHaveCount(0);
@@ -47,7 +50,7 @@ test.describe('demo and guided tour', () => {
     await expect(page.locator('imt-status-bar')).toContainText('events');
     await expect(tour(page)).toHaveCount(0);
     await chooseMenu(page, 'Help', 'Take the tour');
-    await expect(tour(page)).toContainText('Step 1 of 7');
+    await expect(tour(page)).toContainText('Step 1 of 6');
   });
 
   test('the tour can be skipped and is remembered as done', async ({ page }) => {

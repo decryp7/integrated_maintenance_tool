@@ -11,6 +11,19 @@ export interface CapturedImage {
   bytes: number;
 }
 
+/** A transparent 1 × 1 PNG: the picture of a snapshot taken where the window could not be captured. */
+export const NO_SCREENSHOT_IMAGE: CapturedImage = {
+  base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNgYGBgAAAABQABeqhXUAAAAABJRU5ErkJggg==',
+  mime: 'image/png',
+  bytes: 70,
+};
+
+/** What a snapshot without a picture says about it; `reason` comes from the shell. */
+export const noScreenshotNote = (reason: string) => $localize`:@@diagnostics.snapshot.noScreenshot:No screenshot: ${reason}:reason:.`;
+
+/** Set on `<html>` while the shell captures the window; elements marked `data-snapshot-ignore` are hidden meanwhile. */
+export const CAPTURING_ATTRIBUTE = 'data-snapshot-capturing';
+
 /** The first-save notice. */
 export const SNAPSHOT_NOTICE = $localize`:@@diagnostics.snapshot.notice:IMT saved a screenshot of this error locally to help diagnose it. Nothing is sent anywhere.`;
 

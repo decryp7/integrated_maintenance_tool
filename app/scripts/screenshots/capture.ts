@@ -46,6 +46,9 @@ async function settle(page: Page, ms = 600): Promise<void> {
  * With `maximize`, the dock group holding that tab fills the window for the capture.
  */
 async function shot(page: Page, name: string, prepare: () => Promise<void>, maximize?: string): Promise<void> {
+  // IMT_SHOT_ONLY=home,light restricts a run to the named shots.
+  const only = process.env['IMT_SHOT_ONLY'];
+  if (only && !only.split(',').includes(name)) return;
   let restore: (() => Promise<void>) | undefined;
   try {
     await prepare();
@@ -238,6 +241,17 @@ test('capture README screenshots', async ({ page }) => {
   await shot(page, 'theme-console', async () => {
     await clickRow(page, 'HTTP POST');
   });
+
+  // Home: the dashboard (tiles, history by level, findings, activity) in both themes.
+  for (const theme of ['dark', 'light'] as const) {
+    await fresh(page, theme);
+    await growTimeline(page);
+    await shot(page, theme === 'dark' ? 'home' : 'home-light', async () => {
+      await command(page, 'Show Home');
+      await expect(page.locator('imt-home-view [data-testid=home-history]')).toBeVisible();
+      await page.waitForTimeout(800);
+    }, 'Home');
+  }
 
   if (skipped.length) console.warn(`\nSkipped ${skipped.length} shot(s):\n  ${skipped.join('\n  ')}`);
 });

@@ -53,14 +53,14 @@ describe('ThemeService', () => {
     expect(root.style.getPropertyValue('--row-h')).toBe('22px');
     expect(theme.tokens()['accent']).toBe('#5b47e8');
 
-    prefs.setLanesBySource(false);
+    TestBed.inject(SettingsStore).setSourceColors('off');
     await settle();
     expect(root.getAttribute('data-lane-fill')).toBe('neutral');
     expect(theme.traits().laneFill).toBe('neutral');
 
     // Precision: barcode lanes and bracket runs; the interface font is the system one unless the user keeps the theme's.
     prefs.setTheme('precision');
-    prefs.setLanesBySource(null);
+    TestBed.inject(SettingsStore).setSourceColors('source');
     await settle();
     expect(root.getAttribute('data-theme')).toBe('precision');
     expect(root.getAttribute('data-runs')).toBe('bracket');
@@ -70,6 +70,37 @@ describe('ThemeService', () => {
     prefs.setUiFont('theme');
     await settle();
     expect(root.style.getPropertyValue('--font-sans')).toContain('IBM Plex Sans');
+  });
+
+  it('follows prefers-contrast live while the theme is "follow system", and ignores it once a theme is chosen', async () => {
+    const lists: Record<string, Set<(e: MediaQueryListEvent) => void>> = {};
+    const state: Record<string, boolean> = { '(prefers-color-scheme: light)': false, '(prefers-contrast: more)': true };
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      (q: string) =>
+        ({
+          matches: state[q] ?? false,
+          addEventListener: (_: string, l: (e: MediaQueryListEvent) => void) => (lists[q] ??= new Set()).add(l),
+          removeEventListener: (_: string, l: (e: MediaQueryListEvent) => void) => lists[q]?.delete(l),
+        }) as unknown as MediaQueryList,
+    );
+    const theme = TestBed.inject(ThemeService);
+    const prefs = TestBed.inject(UiPrefsStore);
+    theme.start();
+    await settle();
+    expect(prefs.theme()).toBeNull();
+    expect(root.getAttribute('data-theme')).toBe('contrast');
+    lists['(prefers-contrast: more)']!.forEach((l) => l({ matches: false } as MediaQueryListEvent));
+    await settle();
+    expect(root.getAttribute('data-theme')).toBe('calm');
+    lists['(prefers-contrast: more)']!.forEach((l) => l({ matches: true } as MediaQueryListEvent));
+    prefs.setTheme('precision');
+    await settle();
+    expect(root.getAttribute('data-theme')).toBe('precision');
+    prefs.setTheme(null);
+    await settle();
+    expect(root.getAttribute('data-theme')).toBe('contrast');
+    TestBed.resetTestingModule();
+    expect(lists['(prefers-contrast: more)']!.size).toBe(0);
   });
 
   it('follows the operating system live while the scheme is "system"', async () => {

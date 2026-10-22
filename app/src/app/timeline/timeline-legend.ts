@@ -15,6 +15,8 @@ import { TIMELINE_SOURCE } from './timeline-source';
 const MAX_ANN_MENU = 50;
 /** Marker kinds shown before "+N more". */
 export const LEGEND_COLLAPSED = 6;
+/** Run kinds and annotation kinds each shown before "+N more" (one pressed "more" shows everything). */
+export const LEGEND_COLLAPSED_GROUP = 3;
 
 let legendSeq = 0;
 
@@ -29,8 +31,8 @@ let legendSeq = 0;
   host: { style: 'display: contents' },
   template: `
     @if (legendItems().length > 0 || ann.kinds().length || ann.runKinds().length || ann.error()) {
-      <div class="legend-row">
-        <div class="legend" role="group" aria-label="Markers" i18n-aria-label="@@timeline.legend.markers" [id]="listId" [class.filtering]="src.markers().length > 0" [class.collapsed]="!expanded()">
+      <div class="legend-row" [id]="listId" [class.collapsed]="!expanded()">
+        <div class="legend" role="group" aria-label="Markers" i18n-aria-label="@@timeline.legend.markers" [class.filtering]="src.markers().length > 0" [class.collapsed]="!expanded()">
           @for (k of shownItems(); track k.kind.kind) {
             <button
               type="button"
@@ -42,7 +44,7 @@ let legendSeq = 0;
             ><span class="pill"><imt-marker-glyph [kind]="k.kind.kind" [size]="16" />{{ k.kind.label }}</span></button>
             @if (k.descId; as id) { <span class="sr" [id]="id">{{ k.title }}</span> }
           }
-          @if (legendItems().length > collapsedCount) {
+          @if (hidden() > 0 || expanded()) {
             <button type="button" class="lg more" data-testid="legend-more" [attr.aria-expanded]="expanded()" [attr.aria-controls]="listId" (click)="expanded.set(!expanded())">
               <span class="pill">{{ expanded() ? fewerLabel : moreLabel(hidden()) }}</span>
             </button>
@@ -59,7 +61,7 @@ let legendSeq = 0;
               (click)="ann.toggleRuns()"
             ><span class="pill"><span class="run-swatch" aria-hidden="true"></span><span class="lg-title" i18n="@@timeline.legend.runs">Runs</span></span></button>
             @if (ann.runsShown()) {
-              @for (k of ann.runKinds(); track k.kind) {
+              @for (k of shownRunKinds(); track k.kind) {
                 <button
                   type="button"
                   class="lg"
@@ -86,7 +88,7 @@ let legendSeq = 0;
         @if (ann.kinds().length || ann.error()) {
           <div class="ann-legend" role="group" aria-label="Annotations" i18n-aria-label="@@timeline.legend.annotationsAria">
             <span class="lg-title" i18n="@@timeline.legend.annotations">Annotations</span>
-            @for (k of ann.kinds(); track k.kind) {
+            @for (k of shownAnnKinds(); track k.kind) {
               <button
                 type="button"
                 class="lg"
@@ -117,6 +119,9 @@ let legendSeq = 0;
     }
   `,
   styles: `
+    /* The legend is one row until "+N more" is pressed; clipped sideways only, so the 24px hit areas are not cut. */
+    .legend-row.collapsed { flex-wrap: nowrap; overflow-x: clip; }
+    .legend-row.collapsed > div { flex-wrap: nowrap; flex: none; }
     .legend-row { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 0 14px 6px; }
     .legend, .ann-legend, .run-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: var(--fs-sm); color: var(--muted); min-width: 0; }
     /* The button is a transparent 24px hit area (WCAG 2.5.8) around the visible pill; the negative margin keeps the row height. */
@@ -157,7 +162,6 @@ export class TimelineLegend {
   protected readonly listId = `timeline-legend-${++legendSeq}`;
   /** The full list of marker kinds in the data is shown ("+N more" was pressed). */
   protected readonly expanded = signal(false);
-  protected readonly collapsedCount = LEGEND_COLLAPSED;
   protected readonly fewerLabel = $localize`:@@timeline.legend.fewer:Show fewer`;
 
   /** Events per marker kind in the current timeline (the engine's clusters), to list only kinds that occur. */
@@ -189,7 +193,16 @@ export class TimelineLegend {
 
   /** One line until expanded. */
   protected readonly shownItems = computed(() => (this.expanded() ? this.legendItems() : this.legendItems().slice(0, LEGEND_COLLAPSED)));
-  protected readonly hidden = computed(() => this.legendItems().length - this.shownItems().length);
+  protected readonly shownRunKinds = computed(() => (this.expanded() ? this.ann.runKinds() : this.ann.runKinds().slice(0, LEGEND_COLLAPSED_GROUP)));
+  protected readonly shownAnnKinds = computed(() => (this.expanded() ? this.ann.kinds() : this.ann.kinds().slice(0, LEGEND_COLLAPSED_GROUP)));
+  /** Entries held back by the one-row legend (marker, run and annotation kinds together). */
+  protected readonly hidden = computed(
+    () =>
+      this.legendItems().length -
+      this.shownItems().length +
+      (this.ann.runsShown() ? this.ann.runKinds().length - this.shownRunKinds().length : 0) +
+      (this.ann.kinds().length - this.shownAnnKinds().length),
+  );
 
   protected moreLabel(n: number): string {
     return $localize`:@@timeline.legend.more:+${n}:count: more`;

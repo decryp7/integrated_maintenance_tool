@@ -2,11 +2,13 @@ import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, typeInto } from '../../testing/helpers';
 import { LifecycleService } from '../lifecycle/lifecycle.service';
 import { DIALOG_REF } from '../ui/dialog.service';
-import { EngineSettingsStore } from './engine-settings.store';
+import { AUTO_APPLY_MS, EngineSettingsStore } from './engine-settings.store';
 import { MockSettingsBackend } from './mock-settings-backend';
 import { SettingsBackend } from './settings-backend';
 import { SettingsFiles } from './settings-files';
 import { SettingsScreen } from './settings-screen';
+import { MockUpdatesBackend } from '../updates/mock-updates-backend';
+import { UpdatesBackend } from '../updates/updates-backend';
 import { at } from '../../testing/must';
 import { MockVideoBackend } from '../video/mock/mock-video-backend';
 import { VideoBackend } from '../video/video-backend';
@@ -21,6 +23,7 @@ async function setup(backend = new MockSettingsBackend(), withRef = true) {
       provideTinyBackend(),
       provideFakeDock(dock),
       { provide: SettingsBackend, useValue: backend },
+      { provide: UpdatesBackend, useValue: new MockUpdatesBackend('', 1) },
       { provide: SettingsFiles, useValue: files },
       { provide: VideoBackend, useFactory: () => new MockVideoBackend() },
       { provide: LifecycleService, useValue: { restartKeepingSession: restart } },
@@ -49,12 +52,29 @@ describe('SettingsScreen', () => {
     expect(text(fixture)).toContain('FFmpeg runtime');
   });
 
-  it('lists General, then the engine sections by group with their status', async () => {
+  it('groups the navigation: Application, Data, AI, Plugins, Diagnostics (I7)', async () => {
     const { fixture } = await setup();
     const groups = all(fixture, 'nav .group').map((g) => g.textContent?.trim());
-    expect(groups).toEqual(['Application', 'Diagnostics', 'Plugins', 'AI', 'Performance', 'Advanced']);
+    expect(groups).toEqual(['Application', 'Data', 'AI', 'Plugins', 'Diagnostics']);
     const items = all(fixture, 'nav .nav').map((b) => [...b.querySelectorAll('.name, .badge')].map((x) => x.textContent?.trim()).join(' ') || b.textContent?.trim());
-    expect(items).toEqual(['General', 'Appearance', 'Disk usage', 'Parsers', 'Video', 'Window & tray', 'Diagnostics', 'Plugins', 'Windows diagnostics', 'Example plugin disabled', 'AI assistant not installed', 'Performance', 'Symbols', 'Workspace']);
+    expect(items).toEqual([
+      'General',
+      'Appearance',
+      'Keyboard shortcuts',
+      'Window & tray',
+      'Updates',
+      'Disk usage',
+      'Performance',
+      'Symbols',
+      'Parsers',
+      'Video',
+      'Live tail',
+      'AI assistant not installed',
+      'Plugins',
+      'Windows diagnostics',
+      'Example plugin disabled',
+      'Diagnostics',
+    ]);
     expect(el(fixture, 'nav [aria-current=page]').textContent).toContain('General');
     expect(text(fixture)).toContain('Time zone');
     nav(fixture, 'Appearance').click();
@@ -87,7 +107,7 @@ describe('SettingsScreen', () => {
     expect(all(fixture, 'imt-setting-field')).toHaveLength(2);
     typeInto(el<HTMLInputElement>(fixture, 'input[type=search]'), 'liveTailDebounce');
     await settle(fixture);
-    expect(all(fixture, '.content h3').map((h) => h.textContent)).toEqual(['Workspace']);
+    expect(all(fixture, '.content h3').map((h) => h.textContent)).toEqual(['Live tail']);
     typeInto(el<HTMLInputElement>(fixture, 'input[type=search]'), 'zzz');
     await settle(fixture);
     expect(text(fixture)).toContain('No settings match “zzz”.');
@@ -101,7 +121,7 @@ describe('SettingsScreen', () => {
     await settle(fixture);
     el<HTMLButtonElement>(fixture, 'imt-setting-field button.reset').click();
     await settle(fixture);
-    expect(text(fixture)).not.toContain('Unapplied changes');
+    expect(text(fixture)).not.toContain('Not saved in');
   });
 
   it('searches the Parsers section and the parser library, and opens it from a hit', async () => {
@@ -120,38 +140,82 @@ describe('SettingsScreen', () => {
     await settle(fixture);
     expect(store.query()).toBe('');
     expect(el(fixture, 'nav [aria-current=page]').textContent).toContain('Parsers');
-    expect(el(fixture, 'imt-parsers-settings')).toBeTruthy();
+    // Settings keeps a link: the library itself is the Parsers view (I3).
+    expect(el(fixture, '[data-testid=settings-open-parsers-view]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('imt-parsers-settings')).toBeNull();
   });
 
-  it('applies through the engine and shows its validation errors inline', async () => {
+  it('opens the keyboard shortcut editor from its navigation entry', async () => {
+    const { fixture } = await setup();
+    nav(fixture, 'Keyboard shortcuts').click();
+    await settle(fixture);
+    expect(el(fixture, 'nav [aria-current=page]').textContent).toContain('Keyboard shortcuts');
+    expect(el(fixture, 'imt-keyboard-settings')).toBeTruthy();
+  });
+
+  it('applies a change by itself, shows the engine\'s errors inline and offers Undo (I1)', async () => {
     const { fixture, store } = await setup();
-    nav(fixture, 'Workspace').click();
+    // Fake timers only now: `settle` itself waits on setTimeout.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const settle = async (f: typeof fixture) => {
+      await vi.advanceTimersByTimeAsync(0);
+      TestBed.tick();
+      await f.whenStable();
+    };
+    try {
+      nav(fixture, 'Live tail').click();
+      await settle(fixture);
+      expect(all(fixture, 'button').some((b) => b.textContent?.trim() === 'Apply')).toBe(false);
+      typeInto(el<HTMLInputElement>(fixture, 'imt-setting-field input'), '5');
+      await vi.advanceTimersByTimeAsync(AUTO_APPLY_MS + 10);
+      await settle(fixture);
+      expect(el(fixture, 'imt-setting-field [role=alert]').textContent).toContain('Must be between 100 ms and 10 s.');
+      expect(el(fixture, 'nav [aria-label="unsaved changes"]')).toBeTruthy();
+      expect(text(fixture)).toContain('Not saved in 1 section');
+      typeInto(el<HTMLInputElement>(fixture, 'imt-setting-field input'), '900');
+      await settle(fixture);
+      expect(all(fixture, 'imt-setting-field [role=alert]')).toHaveLength(0);
+      await vi.advanceTimersByTimeAsync(AUTO_APPLY_MS + 10);
+      await settle(fixture);
+      expect(store.valueOf('workspace', 'liveTailDebounce')).toBe(900);
+      expect(el(fixture, '[data-testid=settings-notice]').textContent).toContain('Live tail delay saved.');
+      el<HTMLButtonElement>(fixture, '[data-testid=settings-undo]').click();
+      await settle(fixture);
+      expect(store.valueOf('workspace', 'liveTailDebounce')).toBe(750);
+      expect(text(fixture)).toContain('Live tail restored.');
+      expect(all(fixture, '[data-testid=settings-undo]')).toHaveLength(0);
+      buttonByText(fixture, 'Dismiss').click();
+      await settle(fixture);
+      expect(text(fixture)).not.toContain('restored');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('the Live tail page holds the engine delay and the watch, retention and detector options (I2)', async () => {
+    const { fixture } = await setup();
+    nav(fixture, 'Live tail').click();
     await settle(fixture);
-    const apply = buttonByText(fixture, 'Apply');
-    expect(apply.disabled).toBe(true);
-    typeInto(el<HTMLInputElement>(fixture, 'imt-setting-field input'), '5');
+    expect(el(fixture, 'imt-live-tail-settings')).toBeTruthy();
+    expect(text(fixture)).toContain('Live tail delay');
+    expect(text(fixture)).toContain('Poll every');
+    expect(text(fixture)).toContain('Run detectors every');
+  });
+
+  it('shows the Updates page with the app version and a check button (I5)', async () => {
+    const { fixture } = await setup();
+    nav(fixture, 'Updates').click();
     await settle(fixture);
-    expect(text(fixture)).toContain('Unapplied changes in 1 section');
-    expect(el(fixture, 'nav [aria-label="unapplied changes"]')).toBeTruthy();
-    apply.click();
-    await settle(fixture);
-    expect(el(fixture, 'imt-setting-field [role=alert]').textContent).toContain('Must be between 100 ms and 10 s.');
-    typeInto(el<HTMLInputElement>(fixture, 'imt-setting-field input'), '900');
-    await settle(fixture);
-    expect(all(fixture, 'imt-setting-field [role=alert]')).toHaveLength(0);
-    buttonByText(fixture, 'Apply').click();
-    await settle(fixture);
-    expect(text(fixture)).toContain('Settings applied.');
-    expect(store.valueOf('workspace', 'liveTailDebounce')).toBe(900);
-    buttonByText(fixture, 'Dismiss').click();
-    await settle(fixture);
-    expect(text(fixture)).not.toContain('Settings applied.');
+    expect(el(fixture, 'imt-updates-settings')).toBeTruthy();
+    expect(el(fixture, '[data-testid=updates-facts]').textContent).toContain('Schedule');
+    // AI runtime and model updates stay in the AI section; this page only says so.
+    expect(el(fixture, '[data-testid=updates-ai-note]').textContent).toContain('AI section');
   });
 
   it('shows section-level engine errors', async () => {
     const backend = new MockSettingsBackend();
     const { fixture, store } = await setup(backend);
-    nav(fixture, 'Workspace').click();
+    nav(fixture, 'Live tail').click();
     store.edit('workspace', 'liveTailDebounce', 900);
     vi.spyOn(backend, 'set').mockRejectedValueOnce('the plugin refused');
     await store.apply();
@@ -166,12 +230,12 @@ describe('SettingsScreen', () => {
     const size = at(all<HTMLInputElement>(fixture, 'imt-setting-field input[type=number]'), 0);
     typeInto(size, '20');
     await settle(fixture);
-    buttonByText(fixture, 'Apply').click();
+    await TestBed.inject(EngineSettingsStore).apply();
     await settle(fixture);
     const banner = el(fixture, '.banner.restart');
     expect(banner.getAttribute('role')).toBe('status');
     expect(banner.textContent).toContain('take effect after IMT restarts');
-    buttonByText(fixture, 'Restart').click();
+    buttonByText(fixture, 'Restart now').click();
     expect(restart).toHaveBeenCalled();
     buttonByText(fixture, 'Reset section').click();
     await settle(fixture);
@@ -204,17 +268,18 @@ describe('SettingsScreen', () => {
     expect(text(fixture)).toContain('This section has no settings.');
   });
 
-  it('guards unapplied changes on Cancel and Escape', async () => {
+  it('guards edits the engine refused on Close and Escape', async () => {
     const { fixture, closed, store } = await setup();
     // Nothing edited: Close closes, Escape is left to the dialog.
     expect(escape(fixture).defaultPrevented).toBe(false);
     buttonByText(fixture, 'Close').click();
     expect(closed).toHaveBeenCalledTimes(1);
-    store.edit('workspace', 'liveTailDebounce', 900);
+    store.edit('workspace', 'liveTailDebounce', 5);
+    await store.apply();
     await settle(fixture);
-    buttonByText(fixture, 'Cancel').click();
+    buttonByText(fixture, 'Close').click();
     await settle(fixture);
-    expect(el(fixture, '[role=alertdialog]').textContent).toContain('not applied');
+    expect(el(fixture, '[role=alertdialog]').textContent).toContain('not saved');
     buttonByText(fixture, 'Keep editing').click();
     await settle(fixture);
     expect(all(fixture, '[role=alertdialog]')).toHaveLength(0);
@@ -228,22 +293,22 @@ describe('SettingsScreen', () => {
 
   it('exports and imports through file dialogs', async () => {
     const { fixture, files, backend } = await setup();
-    buttonByText(fixture, 'Export…').click();
+    buttonByText(fixture, 'Export settings…').click();
     await settle(fixture);
     expect(backend.files.has('/out/settings.json')).toBe(true);
     expect(text(fixture)).toContain('Settings exported to /out/settings.json.');
-    buttonByText(fixture, 'Import…').click();
+    buttonByText(fixture, 'Import settings…').click();
     await settle(fixture);
     expect(text(fixture)).toContain('Imported');
     files.pickExport.mockResolvedValueOnce(null);
     files.pickImport.mockResolvedValueOnce(null);
     const calls = backend.calls.length;
-    buttonByText(fixture, 'Export…').click();
-    buttonByText(fixture, 'Import…').click();
+    buttonByText(fixture, 'Export settings…').click();
+    buttonByText(fixture, 'Import settings…').click();
     await settle(fixture);
     expect(backend.calls.length).toBe(calls);
     files.pickImport.mockResolvedValueOnce('/nope.json');
-    buttonByText(fixture, 'Import…').click();
+    buttonByText(fixture, 'Import settings…').click();
     await settle(fixture);
     expect(el(fixture, '.banner.err').textContent).toContain('no such file');
   });

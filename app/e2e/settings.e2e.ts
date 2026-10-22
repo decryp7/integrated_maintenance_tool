@@ -86,7 +86,7 @@ test('settings can reset the layout', async ({ page }) => {
   await expect(page.getByRole('tab', { name: 'Timeline', selected: true })).toBeVisible();
 });
 
-test('engine settings: shortcut, validation error, apply, reset and restart banner', async ({ page }, testInfo) => {
+test('engine settings: shortcut, validation error, automatic apply with Undo, reset and restart bar', async ({ page }, testInfo) => {
   const csp = watchCsp(page);
   await openApp(page);
   await openWithShortcut(page);
@@ -94,29 +94,33 @@ test('engine settings: shortcut, validation error, apply, reset and restart bann
 
   await sectionNav(page).getByRole('button', { name: 'Diagnostics', exact: true }).click();
   await expect(dialog.getByRole('heading', { name: 'Diagnostics' })).toBeVisible();
+  // There is no Apply button: changes apply by themselves.
+  await expect(dialog.getByRole('button', { name: 'Apply' })).toHaveCount(0);
   await expectNoSeriousViolations(page, testInfo, 'settings-diagnostics', '[role=dialog]');
 
   // An out-of-range value: the engine's message is shown inline and nothing is applied.
   const size = dialog.getByLabel('Log file size', { exact: true });
   await size.fill('500');
-  await dialog.getByRole('button', { name: 'Apply' }).click();
   await expect(dialog.getByText('Must be between 1 MB and 100 MB.')).toBeVisible();
   await expect(size).toHaveAttribute('aria-invalid', 'true');
+  await expect(dialog.getByText('Not saved in 1 section')).toBeVisible();
 
-  // A valid value applies; a restart-only setting raises the restart banner.
+  // A valid value applies by itself with Undo; a restart-only setting raises the restart bar.
   await size.fill('20');
   await expect(dialog.getByText('Must be between 1 MB and 100 MB.')).toHaveCount(0);
-  await dialog.getByRole('button', { name: 'Apply' }).click();
-  await expect(dialog.getByText('Settings applied.')).toBeVisible();
-  await expect(dialog.getByRole('status').filter({ hasText: 'take effect after IMT restarts' })).toBeVisible();
-  await expect(dialog.getByRole('button', { name: 'Restart' })).toBeVisible();
-  await expect(dialog.getByRole('button', { name: 'Apply' })).toBeDisabled();
+  await expect(dialog.getByTestId('settings-notice')).toContainText('Log file size saved.');
+  await expect(dialog.getByTestId('settings-restart-bar')).toContainText('after IMT restarts');
+  await expect(dialog.getByRole('button', { name: 'Restart now' })).toBeVisible();
 
-  // Reset one field to its default (an edit to apply), then the whole section.
+  // Undo puts the previous value back; Reset to default is an edit like any other; Reset section is immediate.
+  await dialog.getByTestId('settings-undo').click();
+  await expect(size).toHaveValue('10');
+  await size.fill('30');
+  await expect(dialog.getByTestId('settings-notice')).toContainText('saved');
   await dialog.getByRole('button', { name: 'Reset to default: Log file size' }).click();
   await expect(size).toHaveValue('10');
-  await expect(dialog.getByText('Unapplied changes in 1 section')).toBeVisible();
   await dialog.getByLabel('Log level', { exact: true }).selectOption('debug');
+  await expect(dialog.getByTestId('settings-notice')).toContainText('saved.');
   await dialog.getByRole('button', { name: 'Reset section' }).click();
   await expect(dialog.getByText('Diagnostics reset to defaults.')).toBeVisible();
   await expect(dialog.getByLabel('Log level', { exact: true })).toHaveValue('info');
@@ -129,7 +133,7 @@ test('engine settings: shortcut, validation error, apply, reset and restart bann
   expect(csp).toEqual([]);
 });
 
-test('engine settings: search, plugin sections and the unsaved-changes guard', async ({ page }, testInfo) => {
+test('engine settings: search, plugin sections and the guard for refused edits', async ({ page }, testInfo) => {
   await openApp(page);
   await openWithShortcut(page);
   const dialog = settingsDialog(page);
@@ -142,13 +146,11 @@ test('engine settings: search, plugin sections and the unsaved-changes guard', a
   await expect(dialog.getByLabel('Live tail delay', { exact: true })).toBeVisible();
   await dialog.getByRole('searchbox', { name: 'Search settings' }).fill('');
 
-  // A plugin's own section, edited in its unit (seconds), stored in milliseconds.
+  // A plugin's own section, edited in its unit (seconds), stored in milliseconds, applied by itself.
   await sectionNav(page).getByRole('button', { name: 'Windows diagnostics', exact: true }).click();
   await expect(dialog.getByText('5 s – 1 h')).toBeVisible();
   await dialog.getByLabel('relog timeout', { exact: true }).fill('300');
-  await expect(sectionNav(page).getByRole('img', { name: 'unapplied changes' })).toBeVisible();
-  await dialog.getByRole('button', { name: 'Apply' }).click();
-  await expect(dialog.getByText('Settings applied.')).toBeVisible();
+  await expect(dialog.getByTestId('settings-notice')).toContainText('saved');
   await expect(dialog.getByLabel('relog timeout', { exact: true })).toHaveValue('300');
 
   // A disabled plugin's section is shown read-only with a note; an absent module says so.
@@ -159,21 +161,22 @@ test('engine settings: search, plugin sections and the unsaved-changes guard', a
   await expect(dialog.getByRole('note')).toContainText('not installed');
   await expectNoSeriousViolations(page, testInfo, 'settings-plugins', '[role=dialog]');
 
-  // Unapplied edits are not lost by Escape: the screen asks first.
-  await sectionNav(page).getByRole('button', { name: 'Workspace', exact: true }).click();
-  await dialog.getByLabel('Live tail delay', { exact: true }).fill('900');
+  // Edits the engine refused are not lost by Escape: the screen asks first. Valid ones are already saved.
+  await sectionNav(page).getByRole('button', { name: 'Live tail', exact: true }).click();
+  await dialog.getByLabel('Live tail delay', { exact: true }).fill('5');
+  await expect(dialog.getByText('Must be between 100 ms and 10 s.')).toBeVisible();
   await dialog.getByLabel('Live tail delay', { exact: true }).press('Escape');
-  const guard = dialog.getByRole('alertdialog', { name: 'Unapplied changes' });
+  const guard = dialog.getByRole('alertdialog', { name: 'Unsaved changes' });
   await expect(guard).toBeVisible();
   await guard.getByRole('button', { name: 'Keep editing' }).click();
   await expect(settingsDialog(page)).toBeVisible();
-  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await dialog.getByRole('button', { name: 'Close' }).last().click();
   await guard.getByRole('button', { name: 'Discard changes' }).click();
   await expect(settingsDialog(page)).toHaveCount(0);
 
-  // Reopened: the discarded value is gone, the applied one stays.
+  // Reopened: the refused value is gone, the applied one stays.
   await openWithShortcut(page);
-  await sectionNav(page).getByRole('button', { name: 'Workspace', exact: true }).click();
+  await sectionNav(page).getByRole('button', { name: 'Live tail', exact: true }).click();
   await expect(dialog.getByLabel('Live tail delay', { exact: true })).toHaveValue('750');
 });
 
@@ -181,9 +184,9 @@ test('engine settings: export and import', async ({ page }) => {
   await openApp(page);
   await openWithShortcut(page);
   const dialog = settingsDialog(page);
-  await dialog.getByRole('button', { name: 'Export…' }).click();
+  await dialog.getByRole('button', { name: 'Export settings…' }).click();
   await expect(dialog.getByText(/Settings exported to/)).toBeVisible();
-  await dialog.getByRole('button', { name: 'Import…' }).click();
+  await dialog.getByRole('button', { name: 'Import settings…' }).click();
   await expect(dialog.getByText(/^Imported \d+ sections/)).toBeVisible();
 });
 

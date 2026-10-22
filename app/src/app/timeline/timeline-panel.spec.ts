@@ -16,6 +16,7 @@ import { momentAt, WIDTHS } from '../analysis/windows';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { ContextMenuService } from '../ui/context-menu.service';
 import { at } from '../../testing/must';
+import { LEGEND_COLLAPSED_GROUP } from './timeline-legend';
 
 const mk = (kind: string, left: number, count = 1, id = left): MarkerVm => ({
   cluster: { kind, bucket: Math.round(left), ts: left, id, count, message: '' },
@@ -528,6 +529,26 @@ describe('TimelinePanel annotations', () => {
     items.find((i) => i.label.startsWith('Unexpected shutdown'))!.run();
     await settle(fixture);
     expect(store.query().filters).toEqual([{ field: 'MachineName', op: 'eq', value: 'WEB01' }]);
+  });
+
+  it('keeps the whole legend on one row: annotation kinds beyond the first few wait behind one "+N more" (F7)', async () => {
+    const backend = tinyBackend();
+    const real = backend.annotations.bind(backend);
+    vi.spyOn(backend, 'annotations').mockImplementation(async (req) => {
+      const [first] = await real(req);
+      return Array.from({ length: 5 }, (_, i) => ({ ...first!, kind: `test/kind-${i}`, label: `K${i}`, from: first!.from + i, to: first!.from + i }));
+    });
+    const { fixture } = await render(backend);
+    const kinds = () => all(fixture, '.ann-legend .lg[data-kind]');
+    expect(el(fixture, '.legend-row').classList).toContain('collapsed');
+    expect(kinds()).toHaveLength(LEGEND_COLLAPSED_GROUP);
+    const more = el<HTMLButtonElement>(fixture, '[data-testid=legend-more]');
+    expect(more.textContent).toContain(`+${5 - LEGEND_COLLAPSED_GROUP}`);
+    more.click();
+    await settle(fixture);
+    expect(kinds()).toHaveLength(5);
+    expect(el(fixture, '.legend-row').classList).not.toContain('collapsed');
+    expect(more.textContent?.trim()).toBe('Show fewer');
   });
 
   it('caps the Evidence menu and says how many more are in view', async () => {

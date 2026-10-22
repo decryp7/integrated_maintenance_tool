@@ -35,6 +35,7 @@ export const ICON_PATHS: Readonly<Record<string, string>> = {
   sun: 'M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
   moon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
   check: 'M5 12.5l4.5 4.5L19 7',
+  home: 'M4 11l8-7l8 7M6 9.5V20h12V9.5',
   alert: 'M12 4l9 16H3zM12 10v4M12 17v.5',
   zoomOut: 'M10.5 4.5a6 6 0 1 0 0 12a6 6 0 1 0 0-12M15 15l5 5M8 10.5h5',
   drag: 'M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01',

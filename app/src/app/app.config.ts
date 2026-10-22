@@ -20,7 +20,7 @@ import { provideDumps } from './dumps/provide-dumps';
 import { provideVideo } from './video/provide-video';
 import { provideHelp } from './help/help.commands';
 import { provideUndo } from './undo/provide-undo';
-import { provideOverview } from './overview/overview.plugin';
+import { provideHome } from './home/home.plugin';
 import { provideOnboarding } from './onboarding/onboarding.plugin';
 import { provideDocking } from './dock/provide-docking';
 import { provideTimelines } from './timeline/provide-timelines';
@@ -36,6 +36,7 @@ import { provideNotifications } from './notifications/provide-notifications';
 import { provideNativeFeel } from './core/native-feel';
 import { provideWorkspace } from './core/workspace/provide-workspace';
 import { provideNotes } from './notes/provide-notes';
+import { provideSearchEverything } from './search-everything/provide-search-everything';
 import { provideProblems } from './problems/provide-problems';
 import { provideStorePane } from './store-pane/provide-store-pane';
 
@@ -65,7 +66,7 @@ export const appConfig: ApplicationConfig = {
     provideVideo(),
     provideHelp(),
     provideUndo(),
-    provideOverview(),
+    provideHome(),
     provideOnboarding(),
     provideDocking(),
     provideTimelines(),
@@ -79,6 +80,7 @@ export const appConfig: ApplicationConfig = {
     provideJobs(),
     provideNotifications(),
     provideNotes(),
+    provideSearchEverything(),
     provideProblems(),
     provideStorePane(),
   ],

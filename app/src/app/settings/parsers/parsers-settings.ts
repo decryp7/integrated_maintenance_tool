@@ -1,5 +1,5 @@
 import { CdkMenu, CdkMenuItem, CdkMenuTrigger } from '@angular/cdk/menu';
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit } from '@angular/core';
 import { ParserEntryDto, ParserErrorDto, ParserOrigin, SourceInfo } from '../../core/api.types';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { Switch } from '../../shared/switch';
@@ -27,7 +27,7 @@ const NAMES_SHOWN = 3;
       <button type="button" class="btn" data-testid="parsers-new-from-file" [disabled]="busy() || !sources().length" [cdkMenuTriggerFor]="fileMenu" i18n="@@settings.parsers.newFromFile">New from a file…</button>
       <button type="button" class="btn" data-testid="parsers-generate-ai" [disabled]="busy() || !sources().length" [cdkMenuTriggerFor]="aiMenu" i18n="@@settings.parsers.generateAi">Generate with AI…</button>
       <button type="button" class="btn" data-testid="parsers-import" [disabled]="busy()" (click)="store.importFromFile()" i18n="@@settings.parsers.import">Import .toml…</button>
-      <button type="button" class="btn" data-testid="parsers-new-blank" [disabled]="busy()" (click)="store.newBlank()" i18n="@@settings.parsers.newBlank">New blank</button>
+      <button type="button" class="btn" data-testid="parsers-new-blank" [disabled]="busy()" (click)="newBlank()" i18n="@@settings.parsers.newBlank">New blank</button>
     </div>
     <p class="desc" i18n="@@settings.parsers.desc">A parser describes one log format and is one TOML file you can share. For every file, IMT uses the enabled parser that reads it best; “Parse with…” in the Explorer chooses one yourself.</p>
 
@@ -70,7 +70,7 @@ const NAMES_SHOWN = 3;
             </div>
             <div class="actions">
               <imt-switch size="small" [checked]="p.enabled" [disabled]="busy()" (checkedChange)="store.setEnabled(p.id, $event)"><span class="sr-only">{{ enableLabel(p) }}</span><span aria-hidden="true" i18n="@@settings.parsers.enabled">Enabled</span></imt-switch>
-              <button type="button" class="btn ghost small" [disabled]="busy()" [attr.aria-label]="actionLabel(editText, p)" (click)="store.edit(p.id)">{{ editText }}</button>
+              <button type="button" class="btn ghost small" [disabled]="busy()" [attr.aria-label]="actionLabel(editText, p)" (click)="edit(p.id)">{{ editText }}</button>
               <button type="button" class="btn ghost small" [disabled]="busy()" [attr.aria-label]="actionLabel(duplicateText, p)" (click)="store.duplicate(p.id)">{{ duplicateText }}</button>
               <button type="button" class="btn ghost small" [disabled]="busy()" [attr.aria-label]="actionLabel(exportText, p)" (click)="store.exportParser(p.id)">{{ exportText }}</button>
               @if (p.origin !== 'builtin') {
@@ -113,6 +113,7 @@ const NAMES_SHOWN = 3;
   `,
   styles: `
     :host { display: block; }
+    :host-context(.parsers-view) .parser { flex-direction: column; align-items: stretch; }
     .section-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     h3 { margin: 0 0 4px; font-size: var(--fs-lg); font-weight: 600; }
     h4 { margin: 14px 0 4px; font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
@@ -148,6 +149,8 @@ const NAMES_SHOWN = 3;
   `,
 })
 export class ParsersSettings implements OnInit {
+  /** In the Parsers view: Edit and New blank fill the detail pane beside the list instead of opening a dialog. */
+  readonly inline = input(false);
   protected readonly store = inject(ParsersStore);
   private readonly workspace = inject(WorkspaceStore);
   private readonly dialogs = inject(DialogService);
@@ -159,6 +162,16 @@ export class ParsersSettings implements OnInit {
   protected readonly duplicateText = $localize`:@@settings.parsers.duplicate:Duplicate`;
   protected readonly exportText = $localize`:@@settings.parsers.export:Export…`;
   protected readonly removeText = $localize`:@@settings.parsers.remove:Remove`;
+
+  protected edit(id: string): void {
+    if (this.inline()) void this.store.openEditor(id);
+    else void this.store.edit(id);
+  }
+
+  protected newBlank(): void {
+    if (this.inline()) this.store.openNewEditor();
+    else void this.store.newBlank();
+  }
 
   ngOnInit(): void {
     void this.store.load();

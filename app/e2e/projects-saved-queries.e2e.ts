@@ -17,8 +17,8 @@ test.describe('saved queries and highlight rules', () => {
 
   test('highlight rules can be added and removed', async ({ page }) => {
     await openAppWith(page);
-    await openView(page, 'Saved queries');
-    const panel = page.locator('imt-saved-queries-view');
+    await openView(page, 'Markers');
+    const panel = page.locator('imt-markers-manager');
     await panel.getByLabel('Highlight field').fill('@level');
     await panel.getByLabel('Highlight condition').selectOption('eq');
     await panel.getByRole('textbox', { name: 'Highlight value' }).fill('Error');

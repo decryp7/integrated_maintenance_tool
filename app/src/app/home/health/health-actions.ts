@@ -1,15 +1,15 @@
 import { inject, Injectable } from '@angular/core';
-import { Finding } from '../core/api.types';
-import { AnalysisBackend } from '../core/analysis-backend';
-import { WorkspaceStore } from '../core/workspace.store';
-import { COMMAND_CONTEXT } from '../extensions/command-registry';
-import { FormatWizard } from '../format/format-wizard';
-import { DialogService } from '../ui/dialog.service';
-import { ActionId, panelTarget, zoomWindow } from './overview-model';
+import { Finding } from '../../core/api.types';
+import { AnalysisBackend } from '../../core/analysis-backend';
+import { WorkspaceStore } from '../../core/workspace.store';
+import { COMMAND_CONTEXT } from '../../extensions/command-registry';
+import { FormatWizard } from '../../format/format-wizard';
+import { DialogService } from '../../ui/dialog.service';
+import { ActionId, panelTarget, zoomWindow } from './health-model';
 
 /** Carries out a finding's action through the app's usual paths (query, command context, dialogs). */
 @Injectable({ providedIn: 'root' })
-export class OverviewActions {
+export class HealthActions {
   private readonly ctx = inject(COMMAND_CONTEXT);
   private readonly store = inject(WorkspaceStore);
   private readonly analysis = inject(AnalysisBackend);

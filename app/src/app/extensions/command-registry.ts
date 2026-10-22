@@ -1,10 +1,12 @@
-import { computed, inject, Injectable, InjectionToken } from '@angular/core';
+import { computed, inject, Injectable, InjectionToken, signal } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
 import { Logger } from '../core/logger';
 import { ActivityLog } from '../core/activity/activity-log';
 import { Trigger } from '../core/activity/types';
 import { fuzzyFilter } from './fuzzy';
 import { matchesKeybinding } from './keybinding';
+import { applyOverrides } from './keybinding-overrides';
+import { KeybindingOverridesStore } from './keybinding-overrides.store';
 import { CommandContext, flattenContributions, IMT_COMMANDS, ImtCommand } from './tokens';
 import { WorkspaceCommandContext } from './command-context';
 
@@ -22,6 +24,19 @@ export class CommandRegistry {
   private readonly logger = inject(Logger);
   private readonly context = inject(COMMAND_CONTEXT);
   private readonly activity = inject(ActivityLog);
+  private readonly overrides = inject(KeybindingOverridesStore);
+
+  /** Commands once each, with the user's key bindings applied (a cleared binding has no `keybinding`). */
+  private readonly effective = computed(() => {
+    const seen = new Set<string>();
+    return applyOverrides(
+      this.contributed.filter((c) => !seen.has(c.id) && !!seen.add(c.id)),
+      this.overrides.overrides(),
+    );
+  });
+
+  /** While true (the shortcut editor is recording a key) key presses run no command. */
+  readonly keysSuspended = signal(false);
 
   /** Commands whose `when` currently holds. Re-evaluated when the workspace changes. */
   readonly available = computed(() => {
@@ -29,9 +44,14 @@ export class CommandRegistry {
     return this.all().filter((c) => this.isAvailable(c));
   });
 
-  all(): ImtCommand[] {
-    const seen = new Set<string>();
-    return this.contributed.filter((c) => !seen.has(c.id) && !!seen.add(c.id));
+  /** Every command with its effective key binding. */
+  all(): readonly ImtCommand[] {
+    return this.effective();
+  }
+
+  /** The binding the command declares itself, ignoring the user's overrides. */
+  declaredKeybinding(id: string): string | undefined {
+    return this.contributed.find((c) => c.id === id)?.keybinding;
   }
 
   find(id: string): ImtCommand | undefined {
@@ -62,6 +82,7 @@ export class CommandRegistry {
 
   /** Runs the command bound to the key combination, if any. Returns true when one ran. */
   runForKey(e: KeyboardEvent): boolean {
+    if (this.keysSuspended()) return false;
     const command = this.available().find((c) => c.keybinding && matchesKeybinding(c.keybinding, e));
     if (!command) return false;
     e.preventDefault();

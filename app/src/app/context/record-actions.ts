@@ -32,6 +32,8 @@ export interface ActionTarget {
   selection?: MessageSelection | null;
   /** All records the user selected (grid multi-select), in order; the actions on several lines use them. Defaults to the record alone. */
   records?: readonly RecordView[];
+  /** Show Mask and Extract even without a selection, disabled with the reason (the inspector, where the message is). */
+  explainTextRules?: boolean;
 }
 
 const LABEL_MAX = 40;
@@ -104,6 +106,12 @@ export class RecordActions {
       items.push(
         { group: 'rules', label: $localize`:@@context.recordActions.menu.mask:Mask in message…`, run: () => this.mask(record, sel) },
         { group: 'rules', label: $localize`:@@context.recordActions.menu.extract:Extract value…`, run: () => this.extract(record, sel) },
+      );
+    } else if (target.explainTextRules) {
+      const hint = $localize`:Why Mask and Extract are unavailable@@context.recordActions.menu.selectFirst:Select text in the message first`;
+      items.push(
+        { group: 'rules', label: $localize`:@@context.recordActions.menu.mask:Mask in message…`, run: () => undefined, disabled: true, hint },
+        { group: 'rules', label: $localize`:@@context.recordActions.menu.extract:Extract value…`, run: () => undefined, disabled: true, hint },
       );
     }
     this.contributions.forEach((contribute, i) => items.push(...contribute(record, target).map((e) => ({ ...e, group: e.group ?? `contribution-${i}` }))));

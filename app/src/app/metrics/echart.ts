@@ -59,6 +59,8 @@ export class EChart {
   readonly brushed = output<[number, number]>();
   /** A right-click on a data point or the plot (the browser's own menu is suppressed); see `ChartPointMenu`. */
   readonly pointMenu = output<ChartPointMenu>();
+  /** A left click on the plot: the x-axis value under the pointer (epoch ms on time charts). */
+  readonly plotClick = output<number>();
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly init = inject(ECHARTS_INIT);
@@ -102,6 +104,13 @@ export class EChart {
         if (typeof at !== 'number' || !Number.isFinite(at)) return;
         z.event.preventDefault();
         this.pointMenu.emit({ x: z.event.clientX, y: z.event.clientY, at: Math.round(at), series: null, value: null });
+      });
+      chart.getZr().on('click', (e) => {
+        const z = e as unknown as ZrMenuEvent;
+        const pixel = [z.offsetX, z.offsetY];
+        if (!chart.containPixel({ gridIndex: 0 }, pixel)) return;
+        const at: unknown = (chart.convertFromPixel({ gridIndex: 0 }, pixel) as unknown as unknown[] | undefined)?.[0];
+        if (typeof at === 'number' && Number.isFinite(at)) this.plotClick.emit(Math.round(at));
       });
       const ro = new ResizeObserver(() => chart.resize());
       ro.observe(this.host.nativeElement);

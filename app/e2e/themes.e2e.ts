@@ -12,7 +12,7 @@ import { expectNoSeriousViolations, settleAnimations } from './axe';
  * platform yet the screenshot test is skipped; create them with `npx playwright test themes --project=chromium
  * --update-snapshots` and commit the PNGs from `e2e/themes.e2e.ts-snapshots/`.
  */
-const THEMES = ['calm', 'console', 'precision'] as const;
+const THEMES = ['calm', 'console', 'precision', 'contrast'] as const;
 const SCHEMES = ['light', 'dark'] as const;
 
 async function openThemed(page: Page, theme: string, scheme: 'light' | 'dark'): Promise<void> {

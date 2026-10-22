@@ -70,6 +70,12 @@ export const NotificationsStore = signalStore(
     });
     return {
       notices: filtered,
+      /** How many messages each source has (under the read filter), for the Source filter. */
+      sourceCounts: computed(() => {
+        const counts = new Map<NoticeSource, number>();
+        for (const n of all()) if (store.read() === 'all' || !n.read) counts.set(n.source, (counts.get(n.source) ?? 0) + 1);
+        return counts;
+      }),
       unread: computed(() => store.snapshot().unread + store.local().filter((l) => !l.notice.read).length),
       /** The filtered messages grouped by source, in the order sources first appear (newest first). */
       groups: computed(() => {

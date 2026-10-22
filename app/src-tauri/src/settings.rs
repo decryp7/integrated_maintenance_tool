@@ -1410,7 +1410,7 @@ pub(crate) mod tests {
         );
         let o = service.overview();
         assert_eq!(o.sections.iter().filter(|s| s.section.id == "workspace").count(), 1);
-        assert_eq!(view(&o, "workspace").section.title, "Workspace");
+        assert_eq!(view(&o, "workspace").section.title, "Live tail");
     }
 
     #[test]
