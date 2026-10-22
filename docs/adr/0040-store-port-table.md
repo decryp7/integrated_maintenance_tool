@@ -1,4 +1,4 @@
-# 0039. One port table for the store worker protocol
+# 0040. One port table for the store worker protocol
 
 Status: accepted (2026-10-22)
 
