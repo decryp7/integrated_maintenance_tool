@@ -109,9 +109,9 @@ test.describe('native feel', () => {
     await watch(page, ['keydown']);
     await page.locator('imt-status-bar').click();
     await page.keyboard.press('F5');
-    await page.keyboard.press('Control+r');
-    await page.keyboard.press('Control+p');
-    await page.keyboard.press('Control+Equal');
+    await page.keyboard.press('ControlOrMeta+r');
+    await page.keyboard.press('ControlOrMeta+p');
+    await page.keyboard.press('ControlOrMeta+Equal');
     await expect.poll(() => prevented(page, 'keydown')).toEqual([true, true, true, true]);
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => (window as unknown as { __marker?: number }).__marker)).toBe(42);

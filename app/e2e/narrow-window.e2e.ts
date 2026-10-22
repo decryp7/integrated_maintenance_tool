@@ -63,8 +63,9 @@ test.describe('narrow window', () => {
     const msg = page.locator('imt-events-grid [role=row].row').first().locator('.msg');
     await expect(msg).toBeVisible();
     expect((await msg.boundingBox())!.width).toBeGreaterThan(200);
-    const group = (await page.locator('.dv-groupview').filter({ has: page.getByRole('tab', { name: 'Events', exact: true }) }).boundingBox())!;
-    expect(group.x + group.width).toBeLessThanOrEqual(900 + 1);
+    // The dock re-lays out after the window's resize event, so the group's edge settles a moment later.
+    const eventsGroup = page.locator('.dv-groupview').filter({ has: page.getByRole('tab', { name: 'Events', exact: true }) });
+    await expect.poll(async () => { const g = (await eventsGroup.boundingBox())!; return g.x + g.width; }).toBeLessThanOrEqual(900 + 1);
   });
 
   test('600 px: still usable, no sideways scroll, accessible', async ({ page }, testInfo) => {
@@ -82,8 +83,9 @@ test.describe('narrow window', () => {
   for (const width of [1024, 900, 600]) {
     test(`the filter bar's buttons stay inside a ${width} px window`, async ({ page }) => {
       await resize(page, width);
-      const right = await page.getByRole('button', { name: 'View options' }).evaluate((el) => el.getBoundingClientRect().right);
-      expect(right).toBeLessThanOrEqual(width);
+      // The bar folds after the window's resize event: wait for it to settle.
+      const options = page.getByRole('button', { name: 'View options' });
+      await expect.poll(() => options.evaluate((el) => el.getBoundingClientRect().right)).toBeLessThanOrEqual(width);
     });
   }
 
