@@ -432,7 +432,7 @@ describe('NotesPanel drop (drag and drop between views)', () => {
     const f = TestBed.createComponent(NotesPanel);
     await settle(f);
     const host = f.nativeElement as HTMLElement;
-    const over = dragEvent('dragover', { 'text/plain': 'hi' });
+    const over = dragEvent('dragover', { 'application/x-other': 'hi' });
     host.dispatchEvent(over);
     expect(over.defaultPrevented).toBe(false);
     const drop = dragEvent('drop', { 'application/x-imt-event': '{"id":"x"}' });
