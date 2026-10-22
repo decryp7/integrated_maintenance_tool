@@ -531,3 +531,16 @@ textarea.input {
 .imt-tab-close { width: 16px; height: 16px; line-height: 15px; text-align: center; border-radius: 4px; font-size: var(--fs-lg); color: var(--faint); visibility: hidden; }
 .dv-tab:hover .imt-tab-close, .dv-tab.dv-active-tab .imt-tab-close, .dv-tab:focus-visible .imt-tab-close { visibility: visible; }
 .imt-tab-close:hover { background: var(--bg-hover); color: var(--text); }
+
+/* The main window's toasts (errors, notices, live alerts, error snapshots), one above the other (ui/toast-stack.ts). */
+.imt-toast-stack { position: fixed; right: 16px; bottom: 32px; z-index: 2000; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; max-height: calc(100vh - 96px); pointer-events: none; }
+.imt-toast-stack > * { pointer-events: auto; }
+.imt-toast-stack:empty { display: none; }
+.imt-toast-overflow { display: none !important; }
+
+/* A region focused with F6 (shell/regions.ts) shows where the keyboard is. */
+[data-imt-region]:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+
+/* The selected segment of a segmented control (Light / Dark, Compact / Comfortable…) is filled, not just outlined. */
+.seg > .btn[aria-pressed='true'],
+.seg > .btn[aria-checked='true'] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }

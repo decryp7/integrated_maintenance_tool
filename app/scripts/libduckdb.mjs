@@ -27,6 +27,21 @@ export function assetFor(pins, platform, arch) {
   return pin;
 }
 
+/** Downloads `url` (body included: a connection can drop mid-body), retrying network errors and HTTP 5xx with backoff. */
+async function download(url, init, tries = 4) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const res = await fetch(url, init);
+      if (res.status >= 500 && attempt < tries) throw new Error(`HTTP ${res.status}`);
+      return { res, bytes: res.ok ? Buffer.from(await res.arrayBuffer()) : null };
+    } catch (e) {
+      if (attempt >= tries) throw e;
+      console.error(`download of ${url} failed (${e.message ?? e}); retrying (${attempt}/${tries - 1})`);
+      await new Promise((r) => setTimeout(r, 2_000 * attempt));
+    }
+  }
+}
+
 /**
  * The library folders for the build (`DUCKDB_LIB_DIR`, `DUCKDB_INCLUDE_DIR`), fetching and verifying the pinned
  * archive into `cacheDir` first when it is not there yet.
@@ -38,9 +53,8 @@ export async function fetchLibduckdb(scriptPath, cacheDir, platform = process.pl
   if (!existsSync(join(dir, '.verified'))) {
     const url = `https://github.com/duckdb/duckdb/releases/download/v${pins.version}/${asset}`;
     console.error(`fetching ${url}`);
-    const res = await fetch(url, { redirect: 'follow' });
+    const { res, bytes } = await download(url, { redirect: 'follow' });
     if (!res.ok) throw new Error(`downloading ${asset} failed: HTTP ${res.status}`);
-    const bytes = Buffer.from(await res.arrayBuffer());
     const got = createHash('sha256').update(bytes).digest('hex');
     if (got !== sha) throw new Error(`SHA-256 mismatch for ${asset}: expected ${sha}, got ${got}`);
     mkdirSync(join(cacheDir, pins.version), { recursive: true });

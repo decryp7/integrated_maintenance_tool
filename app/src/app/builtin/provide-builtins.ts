@@ -5,6 +5,8 @@ import { EVENT_ID_FORMATTER } from '../extensions/field-formatters';
 import { builtinActivityItems } from './builtin-activity';
 import { BuiltinCommands } from './builtin-commands';
 import { BUILTIN_VIEWS } from './builtin-views';
+import { RegionNavigator } from '../shell/regions';
+import { EditCommands } from '../shell/edit-commands';
 
 /** Registers the built-in views, commands and formatters through the same extension points plugins use. */
 /** `views` can be replaced in tests (e.g. to stub heavy panels). */
@@ -12,6 +14,8 @@ export function provideImtBuiltins(views: readonly ImtView[] = BUILTIN_VIEWS): E
   return makeEnvironmentProviders([
     { provide: IMT_VIEWS, multi: true, useValue: views },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(BuiltinCommands).commands },
+    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(RegionNavigator).commands },
+    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(EditCommands).commands },
     { provide: IMT_FIELD_FORMATTERS, multi: true, useValue: [EVENT_ID_FORMATTER] },
     { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: () => builtinActivityItems(inject(WorkspaceStore)) },
   ]);

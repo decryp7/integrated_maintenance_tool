@@ -37,6 +37,17 @@ export class QuerySession {
   readonly completions = signal<Completion[]>([]);
   readonly running = signal(false);
   readonly table = signal<TableResult | null>(null);
+  /** The query text that produced `table` (trimmed). */
+  readonly tableText = signal<string | null>(null);
+  /**
+   * Why the shown table no longer answers the text in the bar: `error` when the text has a syntax error or the
+   * last run failed, `edited` when the text changed since; null when the table is current (or there is none).
+   */
+  readonly tableStale = computed<'error' | 'edited' | null>(() => {
+    if (!this.table()) return null;
+    if (this.error() || this.runError()) return 'error';
+    return this.text().trim() === this.tableText() ? null : 'edited';
+  });
   /** Number of events matched by the last event-returning run. */
   readonly matched = signal<number | null>(null);
   /** Progress of the run in flight, as the engine reports it. */
@@ -136,6 +147,7 @@ export class QuerySession {
       this.history.add(text);
       if (outcome.result.kind === 'table') {
         this.table.set(outcome.result);
+        this.tableText.set(text.trim());
         this.matched.set(null);
         this.actions.showView('query-results');
         return 'table';

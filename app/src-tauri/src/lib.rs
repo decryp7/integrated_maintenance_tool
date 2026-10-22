@@ -71,6 +71,7 @@ mod skew_commands;
 mod smart_search;
 mod snapshots;
 mod storage;
+mod store_pane;
 mod sync;
 mod system;
 mod tools;
@@ -146,6 +147,15 @@ command_table! {
     Query [WINDOW] => workspace_commands::import_problems,
     Query [WINDOW] limit MIB => workspace_commands::evaluate_fix,
     Query [WINDOW] => workspace_commands::index_status,
+    Query [WINDOW] => store_pane::store_overview,
+    Query [WINDOW] => store_pane::store_segments,
+    Query [WINDOW] => store_pane::store_fields,
+    Query [WINDOW] => store_pane::store_index,
+    Query [WINDOW] => store_pane::store_memory,
+    Mutation [WINDOW] => store_pane::store_maintenance,
+    Query [WINDOW] => store_pane::sql_schema,
+    Query [WINDOW] => store_pane::sql_run,
+    Query [WINDOW] => store_pane::sql_page,
     Mutation [WINDOW] limit 16 * MIB => workspace_commands::save_project,
     Mutation [WINDOW] => workspace_commands::open_project,
     Query [WINDOW] => live::tail_status,

@@ -20,7 +20,7 @@ test.describe('undo and redo', () => {
   test.beforeEach(async ({ page }) => openApp(page));
 
   test('a filter change: keyboard and Edit menu, with the label of the edit', async ({ page }, testInfo) => {
-    const levels = page.getByRole('group', { name: 'Levels' });
+    const levels = page.getByRole('toolbar', { name: 'Levels' });
     const err = levels.getByRole('button', { name: /^ERR/ });
     const all = await initialTotal(page);
     const errors = parseCount(await err.locator('.faint').innerText());
@@ -54,7 +54,7 @@ test.describe('undo and redo', () => {
     const search = page.getByRole('textbox', { name: 'Search messages and exceptions' });
     await search.pressSequentially('timed out', { delay: 20 });
     await expect(gridTotal(page)).not.toHaveText(all);
-    await page.getByRole('group', { name: 'Levels' }).getByRole('button', { name: /^ERR/ }).focus();
+    await page.getByRole('toolbar', { name: 'Levels' }).getByRole('button', { name: /^ERR/ }).focus();
     await page.keyboard.press('ControlOrMeta+z');
     await expect(search).toHaveValue('');
     await expect(gridTotal(page)).toHaveText(all);

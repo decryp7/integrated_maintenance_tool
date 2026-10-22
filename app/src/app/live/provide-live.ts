@@ -1,10 +1,11 @@
-import { ApplicationRef, createComponent, effect, EnvironmentInjector, EnvironmentProviders, inject, Injectable, makeEnvironmentProviders, provideAppInitializer, untracked } from '@angular/core';
+import { ApplicationRef, effect, EnvironmentInjector, EnvironmentProviders, inject, Injectable, makeEnvironmentProviders, provideAppInitializer, untracked } from '@angular/core';
 import { DockService } from '../dock/dock.service';
 import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS } from '../lifecycle/ui-state';
 import { DialogService } from '../ui/dialog.service';
 import { LiveTail } from '../workspace/live-tail';
 import { AlertToasts } from './alert-toasts';
+import { mountInToastStack } from '../ui/toast-stack';
 import { AlertsStore } from './alerts.store';
 import { LiveAlerts } from './live-alerts';
 import { LiveAutoOpen } from './live-auto-open';
@@ -75,10 +76,7 @@ export class LiveCommands {
 /** Mounts the alert toasts, starts listening to alerts and refreshing on changes, and keeps the alerts tab count. */
 export function startLive(): void {
   const injector = inject(EnvironmentInjector);
-  const host = document.createElement('imt-alert-toasts');
-  document.body.append(host);
-  const ref = createComponent(AlertToasts, { environmentInjector: injector, hostElement: host });
-  inject(ApplicationRef).attachView(ref.hostView);
+  mountInToastStack(AlertToasts, 'imt-alert-toasts', injector, inject(ApplicationRef));
   inject(LiveFeed);
   inject(LiveAutoOpen);
   inject(LiveFollow);

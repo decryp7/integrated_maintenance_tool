@@ -5,6 +5,8 @@
 - Amends: [ADR 0010](0010-persistent-store.md) (DuckDB stays the engine, Tantivy the full-text index, a worker
   process hosts both; the in-memory `Workspace` is no longer kept as the default for normal sizes)
 - Related: ADR 0002 (worker processes), ADR 0004 (plugins), ADR 0012 (jobs)
+- Amended by [ADR 0030](0030-store-pane-and-sql-console.md) (the `Inspect`, `Maintain` and `Console` ports, their
+  worker operations, and the sandboxed console database with its stable views)
 - Extended by the 2026-10 redesign plan, phase R2 (stable ids, one row
   interface, one predicate language, file plans for chunking, classified profile changes)
 

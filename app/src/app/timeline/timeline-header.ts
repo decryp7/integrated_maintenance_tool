@@ -14,6 +14,8 @@ import { TIMELINE_SOURCE } from './timeline-source';
 import { TimelineViews } from './timeline-views';
 import { RangeZoom } from './zoom';
 import { OverviewHeadline } from '../overview/overview-headline';
+import { HelpHint } from '../ui/help-hint';
+import { isMac } from '../extensions/keybinding';
 
 /**
  * The timeline's title bar (title and rename, hint, loading, live window, zoom history, menu) and, for an additional
@@ -22,7 +24,7 @@ import { OverviewHeadline } from '../overview/overview-headline';
 @Component({
   selector: 'imt-timeline-header',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Switch, AutoFocus, LiveWindowControls, OverviewHeadline],
+  imports: [Icon, Switch, AutoFocus, LiveWindowControls, OverviewHeadline, HelpHint],
   host: { style: 'display: contents' },
   template: `
     <div class="head">
@@ -37,6 +39,10 @@ import { OverviewHeadline } from '../overview/overview-headline';
         <imt-overview-headline />
       }
       <span class="faint hint">{{ hint() }}</span>
+      @if (hint()) {
+        <!-- How to zoom and pan, behind a (?) rather than always on the title row. -->
+        <imt-help class="hint-help" label="Zoom and pan" i18n-label="@@timeline.hint.helpLabel" [text]="gestures" />
+      }
       @if (src.loading()) { <span class="spinner" role="status" aria-label="Loading" i18n-aria-label="@@timeline.panel.loading"></span> }
       <span class="spacer"></span>
       @if (src.main) { <imt-live-window-controls /> }
@@ -90,6 +96,7 @@ import { OverviewHeadline } from '../overview/overview-headline';
   `,
   styles: `
     .head { height: 32px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 14px; }
+    .hint-help { flex: none; margin-left: -8px; }
     .hint { min-width: 0; font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .section-title { white-space: nowrap; }
     .title-input { width: 200px; height: 24px; padding: 0 6px; }
@@ -129,14 +136,16 @@ export class TimelineHeader {
     const bucket = formatDuration(t.bucketMs ?? 0);
     return this.src.main
       ? plural(n, {
-          one: $localize`:@@timeline.hint.instances.one:${n}:count: instance · bucket ${bucket}:bucket: · drag to zoom · ⌘/Ctrl+wheel zoom · Shift+wheel or Space+drag pan`,
-          other: $localize`:@@timeline.hint.instances.other:${n}:count: instances · bucket ${bucket}:bucket: · drag to zoom · ⌘/Ctrl+wheel zoom · Shift+wheel or Space+drag pan`,
+          one: $localize`:@@timeline.hint.instancesShort.one:${n}:count: instance · bucket ${bucket}:bucket:`,
+          other: $localize`:@@timeline.hint.instancesShort.other:${n}:count: instances · bucket ${bucket}:bucket:`,
         })
       : plural(n, {
-          one: $localize`:@@timeline.hint.lanes.one:${n}:count: lane · bucket ${bucket}:bucket: · drag to zoom · ⌘/Ctrl+wheel zoom · Shift+wheel or Space+drag pan`,
-          other: $localize`:@@timeline.hint.lanes.other:${n}:count: lanes · bucket ${bucket}:bucket: · drag to zoom · ⌘/Ctrl+wheel zoom · Shift+wheel or Space+drag pan`,
+          one: $localize`:@@timeline.hint.lanesShort.one:${n}:count: lane · bucket ${bucket}:bucket:`,
+          other: $localize`:@@timeline.hint.lanesShort.other:${n}:count: lanes · bucket ${bucket}:bucket:`,
         });
   });
+  /** The zoom and pan gestures, with this platform's modifier key. */
+  protected readonly gestures = $localize`:@@timeline.hint.gestures:Drag across the lanes to zoom into a range. ${isMac() ? '⌘' : 'Ctrl'}:mod:+wheel zooms; Shift+wheel or Space+drag pans; double-click fits all.`;
 
   protected valueOf(e: Event): string {
     return (e.target as HTMLInputElement | HTMLSelectElement).value;

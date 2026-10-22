@@ -6,6 +6,10 @@ export interface MenuEntry {
   disabled?: boolean;
   /** Shown under the label (typically why a disabled item is unavailable). */
   hint?: string;
+  /** Entries of one group sit together; a separator is drawn where the group changes. */
+  group?: string;
+  /** A key binding ("Mod+C") shown right-aligned, in this platform's notation. */
+  shortcut?: string;
 }
 
 export interface OpenMenu {

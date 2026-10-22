@@ -52,7 +52,7 @@ function pagedBackend(failChildOnce = false): { backend: ProfilingBackend; calls
 describe('Call tree view', () => {
   it('shows the no-capture state', async () => {
     const { fixture } = await mount(CallTreeView, {}, false);
-    expect(text(fixture)).toContain('Open a profile to see its call tree.');
+    expect(text(fixture)).toContain('Open a performance capture to see its call tree.');
   });
 
   it('renders a treegrid with ARIA levels, positions and expansion state', async () => {

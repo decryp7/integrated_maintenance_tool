@@ -68,6 +68,35 @@ describe('ProjectService', () => {
     expect(document.title).toBe('● Untitled — IMT');
   });
 
+  it('shows no unsaved dot when an untitled project has nothing open, e.g. after Close workspace (E2)', async () => {
+    const { projects, store, picker } = await setup();
+    store.patchQuery({ text: 'x' }); store.setTextInput('x');
+    expect(projects.dirty()).toBe(true);
+    await store.clearWorkspace();
+    expect(store.summary()?.sources).toEqual([]);
+    expect(projects.dirty()).toBe(false);
+    expect(projects.title()).toBe('Untitled — IMT');
+    // A saved project that was emptied still has unsaved changes.
+    picker.save = '/p/empty.imtz';
+    await store.openPaths(['/demo/extra']);
+    await projects.saveAs();
+    await store.clearWorkspace();
+    expect(projects.dirty()).toBe(true);
+  });
+
+  it('does not count smart search switching how the text matches as an unsaved change', async () => {
+    const { projects, store } = await setup();
+    store.setTextInput('timed out');
+    await projects.saveAs();
+    expect(projects.dirty()).toBe(false);
+    // The debounce applies the text as a word search; the background scan may then add partial matches.
+    store.patchQuery({ text: 'timed out', textMode: 'words' });
+    store.patchQuery({ textMode: 'wordsOrSubstring' });
+    expect(projects.dirty()).toBe(false);
+    store.setTextInput('timed');
+    expect(projects.dirty()).toBe(true);
+  });
+
   it('ignores selection and layout changes for the unsaved flag, but not sources', async () => {
     const { projects, store } = await setup();
     store.jumpTo(1);

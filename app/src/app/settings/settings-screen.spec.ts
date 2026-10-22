@@ -42,7 +42,7 @@ describe('SettingsScreen', () => {
     const groups = all(fixture, 'nav .group').map((g) => g.textContent?.trim());
     expect(groups).toEqual(['Application', 'Diagnostics', 'Plugins', 'AI', 'Advanced']);
     const items = all(fixture, 'nav .nav').map((b) => [...b.querySelectorAll('.name, .badge')].map((x) => x.textContent?.trim()).join(' ') || b.textContent?.trim());
-    expect(items).toEqual(['General', 'Appearance', 'Storage', 'Parsers', 'Window & tray', 'Diagnostics', 'Plugins', 'Windows diagnostics', 'Example plugin disabled', 'AI assistant not installed', 'Workspace']);
+    expect(items).toEqual(['General', 'Appearance', 'Disk usage', 'Parsers', 'Window & tray', 'Diagnostics', 'Plugins', 'Windows diagnostics', 'Example plugin disabled', 'AI assistant not installed', 'Workspace']);
     expect(el(fixture, 'nav [aria-current=page]').textContent).toContain('General');
     expect(text(fixture)).toContain('Time zone');
     nav(fixture, 'Appearance').click();

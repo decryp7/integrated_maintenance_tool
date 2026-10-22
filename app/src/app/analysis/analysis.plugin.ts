@@ -28,7 +28,7 @@ export const ANALYSIS_VIEWS: ImtView[] = [
   { id: 'anomalies', category: 'Analysis', title: $localize`:@@analysis.plugin.view.anomalies:Anomalies`, icon: 'alert', defaultPosition: 'bottom', component: () => import('./anomalies-view').then((m) => m.AnomaliesView) },
   { id: 'patterns', category: 'Analysis', title: $localize`:@@analysis.plugin.view.patterns:Patterns`, icon: 'group', defaultPosition: 'bottom', component: () => import('./patterns-view').then((m) => m.PatternsView) },
   { id: 'exceptions', category: 'Analysis', title: $localize`:@@analysis.plugin.view.exceptions:Exceptions`, icon: 'alert', defaultPosition: 'bottom', component: () => import('./exceptions-view').then((m) => m.ExceptionsView) },
-  { id: 'compare', category: 'Analysis', title: $localize`:@@analysis.plugin.view.compare:Compare`, icon: 'columns', defaultPosition: 'center', component: () => import('./compare-view').then((m) => m.CompareView) },
+  { id: 'compare', category: 'Analysis', title: $localize`:@@analysis.plugin.view.compare:Compare time ranges`, icon: 'columns', defaultPosition: 'center', component: () => import('./compare-view').then((m) => m.CompareView) },
   { id: 'field-stats', category: 'Analysis', title: $localize`:@@analysis.plugin.view.fieldStatistics:Field statistics`, icon: 'chart', defaultPosition: 'center', component: () => import('./field-stats-view').then((m) => m.FieldStatsView) },
   { id: 'traces', category: 'Analysis', title: $localize`:@@analysis.plugin.view.traces:Traces`, icon: 'timeline', defaultPosition: 'center', component: () => import('./traces-view').then((m) => m.TracesView) },
 ];

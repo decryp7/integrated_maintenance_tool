@@ -2,7 +2,7 @@ import { computed, inject, Injectable } from '@angular/core';
 import { Logger } from '../core/logger';
 import { DockService } from '../dock/dock.service';
 import { COMMAND_CONTEXT, CommandRegistry } from './command-registry';
-import { CommandContext, flattenContributions, IMT_ACTIVITY_ITEMS, ImtActivityItem, ImtActivityMenuItem, ImtActivityTarget, ViewCategory } from './tokens';
+import { CommandContext, flattenContributions, IMT_ACTIVITY_ITEMS, ImtActivityItem, ImtActivityMenuItem, ImtActivityTarget, VIEW_OPEN_PREFIX, ViewCategory } from './tokens';
 import { ViewRegistry } from './view-registry';
 import { WelcomeService } from '../welcome/welcome';
 
@@ -95,11 +95,11 @@ export class ActivityItems {
     return typeof reason === 'string' && reason ? reason : null;
   }
 
-  /** The key binding (command syntax or display text): its own, else its command's, else its view's toggle command's. */
+  /** The key binding (command syntax or display text): its own, else its command's, else its view's "Open <view>" command's. */
   keybinding(item: ImtActivityItem | ImtActivityMenuItem): string | null {
     if (item.keybinding) return item.keybinding;
     const run = item.run;
-    if (isTarget(run)) return this.commands.find('command' in run ? run.command : `view.toggle.${run.view}`)?.keybinding ?? null;
+    if (isTarget(run)) return this.commands.find('command' in run ? run.command : `${VIEW_OPEN_PREFIX}${run.view}`)?.keybinding ?? null;
     return null;
   }
 

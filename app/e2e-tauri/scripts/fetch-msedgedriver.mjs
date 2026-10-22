@@ -72,9 +72,24 @@ if (existsSync(exe) && existsSync(stamp) && readFileSync(stamp, 'utf8').trim() =
   process.exit(0);
 }
 
+/** Downloads `url` (body included: a connection can drop mid-body), retrying network errors and HTTP 5xx with backoff. */
+async function download(url, init, tries = 4) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const res = await fetch(url, init);
+      if (res.status >= 500 && attempt < tries) throw new Error(`HTTP ${res.status}`);
+      return { res, bytes: res.ok ? Buffer.from(await res.arrayBuffer()) : null };
+    } catch (e) {
+      if (attempt >= tries) throw e;
+      console.error(`download of ${url} failed (${e.message ?? e}); retrying (${attempt}/${tries - 1})`);
+      await new Promise((r) => setTimeout(r, 2_000 * attempt));
+    }
+  }
+}
+
 const url = `https://msedgedriver.microsoft.com/${version}/edgedriver_win64.zip`;
 console.log(`Downloading ${url}`);
-const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
+const { res, bytes } = await download(url, { signal: AbortSignal.timeout(120_000) });
 if (!res.ok) {
   console.error(
     `Download failed: HTTP ${res.status}. Is there a driver for WebView2 ${version}? See https://developer.microsoft.com/microsoft-edge/tools/webdriver/`,
@@ -85,7 +100,7 @@ if (!res.ok) {
 const work = mkdtempSync(join(tmpdir(), 'imt-msedgedriver-'));
 try {
   const zip = join(work, 'edgedriver.zip');
-  writeFileSync(zip, Buffer.from(await res.arrayBuffer()));
+  writeFileSync(zip, bytes);
   const unpacked = join(work, 'x');
   mkdirSync(unpacked);
   // Windows' own bsdtar (System32), which reads zips: a GNU tar earlier on PATH (Git for Windows) cannot, and

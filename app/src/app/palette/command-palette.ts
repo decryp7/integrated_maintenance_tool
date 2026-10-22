@@ -1,10 +1,11 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, Injector, signal, untracked, viewChild } from '@angular/core';
 import { CommandRegistry } from '../extensions/command-registry';
 import { DockService } from '../dock/dock.service';
-import { fuzzyFilter } from '../extensions/fuzzy';
+import { PaletteEntry, plainEntry, rankCommands, TitlePart, titleParts } from './palette-match';
+import { COMMON_COMMANDS, PaletteRecent } from './palette-recent';
 import { ViewRegistry } from '../extensions/view-registry';
 import { formatKeybinding } from '../extensions/keybinding';
-import { ImtCommand } from '../extensions/tokens';
+import { ImtCommand, VIEW_OPEN_PREFIX } from '../extensions/tokens';
 import { PaletteService } from './palette.service';
 import { didYouMean } from './did-you-mean';
 import { ActiveDescendantNavigation } from '../shared/list-navigation';
@@ -39,7 +40,7 @@ let nextId = 0;
           @if (suggesting()) {
             <li class="none" role="presentation" data-testid="palette-did-you-mean" i18n="@@palette.didYouMean">No commands match “{{ query() //i18n(ph="query") }}”. Did you mean:</li>
           }
-          @for (c of options(); track c.id; let i = $index) {
+          @for (e of options(); track e.command.id; let i = $index) {
             <li
               role="option"
               class="opt"
@@ -47,11 +48,11 @@ let nextId = 0;
               [class.active]="i === index()"
               [attr.aria-selected]="i === index()"
               (mousemove)="nav.setActive(i)"
-              (click)="run(c)"
+              (click)="run(e.command)"
             >
-              @if (c.category) { <span class="cat">{{ c.category }}</span> }
-              <span class="title">{{ c.title }}</span>
-              @if (c.keybinding) { <kbd class="kbd">{{ hint(c) }}</kbd> }
+              @if (e.showCategory) { <span class="cat">{{ e.command.category }}</span> }
+              <span class="title">@for (p of parts(e); track $index) {@if (p.mark) {<mark>{{ p.text }}</mark>} @else {{{ p.text }}}}</span>
+              @if (e.command.keybinding) { <kbd class="kbd">{{ hint(e.command) }}</kbd> }
             </li>
           } @empty {
             <li class="none" role="presentation">{{ emptyLabel() }}</li>
@@ -69,6 +70,7 @@ let nextId = 0;
     .opt.active { background: var(--bg-active); color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
     .cat { color: var(--muted); font-size: var(--fs-sm); }
     .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .title mark { background: none; color: var(--accent-text); font-weight: 600; }
     .kbd { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--muted); }
     .none { padding: 10px; color: var(--muted); }
   `,
@@ -77,6 +79,7 @@ export class CommandPalette {
   protected readonly palette = inject(PaletteService);
   private readonly registry = inject(CommandRegistry);
   private readonly viewRegistry = inject(ViewRegistry);
+  private readonly recent = inject(PaletteRecent);
   private readonly injector = inject(Injector);
   private readonly input = viewChild<ElementRef<HTMLInputElement>>('input');
 
@@ -87,12 +90,23 @@ export class CommandPalette {
   private readonly viewEntries = computed<ImtCommand[]>(() =>
     this.viewRegistry.available().map((v) => ({ id: `view:${v.id}`, title: v.title, category: v.category === 'core' ? $localize`:@@palette.category.view:View` : (v.category ?? $localize`:@@palette.category.plugins:Plugins`), run: () => this.injector.get(DockService).show(v.id) })),
   );
-  protected readonly results = computed(() =>
-    this.views() ? fuzzyFilter(this.viewEntries(), this.query(), (c) => `${c.category}: ${c.title}`) : this.registry.search(this.query()),
-  );
+  /**
+   * The palette's list: one entry per view (the generated "Open <view>" is left out when the view has its own command,
+   * such as "Show anomalies"), ranked by {@link rankCommands}; empty, it starts with the recently run and the common
+   * commands.
+   */
+  protected readonly results = computed<PaletteEntry[]>(() => {
+    if (this.views()) return rankCommands(this.viewEntries(), this.query());
+    const commands = this.registry.available();
+    const own = new Set(commands.filter((c) => c.view && !c.id.startsWith(VIEW_OPEN_PREFIX)).map((c) => c.view));
+    const listed = commands.filter((c) => !c.id.startsWith(VIEW_OPEN_PREFIX) || !own.has(c.view));
+    return rankCommands(listed, this.query(), this.recent.ids(), COMMON_COMMANDS);
+  });
   /** Typo-tolerant suggestions, only when nothing matches. */
-  protected readonly suggestions = computed(() =>
-    this.results().length || this.views() || !this.query().trim() ? [] : didYouMean(this.registry.available(), this.query(), (c) => (c.category ? `${c.category} ${c.title}` : c.title)),
+  protected readonly suggestions = computed<PaletteEntry[]>(() =>
+    this.results().length || this.views() || !this.query().trim()
+      ? []
+      : didYouMean(this.registry.available(), this.query(), (c) => (c.category ? `${c.category} ${c.title}` : c.title)).map(plainEntry),
   );
   protected readonly suggesting = computed(() => this.suggestions().length > 0);
   protected readonly dialogLabel = computed(() => (this.views() ? $localize`:@@palette.dialog.windows:Other windows` : $localize`:@@palette.dialog.commands:Command palette`));
@@ -161,7 +175,7 @@ export class CommandPalette {
       case 'Enter': {
         e.preventDefault();
         const c = this.options()[this.index()];
-        if (c) this.run(c);
+        if (c) this.run(c.command);
         break;
       }
       case 'Escape':
@@ -184,6 +198,13 @@ export class CommandPalette {
     this.palette.close();
     this.returnFocus = null;
     if (this.views()) this.injector.get(DockService).show(c.id.slice('view:'.length));
-    else void this.registry.run(c.id, 'palette');
+    else {
+      this.recent.add(c.id);
+      void this.registry.run(c.id, 'palette');
+    }
+  }
+
+  protected parts(e: PaletteEntry): TitlePart[] {
+    return titleParts(e.title, e.marks);
   }
 }

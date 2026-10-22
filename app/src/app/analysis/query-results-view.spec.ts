@@ -22,6 +22,29 @@ describe('QueryResultsView', () => {
     expect(buttonByText(fixture, 'Export CSV').disabled).toBe(true);
   });
 
+  it('greys the table out with a banner when it no longer answers the text in the bar', () => {
+    session.table.set({ kind: 'table', columns: ['n'], rows: [[1]] });
+    session.tableText.set('stats count()');
+    session.text.set('stats count()');
+    fixture.detectChanges();
+    expect(all(fixture, '[data-testid=query-results-stale]')).toHaveLength(0);
+    expect(el(fixture, '.body').classList.contains('stale')).toBe(false);
+
+    session.error.set({ message: 'expected a value', offset: 9, len: 0 });
+    fixture.detectChanges();
+    expect(el(fixture, '[data-testid=query-results-stale]').textContent).toContain('fix the error and run again');
+    expect(el(fixture, '.body').classList.contains('stale')).toBe(true);
+
+    session.error.set(null);
+    session.text.set('stats count() by level');
+    fixture.detectChanges();
+    expect(el(fixture, '[data-testid=query-results-stale]').textContent).toContain('run the query again');
+
+    session.runError.set('IPC down');
+    fixture.detectChanges();
+    expect(el(fixture, '[data-testid=query-results-stale]').textContent).toContain('fix the error');
+  });
+
   it('shows the table, sorts by column and exports CSV', async () => {
     session.table.set({ kind: 'table', columns: ['source', 'n'], rows: [['b.log', 5], ['a.log', 20], ['c.log', null]] });
     fixture.detectChanges();

@@ -38,8 +38,8 @@ export interface LiveArrival {
 
 export interface PagedRowsOptions {
   fetch(request: PageRequest): Promise<Page>;
-  /** Every successful page: the match total (the workspace shows it). */
-  onTotal?(total: number): void;
+  /** The match total for the current query (the workspace shows it): null on a new query until its first page arrives. */
+  onTotal?(total: number | null): void;
   /** The first page of a live refresh arrived. */
   onLive?(arrival: LiveArrival): void;
   /** A page arrived (rows that were waiting for it can be selected now). */
@@ -131,6 +131,8 @@ export class PagedRowsStore {
     this.pendingLive = null;
     this.loaded.set(false);
     this.error.set(null);
+    // The old total answers the old query: nothing is shown rather than a count that disagrees with the rows.
+    this.options.onTotal?.(null);
     this.bump();
     void this.fetchPage(0);
   }
@@ -216,6 +218,7 @@ export class PagedRowsStore {
   /** Sets the total from an answer outside the cache (a jump to a record). */
   setTotal(total: number): void {
     this.total.set(total);
+    this.options.onTotal?.(total);
   }
 
   /** Stops waiting for scrolling to pause. */

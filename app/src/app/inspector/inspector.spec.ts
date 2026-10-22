@@ -6,6 +6,7 @@ import { all, buttonByText, el, provideTinyBackend, settle, text } from '../../t
 import { ImtBackend } from '../core/backend';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { Inspector } from './inspector';
+import { SelectionStore } from '../core/workspace/selection.store';
 import { at } from '../../testing/must';
 
 @Component({ selector: 'imt-test-section', template: '<span class="plugin-section">id {{ record().id }}</span>' })
@@ -44,6 +45,25 @@ describe('Inspector', () => {
     await settle(fixture);
     return { fixture, store };
   }
+
+  it('says when the filters hide the event it shows, and offers to clear them or the selection (D4)', async () => {
+    const { fixture, store } = await render(2);
+    const id = store.selected()!.id;
+    expect(all(fixture, '[data-testid=selected-hidden]')).toHaveLength(0);
+    TestBed.inject(SelectionStore).setSelectedHidden(id + 1, true);
+    await settle(fixture);
+    expect(all(fixture, '[data-testid=selected-hidden]')).toHaveLength(0);
+    TestBed.inject(SelectionStore).setSelectedHidden(id, true);
+    store.toggleLevel('Fatal');
+    await settle(fixture);
+    expect(el(fixture, '[data-testid=selected-hidden]').textContent).toContain('hidden by the current filters');
+    buttonByText(fixture, 'Clear filters').click();
+    expect(store.query().levels).toEqual([]);
+    buttonByText(fixture, 'Clear selection').click();
+    await settle(fixture);
+    expect(store.selected()).toBeNull();
+    expect(all(fixture, '[data-testid=selected-hidden]')).toHaveLength(0);
+  });
 
   it('says when an event has no timestamp, or took its time from the event before it', async () => {
     const { fixture, store } = await render(0);

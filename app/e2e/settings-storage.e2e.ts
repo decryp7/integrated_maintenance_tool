@@ -12,7 +12,7 @@ const row = (page: Page, id: string) => settingsDialog(page).locator(`tr[data-ca
 async function openStorage(page: Page) {
   await page.keyboard.press('ControlOrMeta+Comma');
   await expect(settingsDialog(page)).toBeVisible();
-  await settingsDialog(page).getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Storage' }).click();
+  await settingsDialog(page).getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Disk usage' }).click();
   await expect(table(page)).toBeVisible();
 }
 
@@ -63,7 +63,7 @@ test('a failed measurement shows an inline error with Retry', async ({ page }) =
   await page.goto('/?mockStorageFail=1');
   await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible({ timeout: APP_LOAD_TIMEOUT });
   await page.keyboard.press('ControlOrMeta+Comma');
-  await settingsDialog(page).getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Storage' }).click();
+  await settingsDialog(page).getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Disk usage' }).click();
   const alert = settingsDialog(page).getByRole('alert');
   await expect(alert).toContainText("Could not measure IMT's storage");
   await alert.getByRole('button', { name: 'Retry' }).click();
@@ -80,5 +80,5 @@ test('"Clear cache…" in the command palette opens the Storage section', async 
   await expect(page.getByRole('option').first()).toContainText('Clear cache…');
   await page.keyboard.press('Enter');
   await expect(table(page)).toBeVisible();
-  await expect(settingsDialog(page).getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Storage' })).toHaveAttribute('aria-current', 'page');
+  await expect(settingsDialog(page).getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Disk usage' })).toHaveAttribute('aria-current', 'page');
 });

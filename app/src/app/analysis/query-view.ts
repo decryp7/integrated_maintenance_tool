@@ -37,7 +37,7 @@ export function progressText(p: QueryProgress | null): string | null {
   imports: [ClickOutside, QlSuggestions, AiButton],
   template: `
     <div class="qbar">
-      <div class="editor" [class.invalid]="!!session.error()" (imtClickOutside)="closePopups()">
+      <div class="editor" [class.invalid]="!!session.error()" [attr.title]="errorText()" (imtClickOutside)="closePopups()">
         <div class="mirror mono" aria-hidden="true"><span class="shift" [style.transform]="'translateX(' + -scroll() + 'px)'">@for (s of segments(); track $index) {<span [class]="s.cls" [class.err]="s.err">{{ s.text }}</span>}@if (caretError()) {<span class="err-caret"></span>}</span></div>
         <input
           #input
@@ -73,6 +73,10 @@ export function progressText(p: QueryProgress | null): string | null {
           </ul>
         }
       </div>
+      @if (errorText(); as msg) {
+        <!-- On the bar's own line: the dock gives the query bar one line, so a line below it may be scrolled away. -->
+        <span id="ql-error" class="err-inline" role="alert" [title]="msg"><span aria-hidden="true">⚠ </span>{{ msg }}</span>
+      }
       <button class="btn primary" type="button" (click)="run()" [disabled]="session.running()" [title]="runTitle" i18n="Run a query|Button@@analysis.queryView.run">Run</button>
       @if (session.running()) {
         <button class="btn" type="button" data-testid="query-cancel" title="Cancel the running query (Esc)" i18n-title="@@analysis.queryView.cancelTitle" [disabled]="session.cancelling()" (click)="cancel()" i18n="@@analysis.queryView.cancel">Cancel</button>
@@ -98,7 +102,6 @@ export function progressText(p: QueryProgress | null): string | null {
           }
         </span>
       } @else if (session.error(); as e) {
-        <span id="ql-error" class="err-msg">⚠ {{ e.message }}@if (e.len || e.offset) { <span class="muted" i18n="@@analysis.queryView.at">(at column {{ column() }})</span> }</span>
         <imt-ql-suggestions [error]="e" (pick)="useSuggestion($event)" />
       } @else if (session.runError(); as r) {
         <span class="err-msg">⚠ {{ r }}</span>
@@ -145,6 +148,7 @@ export function progressText(p: QueryProgress | null): string | null {
     .history .clear { border-top: 1px solid var(--border); font-family: var(--font-sans); color: var(--muted); }
     .status { min-height: 16px; font-size: var(--fs-sm); }
     .err-msg { color: var(--danger-text); }
+    .err-inline { flex: 0 1 auto; min-width: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--danger-text); }
     .muted { color: var(--muted); }
     .applied code, .muted code { color: var(--text); }
     .running { display: inline-flex; gap: 8px; align-items: center; }
@@ -179,7 +183,14 @@ export class QueryView {
     const span = errorSpan(this.session.text(), e);
     return !!span && span.start === span.end;
   });
-  protected readonly column = computed(() => (errorSpan(this.session.text(), this.session.error())?.start ?? 0) + 1);
+  /** The engine's syntax error as a sentence with its column ("Expected a value at column 10"), or null. */
+  protected readonly errorText = computed(() => {
+    const e = this.session.error();
+    if (!e) return null;
+    const message = e.message.charAt(0).toUpperCase() + e.message.slice(1);
+    const column = (errorSpan(this.session.text(), e)?.start ?? 0) + 1;
+    return e.len || e.offset ? $localize`:@@analysis.queryView.errorAt:${message}:message: at column ${column}:column:` : message;
+  });
   protected readonly popupOpen = computed(() => this.focused() && !this.dismissed() && this.session.completions().length > 0);
   protected readonly progress = computed(() => progressText(this.session.progress()));
 

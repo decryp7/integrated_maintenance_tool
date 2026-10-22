@@ -101,6 +101,35 @@ describe('CommandPalette', () => {
     expect(ran).toEqual([]);
   });
 
+  it('opens on the recently run commands, lists one command per view, highlights matches and shows a category once (F1)', async () => {
+    localStorage.removeItem('imt.palette.recent.v1');
+    const { fixture, palette } = await render([
+      { id: 'view.open.anoms', title: 'Open Anomalies', category: 'View', view: 'anoms', run: () => void ran.push('view.open.anoms') },
+      { id: 'anoms.show', title: 'Show anomalies', category: 'Analyze', view: 'anoms', run: () => void ran.push('anoms.show') },
+      { id: 'view.open.solo', title: 'Open Solo', category: 'View', view: 'solo', run: () => undefined },
+      { id: 'ai.chat', title: 'AI: Open the chat', category: 'AI', run: () => undefined },
+    ]);
+    palette.open();
+    await settle(fixture);
+    // One entry per view: the view's own command, not also the generated "Open <view>" (which stays for views without one).
+    expect(options(fixture)).toContain('Show anomalies');
+    expect(options(fixture)).not.toContain('Open Anomalies');
+    expect(options(fixture)).toContain('Open Solo');
+    const chat = all<HTMLElement>(fixture, '[role=option]').find((o) => o.textContent?.includes('AI: Open the chat'))!;
+    expect(chat.querySelector('.cat')).toBeNull();
+    typeInto(el<HTMLInputElement>(fixture, 'input'), 'gamma');
+    await settle(fixture);
+    expect(el(fixture, '[role=option] .title mark').textContent).toBe('Gamma');
+    press(fixture, 'Enter');
+    await settle(fixture);
+    expect(ran).toEqual(['t.gamma']);
+    // Next time the palette opens empty, the command just run comes first.
+    palette.open();
+    await settle(fixture);
+    expect(options(fixture)[0]).toBe('Gamma other');
+    expect(JSON.parse(localStorage.getItem('imt.palette.recent.v1') ?? '[]')).toEqual(['t.gamma']);
+  });
+
   it('suggests close commands ("did you mean") when nothing matches, navigable and runnable', async () => {
     const { fixture, palette } = await render();
     palette.open();
