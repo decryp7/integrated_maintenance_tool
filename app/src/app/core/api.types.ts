@@ -2559,17 +2559,8 @@ export type StreamedQueryOutcome = QueryOutcome | { cancelled: true };
 // What a native dialog asks for (`pick_paths`, see core/native-dialog.ts): generated from `paths::PickRequest`.
 export type { PickFilter, PickKind, PickRequest } from './generated/paths';
 
-/** What went wrong while reading a source (Rust `ingest::ProblemKind`). */
-export type ProblemKind =
-  | 'lineTooLong'
-  | 'eventTooLarge'
-  | 'lineNotParsed'
-  | 'timestampUnparsed'
-  | 'fieldInvalid'
-  | 'encoding'
-  | 'unknownFormat'
-  | 'truncatedArchive'
-  | 'eventSplit';
+/** What went wrong while reading a source (Rust `imt_plugin_api::problems::ProblemKind`): the same kinds as `SourceProblemKind`. */
+export type ProblemKind = SourceProblemKind;
 
 /** An engine-proposed fix of an import problem (Rust `ports::DiagnosticFix`). */
 export interface DiagnosticFix {

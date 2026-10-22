@@ -17,6 +17,7 @@ export const TOOL_VIEWS: ReadonlySet<string> = new Set([
   'overview',
   'saved-queries',
   'notes',
+  'problems',
   'markers',
   'plugin-health',
   'error-snapshots',

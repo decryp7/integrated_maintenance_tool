@@ -48,4 +48,8 @@ fileName: string,
 /**
  * The parser to change (the source's); `None` for a new parser.
  */
-base: string | null, regex: string | null, template: string | null, timestampFormat: string | null, };
+base: string | null, regex: string | null, template: string | null, timestampFormat: string | null, 
+/**
+ * A quick fix's `[format]` fragment merged over `base` (the Problems pane's Apply); needs `base`.
+ */
+parserOverride?: string, };
