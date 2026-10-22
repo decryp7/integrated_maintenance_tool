@@ -77,12 +77,22 @@ pub struct Pair {
 }
 
 pub fn pair(profile: Profile) -> Pair {
-    let paths = log_samples();
+    let p = pair_of(profile, &log_samples());
+    assert!(
+        p.duck.summary().unwrap().total > 10_000,
+        "{} events",
+        p.duck.summary().unwrap().total
+    );
+    p
+}
+
+/// The two stores with `paths` imported.
+pub fn pair_of(profile: Profile, paths: &[PathBuf]) -> Pair {
     let mut ws = Workspace::new(profile.clone()).unwrap();
-    ws.open(&paths).unwrap();
+    ws.open(paths).unwrap();
     let dir = TempDir::new("diff");
-    let (duck, report) = store_with(&dir, profile, &paths).unwrap();
-    assert!(report.events > 10_000, "{} events", report.events);
+    let (duck, report) = store_with(&dir, profile, paths).unwrap();
+    assert!(report.events > 0, "{} events", report.events);
     // Smart search answers from the index once it caught up (before, it matches substrings of the words).
     assert!(duck.wait_for_index(std::time::Duration::from_secs(120)).unwrap().ready);
     let ws_paths = ws.sources().iter().map(|s| (s.id, s.path.clone())).collect();

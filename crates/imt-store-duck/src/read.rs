@@ -69,6 +69,40 @@ pub(crate) fn report_source(r: &SourceReport) -> SourceInfo {
     }
 }
 
+/// The import problems of each source (ADR 0020 §2: the Explorer lists them), from the diagnostics table, as the
+/// in-memory store keeps them per source; kinds this build does not know are left out.
+fn source_problems(conn: &Connection, sources: &mut [SourceInfo]) -> StoreResult<()> {
+    use imt_core::ingest::{Problem, ProblemKind};
+    let mut by_source: HashMap<u32, Vec<Problem>> = HashMap::new();
+    let mut stmt = conn
+        .prepare("SELECT source, kind, count, samples FROM diagnostics ORDER BY source, kind")
+        .map_err(engine)?;
+    let rows = stmt
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, u32>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, u64>(2)?,
+                r.get::<_, String>(3)?,
+            ))
+        })
+        .map_err(engine)?;
+    for row in rows {
+        let (source, kind, count, samples) = row.map_err(engine)?;
+        let Some(kind) = ProblemKind::from_id(&kind) else { continue };
+        let mut sample_lines: Vec<u32> = serde_json::from_str(&samples).unwrap_or_default();
+        sample_lines.truncate(imt_core::ingest::MAX_SAMPLES);
+        by_source.entry(source).or_default().push(Problem { kind, count, sample_lines });
+    }
+    for s in sources {
+        if let Some(mut p) = by_source.remove(&s.id) {
+            p.sort_by_key(|p| p.kind);
+            s.problems = p;
+        }
+    }
+    Ok(())
+}
+
 /// What every read needs besides the filter.
 pub(crate) struct Ctx {
     pub(crate) names: HashMap<u32, String>,
@@ -724,6 +758,7 @@ impl Inner {
         for row in rows {
             sources.push(row.map_err(engine)?);
         }
+        source_problems(&conn, &mut sources)?;
         let profile = self.profile();
         Ok(SummaryReply {
             total: total as usize,
