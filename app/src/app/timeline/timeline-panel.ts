@@ -1,4 +1,5 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { ErrorDetails } from '../ui/error-details';
 import { AnnotationDto } from '../core/api.types';
 import { clamp, formatCount, formatDateTime, formatDuration, formatTime, timeTicks } from '../core/format';
 import { SelectionStore } from '../core/workspace/selection.store';
@@ -49,7 +50,7 @@ function timelineSource(): TimelineSource {
 @Component({
   selector: 'imt-timeline-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TimeCursorLine, AnnotationTrack, ProfileSpanTrack, DumpMarkerTrack, NoteTimelineTrack, TimelineHeader, TimelineLegend, TimelineLanes, TimelineTooltips, TimelineInteraction],
+  imports: [TimeCursorLine, AnnotationTrack, ProfileSpanTrack, DumpMarkerTrack, NoteTimelineTrack, TimelineHeader, TimelineLegend, TimelineLanes, TimelineTooltips, TimelineInteraction, ErrorDetails],
   // One store per panel: an additional timeline gets its own `TimelineInstanceStore` (created only when used).
   providers: [TimelineInstanceStore, { provide: TIMELINE_SOURCE, useFactory: timelineSource }],
   host: { '[class.instance]': '!src.main' },
@@ -142,9 +143,7 @@ function timelineSource(): TimelineSource {
 
     @if (src.error(); as err) {
       <div class="err-card" role="alert">
-        <strong i18n="@@timeline.error.title">Could not load the timeline</strong>
-        <span class="mono">{{ err }}</span>
-        <button class="btn" type="button" (click)="src.retry()" i18n="@@timeline.error.retry">Retry</button>
+        <imt-error-details summary="Couldn't load the timeline." i18n-summary="@@timeline.error.summary" [detail]="err" (retry)="src.retry()" />
       </div>
     }
 
@@ -152,7 +151,7 @@ function timelineSource(): TimelineSource {
   `,
   styles: `
     :host { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; background: var(--bg-1); overflow: hidden; position: relative; }
-    .err-card { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 80%; padding: 14px 18px; border: 1px solid var(--border-3); border-radius: 8px; background: var(--bg-3); color: var(--danger-text); text-align: center; }
+    .err-card { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 80%; padding: 14px 18px; border: 1px solid var(--border-3); border-radius: 8px; background: var(--bg-3); color: var(--text); text-align: center; }
     .wrap { position: relative; flex: 1; min-height: 0; user-select: none; }
     .wrap.panning { cursor: grabbing; }
     .scroller { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; padding-bottom: 8px; }

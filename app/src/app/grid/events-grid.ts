@@ -1,4 +1,5 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, signal, untracked, viewChild } from '@angular/core';
+import { ErrorDetails } from '../ui/error-details';
 import { RecordView } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { formatCount, formatDateTime } from '../core/format';
@@ -93,7 +94,7 @@ export type GridRowVm = RowVm | PlaceholderVm;
   selector: 'imt-events-grid',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[style.--row-h.px]': 'rowH()' },
-  imports: [Icon, MarkerIcon, ClickOutside, VirtualList, NewEventsPill, NextSteps],
+  imports: [Icon, MarkerIcon, ClickOutside, VirtualList, NewEventsPill, NextSteps, ErrorDetails],
   template: `
     <div class="bar">
       <span class="section-title" i18n="@@grid.title">Events</span>
@@ -201,9 +202,7 @@ export type GridRowVm = RowVm | PlaceholderVm;
     </div>
     @if (pageError(); as err) {
       <div class="err-card" role="alert">
-        <strong i18n="@@grid.error.title">Could not load events</strong>
-        <span class="mono">{{ err }}</span>
-        <button class="btn" (click)="retry()" i18n="@@grid.error.retry">Retry</button>
+        <imt-error-details summary="Couldn't load events." i18n-summary="@@grid.error.summary" [detail]="err" (retry)="retry()" />
       </div>
     }
   `,
@@ -215,7 +214,7 @@ export type GridRowVm = RowVm | PlaceholderVm;
     .spacer { flex: 1; }
     .anchor { position: relative; }
     .cols { right: 0; top: 30px; width: 280px; display: flex; flex-direction: column; gap: 6px; }
-    .err-card { position: absolute; top: 90px; left: 50%; transform: translateX(-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 80%; padding: 14px 18px; border: 1px solid var(--border-3); border-radius: 8px; background: var(--bg-3); color: var(--danger-text); text-align: center; }
+    .err-card { position: absolute; top: 90px; left: 50%; transform: translateX(-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 80%; padding: 14px 18px; border: 1px solid var(--border-3); border-radius: 8px; background: var(--bg-3); color: var(--text); text-align: center; }
     .col-opt { width: 100%; display: flex; align-items: center; gap: 8px; height: 24px; color: var(--text-2); font-size: var(--fs-sm); }
     .header { position: sticky; top: 0; z-index: 2; height: ${HEADER_H}px; display: grid; align-items: center; column-gap: 10px; padding: 0 14px; font-size: var(--fs-xs); color: var(--muted); border-bottom: 1px solid var(--border); background: var(--bg-2); }
     .hcell { display: flex; align-items: center; gap: 4px; min-width: 0; }

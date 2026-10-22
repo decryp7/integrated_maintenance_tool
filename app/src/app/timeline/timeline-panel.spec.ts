@@ -222,7 +222,9 @@ describe('TimelinePanel', () => {
     const store = TestBed.inject(WorkspaceStore);
     await settle(fixture);
     const card = el(fixture, '.err-card[role=alert]');
-    expect(card.textContent).toContain('Could not load the timeline');
+    // A sentence first; the backend's message only under Technical details (E5).
+    expect(card.querySelector('strong')?.textContent).toBe("Couldn't load the timeline.");
+    expect(card.querySelector('details:not([open]) code')?.textContent).toBe('engine down');
     expect(card.textContent).toContain('engine down');
     expect(store.error()).toBeNull();
     (card.querySelector('button') as HTMLButtonElement).click();

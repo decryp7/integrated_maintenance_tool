@@ -44,10 +44,14 @@ describe('AnalysisState', () => {
     state.detectChanges();
     buttonByText(state, 'Retry').click();
     expect(retried).toBe(1);
-    // The engine says trying again as is cannot pass: no Retry.
+    // A failure reads as a sentence; the message is folded under Technical details (E5).
+    expect(el(state, '[role=alert] strong').textContent).toBe("Couldn't finish this analysis.");
+    expect(el(state, '[role=alert] details code').textContent).toBe('bad');
+    // The engine says trying again as is cannot pass: no Retry, and its message (something to fix) is shown as is.
     state.componentRef.setInput('retryable', false);
     state.detectChanges();
     expect(text(state)).not.toContain('Retry');
+    expect(el(state, '[role=alert] .msg').textContent).toBe('bad');
   });
 });
 
