@@ -70,6 +70,19 @@ describe('AnomaliesView', () => {
     expect(text(fixture)).toContain('2 found');
   });
 
+  it('has sortable column headers (K2)', async () => {
+    const { fixture } = await mount(AnomaliesView);
+    expect(all(fixture, '[data-testid=anomaly-head] .th').map((h) => h.textContent?.replace(/\s+/g, ' ').trim().replace(/[▲▼]/, '').trim())).toEqual(['Kind', 'Instance', 'Time', 'What', 'Score']);
+    const first = () => all<HTMLButtonElement>(fixture, 'li button')[0]?.textContent ?? '';
+    el<HTMLButtonElement>(fixture, '[data-testid=anomaly-sort-score]').click();
+    fixture.detectChanges();
+    expect(el(fixture, '[data-testid=anomaly-sort-score]').getAttribute('aria-pressed')).toBe('true');
+    const byScore = first();
+    el<HTMLButtonElement>(fixture, '[data-testid=anomaly-sort-score]').click();
+    fixture.detectChanges();
+    expect(first()).not.toBe(byScore);
+  });
+
   it('click zooms to the range and jumps to the first sample', async () => {
     const { fixture, ctx } = await mount(AnomaliesView);
     at(all<HTMLButtonElement>(fixture, 'li button'), 0).click();
