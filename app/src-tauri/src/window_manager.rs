@@ -75,9 +75,10 @@ pub fn clean_title(title: &str) -> String {
     }
 }
 
-/// Pop-out panels and the browser's page window (Linux) belong to an IMT window; they are not windows of their own.
+/// Pop-out panels, the browser's page window (Linux) and the drag ghost belong to an IMT window; they are not
+/// windows of their own.
 pub fn is_auxiliary(label: &str) -> bool {
-    panel_windows::is_popout(label) || crate::browser::is_browser_label(label)
+    panel_windows::is_popout(label) || crate::browser::is_browser_label(label) || label == crate::drag_ghost::GHOST_LABEL
 }
 
 /// The open windows, `main` first.
@@ -286,6 +287,7 @@ fn content_terminated(label: &str, now: std::time::Instant, reload: impl FnOnce(
 pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
     let app = window.app_handle();
     let label = window.label();
+    crate::drag_ghost::on_window_event(window, event);
     match event {
         WindowEvent::CloseRequested { api, .. } => {
             if close_requested(app, window) != CloseDecision::Close {
@@ -295,7 +297,7 @@ pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
                 crate::browser::host_closing(app, label);
             }
         }
-        WindowEvent::Focused(true) if !crate::browser::is_browser_label(label) => {
+        WindowEvent::Focused(true) if !crate::browser::is_browser_label(label) && label != crate::drag_ghost::GHOST_LABEL => {
             if let Some(windows) = app.try_state::<Windows>() {
                 // A pop-out panel stands for its host (files from other apps go there).
                 windows.note_focus(panel_windows::resolve(label));
@@ -364,6 +366,9 @@ pub fn destroyed<R: Runtime>(app: &AppHandle<R>, label: &str) {
     }
     if crate::browser::is_browser_label(label) {
         crate::browser::destroyed(app, label);
+        return;
+    }
+    if label == crate::drag_ghost::GHOST_LABEL {
         return;
     }
     log::info!(Window = label; "Window destroyed");

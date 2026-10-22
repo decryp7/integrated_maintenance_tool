@@ -1,0 +1,38 @@
+# A quick check that each host runner is online and has the tools the build jobs expect. Run it by hand
+# (Actions > runner-check > Run workflow) after setting up or changing a runner.
+name: runner-check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  host:
+    name: host tools (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      # On Windows `bash` may resolve to WSL's, which can't see the job's script; put Git's bash first, as build.yml does.
+      - name: Git bash on PATH (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          if not exist "%ProgramFiles%\Git\bin\bash.exe" (echo Git for Windows is not installed on this runner: no bash.exe in "%ProgramFiles%\Git\bin" & exit /b 1)
+          echo %ProgramFiles%\Git\bin>>"%GITHUB_PATH%"
+
+      - name: Tools
+        shell: bash
+        run: |
+          set -u
+          echo "runner: $RUNNER_NAME ($RUNNER_OS $RUNNER_ARCH)"
+          uname -a
+          if [ "$RUNNER_OS" = macOS ]; then sw_vers; xcode-select -p; clang --version | head -1; fi
+          missing=0
+          for tool in git rustc cargo node npm; do
+            if command -v "$tool" >/dev/null; then echo "$tool: $("$tool" --version 2>&1 | head -1)"; else echo "::error::$tool is not on PATH"; missing=1; fi
+          done
+          df -h "$GITHUB_WORKSPACE" | tail -1
+          exit $missing

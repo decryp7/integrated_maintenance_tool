@@ -189,9 +189,10 @@ describe('ReportView and ReportBlockView', () => {
     const second = at(all<HTMLElement>(f, 'imt-report-block'), 1);
     second.focus();
     second.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }));
+    // Focus is back on the moved block before the next key arrives (a later refocus drops a quick second Alt+↑).
+    expect(document.activeElement?.getAttribute('data-block-id')).toBe(at(blocksOf(reports.active()!), 0).id);
     second.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
     await settle(f);
-    await new Promise((res) => setTimeout(res));
     expect(blocksOf(reports.active()!).map((b) => b.type)).toEqual(['timeline', 'text']);
     expect(document.activeElement?.getAttribute('data-block-id')).toBe(at(blocksOf(reports.active()!), 0).id);
 

@@ -175,7 +175,7 @@ describe('TitleBar', () => {
     expect(fixture.nativeElement.querySelector('[role=menubar]')).toBeNull();
     expect(fixture.nativeElement.querySelector('.palette')).not.toBeNull();
     expect(sent.length).toBe(1);
-    expect(sent[0]?.menus.map((m) => m.id)).toEqual(['app', 'file', 'view', 'analyze', 'help']);
+    expect(sent[0]?.menus.map((m) => m.id)).toEqual(['app', 'file', 'edit', 'view', 'analyze', 'help']);
     expect(JSON.stringify(sent[0]?.menus[0])).toContain('settings.open');
     // About and Settings are in the app menu only.
     expect(JSON.stringify(at(sent, 0).menus.find((m) => m.id === 'help'))).not.toContain('help.about');

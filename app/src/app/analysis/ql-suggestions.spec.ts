@@ -68,7 +68,10 @@ describe('did you mean in the query bar and QL inputs', () => {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await wait(CHECK_DELAY_MS + 80);
     await settle(fixture);
-    expect(text(fixture)).toContain('unknown field "MachinName"');
+    expect(text(fixture)).toContain('Unknown field "MachinName"');
+    // The fix sits on the bar's line beside the error: below the input, the completions popup covers it.
+    expect(fixture.nativeElement.querySelector('.qbar [data-testid=did-you-mean]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.status [data-testid=did-you-mean]')).toBeNull();
     el<HTMLButtonElement>(fixture, '[data-testid=did-you-mean] button').click();
     await wait(CHECK_DELAY_MS + 80);
     await settle(fixture);

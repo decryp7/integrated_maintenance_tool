@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, ElementRef, inject } from '@angular/core';
+import { ApplicationRef, ChangeDetectionStrategy, Component, computed, ElementRef, inject } from '@angular/core';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { NotesStore } from '../../notes/notes.store';
 import { QuerySession } from '../../analysis/query-session';
@@ -110,6 +110,7 @@ export class ReportView {
   protected readonly annotations = inject(TimelineAnnotations);
   private readonly dialogs = inject(DialogService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly appRef = inject(ApplicationRef);
 
   protected readonly untitled = $localize`:@@share.reportView.untitled:Untitled report`;
 
@@ -142,9 +143,13 @@ export class ReportView {
     void openReportExport(this.dialogs);
   }
 
-  /** Keeps the keyboard on a block after it moved (moving a node out of the DOM drops its focus). */
+  /**
+   * Keeps the keyboard on a block after it moved (moving a node out of the DOM drops its focus). The move is rendered
+   * and focus restored before the handler returns: refocusing later would drop a key pressed in between (Alt+↑ twice).
+   */
   protected refocus(id: string): void {
-    setTimeout(() => this.host.nativeElement.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(id)}"]`)?.focus());
+    this.appRef.tick();
+    this.host.nativeElement.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(id)}"]`)?.focus();
   }
 
   protected val = (e: Event) => (e.target as HTMLInputElement | HTMLTextAreaElement).value;

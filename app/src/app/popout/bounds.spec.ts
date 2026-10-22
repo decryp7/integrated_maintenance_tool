@@ -1,4 +1,4 @@
-import { areaAt, centreIn, clampToWorkAreas, fitInto, intersection, MIN_POPOUT, placeAtPointer, placeNextToHost, sizeForPanel, WorkArea } from './bounds';
+import { areaAt, centreIn, clampToWorkAreas, dragGrab, fitInto, intersection, MIN_POPOUT, placeAtPointer, placeNextToHost, sizeForPanel, WorkArea } from './bounds';
 
 const wa = (x: number, name: string | null, primary = false, width = 1000): WorkArea => ({ name, primary, x, y: 0, width, height: 800 });
 const A = wa(0, 'a');
@@ -129,5 +129,9 @@ describe('placeAtPointer', () => {
   });
   it('is not clamped without monitors', () => {
     expect(placeAtPointer({ x: 500, y: 400 }, size, [])).toEqual({ x: 380, y: 388, ...size });
+  });
+  it('holds the window where the drag ghost is held: in its title bar, near its left (half way on a narrow one)', () => {
+    expect(dragGrab(size)).toEqual({ x: 120, y: 12 });
+    expect(dragGrab({ width: 200, height: 100 })).toEqual({ x: 100, y: 12 });
   });
 });

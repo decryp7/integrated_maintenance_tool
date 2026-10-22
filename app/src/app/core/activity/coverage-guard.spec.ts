@@ -146,6 +146,7 @@ import { AnalysisBackend } from '../analysis-backend';
 import { ImtBackend } from '../backend';
 import { CollectBackend, EventLogBackend, LifecycleBackend, PerfmonBackend, PluginPackagesBackend, ProjectBackend, ToolCatalogBackend, ToolsBackend } from '../tools-backend';
 import { ProblemsBackend } from '../../problems/problems-backend';
+import { PerformanceBackend } from '../../settings/performance/performance-backend';
 import { StorePaneBackend } from '../../store-pane/store-pane-backend';
 import { ConfigDiffBackend } from '../../config-diff/config-diff-backend';
 import { PopoutBackend } from '../../popout/popout-backend';
@@ -172,6 +173,7 @@ import { JobsBackend } from '../../jobs/jobs-backend';
 import { NotificationsBackend } from '../../notifications/notifications-backend';
 import { KnowledgeBackend } from '../../ai/knowledge/knowledge-backend';
 import { NotesBackend } from '../../notes/notes-backend';
+import { DragGhostBackend } from '../../popout/drag-ghost-backend';
 import { at, must } from '../../../testing/must';
 
 const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
@@ -188,6 +190,7 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   PerfmonBackend,
   ProjectBackend,
   ProblemsBackend,
+  PerformanceBackend,
   StorePaneBackend,
   ToolCatalogBackend,
   ToolsBackend,
@@ -214,4 +217,5 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   NotificationsBackend,
   KnowledgeBackend,
   NotesBackend,
+  DragGhostBackend,
 };

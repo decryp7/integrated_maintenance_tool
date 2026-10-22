@@ -35,9 +35,9 @@ pub const POPOUT_MOVED_EVENT: &str = "imt://popout-moved";
 
 const MAX_VIEW_ID: usize = 64;
 const MAX_PARAMS_BYTES: usize = 4096;
-const MIN_WIDTH: f64 = 240.0;
-const MIN_HEIGHT: f64 = 160.0;
-const MAX_SIZE: f64 = 16_384.0;
+pub(crate) const MIN_WIDTH: f64 = 240.0;
+pub(crate) const MIN_HEIGHT: f64 = 160.0;
+pub(crate) const MAX_SIZE: f64 = 16_384.0;
 const MAX_COORD: f64 = 100_000.0;
 const DEFAULT_SIZE: (f64, f64) = (560.0, 420.0);
 

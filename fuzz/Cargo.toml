@@ -14,6 +14,7 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 imt-core = { path = "../crates/imt-core" }
 imt-ipc = { path = "../crates/imt-ipc" }
+imt-notes = { path = "../crates/imt-notes" }
 imt-plugin-api = { path = "../crates/imt-plugin-api" }
 imt-plugin-package = { path = "../crates/imt-plugin-package" }
 imt-ai = { path = "../crates/imt-ai" }
@@ -334,6 +335,27 @@ bench = false
 [[bin]]
 name = "fuzz_plugin_package"
 path = "fuzz_targets/fuzz_plugin_package.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_parser_toml"
+path = "fuzz_targets/fuzz_parser_toml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_project"
+path = "fuzz_targets/fuzz_project.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_notes_knowledge"
+path = "fuzz_targets/fuzz_notes_knowledge.rs"
 test = false
 doc = false
 bench = false

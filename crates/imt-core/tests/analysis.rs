@@ -621,6 +621,19 @@ fn correlate_orders_by_time() {
 }
 
 #[test]
+fn correlate_orders_events_at_the_same_time_by_source_and_line_not_by_id() {
+    // Ids follow the import order, which parallel imports and other stores do not share: ties go by source and line.
+    let at = |id: u32, source: u32, line: u32| {
+        let mut r = with(rec(id, Some(T0), Level::Information), "MachineName", json!("WEB02"));
+        r.source = source;
+        r.line = line;
+        r
+    };
+    let recs = [at(1, 1, 5), at(2, 0, 9), at(3, 1, 2), at(4, 0, 3)];
+    assert_eq!(correlate(recs.iter(), "MachineName", "WEB02"), vec![4, 2, 3, 1]);
+}
+
+#[test]
 fn spans_and_waterfall() {
     let mut recs = vec![
         span_rec(1, T0, "t1", "root", None, Level::Information),

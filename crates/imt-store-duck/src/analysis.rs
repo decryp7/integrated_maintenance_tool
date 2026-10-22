@@ -793,7 +793,7 @@ impl Inner {
         let matched = count(&conn, &format!("SELECT count(*) FROM {FROM} WHERE {cond}"))? as u64;
         let mut stmt = conn
             .prepare(&format!(
-                "SELECT e.id FROM {FROM} WHERE {cond} ORDER BY coalesce(e.ts, 9223372036854775807), e.id LIMIT {MAX_CORRELATED}"
+                "SELECT e.id FROM {FROM} WHERE {cond} ORDER BY coalesce(e.ts, 9223372036854775807), e.source, e.line, e.id LIMIT {MAX_CORRELATED}"
             ))
             .map_err(engine)?;
         let ids = stmt

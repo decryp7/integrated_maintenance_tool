@@ -48,7 +48,8 @@ serde_json.workspace = true
 anyhow.workspace = true
 log = { workspace = true, features = ["kv"] }
 chrono.workspace = true
-tauri = { version = "2.12.4", features = ["tray-icon", "image-png", "unstable"] }
+# "macos-private-api": a transparent webview for the drag ghost on macOS (`drag_ghost`; with `app.macOSPrivateApi`).
+tauri = { version = "2.12.4", features = ["tray-icon", "image-png", "unstable", "macos-private-api"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-window-state = "2"
@@ -84,7 +85,7 @@ imt-core = { path = "../../crates/imt-core", features = ["ts"] }
 ts-rs = "11.1"
 # The base64 that tauri-plugin-updater's `Error::Base64` wraps, to build that error in the updater tests.
 updater-base64 = { package = "base64", version = "0.22" }
-tauri = { version = "2.12.4", features = ["test", "tray-icon", "image-png", "unstable"] }
+tauri = { version = "2.12.4", features = ["test", "tray-icon", "image-png", "unstable", "macos-private-api"] }
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = "2"
