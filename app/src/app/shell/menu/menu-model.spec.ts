@@ -7,7 +7,7 @@ const COMMANDS: [string, string, string?][] = [
   ['file.openFiles', 'Open files…', 'Mod+O'],
   ['file.openFolder', 'Open folder…', 'Mod+Shift+O'],
   ['live.open', 'Open for live tail…'],
-  ['profiling.open', 'Open profile…'],
+  ['profiling.open', 'Open performance capture…'],
   ['project.open', 'Open project…'],
   ['project.recent', 'Open recent project…'],
   ['project.save', 'Save project', 'Mod+S'],
@@ -102,7 +102,7 @@ const VIEWS: MenuView[] = [
   ).map(([id, t]) => view(id, t, 'Analysis')),
   view('live-alerts', 'Alerts', 'Live'),
   view('tail-status', 'Tail status', 'Live'),
-  view('profiling.captures', 'Profiles', 'Profiling'),
+  view('profiling.captures', 'Captures', 'Profiling'),
   view('profiling.hotspots', 'Hotspots', 'Profiling'),
   view('profiling.inverted', 'Inverted tree', 'Profiling', { menu: 'palette' }),
   view('profiling.butterfly', 'Callers and callees', 'Profiling', { menu: 'palette' }),
@@ -178,7 +178,7 @@ describe('menu model', () => {
     expect(labels(sub(v, 'Analysis'))).toEqual(['Query results', 'Moment', 'Anomalies', 'Patterns', 'Exceptions', 'Compare', 'Field statistics', 'Traces', '—', 'Markers']);
     expect(labels(sub(v, 'Live'))).toEqual(['Alerts', 'Tail status']);
     // Granular profiling views are reached from inside the profiling views (and the palette), not the menu.
-    expect(labels(sub(v, 'Profiling'))).toEqual(['Profiles', 'Hotspots']);
+    expect(labels(sub(v, 'Profiling'))).toEqual(['Captures', 'Hotspots']);
     expect(labels(sub(v, 'AI'))).toEqual(['Chat', 'Set up…', 'Models…']);
     // Check marks: open views and the sidebar; the theme as a choice.
     const items = menuItems(v);

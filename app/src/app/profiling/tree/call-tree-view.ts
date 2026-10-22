@@ -96,7 +96,7 @@ import { TreeStore } from './tree.store';
         </div>
       </imt-analysis-state>
     } @else {
-      <imt-no-capture text="Open a profile to see its call tree." i18n-text="@@profiling.tree.noCapture" />
+      <imt-no-capture text="Open a performance capture to see its call tree." i18n-text="@@profiling.tree.noCapture" />
     }
   `,
   styles: [

@@ -15,7 +15,7 @@ test.describe('Profiling with the logs', () => {
     // Make the other profile active, then open the first from the timeline.
     await page.locator('imt-captures-view').getByRole('button', { name: 'orders-regression.speedscope.json', exact: true }).click();
     await page.getByRole('tab', { name: /Timeline/ }).click();
-    await page.locator('imt-timeline-panel').getByRole('button', { name: 'Open profile orders.speedscope.json' }).click();
+    await page.locator('imt-timeline-panel').getByRole('button', { name: 'Open capture orders.speedscope.json' }).click();
     await expect(hotspots(page).getByRole('combobox', { name: 'Active profile' }).locator('option:checked')).toHaveText('orders.speedscope.json');
 
     await page.getByRole('tab', { name: /Timeline/ }).click();
@@ -30,7 +30,7 @@ test.describe('Profiling with the logs', () => {
     const section = moment.locator('imt-profile-moment');
     await expect(section).toContainText('Profile samples in this window');
     await expect(section.getByRole('region', { name: 'Profile orders.speedscope.json' })).toContainText('Shop.Orders.OrderService.Place');
-    await section.getByRole('region', { name: 'Profile orders.speedscope.json' }).getByRole('button', { name: 'Open profile on this range' }).click();
+    await section.getByRole('region', { name: 'Profile orders.speedscope.json' }).getByRole('button', { name: 'Open capture on this range' }).click();
     await expect(hotspots(page).getByTestId('range-pill')).toBeVisible();
   });
 
@@ -47,6 +47,6 @@ async function openProfilesWithFailure(page: import('@playwright/test').Page): P
   await page.goto('/?mockProfilingFail=hotspots:1');
   await expect(page.locator('imt-status-bar')).toBeVisible({ timeout: APP_LOAD_TIMEOUT });
   await expect(page.locator('imt-status-bar')).toContainText('events');
-  await runCommand(page, 'Open profile');
+  await runCommand(page, 'Open performance capture');
   await expect(hotspots(page)).toBeVisible();
 }

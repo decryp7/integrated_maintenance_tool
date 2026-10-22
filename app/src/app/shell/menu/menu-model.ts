@@ -266,7 +266,7 @@ export function buildMenus(state: MenuState): TopMenu[] {
         SEP,
         cmd('moment.analyse'),
         cmd('moment.selected', $localize`:@@shell.menu.analyze.analyseSelectedRange:Analyse the selected range`),
-        sub('analyze.compare', $localize`:Menu@@shell.menu.analyze.compare:Compare`, [
+        sub('analyze.compare', $localize`:Menu@@shell.menu.analyze.compare:Compare time ranges`, [
           cmd('compare.previous', $localize`:@@shell.menu.analyze.compare.previous:Current range vs previous`),
           cmd('compare.beforeAfter', $localize`:@@shell.menu.analyze.compare.beforeAfter:Before / after selected time`),
         ]),

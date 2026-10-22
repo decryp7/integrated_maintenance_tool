@@ -126,8 +126,8 @@ export class ProfileSpanTrack {
         : $localize`:@@profiling.spanTrack.openHeap:Open heap snapshot ${name}:name:`;
     }
     return s.range
-      ? $localize`:@@profiling.spanTrack.openProfileRange:Open profile ${name}:name: on the visible range`
-      : $localize`:@@profiling.spanTrack.openProfile:Open profile ${name}:name:`;
+      ? $localize`:@@profiling.spanTrack.openProfileRange:Open capture ${name}:name: on the visible range`
+      : $localize`:@@profiling.spanTrack.openProfile:Open capture ${name}:name:`;
   }
 
   protected open(s: SpanVm): void {

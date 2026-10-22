@@ -127,7 +127,7 @@ interface EventVm {
         </imt-analysis-state>
       }
     } @else {
-      <imt-no-capture text="Open a profile with timestamps to see its threads over time." i18n-text="@@profiling.threads.noCapture" />
+      <imt-no-capture text="Open a performance capture with timestamps to see its threads over time." i18n-text="@@profiling.threads.noCapture" />
     }
   `,
   styles: [

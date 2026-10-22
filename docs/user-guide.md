@@ -4,6 +4,7 @@ Reference for everyday use: which files IMT reads, how to write a profile, the q
 internal web browser, the keyboard shortcuts and the command line. For what IMT can do, see [features.md](features.md); for a
 first walk-through, see the two-minute tour in the [README](../README.md#quick-start).
 
+- [Glossary](#glossary)
 - [First run and layout](#first-run-and-layout)
 - [Supported inputs](#supported-inputs)
 - [Profiles](#profiles)
@@ -12,6 +13,20 @@ first walk-through, see the two-minute tour in the [README](../README.md#quick-s
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [Command line](#command-line)
 - [Troubleshooting](#troubleshooting)
+
+## Glossary
+
+One word, one meaning: menus, the palette, Settings and these docs use these terms.
+
+| Term | Means | Not to be confused with |
+|---|---|---|
+| **Profile** | The parsing profile: how IMT reads a set of logs (parsers, fields, timestamps, markers, pipeline). *Profile editor*, Settings ▸ Parsers. | A performance capture. |
+| **Performance capture** | A profiler recording (`.nettrace`, `.speedscope.json`, heap snapshot…) opened with *File ▸ Open performance capture…*; listed in *Profiling ▸ Captures*. | A profile. "Profile .NET process" (a verb) records one. |
+| **Project** | One `.imtz` file holding the opened events, the profile, filters, notes and reports (*File ▸ Save project*). | The folder the logs came from. |
+| **Store** | The engine's event database (segments, fields, index) behind a window. | Disk usage. |
+| **Disk usage** | What IMT keeps on disk besides projects: bundle copies, web data, caches (Settings ▸ Disk usage). | The store. |
+| **Compare time ranges** | Two time ranges of the same events side by side (*Analyze ▸ Compare time ranges*). | *Compare configuration files* (two config files) and comparing two performance captures. |
+| **Region** | A part of the window `F6` moves between: activity bar, side bar, filter bar, a panel group, status bar. | A panel (one tab in a group). |
 
 ## First run and layout
 

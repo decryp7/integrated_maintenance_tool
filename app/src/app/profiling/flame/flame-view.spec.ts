@@ -38,7 +38,7 @@ describe('FlameView', () => {
 
   it('asks to open a profile when none is open', async () => {
     const { fixture, flame } = await mount({}, false);
-    expect(text(fixture)).toContain('Open a profile to see its flame graph.');
+    expect(text(fixture)).toContain('Open a performance capture to see its flame graph.');
     expect(flame).not.toHaveBeenCalled();
   });
 

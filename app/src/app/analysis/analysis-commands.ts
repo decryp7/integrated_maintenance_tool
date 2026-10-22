@@ -51,7 +51,7 @@ export class AnalysisCommands {
     this.show('anomalies.show', $localize`:@@analysis.commands.anomalies:Show anomalies`, 'anomalies'),
     this.show('patterns.show', $localize`:@@analysis.commands.patterns:Show patterns`, 'patterns'),
     this.show('exceptions.show', $localize`:@@analysis.commands.exceptions:Show exceptions`, 'exceptions'),
-    this.show('compare.show', $localize`:@@analysis.commands.compare:Show compare`, 'compare'),
+    this.show('compare.show', $localize`:@@analysis.commands.compare:Compare time ranges`, 'compare'),
     {
       id: 'compare.previous',
       title: $localize`:@@analysis.commands.comparePrevious:Compare: current range vs previous`,

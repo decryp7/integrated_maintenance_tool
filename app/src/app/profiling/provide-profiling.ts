@@ -18,7 +18,7 @@ const CATEGORY = $localize`:@@profiling.category:Profiling`;
 
 /** The profiling views. Same extension point as plugin views; none opens until a capture is. */
 export const PROFILING_VIEWS: ImtView[] = [
-  { id: V.captures, category: 'Profiling', title: $localize`:@@profiling.views.captures:Profiles`, icon: 'files', defaultPosition: 'right', component: () => import('./captures/captures-view').then((m) => m.CapturesView) },
+  { id: V.captures, category: 'Profiling', title: $localize`:@@profiling.views.captures:Captures`, icon: 'files', defaultPosition: 'right', component: () => import('./captures/captures-view').then((m) => m.CapturesView) },
   { id: V.hotspots, category: 'Profiling', title: $localize`:@@profiling.views.hotspots:Hotspots`, icon: 'columns', defaultPosition: 'center', component: () => import('./hotspots/hotspots-view').then((m) => m.HotspotsView) },
   { id: V.tree, category: 'Profiling', title: $localize`:@@profiling.views.tree:Call tree`, icon: 'group', defaultPosition: 'center', component: () => import('./tree/call-tree-view').then((m) => m.CallTreeView) },
   { id: V.inverted, category: 'Profiling', menu: 'palette', title: $localize`:@@profiling.views.inverted:Inverted tree`, icon: 'group', defaultPosition: 'center', component: () => import('./tree/call-tree-view').then((m) => m.InvertedTreeView) },
@@ -30,7 +30,7 @@ export const PROFILING_VIEWS: ImtView[] = [
   { id: V.heap, category: 'Profiling', title: $localize`:@@profiling.views.heap:Memory`, icon: 'metrics', defaultPosition: 'center', component: () => import('./heap/heap-view').then((m) => m.HeapView) },
 ];
 
-/** Palette commands (and the File menu's "Open profile…"). */
+/** Palette commands (and the File menu's "Open performance capture…"). */
 @Injectable({ providedIn: 'root' })
 export class ProfilingCommands {
   private readonly captures = inject(CapturesStore);
@@ -40,8 +40,8 @@ export class ProfilingCommands {
   }
 
   readonly commands: ImtCommand[] = [
-    { id: 'profiling.open', title: $localize`:@@profiling.cmd.open:Open profile…`, category: 'File', run: (ctx) => this.open(ctx) },
-    this.show('profiling.captures', $localize`:@@profiling.cmd.captures:Profiling: show profiles`, V.captures),
+    { id: 'profiling.open', title: $localize`:@@profiling.cmd.open:Open performance capture…`, category: 'File', run: (ctx) => this.open(ctx) },
+    this.show('profiling.captures', $localize`:@@profiling.cmd.captures:Profiling: show captures`, V.captures),
     this.show('profiling.hotspots', $localize`:@@profiling.cmd.hotspots:Profiling: hotspots`, V.hotspots),
     this.show('profiling.tree', $localize`:@@profiling.cmd.tree:Profiling: call tree`, V.tree),
     this.show('profiling.inverted', $localize`:@@profiling.cmd.inverted:Profiling: inverted tree (bottom-up)`, V.inverted),
