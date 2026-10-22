@@ -19,6 +19,9 @@ const COMMANDS: [string, string, string?][] = [
   ['window.close', 'Close window'],
   ['edit.undo', 'Undo', 'Mod+Z'],
   ['edit.redo', 'Redo', 'Mod+Shift+Z'],
+  ['edit.copy', 'Copy'],
+  ['edit.copyJson', 'Copy as JSON'],
+  ['edit.find', 'Find', 'Mod+F'],
   ['palette.open', 'Show all commands', 'Mod+K'],
   ['view.toggleSidebar', 'Toggle sidebar', 'Mod+B'],
   ['view.resetLayout', 'Reset layout'],
@@ -220,7 +223,9 @@ describe('menu model', () => {
 
   it('labels Undo and Redo with what they would take back', () => {
     const edit = menu(buildMenus(state()), 'edit').items;
-    expect(labels(edit)).toEqual(['Undo level filter change', 'Redo (nothing to redo)']);
+    // Then Copy, Copy as JSON and Find (F4).
+    expect(labels(edit)).toEqual(['Undo level filter change', 'Redo (nothing to redo)', '—', 'Copy', 'Copy as JSON', '—', 'Find']);
+    expect(edit.find((n) => n.kind === 'item' && n.id === 'edit.find')).toMatchObject({ keybinding: 'Mod+F' });
   });
 
   it('groups Window: layouts submenu, tool window actions, then the windows and pop-outs when there are several', () => {

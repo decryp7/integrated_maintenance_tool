@@ -243,7 +243,7 @@ export function buildMenus(state: MenuState): TopMenu[] {
     {
       id: 'edit',
       label: $localize`:Top-level menu@@shell.menu.top.edit:Edit`,
-      items: tidy([undo(state.undoLabel), redo(state.redoLabel)]),
+      items: tidy([undo(state.undoLabel), redo(state.redoLabel), SEP, cmd('edit.copy'), cmd('edit.copyJson'), SEP, cmd('edit.find')]),
     },
     { id: 'view', label: $localize`:Top-level menu@@shell.menu.top.view:View`, items: viewMenu(state, cmd, sub) },
     {
