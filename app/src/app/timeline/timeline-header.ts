@@ -13,7 +13,7 @@ import { TimelineInstanceStore } from './timeline-instance.store';
 import { TIMELINE_SOURCE } from './timeline-source';
 import { TimelineViews } from './timeline-views';
 import { RangeZoom } from './zoom';
-import { OverviewHeadline } from '../overview/overview-headline';
+import { HealthHeadline } from '../home/health/health-headline';
 import { HelpHint } from '../ui/help-hint';
 import { isMac } from '../extensions/keybinding';
 
@@ -24,7 +24,7 @@ import { isMac } from '../extensions/keybinding';
 @Component({
   selector: 'imt-timeline-header',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Switch, AutoFocus, LiveWindowControls, OverviewHeadline, HelpHint],
+  imports: [Icon, Switch, AutoFocus, LiveWindowControls, HealthHeadline, HelpHint],
   host: { style: 'display: contents' },
   template: `
     <div class="head">
@@ -35,8 +35,8 @@ import { isMac } from '../extensions/keybinding';
       }
       @if (inst && !inst.synced()) { <span class="unlinked" title="Zoom, pan and the time cursor are not linked to the main timeline" i18n-title="@@timeline.panel.unlinked.title" i18n="@@timeline.panel.unlinked">Unlinked</span> }
       @if (src.main) {
-        <!-- The health check's headline, on the title row (the Overview stays one click away). -->
-        <imt-overview-headline />
+        <!-- The health check's headline, on the title row (Home stays one click away). -->
+        <imt-health-headline />
       }
       <span class="faint hint">{{ hint() }}</span>
       @if (hint()) {

@@ -1,6 +1,6 @@
 import { invoke } from '../core/activity/ipc';
 import { DiagnosticsReportState } from './diagnostics-report.types';
-import { EngineError, ENGINE_ERROR_EVENT, ProblemReportPreview, SnapshotContext, SnapshotInfo, SnapshotSaveResult } from '../core/api.types';
+import { EngineError, ENGINE_ERROR_EVENT, ProblemReportPreview, SnapshotContext, SnapshotInfo, SnapshotSaveResult, WindowCapture } from '../core/api.types';
 import { CapturedImage } from './snapshot.types';
 import { listenHere } from '../windowing/window-events';
 
@@ -9,6 +9,11 @@ export type Unlisten = () => void;
 
 /** Everything the error snapshot feature asks of the host. Injected as a class token. */
 export abstract class SnapshotBackend {
+  /**
+   * A picture of this window, taken natively by the shell (ADR 0034): resolves when the webview delivers it, without
+   * rasterising the DOM in the page. `unavailable` (with the reason) when the platform can't capture.
+   */
+  abstract captureWindow(): Promise<WindowCapture>;
   abstract save(image: CapturedImage, context: SnapshotContext): Promise<SnapshotSaveResult>;
   /** Newest first. */
   abstract list(): Promise<SnapshotInfo[]>;
@@ -50,6 +55,9 @@ export class TauriSnapshotBackend extends SnapshotBackend {
     private readonly listen: ListenFn = tauriListen,
   ) {
     super();
+  }
+  captureWindow() {
+    return this.call<WindowCapture>('capture_window_image');
   }
   save(image: CapturedImage, context: SnapshotContext) {
     return this.call<SnapshotSaveResult>('save_error_snapshot', { image: image.base64, mime: image.mime, context });

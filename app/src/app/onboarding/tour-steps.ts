@@ -47,10 +47,10 @@ export const TOUR_STEPS: readonly TourStep[] = [
     target: 'imt-markers-manager',
   },
   {
-    id: 'overview',
-    title: $localize`:@@onboarding.tour.overview.title:Overview`,
-    text: $localize`:@@onboarding.tour.overview.text:The health check: what went wrong, most severe first, each with a button that takes you there. It opens after every import. That is the tour: enjoy exploring!`,
-    view: 'overview',
-    target: 'imt-overview-view',
+    id: 'home',
+    title: $localize`:@@onboarding.tour.home.title:Home`,
+    text: $localize`:@@onboarding.tour.home.text:The dashboard: the numbers, the history of events and the health check, most severe first, each with a button that takes you there. It opens after every import. That is the tour: enjoy exploring!`,
+    view: 'home',
+    target: 'imt-home-view',
   },
 ];

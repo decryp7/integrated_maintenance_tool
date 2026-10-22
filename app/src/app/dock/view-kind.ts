@@ -14,7 +14,7 @@ export const TOOL_VIEWS: ReadonlySet<string> = new Set([
   'inspector',
   'live-alerts',
   'tail-status',
-  'overview',
+  'home',
   'saved-queries',
   'notes',
   'problems',

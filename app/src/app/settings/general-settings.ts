@@ -4,13 +4,13 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { DockService } from '../dock/dock.service';
 import { LanguageService } from '../i18n/language.service';
 import { LanguageChoice } from '../i18n/locale';
-import { OverviewPrefs } from '../overview/overview-prefs';
+import { HomePrefs } from '../home/home-prefs';
 import { HelpHint } from '../ui/help-hint';
 import { SettingsStore } from './settings.store';
 
 /**
  * UI-only preferences (kept in the browser): language (applied after a restart), time zone, date format, lifecycle
- * markers, overview, layout. Everything but the language applies immediately. The look is in Appearance.
+ * markers, Home, layout. Everything but the language applies immediately. The look is in Appearance.
  */
 @Component({
   selector: 'imt-general-settings',
@@ -49,10 +49,10 @@ import { SettingsStore } from './settings.store';
       Always show start/stop markers
       <imt-help label="Start/stop markers" text="Keep process start and stop markers on the timeline even when level or text filters would hide them." i18n-label="@@settings.general.alwaysShowLifecycle.helpLabel" i18n-text="@@settings.general.alwaysShowLifecycle.help" />
     </label>
-    <label class="row" i18n="@@settings.general.overviewAutoOpen">
-      <input type="checkbox" data-testid="overview-auto-open" [checked]="overview.autoOpen()" (change)="overview.setAutoOpen($any($event.target).checked)" />
-      Overview: show after every import
-      <imt-help label="Overview after import" text="Open the Overview panel by itself each time files are opened. The same choice is in the Overview panel." i18n-label="@@settings.general.overviewAutoOpen.helpLabel" i18n-text="@@settings.general.overviewAutoOpen.help" />
+    <label class="row" i18n="@@settings.general.homeAutoOpen">
+      <input type="checkbox" data-testid="home-auto-open" [checked]="home.autoOpen()" (change)="home.setAutoOpen($any($event.target).checked)" />
+      Home: show after every import
+      <imt-help label="Home after import" text="Open the Home panel by itself each time files are opened. The same choice is in the Home panel." i18n-label="@@settings.general.homeAutoOpen.helpLabel" i18n-text="@@settings.general.homeAutoOpen.help" />
     </label>
     <div>
       <button class="btn" type="button" (click)="dock.reset(); layoutReset.emit()" i18n="@@settings.general.resetLayout">Reset layout</button>
@@ -74,7 +74,7 @@ export class GeneralSettings {
   protected readonly store = inject(WorkspaceStore);
   protected readonly settings = inject(SettingsStore);
   protected readonly dock = inject(DockService);
-  protected readonly overview = inject(OverviewPrefs);
+  protected readonly home = inject(HomePrefs);
   protected readonly language = inject(LanguageService);
   /** The layout was reset (the screen closes so the user sees it). */
   readonly layoutReset = output<void>();

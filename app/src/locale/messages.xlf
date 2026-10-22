@@ -10314,11 +10314,18 @@
           <context context-type="linenumber">62</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="diagnostics.snapshot.noScreenshot" datatype="html">
+        <source>No screenshot: <x id="reason" equiv-text="reason"/>.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/diagnostics/snapshot.types.ts</context>
+          <context context-type="linenumber">22</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="diagnostics.snapshot.notice" datatype="html">
         <source>IMT saved a screenshot of this error locally to help diagnose it. Nothing is sent anywhere.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/snapshot.types.ts</context>
-          <context context-type="linenumber">15</context>
+          <context context-type="linenumber">28</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.snapshots.folder" datatype="html">
@@ -12958,6 +12965,601 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/help/shortcuts.ts</context>
           <context context-type="linenumber">43</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.actions.setupFormat" datatype="html">
+        <source>Set up format</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-actions.ts</context>
+          <context context-type="linenumber">44</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.actions.exceptionGone" datatype="html">
+        <source>That exception is not in the current view any more. Clear the filters and try again.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-actions.ts</context>
+          <context context-type="linenumber">60</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.headline.aria" datatype="html">
+        <source>Health check</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-headline.ts</context>
+          <context context-type="linenumber">89</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.headline.review" datatype="html">
+        <source>Review</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-headline.ts</context>
+          <context context-type="linenumber">101,105</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.headline.crashTitle" datatype="html">
+        <source>Jump to the next crash</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-headline.ts</context>
+          <context context-type="linenumber">132</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.headline.errorsTitle" datatype="html">
+        <source>Show the errors and fatal events</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-headline.ts</context>
+          <context context-type="linenumber">133</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.headline.silentTitle" datatype="html">
+        <source>Show the next time a source went silent</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-headline.ts</context>
+          <context context-type="linenumber">134</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.headline.crashes.one" datatype="html">
+        <source><x id="count" equiv-text="n"/> crash</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-headline.ts</context>
+          <context context-type="linenumber">144</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.headline.crashes.other" datatype="html">
+        <source><x id="count" equiv-text="n"/> crashes</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-headline.ts</context>
+          <context context-type="linenumber">144</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.headline.errors.one" datatype="html">
+        <source><x id="count" equiv-text="count"/> error</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-headline.ts</context>
+          <context context-type="linenumber">149</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.headline.errors.other" datatype="html">
+        <source><x id="count" equiv-text="count"/> errors</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-headline.ts</context>
+          <context context-type="linenumber">149</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.headline.silent.one" datatype="html">
+        <source><x id="count" equiv-text="n"/> went silent</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-headline.ts</context>
+          <context context-type="linenumber">153</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.headline.silent.other" datatype="html">
+        <source><x id="count" equiv-text="n"/> went silent</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-headline.ts</context>
+          <context context-type="linenumber">153</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.severity.critical" datatype="html">
+        <source>Critical</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-model.ts</context>
+          <context context-type="linenumber">14</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.severity.warning" datatype="html">
+        <source>Warning</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-model.ts</context>
+          <context context-type="linenumber">15</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.severity.info" datatype="html">
+        <source>Info</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-model.ts</context>
+          <context context-type="linenumber">16</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.plugin.quarantinedWithError" datatype="html">
+        <source>disabled after crashes: <x id="error" equiv-text="error"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-model.ts</context>
+          <context context-type="linenumber">40</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.plugin.quarantined" datatype="html">
+        <source>disabled after crashes</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-model.ts</context>
+          <context context-type="linenumber">41</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.plugin.inactive" datatype="html">
+        <source>not running</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-model.ts</context>
+          <context context-type="linenumber">44</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.plugin.errors.one" datatype="html">
+        <source><x id="count" equiv-text="n"/> contained error</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-model.ts</context>
+          <context context-type="linenumber">49</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.plugin.errors.other" datatype="html">
+        <source><x id="count" equiv-text="n"/> contained errors</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-model.ts</context>
+          <context context-type="linenumber">50</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.plugin.errorsWithLast" datatype="html">
+        <source><x id="count" equiv-text="count"/>: <x id="error" equiv-text="error"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-model.ts</context>
+          <context context-type="linenumber">52</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.panel.pipeline" datatype="html">
+        <source>Profile pipeline</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-model.ts</context>
+          <context context-type="linenumber">96</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.panel.plugins" datatype="html">
+        <source>Plugins</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-model.ts</context>
+          <context context-type="linenumber">97</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.action.jump" datatype="html">
+        <source>Jump to time</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-model.ts</context>
+          <context context-type="linenumber">110</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.action.showRange" datatype="html">
+        <source>Show these events</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-model.ts</context>
+          <context context-type="linenumber">111</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.action.showException" datatype="html">
+        <source>Show events</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-model.ts</context>
+          <context context-type="linenumber">115</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.action.openExceptions" datatype="html">
+        <source>Open Exceptions</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-model.ts</context>
+          <context context-type="linenumber">116</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.action.setupFormat" datatype="html">
+        <source>Set up format…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-model.ts</context>
+          <context context-type="linenumber">119</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="overview.action.openPanel" datatype="html">
+        <source>Open <x id="panel" equiv-text="panelTarget(action.panel).title"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/health/health-model.ts</context>
+          <context context-type="linenumber">121</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.title" datatype="html">
+        <source>Home</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">41,42</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.helpLabel" datatype="html">
+        <source>Home</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">42</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.helpText" datatype="html">
+        <source>A dashboard of everything you opened: what happened over time, what went wrong and where to look first. It is computed by the engine; your files are never changed.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">42</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.refresh" datatype="html">
+        <source>Refresh</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">44,45</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.rootCauses" datatype="html">
+        <source>Root causes</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">45</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.rootCausesHint" datatype="html">
+        <source>The local model reads the findings and exceptions and lists the likely root causes</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">45</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.region" datatype="html">
+        <source>Home dashboard</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">47</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.quickActions" datatype="html">
+        <source>Quick actions</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">48</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.openFiles" datatype="html">
+        <source>Open files…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">49,50</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.openFolder" datatype="html">
+        <source>Open folder…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">50,51</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.openLast" datatype="html">
+        <source>Open last project</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">51,52</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.openRecent" datatype="html">
+        <source>Recent projects…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">52,55</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.empty" datatype="html">
+        <source>Open files or a folder to see the dashboard here.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">56,58</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.summary" datatype="html">
+        <source>Summary</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">60</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.events" datatype="html">
+        <source>Events</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">61</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.sources" datatype="html">
+        <source>Sources</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">62</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.errors" datatype="html">
+        <source>Errors</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">64</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.showErrors" datatype="html">
+        <source>Show the errors and fatal events</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">64</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.warnings" datatype="html">
+        <source>Warnings</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">68</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.showWarnings" datatype="html">
+        <source>Show the warning events</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">68</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.crashes" datatype="html">
+        <source>Crashes</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">71</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.anomalies" datatype="html">
+        <source>Anomalies</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">72</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.showAnomalies" datatype="html">
+        <source>Open the Anomalies view</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">72</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.exceptions" datatype="html">
+        <source>Exception groups</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">73</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.showExceptions" datatype="html">
+        <source>Open the Exceptions view</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">73</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.timeSpan" datatype="html">
+        <source>Time span</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">74,75</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.storeSize" datatype="html">
+        <source>Store</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">76</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.memory" datatype="html">
+        <source>Memory</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">79</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.history" datatype="html">
+        <source>Events over time</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">86,87</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.historyHint" datatype="html">
+        <source>Click a bar to show that period, or drag across the chart to select a range.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">88,90</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.unrecognized" datatype="html">
+        <source>{VAR_PLURAL, plural, =1 {<x id="INTERPOLATION"/> file not opened} other {<x id="INTERPOLATION"/> files not opened}}</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">97</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.pluginProblems" datatype="html">
+        <source>{VAR_PLURAL, plural, =1 {<x id="INTERPOLATION"/> plugin with problems} other {<x id="INTERPOLATION"/> plugins with problems}}</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">107,108</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.health" datatype="html">
+        <source>Health check</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">118,119</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.none" datatype="html">
+        <source>Nothing alarming found</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">126,127</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.noneDetail" datatype="html">
+        <source>No crashes, error spikes or unreadable files. Explore the timeline, or search the events for what you are after.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">127,129</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.findings" datatype="html">
+        <source>Findings</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">132</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.activity" datatype="html">
+        <source>Recent activity</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">151,152</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.failed" datatype="html">
+        <source>failed</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">155,156</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.noActivity" datatype="html">
+        <source>Nothing yet.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">159,161</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.autoOpen" datatype="html">
+        <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;prefs.autoOpen()&quot; (change)=&quot;prefs.setAutoOpen($any($event.target).checked)&quot; /&gt;"/> Show Home after opening files </source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">165,167</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.noTimestamps" datatype="html">
+        <source>No timestamps</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">249</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.span" datatype="html">
+        <source><x id="from" equiv-text="from"/> → <x id="to" equiv-text="to"/> (<x id="duration" equiv-text="duration"/>)</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">254</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.level.verbose" datatype="html">
+        <source>Verbose</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">261</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.level.debug" datatype="html">
+        <source>Debug</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">262</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.level.information" datatype="html">
+        <source>Information</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">263</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.level.warning" datatype="html">
+        <source>Warning</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">264</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.level.error" datatype="html">
+        <source>Error</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">265</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.level.fatal" datatype="html">
+        <source>Fatal</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">266</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.anomaly" datatype="html">
+        <source>Anomaly</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">271</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.tag.critical" datatype="html">
+        <source>critical</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">312</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.tag.warning" datatype="html">
+        <source>warning</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">314</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.view.tag.info" datatype="html">
+        <source>info</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home-view.ts</context>
+          <context context-type="linenumber">316</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.plugin.title" datatype="html">
+        <source>Home</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home.plugin.ts</context>
+          <context context-type="linenumber">14</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.plugin.show" datatype="html">
+        <source>Show Home</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home.plugin.ts</context>
+          <context context-type="linenumber">52</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="home.plugin.category" datatype="html">
+        <source>View</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/home/home.plugin.ts</context>
+          <context context-type="linenumber">52</context>
         </context-group>
       </trans-unit>
       <trans-unit id="i18n.reload.title" datatype="html">
@@ -18455,423 +19057,17 @@
           <context context-type="linenumber">45</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="onboarding.tour.overview.title" datatype="html">
-        <source>Overview</source>
+      <trans-unit id="onboarding.tour.home.title" datatype="html">
+        <source>Home</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/onboarding/tour-steps.ts</context>
           <context context-type="linenumber">51</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="onboarding.tour.overview.text" datatype="html">
-        <source>The health check: what went wrong, most severe first, each with a button that takes you there. It opens after every import. That is the tour: enjoy exploring!</source>
+      <trans-unit id="onboarding.tour.home.text" datatype="html">
+        <source>The dashboard: the numbers, the history of events and the health check, most severe first, each with a button that takes you there. It opens after every import. That is the tour: enjoy exploring!</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/onboarding/tour-steps.ts</context>
-          <context context-type="linenumber">52</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.actions.setupFormat" datatype="html">
-        <source>Set up format</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-actions.ts</context>
-          <context context-type="linenumber">44</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.actions.exceptionGone" datatype="html">
-        <source>That exception is not in the current view any more. Clear the filters and try again.</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-actions.ts</context>
-          <context context-type="linenumber">60</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.headline.aria" datatype="html">
-        <source>Health check</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-headline.ts</context>
-          <context context-type="linenumber">89</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.headline.review" datatype="html">
-        <source>Review</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-headline.ts</context>
-          <context context-type="linenumber">101,105</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.headline.crashTitle" datatype="html">
-        <source>Jump to the next crash</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-headline.ts</context>
-          <context context-type="linenumber">132</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.headline.errorsTitle" datatype="html">
-        <source>Show the errors and fatal events</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-headline.ts</context>
-          <context context-type="linenumber">133</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.headline.silentTitle" datatype="html">
-        <source>Show the next time a source went silent</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-headline.ts</context>
-          <context context-type="linenumber">134</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.headline.crashes.one" datatype="html">
-        <source><x id="count" equiv-text="n"/> crash</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-headline.ts</context>
-          <context context-type="linenumber">144</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.headline.crashes.other" datatype="html">
-        <source><x id="count" equiv-text="n"/> crashes</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-headline.ts</context>
-          <context context-type="linenumber">144</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.headline.errors.one" datatype="html">
-        <source><x id="count" equiv-text="count"/> error</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-headline.ts</context>
-          <context context-type="linenumber">149</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.headline.errors.other" datatype="html">
-        <source><x id="count" equiv-text="count"/> errors</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-headline.ts</context>
-          <context context-type="linenumber">149</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.headline.silent.one" datatype="html">
-        <source><x id="count" equiv-text="n"/> went silent</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-headline.ts</context>
-          <context context-type="linenumber">153</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.headline.silent.other" datatype="html">
-        <source><x id="count" equiv-text="n"/> went silent</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-headline.ts</context>
-          <context context-type="linenumber">153</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.severity.critical" datatype="html">
-        <source>Critical</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-model.ts</context>
-          <context context-type="linenumber">14</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.severity.warning" datatype="html">
-        <source>Warning</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-model.ts</context>
-          <context context-type="linenumber">15</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.severity.info" datatype="html">
-        <source>Info</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-model.ts</context>
-          <context context-type="linenumber">16</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.plugin.quarantinedWithError" datatype="html">
-        <source>disabled after crashes: <x id="error" equiv-text="error"/></source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-model.ts</context>
-          <context context-type="linenumber">40</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.plugin.quarantined" datatype="html">
-        <source>disabled after crashes</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-model.ts</context>
-          <context context-type="linenumber">41</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.plugin.inactive" datatype="html">
-        <source>not running</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-model.ts</context>
-          <context context-type="linenumber">44</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.plugin.errors.one" datatype="html">
-        <source><x id="count" equiv-text="n"/> contained error</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-model.ts</context>
-          <context context-type="linenumber">49</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.plugin.errors.other" datatype="html">
-        <source><x id="count" equiv-text="n"/> contained errors</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-model.ts</context>
-          <context context-type="linenumber">50</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.plugin.errorsWithLast" datatype="html">
-        <source><x id="count" equiv-text="count"/>: <x id="error" equiv-text="error"/></source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-model.ts</context>
-          <context context-type="linenumber">52</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.panel.pipeline" datatype="html">
-        <source>Profile pipeline</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-model.ts</context>
-          <context context-type="linenumber">96</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.panel.plugins" datatype="html">
-        <source>Plugins</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-model.ts</context>
-          <context context-type="linenumber">97</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.action.jump" datatype="html">
-        <source>Jump to time</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-model.ts</context>
-          <context context-type="linenumber">110</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.action.showRange" datatype="html">
-        <source>Show these events</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-model.ts</context>
-          <context context-type="linenumber">111</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.action.showException" datatype="html">
-        <source>Show events</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-model.ts</context>
-          <context context-type="linenumber">115</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.action.openExceptions" datatype="html">
-        <source>Open Exceptions</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-model.ts</context>
-          <context context-type="linenumber">116</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.action.setupFormat" datatype="html">
-        <source>Set up format…</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-model.ts</context>
-          <context context-type="linenumber">119</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.action.openPanel" datatype="html">
-        <source>Open <x id="panel" equiv-text="panelTarget(action.panel).title"/></source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-model.ts</context>
-          <context context-type="linenumber">121</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.title" datatype="html">
-        <source>Overview</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">24,25</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.helpLabel" datatype="html">
-        <source>Overview</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">25</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.helpText" datatype="html">
-        <source>A health check of everything you opened: what went wrong and where to look first. It is computed by the engine; your files are never changed.</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">25</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.refresh" datatype="html">
-        <source>Refresh</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">27,28</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.rootCauses" datatype="html">
-        <source>Root causes</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">28</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.rootCausesHint" datatype="html">
-        <source>The local model reads the findings and exceptions and lists the likely root causes</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">28</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.healthCheck" datatype="html">
-        <source>Health check</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">30</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.summary" datatype="html">
-        <source>Summary</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">32</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.sources" datatype="html">
-        <source>Sources</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">33</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.events" datatype="html">
-        <source>Events</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">34</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.instances" datatype="html">
-        <source>Instances</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">35</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.timeSpan" datatype="html">
-        <source>Time span</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">36,37</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.errors" datatype="html">
-        <source>Errors</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">37</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.crashes" datatype="html">
-        <source>Crashes</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">38</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.unrecognized" datatype="html">
-        <source>{VAR_PLURAL, plural, =1 {<x id="INTERPOLATION"/> file not opened} other {<x id="INTERPOLATION"/> files not opened}}</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">42,43</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.pluginProblems" datatype="html">
-        <source>{VAR_PLURAL, plural, =1 {<x id="INTERPOLATION"/> plugin with problems} other {<x id="INTERPOLATION"/> plugins with problems}}</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">52,54</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.empty" datatype="html">
-        <source>Open files or a folder to see a health check here.</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">61,64</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.none" datatype="html">
-        <source>Nothing alarming found</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">77,78</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.noneDetail" datatype="html">
-        <source>No crashes, error spikes or unreadable files. Explore the timeline, or search the events for what you are after.</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">78,80</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.autoOpen" datatype="html">
-        <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;prefs.autoOpen()&quot; (change)=&quot;prefs.setAutoOpen($any($event.target).checked)&quot; /&gt;"/> Show the overview after opening files </source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">110,112</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.noTimestamps" datatype="html">
-        <source>No timestamps</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">166</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.span" datatype="html">
-        <source><x id="from" equiv-text="from"/> → <x id="to" equiv-text="to"/> (<x id="duration" equiv-text="duration"/>)</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">171</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.tag.critical" datatype="html">
-        <source>critical</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">188</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.tag.warning" datatype="html">
-        <source>warning</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">190</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.view.tag.info" datatype="html">
-        <source>info</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">192</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.plugin.title" datatype="html">
-        <source>Overview</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview.plugin.ts</context>
-          <context context-type="linenumber">14</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.plugin.show" datatype="html">
-        <source>Show overview</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview.plugin.ts</context>
-          <context context-type="linenumber">52</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="overview.plugin.category" datatype="html">
-        <source>View</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/overview/overview.plugin.ts</context>
           <context context-type="linenumber">52</context>
         </context-group>
       </trans-unit>
@@ -26807,19 +27003,11 @@
         <source>New project</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/project-commands.ts</context>
-          <context context-type="linenumber">15</context>
+          <context context-type="linenumber">17</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.cmd.fileCategory" datatype="html">
         <source>File</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/projects/project-commands.ts</context>
-          <context context-type="linenumber">15</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/projects/project-commands.ts</context>
-          <context context-type="linenumber">16</context>
-        </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/project-commands.ts</context>
           <context context-type="linenumber">17</context>
@@ -26831,6 +27019,18 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/project-commands.ts</context>
           <context context-type="linenumber">19</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/projects/project-commands.ts</context>
+          <context context-type="linenumber">23</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/projects/project-commands.ts</context>
+          <context context-type="linenumber">27</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/projects/project-commands.ts</context>
+          <context context-type="linenumber">28</context>
         </context-group>
         <note priority="1" from="meaning">Command palette category</note>
       </trans-unit>
@@ -26838,35 +27038,42 @@
         <source>Open project…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/project-commands.ts</context>
-          <context context-type="linenumber">16</context>
+          <context context-type="linenumber">18</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.cmd.recent" datatype="html">
         <source>Open recent project…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/project-commands.ts</context>
-          <context context-type="linenumber">17</context>
+          <context context-type="linenumber">19</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="projects.cmd.openLast" datatype="html">
+        <source>Open last project</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/projects/project-commands.ts</context>
+          <context context-type="linenumber">22</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.cmd.save" datatype="html">
         <source>Save project</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/project-commands.ts</context>
-          <context context-type="linenumber">18</context>
+          <context context-type="linenumber">27</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.cmd.saveAs" datatype="html">
         <source>Save project as…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/project-commands.ts</context>
-          <context context-type="linenumber">19</context>
+          <context context-type="linenumber">28</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.cmd.actionNew" datatype="html">
         <source>start a new project</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/project-commands.ts</context>
-          <context context-type="linenumber">24</context>
+          <context context-type="linenumber">33</context>
         </context-group>
         <note priority="1" from="meaning">Completes &quot;Save the changes before you ...&quot;</note>
       </trans-unit>
@@ -26874,7 +27081,11 @@
         <source>open another project</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/project-commands.ts</context>
-          <context context-type="linenumber">28</context>
+          <context context-type="linenumber">40</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/projects/project-commands.ts</context>
+          <context context-type="linenumber">44</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/recent-dialog.ts</context>
@@ -27561,6 +27772,161 @@
           <context context-type="linenumber">91</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="search.cmd.open" datatype="html">
+        <source>Search everything…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/provide-search-everything.ts</context>
+          <context context-type="linenumber">13</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.category" datatype="html">
+        <source>Search</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/provide-search-everything.ts</context>
+          <context context-type="linenumber">14</context>
+        </context-group>
+        <note priority="1" from="meaning">Command palette category</note>
+      </trans-unit>
+      <trans-unit id="search.dialog.label" datatype="html">
+        <source>Search everything</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-launcher.ts</context>
+          <context context-type="linenumber">25</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.input.label" datatype="html">
+        <source>Search everything</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">26,28</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.input.placeholder" datatype="html">
+        <source>Search events, sources, fields, markers, notes…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">32,34</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.status.searching" datatype="html">
+        <source>Searching…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">41,42</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.status.retry" datatype="html">
+        <source>Retry</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">44,45</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.status.none" datatype="html">
+        <source>Nothing matches “<x id="TEXT" equiv-text="{{ store.searched() //i18n(ph=&quot;text&quot;) }}"/>”.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">46,47</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.list.label" datatype="html">
+        <source>Results</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">49,50</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.kind.events" datatype="html">
+        <source>Events</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">44</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.kind.sources" datatype="html">
+        <source>Sources</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">46</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.kind.fields" datatype="html">
+        <source>Fields</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">48</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.kind.markers" datatype="html">
+        <source>Markers</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">50</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.kind.notes" datatype="html">
+        <source>Notes</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">52</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.kind.knowledge" datatype="html">
+        <source>Knowledge</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">54</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.outcome.timedOut" datatype="html">
+        <source>Search time ran out; there may be more matches.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">64</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.outcome.failed" datatype="html">
+        <source>Could not search: <x id="message" equiv-text="outcome.message"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">66</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.scope.global" datatype="html">
+        <source>Global</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">76</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.scope.project" datatype="html">
+        <source>Project</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">76</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.events.all" datatype="html">
+        <source>Show all <x id="count" equiv-text="reply.events.total"/> matching events in the grid</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">90</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.source.records" datatype="html">
+        <source><x id="count" equiv-text="s.records"/> events</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">98</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.field.count" datatype="html">
+        <source><x id="count" equiv-text="f.count"/> events</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">103</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="settings.appearance.theme" datatype="html">
         <source>Theme</source>
         <context-group purpose="location">
@@ -27941,22 +28307,22 @@
           <context context-type="linenumber">50</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="settings.general.overviewAutoOpen" datatype="html">
-        <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; data-testid=&quot;overview-auto-open&quot; [checked]=&quot;overview.autoOpen()&quot; (change)=&quot;overview.setAutoOpen($any($event.target).checked)&quot; /&gt;"/> Overview: show after every import <x id="START_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Overview after import&quot; text=&quot;Open the Overview panel by itself each time files are opened. The same choice is in the Overview panel.&quot; i18n-label=&quot;@@settings.general.overviewAutoOpen.helpLabel&quot; i18n-text=&quot;@@settings.general.overviewAutoOpen.help&quot; /&gt;"/><x id="CLOSE_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Overview after import&quot; text=&quot;Open the Overview panel by itself each time files are opened. The same choice is in the Overview panel.&quot; i18n-label=&quot;@@settings.general.overviewAutoOpen.helpLabel&quot; i18n-text=&quot;@@settings.general.overviewAutoOpen.help&quot; /&gt;"/></source>
+      <trans-unit id="settings.general.homeAutoOpen" datatype="html">
+        <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; data-testid=&quot;home-auto-open&quot; [checked]=&quot;home.autoOpen()&quot; (change)=&quot;home.setAutoOpen($any($event.target).checked)&quot; /&gt;"/> Home: show after every import <x id="START_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Home after import&quot; text=&quot;Open the Home panel by itself each time files are opened. The same choice is in the Home panel.&quot; i18n-label=&quot;@@settings.general.homeAutoOpen.helpLabel&quot; i18n-text=&quot;@@settings.general.homeAutoOpen.help&quot; /&gt;"/><x id="CLOSE_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Home after import&quot; text=&quot;Open the Home panel by itself each time files are opened. The same choice is in the Home panel.&quot; i18n-label=&quot;@@settings.general.homeAutoOpen.helpLabel&quot; i18n-text=&quot;@@settings.general.homeAutoOpen.help&quot; /&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/general-settings.ts</context>
           <context context-type="linenumber">53,57</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="settings.general.overviewAutoOpen.helpLabel" datatype="html">
-        <source>Overview after import</source>
+      <trans-unit id="settings.general.homeAutoOpen.helpLabel" datatype="html">
+        <source>Home after import</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/general-settings.ts</context>
           <context context-type="linenumber">55</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="settings.general.overviewAutoOpen.help" datatype="html">
-        <source>Open the Overview panel by itself each time files are opened. The same choice is in the Overview panel.</source>
+      <trans-unit id="settings.general.homeAutoOpen.help" datatype="html">
+        <source>Open the Home panel by itself each time files are opened. The same choice is in the Home panel.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/general-settings.ts</context>
           <context context-type="linenumber">55</context>
@@ -35657,25 +36023,46 @@
           <context context-type="linenumber">245</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="timeline.minimap.label" datatype="html">
+        <source>Timeline overview</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/timeline/timeline-minimap.ts</context>
+          <context context-type="linenumber">33,34</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="timeline.minimap.window" datatype="html">
+        <source>Visible time range</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/timeline/timeline-minimap.ts</context>
+          <context context-type="linenumber">51,52</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="timeline.minimap.valueText" datatype="html">
+        <source><x id="from" equiv-text="from"/> to <x id="to" equiv-text="to"/> (<x id="duration" equiv-text="duration"/>)</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/timeline/timeline-minimap.ts</context>
+          <context context-type="linenumber">113</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="timeline.panel.eventsPerBucket" datatype="html">
         <source>events / bucket</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-panel.ts</context>
-          <context context-type="linenumber">76,78</context>
+          <context context-type="linenumber">81,83</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.panel.histMaxTitle" datatype="html">
         <source>Events in the busiest bucket</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-panel.ts</context>
-          <context context-type="linenumber">78</context>
+          <context context-type="linenumber">83</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.panel.histMax" datatype="html">
         <source>max <x id="INTERPOLATION" equiv-text="{{ histMax() }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-panel.ts</context>
-          <context context-type="linenumber">78,79</context>
+          <context context-type="linenumber">83,84</context>
         </context-group>
         <note priority="1" from="description">Scale of the events histogram</note>
       </trans-unit>
@@ -35683,84 +36070,84 @@
         <source>Right-click to analyse a moment</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-panel.ts</context>
-          <context context-type="linenumber">91</context>
+          <context context-type="linenumber">96</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.error.summary" datatype="html">
         <source>Couldn&apos;t load the timeline.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-panel.ts</context>
-          <context context-type="linenumber">146</context>
+          <context context-type="linenumber">151</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.marker.ariaMany" datatype="html">
         <source><x id="label" equiv-text="label"/> at <x id="time" equiv-text="at"/>, <x id="count" equiv-text="count"/> events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-panel.ts</context>
-          <context context-type="linenumber">321</context>
+          <context context-type="linenumber">326</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.marker.ariaOne" datatype="html">
         <source><x id="label" equiv-text="label"/> at <x id="time" equiv-text="at"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-panel.ts</context>
-          <context context-type="linenumber">322</context>
+          <context context-type="linenumber">327</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.menu.noteMarker" datatype="html">
         <source>Add note to this marker…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-panel.ts</context>
-          <context context-type="linenumber">358</context>
+          <context context-type="linenumber">363</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.menu.showMarkerEvent" datatype="html">
         <source>Show its event</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-panel.ts</context>
-          <context context-type="linenumber">359</context>
+          <context context-type="linenumber">364</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.menu.noteSpan" datatype="html">
         <source>Add note to this span…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-panel.ts</context>
-          <context context-type="linenumber">367</context>
+          <context context-type="linenumber">372</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.menu.showRun" datatype="html">
         <source>Show this run</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-panel.ts</context>
-          <context context-type="linenumber">369</context>
+          <context context-type="linenumber">374</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.menu.showEvidence" datatype="html">
         <source>Show the evidence</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-panel.ts</context>
-          <context context-type="linenumber">370</context>
+          <context context-type="linenumber">375</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.menu.analyseMoment" datatype="html">
         <source>Analyse this moment</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-panel.ts</context>
-          <context context-type="linenumber">383</context>
+          <context context-type="linenumber">388</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.menu.noteMoment" datatype="html">
         <source>Add note at this moment…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-panel.ts</context>
-          <context context-type="linenumber">389</context>
+          <context context-type="linenumber">394</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.menu.noteRange" datatype="html">
         <source>Add note to the selected range…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-panel.ts</context>
-          <context context-type="linenumber">391</context>
+          <context context-type="linenumber">396</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.tip.count" datatype="html">

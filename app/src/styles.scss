@@ -47,6 +47,11 @@
   }
 }
 
+/* While the shell captures the window for an error snapshot (ADR 0034), toasts stay out of the picture. */
+html[data-snapshot-capturing] [data-snapshot-ignore] {
+  visibility: hidden !important;
+}
+
 /* Trait: tabular figures where the theme asks for them (counts and times line up). */
 :root[data-numerals='tabular'] {
   font-variant-numeric: tabular-nums;
