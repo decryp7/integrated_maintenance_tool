@@ -315,4 +315,46 @@ mod tests {
             Err(RunError::Cancelled)
         ));
     }
+
+    #[test]
+    fn an_owned_event_row_delegates_everything_to_its_event() {
+        use super::super::Row;
+        let mut rec = Record::new(1);
+        rec.message = "Disk Full here".into();
+        rec.level = crate::model::Level::Error;
+        rec.fields.insert("N".into(), serde_json::json!(7));
+        let row = OwnedEvent(RecordRow { rec: &rec, source: "s" });
+        let key = crate::row::FieldKeys::new().key("N");
+        assert_eq!(row.level(), Some(crate::model::Level::Error));
+        assert!(row.full_text("disk full"));
+        assert!(!row.full_text("absent"));
+        assert_eq!(row.number(&key), Some(7.0));
+        assert_eq!(row.value(&key), Some(serde_json::json!(7)));
+        assert_eq!(row.text(&crate::row::FieldKeys::new().key("N")).map(|t| t.into_owned()), Some("7".to_string()));
+        assert_eq!(row.event().map(|e| e.message().to_string()), Some("Disk Full here".to_string()));
+    }
+
+    #[test]
+    fn a_row_that_is_not_an_event_has_no_event() {
+        use super::super::Row;
+        struct Plain;
+        impl Row for Plain {
+            fn text(&self, _: &crate::row::FieldKey) -> Option<std::borrow::Cow<'_, str>> {
+                None
+            }
+            fn number(&self, _: &crate::row::FieldKey) -> Option<f64> {
+                None
+            }
+            fn level(&self) -> Option<crate::model::Level> {
+                None
+            }
+            fn full_text(&self, _: &str) -> bool {
+                false
+            }
+            fn value(&self, _: &crate::row::FieldKey) -> Option<Value> {
+                None
+            }
+        }
+        assert!(Plain.event().is_none());
+    }
 }
