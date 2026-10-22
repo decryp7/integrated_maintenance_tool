@@ -49,7 +49,7 @@ test.describe('lifecycle banners and elevation', () => {
     await expect(page.getByTestId('admin-badge')).toHaveText('Administrator');
     await page.keyboard.press('ControlOrMeta+k');
     await page.getByRole('combobox', { name: 'Type a command' }).fill('Restart as administrator');
-    await expect(page.getByRole('option')).toHaveCount(0);
+    await expect(page.locator('imt-command-palette').getByRole('option')).toHaveCount(0);
     await page.keyboard.press('Escape');
 
     await openAppWith(page);
@@ -60,7 +60,7 @@ test.describe('lifecycle banners and elevation', () => {
       await openAppWith(page, `?mock-os=${os}`);
       await page.keyboard.press('ControlOrMeta+k');
       await page.getByRole('combobox', { name: 'Type a command' }).fill('Restart as administrator');
-      await expect(page.getByRole('option')).toHaveCount(0);
+      await expect(page.locator('imt-command-palette').getByRole('option')).toHaveCount(0);
       await page.keyboard.press('Escape');
     }
   });

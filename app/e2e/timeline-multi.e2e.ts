@@ -23,6 +23,8 @@ test.describe('multiple timelines', () => {
   test.beforeEach(async ({ page }) => openApp(page));
 
   test('a second timeline with its own query zooms with the main one until it is unlinked', async ({ page }) => {
+    // Two timelines stacked need the height for both histogram strips to be on screen (the brush is a real mouse drag).
+    await page.setViewportSize({ width: 1440, height: 1200 });
     const main = page.locator('imt-timeline-panel:not(.instance)');
     await main.getByRole('button', { name: 'Timeline menu' }).click();
     await page.getByRole('menuitem', { name: 'New timeline' }).click();

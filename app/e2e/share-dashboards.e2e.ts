@@ -6,7 +6,7 @@ async function runCommand(page: Page, name: string): Promise<void> {
   await page.keyboard.press('ControlOrMeta+k');
   const input = page.getByRole('combobox', { name: 'Type a command' });
   await input.fill(name);
-  await expect(page.getByRole('option').first()).toContainText(name);
+  await expect(page.locator('imt-command-palette').getByRole('option').first()).toContainText(name);
   await page.keyboard.press('Enter');
   await expect(input).toHaveCount(0);
 }

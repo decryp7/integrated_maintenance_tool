@@ -77,7 +77,7 @@ test('"Clear cache…" in the command palette opens the Storage section', async 
   await page.keyboard.press('ControlOrMeta+k');
   const input = page.getByRole('combobox', { name: 'Type a command' });
   await input.fill('clear cache');
-  await expect(page.getByRole('option').first()).toContainText('Clear cache…');
+  await expect(page.locator('imt-command-palette').getByRole('option').first()).toContainText('Clear cache…');
   await page.keyboard.press('Enter');
   await expect(table(page)).toBeVisible();
   await expect(settingsDialog(page).getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Disk usage' })).toHaveAttribute('aria-current', 'page');

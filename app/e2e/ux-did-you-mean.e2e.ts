@@ -25,7 +25,7 @@ test.describe('did you mean', () => {
     const input = page.getByRole('combobox', { name: 'Type a command' });
     await input.fill('tgogle sidbar');
     await expect(page.getByTestId('palette-did-you-mean')).toContainText('Did you mean');
-    await expect(page.getByRole('option').first()).toContainText('Toggle sidebar');
+    await expect(page.locator('imt-command-palette').getByRole('option').first()).toContainText('Toggle sidebar');
     await page.keyboard.press('Enter');
     await expect(input).toHaveCount(0);
     await expect(page.locator('imt-sidebar')).toHaveCount(0);

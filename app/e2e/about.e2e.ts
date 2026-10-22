@@ -10,7 +10,7 @@ test.describe('About IMT', () => {
     await page.keyboard.press('ControlOrMeta+k');
     const input = page.getByRole('combobox', { name: 'Type a command' });
     await input.fill('About IMT');
-    await expect(page.getByRole('option').first()).toContainText('About IMT');
+    await expect(page.locator('imt-command-palette').getByRole('option').first()).toContainText('About IMT');
     await page.keyboard.press('Enter');
 
     const dialog = page.getByRole('dialog', { name: 'About IMT' });

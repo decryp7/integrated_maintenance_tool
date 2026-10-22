@@ -10,7 +10,7 @@ test.describe('query bar', () => {
     const input = await openQuery(page);
     await input.click();
     await input.pressSequentially('level >= warning | stats count() by lev');
-    const options = page.getByRole('option');
+    const options = page.locator('imt-query-field').getByRole('option');
     await expect(options.first()).toContainText('level');
     await expect(input).toHaveAttribute('aria-expanded', 'true');
     await expectNoSeriousViolations(page, testInfo, 'query-completions', 'imt-query-field');
