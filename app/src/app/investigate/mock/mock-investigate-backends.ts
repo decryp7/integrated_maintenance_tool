@@ -1,5 +1,6 @@
 import type { IncidentRequest, IssueMatch, IssueReport, Playbook, PlaybookLibrary, PlaybookRestore, PlaybookRun, PlaybookStep, PlaybookStepResult, Report } from '../../core/api.types';
 import type { ImtBackend } from '../../core/backend';
+import { EMPTY_QUERY } from '../../core/workspace/query.store';
 import { CmdError } from '../../core/cmd-error';
 import type { Narrative } from '../../ai/ai.types';
 import { AiError } from '../../ai/ai-backend';
@@ -7,7 +8,7 @@ import type { IncidentBackend, KnownIssuesBackend, PlaybookBackend } from '../in
 
 /** Events of the mock workspace that contain `text` (a stand-in for a pattern or a query). */
 async function matching(imt: ImtBackend, text: string): Promise<{ count: number; ids: number[] }> {
-  const page = await imt.queryPage({ query: { text, regex: false }, offset: 0, limit: 5, descending: false } as never);
+  const page = await imt.queryPage({ query: { ...EMPTY_QUERY, text, regex: false }, offset: 0, limit: 5, descending: false });
   return { count: page.total, ids: page.rows.map((r) => r.id) };
 }
 
@@ -39,13 +40,13 @@ export class MockKnownIssuesBackend implements KnownIssuesBackend {
 
   async suggest(): Promise<IssueMatch[]> {
     if (!MockKnownIssuesBackend.hasModel) throw new AiError('noModel', 'No AI model is installed. Set one up in Settings > AI.');
-    const m = await matching(this.imt, 'refused');
+    const m = await matching(this.imt, 'rolled back');
     return m.count
       ? [
           {
-            issue: { id: 'ai-connection-refused', title: 'Connection refused', fix: 'Check that the service is listening and the firewall allows the port.', matcher: { type: 'query', ql: 'message contains "refused"' }, file: 'Operations' },
+            issue: { id: 'ai-lock-rollbacks', title: 'Transactions rolled back after lock timeouts', fix: 'Shorten the transactions on dbo.Orders or raise the lock timeout.', matcher: { type: 'query', ql: 'message contains "rolled back"' }, file: 'Operations' },
             origin: 'ai',
-            query: 'message contains "refused"',
+            query: 'message contains "rolled back"',
             count: m.count,
             sampleIds: m.ids,
           },

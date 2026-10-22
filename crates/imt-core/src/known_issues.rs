@@ -198,12 +198,24 @@ fn parse_block(file: &str, number: usize, body: &[&str]) -> Result<KnownIssue, S
             continue;
         }
         let Some((k, v)) = line.split_once(':') else {
-            return Err(format!("`{}` is not `key: value`", line.trim().chars().take(40).collect::<String>()));
+            return Err(format!(
+                "`{}` is not `key: value`",
+                line.trim().chars().take(40).collect::<String>()
+            ));
         };
         fields.push((k.trim().to_ascii_lowercase(), v.trim().to_string()));
     }
-    let get = |k: &str| fields.iter().find(|(n, _)| n == k).map(|(_, v)| v.trim().to_string()).filter(|v| !v.is_empty());
-    if let Some((k, _)) = fields.iter().find(|(k, _)| !["title", "fix", "pattern", "query", "id"].contains(&k.as_str())) {
+    let get = |k: &str| {
+        fields
+            .iter()
+            .find(|(n, _)| n == k)
+            .map(|(_, v)| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+    };
+    if let Some((k, _)) = fields
+        .iter()
+        .find(|(k, _)| !["title", "fix", "pattern", "query", "id"].contains(&k.as_str()))
+    {
         return Err(format!("unknown key `{k}` (use title, pattern or query, fix, id)"));
     }
     let title = get("title").ok_or("it needs a `title:`")?;
@@ -291,10 +303,15 @@ pub fn match_known_issues(store: &dyn Store, files: &[KnowledgeText<'_>]) -> Sto
                 count,
                 sample_ids,
             }),
-            Err(e) => report.warnings.push(format!("{}, known issue \"{}\": the query does not work here: {e}", issue.file, issue.title)),
+            Err(e) => report.warnings.push(format!(
+                "{}, known issue \"{}\": the query does not work here: {e}",
+                issue.file, issue.title
+            )),
         }
     }
-    report.matches.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.issue.id.cmp(&b.issue.id)));
+    report
+        .matches
+        .sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.issue.id.cmp(&b.issue.id)));
     Ok(report)
 }
 
@@ -331,7 +348,10 @@ mod tests {
         for (body, want) in cases {
             let (issues, warnings) = parse_known_issues("f.md", &format!("```known-issue\n{body}\n```"));
             assert!(issues.is_empty(), "{body}");
-            assert!(warnings[0].starts_with("f.md, known issue 1:") && warnings[0].contains(want), "{body}: {warnings:?}");
+            assert!(
+                warnings[0].starts_with("f.md, known issue 1:") && warnings[0].contains(want),
+                "{body}: {warnings:?}"
+            );
         }
         let long = format!("```known-issue\ntitle: {}\npattern: x\nfix: y\n```", "t".repeat(MAX_TITLE + 1));
         assert!(parse_known_issues("f", &long).1[0].contains("title is longer"));
@@ -372,6 +392,12 @@ mod tests {
             pattern: r#"say "hi" \d+"#.into(),
         };
         assert_eq!(m.to_ql(), r#"@message ~ "say \"hi\" \\d+" or @exception ~ "say \"hi\" \\d+""#);
-        assert_eq!(Matcher::Query { ql: " level = error ".into() }.to_ql(), "level = error");
+        assert_eq!(
+            Matcher::Query {
+                ql: " level = error ".into()
+            }
+            .to_ql(),
+            "level = error"
+        );
     }
 }

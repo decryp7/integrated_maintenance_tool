@@ -121,10 +121,15 @@ fn run_query_step(store: &dyn Store, ql: &str) -> StoreResult<StepResult> {
                 count: Some(n),
                 columns,
                 rows,
-                ..StepResult::plain(StepStatus::Info, format!("The query returned {n} row{}.", if n == 1 { "" } else { "s" }))
+                ..StepResult::plain(
+                    StepStatus::Info,
+                    format!("The query returned {n} row{}.", if n == 1 { "" } else { "s" }),
+                )
             }
         }
-        Err(crate::ports::StoreError::Query(e)) => StepResult::plain(StepStatus::Error, format!("The query does not work here: {}", e.message)),
+        Err(crate::ports::StoreError::Query(e)) => {
+            StepResult::plain(StepStatus::Error, format!("The query does not work here: {}", e.message))
+        }
         Err(e) => return Err(e),
     })
 }
@@ -224,17 +229,26 @@ impl PlaybookRecord {
     pub fn restore(value: Value) -> (PlaybookRecord, Vec<String>) {
         let version = value.get("version").and_then(Value::as_u64).unwrap_or(0);
         if version > u64::from(RECORD_VERSION) {
-            return (PlaybookRecord::new(), vec![format!("the saved playbook runs are from a newer version of the app (format {version}) and were not restored")]);
+            return (
+                PlaybookRecord::new(),
+                vec![format!(
+                    "the saved playbook runs are from a newer version of the app (format {version}) and were not restored"
+                )],
+            );
         }
         let Some(runs) = value.get("runs").and_then(Value::as_array) else {
-            return (PlaybookRecord::new(), vec!["the saved playbook runs are damaged and were not restored".into()]);
+            return (
+                PlaybookRecord::new(),
+                vec!["the saved playbook runs are damaged and were not restored".into()],
+            );
         };
         let mut out = PlaybookRecord::new();
         let mut warnings = Vec::new();
         for (i, r) in runs.iter().enumerate().take(MAX_RUNS) {
-            match serde_json::from_value::<PlaybookRun>(r.clone()).map_err(|e| e.to_string()).and_then(|run| {
-                run.playbook.check().map(|()| run).map_err(|e| e.to_string())
-            }) {
+            match serde_json::from_value::<PlaybookRun>(r.clone())
+                .map_err(|e| e.to_string())
+                .and_then(|run| run.playbook.check().map(|()| run).map_err(|e| e.to_string()))
+            {
                 Ok(run) => out.runs.push(run),
                 Err(e) => warnings.push(format!("playbook run {} was skipped: {e}", i + 1)),
             }

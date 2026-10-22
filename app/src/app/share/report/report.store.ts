@@ -59,6 +59,11 @@ export const ReportStore = signalStore(
         edit($localize`:@@share.reportStore.undo.reportAdoption:incident summary`, () => patchState(store, (s) => ({ reports: [...s.reports, r], activeId: r.id })));
         return r;
       },
+      /** Puts a section first in the report `id` (the incident summary's AI narrative). */
+      prependSection(id: string, section: ReportSection) {
+        const r = store.reports().find((x) => x.id === id);
+        if (r) edit($localize`:@@share.reportStore.undo.reportNarrative:report narrative`, () => replaceReport({ ...r, sections: [section, ...r.sections], updatedAt: Date.now() }));
+      },
       setActive: (id: string) => patchState(store, { activeId: id }),
       remove(id: string) {
         edit($localize`:@@share.reportStore.undo.reportDeletion:report deletion`, () =>

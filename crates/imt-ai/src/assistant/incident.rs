@@ -9,7 +9,7 @@ use super::{Assistant, LoopEvent};
 use crate::access::StoreRef;
 use crate::error::{AiError, Result};
 use crate::llm::{ChatMessage, LlmProvider};
-use imt_core::known_issues::{evidence, IssueMatch, KnownIssue, KnowledgeText, Matcher, Origin};
+use imt_core::known_issues::{evidence, IssueMatch, KnowledgeText, KnownIssue, Matcher, Origin};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -55,9 +55,15 @@ impl<P: LlmProvider> Assistant<P> {
     ) -> Result<Vec<IssueMatch>> {
         let store: StoreRef<'_> = store.into();
         if knowledge.iter().all(|k| k.text.trim().is_empty()) {
-            return Err(AiError::Invalid("there are no knowledge notes to match; add some in Settings > AI > Knowledge".into()));
+            return Err(AiError::Invalid(
+                "there are no knowledge notes to match; add some in Settings > AI > Knowledge".into(),
+            ));
         }
-        let fields: Vec<String> = store.with(|s| s.summary().map(|s| s.fields.into_iter().take(40).map(|f| f.name).collect()).unwrap_or_default());
+        let fields: Vec<String> = store.with(|s| {
+            s.summary()
+                .map(|s| s.fields.into_iter().take(40).map(|f| f.name).collect())
+                .unwrap_or_default()
+        });
         let notes: String = knowledge
             .iter()
             .map(|k| format!("### {}\n{}\n", k.name, k.text))
@@ -83,8 +89,12 @@ Query examples: level >= error and message contains \"timeout\"; @exception cont
                     continue;
                 }
                 let want = squash(fix);
-                let Some(file) = knowledge.iter().find(|k| squash(k.text).contains(&want)) else { continue };
-                let Ok(Ok((count, sample_ids))) = store.with(|s| evidence(s, ql)) else { continue };
+                let Some(file) = knowledge.iter().find(|k| squash(k.text).contains(&want)) else {
+                    continue;
+                };
+                let Ok(Ok((count, sample_ids))) = store.with(|s| evidence(s, ql)) else {
+                    continue;
+                };
                 if count == 0 {
                     continue;
                 }

@@ -35,18 +35,24 @@ fn read_file(path: &Path) -> Result<Playbook> {
 pub fn list_library(dir: &Path) -> Library {
     let mut lib = Library::default();
     let Ok(rd) = std::fs::read_dir(dir) else { return lib };
-    let mut paths: Vec<PathBuf> = rd.filter_map(|e| e.ok().map(|e| e.path())).filter(|p| p.extension().is_some_and(|x| x == "json")).collect();
+    let mut paths: Vec<PathBuf> = rd
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.extension().is_some_and(|x| x == "json"))
+        .collect();
     paths.sort();
     for p in paths.into_iter().take(MAX_LIBRARY) {
         let name = p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
         match read_file(&p) {
             // The file name is the id: a file whose content says another id is not trusted to overwrite others.
             Ok(pb) if p.file_stem().is_some_and(|s| *s == *pb.id) => lib.playbooks.push(pb),
-            Ok(_) => lib.warnings.push(format!("{name}: the id inside does not match the file name; rename the file or fix the id")),
+            Ok(_) => lib.warnings.push(format!(
+                "{name}: the id inside does not match the file name; rename the file or fix the id"
+            )),
             Err(e) => lib.warnings.push(format!("{name}: {e:#}")),
         }
     }
-    lib.playbooks.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()).then_with(|| a.id.cmp(&b.id)));
+    lib.playbooks
+        .sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()).then_with(|| a.id.cmp(&b.id)));
     lib
 }
 
@@ -57,10 +63,11 @@ pub fn save_to_library(dir: &Path, playbook: &Playbook) -> Result<()> {
     std::fs::create_dir_all(dir).context("the playbook folder cannot be created")?;
     let tmp = dir.join(format!(".{}.tmp", playbook.id));
     std::fs::write(&tmp, playbook.to_json()).context("the playbook cannot be written")?;
-    std::fs::rename(&tmp, &target).inspect_err(|_| {
-        let _ = std::fs::remove_file(&tmp);
-    })
-    .context("the playbook cannot be saved")
+    std::fs::rename(&tmp, &target)
+        .inspect_err(|_| {
+            let _ = std::fs::remove_file(&tmp);
+        })
+        .context("the playbook cannot be saved")
 }
 
 /// Removes a playbook from the library; `false` when there was none.
@@ -112,7 +119,9 @@ mod tests {
         assert_eq!(titles, sorted);
         // Saving again replaces; nothing temporary is left behind.
         save_to_library(&d, &t[0]).unwrap();
-        assert!(std::fs::read_dir(&d).unwrap().all(|e| !e.unwrap().file_name().to_string_lossy().starts_with('.')));
+        assert!(std::fs::read_dir(&d)
+            .unwrap()
+            .all(|e| !e.unwrap().file_name().to_string_lossy().starts_with('.')));
         assert!(remove_from_library(&d, &t[0].id).unwrap());
         assert!(!remove_from_library(&d, &t[0].id).unwrap());
         assert!(remove_from_library(&d, "../x").is_err());
@@ -134,7 +143,10 @@ mod tests {
         assert_eq!(lib.playbooks.len(), 1);
         assert_eq!(lib.warnings.len(), 3, "{:?}", lib.warnings);
         assert!(lib.warnings.iter().any(|w| w.starts_with("broken.json: ")));
-        assert!(lib.warnings.iter().any(|w| w.starts_with("misnamed.json: the id inside does not match")));
+        assert!(lib
+            .warnings
+            .iter()
+            .any(|w| w.starts_with("misnamed.json: the id inside does not match")));
         assert!(lib.warnings.iter().any(|w| w.starts_with("huge.json: the file is larger")));
         let _ = std::fs::remove_dir_all(&d);
     }

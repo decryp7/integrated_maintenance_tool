@@ -38,7 +38,9 @@ pub async fn incident_report_build<R: Runtime>(app: AppHandle<R>, win: CurrentWi
         }
     }
     let texts = knowledge_texts(&app, win.arc());
-    let notes = crate::notes::ai_file(&win.notes.snapshot(), &Default::default()).map(|f| f.text).unwrap_or_default();
+    let notes = crate::notes::ai_file(&win.notes.snapshot(), &Default::default())
+        .map(|f| f.text)
+        .unwrap_or_default();
     let now = now_ms();
     with_store(&win, move |s| {
         let files: Vec<KnowledgeText<'_>> = texts.iter().map(|(name, text)| KnowledgeText { name, text }).collect();
@@ -63,7 +65,11 @@ pub async fn incident_report_build<R: Runtime>(app: AppHandle<R>, win: CurrentWi
 /// The optional narrative: written by the model from the engine's report digest, citations checked. The UI shows it
 /// as an AI-written block, clearly marked. Without a model this says so.
 #[tauri::command]
-pub async fn incident_narrative<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, report: Value) -> AiResult<imt_ai::assistant::Narrative> {
+pub async fn incident_narrative<R: Runtime>(
+    app: AppHandle<R>,
+    win: CurrentWindow,
+    report: Value,
+) -> AiResult<imt_ai::assistant::Narrative> {
     let report = Report::parse(report).map_err(|e| AiCmdError::invalid(format!("{e:#}")))?;
     let ai = core(&app)?;
     ai.availability()?;

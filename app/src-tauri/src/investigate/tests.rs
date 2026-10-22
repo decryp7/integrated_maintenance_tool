@@ -15,26 +15,71 @@ const KNOWLEDGE: &str = "```known-issue\ntitle: Payment timeouts\npattern: (?i)r
 fn known_issues_come_from_the_enabled_knowledge_files_and_the_incident_report_cites_them() {
     let app = test_app_with_commands(None);
     let main = window(&app, "main");
-    ipc(&main, "open_paths", json!({ "paths": [samples().join("serilog-clef").to_string_lossy()] })).unwrap();
+    ipc(
+        &main,
+        "open_paths",
+        json!({ "paths": [samples().join("serilog-clef").to_string_lossy()] }),
+    )
+    .unwrap();
     // No knowledge: nothing matches and nothing is wrong.
     let none = ipc(&main, "known_issues_match", json!({})).unwrap();
     assert_eq!((none["matches"].as_array().unwrap().len(), none["checked"].as_u64()), (0, Some(0)));
     // A project knowledge file declares the issue.
-    main_window(&app).ai.knowledge.change(|s| s.add("Payments", KNOWLEDGE).map(|_| ())).unwrap();
+    main_window(&app)
+        .ai
+        .knowledge
+        .change(|s| s.add("Payments", KNOWLEDGE).map(|_| ()))
+        .unwrap();
     let r = ipc(&main, "known_issues_match", json!({})).unwrap();
     assert_eq!(r["matches"][0]["issue"]["title"], "Payment timeouts");
     assert_eq!(r["matches"][0]["origin"], "rule");
     assert!(r["matches"][0]["count"].as_u64().unwrap() > 100);
     // A disabled file is not read.
     let id = main_window(&app).ai.knowledge.snapshot().files()[0].id.clone();
-    main_window(&app).ai.knowledge.change(|s| s.update(&id, &imt_ai::knowledge::KnowledgeChange { enabled: Some(false), ..Default::default() }).map(|_| ())).unwrap();
+    main_window(&app)
+        .ai
+        .knowledge
+        .change(|s| {
+            s.update(
+                &id,
+                &imt_ai::knowledge::KnowledgeChange {
+                    enabled: Some(false),
+                    ..Default::default()
+                },
+            )
+            .map(|_| ())
+        })
+        .unwrap();
     assert_eq!(ipc(&main, "known_issues_match", json!({})).unwrap()["checked"], 0);
-    main_window(&app).ai.knowledge.change(|s| s.update(&id, &imt_ai::knowledge::KnowledgeChange { enabled: Some(true), ..Default::default() }).map(|_| ())).unwrap();
+    main_window(&app)
+        .ai
+        .knowledge
+        .change(|s| {
+            s.update(
+                &id,
+                &imt_ai::knowledge::KnowledgeChange {
+                    enabled: Some(true),
+                    ..Default::default()
+                },
+            )
+            .map(|_| ())
+        })
+        .unwrap();
 
-    let report = ipc(&main, "incident_report_build", json!({"request": {"title": "Checkout outage", "top": 3}})).unwrap();
+    let report = ipc(
+        &main,
+        "incident_report_build",
+        json!({"request": {"title": "Checkout outage", "top": 3}}),
+    )
+    .unwrap();
     assert_eq!(report["title"], "Checkout outage");
     assert!(report["id"].as_str().unwrap().starts_with("incident-"));
-    let titles: Vec<&str> = report["sections"].as_array().unwrap().iter().map(|s| s["title"].as_str().unwrap()).collect();
+    let titles: Vec<&str> = report["sections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["title"].as_str().unwrap())
+        .collect();
     assert!(titles.contains(&"Known issues") && titles.contains(&"Top exceptions"), "{titles:?}");
     // It is an ordinary report: the report pipeline accepts it.
     imt_core::report::Report::parse(report).unwrap();
@@ -48,7 +93,10 @@ fn the_ai_commands_say_so_without_a_model_and_refuse_a_bad_report() {
     let app = test_app_with_commands(None);
     let main = window(&app, "main");
     let e = err(ipc(&main, "known_issues_suggest", json!({})));
-    assert!(e.to_lowercase().contains("not available") || e.to_lowercase().contains("model") || e.to_lowercase().contains("ai"), "{e}");
+    assert!(
+        e.to_lowercase().contains("not available") || e.to_lowercase().contains("model") || e.to_lowercase().contains("ai"),
+        "{e}"
+    );
     let e = err(ipc(&main, "incident_narrative", json!({"report": {"nope": 1}})));
     assert!(e.contains("not a valid report"), "{e}");
 }
@@ -64,7 +112,12 @@ fn playbook() -> Value {
 fn playbooks_validate_run_and_record() {
     let app = test_app_with_commands(None);
     let main = window(&app, "main");
-    ipc(&main, "open_paths", json!({ "paths": [samples().join("serilog-clef").to_string_lossy()] })).unwrap();
+    ipc(
+        &main,
+        "open_paths",
+        json!({ "paths": [samples().join("serilog-clef").to_string_lossy()] }),
+    )
+    .unwrap();
     let lib = ipc(&main, "playbook_library", json!({})).unwrap();
     assert!(lib["templates"].as_array().unwrap().len() >= 4);
     // Save, list, remove (the library is a folder of files in the configuration folder).
@@ -85,9 +138,19 @@ fn playbooks_validate_run_and_record() {
     let step = run["playbook"]["steps"][1].clone();
     let result = ipc(&main, "playbook_run_step", json!({"step": step})).unwrap();
     assert_eq!(result["status"], "fail");
-    let run = ipc(&main, "playbook_record", json!({"run": run, "stepId": "b", "result": result, "note": "fatal at 09:41"})).unwrap();
+    let run = ipc(
+        &main,
+        "playbook_record",
+        json!({"run": run, "stepId": "b", "result": result, "note": "fatal at 09:41"}),
+    )
+    .unwrap();
     assert_eq!(run["steps"][0]["note"], "fatal at 09:41");
-    assert!(err(ipc(&main, "playbook_record", json!({"run": run, "stepId": "zzz", "result": result, "note": ""}))).contains("no step"));
+    assert!(err(ipc(
+        &main,
+        "playbook_record",
+        json!({"run": run, "stepId": "zzz", "result": result, "note": ""})
+    ))
+    .contains("no step"));
     assert!(err(ipc(&main, "playbook_run_step", json!({"step": {"id": "x"}}))).contains("not a valid step"));
     assert!(err(ipc(&main, "playbook_start", json!({"playbook": playbook(), "runId": " "}))).contains("needs an id"));
 
@@ -96,5 +159,11 @@ fn playbooks_validate_run_and_record() {
     assert_eq!(ok["record"]["runs"].as_array().unwrap().len(), 1);
     let newer = ipc(&main, "playbook_restore", json!({"record": {"version": 9, "runs": []}})).unwrap();
     assert!(newer["warnings"][0].as_str().unwrap().contains("newer version"));
-    assert_eq!(ipc(&main, "playbook_restore", json!({"record": null})).unwrap()["record"]["runs"].as_array().unwrap().len(), 0);
+    assert_eq!(
+        ipc(&main, "playbook_restore", json!({"record": null})).unwrap()["record"]["runs"]
+            .as_array()
+            .unwrap()
+            .len(),
+        0
+    );
 }

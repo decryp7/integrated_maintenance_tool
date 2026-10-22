@@ -3,6 +3,7 @@ import { Severity } from '../core/api.types';
 import { formatCount } from '../core/format';
 import { RovingFocusNavigation } from '../shared/list-navigation';
 import { Icon } from '../shared/icon';
+import { KnownIssues } from '../investigate/known-issues/known-issues';
 import { DialogService } from '../ui/dialog.service';
 import { countText, evaluationText, evaluationTone, kindHint, kindLabel, parserCanFix, ProblemGroup, ProblemItem } from './problems-model';
 import { ProblemsStore } from './problems.store';
@@ -31,7 +32,7 @@ export function severityLabel(s: Severity): string {
 @Component({
   selector: 'imt-problems-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon],
+  imports: [Icon, KnownIssues],
   template: `
     <div class="bar">
       <span class="summary" data-testid="problems-summary">{{ summary() }}</span>
@@ -60,6 +61,7 @@ export function severityLabel(s: Severity): string {
     @if (store.notice(); as notice) {
       <div class="notice" role="status">{{ notice }}</div>
     }
+    <imt-known-issues />
     @if (store.loaded() && rows().length === 0 && !store.loadError()) {
       <div class="empty faint" data-testid="problems-empty" i18n="@@problems.empty">No problems: every opened file was read completely.</div>
     } @else {

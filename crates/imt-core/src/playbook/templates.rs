@@ -28,7 +28,10 @@ mod tests {
         for p in &all {
             assert!(ids.insert(p.id.clone()), "duplicate template {}", p.id);
             for s in &p.steps {
-                if let crate::playbook::Action::Query { ql } | crate::playbook::Action::Filter { ql } | crate::playbook::Action::Check { ql, .. } = &s.action {
+                if let crate::playbook::Action::Query { ql }
+                | crate::playbook::Action::Filter { ql }
+                | crate::playbook::Action::Check { ql, .. } = &s.action
+                {
                     crate::ql::parse(ql).unwrap_or_else(|e| panic!("{} / {}: {}", p.id, s.id, e.message));
                 }
             }

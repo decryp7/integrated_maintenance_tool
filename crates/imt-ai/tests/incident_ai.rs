@@ -17,7 +17,10 @@ fn assistant(replies: &[&str]) -> Assistant<ScriptedProvider> {
 const NOTES: &str = "# Payments\n\nWhen the gateway says the request timed out, raise the gateway\n timeout to 30 seconds and check the provider status page.\n\nDisk alerts: free space on D:.\n";
 
 fn notes() -> Vec<KnowledgeText<'static>> {
-    vec![KnowledgeText { name: "payments.md", text: NOTES }]
+    vec![KnowledgeText {
+        name: "payments.md",
+        text: NOTES,
+    }]
 }
 
 #[test]
@@ -31,7 +34,9 @@ fn suggestions_are_kept_only_when_quoted_valid_and_matching() {
     ]})
     .to_string();
     let a = assistant(&[&reply]);
-    let found = a.suggest_known_issues(store(), &notes(), "- Failed to capture payment: request timed out (169)").unwrap();
+    let found = a
+        .suggest_known_issues(store(), &notes(), "- Failed to capture payment: request timed out (169)")
+        .unwrap();
     assert_eq!(found.len(), 1, "{found:?}");
     let m = &found[0];
     assert_eq!(m.origin, Origin::Ai);
@@ -51,14 +56,22 @@ fn suggestions_are_bounded_and_need_notes() {
         .collect();
     let a = assistant(&[&json!({ "issues": many }).to_string()]);
     assert_eq!(a.suggest_known_issues(store(), &notes(), "x").unwrap().len(), MAX_SUGGESTIONS);
-    let none = [KnowledgeText { name: "empty.md", text: "  " }];
+    let none = [KnowledgeText {
+        name: "empty.md",
+        text: "  ",
+    }];
     let e = assistant(&[]).suggest_known_issues(store(), &none, "x").unwrap_err();
     assert!(matches!(e, AiError::Invalid(m) if m.contains("no knowledge notes")));
     // An answer that is not the requested JSON is an error after one repair round, never trusted.
-    let e = assistant(&["not json", "still not"]).suggest_known_issues(store(), &notes(), "x").unwrap_err();
+    let e = assistant(&["not json", "still not"])
+        .suggest_known_issues(store(), &notes(), "x")
+        .unwrap_err();
     assert!(matches!(e, AiError::Malformed(_)));
     // "No note fits" is an empty list.
-    assert!(assistant(&[r#"{"issues": []}"#]).suggest_known_issues(store(), &notes(), "x").unwrap().is_empty());
+    assert!(assistant(&[r#"{"issues": []}"#])
+        .suggest_known_issues(store(), &notes(), "x")
+        .unwrap()
+        .is_empty());
 }
 
 #[test]

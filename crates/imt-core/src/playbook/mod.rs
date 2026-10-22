@@ -139,7 +139,10 @@ impl Playbook {
     /// Checks the limits and ids (the engine re-validates whatever the UI sends).
     pub fn check(&self) -> Result<()> {
         if !valid_id(&self.id) {
-            bail!("the playbook id must be 1 to {MAX_ID} lowercase letters, digits or dashes (got \"{}\")", self.id.chars().take(40).collect::<String>());
+            bail!(
+                "the playbook id must be 1 to {MAX_ID} lowercase letters, digits or dashes (got \"{}\")",
+                self.id.chars().take(40).collect::<String>()
+            );
         }
         if self.title.trim().is_empty() {
             bail!("a playbook needs a title");
@@ -178,7 +181,12 @@ impl Playbook {
                     text(&format!("step {n}'s query"), ql, MAX_QL)?;
                 }
                 Action::OpenView { view } => {
-                    if view.is_empty() || view.len() > 60 || !view.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b':')) {
+                    if view.is_empty()
+                        || view.len() > 60
+                        || !view
+                            .bytes()
+                            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b':'))
+                    {
                         bail!("step {n}: \"{}\" is not a view id", view.chars().take(40).collect::<String>());
                     }
                 }
@@ -219,7 +227,8 @@ mod tests {
 
     #[test]
     fn invalid_playbooks_say_what_to_fix() {
-        let cases: Vec<(Box<dyn Fn(&mut Value)>, &str)> = vec![
+        type Edit = Box<dyn Fn(&mut Value)>;
+        let cases: Vec<(Edit, &str)> = vec![
             (Box::new(|v| v["version"] = json!(2)), "newer version"),
             (Box::new(|v| v["id"] = json!("Bad Id")), "lowercase letters"),
             (Box::new(|v| v["id"] = json!("../etc")), "lowercase letters"),
@@ -231,8 +240,14 @@ mod tests {
             (Box::new(|v| v["steps"][1]["title"] = json!("")), "step 2 needs a title"),
             (Box::new(|v| v["steps"][1]["action"]["ql"] = json!(" ")), "needs a query"),
             (Box::new(|v| v["steps"][3]["action"]["view"] = json!("a b")), "not a view id"),
-            (Box::new(|v| v["steps"][1]["instruction"] = json!("x".repeat(5000))), "instruction is longer"),
-            (Box::new(|v| v["steps"][2]["action"]["expect"] = json!({"kind": "sometimes"})), "not a valid playbook"),
+            (
+                Box::new(|v| v["steps"][1]["instruction"] = json!("x".repeat(5000))),
+                "instruction is longer",
+            ),
+            (
+                Box::new(|v| v["steps"][2]["action"]["expect"] = json!({"kind": "sometimes"})),
+                "not a valid playbook",
+            ),
         ];
         for (edit, want) in cases {
             let mut v = sample();
@@ -240,7 +255,9 @@ mod tests {
             let e = format!("{:#}", Playbook::parse(v).unwrap_err());
             assert!(e.contains(want), "{want}: {e}");
         }
-        let many: Vec<Value> = (0..=MAX_STEPS).map(|i| json!({"id": format!("s{i}"), "title": "t", "action": {"type": "manual"}})).collect();
+        let many: Vec<Value> = (0..=MAX_STEPS)
+            .map(|i| json!({"id": format!("s{i}"), "title": "t", "action": {"type": "manual"}}))
+            .collect();
         let mut v = sample();
         v["steps"] = json!(many);
         assert!(Playbook::parse(v).unwrap_err().to_string().contains("at most 100 steps"));

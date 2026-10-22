@@ -1,7 +1,7 @@
 //! Known issues, the incident summary and playbooks against the generated samples (ADR 0039).
 
-use imt_core::known_issues::{match_known_issues, KnowledgeText, Origin};
 use imt_core::incident::{build_incident_report, IncidentOptions};
+use imt_core::known_issues::{match_known_issues, KnowledgeText, Origin};
 use imt_core::playbook::{run_step, Action, Expect, Playbook, PlaybookRecord, PlaybookRun, Step, StepStatus};
 use imt_core::report::{Block, StoredBlock};
 use imt_core::workspace::WorkspaceStore;
@@ -23,7 +23,14 @@ const KNOWLEDGE: &str = "# Orders\n\n```known-issue\ntitle: Payment gateway time
 
 #[test]
 fn declared_known_issues_match_with_evidence_and_bad_ones_warn() {
-    let r = match_known_issues(store(), &[KnowledgeText { name: "orders.md", text: KNOWLEDGE }]).unwrap();
+    let r = match_known_issues(
+        store(),
+        &[KnowledgeText {
+            name: "orders.md",
+            text: KNOWLEDGE,
+        }],
+    )
+    .unwrap();
     assert_eq!(r.checked, 3);
     assert_eq!(r.matches.len(), 1);
     let m = &r.matches[0];
@@ -32,15 +39,34 @@ fn declared_known_issues_match_with_evidence_and_bad_ones_warn() {
     assert!(m.count > 100, "{}", m.count);
     assert!(!m.sample_ids.is_empty() && m.sample_ids.len() <= 5);
     assert!(m.query.starts_with("@message ~ "));
-    assert!(r.warnings.iter().any(|w| w.contains("Bad field") && w.contains("does not work here")), "{:?}", r.warnings);
-    assert!(r.warnings.iter().any(|w| w.contains("known issue 4") && w.contains("needs a `pattern:`")), "{:?}", r.warnings);
+    assert!(
+        r.warnings
+            .iter()
+            .any(|w| w.contains("Bad field") && w.contains("does not work here")),
+        "{:?}",
+        r.warnings
+    );
+    assert!(
+        r.warnings
+            .iter()
+            .any(|w| w.contains("known issue 4") && w.contains("needs a `pattern:`")),
+        "{:?}",
+        r.warnings
+    );
 }
 
 #[test]
 fn the_number_of_checked_known_issues_is_bounded() {
     let one = "```known-issue\ntitle: T\npattern: x\nfix: y\n```\n";
     let files: Vec<String> = (0..3).map(|_| one.repeat(100)).collect();
-    let texts: Vec<KnowledgeText<'_>> = files.iter().enumerate().map(|(i, t)| KnowledgeText { name: ["a", "b", "c"][i], text: t }).collect();
+    let texts: Vec<KnowledgeText<'_>> = files
+        .iter()
+        .enumerate()
+        .map(|(i, t)| KnowledgeText {
+            name: ["a", "b", "c"][i],
+            text: t,
+        })
+        .collect();
     let r = match_known_issues(store(), &texts).unwrap();
     assert_eq!(r.checked, 200);
     assert_eq!(r.truncated, 100);
@@ -49,16 +75,26 @@ fn the_number_of_checked_known_issues_is_bounded() {
 fn blocks(r: &imt_core::report::Report) -> Vec<(&str, &Block)> {
     r.sections
         .iter()
-        .flat_map(|s| s.blocks.iter().filter_map(move |b| match b {
-            StoredBlock::Known(i) => Some((s.title.as_str(), &i.block)),
-            StoredBlock::Unknown(_) => None,
-        }))
+        .flat_map(|s| {
+            s.blocks.iter().filter_map(move |b| match b {
+                StoredBlock::Known(i) => Some((s.title.as_str(), &i.block)),
+                StoredBlock::Unknown(_) => None,
+            })
+        })
         .collect()
 }
 
 #[test]
 fn the_incident_summary_is_computed_by_the_engine_with_evidence() {
-    let issues = match_known_issues(store(), &[KnowledgeText { name: "orders.md", text: KNOWLEDGE }]).unwrap().matches;
+    let issues = match_known_issues(
+        store(),
+        &[KnowledgeText {
+            name: "orders.md",
+            text: KNOWLEDGE,
+        }],
+    )
+    .unwrap()
+    .matches;
     let opts = IncidentOptions {
         id: "incident-1".into(),
         notes: "Customer reported failures at 09:35.".into(),
@@ -69,20 +105,43 @@ fn the_incident_summary_is_computed_by_the_engine_with_evidence() {
     let r = build_incident_report(store(), &opts).unwrap();
     assert_eq!(r.title, "Incident summary");
     let titles: Vec<&str> = r.sections.iter().map(|s| s.title.as_str()).collect();
-    for want in ["Summary", "Top exceptions", "Top problems", "Affected sources and hosts", "Known issues", "Notes"] {
+    for want in [
+        "Summary",
+        "Top exceptions",
+        "Top problems",
+        "Affected sources and hosts",
+        "Known issues",
+        "Notes",
+    ] {
         assert!(titles.contains(&want), "{want} missing in {titles:?}");
     }
     let all = blocks(&r);
     // Facts come with evidence: every events block lists real event ids, and tables have rows.
-    assert!(all.iter().any(|(s, b)| *s == "Top exceptions" && matches!(b, Block::Table { rows, .. } if !rows.is_empty())));
-    assert!(all.iter().any(|(s, b)| *s == "Known issues" && matches!(b, Block::Events { ids, .. } if !ids.is_empty())));
-    assert!(all.iter().any(|(_, b)| matches!(b, Block::Text { markdown } if markdown.contains("**Events:**"))));
+    assert!(all
+        .iter()
+        .any(|(s, b)| *s == "Top exceptions" && matches!(b, Block::Table { rows, .. } if !rows.is_empty())));
+    assert!(all
+        .iter()
+        .any(|(s, b)| *s == "Known issues" && matches!(b, Block::Events { ids, .. } if !ids.is_empty())));
+    assert!(all
+        .iter()
+        .any(|(_, b)| matches!(b, Block::Text { markdown } if markdown.contains("**Events:**"))));
     // The host ranking uses the MachineName field of the samples.
-    assert!(all.iter().any(|(_, b)| matches!(b, Block::Table { caption, .. } if caption.contains("MachineName"))));
+    assert!(all
+        .iter()
+        .any(|(_, b)| matches!(b, Block::Table { caption, .. } if caption.contains("MachineName"))));
     // The report passes the same validation as any report from the UI.
     imt_core::report::Report::parse(serde_json::to_value(&r).unwrap()).unwrap();
     // Block ids are unique.
-    let mut ids: Vec<&str> = r.sections.iter().flat_map(|s| s.blocks.iter()).filter_map(|b| match b { StoredBlock::Known(i) => Some(i.id.as_str()), _ => None }).collect();
+    let mut ids: Vec<&str> = r
+        .sections
+        .iter()
+        .flat_map(|s| s.blocks.iter())
+        .filter_map(|b| match b {
+            StoredBlock::Known(i) => Some(i.id.as_str()),
+            _ => None,
+        })
+        .collect();
     let n = ids.len();
     ids.sort_unstable();
     ids.dedup();
@@ -92,7 +151,16 @@ fn the_incident_summary_is_computed_by_the_engine_with_evidence() {
 #[test]
 fn the_incident_summary_needs_an_id_respects_the_top_limit_and_the_period() {
     assert!(build_incident_report(store(), &IncidentOptions::default()).is_err());
-    let r = build_incident_report(store(), &IncidentOptions { id: "i".into(), top: Some(1), title: "  Outage ".into(), ..Default::default() }).unwrap();
+    let r = build_incident_report(
+        store(),
+        &IncidentOptions {
+            id: "i".into(),
+            top: Some(1),
+            title: "  Outage ".into(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
     assert_eq!(r.title, "Outage");
     for (_, b) in blocks(&r) {
         if let Block::Table { rows, caption, .. } = b {
@@ -102,24 +170,65 @@ fn the_incident_summary_needs_an_id_respects_the_top_limit_and_the_period() {
         }
     }
     // A period with no events leaves out the analyses.
-    let empty = build_incident_report(store(), &IncidentOptions { id: "i".into(), from: Some(1), to: Some(2), ..Default::default() }).unwrap();
+    let empty = build_incident_report(
+        store(),
+        &IncidentOptions {
+            id: "i".into(),
+            from: Some(1),
+            to: Some(2),
+            ..Default::default()
+        },
+    )
+    .unwrap();
     assert!(empty.sections.iter().all(|s| s.title != "Top exceptions"));
     assert_eq!(empty.sections[0].title, "Summary");
 }
 
 fn step(id: &str, action: Action) -> Step {
-    Step { id: id.into(), title: id.into(), instruction: String::new(), action }
+    Step {
+        id: id.into(),
+        title: id.into(),
+        instruction: String::new(),
+        action,
+    }
 }
 
 #[test]
 fn playbook_steps_run_against_the_data_and_the_run_is_recorded() {
     let s = store();
-    let r = run_step(s, &step("q", Action::Query { ql: "level >= error | stats count() as n by MachineName".into() })).unwrap();
+    let r = run_step(
+        s,
+        &step(
+            "q",
+            Action::Query {
+                ql: "level >= error | stats count() as n by MachineName".into(),
+            },
+        ),
+    )
+    .unwrap();
     assert_eq!((r.status, r.columns.len()), (StepStatus::Info, 2));
     assert!(!r.rows.is_empty() && r.rows.len() <= 20);
-    let r = run_step(s, &step("e", Action::Query { ql: "level >= error".into() })).unwrap();
+    let r = run_step(
+        s,
+        &step(
+            "e",
+            Action::Query {
+                ql: "level >= error".into(),
+            },
+        ),
+    )
+    .unwrap();
     assert!(r.count.unwrap() > 0 && r.sample_ids.len() <= 5 && r.summary.starts_with("Found "));
-    let r = run_step(s, &step("f", Action::Filter { ql: "level = fatal".into() })).unwrap();
+    let r = run_step(
+        s,
+        &step(
+            "f",
+            Action::Filter {
+                ql: "level = fatal".into(),
+            },
+        ),
+    )
+    .unwrap();
     assert!(r.summary.starts_with("The filter matches"));
     let check = |ql: &str, expect| run_step(s, &step("c", Action::Check { ql: ql.into(), expect })).unwrap();
     assert_eq!(check("level = fatal", Expect::NoMatch).status, StepStatus::Fail);
@@ -127,12 +236,25 @@ fn playbook_steps_run_against_the_data_and_the_run_is_recorded() {
     assert_eq!(check("level >= error", Expect::AnyMatch).status, StepStatus::Pass);
     assert_eq!(check("level >= error", Expect::AtLeast { n: 1_000_000 }).status, StepStatus::Fail);
     assert_eq!(check("level >= error", Expect::AtMost { n: 1_000_000 }).status, StepStatus::Pass);
-    let bad = run_step(s, &step("b", Action::Check { ql: "nosuchfield = 1".into(), expect: Expect::NoMatch })).unwrap();
+    let bad = run_step(
+        s,
+        &step(
+            "b",
+            Action::Check {
+                ql: "nosuchfield = 1".into(),
+                expect: Expect::NoMatch,
+            },
+        ),
+    )
+    .unwrap();
     assert_eq!(bad.status, StepStatus::Error);
     let bad = run_step(s, &step("b", Action::Query { ql: "level >=".into() })).unwrap();
     assert_eq!(bad.status, StepStatus::Error);
     assert!(run_step(s, &step("m", Action::Manual)).unwrap().summary.contains("by hand"));
-    assert!(run_step(s, &step("v", Action::OpenView { view: "problems".into() })).unwrap().summary.contains("problems"));
+    assert!(run_step(s, &step("v", Action::OpenView { view: "problems".into() }))
+        .unwrap()
+        .summary
+        .contains("problems"));
 }
 
 #[test]

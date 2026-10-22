@@ -135,7 +135,10 @@ pub fn build_incident_report(store: &dyn Store, opts: &IncidentOptions) -> Store
     }
     let top = opts.top.unwrap_or(DEFAULT_TOP).clamp(1, MAX_TOP);
     let summary = store.summary()?;
-    let mut b = Builder { n: 0, sections: Vec::new() };
+    let mut b = Builder {
+        n: 0,
+        sections: Vec::new(),
+    };
 
     // Summary: the span, the levels and the sources, as plain facts.
     let mut facts = Vec::new();
@@ -145,7 +148,12 @@ pub fn build_incident_report(store: &dyn Store, opts: &IncidentOptions) -> Store
         _ => facts.push("**Period:** the events carry no timestamps".into()),
     }
     facts.push(format!("**Events:** {} ({} without a timestamp)", summary.total, summary.untimed));
-    let levels: Vec<String> = summary.levels.iter().filter(|(_, n)| **n > 0).map(|(l, n)| format!("{l:?} {n}")).collect();
+    let levels: Vec<String> = summary
+        .levels
+        .iter()
+        .filter(|(_, n)| **n > 0)
+        .map(|(l, n)| format!("{l:?} {n}"))
+        .collect();
     if !levels.is_empty() {
         facts.push(format!("**Levels:** {}", levels.join(", ")));
     }
@@ -158,7 +166,10 @@ pub fn build_incident_report(store: &dyn Store, opts: &IncidentOptions) -> Store
     // Analyses: each is optional; one failing analysis leaves its section out and never the whole report.
     let anomalies: Vec<Anomaly> = store.anomalies(&request(opts, "")).map(|a| a.result).unwrap_or_default();
     let groups = store.exception_groups(&request(opts, "")).map(|a| a.result).unwrap_or_default();
-    let patterns = store.patterns(&request(opts, "level >= error")).map(|a| a.result).unwrap_or_default();
+    let patterns = store
+        .patterns(&request(opts, "level >= error"))
+        .map(|a| a.result)
+        .unwrap_or_default();
 
     // Key moments: anomaly windows and the first time each exception type appeared, in time order.
     let mut moments: Vec<AnnotationItem> = anomalies
@@ -207,12 +218,15 @@ pub fn build_incident_report(store: &dyn Store, opts: &IncidentOptions) -> Store
             ),
         });
     }
-    blocks.extend(events("Evidence: events that show the anomalies", ranked.iter().take(top).flat_map(|a| a.sample_ids.clone())));
+    blocks.extend(events(
+        "Evidence: events that show the anomalies",
+        ranked.iter().take(top).flat_map(|a| a.sample_ids.clone()),
+    ));
     b.section("Top anomalies", blocks);
 
     // Exceptions, most frequent first.
     let mut ranked: Vec<_> = groups.iter().collect();
-    ranked.sort_by(|a, c| c.count.cmp(&a.count));
+    ranked.sort_by_key(|a| std::cmp::Reverse(a.count));
     let rows = ranked
         .iter()
         .take(top)
@@ -227,24 +241,46 @@ pub fn build_incident_report(store: &dyn Store, opts: &IncidentOptions) -> Store
             ]
         })
         .collect();
-    let mut blocks: Vec<Block> = table("Most frequent exceptions", "exception groups", &["type", "message", "count", "first", "last", "top frame"], rows)
-        .into_iter()
-        .collect();
-    blocks.extend(events("Evidence: one event of each exception group", ranked.iter().take(top).flat_map(|g| g.sample_ids.first().copied())));
+    let mut blocks: Vec<Block> = table(
+        "Most frequent exceptions",
+        "exception groups",
+        &["type", "message", "count", "first", "last", "top frame"],
+        rows,
+    )
+    .into_iter()
+    .collect();
+    blocks.extend(events(
+        "Evidence: one event of each exception group",
+        ranked.iter().take(top).flat_map(|g| g.sample_ids.first().copied()),
+    ));
     b.section("Top exceptions", blocks);
 
     // Error patterns, most frequent first.
     let mut ranked: Vec<_> = patterns.iter().collect();
-    ranked.sort_by(|a, c| c.count.cmp(&a.count));
+    ranked.sort_by_key(|a| std::cmp::Reverse(a.count));
     let rows = ranked
         .iter()
         .take(top)
-        .map(|p| vec![serde_json::json!(p.template), serde_json::json!(p.count), serde_json::json!(p.first_ts.map(clock))])
+        .map(|p| {
+            vec![
+                serde_json::json!(p.template),
+                serde_json::json!(p.count),
+                serde_json::json!(p.first_ts.map(clock)),
+            ]
+        })
         .collect();
-    let mut blocks: Vec<Block> = table("Most frequent error messages", "patterns of level >= error", &["message pattern", "count", "first"], rows)
-        .into_iter()
-        .collect();
-    blocks.extend(events("Evidence: one event of each pattern", ranked.iter().take(top).flat_map(|p| p.sample_ids.first().copied())));
+    let mut blocks: Vec<Block> = table(
+        "Most frequent error messages",
+        "patterns of level >= error",
+        &["message pattern", "count", "first"],
+        rows,
+    )
+    .into_iter()
+    .collect();
+    blocks.extend(events(
+        "Evidence: one event of each pattern",
+        ranked.iter().take(top).flat_map(|p| p.sample_ids.first().copied()),
+    ));
     b.section("Top problems", blocks);
 
     // Affected sources and hosts.
@@ -255,12 +291,19 @@ pub fn build_incident_report(store: &dyn Store, opts: &IncidentOptions) -> Store
         "Sources with most errors",
         &format!("level >= error | stats count() as errors by @source | sort errors desc | head {top}"),
     ));
-    if let Some(f) = summary.fields.iter().find(|f| HOST_FIELDS.contains(&f.name.to_ascii_lowercase().as_str())) {
+    if let Some(f) = summary
+        .fields
+        .iter()
+        .find(|f| HOST_FIELDS.contains(&f.name.to_ascii_lowercase().as_str()))
+    {
         blocks.extend(ranking(
             store,
             opts,
             &format!("Hosts with most errors ({})", f.name),
-            &format!("level >= error | stats count() as errors by {} | sort errors desc | head {top}", f.name),
+            &format!(
+                "level >= error | stats count() as errors by {} | sort errors desc | head {top}",
+                f.name
+            ),
         ));
     }
     b.section("Affected sources and hosts", blocks);
@@ -289,7 +332,10 @@ pub fn build_incident_report(store: &dyn Store, opts: &IncidentOptions) -> Store
             detail: format!("Fix: {}\n\nFrom knowledge file {}. Query: `{}`", m.issue.fix, m.issue.file, m.query),
         });
     }
-    blocks.extend(events("Evidence: events that match known issues", opts.issues.iter().take(top * 2).flat_map(|m| m.sample_ids.clone())));
+    blocks.extend(events(
+        "Evidence: events that match known issues",
+        opts.issues.iter().take(top * 2).flat_map(|m| m.sample_ids.clone()),
+    ));
     b.section("Known issues", blocks);
 
     let notes: String = opts.notes.chars().take(MAX_NOTES).collect();
@@ -297,12 +343,20 @@ pub fn build_incident_report(store: &dyn Store, opts: &IncidentOptions) -> Store
         b.section("Notes", vec![Block::Text { markdown: notes }]);
     }
 
-    let title = if opts.title.trim().is_empty() { "Incident summary" } else { opts.title.trim() };
+    let title = if opts.title.trim().is_empty() {
+        "Incident summary"
+    } else {
+        opts.title.trim()
+    };
     Ok(Report {
         version: REPORT_VERSION,
         id: id.to_string(),
         title: title.chars().take(MAX_TITLE).collect(),
-        summary: format!("{} events, {} sources; generated by the engine from the open data.", summary.total, summary.sources.len()),
+        summary: format!(
+            "{} events, {} sources; generated by the engine from the open data.",
+            summary.total,
+            summary.sources.len()
+        ),
         created_at: opts.now,
         updated_at: opts.now,
         sections: b.sections,
@@ -322,7 +376,9 @@ pub fn digest(report: &Report, max_chars: usize) -> (String, Vec<u32>) {
                 Block::Text { markdown } if s.title != "Notes" => format!("{markdown}\n"),
                 Block::Text { .. } => "(the investigator's notes are in the report)\n".to_string(),
                 Block::Finding { severity, title, detail } => format!("- [{severity}] {title}: {detail}\n"),
-                Block::Table { caption, columns, rows, .. } => {
+                Block::Table {
+                    caption, columns, rows, ..
+                } => {
                     let mut t = format!("{caption} ({}):\n", columns.join(" | "));
                     for r in rows.iter().take(MAX_TOP) {
                         let cells: Vec<String> = r.iter().map(|v| v.as_str().map_or_else(|| v.to_string(), str::to_string)).collect();
@@ -333,7 +389,10 @@ pub fn digest(report: &Report, max_chars: usize) -> (String, Vec<u32>) {
                 Block::Annotations { items, .. } => items.iter().map(|i| format!("- {}: {}\n", clock(i.from), i.label)).collect(),
                 Block::Events { caption, ids: e } => {
                     ids.extend(e.iter().copied());
-                    format!("{caption}: events {}\n", e.iter().take(12).map(|i| i.to_string()).collect::<Vec<_>>().join(", "))
+                    format!(
+                        "{caption}: events {}\n",
+                        e.iter().take(12).map(|i| i.to_string()).collect::<Vec<_>>().join(", ")
+                    )
                 }
                 _ => continue,
             };

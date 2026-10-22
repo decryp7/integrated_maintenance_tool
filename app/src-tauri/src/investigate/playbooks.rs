@@ -1,7 +1,6 @@
 //! Playbook commands: the library (files in the configuration folder), import and export, running a step against the
 //! open data, and recording a run. Runs live in the project's UI state; the engine validates what the UI sends back.
 
-use crate::app_dirs::{resolve, AppDir};
 use crate::engine::with_store;
 use crate::windows::CurrentWindow;
 use crate::{CmdError, CmdResult};
@@ -11,8 +10,15 @@ use serde_json::Value;
 use std::path::PathBuf;
 use tauri::{AppHandle, Runtime};
 
+/// The library folder. Tests use a folder of their own so they never touch the user's configuration.
+#[cfg(test)]
+fn dir<R: Runtime>(_app: &AppHandle<R>) -> CmdResult<PathBuf> {
+    Ok(std::env::temp_dir().join(format!("imt-playbooks-shell-test-{}", std::process::id())))
+}
+
+#[cfg(not(test))]
 fn dir<R: Runtime>(app: &AppHandle<R>) -> CmdResult<PathBuf> {
-    resolve(app, AppDir::Config)
+    crate::app_dirs::resolve(app, crate::app_dirs::AppDir::Config)
         .map(|d| d.join("playbooks"))
         .map_err(|e| CmdError::failed(format!("the configuration folder is not available: {e}")))
 }

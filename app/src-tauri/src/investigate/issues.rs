@@ -31,7 +31,12 @@ fn problems_digest(store: &dyn imt_core::ports::Store) -> String {
     };
     let mut out = String::new();
     for g in store.exception_groups(&req).map(|a| a.result).unwrap_or_default().iter().take(8) {
-        out.push_str(&format!("- exception {}: {} ({} events)\n", g.type_name, g.message.lines().next().unwrap_or(""), g.count));
+        out.push_str(&format!(
+            "- exception {}: {} ({} events)\n",
+            g.type_name,
+            g.message.lines().next().unwrap_or(""),
+            g.count
+        ));
     }
     for p in store.patterns(&req).map(|a| a.result).unwrap_or_default().iter().take(8) {
         out.push_str(&format!("- message: {} ({} events)\n", p.template, p.count));
