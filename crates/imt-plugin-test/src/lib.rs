@@ -461,5 +461,18 @@ fn start(exe: &Path, manifest: &Manifest, granted: &[Permission], launch: &Launc
 }
 
 fn launch_child(c: &ChildSpec, host: &Arc<FakeHost>) -> Result<Child> {
-    launch(c, host.clone()).map_err(|e| anyhow!("cannot start the plugin: {e}"))
+    // A program that was copied into place a moment ago can still be open for writing in another thread (a forked
+    // child of a parallel test holds the descriptor until its exec): Linux then refuses to run it ("Text file
+    // busy", ETXTBSY). Waiting a moment and asking again is what a person would do.
+    let mut attempt = 0;
+    loop {
+        match launch(c, host.clone()) {
+            Ok(child) => return Ok(child),
+            Err(e) if attempt < 40 && format!("{e}").contains("Text file busy") => {
+                attempt += 1;
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            Err(e) => return Err(anyhow!("cannot start the plugin: {e}")),
+        }
+    }
 }
