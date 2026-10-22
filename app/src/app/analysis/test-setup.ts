@@ -178,6 +178,7 @@ export function stubBackend(overrides: Partial<Record<keyof AnalysisBackend, (..
     },
     cancelQuery: async () => false,
     checkQuery: async () => null,
+    // eslint-disable-next-line no-control-regex
     classifySearch: async (text: string) => (/[=<>~|]|exists\(/.test(text) ? 'query' : 'text'),
     completeQuery: async () => [],
     queryPatterns: async () => FIX.patterns,

@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
-import { all, buttonByText, el, provideTinyBackend, settle, text, tinyDataset, typeInto } from '../../testing/helpers';
-import { MAX_DETECT_EVERY_MS, TailFileState, TailStatus } from '../core/api.types';
+import { all, buttonByText, el, provideTinyBackend, settle, text, tinyDataset } from '../../testing/helpers';
+import { TailFileState, TailStatus } from '../core/api.types';
 import { MockBackend } from '../core/mock/mock-backend';
-import { at } from '../../testing/must';
+
 import { SettingsDialogService } from '../settings/settings-dialog';
 import { WorkspaceStore } from '../core/workspace.store';
 import { DEFAULT_LIVE_OPTIONS, LiveTail } from '../workspace/live-tail';

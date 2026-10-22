@@ -17,7 +17,7 @@ test('reports a bad type, an empty message, a long header and a missing blank li
   assert.match(lint('feature: x')[0], /does not start with/);
   assert.match(lint('feat:x')[0], /does not start with/);
   assert.deepEqual(lint('# only a comment\n'), ['the message is empty']);
-  assert.match(lint(`feat: ${'x'.repeat(120)}`).join(), /at most 100/);
+  assert.match(lint(`feat: ${'x'.repeat(220)}`).join(), /at most 200/);
   assert.deepEqual(lint('feat: x\nbody'), ['the second line must be empty']);
   assert.deepEqual(lint('fix: windows line endings\r\n\r\nbody'), []);
 });

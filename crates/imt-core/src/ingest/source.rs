@@ -644,6 +644,11 @@ mod tests {
             use std::os::unix::fs::PermissionsExt;
             let locked = write(&dir, "locked.log", b"2026-10-14 10:00:00 INFO a\n");
             std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).unwrap();
+            if std::fs::File::open(&locked).is_ok() {
+                // Running as root (a CI container): permissions are not enforced, so the file is readable.
+                std::fs::remove_dir_all(dir).ok();
+                return;
+            }
             let mut sink = Memory::default();
             let out = import_path(&env, &locked, "locked.log", &HashSet::new(), &mut sink);
             std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o600)).unwrap();

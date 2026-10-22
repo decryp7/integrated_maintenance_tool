@@ -455,7 +455,11 @@ Counters:             \\Process(*)\\Private Bytes
 
     #[test]
     fn finds_output_files_newest_first() {
-        let root = std::env::temp_dir().join(format!("imt-perfmon-test-{}", std::process::id()));
+        // Nested one level down: on Unix the backslashes of the Windows-style output location do not separate folders,
+        // so its "folder" is the parent of the root, which must hold nothing but this test's files (not the shared /tmp).
+        let root = std::env::temp_dir()
+            .join(format!("imt-perfmon-test-{}", std::process::id()))
+            .join("root");
         let sub = root.join("20261014-000001");
         std::fs::create_dir_all(&sub).unwrap();
         let old = sub.join("a.csv");
@@ -488,7 +492,7 @@ Counters:             \\Process(*)\\Private Bytes
             ..s
         };
         assert!(output_files(&none).is_empty());
-        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(root.parent().unwrap_or(&root));
         assert_eq!(expand_env("%IMT_TEST_ROOT_UNSET%\\x 100% %"), "%IMT_TEST_ROOT_UNSET%\\x 100% %");
         assert_eq!(expand_env("a%%b"), "a%%b");
     }

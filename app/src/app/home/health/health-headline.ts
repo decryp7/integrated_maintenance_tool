@@ -1,8 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, Injectable, Injector, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, Injectable, Injector, untracked } from '@angular/core';
 import { Finding } from '../../core/api.types';
 import { formatCount } from '../../core/format';
 import { ConsumerGate } from '../../core/panel-visibility';
-import { EMPTY_QUERY, QueryStore } from '../../core/workspace/query.store';
+import { QueryStore } from '../../core/workspace/query.store';
 import { WorkspaceDataStore } from '../../core/workspace/workspace-data.store';
 import { DockService } from '../../dock/dock.service';
 import { COMMAND_CONTEXT } from '../../extensions/command-registry';

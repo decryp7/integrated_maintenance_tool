@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AiBackend } from '../ai/ai-backend';
 import { AgentApprovalView, LinkView, PauseView } from '../ai/chat/chat-model';
-import { ChatStore } from '../ai/chat/chat.store';
+
 import { FakeContext, provideAnalysisTesting } from '../analysis/test-setup';
 import { RecordView } from '../core/api.types';
 import { MockAiBackend } from '../core/mock/mock-ai-backend';

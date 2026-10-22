@@ -548,28 +548,73 @@ fn check_operators(p: &Pair) {
     assert!(matched > 20, "most cases match events ({matched})");
 }
 
-/// `@id` lists (the Console's "Open all in Events") filter to as many events in DuckDB as in the Workspace. The two
-/// number events differently, so the counts are compared, not the rows.
+/// `@id` lists (the Console's "Open all in Events") select exactly the events whose ids they name, in DuckDB and in the
+/// Workspace alike. The two number events differently (import order), so each store is asked for its own ids.
 fn check_id_lists(p: &Pair) {
-    for ql in [
-        "@id in (0, 1, 2, 7)",
-        "@id in (3)",
-        "@id in (99999999)",
-        "@id in (4, 4, 4)",
-        "@id = 5",
-        "@id in (1, 2, 3) and level >= information",
-        "@id > 5 and @id < 9",
+    let list = |ids: &[u64]| ids.iter().map(u64::to_string).collect::<Vec<_>>().join(", ");
+    let ws_ids: Vec<u64> =
+        p.ws.page(&PageRequest {
+            query: ranged(p, Filter::default()),
+            offset: 0,
+            limit: 6,
+            descending: false,
+            anchor: None,
+        })
+        .unwrap()
+        .rows
+        .iter()
+        .map(|r| r.id as u64)
+        .collect();
+    let duck_ids: Vec<u64> = p
+        .duck
+        .page(&PageQuery {
+            query: ranged(p, Filter::default()),
+            offset: 0,
+            limit: 6,
+            descending: false,
+            anchor: None,
+        })
+        .unwrap()
+        .rows
+        .iter()
+        .map(|r| r.id.0)
+        .collect();
+    assert_eq!((ws_ids.len(), duck_ids.len()), (6, 6));
+    for (ws_ql, duck_ql, n) in [
+        (
+            format!("@id in ({})", list(&ws_ids[..4])),
+            format!("@id in ({})", list(&duck_ids[..4])),
+            4,
+        ),
+        (
+            format!("@id in ({})", list(&ws_ids[..1])),
+            format!("@id in ({})", list(&duck_ids[..1])),
+            1,
+        ),
+        (
+            format!("@id in ({0}, {0}, {0})", ws_ids[2]),
+            format!("@id in ({0}, {0}, {0})", duck_ids[2]),
+            1,
+        ),
+        (format!("@id = {}", ws_ids[3]), format!("@id = {}", duck_ids[3]), 1),
+        ("@id in (99999999)".into(), "@id in (99999999)".into(), 0),
     ] {
-        let q = ranged(
+        let ws_q = ranged(
             p,
             Filter {
-                ql: ql.into(),
+                ql: ws_ql.clone(),
                 ..Filter::default()
             },
         );
-        let (wt, _) = ws_rows(p, &q, 0, 50, false);
-        let (dt, _) = duck_rows(p, &q, 0, 50, false);
-        assert_eq!(dt, wt, "{ql}: total");
+        let duck_q = ranged(
+            p,
+            Filter {
+                ql: duck_ql.clone(),
+                ..Filter::default()
+            },
+        );
+        assert_eq!(ws_rows(p, &ws_q, 0, 50, false).0, n, "{ws_ql}");
+        assert_eq!(duck_rows(p, &duck_q, 0, 50, false).0, n, "{duck_ql}");
     }
 }
 

@@ -178,7 +178,7 @@ export class TimelineMinimap {
     const ext = this.extent();
     const view = this.zoom().view();
     if (!ext || !view) return;
-    let next: Range | null = null;
+    let next: Range;
     switch (e.key) {
       case 'ArrowLeft':
         next = stepRange(view, ext, -1, e.shiftKey ? 0.5 : 0.1);

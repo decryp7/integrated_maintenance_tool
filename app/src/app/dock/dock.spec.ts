@@ -1,6 +1,6 @@
 import { ApplicationRef, ChangeDetectionStrategy, Component, effect, EnvironmentInjector, ErrorHandler, inject, OnDestroy, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { DockviewApi, SerializedDockview } from 'dockview';
+import type { SerializedDockview } from 'dockview';
 import { MemoryLogger, provideDockTesting, settle, testLogger, tinyDataset } from '../../testing/helpers';
 import { FailureReporter } from '../core/failure-reporter';
 import { Logger } from '../core/logger';

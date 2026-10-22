@@ -2,7 +2,7 @@ import { T0, tinyDataset } from '../../../testing/helpers';
 import { MockBackend } from './mock-backend';
 import { MockDataset, MockRecord } from './mock-data';
 import { checkOffset, firstChanged, MOCK_MAX_OFFSET_MS, mockSuggest, recordKey, resolveOffset, shiftSource } from './mock-skew';
-import { at, must } from '../../../testing/must';
+import { at } from '../../../testing/must';
 
 const r = (source: number, line: number, ts: number | null, fields: Record<string, unknown> = {}): MockRecord => ({
   id: 0,
