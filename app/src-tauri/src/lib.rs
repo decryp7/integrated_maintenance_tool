@@ -805,6 +805,28 @@ pub(crate) mod test_support {
 
     static NEXT_TEST_APP: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
+    /// Builds the bundled plugins binary once when it is not next to the test executable (`cargo test -p imt-app`
+    /// builds only this crate; `cargo nextest run --workspace` in CI builds every binary), so the tests that need
+    /// the plugins run instead of failing on their absence. `IMT_PLUGINS` names one built elsewhere.
+    fn ensure_plugins_binary() {
+        static BUILT: std::sync::Once = std::sync::Once::new();
+        BUILT.call_once(|| {
+            if std::env::var_os("IMT_PLUGINS").is_some() || imt_plugin_host::builtins::default_binary().exists() {
+                return;
+            }
+            let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
+            let mut args = vec!["build", "-p", "imt-plugins"];
+            if !cfg!(debug_assertions) {
+                args.push("--release");
+            }
+            #[allow(clippy::disallowed_methods)]
+            let built = std::process::Command::new(cargo).args(&args).current_dir(env!("CARGO_MANIFEST_DIR")).status();
+            if !built.is_ok_and(|s| s.success()) {
+                eprintln!("could not build the plugins binary (`cargo build -p imt-plugins`): the tests that need plugins will fail; build it first");
+            }
+        });
+    }
+
     fn manage(app: tauri::App<MockRuntime>, profile_dir: Option<PathBuf>) -> tauri::App<MockRuntime> {
         manage_in(app, profile_dir, false)
     }
@@ -813,6 +835,7 @@ pub(crate) mod test_support {
         let plugins = std::sync::Arc::new(if safe_mode {
             imt_plugin_host::Builtins::none()
         } else {
+            ensure_plugins_binary();
             imt_plugin_host::Builtins::load(&imt_plugin_host::builtins::default_binary())
         });
         // The store in process, scratch stores under the system temp folder (one folder per test app).

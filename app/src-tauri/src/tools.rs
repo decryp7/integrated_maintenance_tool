@@ -555,7 +555,8 @@ pub(crate) mod tests {
             json!({ "tool": "process-monitor", "op": "start", "args": { "config": { "targets": [{ "pid": std::process::id() }] }, "dir": dir.0 } }),
         )
         .unwrap();
-        assert_eq!(started, json!(dir.0.to_string_lossy()));
+        // The tool answers with the canonical folder (on macOS the temp folder is behind the /var symlink).
+        assert_eq!(started, json!(std::fs::canonicalize(&dir.0).unwrap().to_string_lossy()));
         let tasks = app.state::<BackgroundTasks>();
         let listed = tasks.list();
         assert_eq!(
@@ -654,7 +655,11 @@ pub(crate) mod tests {
         let again = gen(json!({ "template": template, "xmlPath": path })).unwrap_err();
         assert_eq!(
             again["message"],
-            json!(format!("{path}{}", imt_core::overwrite::FILE_EXISTS_SUFFIX))
+            json!(format!(
+                "{}{}",
+                std::fs::canonicalize(&path).unwrap().to_string_lossy(),
+                imt_core::overwrite::FILE_EXISTS_SUFFIX
+            ))
         );
         assert!(gen(json!({ "template": template, "xmlPath": path, "overwrite": true })).is_ok());
         let bad = gen(json!({ "template": { "name": "", "sampleIntervalSecs": 0 } })).unwrap_err();

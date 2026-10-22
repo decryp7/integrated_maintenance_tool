@@ -566,6 +566,84 @@ mod tests {
         });
     }
 
+    /// A CLEF file of two imported events, the resume point of its last event, and the file's length.
+    fn clef_two() -> (std::path::PathBuf, NewSource, Resume) {
+        let line = |n: u32| format!("{{\"@t\":\"2026-10-14T10:00:0{n}Z\",\"@m\":\"m{n}\"}}\n");
+        let (p, src) = temp("r.clef", format!("{}{}", line(0), line(1)).as_bytes());
+        let len = std::fs::metadata(&p).unwrap().len();
+        let resume = Resume {
+            last: TailStart { byte: len / 2, line: 2 },
+            old_end: len,
+        };
+        (p, src, resume)
+    }
+
+    fn resumed(env: &ImportEnv, p: &Path, src: &NewSource, resume: Resume, sink: &mut Memory) -> Region {
+        read_appended_from(env, p, src, SourceId(7), resume.last, false, Some(resume), sink).unwrap()
+    }
+
+    #[test]
+    fn a_resumed_read_does_not_write_the_last_imported_event_again() {
+        let (p, src, resume) = clef_two();
+        with_env(|env| {
+            let mut sink = Memory::default();
+            // Nothing was appended: the last event is confirmed as it was imported and nothing is written.
+            let Region::Read(r) = resumed(env, &p, &src, resume, &mut sink) else {
+                panic!("whole")
+            };
+            assert_eq!((r.batched.events, sink.messages()), (0, vec![]));
+            // A new event follows it: only the new one is written.
+            append(&p, b"{\"@t\":\"2026-10-14T10:00:02Z\",\"@m\":\"m2\"}\n");
+            let Region::Read(r) = resumed(env, &p, &src, resume, &mut sink) else {
+                panic!("whole")
+            };
+            assert_eq!(r.batched.events, 1);
+            assert_eq!(sink.messages(), [(3, "m2".to_string())]);
+        });
+    }
+
+    #[test]
+    fn a_resumed_read_asks_for_a_full_read_when_the_imported_event_is_not_what_the_file_has() {
+        let (p, src, resume) = clef_two();
+        with_env(|env| {
+            let mut sink = Memory::default();
+            // The file ends the last event elsewhere than the import saw it (it was continued or rewritten).
+            let shorter = Resume {
+                old_end: resume.old_end - 1,
+                ..resume
+            };
+            let r = resumed(env, &p, &src, shorter, &mut sink);
+            assert!(matches!(&r, Region::Whole(why) if why.contains("continued")), "{r:?}");
+            append(&p, b"{\"@t\":\"2026-10-14T10:00:02Z\",\"@m\":\"m2\"}\n");
+            let r = resumed(env, &p, &src, shorter, &mut sink);
+            assert!(matches!(r, Region::Whole(_)), "{r:?}");
+            // The event at the resume point starts somewhere else: the source is read again too.
+            let moved = Resume {
+                last: TailStart {
+                    byte: resume.last.byte + 1,
+                    line: 2,
+                },
+                ..resume
+            };
+            let r = resumed(env, &p, &src, moved, &mut sink);
+            assert!(matches!(r, Region::Whole(_)), "{r:?}");
+            assert!(sink.batches.is_empty(), "nothing is written when the read is to be redone");
+        });
+    }
+
+    #[test]
+    fn a_resumed_read_passes_on_lines_that_are_not_events() {
+        let (p, src, resume) = clef_two();
+        with_env(|env| {
+            let mut sink = Memory::default();
+            append(&p, b"this is not json\n{\"@t\":\"2026-10-14T10:00:02Z\",\"@m\":\"m2\"}\n");
+            let Region::Read(r) = resumed(env, &p, &src, resume, &mut sink) else {
+                panic!("whole")
+            };
+            assert_eq!((r.skipped, r.batched.events), (1, 1));
+        });
+    }
+
     #[test]
     fn events_of_one_line_are_not_held_back() {
         // CLEF: one JSON object per line, so a complete line is a complete event.

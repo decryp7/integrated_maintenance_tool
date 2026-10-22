@@ -345,14 +345,17 @@ mod tests {
     /// "webview window" (ADR 0024): `get_webview_window`, `webview_windows` and a `WebviewWindow` command argument
     /// miss it. Production code looks IMT windows up with `get_window` / `windows()` (and their webview with
     /// `get_webview`). Only `native_feel` may name `WebviewWindow`: it applies settings to a window it just built.
+    /// `panel_windows` too: Tauri's `parent()` takes a `WebviewWindow` to own a pop-out by, and with the docked browser
+    /// page gone (ADR 0043: the page is its own Chromium window) every IMT window has exactly one webview again.
     #[test]
     fn imt_windows_are_never_looked_up_as_webview_windows() {
         let mut found = Vec::new();
         for (path, text) in production_sources() {
-            let allowed = path.file_name().is_some_and(|n| n == "native_feel.rs");
+            let name = path.file_name();
+            let allowed = name.is_some_and(|n| n == "native_feel.rs" || n == "panel_windows.rs");
             for (n, line) in production_part(&text) {
                 let code = line.split("//").next().unwrap_or_default();
-                let lookup = code.contains("get_webview_window(") || code.contains("webview_windows()");
+                let lookup = !allowed && (code.contains("get_webview_window(") || code.contains("webview_windows()"));
                 let typed = !allowed && code.contains("WebviewWindow<");
                 if lookup || typed {
                     found.push(format!("{}:{n}: {}", path.display(), line.trim()));
