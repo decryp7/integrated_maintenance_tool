@@ -235,3 +235,18 @@ fn redaction_summaries_and_unsupported_operations_through_the_ports() {
     );
     store.close();
 }
+
+#[test]
+fn run_rule_drafts_are_previewed_through_the_profiles_port() {
+    let d = Dir::new("preview");
+    let store = fresh();
+    store.open(&[d.write("p.log", &clef(0, "begin", "c"))]).unwrap().wait().unwrap();
+    // A draft that cannot compile is answered with its problems, not with an error.
+    let draft = serde_json::from_value(serde_json::json!({
+        "draft": {"kind": "", "start": {"type": "markers", "kinds": ["start"]}, "stop": {"type": "markers", "kinds": ["stop"]}}
+    }))
+    .unwrap();
+    let preview = imt_core::ports::Profiles::preview_spans(&store, &draft).unwrap();
+    assert!(!preview.errors.is_empty(), "{preview:?}");
+    assert!(preview.runs.is_empty());
+}

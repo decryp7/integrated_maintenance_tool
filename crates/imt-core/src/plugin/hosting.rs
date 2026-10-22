@@ -276,6 +276,13 @@ mod tests {
         let unmarked = TransformCtx::with_marks("s", &marks);
         assert!(!unmarked.mark_record(&mut lone, "k"), "no plugin scope: nothing is marked");
         assert_eq!(lone.markers, 0);
+        // A plugin scope without a marker index refuses the kind and says so.
+        let scope = super::super::markers::MarkScope::new("t.batch");
+        let bare = TransformCtx::new("s");
+        let scoped = bare.scoped(&scope);
+        assert!(!scoped.mark_record(&mut lone, "k") && !scoped.mark("k"));
+        assert_eq!(lone.markers, 0);
+        assert_eq!(scope.finish().1, ["k", "k"]);
     }
 
     #[test]
