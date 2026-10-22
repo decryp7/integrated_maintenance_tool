@@ -19,6 +19,10 @@ pub struct Source {
     /// Keep the store in this folder (reused by later runs: files already read are skipped). Without it a
     /// scratch store is made and removed at the end.
     pub store: Option<PathBuf>,
+    /// Only events from this time (epoch ms) are imported (ADR 0047).
+    pub since: Option<i64>,
+    /// Only events up to this time (epoch ms) are imported.
+    pub until: Option<i64>,
 }
 
 /// How a query's table is written.
@@ -89,6 +93,17 @@ pub enum Command {
         subset: String,
         fields: Vec<String>,
     },
+    /// Watch a folder and import what appears in it (ADR 0048).
+    Watch {
+        src: Source,
+        dir: PathBuf,
+        knowledge: Vec<PathBuf>,
+        interval_ms: u64,
+        debounce_ms: u64,
+        once: bool,
+        json: bool,
+        fail_on_findings: bool,
+    },
     Report {
         src: Source,
         out: PathBuf,
@@ -112,6 +127,8 @@ pub fn usage() -> String {
   {b} query QL [SOURCE OPTIONS] [--format table|csv|json] [--json] [--limit N]
   {b} analyze anomalies|patterns|exceptions|issues|outliers [SOURCE OPTIONS] [--filter QL] [--limit N] [--json]
                 [--knowledge FILE]... [--fail-on-findings] [--subset QL] [--fields A,B]
+  {b} watch DIR [--store DIR] [--knowledge FILE]... [--interval SECS] [--debounce SECS] [--once] [--json]
+                [--fail-on-findings]
   {b} report --out FILE [SOURCE OPTIONS] [--format html|pdf] [--title TEXT] [--knowledge FILE]...
                 [--from TIME] [--to TIME] [--top N] [--overwrite] [--json]
   {b} help | --version
@@ -119,6 +136,8 @@ pub fn usage() -> String {
 SOURCE OPTIONS (every command that reads data):
   --open PATH      a file or folder to import (repeatable)
   --store DIR      keep the store in DIR and reuse it next time (default: a scratch store, removed at the end)
+  --since TIME     import only events from TIME   (2026-10-01, 2026-10-01 14:30, 2026-10-01T14:30:00Z; UTC)
+  --until TIME     import only events up to TIME
 
 Exit codes: 0 done, 1 failed, 2 wrong command line, 3 findings (with --fail-on-findings).
 With --json every command prints one JSON object on standard output, errors included.
@@ -151,6 +170,15 @@ fn number(flag: &str, text: &str) -> Result<usize, UsageError> {
         .map_err(|_| format!("{flag} needs a whole number, not \"{text}\""))
 }
 
+/// Seconds (1 to 86,400) as milliseconds.
+fn secs(flag: &str, text: &str) -> Result<u64, UsageError> {
+    let n = number(flag, text)?;
+    if n == 0 || n > 86_400 {
+        return Err(format!("{flag} is between 1 and 86400 seconds"));
+    }
+    Ok(n as u64 * 1000)
+}
+
 fn limit(flag: &str, text: &str) -> Result<usize, UsageError> {
     let n = number(flag, text)?;
     if n == 0 || n > MAX_LIMIT {
@@ -171,6 +199,9 @@ struct Options {
     fail_on_findings: bool,
     subset: Option<String>,
     fields: Vec<String>,
+    interval: Option<u64>,
+    debounce: Option<u64>,
+    once: bool,
     out: Option<PathBuf>,
     title: Option<String>,
     from: Option<i64>,
@@ -202,6 +233,14 @@ fn collect(cur: &mut Cursor<'_>) -> Result<Options, UsageError> {
             "--store" => {
                 o.src.store = Some(PathBuf::from(val(cur)?));
                 o.used.push("--store");
+            }
+            "--since" => {
+                o.src.since = Some(parse_time(&val(cur)?).map_err(|e| format!("--since: {e}"))?);
+                o.used.push("--since");
+            }
+            "--until" => {
+                o.src.until = Some(parse_time(&val(cur)?).map_err(|e| format!("--until: {e}"))?);
+                o.used.push("--until");
             }
             "--json" => {
                 o.json = true;
@@ -239,6 +278,18 @@ fn collect(cur: &mut Cursor<'_>) -> Result<Options, UsageError> {
                     .collect();
                 o.used.push("--fields");
             }
+            "--interval" => {
+                o.interval = Some(secs("--interval", &val(cur)?)?);
+                o.used.push("--interval");
+            }
+            "--debounce" => {
+                o.debounce = Some(secs("--debounce", &val(cur)?)?);
+                o.used.push("--debounce");
+            }
+            "--once" => {
+                o.once = true;
+                o.used.push("--once");
+            }
             "--out" => {
                 o.out = Some(PathBuf::from(val(cur)?));
                 o.used.push("--out");
@@ -267,6 +318,11 @@ fn collect(cur: &mut Cursor<'_>) -> Result<Options, UsageError> {
             _ => o.positional.push(a.to_string()),
         }
     }
+    if let (Some(s), Some(u)) = (o.src.since, o.src.until) {
+        if u < s {
+            return Err("--until is before --since".into());
+        }
+    }
     Ok(o)
 }
 
@@ -277,7 +333,7 @@ fn only(o: &Options, command: &str, allowed: &[&str]) -> Result<(), UsageError> 
     }
 }
 
-const SOURCE_FLAGS: [&str; 2] = ["--open", "--store"];
+const SOURCE_FLAGS: [&str; 4] = ["--open", "--store", "--since", "--until"];
 
 fn allowed(extra: &[&'static str]) -> Vec<&'static str> {
     SOURCE_FLAGS.iter().chain(extra.iter()).copied().collect()
@@ -372,6 +428,35 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
                 fields: o.fields,
             })
         }
+        "watch" => {
+            let mut o = collect(&mut cur)?;
+            only(
+                &o,
+                "watch",
+                &[
+                    "--store",
+                    "--knowledge",
+                    "--interval",
+                    "--debounce",
+                    "--once",
+                    "--json",
+                    "--fail-on-findings",
+                ],
+            )?;
+            if o.positional.len() != 1 {
+                return Err("watch needs exactly one folder to watch".into());
+            }
+            Ok(Command::Watch {
+                src: o.src,
+                dir: PathBuf::from(o.positional.remove(0)),
+                knowledge: o.knowledge,
+                interval_ms: o.interval.unwrap_or(5_000),
+                debounce_ms: o.debounce.unwrap_or(2_000),
+                once: o.once,
+                json: o.json,
+                fail_on_findings: o.fail_on_findings,
+            })
+        }
         "report" => {
             let o = collect(&mut cur)?;
             only(
@@ -450,6 +535,12 @@ mod tests {
         assert_eq!(src.store, Some(PathBuf::from("s")));
         assert!(json);
         assert!(p("import").unwrap_err().contains("at least one"));
+        let Command::Import { src, .. } = p("import a --since 2026-10-01 --until=2026-10-02").unwrap() else {
+            panic!()
+        };
+        assert!(src.since.unwrap() < src.until.unwrap());
+        assert!(p("import a --since 2026-10-02 --until 2026-10-01").unwrap_err().contains("before"));
+        assert!(p("import a --since soon").unwrap_err().contains("--since"));
     }
 
     #[test]
@@ -519,6 +610,26 @@ mod tests {
         assert!(p("report --out r --from 2026-10-02 --to 2026-10-01").is_err());
         assert!(p("report x --out r").is_err());
         assert!(p("report --out r --format doc").is_err());
+    }
+
+    #[test]
+    fn watch_takes_one_folder_and_bounded_timings() {
+        let Command::Watch {
+            dir,
+            interval_ms,
+            debounce_ms,
+            once,
+            ..
+        } = p("watch logs --once --interval 3").unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!((dir, interval_ms, debounce_ms, once), (PathBuf::from("logs"), 3000, 2000, true));
+        assert!(p("watch").unwrap_err().contains("one folder"));
+        assert!(p("watch a b").is_err());
+        assert!(p("watch a --interval 0").unwrap_err().contains("between"));
+        assert!(p("watch a --open x").unwrap_err().contains("does not take --open"));
+        assert!(p("query q --once").unwrap_err().contains("does not take --once"));
     }
 
     #[test]

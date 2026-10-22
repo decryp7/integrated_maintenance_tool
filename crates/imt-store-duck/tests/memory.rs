@@ -113,6 +113,7 @@ fn parse_only(paths: &[PathBuf]) -> usize {
         parsers: &parsers,
         schema: Arc::new(ingest::schema_for(&profile)),
         cancel: progress.cancel_flag(),
+        window: None,
     };
     let canonical: Vec<PathBuf> = paths.iter().map(|p| std::fs::canonicalize(p).unwrap()).collect();
     let files = ingest::files_to_read(&canonical, &canonical, &profile, &Default::default(), &Default::default());

@@ -59,11 +59,12 @@ fn wants_json(c: &Command) -> bool {
     match c {
         Command::Import { json, .. } | Command::Analyze { json, .. } | Command::Report { json, .. } => *json,
         Command::Query { format, .. } => *format == TableFormat::Json,
+        Command::Watch { json, .. } => *json,
         Command::Help | Command::Version => false,
     }
 }
 
-fn store_message(e: StoreError) -> String {
+pub(crate) fn store_message(e: StoreError) -> String {
     e.to_string()
 }
 
@@ -91,8 +92,8 @@ fn scratch_folder() -> Result<PathBuf, String> {
 
 /// The store a command works on, with its scratch folder (if any) removed when this is dropped. The store is
 /// declared first so it lets go of its files before the folder is removed.
-struct Prepared {
-    store: SharedStore,
+pub(crate) struct Prepared {
+    pub(crate) store: SharedStore,
     _scratch: Scratch,
 }
 
@@ -108,12 +109,8 @@ fn canonical(paths: &[PathBuf]) -> Result<Vec<PathBuf>, String> {
         .collect()
 }
 
-/// Opens (or creates) the store, imports `src.open` and reports on `err`. `None` report: nothing was imported.
-fn prepare(src: &Source, host: &dyn StoreHost, err: &mut dyn Write) -> Result<(Prepared, Option<ImportReport>), String> {
-    let paths = canonical(&src.open)?;
-    if paths.is_empty() && src.store.is_none() {
-        return Err("nothing to read: give --open PATH, or --store DIR with a store from an earlier run".into());
-    }
+/// Opens (or creates) the store of `src`: the kept folder, or a scratch one removed when the result is dropped.
+pub(crate) fn open_store(src: &Source, host: &dyn StoreHost) -> Result<Prepared, String> {
     let profile = Profile::default_profile();
     let (dir, scratch) = match &src.store {
         Some(d) => {
@@ -131,9 +128,27 @@ fn prepare(src: &Source, host: &dyn StoreHost, err: &mut dyn Write) -> Result<(P
         host.create(&dir, &profile)
     }
     .map_err(store_message)?;
-    let prepared = Prepared { store, _scratch: scratch };
+    Ok(Prepared { store, _scratch: scratch })
+}
+
+/// Opens the store, imports `src.open` and reports on `err`. `None` report: nothing was imported.
+fn prepare(src: &Source, host: &dyn StoreHost, err: &mut dyn Write) -> Result<(Prepared, Option<ImportReport>), String> {
+    let paths = canonical(&src.open)?;
+    if paths.is_empty() && src.store.is_none() {
+        return Err("nothing to read: give --open PATH, or --store DIR with a store from an earlier run".into());
+    }
+    let prepared = open_store(src, host)?;
     if paths.is_empty() {
         return Ok((prepared, None));
+    }
+    if src.since.is_some() || src.until.is_some() {
+        prepared
+            .store
+            .set_import_window(&imt_core::ingest::ImportWindow {
+                from: src.since,
+                to: src.until,
+            })
+            .map_err(store_message)?;
     }
     let report = prepared.store.open(&paths).and_then(|s| s.wait()).map_err(store_message)?;
     for u in &report.unrecognized {
@@ -152,6 +167,32 @@ fn prepare(src: &Source, host: &dyn StoreHost, err: &mut dyn Write) -> Result<(P
 fn execute(command: Command, host: &dyn StoreHost, out: &mut dyn Write, err: &mut dyn Write) -> Result<Exit, String> {
     match command {
         Command::Help | Command::Version => Ok(Exit::Ok),
+        Command::Watch {
+            src,
+            dir,
+            knowledge,
+            interval_ms,
+            debounce_ms,
+            once,
+            json,
+            fail_on_findings,
+        } => {
+            let prepared = open_store(&src, host)?;
+            let opts = crate::watch::WatchOptions {
+                dir,
+                knowledge,
+                interval_ms,
+                debounce_ms,
+                once,
+                json,
+            };
+            let findings = crate::watch::watch(prepared.store.as_ref(), &opts, &crate::watch::stop_flag(), out, err)?;
+            Ok(if fail_on_findings && findings > 0 {
+                Exit::Findings
+            } else {
+                Exit::Ok
+            })
+        }
         Command::Import { src, json } => {
             let (_prepared, report) = prepare(&src, host, err)?;
             let report = report.unwrap_or_default();
@@ -328,7 +369,7 @@ fn to_value<T: serde::Serialize>(t: &T) -> Value {
     serde_json::to_value(t).unwrap_or(Value::Null)
 }
 
-fn read_knowledge(files: &[PathBuf]) -> Result<Vec<(String, String)>, String> {
+pub(crate) fn read_knowledge(files: &[PathBuf]) -> Result<Vec<(String, String)>, String> {
     files
         .iter()
         .map(|p| {

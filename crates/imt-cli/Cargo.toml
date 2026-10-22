@@ -22,6 +22,8 @@ imt-core = { path = "../imt-core" }
 imt-store-client = { path = "../imt-store-client" }
 imt-pdf = { path = "../imt-pdf" }
 chrono.workspace = true
+# Ctrl+C / SIGTERM stop `watch` cleanly.
+ctrlc = { workspace = true, features = ["termination"] }
 serde.workspace = true
 serde_json = { workspace = true, features = ["preserve_order"] }
 

@@ -22,6 +22,7 @@ mod region;
 mod sink;
 mod source;
 mod text;
+mod window;
 
 pub use batcher::{column_type, schema_for, BatchedSource, RecordBatcher};
 pub use chunk::{Chunk, ChunkSource, Encoding, Line, LineReader, LineSpan, OwnedLine, ReaderChunks, TextChunks, CHUNK_BYTES};
@@ -38,6 +39,7 @@ pub use problems::{Problem, ProblemKind, Problems, MAX_SAMPLES};
 pub use region::{begin_at_end, read_appended, read_appended_from, resume_after, AtEnd, Region, RegionRead, Resume, TailStart};
 pub use sink::{BatchSink, EventSink, ImportCancelled, NewSource, ParsedEvent, SourceReport};
 pub use source::{import_path, ImportEnv, Outcome};
+pub use window::{ImportWindow, MTIME_SLACK_MS};
 
 use crate::api::UnrecognizedFile;
 use crate::profile::CompiledProfile;

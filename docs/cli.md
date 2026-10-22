@@ -11,6 +11,8 @@ imt import PATH... [SOURCE OPTIONS] [--json]
 imt query QL [SOURCE OPTIONS] [--format table|csv|json] [--json] [--limit N]
 imt analyze anomalies|patterns|exceptions|issues|outliers [SOURCE OPTIONS] [--filter QL] [--limit N] [--json]
             [--knowledge FILE]... [--fail-on-findings] [--subset QL] [--fields A,B]
+imt watch DIR [--store DIR] [--knowledge FILE]... [--interval SECS] [--debounce SECS] [--once] [--json]
+            [--fail-on-findings]
 imt report --out FILE [SOURCE OPTIONS] [--format html|pdf] [--title TEXT] [--knowledge FILE]...
             [--from TIME] [--to TIME] [--top N] [--overwrite] [--json]
 imt help | --version
@@ -23,6 +25,7 @@ Every command that reads data takes these.
 | Option | Meaning |
 |---|---|
 | `--open PATH` | A file or folder to import (repeatable). `import` also takes them as plain arguments. Folders are read recursively with the default profile's include and exclude globs. |
+| `--since TIME`, `--until TIME` | Import only events from `TIME` / up to `TIME` (both inclusive; UTC unless an offset is given). Events outside the range are dropped before the pipeline and the store, so one hour of a very large folder costs one hour of memory and disk. Files last modified more than 26 hours before `--since` are not opened at all. Events without a readable time are left out when a range is set. Applies to files read in this run (a kept store keeps what it already holds). |
 | `--store DIR` | Keep the store in `DIR`. A later run with the same `--store` reuses it: files already read are skipped, so `imt import` once and then query as often as you like. Without it a scratch store is made in the temporary folder and removed when the command ends. |
 
 Paths are canonicalised; a path that does not exist is an error naming it. A file no importer can read is skipped with a
@@ -44,6 +47,17 @@ selected by `--subset QL`, against the rest of the window; `--fields A,B` limits
 its counts, lift, p-value and evidence ids) and `issues` (the known issues declared in the Markdown
 `--knowledge` files that occur in the data, with their counts and fixes). Each result says how much of the data it
 covered; limits that bounded it are printed on standard error.
+
+**`watch`** imports files as they appear in `DIR` (recursively, with the default profile's include and exclude
+globs), until Ctrl+C or SIGTERM. A file is imported once its size and modification time have not changed for
+`--debounce` seconds (default 2), so a file still being copied is not read half-written; names such as `*.part`, `*.tmp`,
+`*.crdownload`, `~$*` and dotfiles and empty files are ignored; symbolic links are not followed. A file that is locked or
+unreadable is retried with growing delays and given up after four attempts (a changed file gets a new chance); a file over
+4 GiB is reported once and left alone; a file that vanishes is forgotten. A file that grows later is refreshed. The folder
+is scanned every `--interval` seconds (default 5). With `--knowledge FILE`, each time something was imported the known
+issues are matched and a new one (or one with more events) is announced once. Output is one line per event, or one JSON
+object per line with `--json` (`imported`, `skipped`, `issue`). With `--once` the folder is settled and the command ends;
+`--fail-on-findings` then exits 3 when a known issue was announced. Use `--store DIR` to keep what was imported.
 
 **`report`** builds the incident summary (period, anomalies, exceptions, top errors, sources, import problems, matched
 known issues) and writes it to `--out` as self-contained HTML or PDF (the format follows the extension unless

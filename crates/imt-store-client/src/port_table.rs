@@ -21,7 +21,7 @@
 
 /// The worker protocol's version. Bump it when an operation is removed, reordered or its DTO changes shape; the
 /// app and its worker ship together, and the client refuses a worker that reports another version.
-pub const WIRE_VERSION: u32 = 1;
+pub const WIRE_VERSION: u32 = 2;
 
 /// The names the table's types resolve through (the callbacks expand in other modules and crates).
 pub mod ty {
@@ -34,6 +34,7 @@ pub mod ty {
     };
     pub use imt_core::batch::{EventId, SourceId};
     pub use imt_core::exceptions::ExceptionGroup;
+    pub use imt_core::ingest::ImportWindow;
     pub use imt_core::package::ProjectManifest;
     pub use imt_core::parser::ParserSetup;
     pub use imt_core::patterns::Pattern;
@@ -63,6 +64,7 @@ macro_rules! store_port_table {
             Ingest {
                 plain {
                     call Clear: fn clear() -> ();
+                    call SetImportWindow: fn set_import_window(window: &ImportWindow) -> ();
                 }
                 custom {
                     Open: fn open(paths: &[PathBuf]) -> ImportSession = client remote_open, server serve_open;

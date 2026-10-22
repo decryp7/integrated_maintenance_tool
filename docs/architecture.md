@@ -149,6 +149,8 @@ error snapshots, [ADR 0034](adr/0034-native-window-capture.md)), `video/` and `i
 | [0044](adr/0044-headless-command-line.md) | A headless command line (`imt`) over the store worker: pure parsing and rendering, exit codes and `--json` as contract, bounded output. |
 | [0045](adr/0045-error-outliers.md) | Error outliers: a pure function over the `Query` port (facets and counts), G-test ranking, bounded, no new store operation. |
 | [0046](adr/0046-pattern-trends-and-placeholder-values.md) | Pattern trends and placeholder values: a growing shared time scale folded to 24 buckets, Space-Saving summaries per placeholder, both inside the miner. |
+| [0047](adr/0047-time-window-import.md) | Time-window import: an `ImportWindow` set on the store (`Ingest::set_import_window`) filters events before the pipeline; old files are skipped by modification time. |
+| [0048](adr/0048-watched-folders.md) | Watched folders: a pure `WatchState` decides readiness (debounce, retry, give-up, bounds); polling scans; `imt watch` is the first driver. |
 
 
 ## Plugin runtime (ADR 0003, ADR 0017)

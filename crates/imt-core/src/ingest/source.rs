@@ -33,6 +33,8 @@ pub struct ImportEnv<'a> {
     pub encodings: &'a EncodingPolicy,
     /// Set to stop the import at the next batch; the file being read is then not imported.
     pub cancel: &'a AtomicBool,
+    /// Only events inside this range are imported (ADR 0047); `None` imports everything.
+    pub window: Option<super::ImportWindow>,
 }
 
 /// The result for one source.
@@ -64,6 +66,11 @@ fn read_head(reader: &mut impl Read, limit: usize) -> std::io::Result<(Vec<u8>, 
     Ok((head, reader.read(&mut probe)? == 0))
 }
 
+fn modified_ms(meta: Option<&std::fs::Metadata>) -> Option<i64> {
+    let t = meta?.modified().ok()?.duration_since(std::time::UNIX_EPOCH).ok()?;
+    i64::try_from(t.as_millis()).ok()
+}
+
 /// Imports one file: each zip member is a source; a gzip file is one source. Members in `removed` are
 /// skipped.
 pub fn import_path(env: &ImportEnv, path: &Path, name: &str, removed: &HashSet<PathBuf>, sink: &mut dyn BatchSink) -> Vec<Outcome> {
@@ -90,9 +97,16 @@ pub(super) fn import_path_with(
     let meta = file.metadata().ok();
     let size = meta.as_ref().map_or(0, |m| m.len());
     let file_date = meta
+        .as_ref()
         .and_then(|m| m.modified().ok())
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
         .and_then(|d| crate::time::utc_date_of(d.as_millis() as i64));
+    // A file that stopped growing before the window began cannot hold an event of it (ADR 0047).
+    if let (Some(w), Some(ms)) = (env.window, modified_ms(meta.as_ref())) {
+        if w.rules_out_file(ms) {
+            return Vec::new();
+        }
+    }
     let (head, whole) = match read_head(&mut file, HEAD_BYTES) {
         Ok(h) => h,
         Err(e) => return vec![unrecognized(&path_s, name, e.to_string())],
@@ -304,7 +318,7 @@ fn read_events<R: Read + Seek>(
     name: &str,
     sink: &mut dyn BatchSink,
 ) -> Result<(BatchedSource, usize)> {
-    let mut batcher = RecordBatcher::new(ctx.profile, env.schema.clone(), id, name, sink, env.cancel);
+    let mut batcher = RecordBatcher::new(ctx.profile, env.schema.clone(), id, name, sink, env.cancel).with_window(env.window);
     let skipped = match plan.kind {
         PlanKind::Binary => {
             reader.seek(SeekFrom::Start(0))?;
@@ -427,6 +441,7 @@ mod tests {
             parsers: &profile,
             schema: Arc::new(EventSchema::plain()),
             cancel: &cancel,
+            window: None,
         };
         let mut sink = Memory::default();
         let none = HashSet::new();
@@ -481,6 +496,7 @@ mod tests {
             parsers: &profile,
             schema: Arc::new(EventSchema::plain()),
             cancel: &cancel,
+            window: None,
         };
         let mut gz = Vec::new();
         {
@@ -574,6 +590,7 @@ mod tests {
             parsers: &profile,
             schema: Arc::new(EventSchema::plain()),
             cancel: &cancel,
+            window: None,
         };
         let none = HashSet::new();
         let mut sink = Memory::default();
@@ -613,6 +630,7 @@ mod tests {
             parsers: &profile,
             schema: Arc::new(EventSchema::plain()),
             cancel: &cancel,
+            window: None,
         };
         let mut no_space = Memory {
             fail_begin: true,
@@ -656,6 +674,7 @@ mod tests {
             parsers: &profile,
             schema: Arc::new(EventSchema::plain()),
             cancel: &cancel,
+            window: None,
         };
         let mut sink = Memory::default();
         let u = unrecognised(import_path(&env, &dir, "dir", &HashSet::new(), &mut sink));

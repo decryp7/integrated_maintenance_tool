@@ -160,6 +160,26 @@ fn analyses_report_findings_and_set_the_exit_code() {
 }
 
 #[test]
+fn since_and_until_import_only_that_range() {
+    let dir = tempfile::tempdir().unwrap();
+    let log = write_log(dir.path());
+    let log = log.to_str().unwrap();
+    let r = exec(&[
+        "import",
+        log,
+        "--since",
+        "2026-10-14 09:01:00",
+        "--until",
+        "2026-10-14 09:01:59",
+        "--json",
+    ]);
+    assert_eq!(r.exit, Exit::Ok, "{}", r.err);
+    assert_eq!(json(&r)["events"], 60, "one minute of the quiet hour");
+    let r = exec(&["import", log, "--since", "2026-10-14 10:00:00", "--json"]);
+    assert_eq!(json(&r)["events"], 40);
+}
+
+#[test]
 fn outliers_point_at_the_value_only_the_errors_share() {
     let dir = tempfile::tempdir().unwrap();
     let mut text = String::new();
@@ -309,4 +329,86 @@ fn help_and_version_need_no_store() {
     };
     assert_eq!(run::run_static(&q, &mut Vec::new()), None);
     let _ = (AnalyzeKind::Issues, ReportFormat::Html);
+}
+
+fn watch_options(dir: &Path) -> imt_cli::watch::WatchOptions {
+    imt_cli::watch::WatchOptions {
+        dir: dir.to_path_buf(),
+        knowledge: Vec::new(),
+        interval_ms: 50,
+        debounce_ms: 100,
+        once: true,
+        json: true,
+    }
+}
+
+fn run_watch(opts: &imt_cli::watch::WatchOptions) -> (Result<usize, String>, Vec<Value>, String) {
+    use std::sync::atomic::AtomicBool;
+    let store_dir = tempfile::tempdir().unwrap();
+    let store = InProcess.create(store_dir.path(), &Profile::default_profile()).unwrap();
+    let (mut out, mut err) = (Vec::new(), Vec::new());
+    let r = imt_cli::watch::watch(store.as_ref(), opts, &AtomicBool::new(false), &mut out, &mut err);
+    let lines = String::from_utf8(out)
+        .unwrap()
+        .lines()
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect();
+    (r, lines, String::from_utf8(err).unwrap())
+}
+
+#[test]
+fn watch_imports_settled_files_and_ignores_partial_ones() {
+    let dir = tempfile::tempdir().unwrap();
+    write_log(dir.path());
+    std::fs::write(
+        dir.path().join("copying.log.part"),
+        "2026-10-14 09:00:00.000 +00:00 [INF] partial\n",
+    )
+    .unwrap();
+    std::fs::write(dir.path().join("empty.log"), "").unwrap();
+    let (r, events, _) = run_watch(&watch_options(dir.path()));
+    assert_eq!(r, Ok(0));
+    assert_eq!(events.len(), 1, "{events:?}");
+    assert_eq!(events[0]["event"], "imported");
+    assert_eq!(events[0]["events"], 240);
+}
+
+#[test]
+fn watch_announces_known_issues_once() {
+    let dir = tempfile::tempdir().unwrap();
+    write_log(dir.path());
+    let know = tempfile::tempdir().unwrap().keep().join("k.md");
+    std::fs::write(
+        &know,
+        "```known-issue\ntitle: Pool exhausted\npattern: timeout expired\nfix: Raise the pool.\n```\n",
+    )
+    .unwrap();
+    let mut opts = watch_options(dir.path());
+    opts.knowledge = vec![know];
+    let (r, events, _) = run_watch(&opts);
+    assert_eq!(r, Ok(1));
+    let issue: Vec<_> = events.iter().filter(|e| e["event"] == "issue").collect();
+    assert_eq!(issue.len(), 1);
+    assert_eq!(issue[0]["count"], 40);
+}
+
+#[test]
+fn watch_reports_a_missing_folder_and_a_vanishing_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let (r, _, _) = run_watch(&watch_options(&dir.path().join("nope")));
+    assert!(r.unwrap_err().contains("not a folder"));
+    // A file that is gone before it settles is forgotten, not an error.
+    let f = dir.path().join("gone.log");
+    std::fs::write(&f, "2026-10-14 09:00:00.000 +00:00 [INF] x\n").unwrap();
+    let remover = std::thread::spawn({
+        let f = f.clone();
+        move || {
+            std::thread::sleep(std::time::Duration::from_millis(30));
+            let _ = std::fs::remove_file(f);
+        }
+    });
+    let (r, events, _) = run_watch(&watch_options(dir.path()));
+    remover.join().unwrap();
+    assert_eq!(r, Ok(0));
+    assert!(events.is_empty(), "{events:?}");
 }

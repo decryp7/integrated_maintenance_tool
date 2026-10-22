@@ -325,7 +325,7 @@ pub fn read_appended_from(
     let reader = (&mut p.file).take(end - start.byte);
     let mut chunks = ReaderChunks::new(reader, encoding, start.byte).starting_at_line(start.line);
     let mut lines = LineReader::new(&mut chunks);
-    let mut batcher = RecordBatcher::new(ctx.profile, env.schema.clone(), source, &src.name, sink, env.cancel);
+    let mut batcher = RecordBatcher::new(ctx.profile, env.schema.clone(), source, &src.name, sink, env.cancel).with_window(env.window);
     let hold = p.plan.multiline && !flush;
     let mut held = None;
     let mut changed = false;
@@ -525,6 +525,7 @@ mod tests {
             parsers: &parsers,
             schema: Arc::new(EventSchema::plain()),
             cancel: &cancel,
+            window: None,
         };
         f(&env)
     }
