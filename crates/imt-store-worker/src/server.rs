@@ -125,7 +125,10 @@ impl Worker {
         if req.create {
             lock(&self.stores).retain(|_, (d, _)| *d != dir);
         } else if let Some((h, _)) = lock(&self.stores).iter().find(|(_, (d, _))| *d == dir) {
-            return Ok(Handle { store: *h });
+            return Ok(Handle {
+                store: *h,
+                wire: protocol::WIRE_VERSION,
+            });
         }
         let opts = self.options(req.limits);
         let registry = self.registry(&req.disabled_plugins, req.safe_mode, &req.third_party);
@@ -139,7 +142,10 @@ impl Worker {
         }
         let h = self.next.fetch_add(1, Ordering::SeqCst) + 1;
         lock(&self.stores).insert(h, (dir, store));
-        Ok(Handle { store: h })
+        Ok(Handle {
+            store: h,
+            wire: protocol::WIRE_VERSION,
+        })
     }
 
     fn open_project(&self, req: OpenProject) -> StoreResult<OpenedProject> {
@@ -248,147 +254,12 @@ impl Worker {
         items: &mut dyn FnMut(Vec<u8>) -> bool,
     ) -> StoreResult<serde_json::Value> {
         let s = self.store(h)?;
-        // A cancellable operation: the caller's cancel interrupts its statements; its progress streams meanwhile.
-        macro_rules! run {
-            ($e:expr) => {
-                reply(&controlled(probe, items, || $e)?)
-            };
-        }
-        match op {
-            StoreOp::Open => {
-                let p: Paths = body(b)?;
-                let session = s.open(&p.paths)?;
-                reply(&self.session(session))
-            }
-            StoreOp::Reload => {
-                let session = s.reload()?;
-                reply(&self.session(session))
-            }
-            StoreOp::Refresh => {
-                let p: Paths = body(b)?;
-                let session = s.refresh(&p.paths)?;
-                reply(&self.session(session))
-            }
-            StoreOp::RemoveSource => reply(&s.remove_source(body::<Source>(b)?.id)?),
-            StoreOp::Clear => reply(&s.clear()?),
-            StoreOp::Restore => {
-                let state: WorkspaceState = body(b)?;
-                let session = s.restore(&state)?;
-                reply(&self.session(session))
-            }
-            StoreOp::AppendTail => reply(&s.append_tail(&body::<Paths>(b)?.paths)?),
-            // The store's progress is that of its running (or last) import.
-            StoreOp::SessionProgress => reply(&s.progress().snapshot()),
-            StoreOp::SessionCancel => {
-                s.progress().cancel();
-                reply(&())
-            }
-            StoreOp::SessionWait => {
-                let id: Session = body(b)?;
-                let session = lock(&self.sessions)
-                    .remove(&id.session)
-                    .ok_or_else(|| StoreError::NotFound(format!("import {} (already waited for?)", id.session)))?;
-                reply(&session.wait()?)
-            }
-            StoreOp::Summary => reply(&s.summary()?),
-            StoreOp::Page => reply(&s.page(&body(b)?)?),
-            StoreOp::Events => reply(&s.events(&body(b)?)?),
-            StoreOp::Timeline => reply(&s.timeline(&body(b)?)?),
-            StoreOp::Facet => reply(&s.facet(&body(b)?)?),
-            StoreOp::Chart => run!(s.chart(&body(b)?)),
-            StoreOp::FieldStats => run!(s.field_stats(&body(b)?)),
-            StoreOp::SourceContext => reply(&s.source_context(&body(b)?)?),
-            StoreOp::RunQuery => {
-                let req = body(b)?;
-                let control = QueryControl::new();
-                let _watch = probe.map(|p| Watch::start(p, control.clone()));
-                reply(&with_progress(&control, items, || s.run_query_with(&req, &control))?)
-            }
-            StoreOp::CheckQuery => reply(&s.check_query(&body::<String>(b)?)?),
-            StoreOp::CompleteQuery => reply(&s.complete_query(&body(b)?)?),
-            StoreOp::Export => run!(s.export(&body(b)?)),
-            StoreOp::IdsAt => {
-                let r: IdsAt = body(b)?;
-                reply(&s.ids_at(r.from, r.len)?)
-            }
-            StoreOp::PositionOf => reply(&s.position_of(body(b)?)?),
-            StoreOp::Positioned => reply(&s.positioned()?),
-            StoreOp::Patterns => run!(s.patterns(&body(b)?)),
-            StoreOp::ExceptionGroups => run!(s.exception_groups(&body(b)?)),
-            StoreOp::Anomalies => run!(s.anomalies(&body(b)?)),
-            StoreOp::Compare => run!(s.compare(&body(b)?)),
-            StoreOp::Correlate => run!(s.correlate(&body(b)?)),
-            StoreOp::Traces => run!(s.traces(&body(b)?)),
-            StoreOp::Requests => run!(s.requests(&body(b)?)),
-            StoreOp::Moment => run!(s.moment(&body(b)?)),
-            StoreOp::Overview => run!(s.overview(&body(b)?)),
-            StoreOp::Runs => run!(s.runs(&body(b)?)),
-            StoreOp::ActiveProfile => reply(&s.active_profile()?),
-            StoreOp::ValidateProfile => reply(&s.validate_profile(&body::<Profile>(b)?)?),
-            StoreOp::SetProfile => {
-                let session = s.set_profile(body::<Profile>(b)?)?;
-                reply(&self.session(session))
-            }
-            StoreOp::PreviewParse => run!(s.preview_parse(&body(b)?)),
-            StoreOp::PreviewExtractor => run!(s.preview_extractor(&body(b)?)),
-            StoreOp::ProposeSpanRule => run!(s.propose_span_rule(&body(b)?)),
-            StoreOp::PreviewSpans => run!(s.preview_spans(&body(b)?)),
-            StoreOp::Parsers => reply(&s.parsers()?),
-            StoreOp::ClassifyParser => reply(&s.classify_parser(&body(b)?)?),
-            StoreOp::AssignParser => {
-                let r: protocol::AssignParser = body(b)?;
-                let session = s.assign_parser(r.source, r.parser.as_deref())?;
-                reply(&self.session(session))
-            }
-            StoreOp::EvaluateSpanRule => run!(s.evaluate_span_rule(&body(b)?)),
-            StoreOp::Problems => reply(&s.problems()?),
-            StoreOp::EvaluateFix => run!(s.evaluate_fix(&body(b)?)),
-            StoreOp::Search => reply(&s.search(&body(b)?)?),
-            StoreOp::IndexStatus => reply(&s.index_status()?),
-            StoreOp::PartialMatches => run!(s.partial_matches(&body(b)?)),
-            StoreOp::SetParsers => reply(&s.set_parsers(&body(b)?)?),
-            StoreOp::RereadParsers => {
-                let session = s.reread_parsers()?;
-                reply(&self.session(session))
-            }
-            StoreOp::StoreOverview => reply(&s.store_overview()?),
-            StoreOp::StoreSegments => reply(&s.store_segments(&body(b)?)?),
-            StoreOp::StoreFields => reply(&s.store_fields()?),
-            StoreOp::StoreIndex => reply(&s.store_index()?),
-            StoreOp::StoreMemory => {
-                let mut m = s.store_memory()?;
-                m.worker = Some(imt_core::ports::WorkerMemory {
-                    pid: std::process::id(),
-                    rss_bytes: imt_ipc::process::current_rss_bytes(),
-                    low_memory: self.mode == MemoryMode::Low,
-                });
-                reply(&m)
-            }
-            StoreOp::StoreMaintain => reply(&s.maintain(body(b)?)?),
-            StoreOp::SqlSchema => reply(&s.sql_schema()?),
-            StoreOp::SqlRun => run!(s.sql_run(&body(b)?)),
-            StoreOp::SqlPage => reply(&s.sql_page(&body(b)?)?),
-            StoreOp::SqlIds => reply(&s.sql_ids(&body(b)?)?),
-            StoreOp::SqlExport => run!(s.sql_export(&body(b)?)),
-            StoreOp::RedactionSummary => run!(imt_core::ports::Redaction::redaction_summary(&s, &body(b)?)),
-            StoreOp::ClockOffsets => reply(&imt_core::ports::Skew::clock_offsets(&s)?),
-            StoreOp::SetClockOffsets => reply(&imt_core::ports::Skew::set_clock_offsets(&s, &body(b)?)?),
-            StoreOp::SetSourceOffset => reply(&imt_core::ports::Skew::set_source_offset(&s, &body(b)?)?),
-            StoreOp::SuggestOffsets => run!(imt_core::ports::Skew::suggest_offsets(&s, &body(b)?)),
-            StoreOp::TailFiles => reply(&imt_core::ports::Tail::tail_files(&s)?),
-            StoreOp::OpenAtEnd => {
-                let p: Paths = body(b)?;
-                let session = imt_core::ports::Tail::open_at_end(&s, &p.paths)?;
-                reply(&self.session(session))
-            }
-            StoreOp::SaveProject => reply(&Projects::save_project(&s, &body::<ProjectManifest>(b)?)?),
-            StoreOp::ExportProject => {
-                let r: ExportProject = body(b)?;
-                reply(&Projects::export_project(&s, &r.manifest, &r.out)?)
-            }
-        }
+        self.run_op(&s, op, b, dispatch::Call { probe, items })
     }
 }
+
+#[path = "dispatch.rs"]
+mod dispatch;
 
 /// Runs `f` under a control that the caller's cancel triggers (when there is a probe). A scan streams its own
 /// items, so it reports no progress.
