@@ -60,3 +60,32 @@ fn events_blocks_are_looked_up_in_the_store_and_gone_ids_are_counted() {
     assert_eq!(events[0].message, first[0].message);
     assert_eq!(events[0].source, first[0].source_name);
 }
+
+#[test]
+fn a_chart_without_a_title_is_named_after_its_definition() {
+    let store = store();
+    let report: Report = serde_json::from_value(json!({
+        "id": "r2",
+        "title": "Charts",
+        "sections": [{
+            "id": "s1",
+            "title": "Charts",
+            "blocks": [
+                {"id": "c1", "type": "chart", "spec": {"id": "x", "title": "Errors per minute", "y": "count()"}},
+                {"id": "c2", "type": "chart", "title": "Own title", "spec": {"id": "x", "title": "Errors per minute", "y": "count()"}},
+                {"id": "c3", "type": "chart"}
+            ]
+        }]
+    }))
+    .unwrap();
+    let resolved = resolve_in(&store, &report, None).unwrap();
+    let titles: Vec<&str> = resolved.sections[0]
+        .blocks
+        .iter()
+        .map(|b| match b {
+            ResolvedBlock::Figure { title, .. } => title.as_str(),
+            other => panic!("{other:?}"),
+        })
+        .collect();
+    assert_eq!(titles, ["Errors per minute", "Own title", ""]);
+}
