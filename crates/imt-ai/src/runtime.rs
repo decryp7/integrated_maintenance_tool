@@ -46,6 +46,9 @@ pub struct Loaded {
     pub provider: Arc<dyn LlmProvider>,
     /// "Metal", "Vulkan", "CPU", ...
     pub backend: String,
+    /// What the inference server reported about itself (context, image support, media marker, build), when the
+    /// runtime runs one.
+    pub server: Option<crate::worker::protocol::ServerInfo>,
 }
 
 /// Contract: `load` validates what it can, never panics, and returns an error (not a half-working

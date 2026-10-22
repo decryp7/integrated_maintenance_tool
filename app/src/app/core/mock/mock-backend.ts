@@ -64,6 +64,7 @@ import { mockUnsupported } from './mock-unsupported';
 import { MockParserLibrary, MockParserSource } from './mock-parsers';
 import { isImagePath } from '../../ai/vision/image-files';
 import { IDLE_PROGRESS, isMockDemoPath, MockFiles, MockImportSim, MockProfileHistory, NOT_IMPORTED_REASON, slowImportFiles } from './mock-import';
+import { MockClock, MockTimer, systemMockClock } from './mock-clock';
 
 /** Built-in marker icon names the engine accepts (mirrors MARKER_ICONS). */
 const MOCK_ICONS: ReadonlySet<string> = new Set(BUILTIN_ICONS.map((i) => i.name));
@@ -100,6 +101,8 @@ export interface MockBackendOptions {
    * redacted view. By default the mock answers like the log store does for now (`unsupported`, an empty tail status).
    */
   memoryStoreFeatures?: boolean;
+  /** The clock of every simulated delay, live tick and import step (default: the page's timers). */
+  clock?: MockClock;
 }
 
 /** The log store's empty tail status (it keeps no per-file tail state yet). */
@@ -126,13 +129,14 @@ export class MockBackend implements ImtBackend {
   private readonly failuresLeft: Partial<Record<Failable, number>>;
   private readonly changeHandlers = new Set<(report: TailReport | null) => void>();
   private readonly alertHandlers = new Set<(alert: LiveAlert) => void>();
-  private liveTimer: ReturnType<typeof setInterval> | undefined;
+  private readonly clock: MockClock;
+  private liveTimer: MockTimer | undefined;
   /** Events appended by live tail since the start. */
   private liveAdded = 0;
   private liveOn = false;
   private liveOptions: LiveOptions | undefined;
   private liveSim: MockLiveSim;
-  private readonly mutes = new MockAlertMutes();
+  private readonly mutes = new MockAlertMutes(() => this.clock.now());
   /** Records evicted by the simulated retention limit. */
   private evicted = 0;
   /** Every `setLive` call, in order (tests spy on it). */
@@ -152,6 +156,7 @@ export class MockBackend implements ImtBackend {
 
   constructor(options: MockBackendOptions = {}) {
     this.options = options;
+    this.clock = options.clock ?? systemMockClock;
     this.failuresLeft = { ...options.fail };
     this.latency = options.latency ?? true;
     this.makeDataset = options.dataset ?? (() => generateDemo());
@@ -159,7 +164,7 @@ export class MockBackend implements ImtBackend {
     this.dataset = this.makeDataset();
     this.profile = parse(this.profileToml) as ProfileModel;
     this.liveSim = new MockLiveSim(liveConfig(options), () => this.nextSourceId++);
-    this.importSim = options.slowImportMs ? new MockImportSim(options.slowImportMs) : null;
+    this.importSim = options.slowImportMs ? new MockImportSim(options.slowImportMs, this.clock) : null;
     if (options.exposeLiveCalls) (globalThis as Record<string, unknown>)['__imtMockLiveCalls'] = this.liveCalls;
     this.apply();
   }
@@ -173,7 +178,7 @@ export class MockBackend implements ImtBackend {
         reject(e instanceof Error ? e.message : String(e));
       }
     };
-    return new Promise((resolve, reject) => (this.latency ? setTimeout(() => run(resolve, reject), ms) : run(resolve, reject)));
+    return new Promise((resolve, reject) => (this.latency ? this.clock.setTimeout(() => run(resolve, reject), ms) : run(resolve, reject)));
   }
 
   /** Rejects (like a failing Tauri command) while the command still has simulated failures left. */
@@ -191,9 +196,9 @@ export class MockBackend implements ImtBackend {
   }
 
   private apply(): void {
-    const t0 = performance.now();
+    const t0 = this.clock.elapsed();
     this.engine.rebuild(this.dataset.records, this.dataset.sources, this.profile);
-    this.loadMs = Math.round(performance.now() - t0);
+    this.loadMs = Math.round(this.clock.elapsed() - t0);
   }
 
   /** The open sources as the parser library sees them. */
@@ -493,7 +498,7 @@ export class MockBackend implements ImtBackend {
   private startSaveProfile(toml: string): number {
     const { validation, model } = validate(toml);
     if (!validation.ok || !model) throw new Error(validation.error ?? 'Invalid profile');
-    this.history.archive(this.profileToml, this.profile.name ?? 'Unnamed profile');
+    this.history.archive(this.profileToml, this.profile.name ?? 'Unnamed profile', this.clock.now());
     this.profileToml = toml;
     this.profile = model;
     const job = mockJobs().start({ kind: 'import', title: `Apply the profile ${model.name ?? 'Unnamed profile'}` }, async (ctx) => {
@@ -604,18 +609,18 @@ export class MockBackend implements ImtBackend {
   private windowed<R extends { query: Query }>(request: R): R {
     if (!request.query.window) return request;
     const wall = String((this.profile['live'] as { clock?: unknown } | undefined)?.clock ?? '').toLowerCase() === 'wall';
-    return { ...request, query: mockResolveWindow(request.query, wall ? Date.now() : this.engine.newestTs()) };
+    return { ...request, query: mockResolveWindow(request.query, wall ? this.clock.now() : this.engine.newestTs()) };
   }
 
   setLive(enabled: boolean, options?: LiveOptions): Promise<number> {
     this.liveCalls.push({ enabled, options: options ?? null });
     return this.delay(() => {
-      clearInterval(this.liveTimer);
+      this.clock.clearInterval(this.liveTimer);
       this.liveTimer = undefined;
       this.liveOn = enabled;
       if (enabled) {
         this.liveOptions = options;
-        this.liveTimer = setInterval(() => this.liveTick(), this.liveSim.config.tickMs);
+        this.liveTimer = this.clock.setInterval(() => this.liveTick(), this.liveSim.config.tickMs);
       } else {
         this.liveSim.idle();
       }
@@ -681,7 +686,7 @@ export class MockBackend implements ImtBackend {
 
   /** One simulated watcher batch: new records (and maybe a rotation and an alert), then listeners are told, like the engine's file watcher does. */
   private liveTick(): void {
-    const t0 = performance.now();
+    const t0 = this.clock.elapsed();
     const report = emptyReport();
     let alerts: LiveAlert[] = [];
     if (this.options.syntheticTotal) {
@@ -689,7 +694,7 @@ export class MockBackend implements ImtBackend {
       report.appended = 1;
     } else {
       const last = this.lastBySource();
-      const batch = this.liveSim.tick(this.dataset.sources, this.engine.newestTs(), (id) => last.get(id), Date.now());
+      const batch = this.liveSim.tick(this.dataset.sources, this.engine.newestTs(), (id) => last.get(id), this.clock.now());
       for (const r of batch.rotations) {
         const rotated = this.dataset.sources.find((s) => s.id === r.sourceId);
         if (rotated) {
@@ -712,7 +717,7 @@ export class MockBackend implements ImtBackend {
     }
     report.newestTs = this.engine.newestTs();
     report.alertsRaised = alerts.length;
-    report.elapsedMs = Math.round((performance.now() - t0) * 10) / 10;
+    report.elapsedMs = Math.round((this.clock.elapsed() - t0) * 10) / 10;
     for (const handler of [...this.changeHandlers]) handler(report);
     for (const alert of alerts) {
       for (const handler of [...this.alertHandlers]) handler(alert);

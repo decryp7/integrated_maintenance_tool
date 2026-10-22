@@ -42,6 +42,7 @@ impl From<AiError> for AiCmdError {
             AiError::Disk(_) => AiErrorCode::Disk,
             AiError::Refused(_) => AiErrorCode::Refused,
             AiError::Io(_) => AiErrorCode::Io,
+            AiError::SelfTest(_) => AiErrorCode::SelfTestFailed,
         };
         AiCmdError::new(code, e.to_string())
     }
@@ -83,6 +84,7 @@ mod tests {
             (AiError::Disk("x".into()), AiErrorCode::Disk),
             (AiError::Refused("x".into()), AiErrorCode::Refused),
             (AiError::Io("x".into()), AiErrorCode::Io),
+            (AiError::SelfTest("The new CPU runtime failed".into()), AiErrorCode::SelfTestFailed),
         ];
         for (e, code) in cases {
             let msg = e.to_string();
@@ -95,6 +97,7 @@ mod tests {
         assert_eq!(serde_json::to_value(AiErrorCode::ProxyAuth).unwrap(), "proxyAuth");
         assert_eq!(serde_json::to_value(AiErrorCode::HttpStatus).unwrap(), "httpStatus");
         assert_eq!(serde_json::to_value(AiErrorCode::Browser).unwrap(), "browser");
+        assert_eq!(serde_json::to_value(AiErrorCode::SelfTestFailed).unwrap(), "selfTestFailed");
         assert!(AiErrorCode::Browser.retryable(), "a page that did not answer may answer next time");
         assert_eq!(AiCmdError::busy("b").to_string(), "b");
         let fe = AiCmdError::from(imt_core::overwrite::FileExists("/x/a.md".into()));

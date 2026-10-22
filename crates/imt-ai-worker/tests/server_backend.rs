@@ -479,6 +479,7 @@ fn download_runtime(dir: &Path) -> PathBuf {
             Default::default(),
             &Progress::new(),
             &mut |s| println!("{s:?}"),
+            None,
         )
         .unwrap();
     rt.dir.join(server_file_name())
@@ -683,6 +684,95 @@ fn the_model_reads_images_with_its_projector_in_the_same_server() {
     huge.images[0].width = 20_000;
     huge.images[0].height = 20_000;
     assert_eq!(chat(&mut b, &huge).0.unwrap_err().code, code::CONTEXT_OVERFLOW);
+    b.unload();
+}
+
+/// Loads the lab's model with its projector into a fresh backend scripted with `script`.
+fn load_with_projector(lab: &Lab, script: Value) -> (ServerBackend, LoadResult) {
+    lab.script(script);
+    let proj = lab.dir.path().join("m.mmproj.gguf");
+    std::fs::write(&proj, imt_ai::testing::gguf::projector_like(2560)).unwrap();
+    let mut b = lab.backend(BuildChoice::Auto);
+    let loaded = b
+        .load(&LoadParams {
+            mmproj_path: Some(proj.to_string_lossy().into_owned()),
+            ..lab.load_params(0)
+        })
+        .unwrap();
+    (b, loaded)
+}
+
+#[test]
+fn the_worker_uses_what_the_running_server_reports() {
+    let lab = Lab::new();
+    lab.build("cpu", &[]);
+    // A build with its own marker, and a context smaller than asked for: both come from /props.
+    let (mut b, loaded) = load_with_projector(&lab, json!({"media_marker": "<__img_9__>", "n_ctx": 3000}));
+    let server = loaded.server.clone().unwrap();
+    assert_eq!(server.media_marker.as_deref(), Some("<__img_9__>"));
+    assert_eq!(
+        (server.n_ctx, server.vision, server.build.as_deref()),
+        (Some(3000), Some(true), Some("b0-fake"))
+    );
+    assert_eq!(server.model.as_deref(), Some("m.gguf"), "the file name only, never the folder");
+    assert_eq!((loaded.context, loaded.vision), (3000, true));
+    assert_eq!(b.server_info(), Some(&server));
+    let (r, _) = chat(&mut b, &image_params("<__media__>\nwhat is this?", 1));
+    assert!(r.unwrap().text.starts_with("I see 1 image(s)."));
+    assert_eq!(
+        lab.requests("/completion")[0]["prompt"]["prompt_string"],
+        "<__img_9__>\nwhat is this?"
+    );
+    b.unload();
+}
+
+#[test]
+fn a_server_without_a_media_marker_gets_the_default_one() {
+    let lab = Lab::new();
+    lab.build("cpu", &[]);
+    let (mut b, loaded) = load_with_projector(&lab, json!({"media_marker": false}));
+    assert_eq!(loaded.server.unwrap().media_marker, None);
+    // Text that looks like another build's marker is passed through as text; IMT's markers stay the default.
+    let (r, _) = chat(&mut b, &image_params("<__media__>\nwhat is this?", 1));
+    assert!(r.unwrap().text.starts_with("I see 1 image(s)."));
+    assert_eq!(
+        lab.requests("/completion")[0]["prompt"]["prompt_string"],
+        "<__media__>\nwhat is this?"
+    );
+    b.unload();
+}
+
+#[test]
+fn a_server_that_denies_images_gets_none_and_a_server_that_reports_nothing_gets_the_request() {
+    let lab = Lab::new();
+    lab.build("cpu", &[]);
+    let (mut b, loaded) = load_with_projector(&lab, json!({"vision": false}));
+    assert!(!loaded.vision, "the server's word wins over the projector IMT passed");
+    assert!(loaded.backend.contains("cannot read images"), "{}", loaded.backend);
+    let e = chat(&mut b, &image_params("<__media__>\nx", 1)).0.unwrap_err();
+    assert_eq!(e.code, code::INVALID_PARAMS);
+    assert!(e.message.contains("another inference build"), "{}", e.message);
+    assert!(chat(&mut b, &chat_params("still answers text")).0.is_ok());
+    b.unload();
+    // /props unanswered: nothing is assumed beyond what IMT asked for (context, projector, default marker).
+    let (mut b, loaded) = load_with_projector(&lab, json!({"props": false, "media_marker": false}));
+    assert_eq!(loaded.server, Some(ServerInfo::default()));
+    assert_eq!((loaded.context, loaded.vision), (8192, true));
+    let (r, _) = chat(&mut b, &image_params("<__media__>\nx", 1));
+    assert!(r.unwrap().text.starts_with("I see 1 image(s)."));
+    b.unload();
+}
+
+#[test]
+fn a_restarted_server_is_asked_again() {
+    let lab = Lab::new();
+    lab.build("cpu", &[]);
+    let (mut b, _) = load_with_projector(&lab, json!({"mode": "crash_on_chat"}));
+    assert!(chat(&mut b, &chat_params("boom")).0.is_err());
+    let props_before = lab.requests("/props").len();
+    let (r, _) = chat(&mut b, &image_params("<__media__>\nx", 1));
+    assert!(r.unwrap().text.starts_with("I see 1 image(s)."));
+    assert_eq!(lab.requests("/props").len(), props_before + 1, "the new server's /props is read");
     b.unload();
 }
 

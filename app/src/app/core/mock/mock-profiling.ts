@@ -44,6 +44,7 @@ import {
 } from '../api.types';
 import { heapSnapshot, MockHeapData, MockProfileData, ordersProfile, regressionProfile } from './mock-profiling-data';
 import { mockButterfly, mockFindings, mockFlame, mockFramePaths, mockFunctionDiff, mockHotPath, mockHotspots, mockThreads, mockTree, FlameParams, viewSamples, grandTotal } from './mock-profiling-engine';
+import { MockClock, systemMockClock } from './mock-clock';
 import { HeapIndex, indexHeap, mockHeapDiff, mockHeapDominators, mockHeapGrowth, mockHeapInstances, mockHeapFindings, mockHeapPaths, mockHeapTypes } from './mock-profiling-heap';
 
 /** Operations `mockProfilingFail` may name. */
@@ -57,6 +58,8 @@ export interface MockProfilingOptions {
   fail?: Partial<Record<ProfilingFailable, number>>;
   /** Paths opened before the first call (e.g. for component tests). */
   preopen?: string[];
+  /** The clock of the simulated latency (default: the page's timers). */
+  clock?: MockClock;
 }
 
 type Capture = { kind: 'profile'; id: number; path: string; data: MockProfileData } | { kind: 'heap'; id: number; path: string; data: MockHeapData; index: HeapIndex };
@@ -106,7 +109,7 @@ export class MockProfilingBackend implements ProfilingBackend {
 
   private async answer<T>(op: ProfilingFailable | null, fn: () => T): Promise<T> {
     if (this.preopen.length) for (const path of this.preopen.splice(0)) this.openNow(path);
-    if (this.options.latencyMs) await new Promise((r) => setTimeout(r, this.options.latencyMs));
+    if (this.options.latencyMs) await (this.options.clock ?? systemMockClock).sleep(this.options.latencyMs);
     if (op && (this.failures[op] ?? 0) > 0) {
       this.failures[op]!--;
       throw new ProfilingFailure('io', `mock: ${op} failed (simulated)`);

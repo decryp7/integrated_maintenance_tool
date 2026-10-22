@@ -1,5 +1,6 @@
 import { AlertTarget, LiveAlert, LiveOptions, MAX_DETECT_EVERY_MS, MAX_MUTE_MS, Query, TailFileState, TailFileStatus, TailReport, TailStatus, WatchMode } from '../api.types';
 import { MockRecord, MockSource } from './mock-data';
+import { systemMockClock } from './mock-clock';
 
 /**
  * Live tail simulation for the browser demo (mock only; the real behaviour is the engine's
@@ -51,7 +52,7 @@ export function mockGroupOf(path: string): string {
 /** Resolves a sliding window into `from`, as the engine does (mock approximation: "now" is the newest record). */
 export function mockResolveWindow<Q extends Query>(q: Q, now: number | null): Q {
   if (!q.window || q.window.kind !== 'live') return q;
-  const since = (now ?? Date.now()) - Math.max(0, q.window.lastMs);
+  const since = (now ?? systemMockClock.now()) - Math.max(0, q.window.lastMs);
   const { window: _window, ...rest } = q;
   return { ...rest, from: q.from == null ? since : Math.max(q.from, since) } as Q;
 }
@@ -351,7 +352,7 @@ const targetKey = (t: AlertTarget): string => ('rule' in t ? `rule:${t.rule}` : 
 export class MockAlertMutes {
   private readonly mutes = new Map<string, number>();
 
-  constructor(private readonly now: () => number = Date.now) {}
+  constructor(private readonly now: () => number = () => systemMockClock.now()) {}
 
   /** Throws the engine's messages for an invalid mute. */
   mute(target: AlertTarget, untilMs: number): void {

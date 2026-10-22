@@ -50,6 +50,10 @@ pub enum AiError {
     Refused(String),
     #[error("i/o error: {0}")]
     Io(String),
+    /// A newly downloaded inference runtime failed its self-test with the active model, so IMT keeps the previous
+    /// one. The message is complete (what failed and what to do).
+    #[error("{0}")]
+    SelfTest(String),
 }
 
 pub type Result<T> = std::result::Result<T, AiError>;

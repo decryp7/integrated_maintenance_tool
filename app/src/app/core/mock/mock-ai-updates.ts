@@ -8,6 +8,7 @@ import { AiUpdate, AiUpdateKind, AiUpdateKindStatus, AiUpdatePolicy, AiUpdatesSt
 import { MockJobCancelled, mockJobs, mockSteps } from '../../jobs/mock-jobs';
 import { mockNotifications } from '../../notifications/mock-notifications';
 import { MockNetFailure, mockNetError } from './mock-ai-runtimes';
+import { MockClock, systemMockClock } from './mock-clock';
 
 /** `?mockAiUpdates=`: `available` (an update waits to be found), `none` (default), or a policy for both kinds. */
 export type MockUpdatesMode = 'none' | 'available' | 'automatic' | 'manual';
@@ -38,11 +39,12 @@ export class MockAiUpdates {
     mode: MockUpdatesMode,
     private readonly stepMs: number,
     private readonly net: MockNetFailure | null,
+    private readonly clock: MockClock = systemMockClock,
   ) {
     this.policy = mode === 'automatic' || mode === 'manual' ? mode : 'ask';
     this.pending = mode !== 'none';
     // Like the scheduler's first check after start-up (here shortly after, once the UI listens).
-    if (this.pending && this.policy !== 'manual') setTimeout(() => void this.check('runtime'), stepMs * 40);
+    if (this.pending && this.policy !== 'manual') clock.setTimeout(() => void this.check('runtime'), stepMs * 40);
   }
 
   private kindStatus(kind: AiUpdateKind): AiUpdateKindStatus {
@@ -54,7 +56,7 @@ export class MockAiUpdates {
       lastSuccess: runtime && this.lastError ? null : this.lastCheck,
       lastError: runtime ? this.lastError : null,
       manualSuggested: runtime && this.manualSuggested,
-      nextCheck: this.policy === 'manual' ? null : (this.lastCheck ?? Date.now()) + 24 * 3600_000,
+      nextCheck: this.policy === 'manual' ? null : (this.lastCheck ?? this.clock.now()) + 24 * 3600_000,
       checking: runtime && this.checking,
       updates: runtime ? this.found.map((u) => ({ ...u, skipped: this.skipped.has(u.key) })) : [],
     };
@@ -76,7 +78,7 @@ export class MockAiUpdates {
 
   /** A check of `kind` (only the runtime has something to find in the demo). */
   private find(kind: AiUpdateKind): void {
-    this.lastCheck = Date.now();
+    this.lastCheck = this.clock.now();
     if (kind !== 'runtime') return;
     if (this.net) {
       const e = mockNetError(this.net, 'github.com');
@@ -114,7 +116,7 @@ export class MockAiUpdates {
   async check(kind?: AiUpdateKind | null): Promise<AiUpdatesStatus> {
     this.checking = true;
     this.emit();
-    await new Promise((r) => setTimeout(r, this.stepMs * 4));
+    await this.clock.sleep(this.stepMs * 4);
     for (const k of kind ? [kind] : (['runtime', 'model'] as const)) this.find(k);
     this.checking = false;
     this.emit();

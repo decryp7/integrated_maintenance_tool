@@ -128,9 +128,76 @@ fn install(
     disk: &Disk,
     p: &Progress,
 ) -> (imt_ai::Result<imt_ai::runtimes::InstalledRuntime>, Vec<RuntimeStage>) {
+    install_checked(store, c, src, disk, p, None)
+}
+
+fn install_checked(
+    store: &RuntimeStore,
+    c: &RuntimeCatalog,
+    src: &dyn ModelSource,
+    disk: &Disk,
+    p: &Progress,
+    check: Option<imt_ai::runtimes::store::RuntimeCheck<'_>>,
+) -> (imt_ai::Result<imt_ai::runtimes::InstalledRuntime>, Vec<RuntimeStage>) {
     let mut stages = vec![];
-    let r = store.install(c, &c.builds("test")[0], src, disk, opts(), p, &mut |s| stages.push(s));
+    let r = store.install(c, &c.builds("test")[0], src, disk, opts(), p, &mut |s| stages.push(s), check);
     (r, stages)
+}
+
+#[test]
+fn a_build_that_fails_its_check_never_replaces_the_one_in_use() {
+    let old = zip_of(&[(SERVER, b"old build")]);
+    let new = zip_of(&[(SERVER, b"new build")]);
+    let dir = tempfile::tempdir().unwrap();
+    let store = RuntimeStore::new(dir.path());
+    let c_old = catalog(&[("old.zip", &old)]);
+    let mock_old = github(vec![("old.zip".into(), old.clone())], 0);
+    let rt = install(&store, &c_old, &source(&mock_old, &c_old), &Disk(None), &Progress::new())
+        .0
+        .unwrap();
+    // The update of the same build: its check sees the unpacked staging copy and fails.
+    let c_new = catalog(&[("new.zip", &new)]);
+    let mock_new = github(vec![("new.zip".into(), new.clone())], 0);
+    let seen = Mutex::new(None);
+    let failing = |staging: &Path| {
+        *seen.lock().unwrap() = Some(std::fs::read(staging.join(SERVER)).unwrap());
+        Err(AiError::SelfTest("the new CPU inference runtime failed its self-test".into()))
+    };
+    let (r, stages) = install_checked(
+        &store,
+        &c_new,
+        &source(&mock_new, &c_new),
+        &Disk(None),
+        &Progress::new(),
+        Some(&failing),
+    );
+    assert!(matches!(r.unwrap_err(), AiError::SelfTest(m) if m.contains("self-test")));
+    assert_eq!(seen.lock().unwrap().as_deref(), Some(&b"new build"[..]));
+    assert!(stages.ends_with(&[RuntimeStage::Finishing, RuntimeStage::Testing]), "{stages:?}");
+    assert_eq!(
+        std::fs::read(rt.dir.join(SERVER)).unwrap(),
+        b"old build",
+        "the previous build stays in use"
+    );
+    assert!(!dir.path().join("b7/.staging-cpu").exists());
+    assert!(
+        dir.path().join("downloads/new.zip").is_file(),
+        "the verified archive is kept for another try"
+    );
+    // Passing the check installs it (and the kept archive is not downloaded again).
+    let before = mock_new.log().len();
+    let passing = |_: &Path| Ok(());
+    let (r, stages) = install_checked(
+        &store,
+        &c_new,
+        &source(&mock_new, &c_new),
+        &Disk(None),
+        &Progress::new(),
+        Some(&passing),
+    );
+    assert_eq!(std::fs::read(r.unwrap().dir.join(SERVER)).unwrap(), b"new build");
+    assert!(stages.ends_with(&[RuntimeStage::Finishing, RuntimeStage::Testing]), "{stages:?}");
+    assert!(mock_new.log().len() <= before + 1, "{:?}", &mock_new.log()[before..]);
 }
 
 #[test]

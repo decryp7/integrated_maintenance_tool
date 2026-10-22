@@ -59,6 +59,8 @@ const EXPECTED: Record<ErrorCode, boolean> = {
   integrity: false,
   disk: false,
   refused: true,
+  // A new inference runtime that does not work with the user's model here: the previous one stays, nothing broke.
+  selfTestFailed: true,
   notACapture: true,
   notAvailable: true,
   unreachable: true,

@@ -32,6 +32,7 @@ impl WorkerBackend for Fake {
             name: "fake-model".into(),
             rss_bytes: 1 << 20,
             vision: p.mmproj_path.is_some(),
+            server: None,
         })
     }
 

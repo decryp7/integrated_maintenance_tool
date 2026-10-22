@@ -193,6 +193,7 @@ impl ModelRuntime for FakeRuntime {
                 Ok(Loaded {
                     provider: Arc::new(ScriptedProvider::new(replies).with_context(req.context)),
                     backend: if gpu == GpuMode::Cpu { "CPU".into() } else { "Metal".into() },
+                    server: None,
                 })
             }
         }

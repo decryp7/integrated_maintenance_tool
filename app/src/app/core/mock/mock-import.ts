@@ -1,4 +1,5 @@
 import { FILE_EXISTS_SUFFIX, ImportProgress, ProfileVersionInfo } from '../api.types';
+import { MockClock, systemMockClock } from './mock-clock';
 
 /** Simulated files per opened path in a slow import (each path stands for a folder of this many files). */
 export const SLOW_FILES_PER_PATH = 6;
@@ -35,7 +36,10 @@ export class MockImportSim {
   private state: ImportProgress = IDLE_PROGRESS;
   private cancelRequested = false;
 
-  constructor(private readonly msPerFile: number) {}
+  constructor(
+    private readonly msPerFile: number,
+    private readonly clock: MockClock = systemMockClock,
+  ) {}
 
   progress(): ImportProgress {
     return { ...this.state };
@@ -50,7 +54,7 @@ export class MockImportSim {
    * the files read and the ones skipped by a cancel.
    */
   async run(files: string[], read: (file: string) => void, onProgress: (p: ImportProgress) => void = () => undefined): Promise<{ read: string[]; skipped: string[] }> {
-    const started = Date.now();
+    const started = this.clock.now();
     this.cancelRequested = false;
     const total = files.length;
     this.state = { ...IDLE_PROGRESS, running: true, total, bytesTotal: total * SLOW_FILE_BYTES };
@@ -59,16 +63,16 @@ export class MockImportSim {
       if (this.cancelRequested) break;
       this.state = { ...this.state, current: file };
       onProgress(this.progress());
-      await new Promise((r) => setTimeout(r, this.msPerFile));
+      await this.clock.sleep(this.msPerFile);
       read(file);
       done.push(file);
-      const elapsedMs = Date.now() - started;
+      const elapsedMs = this.clock.now() - started;
       const bytesDone = done.length * SLOW_FILE_BYTES;
       const etaMs = Math.round((elapsedMs / bytesDone) * (this.state.bytesTotal - bytesDone));
       this.state = { ...this.state, done: done.length, bytesDone, elapsedMs, etaMs };
       onProgress(this.progress());
     }
-    this.state = { ...this.state, running: false, current: null, cancelled: this.cancelRequested, elapsedMs: Date.now() - started, etaMs: null };
+    this.state = { ...this.state, running: false, current: null, cancelled: this.cancelRequested, elapsedMs: this.clock.now() - started, etaMs: null };
     return { read: done, skipped: files.slice(done.length) };
   }
 }
@@ -107,7 +111,7 @@ export class MockProfileHistory {
   private seq = 0;
 
   /** Archives `toml` (the profile being replaced). `now` is injectable for tests. */
-  archive(toml: string, name: string, now = Date.now()): void {
+  archive(toml: string, name: string, now = systemMockClock.now()): void {
     const at = new Date(now);
     const pad = (n: number, w = 2) => String(n).padStart(w, '0');
     const savedAt = `${at.getUTCFullYear()}${pad(at.getUTCMonth() + 1)}${pad(at.getUTCDate())}-${pad(at.getUTCHours())}${pad(at.getUTCMinutes())}${pad(at.getUTCSeconds())}${pad(at.getUTCMilliseconds(), 3)}`;

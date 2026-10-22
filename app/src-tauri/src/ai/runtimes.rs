@@ -2,20 +2,25 @@
 //! installing, choosing and deleting them. Plain Rust over `imt_ai::runtimes`, no Tauri: the commands in
 //! `runtime_commands.rs` validate the IPC arguments and stream the progress.
 
+use super::core::load_request;
 use super::core::AiCore;
 use super::error::{AiCmdError, AiErrorCode, AiResult};
+use imt_ai::hardware::{HardwareProbe, SystemProbe};
 use imt_ai::models::source::{ModelSource, Progress};
 use imt_ai::models::DownloadOptions;
+use imt_ai::runtime::ModelRuntime;
 use imt_ai::runtimes::builds::{is_build_id, label};
+use imt_ai::runtimes::selftest::self_test;
+use imt_ai::runtimes::store::{server_file_name, RuntimeCheck};
 use imt_ai::runtimes::{
     current_platform, list_builds, overview, suggest, usable_tag, BuildChoice, BuildsReport, GithubReleases, InstalledRuntime,
     OverviewInput, ReleaseConfig, RuntimeCatalog, RuntimeOverview, RuntimeStage, RuntimeStore,
 };
 use imt_ai::settings::AiSettings;
-use imt_ai::worker::WorkerEnv;
+use imt_ai::worker::{fixed_env, FramesLauncher, WorkerConfig, WorkerEnv, WorkerRuntime};
 use imt_ai::AiError;
 use serde::Serialize;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
@@ -23,6 +28,8 @@ use std::time::{Duration, Instant};
 pub type RuntimeSourceFactory = Arc<dyn Fn(&AiSettings, &RuntimeCatalog) -> imt_ai::Result<Box<dyn ModelSource>> + Send + Sync>;
 /// Asks the worker which installed builds work here (`imt-ai-worker --list-builds`), with the worker's environment.
 pub type BuildsReporter = Arc<dyn Fn(&[(String, String)]) -> imt_ai::Result<BuildsReport> + Send + Sync>;
+/// A model runtime that runs exactly the llama-server at the given path (the self-test of a new build).
+pub type BuildRuntime = Arc<dyn Fn(&Path) -> Arc<dyn ModelRuntime> + Send + Sync>;
 
 /// Longest the worker may take to check every installed build (each runs `llama-server --list-devices`).
 const REPORT_TIMEOUT: Duration = Duration::from_secs(90);
@@ -37,6 +44,8 @@ pub struct RuntimeDeps {
     pub platform: String,
     pub source: RuntimeSourceFactory,
     pub report: BuildsReporter,
+    /// Runs one unpacked build for its self-test, in its own worker (never the active engine).
+    pub build_runtime: BuildRuntime,
 }
 
 impl RuntimeDeps {
@@ -53,7 +62,19 @@ impl RuntimeDeps {
                 };
                 Ok(Box::new(GithubReleases::new(cfg, catalog.clone())?) as Box<dyn ModelSource>)
             }),
-            report: Arc::new(move |env: &[(String, String)]| list_builds(&worker, env, REPORT_TIMEOUT)),
+            report: {
+                let worker = worker.clone();
+                Arc::new(move |env: &[(String, String)]| list_builds(&worker, env, REPORT_TIMEOUT))
+            },
+            build_runtime: Arc::new(move |server: &Path| {
+                let cfg = WorkerConfig::new(Arc::new(FramesLauncher {
+                    exe: worker.clone(),
+                    args: vec![],
+                    env: fixed_env(vec![("IMT_LLAMA_SERVER".into(), server.to_string_lossy().into_owned())]),
+                }));
+                let probe = SystemProbe::new(imt_collect::SystemRunner);
+                Arc::new(WorkerRuntime::new(cfg, Box::new(move || probe.probe()))) as Arc<dyn ModelRuntime>
+            }),
         }
     }
 
@@ -115,6 +136,11 @@ pub enum RuntimeEvent {
     Finishing {
         id: String,
     },
+    /// The unpacked build answers a short text and, with a projector, an image with the active model before it is
+    /// switched to.
+    Testing {
+        id: String,
+    },
     Ready {
         id: String,
         runtime: InstalledRuntime,
@@ -136,6 +162,7 @@ impl RuntimeEvent {
             RuntimeStage::Downloading { asset, index, count } => RuntimeEvent::Downloading { id, asset, index, count },
             RuntimeStage::Unpacking { asset } => RuntimeEvent::Unpacking { id, asset },
             RuntimeStage::Finishing => RuntimeEvent::Finishing { id },
+            RuntimeStage::Testing => RuntimeEvent::Testing { id },
         }
     }
 
@@ -301,6 +328,12 @@ impl AiCore {
             backoff: self.deps.download_backoff,
             ..DownloadOptions::default()
         };
+        // A new build is switched to only after it answered with the user's active model (ADR 0009).
+        let check = |staging: &Path| self.self_test_build(id, staging, &s, progress);
+        let active = s
+            .active_model
+            .as_deref()
+            .is_some_and(|f| self.store().path_of(f).is_ok_and(|p| p.is_file()));
         let installed = rt.store.install(
             &rt.catalog,
             &build,
@@ -309,12 +342,44 @@ impl AiCore {
             opts,
             progress,
             on_stage,
+            active.then_some(&check as RuntimeCheck<'_>),
         )?;
         // A load that failed for want of a runtime can now succeed: let the next use try again.
         if !self.engine_running() {
             self.reset();
         }
         Ok(installed)
+    }
+
+    /// The self-test of build `id` unpacked in `staging`, with the active model, in a worker of its own. The active
+    /// engine is stopped first (the model must fit twice otherwise, and Windows keeps a running build's files locked);
+    /// the next use starts it again. A model file that cannot be read is not the build's fault: the test is skipped.
+    fn self_test_build(&self, id: &str, staging: &Path, s: &AiSettings, progress: &Progress) -> imt_ai::Result<()> {
+        let Some(file) = s.active_model.as_deref() else {
+            return Ok(());
+        };
+        let req = match load_request(&self.store(), file, s) {
+            Ok(r) => r,
+            Err(e) => {
+                log::warn!(
+                    "AI: the new {} runtime is not self-tested: the active model cannot be read ({e})",
+                    label(id)
+                );
+                return Ok(());
+            }
+        };
+        if self.engine_running() && !self.setup_running() {
+            self.install_active(None);
+        }
+        let runtime = (self.deps.runtimes.build_runtime)(&staging.join(server_file_name()));
+        let report = self_test(runtime.as_ref(), req, &label(id), &progress.cancel_flag())?;
+        log::info!(
+            "AI: the new {} runtime passed its self-test with {file} ({}, images {})",
+            label(id),
+            report.backend,
+            if report.image_checked { "checked" } else { "not used" }
+        );
+        Ok(())
     }
 
     /// Deletes an installed build. When it belongs to the pinned release and a model is loaded, the
