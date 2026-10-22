@@ -10,7 +10,7 @@ describe('viewKind', () => {
   });
 
   it('treats the known document views as documents even on the right or bottom', () => {
-    for (const id of ['events', 'query', 'query-results', 'report', 'anomalies', 'patterns', 'exceptions', 'profiling-threads']) {
+    for (const id of ['events', 'query-results', 'report', 'anomalies', 'patterns', 'exceptions', 'profiling-threads']) {
       expect(viewKind(view(id, 'right'))).toBe('document');
       expect(viewKind(view(id, 'bottom'))).toBe('document');
     }
@@ -21,6 +21,12 @@ describe('viewKind', () => {
     expect(viewKind(view('plugin-x', 'bottom'))).toBe('document');
     expect(viewKind(view('plugin-x', 'center'))).toBe('document');
     expect(viewKind(view('plugin-x'))).toBe('document');
+  });
+
+  it('treats views at home in a side or status area as tools', () => {
+    expect(viewKind({ id: 'jobs', defaultPosition: 'bottom', area: 'status' })).toBe('tool');
+    expect(viewKind({ id: 'chat', defaultPosition: 'center', area: 'side' })).toBe('tool');
+    expect(viewKind({ id: 'moment', defaultPosition: 'center', area: 'analysis' })).toBe('document');
   });
 
   it('is a document for a missing view', () => {

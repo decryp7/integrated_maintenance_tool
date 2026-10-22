@@ -108,8 +108,8 @@ export interface MenuState {
   scheme: 'system' | 'dark' | 'light';
   /** What the source colour marker stands for (View › Source colours); default by file. */
   sourceColors?: 'source' | 'instance' | 'off';
-  /** View › Layout: what the window opens by itself; default focused. */
-  layoutMode?: 'focused' | 'full';
+  /** Id of the active perspective (Window ▸ Perspectives checks its command). */
+  activePerspective?: number;
   timezone: 'utc' | 'local';
   markedOnly: boolean;
   undoLabel: string | null;
@@ -295,6 +295,8 @@ export function buildMenus(state: MenuState): TopMenu[] {
         cmd('analyze.fit'),
         cmd('analyze.back'),
         cmd('analyze.forward'),
+        cmd('nav.back'),
+        cmd('nav.forward'),
         sub('analyze.timezone', $localize`:@@shell.menu.analyze.timeZone:Time zone`, [
           cmd('analyze.utc', $localize`:@@shell.menu.analyze.utc:UTC`, state.timezone === 'utc'),
           cmd('analyze.local', $localize`:Time zone option@@shell.menu.analyze.local:Local`, state.timezone === 'local'),
@@ -423,10 +425,6 @@ function viewMenu(state: MenuState, cmd: Cmd, sub: Sub): MenuNode[] {
       cmd('view.scheme.dark', $localize`:Colour scheme option@@shell.menu.view.scheme.dark:Dark`, state.scheme === 'dark'),
       cmd('view.scheme.light', $localize`:Colour scheme option@@shell.menu.view.scheme.light:Light`, state.scheme === 'light'),
     ]),
-    sub('view.layout', $localize`:@@shell.menu.view.layout:Layout`, [
-      cmd('view.layout.focused', $localize`:@@shell.menu.view.layout.focused:Focused`, (state.layoutMode ?? 'focused') === 'focused'),
-      cmd('view.layout.full', $localize`:@@shell.menu.view.layout.full:Full`, state.layoutMode === 'full'),
-    ]),
     sub('view.sourceColors', $localize`:@@shell.menu.view.sourceColors:Source colours`, [
       cmd('view.sourceColors.source', $localize`:@@shell.menu.view.sourceColors.source:By file`, (state.sourceColors ?? 'source') === 'source'),
       cmd('view.sourceColors.instance', $localize`:@@shell.menu.view.sourceColors.instance:By instance`, state.sourceColors === 'instance'),
@@ -450,15 +448,15 @@ function pluginItems(views: readonly MenuView[]): MenuNode[] {
   return tidy([...manager.map(viewItem), SEP, ...groups]);
 }
 
-/** Layouts, tool window and document actions, then the open windows and pop-outs. */
+/** Perspectives, tool window and document actions, then the open windows and pop-outs. */
 function windowMenu(state: MenuState, cmd: Cmd, sub: Sub): MenuNode[] {
   const windows: MenuItemNode[] = state.windows.map((w) => ({ kind: 'item', id: MENU_IDS.window + w.label, label: w.title || w.label, checked: w.current }));
   const popouts: MenuItemNode[] = state.popouts.map((p) => ({ kind: 'item', id: MENU_IDS.popout + p.id, label: p.title }));
   return tidy([
-    sub('window.layouts', $localize`:@@shell.menu.window.layouts:Layouts`, [
-      cmd('window.layout.save'),
+    sub('window.perspectives', $localize`:@@shell.menu.window.perspectives:Perspectives`, [
+      ...Array.from({ length: 9 }, (_, i) => cmd(`window.perspective.${i + 1}`, undefined, state.activePerspective === i + 1)),
       SEP,
-      ...[1, 2, 3, 4].map((n) => cmd(`window.layout.apply${n}`)),
+      cmd('window.layout.save'),
       SEP,
       cmd('window.layout.manage'),
       cmd('window.layout.reset'),

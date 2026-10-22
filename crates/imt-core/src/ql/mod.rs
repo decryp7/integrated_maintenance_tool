@@ -25,6 +25,7 @@
 //! an iterator of records, and [`completions`] drives editor suggestions.
 
 pub mod calc;
+mod classify;
 mod complete;
 mod control;
 mod error;
@@ -36,6 +37,7 @@ mod stats;
 mod suggest;
 
 pub use calc::CalcExpr;
+pub use classify::{classify_input, InputKind, MAX_CLASSIFY_FIELDS, MAX_CLASSIFY_LEN};
 pub use complete::{completions, Completion, CompletionKind};
 pub use control::{CancelHook, Cancelled, HookGuard, QueryControl, QueryProgress, QueryStage, RunError, Watched, BATCH};
 pub use error::QlError;

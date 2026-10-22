@@ -98,6 +98,27 @@ describe('ProfilingCommands', () => {
     expect(shown(ctx)).toEqual([V.captures]);
   });
 
+  it('suggests the Profiling perspective before showing the views, for profiles and heap snapshots alike', async () => {
+    const { commands, ctx, picker } = setup();
+    picker.paths = [ORDERS];
+    await commands.open(ctx);
+    expect(ctx.calls.map((c) => c.fn)).toEqual(['suggestPerspective', 'showView', 'showView']);
+    expect(ctx.calls[0]?.args).toEqual(['profiling']);
+    const heap = new FakeContext();
+    picker.paths = [HEAP1];
+    await commands.open(heap);
+    expect(heap.calls[0]).toEqual({ fn: 'suggestPerspective', args: ['profiling'] });
+  });
+
+  it('does not suggest it when the dialog was cancelled or nothing could be opened', async () => {
+    const { commands, ctx, picker } = setup();
+    picker.paths = [];
+    await commands.open(ctx);
+    picker.paths = ['/demo/readme.txt'];
+    await commands.open(ctx);
+    expect(ctx.calls.filter((c) => c.fn === 'suggestPerspective')).toEqual([]);
+  });
+
   it('open does nothing visible when the dialog is cancelled', async () => {
     const { commands, ctx, picker } = setup();
     picker.paths = [];
@@ -118,6 +139,13 @@ describe('showOpened', () => {
     const ctx = new FakeContext();
     showOpened(ctx, []);
     expect(ctx.calls).toEqual([]);
+  });
+
+  it('copes with a context that cannot switch perspectives', () => {
+    const calls: unknown[] = [];
+    const ctx = { showView: (id: string) => void calls.push(id) } as never;
+    showOpened(ctx, [{ id: 1, capture: 'profile' } as never]);
+    expect(calls).toEqual([V.captures, V.hotspots]);
   });
 });
 

@@ -1,3 +1,4 @@
+import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { all, el, settle, text } from '../../testing/helpers';
 import { QlError } from '../core/api.types';
@@ -7,7 +8,7 @@ import { mockUnknownField } from './mock/mock-unknown-field';
 import { applySuggestion } from './ql-text';
 import { QlSuggestions } from './ql-suggestions';
 import { CHECK_DELAY_MS, QuerySession } from './query-session';
-import { QueryView } from './query-view';
+import { QueryField, QueryStatus } from './query-field';
 import { loadWorkspace, provideAnalysisTesting, stubBackend } from './test-setup';
 import { at } from '../../testing/must';
 
@@ -56,26 +57,33 @@ describe('did you mean (query language)', () => {
   });
 });
 
+/** The filter bar's field with the status line under it, where the did-you-mean fix shows. */
+@Component({
+  selector: 'imt-test-bar',
+  imports: [QueryField, QueryStatus],
+  template: `<imt-query-field #f /><imt-query-status (pick)="f.useSuggestion($event)" />`,
+})
+class Bar {}
+
 describe('did you mean in the query bar and QL inputs', () => {
   it('fixes the query from the query bar', async () => {
     TestBed.configureTestingModule({ providers: provideAnalysisTesting() });
     await loadWorkspace();
-    const fixture = TestBed.createComponent(QueryView);
+    const fixture = TestBed.createComponent(Bar);
     fixture.detectChanges();
-    const input = el<HTMLInputElement>(fixture, 'input');
+    const input = el<HTMLTextAreaElement>(fixture, 'textarea');
     input.focus();
-    input.value = 'MachinName = "WEB01"';
+    input.value = 'MachinName = 5 and level >= error';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await wait(CHECK_DELAY_MS + 80);
     await settle(fixture);
     expect(text(fixture)).toContain('Unknown field "MachinName"');
-    // The fix sits on the bar's line beside the error: below the input, the completions popup covers it.
-    expect(fixture.nativeElement.querySelector('.qbar [data-testid=did-you-mean]')).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('.status [data-testid=did-you-mean]')).toBeNull();
+    // The fix sits in the status line under the bar, beside the error.
+    expect(fixture.nativeElement.querySelector('imt-query-status [data-testid=did-you-mean]')).not.toBeNull();
     el<HTMLButtonElement>(fixture, '[data-testid=did-you-mean] button').click();
     await wait(CHECK_DELAY_MS + 80);
     await settle(fixture);
-    expect(input.value).toBe('MachineName = "WEB01"');
+    expect(input.value).toBe('MachineName = 5 and level >= error');
     expect(TestBed.inject(QuerySession).error()).toBeNull();
     expect(input.selectionStart).toBe('MachineName'.length);
     expect(fixture.nativeElement.querySelector('[data-testid=did-you-mean]')).toBeNull();

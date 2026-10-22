@@ -1,4 +1,3 @@
-import { LAYOUT_MODE_KEY, LayoutModeStore } from '../../core/workspace/layout-mode';
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, FakeDock, pluginInfo, provideFakeDock, provideTinyBackend, settle, text } from '../../../testing/helpers';
 import { ExceptionGroup, Finding, fullCoverage, WorkspaceSummary } from '../../core/api.types';

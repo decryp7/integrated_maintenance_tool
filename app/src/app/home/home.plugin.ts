@@ -1,6 +1,5 @@
 import { effect, EnvironmentProviders, inject, Injectable, makeEnvironmentProviders, provideEnvironmentInitializer, untracked } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
-import { LayoutModeStore } from '../core/workspace/layout-mode';
 import { DockService } from '../dock/dock.service';
 import { provideImtPlugin } from '../extensions/provide';
 import { ImtView } from '../extensions/tokens';
@@ -14,22 +13,22 @@ export const HOME_VIEWS: ImtView[] = [
     title: $localize`:@@home.plugin.title:Home`,
     category: 'core',
     icon: 'home',
-    // Next to the inspector, so it never hides the timeline or the events.
-    defaultPosition: 'right',
+    // The app's home screen and dashboard: a document beside the timeline (a right-hand tool window is too cramped).
+    defaultPosition: 'center',
+    area: 'document',
     component: () => import('./home-view').then((m) => m.HomeView),
   },
 ];
 
 /**
- * In the Full layout, opens Home after every successful open of files or folders, unless the user turned it off. The
- * Focused layout shows the health headline in the timeline header instead (`HealthHeadline`).
+ * Opens Home after every successful open of files or folders, unless the user turned it off. The health headline
+ * in the timeline header says the same in one line (`HealthHeadline`).
  */
 @Injectable({ providedIn: 'root' })
 export class HomeAutoOpen {
   private readonly store = inject(WorkspaceStore);
   private readonly dock = inject(DockService);
   private readonly prefs = inject(HomePrefs);
-  private readonly layout = inject(LayoutModeStore);
 
   constructor() {
     let seen = this.store.importVersion();
@@ -38,7 +37,7 @@ export class HomeAutoOpen {
       if (version === seen) return;
       seen = version;
       untracked(() => {
-        if (this.layout.full() && this.prefs.autoOpen()) this.dock.show(HOME_VIEW);
+        if (this.prefs.autoOpen()) this.dock.show(HOME_VIEW);
       });
     });
   }

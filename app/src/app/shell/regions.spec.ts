@@ -57,14 +57,17 @@ describe('regions (G1)', () => {
     expect(nav.cycle(1, document.createElement('div'), all)).toBe(false);
   });
 
-  it('Ctrl+1…9 focus a dock group; other keys are left alone', () => {
-    const key = (k: string, init: KeyboardEventInit = {}) => new KeyboardEvent('keydown', { key: k, ctrlKey: true, metaKey: false, cancelable: true, ...init });
+  it('Ctrl+Alt+1…9 focus a dock group; other keys are left alone', () => {
+    const key = (k: string, init: KeyboardEventInit = {}) =>
+      new KeyboardEvent('keydown', { key: k === '1' ? '¡' : k, code: /^[1-9]$/.test(k) ? `Digit${k}` : `Key${k.toUpperCase()}`, ctrlKey: true, altKey: true, cancelable: true, ...init });
     expect(nav.group(2, root, all)).toBe(true);
     expect(document.activeElement?.textContent).toBe('Inspector');
     expect(nav.group(3, root, all)).toBe(false);
     expect(nav.handleKey(key('a'))).toBe(false);
     expect(nav.handleKey(key('1', { shiftKey: true }))).toBe(false);
-    expect(nav.handleKey(new KeyboardEvent('keydown', { key: '1' }))).toBe(false);
+    expect(nav.handleKey(new KeyboardEvent('keydown', { key: '1', code: 'Digit1' }))).toBe(false);
+    expect(nav.handleKey(key('1', { altKey: false }))).toBe(false);
+    expect(nav.handleKey(key('1', { metaKey: true }))).toBe(false);
     const e = key('1');
     // In jsdom nothing has a layout, so no group counts as shown: the key is still taken (not the browser's).
     expect(nav.handleKey(e)).toBe(true);

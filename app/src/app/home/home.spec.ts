@@ -6,7 +6,6 @@ import { AnalysisBackend } from '../core/analysis-backend';
 import { Finding, fullCoverage, HomeSummary } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { MockAnalysisBackend, recordsFrom } from '../mock-backends';
-import { LAYOUT_MODE_KEY, LayoutModeStore } from '../core/workspace/layout-mode';
 import { WorkspaceStore } from '../core/workspace.store';
 import { COMMAND_CONTEXT, CommandRegistry } from '../extensions/command-registry';
 import { CommandContext } from '../extensions/tokens';
@@ -36,12 +35,12 @@ class FakeCtx implements CommandContext {
 describe('HomePrefs', () => {
   afterEach(() => localStorage.removeItem(HOME_AUTO_OPEN_KEY));
 
-  it('defaults to opening, remembers the choice and survives broken storage', () => {
-    expect(TestBed.inject(HomePrefs).autoOpen()).toBe(true);
-    TestBed.inject(HomePrefs).setAutoOpen(false);
-    expect(localStorage.getItem(HOME_AUTO_OPEN_KEY)).toBe('false');
-    TestBed.resetTestingModule();
+  it('defaults to not opening, remembers the choice and survives broken storage', () => {
     expect(TestBed.inject(HomePrefs).autoOpen()).toBe(false);
+    TestBed.inject(HomePrefs).setAutoOpen(true);
+    expect(localStorage.getItem(HOME_AUTO_OPEN_KEY)).toBe('true');
+    TestBed.resetTestingModule();
+    expect(TestBed.inject(HomePrefs).autoOpen()).toBe(true);
     TestBed.resetTestingModule();
     const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('denied');
@@ -50,6 +49,8 @@ describe('HomePrefs', () => {
       throw new Error('denied');
     });
     const prefs = TestBed.inject(HomePrefs);
+    expect(prefs.autoOpen()).toBe(false);
+    prefs.setAutoOpen(true);
     expect(prefs.autoOpen()).toBe(true);
     prefs.setAutoOpen(false);
     expect(prefs.autoOpen()).toBe(false);
@@ -190,9 +191,9 @@ describe('HomeView', () => {
     const { fixture } = setup([]);
     await settle(fixture, 8);
     const box = fixture.nativeElement.querySelector('input[type=checkbox]') as HTMLInputElement;
-    expect(box.checked).toBe(true);
+    expect(box.checked).toBe(false);
     box.click();
-    expect(TestBed.inject(HomePrefs).autoOpen()).toBe(false);
+    expect(TestBed.inject(HomePrefs).autoOpen()).toBe(true);
   });
 
   it('reads its numbers from the Home backend', async () => {
@@ -270,10 +271,9 @@ describe('HomeStore', () => {
 describe('provideHome', () => {
   afterEach(() => {
     localStorage.removeItem(HOME_AUTO_OPEN_KEY);
-    localStorage.removeItem(LAYOUT_MODE_KEY);
   });
 
-  it('does not open the view after an import in the Focused layout (the default)', async () => {
+  it('does not open the view after an import by default', async () => {
     const dock = new FakeDock();
     TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock), provideHome()] });
     TestBed.inject(HomeAutoOpen);
@@ -284,15 +284,16 @@ describe('provideHome', () => {
     expect(dock.calls).toEqual([]);
   });
 
-  it('registers the view and command, and in the Full layout opens the view after each import unless turned off', async () => {
+  it('registers the view (a document) and command, and opens the view after each import unless turned off', async () => {
     const dock = new FakeDock();
     TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock), provideHome()] });
-    TestBed.inject(LayoutModeStore).set('full');
+    TestBed.inject(HomePrefs).setAutoOpen(true);
     TestBed.inject(HomeAutoOpen);
     const store = TestBed.inject(WorkspaceStore);
     await settle();
     const view = TestBed.inject(ViewRegistry).find('home');
-    expect(view?.defaultPosition).toBe('right');
+    expect(view?.defaultPosition).toBe('center');
+    expect(view?.area).toBe('document');
     expect(await (await import('../extensions/view-registry')).isViewAvailable(view!, store.summary())).toBe(true);
     expect(await view!.component()).toBe(HomeView);
     expect(dock.calls).toEqual([]);

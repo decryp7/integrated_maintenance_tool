@@ -2,11 +2,23 @@ import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, provideTinyBackend, settle, SEC, T0, text, typeInto } from '../../testing/helpers';
 import { at } from '../../testing/must';
 import { WorkspaceStore } from '../core/workspace.store';
-import { FilterBar } from './filter-bar';
+import { AnalysisBackend } from '../core/analysis-backend';
+import { ImtBackend } from '../core/backend';
+import { HISTORY_STORE } from '../analysis/history-store';
+import { MemoryHistory } from '../analysis/test-setup';
+import { MockAnalysisBackend, recordsFrom } from '../analysis/mock/mock-analysis-backend';
+import { inject } from '@angular/core';
+import { COMPACT_WIDTH_PX, FilterBar } from './filter-bar';
 
 describe('FilterBar', () => {
   async function render() {
-    TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
+    TestBed.configureTestingModule({
+      providers: [
+        provideTinyBackend(),
+        { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(ImtBackend))) },
+        { provide: HISTORY_STORE, useValue: new MemoryHistory() },
+      ],
+    });
     const fixture = TestBed.createComponent(FilterBar);
     const store = TestBed.inject(WorkspaceStore);
     await settle(fixture);
@@ -15,8 +27,9 @@ describe('FilterBar', () => {
 
   it('edits the search text, regex and case flags', async () => {
     const { fixture, store } = await render();
-    const input = el<HTMLInputElement>(fixture, '.search input');
+    const input = el<HTMLInputElement>(fixture, '[data-testid=query-field]');
     typeInto(input, 'timeout');
+    await settle(fixture);
     expect(store.textInput()).toBe('timeout');
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(store.textInput()).toBe('');
@@ -36,11 +49,11 @@ describe('FilterBar', () => {
     store.setTextInput('(');
     await new Promise((r) => setTimeout(r, 300));
     await settle(fixture);
-    expect(el(fixture, '.search').classList.contains('invalid')).toBe(true);
+    expect(el(fixture, 'imt-query-field .box').classList.contains('invalid')).toBe(true);
     store.setTextInput('(?P<x>a)');
     await new Promise((r) => setTimeout(r, 300));
     await settle(fixture);
-    expect(el(fixture, '.search').classList.contains('invalid')).toBe(false);
+    expect(el(fixture, 'imt-query-field .box').classList.contains('invalid')).toBe(false);
   });
 
   it('toggles levels and shows counts', async () => {
@@ -56,7 +69,7 @@ describe('FilterBar', () => {
   it('shows each level chip as "matching/total" under the other filters, dimmed when none match (D5)', async () => {
     const { fixture, store } = await render();
     const chip = (code: string) => all<HTMLButtonElement>(fixture, '.lvl').find((b) => b.textContent?.includes(code))!;
-    expect(el<HTMLInputElement>(fixture, '.search input').placeholder).toBe('Search…');
+    expect(el<HTMLInputElement>(fixture, '[data-testid=query-field]').placeholder).toBe('Search or query…');
     expect(chip('ERR').textContent).not.toContain('/');
     store.setTextInput('zzqx-nothing-says-this');
     await new Promise((r) => setTimeout(r, 300));
@@ -200,7 +213,7 @@ describe('FilterBar', () => {
     store.focusSearch();
     await settle(fixture);
     await new Promise((r) => setTimeout(r, 10));
-    expect(document.activeElement).toBe(el(fixture, '.search input'));
+    expect(document.activeElement).toBe(el(fixture, '[data-testid=query-field]'));
   });
 
   it('shows "All time" without data', async () => {
@@ -208,5 +221,62 @@ describe('FilterBar', () => {
     await store.clearWorkspace();
     await settle(fixture);
     expect(text(fixture)).toContain('All time');
+  });
+
+  describe('narrow bar (H1)', () => {
+    /** Reports the bar's width to the component's ResizeObserver. */
+    function withWidth(width: number) {
+      const original = globalThis.ResizeObserver;
+      globalThis.ResizeObserver = class {
+        constructor(private readonly cb: ResizeObserverCallback) {}
+        observe(target: Element): void {
+          this.cb([{ target, contentRect: { width } } as ResizeObserverEntry], this as unknown as ResizeObserver);
+        }
+        unobserve(): void {}
+        disconnect(): void {}
+      } as unknown as typeof ResizeObserver;
+      return () => (globalThis.ResizeObserver = original);
+    }
+
+    it('folds the range, time zone and Clear all into a ⋯ menu below the threshold', async () => {
+      const restore = withWidth(COMPACT_WIDTH_PX - 1);
+      try {
+        const { fixture, store } = await render();
+        store.setMarkedOnly(true);
+        await settle(fixture);
+        const hidden = (sel: string) => getComputedStyle(el(fixture, sel)).display === 'none';
+        expect(hidden('.range')).toBe(true);
+        expect(hidden('.tz')).toBe(true);
+        const more = el<HTMLButtonElement>(fixture, '[data-testid=filter-more]');
+        expect(more.getAttribute('aria-label')).toBe('More filter controls');
+        more.click();
+        await settle(fixture);
+        const items = all<HTMLButtonElement>(fixture, '.more-pop [role=menuitem]').map((b) => b.textContent?.trim());
+        expect(items.some((t) => t?.startsWith('Time zone:'))).toBe(true);
+        expect(items).toContain('Clear all');
+        all<HTMLButtonElement>(fixture, '.more-pop [role=menuitem]').find((b) => b.textContent?.trim() === 'Clear all')!.click();
+        await settle(fixture);
+        expect(store.markedOnly()).toBe(false);
+        expect(all(fixture, '.more-pop')).toHaveLength(0);
+        more.click();
+        await settle(fixture);
+        const tz = store.timezone();
+        at(all<HTMLButtonElement>(fixture, '.more-pop [role=menuitem]'), 1).click();
+        expect(store.timezone()).not.toBe(tz);
+      } finally {
+        restore();
+      }
+    });
+
+    it('shows everything inline when the bar is wide enough, with no ⋯ menu', async () => {
+      const restore = withWidth(COMPACT_WIDTH_PX + 200);
+      try {
+        const { fixture } = await render();
+        expect(all(fixture, '[data-testid=filter-more]')).toHaveLength(0);
+        expect(getComputedStyle(el(fixture, '.range')).display).not.toBe('none');
+      } finally {
+        restore();
+      }
+    });
   });
 });

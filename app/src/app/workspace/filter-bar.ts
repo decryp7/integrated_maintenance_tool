@@ -1,16 +1,19 @@
-import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, Injector, signal, untracked, viewChild, viewChildren } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, ElementRef, inject, Injector, signal, viewChildren } from '@angular/core';
 import { RovingFocusNavigation } from '../shared/list-navigation';
 import { FilterOp, LEVELS, Level } from '../core/api.types';
 import { formatCompact, formatDateTime, formatDuration, tzLabel } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
-import { SmartSearchStore } from '../core/workspace/smart-search.store';
 import { LevelCountsStore } from '../core/workspace/level-counts.store';
-import { plural } from '../i18n/locale';
 import { ClickOutside } from '../shared/click-outside';
 import { LEVEL_CODES, LEVEL_VARS } from '../shared/colors';
 import { Icon } from '../shared/icon';
 import { Switch } from '../shared/switch';
 import { TimelineZoom } from '../timeline/zoom';
+import { QueryField, QueryStatus } from '../analysis/query-field';
+import { SearchField } from '../analysis/search-field';
+
+/** The filter bar folds its secondary controls into a menu when the bar is narrower than this, px (H1). */
+export const COMPACT_WIDTH_PX = 1000;
 
 const OP_LABELS: Record<FilterOp, string> = {
   eq: '=',
@@ -26,28 +29,12 @@ const OP_LABELS: Record<FilterOp, string> = {
 
 @Component({
   selector: 'imt-filter-bar',
+  host: { '[class.compact]': 'compact()' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, ClickOutside, Switch],
+  imports: [Icon, ClickOutside, Switch, QueryField, QueryStatus],
   template: `
     <div class="row">
-      <label class="search" [class.invalid]="regexInvalid()">
-        <imt-icon name="search" [size]="14" class="faint" />
-        <input
-          #search
-          class="mono"
-          aria-label="Search messages and exceptions"
-          i18n-aria-label="@@workspace.filterBar.search"
-          [placeholder]="searchPlaceholder()"
-          [value]="store.textInput()"
-          (input)="store.setTextInput($any($event.target).value)"
-          (keydown.escape)="store.setTextInput('')"
-        />
-        @if (smart.added() > 0) {
-          <span class="partial-note mono" role="status" data-testid="partial-note" [title]="partialNote()">+{{ smart.added() }}</span>
-        }
-        <button class="toggle mono" [class.on]="q().regex" (click)="store.setRegex(!q().regex)" title="Regular expression" i18n-title="@@workspace.filterBar.regex" [attr.aria-pressed]="q().regex">.*</button>
-        <button class="toggle mono" [class.on]="q().caseSensitive" (click)="store.setCaseSensitive(!q().caseSensitive)" title="Match case" i18n-title="@@workspace.filterBar.matchCase" [attr.aria-pressed]="q().caseSensitive">Aa</button>
-      </label>
+      <imt-query-field #qf />
 
       <!-- One tab stop: the arrow keys move between the chips (roving tabindex). -->
       <div class="levels" role="toolbar" aria-label="Levels" i18n-aria-label="@@workspace.filterBar.levels" (keydown)="onLevelsKey($event)">
@@ -60,14 +47,14 @@ const OP_LABELS: Record<FilterOp, string> = {
         }
       </div>
 
-      <button class="btn tall range" (click)="store.hasRange() && zoom.fit()" [title]="rangeLabel() + ' · ' + rangeTitle()">
+      <button class="btn tall range" [class.fold]="compact()" (click)="store.hasRange() && zoom.fit()" [title]="rangeLabel() + ' · ' + rangeTitle()">
         <span class="mono ends"><span class="end">{{ rangeEnds()[0] }}</span>@if (rangeEnds()[1]) {<span> → </span><span class="end">{{ rangeEnds()[1] }}</span>}</span>
         @if (store.hasRange()) {
           <span class="faint">({{ rangeSpan() }})</span>
           <imt-icon name="zoomOut" [size]="13" />
         }
       </button>
-      <button class="tz" (click)="store.setTimezone(store.timezone() === 'utc' ? 'local' : 'utc')" title="Toggle UTC / local time" i18n-title="@@workspace.filterBar.toggleTz">{{ tz() }}</button>
+      <button class="tz" [class.fold]="compact()" (click)="store.setTimezone(store.timezone() === 'utc' ? 'local' : 'utc')" title="Toggle UTC / local time" i18n-title="@@workspace.filterBar.toggleTz">{{ tz() }}</button>
       <div class="anchor" (imtClickOutside)="addOpen.set(false)">
         <button class="btn dashed pill" (click)="addOpen.set(!addOpen())" [attr.aria-expanded]="addOpen()" i18n="@@workspace.filterBar.addFilter">+ Add filter</button>
         @if (addOpen()) {
@@ -97,13 +84,30 @@ const OP_LABELS: Record<FilterOp, string> = {
       </div>
 
       @if (hasAnyFilter()) {
-        <button class="btn ghost pill" (click)="store.clearQuery()" i18n="@@workspace.filterBar.clearAll">Clear all</button>
+        <button class="btn ghost pill" [class.fold]="compact()" (click)="store.clearQuery()" i18n="@@workspace.filterBar.clearAll">Clear all</button>
       }
       <span class="spacer"></span>
+      @if (compact()) {
+        <!-- Narrow window (H1): what does not fit folds into this menu; the search and the levels always stay. -->
+        <div class="anchor" (imtClickOutside)="moreOpen.set(false)" (keydown.escape)="moreOpen.set(false)">
+          <button class="btn tall" data-testid="filter-more" aria-haspopup="menu" [attr.aria-expanded]="moreOpen()" aria-label="More filter controls" i18n-aria-label="@@workspace.filterBar.more" title="More filter controls" i18n-title="@@workspace.filterBar.moreTitle" (click)="moreOpen.set(!moreOpen())">
+            <imt-icon name="more" [size]="14" />
+          </button>
+          @if (moreOpen()) {
+            <div class="popover more-pop" role="menu" aria-label="More filter controls" i18n-aria-label="@@workspace.filterBar.more">
+              <button type="button" role="menuitem" class="opt" [disabled]="!store.hasRange()" (click)="moreOpen.set(false); zoom.fit()">{{ rangeLabel() }}</button>
+              <button type="button" role="menuitem" class="opt" (click)="moreOpen.set(false); store.setTimezone(store.timezone() === 'utc' ? 'local' : 'utc')" i18n="@@workspace.filterBar.moreTz">Time zone: {{ tz() }}</button>
+              @if (hasAnyFilter()) {
+                <button type="button" role="menuitem" class="opt" (click)="moreOpen.set(false); store.clearQuery()" i18n="@@workspace.filterBar.clearAll">Clear all</button>
+              }
+            </div>
+          }
+        </div>
+      }
       <div class="anchor" (imtClickOutside)="optionsOpen.set(false)" (keydown.escape)="optionsOpen.set(false)">
-        <button class="btn tall" data-testid="view-options" aria-haspopup="dialog" [attr.aria-expanded]="optionsOpen()" aria-controls="imt-view-options" (click)="optionsOpen.set(!optionsOpen())">
+        <button class="btn tall" data-testid="view-options" aria-label="View options" i18n-aria-label="@@workspace.filterBar.viewOptionsAria" aria-haspopup="dialog" [attr.aria-expanded]="optionsOpen()" aria-controls="imt-view-options" (click)="optionsOpen.set(!optionsOpen())">
           <imt-icon name="group" [size]="14" />
-          <span i18n="@@workspace.filterBar.viewOptions">View options</span>
+          <span [class.fold]="compact()" i18n="@@workspace.filterBar.viewOptions">View options</span>
           <imt-icon name="chevronDown" [size]="12" />
         </button>
         @if (optionsOpen()) {
@@ -134,9 +138,17 @@ const OP_LABELS: Record<FilterOp, string> = {
         }
       </div>
     </div>
+    <imt-query-status (pick)="qf.useSuggestion($event)" />
 
-    @if (q().filters.length || q().groups.length) {
+    @if (q().filters.length || q().groups.length || field.hiddenText()) {
     <div class="row" role="group" aria-label="Filters" i18n-aria-label="@@workspace.filterBar.filters">
+      @if (field.hiddenText(); as text) {
+        <span class="chip" data-testid="hidden-search">
+          <span class="muted" i18n="A message search that applies besides the query|@@workspace.filterBar.alsoSearch">also search</span>
+          <span class="mono">{{ text }}</span>
+          <button class="x" [attr.aria-label]="removeSearchLabel" (click)="field.dropHiddenText()" [attr.title]="removeSearchLabel">×</button>
+        </span>
+      }
       @for (f of q().filters; track $index; let i = $index) {
         <span class="chip">
           <span class="mono field">{{ f.field }}</span>
@@ -160,13 +172,9 @@ const OP_LABELS: Record<FilterOp, string> = {
     :host { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg-1); }
     .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .row:first-child { flex-wrap: nowrap; }
-    .search { flex: 1; min-width: 200px; height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 6px 0 10px; border-radius: 6px; background: var(--bg-3); border: 1px solid var(--border-2); }
-    .search:focus-within { border-color: var(--accent); }
-    .search.invalid { border-color: var(--lvl-error); }
-    .partial-note { flex: none; font-size: var(--fs-xs); color: var(--text-2); padding: 1px 6px; border-radius: 999px; border: 1px dashed var(--border-2); }
-    .search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; font-size: var(--fs-sm); color: var(--text); }
-    .toggle { height: 20px; padding: 0 5px; font-size: var(--fs-2xs); border-radius: 4px; color: var(--muted); border: 1px solid var(--border-3); background: transparent; cursor: pointer; }
-    .toggle.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+    /* A narrow bar (H1) wraps: the search field gets a line of its own and the rest follows below. */
+    :host(.compact) .row:first-child { flex-wrap: wrap; }
+    :host(.compact) imt-query-field { flex: 1 1 100%; }
     .levels { flex: none; display: flex; height: 30px; border: 1px solid var(--border-2); border-radius: 6px; overflow: hidden; }
     .lvl { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 9px; border: 0; border-right: 1px solid var(--border-2); background: var(--bg-2); color: var(--faint); font-size: var(--fs-sm); cursor: pointer; }
     .lvl:last-child { border-right: 0; }
@@ -182,6 +190,8 @@ const OP_LABELS: Record<FilterOp, string> = {
     .pill { height: 24px; border-radius: 12px; flex: none; }
     .tz { height: 22px; padding: 0 6px; border: 0; border-radius: 4px; background: var(--bg-active); color: var(--muted); font-size: var(--fs-xs); cursor: pointer; }
     .anchor { position: relative; }
+    .fold { display: none; }
+    .more-pop { top: 34px; right: 0; min-width: 220px; display: flex; flex-direction: column; gap: 2px; }
     .chip .field { color: var(--chip-text); }
     .x { border: 0; background: transparent; color: var(--faint); cursor: pointer; padding: 0 0 0 2px; font-size: var(--fs-lg); line-height: 1; }
     .x:hover { color: var(--text); }
@@ -204,36 +214,26 @@ const OP_LABELS: Record<FilterOp, string> = {
 })
 export class FilterBar {
   protected readonly store = inject(WorkspaceStore);
-  protected readonly smart = inject(SmartSearchStore);
+  protected readonly field = inject(SearchField);
   private readonly levelCounts = inject(LevelCountsStore);
-  /** What the "+N" in the search box means: the engine added partial matches to the word matches. */
-  protected readonly partialNote = computed(() => {
-    const n = this.smart.added();
-    return plural(n, {
-      one: $localize`:@@workspace.filterBar.partialOne:${n}:count: more partial match added: the text appears inside a word`,
-      other: $localize`:@@workspace.filterBar.partialMany:${n}:count: more partial matches added: the text appears inside words`,
-    });
-  });
+  protected readonly removeSearchLabel = $localize`:@@workspace.filterBar.removeAlsoSearch:Remove the message search`;
   protected readonly zoom = inject(TimelineZoom);
   protected readonly levels = LEVELS;
   protected readonly ops: FilterOp[] = ['eq', 'ne', 'contains', 'notContains', 'matches', 'exists', 'missing', 'gt', 'lt'];
   protected readonly optionsOpen = signal(false);
+  protected readonly moreOpen = signal(false);
+  /** The window is narrow (the bar is narrower than `COMPACT_WIDTH_PX`): the range, time zone and Clear all fold into the ⋯ menu. */
+  protected readonly compact = signal(false);
   protected readonly addOpen = signal(false);
   protected readonly newField = signal('');
   protected readonly newOp = signal<FilterOp>('eq');
   protected readonly newValue = signal('');
-  private readonly search = viewChild<ElementRef<HTMLInputElement>>('search');
   private readonly levelButtons = viewChildren<ElementRef<HTMLButtonElement>>('lvl');
   /** The chip that holds the levels' one tab stop. */
   protected readonly levelFocus = signal(0);
   private readonly levelNav = new RovingFocusNavigation(signal(LEVELS.length), inject(Injector), (i) => this.levelButtons()[i]?.nativeElement.focus(), { wrap: true, homeAndEnd: true });
 
   protected readonly q = this.store.query;
-  protected readonly searchPlaceholder = computed(() =>
-    this.q().regex
-      ? $localize`:@@workspace.filterBar.regexPlaceholder:Regular expression`
-      : $localize`:@@workspace.filterBar.searchPlaceholderShort:Search…`,
-  );
   protected readonly rangeTitle = computed(() =>
     this.store.hasRange()
       ? $localize`:@@workspace.filterBar.resetRange:Reset to the full range`
@@ -245,19 +245,9 @@ export class FilterBar {
     const chosen = new Set(this.store.effectiveGroupBy());
     return ['@source', ...this.store.fieldNames()].filter((f) => !chosen.has(f));
   });
-  protected readonly regexInvalid = computed(() => {
-    const q = this.q();
-    if (!q.regex || !q.text) return false;
-    try {
-      new RegExp(q.text.replace(/\(\?P</g, '(?<'));
-      return false;
-    } catch {
-      return true;
-    }
-  });
   protected readonly hasAnyFilter = computed(() => {
     const q = this.q();
-    return !!(q.text || q.levels.length || q.filters.length || q.groups.length || q.markers.length || q.from != null || q.to != null);
+    return !!(q.text || q.ql || q.levels.length || q.filters.length || q.groups.length || q.markers.length || q.from != null || q.to != null);
   });
   /** Both ends of the range; each truncates on its own, so a narrow bar still shows where the range starts and ends. */
   protected readonly rangeEnds = computed<[string, string]>(() => {
@@ -275,9 +265,13 @@ export class FilterBar {
   });
 
   constructor() {
-    effect(() => {
-      if (this.store.focusSearchNonce() === 0) return;
-      untracked(() => setTimeout(() => this.search()?.nativeElement.focus()));
+    const host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    const destroyRef = inject(DestroyRef);
+    afterNextRender(() => {
+      if (typeof ResizeObserver !== 'function') return;
+      const observer = new ResizeObserver((entries) => this.compact.set((entries[0]?.contentRect.width ?? Infinity) < COMPACT_WIDTH_PX));
+      observer.observe(host);
+      destroyRef.onDestroy(() => observer.disconnect());
     });
   }
 

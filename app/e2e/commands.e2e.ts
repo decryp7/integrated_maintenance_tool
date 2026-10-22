@@ -60,7 +60,7 @@ test.describe('commands without another spec', () => {
   });
 
   test('Edit ▸ Find and the "Search events" command focus the search box', async ({ page }) => {
-    const search = page.getByRole('textbox', { name: 'Search messages and exceptions' });
+    const search = page.getByTestId('query-field');
     await page.locator('imt-events-grid [role=row].row').first().click();
     await expect(search).not.toBeFocused();
     await chooseMenu(page, 'Edit', 'Find');

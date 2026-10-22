@@ -19,6 +19,7 @@ import { provideProfiling } from './profiling/provide-profiling';
 import { provideDumps } from './dumps/provide-dumps';
 import { provideVideo } from './video/provide-video';
 import { provideHelp } from './help/help.commands';
+import { provideNavigation } from './navigation/provide-navigation';
 import { provideUndo } from './undo/provide-undo';
 import { provideHome } from './home/home.plugin';
 import { provideOnboarding } from './onboarding/onboarding.plugin';
@@ -38,6 +39,9 @@ import { provideWorkspace } from './core/workspace/provide-workspace';
 import { provideNotes } from './notes/provide-notes';
 import { provideSearchEverything } from './search-everything/provide-search-everything';
 import { provideProblems } from './problems/provide-problems';
+import { provideIncident } from './investigate/incident/provide-incident';
+import { provideKnownIssues } from './investigate/known-issues/provide-known-issues';
+import { providePlaybooks } from './investigate/playbooks/provide-playbooks';
 import { provideStorePane } from './store-pane/provide-store-pane';
 
 export const appConfig: ApplicationConfig = {
@@ -66,6 +70,7 @@ export const appConfig: ApplicationConfig = {
     provideVideo(),
     provideHelp(),
     provideUndo(),
+    provideNavigation(),
     provideHome(),
     provideOnboarding(),
     provideDocking(),
@@ -82,6 +87,9 @@ export const appConfig: ApplicationConfig = {
     provideNotes(),
     provideSearchEverything(),
     provideProblems(),
+    provideKnownIssues(),
+    provideIncident(),
+    providePlaybooks(),
     provideStorePane(),
   ],
 };

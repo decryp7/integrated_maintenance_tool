@@ -11,7 +11,7 @@ test.describe('query language filters the workspace', () => {
     await input.click();
     await input.fill('level >= error');
     await input.press('ControlOrMeta+Enter');
-    await expect(page.locator('imt-query-view .applied')).toContainText('level >= error');
+    await expect(page.locator('[data-testid=query-applied]')).toContainText('level >= error');
 
     await page.getByRole('tab', { name: 'Events', exact: true }).click();
     // Wait for the narrowed total itself (not just "different": the bar can be between two states).
@@ -24,8 +24,7 @@ test.describe('query language filters the workspace', () => {
     await expect(rows.first()).toContainText(/ERR|FTL/);
     await expect(rows.filter({ hasText: /INF|WRN|DBG|VRB/ })).toHaveCount(0);
 
-    await page.getByRole('tab', { name: 'Query', exact: true }).click();
-    await page.locator('imt-query-view .applied').getByRole('button', { name: 'Clear' }).click();
+    await page.locator('[data-testid=query-applied]').getByRole('button', { name: 'Clear' }).click();
     await page.getByRole('tab', { name: 'Events', exact: true }).click();
     await expect(gridTotal(page)).toHaveText(before);
   });

@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { CaptureSummary } from '../../core/api.types';
 import { formatCount, formatDateTime } from '../../core/format';
 import { WorkspaceStore } from '../../core/workspace.store';
+import { CommandRegistry } from '../../extensions/command-registry';
 import { CapturesStore } from '../captures.store';
 import { ProfileViewState } from '../profile-view-state';
 import { captureKindLabel, formatBytes, formatNs, isHeap, isProfile } from '../profiling-format';
@@ -30,8 +31,15 @@ import { PROFILING_STYLES } from '../profiling-styles';
       @if (store.loading() && !store.captures().length) {
         <div class="state" role="status" i18n="@@profiling.captures.loading">Loading…</div>
       } @else if (!store.captures().length) {
-        <div class="state" role="status">
+        <div class="state" role="status" data-testid="captures-landing">
           <span i18n="@@profiling.captures.empty">No profiles or heap snapshots are open. Open a capture (speedscope, folded stacks, .cpuprofile, Chrome trace, pprof, perf script, .nettrace, .heapsnapshot), or drop one on the window.</span>
+          <div class="landing">
+            <button class="btn primary" type="button" [disabled]="store.loading()" (click)="open()" i18n="@@profiling.captures.landing.open">Open capture…</button>
+            @for (a of landingActions(); track a.id) {
+              <button class="btn" type="button" (click)="run(a.id)">{{ a.title }}</button>
+            }
+          </div>
+          <p class="hint" i18n="@@profiling.captures.landing.hint">The hotspots, call tree and flame graph open once a capture is open.</p>
         </div>
       } @else {
         <ul class="list" aria-label="Open captures" i18n-aria-label="@@profiling.captures.listLabel">
@@ -76,6 +84,8 @@ import { PROFILING_STYLES } from '../profiling-styles';
       .err { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--border); }
       .err .msg { color: var(--danger-text); white-space: pre-line; flex: 1; }
       .state { padding: 24px 12px; color: var(--muted); text-align: center; }
+      .landing { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
+      .hint { font-size: var(--fs-xs); margin: 12px 0 0; }
       .cap { border: 1px solid var(--border-2); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; background: var(--bg-2); }
       .cap.active { border-color: var(--accent); }
       .head { display: flex; align-items: center; gap: 6px; }
@@ -93,6 +103,17 @@ export class CapturesView {
   private readonly state = inject(ProfileViewState);
   private readonly nav = inject(ProfilingNavigator);
   private readonly workspace = inject(WorkspaceStore);
+  private readonly commands = inject(CommandRegistry);
+
+  /** The commands that start a capture (profile a running process), when this build has them. */
+  protected readonly landingActions = computed(() => {
+    const ids = ['profiling.dotnet', 'profiling.native'];
+    return this.commands.available().filter((c) => ids.includes(c.id));
+  });
+
+  protected run(id: string): void {
+    void this.commands.run(id);
+  }
 
   protected readonly count = formatCount;
   protected readonly ns = formatNs;

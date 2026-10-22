@@ -74,7 +74,7 @@ test.describe('live tail', () => {
 
   test('newest first and scrolled to the top keeps following new events; the query is kept', async ({ page }) => {
     await openAppWith(page, '?mockLiveMs=300');
-    await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('Live event');
+    await page.getByTestId('query-field').fill('Live event');
     await expect(gridTotal(page)).toHaveText('0');
     await page.getByRole('button', { name: /Oldest first/ }).click();
     await page.getByRole('button', { name: 'Live tail', exact: true }).click();
@@ -83,7 +83,7 @@ test.describe('live tail', () => {
     const n1 = Number(/Live event (\d+)/.exec((await firstRow.textContent()) ?? '')![1]);
     await expect.poll(async () => Number(/Live event (\d+)/.exec((await firstRow.textContent()) ?? '')?.[1] ?? 0), { timeout: 10_000 }).toBeGreaterThan(n1);
     // The search box is still what it was.
-    await expect(page.getByRole('textbox', { name: 'Search messages and exceptions' })).toHaveValue('Live event');
+    await expect(page.getByTestId('query-field')).toHaveValue('Live event');
   });
 
   test('the status bar Live toggle keeps the selection, passes axe while on, and is disabled with nothing to follow', async ({ page }, testInfo) => {

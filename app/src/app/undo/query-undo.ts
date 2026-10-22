@@ -4,9 +4,9 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { UndoStack } from './undo-stack';
 
 /**
- * The parts of the query that undo covers. The time range (`from`/`to`, `window`) is left out on purpose: it
- * changes with every zoom and pan and has its own Back/Forward history (Analyze menu), so undoing a filter
- * never jumps the timeline. Instance selection (`groups`) is timeline interaction, also left out.
+ * The parts of the query that undo covers here. The time range (`from`/`to`, `window`) is left out on purpose: it
+ * changes with every zoom and pan and is recorded as its own entries (`RangeUndo`), so undoing a filter never
+ * jumps the timeline. Instance selection (`groups`) is timeline interaction, also left out.
  */
 const SEARCH_TEXT_CHANGE = $localize`:Undo history entry|@@undo.query.text:search text change`;
 

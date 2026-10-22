@@ -1,3 +1,4 @@
+import { Perspectives } from '../dock/perspectives';
 import { Component, input, InputSignal, Injector, runInInjectionContext } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
@@ -320,6 +321,21 @@ describe('ImtEvents and the command context', () => {
     ctx.notifyError('bad');
     expect(store.error()).toBe('bad');
     expect(TestBed.inject(COMMAND_CONTEXT)).toBeInstanceOf(WorkspaceCommandContext);
+  });
+
+  it('suggestPerspective hands the id to Perspectives; an unknown perspective changes nothing', async () => {
+    const { dock } = setup();
+    await settle();
+    const perspectives = TestBed.inject(Perspectives);
+    const suggest = vi.spyOn(perspectives, 'suggest');
+    const ctx = TestBed.inject(WorkspaceCommandContext);
+    const before = perspectives.active().id;
+    ctx.suggestPerspective('no-such-perspective');
+    expect(suggest).toHaveBeenCalledWith('no-such-perspective');
+    expect(perspectives.active().id).toBe(before);
+    expect(dock.calls).toEqual([]);
+    ctx.suggestPerspective('profiling');
+    expect(suggest).toHaveBeenLastCalledWith('profiling');
   });
 
   it('exposes the display timezone as a signal', () => {

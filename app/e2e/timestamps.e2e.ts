@@ -18,7 +18,7 @@ test('unreadable timestamps: an Explorer warning and one message whose Fix times
 
   // The same file opened again: still one message.
   await sidebar.getByRole('button', { name: 'Open files' }).click();
-  await page.locator('[data-activity-id="notifications"]').click();
+  await page.getByTestId('status-notifications').click();
   const pane = page.locator('imt-notifications-panel');
   const notice = pane.locator('li.notice').filter({ hasText: 'Timestamps not recognised in legacy-no-timestamps.csv' });
   await expect(notice).toHaveCount(1);

@@ -5,6 +5,15 @@ import { FieldFilter, Query, RecordView, WorkspaceSummary } from '../core/api.ty
 export type ViewPosition = 'center' | 'right' | 'bottom';
 
 /**
+ * A view's home area in the window (where it opens unless the user moved it):
+ * - `document`: the centre, beside (never over) the timeline and the events grid;
+ * - `analysis`: the one analysis panel below the events grid (results you read next to the events);
+ * - `side`: a tool window on the right (inspector, assistant, notes);
+ * - `status`: a bottom tool window that slides out over the dock and hides again (jobs, notifications, problems).
+ */
+export type ViewArea = 'document' | 'analysis' | 'side' | 'status';
+
+/**
  * Where a view is listed in the View menu: `core` views at the top level, the others in a submenu of that name.
  * Views without a category are plugin views and land in View ▸ Plugins (grouped by `plugin`).
  */
@@ -20,6 +29,10 @@ export interface ImtView {
   /** Lazily loads the standalone component rendered inside the panel. */
   component: () => Promise<Type<unknown>>;
   defaultPosition?: ViewPosition;
+  /** Its home area (see `ViewArea`); derived from the kind and `defaultPosition` when left out (`viewArea`). */
+  area?: ViewArea;
+  /** The smallest the view's dock group may be made, px (a drag that would go below it is refused). Absent = dockview's default. */
+  minSize?: { width?: number; height?: number };
   /** Its place in the View menu (see `ViewCategory`). Defaults to the Plugins submenu. */
   category?: ViewCategory;
   /** Name of the plugin that contributes the view; groups plugin views in View ▸ Plugins. */
@@ -66,6 +79,11 @@ export interface CommandContext {
   jumpTo(id: number): Promise<void>;
   /** Opens (if needed) and focuses a view by id. */
   showView(id: string): void;
+  /**
+   * Offers the window arrangement for what the user just opened (`profiling` after a performance capture): switches
+   * to that perspective once per window, with an Undo in the notice. Unknown ids and repeats do nothing.
+   */
+  suggestPerspective?(id: string): void;
   /** Reports a problem to the user. */
   notifyError(message: string): void;
   /** The current workspace summary (null before the first load). */

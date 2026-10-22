@@ -1,8 +1,10 @@
 import { EnvironmentProviders, inject, makeEnvironmentProviders, untracked } from '@angular/core';
-import { IMT_COMMANDS } from '../extensions/tokens';
+import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS, UiStateContribution } from '../lifecycle/ui-state';
 import { DockCommands } from './dock-commands';
 import { DockService } from './dock.service';
+import { perspectiveActivityItems } from './perspective-activity';
+import { Perspectives } from './perspectives';
 import { readLayout, toEnvelope } from './layout-store';
 
 /**
@@ -32,6 +34,7 @@ export function dockLayoutContribution(dock: DockService): UiStateContribution {
 export function provideDocking(): EnvironmentProviders {
   return makeEnvironmentProviders([
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(DockCommands).commands },
+    { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: () => perspectiveActivityItems(inject(Perspectives)) },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => [dockLayoutContribution(inject(DockService))] },
   ]);
 }

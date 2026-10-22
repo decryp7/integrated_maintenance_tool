@@ -7,7 +7,7 @@ import { chooseMenu, menubar, menuItem, openMenu, openMenuPath } from './menu-su
 // default layout. Also runs against the production build with the Tauri CSP.
 
 const tabNames = async (page: Page) => (await page.getByRole('tab').locator('.imt-tab-label').allInnerTexts()).map((t) => t.trim()).sort();
-/** The Focused layout (the default): the query bar opens on demand. */
+/** The default (Investigate) perspective: the timeline and the registry viewer over the events. */
 const CORE_TABS = ['Events', 'Registry', 'Timeline'];
 /** The menu bar and its open menus (CDK overlays): what the menu checks scan, not the whole window (slow on WebKit). */
 const OPEN_MENUS = 'imt-menu-bar, .cdk-overlay-container';
@@ -37,7 +37,7 @@ test.describe('menus', () => {
     const problems = watchProblems(page);
     const view = await openMenu(page, 'View');
     // Core tool windows at the top level, the rest in submenus.
-    for (const name of ['Explorer', 'Fields', 'Inspector', 'Timeline', 'Events', 'Metrics', 'Query', 'Overview']) await expect(menuItem(view, name)).toBeVisible();
+    for (const name of ['Explorer', 'Fields', 'Inspector', 'Timeline', 'Events', 'Metrics', 'Overview']) await expect(menuItem(view, name)).toBeVisible();
     for (const name of ['Analysis', 'Live', 'Profiling', 'Tools', 'Sharing', 'Diagnostics', 'Plugins']) await expect(view.getByRole('menuitem', { name, exact: true })).toHaveAttribute('aria-haspopup', 'menu');
     await expect(menuItem(view, 'Anomalies')).toHaveCount(0);
     await page.keyboard.press('Escape');
@@ -135,13 +135,13 @@ test.describe('menus', () => {
     await expect(page.getByRole('tab', { name: 'Callers and callees' })).toBeVisible();
   });
 
-  test('Window ▸ Layouts ▸ Reset window layout gives the clean default', async ({ page }) => {
+  test('Window ▸ Perspectives ▸ Reset perspective gives the clean default', async ({ page }) => {
     await chooseMenu(page, 'View', 'Analysis', 'Patterns');
     await chooseMenu(page, 'View', 'Plugins', 'Manage plugins');
     await chooseMenu(page, 'View', 'Inspector');
     await expect(page.getByRole('tab', { name: 'Patterns' })).toBeVisible();
     await expect(inspectorTab(page)).toHaveCount(0);
-    await chooseMenu(page, 'Window', 'Layouts', 'Reset window layout');
+    await chooseMenu(page, 'Window', 'Perspectives', 'Reset perspective');
     await expect.poll(() => tabNames(page)).toEqual(CORE_TABS);
     await expect(inspectorTab(page)).toBeVisible();
   });
@@ -162,7 +162,7 @@ test.describe('menus', () => {
       await expectNoSeriousViolations(page, testInfo, `menus-view-${theme}`, OPEN_MENUS);
       await page.keyboard.press('Escape');
       await page.keyboard.press('Escape');
-      await openMenuPath(page, 'Window', 'Layouts');
+      await openMenuPath(page, 'Window', 'Perspectives');
       await expectNoSeriousViolations(page, testInfo, `menus-window-${theme}`, OPEN_MENUS);
       await page.keyboard.press('Escape');
       await page.keyboard.press('Escape');
@@ -176,7 +176,7 @@ test.describe('menus', () => {
     await page.screenshot({ path: '../docs/screenshots/menu-view-browser.png', clip: { x: 0, y: 0, width: 900, height: 760 } });
     await page.keyboard.press('Escape');
     await page.keyboard.press('Escape');
-    await openMenuPath(page, 'Window', 'Layouts');
+    await openMenuPath(page, 'Window', 'Perspectives');
     await page.screenshot({ path: '../docs/screenshots/menu-window-browser.png', clip: { x: 0, y: 0, width: 900, height: 520 } });
     await page.keyboard.press('Escape');
     await page.keyboard.press('Escape');

@@ -15,7 +15,7 @@ use imt_core::batch::EventId;
 use imt_core::exceptions::ExceptionGroup;
 use imt_core::patterns::Pattern;
 use imt_core::ports::{Analyzed, Coverage, Store, StoreError, StoreResult};
-use imt_core::ql::{Completion, QlError, QlResult};
+use imt_core::ql::{classify_input, Completion, InputKind, QlError, QlResult};
 use serde::Serialize;
 use tauri::{AppHandle, Runtime};
 
@@ -77,6 +77,14 @@ pub async fn run_query(state: CurrentWindow, request: QueryRequest) -> CmdResult
 #[tauri::command]
 pub async fn check_query(state: CurrentWindow, text: String) -> CmdResult<Option<QlError>> {
     with_store(&state, move |s| s.check_query(&text)).await
+}
+
+/// Is the filter bar's search text a message search or a query? Pure (no store): `fields` are the field names the UI
+/// got from the workspace summary, used only to tell `UserId = 42` (a field) from `status=500` (log text). Over-long
+/// input is classified as text, and at most `MAX_CLASSIFY_FIELDS` names are looked at.
+#[tauri::command]
+pub fn classify_search(text: String, fields: Vec<String>) -> InputKind {
+    classify_input(&text, &fields)
 }
 
 #[tauri::command]
@@ -213,5 +221,37 @@ mod tests {
         assert!(infer_regex(vec![]).now().is_err());
         assert!(explain_regex(r"\d+".into()).now().unwrap().len() >= 2);
         assert!(explain_regex("(".into()).now().is_err());
+    }
+
+    #[test]
+    fn classify_search_tells_text_from_a_query() {
+        assert_eq!(classify_search("connection refused".into(), vec![]), InputKind::Text);
+        assert_eq!(classify_search("level >= warning".into(), vec![]), InputKind::Query);
+        assert_eq!(classify_search("timeout | stats count()".into(), vec![]), InputKind::Query);
+        assert_eq!(classify_search(String::new(), vec![]), InputKind::Text);
+        // The UI's field names decide whether a comparison is a query or log text.
+        assert_eq!(classify_search("UserId = 42".into(), vec![]), InputKind::Text);
+        assert_eq!(classify_search("UserId = 42".into(), vec!["UserId".into()]), InputKind::Query);
+        assert_eq!(classify_search("status=500".into(), vec!["UserId".into()]), InputKind::Text);
+    }
+
+    #[test]
+    fn classify_search_treats_over_long_input_as_text() {
+        let long = format!("level = {}", "x".repeat(imt_core::ql::MAX_CLASSIFY_LEN));
+        assert_eq!(classify_search(long, vec![]), InputKind::Text);
+    }
+
+    #[test]
+    fn classify_search_looks_at_a_bounded_number_of_field_names() {
+        let mut fields: Vec<String> = (0..imt_core::ql::MAX_CLASSIFY_FIELDS).map(|i| format!("f{i}")).collect();
+        fields.push("Beyond".into());
+        assert_eq!(classify_search("f7 = 1".into(), fields.clone()), InputKind::Query);
+        assert_eq!(classify_search("Beyond = 1".into(), fields), InputKind::Text);
+    }
+
+    #[test]
+    fn classify_search_serializes_for_the_ui() {
+        let kind = classify_search("x | head 1".into(), vec![]);
+        assert_eq!(serde_json::to_string(&kind).unwrap(), "\"query\"");
     }
 }
