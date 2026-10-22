@@ -4,7 +4,7 @@ import { openAppWith } from './tools-support';
 test.describe('source encodings', () => {
   test('a guessed encoding is badged; Encoding… reads the source again with the chosen one', async ({ page }) => {
     await openAppWith(page, '');
-    const row = page.locator('imt-sidebar .src', { hasText: 'worker01/worker-20261014.log' });
+    const row = page.locator('imt-sidebar .src', { hasText: 'worker-20261014.log' });
     const badge = row.getByTestId('encoding-badge');
     await expect(badge).toHaveText('Shift_JIS 84%');
 
