@@ -1,25 +1,14 @@
-import AxeBuilder from '@axe-core/playwright';
-import { expect, Page, test, TestInfo } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { openApp, openView } from './app';
-import { settleAnimations, WCAG_TAGS } from './axe';
-
-/** Runs axe against WCAG 2.2 A/AA and fails on any serious or critical violation. */
-async function expectNoSeriousViolations(page: Page, testInfo: TestInfo, label: string): Promise<void> {
-  await settleAnimations(page);
-  const { violations } = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
-  const blocking = violations
-    .filter((v) => v.impact === 'serious' || v.impact === 'critical')
-    .map((v) => ({ id: v.id, impact: v.impact, help: v.help, count: v.nodes.length, nodes: v.nodes.slice(0, 8).map((n) => ({ target: n.target.join(' '), data: n.any[0]?.data })) }));
-  if (blocking.length) console.log(`AXE ${label} ${JSON.stringify(blocking)}`);
-  if (blocking.length) await testInfo.attach(`axe-${label}.json`, { body: JSON.stringify(blocking, null, 2), contentType: 'application/json' });
-  expect(blocking, `axe violations (${label})`).toEqual([]);
-}
+import { expectNoSeriousViolations } from './axe';
 
 for (const scheme of ['dark', 'light'] as const) {
   test(`main screen has no serious accessibility violations (${scheme})`, async ({ page }, testInfo) => {
     await page.emulateMedia({ colorScheme: scheme });
     await openApp(page);
     await page.locator('imt-events-grid [role=row].row').first().click();
+    // The click opens the inspector, which slides in: axe scans it once it is there and settled.
+    await expect(page.locator('imt-inspector')).toBeVisible();
     await expectNoSeriousViolations(page, testInfo, `timeline-${scheme}`);
   });
 }
@@ -33,4 +22,3 @@ test('metrics and profile tabs have no serious accessibility violations', async 
   await expect(page.getByText('Parsing profile')).toBeVisible();
   await expectNoSeriousViolations(page, testInfo, 'profile');
 });
-

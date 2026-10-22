@@ -34,6 +34,8 @@ test('no panel lets positioned content escape its scrolling lists', async ({ pag
   await openApp(page);
   const picker = page.getByRole('dialog', { name: 'Other windows' });
   await chooseMenu(page, 'View', 'Other windows…');
+  // count() does not wait: the list renders after the dialog opens.
+  await expect(picker.getByRole('option').first()).toBeVisible();
   const count = await picker.getByRole('option').count();
   await page.keyboard.press('Escape');
   expect(count).toBeGreaterThan(20);
