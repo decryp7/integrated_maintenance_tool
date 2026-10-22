@@ -469,6 +469,8 @@ pub enum FindingKind {
     FileNotOpened,
     Dropped,
     PluginQuarantined,
+    /// Findings left out because there were too many to list.
+    NotShown,
 }
 
 /// One line of the automatic health check, in plain English.

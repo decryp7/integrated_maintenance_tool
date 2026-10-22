@@ -310,16 +310,46 @@ fn short_type(t: &str) -> &str {
     t.rsplit('.').next().unwrap_or(t)
 }
 
+/// Most anomalies the health check lists as findings; the rest are summarised by one "not shown" finding. A noisy
+/// 1M-event log can hold thousands of anomalies, which no one reads and which froze the UI when all were rendered.
+pub const MAX_ANOMALY_FINDINGS: usize = 100;
+
+fn anomaly_severity(kind: AnomalyKind) -> Severity {
+    match kind {
+        AnomalyKind::Crash => Severity::Critical,
+        AnomalyKind::ErrorSpike | AnomalyKind::MemoryGrowth | AnomalyKind::Silence => Severity::Warning,
+        AnomalyKind::SlowOutlier | AnomalyKind::RateChange => Severity::Info,
+    }
+}
+
+/// The anomalies worth listing, at most [`MAX_ANOMALY_FINDINGS`]: most severe kinds first, then the highest score, then
+/// the earliest (so the order is stable). Also the number left out.
+fn ranked_anomalies(anomalies: &[Anomaly]) -> (Vec<&Anomaly>, usize) {
+    let mut ranked: Vec<&Anomaly> = anomalies.iter().collect();
+    // Selecting the top N is O(n) on average; only those N are then fully ordered.
+    let key = |a: &&Anomaly, b: &&Anomaly| {
+        anomaly_severity(a.kind)
+            .cmp(&anomaly_severity(b.kind))
+            .then_with(|| b.score.total_cmp(&a.score))
+            .then_with(|| a.from.cmp(&b.from))
+            .then_with(|| a.message.cmp(&b.message))
+    };
+    if ranked.len() > MAX_ANOMALY_FINDINGS {
+        ranked.select_nth_unstable_by(MAX_ANOMALY_FINDINGS, key);
+        ranked.truncate(MAX_ANOMALY_FINDINGS);
+    }
+    ranked.sort_by(key);
+    (ranked, anomalies.len().saturating_sub(MAX_ANOMALY_FINDINGS))
+}
+
 /// The automatic health check: what went wrong and what needs attention, most severe first, each with a
-/// suggested action.
+/// suggested action. At most [`MAX_ANOMALY_FINDINGS`] anomalies are listed (the highest ranked); a final finding says
+/// how many were left out.
 pub fn findings(anomalies: &[Anomaly], groups: &[ExceptionGroup], inputs: &OverviewInputs<'_>) -> Vec<Finding> {
     let mut out = Vec::new();
-    for a in anomalies {
-        let severity = match a.kind {
-            AnomalyKind::Crash => Severity::Critical,
-            AnomalyKind::ErrorSpike | AnomalyKind::MemoryGrowth | AnomalyKind::Silence => Severity::Warning,
-            AnomalyKind::SlowOutlier | AnomalyKind::RateChange => Severity::Info,
-        };
+    let (listed, left_out) = ranked_anomalies(anomalies);
+    for a in listed {
+        let severity = anomaly_severity(a.kind);
         let (kind, title) = match a.kind {
             AnomalyKind::Crash => (FindingKind::Crash, "Crash"),
             AnomalyKind::ErrorSpike => (FindingKind::ErrorSpike, "Error spike"),
@@ -338,6 +368,15 @@ pub fn findings(anomalies: &[Anomaly], groups: &[ExceptionGroup], inputs: &Overv
                 to: a.to,
                 record_id: a.sample_ids.first().copied(),
             }),
+        });
+    }
+    if left_out > 0 {
+        out.push(Finding {
+            kind: FindingKind::NotShown,
+            severity: Severity::Info,
+            title: "More anomalies not listed".into(),
+            detail: format!("{left_out} lower-ranked anomalies are not listed; narrow the time range or filters to see them"),
+            action: None,
         });
     }
     for g in groups.iter().filter(|g| g.count >= 5).take(5) {

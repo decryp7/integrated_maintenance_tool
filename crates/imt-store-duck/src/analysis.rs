@@ -5,7 +5,7 @@
 
 use crate::read::{count, Ctx};
 use crate::sql::{expr_sql, group_key_expr, lit, number_expr, order_by, row_columns, rows_sql, text_expr, Columns, SqlFilter, FROM};
-use crate::{engine, DuckStore, Inner};
+use crate::{engine, lock, DuckStore, Inner};
 use duckdb::arrow::array::{RecordBatch, StructArray};
 use duckdb::{params, Connection, Statement};
 use imt_core::analysis::moment::{findings, moment_queries, trace_summaries, MetricCollector, MomentBuilder, OverviewInputs};
@@ -547,19 +547,42 @@ impl Inner {
     ) -> StoreResult<Analyzed<T>> {
         let conn = self.conn()?;
         let text = canonical(q);
-        if let Some(value) = self.cache_get(&conn, kind, &text)? {
-            if let Ok((result, matched, analysed, limits)) = serde_json::from_str::<(T, u64, u64, Vec<String>)>(&value) {
-                return Ok(Analyzed {
+        let hit = |conn: &Connection| -> StoreResult<Option<Analyzed<T>>> {
+            let Some(value) = self.cache_get(conn, kind, &text)? else {
+                return Ok(None);
+            };
+            Ok(serde_json::from_str::<(T, u64, u64, Vec<String>)>(&value)
+                .ok()
+                .map(|(result, matched, analysed, limits)| Analyzed {
                     result,
                     coverage: Coverage { matched, analysed, limits },
-                });
-            }
+                }))
+        };
+        if let Some(found) = hit(&conn)? {
+            return Ok(found);
         }
-        let out = compute()?;
-        let value = serde_json::to_string(&(&out.result, out.coverage.matched, out.coverage.analysed, &out.coverage.limits))
-            .map_err(|e| StoreError::Engine(e.to_string()))?;
-        self.cache_put(&conn, kind, &text, &value)?;
-        Ok(out)
+        // Single flight: whoever asks second waits for the first and reads its result from the cache.
+        let flight_key = format!("{kind}\u{0}{text}");
+        let flight = lock(&self.flights).entry(flight_key.clone()).or_default().clone();
+        let result = {
+            let _turn = lock(&flight);
+            match hit(&conn)? {
+                Some(found) => Ok(found),
+                None => compute().and_then(|out| {
+                    let value = serde_json::to_string(&(&out.result, out.coverage.matched, out.coverage.analysed, &out.coverage.limits))
+                        .map_err(|e| StoreError::Engine(e.to_string()))?;
+                    self.cache_put(&conn, kind, &text, &value)?;
+                    Ok(out)
+                }),
+            }
+        };
+        drop(flight);
+        // Forget the flight once nobody else holds it (the map's own reference remains).
+        let mut flights = lock(&self.flights);
+        if flights.get(&flight_key).is_some_and(|f| Arc::strong_count(f) == 1) {
+            flights.remove(&flight_key);
+        }
+        result
     }
 
     /// The select list of a read over `q`: `cols` plus the instance key's fields, everything when part of
@@ -1422,6 +1445,53 @@ mod tests {
                 p
             })
             .collect()
+    }
+
+    #[test]
+    fn concurrent_identical_analyses_compute_once() {
+        let root = std::env::temp_dir().join(format!("imt-flight-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("logs")).unwrap();
+        let paths = interleaved(&root.join("logs"), 50);
+        let store = DuckStore::create(
+            &root.join("store"),
+            imt_core::Profile::default_profile(),
+            imt_core::PluginRegistry::new(),
+        )
+        .unwrap();
+        store.open(&paths).unwrap().wait().unwrap();
+        let computed = std::sync::atomic::AtomicUsize::new(0);
+        let filter = Filter::default();
+        std::thread::scope(|s| {
+            for _ in 0..4 {
+                s.spawn(|| {
+                    let out = store
+                        .inner
+                        .cached("flight-test", &filter, || {
+                            computed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                            // Long enough that the other threads arrive while this one is still computing.
+                            std::thread::sleep(std::time::Duration::from_millis(300));
+                            Ok(Analyzed {
+                                result: vec![1u32, 2, 3],
+                                coverage: Coverage {
+                                    matched: 3,
+                                    analysed: 3,
+                                    limits: Vec::new(),
+                                },
+                            })
+                        })
+                        .unwrap();
+                    assert_eq!(out.result, vec![1, 2, 3]);
+                });
+            }
+        });
+        assert_eq!(
+            computed.load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "the four identical requests share one computation"
+        );
+        assert!(lock(&store.inner.flights).is_empty(), "finished flights are forgotten");
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

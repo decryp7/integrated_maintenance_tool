@@ -92,7 +92,7 @@ const VIEWS: MenuView[] = [
   view('metrics', 'Metrics', 'core'),
   view('profile', 'Profile', 'core'),
   view('query', 'Query', 'core', { open: true }),
-  view('overview', 'Overview', 'core'),
+  view('home', 'Home', 'core'),
   view('plugins', 'Plugins', 'Plugins'),
   view('markers', 'Markers', 'Analysis'),
   ...(
@@ -165,7 +165,7 @@ describe('menu model', () => {
       'Events',
       'Metrics',
       'Query',
-      'Overview',
+      'Home',
       'Profile editor',
       '—',
       'Analysis',

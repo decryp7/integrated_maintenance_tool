@@ -1,5 +1,5 @@
-//! Error snapshots: screenshots of the IMT window that the UI renders in the webview and hands over
-//! when something goes wrong, so a problem can be diagnosed afterwards. Everything stays on this
+//! Error snapshots: screenshots of the IMT window, taken natively by `capture_window_image`
+//! (`crate::window_capture`, ADR 0034) and handed over by the UI when something goes wrong, so a problem can be diagnosed afterwards. Everything stays on this
 //! machine: images are written to `<app log dir>/snapshots/` (never to a path the UI names) and leave
 //! only when the user exports them with `export_diagnostics`.
 //!
@@ -88,7 +88,7 @@ impl ImageFormat {
             other => Err(SnapshotError::BadMime(other.chars().take(40).collect())),
         }
     }
-    fn mime(self) -> &'static str {
+    pub(crate) fn mime(self) -> &'static str {
         match self {
             Self::Png => "image/png",
             Self::Jpeg => "image/jpeg",
