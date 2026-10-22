@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 820" width="1240" height="820" role="img" aria-labelledby="t d">
   <title id="t">IMT architecture overview</title>
-  <desc id="d">Many sources and collectors feed importers contributed by plugins in Rust, C# or any gRPC language; the Rust engine parses, transforms, stores, queries and analyses; the Angular and Tauri workbench shows timelines, grids, charts, analysis, profiling and AI, and shares projects, reports and bundles.</desc>
+  <desc id="d">Many sources and collectors feed importers contributed by Rust plugins that run in their own sandboxed processes; the Rust engine parses with a parser library, transforms, stores (DuckDB), queries and analyses; the Angular and Tauri workbench shows timelines, grids, charts, analysis, profiling and AI, and shares projects, reports and bundles.</desc>
   <style>
         :root { --bg:#ffffff; --panel:#f5f7fb; --ink:#1b2130; --muted:#5a6375; --line:#c9cfdb; --a:#3869bb; --b:#e65f2a; --c:#29a077; --d:#a664fe; --soft-a:#e7eefb; --soft-b:#fdeee7; --soft-c:#e6f5ee; --soft-d:#f1eaff; }
     @media (prefers-color-scheme: dark) {
@@ -47,7 +47,7 @@
   <text class="h2" x="44" y="236">Windows</text>
   <text class="t" x="44" y="254">Event logs (.evtx, live follower), PerfMon</text>
   <text class="t" x="44" y="270">(.blg / CSV), Process Monitor CSV,</text>
-  <text class="t" x="44" y="286">registry .reg, msinfo .nfo, minidumps</text>
+  <text class="t" x="44" y="286">registry .reg, msinfo .nfo, dumps</text>
 
   <rect class="box src" x="32" y="306" width="268" height="64" rx="7"/>
   <text class="h2" x="44" y="326">Captures</text>
@@ -82,23 +82,23 @@
   <rect class="box plg" x="368" y="110" width="492" height="150" rx="7"/>
   <text class="h2" x="380" y="130">Plugins — importers, collectors, tools, transforms, markers, annotators</text>
   <rect class="badge" x="380" y="142" width="148" height="104" rx="6"/>
-  <text class="h2" x="390" y="161">In process</text>
-  <text class="t" x="390" y="179">Rust plugins</text>
-  <text class="t" x="390" y="195">(Windows, web, OTel,</text>
-  <text class="t" x="390" y="211">syslog, formats,</text>
-  <text class="t" x="390" y="227">profiling, tools)</text>
+  <text class="h2" x="390" y="161">Built-in</text>
+  <text class="t" x="390" y="179">Rust, one sandboxed</text>
+  <text class="t" x="390" y="195">process each: Windows,</text>
+  <text class="t" x="390" y="211">web, OTel, syslog,</text>
+  <text class="t" x="390" y="227">formats, tools, dumps</text>
   <rect class="badge" x="538" y="142" width="148" height="104" rx="6"/>
-  <text class="h2" x="548" y="161">Out of process</text>
-  <text class="t" x="548" y="179">gRPC imt.plugin.v1,</text>
-  <text class="t" x="548" y="195">Arrow batches,</text>
-  <text class="t" x="548" y="211">isolated, supervised,</text>
-  <text class="t" x="548" y="227">permission-scoped</text>
+  <text class="h2" x="548" y="161">One IPC</text>
+  <text class="t" x="548" y="179">imt-ipc: postcard</text>
+  <text class="t" x="548" y="195">frames, private local</text>
+  <text class="t" x="548" y="211">stream; guarded,</text>
+  <text class="t" x="548" y="227">supervised, sandboxed</text>
   <rect class="badge" x="696" y="142" width="152" height="104" rx="6"/>
-  <text class="h2" x="706" y="161">Any language</text>
-  <text class="t" x="706" y="179">Rust SDK</text>
-  <text class="t" x="706" y="195">C# / .NET SDK</text>
-  <text class="t" x="706" y="211">any gRPC language</text>
-  <text class="t" x="706" y="227">+ conformance tests</text>
+  <text class="h2" x="706" y="161">Third party</text>
+  <text class="t" x="706" y="179">Rust SDK + cargo</text>
+  <text class="t" x="706" y="195">imt-plugin, signed</text>
+  <text class="t" x="706" y="211">.imtplugin packages,</text>
+  <text class="t" x="706" y="227">conformance tests</text>
 
   <!-- engine -->
   <rect class="box eng" x="368" y="276" width="492" height="420" rx="7"/>
@@ -106,7 +106,7 @@
 
   <rect class="badge" x="380" y="308" width="226" height="88" rx="6"/>
   <text class="h2" x="390" y="327">Import &amp; profiles</text>
-  <text class="t" x="390" y="345">sniff → importer → records</text>
+  <text class="t" x="390" y="345">TOML parser per file → importer</text>
   <text class="t" x="390" y="361">extractors, markers, badges</text>
   <text class="t" x="390" y="377">timestamps, clock-skew</text>
 
@@ -117,10 +117,10 @@
   <text class="t" x="632" y="377">redaction (mask / hash / drop)</text>
 
   <rect class="badge" x="380" y="406" width="226" height="88" rx="6"/>
-  <text class="h2" x="390" y="425">LogStore port</text>
-  <text class="t" x="390" y="443">in-memory workspace</text>
-  <text class="t" x="390" y="459">persistent: DuckDB worker</text>
-  <text class="t" x="390" y="475">+ Tantivy (ADR 0010, planned)</text>
+  <text class="h2" x="390" y="425">Store ports</text>
+  <text class="t" x="390" y="443">DuckDB store worker:</text>
+  <text class="t" x="390" y="459">Parquet segments, Tantivy</text>
+  <text class="t" x="390" y="475">index, .imtz (ADR 0014)</text>
 
   <rect class="badge" x="622" y="406" width="226" height="88" rx="6"/>
   <text class="h2" x="632" y="425">Query</text>
@@ -144,8 +144,8 @@
   <text class="h2" x="632" y="603">Local AI (imt-ai)</text>
   <text class="t" x="632" y="621">llama-server worker, GGUF</text>
   <text class="t" x="632" y="637">models + runtimes on demand</text>
-  <text class="t" x="632" y="653">cited answers; proposals the</text>
-  <text class="t" x="632" y="669">engine validates first</text>
+  <text class="t" x="632" y="653">vision, knowledge files;</text>
+  <text class="t" x="632" y="669">engine validates proposals</text>
 
   <!-- ===== Column 3: workbench ===== -->
   <rect class="col" x="912" y="72" width="312" height="640" rx="10"/>
@@ -159,7 +159,7 @@
   <text class="t" x="940" y="196">charts, dashboards, live tail</text>
   <text class="t" x="940" y="212">analysis &amp; profiling views</text>
   <text class="t" x="940" y="228">process monitor live charts</text>
-  <text class="t" x="940" y="244">AI chat with evidence</text>
+  <text class="t" x="940" y="244">AI chat, docked browser</text>
   <text class="t" x="940" y="260">docking, pop-out windows, palette</text>
   <text class="t" x="940" y="276">dark / light, WCAG 2.2 AA checks,</text>
   <text class="t" x="940" y="292">i18n-ready</text>
@@ -205,6 +205,6 @@
   <rect class="box plg" x="110" y="740" width="16" height="12" rx="3"/><text class="m" x="132" y="751">extend</text>
   <rect class="box eng" x="196" y="740" width="16" height="12" rx="3"/><text class="m" x="218" y="751">compute (Rust)</text>
   <rect class="box ui" x="326" y="740" width="16" height="12" rx="3"/><text class="m" x="348" y="751">see &amp; share</text>
-  <text class="m" x="24" y="784">The UI never re-implements domain rules: every result is computed in Rust and reaches the workbench through the LogStore port and Tauri commands.</text>
+  <text class="m" x="24" y="784">The UI never re-implements domain rules: every result is computed in Rust and reaches the workbench through the Store ports and Tauri commands.</text>
   <text class="m" x="24" y="800">Detailed C4 and UML diagrams: docs/diagrams/*.drawio · decisions: docs/adr/</text>
 </svg>
