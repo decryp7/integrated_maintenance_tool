@@ -263,6 +263,36 @@ mod tests {
         assert_eq!(fmt_bytes(18.0 * MB), "18 MB");
         assert_eq!(fmt_bytes(2048.0), "2 KB");
         assert_eq!(fmt_bytes(12.0), "12 bytes");
+        assert_eq!(fmt_bytes(-2048.0), "-2 KB", "a shrinking series keeps its sign");
+    }
+
+    fn sample(id: u32, minute: i64, working_set_mb: f64) -> (i64, crate::model::Record) {
+        let mut r = crate::model::Record::new(id);
+        r.id = id;
+        r.fields.insert("WorkingSetMb".into(), serde_json::json!(working_set_mb));
+        (minute * 60_000, r)
+    }
+
+    #[test]
+    fn steady_growth_over_time_is_reported_per_instance_and_flat_series_are_not() {
+        let rows = |f: &dyn Fn(i64) -> f64| -> Vec<(i64, crate::model::Record)> { (0..20).map(|m| sample(m as u32, m, f(m))).collect() };
+        let leaking = rows(&|m| 300.0 + 30.0 * m as f64);
+        let flat = rows(&|m| 300.0 + (m % 2) as f64);
+        let found = memory_growth([("WEB01", leaking.as_slice()), ("WEB02", flat.as_slice())], &TrendConfig::default());
+        assert_eq!(found.len(), 1, "{found:?}");
+        let a = &found[0];
+        assert_eq!((a.kind, a.instance.as_deref()), (AnomalyKind::MemoryGrowth, Some("WEB01")));
+        assert!(a.message.contains("WorkingSetMb on WEB01 grew"), "{}", a.message);
+        assert!(a.sample_ids.contains(&19), "the last point is always a sample: {:?}", a.sample_ids);
+        assert!(a.sample_ids.len() <= MAX_SAMPLES);
+        // Too short a span, or too few points, is no trend.
+        let brief: Vec<_> = (0..8).map(|m| sample(m as u32, m, 300.0 + 100.0 * m as f64)).collect();
+        assert!(memory_growth([("WEB01", brief.as_slice())], &TrendConfig::default()).is_empty());
+        let few: Vec<_> = (0..4).map(|m| sample(m as u32, m * 10, 300.0 + 100.0 * m as f64)).collect();
+        assert!(memory_growth([("WEB01", few.as_slice())], &TrendConfig::default()).is_empty());
+        // A shrinking series is never a leak.
+        let shrinking = rows(&|m| 900.0 - 30.0 * m as f64);
+        assert!(memory_growth([("WEB01", shrinking.as_slice())], &TrendConfig::default()).is_empty());
     }
 
     #[test]
