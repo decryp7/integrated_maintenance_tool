@@ -1,0 +1,25 @@
+# log4net (or NLog) CSV layouts without a header row: date and time in two columns, then the level, an event
+# code, the process name and id, and the message, e.g.
+#   2025/11/08,00:00:00.013+01:00,INFO,1000,OrderService,4120,Service starting
+# Change [format.csv] columns if your layout has other columns.
+schema = 1
+id = "log4net-csv"
+name = "log4net CSV (no header)"
+version = "1.0.0"
+category = ".NET"
+description = "Comma separated log4net or NLog layouts without a header: date, time with offset, level, code, process, process id and message."
+
+[match]
+sniff = '^\d{4}/\d{2}/\d{2},\d{2}:\d{2}:\d{2}(?:[.,]\d{1,7})?(?:Z|[+-]\d{2}:?\d{2})?,[A-Za-z]+,'
+
+[format]
+kind = "csv"
+identity = ["Process", "Pid"]
+
+[format.csv]
+delimiter = ","
+has_header = false
+columns = ["Date", "Time", "Level", "Code", "Process", "Pid", "Message"]
+timestamp = "Date+Time"
+level = "Level"
+message = "Message"

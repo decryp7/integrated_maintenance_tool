@@ -36,8 +36,7 @@ impl PageQuery {
     }
 }
 
-/// The parser a source was read with (ADR 0026: parsers are individual TOML files matched per file; until
-/// then the workspace's one profile is the parser of every source, id [`ParserRef::PROFILE`]).
+/// The parser a source was read with (ADR 0026: parsers are individual TOML files matched per file).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ParserRef {
@@ -47,25 +46,6 @@ pub struct ParserRef {
     pub hash: String,
 }
 
-impl ParserRef {
-    /// The id of the interim parser: the workspace's profile.
-    pub const PROFILE: &'static str = "profile";
-
-    /// The workspace's profile as the parser of every source (the interim before ADR 0026).
-    pub fn of_profile(profile: &crate::Profile) -> ParserRef {
-        ParserRef {
-            id: Self::PROFILE.into(),
-            version: profile.name.clone(),
-            hash: content_hash(&profile_toml(profile)),
-        }
-    }
-}
-
-/// A profile's canonical TOML (what its parser hash and the embedded copy are made of).
-pub fn profile_toml(profile: &crate::Profile) -> String {
-    toml::to_string(profile).unwrap_or_default()
-}
-
 /// Hex SHA-256 (the first 16 bytes) of a parser's TOML.
 pub fn content_hash(text: &str) -> String {
     use sha2::Digest;
@@ -73,7 +53,7 @@ pub fn content_hash(text: &str) -> String {
     d.iter().take(16).map(|b| format!("{b:02x}")).collect()
 }
 
-/// A parser's definition: its id and version and its TOML (ADR 0026; until then a profile's TOML).
+/// A parser's definition: its id and version and its TOML (ADR 0026).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ParserDef {
@@ -277,14 +257,14 @@ impl DiagnosticRow {
     }
 }
 
-/// An engine-proposed fix of a diagnostic: a profile override and, for unreadable timestamps, the
+/// An engine-proposed fix of a diagnostic: a parser override and, for unreadable timestamps, the
 /// verified format.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosticFix {
     pub title: String,
-    /// TOML merged over the active profile (the `profileOverride` of a [`QuickFix`]).
-    pub profile_override: String,
+    /// `[format]` TOML merged over the source's parser (the `parserOverride` of a [`QuickFix`]).
+    pub parser_override: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timestamp: Option<crate::api::TimestampSuggestion>,
 }
@@ -325,11 +305,11 @@ pub struct Analyzed<T> {
     pub coverage: Coverage,
 }
 
-/// A proposed profile override (TOML merged over the active profile) for some sources.
+/// A proposed parser change (a `[format]` fragment merged over the parser of each source) for some sources.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QuickFix {
-    pub profile_override: String,
+    pub parser_override: String,
     #[serde(default)]
     pub sources: Vec<SourceId>,
 }
@@ -443,7 +423,7 @@ mod tests {
             },
         );
         assert_eq!(serde_json::to_value(&row).unwrap()["kind"], "lineTooLong");
-        let fix: QuickFix = serde_json::from_str(r#"{"profileOverride": "[parse]"}"#).unwrap();
+        let fix: QuickFix = serde_json::from_str(r#"{"parserOverride": "[format]"}"#).unwrap();
         assert!(fix.sources.is_empty());
     }
 }

@@ -241,9 +241,12 @@ pub enum ProposalOrigin {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum Fragment {
-    /// A text format added to `[parse] regexes`.
+    /// A text format for files no parser reads: a new parser in the library with this regex (ADR 0026).
     ParseRegex {
         regex: String,
+        /// A file it reads (names the new parser).
+        #[serde(default)]
+        file_name: String,
     },
     /// `[instance] key`.
     InstanceKey {
@@ -428,6 +431,8 @@ pub struct ComposedProfile {
     pub added: usize,
     pub removed: usize,
     pub saved_queries: Vec<SavedQueryFragment>,
+    /// New parsers (their TOML) the fragments add to the library (formats are parsers, ADR 0026).
+    pub parsers: Vec<String>,
 }
 
 /// A condition on a template: `@template eq` for Serilog templates, else a regex on the message.

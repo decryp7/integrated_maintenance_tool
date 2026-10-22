@@ -53,6 +53,7 @@ mod notification_centre;
 mod notify;
 mod opener;
 mod panel_windows;
+mod parsers;
 mod paths;
 mod plugin_config;
 mod plugin_packages;
@@ -217,7 +218,18 @@ command_table! {
     Query [WINDOW] => profile::profile_version,
     Mutation [WINDOW] => profile::import_profile,
     Mutation [WINDOW] limit MIB => profile::export_profile,
-    Query [WINDOW] => profile::profile_templates,
+    Query [WINDOW] => parsers::commands::parsers_list,
+    Query [WINDOW] => parsers::commands::parser_get,
+    Query [WINDOW] limit MIB => parsers::commands::parser_validate,
+    Mutation [WINDOW] limit MIB => parsers::commands::parser_save,
+    Mutation [WINDOW] => parsers::commands::parser_duplicate,
+    Mutation [WINDOW] => parsers::commands::parser_remove,
+    Mutation [WINDOW] => parsers::commands::parser_set_enabled,
+    Query [WINDOW] => parsers::commands::parser_import_check,
+    Mutation [WINDOW] => parsers::commands::parser_export,
+    Query [WINDOW] limit MIB => parsers::commands::parser_draft,
+    Mutation [WINDOW] => parsers::commands::parsers_reread,
+    Mutation [WINDOW] => parsers::commands::parser_assign,
     Query [WINDOW] => demo::demo_paths,
     Mutation [WINDOW] limit 8 * MIB => snapshots::save_error_snapshot,
     Query [WINDOW] => snapshots::list_error_snapshots,

@@ -26,7 +26,7 @@ mod tests;
 pub use diff::line_diff;
 pub use dto::*;
 pub use fields::{field_summaries, instance_candidates};
-pub use fragment::{compose_toml, fragment_toml};
+pub use fragment::{compose_toml, fragment_toml, parser_drafts};
 pub use numbers::number_candidates;
 pub use propose::propose;
 pub use sample::{Sample, Sampled};
@@ -297,5 +297,6 @@ pub fn compose<S: SurveyStore + ?Sized>(store: &S, base_toml: &str, fragments: &
         added,
         removed,
         saved_queries,
+        parsers: parser_drafts(fragments)?,
     })
 }

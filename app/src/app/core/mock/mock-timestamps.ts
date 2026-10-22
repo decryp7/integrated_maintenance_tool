@@ -23,7 +23,7 @@ export function withTimestampIssue(path: string, source: MockSource, records: Mo
     suggestion: {
       format: CTIME_FORMAT,
       sample: 'Sat Nov 08 00:04:37 2025',
-      profileSnippet: `[parse]\ntimestamp_formats = ["${CTIME_FORMAT}"]\n`,
+      parserSnippet: `[format]\ntimestamp_formats = ["${CTIME_FORMAT}"]\n`,
       parsedSamples: examples.length,
       checkedSamples: examples.length,
     },

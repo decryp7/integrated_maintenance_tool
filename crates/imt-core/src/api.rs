@@ -46,9 +46,13 @@ pub struct SourceInfo {
     /// format).
     #[serde(default)]
     pub problems: Vec<crate::ingest::Problem>,
-    /// Fields the source's importer declares as identifying who wrote an event (instance-key candidates).
+    /// Fields the source's importer and parser declare as identifying who wrote an event (instance-key
+    /// candidates).
     #[serde(skip)]
     pub identity: Vec<String>,
+    /// Id of the parser that read the source (ADR 0026).
+    #[serde(default)]
+    pub parser: Option<String>,
 }
 
 /// How a source is stored on disk: what "Open file", "Open at line" and "Show in folder" can do with it.
@@ -82,7 +86,7 @@ pub struct TimestampIssue {
     pub suggestion: Option<TimestampSuggestion>,
 }
 
-/// A timestamp format proposed for `[parse] timestamp_formats`, verified to parse the sample lines.
+/// A timestamp format proposed for a parser's `[format] timestamp_formats`, verified to parse the sample lines.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TimestampSuggestion {
@@ -90,8 +94,8 @@ pub struct TimestampSuggestion {
     pub format: String,
     /// The timestamp text of the first sample, as the format reads it.
     pub sample: String,
-    /// The profile lines that add the format.
-    pub profile_snippet: String,
+    /// The parser lines (`[format]`) that add the format, merged over the source's parser.
+    pub parser_snippet: String,
     /// Sample lines (without a readable timestamp) the format reads.
     pub parsed_samples: usize,
     /// Sample lines the format was checked against.
@@ -388,8 +392,11 @@ pub struct ActivityItem {
 #[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ParsePreviewRequest {
-    /// Candidate profile (may be unsaved).
+    /// Candidate parser TOML (may be unsaved); empty: the parser the library chooses for the sample.
     pub toml: String,
+    /// Candidate profile TOML (may be unsaved); empty: the active profile.
+    #[serde(default)]
+    pub profile: String,
     /// Sample content, e.g. the first lines of a file.
     pub sample: String,
     /// File name, for importers that look at it.
@@ -419,6 +426,9 @@ pub struct ParsedPreview {
 #[serde(rename_all = "camelCase")]
 pub struct ParsePreview {
     pub importer: Option<String>,
+    /// Id of the parser that read the sample (ADR 0026).
+    #[serde(default)]
+    pub parser: Option<String>,
     pub records: Vec<ParsedPreview>,
     pub total: usize,
     pub skipped: usize,

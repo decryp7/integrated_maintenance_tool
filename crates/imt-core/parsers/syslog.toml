@@ -1,0 +1,12 @@
+# Syslog (RFC 5424 and RFC 3164), read by the Syslog plugin's importer (host, app and process as fields, the
+# severity in <pri> as the level). Without the plugin the generic parser reads these files as text.
+schema = 1
+id = "syslog"
+name = "Syslog"
+version = "1.0.0"
+category = "System"
+description = "Syslog lines in RFC 5424 or RFC 3164 (BSD) form, read by the Syslog plugin: host, app and process as fields; the severity in <pri> sets the level."
+
+[format]
+kind = "syslog"
+identity = ["Host", "App"]

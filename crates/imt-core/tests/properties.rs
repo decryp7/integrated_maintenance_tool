@@ -404,9 +404,9 @@ proptest! {
     #[test]
     fn text_importer_with_arbitrary_text_format(fmt in "[ -~]{0,80}", body in "[ -~\n]{0,300}") {
         guard(move || {
-            let toml = format!("[parse]\nformat = \"text\"\n[[parse.text]]\nregex = {:?}\n", fmt);
-            if let Ok(p) = Profile::from_toml(&toml) {
-                if let Ok(cp) = CompiledProfile::compile(p) {
+            let toml = format!("schema = 1\nid = \"p\"\nname = \"P\"\nversion = \"1.0.0\"\n[format]\nkind = \"text\"\nregexes = [{:?}]\n", fmt);
+            if let Ok(parser) = imt_core::parser::Parser::from_toml(&toml) {
+                if let Ok(cp) = CompiledProfile::compile_for(Profile::default_profile(), &parser, &Default::default()) {
                     let _ = TextImporter.import(&ctx(&cp), &body);
                 }
             }

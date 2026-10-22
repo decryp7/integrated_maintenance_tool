@@ -1,0 +1,14 @@
+# log4net PatternLayout "%date [%thread] %-5level %logger - %message%newline" (also with %ndc). Times without an
+# offset are read as UTC: set [format] assume_timezone = "local" if the logs were written in local time.
+schema = 1
+id = "log4net-pattern"
+name = "log4net pattern layout"
+version = "1.0.0"
+category = ".NET"
+description = "Text from log4net's usual PatternLayout \"%date [%thread] %-5level %logger - %message\" (with or without %ndc); stack traces stay with their event."
+
+[format]
+kind = "text"
+regexes = [
+  '^(?P<timestamp>\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?)\s+\[(?P<Thread>[^\]]+)\]\s+(?P<level>[A-Za-z]+)\s+(?P<Logger>\S+)\s+(?:\[(?P<Ndc>[^\]]*)\]\s+)?-\s(?P<message>.*)$',
+]

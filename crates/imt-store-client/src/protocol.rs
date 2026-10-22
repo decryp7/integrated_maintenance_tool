@@ -122,14 +122,18 @@ ops! {
     AssignParser,
     /// [`imt_core::ports::Filter`] → [`imt_core::ports::PartialMatches`] (cancellable)
     PartialMatches,
+    /// [`imt_core::parser::ParserSetup`] → the stale [`SourceId`]s (ADR 0026)
+    SetParsers,
+    /// → [`Session`]: re-reads the stale sources and the files no parser read
+    RereadParsers,
 }
 
-/// Reads one source with another parser (ADR 0026).
+/// "Parse with…": reads one source with the library's parser `parser` (`None`: the automatic choice; ADR 0026).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AssignParser {
     pub source: SourceId,
-    pub parser: imt_core::ports::ParserDef,
+    pub parser: Option<String>,
 }
 
 /// What the app asks the worker.
@@ -172,6 +176,9 @@ pub struct OpenProject {
     pub safe_mode: bool,
     #[serde(default)]
     pub limits: Option<Limits>,
+    /// The parser library (ADR 0026); absent: the built-in parsers.
+    #[serde(default)]
+    pub parsers: Option<imt_core::parser::ParserSetup>,
 }
 
 /// An opened project: its store's handle and folder, and its manifest.
@@ -203,6 +210,9 @@ pub struct OpenStore {
     /// DuckDB memory limit and threads, parse threads (defaults when absent).
     #[serde(default)]
     pub limits: Option<Limits>,
+    /// The parser library (ADR 0026); absent: the built-in parsers.
+    #[serde(default)]
+    pub parsers: Option<imt_core::parser::ParserSetup>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

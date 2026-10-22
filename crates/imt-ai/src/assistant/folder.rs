@@ -188,7 +188,13 @@ impl<P: LlmProvider> Assistant<P> {
                 } else {
                     p.rationale.clone()
                 },
-                regexes.into_iter().map(|regex| Fragment::ParseRegex { regex }).collect(),
+                regexes
+                    .into_iter()
+                    .map(|regex| Fragment::ParseRegex {
+                        regex,
+                        file_name: file.clone(),
+                    })
+                    .collect(),
                 vec![],
             );
         }
@@ -369,22 +375,22 @@ fn pipeline_summary(p: &PipelineProposal) -> String {
     )
 }
 
-/// Text formats of a proposed profile that the active one does not have, as `[parse] regexes`.
+/// Text formats of a proposed parser that the generic parser does not have, as regexes.
 fn new_formats(p: &ProfileProposal) -> Vec<String> {
-    let Ok(proposed) = imt_core::Profile::from_toml(&p.toml) else {
+    let Ok(proposed) = imt_core::parser::Parser::from_toml(&p.toml) else {
         return vec![];
     };
-    let defaults = imt_core::Profile::default_profile();
-    let known: HashSet<&String> = defaults.parse.regexes.iter().chain(&defaults.parse.output_templates).collect();
+    let defaults = imt_core::parser::builtin::generic();
+    let known: HashSet<&String> = defaults.format.regexes.iter().chain(&defaults.format.output_templates).collect();
     proposed
-        .parse
+        .format
         .regexes
         .iter()
         .filter(|r| !known.contains(r))
         .cloned()
         .chain(
             proposed
-                .parse
+                .format
                 .output_templates
                 .iter()
                 .filter(|t| !known.contains(t))

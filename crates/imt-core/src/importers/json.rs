@@ -1,10 +1,10 @@
 //! JSON lines (one object per line) or a whole-file JSON array. Handles
 //! Serilog CLEF, Serilog JsonFormatter, rendered compact JSON and most other
-//! JSON loggers through the key lists in `[parse.json]`.
+//! JSON loggers through the key lists in `[format.json]`.
 
 use super::{first_lines, ImportCtx, Imported, Importer, MAX_LINE_LEN};
 use crate::model::{Level, Record};
-use crate::profile::JsonCfg;
+use crate::parser::JsonCfg;
 use crate::template;
 use crate::time::{epoch_from_number, TimestampParser};
 use anyhow::{Context, Result};
@@ -36,7 +36,7 @@ impl Importer for JsonImporter {
     }
 
     fn import(&self, ctx: &ImportCtx, content: &str) -> Result<Imported> {
-        let cfg = &ctx.profile.profile.parse.json;
+        let cfg = &ctx.profile.format.json;
         let ts = &ctx.profile.timestamps;
         let default_level = Level::parse(&cfg.default_level).unwrap_or(Level::Information);
         let mut out = Imported::default();
@@ -99,7 +99,7 @@ pub(crate) fn starts_with_json(head: &str) -> bool {
 /// lines below); such an object is at most [`MAX_LINE_LEN`] bytes. Looking ahead for the end of such
 /// objects reads at most about twice the content in all, so broken files stay linear.
 fn json_lines(ctx: &ImportCtx, content: &str, out: &mut Imported) {
-    let cfg = &ctx.profile.profile.parse.json;
+    let cfg = &ctx.profile.format.json;
     let ts = &ctx.profile.timestamps;
     let default_level = Level::parse(&cfg.default_level).unwrap_or(Level::Information);
     let mut lines = content.lines().enumerate();
@@ -586,12 +586,7 @@ mod tests {
     #[test]
     fn fields_match_the_one_by_one_insertion_on_every_json_sample() {
         let samples = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples");
-        let cfg = CompiledProfile::compile(Profile::default_profile())
-            .unwrap()
-            .profile
-            .parse
-            .json
-            .clone();
+        let cfg = CompiledProfile::compile(Profile::default_profile()).unwrap().format.json.clone();
         let mut files = vec![samples];
         let mut lines = 0;
         while let Some(p) = files.pop() {

@@ -48,7 +48,7 @@ impl Importer for CsvImporter {
     }
 
     fn sniff(&self, ctx: &ImportCtx, head: &str) -> u8 {
-        let cfg = &ctx.profile.profile.parse.csv;
+        let cfg = &ctx.profile.format.csv;
         let Some(delim) = delimiter(&cfg.delimiter, head) else { return 0 };
         let Some(header) = first_lines(head, 1).next() else { return 0 };
         let cols: Vec<String> = header
@@ -63,7 +63,7 @@ impl Importer for CsvImporter {
     }
 
     fn import(&self, ctx: &ImportCtx, content: &str) -> Result<Imported> {
-        let cfg = &ctx.profile.profile.parse.csv;
+        let cfg = &ctx.profile.format.csv;
         let delim = delimiter(&cfg.delimiter, content).ok_or_else(|| anyhow!("could not detect the column delimiter"))?;
         let has_header = cfg.has_header && !first_row_is_data(ctx, delim, content);
         let (headers, rows) = read_rows(delim, has_header, content)?;
@@ -72,7 +72,7 @@ impl Importer for CsvImporter {
     }
 
     fn import_tail(&self, ctx: &ImportCtx, head: &str, tail: &str) -> Option<Result<Imported>> {
-        let cfg = &ctx.profile.profile.parse.csv;
+        let cfg = &ctx.profile.format.csv;
         let delim = delimiter(&cfg.delimiter, head)?;
         // The header (and the column roles) come from the file's start.
         let has_header = cfg.has_header && !first_row_is_data(ctx, delim, head);
@@ -155,7 +155,7 @@ struct Layout {
 
 impl Layout {
     fn new(ctx: &ImportCtx, headers: Option<Vec<String>>, rows: &Rows) -> Layout {
-        let cfg = &ctx.profile.profile.parse.csv;
+        let cfg = &ctx.profile.format.csv;
         let has_header = headers.is_some();
         let headers: Vec<String> = headers.unwrap_or_else(|| {
             let width = rows.iter().map(|(_, r)| r.len()).max().unwrap_or(0);
@@ -305,7 +305,7 @@ impl Layout {
 
 /// The configured delimiter, or the candidate that splits the first lines
 /// into the same number (> 1) of columns most consistently.
-fn delimiter(cfg: &str, text: &str) -> Option<u8> {
+pub(crate) fn delimiter(cfg: &str, text: &str) -> Option<u8> {
     match cfg {
         "auto" | "" => {}
         "\\t" | "tab" => return Some(b'\t'),
@@ -326,7 +326,7 @@ fn delimiter(cfg: &str, text: &str) -> Option<u8> {
         .map(|(d, _)| d)
 }
 
-fn count_outside_quotes(line: &str, d: u8) -> usize {
+pub(crate) fn count_outside_quotes(line: &str, d: u8) -> usize {
     let mut quoted = false;
     line.bytes()
         .filter(|&b| {
@@ -381,7 +381,7 @@ mod tests {
     }
 
     fn run(profile: &str, content: &str) -> anyhow::Result<Imported> {
-        let p = CompiledProfile::compile(Profile::from_toml(profile).unwrap()).unwrap();
+        let p = crate::parser::testing::compiled(profile);
         let ctx = ImportCtx {
             profile: &p,
             path: Path::new("x.csv"),
@@ -393,7 +393,7 @@ mod tests {
     #[test]
     fn headerless_detects_timestamp_column() {
         let out = run(
-            "[parse.csv]\nhas_header = false",
+            "[format.csv]\nhas_header = false",
             "WEB01,2026-10-14 10:00:00,5\nWEB02,2026-10-14 10:01:00,7\n,,\n",
         )
         .unwrap();
@@ -406,7 +406,7 @@ mod tests {
     #[test]
     fn explicit_columns_and_delimiter() {
         let out = run(
-            "[parse.csv]\ndelimiter = 'tab'\ntimestamp = 'When'\nlevel = 'Kind'\nmessage = 'What'",
+            "[format.csv]\ndelimiter = 'tab'\ntimestamp = 'When'\nlevel = 'Kind'\nmessage = 'What'",
             "When\tKind\tWhat\tExtra\n2026-10-14 10:00:00\tAudit\tlogin\t\n2026-10-14 10:00:01\tError\tboom\tx\n",
         )
         .unwrap();
@@ -415,9 +415,9 @@ mod tests {
         assert!(!out.records[0].fields.contains_key("Extra"));
         assert_eq!(out.records[1].level, Level::Error);
         assert_eq!(out.records[1].message, "boom");
-        let pipes = run("[parse.csv]\ndelimiter = '|'", "time|msg\n2026-10-14 10:00:00|a\n").unwrap();
+        let pipes = run("[format.csv]\ndelimiter = '|'", "time|msg\n2026-10-14 10:00:00|a\n").unwrap();
         assert_eq!(pipes.records[0].message, "a");
-        let tabs = run("[parse.csv]\ndelimiter = '\\t'", "time\tmsg\n2026-10-14 10:00:00\tb\n").unwrap();
+        let tabs = run("[format.csv]\ndelimiter = '\\t'", "time\tmsg\n2026-10-14 10:00:00\tb\n").unwrap();
         assert_eq!(tabs.records[0].message, "b");
     }
 
@@ -454,7 +454,7 @@ mod tests {
     #[test]
     fn headerless_columns_are_named_by_the_profile_and_two_columns_can_be_joined() {
         let profile =
-            "[parse.csv]\ncolumns = ['Date', 'Time', 'Severity', 'Code', 'Process', 'Pid']\ntimestamp = 'Date+Time'\nlevel = 'Severity'";
+            "[format.csv]\ncolumns = ['Date', 'Time', 'Severity', 'Code', 'Process', 'Pid']\ntimestamp = 'Date+Time'\nlevel = 'Severity'";
         let out = run(profile, SPLIT_TS).unwrap();
         let first = &out.records[0];
         assert_eq!(first.ts, Some(utc_ms(2024, 3, 2, 8, 15, 0, 13)));

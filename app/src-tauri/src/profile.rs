@@ -130,12 +130,6 @@ pub(crate) async fn profile_version(app_state: State<'_, AppState>, file: String
     files(&app_state).version(&file)
 }
 
-/// The built-in profile templates (applied only through validate + save).
-#[tauri::command]
-pub(crate) async fn profile_templates() -> &'static [imt_core::templates::ProfileTemplate] {
-    imt_core::templates::TEMPLATES
-}
-
 /// Reads a profile file chosen by the user (not applied until saved).
 #[tauri::command]
 pub(crate) async fn import_profile(grants: WindowGrants, path: String) -> CmdResult<ProfileDoc> {
@@ -196,7 +190,9 @@ mod tests {
         let semantic = validate("name = 'x'\n\n[[extract]]\nname = \"stats\"\nregex = '('\n");
         assert!(!semantic.ok);
         assert_eq!(semantic.line, Some(4));
-        let unlocated = validate("[parse]\nassume_timezone = 'Mars'");
+        let unlocated = validate("name = 5");
+        let formats = validate("name = 'x'\n[parse]\nregexes = []");
+        assert_eq!((formats.ok, formats.line), (false, Some(2)), "formats are parsers now");
         assert!(block(validate_profile(st(), "name = 'y'".into())).unwrap().ok);
         assert_eq!((unlocated.ok, unlocated.line), (false, None));
 
@@ -398,16 +394,6 @@ regex = '('
         let none = test_app(None);
         assert!(profile_history(none.state::<AppState>()).now().unwrap().is_empty());
         assert!(profile_version(none.state::<AppState>(), "x".into()).now().is_err());
-    }
-
-    #[test]
-    fn templates_are_listed_with_their_samples() {
-        let list = serde_json::to_value(profile_templates().now()).unwrap();
-        let list = list.as_array().unwrap();
-        assert!(list.len() >= 13);
-        assert!(list
-            .iter()
-            .all(|t| t["id"].is_string() && t["toml"].is_string() && t["sampleName"].is_string()));
     }
 
     #[test]

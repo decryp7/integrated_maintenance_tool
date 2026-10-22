@@ -60,7 +60,7 @@ pub fn fragment_toml(fragments: &[Fragment]) -> Result<String> {
     let mut comments = String::new();
     for f in fragments {
         match f {
-            Fragment::ParseRegex { regex } => push(section(&mut table, "parse")?, "regexes", Value::String(regex.clone()))?,
+            Fragment::ParseRegex { .. } => {}
             Fragment::InstanceKey { key } => {
                 section(&mut table, "instance")?.insert("key".into(), to_value(key)?);
             }
@@ -77,7 +77,46 @@ pub fn fragment_toml(fragments: &[Fragment]) -> Result<String> {
     } else {
         toml::to_string(&table)?
     };
-    Ok(format!("{comments}{body}"))
+    let mut parsers = String::new();
+    for p in parser_drafts(fragments)? {
+        parsers.push_str("# A new parser for the library (Settings ▸ Parsers):\n");
+        parsers.push_str(&p);
+    }
+    Ok(format!("{comments}{body}{parsers}"))
+}
+
+/// The new parsers of the `ParseRegex` fragments (their TOML): one per file name, with its regexes in
+/// order (ADR 0026: formats are parsers, not profile sections).
+pub fn parser_drafts(fragments: &[Fragment]) -> Result<Vec<String>> {
+    let mut by_file: Vec<(String, Vec<&str>)> = Vec::new();
+    for f in fragments {
+        if let Fragment::ParseRegex { regex, file_name } = f {
+            match by_file.iter_mut().find(|(n, _)| n == file_name) {
+                Some((_, list)) => list.push(regex),
+                None => by_file.push((file_name.clone(), vec![regex])),
+            }
+        }
+    }
+    let mut out = Vec::new();
+    for (file_name, regexes) in by_file {
+        let mut parser: Option<crate::parser::Parser> = None;
+        // The first regex of the list is tried first: add them last to first.
+        for regex in regexes.iter().rev() {
+            let req = crate::parser::draft::DraftRequest {
+                file_name: file_name.clone(),
+                regex: Some(regex.to_string()),
+                ..Default::default()
+            };
+            let text = crate::parser::draft::compose(&req, parser.as_ref()).map_err(|e| anyhow!("the new parser is not valid: {e}"))?;
+            let mut p = crate::parser::Parser::from_toml(&text).map_err(|e| anyhow!("the new parser is not valid: {e}"))?;
+            p.version = crate::parser::ParserVersion::new(1, 0, 0);
+            parser = Some(p);
+        }
+        if let Some(p) = parser {
+            out.push(p.canonical_toml());
+        }
+    }
+    Ok(out)
 }
 
 fn section<'a>(t: &'a mut Table, key: &str) -> Result<&'a mut Table> {
@@ -122,24 +161,8 @@ pub fn compose_toml(base_toml: &str, fragments: &[Fragment]) -> Result<(String, 
     let mut new_markers: Vec<Value> = Vec::new();
     for f in fragments {
         match f {
-            Fragment::ParseRegex { regex } => {
-                let parse = section(&mut merged, "parse")?;
-                if !parse.contains_key("regexes") {
-                    let seed = defaults
-                        .get("parse")
-                        .and_then(|p| p.get("regexes"))
-                        .cloned()
-                        .unwrap_or_else(|| Value::Array(Vec::new()));
-                    parse.insert("regexes".into(), seed);
-                }
-                let list = parse
-                    .get_mut("regexes")
-                    .and_then(Value::as_array_mut)
-                    .ok_or_else(|| anyhow!("parse.regexes is not a list"))?;
-                if !list.iter().any(|v| v.as_str() == Some(regex)) {
-                    list.push(Value::String(regex.clone()));
-                }
-            }
+            // Formats are parsers ([`parser_drafts`]): the profile does not change.
+            Fragment::ParseRegex { .. } => {}
             Fragment::InstanceKey { key } => {
                 if key.is_empty() || key.len() > 8 || key.iter().any(|k| k.trim().is_empty()) {
                     bail!("an instance key needs 1 to 8 field names");

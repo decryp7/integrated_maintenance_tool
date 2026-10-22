@@ -644,7 +644,7 @@ export class MockAiBackend extends AiBackend {
     return this.aiJob('propose', 'Suggest a regex', null, () => mockRegexProposal(lines), proposal);
   }
   proposeProfile(source: SampleSource) {
-    return this.aiJob('propose', 'Propose a parsing profile', eventLink(source), () => mockProfileProposal(), proposal);
+    return this.aiJob('propose', 'Propose a parser', eventLink(source), () => mockProfileProposal(), proposal);
   }
   proposePipeline(goal: string, source?: SampleSource) {
     return this.aiJob('propose', `Propose pipeline steps: ${goal}`, eventLink(source), () => mockPipelineProposal(goal), proposal);

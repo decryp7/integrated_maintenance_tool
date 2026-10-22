@@ -61,6 +61,7 @@ import { mockFileKind, mockOpenSourceFile } from './mock-files';
 import { mockNotifications } from '../../notifications/mock-notifications';
 import { timestampNotice, withTimestampIssue } from './mock-timestamps';
 import { mockUnsupported } from './mock-unsupported';
+import { MockParserLibrary, MockParserSource } from './mock-parsers';
 import { isImagePath } from '../../ai/vision/image-files';
 import { IDLE_PROGRESS, isMockDemoPath, MockFiles, MockImportSim, MockProfileHistory, NOT_IMPORTED_REASON, slowImportFiles } from './mock-import';
 
@@ -146,6 +147,8 @@ export class MockBackend implements ImtBackend {
   private readonly history = new MockProfileHistory();
   /** Files "written" by exports (a second export to a path needs `overwrite`). */
   readonly files = new MockFiles();
+  /** The parser library (ADR 0026): which parser read each source; `MockParsersBackend` manages it. */
+  readonly parsers = new MockParserLibrary();
 
   constructor(options: MockBackendOptions = {}) {
     this.options = options;
@@ -193,6 +196,11 @@ export class MockBackend implements ImtBackend {
     this.loadMs = Math.round(performance.now() - t0);
   }
 
+  /** The open sources as the parser library sees them. */
+  parserSources(): MockParserSource[] {
+    return this.engine.sources.map((s) => ({ id: s.id, path: s.path, name: s.name, importer: s.importer }));
+  }
+
   private summary(): WorkspaceSummary {
     const e = this.engine;
     const levels = Object.fromEntries(LEVELS.map((l) => [l, 0])) as Record<Level, number>;
@@ -230,6 +238,7 @@ export class MockBackend implements ImtBackend {
         timestampIssue: s.timestampIssue ?? null,
         routedFrom: s.routedFrom ?? null,
         problems: s.problems ?? [],
+        parser: this.parsers.recordedId(s),
       })),
       unrecognized: this.dataset.unrecognized,
       total: synthetic ?? e.records.length,
@@ -580,7 +589,15 @@ export class MockBackend implements ImtBackend {
   }
 
   previewParse(request: ParsePreviewRequest): Promise<ParsePreview> {
-    return this.failing('previewParse') ?? this.delay(() => mockPreviewParse(request), 20);
+    return (
+      this.failing('previewParse') ??
+      this.delay(() => {
+        if (request.toml.trim()) return { ...mockPreviewParse(request), parser: null };
+        // No candidate parser: the one the library would choose for the sample.
+        const parser = this.parsers.chooseFor(request.fileName, request.sample);
+        return { ...mockPreviewParse({ ...request, toml: parser ? this.parsers.get(parser).toml : '' }), parser };
+      }, 20)
+    );
   }
 
   /** The request with its sliding window resolved against the newest record (mock approximation of the engine). */

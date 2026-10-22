@@ -301,7 +301,7 @@ export function buildMenus(state: MenuState): TopMenu[] {
         cmd('dumps.capture'),
         cmd('diagnostics.capture'),
         SEP,
-        cmd('profile.newFromTemplate'),
+        cmd('parsers.manage'),
         SEP,
         cmd('app.restartElevated'),
         SEP,

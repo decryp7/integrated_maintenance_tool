@@ -279,6 +279,7 @@ impl StoreWorker {
             worker: self.clone(),
             dir: dir.to_path_buf(),
             profile: Arc::new(Mutex::new(profile)),
+            parsers: Arc::new(Mutex::new(None)),
             limits,
         };
         let lease = self.inner.sup.lease().map_err(ipc_error)?;
@@ -303,6 +304,7 @@ impl StoreWorker {
             disabled_plugins: self.inner.disabled.clone(),
             safe_mode: self.inner.safe_mode,
             limits: limits.clone(),
+            parsers: None,
         };
         let lease = self.inner.sup.lease().map_err(ipc_error)?;
         let opened: StoreResult<OpenedProject> = encode(&req)
@@ -314,6 +316,7 @@ impl StoreWorker {
             worker: self.clone(),
             dir: opened.dir,
             profile: Arc::new(Mutex::new(req.profile)),
+            parsers: Arc::new(Mutex::new(None)),
             limits,
         };
         // Reopening after a restart uses the profile with the project's overrides merged in.
@@ -378,6 +381,8 @@ pub struct RemoteStore {
     worker: StoreWorker,
     dir: PathBuf,
     profile: Arc<Mutex<Profile>>,
+    /// The parser library last set (sent again when the worker reopens the store after a restart).
+    parsers: Arc<Mutex<Option<imt_core::parser::ParserSetup>>>,
     limits: Option<Limits>,
 }
 
@@ -396,6 +401,7 @@ impl RemoteStore {
             disabled_plugins: self.worker.inner.disabled.clone(),
             safe_mode: self.worker.inner.safe_mode,
             limits: self.limits.clone(),
+            parsers: lock(&self.parsers).clone(),
         };
         let h: Handle = decode(raw(conn, &StoreRequest::OpenStore(encode(&req)?), CALL_TIMEOUT).map_err(ipc_error)?)?;
         lock(&conn.handles).insert(self.dir.clone(), h.store);
@@ -705,12 +711,21 @@ impl Profiles for RemoteStore {
     fn classify_parser(&self, parser: &imt_core::ports::ParserDef) -> StoreResult<imt_core::ports::ParserChange> {
         self.call(StoreOp::ClassifyParser, parser)
     }
-    fn assign_parser(&self, source: SourceId, parser: &imt_core::ports::ParserDef) -> StoreResult<ImportSession> {
+    fn set_parsers(&self, setup: &imt_core::parser::ParserSetup) -> StoreResult<Vec<SourceId>> {
+        let stale = self.call(StoreOp::SetParsers, setup)?;
+        *lock(&self.parsers) = Some(setup.clone());
+        Ok(stale)
+    }
+    fn reread_parsers(&self) -> StoreResult<ImportSession> {
+        let s = self.call(StoreOp::RereadParsers, &())?;
+        self.session(s)
+    }
+    fn assign_parser(&self, source: SourceId, parser: Option<&str>) -> StoreResult<ImportSession> {
         let s = self.call(
             StoreOp::AssignParser,
             &crate::protocol::AssignParser {
                 source,
-                parser: parser.clone(),
+                parser: parser.map(str::to_string),
             },
         )?;
         self.session(s)

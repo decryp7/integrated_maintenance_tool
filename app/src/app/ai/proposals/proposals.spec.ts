@@ -7,6 +7,8 @@ import { MarkDialog } from '../../context/mark-dialog';
 import { mockExtractorsProposal, mockMarkersProposal, mockPipelineProposal, mockProfileProposal, mockRegexProposal } from '../../core/mock/mock-ai-data';
 import { MockAiBackend } from '../../core/mock/mock-ai-backend';
 import { ProfileUndo } from '../../undo/profile-undo';
+import { WorkspaceStore } from '../../core/workspace.store';
+import { ParsersBackend } from '../../settings/parsers/parsers-backend';
 import { DialogRef, DialogService } from '../../ui/dialog.service';
 import { all, buttonByText, settle } from '../../../testing/helpers';
 import { AiBackend } from '../ai-backend';
@@ -63,17 +65,32 @@ describe('ProposalApply', () => {
     configure();
     const save = vi.spyOn(TestBed.inject(ProfileUndo), 'save').mockResolvedValue(null as never);
     const apply = TestBed.inject(ProposalApply);
-    const profile = mockProfileProposal();
     const pipeline = mockPipelineProposal('g');
     const markers = mockMarkersProposal('g');
     const extractors = mockExtractorsProposal('g');
-    for (const p of [profile, pipeline, markers, extractors]) expect((await apply.apply(p)).kind).toBe('applied');
+    for (const p of [pipeline, markers, extractors]) expect((await apply.apply(p)).kind).toBe('applied');
     expect(save.mock.calls).toEqual([
-      [`AI: parsing profile "${profile.name}"`, profile.toml],
       ['AI: pipeline steps', pipeline.profileToml],
       ['AI: markers', markers.profileToml],
       ['AI: extractors', extractors.profileToml],
     ]);
+  });
+
+  it('adds a proposed parser to the library and reads the files again, or says the library reads the file', async () => {
+    configure();
+    const parsers = TestBed.inject(ParsersBackend);
+    const saveParser = vi.spyOn(parsers, 'save').mockResolvedValue({ parsers: [], broken: [], stale: 1 });
+    const reread = vi.spyOn(parsers, 'reread').mockResolvedValue(7);
+    const follow = vi.spyOn(TestBed.inject(WorkspaceStore), 'followReread').mockResolvedValue();
+    const apply = TestBed.inject(ProposalApply);
+    const profile = mockProfileProposal();
+    expect(profile.toml).toContain('schema = 1');
+    expect(await apply.apply(profile)).toEqual({ kind: 'applied', message: 'Parser added to the library; the files are read again.' });
+    expect(saveParser).toHaveBeenCalledWith(profile.toml, { overwrite: true });
+    expect(reread).toHaveBeenCalled();
+    expect(follow).toHaveBeenCalledWith(7);
+    expect(await apply.apply({ ...profile, toml: '' })).toEqual({ kind: 'applied', message: "IMT's parsers already read this file." });
+    expect(saveParser).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -107,7 +124,8 @@ describe('AiProposalCard', () => {
       [{ ...query, estimatedMatches: null, repaired: false }, ['Errors.']],
       [mockRegexProposal(['2026-10-14 09:00:02 [INF] x', 'nope']), ['Regular expression', 'Matches 1 of 2 examples', 'timestamp: timestamp', 'Group "level"', 'Add as highlight…']],
       [{ ...mockRegexProposal(['x']), source: 'inferred', groups: [], explanation: [] }, ["the engine's own inference", 'Matches 0 of 1 example']],
-      [mockProfileProposal(), ['Parsing profile', 'Worker text logs · text · parses 58 entries, 58 with a timestamp', 'Queue depth 812', 'Profile TOML', 'Save as profile']],
+      [mockProfileProposal(), ['Parser', 'Worker text logs · text · parses 58 entries, 58 with a timestamp', 'Queue depth 812', 'Parser TOML', 'Add to parsers']],
+      [{ ...mockProfileProposal(), toml: '' }, ["IMT's parsers already read this file."]],
       [{ ...mockProfileProposal(), importer: null, preview: [] }, ['no importer']],
       [mockPipelineProposal('g'), ['Pipeline steps', 'keeps 52, drops 8, changes 0', '60 → 52', 'GET /health check', 'Add to profile']],
       [mockMarkersProposal('g'), ['Markers', 'Timeout', '6 matches']],

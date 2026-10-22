@@ -1,0 +1,5 @@
+2025/11/08,00:00:00.013+01:00,INFO,1000,OrderService,4120,Service starting (v3.14.2)
+2025/11/08,00:00:02.540+01:00,WARN,2101,OrderService,4120,Slow request /api/orders took 1500 ms
+2025/11/08,00:00:24.050+01:00,ERROR,3002,OrderService,4120,Failed to capture payment for order 88412
+2025/11/08,00:00:25.118+01:00,INFO,1003,BillingAgent,5308,Retrying invoice 77120
+2025/11/08,00:01:00.000+01:00,DEBUG,1009,BillingAgent,5308,Heartbeat

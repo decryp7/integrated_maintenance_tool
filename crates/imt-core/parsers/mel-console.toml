@@ -1,0 +1,15 @@
+# Microsoft.Extensions.Logging simple console formatter with a timestamp (TimestampFormat = "yyyy-MM-dd
+# HH:mm:ss.fff "): "info: Category[EventId]" followed by the message on indented lines.
+schema = 1
+id = "mel-console"
+name = "Microsoft.Extensions.Logging console"
+version = "1.0.0"
+category = ".NET"
+description = "ASP.NET Core / Microsoft.Extensions.Logging simple console output with a timestamp: \"info: Category[EventId]\" with the message on the indented lines below."
+
+[format]
+kind = "text"
+identity = ["Category"]
+regexes = [
+  '^(?P<timestamp>\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,7})?(?:Z|[+-]\d{2}:?\d{2})?)\s+(?P<level>trce|dbug|info|warn|fail|crit):\s+(?P<message>(?P<Category>[^\[\s]+)\[(?P<EventId>\d+)\].*)$',
+]

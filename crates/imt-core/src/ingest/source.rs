@@ -1,17 +1,19 @@
 //! Reading one file into a [`BatchSink`]: archives are expanded (each zip member is a source), the
-//! file plan picks the importer, and the events stream through the [`RecordBatcher`]. A failure in one
-//! file (an error or a crash) is reported as unrecognised with a reason; its events are removed.
+//! parser library picks the file's parser (ADR 0026), the file plan picks the importer, and the events
+//! stream through the [`RecordBatcher`]. A failure in one file (an error or a crash) is reported as
+//! unrecognised with a reason; its events are removed.
 
 use super::batcher::{BatchedSource, RecordBatcher};
 use super::chunk::{LineReader, ReaderChunks};
 use super::parallel::Split;
-use super::plan::{plan, FilePlan, PlanKind, HEAD_BYTES};
+use super::plan::{plan, score_text, FilePlan, PlanKind, HEAD_BYTES};
 use super::sink::{BatchSink, ImportCancelled, NewSource, SourceReport};
 use super::{json, legacy, text};
 use crate::api::{FileKind, UnrecognizedFile};
 use crate::batch::{EventSchema, SourceId};
 use crate::importers::{decode, ImportCtx, Importers};
-use crate::profile::CompiledProfile;
+use crate::parser::set::{Candidate, SCORE_CHARS};
+use crate::parser::ParserSet;
 use crate::workspace::NOT_IMPORTED;
 use anyhow::{anyhow, Result};
 use std::collections::HashSet;
@@ -23,7 +25,8 @@ use std::sync::Arc;
 /// What an import reads with.
 pub struct ImportEnv<'a> {
     pub importers: &'a Importers,
-    pub profile: &'a CompiledProfile,
+    /// The parser library compiled with the profile: each file is read with the parser chosen for it.
+    pub parsers: &'a ParserSet,
     pub schema: Arc<EventSchema>,
     /// Set to stop the import at the next batch; the file being read is then not imported.
     pub cancel: &'a AtomicBool,
@@ -179,8 +182,26 @@ fn import_source<R: Read + Seek>(
     sink: &mut dyn BatchSink,
     split: Option<Split<'_>>,
 ) -> Outcome {
+    if head.is_empty() {
+        return unrecognized(&src.path, &src.name, "empty file");
+    }
+    let text = score_text(&head, whole);
+    let candidate = Candidate {
+        source: &src.path,
+        path,
+        rel: &src.name,
+        file_date,
+        bytes: &head[..head.len().min(SCORE_CHARS)],
+        text: text.as_deref(),
+    };
+    let choice = match env.parsers.choose(&candidate, env.importers) {
+        Ok(c) => c,
+        Err(_) if text.is_none() => return unrecognized(&src.path, &src.name, "binary file"),
+        Err(reason) => return unrecognized(&src.path, &src.name, reason),
+    };
+    drop(text);
     let ctx = ImportCtx {
-        profile: env.profile,
+        profile: choice.profile,
         path,
         file_date,
     };
@@ -230,6 +251,7 @@ fn import_source<R: Read + Seek>(
                 path: src.path.clone(),
                 name: src.name.clone(),
                 importer: plan.importer.to_string(),
+                parser: choice.reference.clone(),
                 file_kind: if plan.kind == PlanKind::Binary {
                     FileKind::Binary
                 } else {
@@ -276,7 +298,7 @@ fn read_events<R: Read + Seek>(
     name: &str,
     sink: &mut dyn BatchSink,
 ) -> Result<(BatchedSource, usize)> {
-    let mut batcher = RecordBatcher::new(env.profile, env.schema.clone(), id, name, sink, env.cancel);
+    let mut batcher = RecordBatcher::new(ctx.profile, env.schema.clone(), id, name, sink, env.cancel);
     let skipped = match plan.kind {
         PlanKind::Binary => {
             reader.seek(SeekFrom::Start(0))?;
@@ -321,7 +343,7 @@ fn read_events<R: Read + Seek>(
 mod tests {
     use super::*;
     use crate::batch::{EventBatch, EventId, PendingBatch};
-    use crate::profile::Profile;
+    use crate::profile::{CompiledProfile, Profile};
 
     /// Keeps batches in memory and records what happened to sources.
     #[derive(Default)]
@@ -359,8 +381,11 @@ mod tests {
         }
     }
 
-    fn env_parts() -> (Importers, CompiledProfile) {
-        (Importers::default(), CompiledProfile::compile(Profile::default_profile()).unwrap())
+    fn env_parts() -> (Importers, ParserSet) {
+        (
+            Importers::default(),
+            ParserSet::of_compiled(CompiledProfile::compile(Profile::default_profile()).unwrap()),
+        )
     }
 
     fn write(dir: &Path, name: &str, bytes: &[u8]) -> PathBuf {
@@ -388,7 +413,7 @@ mod tests {
         let cancel = AtomicBool::new(false);
         let env = ImportEnv {
             importers: &importers,
-            profile: &profile,
+            parsers: &profile,
             schema: Arc::new(EventSchema::plain()),
             cancel: &cancel,
         };
@@ -415,7 +440,11 @@ mod tests {
         assert_eq!(r.importer, "csv");
         for (name, bytes, reason) in [
             ("empty.log", &b""[..], "empty file"),
-            ("words.txt", b"just words", "no importer recognises this format"),
+            (
+                "words.txt",
+                b"just words",
+                "no enabled parser reads this file (see Settings ▸ Parsers)",
+            ),
             ("bin.dat", &[0u8, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 1, 2, 3][..], "binary file"),
         ] {
             let p = write(&dir, name, bytes);
@@ -431,7 +460,8 @@ mod tests {
         // A file the importer finds nothing in is removed again.
         let empty_json = write(&dir, "e.json", b"{\"@t\":\"2026-10-14T10:00:00Z\"}\n");
         let p = CompiledProfile::compile(Profile::from_toml("[[pipeline]]\nstep = 'drop'").unwrap()).unwrap();
-        let env2 = ImportEnv { profile: &p, ..env };
+        let p = ParserSet::of_compiled(p);
+        let env2 = ImportEnv { parsers: &p, ..env };
         let Outcome::Imported(r) = &import_path(&env2, &empty_json, "e.json", &none, &mut sink)[0] else {
             panic!()
         };
@@ -446,7 +476,7 @@ mod tests {
         let cancel = AtomicBool::new(false);
         let env = ImportEnv {
             importers: &importers,
-            profile: &profile,
+            parsers: &profile,
             schema: Arc::new(EventSchema::plain()),
             cancel: &cancel,
         };

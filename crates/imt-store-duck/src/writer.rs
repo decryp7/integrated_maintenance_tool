@@ -92,7 +92,7 @@ pub(crate) fn delete_segment(conn: &Connection, file: &str) -> Result<()> {
 /// Lists a finished source as ready, with its diagnostics.
 fn write_ready(conn: &Connection, r: &SourceReport) -> Result<()> {
     conn.execute(
-        "INSERT INTO sources (id, path, name, importer, file_kind, events, skipped, dropped, ts_from, ts_to, bytes, ready) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)",
+        "INSERT INTO sources (id, path, name, importer, file_kind, events, skipped, dropped, ts_from, ts_to, bytes, ready, parser_id, parser_version, parser_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?, ?)",
         params![
             r.id.0,
             r.path,
@@ -105,6 +105,9 @@ fn write_ready(conn: &Connection, r: &SourceReport) -> Result<()> {
             r.from,
             r.to,
             r.bytes,
+            r.parser.id,
+            r.parser.version,
+            r.parser.hash,
         ],
     )?;
     let mut app = conn.appender("diagnostics")?;
@@ -451,6 +454,7 @@ mod tests {
             path: "p".into(),
             name: "n".into(),
             importer: "text".into(),
+            parser: imt_core::parser::builtin::generic().reference(),
             file_kind: imt_core::api::FileKind::Text,
             events,
             skipped: 0,

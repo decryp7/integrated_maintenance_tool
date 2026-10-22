@@ -14,9 +14,9 @@ mod dto;
 mod session;
 
 pub use dto::{
-    content_hash, mark_search_matches, profile_toml, Analyzed, Coverage, DiagnosticFix, DiagnosticRow, EventView, EventsRequest,
-    FixEvaluation, ImportReport, IndexStatus, PageQuery, PageReply, ParserChange, ParserDef, ParserRef, ParserUse, PartialMatches,
-    QuickFix, SearchMatch, SearchReply, SearchRequest, SummaryReply, MAX_PAGE_ROWS,
+    content_hash, mark_search_matches, Analyzed, Coverage, DiagnosticFix, DiagnosticRow, EventView, EventsRequest, FixEvaluation,
+    ImportReport, IndexStatus, PageQuery, PageReply, ParserChange, ParserDef, ParserRef, ParserUse, PartialMatches, QuickFix, SearchMatch,
+    SearchReply, SearchRequest, SummaryReply, MAX_PAGE_ROWS,
 };
 pub use session::ImportSession;
 
@@ -184,12 +184,17 @@ pub trait Profiles: Send + Sync {
     /// Switches profile: a job that re-derives or re-reads what the change needs (only the sources whose parser
     /// changed).
     fn set_profile(&self, profile: Profile) -> StoreResult<ImportSession>;
-    /// Which parser each source was read with (ADR 0026; until then one parser, the profile, for all).
+    /// Which parser each source was read with (ADR 0026).
     fn parsers(&self) -> StoreResult<Vec<ParserUse>>;
-    /// What changing `parser` would do: the change's class and the sources using it (ADR 0026: per parser).
+    /// Replaces the parser library (the store keeps its per-source choices); nothing is read again. Returns
+    /// the sources read with a parser that is no longer the one the library reads them with.
+    fn set_parsers(&self, setup: &crate::parser::ParserSetup) -> StoreResult<Vec<SourceId>>;
+    /// Reads again the sources [`Profiles::set_parsers`] called stale and retries the files no parser read.
+    fn reread_parsers(&self) -> StoreResult<ImportSession>;
+    /// What changing the library's parser `parser.id` to `parser` would do: the sources it read again.
     fn classify_parser(&self, parser: &ParserDef) -> StoreResult<ParserChange>;
-    /// Reads one source with another parser (ADR 0026; refused until the parser library exists).
-    fn assign_parser(&self, source: SourceId, parser: &ParserDef) -> StoreResult<ImportSession>;
+    /// "Parse with…": reads one source with the library's parser `parser` (`None`: the automatic choice).
+    fn assign_parser(&self, source: SourceId, parser: Option<&str>) -> StoreResult<ImportSession>;
     fn preview_parse(&self, req: &ParsePreviewRequest) -> StoreResult<ParsePreview>;
     fn preview_extractor(&self, req: &ExtractPreviewRequest) -> StoreResult<ExtractPreview>;
     /// Proposes `[[span]]` rules that pair the example start/end events, each evaluated on the data.

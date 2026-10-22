@@ -358,7 +358,7 @@ mod tests {
     fn manifests_round_trip_and_refuse_what_they_cannot_read() {
         let m = ProjectManifest {
             name: "incident".into(),
-            profile_overrides: "[parse]\nday_first = true\n".into(),
+            profile_overrides: "[instance]\nkey = [\"Host\"]\n".into(),
             clock_offsets: vec![SourceOffset {
                 path: "/logs/a.log".into(),
                 offset_ms: -1500,

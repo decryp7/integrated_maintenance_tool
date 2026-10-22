@@ -26,6 +26,8 @@ pub(crate) struct AppState {
     pub(crate) stores: Arc<dyn StoreHost>,
     /// The folder of scratch stores (`<data>/stores`).
     pub(crate) store_root: PathBuf,
+    /// The parser library (ADR 0026), shared by every window.
+    pub(crate) parsers: Arc<crate::parsers::ParserLibrary>,
 }
 
 /// The folder of scratch stores under IMT's data folder (the temp folder when there is none).
@@ -76,6 +78,7 @@ impl AppState {
     ) -> AppState {
         let config_dir = profile_dir.as_ref().and_then(|d| d.parent()).map(PathBuf::from);
         let disabled = crate::plugin_config::load_plugin_settings(config_dir.as_deref()).disabled;
+        let parsers = crate::parsers::ParserLibrary::load(crate::parsers::parser_dir(config_dir.as_deref()).as_deref());
         AppState {
             profile_dir,
             config_dir,
@@ -85,6 +88,7 @@ impl AppState {
             installed: Arc::new(crate::plugin_packages::Installed::none()),
             stores,
             store_root,
+            parsers: Arc::new(parsers),
         }
     }
 
@@ -102,6 +106,7 @@ impl AppState {
         let dumps = crate::dumps::DumpsSlot::from_registry(&registry);
         let host = Host::new(registry, profile.clone())?;
         let engine = Engine::new(self.stores.clone(), self.store_root.clone(), label, profile);
+        engine.set_parsers(self.parsers.setup());
         let mut state = WindowState::new(label, engine, host, doc);
         state.profiling = profiling;
         state.dumps = dumps;

@@ -46,6 +46,8 @@ pub struct SourceReport {
     pub path: String,
     pub name: String,
     pub importer: String,
+    /// The parser that read it (ADR 0026).
+    pub parser: crate::ports::ParserRef,
     pub file_kind: FileKind,
     /// Events written.
     pub events: usize,

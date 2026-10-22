@@ -19,7 +19,7 @@ const TITLES: Record<ProposeKind, string> = {
   pipeline: $localize`:@@ai.launcher.title.proposePipeline:Propose pipeline steps`,
   markers: $localize`:@@ai.launcher.title.proposeMarkers:Propose markers`,
   extractors: $localize`:@@ai.launcher.title.proposeExtractors:Propose extractors`,
-  profile: $localize`:@@ai.launcher.title.proposeProfile:Propose a parsing profile`,
+  profile: $localize`:@@ai.launcher.title.proposeParser:Propose a parser`,
 };
 
 /**

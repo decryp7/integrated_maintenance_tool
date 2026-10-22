@@ -110,7 +110,7 @@ fn open_reports_sources_and_unrecognized_files() {
             ("array.json", "json importer found no events"),
             ("binary.dat", "binary file"),
             ("empty.log", "empty file"),
-            ("notes.txt", "no importer recognises this format"),
+            ("notes.txt", "no enabled parser reads this file (see Settings ▸ Parsers)"),
         ]
     );
     assert_eq!(s.levels[&Level::Fatal], 1);
@@ -170,7 +170,9 @@ fn remove_reload_clear_and_set_profile() {
     ws.clear();
     let s = ws.summary();
     assert_eq!((s.total, s.sources.len(), s.from), (0, 0, None));
-    assert!(ws.set_profile(Profile::from_toml("[parse]\nregexes = ['(']").unwrap()).is_err());
+    assert!(ws
+        .set_profile(Profile::from_toml("[[extract]]\nname = 'x'\nregex = '('").unwrap())
+        .is_err());
 }
 
 #[test]

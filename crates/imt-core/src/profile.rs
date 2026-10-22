@@ -1,8 +1,11 @@
-//! Parsing profiles: the user-editable pipeline (files -> parse -> instance ->
-//! extract -> markers -> charts). See `default_profile.toml` for the schema.
+//! Analysis profiles: how the workspace analyses events whatever their format (files -> instance ->
+//! extract -> pipeline -> markers -> charts). Formats are parsers ([`crate::parser`], ADR 0026). See
+//! `default_profile.toml` for the schema.
 
 use crate::condition::{Condition, ConditionCfg};
 use crate::model::{auto_value, Record};
+use crate::parser::{FormatCfg, Parser};
+use crate::ports::ParserRef;
 use crate::template::output_template_to_regex;
 use crate::time::TimestampParser;
 use anyhow::{anyhow, Context, Result};
@@ -18,7 +21,6 @@ pub const DEFAULT_PROFILE_TOML: &str = include_str!("default_profile.toml");
 pub struct Profile {
     pub name: String,
     pub files: FilesCfg,
-    pub parse: ParseCfg,
     pub instance: InstanceCfg,
     pub activity: ActivityCfg,
     #[serde(default)]
@@ -82,62 +84,6 @@ pub struct MarkerOverrideCfg {
 pub struct FilesCfg {
     pub include: Vec<String>,
     pub exclude: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ParseCfg {
-    pub format: String,
-    pub output_templates: Vec<String>,
-    pub regexes: Vec<String>,
-    pub timestamp_formats: Vec<String>,
-    pub assume_timezone: String,
-    pub day_first: DayFirst,
-    pub json: JsonCfg,
-    pub csv: CsvCfg,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum DayFirst {
-    Bool(bool),
-    Text(String),
-}
-
-impl DayFirst {
-    fn resolve(&self) -> Result<Option<bool>> {
-        match self {
-            DayFirst::Bool(b) => Ok(Some(*b)),
-            DayFirst::Text(t) => match t.to_ascii_lowercase().as_str() {
-                "auto" | "" => Ok(None),
-                "true" | "yes" => Ok(Some(true)),
-                "false" | "no" => Ok(Some(false)),
-                _ => Err(anyhow!("parse.day_first must be \"auto\", true or false")),
-            },
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct JsonCfg {
-    pub timestamp: Vec<String>,
-    pub level: Vec<String>,
-    pub message: Vec<String>,
-    pub template: Vec<String>,
-    pub exception: Vec<String>,
-    pub properties: Vec<String>,
-    pub default_level: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CsvCfg {
-    pub delimiter: String,
-    pub has_header: bool,
-    /// Column names for a file without a header row (missing or extra columns are `col<N>`).
-    #[serde(default)]
-    pub columns: Vec<String>,
-    pub timestamp: String,
-    pub level: String,
-    pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -334,6 +280,7 @@ impl Profile {
             message: e.message().to_string(),
             line: e.span().map(|s| text[..s.start.min(text.len())].lines().count().max(1)),
         })?;
+        check_no_formats(&user, text)?;
         crate::spans::config::check_toml(&user, text)?;
         check_field_types(&user, text)?;
         let mut merged: toml::Table = toml::from_str(DEFAULT_PROFILE_TOML).expect("default profile is valid TOML");
@@ -393,7 +340,28 @@ fn check_field_types(user: &toml::Table, text: &str) -> std::result::Result<(), 
     Ok(())
 }
 
-fn merge(base: &mut toml::Table, over: toml::Table) {
+/// Refuses the `[parse]` section profiles had before formats became parser files (ADR 0026), naming its line.
+fn check_no_formats(user: &toml::Table, text: &str) -> std::result::Result<(), ProfileError> {
+    let Some(key) = ["parse", "format", "match"].into_iter().find(|k| user.contains_key(*k)) else {
+        return Ok(());
+    };
+    let line = text
+        .lines()
+        .position(|l| {
+            let t = l.trim_start();
+            t.starts_with(&format!("[{key}")) || t.starts_with(key)
+        })
+        .map(|i| i + 1);
+    Err(ProfileError {
+        message: format!(
+            "[{key}] is not part of a profile: formats are parsers now (Settings ▸ Parsers); move these keys to a parser file"
+        ),
+        line,
+    })
+}
+
+/// Merges `over` into `base`: tables merge, other values replace.
+pub(crate) fn merge(base: &mut toml::Table, over: toml::Table) {
     for (k, v) in over {
         match (base.get_mut(&k), v) {
             (Some(toml::Value::Table(b)), toml::Value::Table(o)) => merge(b, o),
@@ -434,9 +402,17 @@ pub struct Marker {
     pub when: Vec<Condition>,
 }
 
-/// A profile with every regex, glob and condition compiled.
+/// Plugin record transforms by id (what `{ step = "plugin" }` resolves against).
+pub type Transforms = std::collections::HashMap<String, std::sync::Arc<dyn crate::plugin::RecordTransform>>;
+
+/// A profile compiled with one parser (ADR 0026): every regex, glob and condition compiled. The parser's
+/// extractors run before the profile's, its pipeline steps before the profile's pipeline.
 pub struct CompiledProfile {
     pub profile: Profile,
+    /// The parser's `[format]`: how files are read.
+    pub format: FormatCfg,
+    /// The parser this was compiled with.
+    pub parser: ParserRef,
     pub include: GlobSet,
     pub exclude: GlobSet,
     pub text_formats: Vec<TextFormat>,
@@ -448,6 +424,8 @@ pub struct CompiledProfile {
     pub markers: Vec<Marker>,
     /// Bitmask of lifecycle marker rules.
     pub lifecycle_mask: crate::model::MarkerMask,
+    /// The parser's `[[pipeline]]` steps (run first; their statistics are not reported per step).
+    pub format_pipeline: Option<crate::pipeline::Pipeline>,
     pub pipeline: crate::pipeline::Pipeline,
     pub icons: Vec<crate::icons::CustomIcon>,
     /// `[[span]]` rules, their marker bits resolved against `markers` (see [`CompiledProfile::resolve_spans`]).
@@ -457,25 +435,28 @@ pub struct CompiledProfile {
 }
 
 impl CompiledProfile {
-    /// Compiles a profile whose pipeline uses no plugin transforms.
+    /// Compiles a profile with the generic parser, without plugin transforms.
     pub fn compile(profile: Profile) -> Result<CompiledProfile> {
         Self::compile_with(profile, &std::collections::HashMap::new())
     }
 
-    /// Compiles a profile; `{ step = "plugin" }` entries resolve against `transforms`.
-    pub fn compile_with(
-        profile: Profile,
-        transforms: &std::collections::HashMap<String, std::sync::Arc<dyn crate::plugin::RecordTransform>>,
-    ) -> Result<CompiledProfile> {
+    /// Compiles a profile with the generic parser; `{ step = "plugin" }` entries resolve against `transforms`.
+    pub fn compile_with(profile: Profile, transforms: &Transforms) -> Result<CompiledProfile> {
+        Self::compile_for(profile, &crate::parser::builtin::generic(), transforms)
+    }
+
+    /// Compiles a profile with `parser`; `{ step = "plugin" }` entries resolve against `transforms`.
+    pub fn compile_for(profile: Profile, parser: &Parser, transforms: &Transforms) -> Result<CompiledProfile> {
         profile.live.compile()?;
         let include = globs(&profile.files.include).context("files.include")?;
         let exclude = globs(&profile.files.exclude).context("files.exclude")?;
+        let format = parser.format.clone();
 
         let mut text_formats = Vec::new();
         let mut patterns = Vec::new();
-        for t in &profile.parse.output_templates {
+        for t in &format.output_templates {
             let pattern = output_template_to_regex(t);
-            let regex = crate::user_regex::compile(&pattern, false).with_context(|| format!("parse.output_templates: {t}"))?;
+            let regex = crate::user_regex::compile(&pattern, false).with_context(|| format!("format.output_templates: {t}"))?;
             patterns.push(pattern);
             let time_only = !t.contains("{Timestamp:yyyy") && !t.contains("{Timestamp}") && t.contains("{Timestamp:");
             text_formats.push(TextFormat {
@@ -483,21 +464,17 @@ impl CompiledProfile {
                 time_only: time_only && !has_date_specifier(t),
             });
         }
-        for r in &profile.parse.regexes {
-            let regex = crate::user_regex::compile(r, false).with_context(|| format!("parse.regexes: {r}"))?;
+        for r in &format.regexes {
+            let regex = crate::user_regex::compile(r, false).with_context(|| format!("format.regexes: {r}"))?;
             text_formats.push(TextFormat { regex, time_only: false });
             patterns.push(r.clone());
         }
         let text_format_set = crate::user_regex::compile_set(&patterns).ok();
 
-        let timestamps = TimestampParser::new(
-            &profile.parse.timestamp_formats,
-            &profile.parse.assume_timezone,
-            profile.parse.day_first.resolve()?,
-        )?;
+        let timestamps = TimestampParser::new(&format.timestamp_formats, &format.assume_timezone, format.day_first.resolve()?)?;
 
         let mut extractors = Vec::new();
-        for e in &profile.extract {
+        for e in parser.extract.iter().chain(&profile.extract) {
             let regex = crate::user_regex::compile(&e.regex, false).with_context(|| RuleContext::new("extract", &e.name, Some("regex")))?;
             let when = compile_conditions(&e.when).with_context(|| RuleContext::new("extract", &e.name, Some("when")))?;
             let mut fields: Vec<(String, FieldSpec)> = e.fields.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
@@ -560,6 +537,11 @@ impl CompiledProfile {
             compile_conditions(&c.when).with_context(|| RuleContext::new("chart", &c.title, Some("when")))?;
         }
 
+        let format_pipeline = if parser.pipeline.is_empty() {
+            None
+        } else {
+            Some(crate::pipeline::Pipeline::compile(&parser.pipeline, transforms).context("the parser's [[pipeline]]")?)
+        };
         let pipeline = crate::pipeline::Pipeline::compile(&profile.pipeline, transforms)?;
         crate::redact::Redactor::from_config(&profile.redact, crate::redact::Salt::fixed([0; 16])).context("[redact]")?;
         crate::dashboard::validate_all(&profile.dashboard).context("[[dashboard]]")?;
@@ -571,7 +553,10 @@ impl CompiledProfile {
             routes,
             spans,
             icons,
+            format_pipeline,
             pipeline,
+            format,
+            parser: parser.reference(),
             profile,
             include,
             exclude,
@@ -597,6 +582,9 @@ impl CompiledProfile {
             self.apply_extractors(r, source_name);
         }
         let marks = crate::plugin::markers::MarkIndex::of(&self.markers);
+        if let Some(format) = &self.format_pipeline {
+            records = format.run_marking(records, source_name, &marks).0;
+        }
         let (mut records, stats) = self.pipeline.run_marking(records, source_name, &marks);
         for r in &mut records {
             // Plugin transforms may already have marked the record (`TransformCtx::mark`).
@@ -899,21 +887,58 @@ mod tests {
         assert_eq!(c.lifecycle_mask, 0b110);
         assert!(!c.text_formats[0].time_only);
         assert!(c.text_formats[1].time_only);
+        assert_eq!((c.parser.id.as_str(), c.format.kind.as_str()), ("generic", "auto"));
+        assert!(c.format_pipeline.is_none());
     }
 
     #[test]
     fn partial_profile_merges_defaults() {
-        let p = Profile::from_toml("name = \"Mine\"\n[parse]\nassume_timezone = \"local\"\n").unwrap();
+        let p = Profile::from_toml("name = \"Mine\"\n[instance]\nkey = ['Host']\n").unwrap();
         assert_eq!(p.name, "Mine");
-        assert_eq!(p.parse.assume_timezone, "local");
-        assert_eq!(p.parse.format, "auto");
+        assert_eq!(p.instance.key, ["Host"]);
+        assert!(!p.instance.candidates.is_empty());
         assert_eq!(p.marker.len(), 6);
     }
 
     #[test]
     fn reports_error_line() {
-        let e = Profile::from_toml("name = \"x\"\n[parse\n").unwrap_err();
+        let e = Profile::from_toml("name = \"x\"\n[instance\n").unwrap_err();
         assert_eq!(e.line, Some(2));
+    }
+
+    #[test]
+    fn formats_are_refused_with_a_pointer_to_parsers() {
+        let e = Profile::from_toml("name = \"x\"\n\n[parse]\nregexes = []\n").unwrap_err();
+        assert_eq!(e.line, Some(3));
+        assert!(e.message.contains("Settings ▸ Parsers"), "{e}");
+        let dotted = Profile::from_toml("parse.regexes = []\n").unwrap_err();
+        assert_eq!(dotted.line, Some(1));
+        // A parser's sections pasted into a profile are refused too.
+        let format = Profile::from_toml("name = \"x\"\n[format]\nkind = \"text\"\n").unwrap_err();
+        assert!(format.message.starts_with("[format]") && format.line == Some(2), "{format}");
+        assert!(!DEFAULT_PROFILE_TOML.lines().any(|l| l.starts_with("[parse")));
+    }
+
+    #[test]
+    fn a_parser_adds_its_format_extractors_and_steps() {
+        let parser = Parser::from_toml(
+            "schema = 1\nid = \"web\"\nname = \"Web\"\nversion = \"1.0.0\"\n[format]\nkind = \"text\"\nregexes = ['^(?P<timestamp>\\S+ \\S+) (?P<Status>\\d+) (?P<message>.*)$']\ntimestamp_formats = ['%Y-%m-%d %H:%M:%S']\n[[extract]]\nname = \"ms\"\nregex = 'took (?P<ms>\\d+)'\n[[pipeline]]\nstep = \"set_level\"\nlevel = \"Error\"\nwhen = [{ field = \"Status\", op = \"gt\", value = 499 }]\n",
+        )
+        .unwrap();
+        let profile = Profile::from_toml("[[extract]]\nname = \"order\"\nregex = 'order (?P<order>\\d+)'\n").unwrap();
+        let c = CompiledProfile::compile_for(profile, &parser, &Default::default()).unwrap();
+        assert_eq!(c.parser, parser.reference());
+        assert_eq!(c.text_formats.len(), 1);
+        let names: Vec<&str> = c.extractors.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(names, ["ms", "order"]);
+        let mut r = Record::new(1);
+        r.message = "order 7 took 12".into();
+        r.fields.insert("Status".into(), 503.into());
+        let (out, stats) = c.ingest(vec![r], "s");
+        assert_eq!(out[0].level, crate::model::Level::Error);
+        assert_eq!((out[0].fields["ms"].clone(), out[0].fields["order"].clone()), (12.into(), 7.into()));
+        // Per-step statistics are the profile's steps only.
+        assert!(stats.is_empty());
     }
 
     #[test]
@@ -987,17 +1012,20 @@ when = [{ field = "@message", op = "matches", value = "(" }]
             ("'no'", Some(false)),
             ("'auto'", None),
         ] {
-            let c = compile(&format!("[parse]\nday_first = {v}")).unwrap();
+            let c = crate::parser::testing::compiled(&format!("[format]\nday_first = {v}"));
             assert_eq!(c.timestamps.day_first(), want, "{v}");
         }
-        assert!(compile("[parse]\nday_first = 'sometimes'").is_err());
+        assert!(crate::parser::builtin::generic()
+            .with_override("[format]\nday_first = 'sometimes'")
+            .is_err());
     }
 
     #[test]
     fn compile_errors() {
         assert!(compile("[files]\ninclude = ['[']").is_err());
-        assert!(compile("[parse]\nregexes = ['(']").is_err());
-        assert!(compile("[parse]\nassume_timezone = 'Mars'").is_err());
+        let generic = crate::parser::builtin::generic();
+        assert!(generic.with_override("[format]\nregexes = ['(']").is_err());
+        assert!(generic.with_override("[format]\nassume_timezone = 'Mars'").is_err());
         assert!(compile("[[extract]]\nname='x'\nregex='('").is_err());
         assert!(compile("[[extract]]\nname='x'\nregex='(?P<a>.)'\n[extract.fields]\nb = { type = 'number' }").is_err());
         assert!(compile("[[extract]]\nname='x'\nregex='a'\nwhen=[{field='f',op='nope'}]").is_err());
@@ -1116,11 +1144,14 @@ when = [{ field = "@message", op = "matches", value = "(" }]
 
     #[test]
     fn overrides_merge_over_the_profile() {
-        let base = Profile::from_toml("name = \"base\"\n[parse]\ntimestamp_formats = [\"%Y\"]").unwrap();
-        let merged = base.with_override("[parse]\nday_first = true").unwrap();
+        let base = Profile::from_toml("name = \"base\"\n[instance]\nkey = [\"Host\"]").unwrap();
+        let merged = base.with_override("[instance]\ncandidates = [\"App\"]").unwrap();
         assert_eq!(merged.name, "base");
-        assert_eq!(merged.parse.timestamp_formats, vec!["%Y".to_string()]);
-        let e = base.with_override("[parse\n").unwrap_err();
+        assert_eq!(
+            (merged.instance.key.clone(), merged.instance.candidates.clone()),
+            (vec!["Host".to_string()], vec!["App".to_string()])
+        );
+        let e = base.with_override("[instance\n").unwrap_err();
         assert_eq!(e.line, Some(1));
     }
 

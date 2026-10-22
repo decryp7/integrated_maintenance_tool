@@ -1,0 +1,22 @@
+# Serilog compact JSON (CLEF): Serilog.Formatting.Compact, one JSON object per line with @t, @l, @mt, @m and @x.
+schema = 1
+id = "serilog-clef"
+name = "Serilog CLEF"
+version = "1.0.0"
+category = ".NET"
+description = "Compact JSON from Serilog.Formatting.Compact (.clef): one event per line with @t, @l, @mt and @x; every property becomes a field."
+
+[match]
+json_keys = ["@t"]
+
+[format]
+kind = "json"
+
+[format.json]
+timestamp = ["@t"]
+level = ["@l"]
+message = ["@m"]
+template = ["@mt"]
+exception = ["@x"]
+properties = []
+default_level = "Information"

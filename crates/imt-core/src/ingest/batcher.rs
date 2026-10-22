@@ -230,7 +230,6 @@ mod tests {
     use crate::batch::{EventBatch, EventId, PendingBatch};
     use crate::ingest::sink::{NewSource, SourceReport};
     use crate::model::Level;
-    use crate::profile::Profile;
 
     #[derive(Default)]
     struct Collect {
@@ -257,7 +256,7 @@ mod tests {
     }
 
     fn profile(toml: &str) -> CompiledProfile {
-        CompiledProfile::compile(Profile::from_toml(toml).unwrap()).unwrap()
+        crate::parser::testing::compiled(toml)
     }
 
     fn event(line: u32, message: &str, ts: Option<i64>) -> ParsedEvent {

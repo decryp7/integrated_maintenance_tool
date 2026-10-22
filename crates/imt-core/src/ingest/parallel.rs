@@ -285,7 +285,7 @@ fn read_chunk(
     let mut chunks = ReaderChunks::new(file.take(len), plan.encoding, start.byte_offset).starting_at_line(start.line);
     let mut lines = LineReader::new(&mut chunks);
     let mut shared = SharedRef(sink);
-    let mut batcher = RecordBatcher::new(env.profile, env.schema.clone(), id, name, &mut shared, env.cancel);
+    let mut batcher = RecordBatcher::new(ctx.profile, env.schema.clone(), id, name, &mut shared, env.cancel);
     let skipped = match plan.kind {
         PlanKind::Text { format, day_first, .. } => text::import_text(ctx, format, day_first, &mut lines, &mut batcher)?,
         PlanKind::Json(shape) => json::import_json(ctx, shape, len, &mut lines, &mut batcher)?,
@@ -331,6 +331,7 @@ mod tests {
     use crate::batch::{EventBatch, EventId, EventSchema};
     use crate::importers::Importers;
     use crate::ingest::plan::plan;
+    use crate::parser::ParserSet;
     use crate::profile::{CompiledProfile, Profile};
     use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
     use std::sync::{Arc, Mutex};
@@ -394,11 +395,11 @@ mod tests {
 
     fn run(files: &[(PathBuf, String)], target: u64, threads: usize) -> (Shared, Vec<Outcome>) {
         let importers = Importers::default();
-        let profile = CompiledProfile::compile(Profile::default_profile()).unwrap();
+        let profile = ParserSet::of_compiled(CompiledProfile::compile(Profile::default_profile()).unwrap());
         let cancel = AtomicBool::new(false);
         let env = ImportEnv {
             importers: &importers,
-            profile: &profile,
+            parsers: &profile,
             schema: Arc::new(EventSchema::plain()),
             cancel: &cancel,
         };
@@ -548,11 +549,11 @@ mod tests {
         let p = dir.join("big.log");
         std::fs::write(&p, log(20000)).unwrap();
         let importers = Importers::default();
-        let profile = CompiledProfile::compile(Profile::default_profile()).unwrap();
+        let profile = ParserSet::of_compiled(CompiledProfile::compile(Profile::default_profile()).unwrap());
         let cancel = AtomicBool::new(false);
         let env = ImportEnv {
             importers: &importers,
-            profile: &profile,
+            parsers: &profile,
             schema: Arc::new(EventSchema::plain()),
             cancel: &cancel,
         };

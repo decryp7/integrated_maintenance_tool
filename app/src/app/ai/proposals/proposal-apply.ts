@@ -5,6 +5,8 @@ import { isCancellation } from '../../core/activity/runtime';
 import { MarkDialog } from '../../context/mark-dialog';
 import { COMMAND_CONTEXT } from '../../extensions/command-registry';
 import { ProfileUndo } from '../../undo/profile-undo';
+import { WorkspaceStore } from '../../core/workspace.store';
+import { ParsersBackend } from '../../settings/parsers/parsers-backend';
 import { DialogService } from '../../ui/dialog.service';
 import { Proposal } from '../ai.types';
 
@@ -14,8 +16,9 @@ export type ApplyOutcome = { kind: 'applied'; message: string } | { kind: 'opene
 const LABEL_MAX = 40;
 
 /**
- * Applies an engine-validated proposal through the same paths a user's own edit takes: profile changes
- * through the profile's validated save (undoable), a regex as a highlight rule in the marker dialog, a
+ * Applies an engine-validated proposal through the same paths a user's own edit takes: a parser for a file
+ * into the library (then the files are read again, ADR 0026), profile changes through the profile's validated
+ * save (undoable), a regex as a highlight rule in the marker dialog, a
  * query through the query bar. The AI never changes anything itself.
  */
 @Injectable({ providedIn: 'root' })
@@ -25,6 +28,8 @@ export class ProposalApply {
   private readonly query = inject(QuerySession);
   private readonly ctx = inject(COMMAND_CONTEXT);
   private readonly activity = inject(ActivityLog);
+  private readonly parsers = inject(ParsersBackend);
+  private readonly workspace = inject(WorkspaceStore);
 
   /** Applies `p` as one user operation in the activity log (`ai.applyProposal`, with its kind only). */
   async apply(p: Proposal): Promise<ApplyOutcome> {
@@ -69,8 +74,11 @@ export class ProposalApply {
         };
       }
       case 'profile':
-        await this.profiles.save($localize`:@@ai.proposalApply.profile.undo:AI: parsing profile "${p.name}:name:"`, p.toml);
-        return { kind: 'applied', message: $localize`:@@ai.proposalApply.profile.done:Profile saved; the files were read again.` };
+        // A parser for the library (ADR 0026); none when the library already reads the file.
+        if (!p.toml.trim()) return { kind: 'applied', message: $localize`:@@ai.proposalApply.parser.known:IMT's parsers already read this file.` };
+        await this.parsers.save(p.toml, { overwrite: true });
+        void this.workspace.followReread(await this.parsers.reread());
+        return { kind: 'applied', message: $localize`:@@ai.proposalApply.parser.done:Parser added to the library; the files are read again.` };
       case 'pipeline':
         await this.profiles.save($localize`:@@ai.proposalApply.pipeline.undo:AI: pipeline steps`, p.profileToml);
         return { kind: 'applied', message: $localize`:@@ai.proposalApply.pipeline.done:Pipeline steps added to the profile (Undo reverts them).` };

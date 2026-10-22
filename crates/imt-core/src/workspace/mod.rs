@@ -191,7 +191,12 @@ impl ImportProgress {
 }
 
 pub struct Workspace {
+    /// The profile with the generic parser: everything that does not depend on a file's format.
     profile: Arc<CompiledProfile>,
+    /// The parser library compiled with the profile (ADR 0026): each file is read with its own parser.
+    parsers: Arc<crate::parser::ParserSet>,
+    /// The parser each source was read with.
+    parser_refs: std::collections::HashMap<u32, crate::ports::ParserRef>,
     registry: PluginRegistry,
     roots: Vec<PathBuf>,
     /// Files the user removed; folder scans skip them until opened explicitly.
@@ -242,13 +247,21 @@ impl Workspace {
         Self::with_registry(profile, registry)
     }
 
-    /// An empty workspace extended by the plugins installed in `registry`.
+    /// An empty workspace extended by the plugins installed in `registry`, reading with the built-in parsers.
     pub fn with_registry(profile: Profile, registry: PluginRegistry) -> Result<Workspace> {
+        Self::with_parsers(profile, registry, &crate::parser::ParserSetup::builtins())
+    }
+
+    /// An empty workspace extended by the plugins in `registry`, reading with the parser library `setup`.
+    pub fn with_parsers(profile: Profile, registry: PluginRegistry, setup: &crate::parser::ParserSetup) -> Result<Workspace> {
         registry.resolve();
-        let profile = Arc::new(registry.compile_profile(profile)?);
+        let parsers = Arc::new(registry.compile_parsers(&profile, setup)?);
+        let profile = parsers.base().clone();
         let marker_kinds = profile.markers.iter().map(|m| m.kind.clone()).collect();
         Ok(Workspace {
             profile,
+            parsers,
+            parser_refs: Default::default(),
             registry,
             roots: Vec::new(),
             removed: HashSet::new(),
@@ -365,6 +378,7 @@ impl Workspace {
         self.roots.clear();
         self.removed.clear();
         self.sources.clear();
+        self.parser_refs.clear();
         self.unrecognized.clear();
         self.records.clear();
         self.rebuild();
@@ -391,18 +405,83 @@ impl Workspace {
 
     /// Replaces the profile and re-imports everything.
     pub fn set_profile(&mut self, profile: Profile) -> Result<()> {
-        let compiled = self.registry.compile_profile(profile)?;
+        self.swap_profile(profile)?;
         for h in &self.registry.hooks {
-            h.on_profile_changed(&compiled.profile);
+            h.on_profile_changed(&self.profile.profile);
         }
+        self.reload()
+    }
+
+    /// Compiles the parser library with `profile` and makes both current (nothing is read again).
+    fn swap_profile(&mut self, profile: Profile) -> Result<()> {
+        let parsers = Arc::new(self.registry.compile_parsers(&profile, self.parsers.setup())?);
+        let compiled = parsers.base().clone();
         self.registry.events().publish(crate::events::ProfileChanged {
             name: compiled.profile.name.clone(),
         });
         self.marker_kinds = compiled.markers.iter().map(|m| m.kind.clone()).collect();
-        self.profile = Arc::new(compiled);
+        self.profile = compiled;
+        self.parsers = parsers;
         self.profile_revision += 1;
-        self.refresh_view_redaction()?;
-        self.reload()
+        self.refresh_view_redaction()
+    }
+
+    /// The parser library the workspace reads with.
+    pub fn parsers(&self) -> &crate::parser::ParserSet {
+        &self.parsers
+    }
+
+    /// Replaces the parser library (and the per-source choices); returns the ids of the sources read with a
+    /// parser that is no longer the one the library would use (re-read them with [`Workspace::reread`]).
+    pub fn set_parsers(&mut self, setup: &crate::parser::ParserSetup) -> Result<Vec<u32>> {
+        self.parsers = Arc::new(self.registry.compile_parsers(&self.profile.profile, setup)?);
+        Ok(self.stale_sources())
+    }
+
+    /// The sources whose recorded parser is not the one the library would read them with.
+    pub fn stale_sources(&self) -> Vec<u32> {
+        self.parsers.stale(
+            self.sources
+                .iter()
+                .filter_map(|s| Some((s.id, s.path.as_str(), self.parser_refs.get(&s.id)?))),
+        )
+    }
+
+    /// The parser that read a source.
+    pub fn parser_of(&self, id: u32) -> Option<&crate::ports::ParserRef> {
+        self.parser_refs.get(&id)
+    }
+
+    /// Reads these sources' files again (with the parser the library chooses now, or the override); the
+    /// files keep their place in the workspace.
+    pub fn reread(&mut self, ids: &[u32]) -> Result<()> {
+        let paths: Vec<PathBuf> = self
+            .sources
+            .iter()
+            .filter(|s| ids.contains(&s.id))
+            .map(|s| PathBuf::from(s.path.split(crate::archive::ENTRY_SEPARATOR).next().unwrap_or(&s.path)))
+            .collect();
+        let gone: Vec<u32> = self
+            .sources
+            .iter()
+            .filter(|s| {
+                paths
+                    .iter()
+                    .any(|p| Path::new(s.path.split(crate::archive::ENTRY_SEPARATOR).next().unwrap_or(&s.path)) == p)
+            })
+            .map(|s| s.id)
+            .collect();
+        self.sources.retain(|s| !gone.contains(&s.id));
+        self.records.retain(|r| !gone.contains(&r.source));
+        for id in gone {
+            self.tail.forget(id);
+            self.parser_refs.remove(&id);
+        }
+        let (records, _) = self.import_files(paths);
+        self.records.extend(records);
+        self.rebuild();
+        self.run_annotators(None);
+        Ok(())
     }
 
     /// Reads what changed on disk (see [`Workspace::refresh_tail`]): appended
@@ -447,14 +526,7 @@ impl Workspace {
     /// Replaces everything with `state` under `profile`. Paths that no longer
     /// exist are skipped and returned.
     pub fn restore(&mut self, profile: Profile, state: &WorkspaceState) -> Result<Vec<String>> {
-        let compiled = self.registry.compile_profile(profile)?;
-        self.marker_kinds = compiled.markers.iter().map(|m| m.kind.clone()).collect();
-        self.registry.events().publish(crate::events::ProfileChanged {
-            name: compiled.profile.name.clone(),
-        });
-        self.profile = Arc::new(compiled);
-        self.profile_revision += 1;
-        self.refresh_view_redaction()?;
+        self.swap_profile(profile)?;
         self.reset();
         self.removed = state.removed.iter().map(PathBuf::from).collect();
         self.offsets = state.offsets.clone().sanitized();
@@ -504,7 +576,7 @@ impl Workspace {
     /// workspace) and the new source ids.
     fn import_files(&mut self, files: Vec<PathBuf>) -> (Vec<Record>, Vec<u32>) {
         let progress = self.progress.clone();
-        let profile = self.profile.clone();
+        let parsers = self.parsers.clone();
         let importers = &self.registry.importers;
         let named: Vec<(PathBuf, String, u64)> = files
             .into_iter()
@@ -524,7 +596,7 @@ impl Workspace {
                     vec![(path.to_string_lossy().into_owned(), name, Err(NOT_IMPORTED.to_string()))]
                 } else {
                     progress.reading(&path);
-                    import_file(importers, &profile, &path, &name, removed)
+                    import_file(importers, &parsers, &path, &name, removed)
                 };
                 progress.file_done(size);
                 out
@@ -592,6 +664,7 @@ impl Workspace {
                 s.timestamp_issue = loaded.timestamp_issue.take();
                 s.problems = problems.take().unwrap_or_default();
                 s.identity = loaded.identity.clone();
+                s.parser = Some(loaded.parser.id.clone());
                 if let Some(label) = &label {
                     s.group = format!("{} › {label}", group_of(&name));
                     s.routed_from = Some(name.clone());
@@ -602,6 +675,7 @@ impl Workspace {
                 let name = self.source_name(id).to_string();
                 self.tail.track(id, &path, &name, seed);
             }
+            self.parser_refs.insert(id, loaded.parser.clone());
             records.extend(recs.into_iter().map(|mut r| {
                 r.source = id;
                 r
@@ -609,6 +683,15 @@ impl Workspace {
             ids.push(id);
         }
         ids
+    }
+
+    /// The profile compiled with the parser that read a source (the base profile when unknown).
+    pub(crate) fn profile_of_source(&self, id: u32) -> Arc<CompiledProfile> {
+        self.parser_refs
+            .get(&id)
+            .and_then(|r| self.parsers.profile_of(&r.id))
+            .cloned()
+            .unwrap_or_else(|| self.profile.clone())
     }
 
     /// Registers a source (without records) and returns its id.
@@ -643,6 +726,7 @@ impl Workspace {
             routed_from: None,
             problems: Vec::new(),
             identity: Vec::new(),
+            parser: None,
         });
         id
     }
@@ -837,8 +921,10 @@ struct Loaded {
     file_kind: FileKind,
     imported: crate::importers::Imported,
     logical: Vec<(String, Vec<Record>)>,
-    /// The importer's identity fields (instance-key candidates).
+    /// The importer's and the parser's identity fields (instance-key candidates).
     identity: Vec<String>,
+    /// The parser that read it.
+    parser: crate::ports::ParserRef,
     stats: Vec<crate::pipeline::StepStats>,
     seed: Option<tail::TailSeed>,
     timestamp_issue: Option<crate::api::TimestampIssue>,
@@ -870,7 +956,7 @@ fn time_range(records: &[Record]) -> (Option<i64>, Option<i64>) {
 /// every resulting file. Returns (source path, display name, result) per file.
 fn import_file(
     importers: &Importers,
-    profile: &CompiledProfile,
+    parsers: &crate::parser::ParserSet,
     path: &Path,
     name: &str,
     removed: &HashSet<PathBuf>,
@@ -911,7 +997,13 @@ fn import_file(
             // A crash anywhere while reading one file (even in built-in code) fails only that file.
             let plain = entry.name.is_none();
             let result = crate::guard::catch("IMT", || {
-                Ok(import_bytes(importers, profile, path, &entry.bytes, &source_name, file_date, plain))
+                let file = FileRef {
+                    source: &source_path,
+                    path,
+                    name: &source_name,
+                    file_date,
+                };
+                Ok(import_bytes(importers, parsers, &file, &entry.bytes, plain))
             })
             .unwrap_or_else(|e| Err(format!("{e:#} (please report this file)")))
             .map(|mut loaded| {
@@ -933,18 +1025,35 @@ fn import_file(
 
 /// Imports one file's bytes. `plain` (not an archive member) also prepares
 /// tailing it incrementally when its importer can append.
-fn import_bytes(
-    importers: &Importers,
-    profile: &CompiledProfile,
-    path: &Path,
-    bytes: &[u8],
-    source_name: &str,
+/// The file `import_bytes` reads: its source path, the file on disk, its display name and date.
+struct FileRef<'a> {
+    source: &'a str,
+    path: &'a Path,
+    name: &'a str,
     file_date: Option<chrono::NaiveDate>,
-    plain: bool,
-) -> ImportResult {
+}
+
+fn import_bytes(importers: &Importers, parsers: &crate::parser::ParserSet, file: &FileRef, bytes: &[u8], plain: bool) -> ImportResult {
+    let (path, source_name, file_date) = (file.path, file.name, file.file_date);
     if bytes.is_empty() {
         return Err("empty file".into());
     }
+    let head = &bytes[..bytes.len().min(crate::ingest::HEAD_BYTES)];
+    let score_text = crate::ingest::score_text(head, head.len() == bytes.len());
+    let candidate = crate::parser::set::Candidate {
+        source: file.source,
+        path,
+        rel: source_name,
+        file_date,
+        bytes: &head[..head.len().min(crate::parser::set::SCORE_CHARS)],
+        text: score_text.as_deref(),
+    };
+    let choice = match parsers.choose(&candidate, importers) {
+        Ok(c) => c,
+        Err(_) if score_text.is_none() => return Err("binary file".into()),
+        Err(reason) => return Err(reason),
+    };
+    let profile: &CompiledProfile = choice.profile;
     let ctx = ImportCtx { profile, path, file_date };
     let mut append = None;
     let mut file_kind = FileKind::Text;
@@ -994,12 +1103,19 @@ fn import_bytes(
     imported.problems.merge(split.problems);
     // A file split by routes is re-read whole when it changes, so its new events find their logical sources.
     let seed = seed.filter(|_| split.logical.is_empty());
+    let mut identity = identity;
+    for f in &choice.parser.format.identity {
+        if !identity.contains(f) {
+            identity.push(f.clone());
+        }
+    }
     Ok(Loaded {
         importer: id.to_string(),
         file_kind,
         imported,
         logical: split.logical,
         identity,
+        parser: choice.reference.clone(),
         stats,
         seed,
         timestamp_issue,

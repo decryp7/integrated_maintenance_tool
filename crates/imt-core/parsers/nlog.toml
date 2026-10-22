@@ -1,0 +1,14 @@
+# NLog default layout "${longdate}|${level:uppercase=true}|${logger}|${message}" (longdate is local time with
+# 4 fraction digits; read as UTC unless you change [format] assume_timezone).
+schema = 1
+id = "nlog"
+name = "NLog default layout"
+version = "1.0.0"
+category = ".NET"
+description = "Text from NLog's default layout \"${longdate}|${level}|${logger}|${message}\": logger as a field, multi-line messages kept together."
+
+[format]
+kind = "text"
+regexes = [
+  '^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d{1,7})?)\|(?P<level>[A-Za-z]+)\|(?P<Logger>[^|]*)\|(?P<message>.*)$',
+]

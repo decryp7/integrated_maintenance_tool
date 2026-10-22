@@ -65,6 +65,7 @@ pub(crate) fn report_source(r: &SourceReport) -> SourceInfo {
         routed_from: None,
         problems: r.problems.clone(),
         identity: Vec::new(),
+        parser: Some(r.parser.id.clone()),
     }
 }
 
@@ -353,6 +354,19 @@ impl Inner {
                 for f in declared {
                     if !identity.contains(&f) {
                         identity.push(f);
+                    }
+                }
+            }
+            // And those of the sources' parsers (ADR 0026).
+            let mut stmt = conn
+                .prepare("SELECT DISTINCT parser_id FROM sources WHERE ready AND parser_id IS NOT NULL ORDER BY parser_id")
+                .map_err(engine)?;
+            let ids = stmt.query_map([], |r| r.get::<_, String>(0)).map_err(engine)?;
+            let set = self.parser_set();
+            for id in ids {
+                for f in set.identity_of(&id.map_err(engine)?) {
+                    if !identity.contains(f) {
+                        identity.push(f.clone());
                     }
                 }
             }
@@ -678,7 +692,7 @@ impl Inner {
         }
         let mut sources = Vec::new();
         let mut stmt = conn
-            .prepare("SELECT id, path, name, importer, file_kind, events, skipped, dropped, ts_from, ts_to FROM sources WHERE ready ORDER BY name")
+            .prepare("SELECT id, path, name, importer, file_kind, events, skipped, dropped, ts_from, ts_to, parser_id FROM sources WHERE ready ORDER BY name")
             .map_err(engine)?;
         let rows = stmt
             .query_map([], |r| {
@@ -703,6 +717,7 @@ impl Inner {
                     routed_from: None,
                     problems: Vec::new(),
                     identity: Vec::new(),
+                    parser: r.get(10)?,
                 })
             })
             .map_err(engine)?;

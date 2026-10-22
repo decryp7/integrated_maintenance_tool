@@ -102,11 +102,14 @@ fn parse_only(paths: &[PathBuf]) -> usize {
         }
     }
     let registry = imt_core::PluginRegistry::new();
-    let profile = registry.compile_profile(Profile::default_profile()).unwrap();
+    let parsers = registry
+        .compile_parsers(&Profile::default_profile(), &imt_core::parser::ParserSetup::builtins())
+        .unwrap();
+    let profile = parsers.base().clone();
     let progress = imt_core::workspace::ImportProgress::default();
     let env = ImportEnv {
         importers: registry.importers(),
-        profile: &profile,
+        parsers: &parsers,
         schema: Arc::new(ingest::schema_for(&profile)),
         cancel: progress.cancel_flag(),
     };

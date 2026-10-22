@@ -240,7 +240,11 @@ describe('folder set-up hint, command and backends', () => {
     const b = new MockFolderSetupBackend(workspace, { stageMs: 0 });
     await expect(b.compose([])).rejects.toThrow('select at least one');
     const marker = { kind: 'marker' as const, marker: { kind: 'x1', when: [] } };
-    const c = await b.compose([marker, { kind: 'parseRegex', regex: '^(?P<message>.*)$' }, { kind: 'savedQuery', name: 'Q', ql: 'level >= error' }]);
+    const c = await b.compose([marker, { kind: 'parseRegex', regex: '^(?P<message>.*)$', fileName: 'app.log' }, { kind: 'savedQuery', name: 'Q', ql: 'level >= error' }]);
+    expect(c.parsers).toHaveLength(1);
+    expect(c.parsers[0]).toContain('id = "app.log"');
+    expect(c.toml).not.toContain('[parse]');
+    expect(snippet([{ kind: 'parseRegex', regex: 'x', fileName: 'a.log' }])).toContain('# New parser for a.log: x');
     expect(c.savedQueries).toEqual([{ name: 'Q', ql: 'level >= error' }]);
     await workspace.saveProfile(c.toml);
     await expect(b.compose([marker])).rejects.toThrow('already has a marker named "x1"');

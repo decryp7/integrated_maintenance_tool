@@ -335,28 +335,77 @@ impl Profiles for WorkspaceStore {
     }
     fn parsers(&self) -> StoreResult<Vec<crate::ports::ParserUse>> {
         let ws = self.read();
-        Ok(vec![crate::ports::ParserUse {
-            parser: crate::ports::ParserRef::of_profile(ws.profile()),
-            sources: ws.sources().iter().map(|s| SourceId(s.id)).collect(),
-        }])
+        let mut uses: Vec<crate::ports::ParserUse> = Vec::new();
+        for s in ws.sources() {
+            let Some(r) = ws.parser_of(s.id) else { continue };
+            match uses.iter_mut().find(|u| u.parser == *r) {
+                Some(u) => u.sources.push(SourceId(s.id)),
+                None => uses.push(crate::ports::ParserUse {
+                    parser: r.clone(),
+                    sources: vec![SourceId(s.id)],
+                }),
+            }
+        }
+        for u in &mut uses {
+            u.sources.sort_by_key(|s| s.0);
+        }
+        uses.sort_by(|a, b| (&a.parser.id, &a.parser.hash).cmp(&(&b.parser.id, &b.parser.hash)));
+        Ok(uses)
+    }
+    fn set_parsers(&self, setup: &crate::parser::ParserSetup) -> StoreResult<Vec<SourceId>> {
+        let mut ws = self.write();
+        let mut setup = setup.clone();
+        setup.overrides = ws.parsers().setup().overrides.clone();
+        Ok(ws.set_parsers(&setup).map_err(invalid)?.into_iter().map(SourceId).collect())
+    }
+    fn reread_parsers(&self) -> StoreResult<ImportSession> {
+        self.done(|ws| {
+            let stale = ws.stale_sources();
+            ws.reread(&stale)
+        })
     }
     fn classify_parser(&self, parser: &crate::ports::ParserDef) -> StoreResult<crate::ports::ParserChange> {
         let ws = self.read();
-        let new = Profile::from_toml(&parser.toml).map_err(|e| StoreError::Invalid(e.message))?;
-        let change = crate::profile_change::classify(ws.profile(), &new);
-        let sources = if change.class == crate::profile_change::ChangeClass::Presentation {
-            Vec::new()
-        } else {
-            ws.sources().iter().map(|s| SourceId(s.id)).collect()
-        };
+        let new = crate::parser::Parser::from_toml(&parser.toml).map_err(|e| StoreError::Invalid(e.to_string()))?;
+        let r = new.reference();
+        let sources: Vec<SourceId> = ws
+            .sources()
+            .iter()
+            .filter(|s| ws.parser_of(s.id).is_some_and(|u| u.id == r.id && u.hash != r.hash))
+            .map(|s| SourceId(s.id))
+            .collect();
         Ok(crate::ports::ParserChange {
-            class: change.class,
-            sections: change.sections,
+            class: if sources.is_empty() {
+                crate::profile_change::ChangeClass::Presentation
+            } else {
+                crate::profile_change::ChangeClass::Parsing
+            },
+            sections: if sources.is_empty() { Vec::new() } else { vec!["format".into()] },
             sources,
         })
     }
-    fn assign_parser(&self, _source: SourceId, _parser: &crate::ports::ParserDef) -> StoreResult<ImportSession> {
-        Err(StoreError::unsupported("assigning a parser to a source", "ADR 0026"))
+    fn assign_parser(&self, source: SourceId, parser: Option<&str>) -> StoreResult<ImportSession> {
+        let path = {
+            let ws = self.read();
+            let s = ws
+                .sources()
+                .iter()
+                .find(|s| s.id == source.0)
+                .ok_or_else(|| StoreError::NotFound(format!("source {source}")))?;
+            if let Some(id) = parser.filter(|id| ws.parsers().parser(id).is_none()) {
+                return Err(StoreError::NotFound(format!("parser \"{id}\" (it is not in the library)")));
+            }
+            s.path.clone()
+        };
+        self.done(move |ws| {
+            let mut setup = ws.parsers().setup().clone();
+            match parser {
+                Some(id) => setup.overrides.insert(path.clone(), id.to_string()),
+                None => setup.overrides.remove(&path),
+            };
+            ws.set_parsers(&setup)?;
+            ws.reread(&[source.0])
+        })
     }
     fn preview_spans(&self, req: &crate::spans::SpanPreviewRequest) -> StoreResult<crate::spans::SpanPreview> {
         Ok(self.read().preview_spans(req))

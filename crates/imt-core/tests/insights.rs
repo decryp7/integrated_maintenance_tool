@@ -281,9 +281,11 @@ fn parse_preview_uses_the_real_engine() {
     use imt_core::api::ParsePreviewRequest;
     let s = store();
     let sample = "[10:00:01 WRN] [WEB09] Disk almost full\n[10:00:02 INF] [WEB09] Application started\n";
-    let toml = "[parse]\noutput_templates = ['[{Timestamp:HH:mm:ss} {Level:u3}] [{MachineName}] {Message:lj}{NewLine}{Exception}']\n[[pipeline]]\nstep = 'set'\nfield = 'Team'\nvalue = 'ops'";
+    let parser = "schema = 1\nid = \"web\"\nname = \"Web\"\nversion = \"1.0.0\"\n[format]\nkind = \"text\"\noutput_templates = ['[{Timestamp:HH:mm:ss} {Level:u3}] [{MachineName}] {Message:lj}{NewLine}{Exception}']";
+    let profile = "[[pipeline]]\nstep = 'set'\nfield = 'Team'\nvalue = 'ops'";
     let p = s.preview_parse(&ParsePreviewRequest {
-        toml: toml.into(),
+        toml: parser.into(),
+        profile: profile.into(),
         sample: sample.into(),
         file_name: "x.log".into(),
         limit: 1,
@@ -296,13 +298,15 @@ fn parse_preview_uses_the_real_engine() {
 
     let nothing = s.preview_parse(&ParsePreviewRequest {
         toml: String::new(),
+        profile: String::new(),
         sample: "plain words".into(),
         file_name: String::new(),
         limit: 5,
     });
-    assert!(nothing.error.unwrap().contains("no importer"));
+    assert!(nothing.error.unwrap().contains("no enabled parser"));
     let bad = s.preview_parse(&ParsePreviewRequest {
-        toml: "[parse".into(),
+        toml: "[format".into(),
+        profile: String::new(),
         sample: String::new(),
         file_name: String::new(),
         limit: 5,
@@ -310,6 +314,7 @@ fn parse_preview_uses_the_real_engine() {
     assert!(bad.error.is_some());
     let start = s.preview_parse(&ParsePreviewRequest {
         toml: String::new(),
+        profile: String::new(),
         sample: "2026-10-14 10:00:00 INFO Application started\n".into(),
         file_name: String::new(),
         limit: 5,
