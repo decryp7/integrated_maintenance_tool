@@ -732,11 +732,18 @@ impl Inner {
         let conn = self.conn()?;
         let ctx = self.ctx(&conn)?;
         let (sf, cq) = self.compile(&ctx, q)?;
-        let key = group_key_expr(&cq.group_by, &ctx.fields)
-            .ok_or_else(|| StoreError::Invalid("the instance fields cannot be grouped (a name contains a NUL character)".into()))?;
+        let ungroupable = || StoreError::Invalid("the instance fields cannot be grouped (a name contains a NUL character)".into());
+        let key = group_key_expr(&cq.group_by, &ctx.fields).ok_or_else(ungroupable)?;
+        // What the key is made of besides the source (its name): the fields' text.
+        let parts: Vec<String> = cq
+            .group_by
+            .iter()
+            .map(|f| text_expr(f, &ctx.fields))
+            .collect::<Option<_>>()
+            .ok_or_else(ungroupable)?;
         let (filter, _keep) = self.exact_selection(&conn, &ctx, &sf, &cq)?;
         let matched = count(&conn, &format!("SELECT count(*) FROM {FROM} WHERE {filter}"))? as u64;
-        let mut inputs = crate::anomalies::SqlInputs::new(&conn, &filter, &key, &ctx.fields);
+        let mut inputs = crate::anomalies::SqlInputs::new(&conn, &filter, &key, parts, &ctx.fields);
         let result = analysis::detect_with(&mut inputs, cfg)?;
         Ok(Analyzed {
             result,
