@@ -70,7 +70,7 @@ test.describe('context actions from data', () => {
     await page.locator('imt-events-grid [role=row].row').first().click();
     const prop = page.locator('imt-inspector .prop').filter({ has: page.locator('.k', { hasText: /^MachineName$/ }) });
     await prop.click({ button: 'right' });
-    await page.getByRole('menuitem', { name: 'Filter: only this MachineName' }).click();
+    await page.getByRole('menuitem', { name: 'Only this MachineName' }).click();
     await expect(page.locator('imt-filter-bar .chip').filter({ hasText: 'MachineName' })).toBeVisible();
   });
 
