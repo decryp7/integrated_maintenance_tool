@@ -217,3 +217,25 @@ fn invalid_tiles_are_typed_errors() {
     assert!(matches!(eval(wide, Query::default()), Err(StoreError::Invalid(_))));
     assert_eq!(TileKind::Stat, tile("type = \"stat\"").kind);
 }
+
+#[test]
+fn a_chart_tile_can_point_at_a_profile_chart_or_carry_a_title() {
+    match eval(tile("type = \"chart\"\nchart = \"events-by-level\""), Query::default()).unwrap() {
+        TileData::Chart { data } => {
+            assert_eq!(
+                data.def.title, "Events per interval by level",
+                "the profile chart's own definition is used"
+            );
+            assert!(!data.series.is_empty());
+        }
+        other => panic!("{other:?}"),
+    }
+    match eval(tile("type = \"chart\"\ntitle = \"Volume\"\nvalue = \"count()\""), Query::default()).unwrap() {
+        TileData::Chart { data } => assert_eq!(data.def.title, "Volume"),
+        other => panic!("{other:?}"),
+    }
+    match eval(tile("type = \"chart\"\nvalue = \"count()\""), Query::default()).unwrap() {
+        TileData::Chart { data } => assert_eq!(data.def.title, "t", "an untitled tile is named by its id"),
+        other => panic!("{other:?}"),
+    }
+}
