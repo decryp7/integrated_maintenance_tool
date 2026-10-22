@@ -277,7 +277,7 @@ fn ingest_ports_reload_refresh_tail_restore_and_remove() {
         .unwrap()
         .write_all(b"2026-10-14 10:00:02 INFO three\n")
         .unwrap();
-    assert_eq!(store.append_tail(std::slice::from_ref(&log)).unwrap(), 1);
+    assert_eq!(store.append_tail(std::slice::from_ref(&log)).unwrap().appended, 1);
     assert_eq!(QueryPort::summary(&store).unwrap().total, 3);
 
     // Rewritten: what was read stays (detached) and the new content is read from the start.

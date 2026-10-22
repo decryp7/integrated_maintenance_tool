@@ -224,13 +224,29 @@ fn after_import<R: Runtime>(
 
 /// Opens paths that were checked already (granted, or IMT's own): see [`open_request`].
 pub(crate) async fn open_granted<R: Runtime>(app: &AppHandle<R>, state: &CurrentWindow, paths: Vec<String>) -> CmdResult<WorkspaceSummary> {
+    open_granted_at(app, state, paths, false).await
+}
+
+/// [`open_granted`], optionally at the end of the files: only the lines written from now on are read.
+pub(crate) async fn open_granted_at<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &CurrentWindow,
+    paths: Vec<String>,
+    at_end: bool,
+) -> CmdResult<WorkspaceSummary> {
     let paths = crate::activity::report::open::divert(app, state.label(), paths).await;
     if paths.is_empty() {
         return summary_of(state).await;
     }
     let before = crate::engine_errors::HealthSnapshot::new(&state.host.registry.plugins(), &[]);
     let files: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
-    let report = crate::engine::import::run(app, state, open_spec(&paths), Box::new(move |store| store.open(&files))).await?;
+    let report = crate::engine::import::run(
+        app,
+        state,
+        open_spec(&paths),
+        Box::new(move |store| if at_end { store.open_at_end(&files) } else { store.open(&files) }),
+    )
+    .await?;
     after_import(app, state, &before, &report);
     let summary = summary_of(state).await?;
     crate::window_manager::import_finished(app, state.label(), summary.total as u64);
@@ -260,7 +276,13 @@ pub(crate) fn log_unrecognized(files: &[imt_core::api::UnrecognizedFile]) {
 
 #[tauri::command]
 pub(crate) async fn remove_source(state: CurrentWindow, source_id: u32) -> CmdResult<WorkspaceSummary> {
-    with_store(&state, move |s| s.remove_source(SourceId(source_id))).await?;
+    let win = state.arc().clone();
+    with_store(&state, move |s| {
+        s.remove_source(SourceId(source_id))?;
+        crate::engine::annotate::run(&win, s, &|_| {});
+        Ok(())
+    })
+    .await?;
     summary_of(&state).await
 }
 
@@ -270,6 +292,7 @@ pub(crate) async fn clear_workspace(state: CurrentWindow) -> CmdResult<Workspace
     if state.engine.opened().is_some() {
         with_store(&state, |s| s.clear()).await?;
     }
+    state.host.registry.clear_annotations();
     state.set_loaded(false);
     summary_of(&state).await
 }
@@ -287,7 +310,15 @@ pub(crate) async fn reload_workspace<R: Runtime>(app: AppHandle<R>, state: Curre
 
 #[tauri::command]
 pub(crate) async fn query_page(state: CurrentWindow, request: PageQuery) -> CmdResult<PageReply> {
-    with_store(&state, move |s| s.page(&request)).await
+    let view = state.host.redacted_view();
+    with_store(&state, move |s| {
+        let mut page = s.page(&request)?;
+        if let Some(r) = &view {
+            r.view_page(&mut page);
+        }
+        Ok(page)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -297,7 +328,15 @@ pub(crate) async fn query_timeline(state: CurrentWindow, request: TimelineReques
 
 #[tauri::command]
 pub(crate) async fn query_facet(state: CurrentWindow, request: FacetRequest) -> CmdResult<Facet> {
-    with_store(&state, move |s| s.facet(&request)).await
+    let view = state.host.redacted_view();
+    with_store(&state, move |s| {
+        let mut facet = s.facet(&request)?;
+        if let Some(r) = &view {
+            r.view_facet(&mut facet);
+        }
+        Ok(facet)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -323,7 +362,7 @@ pub(crate) async fn overview(state: CurrentWindow, request: imt_core::api::Query
 }
 
 /// Ranges and points found by plugin annotators (reboots, service uptime, ...) overlapping the request, by
-/// start time. Annotators do not run over the store yet (ADR 0014 6c follow-up): what plugins stored.
+/// start time: what they found when they last ran over the store (after each import, see `engine::annotate`).
 #[tauri::command]
 pub(crate) async fn annotations(state: CurrentWindow, request: AnnotationsRequest) -> CmdResult<Vec<AnnotationDto>> {
     Ok(state.host.registry.annotations(&request))
@@ -424,7 +463,15 @@ fn exported_line(result: &imt_core::api::ExportResult, redacted: bool) -> String
 
 #[tauri::command]
 pub(crate) async fn source_context(state: CurrentWindow, request: ContextRequest) -> CmdResult<SourceContext> {
-    with_store(&state, move |s| s.source_context(&request)).await
+    let view = state.host.redacted_view();
+    with_store(&state, move |s| {
+        let mut context = s.source_context(&request)?;
+        if let Some(r) = &view {
+            r.view_context(&mut context);
+        }
+        Ok(context)
+    })
+    .await
 }
 
 /// The calling window's workspace as a workspace file (its session): the store folder to reopen, the opened
@@ -545,6 +592,7 @@ async fn open_store_project<R: Runtime>(
         let base = win.engine.profile();
         let dest = win.engine.unpack_root();
         let opened = win.engine.host().open_project(&file, &dest, &base).map_err(CmdError::from)?;
+        crate::engine::annotate::run(&win, opened.0.as_ref(), &|m| ctx.message(m));
         Ok(crate::jobs::Done::new(opened).with_result(crate::jobs::JobResult::Workspace))
     })
     .await?;
@@ -623,7 +671,12 @@ pub(crate) async fn open_project_file<R: Runtime>(
             } else {
                 StoreKind::Project
             };
-            match crate::sync::blocking("reopening the session", move || win.engine.reopen(&dir, kind)).await {
+            let reopen = move || -> Result<_, CmdError> {
+                let store = win.engine.reopen(&dir, kind)?;
+                crate::engine::annotate::run(&win, store.as_ref(), &|_| {});
+                Ok(store)
+            };
+            match crate::sync::blocking("reopening the session", reopen).await {
                 Ok(_) => true,
                 Err(e) => {
                     log::warn!("the session's store could not be reopened ({e}); importing its files again");

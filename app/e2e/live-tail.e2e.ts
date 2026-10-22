@@ -5,7 +5,7 @@ import { openAppWith } from './mock-url';
 import { chooseMenu } from './menu-support';
 
 /** Realistic live simulation: 40 events/s, no rotations or alerts unless a test asks for them. */
-const LIVE = '?mockMemoryFeatures=1&mockLive=1&mockLiveRate=40&mockLiveRotateMs=0&mockLiveAlertMs=0';
+const LIVE = '?mockLive=1&mockLiveRate=40&mockLiveRotateMs=0&mockLiveAlertMs=0';
 
 const liveButton = (page: Page) => page.locator('imt-status-bar').getByRole('button', { name: 'Live tail', exact: true });
 const timelineTo = async (page: Page) => Number(await page.locator('imt-timeline-panel .wrap').getAttribute('data-to'));
@@ -22,7 +22,7 @@ function liveCalls(page: Page) {
 }
 
 /** Live alerts on Playwright's clock: one live tick every 500 ms (few ticks to run), the alert interval added per test. */
-const ALERTS = '?mockMemoryFeatures=1&mockLive=1&mockLiveRate=20&mockLiveMs=500&mockLiveRotateMs=0';
+const ALERTS = '?mockLive=1&mockLiveRate=20&mockLiveMs=500&mockLiveRotateMs=0';
 
 async function openView(page: Page, name: 'Alerts' | 'Tail status'): Promise<void> {
   await chooseMenu(page, 'View', 'Live', name);
@@ -240,7 +240,7 @@ test.describe('live tail: status, sources and opening', () => {
   });
 
   test('rolling files of one log collapse into a group that expands, with a rotated badge', async ({ page }, testInfo) => {
-    await openOnClock(page, '?mockMemoryFeatures=1&mockLive=1&mockLiveRate=20&mockLiveRotateMs=1000&mockLiveAlertMs=0');
+    await openOnClock(page, '?mockLive=1&mockLiveRate=20&mockLiveRotateMs=1000&mockLiveAlertMs=0');
     await liveOn(page);
     // Two rotations are due within 2 s of live ticks.
     await page.clock.runFor(2_500);

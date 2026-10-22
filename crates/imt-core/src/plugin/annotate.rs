@@ -26,6 +26,9 @@ pub const MAX_REPLY: usize = 20_000;
 
 pub use imt_plugin_api::annotate::{RecordCursor, ViewFilter, ViewRecord};
 
+mod store_view;
+pub use store_view::{PortView, MAX_VIEW_INSTANCES, MAX_VIEW_SCAN};
+
 /// Read-only, bounded queries over the workspace for annotators.
 pub trait AnnotationView {
     /// Records matching `filter`, in time order, at most `limit` (and

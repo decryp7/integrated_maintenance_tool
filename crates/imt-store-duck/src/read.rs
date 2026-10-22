@@ -754,7 +754,7 @@ impl Inner {
         }
         let mut sources = Vec::new();
         let mut stmt = conn
-            .prepare("SELECT id, path, name, importer, file_kind, events, skipped, dropped, ts_from, ts_to, parser_id FROM sources WHERE ready ORDER BY name")
+            .prepare("SELECT id, path, name, importer, file_kind, events, skipped, dropped, ts_from, ts_to, parser_id, coalesce((SELECT offset_ms FROM clock_offsets c WHERE c.path = sources.path), 0) FROM sources WHERE ready ORDER BY name")
             .map_err(engine)?;
         let rows = stmt
             .query_map([], |r| {
@@ -774,7 +774,7 @@ impl Inner {
                     error: None,
                     from: r.get(8)?,
                     to: r.get(9)?,
-                    offset_ms: 0,
+                    offset_ms: r.get(11)?,
                     timestamp_issue: None,
                     routed_from: None,
                     problems: Vec::new(),

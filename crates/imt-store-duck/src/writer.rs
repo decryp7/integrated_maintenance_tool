@@ -42,6 +42,13 @@ pub(crate) fn set_meta(conn: &Connection, key: &str, value: u64) -> Result<()> {
     Ok(())
 }
 
+/// The clock-skew corrections by file path.
+pub(crate) fn clock_offsets(conn: &Connection) -> Result<HashMap<String, i64>> {
+    let mut stmt = conn.prepare("SELECT path, offset_ms FROM clock_offsets")?;
+    let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?;
+    Ok(rows.collect::<duckdb::Result<HashMap<_, _>>>()?)
+}
+
 /// Absolute paths of the listed segments, in id order.
 pub(crate) fn segment_files(conn: &Connection, dir: &Path) -> Result<Vec<String>> {
     let seg_dir = dir.join(SEGMENTS_DIR);
@@ -174,6 +181,10 @@ pub struct SegmentSink {
     /// Distinguishes the files of rewritten segments.
     file_generation: u64,
     observe: Option<Observe>,
+    /// Clock-skew corrections by file path (from `clock_offsets`), applied to the events of sources begun here.
+    path_offsets: HashMap<String, i64>,
+    /// The correction of each source of this writer that has one.
+    shifts: Mutex<HashMap<SourceId, i64>>,
 }
 
 impl SegmentSink {
@@ -199,6 +210,7 @@ impl SegmentSink {
         };
         let file_generation = meta_u64(&conn, "file_generation") + 1;
         set_meta(&conn, "file_generation", file_generation)?;
+        let path_offsets = clock_offsets(&conn)?;
         Ok(SegmentSink {
             dir: dir.to_path_buf(),
             seg_dir,
@@ -212,7 +224,20 @@ impl SegmentSink {
             generation,
             file_generation,
             observe,
+            path_offsets,
+            shifts: Mutex::new(HashMap::new()),
         })
+    }
+
+    /// Moves the events written for `source` (an existing source being appended to) by its file's correction.
+    pub fn shift_source(&self, source: SourceId, offset: i64) {
+        if offset != 0 {
+            lock(&self.shifts).insert(source, offset);
+        }
+    }
+
+    fn shift_of(&self, source: SourceId) -> i64 {
+        lock(&self.shifts).get(&source).copied().unwrap_or(0)
     }
 
     fn slot(&self) -> &Mutex<Option<SegmentWriter>> {
@@ -342,12 +367,15 @@ impl SharedSink for SegmentSink {
 
     /// Sources are listed when they become ready (one catalog commit costs tens of milliseconds, so
     /// nothing is written per source while reading).
-    fn begin_source(&self, _source: &NewSource, reserved: Option<SourceId>) -> Result<SourceId> {
+    fn begin_source(&self, source: &NewSource, reserved: Option<SourceId>) -> Result<SourceId> {
         let id = match reserved {
             Some(id) => id,
             None => self.reserve_sources(1)?,
         };
         lock(&self.sources).insert(id, SourceState::default());
+        if let Some(offset) = self.path_offsets.get(&source.path).copied().filter(|o| *o != 0) {
+            lock(&self.shifts).insert(id, offset);
+        }
         Ok(id)
     }
 
@@ -367,6 +395,9 @@ impl SharedSink for SegmentSink {
             None => slot.insert(self.open_segment(n)?),
         };
         let batch = batch.assign_ids(EventId(w.next_id()))?;
+        // A batch holds the events of one source (the batcher is made per source).
+        let offset = batch.rows().next().map_or(0, |r| self.shift_of(r.source()));
+        let batch = batch.shifted(offset)?;
         let new = w.write(&batch)?;
         if !new.is_empty() {
             let mut sources = lock(&self.sources);
@@ -383,7 +414,12 @@ impl SharedSink for SegmentSink {
 
     /// The source is listed with the next segment registered (or at the end of the import).
     fn finish_source(&self, r: &SourceReport) -> Result<()> {
-        lock(&self.sources).entry(r.id).or_default().finished = Some(r.clone());
+        let mut r = r.clone();
+        let offset = self.shift_of(r.id);
+        r.from = r.from.map(|t| t.saturating_add(offset));
+        r.to = r.to.map(|t| t.saturating_add(offset));
+        let id = r.id;
+        lock(&self.sources).entry(id).or_default().finished = Some(r);
         Ok(())
     }
 

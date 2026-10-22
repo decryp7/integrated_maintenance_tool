@@ -207,6 +207,19 @@ impl EventBatch {
         self.batch
     }
 
+    /// The batch with every timestamp moved by `offset` milliseconds (saturating); untimed events stay untimed.
+    /// Clock-skew correction applies a source's offset to the events as they are written.
+    pub fn shifted(&self, offset: i64) -> Result<EventBatch, BatchError> {
+        if offset == 0 {
+            return Ok(self.clone());
+        }
+        let ts: Int64Array = self.cols.ts.iter().map(|t| t.map(|v| v.saturating_add(offset))).collect();
+        let mut columns = self.batch.columns().to_vec();
+        columns[1] = Arc::new(ts);
+        let batch = RecordBatch::try_new(self.batch.schema(), columns)?;
+        EventBatch::try_new(self.schema.clone(), batch)
+    }
+
     pub fn num_rows(&self) -> usize {
         self.batch.num_rows()
     }
@@ -391,6 +404,18 @@ mod tests {
         assert_eq!(r.extra("X"), Some("x"));
         assert_eq!(r.extra("N"), None, "declared, not extra");
         assert_eq!(again.into_record_batch().num_columns(), 14);
+    }
+
+    #[test]
+    fn shifting_moves_timed_events_only() {
+        let b = sample();
+        assert_eq!(b.shifted(0).unwrap().row(0).ts(), Some(1));
+        let s = b.shifted(-5).unwrap();
+        assert_eq!((s.row(0).ts(), s.row(1).ts()), (Some(-4), None));
+        assert_eq!(s.row(0).message(), "m");
+        assert_eq!(b.row(0).ts(), Some(1), "the original is unchanged");
+        let big = b.shifted(i64::MAX).unwrap().shifted(i64::MAX).unwrap();
+        assert_eq!(big.row(0).ts(), Some(i64::MAX), "saturates");
     }
 
     #[test]

@@ -54,7 +54,7 @@ pub(crate) fn compose(reply: SummaryReply, host: &Host, last: Option<&ImportRepo
         plugins: registry.plugins(),
         exporters: registry.exporter_infos(),
         dashboards: compiled.profile.dashboard.clone(),
-        redacted_view: false,
+        redacted_view: host.redacted_view().is_some(),
     }
 }
 

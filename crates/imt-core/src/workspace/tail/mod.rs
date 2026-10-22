@@ -41,7 +41,7 @@ mod tests;
 mod types;
 mod watch;
 
-pub use alerts::{duration_ms, AlertRuleCfg, LiveCfg, LiveRules};
+pub use alerts::{duration_ms, kind_name, AlertRuleCfg, LiveCfg, LiveRules};
 pub use identity::{identity_of, is_network_path, FileIdentity};
 pub(super) use index::{Change, FieldIndex, MatchCache, PatternCache};
 pub use mutes::{AlertMutes, Clock, MAX_MUTES, MAX_MUTE_MS};

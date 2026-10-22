@@ -25,11 +25,11 @@ mod timeline;
 
 pub use crate::api::*;
 pub use tail::{
-    duration_ms, family, group_of, identity_of, initial_mode, is_network_path, mode_of, AlertMutes, AlertRuleCfg, AlertTarget, BatchFn,
-    Clock, Coalescer, DeletedFiles, FallbackFn, FileIdentity, FileWatcher, LiveAlert, LiveCfg, LiveRules, LiveTail, OpenOptions, Retention,
-    RotatedSource, StopToken, TailFileChange, TailFileState, TailFileStatus, TailOptions, TailReport, TailStatus, TailTotals, TimeWindow,
-    WatchMode, WatchPreference, WatchSettings, WatchSignal, WatchSink, WatchedRoot, WatcherFactory, MAX_DETECT_EVERY_MS, MAX_MUTES,
-    MAX_MUTE_MS,
+    duration_ms, family, group_of, identity_of, initial_mode, is_network_path, kind_name, mode_of, AlertMutes, AlertRuleCfg, AlertTarget,
+    BatchFn, Clock, Coalescer, DeletedFiles, FallbackFn, FileIdentity, FileWatcher, LiveAlert, LiveCfg, LiveRules, LiveTail, OpenOptions,
+    Retention, RotatedSource, StopToken, TailFileChange, TailFileState, TailFileStatus, TailOptions, TailReport, TailStatus, TailTotals,
+    TimeWindow, WatchMode, WatchPreference, WatchSettings, WatchSignal, WatchSink, WatchedRoot, WatcherFactory, MAX_DETECT_EVERY_MS,
+    MAX_MUTES, MAX_MUTE_MS,
 };
 
 use crate::chart::ChartDef;

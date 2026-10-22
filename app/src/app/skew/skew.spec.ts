@@ -33,7 +33,7 @@ function correlatedDataset(): MockDataset {
 }
 
 function setup(dataset: () => MockDataset = tinyDataset, extra: unknown[] = []) {
-  const backend = new MockBackend({ latency: false, dataset, pluginMarkerKinds: [], memoryStoreFeatures: true });
+  const backend = new MockBackend({ latency: false, dataset, pluginMarkerKinds: [] });
   TestBed.configureTestingModule({
     providers: [
       provideTinyBackend(backend),
@@ -120,11 +120,11 @@ describe('ClockSkewStore', () => {
   });
 
   it('says calmly that clock correction is not available yet when the log store does not offer it', async () => {
-    const refused = mockUnsupported('clock-skew correction is not available with the new log store yet', 'Use a shift_time step meanwhile.');
+    const refused = mockUnsupported('clock-skew correction is not available here', 'Use a different approach.');
     const { skew } = setup(tinyDataset, [{ provide: SkewBackend, useValue: { setSourceOffset: () => Promise.reject(refused), suggestOffsets: () => Promise.reject(refused) } }]);
     await settle();
     await skew.suggest();
-    expect(skew.unavailable()).toBe('Clock-skew correction is not available with the new log store yet. Use a shift_time step meanwhile.');
+    expect(skew.unavailable()).toBe('Clock-skew correction is not available here. Use a different approach.');
     expect(skew.error()).toBeNull();
     expect(await skew.apply({ kind: 'manual', source: 1, offsetMs: 10 })).toBeNull();
     expect(skew.unavailable()).toContain('not available');
@@ -186,12 +186,12 @@ describe('ClockDialog', () => {
   });
 
   it('shows "not available yet" as a status note, not an alert, when the log store does not offer it', async () => {
-    const refused = mockUnsupported('clock-skew correction is not available with the new log store yet');
+    const refused = mockUnsupported('clock-skew correction is not available here');
     const { fixture } = open(1, undefined, [{ provide: SkewBackend, useValue: { setSourceOffset: () => Promise.reject(refused), suggestOffsets: () => Promise.reject(refused) } }]);
     await settle(fixture);
     el<HTMLButtonElement>(fixture, '[data-testid=suggest]').click();
     await settle(fixture);
-    expect(text(fixture)).toContain('Clock-skew correction is not available with the new log store yet.');
+    expect(text(fixture)).toContain('Clock-skew correction is not available here.');
     expect(all(fixture, '[role=alert]')).toHaveLength(0);
   });
 
