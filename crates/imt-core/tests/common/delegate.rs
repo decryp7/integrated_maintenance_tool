@@ -24,6 +24,8 @@ pub struct Delegating<'a, S> {
     pub problems: Option<StoreResult<Vec<DiagnosticRow>>>,
     /// Makes `remove_source` fail with this error instead of removing anything.
     pub remove_source_error: Option<StoreError>,
+    /// Makes `check_query` fail with this error instead of checking anything.
+    pub check_query_error: Option<StoreError>,
 }
 
 impl<'a, S> Delegating<'a, S> {
@@ -32,6 +34,7 @@ impl<'a, S> Delegating<'a, S> {
             inner,
             problems: None,
             remove_source_error: None,
+            check_query_error: None,
         }
     }
 
@@ -40,6 +43,7 @@ impl<'a, S> Delegating<'a, S> {
             inner,
             problems: Some(problems),
             remove_source_error: None,
+            check_query_error: None,
         }
     }
 }
@@ -109,7 +113,10 @@ impl<S: Query> Query for Delegating<'_, S> {
         self.inner.run_query_with(req, control)
     }
     fn check_query(&self, text: &str) -> StoreResult<Option<QlError>> {
-        self.inner.check_query(text)
+        match &self.check_query_error {
+            Some(e) => Err(e.clone()),
+            None => self.inner.check_query(text),
+        }
     }
     fn complete_query(&self, req: &CompletionRequest) -> StoreResult<Vec<Completion>> {
         self.inner.complete_query(req)

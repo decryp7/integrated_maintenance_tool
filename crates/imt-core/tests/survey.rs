@@ -2,6 +2,9 @@
 //! composing the selected proposals into a profile that the workspace accepts.
 
 use imt_core::survey::{self, Fragment, KeyOrigin, LifecycleRole, ProposalGroup, ProposalPreview, SurveyControl, SurveyRequest};
+mod common;
+
+use common::delegate::Delegating;
 use imt_core::workspace::WorkspaceStore;
 use imt_core::{Profile, Workspace, DEFAULT_PROFILE_TOML};
 use std::path::PathBuf;
@@ -146,4 +149,39 @@ fn limits_bound_the_sample() {
     assert!(s.sampled_events <= 120, "{}", s.sampled_events);
     assert!(s.groups.iter().all(|g| g.sampled <= 50));
     assert!(s.truncated);
+}
+
+#[test]
+fn a_saved_query_the_store_cannot_check_is_skipped_with_the_reason() {
+    let ws = workspace();
+    let (survey, sampled) = survey::survey_only(&ws, &SurveyRequest::default(), &SurveyControl::new()).unwrap();
+    let candidate = survey::Candidate {
+        id: "query:errors".into(),
+        group: ProposalGroup::Queries,
+        origin: survey::ProposalOrigin::Ai,
+        title: "Errors".into(),
+        summary: String::new(),
+        fragments: vec![Fragment::SavedQuery {
+            name: "Errors".into(),
+            ql: "level >= info".into(),
+        }],
+        requires: vec![],
+        recommended: true,
+    };
+    let mut failing = Delegating::new(&ws);
+    failing.check_query_error = Some(imt_core::ports::StoreError::Busy("importing".into()));
+    let (ok, skipped) = survey::validate(
+        &failing,
+        DEFAULT_PROFILE_TOML,
+        &survey,
+        &sampled,
+        vec![candidate.clone()],
+        &SurveyControl::new(),
+    )
+    .unwrap();
+    assert!(ok.is_empty());
+    assert!(skipped[0].reason.starts_with("the query cannot be checked:"), "{skipped:?}");
+    // The same candidate against the healthy store is accepted.
+    let (ok, skipped) = survey::validate(&ws, DEFAULT_PROFILE_TOML, &survey, &sampled, vec![candidate], &SurveyControl::new()).unwrap();
+    assert_eq!(ok.len(), 1, "{skipped:?}");
 }
