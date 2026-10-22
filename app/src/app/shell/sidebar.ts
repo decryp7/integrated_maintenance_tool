@@ -25,6 +25,7 @@ import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { NoteImageStore } from '../notes/image/note-image.store';
 import { anchors, NOTE_IMAGE_VIEW, NoteActions } from '../notes/note-actions';
 import { NotesStore } from '../notes/notes.store';
+import { ParsersStore } from '../settings/parsers/parsers.store';
 
 type TailFileStateOf = Extract<TailFileState, { kind: NotableState }>;
 
@@ -215,6 +216,7 @@ export class Sidebar {
   private readonly tail = inject(TailStatusStore);
   private readonly menu = inject(ContextMenuService);
   private readonly clock = inject(ClockDialogService);
+  private readonly parsers = inject(ParsersStore);
   private readonly files = inject(SourceFileActions);
   protected readonly colors = inject(SourceColors);
   protected readonly offset = formatOffset;
@@ -345,11 +347,10 @@ export class Sidebar {
     );
   }
 
-  /** Explorer ▸ "Parse with…": read this source again with another parser of the library (ADR 0026). */
+  /** Explorer ▸ "Parse with…": opens the Parsers view to choose a parser for this source (ADR 0026, I3). */
   protected async parseWith(s: SourceInfo): Promise<void> {
-    const { ParseWithDialog } = await import('../settings/parsers/parse-with-dialog');
-    const name = s.name;
-    this.dialogs.open(ParseWithDialog, { title: $localize`:@@shell.sidebar.dialog.parseWith:Parse ${name}:name: with`, inputs: { source: s }, width: 520 });
+    void this.parsers.chooseFor(s);
+    this.commands.showView('parsers');
   }
 
   protected async openLive(): Promise<void> {

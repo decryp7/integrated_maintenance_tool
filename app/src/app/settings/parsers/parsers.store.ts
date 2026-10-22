@@ -37,9 +37,21 @@ interface ParsersState {
   actionError: string | null;
   /** The parser open in the Parsers view's detail pane (`doc.id` is empty for a new one). */
   editing: { doc: ParserDocDto; isNew: boolean; readSources: number[] } | null;
+  /** The source Explorer ▸ "Parse with…" is choosing a parser for: the list offers "Read it with this" (I3). */
+  readTarget: { id: number; name: string } | null;
 }
 
-const INITIAL: ParsersState = { library: null, loading: false, loadError: null, busy: null, notice: null, actionError: null, editing: null };
+const INITIAL: ParsersState = { library: null, loading: false, loadError: null, busy: null, notice: null, actionError: null, editing: null, readTarget: null };
+
+/**
+ * What "Parse with…" selects at first for a source: the parser the user chose for it before, else "Automatic" (also
+ * when a parser was matched automatically: confirming without a change keeps the automatic choice instead of
+ * pinning the parser that happens to read it now). The empty string is "Automatic".
+ */
+export function initialChoice(library: ParserLibraryDto | null, sourceId: number): string {
+  const chosen = library?.parsers.find((p) => p.sources.some((s) => s.id === sourceId && s.chosen));
+  return chosen?.id ?? '';
+}
 
 /** Parsers of one category, for the grouped list. */
 export interface ParserGroup {
@@ -66,8 +78,11 @@ export const ParsersStore = signalStore(
         for (const p of parsers()) byCategory.set(p.category, [...(byCategory.get(p.category) ?? []), p]);
         return [...byCategory].map(([category, list]) => ({ category, parsers: list }));
       }),
-      /** For "Parse with…": enabled parsers first, each part by name. */
-      choices: computed(() => [...parsers()].sort((a, b) => Number(b.enabled) - Number(a.enabled) || a.name.localeCompare(b.name))),
+      /** The parser "Parse with…" starts on for its source (empty: Automatic). */
+      targetChoice: computed(() => {
+        const target = store.readTarget();
+        return target ? initialChoice(store.library(), target.id) : null;
+      }),
     };
   }),
   withMethods((store, backend = inject(ParsersBackend), dialogs = inject(ParserDialogs), files = inject(ParserFiles), guard = inject(OverwriteGuard), workspace = inject(WorkspaceStore)) => {
@@ -102,6 +117,15 @@ export const ParsersStore = signalStore(
       patchState(store, { library });
       return $localize`:@@settings.parsers.notice.saved:Saved the parser ${id}:id:.`;
     };
+
+    /** "Parse with…": one source with that parser (null: the automatic choice). */
+    const assign = (sourceId: number, parserId: string | null) =>
+      act('*', async () => {
+        const job = await backend.assign(sourceId, parserId);
+        await workspace.followReread(job);
+        await load();
+        return null;
+      });
 
     return {
       load,
@@ -210,14 +234,23 @@ export const ParsersStore = signalStore(
           return $localize`:@@settings.parsers.notice.reread:Read the files again with their parsers.`;
         }),
 
-      /** "Parse with…": one source with that parser (null: the automatic choice). */
-      assign: (sourceId: number, parserId: string | null) =>
-        act('*', async () => {
-          const job = await backend.assign(sourceId, parserId);
-          await workspace.followReread(job);
-          await load();
-          return null;
-        }),
+      assign,
+
+      /** Explorer ▸ "Parse with…": the Parsers view offers each parser for this source until a choice or Cancel (I3). */
+      chooseFor: (source: { id: number; name: string }) => {
+        patchState(store, { readTarget: { id: source.id, name: source.name } });
+        return load();
+      },
+
+      cancelChoice: () => patchState(store, { readTarget: null }),
+
+      /** Reads the target source with that parser (null: Automatic) and ends the choice. */
+      readTargetWith: async (parserId: string | null): Promise<void> => {
+        const target = store.readTarget();
+        if (!target) return;
+        patchState(store, { readTarget: null });
+        await assign(target.id, parserId);
+      },
 
       dismiss: () => patchState(store, { notice: null, actionError: null }),
     };
