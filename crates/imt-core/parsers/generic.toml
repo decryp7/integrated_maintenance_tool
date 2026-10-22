@@ -68,9 +68,19 @@ regexes = [
 # BSD syslog) takes the current year, or the previous one when that would be more than a day in the future.
 # A comma before the fraction stays a comma (.NET "HH:mm:ss,fff", strftime "%H:%M:%S,%3f"). When many lines
 # of a file have no readable timestamp, IMT proposes a format (checked against those lines) in the Explorer.
+# Named numeric clocks are recognised in the list too: "epoch_s", "epoch_ms", "epoch_us", "epoch_ns",
+# "dotnet_ticks" (.NET DateTime.Ticks), "filetime" (Windows FILETIME) and "uptime" (seconds since boot,
+# "[   12.345]", counted from boot_time below) and "asctime" (C asctime, "Tue Oct 14 10:00:03 2026").
+# Japanese dates ("2026年10月14日 10時00分03秒", also with 午前/午後) are always recognised.
 timestamp_formats = []
 # Timezone for timestamps without an offset: "UTC", "local" or "+08:00".
 assume_timezone = "UTC"
+# Optional, written by "Generate with AI" (ADR 0032): where assume_timezone came from ("timestamps",
+# "same-machine", "modification-time", "text-hint", "asked", "user") and how sure the engine was (0..1).
+# timezone_source = "modification-time"
+# timezone_confidence = 0.6
+# Optional: the boot time (RFC 3339) that "uptime" timestamps count from.
+# boot_time = "2026-10-14T08:00:00Z"
 # For ambiguous dates like 03/04/2026: "auto" (decided per file), true or false.
 day_first = "auto"
 
