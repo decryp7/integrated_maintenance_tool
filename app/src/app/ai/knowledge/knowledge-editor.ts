@@ -1,11 +1,20 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, signal } from '@angular/core';
 import { MarkdownView } from '../../share/report/markdown-view';
-import { DIALOG_REF } from '../../ui/dialog.service';
+import { DIALOG_REF, DialogService } from '../../ui/dialog.service';
 import { formatBytes } from '../ai-format';
 import { KnowledgeInfo, KnowledgeScope } from '../ai.types';
 import { KnowledgeStore } from './knowledge.store';
 
 const encoder = new TextEncoder();
+
+/** Opens the editor on `file`, or on a new file of `scope` when `file` is null. */
+export function openKnowledgeEditor(dialogs: DialogService, file: KnowledgeInfo | null, scope: KnowledgeScope, maxBytes: number) {
+  return dialogs.open<boolean>(KnowledgeEditor, {
+    title: file ? $localize`:@@ai.knowledge.editor.editTitle:Edit knowledge file` : $localize`:@@ai.knowledge.editor.newTitle:New knowledge file`,
+    width: 720,
+    inputs: { file, scope, maxBytes },
+  });
+}
 
 /**
  * Writes or edits a knowledge file: its name and Markdown text, with a preview (rendered as text nodes, never HTML).

@@ -69,6 +69,20 @@ pub struct MarkerHit {
     pub snippet: Vec<SnippetPart>,
 }
 
+/// An exception group whose type, message or top frame holds the words.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExceptionHit {
+    pub fingerprint: String,
+    pub type_name: String,
+    /// Events in the group.
+    pub count: u64,
+    /// The group's first sample event, to reveal.
+    pub sample: Option<EventId>,
+    /// `Type: message` with the matched words marked.
+    pub snippet: Vec<SnippetPart>,
+}
+
 /// Whose a note or knowledge file is: the project's (notes, project knowledge) or every project's (global knowledge).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -130,6 +144,7 @@ pub struct SearchAllReply {
     pub sources: KindHits<SourceHit>,
     pub fields: KindHits<FieldHit>,
     pub markers: KindHits<MarkerHit>,
+    pub exceptions: KindHits<ExceptionHit>,
     pub notes: KindHits<DocHit>,
     pub knowledge: KindHits<DocHit>,
 }

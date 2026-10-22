@@ -183,6 +183,22 @@ struct Fake {
     on_page: Option<&'static AtomicBool>,
     fields: Vec<FieldInfo>,
     marker_kinds: Vec<String>,
+    exceptions: Vec<crate::exceptions::ExceptionGroup>,
+    fail_exceptions: Option<StoreError>,
+}
+
+fn group(type_name: &str, message: &str, top: Option<&str>, count: usize) -> crate::exceptions::ExceptionGroup {
+    crate::exceptions::ExceptionGroup {
+        fingerprint: format!("fp-{type_name}"),
+        type_name: type_name.into(),
+        message: message.into(),
+        top_frame: top.map(Into::into),
+        count,
+        instances: vec![],
+        first_ts: None,
+        last_ts: None,
+        sample_ids: vec![7, 9],
+    }
 }
 
 fn field(name: &str, distinct: usize, numeric: bool) -> FieldInfo {
@@ -228,6 +244,13 @@ impl SearchSource for Fake {
             marker_kinds: self.marker_kinds.clone(),
             profile_name: "test".into(),
         })
+    }
+
+    fn exception_groups(&self) -> StoreResult<Vec<crate::exceptions::ExceptionGroup>> {
+        match &self.fail_exceptions {
+            Some(e) => Err(e.clone()),
+            None => Ok(self.exceptions.clone()),
+        }
     }
 
     fn page(&self, req: &PageQuery) -> StoreResult<PageReply> {
@@ -353,6 +376,7 @@ fn a_store_failure_fails_only_its_kinds() {
     );
     assert_eq!(reply.events.outcome, KindOutcome::Complete);
     assert_eq!(reply.notes.total, 1, "notes do not need the store");
+    assert_eq!(reply.exceptions.outcome, KindOutcome::Complete);
 
     let fake = Fake {
         fail_facet_after: Some(1),
@@ -361,6 +385,56 @@ fn a_store_failure_fails_only_its_kinds() {
     let reply = run(&fake, &corpus, &req("card"), &Control::new(BUDGET, NEVER)).unwrap().unwrap();
     assert!(matches!(reply.fields.outcome, KindOutcome::Failed { .. }));
     assert_eq!(reply.fields.total, 2, "the name and the values found before the failure stay");
+}
+
+#[test]
+fn finds_exception_groups_by_type_message_or_top_frame() {
+    let fake = Fake {
+        exceptions: vec![
+            group(
+                "System.TimeoutException",
+                "The operation has timed out",
+                Some("Payments.Gateway.Charge"),
+                12,
+            ),
+            group(
+                "System.InvalidOperationException",
+                "Sequence contains no elements",
+                Some("Payments.Card.Validate"),
+                3,
+            ),
+        ],
+        ..Fake::with_fields()
+    };
+    let found = |text: &str| {
+        run(&fake, &Corpus::default(), &req(text), &Control::new(BUDGET, NEVER))
+            .unwrap()
+            .unwrap()
+            .exceptions
+    };
+    let by_type = found("timeoutexc");
+    assert_eq!(by_type.total, 1);
+    let hit = &by_type.items[0];
+    assert_eq!(
+        (hit.count, hit.sample, hit.type_name.as_str()),
+        (12, Some(crate::batch::EventId(7)), "System.TimeoutException")
+    );
+    assert_eq!(joined(&hit.snippet), "System.TimeoutException: The operation has timed out");
+    assert_eq!(marked(&hit.snippet), vec!["TimeoutExc"]);
+    assert_eq!(found("sequence elements").total, 1, "words may be in the message");
+    assert_eq!(found("card validate").total, 1, "or the top frame");
+    assert_eq!(found("payments").total, 2);
+    assert_eq!(found("nothing here").total, 0);
+
+    let broken = Fake {
+        fail_exceptions: Some(StoreError::Busy("an import is running".into())),
+        ..Fake::with_fields()
+    };
+    let reply = run(&broken, &Corpus::default(), &req("card"), &Control::new(BUDGET, NEVER))
+        .unwrap()
+        .unwrap();
+    assert!(matches!(reply.exceptions.outcome, KindOutcome::Failed { .. }));
+    assert_eq!(reply.fields.total, 3, "the other kinds are still searched");
 }
 
 // ---- the budget and cancellation ----
@@ -376,6 +450,7 @@ fn a_spent_budget_skips_what_is_left_and_says_so() {
         &reply.sources.outcome,
         &reply.fields.outcome,
         &reply.markers.outcome,
+        &reply.exceptions.outcome,
         &reply.notes.outcome,
         &reply.knowledge.outcome,
     ] {
@@ -432,7 +507,7 @@ fn a_newer_search_cancels_this_one() {
 #[test]
 fn every_query_store_is_a_search_source() {
     let (store, dir) = store_with("port", &lines(3));
-    let dynamic: &dyn crate::ports::Query = &store;
+    let dynamic: &dyn crate::ports::Store = &store;
     let reply = run(dynamic, &Corpus::default(), &req("worker"), &Control::new(BUDGET, NEVER))
         .unwrap()
         .unwrap();
