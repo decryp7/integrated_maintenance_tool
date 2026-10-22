@@ -20,7 +20,7 @@ use imt_core::batch::{EventBatch, EventId, EventSchema, BATCH_ROWS};
 use imt_core::ports::{EventsRequest, Query, Skew, StoreError, StoreResult};
 use imt_core::skew::{
     align_offset, checked_offset, suggest_over, ClockOffsets, OffsetChange, OffsetSpec, SetOffsetRequest, SkewError, SuggestRequest,
-    SuggestResult, MAX_TRACKED,
+    SuggestResult,
 };
 use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
@@ -266,12 +266,6 @@ impl Skew for DuckStore {
     }
 
     fn set_source_offset(&self, req: &SetOffsetRequest) -> StoreResult<OffsetChange> {
-        if req.track.len() > MAX_TRACKED {
-            return Err(StoreError::Invalid(format!(
-                "too many tracked events ({}; at most {MAX_TRACKED})",
-                req.track.len()
-            )));
-        }
         let (source, offset) = match req.spec {
             OffsetSpec::Manual { source, offset_ms } => (source, checked_offset(offset_ms).map_err(invalid)?),
             OffsetSpec::Align { reference, target } => {
@@ -287,22 +281,11 @@ impl Skew for DuckStore {
         let previous = self.clock_offsets()?.get(&path);
         self.apply_offsets(&[(path, offset)])?;
         // Events keep their ids when they move in time.
-        let tracked = if req.track.is_empty() {
-            Vec::new()
-        } else {
-            let found = self.events(&EventsRequest {
-                ids: req.track.iter().map(|i| EventId(u64::from(*i))).collect(),
-                group_by: Vec::new(),
-            })?;
-            let alive: std::collections::HashSet<u64> = found.iter().map(|e| e.id.0).collect();
-            req.track.iter().map(|i| alive.contains(&u64::from(*i)).then_some(*i)).collect()
-        };
         Ok(OffsetChange {
             source,
             offset_ms: offset,
             previous_ms: previous,
             ids_changed_from: None,
-            tracked,
         })
     }
 

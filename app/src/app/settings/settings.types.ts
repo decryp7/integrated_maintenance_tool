@@ -40,7 +40,7 @@ export interface SettingField {
 export type SectionOwner = { kind: 'core' } | { kind: 'app' } | { kind: 'plugin'; id: string };
 
 /** Where the navigation lists a section. */
-export type SectionGroup = 'app' | 'diagnostics' | 'plugins' | 'ai' | 'performance' | 'advanced';
+export type SectionGroup = 'app' | 'diagnostics' | 'plugins' | 'ai' | 'performance' | 'symbols' | 'advanced';
 
 export type SectionStatus = 'active' | 'disabled' | 'quarantined' | 'notInstalled' | 'safeMode';
 

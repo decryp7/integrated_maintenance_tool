@@ -5,17 +5,11 @@
 use crate::activity::OpId;
 use crate::windows::CurrentWindow;
 use crate::CmdResult;
-use imt_core::skew::{OffsetChange, SetOffsetRequest, SuggestRequest, SuggestResult, MAX_TRACKED};
+use imt_core::skew::{OffsetChange, SetOffsetRequest, SuggestRequest, SuggestResult};
 
 /// Sets a source's clock offset and moves its events.
 #[tauri::command]
 pub(crate) async fn set_source_offset(state: CurrentWindow, _op: OpId, request: SetOffsetRequest) -> CmdResult<OffsetChange> {
-    if request.track.len() > MAX_TRACKED {
-        return Err(crate::CmdError::from(format!(
-            "too many tracked events ({}; at most {MAX_TRACKED})",
-            request.track.len()
-        )));
-    }
     let win = state.arc().clone();
     let change = crate::engine::with_store(&state, move |s| {
         let change = s.set_source_offset(&request)?;
@@ -80,19 +74,11 @@ mod tests {
         // The corrected source now agrees with the reference: nothing left to suggest for it.
         let after = block(suggest_offsets(st(), None)).unwrap();
         assert_eq!(after.suggestions[0].current_ms, suggested.suggestions[0].suggested_ms);
-        // Refused: too large; too many tracked ids.
+        // Refused: too large.
         let big: SetOffsetRequest =
             serde_json::from_value(serde_json::json!({"kind": "manual", "source": target, "offsetMs": 9_999_999_999i64})).unwrap();
         let e = block(set_source_offset(st(), OpId::default(), big)).unwrap_err();
         assert_eq!(e.code, ErrorCode::Invalid);
         assert!(e.message.contains("too large"), "{}", e.message);
-        let many: SetOffsetRequest = serde_json::from_value(
-            serde_json::json!({"kind": "manual", "source": target, "offsetMs": 0, "track": (0..=MAX_TRACKED as u64).collect::<Vec<_>>()}),
-        )
-        .unwrap();
-        assert!(block(set_source_offset(st(), OpId::default(), many))
-            .unwrap_err()
-            .message
-            .contains("too many"));
     }
 }

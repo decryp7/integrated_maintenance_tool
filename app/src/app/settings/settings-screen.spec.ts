@@ -65,10 +65,10 @@ describe('SettingsScreen', () => {
       'Updates',
       'Disk usage',
       'Performance',
-      'Symbols',
       'Parsers',
       'Video',
       'Live tail',
+      'Symbols',
       'AI assistant not installed',
       'Plugins',
       'Windows diagnostics',
@@ -192,7 +192,7 @@ describe('SettingsScreen', () => {
     }
   });
 
-  it('the Live tail page holds the engine delay and the watch, retention and detector options (I2)', async () => {
+  it('the Live tail page holds the engine delay and the watch and detector options (I2)', async () => {
     const { fixture } = await setup();
     nav(fixture, 'Live tail').click();
     await settle(fixture);

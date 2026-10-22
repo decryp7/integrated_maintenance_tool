@@ -6,7 +6,8 @@
 //!   yet, imports into it and stops (run again to measure in a process that did not import). Analyses
 //!   cached by an earlier run are dropped first.
 //! - `IMT_BENCH_STRICT=1` fails above the budgets (0.5 s per interactive call, 300 MB query RSS).
-//! - `IMT_BENCH_ONLY=<a,b>` measures only the operations whose names contain one of these.
+//! - `IMT_BENCH_ONLY=<a,b>` measures only the operations whose names contain one of these (the cold analyses
+//!   share cached results: measure `anomalies (cold)` and `overview (cold)` one at a time).
 //!
 //! Run with `--release --test bench_reads -- --nocapture`.
 
@@ -271,6 +272,11 @@ fn read_operations_meet_the_budget() {
     });
     time("problems", true, &mut || store.problems().map_err(|e| eprintln!("{e}")).is_ok());
     let all = QueryRequest { query: any.clone() };
+    // The analyses share their cached results: for a cold overview alone use `IMT_BENCH_ONLY="overview (cold)"`
+    // (the rows after it then find its sub-analyses cached).
+    time("overview (cold)", false, &mut || {
+        store.overview(&all).map_err(|e| eprintln!("{e}")).is_ok()
+    });
     time("patterns (cold)", false, &mut || {
         store.patterns(&all).map_err(|e| eprintln!("{e}")).is_ok()
     });
@@ -286,7 +292,9 @@ fn read_operations_meet_the_budget() {
     time("anomalies (cached)", true, &mut || {
         store.anomalies(&all).map_err(|e| eprintln!("{e}")).is_ok()
     });
-    time("overview", true, &mut || store.overview(&all).map_err(|e| eprintln!("{e}")).is_ok());
+    time("overview (cached)", true, &mut || {
+        store.overview(&all).map_err(|e| eprintln!("{e}")).is_ok()
+    });
     time("compare halves", false, &mut || {
         store
             .compare(&req(

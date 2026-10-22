@@ -169,8 +169,6 @@ pub struct WorkspaceSummary {
     pub charts: Vec<ChartDef>,
     pub profile_name: String,
     pub load_ms: u64,
-    /// Records evicted by the live retention limit so far.
-    pub evicted: usize,
     /// Events removed by the profile's pipeline, across all sources.
     pub dropped: usize,
     /// Custom marker icons from the profile (sanitised), by name.

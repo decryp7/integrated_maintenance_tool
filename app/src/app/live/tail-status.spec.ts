@@ -26,7 +26,7 @@ function status(): TailStatus {
       lastEvent: i ? Date.now() - i * 1000 : null,
       state,
     })),
-    totals: { files: 6, tailing: 1, errors: 1, bytes: 5_000_000, linesPerSec: 12.5, evicted: 42, records: 1234 },
+    totals: { files: 6, tailing: 1, errors: 1, bytes: 5_000_000, linesPerSec: 12.5, records: 1234 },
   };
 }
 
@@ -102,7 +102,7 @@ describe('tail status', () => {
     await settle(fixture);
     expect(all(fixture, '[data-testid=tail-file]').length).toBe(6);
     const t = text(fixture);
-    for (const s of ['6 files', '1 tailing', '1 with errors', '4.8 MB', '12.5 lines/s', '1,234 events', '42 evicted', 'Polling', 'Off', 'Whole file', 'Rotated', 'access denied', '240', 'just now']) expect(t).toContain(s);
+    for (const s of ['6 files', '1 tailing', '1 with errors', '4.8 MB', '12.5 lines/s', '1,234 events', 'Polling', 'Off', 'Whole file', 'Rotated', 'access denied', '240', 'just now']) expect(t).toContain(s);
 
     const toggle = buttonByText(fixture, 'Live tail off');
     toggle.click();
@@ -116,9 +116,9 @@ describe('tail status', () => {
     expect(all(fixture, 'input, select')).toHaveLength(0);
     el<HTMLButtonElement>(fixture, '[data-testid=tail-settings]').click();
     expect(TestBed.inject(SettingsDialogService).open).toHaveBeenCalledWith('workspace');
-    await live.setOptions({ ...live.options(), watch: 'polling', pollIntervalMs: 500, retention: { maxRecords: 100000, maxAgeMs: null } });
+    await live.setOptions({ ...live.options(), watch: 'polling', pollIntervalMs: 500 });
     await settle(fixture);
-    expect(el(fixture, '[data-testid=tail-summary]').textContent).toBe('Watch: polling · poll every 500 ms · keep 100,000 events');
+    expect(el(fixture, '[data-testid=tail-summary]').textContent).toBe('Watch: polling · poll every 500 ms');
     await live.set(false);
   });
 
@@ -149,7 +149,7 @@ describe('tail status', () => {
     const fixture = TestBed.createComponent(TailStatusView);
     await settle(fixture);
     expect(text(fixture)).toContain('Loading…');
-    release({ files: [], totals: { files: 0, tailing: 0, errors: 0, bytes: 0, linesPerSec: 0, evicted: 0, records: 0 } });
+    release({ files: [], totals: { files: 0, tailing: 0, errors: 0, bytes: 0, linesPerSec: 0, records: 0 } });
     await settle(fixture);
     // Files are open, but the engine lists none: it lists no per-file state.
     expect(text(fixture)).toContain('The state of each tailed file is not available yet.');

@@ -220,9 +220,6 @@ pub(crate) struct Inner {
     /// From this many events on, timelines use the pre-aggregated histogram (approximate at bucket edges)
     /// instead of grouping the events.
     pub(crate) preaggregate_above: AtomicU64,
-    /// When live tail last read each followed file (a file whose last event is held back is flushed once it has not
-    /// grown for [`imt_core::ports::HOLD_IDLE`]).
-    pub(crate) tail_read_at: Mutex<std::collections::HashMap<u32, std::time::Instant>>,
 }
 
 /// A connection borrowed from the pool, returned on drop.
@@ -658,7 +655,6 @@ impl DuckStore {
                 derived: Mutex::new(None),
                 flights: Mutex::new(std::collections::HashMap::new()),
                 preaggregate_above: AtomicU64::new(PREAGGREGATE_ABOVE),
-                tail_read_at: Mutex::new(std::collections::HashMap::new()),
             }),
         }
     }

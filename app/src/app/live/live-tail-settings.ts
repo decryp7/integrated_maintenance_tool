@@ -12,7 +12,7 @@ export function parseLimit(text: string): number | null {
 }
 
 /**
- * Settings ▸ Live tail, under the engine's own field (the re-import delay): how files are watched, how much is kept,
+ * Settings ▸ Live tail, under the engine's own field (the re-import delay): how files are watched,
  * what happens to deleted files and how often the detectors run. Every control is sent with `set_live`, which the
  * engine validates (clamps) again; units are suffixes, not part of the label.
  */
@@ -31,12 +31,6 @@ export function parseLimit(text: string): number | null {
       <label class="lbl"><span i18n="@@live.settings.pollEvery">Poll every</span>
         <span class="with-unit"><input class="input mono num" type="number" min="100" step="100" [value]="opts().pollIntervalMs ?? 2000" [disabled]="opts().watch === 'events'" (change)="setPoll($any($event.target).value)" /><span class="unit" aria-hidden="true">ms</span></span>
       </label>
-      <label class="lbl"><span i18n="@@live.settings.keepEvents">Keep at most</span>
-        <span class="with-unit"><input class="input mono num" type="number" min="1" placeholder="no limit" i18n-placeholder="@@live.tailStatus.noLimit" [value]="opts().retention?.maxRecords ?? ''" (change)="setMaxRecords($any($event.target).value)" /><span class="unit" aria-hidden="true" i18n="@@live.settings.unitEvents">events</span></span>
-      </label>
-      <label class="lbl"><span i18n="@@live.settings.keepMinutes">Keep for at most</span>
-        <span class="with-unit"><input class="input mono num" type="number" min="1" placeholder="no limit" i18n-placeholder="@@live.tailStatus.noLimit" [value]="maxAgeMinutes()" (change)="setMaxAge($any($event.target).value)" /><span class="unit" aria-hidden="true" i18n="@@live.settings.unitMinutes">minutes</span></span>
-      </label>
       <label class="lbl"><span i18n="@@live.tailStatus.deletedFiles">Deleted files</span>
         <select class="select" (change)="setDeleted($any($event.target).value)">
           <option value="keep" [selected]="opts().deletedFiles !== 'drop'" i18n="@@live.tailStatus.deletedKeep">Keep their events</option>
@@ -44,7 +38,7 @@ export function parseLimit(text: string): number | null {
         </select>
       </label>
       <label class="lbl"><span i18n="@@live.settings.flush">Flush a partial line after</span>
-        <span class="with-unit"><input class="input mono num" type="number" min="0" step="100" [value]="opts().carryFlushMs ?? 2000" (change)="setCarry($any($event.target).value)" /><span class="unit" aria-hidden="true">ms</span></span>
+        <span class="with-unit"><input class="input mono num" type="number" min="0" step="100" [value]="opts().carryFlushMs ?? 500" (change)="setCarry($any($event.target).value)" /><span class="unit" aria-hidden="true">ms</span></span>
       </label>
       <label class="lbl" title="The live anomaly detectors (error spikes, crashes, slow outliers...) run at most this often. 0 runs them after every batch." i18n-title="@@live.tailStatus.detectTitle"><span i18n="@@live.settings.detectEvery">Run detectors every</span>
         <span class="with-unit"><input class="input mono num" type="number" min="0" [max]="maxDetect" step="100" data-testid="detect-every" [value]="opts().detectEveryMs ?? 1000" (change)="setDetect($any($event.target))" /><span class="unit" aria-hidden="true">ms</span></span>
@@ -67,10 +61,6 @@ export class LiveTailSettings {
   private readonly cdr = inject(ChangeDetectorRef);
   protected readonly opts = computed(() => this.live.options());
   protected readonly maxDetect = MAX_DETECT_EVERY_MS;
-  protected readonly maxAgeMinutes = computed(() => {
-    const ms = this.opts().retention?.maxAgeMs;
-    return ms ? Math.round(ms / 60_000) : '';
-  });
 
   protected setWatch(watch: WatchPreference): void {
     this.apply({ watch });
@@ -81,22 +71,13 @@ export class LiveTailSettings {
     this.apply({ pollIntervalMs: ms === null ? null : Math.max(100, ms) });
   }
 
-  protected setMaxRecords(text: string): void {
-    this.apply({ retention: { ...this.opts().retention, maxRecords: parseLimit(text) } });
-  }
-
-  protected setMaxAge(text: string): void {
-    const minutes = parseLimit(text);
-    this.apply({ retention: { ...this.opts().retention, maxAgeMs: minutes === null ? null : minutes * 60_000 } });
-  }
-
   protected setDeleted(deletedFiles: DeletedFiles): void {
     this.apply({ deletedFiles });
   }
 
   protected setCarry(text: string): void {
     const t = text.trim();
-    const ms = /^\d+$/.test(t) ? Number(t) : 2000;
+    const ms = /^\d+$/.test(t) ? Number(t) : 500;
     this.apply({ carryFlushMs: ms });
   }
 
