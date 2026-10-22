@@ -10,6 +10,8 @@ import { SettingsScreen } from './settings-screen';
 import { MockUpdatesBackend } from '../updates/mock-updates-backend';
 import { UpdatesBackend } from '../updates/updates-backend';
 import { at } from '../../testing/must';
+import { MockVideoBackend } from '../video/mock/mock-video-backend';
+import { VideoBackend } from '../video/video-backend';
 
 async function setup(backend = new MockSettingsBackend(), withRef = true) {
   const closed = vi.fn();
@@ -23,6 +25,7 @@ async function setup(backend = new MockSettingsBackend(), withRef = true) {
       { provide: SettingsBackend, useValue: backend },
       { provide: UpdatesBackend, useValue: new MockUpdatesBackend('', 1) },
       { provide: SettingsFiles, useValue: files },
+      { provide: VideoBackend, useFactory: () => new MockVideoBackend() },
       { provide: LifecycleService, useValue: { restartKeepingSession: restart } },
       ...(withRef ? [{ provide: DIALOG_REF, useValue: { close: closed, closed: Promise.resolve() } }] : []),
     ],
@@ -40,6 +43,15 @@ const escape = (fixture: Parameters<typeof el>[0]) => {
 };
 
 describe('SettingsScreen', () => {
+  it('shows the FFmpeg runtime under Video', async () => {
+    const { fixture } = await setup();
+    nav(fixture, 'Video').click();
+    await settle(fixture);
+    expect(el(fixture, 'nav [aria-current=page]').textContent).toContain('Video');
+    expect(el(fixture, 'imt-video-settings')).toBeTruthy();
+    expect(text(fixture)).toContain('FFmpeg runtime');
+  });
+
   it('groups the navigation: Application, Data, AI, Plugins, Diagnostics (I7)', async () => {
     const { fixture } = await setup();
     const groups = all(fixture, 'nav .group').map((g) => g.textContent?.trim());
@@ -53,7 +65,9 @@ describe('SettingsScreen', () => {
       'Updates',
       'Disk usage',
       'Performance',
+      'Symbols',
       'Parsers',
+      'Video',
       'Live tail',
       'AI assistant not installed',
       'Plugins',

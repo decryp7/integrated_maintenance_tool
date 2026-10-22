@@ -26,8 +26,9 @@ use imt_core::patterns::Pattern;
 use imt_core::ports::{
     Analysis, Analyzed, Console, DiagnosticRow, Diagnostics, EventView, EventsRequest, Filter, FixEvaluation, ImportSession, IndexStatus,
     Ingest, Inspect, Maintain, MaintenanceAction, MaintenanceReport, PageQuery, PageReply, Positions, Profiles, Projects, Query, QuickFix,
-    Search, SearchReply, SearchRequest, SegmentsPage, SegmentsRequest, SqlPage, SqlPageRequest, SqlRequest, SqlResult, SqlSchema,
-    StoreError, StoreFields, StoreIndex, StoreMemory, StoreOverview, StoreResult, SummaryReply,
+    Search, SearchReply, SearchRequest, SegmentsPage, SegmentsRequest, SqlExportRequest, SqlExportResult, SqlIds, SqlIdsRequest, SqlPage,
+    SqlPageRequest, SqlRequest, SqlResult, SqlSchema, StoreError, StoreFields, StoreIndex, StoreMemory, StoreOverview, StoreResult,
+    SummaryReply,
 };
 use imt_core::ql::{Completion, QlError, QlResult, QueryControl};
 use imt_core::spans::infer::{SpanEvaluation, SpanProposal, SpanRuleCheck, SpanRuleRequest};
@@ -889,6 +890,13 @@ impl Console for RemoteStore {
     }
     fn sql_page(&self, req: &SqlPageRequest) -> StoreResult<SqlPage> {
         self.call(StoreOp::SqlPage, req)
+    }
+    fn sql_ids(&self, req: &SqlIdsRequest) -> StoreResult<SqlIds> {
+        self.call(StoreOp::SqlIds, req)
+    }
+    /// Cancellable through the thread's current control (the worker interrupts the statement).
+    fn sql_export(&self, req: &SqlExportRequest) -> StoreResult<SqlExportResult> {
+        self.analysis(StoreOp::SqlExport, req)
     }
 }
 

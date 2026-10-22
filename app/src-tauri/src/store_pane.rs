@@ -9,8 +9,9 @@ use crate::query_cancel::QueryStreamEvent;
 use crate::windows::CurrentWindow;
 use crate::{CmdError, CmdResult};
 use imt_core::ports::{
-    MaintenanceAction, RunningJob, SegmentsPage, SegmentsRequest, SqlNote, SqlPage, SqlPageRequest, SqlRequest, SqlResult, SqlSchema,
-    StoreError, StoreFields, StoreIndex, StoreMemory, StoreOverview, MAX_SQL_LEN, SQL_MAX_NOTES, SQL_NOTE_CHARS,
+    MaintenanceAction, RunningJob, SegmentsPage, SegmentsRequest, SqlExportRequest, SqlIds, SqlIdsRequest, SqlNote, SqlPage,
+    SqlPageRequest, SqlRequest, SqlResult, SqlSchema, StoreError, StoreFields, StoreIndex, StoreMemory, StoreOverview, MAX_SQL_LEN,
+    SQL_MAX_NOTES, SQL_NOTE_CHARS,
 };
 use imt_core::ql::{QlError, QueryControl};
 use imt_notes::{Anchor, Note};
@@ -93,6 +94,58 @@ pub(crate) async fn sql_schema(state: CurrentWindow) -> CmdResult<SqlSchema> {
 #[tauri::command]
 pub(crate) async fn sql_page(state: CurrentWindow, request: SqlPageRequest) -> CmdResult<SqlPage> {
     with_store(&state, move |s| s.sql_page(&request)).await
+}
+
+/// The event ids of a kept result: *Open in Events* filters the grid to them (`@id in (...)`).
+#[tauri::command]
+pub(crate) async fn sql_ids(state: CurrentWindow, request: SqlIdsRequest) -> CmdResult<SqlIds> {
+    with_store(&state, move |s| s.sql_ids(&request)).await
+}
+
+/// The window's notes as `imt.notes` sees them.
+fn window_notes(state: &CurrentWindow) -> Vec<SqlNote> {
+    state.notes.snapshot().notes().iter().take(SQL_MAX_NOTES).map(sql_note).collect()
+}
+
+/// Writes all rows of a console query as CSV to a file the user chose: an export job (Cancel stops it, the job's
+/// message says how many rows were written and whether the limits cut it). Returns the job's id at once.
+#[tauri::command]
+pub(crate) async fn sql_export<R: Runtime>(
+    app: AppHandle<R>,
+    state: CurrentWindow,
+    sql: String,
+    path: String,
+    overwrite: bool,
+) -> CmdResult<u64> {
+    if sql.len() > MAX_SQL_LEN {
+        return Err(CmdError::from(format!("The SQL text is longer than {} KB.", MAX_SQL_LEN >> 10)));
+    }
+    let target = crate::paths::WindowGrants::of(&app, state.label())
+        .write(&path, &[])?
+        .path()
+        .to_path_buf();
+    // Checked now, so the dialog can ask to replace the file; the store checks again when it writes.
+    imt_core::overwrite::check_overwrite(std::path::Path::new(&path), overwrite)?;
+    let request = SqlExportRequest {
+        sql,
+        notes: window_notes(&state),
+        path: target.to_string_lossy().into_owned(),
+        overwrite,
+    };
+    crate::jobs::export(&app, &state, "Export SQL result to", &target, move |store| {
+        let r = store.sql_export(&request).map_err(CmdError::from)?;
+        log::info!(Rows = r.rows, Bytes = r.bytes, Truncated = r.truncated; "SQL result exported");
+        Ok(exported_rows(r.rows, r.truncated))
+    })
+}
+
+/// The line the export job's message shows.
+fn exported_rows(rows: u64, truncated: bool) -> String {
+    match (rows, truncated) {
+        (1, false) => "Exported 1 row.".into(),
+        (_, false) => format!("Exported {rows} rows."),
+        (_, true) => format!("Exported the first {rows} rows (the export's limit); narrow the query for the rest."),
+    }
 }
 
 /// A console run's outcome as the UI expects it (`SqlOutcome`): `{ result }`, `{ error }` (the span to underline)
@@ -183,7 +236,7 @@ pub(crate) async fn sql_run<R: Runtime>(
             cancelled: false,
         });
     }
-    let notes: Vec<SqlNote> = state.notes.snapshot().notes().iter().take(SQL_MAX_NOTES).map(sql_note).collect();
+    let notes = window_notes(&state);
     let request = SqlRequest { sql, explain, notes };
     let control = QueryControl::new();
     let stop = control.clone();

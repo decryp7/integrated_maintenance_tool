@@ -80,6 +80,7 @@ the **plugin protocol** your SDK speaks, `imt_plugin_api::PROTOCOL`:
 | Protocol | Changes | First IMT |
 |---|---|---|
 | 1.0 | first public SDK (handshake frame version 2) | the release after 2026-10-21 |
+| 1.1 | an elevated process streams its output files to the host (`ToolCtx::outputs()`) and forwards its standard error; a 1.0 plugin keeps working | the release after 2026-10-22 |
 
 IMT runs a plugin built for the same major version and a minor version it knows. Otherwise it refuses the plugin,
 at install and at start, with a message saying what to update ("is too old … needs an update built for protocol
@@ -100,6 +101,12 @@ does:
 
 - Files the user opens reach your importer through IMT (read in chunks over the connection); you never see a path.
 - Your tools' `ToolCtx::data_dir()` is your private data folder, kept across updates and removed with the plugin.
+- A tool that records a file in its **elevated** process (an operation declared `elevated`) does not write it at a path:
+  it calls `ctx.outputs().create(folder, name, max_bytes)` and writes to the returned `OutputFile` (`Write`), then
+  `finish()`. IMT streams the bytes to the unelevated host, which saves `<data>/captures/<folder>/<name>`
+  (names: letters, digits, `-`, `_`, `.`, at most 200 bytes; a file is never replaced; a size over `max_bytes` or 8 GiB is
+  cut). An `OutputFile` dropped without `finish()` is discarded. What the elevated process writes to standard error
+  is forwarded to IMT's log (bounded).
 - Declare what you need in `Plugin::permissions` with a reason the user can read. Packages may ask only for
   `network` and `runPrograms`; `openedFilePaths` and `writeFolders` are for IMT's own plugins. The user approves each
   permission at install and can revoke it later in the Plugins view (your process restarts with fewer rights).

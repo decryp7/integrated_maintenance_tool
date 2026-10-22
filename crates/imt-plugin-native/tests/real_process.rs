@@ -10,6 +10,7 @@
 //! ```
 #![cfg(windows)]
 
+use imt_plugin_api::output::{FolderOutputs, Outputs};
 use imt_plugin_native::captures::Control;
 use imt_plugin_native::etw::{record as etw_record, EtwSpec};
 use imt_plugin_native::sampling::live::{record, SamplingSpec};
@@ -185,7 +186,10 @@ fn etw_records_cpu_waits_and_heap_growth() {
     }
     let busy = Busy::start("all");
     let dir = tempfile::tempdir().unwrap();
-    let out = dir.path().join("busy.nettrace");
+    // The elevated process streams its capture to the host, which saves it below the data folder.
+    let outputs = FolderOutputs(dir.path().to_path_buf());
+    let out = outputs.create("native", "busy.nettrace", 2 << 30).unwrap();
+    let saved_at = dir.path().join("captures").join("native").join("busy.nettrace");
     let ctl = Control::default();
     let spec = EtwSpec {
         heap: true,
@@ -193,9 +197,10 @@ fn etw_records_cpu_waits_and_heap_growth() {
         max_bytes: 1 << 30,
         max_addresses: 200_000,
     };
-    let done = etw_record(busy.pid(), &spec, &out, &SymbolConfig::default(), &ctl).unwrap();
+    let done = etw_record(busy.pid(), &spec, out, &saved_at, &SymbolConfig::default(), &ctl).unwrap();
     eprintln!("{:#?}", done.notes);
     let p = import(&std::fs::read(&done.path).unwrap());
+    assert_eq!(done.path, saved_at);
     assert!(p.frames.iter().any(|f| f.function.ends_with("native_busy_spin")));
     assert!(p.metrics.iter().any(|m| m.id == MetricId::WaitNs));
     let f = findings(p);

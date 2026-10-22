@@ -256,6 +256,7 @@ export function buildMenus(state: MenuState): TopMenu[] {
         cmd('profiling.open'),
         cmd('dumps.open'),
         cmd('dumps.openUmdh'),
+        cmd('video.open'),
         cmd('project.open'),
         recentMenu(state),
         SEP,

@@ -219,6 +219,7 @@ pub fn text_expr(name: &str, schema: &dyn FieldSource) -> Option<String> {
         "@template" => "e.template".into(),
         "@source" => "s.name".into(),
         "@line" => "CAST(e.line AS VARCHAR)".into(),
+        "@id" => "CAST(e.id AS VARCHAR)".into(),
         _ => {
             let key = lit(name)?;
             let events = schema.events();
@@ -245,6 +246,7 @@ fn parse_number(text: &str) -> String {
 pub fn number_expr(name: &str, schema: &dyn FieldSource) -> Option<String> {
     Some(match name {
         "@line" => "CAST(e.line AS DOUBLE)".into(),
+        "@id" => "CAST(e.id AS DOUBLE)".into(),
         n if Pseudo::parse(n).is_some() => "CAST(NULL AS DOUBLE)".into(),
         _ => {
             let key = lit(name)?;
@@ -322,6 +324,11 @@ fn sql_op(op: CmpOp) -> &'static str {
 /// A query-language comparison (see `imt_core::ql::Expr::Cmp`): by severity for levels, numerically
 /// when both sides are numbers, else as text; a missing field only satisfies `!=`.
 fn cmp_sql(field: &FieldKey, op: CmpOp, rhs: &Operand, schema: &dyn FieldSource) -> Option<String> {
+    if *field == FieldKey::Pseudo(Pseudo::Id) {
+        if let Some(id) = id_operand(rhs) {
+            return Some(format!("(e.id {} {id})", sql_op(op)));
+        }
+    }
     if let Some(level) = rhs.level {
         return Some(format!("(e.level {} {})", sql_op(op), level.index()));
     }
@@ -338,6 +345,12 @@ fn cmp_sql(field: &FieldKey, op: CmpOp, rhs: &Operand, schema: &dyn FieldSource)
     };
     let missing = if op == CmpOp::Ne { "TRUE" } else { "FALSE" };
     Some(format!("(CASE WHEN {text} IS NULL THEN {missing} ELSE {decided} END)"))
+}
+
+/// An operand that is a whole, non-negative number: an event id as `@id` compares it (exactly, as an integer).
+fn id_operand(o: &Operand) -> Option<u64> {
+    let n = o.lit.number?;
+    (o.level.is_none() && n.fract() == 0.0 && (0.0..9.0e15).contains(&n)).then_some(n as u64)
 }
 
 fn level_named(value: &str) -> Option<Level> {
@@ -360,6 +373,15 @@ pub fn expr_sql(e: &Expr, schema: &dyn FieldSource, group_by: &[String]) -> Opti
         Expr::Not(x) => format!("(NOT {})", expr_sql(x, schema, group_by)?),
         Expr::Const(b) => if *b { "TRUE" } else { "FALSE" }.into(),
         Expr::Cmp { field, op, rhs } => cmp_sql(field, *op, rhs, schema)?,
+        Expr::In { field, set } if *field == FieldKey::Pseudo(Pseudo::Id) && set.iter().all(|o| id_operand(o).is_some()) => {
+            // A result set's ids (`@id in (...)`): one list the engine looks up, not one comparison per id.
+            let ids: Vec<String> = set.iter().filter_map(id_operand).map(|i| i.to_string()).collect();
+            if ids.is_empty() {
+                "FALSE".into()
+            } else {
+                format!("(e.id IN ({}))", ids.join(", "))
+            }
+        }
         Expr::In { field, set } => {
             let parts = set
                 .iter()

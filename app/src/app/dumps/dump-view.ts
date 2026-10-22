@@ -1,5 +1,6 @@
 import { CdkListbox, CdkOption } from '@angular/cdk/listbox';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { symbolProblemLines, symbolProblemTotal, symbolStatusHint, symbolStatusLabel } from './symbol-status';
 import { DumpFinding, DumpOverview, FrameTrust, ModulesPage, StackDto, ThreadsPage, ThreadState } from '../core/api.types';
 import { formatDateTime, formatDuration } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
@@ -141,7 +142,7 @@ const TRUST_LABEL: Record<FrameTrust, string> = {
                         <td class="mono">{{ m.version ?? '' }}</td>
                         <td class="mono">{{ m.base }}</td>
                         <td class="num">{{ bytes(m.size) }}</td>
-                        <td>@if (m.symbols) { <span i18n="@@dumps.modules.yes">yes</span> } @else { <span class="faint" i18n="@@dumps.modules.no">no</span> }</td>
+                        <td [title]="hint(m.symbols) ?? ''" data-testid="module-symbols"><span [class.faint]="m.symbols.kind !== 'loaded'">{{ symbolLabel(m.symbols) }}</span></td>
                         <td class="ellipsis faint" [title]="m.path">{{ m.path }}</td>
                       </tr>
                     }
@@ -156,6 +157,9 @@ const TRUST_LABEL: Record<FrameTrust, string> = {
                 <section class="card">
                   <h3 class="sec" i18n="@@dumps.details.symbols">Symbols</h3>
                   <p i18n="@@dumps.details.symbolsText">{{ count(o.framesSymbolised) }} of {{ count(o.frames) }} frames named; {{ count(o.modulesWithSymbols) }} of {{ count(o.modules) }} modules with symbols.</p>
+                  @if (problemTotal(o.symbolProblems) > 0) {
+                    <ul class="list" data-testid="symbol-problems">@for (l of problemLines(o.symbolProblems); track l) { <li>{{ l }}</li> }</ul>
+                  }
                 </section>
                 @if (o.handles; as h) {
                   <section class="card">
@@ -350,4 +354,8 @@ export class DumpView {
   protected readonly bytes = formatBytes;
   protected readonly headline = headlineText;
   protected readonly count = formatCount;
+  protected readonly symbolLabel = symbolStatusLabel;
+  protected readonly hint = symbolStatusHint;
+  protected readonly problemLines = symbolProblemLines;
+  protected readonly problemTotal = symbolProblemTotal;
 }

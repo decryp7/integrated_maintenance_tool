@@ -74,12 +74,12 @@ const THREADS: ThreadRow[] = [
 ];
 
 const MODULES: ModuleRow[] = [
-  ['OrderService.exe', 'C:\\Program Files\\Shop\\OrderService.exe', '0x7ff6a0000000', 0x40000, '1.4.0.0', true, false],
-  ['Shop.Orders.dll', 'C:\\Program Files\\Shop\\Shop.Orders.dll', '0x7ff6b0000000', 0x120000, '1.4.0.0', true, false],
-  ['Shop.Payments.dll', 'C:\\Program Files\\Shop\\Shop.Payments.dll', '0x7ff6b2000000', 0x80000, '1.4.0.0', false, false],
-  ['coreclr.dll', 'C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\8.0.1\\coreclr.dll', '0x7ffb10000000', 0x4a0000, '8.0.1.0', false, true],
-  ['KERNELBASE.dll', 'C:\\Windows\\System32\\KERNELBASE.dll', '0x7ffb1a000000', 0x2c0000, '10.0.19041.3636', true, true],
-  ['ntdll.dll', 'C:\\Windows\\System32\\ntdll.dll', '0x7ffb1c000000', 0x1f8000, '10.0.19041.3636', true, true],
+  ['OrderService.exe', 'C:\\Program Files\\Shop\\OrderService.exe', '0x7ff6a0000000', 0x40000, '1.4.0.0', 'loaded', false],
+  ['Shop.Orders.dll', 'C:\\Program Files\\Shop\\Shop.Orders.dll', '0x7ff6b0000000', 0x120000, '1.4.0.0', 'loaded', false],
+  ['Shop.Payments.dll', 'C:\\Program Files\\Shop\\Shop.Payments.dll', '0x7ff6b2000000', 0x80000, '1.4.0.0', 'serversDisabled', false],
+  ['coreclr.dll', 'C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\8.0.1\\coreclr.dll', '0x7ffb10000000', 0x4a0000, '8.0.1.0', 'notOnServer', true],
+  ['KERNELBASE.dll', 'C:\\Windows\\System32\\KERNELBASE.dll', '0x7ffb1a000000', 0x2c0000, '10.0.19041.3636', 'loaded', true],
+  ['ntdll.dll', 'C:\\Windows\\System32\\ntdll.dll', '0x7ffb1c000000', 0x1f8000, '10.0.19041.3636', 'loaded', true],
 ].map(([n, path, base, size, version, symbols, framework]) => ({
   name: n as string,
   path: path as string,
@@ -88,7 +88,7 @@ const MODULES: ModuleRow[] = [
   version: version as string,
   debugFile: `${(n as string).replace(/\.(dll|exe)$/, '')}.pdb`,
   debugId: '9C8A0B5D4E2F4A1B8C3D2E1F0A9B8C7D1',
-  symbols: symbols as boolean,
+  symbols: { kind: symbols as 'loaded' | 'serversDisabled' | 'notOnServer' },
   framework: framework as boolean,
 }));
 
@@ -235,7 +235,8 @@ export class MockDumpsBackend extends DumpsBackend {
       },
       threads: THREADS.length,
       modules: MODULES.length,
-      modulesWithSymbols: MODULES.filter((m) => m.symbols).length,
+      modulesWithSymbols: MODULES.filter((m) => m.symbols.kind === 'loaded').length,
+      symbolProblems: { missing: 0, serversDisabled: 1, notOnServer: 1, mismatch: 0, unreadable: 0, downloadFailed: 0, noIdentity: 0 },
       framesSymbolised: 14,
       frames: 14,
       handles: { total: 412, byType: [{ name: 'Event', count: 200 }, { name: 'File', count: 120 }, { name: 'Key', count: 92 }] },

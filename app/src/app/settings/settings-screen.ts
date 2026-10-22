@@ -17,6 +17,8 @@ import { KeyboardSettings } from './keyboard/keyboard-settings';
 import { KEYBOARD_ID } from './keyboard/keyboard.types';
 import { STORAGE_ID } from './storage/storage.types';
 import { ParsersStore } from './parsers/parsers.store';
+import { VideoSettings } from '../video/video-settings';
+import { VIDEO_SETTINGS_ID } from '../video/video-settings.types';
 import { searchParsers } from './parsers/parser-search';
 import { APPEARANCE_ID, fieldMatches, GENERAL_ID, LIVE_TAIL_SECTION, navLayout, statusLabel, UPDATES_ID } from './settings-model';
 import { plural } from '../i18n/locale';
@@ -31,7 +33,7 @@ import { SettingField, SettingsSection } from './settings.types';
 @Component({
   selector: 'imt-settings-screen',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, KnowledgeSettings, StorageSettings, PerformanceExtras, LiveTailSettings, UpdatesSettings, KeyboardSettings],
+  imports: [GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, KnowledgeSettings, StorageSettings, PerformanceExtras, LiveTailSettings, UpdatesSettings, KeyboardSettings, VideoSettings],
   host: { '(keydown.escape)': 'onEscape($event)' },
   template: `
     <div class="top">
@@ -140,6 +142,8 @@ import { SettingField, SettingsSection } from './settings.types';
         } @else if (isSelected(keyboard)) {
           <h3 i18n="Settings section|Key bindings of the commands@@settings.keyboard.nav">Keyboard shortcuts</h3>
           <imt-keyboard-settings />
+        } @else if (isSelected(video)) {
+          <imt-video-settings />
         } @else if (store.current(); as s) {
           <div class="section-head">
             <h3>{{ titleOf(s) }}</h3>
@@ -248,6 +252,7 @@ export class SettingsScreen {
   private readonly commands = inject(CommandRegistry);
   protected readonly parsers = PARSERS_ID;
   protected readonly keyboard = KEYBOARD_ID;
+  protected readonly video = VIDEO_SETTINGS_ID;
   protected readonly appearance = APPEARANCE_ID;
 
   protected readonly navGroups = computed(() => navLayout(this.store.sections()));

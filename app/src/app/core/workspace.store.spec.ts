@@ -318,7 +318,7 @@ describe('WorkspaceStore', () => {
 
   it('reads and writes preferences defensively', () => {
     localStorage.setItem('imt.prefs.v1', JSON.stringify({ timezone: 'local', extraColumns: ['x'] }));
-    const defaults = { timezone: 'utc', alwaysShowLifecycle: true, theme: 'calm', scheme: 'system', uiFont: 'system', extraColumns: [] };
+    const defaults = { timezone: 'utc', alwaysShowLifecycle: true, theme: null, scheme: 'system', uiFont: 'system', extraColumns: [] };
     expect(loadPrefs()).toEqual({ ...defaults, timezone: 'local', extraColumns: ['x'] });
     localStorage.setItem('imt.prefs.v1', '{not json');
     expect(loadPrefs()).toEqual(defaults);

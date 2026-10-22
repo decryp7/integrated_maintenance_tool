@@ -1,11 +1,13 @@
 //! Function names from PDB files in local symbol folders: a pure-Rust [`SymbolProvider`] (the `pdb` crate), so
-//! dumps symbolise on every platform. Folders are searched in the symbol store layout
-//! (`<folder>/<name>.pdb/<GUID><age>/<name>.pdb`, what `symchk` and Visual Studio caches write) and flat
-//! (`<folder>/<name>.pdb`). With a module's debug identifier, a PDB whose GUID and age do not match is not used.
-//! Procedures (with their length) come from the module streams, public symbols fill the gaps. Nothing is
-//! downloaded: symbol servers are `imt-symbols`' job (ADR 0023).
+//! dumps symbolise on every platform. PDBs are found **by the module's identity** (PDB name, GUID and age), never
+//! by a file name alone: folders are searched in the symbol store layout (`<folder>/<name>.pdb/<GUID><age>/<name>.pdb`,
+//! what `symchk`, Visual Studio caches and IMT's own symbol cache write) and flat (`<folder>/<name>.pdb`), and a PDB
+//! whose GUID and age do not match the module is not used (ADR 0036). Procedures (with their length) come from the
+//! module streams, public symbols fill the gaps. Nothing is downloaded here: the host fills IMT's symbol cache from
+//! the user's symbol servers and passes it as a folder.
 
-use imt_dump::symbols::{ModuleRef, Symbol, SymbolProvider};
+use imt_dump::model::SymbolStatus;
+use imt_dump::symbols::{PdbKey, Symbol, SymbolProvider};
 use pdb::FallibleIterator;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -74,24 +76,40 @@ pub fn undecorate(name: &str) -> String {
     parts.into_iter().rev().collect::<Vec<_>>().join("::")
 }
 
-/// Reads the functions of the PDB at `path`; with `expected` (the module's `<GUID><age>`), refuses another
-/// build's PDB.
-pub fn read_table(path: &Path, expected: Option<&str>) -> Result<Table, String> {
-    let meta = std::fs::metadata(path).map_err(|e| e.to_string())?;
+/// Why a PDB file was not used.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Refused {
+    /// Another build's PDB (its GUID or age differ from the module's).
+    Mismatch(String),
+    /// Not readable as a PDB.
+    Unreadable(String),
+}
+
+/// Reads the functions of the PDB at `path`, which must be `expected`'s build (same GUID and age).
+pub fn read_table(path: &Path, expected: &PdbKey) -> Result<Table, Refused> {
+    let unreadable = |e: &dyn std::fmt::Display| Refused::Unreadable(format!("{}: {e}", path.display()));
+    let meta = std::fs::metadata(path).map_err(|e| unreadable(&e))?;
     if meta.len() > MAX_PDB_BYTES {
-        return Err(format!("{} is larger than {} MB", path.display(), MAX_PDB_BYTES >> 20));
+        return Err(unreadable(&format!("larger than {} MB", MAX_PDB_BYTES >> 20)));
     }
-    let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
-    let mut pdb = pdb::PDB::open(file).map_err(|e| e.to_string())?;
-    if let Some(want) = expected {
-        let info = pdb.pdb_information().map_err(|e| e.to_string())?;
-        let age = pdb.debug_information().map(|d| d.age().unwrap_or(info.age)).unwrap_or(info.age);
-        let id = format!("{}{:x}", info.guid.simple(), age);
-        if !id.eq_ignore_ascii_case(want) {
-            return Err(format!("{} is another build (id {id}, the module wants {want})", path.display()));
-        }
+    let file = std::fs::File::open(path).map_err(|e| unreadable(&e))?;
+    let mut pdb = pdb::PDB::open(file).map_err(|e| unreadable(&e))?;
+    let info = pdb.pdb_information().map_err(|e| unreadable(&e))?;
+    let age = pdb.debug_information().map(|d| d.age().unwrap_or(info.age)).unwrap_or(info.age);
+    let id = format!("{}{:X}", info.guid.simple(), age).to_ascii_uppercase();
+    if id != expected.key() {
+        return Err(Refused::Mismatch(format!(
+            "{} is another build (id {id}, the module wants {})",
+            path.display(),
+            expected.key()
+        )));
     }
-    let map = pdb.address_map().map_err(|e| e.to_string())?;
+    read_functions(&mut pdb).map_err(|e| unreadable(&e))
+}
+
+/// The procedures and public functions of an opened PDB.
+fn read_functions<'s, S: pdb::Source<'s> + 's>(pdb: &mut pdb::PDB<'s, S>) -> Result<Table, pdb::Error> {
+    let map = pdb.address_map()?;
     let mut entries: Vec<(u32, u32, String)> = Vec::new();
     let add = |rva: Option<pdb::Rva>, len: u32, name: String, entries: &mut Vec<(u32, u32, String)>| {
         if let Some(r) = rva {
@@ -134,22 +152,18 @@ pub fn read_table(path: &Path, expected: Option<&str>) -> Result<Table, String> 
     Ok(Table { entries })
 }
 
-/// Where a PDB named `pdb` with identifier `id` may be in `folder`.
-pub fn candidates(folder: &Path, pdb: &str, id: Option<&str>) -> Vec<PathBuf> {
-    let mut out = Vec::new();
-    if let Some(id) = id {
-        out.push(folder.join(pdb).join(id.to_ascii_uppercase()).join(pdb));
-    }
-    out.push(folder.join(pdb));
-    out
+/// Where `key`'s PDB may be in `folder`: the symbol store layout first, then flat.
+pub fn candidates(folder: &Path, key: &PdbKey) -> [PathBuf; 2] {
+    [key.store_file(folder), folder.join(key.name().as_str())]
 }
 
-/// PDBs from local folders, parsed once per module.
+/// What looking for one PDB found.
+type Found = (SymbolStatus, Option<Arc<Table>>);
+
+/// PDBs from local folders, found by identity and parsed once per PDB.
 pub struct PdbSymbols {
     folders: Vec<PathBuf>,
-    tables: Mutex<HashMap<String, Option<Arc<Table>>>>,
-    /// Why PDBs that were found could not be used (for the dump's notes).
-    problems: Mutex<Vec<String>>,
+    tables: Mutex<HashMap<PdbKey, Found>>,
 }
 
 impl PdbSymbols {
@@ -158,7 +172,6 @@ impl PdbSymbols {
         PdbSymbols {
             folders: folders.into_iter().filter(|f| f.is_absolute()).collect(),
             tables: Mutex::new(HashMap::new()),
-            problems: Mutex::new(Vec::new()),
         }
     }
 
@@ -166,58 +179,45 @@ impl PdbSymbols {
         self.folders.is_empty()
     }
 
-    /// Problems met so far (another build's PDB, an unreadable file).
-    pub fn problems(&self) -> Vec<String> {
-        self.problems.lock().unwrap_or_else(|p| p.into_inner()).clone()
+    fn find(&self, key: &PdbKey) -> Found {
+        let mut refused = None;
+        for path in self.folders.iter().flat_map(|f| candidates(f, key)) {
+            if !path.is_file() {
+                continue;
+            }
+            match read_table(&path, key) {
+                Ok(t) => return (SymbolStatus::Loaded, Some(Arc::new(t))),
+                // A mismatch says more than a damaged file; the first of each kind is kept.
+                Err(Refused::Mismatch(detail)) if !matches!(refused, Some(SymbolStatus::Mismatch { .. })) => {
+                    refused = Some(SymbolStatus::Mismatch { detail });
+                }
+                Err(Refused::Unreadable(detail)) if refused.is_none() => refused = Some(SymbolStatus::Unreadable { detail }),
+                Err(_) => {}
+            }
+        }
+        (refused.unwrap_or(SymbolStatus::Missing), None)
     }
 
-    fn table(&self, module: &ModuleRef) -> Option<Arc<Table>> {
-        let pdb = match module.debug_file {
-            Some(d) => imt_dump::modules::file_name(d).to_string(),
-            None => {
-                let name = imt_dump::modules::file_name(module.name);
-                let stem = name.rsplit_once('.').map_or(name, |(s, _)| s);
-                format!("{stem}.pdb")
-            }
-        };
-        let key = format!("{pdb}|{}", module.debug_id.unwrap_or(""));
-        if let Some(t) = self.tables.lock().unwrap_or_else(|p| p.into_inner()).get(&key) {
-            return t.clone();
+    fn found(&self, key: &PdbKey) -> Found {
+        if let Some(f) = self.tables.lock().unwrap_or_else(|p| p.into_inner()).get(key) {
+            return f.clone();
         }
-        let mut found = None;
-        'search: for folder in &self.folders {
-            for path in candidates(folder, &pdb, module.debug_id) {
-                if !path.is_file() {
-                    continue;
-                }
-                match read_table(&path, module.debug_id) {
-                    Ok(t) => {
-                        found = Some(Arc::new(t));
-                        break 'search;
-                    }
-                    Err(e) => {
-                        let mut p = self.problems.lock().unwrap_or_else(|p| p.into_inner());
-                        if p.len() < 16 {
-                            p.push(e);
-                        }
-                    }
-                }
-            }
-        }
+        let found = self.find(key);
         let mut tables = self.tables.lock().unwrap_or_else(|p| p.into_inner());
         if tables.len() < MAX_TABLES {
-            tables.insert(key, found.clone());
+            tables.insert(key.clone(), found.clone());
         }
         found
     }
 }
 
 impl SymbolProvider for PdbSymbols {
-    fn lookup(&self, module: &ModuleRef, rva: u64) -> Option<Symbol> {
-        if self.folders.is_empty() {
-            return None;
-        }
-        self.table(module)?.lookup(rva)
+    fn load(&self, key: &PdbKey) -> SymbolStatus {
+        self.found(key).0
+    }
+
+    fn lookup(&self, key: &PdbKey, rva: u64) -> Option<Symbol> {
+        self.found(key).1?.lookup(rva)
     }
 }
 
@@ -249,26 +249,28 @@ mod tests {
         assert_eq!((t.len(), t.is_empty()), (2, false));
     }
 
+    fn key(name: &str) -> PdbKey {
+        PdbKey::parse(name, "0123456789ABCDEF0123456789ABCDEF1").unwrap()
+    }
+
     #[test]
-    fn folders_are_searched_in_store_and_flat_layout() {
-        let c = candidates(Path::new("/sym"), "app.pdb", Some("abc1"));
-        assert_eq!(c, [PathBuf::from("/sym/app.pdb/ABC1/app.pdb"), PathBuf::from("/sym/app.pdb")]);
+    fn folders_are_searched_by_identity_in_store_and_flat_layout() {
+        let k = key("app.pdb");
+        let [store, flat] = candidates(Path::new("/sym"), &k);
+        assert_eq!(store, Path::new("/sym/app.pdb/0123456789ABCDEF0123456789ABCDEF1/app.pdb"));
+        assert_eq!(flat, Path::new("/sym/app.pdb"));
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("app.pdb"), b"not a pdb").unwrap();
         let s = PdbSymbols::new([dir.path().to_path_buf(), PathBuf::from("relative")]);
         assert!(!s.is_empty());
-        let m = ModuleRef {
-            name: "C:\\x\\app.exe",
-            debug_file: None,
-            debug_id: None,
-        };
-        assert!(s.lookup(&m, 0x1000).is_none());
-        assert_eq!(s.problems().len(), 1, "the damaged PDB is reported once");
-        assert!(s.lookup(&m, 0x1000).is_none());
-        assert_eq!(s.problems().len(), 1, "and cached");
-        assert!(PdbSymbols::new(Vec::new()).lookup(&m, 0).is_none());
+        assert!(matches!(s.load(&k), SymbolStatus::Unreadable { detail } if detail.contains("app.pdb")));
+        assert!(s.lookup(&k, 0x1000).is_none());
+        assert_eq!(s.load(&key("other.pdb")), SymbolStatus::Missing);
+        let none = PdbSymbols::new(Vec::new());
+        assert!(none.is_empty());
+        assert_eq!(none.load(&k), SymbolStatus::Missing);
+        assert!(none.lookup(&k, 0).is_none());
     }
-
     /// The test binary's own PDB (MSVC builds write one next to it) names this function.
     #[cfg(all(windows, target_env = "msvc", feature = "plugin"))]
     #[test]
@@ -283,8 +285,13 @@ mod tests {
             eprintln!("no PDB next to the test binary; skipped");
             return;
         }
-        let table = read_table(&pdb, None).unwrap();
+        // Its identity, from the image's CodeView record: the PDB is found by it and matches.
+        let id = imt_symbols::pe::parse_file(&exe).unwrap().pdb.unwrap();
+        let k = PdbKey::from_pdb_id(&id).unwrap();
+        let table = read_table(&pdb, &k).unwrap();
         assert!(!table.is_empty());
+        let other = PdbKey::new(k.name().clone(), [0; 16], 1);
+        assert!(matches!(read_table(&pdb, &other), Err(Refused::Mismatch(m)) if m.contains("another build")));
         let base = {
             // The image base: the address of the module that holds this function.
             let f = marker_function_for_pdb_lookup as *const () as usize;

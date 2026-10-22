@@ -13,7 +13,7 @@
 //! | | `status` | — | `{ captures, outputs }` (pollable) |
 //! | | `stop` | `{ id }` | `NativeCaptureStatus` |
 
-use crate::captures::{capture_file, CaptureStatus, Captures};
+use crate::captures::{capture_file, capture_name, CaptureStatus, Captures};
 use crate::request::{CaptureKind, CaptureRequest, SymbolOptions, DEFAULT_RATE_HZ, MAX_DURATION_SEC, MAX_RATE_HZ, MAX_SYMBOL_PATH};
 use crate::settings::Knobs;
 use crate::{paths, process, Limits, NativeError, ETW_TOOL_ID, TASK_KIND, TOOL_ID};
@@ -341,10 +341,21 @@ impl EtwTool {
             .find(|p| p.pid == req.pid)
             .ok_or(NativeError::NotFound { pid: req.pid })
             .map_err(tool_error)?;
-        // ADR 0022 §7: the elevated process writes only below the user's own application-data folders.
-        let dir = paths::elevated_capture_dir(ctx.data_dir()).map_err(tool_error)?;
-        let out = capture_file(&dir, &target.name, target.pid);
-        let symbols = req.symbols.config(dir.parent().and_then(Path::parent));
+        // ADR 0022 §7: the elevated process writes only below the user's own application-data folders (its symbol
+        // cache). The capture itself is not written by it at all: its bytes are streamed to the host, which saves
+        // them as `<data>/captures/native/<name>` (ADR 0017 §7).
+        let data = paths::elevated_data_dir(ctx.data_dir()).map_err(tool_error)?;
+        let outputs = ctx
+            .outputs()
+            .cloned()
+            .ok_or_else(|| anyhow!("this IMT gave the elevated recorder no way to save its capture; update IMT"))?;
+        let name = capture_name(&target.name, target.pid);
+        // Where the host saves it (its own data folder, as it named it).
+        let saved_at = ctx
+            .data_dir()
+            .map(|d| d.join("captures").join(paths::CAPTURE_FOLDER).join(&name))
+            .ok_or_else(|| anyhow!("IMT has no data folder to write captures to"))?;
+        let symbols = req.symbols.config(Some(&data));
         let spec = crate::etw::EtwSpec {
             heap,
             duration: req.duration.unwrap_or(self.limits.max_duration).min(self.limits.max_duration),
@@ -355,7 +366,13 @@ impl EtwTool {
         let status = self
             .captures
             .spawn("etw", pid, &target.name, "etw", move |ctl| {
-                crate::etw::record(pid, &spec, &out, &symbols, &ctl)
+                // A size limit is reached by the recorder itself, which then writes its closing blocks: the host's
+                // cut is a little above it, so only a stream that runs away is cut.
+                let cut = spec.max_bytes.saturating_add(crate::etw::CLOSING_ALLOWANCE);
+                let sink = outputs
+                    .create(paths::CAPTURE_FOLDER, &name, cut)
+                    .map_err(|e| NativeError::Failed(format!("{e:#}")))?;
+                crate::etw::record(pid, &spec, sink, &saved_at, &symbols, &ctl)
             })
             .map_err(tool_error)?;
         report_task(&self.captures, &status, ctx)?;

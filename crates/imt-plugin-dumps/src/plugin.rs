@@ -11,7 +11,7 @@ use crate::capture::{self, CaptureError, DumpType};
 use crate::import::{import_dump, import_umdh};
 use crate::source::Source;
 use anyhow::{anyhow, Result};
-use imt_dump::{DumpError, ImportOptions, Limits};
+use imt_dump::{DumpError, ImportOptions};
 use imt_plugin_api::manifest::{Permission, PermissionRequest};
 use imt_plugin_api::settings::{Configurable, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
 use imt_plugin_api::tools::{OpSpec, PathAccess, PathKind, Platform, Schema, Tool, ToolCtx, ToolFailure, ToolInfo};
@@ -56,10 +56,7 @@ impl SymbolFolders {
 }
 
 fn options(v: &Value) -> ImportOptions {
-    serde_json::from_value(v.clone()).unwrap_or(ImportOptions {
-        limits: Limits::default(),
-        file_time_ms: None,
-    })
+    serde_json::from_value(v.clone()).unwrap_or_default()
 }
 
 /// Reads minidumps (`MDMP`, any extension).
@@ -91,9 +88,7 @@ impl DocumentImporter for MinidumpImporter {
 }
 
 /// Reads UMDH snapshots and diff logs.
-pub struct UmdhImporter {
-    pub folders: Arc<SymbolFolders>,
-}
+pub struct UmdhImporter;
 
 impl DocumentImporter for UmdhImporter {
     fn id(&self) -> &str {
@@ -110,7 +105,7 @@ impl DocumentImporter for UmdhImporter {
 
     fn import_encoded(&self, _file_name: &str, file: &dyn RangeRead, options: &Value) -> Vec<u8> {
         let o = self::options(options);
-        imt_dump::wire::encode_result(&import_umdh(&Ranges(file), &o, &self.folders.get()))
+        imt_dump::wire::encode_result(&import_umdh(&Ranges(file), &o))
     }
 }
 
@@ -130,7 +125,7 @@ impl Configurable for DumpsSettings {
                     },
                     json!([]),
                 )
-                .describe("Folders with PDB files (flat or in the symbol store layout) used to name the frames of dumps and UMDH logs. Absolute paths; nothing is downloaded."),
+                .describe("Folders with PDB files (flat or in the symbol store layout) used to name the frames of dumps. A PDB is used only when its GUID and age match the module. Absolute paths; downloads from symbol servers are set in Settings \u{25b8} Symbols."),
             )
     }
 
@@ -182,9 +177,7 @@ impl Plugin for DumpsPlugin {
         c.add_document_importer(MinidumpImporter {
             folders: self.folders.clone(),
         })
-        .add_document_importer(UmdhImporter {
-            folders: self.folders.clone(),
-        })
+        .add_document_importer(UmdhImporter)
         .set_settings(Arc::new(DumpsSettings(self.folders.clone())));
         Ok(())
     }
@@ -322,6 +315,7 @@ pub fn describe(e: &DumpError) -> String {
 mod tests {
     use super::*;
     use imt_dump::model::Document;
+    use imt_dump::Limits;
     use imt_plugin_api::settings::validate;
 
     #[test]
@@ -352,18 +346,14 @@ mod tests {
         let bytes = crate::synth::sample_crash();
         assert_eq!(dump.sniff("x", &bytes), 100);
         assert_eq!(dump.sniff("x", b"nope"), 0);
-        let opts = serde_json::to_value(ImportOptions {
-            limits: Limits::default(),
-            file_time_ms: None,
-        })
-        .unwrap();
+        let opts = serde_json::to_value(ImportOptions::default()).unwrap();
         let enc = dump.import_encoded("x.dmp", &bytes.as_slice(), &opts);
         let doc = imt_dump::wire::decode_result(&enc, &Limits::default()).unwrap();
         assert!(matches!(doc, Document::Dump(d) if d.threads.len() == 3));
         let bad = dump.import_encoded("x.dmp", &&b"MDMPxxxx"[..], &json!("not options"));
         let e = imt_dump::wire::decode_result(&bad, &Limits::default()).unwrap_err();
         assert!(describe(&e).contains("NotADump"), "{e}");
-        let umdh = UmdhImporter { folders: f };
+        let umdh = UmdhImporter;
         let text = crate::umdh_reader::tests::SNAPSHOT.as_bytes();
         assert!(umdh.sniff("x.log", text) >= 90);
         let enc = umdh.import_encoded("x.log", &text, &opts);

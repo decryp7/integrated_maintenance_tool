@@ -43,6 +43,17 @@ pub fn child_main(label: &str, make: impl FnOnce(&Bootstrap) -> Arc<dyn Handler>
 /// [`child_main`] for a child that speaks a versioned protocol (a plugin): `protocol` is sent in the handshake, and
 /// a host that cannot serve it refuses the connection with a message saying which side to update.
 pub fn child_main_speaking(label: &str, protocol: ProtocolVersion, make: impl FnOnce(&Bootstrap) -> Arc<dyn Handler>) -> io::Result<()> {
+    child_main_then(label, protocol, make, |_, _| {})
+}
+
+/// [`child_main_speaking`] that runs `connected` once the connection is up and the child is locked down (e.g. to
+/// start forwarding the child's own standard error over the connection).
+pub fn child_main_then(
+    label: &str,
+    protocol: ProtocolVersion,
+    make: impl FnOnce(&Bootstrap) -> Arc<dyn Handler>,
+    connected: impl FnOnce(&Bootstrap, &Peer),
+) -> io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     let elevated = bootstrap_file(&args);
     let bootstrap = match &elevated {
@@ -50,6 +61,7 @@ pub fn child_main_speaking(label: &str, protocol: ProtocolVersion, make: impl Fn
         None => read_bootstrap(io::stdin().lock())?,
     };
     let peer = connect_speaking(&bootstrap, elevated.is_some(), label, protocol, make)?;
+    connected(&bootstrap, &peer);
     if elevated.is_none() {
         // Started after the lockdown, like every thread of a child (see `connect_and_lock_down`).
         lifeline();

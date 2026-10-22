@@ -316,17 +316,28 @@ fn symbols(doc: u32, d: &Dump, out: &mut Vec<DumpFinding>) {
     let mut missing: Vec<&str> = d
         .modules
         .iter()
-        .filter(|m| !m.symbols && !is_framework(&m.path))
+        .filter(|m| !m.symbols.is_loaded() && !is_framework(&m.path))
         .map(|m| m.name())
         .collect();
     missing.truncate(5);
+    let servers_off = d.modules.iter().any(|m| m.symbols == crate::model::SymbolStatus::ServersDisabled);
+    let next_step = if servers_off {
+        "Enable symbol servers in Settings ▸ Symbols, or add the folder with the PDB files in Settings ▸ Dumps ▸ Symbol folders, and open the dump again."
+    } else {
+        "Add the folder with the PDB files in Settings ▸ Dumps ▸ Symbol folders and open the dump again."
+    };
     out.push(DumpFinding {
         kind: FindingKind::MissingSymbols,
         severity: Severity::Info,
         title: format!("{named} of {} frames have function names", frames.len()),
         detail: format!(
-            "Frames without symbols show as module+offset, and waits in system modules cannot be recognised. Add the folder with the PDB files in Settings ▸ Dumps ▸ Symbol folders and open the dump again.{}",
-            if missing.is_empty() { String::new() } else { format!(" Missing for: {}.", missing.join(", ")) }
+            "Frames without symbols show as module+offset, and waits in system modules cannot be recognised. {}{}",
+            next_step,
+            if missing.is_empty() {
+                String::new()
+            } else {
+                format!(" Missing for: {}.", missing.join(", "))
+            }
         ),
         evidence: evidence(doc),
     });
@@ -440,7 +451,7 @@ mod tests {
         for f in d.threads.iter_mut().flat_map(|t| t.frames.iter_mut()) {
             f.function = None;
         }
-        d.modules[3].symbols = false;
+        d.modules[3].symbols = SymbolStatus::Missing;
         let f = findings(1, &d);
         let net = f.iter().find(|f| f.kind == FindingKind::Dotnet).unwrap();
         assert_eq!(net.title, "The process runs .NET 8.0.1 (coreclr.dll)");
@@ -450,6 +461,11 @@ mod tests {
         assert!(f.iter().any(|f| f.kind == FindingKind::AddressSpace));
         let sym = f.iter().find(|f| f.kind == FindingKind::MissingSymbols).unwrap();
         assert!(sym.detail.contains("Shop.Orders.dll"));
+        assert!(!sym.detail.contains("Settings ▸ Symbols"));
+        d.modules[3].symbols = SymbolStatus::ServersDisabled;
+        let f = findings(1, &d);
+        let sym = f.iter().find(|f| f.kind == FindingKind::MissingSymbols).unwrap();
+        assert!(sym.detail.contains("Enable symbol servers in Settings ▸ Symbols"), "{}", sym.detail);
 
         let mut no_runtime = sample_dump();
         no_runtime.exception.as_mut().unwrap().code = 0xE043_4352;

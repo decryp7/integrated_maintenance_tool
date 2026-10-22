@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { formatCount } from '../shared/format/units';
 
 /** One choice of a `KindFilter`: what it is called and how many items it would show. */
 export interface KindOption {
@@ -26,7 +27,7 @@ export interface KindOption {
           <label class="opt">
             <input type="checkbox" [checked]="selected().includes(o.id)" (change)="toggled.emit(o.id)" [attr.data-testid]="'kind-' + o.id" />
             <span class="name">{{ o.label }}</span>
-            <span class="count muted">{{ o.count }}</span>
+            <span class="count muted">{{ fmt(o.count) }}</span>
           </label>
         }
         @if (selected().length) {
@@ -54,6 +55,7 @@ export class KindFilter {
   readonly toggled = output<string>();
   readonly cleared = output<void>();
 
+  protected readonly fmt = formatCount;
   protected readonly open = signal(false);
   protected readonly id = `imt-kind-filter-${++seq}`;
   protected readonly summary = computed(() => (this.selected().length ? `${this.label()}: ${this.selected().length}` : this.label()));

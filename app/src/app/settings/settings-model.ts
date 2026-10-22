@@ -1,4 +1,5 @@
 import { unitLabels } from '../core/format';
+import { VIDEO_SETTINGS_ID } from '../video/video-settings.types';
 import { KEYBOARD_ID } from './keyboard/keyboard.types';
 import { PARSERS_ID } from './parsers/parsers.types';
 import { STORAGE_ID } from './storage/storage.types';
@@ -41,6 +42,7 @@ export function navLayout(sections: readonly SettingsSection[]): NavGroup[] {
     storage: $localize`:Settings section|What IMT keeps on disk@@settings.storage.nav:Disk usage`,
     parsers: $localize`:Settings section|The log formats IMT reads@@settings.parsers.nav:Parsers`,
     keyboard: $localize`:Settings section|Key bindings of the commands@@settings.keyboard.nav:Keyboard shortcuts`,
+    video: $localize`:Settings section|Videos and the FFmpeg runtime@@video.settings.nav:Video`,
     liveTail: $localize`:Settings section|Live tail options@@settings.liveTail.nav:Live tail`,
   };
   const item = (s: SettingsSection): NavItem => ({ id: s.id, title: s.id === LIVE_TAIL_SECTION ? titles.liveTail : s.title, section: s });
@@ -63,7 +65,7 @@ export function navLayout(sections: readonly SettingsSection[]): NavGroup[] {
     {
       id: 'data',
       title: $localize`:Settings group@@settings.group.data:Data`,
-      items: [{ id: PARSERS_ID, title: titles.parsers }, ...by((s) => s.id === LIVE_TAIL_SECTION)],
+      items: [{ id: PARSERS_ID, title: titles.parsers }, { id: VIDEO_SETTINGS_ID, title: titles.video }, ...by((s) => s.id === LIVE_TAIL_SECTION)],
     },
     { id: 'ai', title: $localize`:Settings group@@settings.group.ai:AI`, items: by(inGroup('ai')) },
     { id: 'plugins', title: $localize`:Settings group@@settings.group.plugins:Plugins`, items: by(inGroup('plugins')) },
