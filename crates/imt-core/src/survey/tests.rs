@@ -564,6 +564,50 @@ fn limits_are_clamped_and_progress_is_reported() {
     assert!(c.check().is_ok());
     c.clone().cancel();
     assert_eq!(c.check(), Err(SurveyError::Cancelled));
+    // Every stage reads back as itself, an unknown one as done.
+    for stage in [
+        SurveyStage::Sampling,
+        SurveyStage::Analysing,
+        SurveyStage::Proposing,
+        SurveyStage::Validating,
+        SurveyStage::Done,
+    ] {
+        let c = SurveyControl::new();
+        c.begin(stage, 1);
+        assert_eq!(c.progress().stage, stage);
+    }
+    assert_eq!(SurveyStage::from_u8(200), SurveyStage::Done);
+}
+
+#[test]
+fn a_survey_of_an_empty_store_says_to_open_something() {
+    let ws = crate::workspace::WorkspaceStore::new(Workspace::new(Profile::default_profile()).unwrap());
+    let e = run(&ws, DEFAULT_PROFILE_TOML, &SurveyRequest::default(), &SurveyControl::new()).unwrap_err();
+    assert_eq!(e, SurveyError::NothingOpened);
+    assert!(e.to_string().contains("open a folder"));
+    assert_eq!(
+        store_failed(crate::ports::StoreError::Busy("an import is running".into())),
+        SurveyError::Invalid("busy: an import is running".into())
+    );
+}
+
+#[test]
+fn composing_refuses_too_many_changes_and_badly_named_saved_queries() {
+    let (ws, dir) = store_with(&log_lines());
+    let query = |name: &str, ql: &str| Fragment::SavedQuery {
+        name: name.into(),
+        ql: ql.into(),
+    };
+    let reason = |fragments: Vec<Fragment>| compose(&ws, DEFAULT_PROFILE_TOML, &fragments).unwrap_err().to_string();
+    assert!(reason(vec![]).contains("select at least one proposal"));
+    assert!(reason(vec![marker("m", "Booted"); 201]).contains("at most 200 changes"));
+    assert!(reason(vec![query("  ", "level >= error")]).contains("name of 1 to 120"));
+    assert!(reason(vec![query(&"n".repeat(121), "level >= error")]).contains("name of 1 to 120"));
+    assert!(reason(vec![query("ok", "level >=")]).contains("\"ok\" is not valid"));
+    // A valid saved query alone changes no profile but is accepted.
+    let composed = compose(&ws, DEFAULT_PROFILE_TOML, &[query("errors", "level >= error")]).unwrap();
+    assert_eq!(composed.saved_queries.len(), 1);
+    std::fs::remove_dir_all(dir).ok();
 }
 
 #[test]
