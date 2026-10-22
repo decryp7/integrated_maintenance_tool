@@ -5,6 +5,21 @@ Four read-only architecture reviews (engine, Tauri shell, Angular UI, all other 
 This page groups them into phases, in order. Each phase is a batch of agent work; every merge is checked again
 for needed redesign. Detailed findings: see the phase sections (file:line evidence is in the review notes).
 
+## Status (2026-10-22)
+
+| Phase | Status |
+|---|---|
+| R0 security, deadlocks, sluggishness | Done for S1-S3 (paths from Rust, `PathGrants`, cleared worker environments), D1-D3 and U1 (see ADR 0016 and docs/architecture.md). U2-U4 and the R row (caches, event size cap) are not verified; kept as open items. |
+| R1 hygiene | Done (workspace dependencies, build profiles, dead code removed, the store spike harvested into the store crates, Windows CI job). A macOS CI job waits for a runner. |
+| R2 engine | Done by ADR 0014 (6c): the app runs on the DuckDB store worker. |
+| R3 IPC and plugins | Done except the four items ADR 0017 lists as deferred. |
+| R4 shell | Done (ADR 0016; `ts-rs` generated types). |
+| R5 UI | Open: ports per capability, `engineResource()`, the engine "view" operation, splitting the god stores, domain rules into the engine. |
+| R6 themes and timeline | Done (ADR 0018; Calm, Console and Precision). |
+| 6b Problems pane | Open. |
+
+The open items moved to docs/roadmap.md ("Open items from the 2026-10 redesign plan").
+
 ## R0: security, deadlocks, sluggishness (first, small, about 1 day)
 
 Fixes that are safe on today's architecture and matter before anyone else runs IMT.
