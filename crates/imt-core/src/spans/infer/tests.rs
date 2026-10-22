@@ -276,3 +276,29 @@ fn an_evaluator_pairs_per_key_counts_unmatched_ends_and_open_runs_and_refuses_un
     );
     assert_eq!(e.distinct_keys, 2, "a and c: {e:#?}");
 }
+
+#[test]
+fn rule_kinds_are_sanitised_and_never_clash_with_the_profile() {
+    let profile = Profile::default_profile();
+    assert_eq!(free_kind(&profile, "my kind/x"), "my-kind-x");
+    assert_eq!(free_kind(&profile, ""), "span");
+    assert_eq!(free_kind(&profile, &"k".repeat(60)).len(), 40);
+}
+
+#[test]
+fn a_key_field_that_the_examples_lack_proposes_nothing_and_repeated_values_are_no_key() {
+    let start = |id: u32, m: i64, key: &str| with(with(rec(id, m, "request"), "Phase", json!("begin")), "RequestId", json!(key));
+    let end = |id: u32, m: i64, key: &str| with(with(rec(id, m, "request"), "Phase", json!("end")), "RequestId", json!(key));
+    let ex = [(start(0, 0, "r-1"), end(1, 1, "r-1")), (start(2, 0, "r-2"), end(3, 1, "r-2"))];
+    let missing = SpanHints {
+        name: None,
+        key_field: Some("NoSuchField".into()),
+    };
+    assert!(propose(&pairs(&ex), &missing, &Profile::default_profile()).is_err());
+    // Two pairs that carry the same value do not tell the pairs apart: that field is not offered as the key.
+    let same = [(start(0, 0, "r-1"), end(1, 1, "r-1")), (start(2, 0, "r-1"), end(3, 1, "r-1"))];
+    let e = propose(&pairs(&same), &SpanHints::default(), &Profile::default_profile())
+        .unwrap_err()
+        .to_string();
+    assert!(e.contains("name the field that pairs them"), "{e}");
+}
