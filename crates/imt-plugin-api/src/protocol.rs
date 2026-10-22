@@ -24,8 +24,10 @@ pub use imt_ipc::frame::ProtocolVersion;
 /// - **minor**: a request, reply, host request or manifest field was added at the end (older plugins keep working);
 /// - **major**: anything else (a plugin built for another major version must be rebuilt).
 ///
-/// The versions IMT releases speak are listed in `docs/plugin-sdk.md` ("Versions").
-pub const PROTOCOL: ProtocolVersion = ProtocolVersion::new(1, 0);
+/// The versions IMT releases speak are listed in `docs/plugin-sdk.md` ("Versions"). 1.1 added the elevated
+/// process' output streams ([`HostRequest::SaveOutput`], [`PluginRequest::PullOutput`]) and its forwarded
+/// standard error ([`HostRequest::Log`]).
+pub const PROTOCOL: ProtocolVersion = ProtocolVersion::new(1, 1);
 
 /// Most events in one streamed item (the engine's batch size, `imt_batch::BATCH_ROWS`).
 pub const MAX_EVENTS_PER_ITEM: usize = 8192;
@@ -35,6 +37,25 @@ pub const ITEM_BYTES: usize = 4 << 20;
 pub const READ_CHUNK: u32 = 1 << 20;
 /// Most annotations one annotator may return.
 pub const MAX_ANNOTATIONS: usize = crate::annotate::MAX_ANNOTATIONS;
+/// Largest piece of an output stream ([`PluginRequest::PullOutput`] item); the host refuses larger ones.
+pub const OUTPUT_CHUNK: usize = 256 << 10;
+/// Pieces of an output stream in flight: the host grants this many credits, so at most
+/// `OUTPUT_CREDIT * OUTPUT_CHUNK` bytes are on their way at once.
+pub const OUTPUT_CREDIT: u32 = 4;
+/// Largest output stream the host accepts, whatever the plugin declares.
+pub const MAX_OUTPUT_BYTES: u64 = 8 << 30;
+/// Output streams one plugin may have open at once.
+pub const MAX_OUTPUTS: usize = 8;
+/// The folder of the host-chosen data folder that output streams land in: `<data>/captures/<folder>/<name>`.
+pub const OUTPUT_ROOT: &str = "captures";
+/// Longest folder or file name of an output stream.
+pub const MAX_OUTPUT_NAME: usize = 200;
+/// Longest forwarded standard-error line (bytes); longer lines are cut at a character boundary.
+pub const MAX_LOG_LINE: usize = imt_ipc::child_log::MAX_LINE;
+/// Most lines in one [`HostRequest::Log`]; the host drops the rest.
+pub const MAX_LOG_BATCH: usize = 64;
+/// Most forwarded lines the host logs per start of the elevated process; later ones are counted and dropped.
+pub const MAX_LOG_LINES: u64 = 10_000;
 
 /// A file (or text) the host opened for the plugin: read it with [`HostRequest::ReadFile`] (see
 /// [`crate::host_file::HostFile`]). The plugin never gets a path for it.
@@ -208,6 +229,29 @@ pub enum PluginRequest {
         /// The host's import options.
         options: Json,
     },
+    /// Items: pieces (`Vec<u8>`, at most [`OUTPUT_CHUNK`] bytes) of the output stream the plugin opened with
+    /// [`HostRequest::SaveOutput`]; → [`OutputEnd`]. The host sends it while it answers that request, with
+    /// [`OUTPUT_CREDIT`] credits.
+    PullOutput {
+        /// The plugin's id of the stream (from [`HostRequest::SaveOutput`]).
+        stream: u64,
+    },
+}
+
+/// The end of an output stream: what the plugin sent in all.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OutputEnd {
+    /// Bytes of the stream.
+    pub bytes: u64,
+}
+
+/// An output stream the host saved.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SavedOutput {
+    /// The file name (in `<data>/captures/<folder>`).
+    pub name: String,
+    /// Its size in bytes.
+    pub bytes: u64,
 }
 
 /// The end of an import.
@@ -335,6 +379,60 @@ pub enum HostRequest {
         /// How long the host waits, in milliseconds.
         timeout_ms: u64,
     },
+    /// → `Result<SavedOutput, String>`, once the stream ended: the host saves an output stream of the plugin's
+    /// elevated process as `<data>/captures/<folder>/<name>` in the data folder *it* chose for `tool`. While it
+    /// answers, it pulls the bytes with [`PluginRequest::PullOutput`] (credits, bounded pieces, at most
+    /// `max_bytes` and [`MAX_OUTPUT_BYTES`]). The host checks the names ([`check_output_name`]), never replaces a
+    /// file, and removes the partial file of a stream that failed. Only the elevated process may send it.
+    SaveOutput {
+        /// Tool id (whose data folder the host uses).
+        tool: String,
+        /// The plugin's id of the stream, quoted back in [`PluginRequest::PullOutput`].
+        stream: u64,
+        /// One folder name under `captures`.
+        folder: String,
+        /// The file name.
+        name: String,
+        /// Most bytes the stream may have.
+        max_bytes: u64,
+    },
+    /// → `()`: lines the elevated process wrote to its standard error (it has none the host can read), logged by
+    /// the host in the plugin's elevated log. The host cuts lines at [`MAX_LOG_LINE`], takes at most
+    /// [`MAX_LOG_BATCH`] lines per request and [`MAX_LOG_LINES`] per start of the process. Only the elevated
+    /// process may send it.
+    Log {
+        /// The lines, without line ends.
+        lines: Vec<String>,
+        /// Lines the plugin dropped since its last request (its own bounds).
+        dropped: u64,
+    },
+}
+
+/// Whether `name` may be an output stream's folder or file name: one plain component of `[A-Za-z0-9._-]`, at
+/// most [`MAX_OUTPUT_NAME`] bytes, not starting or ending with a dot, not a reserved Windows device name.
+pub fn check_output_name(what: &str, name: &str) -> Result<(), String> {
+    let plain = name.bytes().all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_' | b'.'));
+    let stem = name.split('.').next().unwrap_or("").to_ascii_uppercase();
+    let numbered = stem.len() == 4 && (stem.starts_with("COM") || stem.starts_with("LPT")) && stem.as_bytes()[3].is_ascii_digit();
+    let reserved = numbered || matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL");
+    if name.is_empty() || name.len() > MAX_OUTPUT_NAME || !plain || name.starts_with('.') || name.ends_with('.') || reserved {
+        return Err(format!(
+            "invalid output {what} {name:?}: use one name of letters, digits, '-', '_' and '.' (at most {MAX_OUTPUT_NAME})"
+        ));
+    }
+    Ok(())
+}
+
+/// `line` cut to at most `max` bytes at a character boundary.
+pub fn cut_line(line: &str, max: usize) -> &str {
+    if line.len() <= max {
+        return line;
+    }
+    let mut end = max;
+    while !line.is_char_boundary(end) {
+        end -= 1;
+    }
+    &line[..end]
 }
 
 /// A field value on the wire (postcard cannot carry a `serde_json::Value`).

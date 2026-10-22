@@ -73,6 +73,10 @@ export type HandlesDto = { total: number, byType: Array<HandleTypeDto>, };
 
 export type MemoryDto = { regions: number, committed: number, reserved: number, free: number, image: number, mapped: number, private: number, largestFree: number, };
 
+export type DumpSymbolStatus = { "kind": "notNeeded" } | { "kind": "loaded" } | { "kind": "noIdentity" } | { "kind": "missing" } | { "kind": "serversDisabled" } | { "kind": "notOnServer" } | { "kind": "mismatch", detail: string, } | { "kind": "unreadable", detail: string, } | { "kind": "downloadFailed", detail: string, };
+
+export type DumpSymbolProblems = { missing: number, serversDisabled: number, notOnServer: number, mismatch: number, unreadable: number, downloadFailed: number, noIdentity: number, };
+
 export type DumpOverview = { summary: DumpDocSummary, 
 /**
  * `mini`, `withHeap` or `full`.
@@ -90,6 +94,10 @@ arch: string | null, processors: number | null, cpu: string | null, processName:
  * Modules with symbols.
  */
 modulesWithSymbols: number, 
+/**
+ * Modules without symbols, by reason.
+ */
+symbolProblems: DumpSymbolProblems, 
 /**
  * Frames named by symbols, and all frames.
  */
@@ -143,7 +151,7 @@ export type StackRequest = { id: number, threadId: number, };
 
 export type StackDto = { threadId: number, frames: Array<FrameRow>, truncated: boolean, };
 
-export type ModuleRow = { name: string, path: string, base: string, size: number, version: string | null, debugFile: string | null, debugId: string | null, symbols: boolean, framework: boolean, };
+export type ModuleRow = { name: string, path: string, base: string, size: number, version: string | null, debugFile: string | null, debugId: string | null, symbols: DumpSymbolStatus, framework: boolean, };
 
 export type ModulesRequest = { id: number, offset: number, limit: number, filter: string | null, };
 

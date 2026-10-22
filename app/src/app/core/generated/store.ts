@@ -201,6 +201,14 @@ export type SqlPageRequest = { result: number, offset: number, };
 
 export type SqlPage = { offset: number, rows: Array<Array<string | number | boolean | null>>, };
 
+export type SqlIdsRequest = { result: number, };
+
+export type SqlIds = { ids: number[], 
+/**
+ * The query returned more rows than the result kept: these are the ids of the kept rows only.
+ */
+truncated: boolean, };
+
 export type SqlViewColumn = { name: string, type: string, description: string, };
 
 export type SqlView = { 

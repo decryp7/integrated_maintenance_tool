@@ -28,6 +28,8 @@ imt-pdf = { path = "../../crates/imt-pdf" }
 imt-profile = { path = "../../crates/imt-profile" }
 # Dumps and UMDH logs (ADR 0023): the engine; the readers run in the dumps plugin's process.
 imt-dump = { path = "../../crates/imt-dump" }
+# PDB identities, the symbol cache and (user-enabled) symbol-server downloads for dumps (ADR 0036).
+imt-symbols = { path = "../../crates/imt-symbols", default-features = false, features = ["server"] }
 imt-notes = { path = "../../crates/imt-notes" }
 imt-agent = { path = "../../crates/imt-agent" }
 # Plugins run out of process (ADR 0017): the host side only; no plugin is linked into the app.
@@ -70,6 +72,7 @@ sysinfo = { workspace = true, features = ["system"] }
 zip.workspace = true
 
 [dev-dependencies]
+tempfile.workspace = true
 # The store in process for the shell's tests (the real adapter on a temp folder).
 imt-store-duck = { path = "../../crates/imt-store-duck" }
 # The profile importers as a library, for the profiling store's tests (in IMT they run in the profiling plugin's process).

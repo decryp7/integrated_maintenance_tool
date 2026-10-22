@@ -74,7 +74,7 @@ fn committed_samples_match_their_generator() {
 fn options() -> ImportOptions {
     ImportOptions {
         limits: Limits::default(),
-        file_time_ms: None,
+        ..ImportOptions::default()
     }
 }
 
@@ -110,7 +110,7 @@ fn every_umdh_sample_reads() {
     for entry in std::fs::read_dir(&dir).unwrap() {
         let bytes = std::fs::read(entry.unwrap().path()).unwrap();
         assert!(imt_plugin_dumps::umdh_reader::sniff(&bytes) >= 90);
-        let Document::Umdh(u) = imt_plugin_dumps::import::import_umdh(&bytes, &options(), &[]).unwrap() else {
+        let Document::Umdh(u) = imt_plugin_dumps::import::import_umdh(&bytes, &options()).unwrap() else {
             panic!()
         };
         assert!(u.stacks.len() >= 3);

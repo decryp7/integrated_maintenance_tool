@@ -72,6 +72,7 @@ mod smart_search;
 mod snapshots;
 mod storage;
 mod store_pane;
+mod symbols;
 mod sync;
 mod system;
 mod tools;
@@ -156,6 +157,8 @@ command_table! {
     Query [WINDOW] => store_pane::sql_schema,
     Query [WINDOW] => store_pane::sql_run,
     Query [WINDOW] => store_pane::sql_page,
+    Query [WINDOW] => store_pane::sql_ids,
+    Mutation [WINDOW] => store_pane::sql_export,
     Mutation [WINDOW] limit 16 * MIB => workspace_commands::save_project,
     Mutation [WINDOW] => workspace_commands::open_project,
     Query [WINDOW] => live::tail_status,
@@ -560,6 +563,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
 
     // ---- settings ----
     settings::init(app.handle());
+    symbols::init(app.handle());
     plugin_packages::init(app.handle());
     window_prefs::register(app.handle())?;
     updater::init(app.handle());

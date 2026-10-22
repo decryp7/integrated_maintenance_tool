@@ -102,6 +102,20 @@ export function mockSections(): SettingsSection[] {
       ],
     }),
     section({
+      id: 'symbols',
+      title: 'Symbols',
+      description:
+        'Where IMT finds the symbols (PDB files) that name the functions in a crash dump. A PDB is used only when it matches the module identity (name, GUID and age). Downloads are off until you turn them on.',
+      owner: { kind: 'app' },
+      group: 'advanced',
+      fields: [
+        f('serversEnabled', 'Download symbols from symbol servers', { type: 'bool' }, false, { description: 'Off by default: nothing is requested from the network while it is off.' }),
+        f('serverUrls', 'Symbol servers', { type: 'stringList', maxItems: 8 }, ['https://msdl.microsoft.com/download/symbols'], { description: 'HTTPS addresses, asked in order.' }),
+        f('downloadLimit', 'Longest download', { type: 'duration', minMs: 1000, maxMs: 600_000 }, 30_000, { description: 'How long one PDB may take to download.' }),
+        f('concurrent', 'Downloads at the same time', int(1, 8), 2, { description: 'Across every dump being opened.' }),
+      ],
+    }),
+    section({
       id: 'workspace',
       title: 'Workspace',
       description: 'How IMT follows files that change while they are open.',

@@ -361,6 +361,8 @@ impl Worker {
             StoreOp::SqlSchema => reply(&s.sql_schema()?),
             StoreOp::SqlRun => run!(s.sql_run(&body(b)?)),
             StoreOp::SqlPage => reply(&s.sql_page(&body(b)?)?),
+            StoreOp::SqlIds => reply(&s.sql_ids(&body(b)?)?),
+            StoreOp::SqlExport => run!(s.sql_export(&body(b)?)),
             StoreOp::SaveProject => reply(&Projects::save_project(&s, &body::<ProjectManifest>(b)?)?),
             StoreOp::ExportProject => {
                 let r: ExportProject = body(b)?;

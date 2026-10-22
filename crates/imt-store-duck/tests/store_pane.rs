@@ -5,8 +5,9 @@ mod common;
 
 use common::{samples, store_with, TempDir};
 use imt_core::ports::{
-    Console, FieldStorage, Ingest, Inspect, Maintain, MaintenanceAction, PageQuery, Query, SegmentsRequest, SqlNote, SqlPageRequest,
-    SqlRequest, SqlResult, StoreActivity, StoreError, StoreResult, IMPORT_BUDGET_BYTES, QUERY_BUDGET_BYTES, SQL_MAX_ROWS, SQL_PAGE_ROWS,
+    Console, FieldStorage, Ingest, Inspect, Maintain, MaintenanceAction, PageQuery, Query, SegmentsRequest, SqlExportRequest,
+    SqlExportResult, SqlIdsRequest, SqlNote, SqlPageRequest, SqlRequest, SqlResult, StoreActivity, StoreError, StoreResult,
+    IMPORT_BUDGET_BYTES, QUERY_BUDGET_BYTES, SQL_MAX_ROWS, SQL_PAGE_ROWS,
 };
 use imt_core::ql::QueryControl;
 use imt_core::{PluginRegistry, Profile};
@@ -450,4 +451,163 @@ fn one_run_at_a_time() {
     let first = long.join().unwrap();
     assert!(matches!(first, Err(StoreError::Invalid(_))), "{first:?}");
     assert!(matches!(second, Err(StoreError::Busy(_))), "{second:?}");
+}
+
+#[test]
+fn open_in_events_takes_every_id_of_a_result() {
+    let (_dir, store, total) = opened("pane-sql-ids");
+    let r = run(
+        &store,
+        "SELECT id, message FROM events WHERE level >= 3 UNION ALL SELECT id, message FROM events WHERE level >= 3",
+    )
+    .unwrap();
+    assert!(r.event_ids);
+    let ids = store.sql_ids(&SqlIdsRequest { result: r.result }).unwrap();
+    assert!(!ids.truncated);
+    assert_eq!(ids.ids.len() as u64, r.total / 2, "repeats are left out");
+    // `@id in (...)` filters the grid to exactly those events, through SQL and through the scan.
+    let ql = format!("@id in ({})", ids.ids.iter().map(u64::to_string).collect::<Vec<_>>().join(", "));
+    let page = store
+        .page(&PageQuery {
+            query: imt_core::ports::Filter {
+                ql: ql.clone(),
+                ..Default::default()
+            },
+            limit: 500,
+            ..PageQuery::default()
+        })
+        .unwrap();
+    assert_eq!(page.total, ids.ids.len());
+    let mut shown: Vec<u64> = page.rows.iter().map(|e| e.id.0).collect();
+    shown.sort_unstable();
+    let mut wanted = ids.ids.clone();
+    wanted.sort_unstable();
+    assert_eq!(shown, wanted);
+    let one = store
+        .page(&PageQuery {
+            query: imt_core::ports::Filter {
+                ql: format!("@id = {} and @message ~ \".\"", ids.ids[0]),
+                ..Default::default()
+            },
+            limit: 5,
+            ..PageQuery::default()
+        })
+        .unwrap();
+    assert_eq!(one.rows.iter().map(|e| e.id.0).collect::<Vec<_>>(), vec![ids.ids[0]]);
+    assert!(store.check_query("@id > 3").unwrap().is_none());
+    assert!(total > 0);
+    // A result without an id column, and a result that is gone.
+    let plain = run(&store, "SELECT 1 AS n").unwrap();
+    assert!(matches!(
+        store.sql_ids(&SqlIdsRequest { result: plain.result }),
+        Err(StoreError::Invalid(_))
+    ));
+    assert!(matches!(
+        store.sql_ids(&SqlIdsRequest { result: 999_999 }),
+        Err(StoreError::NotFound(_))
+    ));
+}
+
+fn export(store: &DuckStore, sql: &str, path: &std::path::Path, overwrite: bool) -> StoreResult<SqlExportResult> {
+    store.sql_export(&SqlExportRequest {
+        sql: sql.into(),
+        path: path.to_string_lossy().into_owned(),
+        overwrite,
+        ..SqlExportRequest::default()
+    })
+}
+
+/// The files in `dir` (a failed export leaves no partial file).
+fn files_in(dir: &std::path::Path) -> Vec<String> {
+    let mut names: Vec<String> = std::fs::read_dir(dir)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    names
+}
+
+#[test]
+fn sql_results_export_to_csv_whole_and_bounded() {
+    let (dir, store, total) = opened("pane-sql-export");
+    let out_dir = dir.0.join("out");
+    std::fs::create_dir_all(&out_dir).unwrap();
+    let out = out_dir.join("events.csv");
+    // More rows than a run keeps, cells longer than a page shows, and a formula-looking text.
+    let r = export(
+        &store,
+        "SELECT range AS n, repeat('x', 5000) AS long, '=1+1' AS f, NULL AS nothing FROM range(12000)",
+        &out,
+        false,
+    )
+    .unwrap();
+    assert_eq!((r.rows, r.truncated), (12_000, false));
+    assert_eq!(r.bytes, std::fs::metadata(&out).unwrap().len());
+    let mut reader = csv::Reader::from_path(&out).unwrap();
+    assert_eq!(reader.headers().unwrap().iter().collect::<Vec<_>>(), ["n", "long", "f", "nothing"]);
+    let rows: Vec<csv::StringRecord> = reader.records().map(|r| r.unwrap()).collect();
+    assert_eq!(rows.len(), 12_000);
+    assert_eq!(&rows[11_999][0], "11999");
+    assert_eq!(rows[0][1].len(), 5000);
+    assert_eq!(&rows[0][2], "'=1+1");
+    assert_eq!(&rows[0][3], "");
+    // The events view exports with its ids.
+    let ev = out_dir.join("ids.csv");
+    assert_eq!(export(&store, "SELECT id, message FROM events", &ev, false).unwrap().rows, total);
+    // An existing file is replaced only when asked.
+    assert!(matches!(export(&store, "SELECT 1", &out, false), Err(StoreError::Invalid(_))));
+    assert_eq!(export(&store, "SELECT 1 AS one", &out, true).unwrap().rows, 1);
+    // Refusals of the console hold for exports too, and EXPLAIN has no rows.
+    assert!(matches!(
+        export(&store, "DELETE FROM events", &out_dir.join("x.csv"), false),
+        Err(StoreError::Query(_))
+    ));
+    assert!(matches!(
+        export(&store, "EXPLAIN SELECT 1", &out_dir.join("x.csv"), false),
+        Err(StoreError::Invalid(_))
+    ));
+    // The row and byte limits cut the export, saying so.
+    store.set_sql_export_limits(100, u64::MAX, Duration::from_secs(60));
+    let cut = export(&store, "SELECT range FROM range(1000)", &out_dir.join("cut.csv"), false).unwrap();
+    assert_eq!((cut.rows, cut.truncated), (100, true));
+    store.set_sql_export_limits(u64::MAX, 4_000, Duration::from_secs(60));
+    let cut = export(
+        &store,
+        "SELECT repeat('y', 100) FROM range(1000)",
+        &out_dir.join("bytes.csv"),
+        false,
+    )
+    .unwrap();
+    assert!(cut.truncated && cut.rows > 0 && cut.rows < 1000, "{cut:?}");
+    assert!(cut.bytes <= 4_000);
+    // Over its time limit, or cancelled, it stops and leaves no file behind.
+    store.set_sql_export_limits(u64::MAX, u64::MAX, Duration::from_millis(300));
+    let slow = out_dir.join("slow.csv");
+    match export(
+        &store,
+        "SELECT count(*) FROM range(1000000000000) a WHERE a.range % 7 = 3",
+        &slow,
+        false,
+    ) {
+        Err(StoreError::Invalid(m)) => assert!(m.starts_with("Stopped after 300 ms"), "{m}"),
+        other => panic!("{other:?}"),
+    }
+    store.set_sql_export_limits(u64::MAX, u64::MAX, Duration::from_secs(60));
+    let control = QueryControl::new();
+    let c = control.clone();
+    let canceller = std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(300));
+        c.cancel();
+    });
+    let out2 = control.scope(|| {
+        export(
+            &store,
+            "SELECT a.range FROM range(1000000000000) a WHERE a.range % 7 = 3",
+            &slow,
+            false,
+        )
+    });
+    canceller.join().unwrap();
+    assert!(matches!(out2, Err(StoreError::Cancelled)), "{out2:?}");
+    assert_eq!(files_in(&out_dir), ["bytes.csv", "cut.csv", "events.csv", "ids.csv"]);
 }

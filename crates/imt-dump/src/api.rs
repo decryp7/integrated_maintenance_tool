@@ -139,6 +139,8 @@ pub struct DumpOverview {
     pub modules: u32,
     /// Modules with symbols.
     pub modules_with_symbols: u32,
+    /// Modules without symbols, by reason.
+    pub symbol_problems: SymbolProblems,
     /// Frames named by symbols, and all frames.
     pub frames_symbolised: u32,
     pub frames: u32,
@@ -298,8 +300,65 @@ pub struct ModuleRow {
     pub version: Option<String>,
     pub debug_file: Option<String>,
     pub debug_id: Option<String>,
-    pub symbols: bool,
+    pub symbols: SymbolStatusDto,
     pub framework: bool,
+}
+
+/// What symbols a module has (ADR 0036): the UI shows each with its next step (enable symbol servers, add a
+/// folder, check the network).
+#[cfg_attr(feature = "ts", derive(TS), ts(rename = "DumpSymbolStatus"))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum SymbolStatusDto {
+    /// No frame needed a name from it.
+    NotNeeded,
+    /// A PDB with its GUID and age named its frames.
+    Loaded,
+    /// It records no PDB identity (name, GUID, age), so no PDB can be matched.
+    NoIdentity,
+    /// No PDB with its identity in the symbol folders or the cache.
+    Missing,
+    /// Missing, and downloads from symbol servers are off.
+    ServersDisabled,
+    /// Missing, and no configured symbol server has it.
+    NotOnServer,
+    /// A PDB of its name is another build (GUID or age differ).
+    Mismatch { detail: String },
+    /// A PDB was found but could not be read.
+    Unreadable { detail: String },
+    /// The download failed.
+    DownloadFailed { detail: String },
+}
+
+impl From<&crate::model::SymbolStatus> for SymbolStatusDto {
+    fn from(s: &crate::model::SymbolStatus) -> SymbolStatusDto {
+        use crate::model::SymbolStatus as S;
+        match s {
+            S::NotNeeded => SymbolStatusDto::NotNeeded,
+            S::Loaded => SymbolStatusDto::Loaded,
+            S::NoIdentity => SymbolStatusDto::NoIdentity,
+            S::Missing => SymbolStatusDto::Missing,
+            S::ServersDisabled => SymbolStatusDto::ServersDisabled,
+            S::NotOnServer => SymbolStatusDto::NotOnServer,
+            S::Mismatch { detail } => SymbolStatusDto::Mismatch { detail: detail.clone() },
+            S::Unreadable { detail } => SymbolStatusDto::Unreadable { detail: detail.clone() },
+            S::DownloadFailed { detail } => SymbolStatusDto::DownloadFailed { detail: detail.clone() },
+        }
+    }
+}
+
+/// How many modules a frame needed a name from have no symbols, by reason (the overview's hints).
+#[cfg_attr(feature = "ts", derive(TS), ts(rename = "DumpSymbolProblems"))]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SymbolProblems {
+    pub missing: u32,
+    pub servers_disabled: u32,
+    pub not_on_server: u32,
+    pub mismatch: u32,
+    pub unreadable: u32,
+    pub download_failed: u32,
+    pub no_identity: u32,
 }
 
 #[cfg_attr(feature = "ts", derive(TS))]

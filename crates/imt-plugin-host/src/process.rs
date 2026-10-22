@@ -7,6 +7,7 @@
 //! is a streamed request whose callbacks are *pumped* to the caller, which serves them with its borrowed data
 //! between the items of the answer. No copy of a file is made and nothing borrowed crosses threads.
 
+use crate::output::{save_output, ForwardedLog, OutputRequest};
 use crate::sandbox::{sandbox_for, sandbox_for_third_party, PluginHome};
 use imt_core::plugin::annotate::{AnnotationView, ViewFilter};
 use imt_core::plugin::tools::ToolCtx;
@@ -23,7 +24,7 @@ use imt_plugin_api::serve::ELEVATED_ROLE;
 use imt_plugin_api::tools::FailureReason;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::Duration;
@@ -177,6 +178,12 @@ pub(crate) struct HostServices {
     tasks: Mutex<HashMap<String, ToolCtx>>,
     /// The plugin's elevated operations (set once the process exists).
     elevated: OnceLock<ElevatedRunner>,
+    /// A third-party plugin's private data folder (its tools' data folder instead of the app's).
+    own_data: Option<PathBuf>,
+    /// Output streams of the elevated process being saved now.
+    outputs: AtomicUsize,
+    /// The elevated process' forwarded standard error (set once the process exists).
+    elevated_log: OnceLock<ForwardedLog>,
 }
 
 impl HostServices {
@@ -200,10 +207,53 @@ impl HostServices {
     }
 }
 
-impl Handler for HostServices {
-    fn call(&self, _ctx: &CallCtx, body: &[u8]) -> Result<Vec<u8>, RemoteError> {
-        let req: HostRequest = decode_request(body)?;
+impl HostServices {
+    /// The data folder the host gives `tool`: a third-party plugin's own folder, else the app's of the tool's last
+    /// call.
+    fn data_dir_of(&self, tool: &str) -> Option<PathBuf> {
+        self.own_data
+            .clone()
+            .or_else(|| lock(&self.tasks).get(tool).and_then(|c| c.data_dir().map(PathBuf::from)))
+    }
+
+    /// Answers `req` from the plugin's normal process, or its elevated one (`elevated`), which alone may stream
+    /// output files and forward its standard error.
+    fn serve(&self, ctx: &CallCtx, req: HostRequest, elevated: bool) -> Result<Vec<u8>, RemoteError> {
+        let only_elevated = || {
+            Err(RemoteError::new(
+                code::INVALID,
+                "only the plugin's elevated process streams output files and forwards its standard error",
+            ))
+        };
         match req {
+            HostRequest::SaveOutput { .. } | HostRequest::Log { .. } if !elevated => only_elevated(),
+            HostRequest::SaveOutput {
+                tool,
+                stream,
+                folder,
+                name,
+                max_bytes,
+            } => {
+                let data = self.data_dir_of(&tool);
+                let req = OutputRequest {
+                    data_dir: data.as_deref(),
+                    stream,
+                    folder: &folder,
+                    name: &name,
+                    max_bytes,
+                };
+                let saved = save_output(ctx, &req, &self.outputs);
+                if let (Err(why), Some(log)) = (&saved, self.elevated_log.get()) {
+                    log.note(why);
+                }
+                encode_reply(&saved)
+            }
+            HostRequest::Log { lines, dropped } => {
+                if let Some(log) = self.elevated_log.get() {
+                    log.lines(lines, dropped);
+                }
+                encode_reply(&())
+            }
             HostRequest::ReadFile { id, .. } => self.pump(id, req),
             HostRequest::ViewSelect { ticket, .. } | HostRequest::ViewInstances { ticket } | HostRequest::ViewTimeRange { ticket } => {
                 self.pump(ticket, req)
@@ -226,6 +276,9 @@ impl Handler for HostServices {
                 }
                 encode_reply(&())
             }
+            HostRequest::InvokeElevated { .. } if elevated => {
+                Err(RemoteError::new(code::INVALID, "the elevated process runs its operations itself"))
+            }
             HostRequest::InvokeElevated {
                 tool,
                 op,
@@ -240,6 +293,21 @@ impl Handler for HostServices {
                 encode_reply(&run(&tool, &op, args, timeout))
             }
         }
+    }
+}
+
+impl Handler for HostServices {
+    fn call(&self, ctx: &CallCtx, body: &[u8]) -> Result<Vec<u8>, RemoteError> {
+        self.serve(ctx, decode_request(body)?, false)
+    }
+}
+
+/// The host services as the plugin's elevated process reaches them.
+struct ElevatedServices(Arc<HostServices>);
+
+impl Handler for ElevatedServices {
+    fn call(&self, ctx: &CallCtx, body: &[u8]) -> Result<Vec<u8>, RemoteError> {
+        self.0.serve(ctx, decode_request(body)?, true)
     }
 }
 
@@ -359,7 +427,19 @@ impl PluginProcess {
     }
 
     fn create(manifest: Manifest, spec: PluginSpec) -> Arc<PluginProcess> {
-        let services = Arc::new(HostServices::default());
+        // The elevated process' forwarded standard error goes to a log of its own next to the plugin's.
+        let log_name = spec
+            .log
+            .as_ref()
+            .map_or_else(|| format!("plugin-{}", manifest.id), |l| l.name.clone());
+        let services = Arc::new(HostServices {
+            own_data: spec.home.as_ref().map(|h| h.data_dir.clone()),
+            elevated_log: OnceLock::from(ForwardedLog::new(ChildLogSpec::new(
+                format!("{log_name}-elevated"),
+                ChildKind::Plugin,
+            ))),
+            ..HostServices::default()
+        });
         let settings: Arc<Mutex<Option<serde_json::Value>>> = Arc::default();
         let granted = Arc::new(Mutex::new(spec.granted.clone()));
         let handler: Arc<dyn Handler> = services.clone();
@@ -497,10 +577,16 @@ impl PluginProcess {
         lock(&self.elevated)
             .get_or_insert_with(|| {
                 let spec = child_spec(&self.manifest, &self.spec, &lock(&self.granted), true);
-                let handler: Arc<dyn Handler> = self.services.clone();
+                let services = self.services.clone();
+                let handler: Arc<dyn Handler> = Arc::new(ElevatedServices(services.clone()));
                 let mut cfg = self.spec.supervisor.clone();
                 cfg.label = format!("{} (elevated)", cfg.label);
-                Arc::new(Supervisor::new(cfg, move || launch(&spec, handler.clone())))
+                Arc::new(Supervisor::new(cfg, move || {
+                    if let Some(log) = services.elevated_log.get() {
+                        log.restart();
+                    }
+                    launch(&spec, handler.clone())
+                }))
             })
             .clone()
     }
@@ -522,9 +608,7 @@ impl PluginProcess {
                 self.id()
             )));
         }
-        let data_dir = lock(&self.services.tasks)
-            .get(tool)
-            .and_then(|c| c.data_dir().map(|d| d.to_string_lossy().into_owned()));
+        let data_dir = self.services.data_dir_of(tool).map(|d| d.to_string_lossy().into_owned());
         let req = PluginRequest::InvokeTool {
             tool: tool.into(),
             op: op.into(),

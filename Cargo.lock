@@ -3090,6 +3090,7 @@ dependencies = [
  "imt-profile",
  "imt-store-client",
  "imt-store-duck",
+ "imt-symbols",
  "log",
  "notify-debouncer-mini",
  "objc2-app-kit",
@@ -3106,6 +3107,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
  "tauri-plugin-window-state",
+ "tempfile",
  "tracing",
  "tracing-appender",
  "tracing-log",
@@ -3183,6 +3185,7 @@ dependencies = [
 name = "imt-dump"
 version = "0.1.0"
 dependencies = [
+ "imt-symbols",
  "postcard",
  "proptest",
  "serde",
@@ -3325,7 +3328,9 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]
@@ -3352,6 +3357,7 @@ dependencies = [
  "anyhow",
  "imt-dump",
  "imt-plugin-api",
+ "imt-symbols",
  "minidump",
  "minidump-unwind",
  "pdb",
@@ -3620,6 +3626,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "csv",
  "duckdb",
  "getrandom 0.4.3",
  "imt-alloc",

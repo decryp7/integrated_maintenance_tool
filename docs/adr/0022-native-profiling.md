@@ -163,12 +163,15 @@ copies of the decoders, converter, writer and `.etl` reader are deleted.
 
 ### 7. Elevated output
 
-ADR 0017 §7 wants elevated processes to stream capture bytes back to the host. The frame protocol has no byte-stream
-reply for tool operations yet, so the elevated ETW collector writes its file itself, under these rules: it takes no
-path argument; it writes only below the user's own application-data folder (the host's data folder is accepted only
-when it lies under the elevated token's `%APPDATA%` or `%LOCALAPPDATA%`; otherwise the capture is refused) at a file
-name it chooses; and it reports the path as a tool output so only the calling window may open it. Moving to streamed
-output is a redesign item (R3 follow-up).
+The elevated ETW collector never writes the capture itself. It takes no path argument and streams the NetTrace bytes
+to the host through `ToolCtx::outputs()` (ADR 0017 §7, amendment of 2026-10-22; protocol 1.1); the unelevated host
+checks the folder and file names, writes `<data>/captures/native/<name>` with a hidden partial file, and renames it
+into place when the stream ended as announced. A failed or cancelled capture is dropped without completing its
+stream, so nothing is left. The stream's limit is the capture's size limit plus a 64 MiB allowance for the closing
+blocks (the address symbols) the recorder writes after it reaches the limit. The capture is reported as a tool output
+at the path the host saved it, so only the calling window may open it. What the elevated process still writes is its
+symbol cache (only when the user enabled a symbol server): the host's data folder is accepted for that only when it
+lies under the elevated token's `%APPDATA%` or `%LOCALAPPDATA%`.
 
 ### 8. Findings
 

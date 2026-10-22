@@ -21,6 +21,8 @@ pub enum Pseudo {
     Template,
     Source,
     Line,
+    /// The event's id (`@id`): lets a query select a set of events, e.g. the rows of a SQL console result.
+    Id,
 }
 
 impl Pseudo {
@@ -32,6 +34,7 @@ impl Pseudo {
             "@template" => Pseudo::Template,
             "@source" => Pseudo::Source,
             "@line" => Pseudo::Line,
+            "@id" => Pseudo::Id,
             _ => return None,
         })
     }
@@ -58,6 +61,7 @@ impl FieldKey {
                 Pseudo::Template => "@template",
                 Pseudo::Source => "@source",
                 Pseudo::Line => "@line",
+                Pseudo::Id => "@id",
             },
             FieldKey::Named { name, .. } => name,
         }
@@ -133,6 +137,7 @@ pub trait RowRef {
                 Pseudo::Template => self.template().map(Cow::Borrowed),
                 Pseudo::Source => Some(Cow::Borrowed(self.source_name())),
                 Pseudo::Line => Some(Cow::Owned(self.line().to_string())),
+                Pseudo::Id => Some(Cow::Owned(self.id().to_string())),
             },
             FieldKey::Named { sym, name } => self.named_text(*sym, name),
         }
@@ -142,15 +147,17 @@ pub trait RowRef {
     fn number(&self, key: &FieldKey) -> Option<f64> {
         match key {
             FieldKey::Pseudo(Pseudo::Line) => Some(self.line() as f64),
+            FieldKey::Pseudo(Pseudo::Id) => Some(self.id() as f64),
             FieldKey::Pseudo(_) => None,
             FieldKey::Named { sym, name } => self.named_number(*sym, name),
         }
     }
 
-    /// A field as a JSON value: `@line` is a number, the other pseudo-fields text.
+    /// A field as a JSON value: `@line` and `@id` are numbers, the other pseudo-fields text.
     fn value(&self, key: &FieldKey) -> Option<Value> {
         match key {
             FieldKey::Pseudo(Pseudo::Line) => Some(Value::from(self.line())),
+            FieldKey::Pseudo(Pseudo::Id) => Some(Value::from(self.id())),
             FieldKey::Pseudo(_) => self.text(key).map(|t| Value::String(t.into_owned())),
             FieldKey::Named { sym, name } => self.named_value(*sym, name),
         }
