@@ -19,12 +19,16 @@ pub const MAX_ARENAS: usize = 256;
 /// The environment variable DuckDB's jemalloc reads its options from (after DuckDB's own).
 pub const CONF_VAR: &str = "DUCKDB_JE_MALLOC_CONF";
 
+/// Decay of freed pages: jemalloc's defaults (10 s) kept an analysis's working set (60-70 MB) resident while the next
+/// analysis started, so a run of analyses peaked 20 MB higher (Linux, ADR 0014 memory notes); 200 ms, and no muzzy stage.
+const DECAY: &str = "dirty_decay_ms:200,muzzy_decay_ms:0";
+
 /// The options for `arenas` arenas (bounded to 1..=[`MAX_ARENAS`]), or the `existing` options when they are set
 /// (a developer's experiment, passed on as it is).
 pub fn conf(arenas: usize, existing: Option<&str>) -> String {
     match existing.map(str::trim) {
         Some(e) if !e.is_empty() => e.to_string(),
-        _ => format!("narenas:{}", arenas.clamp(1, MAX_ARENAS)),
+        _ => format!("narenas:{},{DECAY}", arenas.clamp(1, MAX_ARENAS)),
     }
 }
 
@@ -42,11 +46,11 @@ mod tests {
 
     #[test]
     fn the_options_name_the_arenas_within_bounds_and_keep_existing_ones() {
-        assert_eq!(conf(ARENAS, None), "narenas:2");
-        assert_eq!(conf(0, None), "narenas:1");
-        assert_eq!(conf(100_000, None), "narenas:256");
-        assert_eq!(conf(2, Some("")), "narenas:2");
-        assert_eq!(conf(2, Some("  ")), "narenas:2");
+        assert_eq!(conf(ARENAS, None), "narenas:2,dirty_decay_ms:200,muzzy_decay_ms:0");
+        assert!(conf(0, None).starts_with("narenas:1,"));
+        assert!(conf(100_000, None).starts_with("narenas:256,"));
+        assert!(conf(2, Some("")).starts_with("narenas:2,"));
+        assert!(conf(2, Some("  ")).starts_with("narenas:2,"));
         assert_eq!(conf(2, Some("narenas:8,dirty_decay_ms:0")), "narenas:8,dirty_decay_ms:0");
     }
 
@@ -57,7 +61,7 @@ mod tests {
             let (k, v) = env.expect("set on Linux");
             assert_eq!(k, CONF_VAR);
             assert!(
-                v == "narenas:3" || std::env::var(CONF_VAR).is_ok_and(|e| !e.trim().is_empty()),
+                v.starts_with("narenas:3,") || std::env::var(CONF_VAR).is_ok_and(|e| !e.trim().is_empty()),
                 "{v}"
             );
         } else {

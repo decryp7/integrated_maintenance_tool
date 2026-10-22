@@ -275,6 +275,8 @@ impl Inner {
         if let Some(f) = &self.fts {
             f.wake();
         }
+        // The burst's free pages go back to the OS now: the process may idle afterwards.
+        imt_alloc::release();
     }
 
     pub(crate) fn conn(&self) -> StoreResult<Conn<'_>> {
