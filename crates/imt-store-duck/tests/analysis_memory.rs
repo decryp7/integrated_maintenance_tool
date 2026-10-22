@@ -104,6 +104,11 @@ fn analyses_stay_within_the_query_budget() {
         }
     };
     let summary = store.summary().unwrap();
+    // The full-text index is built in the background after an import (its writer's 64 MB heap and its reads
+    // count against the import budget, as in the worker's budget test): measured alongside the analyses, it made
+    // them look 60-70 MB larger on Linux, where indexing 1M events was still running when they started.
+    let index = store.wait_for_index(std::time::Duration::from_secs(600)).unwrap();
+    assert!(index.ready, "the full-text index is built: {index:?}");
     let duck_mb: u64 = std::env::var("IMT_BENCH_DUCK_MB")
         .ok()
         .and_then(|v| v.parse().ok())
