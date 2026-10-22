@@ -1,5 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 import { initialTotal, openApp } from './app';
+import { runCommand } from './analysis-support';
 import { openAppWith } from './mock-url';
 import { showProfileEditor } from './menu-support';
 
@@ -86,10 +87,9 @@ test.describe('profile editor', () => {
     await page.getByRole('button', { name: 'Save & apply' }).click();
     // Saved at once; the re-import is a job in the Jobs pane, and the workspace follows it.
     await expect(page.locator('imt-profile-editor .bar .name')).toHaveText('Job profile');
-    await page.locator('[data-activity-id="jobs"]').click();
+    await runCommand(page, 'View: Jobs');
     await expect(page.locator('imt-jobs-panel li').filter({ hasText: 'Apply the profile Job profile' })).toContainText('Done');
-    // The Jobs pane shares the bottom panel with the events grid.
-    await page.getByRole('tab', { name: 'Events', exact: true }).click();
+    // The Jobs pane slides out of the bottom edge; the events grid stays where it is.
     await expect(page.locator('imt-events-grid .bar .total')).toHaveText(all);
   });
 });

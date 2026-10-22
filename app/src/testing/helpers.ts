@@ -83,6 +83,9 @@ export class FakeDock {
   readonly openIds = signal<ReadonlySet<string>>(new Set(['timeline']));
   readonly calls: string[] = [];
   isOpen = (id: string) => this.openIds().has(id);
+  /** Every open view counts as showing, unless a test sets it apart. */
+  readonly hidden = new Set<string>();
+  isVisible = (id: string) => this.openIds().has(id) && !this.hidden.has(id);
   show = (id: string) => void this.calls.push(`show:${id}`);
   toggle = (id: string) => void this.calls.push(`toggle:${id}`);
   close = (id: string) => void this.calls.push(`close:${id}`);
@@ -93,6 +96,7 @@ export class FakeDock {
   }
   /** Ticks like the dock's layout changes (`DockService.layoutChanged`). */
   readonly layoutChanged = signal(0);
+  readonly activeViewId = signal<string | null>(null);
 }
 
 export function provideFakeDock(dock = new FakeDock()): Provider[] {

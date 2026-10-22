@@ -34,11 +34,13 @@ test.describe('welcome', () => {
     await closeWorkspace(page);
     const welcome = page.locator('imt-welcome');
     await expect(welcome).toBeVisible();
-    await page.locator('imt-activity-bar').getByRole('button', { name: /^Jobs/ }).click();
+    await page.keyboard.press('ControlOrMeta+k');
+    await page.getByRole('combobox', { name: 'Type a command' }).fill('View: Jobs');
+    await page.keyboard.press('Enter');
     await expect(welcome).toHaveCount(0);
-    await expect(page.getByRole('tab', { name: /Jobs/ })).toBeVisible();
-    await page.locator('imt-activity-bar').getByRole('button', { name: /^Notifications/ }).click();
-    await expect(page.getByRole('tab', { name: /Notifications/ })).toBeVisible();
+    await expect(page.locator('imt-jobs-panel')).toBeVisible();
+    await page.getByTestId('status-notifications').click();
+    await expect(page.locator('imt-notifications-panel')).toBeVisible();
   });
 
   test('"Show welcome" is a command and can be dismissed', async ({ page }) => {

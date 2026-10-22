@@ -31,6 +31,7 @@ import { NextSteps } from '../ui/next-steps';
 import { SourceColors, SourceMark } from '../sources/source-colors.store';
 import { stripeBackground } from '../sources/source-colors';
 import { LiveArrival, liveMode, PagedRowsStore } from './paged-rows.store';
+import { writeEventDrag } from '../core/event-drag';
 
 export { SCROLL_IDLE_MS } from './paged-rows.store';
 
@@ -168,6 +169,8 @@ export type GridRowVm = RowVm | PlaceholderVm;
               [style.--hl]="v.highlight"
               [style.top.px]="v.y"
               [style.grid-template-columns]="columns()"
+              draggable="true"
+              (dragstart)="onRowDragStart($event, v.row)"
               (mousedown)="onRowMouseDown($event)"
               (click)="onRowClick($event, v.index, v.row)"
               (contextmenu)="openRowMenu($event, v.index, v.row)"
@@ -319,8 +322,9 @@ export class EventsGrid {
   private writtenScroll = Number.NaN;
 
   protected readonly columns = computed(() => {
-    const extra = this.prefs.extraColumns().map(() => '150px').join(' ');
-    return `16px 150px 52px 240px ${extra} minmax(0, 1fr)`;
+    // Narrow windows (H1): the time and source columns give way before the message, which keeps a readable minimum.
+    const extra = this.prefs.extraColumns().map(() => 'minmax(90px, 150px)').join(' ');
+    return `16px minmax(110px, 150px) 52px minmax(96px, 240px) ${extra} minmax(120px, 1fr)`;
   });
 
   protected readonly colCount = computed(() => 5 + this.prefs.extraColumns().length);
@@ -584,6 +588,13 @@ export class EventsGrid {
     if (!g.scaled || e.ctrlKey || e.deltaY === 0) return;
     e.preventDefault();
     this.setTop(this.virtualTop() + wheelToPixels(e.deltaY, e.deltaMode, g));
+  }
+
+  /** Dragging a row carries the event to other views (drop it on Notes to write a note on it). */
+  protected onRowDragStart(e: DragEvent, row: RecordView): void {
+    if (!e.dataTransfer) return;
+    this.sel.select(row);
+    writeEventDrag(e.dataTransfer, row);
   }
 
   /** Keeps shift/ctrl-click from also selecting text across rows. */

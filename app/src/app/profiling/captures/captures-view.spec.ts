@@ -6,7 +6,9 @@ import { ProfilingBackend } from '../profiling-backend';
 import { FakeContext } from '../../analysis/test-setup';
 import { CapturesStore } from '../captures.store';
 import { ProfileViewState } from '../profile-view-state';
-import { openDemoCaptures, setupProfiling } from '../testing/profiling-test-support';
+import { openDemoCaptures, provideProfilingTesting, setupProfiling } from '../testing/profiling-test-support';
+import { MOCK_CAPTURE_PATHS } from '../../core/mock/mock-profiling-data';
+import { IMT_COMMANDS, ImtCommand } from '../../extensions/tokens';
 import { CapturesView } from './captures-view';
 
 async function mount(opts: Parameters<typeof setupProfiling>[0] = {}, open = true) {
@@ -148,5 +150,59 @@ describe('CapturesView', () => {
     await settle(fixture, 4);
     expect(all(fixture, '[role=alert]')).toHaveLength(0);
     expect(text(fixture)).toContain('No profiles or heap snapshots are open.');
+  });
+
+  describe('landing', () => {
+    const landing = (f: ComponentFixture<unknown>) => all(f, '[data-testid=captures-landing]');
+
+    it('is the empty state: Open capture… and a hint, no profile-a-process buttons in a build without them', async () => {
+      const { fixture } = await mount({}, false);
+      expect(landing(fixture)).toHaveLength(1);
+      expect(text(fixture)).toContain('No profiles or heap snapshots are open.');
+      expect(text(fixture)).toContain('open once a capture is open');
+      expect(all(fixture, '[data-testid=captures-landing] button').map((b) => b.textContent!.trim())).toEqual(['Open capture…']);
+    });
+
+    it('Open capture… opens the picker and the landing gives way to the list', async () => {
+      const { fixture, doubles, store } = await mount({}, false);
+      doubles.picker.paths = [MOCK_CAPTURE_PATHS[0]!];
+      buttonByText(fixture, 'Open capture…').click();
+      await settle(fixture, 6);
+      expect(store.captures()).toHaveLength(1);
+      expect(landing(fixture)).toHaveLength(0);
+      expect(all(fixture, 'li.cap')).toHaveLength(1);
+    });
+
+    it('offers the Profile .NET / native process commands when the build has them, and runs the chosen one', async () => {
+      const ran: string[] = [];
+      const { providers } = provideProfilingTesting();
+      const commands: ImtCommand[] = [
+        { id: 'profiling.dotnet', title: 'Profile .NET process…', run: () => void ran.push('dotnet') },
+        { id: 'profiling.native', title: 'Profile native process…', run: () => void ran.push('native') },
+        { id: 'profiling.other', title: 'Not offered', run: () => void ran.push('other') },
+        { id: 'profiling.off', title: 'Off', when: () => false, run: () => void ran.push('off') },
+      ];
+      TestBed.configureTestingModule({ providers: [...providers, { provide: IMT_COMMANDS, multi: true, useValue: commands }] });
+      const fixture = TestBed.createComponent(CapturesView);
+      fixture.detectChanges();
+      await settle(fixture, 4);
+      expect(all(fixture, '[data-testid=captures-landing] button').map((b) => b.textContent!.trim())).toEqual(['Open capture…', 'Profile .NET process…', 'Profile native process…']);
+      buttonByText(fixture, 'Profile native process…').click();
+      await settle(fixture, 2);
+      buttonByText(fixture, 'Profile .NET process…').click();
+      await settle(fixture, 2);
+      expect(ran).toEqual(['native', 'dotnet']);
+    });
+
+    it('disables Open capture… while loading and is replaced by Loading… until the first listing arrives', async () => {
+      const { fixture, store } = await mount({ options: { latencyMs: 40 } }, false);
+      const pending = store.refresh();
+      fixture.detectChanges();
+      expect(landing(fixture)).toHaveLength(0);
+      await pending;
+      await settle(fixture, 3);
+      expect(landing(fixture)).toHaveLength(1);
+      expect(buttonByText(fixture, 'Open capture…').disabled).toBe(false);
+    });
   });
 });

@@ -486,7 +486,7 @@ See [ADR 0012](adr/0012-jobs.md).
 ![A floating timeline panel over the events grid](screenshots/floating-panel.png)
 
 Every view is a panel. Drag tabs to split, maximise a panel, and reset the layout from the command
-palette. Layouts are remembered. Floating a panel inside the window is always deliberate: **Float**
+palette. Layouts are remembered per perspective. Floating a panel inside the window is always deliberate: **Float**
 in the tab menu or the group's ⋯ panel menu, or **Window ▸ Float panel**; a drag never floats.
 
 Dragging a tab shows where it goes. On a docking guide (the compass over a group, the guides at
@@ -520,7 +520,7 @@ and slides out when you select an event (pin it to keep it docked); views for wh
 export, a profile capture, a diagnostics report) open by themselves. Home, the query bar and Metrics
 stay one click away: the timeline header shows the health check's headline on one line ("⚠ 2 crashes · 287
 errors · 1 went silent — Review"; each count jumps to or filters those events, *Review* opens Home),
-`Ctrl/⌘+/` opens the query bar, and the **activity bar** on the left offers Explorer, Search, Timeline,
+`Ctrl/⌘+/` focuses the search field, and the **activity bar** on the left offers Explorer, Search, Timeline,
 *Analysis ▸* (patterns, anomalies, exceptions, Moment, compare, traces, runs, …), Metrics, *Live tail*, *AI*,
 *Tools ▸* and the profile editor. Buttons that need data (Search, Timeline, Analysis, Metrics, Live tail) appear
 once data is open; everything stays reachable from the View menu. Plugins can add their own buttons.
@@ -531,9 +531,14 @@ there are any. The timeline legend lists only the marker kinds in the data, on o
 rest. The Fields section of the sidebar starts collapsed and remembers whether you opened it. After opening a
 folder of several files, *Set up analysis…* is offered as a message in Notifications (the bell), not as a banner.
 
-*View ▸ Layout* switches between **Focused** (the default) and **Full**, where the query bar is part of the
-default layout and Home opens after every import, as in earlier versions. The switch applies to new
-layouts (*Reset layout*, a new window); a layout you saved or arranged is never changed by it.
+**Perspectives** ([ADR 0035](adr/0035-view-areas-and-perspectives.md)) are named window arrangements: Investigate
+(the default), Profiling, Live and Diagnostics are built in, and saved window layouts are perspectives too. Switch
+from the activity bar, *Window ▸ Perspectives* or `Mod+1…9`; each remembers how you left it. Every view opens in its
+home area (documents beside the timeline and the grid, analysis views in one group below the grid with at most eight
+tabs, side tools on the right, status tools at the bottom edge), and never over the timeline or the grid. The
+filter bar has one search field for words and queries (the engine tells which), back/forward (`Alt+←/→`, mouse
+buttons 4 and 5) walks through events, ranges and views, zooming is on the undo stack, and narrow windows fold
+the filter bar, close the Explorer and keep the Message column readable.
 
 ## Windows, tray and notifications
 

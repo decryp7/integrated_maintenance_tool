@@ -20,6 +20,9 @@ import { Icon } from '../shared/icon';
       <div class="toast info" data-imt-overlay data-toast role="status" (mouseenter)="store.holdNotice()" (focusin)="store.holdNotice()" (mouseleave)="store.releaseNotice()" (focusout)="store.releaseNotice()">
         <imt-icon name="check" [size]="15" />
         <span class="ellipsis">{{ notice }}</span>
+        @if (store.noticeAction(); as action) {
+          <button type="button" class="btn ghost act" data-testid="notice-action" (click)="store.runNoticeAction()">{{ action.label }}</button>
+        }
         <button class="icon-btn" aria-label="Dismiss" title="Dismiss" i18n-aria-label="@@app.toast.dismissNotice" i18n-title="@@app.toast.dismissNoticeTitle" (click)="store.setNotice(null)"><imt-icon name="close" [size]="14" /></button>
       </div>
     }
@@ -33,6 +36,7 @@ import { Icon } from '../shared/icon';
     .toast imt-icon { color: var(--lvl-error); }
     .toast.info { border-color: var(--ok); }
     .toast.info imt-icon { color: var(--ok); }
+    .act { flex: none; height: 24px; padding: 0 8px; }
   `,
 })
 export class WorkspaceToasts {

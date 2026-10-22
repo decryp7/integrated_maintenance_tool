@@ -9,7 +9,7 @@ test.describe('projects', () => {
     await expect(title).toContainText('Untitled');
     await expect(page.getByRole('img', { name: 'Unsaved changes' })).toHaveCount(0);
 
-    const search = page.getByRole('textbox', { name: 'Search messages and exceptions' });
+    const search = page.getByTestId('query-field');
     await search.fill('timed out');
     await expect(page.getByRole('img', { name: 'Unsaved changes' })).toBeVisible();
     await runCommand(page, 'Save project as');
@@ -49,7 +49,7 @@ test.describe('projects', () => {
 
   test('New project asks before discarding unsaved changes: Cancel keeps them, Discard proceeds', async ({ page }) => {
     await openAppWith(page);
-    const search = page.getByRole('textbox', { name: 'Search messages and exceptions' });
+    const search = page.getByTestId('query-field');
     await search.fill('timed out');
     await expect(page.getByRole('img', { name: 'Unsaved changes' })).toBeVisible();
     const unsaved = page.getByRole('dialog', { name: 'Unsaved changes' });
@@ -74,7 +74,7 @@ test.describe('projects', () => {
 
   test('Save in the unsaved-changes dialog saves first, then starts the new project', async ({ page }) => {
     await openAppWith(page);
-    const search = page.getByRole('textbox', { name: 'Search messages and exceptions' });
+    const search = page.getByTestId('query-field');
     await search.fill('timed out');
     await runCommand(page, 'New project');
     await page.getByRole('dialog', { name: 'Unsaved changes' }).getByRole('button', { name: 'Save' }).click();

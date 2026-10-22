@@ -20,10 +20,7 @@ export class AnalysisCommands {
   }
 
   readonly commands: ImtCommand[] = [
-    { id: 'query.focus', title: $localize`:@@analysis.commands.queryFocus:Query: focus query bar`, category: CATEGORY, keybinding: 'Mod+/', when: loaded, run: (ctx) => {
-      ctx.showView('query');
-      this.session.requestFocus();
-    } },
+    { id: 'query.focus', title: $localize`:@@analysis.commands.queryFocus:Query: focus the search field`, category: CATEGORY, keybinding: 'Mod+/', when: loaded, run: () => this.session.requestFocus() },
     { id: 'query.run', title: $localize`:@@analysis.commands.queryRun:Query: run`, category: CATEGORY, when: loaded, run: async () => void (await this.session.run()) },
     { id: 'query.clear', title: $localize`:@@analysis.commands.queryClear:Query: clear applied query`, category: CATEGORY, when: loaded, run: () => this.session.clearApplied() },
     this.show('query.results', $localize`:@@analysis.commands.queryResults:Query: show results`, 'query-results'),

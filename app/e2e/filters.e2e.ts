@@ -30,10 +30,10 @@ test.describe('filters', () => {
     const all = await initialTotal(page);
     const status = page.locator('imt-status-bar span', { hasText: 'matching' });
     await expect(status).toHaveText(`${all} matching`);
-    await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('zzqx-nothing-says-this');
+    await page.getByTestId('query-field').fill('zzqx-nothing-says-this');
     await expect(total).toHaveText('0');
     await expect(status).toHaveText('0 matching');
-    await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('');
+    await page.getByTestId('query-field').fill('');
     await expect(total).toHaveText(all);
     await expect(status).toHaveText(`${all} matching`);
   });
@@ -41,7 +41,7 @@ test.describe('filters', () => {
   test('text search narrows results and clearing restores them', async ({ page }) => {
     const total = gridTotal(page);
     const all = await initialTotal(page);
-    const search = page.getByRole('textbox', { name: 'Search messages and exceptions' });
+    const search = page.getByTestId('query-field');
     await search.fill('timed out');
     // Wait for the narrowed total itself (not just "different": the bar can be between two states).
     await expect.poll(async () => {
@@ -57,7 +57,10 @@ test.describe('filters', () => {
 
   test('smart search finds words first, then adds partial matches', async ({ page }) => {
     await initialTotal(page);
-    const search = page.getByRole('textbox', { name: 'Search messages and exceptions' });
+    // Close the Explorer first: with it open the search field is only ~200 px wide at this window size, and once the
+    // "+N" partial-match note joins the inline buttons the text area has no width left (see the report).
+    await page.keyboard.press('ControlOrMeta+b');
+    const search = page.getByTestId('query-field');
     // "imeout" is never a whole word: every hit is a partial match the background scan adds.
     await search.fill('imeout');
     const note = page.getByTestId('partial-note');
@@ -71,7 +74,7 @@ test.describe('filters', () => {
   });
 
   test('search with no hits shows the empty state', async ({ page }) => {
-    await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('zzzz-no-such-text-zzzz');
+    await page.getByTestId('query-field').fill('zzzz-no-such-text-zzzz');
     await expect(gridTotal(page)).toHaveText('0');
     await expect(page.getByText('No events match the current filters.')).toBeVisible();
   });

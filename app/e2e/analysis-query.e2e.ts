@@ -9,13 +9,13 @@ test.describe('query bar', () => {
   test('suggests completions and accepts one with the keyboard', async ({ page }, testInfo) => {
     const input = await openQuery(page);
     await input.click();
-    await input.pressSequentially('lev');
+    await input.pressSequentially('level >= warning | stats count() by lev');
     const options = page.getByRole('option');
     await expect(options.first()).toContainText('level');
     await expect(input).toHaveAttribute('aria-expanded', 'true');
-    await expectNoSeriousViolations(page, testInfo, 'query-completions', 'imt-query-view');
+    await expectNoSeriousViolations(page, testInfo, 'query-completions', 'imt-query-field');
     await page.keyboard.press('Tab');
-    await expect(input).toHaveValue('level');
+    await expect(input).toHaveValue('level >= warning | stats count() by level');
     await expect(options).toHaveCount(0);
   });
 
@@ -23,7 +23,7 @@ test.describe('query bar', () => {
     const input = await openQuery(page);
     await input.click();
     await input.pressSequentially('level >= warning | frob');
-    const underline = page.locator('imt-query-view .mirror .err');
+    const underline = page.locator('imt-query-field .mirror .err');
     await expect(underline).toHaveText('frob');
     await expect(input).toHaveAttribute('aria-invalid', 'true');
     await expect(page.locator('#ql-error')).toContainText("Unknown stage 'frob' at column 20");
@@ -37,7 +37,7 @@ test.describe('query bar', () => {
     await input.click();
     await input.fill('level >= error');
     await input.press('ControlOrMeta+Enter');
-    const applied = page.locator('imt-query-view .applied');
+    const applied = page.locator('[data-testid=query-applied]');
     await expect(applied).toContainText('Filtering with');
     await expect(applied).toContainText('level >= error');
     await expect(applied).toContainText(/\d+ events/);
@@ -73,16 +73,16 @@ test.describe('query bar', () => {
     await input.click();
     await input.fill('level = fatal');
     await input.press('ControlOrMeta+Enter');
-    await expect(page.locator('imt-query-view .applied')).toBeVisible();
+    await expect(page.locator('[data-testid=query-applied]')).toBeVisible();
     await input.fill('');
-    await page.getByRole('button', { name: 'History' }).click();
+    await page.getByRole('button', { name: 'Query history' }).click();
     await page.getByRole('button', { name: 'level = fatal' }).click();
     await expect(input).toHaveValue('level = fatal');
   });
 
   test('the palette command focuses the query bar', async ({ page }) => {
-    await runCommand(page, 'Query: focus query bar');
-    await expect(page.getByRole('combobox', { name: 'Query' })).toBeFocused();
+    await runCommand(page, 'Query: focus the search field');
+    await expect(page.getByTestId('query-field')).toBeFocused();
   });
 
   for (const scheme of ['dark', 'light'] as const) {
@@ -91,7 +91,7 @@ test.describe('query bar', () => {
       const input = await openQuery(page);
       await input.click();
       await input.pressSequentially('level >= warning | stats count() by source');
-      await expectNoSeriousViolations(page, testInfo, `query-${scheme}`, 'imt-query-view');
+      await expectNoSeriousViolations(page, testInfo, `query-${scheme}`, 'imt-query-field');
     });
   }
 });

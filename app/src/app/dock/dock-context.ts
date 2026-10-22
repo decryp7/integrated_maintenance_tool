@@ -35,6 +35,8 @@ export class DockContext {
   readonly apiReady = signal(false);
   /** Ids of the panels in the layout (docked or floating). */
   readonly docked = signal<ReadonlySet<string>>(new Set());
+  /** Ids of the panels showing now: each group's active tab (the others are tabs behind it). */
+  readonly shown = signal<ReadonlySet<string>>(new Set());
   readonly autoHide = signal<AutoHideState>(EMPTY_AUTO_HIDE);
   /** Tabs pinned to the left of their strip (they survive "Close all"). */
   readonly pinned = signal<ReadonlySet<string>>(new Set());
@@ -56,6 +58,15 @@ export class DockContext {
 
   refreshOpen(): void {
     this.docked.set(new Set((this.api?.panels ?? []).map((p) => p.id)));
+    this.refreshShown();
+  }
+
+  /** Re-reads which tab is in front in each group. */
+  refreshShown(): void {
+    const ids = (this.api?.groups ?? []).flatMap((g) => (g.activePanel ? [g.activePanel.id] : []));
+    const next = new Set(ids);
+    const prev = this.shown();
+    if (next.size !== prev.size || ids.some((id) => !prev.has(id))) this.shown.set(next);
   }
 
   /** Marks the tabs of pinned panels (dockview knows nothing about pinning). */
