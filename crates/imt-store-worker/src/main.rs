@@ -13,6 +13,10 @@ static GLOBAL: imt_alloc::MiMalloc = imt_alloc::MiMalloc;
 
 fn main() {
     imt_alloc::tune();
+    let mode = imt_store_client::MemoryMode::from_args(std::env::args());
+    if mode == imt_store_client::MemoryMode::Low {
+        imt_alloc::purge_at_once();
+    }
     let builtins: Arc<OnceLock<Builtins>> = Arc::default();
     let registry: imt_store_worker::server::RegistryFactory = Arc::new(move |disabled, safe_mode| {
         if safe_mode {
@@ -23,7 +27,7 @@ fn main() {
             .plugins();
         imt_store_worker::server::install_plugins(plugins, disabled)
     });
-    if let Err(e) = imt_store_worker::server::run(registry) {
+    if let Err(e) = imt_store_worker::server::run(registry, mode) {
         eprintln!("imt-store-worker: {e}");
         std::process::exit(1);
     }

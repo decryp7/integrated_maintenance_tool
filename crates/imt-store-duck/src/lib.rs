@@ -28,6 +28,7 @@ pub mod stats;
 mod writer;
 
 pub use compact::Compaction;
+pub use fts::WriterBudget;
 pub use schema::FORMAT_VERSION;
 
 use duckdb::{params, Config, Connection};
@@ -63,6 +64,8 @@ pub struct StoreOptions {
     pub duck_threads: usize,
     /// DuckDB memory limit, e.g. `256MB`.
     pub memory_limit: String,
+    /// The full-text index writer's heap and threads (applies when the store opens).
+    pub index: fts::WriterBudget,
 }
 
 impl Default for StoreOptions {
@@ -71,6 +74,29 @@ impl Default for StoreOptions {
             parse_threads: ingest::default_threads(),
             duck_threads: DUCK_THREADS,
             memory_limit: MEMORY_LIMIT.to_string(),
+            index: fts::WriterBudget::default(),
+        }
+    }
+}
+
+/// Parse threads in low memory mode (each holds a file's chunk and its batches in flight; 2 halved the speed).
+pub const LOW_MEMORY_PARSE_THREADS: usize = 4;
+/// DuckDB's memory limit in low memory mode.
+pub const LOW_MEMORY_LIMIT: &str = "128MB";
+
+impl StoreOptions {
+    /// Low memory mode (a user setting, off by default): fewer parse threads and so fewer batches in flight, a
+    /// smaller DuckDB limit with fewer threads, a smaller index writer. Imports are slower (20-40%); the worker
+    /// also gives freed memory back at once (`imt_alloc::purge_at_once`).
+    pub fn low_memory() -> StoreOptions {
+        StoreOptions {
+            parse_threads: LOW_MEMORY_PARSE_THREADS.min(ingest::default_threads()),
+            duck_threads: 2,
+            memory_limit: LOW_MEMORY_LIMIT.to_string(),
+            index: fts::WriterBudget {
+                heap: 16 << 20,
+                threads: 1,
+            },
         }
     }
 }
@@ -537,7 +563,7 @@ impl DuckStore {
         let started = conn
             .try_clone()
             .map_err(anyhow::Error::from)
-            .and_then(|c| fts::FtsService::start(dir, c, write_lock.clone()));
+            .and_then(|c| fts::FtsService::start(dir, c, write_lock.clone(), opts.index));
         let (fts, fts_error) = match started {
             Ok(f) => (Some(f), None),
             Err(e) => {

@@ -84,6 +84,8 @@ pub struct WorkerConfig {
     /// Where libduckdb is looked for before the worker starts (`None`: `lib_dir`, the worker's folder and the
     /// library path), so a missing library is a clear message instead of a failing process.
     pub library_dirs: Option<Vec<PathBuf>>,
+    /// How the worker uses memory (the Low memory mode setting); applies when the worker starts.
+    pub memory_mode: protocol::MemoryMode,
 }
 
 impl WorkerConfig {
@@ -97,6 +99,7 @@ impl WorkerConfig {
             child_log: false,
             safe_mode: false,
             library_dirs: None,
+            memory_mode: protocol::MemoryMode::Normal,
         }
     }
 }
@@ -204,6 +207,7 @@ impl StoreWorker {
         spawn.endpoint_prefix = "imt-store".into();
         // Imports and queries run at normal priority: they are what the user waits for.
         spawn.below_normal_priority = false;
+        spawn.args = cfg.memory_mode.args();
         if let Some(kv) = library_path_env(cfg.lib_dir.as_deref()) {
             spawn.env.push(kv);
         }

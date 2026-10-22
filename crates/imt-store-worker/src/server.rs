@@ -13,7 +13,8 @@ use imt_core::ql::QueryControl;
 use imt_core::{PluginRegistry, Profile};
 use imt_ipc::CancelProbe;
 use imt_store_client::protocol::{
-    self, ExportProject, Handle, IdsAt, OpenProject, OpenStore, OpenedProject, Paths, Session, Source, StoreOp, StoreRequest, WorkerStatus,
+    self, ExportProject, Handle, IdsAt, Limits, MemoryMode, OpenProject, OpenStore, OpenedProject, Paths, Session, Source, StoreOp,
+    StoreRequest, WorkerStatus,
 };
 use imt_store_duck::{DuckStore, StoreOptions};
 use serde::de::DeserializeOwned;
@@ -63,6 +64,7 @@ pub struct Worker {
     sessions: Mutex<HashMap<u64, ImportSession>>,
     next: AtomicU64,
     registry: RegistryFactory,
+    mode: MemoryMode,
 }
 
 impl Default for Worker {
@@ -73,11 +75,34 @@ impl Default for Worker {
 
 impl Worker {
     pub fn new(registry: RegistryFactory) -> Worker {
+        Worker::with_mode(registry, MemoryMode::Normal)
+    }
+
+    /// A worker whose stores use the options of `mode` unless a request names limits.
+    pub fn with_mode(registry: RegistryFactory, mode: MemoryMode) -> Worker {
         Worker {
             stores: Mutex::default(),
             sessions: Mutex::default(),
             next: AtomicU64::new(0),
             registry,
+            mode,
+        }
+    }
+
+    /// The options of a store opened in this worker: the mode's, with the request's limits.
+    pub fn options(&self, limits: Option<Limits>) -> StoreOptions {
+        let defaults = match self.mode {
+            MemoryMode::Normal => StoreOptions::default(),
+            MemoryMode::Low => StoreOptions::low_memory(),
+        };
+        match limits {
+            Some(l) => StoreOptions {
+                parse_threads: l.parse_threads,
+                duck_threads: l.duck_threads,
+                memory_limit: l.memory_limit,
+                ..defaults
+            },
+            None => defaults,
         }
     }
 
@@ -99,14 +124,7 @@ impl Worker {
         } else if let Some((h, _)) = lock(&self.stores).iter().find(|(_, (d, _))| *d == dir) {
             return Ok(Handle { store: *h });
         }
-        let opts = match req.limits {
-            Some(l) => StoreOptions {
-                parse_threads: l.parse_threads,
-                duck_threads: l.duck_threads,
-                memory_limit: l.memory_limit,
-            },
-            None => StoreOptions::default(),
-        };
+        let opts = self.options(req.limits);
         let registry = (self.registry)(&req.disabled_plugins, req.safe_mode);
         let store = if req.create {
             DuckStore::create_with(&dir, req.profile, registry, opts)?
@@ -128,12 +146,8 @@ impl Worker {
         if let Some(setup) = &req.parsers {
             imt_core::ports::Profiles::set_parsers(&store, setup)?;
         }
-        if let Some(l) = req.limits {
-            store.configure(StoreOptions {
-                parse_threads: l.parse_threads,
-                duck_threads: l.duck_threads,
-                memory_limit: l.memory_limit,
-            })?;
+        if req.limits.is_some() || self.mode != MemoryMode::Normal {
+            store.configure(self.options(req.limits))?;
         }
         let dir = std::fs::canonicalize(store.dir()).map_err(|e| StoreError::Io(format!("{}: {e}", store.dir().display())))?;
         let mut stores = lock(&self.stores);
@@ -182,6 +196,7 @@ impl Worker {
                 pid: std::process::id(),
                 rss_bytes: imt_ipc::process::current_rss_bytes(),
                 stores: lock(&self.stores).len(),
+                memory_mode: self.mode,
             }),
             StoreRequest::Scan { store, filter } => {
                 let filter: Filter = body(filter.0)?;
@@ -399,8 +414,11 @@ impl imt_ipc::Handler for StoreHandler {
 
 /// The worker's `main`: reads its bootstrap, connects to IMT and serves until IMT closes the connection (or
 /// stdin closes: IMT is gone).
-pub fn run(registry: RegistryFactory) -> std::io::Result<()> {
-    imt_ipc::child::child_main("IMT", move |_| Arc::new(StoreHandler::new(Arc::new(Worker::new(registry.clone())))))
+/// `mode` is how the worker uses memory (its command line, see [`MemoryMode::from_args`]).
+pub fn run(registry: RegistryFactory, mode: MemoryMode) -> std::io::Result<()> {
+    imt_ipc::child::child_main("IMT", move |_| {
+        Arc::new(StoreHandler::new(Arc::new(Worker::with_mode(registry.clone(), mode))))
+    })
 }
 
 #[cfg(test)]
@@ -409,6 +427,27 @@ mod tests {
 
     fn none(_: Vec<u8>) -> bool {
         true
+    }
+
+    #[test]
+    fn stores_take_the_options_of_the_workers_memory_mode() {
+        let low = Worker::with_mode(Arc::new(|_, _| PluginRegistry::new()), MemoryMode::Low);
+        assert_eq!(low.options(None), StoreOptions::low_memory());
+        assert_eq!(low.options(None).memory_limit, "128MB");
+        assert_eq!(Worker::default().options(None), StoreOptions::default());
+        // Limits a request names win; the rest stays the mode's.
+        let merged = low.options(Some(Limits {
+            parse_threads: 3,
+            duck_threads: 1,
+            memory_limit: "64MB".into(),
+        }));
+        assert_eq!(
+            (merged.parse_threads, merged.duck_threads, merged.memory_limit.as_str()),
+            (3, 1, "64MB")
+        );
+        assert_eq!(merged.index, StoreOptions::low_memory().index);
+        let status: WorkerStatus = serde_json::from_value(low.handle(StoreRequest::Status, None, &mut none).unwrap()).unwrap();
+        assert_eq!(status.memory_mode, MemoryMode::Low);
     }
 
     #[test]

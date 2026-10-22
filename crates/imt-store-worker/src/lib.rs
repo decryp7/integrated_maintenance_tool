@@ -4,4 +4,4 @@
 
 pub mod server;
 
-pub use imt_store_client::{protocol, RemoteStore, StoreWorker, WorkerConfig};
+pub use imt_store_client::{protocol, MemoryMode, RemoteStore, StoreWorker, WorkerConfig};

@@ -215,6 +215,40 @@ pub struct OpenStore {
     pub parsers: Option<imt_core::parser::ParserSetup>,
 }
 
+/// How the worker uses memory, chosen when it starts (the user's Low memory mode setting).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum MemoryMode {
+    /// The budgets of ADR 0014 at full speed.
+    #[default]
+    Normal,
+    /// Freed memory goes back to the system at once; fewer parse threads, a smaller database cache and index
+    /// writer (imports 20-40% slower).
+    Low,
+}
+
+/// The worker's command-line argument that selects low memory mode.
+pub const LOW_MEMORY_ARG: &str = "--low-memory";
+
+impl MemoryMode {
+    /// The worker's arguments for this mode.
+    pub fn args(self) -> Vec<String> {
+        match self {
+            MemoryMode::Normal => Vec::new(),
+            MemoryMode::Low => vec![LOW_MEMORY_ARG.to_string()],
+        }
+    }
+
+    /// The mode the worker's arguments select (the others belong to the IPC bootstrap).
+    pub fn from_args(args: impl IntoIterator<Item = String>) -> MemoryMode {
+        if args.into_iter().any(|a| a == LOW_MEMORY_ARG) {
+            MemoryMode::Low
+        } else {
+            MemoryMode::Normal
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Limits {
@@ -264,6 +298,9 @@ pub struct WorkerStatus {
     pub pid: u32,
     pub rss_bytes: u64,
     pub stores: usize,
+    /// The mode the worker started in.
+    #[serde(default)]
+    pub memory_mode: MemoryMode,
 }
 
 /// A [`StoreError`] on the wire.
@@ -378,6 +415,18 @@ pub fn from_remote(r: RemoteError) -> StoreError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_memory_mode_goes_to_the_worker_as_an_argument() {
+        for mode in [MemoryMode::Normal, MemoryMode::Low] {
+            assert_eq!(MemoryMode::from_args(mode.args()), mode);
+        }
+        assert_eq!(MemoryMode::default(), MemoryMode::Normal, "off by default");
+        let bootstrap = ["imt-store-worker", "--bootstrap", "f", "--low-memory"].map(String::from);
+        assert_eq!(MemoryMode::from_args(bootstrap), MemoryMode::Low);
+        let old: WorkerStatus = serde_json::from_str(r#"{"pid":1,"rssBytes":2,"stores":0}"#).unwrap();
+        assert_eq!(old.memory_mode, MemoryMode::Normal);
+    }
 
     #[test]
     fn store_errors_survive_the_wire() {

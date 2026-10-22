@@ -57,6 +57,7 @@ mod parsers;
 mod paths;
 mod plugin_config;
 mod plugin_packages;
+mod performance;
 mod pointer;
 mod profile;
 mod profiling;
