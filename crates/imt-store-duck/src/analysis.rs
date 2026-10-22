@@ -569,6 +569,8 @@ impl Inner {
             match hit(&conn)? {
                 Some(found) => Ok(found),
                 None => compute().and_then(|out| {
+                    // An analysis ends with its working set free but resident: back to the OS before the next work starts.
+                    imt_alloc::release();
                     let value = serde_json::to_string(&(&out.result, out.coverage.matched, out.coverage.analysed, &out.coverage.limits))
                         .map_err(|e| StoreError::Engine(e.to_string()))?;
                     self.cache_put(&conn, kind, &text, &value)?;

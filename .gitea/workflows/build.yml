@@ -169,6 +169,12 @@ jobs:
       - name: Doc tests
         run: cargo test --workspace --doc
 
+      # The analyses' memory budget (ADR 0014) is the shipped worker's: measured on a release build, Linux only
+      # (DuckDB's jemalloc is the allocator there; the test skips itself in debug builds).
+      - name: Memory budget
+        if: runner.os == 'Linux'
+        run: cargo test --release -p imt-store-duck --test analysis_memory -- --nocapture
+
       # Saved only when the dependencies changed (no exact hit).
       - uses: actions/cache/save@v4
         if: always() && steps.cargo-cache.outputs.cache-hit != 'true'

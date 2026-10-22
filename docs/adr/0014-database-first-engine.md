@@ -849,3 +849,15 @@ Measured on the shared Windows VM, release builds, a store of 10,137,960 events 
 - **Low memory mode** (Settings > Advanced > Performance, off by default, applies when the worker starts:
   `--low-memory`): mimalloc purges at once, 4 parse threads, DuckDB 128 MB with 2 threads, a 16 MB index writer on
   one thread. Tested ≤ 400 MB importing (`low_memory_mode_imports_within_its_budget`).
+
+### Memory after an import (Linux measurements, 1M events)
+
+The process idles after an import with free pages still resident: mimalloc returns pages on a timer that only runs while the
+process allocates, and jemalloc (DuckDB's allocator on Linux) decays dirty pages after 10 s. The store therefore calls
+`imt_alloc::release()` (collect and purge) when an import's maintenance ends, when the index writer goes idle (after its
+background merges are joined) and after each computed analysis, and the worker's jemalloc options add
+`dirty_decay_ms:200,muzzy_decay_ms:0`. Measured (amd64 container under Rosetta, 4 CPUs, 3 runs each): RSS before the
+analyses 220-237 MB -> 206-216 MB (release build), each analysis's start 265-280 MB instead of 290-310 MB, anomaly peak
+294-301 MB -> 276-283 MB. The live store (reader, caches, fragmentation of long-lived small objects) still holds about
+40 MB more than a freshly opened one; no single owner was found, so the 300 MB query budget stays and the anomaly working
+set (about +75-100 MB over the baseline, DuckDB's limit plus its threads' caches) is its main consumer.
