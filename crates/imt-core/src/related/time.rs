@@ -354,4 +354,21 @@ mod tests {
         );
         assert_eq!(t.text, "2026-10-21 09:00:00");
     }
+
+    #[test]
+    fn an_exif_time_with_its_own_offset_ignores_the_assumed_zone() {
+        let stamp = |offset: Option<&str>| TimeEvidence {
+            exif: Some(ExifStamp {
+                local: "2026-10-21 09:00:00".into(),
+                offset: offset.map(Into::into),
+            }),
+            ..TimeEvidence::default()
+        };
+        // 09:00 at +02:00 is 07:00 UTC whatever zone the data is assumed to be in.
+        let t = resolve(&stamp(Some("+02:00")), "+05:00", (None, None)).unwrap();
+        assert_eq!(t.at_ms, utc(2026, 10, 21, 7, 0, 0));
+        // An offset that does not read falls back to the assumed zone.
+        let t = resolve(&stamp(Some("not an offset")), "UTC", (None, None)).unwrap();
+        assert_eq!(t.at_ms, utc(2026, 10, 21, 9, 0, 0));
+    }
 }

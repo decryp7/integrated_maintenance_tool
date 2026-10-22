@@ -452,4 +452,54 @@ mod tests {
         assert_eq!(again[0].count, 2);
         assert_eq!(PatternCache::patterns(&mut slot, "j", 2, &[], &records), vec![]);
     }
+
+    #[test]
+    fn a_value_with_no_events_left_leaves_the_distinct_values_of_a_field() {
+        let a = rec(0, 1, "a", json!({"s": "x"}));
+        let b = rec(1, 2, "b", json!({"s": "y"}));
+        let mut idx = FieldIndex::build(&[a.clone(), b]);
+        assert_eq!(idx.infos(&HashSet::new())[0].distinct, 2);
+        idx.remove(&a);
+        let infos = idx.infos(&HashSet::new());
+        assert_eq!(
+            (infos[0].count, infos[0].distinct),
+            (1, 1),
+            "the field stays, the removed value is gone"
+        );
+    }
+
+    #[test]
+    fn a_window_with_an_open_end_is_not_slid_and_replaced_records_beyond_a_cut_are_left_to_the_cut() {
+        let k = |name: &str| CacheKey::of(0, name).unwrap();
+        let records: Vec<Record> = (0..4).map(|i| rec(i, i as i64 * 10, "hit", json!({}))).collect();
+        let open = Query {
+            text: "hit".into(),
+            ..Query::default()
+        };
+        let from = Query {
+            from: Some(10),
+            ..open.clone()
+        };
+        let mut cache = MatchCache::default();
+        // A cached window without a start cannot be slid to one with a start, nor the reverse.
+        cache.put(k("open"), open.clone(), true, Arc::new(vec![0, 1, 2, 3]));
+        assert!(cache.get(k("open"), &from, &records).is_none());
+        cache.put(k("from"), from, true, Arc::new(vec![1, 2, 3]));
+        assert!(cache.get(k("from"), &open, &records).is_none());
+        // A record the change says was replaced but lies beyond the cut is dropped by the cut, not looked at.
+        cache.put(k("cut"), open.clone(), false, Arc::new(vec![0, 1, 2, 3]));
+        let compile = |q: &Query| CompiledQuery::new(q, &[], &[]).ok();
+        cache.apply(
+            &Change {
+                old_len: 4,
+                replaced: vec![3],
+                cut: Some(2),
+                ..Change::default()
+            },
+            &records[..2],
+            &compile,
+            &|_: u32| "",
+        );
+        assert_eq!(*cache.get(k("cut"), &open, &records[..2]).unwrap(), vec![0, 1]);
+    }
 }

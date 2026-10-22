@@ -687,3 +687,15 @@ fn moment_users_carry_the_field_they_were_read_from() {
     let json = serde_json::to_value(&m.users[0]).unwrap();
     assert_eq!(json, serde_json::json!({"field": "UserName", "value": "alice", "count": 2}));
 }
+
+#[test]
+fn removing_a_source_that_is_not_open_changes_nothing() {
+    let dir = TempDir::new();
+    dir.file("a.log", "2026-10-14 10:00:00 INFO one\n2026-10-14 10:00:01 INFO two\n");
+    let mut ws = Workspace::new(Profile::default_profile()).unwrap();
+    ws.open(&[dir.path().to_path_buf()]).unwrap();
+    let (sources, events) = (ws.sources().len(), ws.records().len());
+    assert_eq!(sources, 1);
+    ws.remove_source(9_999);
+    assert_eq!((ws.sources().len(), ws.records().len()), (sources, events));
+}

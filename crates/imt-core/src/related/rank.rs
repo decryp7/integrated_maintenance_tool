@@ -384,4 +384,48 @@ mod tests {
         assert_eq!(t.len(), 5);
         assert!(search_terms(&Clues::default()).is_empty());
     }
+
+    fn candidate(id: u64, message: &str, exception: Option<&str>) -> RelatedEvent {
+        RelatedEvent {
+            id,
+            ts: Some(1_000),
+            level: Level::Error,
+            message: message.into(),
+            exception: exception.map(Into::into),
+            source: 0,
+            source_name: "app.log".into(),
+            group: String::new(),
+            fields: Default::default(),
+        }
+    }
+
+    #[test]
+    fn a_clue_is_found_in_the_exception_text_and_a_one_letter_name_is_no_clue() {
+        let clues = Clues {
+            exception_names: vec!["System.TimeoutException".into()],
+            ..Clues::default()
+        };
+        let links = rank(
+            vec![
+                candidate(1, "request failed", Some("System.TimeoutException: the operation timed out")),
+                candidate(2, "request failed", None),
+            ],
+            &clues,
+            None,
+            0,
+            &[],
+            false,
+        );
+        assert_eq!(
+            links.iter().map(|l| l.event.id).collect::<Vec<_>>(),
+            [1],
+            "only the exception text carries it"
+        );
+        // The last name part after the dots is the clue; one letter proves nothing and is skipped.
+        let short = Clues {
+            exception_names: vec!["Company.X".into()],
+            ..Clues::default()
+        };
+        assert!(rank(vec![candidate(1, "x marks the spot", Some("X"))], &short, None, 0, &[], false).is_empty());
+    }
 }

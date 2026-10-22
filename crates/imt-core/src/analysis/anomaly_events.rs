@@ -495,4 +495,30 @@ mod tests {
         };
         assert_eq!(inputs.bucket_ids(&layout, &[(0, 3)], 5).unwrap(), vec![Vec::<u32>::new()]);
     }
+
+    #[test]
+    fn bucket_ids_are_computed_once_per_layout_and_size() {
+        let names = SlimNames::of(&AnomalyConfig::default());
+        let records: Vec<Record> = (0..6u32)
+            .map(|i| {
+                let mut r = Record::new(i + 1);
+                r.id = i;
+                r.ts = Some(i64::from(i) * 5);
+                r
+            })
+            .collect();
+        let mut inputs = EventInputs::new(records.iter().map(|r| (RecordRow { rec: r, source: "s" }, "a")), &names);
+        let layout = Layout {
+            start: 0,
+            end: 30,
+            bucket: 10,
+            buckets: 3,
+        };
+        let first = inputs.bucket_ids(&layout, &[(0, 0), (1, 2)], 3).unwrap();
+        assert_eq!(first, vec![vec![0, 1], vec![2, 3, 4]]);
+        // The same layout and size again is answered from the cache, whatever buckets are asked for.
+        assert_eq!(inputs.bucket_ids(&layout, &[(2, 2)], 3).unwrap(), vec![vec![4, 5]]);
+        // Another size is a new answer.
+        assert_eq!(inputs.bucket_ids(&layout, &[(0, 2)], 1).unwrap(), vec![vec![0]]);
+    }
 }

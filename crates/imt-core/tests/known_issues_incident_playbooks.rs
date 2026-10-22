@@ -408,3 +408,102 @@ fn a_failing_problem_list_leaves_the_section_out_and_the_rest_of_the_summary_sta
     assert!(r.sections.iter().all(|s| s.title != "Import problems"));
     assert!(r.sections.iter().any(|s| s.title == "Summary"));
 }
+
+#[test]
+fn a_store_failure_in_a_query_step_is_an_error_not_a_failed_step() {
+    let mut wrapped = Delegating::new(store());
+    wrapped.run_query_error = Some(imt_core::ports::StoreError::Busy("importing".into()));
+    let e = run_step(
+        &wrapped,
+        &step(
+            "q",
+            Action::Query {
+                ql: "level >= error".into(),
+            },
+        ),
+    )
+    .unwrap_err();
+    assert_eq!(e, imt_core::ports::StoreError::Busy("importing".into()));
+}
+
+#[test]
+fn evidence_counts_table_rows_and_reports_a_query_that_fails_at_run_time() {
+    use imt_core::known_issues::evidence;
+    let (n, ids) = evidence(store(), "level >= error | stats count() as n by MachineName")
+        .unwrap()
+        .unwrap();
+    assert!(n > 0 && ids.is_empty(), "a table has rows but no event ids: {n} {ids:?}");
+    // A query the store accepts when checking but cannot run is the user's to fix, not a store failure.
+    let mut wrapped = Delegating::new(store());
+    wrapped.run_query_error = Some(imt_core::ports::StoreError::Query(imt_core::ql::QlError::new(
+        "no such column",
+        0,
+        0,
+    )));
+    assert_eq!(evidence(&wrapped, "level >= error").unwrap().unwrap_err(), "no such column");
+}
+
+#[test]
+fn every_severity_of_an_import_problem_has_its_word() {
+    use imt_core::api::Severity;
+    use imt_core::ingest::ProblemKind;
+    let row = |name: &str, severity: Severity| {
+        let mut r = problem(name, ProblemKind::LineNotParsed, 2, None);
+        r.severity = severity;
+        r
+    };
+    let wrapped = Delegating::with_problems(
+        store(),
+        Ok(vec![
+            row("a.log", Severity::Critical),
+            row("b.log", Severity::Warning),
+            row("c.log", Severity::Info),
+        ]),
+    );
+    let r = build_incident_report(
+        &wrapped,
+        &IncidentOptions {
+            id: "i".into(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let section = r.sections.iter().find(|s| s.title == "Import problems").unwrap();
+    let words: Vec<&str> = section
+        .blocks
+        .iter()
+        .filter_map(|b| match b {
+            StoredBlock::Known(i) => match &i.block {
+                Block::Finding { severity, .. } => Some(severity.as_str()),
+                _ => None,
+            },
+            StoredBlock::Unknown(_) => None,
+        })
+        .collect();
+    assert_eq!(words, ["critical", "warning", "info"]);
+}
+
+#[test]
+fn a_summary_of_events_without_timestamps_says_so() {
+    let dir = std::env::temp_dir().join(format!("imt-incident-untimed-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("untimed.clef"),
+        "{\"@m\":\"one\",\"@l\":\"Error\"}\n{\"@m\":\"two\",\"@l\":\"Error\"}\n",
+    )
+    .unwrap();
+    let s = WorkspaceStore::new(Workspace::new(Profile::default_profile()).unwrap());
+    imt_core::ports::Ingest::open(&s, &[dir.clone()]).unwrap().wait().unwrap();
+    let r = build_incident_report(
+        &s,
+        &IncidentOptions {
+            id: "i".into(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let text = format!("{r:?}");
+    assert!(text.contains("the events carry no timestamps"), "{text}");
+    let _ = std::fs::remove_dir_all(dir);
+}

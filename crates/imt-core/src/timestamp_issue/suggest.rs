@@ -504,4 +504,13 @@ mod tests {
         // A shape whose values are not a real date does not verify.
         assert_eq!(propose(&["2025/13/45_00:04:37 a"], &parser), None);
     }
+
+    #[test]
+    fn comma_fractions_of_six_and_nine_digits_and_malformed_seconds() {
+        assert_eq!(shape("2025-11-08 00:04:37,123456 x").unwrap().0, "%Y-%m-%d %H:%M:%S,%6f");
+        assert_eq!(shape("2025-11-08 00:04:37,123456789 x").unwrap().0, "%Y-%m-%d %H:%M:%S,%9f");
+        // Seconds with one digit are no time of day; fractions of other lengths are not part of the time.
+        assert_eq!(shape("2025-11-08 00:04:7 x").map(|s| s.0), shape("2025-11-08 x").map(|s| s.0));
+        assert_eq!(shape("2025-11-08 00:04:37,12 x").unwrap().0, "%Y-%m-%d %H:%M:%S");
+    }
 }

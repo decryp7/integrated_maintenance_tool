@@ -200,6 +200,9 @@ mod tests {
         assert_eq!(all("snake_case/path\\to"), ["snake", "case", "path", "to"]);
         assert_eq!(all("ALLCAPS lower 42"), ["allcaps", "lower", "42"]);
         assert_eq!(all("Grüße Ärger"), ["grüße", "ärger"]);
+        // Letters without case (CJK) are neither upper nor lower: they split from digits only.
+        assert_eq!(all("日本語"), ["日本語"]);
+        assert_eq!(all("日本2語"), ["日本2語", "日本", "2", "語"]);
         assert!(all("...  --").is_empty());
         let long = "a".repeat(MAX_RUN + 1);
         assert!(all(&long).is_empty(), "an over-long run is not a word");

@@ -3,6 +3,9 @@
 //! gives the same answer.)
 
 use imt_core::analysis::outliers::{error_outliers, OutlierRequest, DEFAULT_SUBSET};
+mod common;
+
+use common::delegate::Delegating;
 use imt_core::ports::{PageQuery, Query, StoreError};
 use imt_core::query::Query as Filter;
 use imt_core::workspace::WorkspaceStore;
@@ -23,6 +26,11 @@ fn store() -> (WorkspaceStore, std::path::PathBuf) {
             i % 3
         ));
     }
+    store_of(&text)
+}
+
+/// A store over one log file with this text.
+fn store_of(text: &str) -> (WorkspaceStore, std::path::PathBuf) {
     static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
     let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     let dir = std::env::temp_dir().join(format!("imt-core-outliers-{}-{n}", std::process::id()));
@@ -166,5 +174,135 @@ fn a_cancelled_run_stops() {
     control.cancel();
     let e = control.scope(|| error_outliers(&store, &OutlierRequest::default())).unwrap_err();
     assert_eq!(e, StoreError::Cancelled);
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+/// One log line at event number `i` (ten events a second would collide, so each gets its own second).
+fn line(i: usize, level: &str, fields: &str) -> String {
+    let secs = i % 86_400;
+    format!(
+        "2026-10-14 {:02}:{:02}:{:02}.000 +00:00 [{level}] event {i} {{{fields}}}\n",
+        secs / 3600,
+        secs / 60 % 60,
+        secs % 60
+    )
+}
+
+/// 150 errors among 5050 other events, with fields that exercise every limit of the comparison.
+fn limits_store() -> (WorkspaceStore, std::path::PathBuf) {
+    let mut text = String::new();
+    for i in 0..5200 {
+        let error = i < 150;
+        let level = if error { "ERR" } else { "INF" };
+        // Every event has its own `Uniq` (too many values to be a category), errors their own `Rare` value and the
+        // others share 1100 values twice or more (so the window's top values leave the errors' out), `Mild` is
+        // slightly more common in errors, `Cause` and `Host` mark the errors.
+        let rare = if error { format!("z{i}") } else { format!("i{}", i % 1100) };
+        // Errors carry one of 100 values once or twice: in the window's top values but too few to prove anything.
+        let few = if error { format!("f{}", i % 100) } else { "none".to_string() };
+        let mild = if (error && i < 4) || (!error && i < 200) { "x" } else { "y" };
+        let host = if error || i % 2 == 0 { "B" } else { "A" };
+        let cause = if error { "bad" } else { "ok" };
+        text.push_str(&line(
+            i,
+            level,
+            &format!(
+                "\"Uniq\":\"u{i}\",\"Rare\":\"{rare}\",\"Few\":\"{few}\",\"Mild\":\"{mild}\",\"Host\":\"{host}\",\"Cause\":\"{cause}\""
+            ),
+        ));
+    }
+    store_of(&text)
+}
+
+#[test]
+fn values_that_cannot_be_judged_or_are_too_weak_are_skipped_and_the_limits_are_reported() {
+    let (store, dir) = limits_store();
+    let req = OutlierRequest {
+        fields: vec![
+            "Uniq".into(),
+            "Rare".into(),
+            "Few".into(),
+            "Mild".into(),
+            "Cause".into(),
+            "Host".into(),
+            "Missing".into(),
+        ],
+        ..OutlierRequest::default()
+    };
+    let report = error_outliers(&store, &req).unwrap();
+    let found: Vec<(&str, &str)> = report
+        .result
+        .outliers
+        .iter()
+        .map(|o| (o.field.as_str(), o.value.as_str()))
+        .collect();
+    assert_eq!(report.result.fields_checked, 7);
+    assert!(found.contains(&("Cause", "bad")) && found.contains(&("Host", "B")), "{found:?}");
+    // An identifier-like field (5200 values), a field absent from the subset, values too rare to prove anything or
+    // beyond the window's top values, and an association that is not significant are all left out.
+    for skipped in ["Uniq", "Rare", "Few", "Mild", "Missing"] {
+        assert!(!found.iter().any(|(f, _)| *f == skipped), "{skipped}: {found:?}");
+    }
+    let limits = report.coverage.limits.join("\n");
+    assert!(
+        limits.contains("Rare: the 100 most frequent of 150 values in the subset"),
+        "{limits}"
+    );
+    // Only the strongest are shown when the request caps them.
+    let one = error_outliers(&store, &OutlierRequest { limit: 1, ..req }).unwrap();
+    assert_eq!(one.result.outliers.len(), 1);
+    assert!(
+        one.coverage
+            .limits
+            .iter()
+            .any(|l| l.contains("outliers found; the 1 strongest are shown")),
+        "{:?}",
+        one.coverage.limits
+    );
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn the_window_is_a_filter_the_subset_narrows_and_the_candidate_fields_are_capped() {
+    // 70 fields with two values each, errors on every fifth event.
+    let mut text = String::new();
+    for i in 0..60 {
+        let fields: Vec<String> = (0..70)
+            .map(|f| format!("\"F{f:02}\":\"{}\"", if (i % 5 == 0) == (f % 2 == 0) { "a" } else { "b" }))
+            .collect();
+        text.push_str(&line(i, if i % 5 == 0 { "ERR" } else { "INF" }, &fields.join(",")));
+    }
+    let (store, dir) = store_of(&text);
+    let req = OutlierRequest {
+        query: Filter {
+            ql: "@level >= verbose".into(),
+            ..Filter::default()
+        },
+        ..OutlierRequest::default()
+    };
+    let report = error_outliers(&store, &req).unwrap();
+    assert_eq!((report.result.subset_total, report.result.rest_total), (12, 48));
+    assert_eq!(report.result.fields_checked, imt_core::analysis::outliers::MAX_FIELDS);
+    assert!(
+        report
+            .coverage
+            .limits
+            .iter()
+            .any(|l| l.contains("the 60 most populated were examined")),
+        "{:?}",
+        report.coverage.limits
+    );
+    assert!(!report.result.outliers.is_empty());
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn an_outlier_whose_evidence_cannot_be_listed_is_still_reported() {
+    let (store, dir) = store();
+    // The two counts of the window and the subset are answered; the pages that list the evidence fail.
+    let wrapped = Delegating::failing_pages_from(&store, 2);
+    let report = error_outliers(&wrapped, &OutlierRequest::default()).unwrap();
+    assert!(!report.result.outliers.is_empty());
+    assert!(report.result.outliers.iter().all(|o| o.sample_ids.is_empty()));
     let _ = std::fs::remove_dir_all(dir);
 }

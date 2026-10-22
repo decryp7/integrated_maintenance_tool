@@ -516,8 +516,15 @@ mod tests {
     }
 
     fn with_env<T>(f: impl FnOnce(&ImportEnv) -> T) -> T {
-        let importers = Importers::default();
-        let parsers = ParserSet::of_compiled(CompiledProfile::compile(Profile::default_profile()).unwrap());
+        with_env_of(
+            Importers::default(),
+            CompiledProfile::compile(Profile::default_profile()).unwrap(),
+            f,
+        )
+    }
+
+    fn with_env_of<T>(importers: Importers, profile: CompiledProfile, f: impl FnOnce(&ImportEnv) -> T) -> T {
+        let parsers = ParserSet::of_compiled(profile);
         let cancel = AtomicBool::new(false);
         let env = ImportEnv {
             encodings: &Default::default(),
@@ -844,5 +851,56 @@ mod tests {
         assert_eq!(last_line_end(&mut file, Encoding::Utf8, 0, len).unwrap(), 0);
         // A short region without a newline stops at its first block.
         assert_eq!(last_line_end(&mut file, Encoding::Utf8, 5, 9).unwrap(), 5);
+    }
+
+    /// A binary importer that recognises a magic number, to plan a file no text importer would read.
+    struct Magic;
+
+    impl crate::importers::BinaryImporter for Magic {
+        fn id(&self) -> &str {
+            "magic"
+        }
+        fn sniff(&self, _ctx: &ImportCtx, head: &[u8]) -> u8 {
+            if head.starts_with(b"MAGIC") {
+                90
+            } else {
+                0
+            }
+        }
+        fn import(&self, _ctx: &ImportCtx, _bytes: &[u8]) -> Result<crate::importers::Imported> {
+            Err(anyhow!("not needed"))
+        }
+    }
+
+    #[test]
+    fn formats_that_need_the_whole_file_are_read_whole_with_the_reason() {
+        let mut importers = Importers::default();
+        importers.register_binary(Box::new(Magic));
+        with_env_of(importers, CompiledProfile::compile(Profile::default_profile()).unwrap(), |env| {
+            let mut sink = Memory::default();
+            let start = TailStart { byte: 0, line: 1 };
+            // A binary format cannot be cut at a line.
+            let (p, src) = temp("a.magic", b"MAGIC\x00\x01\x02 some bytes\n");
+            let r = read_appended(env, &p, &src, SourceId(0), start, false, &mut sink).unwrap();
+            assert!(matches!(&r, Region::Whole(why) if why.contains("binary format")), "{r:?}");
+            // A CSV importer reads whole files only.
+            let (p, src) = temp("a.csv", b"timestamp,message\n2026-10-14T10:00:00Z,a\n2026-10-14T10:00:01Z,b\n");
+            let r = read_appended(env, &p, &src, SourceId(0), start, false, &mut sink).unwrap();
+            assert!(matches!(&r, Region::Whole(why) if why.contains("whole files only")), "{r:?}");
+            assert!(sink.batches.is_empty() && sink.finished.is_empty());
+        });
+    }
+
+    #[test]
+    fn text_whose_timestamps_have_no_date_is_read_whole() {
+        let profile = crate::parser::testing::compiled(
+            "[format]\noutput_templates = [\"[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}\"]\nregexes = []",
+        );
+        with_env_of(Importers::default(), profile, |env| {
+            let mut sink = Memory::default();
+            let (p, src) = temp("t.log", b"[23:59:58 INF] one\n[23:59:59 INF] two\n");
+            let r = read_appended(env, &p, &src, SourceId(0), TailStart { byte: 19, line: 2 }, false, &mut sink).unwrap();
+            assert!(matches!(&r, Region::Whole(why) if why.contains("have no date")), "{r:?}");
+        });
     }
 }
