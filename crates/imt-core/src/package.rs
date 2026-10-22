@@ -443,7 +443,10 @@ mod tests {
         .to_string();
         zip_with(&share, &[("logs/a.log", log), ("manifest.json", manifest.as_bytes())]);
         let shared = open_package(&share, &root.join("o")).unwrap();
-        assert!(matches!(&shared, Package::Share(b) if b.dir.join("logs/a.log").is_file()), "{shared:?}");
+        assert!(
+            matches!(&shared, Package::Share(b) if b.dir.join("logs/a.log").is_file()),
+            "{shared:?}"
+        );
         let odd = root.join("odd.imtz");
         zip_with(&odd, &[("project.toml", b"format = \"something-else\"")]);
         let err = open_package(&odd, &root.join("o")).unwrap_err().to_string();

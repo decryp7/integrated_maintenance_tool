@@ -311,3 +311,24 @@ fn damaged_or_newer_project_records_restore_what_they_can() {
     assert_eq!(rec.runs.len(), 50);
     assert_eq!(rec.runs[0].id, "r5");
 }
+
+#[test]
+fn a_filter_step_reports_a_bad_query_and_counts_the_rows_of_a_table() {
+    let s = store();
+    let bad = run_step(s, &step("f", Action::Filter { ql: "level >=".into() })).unwrap();
+    assert_eq!(bad.status, StepStatus::Error);
+    assert!(bad.summary.starts_with("The filter does not work here: "), "{}", bad.summary);
+    // A query that ends in a table has no events to cite, only rows to count.
+    let table = run_step(
+        s,
+        &step(
+            "t",
+            Action::Filter {
+                ql: "level >= error | stats count() as n by MachineName".into(),
+            },
+        ),
+    )
+    .unwrap();
+    assert_eq!(table.status, StepStatus::Info);
+    assert!(table.count.unwrap() >= 1 && table.sample_ids.is_empty(), "{table:?}");
+}

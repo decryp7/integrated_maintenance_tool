@@ -91,3 +91,19 @@ fn filter_expressions_combine_without_ceremony() {
     assert!(matches!(Expr::all(vec![Expr::Const(true), Expr::Const(false)]), Expr::Const(false)));
     assert!(matches!(Expr::all(vec![Expr::Const(false), Expr::Const(false)]), Expr::And(ref v) if v.len() == 2));
 }
+
+#[test]
+fn a_streaming_stats_can_group_by_what_only_the_event_knows() {
+    let table = |text: &str| match run(text) {
+        QlResult::Table { columns, rows } => (columns, rows),
+        other => panic!("not a table: {other:?}"),
+    };
+    let (columns, rows) = table("level >= information | stats count() as n by level");
+    assert_eq!(columns[0], "level");
+    assert_eq!(rows.len(), 3, "information, warning and error: {rows:?}");
+    // A full-text filter and a where stage see the same rows when the stats streams.
+    let (_, rows) = table("request | stats count() as n by host");
+    assert_eq!(rows, vec![vec![json!("web1"), json!(1)], vec![json!("web2"), json!(2)]]);
+    let (_, rows) = table("level >= information | stats count() as n by source");
+    assert_eq!(rows, vec![vec![json!("a.log"), json!(5)]]);
+}
