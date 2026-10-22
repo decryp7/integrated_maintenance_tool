@@ -338,7 +338,10 @@ describe('Sidebar', () => {
   it('lists sources and unrecognised files and manages them', async () => {
     const { fixture, store } = setup(Sidebar);
     await settle(fixture);
-    expect(all(fixture, '.src:not(.dim) .name').map((n) => n.textContent)).toEqual(['web01/app.clef', 'web02/app.log']);
+    // Two folders are open: each gets a heading and its files show their names only (H2); the path is the tooltip.
+    expect(all(fixture, '[data-testid=folder-heading]').map((n) => n.textContent?.trim())).toEqual(['logs/web01', 'logs/web02']);
+    expect(all(fixture, '.src:not(.dim) .name').map((n) => n.textContent)).toEqual(['app.clef', 'app.log']);
+    expect(all(fixture, '[data-testid=format-badge]').map((n) => n.getAttribute('title'))).toHaveLength(2);
     expect(el(fixture, '.src.dim').textContent).toContain('system/export.reg');
     expect(el(fixture, '.src').getAttribute('title')).toContain('7 events');
     el<HTMLButtonElement>(fixture, '[aria-label="Remove app.log"]').click();
