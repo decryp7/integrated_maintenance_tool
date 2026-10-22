@@ -644,4 +644,32 @@ mod tests {
         assert!(run("", "a,b\na;b;c\n").is_err());
         assert_eq!(count_outside_quotes("\"a,b\",c", b','), 1);
     }
+
+    #[test]
+    fn an_automatic_day_order_is_decided_by_the_column_and_short_rows_continue_the_event() {
+        let out = run(
+            "[format]\nday_first = 'auto'\n[format.csv]\ndelimiter = ','",
+            "Timestamp,Level,Message\n03/04/2026 10:00:00,Info,first\nat Frame.One()\n25/04/2026 10:00:00,Info,second\n",
+        )
+        .unwrap();
+        assert_eq!(out.records.len(), 2, "the short row belongs to the first event");
+        // 25/04 can only be a day, so 03/04 is the 3rd of April.
+        assert_eq!(out.records[0].ts, Some(utc_ms(2026, 4, 3, 10, 0, 0, 0)));
+        assert!(format!("{:?}", out.records[0]).contains("at Frame.One()"), "{:?}", out.records[0]);
+        assert_eq!(out.records[1].message, "second");
+    }
+
+    #[test]
+    fn a_file_whose_first_line_is_blank_has_no_data_first_row() {
+        let p = crate::parser::testing::compiled("");
+        let ctx = ImportCtx {
+            profile: &p,
+            path: Path::new("x.csv"),
+            file_date: None,
+        };
+        assert!(!first_row_is_data(&ctx, b',', ""));
+        assert!(!first_row_is_data(&ctx, b',', "\n\n"));
+        assert!(first_row_is_data(&ctx, b',', "2026-10-14 10:00:00,a\n"));
+        assert!(!first_row_is_data(&ctx, b',', "Time,Message\n2026-10-14 10:00:00,a\n"));
+    }
 }
