@@ -26,6 +26,13 @@ const STATUS_HEIGHT = 260;
 /** The two panels a new view never covers: it opens beside them (documents) or below them (analysis). */
 const MAIN_PANELS: ReadonlySet<string> = new Set([PANEL.timeline, PANEL.events]);
 
+/** Panels a new view with a given default position is placed next to (first one that exists wins). */
+const ANCHORS: Record<ViewPosition, string[]> = {
+  center: [PANEL.timeline, PANEL.metrics, PANEL.profile],
+  right: [PANEL.inspector],
+  bottom: [PANEL.events],
+};
+
 /**
  * The built-in core panels' fixed places, used when one is (re)opened while the other is docked: the events grid
  * right below the timeline, the timeline right above the grid.
