@@ -6,11 +6,20 @@ first walk-through, see the two-minute tour in the [README](../README.md#quick-s
 
 - [Glossary](#glossary)
 - [First run and layout](#first-run-and-layout)
+- [Projects](#projects)
+- [Appearance](#appearance)
 - [Supported inputs](#supported-inputs)
 - [Profiles](#profiles)
 - [Query language](#query-language)
+- [The Store pane and the SQL console](#the-store-pane-and-the-sql-console)
 - [Internal web browser](#internal-web-browser)
-- [Keyboard shortcuts](#keyboard-shortcuts)
+- [Knowledge files](#knowledge-files-teach-the-ai-your-systems), [known issues](#known-issues), the [incident summary](#incident-summary-report) and [playbooks](#investigation-playbooks)
+- [AI runtime and model updates](#ai-runtime-and-model-updates)
+- [Disk usage and project stores](#disk-usage-and-project-stores)
+- [Keyboard shortcuts](#keyboard-shortcuts) and [changing them](#change-a-shortcut)
+- [Video sources](#video-sources)
+- [Dump symbols](#dump-symbols)
+- [Share a redacted copy](#share-a-redacted-copy)
 - [Command line](#command-line)
 - [Troubleshooting](#troubleshooting)
 
@@ -31,7 +40,7 @@ One word, one meaning: menus, the palette, Settings and these docs use these ter
 ## First run and layout
 
 With nothing open, IMT shows the welcome page: **Open folder…**, **Open files…** or **Try a demo** (or drop
-files anywhere). After opening data you get the **Focused** layout: the timeline over the events grid, with
+files anywhere). After opening data you get the **Investigate** perspective: the timeline over the events grid, with
 the inspector sliding out from the right when you select an event.
 
 - **Filter bar** (one row): search (`.*` regex, `Aa` match case), level chips, the time range (click to
@@ -52,11 +61,22 @@ the inspector sliding out from the right when you select an event.
 - **Sidebar**: the Explorer; the **Fields** section starts collapsed (click its header; IMT remembers).
 - **Set up analysis…** for a folder of several files is offered in Notifications (the bell).
 
+- **Home** (*View ▸ Home*) is the dashboard of everything opened: live tiles for events, sources, errors and warnings with
+  their trend, crashes, anomalies, exception groups, time span, store size and memory; the history of events by level
+  (click a bar or drag across it to set the time range); the health check, most severe first, each finding with a button
+  to jump to the time, show the events or fix the cause; recent activity and quick actions. The counts appear at once and
+  the slower analyses fill in after. A checkbox on Home opens it after every import.
+- **Timeline minimap**: a thin strip above the histogram shows the whole data range with a window for what is visible. Drag
+  the window to pan, drag an edge to zoom, click the strip to centre the window, double-click to fit; with the window
+  focused the arrow keys pan and `Home`/`End` go to the ends.
+- **Search everything** (`Ctrl/⌘+Shift+F`) searches events, sources, fields and values, marker kinds, exception groups,
+  notes and knowledge files at once and opens the match you choose.
+
 ### Perspectives
 
 A perspective is a named window arrangement. **Investigate** (the default) is the timeline over the events;
 **Profiling** opens with the captures list (open a capture or profile a process); **Live** adds tail status and
-alerts below the events; **Diagnostics** adds problems, jobs, error snapshots, the store and plugin health. Switch
+alerts below the events; **Diagnostics** adds problems, jobs, error snapshots and the store. Switch
 with the activity bar's *Perspectives* button, *Window ▸ Perspectives* or `Ctrl/⌘+1…9`; each perspective
 remembers how you left it, and *Reset perspective* rebuilds it. *Save current as perspective…* adds your own, and
 *Manage perspectives…* renames, reorders and deletes them. Opening a performance capture switches to Profiling
@@ -86,7 +106,7 @@ Everything applies at once, in every window, and is kept for your user (not in p
 
 | Setting | Choices | Also in |
 |---|---|---|
-| **Theme** | *Calm* (default): neutral and quiet, colour only for the data. *Console*: soft cards, violet accent, richer colour. *Precision*: paper and ink, hairlines, mono figures, the densest view. | *View ▸ Theme*; palette *Theme: Calm* / *Theme: Console* / *Theme: Precision* |
+| **Theme** | *Calm* (default): neutral and quiet, colour only for the data. *Console*: soft cards, violet accent, richer colour. *Precision*: paper and ink, hairlines, mono figures, the densest view. *High contrast*: black or white with WCAG AAA text and strong outlines. *Follow system* (default) uses Calm, or High contrast when the operating system asks for more contrast. | *View ▸ Theme*; palette *Theme: Calm* / *Theme: Console* / *Theme: Precision* |
 | **Interface font** | *System* (default): the operating system's font, like other desktop apps. *Theme*: the theme's own font. Log text stays monospaced | |
 | **Colour scheme** | *System* (default, follows the operating system), *Light*, *Dark* | *View ▸ Theme*; palette *Colour scheme: …* |
 | **Density** | *Comfortable* (default) or *Compact* rows and timeline lanes | |
@@ -369,7 +389,7 @@ SELECT n.text, e.message FROM notes n JOIN events e ON e.id = n.event_id;
 
 ## Internal web browser
 
-*Search the web for this error* and the address box of the **Browser** panel (Tools ▸ Browser) open pages in
+*Search the web for this error* and the address box of the **Browser** panel (*View ▸ Tools ▸ Browser*) open pages in
 the panel itself. It docks like any other panel: drag its tab next to Timeline or Events, split it, maximise it
 or pop it out into a window of its own. Searches use **Google** unless you pick another engine: Settings ▸ Web
 browser ▸ Search engine sets it for every search (DuckDuckGo, Bing, or *Custom* with your own
@@ -499,11 +519,12 @@ turns it off, and the largest value is 365.
 | Shortcut | Action |
 |---|---|
 | `Mod+K` | Command palette (every action is in it) |
-| `F1` | Keyboard shortcuts (searchable, printable; generated from the commands) |
+| `F1` | Keyboard shortcuts (searchable, printable; generated from the commands; *Edit shortcuts…* changes them, see below) |
 | `Mod+Z` / `Mod+Shift+Z` | Undo / redo the last edit (filters, marker and highlight rules, profile edits, dashboards, reports) |
 | `Mod+O` / `Mod+Shift+O` | Open files / open folder |
 | `Mod+F` | Find: focus the search box (*Edit ▸ Find*) |
 | `Mod+/` | Focus the search field |
+| `Mod+Shift+F` | Search everything |
 | `Mod+Enter` | Run the query (in the search field) |
 | `Mod+Shift+M` | Analyse this moment |
 | `Mod+Shift+N` | New window |
@@ -512,6 +533,9 @@ turns it off, and the largest value is 365.
 | `Mod+Shift+E` | Export events |
 | `Mod+Shift+V` | Paste as log (Edit menu) |
 | `Mod+Shift+X` | Toggle the redacted view |
+| `Mod+Shift+F12` | Capture a diagnostic screenshot (error snapshot) |
+| `Ctrl+Alt+O` / `Ctrl+Alt+H` | Pop the panel out to a window / auto-hide or pin a tool window |
+| `Shift+Alt+Enter` | Full screen |
 | `Mod+B` | Toggle the sidebar |
 | `F6` / `Shift+F6` | Next / previous region: activity bar, side bar, filter bar, each panel group, status bar |
 | `Mod+0` | Focus the side bar |
@@ -533,6 +557,32 @@ To float a panel inside the window, choose **Float** in its tab menu or **Window
 tab dragged off the docking guides and released inside the window goes back where it was
 (**Release to cancel**); drag it outside the window and a ghost of the new window follows the pointer
 (also over other apps and monitors): release it to open the panel there.
+
+## Change a shortcut
+
+*Settings ▸ Keyboard* (or *Help ▸ Keyboard shortcuts ▸ Edit shortcuts…*) lists every command with its key. *Change* records a new
+key and warns when another command or a built-in key already uses it (Replace or Cancel); the cheat sheet, the menus and the
+palette show your keys. Overrides are kept for your user. *High contrast* is chosen automatically when the operating system
+asks for more contrast (or in *View ▸ Theme*), and *Help ▸ What's new* shows the release notes, once after an update.
+
+## Video sources
+
+*File ▸ Open video…* (or drop a recording) analyses a screen recording and puts its moments next to the logs. The first time,
+*Settings ▸ Video* downloads a pinned FFmpeg build (about 55 to 80 MB, checked before use) or lets you pick an `ffmpeg` of your
+own; on macOS you provide it (for example Homebrew's). The **Video** view shows the player, the frame strip (drop frames, add
+the one at the player position, switch between *changes* and *interval* mode and analyse again), the alignment with its
+evidence ("the clock in frame 4 read 10:42:07", the container's creation time, the file time or a start you set), the
+model's description and your note for each frame, *Explain with AI* and *Find related logs*. The video is a source with its
+own lane; it stays referenced by SHA-256 unless you choose *Include the video in the project*. Up to 120 frames per video,
+600 per project and 6 hours of video; a model without vision is never sent the frames.
+
+## Dump symbols
+
+Frames of a dump are named from PDBs whose identity (name, GUID, age) matches the module's: a PDB of the same name but another
+build is never used. *Settings ▸ Dumps* sets the local symbol folders; *Settings ▸ Symbols* turns on HTTPS symbol servers
+(off by default; only the PDB's name, GUID and age are sent), their size and time limits and the cache folder, which is
+trimmed to its size cap. The Modules table says per module why it has no names (not needed, not found, not on the server, a
+different build, unreadable, download failed) and what to do next. UMDH logs keep the names UMDH wrote.
 
 ## Share a redacted copy
 

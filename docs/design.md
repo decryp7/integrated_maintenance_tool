@@ -3,7 +3,7 @@
 All of IMT's design diagrams on one page, from the big picture down to individual flows. Each image
 is exported from its editable draw.io source (linked under the image) with
 [`scripts/export-diagrams.sh`](../scripts/export-diagrams.sh); edit the `.drawio`, then re-run the
-script. The SVGs are re-exported from the sources (draw.io desktop); until then they may lag behind the `.drawio` files. The style rules are in [diagrams/STYLE.md](diagrams/STYLE.md), the reasoning behind the
+script. The style rules are in [diagrams/STYLE.md](diagrams/STYLE.md), the reasoning behind the
 design in the [architecture decision records](adr/), and the prose overview in
 [architecture.md](architecture.md).
 
@@ -43,7 +43,7 @@ Source: [c4-2-containers.drawio](diagrams/c4-2-containers.drawio)
 
 ### Level 3 — engine components
 
-Inside `imt-core`: the `Store` ports (adapted by the DuckDB store in the store worker; the in-memory workspace is the test oracle), ingest (importers, archives,
+Inside `imt-core`: the `Store` ports (adapted by the DuckDB store in the store worker; the in-memory workspace is the test oracle), Home, search, investigation (known issues, incident report, playbooks), ingest (importers, archives,
 the parser library, profiles, the pipeline with calculated fields and Rhai scripts), query and aggregation, analysis,
 sharing and reports, projects and configuration, and the plugin runtime with its guards.
 
@@ -121,6 +121,15 @@ Parquet segments and the full-text index.
 
 Source: [uml-seq-open-folder.drawio](diagrams/uml-seq-open-folder.drawio)
 
+### Opening a video
+
+A recording becomes events: the pinned FFmpeg runtime (downloaded, self-tested), sandboxed probe and frame passes, a
+pure frame selection, alignment to the logs, vision descriptions, and the frames source the importer reads.
+
+![Video pipeline](diagrams/svg/uml-activity-video.svg)
+
+Source: [uml-activity-video.drawio](diagrams/uml-activity-video.drawio)
+
 ### Filtering, the timeline and queries
 
 A filter change fanning out to the timeline, grid and charts (stale replies dropped), a marker click,
@@ -147,12 +156,21 @@ compiled into the profile; safe mode.
 
 Source: [uml-seq-plugin-registration.drawio](diagrams/uml-seq-plugin-registration.drawio)
 
+### The store protocol
+
+How a port method reaches the store worker: one row in `store_port_table!` expands into the operation enum, the client
+and the worker's dispatch (ADR [0042](adr/0042-store-port-table.md)).
+
+![Store protocol](diagrams/svg/uml-component-store-protocol.svg)
+
+Source: [uml-component-store-protocol.drawio](diagrams/uml-component-store-protocol.drawio)
+
 ## States
 
 ### Live tail and alerts
 
-Following growing files (rotation, truncation, new files), coalesced refreshes, alert rules with
-cool-down and mutes, and the UI's follow mode.
+Following growing files (rotation, truncation, new files), coalesced refreshes that append only what grew, alert rules with
+cool-down and mutes over the store ports, and the UI's follow mode.
 
 ![Live tail states](diagrams/svg/uml-state-live-tail.svg)
 

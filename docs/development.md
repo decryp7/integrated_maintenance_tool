@@ -164,6 +164,13 @@ npm run screenshots     # writes docs/screenshots/*.png
 The script is [`app/scripts/screenshots/capture.ts`](../app/scripts/screenshots/capture.ts); set
 `IMT_SHOT_PORT` to use another dev-server port.
 
+### Diagrams and What's new
+
+Edit a diagram's `.drawio` source, then run `scripts/export-diagrams.sh` (draw.io desktop; on macOS it is found at
+`/Applications/draw.io.app`) and commit the SVGs in `docs/diagrams/svg/` with it. `CHANGELOG.md` is curated by hand and feeds
+*Help ▸ What's new*: after editing it run `npm run whats-new` in `app/` (`npm start` and `npm run build` do it too) and
+commit the regenerated `app/src/app/whats-new/changelog.generated.ts`; a node test fails when it is stale.
+
 ### App icon
 
 The icon is drawn as SVG in [`app/src-tauri/icons-src/`](../app/src-tauri/icons-src/): a blue tile
@@ -265,6 +272,8 @@ The binaries that parse and analyse (the app, `imt-store-worker`, `imt-plugins`)
 thing in `main`. mimalloc v3 keeps freed memory for a second before returning it to the OS, which added 150-200 MB to
 the worker's import peak, so `tune()` sets v2's purge timing (10 ms). The options are set in code because the
 workers start with a cleared environment (no `MIMALLOC_*` variables). Measurements: ADR 0014's performance notes.
+`imt_alloc::release()` gives free but still resident memory back at once; the store calls it when an import, an index build or
+an analysis ends, so the worker does not idle at the size of its last burst.
 
 Budgets (ADR 0014; tests measure peak resident memory and fail above them): the app process stays flat, under
 250 MB whatever the data size; the store worker stays under 300 MB idle or querying and under 768 MB while importing;
@@ -272,6 +281,9 @@ the store worker is stopped at a **2 GiB hard cap**. Plugin processes have a cap
 at most 4 GiB). Every cap is enforced the same way on every platform: the host (`watch_memory` in
 `crates/imt-ipc/src/process.rs`) watches the child's resident memory and stops it over the limit with a message that
 says so. There are no memory rlimits: they count address space that allocators reserve up front.
+
+The query budget (300 MB) is measured on a release build, because unoptimised code keeps about 50 MB more resident: the
+`analysis_memory` test skips itself in debug builds and CI runs it with `cargo test --release` on Linux.
 
 ### UI responsiveness rules
 
@@ -297,7 +309,7 @@ result is at most 1600 px wide (on macOS at most the window's width in points, s
 logical size) and 3 MiB. Any failure (unsupported platform, the webview refusing, the 10 s timeout, undecodable or
 oversized data) saves the snapshot with a placeholder picture and "No screenshot: …". On macOS WebKit draws nothing
 for a window that is not on screen (minimised, covered, on another desktop), so such a window gets no picture. The platform halves need the
-real webview, so check them by hand on each OS: Tray → *Capture diagnostic screenshot*, then *Tools → Show error
+real webview, so check them by hand on each OS: Tray → *Capture diagnostic screenshot*, then *View ▸ Diagnostics ▸ Error
 snapshots* (manual test 24 in [testing-manual.md](testing-manual.md)).
 
 ## CI/CD
@@ -344,14 +356,16 @@ scope). Dependencies are updated by Renovate, which also pins CI actions to comm
 │   └── scripts/                   README screenshot generator, build info for the About dialog,
 │                                  i18n/ (locale and pseudo-locale generator)
 ├── crates/
-│   ├── imt-core/                  engine: importers, profile, query/ql, workspace (live tail), analysis,
-│   │                              export, redaction, reports, dashboards, bundles, clock skew, config diff,
-│   │                              templates, plugin runtime, event bus
+│   ├── imt-core/                  engine: importers, profile, query/ql, ports (the Store traits), workspace (reference
+│   │                              store), live, home, search_all, analysis, known issues, incident, playbooks, export,
+│   │                              redaction, reports, dashboards, bundles, clock skew, config diff, templates,
+│   │                              plugin runtime, event bus
 │   ├── imt-batch/                 the event batch: stable ids, the fixed Arrow schema, a validated builder
 │   ├── imt-alloc/                 the global allocator (mimalloc v3) and its start-up tuning
 │   ├── imt-store-duck/            the store (ADR 0014): Parquet segments, DuckDB catalog and SQL, Tantivy search
-│   ├── imt-store-client/          IMT's side of the store worker: protocol, supervision, `RemoteStore` (no DuckDB)
-│   ├── imt-store-worker/          the store worker process hosting every window's store
+│   ├── imt-store-client/          IMT's side of the store worker: protocol, supervision, `RemoteStore` (no DuckDB),
+│   │                              the port table (`port_table.rs`, ADR 0042)
+│   ├── imt-store-worker/          the store worker process hosting every window's store (`dispatch.rs`)
 │   ├── imt-ipc/                   the one IPC (ADR 0017): frames, supervisor, launcher, sandbox, memory watcher
 │   ├── imt-plugin-api/            the contract plugins build against (never `imt-core`); the SDK crate
 │   ├── imt-plugin-host/           starts plugin processes and registers their contributions in the engine
@@ -374,7 +388,8 @@ scope). Dependencies are updated by Renovate, which also pins CI actions to comm
 │   │                              heapsnapshot
 │   ├── imt-plugin-dotnet/         .NET profiling by ETW and EventPipe (ADR 0019)
 │   ├── imt-plugin-native/         native profiling by ETW or suspend-and-sample (ADR 0022)
-│   ├── imt-etw/, imt-symbols/     ETW decoders and the NetTrace writer; PDB/DbgHelp symbols
+│   ├── imt-etw/, imt-symbols/     ETW decoders and the NetTrace writer; PDBs by identity, symbol servers, cache (ADR 0036)
+│   ├── imt-video/                 video sources: FFmpeg runtime, sandboxed runs, frame selection, alignment (ADR 0033)
 │   ├── imt-dump/                  dump and UMDH engine (ADR 0023); `imt-plugin-dumps` holds the readers
 │   ├── imt-notes/                 notes anchored to events, times, sources and image regions (ADR 0021)
 │   ├── imt-ai/, imt-ai-worker/    local AI layer (assistant, browser rules, knowledge, vision) and its worker
