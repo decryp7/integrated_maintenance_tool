@@ -157,11 +157,10 @@ describe('AnalysisCommands', () => {
     }
   });
 
-  it('focuses the query bar, runs and clears the query', async () => {
+  it('focuses the search field, runs and clears the query', async () => {
     const { cmds, ctx } = await setup();
     const session = TestBed.inject(QuerySession);
     await find(cmds, 'query.focus').run(ctx);
-    expect(ctx.last('showView')).toEqual(['query']);
     expect(session.focusNonce()).toBe(1);
     session.text.set('level >= error');
     await find(cmds, 'query.run').run(ctx);
@@ -215,7 +214,7 @@ describe('analysis plugin', () => {
     await loadWorkspace();
     const views = TestBed.inject(ViewRegistry);
     expect(views.all.map((v) => v.id)).toEqual(ANALYSIS_VIEWS.map((v) => v.id));
-    expect(views.available().map((v) => v.id)).toContain('query');
+    expect(views.available().map((v) => v.id)).not.toContain('query');
     const commands = TestBed.inject(CommandRegistry);
     expect(commands.find('moment.analyse')).toBeDefined();
     expect(await commands.run('anomalies.show')).toBe(true);
@@ -226,9 +225,7 @@ describe('analysis plugin', () => {
 
   it('loads every view component lazily', async () => {
     for (const v of ANALYSIS_VIEWS) expect(typeof (await v.component())).toBe('function');
-    const query = at(ANALYSIS_VIEWS, 0);
-    expect(query.when!({ total: 0 } as never)).toBe(false);
-    expect(query.when!({ total: 5 } as never)).toBe(true);
+    expect(ANALYSIS_VIEWS.map((v) => v.id)).not.toContain('query');
   });
 
   it('createAnalysisBackend picks the mock outside Tauri', () => {

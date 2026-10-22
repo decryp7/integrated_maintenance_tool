@@ -216,4 +216,36 @@ mod tests {
         assert!(explain_regex(r"\d+".into()).now().unwrap().len() >= 2);
         assert!(explain_regex("(".into()).now().is_err());
     }
+
+    #[test]
+    fn classify_search_tells_text_from_a_query() {
+        assert_eq!(classify_search("connection refused".into(), vec![]), InputKind::Text);
+        assert_eq!(classify_search("level >= warning".into(), vec![]), InputKind::Query);
+        assert_eq!(classify_search("timeout | stats count()".into(), vec![]), InputKind::Query);
+        assert_eq!(classify_search(String::new(), vec![]), InputKind::Text);
+        // The UI's field names decide whether a comparison is a query or log text.
+        assert_eq!(classify_search("UserId = 42".into(), vec![]), InputKind::Text);
+        assert_eq!(classify_search("UserId = 42".into(), vec!["UserId".into()]), InputKind::Query);
+        assert_eq!(classify_search("status=500".into(), vec!["UserId".into()]), InputKind::Text);
+    }
+
+    #[test]
+    fn classify_search_treats_over_long_input_as_text() {
+        let long = format!("level = {}", "x".repeat(imt_core::ql::MAX_CLASSIFY_LEN));
+        assert_eq!(classify_search(long, vec![]), InputKind::Text);
+    }
+
+    #[test]
+    fn classify_search_looks_at_a_bounded_number_of_field_names() {
+        let mut fields: Vec<String> = (0..imt_core::ql::MAX_CLASSIFY_FIELDS).map(|i| format!("f{i}")).collect();
+        fields.push("Beyond".into());
+        assert_eq!(classify_search("f7 = 1".into(), fields.clone()), InputKind::Query);
+        assert_eq!(classify_search("Beyond = 1".into(), fields), InputKind::Text);
+    }
+
+    #[test]
+    fn classify_search_serializes_for_the_ui() {
+        let kind = classify_search("x | head 1".into(), vec![]);
+        assert_eq!(serde_json::to_string(&kind).unwrap(), "\"query\"");
+    }
 }

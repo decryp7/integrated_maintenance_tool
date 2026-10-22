@@ -1,5 +1,6 @@
-import { signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { patchState } from '@ngrx/signals';
 import { all, el, settle } from '../../testing/helpers';
 import { at } from '../../testing/must';
@@ -24,9 +25,18 @@ function key(input: HTMLElement, k: string, init: KeyboardEventInit = {}): Keybo
   return e;
 }
 
+/** The filter bar's pair: the field and the status line under it (the shell wires `pick` to `useSuggestion`). */
+@Component({
+  selector: 'imt-test-host',
+  imports: [QueryField, QueryStatus],
+  template: `<imt-query-field #f /><imt-query-status (pick)="f.useSuggestion($event)" />`,
+})
+class Host {}
+
 describe('QueryField', () => {
-  let fixture: ComponentFixture<QueryField>;
-  let status: ComponentFixture<QueryStatus>;
+  let fixture: ComponentFixture<Host>;
+  let fieldCmp: QueryField;
+  let statusCmp: QueryStatus;
   let ctx: FakeContext;
   let history: MemoryHistory;
   let input: HTMLTextAreaElement;
@@ -34,10 +44,7 @@ describe('QueryField', () => {
   let field: SearchField;
   let store: WorkspaceStore;
 
-  const refresh = async () => {
-    await settle(fixture);
-    status.detectChanges();
-  };
+  const refresh = () => settle(fixture);
 
   const type = async (text: string, caret = text.length) => {
     input.focus();
@@ -49,17 +56,18 @@ describe('QueryField', () => {
     await refresh();
   };
 
-  const statusText = () => (status.nativeElement as HTMLElement).textContent ?? '';
+  const statusEl = () => el(fixture, 'imt-query-status');
+  const statusText = () => statusEl().textContent ?? '';
 
   const create = async (providers = provideAnalysisTesting({ context: ctx, history })) => {
     TestBed.configureTestingModule({ providers });
     store = await loadWorkspace();
-    fixture = TestBed.createComponent(QueryField);
-    status = TestBed.createComponent(QueryStatus);
+    fixture = TestBed.createComponent(Host);
     session = TestBed.inject(QuerySession);
     field = TestBed.inject(SearchField);
     fixture.detectChanges();
-    status.detectChanges();
+    fieldCmp = fixture.debugElement.query(By.directive(QueryField)).componentInstance;
+    statusCmp = fixture.debugElement.query(By.directive(QueryStatus)).componentInstance;
     input = el<HTMLTextAreaElement>(fixture, 'textarea');
   };
 
@@ -72,7 +80,7 @@ describe('QueryField', () => {
   afterEach(() => vi.useRealTimers());
 
   it('is an accessible combobox in text mode with plain-search controls', () => {
-    expect(input.getAttribute('role')).toBeNull();
+    expect(input.getAttribute('role')).toBe('combobox');
     expect(input.getAttribute('aria-label')).toContain('Search messages');
     expect(input.getAttribute('aria-expanded')).toBe('false');
     expect(input.getAttribute('aria-invalid')).toBeNull();
@@ -156,7 +164,7 @@ describe('QueryField', () => {
       expect(input.getAttribute('aria-invalid')).toBe('true');
       expect(input.getAttribute('aria-describedby')).toBe('ql-error');
       expect(el(fixture, '.box').classList.contains('invalid')).toBe(true);
-      const message = (status.nativeElement as HTMLElement).querySelector('#ql-error');
+      const message = statusEl().querySelector('#ql-error');
       expect(message?.textContent).toContain("Unknown stage 'frob'");
       expect(message?.textContent).toContain('column 20');
       expect(message?.getAttribute('role')).toBe('alert');
@@ -352,13 +360,13 @@ describe('QueryField', () => {
       progress?.({ stage: 'evaluating', done: 250, total: 1000 });
       await refresh();
       expect(statusText()).toContain('Evaluating 250 of 1,000 events (25%)');
-      expect((status.nativeElement as HTMLElement).querySelector('progress')?.getAttribute('aria-label')).toBe('Query progress');
+      expect(statusEl().querySelector('progress')?.getAttribute('aria-label')).toBe('Query progress');
       el<HTMLButtonElement>(fixture, '[data-testid=query-cancel]').click();
       await refresh();
       expect(cancel).toHaveBeenCalledTimes(1);
       await wait(10);
       await refresh();
-      expect((status.nativeElement as HTMLElement).querySelector('[data-testid=query-cancelled]')?.textContent).toContain('Query cancelled.');
+      expect(statusEl().querySelector('[data-testid=query-cancelled]')?.textContent).toContain('Query cancelled.');
       expect(fixture.nativeElement.querySelector('[data-testid=query-cancel]')).toBeNull();
 
       // Esc cancels too (when no completion popup is open).
@@ -475,14 +483,14 @@ describe('QueryField', () => {
     it('focuses when the command ran before the field was created, once', async () => {
       fixture.destroy();
       session.requestFocus();
-      fixture = TestBed.createComponent(QueryField);
+      fixture = TestBed.createComponent(Host);
       fixture.detectChanges();
       await settle(fixture);
       input = el<HTMLTextAreaElement>(fixture, 'textarea');
       expect(document.activeElement).toBe(input);
       input.blur();
       fixture.destroy();
-      fixture = TestBed.createComponent(QueryField);
+      fixture = TestBed.createComponent(Host);
       fixture.detectChanges();
       await settle(fixture);
       expect(document.activeElement).not.toBe(el(fixture, 'textarea'));
@@ -530,18 +538,18 @@ describe('QueryField', () => {
 
   describe('useSuggestion', () => {
     it('replaces the unknown field with the chosen one, via the did-you-mean button', async () => {
-      await type('MachinName = "WEB01" and level >= error');
+      await type('MachinName = 5 and level >= error');
       expect(statusText()).toContain('Unknown field "MachinName"');
-      el<HTMLButtonElement>(status, '[data-testid=did-you-mean] button').click();
+      el<HTMLButtonElement>(fixture, '[data-testid=did-you-mean] button').click();
       await wait(CHECK_DELAY_MS + 80);
       await refresh();
-      expect(input.value).toBe('MachineName = "WEB01" and level >= error');
+      expect(input.value).toBe('MachineName = 5 and level >= error');
       expect(input.selectionStart).toBe('MachineName'.length);
       expect(session.error()).toBeNull();
     });
 
     it('does nothing without an error', () => {
-      fixture.componentInstance.useSuggestion('x');
+      fieldCmp.useSuggestion('x');
       expect(field.text()).toBe('');
     });
   });
@@ -579,26 +587,26 @@ describe('QueryField', () => {
 
     it('renders nothing for a message search', async () => {
       await type('hello');
-      expect(status.nativeElement.classList.contains('empty')).toBe(true);
+      expect(statusEl().classList.contains('empty')).toBe(true);
       expect(statusText().trim()).toBe('');
     });
 
     it('shows the applied query with its match count and clears it', async () => {
       await type('level >= error');
-      expect(status.nativeElement.classList.contains('empty')).toBe(true);
+      expect(statusEl().classList.contains('empty')).toBe(true);
       session.dismissCompletions();
       key(input, 'Enter', { ctrlKey: true });
       await wait(60);
       await refresh();
       expect((store.query() as { ql?: string }).ql).toBe('level >= error');
-      const applied = (status.nativeElement as HTMLElement).querySelector('[data-testid=query-applied]');
+      const applied = statusEl().querySelector('[data-testid=query-applied]');
       expect(applied?.textContent).toContain('Filtering with');
       expect(applied?.textContent).toMatch(/\d+ events/);
       (applied!.querySelector('button') as HTMLButtonElement).click();
       await wait(20);
       await refresh();
       expect((store.query() as { ql?: string }).ql).toBe('');
-      expect((status.nativeElement as HTMLElement).querySelector('[data-testid=query-applied]')).toBeNull();
+      expect(statusEl().querySelector('[data-testid=query-applied]')).toBeNull();
       expect(field.text()).toBe('');
     });
 
@@ -612,9 +620,9 @@ describe('QueryField', () => {
 
     it('forwards a picked suggestion', async () => {
       const picked: string[] = [];
-      status.componentInstance.pick.subscribe((n) => picked.push(n));
-      await type('MachinName = "WEB01" and level >= error');
-      el<HTMLButtonElement>(status, '[data-testid=did-you-mean] button').click();
+      statusCmp.pick.subscribe((n) => picked.push(n));
+      await type('MachinName = 5 and level >= error');
+      el<HTMLButtonElement>(fixture, '[data-testid=did-you-mean] button').click();
       expect(picked).toEqual(['MachineName']);
     });
   });

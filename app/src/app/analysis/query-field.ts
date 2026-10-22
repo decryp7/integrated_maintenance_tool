@@ -58,6 +58,7 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
         <textarea
           #input
           class="qinput mono"
+          role="combobox"
           rows="1"
           [class.wrap]="expanded()"
           [class.see-through]="field.kind() === 'query'"

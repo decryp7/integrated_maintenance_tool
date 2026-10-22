@@ -32,7 +32,10 @@ fn known(name: &str, fields: &[String]) -> bool {
     let lower = name.to_ascii_lowercase();
     PSEUDO_FIELDS.iter().any(|p| p.eq_ignore_ascii_case(name))
         || ALIASES.contains(&lower.as_str())
-        || fields.iter().take(MAX_CLASSIFY_FIELDS).any(|f| f == name || f.eq_ignore_ascii_case(name))
+        || fields
+            .iter()
+            .take(MAX_CLASSIFY_FIELDS)
+            .any(|f| f == name || f.eq_ignore_ascii_case(name))
 }
 
 fn word(t: Option<&Token>) -> Option<&str> {
@@ -97,7 +100,19 @@ mod tests {
 
     #[test]
     fn plain_words_are_a_message_search() {
-        for text in ["connection refused", "timeout 504", "error (retry)", "\"exact phrase\"", "not found", "a, b, c", "the file contains errors", "Hello!", "can't connect", "in progress", "exists in cache"] {
+        for text in [
+            "connection refused",
+            "timeout 504",
+            "error (retry)",
+            "\"exact phrase\"",
+            "not found",
+            "a, b, c",
+            "the file contains errors",
+            "Hello!",
+            "can't connect",
+            "in progress",
+            "exists in cache",
+        ] {
             assert_eq!(kind(text), InputKind::Text, "{text}");
         }
     }
@@ -147,6 +162,42 @@ mod tests {
     fn without_data_only_pseudo_fields_and_aliases_count() {
         assert_eq!(classify_input("level = error", &[]), InputKind::Query);
         assert_eq!(classify_input("UserId = 42", &[]), InputKind::Text);
+    }
+
+    #[test]
+    fn field_names_match_case_insensitively_and_only_a_bounded_list_is_looked_at() {
+        assert_eq!(kind("USERID = 1"), InputKind::Query);
+        assert_eq!(kind("LEVEL >= error"), InputKind::Query);
+        assert_eq!(kind("@Message ~ \"x\""), InputKind::Query);
+        let mut many: Vec<String> = (0..MAX_CLASSIFY_FIELDS).map(|i| format!("f{i}")).collect();
+        many.push("Beyond".into());
+        assert_eq!(classify_input("f4999 = 1", &many), InputKind::Query);
+        assert_eq!(classify_input("Beyond = 1", &many), InputKind::Text);
+    }
+
+    #[test]
+    fn bang_only_counts_as_not_contains_after_a_field() {
+        assert_eq!(kind("Hello !"), InputKind::Text);
+        assert_eq!(kind("level ! error"), InputKind::Text);
+        assert_eq!(kind("x !contains y"), InputKind::Text);
+        assert_eq!(kind("!contains level"), InputKind::Text);
+        assert_eq!(kind("level !contains x"), InputKind::Query);
+    }
+
+    #[test]
+    fn contains_and_in_need_something_after_them_that_is_not_a_pipe() {
+        assert_eq!(kind("level in"), InputKind::Text);
+        assert_eq!(kind("level contains"), InputKind::Text);
+        assert_eq!(kind("level in | head 1"), InputKind::Query);
+        assert_eq!(kind("message CONTAINS \"x\""), InputKind::Query);
+    }
+
+    #[test]
+    fn exists_and_missing_need_a_parenthesis() {
+        assert_eq!(kind("EXISTS(TraceId)"), InputKind::Query);
+        assert_eq!(kind("missing"), InputKind::Text);
+        assert_eq!(kind("exists TraceId"), InputKind::Text);
+        assert_eq!(kind("a `b` c"), InputKind::Query);
     }
 
     #[test]
