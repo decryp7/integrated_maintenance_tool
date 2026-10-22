@@ -101,7 +101,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="about.title" datatype="html">
-        <source>About IMT</source>
+        <source>About Debrief</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/about/about-dialog.ts</context>
           <context context-type="linenumber">163</context>
@@ -1519,7 +1519,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="ai.folderSetup.hint.text" datatype="html">
-        <source>New folder? IMT can survey it and propose lanes, markers, extractors and charts for you to review.</source>
+        <source>New folder? Debrief can survey it and propose lanes, markers, extractors and charts for you to review.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/folder-setup/folder-setup-notice.ts</context>
           <context context-type="linenumber">39</context>
@@ -2277,7 +2277,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="ai.knowledge.scope.globalHint" datatype="html">
-        <source>Kept in IMT&apos;s settings folder on this computer.</source>
+        <source>Kept in Debrief&apos;s settings folder on this computer.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/knowledge/knowledge-settings.ts</context>
           <context context-type="linenumber">114</context>
@@ -2470,7 +2470,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="ai.manual.shaUnknown" datatype="html">
-        <source> The SHA-256 of this file is not known, so IMT cannot check it. </source>
+        <source> The SHA-256 of this file is not known, so Debrief cannot check it. </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/manual/manual-download.ts</context>
           <context context-type="linenumber">77,78</context>
@@ -2498,7 +2498,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="ai.manual.model.step3" datatype="html">
-        <source>IMT checks its SHA-256 against the value above, files it in the models folder and lists it under Installed models; then choose Retry or Use.</source>
+        <source>Debrief checks its SHA-256 against the value above, files it in the models folder and lists it under Installed models; then choose Retry or Use.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/manual/manual-download.ts</context>
           <context context-type="linenumber">88,90</context>
@@ -2519,7 +2519,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="ai.manual.runtime.step3" datatype="html">
-        <source>IMT checks their SHA-256 against the values above and unpacks them into the folder below.</source>
+        <source>Debrief checks their SHA-256 against the values above and unpacks them into the folder below.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/manual/manual-download.ts</context>
           <context context-type="linenumber">92,95</context>
@@ -3161,7 +3161,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="ai.parserVerdict.status.builtin" datatype="html">
-        <source>read by IMT&apos;s parsers</source>
+        <source>read by Debrief&apos;s parsers</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/proposals/parser-verdict.ts</context>
           <context context-type="linenumber">116</context>
@@ -3231,7 +3231,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="ai.proposalApply.parser.known" datatype="html">
-        <source>IMT&apos;s parsers already read this file.</source>
+        <source>Debrief&apos;s parsers already read this file.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/proposals/proposal-apply.ts</context>
           <context context-type="linenumber">78</context>
@@ -3408,7 +3408,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="ai.proposalCard.parserKnown" datatype="html">
-        <source>IMT&apos;s parsers already read this file.</source>
+        <source>Debrief&apos;s parsers already read this file.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/proposals/proposal-card.ts</context>
           <context context-type="linenumber">71,75</context>
@@ -5458,7 +5458,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.anomalies.emptyHint" datatype="html">
-        <source>IMT looks for crashes, error spikes, silences, slow outliers, rate changes and memory growth in the events the query matches.</source>
+        <source>Debrief looks for crashes, error spikes, silences, slow outliers, rate changes and memory growth in the events the query matches.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/anomalies-view.ts</context>
           <context context-type="linenumber">28</context>
@@ -6921,7 +6921,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="browser.runtime.installed" datatype="html">
-        <source>Research uses the Chromium IMT downloaded.</source>
+        <source>Research uses the Chromium Debrief downloaded.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/browser-runtime-settings.ts</context>
           <context context-type="linenumber">79</context>
@@ -7534,7 +7534,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="browser.researchDialog.byEngine" datatype="html">
-        <source>Built by IMT (the AI could not write it). Check it before it is sent.</source>
+        <source>Built by Debrief (the AI could not write it). Check it before it is sent.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/research-dialog.ts</context>
           <context context-type="linenumber">92</context>
@@ -7611,7 +7611,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="browser.searchDialog.byEngine" datatype="html">
-        <source>IMT built this search from the event (the AI could not write it).</source>
+        <source>Debrief built this search from the event (the AI could not write it).</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/search-web-dialog.ts</context>
           <context context-type="linenumber">72</context>
@@ -7833,7 +7833,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="builtin.cmd.help.about" datatype="html">
-        <source>About IMT</source>
+        <source>About Debrief</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/builtin/builtin-commands.ts</context>
           <context context-type="linenumber">50</context>
@@ -9205,7 +9205,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="core.dialog.profileFilter" datatype="html">
-        <source>IMT profile</source>
+        <source>Debrief profile</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/core/platform.ts</context>
           <context context-type="linenumber">53</context>
@@ -9431,7 +9431,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportView.subtitle" datatype="html">
-        <source>IMT <x id="INTERPOLATION" equiv-text="{{ r.manifest.imtVersion }}"/> (<x id="INTERPOLATION_1" equiv-text="{{ r.manifest.commit }}"/>), created <x id="INTERPOLATION_2" equiv-text="{{ when(r.manifest.createdAt) }}"/>, <x id="INTERPOLATION_3" equiv-text="{{ r.manifest.files.length }}"/> files</source>
+        <source>Debrief <x id="INTERPOLATION" equiv-text="{{ r.manifest.debriefVersion }}"/> (<x id="INTERPOLATION_1" equiv-text="{{ r.manifest.commit }}"/>), created <x id="INTERPOLATION_2" equiv-text="{{ when(r.manifest.createdAt) }}"/>, <x id="INTERPOLATION_3" equiv-text="{{ r.manifest.files.length }}"/> files</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/diagnostics-report-view.ts</context>
           <context context-type="linenumber">29,30</context>
@@ -9671,7 +9671,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportView.sys.appVersion" datatype="html">
-        <source>IMT version</source>
+        <source>Debrief version</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/diagnostics-report-view.ts</context>
           <context context-type="linenumber">249</context>
@@ -9874,7 +9874,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.snapshotsView.emptyKey" datatype="html">
-        <source>No error snapshots yet. IMT saves one on this machine when something goes wrong; press <x id="INTERPOLATION" equiv-text="{{ captureKey }}"/> or Capture now to take one yourself.</source>
+        <source>No error snapshots yet. Debrief saves one on this machine when something goes wrong; press <x id="INTERPOLATION" equiv-text="{{ captureKey }}"/> or Capture now to take one yourself.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/error-snapshots-view.ts</context>
           <context context-type="linenumber">63</context>
@@ -9948,7 +9948,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.snapshotsView.appValue" datatype="html">
-        <source>IMT <x id="INTERPOLATION" equiv-text="{{ c.appVersion }}"/> on <x id="INTERPOLATION_1" equiv-text="{{ c.os }}"/></source>
+        <source>Debrief <x id="INTERPOLATION" equiv-text="{{ c.appVersion }}"/> on <x id="INTERPOLATION_1" equiv-text="{{ c.os }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/error-snapshots-view.ts</context>
           <context context-type="linenumber">82,83</context>
@@ -10011,7 +10011,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportDialog.lead" datatype="html">
-        <source>IMT puts what is needed to diagnose the problem into one zip file that you save and attach to your report. Nothing is sent anywhere.</source>
+        <source>Debrief puts what is needed to diagnose the problem into one zip file that you save and attach to your report. Nothing is sent anywhere.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/report-problem-dialog.ts</context>
           <context context-type="linenumber">25,27</context>
@@ -10218,7 +10218,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.snapshot.notice" datatype="html">
-        <source>IMT saved a screenshot of this error locally to help diagnose it. Nothing is sent anywhere.</source>
+        <source>Debrief saved a screenshot of this error locally to help diagnose it. Nothing is sent anywhere.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/snapshot.types.ts</context>
           <context context-type="linenumber">28</context>
@@ -12368,21 +12368,21 @@
         </context-group>
       </trans-unit>
       <trans-unit id="format.wizard.timestampsIntro" datatype="html">
-        <source>IMT read the lines of <x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;mono&quot;&gt;"/><x id="INTERPOLATION" equiv-text="{{ name() }}"/><x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/> but not their timestamps, so those events are missing from the timeline. Tell it how the timestamps are written.</source>
+        <source>Debrief read the lines of <x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;mono&quot;&gt;"/><x id="INTERPOLATION" equiv-text="{{ name() }}"/><x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/> but not their timestamps, so those events are missing from the timeline. Tell it how the timestamps are written.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/format/format-wizard.ts</context>
           <context context-type="linenumber">41,42</context>
         </context-group>
       </trans-unit>
       <trans-unit id="format.wizard.newParserIntro" datatype="html">
-        <source>Show IMT how a log line of <x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;mono&quot;&gt;"/><x id="INTERPOLATION" equiv-text="{{ name() }}"/><x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/> is built: it saves a new parser for this kind of file (now read with <x id="INTERPOLATION_1" equiv-text="{{ baseParser() }}"/>).</source>
+        <source>Show Debrief how a log line of <x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;mono&quot;&gt;"/><x id="INTERPOLATION" equiv-text="{{ name() }}"/><x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/> is built: it saves a new parser for this kind of file (now read with <x id="INTERPOLATION_1" equiv-text="{{ baseParser() }}"/>).</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/format/format-wizard.ts</context>
           <context context-type="linenumber">43,45</context>
         </context-group>
       </trans-unit>
       <trans-unit id="format.wizard.intro" datatype="html">
-        <source>IMT did not recognise <x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;mono&quot;&gt;"/><x id="INTERPOLATION" equiv-text="{{ name() }}"/><x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/>. Show it how a log line is built and it will read this kind of file from now on.</source>
+        <source>Debrief did not recognise <x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;mono&quot;&gt;"/><x id="INTERPOLATION" equiv-text="{{ name() }}"/><x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/>. Show it how a log line is built and it will read this kind of file from now on.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/format/format-wizard.ts</context>
           <context context-type="linenumber">45</context>
@@ -12396,7 +12396,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="format.wizard.helpText" datatype="html">
-        <source>Select the timestamp, then the level, then the message on a sample line and press the matching button. IMT builds a regular expression from your marks and shows how the first lines parse.</source>
+        <source>Select the timestamp, then the level, then the message on a sample line and press the matching button. Debrief builds a regular expression from your marks and shows how the first lines parse.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/format/format-wizard.ts</context>
           <context context-type="linenumber">45,48</context>
@@ -12473,7 +12473,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="format.wizard.timestampSuggested" datatype="html">
-        <source>IMT checked this format against the lines it could not read.</source>
+        <source>Debrief checked this format against the lines it could not read.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/format/format-wizard.ts</context>
           <context context-type="linenumber">92,94</context>
@@ -12636,7 +12636,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="grid.columns" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;columns&quot; [size]=&quot;14&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;columns&quot; [size]=&quot;14&quot; /&gt;"/> Columns</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;columns&quot; [size]=&quot;14&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;columns&quot; [size]=&quot;14&quot; /&gt;"/> Columns</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
           <context context-type="linenumber">112,113</context>
@@ -13587,7 +13587,7 @@
         <note priority="1" from="description">Dialog title</note>
       </trans-unit>
       <trans-unit id="i18n.reload.message" datatype="html">
-        <source>IMT restarts to show the new language and reopens your session. Unsaved edits in open dialogs are lost.</source>
+        <source>Debrief restarts to show the new language and reopens your session. Unsaved edits in open dialogs are lost.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/i18n/language.service.ts</context>
           <context context-type="linenumber">58</context>
@@ -15438,7 +15438,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.banners.crashed" datatype="html">
-        <source>IMT didn&apos;t close properly last time.</source>
+        <source>Debrief didn&apos;t close properly last time.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle-banners.ts</context>
           <context context-type="linenumber">28,29</context>
@@ -15598,7 +15598,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.titleExtras.adminTitle" datatype="html">
-        <source>IMT is running with administrator rights</source>
+        <source>Debrief is running with administrator rights</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/title-extras.ts</context>
           <context context-type="linenumber">15</context>
@@ -16653,7 +16653,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.noFiles" datatype="html">
-        <source>No files are open. <x id="START_TAG_IMT_NEXT_STEPS" ctype="x-imt_next_steps" equiv-text="&lt;imt-next-steps /&gt;"/><x id="CLOSE_TAG_IMT_NEXT_STEPS" ctype="x-imt_next_steps" equiv-text="&lt;imt-next-steps /&gt;"/></source>
+        <source>No files are open. <x id="START_TAG_DEBRIEF_NEXT_STEPS" ctype="x-debrief_next_steps" equiv-text="&lt;debrief-next-steps /&gt;"/><x id="CLOSE_TAG_DEBRIEF_NEXT_STEPS" ctype="x-debrief_next_steps" equiv-text="&lt;debrief-next-steps /&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/tail-status-view.ts</context>
           <context context-type="linenumber">68,70</context>
@@ -17532,7 +17532,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.new" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;plus&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;plus&quot; [size]=&quot;13&quot; /&gt;"/> New marker</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;plus&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;plus&quot; [size]=&quot;13&quot; /&gt;"/> New marker</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
           <context context-type="linenumber">37,39</context>
@@ -18698,7 +18698,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="metrics.resetZoom" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;zoomOut&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;zoomOut&quot; [size]=&quot;13&quot; /&gt;"/> Reset zoom</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;zoomOut&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;zoomOut&quot; [size]=&quot;13&quot; /&gt;"/> Reset zoom</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/metrics/metrics-view.ts</context>
           <context context-type="linenumber">26,28</context>
@@ -19826,7 +19826,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="onboarding.demo.missing" datatype="html">
-        <source>The demo samples are not installed with this copy of IMT. Open your own log files or a folder instead.</source>
+        <source>The demo samples are not installed with this copy of Debrief. Open your own log files or a folder instead.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/onboarding/demo.service.ts</context>
           <context context-type="linenumber">7</context>
@@ -20103,7 +20103,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="pluginsPanel.packages.dropHint" datatype="html">
-        <source>Or drop a .imtplugin file on the window. You review the publisher and the permissions before anything is installed.</source>
+        <source>Or drop a .debriefplugin file on the window. You review the publisher and the permissions before anything is installed.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/installed-packages.ts</context>
           <context context-type="linenumber">20,22</context>
@@ -20522,7 +20522,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="pluginsPanel.packages.pickFilter" datatype="html">
-        <source>IMT plugin package</source>
+        <source>Debrief plugin package</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/plugin-packages.store.ts</context>
           <context context-type="linenumber">110</context>
@@ -20669,7 +20669,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="pluginsPanel.none" datatype="html">
-        <source>No plugins are installed. IMT works with its built-in importers and exporters.</source>
+        <source>No plugins are installed. Debrief works with its built-in importers and exporters.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/plugins-installed.ts</context>
           <context context-type="linenumber">41,44</context>
@@ -20711,7 +20711,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="pluginsPanel.about.p1" datatype="html">
-        <source>A plugin extends IMT without changing the app. Backend plugins can add <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/>importers<x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> (read a new file format), <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/>transforms<x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> (a step you can use in the profile pipeline), <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/>exporters<x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> (write events to a new format) and <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/>hooks<x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> (react to events such as a finished import).</source>
+        <source>A plugin extends Debrief without changing the app. Backend plugins can add <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/>importers<x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> (read a new file format), <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/>transforms<x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> (a step you can use in the profile pipeline), <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/>exporters<x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> (write events to a new format) and <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/>hooks<x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> (react to events such as a finished import).</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/plugins-installed.ts</context>
           <context context-type="linenumber">58,59</context>
@@ -20886,7 +20886,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="popout.backend.blocked" datatype="html">
-        <source>The browser blocked the pop-out window; allow pop-ups for IMT</source>
+        <source>The browser blocked the pop-out window; allow pop-ups for Debrief</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/popout/popout-backend.ts</context>
           <context context-type="linenumber">313</context>
@@ -21153,7 +21153,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="problems.hint.unknownFormat" datatype="html">
-        <source>Teach IMT the format with the format wizard, or ask the AI for a parser.</source>
+        <source>Teach Debrief the format with the format wizard, or ask the AI for a parser.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/problems/problems-model.ts</context>
           <context context-type="linenumber">108</context>
@@ -23093,7 +23093,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="profile.editor.valid" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;check&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;check&quot; [size]=&quot;13&quot; /&gt;"/> Valid</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;check&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;check&quot; [size]=&quot;13&quot; /&gt;"/> Valid</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profile/profile-editor.ts</context>
           <context context-type="linenumber">30,32</context>
@@ -23575,7 +23575,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="profile.form.chart.delete" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;trash&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;trash&quot; [size]=&quot;13&quot; /&gt;"/> Delete</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;trash&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;trash&quot; [size]=&quot;13&quot; /&gt;"/> Delete</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profile/profile-form.ts</context>
           <context context-type="linenumber">157,158</context>
@@ -23603,7 +23603,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="profile.form.files.helpText" datatype="html">
-        <source>Which files in an opened folder IMT reads. Include and exclude are glob patterns; anything that is not a log is skipped.</source>
+        <source>Which files in an opened folder Debrief reads. Include and exclude are glob patterns; anything that is not a log is skipped.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profile/profile-form.ts</context>
           <context context-type="linenumber">225</context>
@@ -24551,7 +24551,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.dotnet.none" datatype="html">
-        <source>No .NET process found. Start the application, then Refresh. Processes of other users are listed only when IMT runs as administrator.</source>
+        <source>No .NET process found. Start the application, then Refresh. Processes of other users are listed only when Debrief runs as administrator.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/dotnet/dotnet-dialog.ts</context>
           <context context-type="linenumber">60,62</context>
@@ -24663,7 +24663,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.explain.prompt" datatype="html">
-        <source>Explain these profiling findings for &quot;<x id="name" equiv-text="profileName"/>&quot; in plain words: what the likely root cause is, and what to change first. The findings were computed by IMT&apos;s profiling engine:</source>
+        <source>Explain these profiling findings for &quot;<x id="name" equiv-text="profileName"/>&quot; in plain words: what the likely root cause is, and what to change first. The findings were computed by Debrief&apos;s profiling engine:</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/findings/explain-findings.ts</context>
           <context context-type="linenumber">17</context>
@@ -26567,7 +26567,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.native.mode.sampling.help" datatype="html">
-        <source>IMT pauses one thread of the process at a time for a few microseconds, copies its stack and lets it run again, about 100 times a second per thread. Shows where threads spend CPU time and where they wait (wall clock, approximate). Works for your own processes.</source>
+        <source>Debrief pauses one thread of the process at a time for a few microseconds, copies its stack and lets it run again, about 100 times a second per thread. Shows where threads spend CPU time and where they wait (wall clock, approximate). Works for your own processes.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/native/native-dialog.ts</context>
           <context context-type="linenumber">20</context>
@@ -26777,7 +26777,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.native.etwOnlyText" datatype="html">
-        <source>IMT cannot read this process without administrator rights (it runs elevated or as another user). Choose ETW (administrator) to record it.</source>
+        <source>Debrief cannot read this process without administrator rights (it runs elevated or as another user). Choose ETW (administrator) to record it.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/native/native-dialog.ts</context>
           <context context-type="linenumber">177</context>
@@ -26889,14 +26889,14 @@
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.legend.sampled" datatype="html">
-        <source><x id="START_TAG_IMT_MEASUREMENT" ctype="x-imt_measurement" equiv-text="&lt;imt-measurement m=&quot;sampled&quot; /&gt;"/><x id="CLOSE_TAG_IMT_MEASUREMENT" ctype="x-imt_measurement" equiv-text="&lt;imt-measurement m=&quot;sampled&quot; /&gt;"/> sampled estimate</source>
+        <source><x id="START_TAG_DEBRIEF_MEASUREMENT" ctype="x-debrief_measurement" equiv-text="&lt;debrief-measurement m=&quot;sampled&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_MEASUREMENT" ctype="x-debrief_measurement" equiv-text="&lt;debrief-measurement m=&quot;sampled&quot; /&gt;"/> sampled estimate</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-shared.ts</context>
           <context context-type="linenumber">42</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.legend.exact" datatype="html">
-        <source><x id="START_TAG_IMT_MEASUREMENT" ctype="x-imt_measurement" equiv-text="&lt;imt-measurement m=&quot;exact&quot; /&gt;"/><x id="CLOSE_TAG_IMT_MEASUREMENT" ctype="x-imt_measurement" equiv-text="&lt;imt-measurement m=&quot;exact&quot; /&gt;"/> exact</source>
+        <source><x id="START_TAG_DEBRIEF_MEASUREMENT" ctype="x-debrief_measurement" equiv-text="&lt;debrief-measurement m=&quot;exact&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_MEASUREMENT" ctype="x-debrief_measurement" equiv-text="&lt;debrief-measurement m=&quot;exact&quot; /&gt;"/> exact</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/profiling-shared.ts</context>
           <context context-type="linenumber">42,43</context>
@@ -28045,7 +28045,7 @@
         <note priority="1" from="meaning">Completes &quot;Save the changes before you ...&quot;</note>
       </trans-unit>
       <trans-unit id="projects.picker.filter" datatype="html">
-        <source>IMT project</source>
+        <source>Debrief project</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/project-picker.ts</context>
           <context context-type="linenumber">5</context>
@@ -28305,7 +28305,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="schedules.runs.refresh" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;refresh&quot; [size]=&quot;12&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;refresh&quot; [size]=&quot;12&quot; /&gt;"/>Refresh</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;refresh&quot; [size]=&quot;12&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;refresh&quot; [size]=&quot;12&quot; /&gt;"/>Refresh</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/schedules/runs-view.ts</context>
           <context context-type="linenumber">29,30</context>
@@ -28404,7 +28404,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="schedules.runs.none" datatype="html">
-        <source>No runs yet. They appear here once the agent has run a schedule (or after <x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;mono&quot;&gt;"/>imt-agent once<x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/>).</source>
+        <source>No runs yet. They appear here once the agent has run a schedule (or after <x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;mono&quot;&gt;"/>debrief-agent once<x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/>).</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/schedules/runs-view.ts</context>
           <context context-type="linenumber">81,83</context>
@@ -28453,7 +28453,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="schedules.intro" datatype="html">
-        <source> Schedules for <x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;mono&quot;&gt;"/>imt-agent<x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/>, the headless collector that runs as a service on servers. Each run writes a folder with a manifest; see the Runs view. Install it with <x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;mono&quot;&gt;"/>imt-agent service install<x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/> (Windows), <x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;mono&quot;&gt;"/>print-unit<x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/> (systemd) or <x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;mono&quot;&gt;"/>print-plist<x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/> (launchd). </source>
+        <source> Schedules for <x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;mono&quot;&gt;"/>debrief-agent<x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/>, the headless collector that runs as a service on servers. Each run writes a folder with a manifest; see the Runs view. Install it with <x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;mono&quot;&gt;"/>debrief-agent service install<x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/> (Windows), <x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;mono&quot;&gt;"/>print-unit<x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/> (systemd) or <x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;mono&quot;&gt;"/>print-plist<x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/> (launchd). </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/schedules/schedules-view.ts</context>
           <context context-type="linenumber">20,25</context>
@@ -28467,14 +28467,14 @@
         </context-group>
       </trans-unit>
       <trans-unit id="schedules.configFile.placeholder" datatype="html">
-        <source>Default: IMT&apos;s config folder</source>
+        <source>Default: Debrief&apos;s config folder</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/schedules/schedules-view.ts</context>
           <context context-type="linenumber">27</context>
         </context-group>
       </trans-unit>
       <trans-unit id="schedules.load" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;refresh&quot; [size]=&quot;12&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;refresh&quot; [size]=&quot;12&quot; /&gt;"/>Load</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;refresh&quot; [size]=&quot;12&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;refresh&quot; [size]=&quot;12&quot; /&gt;"/>Load</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/schedules/schedules-view.ts</context>
           <context context-type="linenumber">29,30</context>
@@ -28545,21 +28545,21 @@
         </context-group>
       </trans-unit>
       <trans-unit id="schedules.addAction" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;plus&quot; [size]=&quot;12&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;plus&quot; [size]=&quot;12&quot; /&gt;"/>Add action</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;plus&quot; [size]=&quot;12&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;plus&quot; [size]=&quot;12&quot; /&gt;"/>Add action</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/schedules/schedules-view.ts</context>
           <context context-type="linenumber">121,122</context>
         </context-group>
       </trans-unit>
       <trans-unit id="schedules.removeSchedule" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;trash&quot; [size]=&quot;12&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;trash&quot; [size]=&quot;12&quot; /&gt;"/>Remove schedule</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;trash&quot; [size]=&quot;12&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;trash&quot; [size]=&quot;12&quot; /&gt;"/>Remove schedule</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/schedules/schedules-view.ts</context>
           <context context-type="linenumber">123,124</context>
         </context-group>
       </trans-unit>
       <trans-unit id="schedules.addSchedule" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;plus&quot; [size]=&quot;12&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;plus&quot; [size]=&quot;12&quot; /&gt;"/>Add schedule</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;plus&quot; [size]=&quot;12&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;plus&quot; [size]=&quot;12&quot; /&gt;"/>Add schedule</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/schedules/schedules-view.ts</context>
           <context context-type="linenumber">127,128</context>
@@ -28931,7 +28931,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="settings.appearance.uiFont" datatype="html">
-        <source>Interface font <x id="START_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Interface font&quot; text=&quot;The font of menus, panels and dialogs. System uses your operating system&apos;s font, like other desktop apps; theme uses the theme&apos;s own. Log text is always monospaced.&quot; i18n-label=&quot;@@settings.appearance.uiFont.helpLabel&quot; i18n-text=&quot;@@settings.appearance.uiFont.help&quot; /&gt;"/><x id="CLOSE_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Interface font&quot; text=&quot;The font of menus, panels and dialogs. System uses your operating system&apos;s font, like other desktop apps; theme uses the theme&apos;s own. Log text is always monospaced.&quot; i18n-label=&quot;@@settings.appearance.uiFont.helpLabel&quot; i18n-text=&quot;@@settings.appearance.uiFont.help&quot; /&gt;"/></source>
+        <source>Interface font <x id="START_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Interface font&quot; text=&quot;The font of menus, panels and dialogs. System uses your operating system&apos;s font, like other desktop apps; theme uses the theme&apos;s own. Log text is always monospaced.&quot; i18n-label=&quot;@@settings.appearance.uiFont.helpLabel&quot; i18n-text=&quot;@@settings.appearance.uiFont.help&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Interface font&quot; text=&quot;The font of menus, panels and dialogs. System uses your operating system&apos;s font, like other desktop apps; theme uses the theme&apos;s own. Log text is always monospaced.&quot; i18n-label=&quot;@@settings.appearance.uiFont.helpLabel&quot; i18n-text=&quot;@@settings.appearance.uiFont.help&quot; /&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/appearance-settings.ts</context>
           <context context-type="linenumber">69,70</context>
@@ -28952,7 +28952,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="settings.appearance.density" datatype="html">
-        <source>Density <x id="START_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Density&quot; text=&quot;Row and lane heights. Compact fits more events and lanes on the screen; comfortable is easier to read and to click.&quot; i18n-label=&quot;@@settings.appearance.density.helpLabel&quot; i18n-text=&quot;@@settings.appearance.density.help&quot; /&gt;"/><x id="CLOSE_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Density&quot; text=&quot;Row and lane heights. Compact fits more events and lanes on the screen; comfortable is easier to read and to click.&quot; i18n-label=&quot;@@settings.appearance.density.helpLabel&quot; i18n-text=&quot;@@settings.appearance.density.help&quot; /&gt;"/></source>
+        <source>Density <x id="START_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Density&quot; text=&quot;Row and lane heights. Compact fits more events and lanes on the screen; comfortable is easier to read and to click.&quot; i18n-label=&quot;@@settings.appearance.density.helpLabel&quot; i18n-text=&quot;@@settings.appearance.density.help&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Density&quot; text=&quot;Row and lane heights. Compact fits more events and lanes on the screen; comfortable is easier to read and to click.&quot; i18n-label=&quot;@@settings.appearance.density.helpLabel&quot; i18n-text=&quot;@@settings.appearance.density.help&quot; /&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/appearance-settings.ts</context>
           <context context-type="linenumber">77,78</context>
@@ -28973,7 +28973,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="settings.general.sourceColors" datatype="html">
-        <source>Source colours <x id="START_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Source colours&quot; text=&quot;A coloured stripe at the start of each log line, with matching dots in the Explorer, the inspector and the timeline lanes, tells which file or instance the line came from. Off also draws the timeline lanes in neutral grey. Hover a stripe or dot for its name.&quot; i18n-label=&quot;@@settings.general.sourceColors.helpLabel&quot; i18n-text=&quot;@@settings.general.sourceColors.help&quot; /&gt;"/><x id="CLOSE_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Source colours&quot; text=&quot;A coloured stripe at the start of each log line, with matching dots in the Explorer, the inspector and the timeline lanes, tells which file or instance the line came from. Off also draws the timeline lanes in neutral grey. Hover a stripe or dot for its name.&quot; i18n-label=&quot;@@settings.general.sourceColors.helpLabel&quot; i18n-text=&quot;@@settings.general.sourceColors.help&quot; /&gt;"/></source>
+        <source>Source colours <x id="START_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Source colours&quot; text=&quot;A coloured stripe at the start of each log line, with matching dots in the Explorer, the inspector and the timeline lanes, tells which file or instance the line came from. Off also draws the timeline lanes in neutral grey. Hover a stripe or dot for its name.&quot; i18n-label=&quot;@@settings.general.sourceColors.helpLabel&quot; i18n-text=&quot;@@settings.general.sourceColors.help&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Source colours&quot; text=&quot;A coloured stripe at the start of each log line, with matching dots in the Explorer, the inspector and the timeline lanes, tells which file or instance the line came from. Off also draws the timeline lanes in neutral grey. Hover a stripe or dot for its name.&quot; i18n-label=&quot;@@settings.general.sourceColors.helpLabel&quot; i18n-text=&quot;@@settings.general.sourceColors.help&quot; /&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/appearance-settings.ts</context>
           <context context-type="linenumber">85,86</context>
@@ -29191,7 +29191,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="settings.general.language" datatype="html">
-        <source>Language <x id="START_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Language&quot; text=&quot;The language of menus, dialogs and messages. Log text and file contents are never translated. The new language is used after IMT restarts.&quot; i18n-label=&quot;@@settings.general.language.helpLabel&quot; i18n-text=&quot;@@settings.general.language.help&quot; /&gt;"/><x id="CLOSE_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Language&quot; text=&quot;The language of menus, dialogs and messages. Log text and file contents are never translated. The new language is used after IMT restarts.&quot; i18n-label=&quot;@@settings.general.language.helpLabel&quot; i18n-text=&quot;@@settings.general.language.help&quot; /&gt;"/></source>
+        <source>Language <x id="START_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Language&quot; text=&quot;The language of menus, dialogs and messages. Log text and file contents are never translated. The new language is used after Debrief restarts.&quot; i18n-label=&quot;@@settings.general.language.helpLabel&quot; i18n-text=&quot;@@settings.general.language.help&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Language&quot; text=&quot;The language of menus, dialogs and messages. Log text and file contents are never translated. The new language is used after Debrief restarts.&quot; i18n-label=&quot;@@settings.general.language.helpLabel&quot; i18n-text=&quot;@@settings.general.language.help&quot; /&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/general-settings.ts</context>
           <context context-type="linenumber">21,22</context>
@@ -29206,7 +29206,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="settings.general.language.help" datatype="html">
-        <source>The language of menus, dialogs and messages. Log text and file contents are never translated. The new language is used after IMT restarts.</source>
+        <source>The language of menus, dialogs and messages. Log text and file contents are never translated. The new language is used after Debrief restarts.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/general-settings.ts</context>
           <context context-type="linenumber">21</context>
@@ -29220,7 +29220,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="settings.general.language.pending" datatype="html">
-        <source>The new language is used after IMT restarts. <x id="START_TAG_BUTTON" ctype="x-button" equiv-text="&lt;button class=&quot;link&quot; type=&quot;button&quot; (click)=&quot;language.reload()&quot;&gt;"/>Restart now<x id="CLOSE_TAG_BUTTON" ctype="x-button" equiv-text="&lt;/button&gt;"/></source>
+        <source>The new language is used after Debrief restarts. <x id="START_TAG_BUTTON" ctype="x-button" equiv-text="&lt;button class=&quot;link&quot; type=&quot;button&quot; (click)=&quot;language.reload()&quot;&gt;"/>Restart now<x id="CLOSE_TAG_BUTTON" ctype="x-button" equiv-text="&lt;/button&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/general-settings.ts</context>
           <context context-type="linenumber">28,30</context>
@@ -29234,7 +29234,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="settings.general.dateFormat" datatype="html">
-        <source>Date format <x id="START_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Date format&quot; text=&quot;How times appear in the grid and the inspector. Readable: 14 Oct 10:41:22. ISO: 2026-10-14 10:41:22.&quot; i18n-label=&quot;@@settings.general.dateFormat.helpLabel&quot; i18n-text=&quot;@@settings.general.dateFormat.help&quot; /&gt;"/><x id="CLOSE_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Date format&quot; text=&quot;How times appear in the grid and the inspector. Readable: 14 Oct 10:41:22. ISO: 2026-10-14 10:41:22.&quot; i18n-label=&quot;@@settings.general.dateFormat.helpLabel&quot; i18n-text=&quot;@@settings.general.dateFormat.help&quot; /&gt;"/></source>
+        <source>Date format <x id="START_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Date format&quot; text=&quot;How times appear in the grid and the inspector. Readable: 14 Oct 10:41:22. ISO: 2026-10-14 10:41:22.&quot; i18n-label=&quot;@@settings.general.dateFormat.helpLabel&quot; i18n-text=&quot;@@settings.general.dateFormat.help&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Date format&quot; text=&quot;How times appear in the grid and the inspector. Readable: 14 Oct 10:41:22. ISO: 2026-10-14 10:41:22.&quot; i18n-label=&quot;@@settings.general.dateFormat.helpLabel&quot; i18n-text=&quot;@@settings.general.dateFormat.help&quot; /&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/general-settings.ts</context>
           <context context-type="linenumber">40,41</context>
@@ -29255,7 +29255,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="settings.general.alwaysShowLifecycle" datatype="html">
-        <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;store.alwaysShowLifecycle()&quot; (change)=&quot;store.setAlwaysShowLifecycle($any($event.target).checked)&quot; /&gt;"/> Always show start/stop markers <x id="START_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Start/stop markers&quot; text=&quot;Keep process start and stop markers on the timeline even when level or text filters would hide them.&quot; i18n-label=&quot;@@settings.general.alwaysShowLifecycle.helpLabel&quot; i18n-text=&quot;@@settings.general.alwaysShowLifecycle.help&quot; /&gt;"/><x id="CLOSE_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Start/stop markers&quot; text=&quot;Keep process start and stop markers on the timeline even when level or text filters would hide them.&quot; i18n-label=&quot;@@settings.general.alwaysShowLifecycle.helpLabel&quot; i18n-text=&quot;@@settings.general.alwaysShowLifecycle.help&quot; /&gt;"/></source>
+        <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;store.alwaysShowLifecycle()&quot; (change)=&quot;store.setAlwaysShowLifecycle($any($event.target).checked)&quot; /&gt;"/> Always show start/stop markers <x id="START_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Start/stop markers&quot; text=&quot;Keep process start and stop markers on the timeline even when level or text filters would hide them.&quot; i18n-label=&quot;@@settings.general.alwaysShowLifecycle.helpLabel&quot; i18n-text=&quot;@@settings.general.alwaysShowLifecycle.help&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Start/stop markers&quot; text=&quot;Keep process start and stop markers on the timeline even when level or text filters would hide them.&quot; i18n-label=&quot;@@settings.general.alwaysShowLifecycle.helpLabel&quot; i18n-text=&quot;@@settings.general.alwaysShowLifecycle.help&quot; /&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/general-settings.ts</context>
           <context context-type="linenumber">48,52</context>
@@ -29276,7 +29276,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="settings.general.homeAutoOpen" datatype="html">
-        <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; data-testid=&quot;home-auto-open&quot; [checked]=&quot;home.autoOpen()&quot; (change)=&quot;home.setAutoOpen($any($event.target).checked)&quot; /&gt;"/> Home: show when files or a project open <x id="START_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Home after import&quot; text=&quot;Open Home as a document tab by itself each time files or a project are opened. The same choice is in Home.&quot; i18n-label=&quot;@@settings.general.homeAutoOpen.helpLabel&quot; i18n-text=&quot;@@settings.general.homeAutoOpen.help&quot; /&gt;"/><x id="CLOSE_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Home after import&quot; text=&quot;Open Home as a document tab by itself each time files or a project are opened. The same choice is in Home.&quot; i18n-label=&quot;@@settings.general.homeAutoOpen.helpLabel&quot; i18n-text=&quot;@@settings.general.homeAutoOpen.help&quot; /&gt;"/></source>
+        <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; data-testid=&quot;home-auto-open&quot; [checked]=&quot;home.autoOpen()&quot; (change)=&quot;home.setAutoOpen($any($event.target).checked)&quot; /&gt;"/> Home: show when files or a project open <x id="START_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Home after import&quot; text=&quot;Open Home as a document tab by itself each time files or a project are opened. The same choice is in Home.&quot; i18n-label=&quot;@@settings.general.homeAutoOpen.helpLabel&quot; i18n-text=&quot;@@settings.general.homeAutoOpen.help&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Home after import&quot; text=&quot;Open Home as a document tab by itself each time files or a project are opened. The same choice is in Home.&quot; i18n-label=&quot;@@settings.general.homeAutoOpen.helpLabel&quot; i18n-text=&quot;@@settings.general.homeAutoOpen.help&quot; /&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/general-settings.ts</context>
           <context context-type="linenumber">53,57</context>
@@ -29780,7 +29780,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="settings.parsers.files.filter" datatype="html">
-        <source>IMT parser</source>
+        <source>Debrief parser</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/parsers/parser-files.ts</context>
           <context context-type="linenumber">5</context>
@@ -29888,7 +29888,7 @@
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
           <context context-type="linenumber">140,141</context>
         </context-group>
-        <note priority="1" from="description">The log formats IMT reads</note>
+        <note priority="1" from="description">The log formats Debrief reads</note>
         <note priority="1" from="meaning">Settings section</note>
       </trans-unit>
       <trans-unit id="settings.parsers.newFromFile" datatype="html">
@@ -29920,7 +29920,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="settings.parsers.desc" datatype="html">
-        <source>A parser describes one log format and is one TOML file you can share. For every file, IMT uses the enabled parser that reads it best; “Parse with…” in the Explorer chooses one yourself.</source>
+        <source>A parser describes one log format and is one TOML file you can share. For every file, Debrief uses the enabled parser that reads it best; “Parse with…” in the Explorer chooses one yourself.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/parsers/parsers-settings.ts</context>
           <context context-type="linenumber">32,34</context>
@@ -30399,7 +30399,7 @@
         <note priority="1" from="description">Badge on an advanced setting</note>
       </trans-unit>
       <trans-unit id="settings.field.reset" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;refresh&quot; [size]=&quot;12&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;refresh&quot; [size]=&quot;12&quot; /&gt;"/> Reset to default </source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;refresh&quot; [size]=&quot;12&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;refresh&quot; [size]=&quot;12&quot; /&gt;"/> Reset to default </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/setting-field.ts</context>
           <context context-type="linenumber">38,40</context>
@@ -30456,7 +30456,7 @@
         <note priority="1" from="description">Dialog title</note>
       </trans-unit>
       <trans-unit id="settings.files.filter" datatype="html">
-        <source>IMT settings</source>
+        <source>Debrief settings</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-files.ts</context>
           <context context-type="linenumber">5</context>
@@ -30522,7 +30522,7 @@
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
           <context context-type="linenumber">42</context>
         </context-group>
-        <note priority="1" from="description">What IMT keeps on disk</note>
+        <note priority="1" from="description">What Debrief keeps on disk</note>
         <note priority="1" from="meaning">Settings section</note>
       </trans-unit>
       <trans-unit id="settings.parsers.nav" datatype="html">
@@ -30539,7 +30539,7 @@
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
           <context context-type="linenumber">249</context>
         </context-group>
-        <note priority="1" from="description">The log formats IMT reads</note>
+        <note priority="1" from="description">The log formats Debrief reads</note>
         <note priority="1" from="meaning">Settings section</note>
       </trans-unit>
       <trans-unit id="settings.keyboard.nav" datatype="html">
@@ -31005,7 +31005,7 @@
         <note priority="1" from="description">Button that closes the settings dialog</note>
       </trans-unit>
       <trans-unit id="settings.screen.restartBar.one" datatype="html">
-        <source><x id="count" equiv-text="n"/> change takes effect after IMT restarts.</source>
+        <source><x id="count" equiv-text="n"/> change takes effect after Debrief restarts.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
           <context context-type="linenumber">269</context>
@@ -31013,7 +31013,7 @@
         <note priority="1" from="description">Restart bar in Settings</note>
       </trans-unit>
       <trans-unit id="settings.screen.restartBar.other" datatype="html">
-        <source><x id="count" equiv-text="n"/> changes take effect after IMT restarts.</source>
+        <source><x id="count" equiv-text="n"/> changes take effect after Debrief restarts.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
           <context context-type="linenumber">270</context>
@@ -31021,7 +31021,7 @@
         <note priority="1" from="description">Restart bar in Settings</note>
       </trans-unit>
       <trans-unit id="settings.screen.restartBanner" datatype="html">
-        <source>Some changes take effect after IMT restarts.</source>
+        <source>Some changes take effect after Debrief restarts.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
           <context context-type="linenumber">272</context>
@@ -31068,7 +31068,7 @@
         <note priority="1" from="description">Storage category</note>
       </trans-unit>
       <trans-unit id="settings.storage.category.logs" datatype="html">
-        <source>IMT logs</source>
+        <source>Debrief logs</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/storage/storage-settings.ts</context>
           <context context-type="linenumber">24</context>
@@ -31143,14 +31143,14 @@
         </context-group>
       </trans-unit>
       <trans-unit id="settings.storage.desc" datatype="html">
-        <source>What IMT keeps on this computer. The cache is rebuilt when needed; data is yours and is removed one category at a time.</source>
+        <source>What Debrief keeps on this computer. The cache is rebuilt when needed; data is yours and is removed one category at a time.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/storage/storage-settings.ts</context>
           <context context-type="linenumber">66,68</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.storage.loadError" datatype="html">
-        <source>Could not measure IMT&apos;s storage: <x id="INTERPOLATION" equiv-text="{{ e }}"/></source>
+        <source>Could not measure Debrief&apos;s storage: <x id="INTERPOLATION" equiv-text="{{ e }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/storage/storage-settings.ts</context>
           <context context-type="linenumber">70,71</context>
@@ -31226,7 +31226,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="settings.storage.table.label" datatype="html">
-        <source>IMT&apos;s storage</source>
+        <source>Debrief&apos;s storage</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/storage/storage-settings.ts</context>
           <context context-type="linenumber">105</context>
@@ -31308,7 +31308,7 @@
           <context context-type="sourcefile">src/app/settings/storage/storage-settings.ts</context>
           <context context-type="linenumber">194</context>
         </context-group>
-        <note priority="1" from="description">Kind of storage IMT can rebuild</note>
+        <note priority="1" from="description">Kind of storage Debrief can rebuild</note>
       </trans-unit>
       <trans-unit id="settings.storage.kind.data" datatype="html">
         <source>data</source>
@@ -31343,7 +31343,7 @@
         <note priority="1" from="description">Dialog title</note>
       </trans-unit>
       <trans-unit id="settings.storage.clearCache.message" datatype="html">
-        <source>IMT removes <x id="size" equiv-text="total"/> of files it can rebuild. Your logs, models and sessions are not touched.</source>
+        <source>Debrief removes <x id="size" equiv-text="total"/> of files it can rebuild. Your logs, models and sessions are not touched.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/storage/storage-settings.ts</context>
           <context context-type="linenumber">242</context>
@@ -31407,7 +31407,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="settings.storage.stores.desc" datatype="html">
-        <source>The event stores IMT keeps on disk. Only orphaned stores, which nothing references any more, can be removed; a store that is open is never touched.</source>
+        <source>The event stores Debrief keeps on disk. Only orphaned stores, which nothing references any more, can be removed; a store that is open is never touched.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/storage/stores-block.ts</context>
           <context context-type="linenumber">26,28</context>
@@ -31579,7 +31579,7 @@
         <note priority="1" from="description">Store state</note>
       </trans-unit>
       <trans-unit id="settings.storage.stores.state.running" datatype="html">
-        <source>In use by another IMT</source>
+        <source>In use by another Debrief</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/storage/stores-format.ts</context>
           <context context-type="linenumber">11</context>
@@ -31609,7 +31609,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="settings.storage.stores.why.running" datatype="html">
-        <source>Another IMT is using this store.</source>
+        <source>Another Debrief is using this store.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/storage/stores-format.ts</context>
           <context context-type="linenumber">25</context>
@@ -31706,7 +31706,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="share.bundle.filterName" datatype="html">
-        <source>IMT bundle</source>
+        <source>Debrief bundle</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/bundle/bundle.service.ts</context>
           <context context-type="linenumber">12</context>
@@ -32336,7 +32336,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="share.redactedCopy.dialog.intro" datatype="html">
-        <source> Creates a copy of this project (.imtz) that you can share. It is built from the redacted text of every text source (JSON and text logs), so its events, field statistics, search index, notes, AI chats, saved queries and reports contain none of the values the selected rules find. </source>
+        <source> Creates a copy of this project (.debriefz) that you can share. It is built from the redacted text of every text source (JSON and text logs), so its events, field statistics, search index, notes, AI chats, saved queries and reports contain none of the values the selected rules find. </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/redacted-copy/redacted-copy-dialog.ts</context>
           <context context-type="linenumber">26,29</context>
@@ -32511,7 +32511,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="share.redactedCopy.filter" datatype="html">
-        <source>IMT project</source>
+        <source>Debrief project</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/redacted-copy/redacted-copy-dialog.ts</context>
           <context context-type="linenumber">300</context>
@@ -33281,7 +33281,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="share.reportBlock.unknown" datatype="html">
-        <source>A &quot;<x id="INTERPOLATION" equiv-text="{{ block().type }}"/>&quot; block (from a newer IMT) — kept as it is.</source>
+        <source>A &quot;<x id="INTERPOLATION" equiv-text="{{ block().type }}"/>&quot; block (from a newer Debrief) — kept as it is.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/report/report-block.ts</context>
           <context context-type="linenumber">94,96</context>
@@ -33551,7 +33551,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="share.reportView.new" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;plus&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;plus&quot; [size]=&quot;13&quot; /&gt;"/> New report</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;plus&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;plus&quot; [size]=&quot;13&quot; /&gt;"/> New report</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/report/report-view.ts</context>
           <context context-type="linenumber">33,34</context>
@@ -33681,7 +33681,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="share.reportView.addSection" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;plus&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;plus&quot; [size]=&quot;13&quot; /&gt;"/> Add section</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;plus&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;plus&quot; [size]=&quot;13&quot; /&gt;"/> Add section</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/report/report-view.ts</context>
           <context context-type="linenumber">78,79</context>
@@ -33695,7 +33695,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="share.reportView.create" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;plus&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;plus&quot; [size]=&quot;13&quot; /&gt;"/> Create a report</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;plus&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;plus&quot; [size]=&quot;13&quot; /&gt;"/> Create a report</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/report/report-view.ts</context>
           <context context-type="linenumber">82,83</context>
@@ -34368,7 +34368,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="shell.menu.help.about" datatype="html">
-        <source>About IMT</source>
+        <source>About Debrief</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/menu/menu-model.ts</context>
           <context context-type="linenumber">236</context>
@@ -34401,7 +34401,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="shell.menu.app.quit" datatype="html">
-        <source>Quit IMT</source>
+        <source>Quit Debrief</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/menu/menu-model.ts</context>
           <context context-type="linenumber">241</context>
@@ -35021,7 +35021,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="shell.sidebar.setUpFormatTitle" datatype="html">
-        <source>Teach IMT how to read this file</source>
+        <source>Teach Debrief how to read this file</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/sidebar.ts</context>
           <context context-type="linenumber">129</context>
@@ -35755,7 +35755,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="sources.encoding.dialog.automaticHint" datatype="html">
-        <source>IMT guesses it from the file&apos;s bytes</source>
+        <source>Debrief guesses it from the file&apos;s bytes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/sources/encoding/encoding-dialog.ts</context>
           <context context-type="linenumber">26,28</context>
@@ -35935,7 +35935,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="sources.files.reason.compressed" datatype="html">
-        <source>Compressed file: its lines are only in IMT</source>
+        <source>Compressed file: its lines are only in Debrief</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/sources/source-file-actions.ts</context>
           <context context-type="linenumber">40</context>
@@ -37306,7 +37306,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.panel.fit" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;zoomOut&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;zoomOut&quot; [size]=&quot;13&quot; /&gt;"/> Fit</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;zoomOut&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;zoomOut&quot; [size]=&quot;13&quot; /&gt;"/> Fit</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-header.ts</context>
           <context context-type="linenumber">54,55</context>
@@ -37935,7 +37935,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.intro" datatype="html">
-        <source>Gather logs, system information and counters into one bundle (.imtz) you can open here or send to support. Secrets are masked before anything is written.</source>
+        <source>Gather logs, system information and counters into one bundle (.debriefz) you can open here or send to support. Secrets are masked before anything is written.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
           <context context-type="linenumber">35,36</context>
@@ -38149,7 +38149,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="tools.collector.redaction" datatype="html">
-        <source>Redaction <x id="START_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Redaction&quot; i18n-label=&quot;@@tools.collector.redaction.helpLabel&quot; text=&quot;Text files are scanned and matches are replaced before they enter the bundle. The manifest lists how many values each rule masked.&quot; i18n-text=&quot;@@tools.collector.redaction.helpText&quot; /&gt;"/><x id="CLOSE_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Redaction&quot; i18n-label=&quot;@@tools.collector.redaction.helpLabel&quot; text=&quot;Text files are scanned and matches are replaced before they enter the bundle. The manifest lists how many values each rule masked.&quot; i18n-text=&quot;@@tools.collector.redaction.helpText&quot; /&gt;"/></source>
+        <source>Redaction <x id="START_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Redaction&quot; i18n-label=&quot;@@tools.collector.redaction.helpLabel&quot; text=&quot;Text files are scanned and matches are replaced before they enter the bundle. The manifest lists how many values each rule masked.&quot; i18n-text=&quot;@@tools.collector.redaction.helpText&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Redaction&quot; i18n-label=&quot;@@tools.collector.redaction.helpLabel&quot; text=&quot;Text files are scanned and matches are replaced before they enter the bundle. The manifest lists how many values each rule masked.&quot; i18n-text=&quot;@@tools.collector.redaction.helpText&quot; /&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/collector/collector-dialog.ts</context>
           <context context-type="linenumber">111,112</context>
@@ -38464,7 +38464,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="tools.elevation.runAsAdmin" datatype="html">
-        <source>Run IMT as administrator and try again.</source>
+        <source>Run Debrief as administrator and try again.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/elevation-hint.ts</context>
           <context context-type="linenumber">17,20</context>
@@ -38745,7 +38745,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="tools.eventlog.channels" datatype="html">
-        <source>Channels <x id="START_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Channels&quot; i18n-label=&quot;@@tools.eventlog.channels.helpLabel&quot; text=&quot;The classic channels and the Microsoft-Windows-*/Operational channels of this machine. Reading Security needs administrator rights.&quot; i18n-text=&quot;@@tools.eventlog.channels.helpText&quot; /&gt;"/><x id="CLOSE_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Channels&quot; i18n-label=&quot;@@tools.eventlog.channels.helpLabel&quot; text=&quot;The classic channels and the Microsoft-Windows-*/Operational channels of this machine. Reading Security needs administrator rights.&quot; i18n-text=&quot;@@tools.eventlog.channels.helpText&quot; /&gt;"/></source>
+        <source>Channels <x id="START_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Channels&quot; i18n-label=&quot;@@tools.eventlog.channels.helpLabel&quot; text=&quot;The classic channels and the Microsoft-Windows-*/Operational channels of this machine. Reading Security needs administrator rights.&quot; i18n-text=&quot;@@tools.eventlog.channels.helpText&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Channels&quot; i18n-label=&quot;@@tools.eventlog.channels.helpLabel&quot; text=&quot;The classic channels and the Microsoft-Windows-*/Operational channels of this machine. Reading Security needs administrator rights.&quot; i18n-text=&quot;@@tools.eventlog.channels.helpText&quot; /&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/eventlog/eventlog-view.ts</context>
           <context context-type="linenumber">89,90</context>
@@ -38923,7 +38923,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="tools.eventlog.outputFolder" datatype="html">
-        <source>Output folder (optional, defaults to IMT&apos;s data folder)</source>
+        <source>Output folder (optional, defaults to Debrief&apos;s data folder)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/eventlog/eventlog-view.ts</context>
           <context context-type="linenumber">151,152</context>
@@ -39660,14 +39660,14 @@
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.runAsAdmin" datatype="html">
-        <source>Run IMT as administrator to include them.</source>
+        <source>Run Debrief as administrator to include them.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-view.ts</context>
           <context context-type="linenumber">47,49</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.targets" datatype="html">
-        <source>Targets <x id="START_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Targets&quot; i18n-label=&quot;@@tools.monitor.targets.helpLabel&quot; text=&quot;A process is watched when any row matches. Names and paths accept globs such as order*, case-insensitive; a path matches the full executable path.&quot; i18n-text=&quot;@@tools.monitor.targets.helpText&quot; /&gt;"/><x id="CLOSE_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Targets&quot; i18n-label=&quot;@@tools.monitor.targets.helpLabel&quot; text=&quot;A process is watched when any row matches. Names and paths accept globs such as order*, case-insensitive; a path matches the full executable path.&quot; i18n-text=&quot;@@tools.monitor.targets.helpText&quot; /&gt;"/></source>
+        <source>Targets <x id="START_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Targets&quot; i18n-label=&quot;@@tools.monitor.targets.helpLabel&quot; text=&quot;A process is watched when any row matches. Names and paths accept globs such as order*, case-insensitive; a path matches the full executable path.&quot; i18n-text=&quot;@@tools.monitor.targets.helpText&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Targets&quot; i18n-label=&quot;@@tools.monitor.targets.helpLabel&quot; text=&quot;A process is watched when any row matches. Names and paths accept globs such as order*, case-insensitive; a path matches the full executable path.&quot; i18n-text=&quot;@@tools.monitor.targets.helpText&quot; /&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-view.ts</context>
           <context context-type="linenumber">53,54</context>
@@ -39702,7 +39702,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.addTarget" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;plus&quot; [size]=&quot;12&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;plus&quot; [size]=&quot;12&quot; /&gt;"/>Add target</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;plus&quot; [size]=&quot;12&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;plus&quot; [size]=&quot;12&quot; /&gt;"/>Add target</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-view.ts</context>
           <context context-type="linenumber">63,64</context>
@@ -39751,7 +39751,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.dotnet" datatype="html">
-        <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;store.draft().dotnet&quot; (change)=&quot;store.patchDraft({ dotnet: checked($event) })&quot; /&gt;"/> .NET runtime counters (Framework) <x id="START_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;.NET runtime counters&quot; i18n-label=&quot;@@tools.monitor.dotnet.helpLabel&quot; i18n-text=&quot;@@tools.monitor.dotnet.helpText&quot; text=&quot;Reads GC collections, heap sizes, % time in GC, exceptions/s, lock contention, threads and loaded assemblies of .NET Framework processes. .NET (Core) processes need EventPipe and are reported as not collected.&quot; /&gt;"/><x id="CLOSE_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;.NET runtime counters&quot; i18n-label=&quot;@@tools.monitor.dotnet.helpLabel&quot; i18n-text=&quot;@@tools.monitor.dotnet.helpText&quot; text=&quot;Reads GC collections, heap sizes, % time in GC, exceptions/s, lock contention, threads and loaded assemblies of .NET Framework processes. .NET (Core) processes need EventPipe and are reported as not collected.&quot; /&gt;"/></source>
+        <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;store.draft().dotnet&quot; (change)=&quot;store.patchDraft({ dotnet: checked($event) })&quot; /&gt;"/> .NET runtime counters (Framework) <x id="START_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;.NET runtime counters&quot; i18n-label=&quot;@@tools.monitor.dotnet.helpLabel&quot; i18n-text=&quot;@@tools.monitor.dotnet.helpText&quot; text=&quot;Reads GC collections, heap sizes, % time in GC, exceptions/s, lock contention, threads and loaded assemblies of .NET Framework processes. .NET (Core) processes need EventPipe and are reported as not collected.&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;.NET runtime counters&quot; i18n-label=&quot;@@tools.monitor.dotnet.helpLabel&quot; i18n-text=&quot;@@tools.monitor.dotnet.helpText&quot; text=&quot;Reads GC collections, heap sizes, % time in GC, exceptions/s, lock contention, threads and loaded assemblies of .NET Framework processes. .NET (Core) processes need EventPipe and are reported as not collected.&quot; /&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-view.ts</context>
           <context context-type="linenumber">80,82</context>
@@ -39779,7 +39779,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.outputFolder" datatype="html">
-        <source>Output folder (optional, defaults to IMT&apos;s data folder)</source>
+        <source>Output folder (optional, defaults to Debrief&apos;s data folder)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-view.ts</context>
           <context context-type="linenumber">87,88</context>
@@ -39947,7 +39947,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="tools.perfmon.processes" datatype="html">
-        <source>Processes <x id="START_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Processes&quot; i18n-label=&quot;@@tools.perfmon.processes.helpLabel&quot; text=&quot;Instance names as Performance Monitor shows them, for example w3wp or OrderService#1. Leave empty to watch every process.&quot; i18n-text=&quot;@@tools.perfmon.processes.helpText&quot; /&gt;"/><x id="CLOSE_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Processes&quot; i18n-label=&quot;@@tools.perfmon.processes.helpLabel&quot; text=&quot;Instance names as Performance Monitor shows them, for example w3wp or OrderService#1. Leave empty to watch every process.&quot; i18n-text=&quot;@@tools.perfmon.processes.helpText&quot; /&gt;"/></source>
+        <source>Processes <x id="START_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Processes&quot; i18n-label=&quot;@@tools.perfmon.processes.helpLabel&quot; text=&quot;Instance names as Performance Monitor shows them, for example w3wp or OrderService#1. Leave empty to watch every process.&quot; i18n-text=&quot;@@tools.perfmon.processes.helpText&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_HELP" ctype="x-debrief_help" equiv-text="&lt;debrief-help label=&quot;Processes&quot; i18n-label=&quot;@@tools.perfmon.processes.helpLabel&quot; text=&quot;Instance names as Performance Monitor shows them, for example w3wp or OrderService#1. Leave empty to watch every process.&quot; i18n-text=&quot;@@tools.perfmon.processes.helpText&quot; /&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/perfmon/perfmon-view.ts</context>
           <context context-type="linenumber">36,37</context>
@@ -40150,7 +40150,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="tools.perfmon.refresh" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;refresh&quot; [size]=&quot;12&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;refresh&quot; [size]=&quot;12&quot; /&gt;"/>Refresh</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;refresh&quot; [size]=&quot;12&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;refresh&quot; [size]=&quot;12&quot; /&gt;"/>Refresh</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/perfmon/perfmon-view.ts</context>
           <context context-type="linenumber">142,143</context>
@@ -40528,14 +40528,14 @@
         </context-group>
       </trans-unit>
       <trans-unit id="ui.nextSteps.openFolder" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;folder&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;folder&quot; [size]=&quot;13&quot; /&gt;"/> Open folder…</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;folder&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;folder&quot; [size]=&quot;13&quot; /&gt;"/> Open folder…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ui/next-steps.ts</context>
           <context context-type="linenumber">37,38</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ui.nextSteps.openFiles" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;file&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;file&quot; [size]=&quot;13&quot; /&gt;"/> Open files…</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;file&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;file&quot; [size]=&quot;13&quot; /&gt;"/> Open files…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ui/next-steps.ts</context>
           <context context-type="linenumber">38,39</context>
@@ -40556,7 +40556,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="ui.nextSteps.clearFilters" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;close&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;close&quot; [size]=&quot;13&quot; /&gt;"/> Clear all filters</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;close&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;close&quot; [size]=&quot;13&quot; /&gt;"/> Clear all filters</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ui/next-steps.ts</context>
           <context context-type="linenumber">46,48</context>
@@ -40570,7 +40570,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="ui.nextSteps.showWholeRange" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;zoomOut&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;zoomOut&quot; [size]=&quot;13&quot; /&gt;"/> Show the whole time range</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;zoomOut&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;zoomOut&quot; [size]=&quot;13&quot; /&gt;"/> Show the whole time range</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ui/next-steps.ts</context>
           <context context-type="linenumber">50,52</context>
@@ -40753,7 +40753,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="updates.current" datatype="html">
-        <source>You have IMT <x id="INTERPOLATION" equiv-text="{{ store.status()?.currentVersion ?? &apos;…&apos; }}"/>.</source>
+        <source>You have Debrief <x id="INTERPOLATION" equiv-text="{{ store.status()?.currentVersion ?? &apos;…&apos; }}"/>.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
           <context context-type="linenumber">34,35</context>
@@ -40796,7 +40796,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="updates.upToDate" datatype="html">
-        <source>IMT is up to date.</source>
+        <source>Debrief is up to date.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
           <context context-type="linenumber">47,48</context>
@@ -40832,7 +40832,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="updates.downloading" datatype="html">
-        <source>Downloading IMT <x id="INTERPOLATION" equiv-text="{{ info()?.version }}"/>…</source>
+        <source>Downloading Debrief <x id="INTERPOLATION" equiv-text="{{ info()?.version }}"/>…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
           <context context-type="linenumber">58,59</context>
@@ -40853,14 +40853,14 @@
         </context-group>
       </trans-unit>
       <trans-unit id="updates.ready" datatype="html">
-        <source>IMT <x id="INTERPOLATION" equiv-text="{{ info()?.version }}"/> is downloaded and its signature verified.</source>
+        <source>Debrief <x id="INTERPOLATION" equiv-text="{{ info()?.version }}"/> is downloaded and its signature verified.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
           <context context-type="linenumber">64,65</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.installOnQuit" datatype="html">
-        <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;installOnQuit()&quot; (change)=&quot;store.setInstallOnQuit($any($event.target).checked)&quot; /&gt;"/> Install when IMT quits instead </source>
+        <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;installOnQuit()&quot; (change)=&quot;store.setInstallOnQuit($any($event.target).checked)&quot; /&gt;"/> Install when Debrief quits instead </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
           <context context-type="linenumber">66,68</context>
@@ -40881,7 +40881,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="updates.installing" datatype="html">
-        <source>Restarting to install IMT <x id="INTERPOLATION" equiv-text="{{ info()?.version }}"/>…</source>
+        <source>Restarting to install Debrief <x id="INTERPOLATION" equiv-text="{{ info()?.version }}"/>…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
           <context context-type="linenumber">76,78</context>
@@ -40895,7 +40895,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="updates.available" datatype="html">
-        <source>IMT <x id="INTERPOLATION" equiv-text="{{ info.version }}"/> is available.</source>
+        <source>Debrief <x id="INTERPOLATION" equiv-text="{{ info.version }}"/> is available.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
           <context context-type="linenumber">103,104</context>
@@ -40944,7 +40944,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="settings.updates.desc" datatype="html">
-        <source>IMT checks for new versions by itself and never installs one without asking.</source>
+        <source>Debrief checks for new versions by itself and never installs one without asking.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-settings.ts</context>
           <context context-type="linenumber">23,24</context>
@@ -41063,7 +41063,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="updates.toast.text" datatype="html">
-        <source><x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/>IMT <x id="INTERPOLATION" equiv-text="{{ version }}"/> is available<x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> — <x id="START_TAG_BUTTON" ctype="x-button" equiv-text="&lt;button type=&quot;button&quot; class=&quot;link&quot; (click)=&quot;view()&quot;&gt;"/>View<x id="CLOSE_TAG_BUTTON" ctype="x-button" equiv-text="&lt;/button&gt;"/></source>
+        <source><x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/>Debrief <x id="INTERPOLATION" equiv-text="{{ version }}"/> is available<x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> — <x id="START_TAG_BUTTON" ctype="x-button" equiv-text="&lt;button type=&quot;button&quot; class=&quot;link&quot; (click)=&quot;view()&quot;&gt;"/>View<x id="CLOSE_TAG_BUTTON" ctype="x-button" equiv-text="&lt;/button&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-toast.ts</context>
           <context context-type="linenumber">12,13</context>
@@ -41665,7 +41665,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="video.settings.mode.managed" datatype="html">
-        <source>IMT&apos;s downloaded FFmpeg is used.</source>
+        <source>Debrief&apos;s downloaded FFmpeg is used.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/video/video-settings.ts</context>
           <context context-type="linenumber">14</context>
@@ -41687,7 +41687,7 @@
         <note priority="1" from="description">Settings section</note>
       </trans-unit>
       <trans-unit id="video.settings.desc" datatype="html">
-        <source>IMT reads videos with FFmpeg: it picks the frames where the picture changes and lines them up with the logs. FFmpeg is not part of IMT.</source>
+        <source>Debrief reads videos with FFmpeg: it picks the frames where the picture changes and lines them up with the logs. FFmpeg is not part of Debrief.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/video/video-settings.ts</context>
           <context context-type="linenumber">31,32</context>
@@ -41715,7 +41715,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="video.settings.pinned" datatype="html">
-        <source>IMT offers <x id="INTERPOLATION" equiv-text="{{ rel }}"/> (<x id="INTERPOLATION_1" equiv-text="{{ pinnedSize() }}"/>), checked against its checksum and tested before use.</source>
+        <source>Debrief offers <x id="INTERPOLATION" equiv-text="{{ rel }}"/> (<x id="INTERPOLATION_1" equiv-text="{{ pinnedSize() }}"/>), checked against its checksum and tested before use.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/video/video-settings.ts</context>
           <context context-type="linenumber">50,51</context>
@@ -41750,14 +41750,14 @@
         </context-group>
       </trans-unit>
       <trans-unit id="video.settings.mac" datatype="html">
-        <source>There is no FFmpeg build for IMT to download on macOS yet. Install one with Homebrew (<x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;mono&quot;&gt;"/>brew install ffmpeg<x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/>) and use it here.</source>
+        <source>There is no FFmpeg build for Debrief to download on macOS yet. Install one with Homebrew (<x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;mono&quot;&gt;"/>brew install ffmpeg<x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/>) and use it here.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/video/video-settings.ts</context>
           <context context-type="linenumber">65,66</context>
         </context-group>
       </trans-unit>
       <trans-unit id="video.settings.noDownload" datatype="html">
-        <source>IMT has no FFmpeg build to download for this computer. Install ffmpeg yourself and use it here.</source>
+        <source>Debrief has no FFmpeg build to download for this computer. Install ffmpeg yourself and use it here.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/video/video-settings.ts</context>
           <context context-type="linenumber">67,70</context>
@@ -42025,7 +42025,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="video.view.ffmpegHint" datatype="html">
-        <source>IMT uses FFmpeg to read videos. Set it up once in Settings ▸ Video.</source>
+        <source>Debrief uses FFmpeg to read videos. Set it up once in Settings ▸ Video.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/video/video-view.ts</context>
           <context context-type="linenumber">85,86</context>
@@ -42078,7 +42078,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.title" datatype="html">
-        <source>Welcome to IMT</source>
+        <source>Welcome to Debrief</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
           <context context-type="linenumber">55,56</context>
@@ -42092,21 +42092,21 @@
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.openFolder" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;folder&quot; [size]=&quot;15&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;folder&quot; [size]=&quot;15&quot; /&gt;"/> Open folder…</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;folder&quot; [size]=&quot;15&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;folder&quot; [size]=&quot;15&quot; /&gt;"/> Open folder…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
           <context context-type="linenumber">58,59</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.openFiles" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;file&quot; [size]=&quot;15&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;file&quot; [size]=&quot;15&quot; /&gt;"/> Open files…</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;file&quot; [size]=&quot;15&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;file&quot; [size]=&quot;15&quot; /&gt;"/> Open files…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
           <context context-type="linenumber">59,60</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.openProject" datatype="html">
-        <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;files&quot; [size]=&quot;15&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;files&quot; [size]=&quot;15&quot; /&gt;"/> Open project…</source>
+        <source><x id="START_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;files&quot; [size]=&quot;15&quot; /&gt;"/><x id="CLOSE_TAG_DEBRIEF_ICON" ctype="x-debrief_icon" equiv-text="&lt;debrief-icon name=&quot;files&quot; [size]=&quot;15&quot; /&gt;"/> Open project…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
           <context context-type="linenumber">60,61</context>
@@ -42134,14 +42134,14 @@
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.how.title" datatype="html">
-        <source>How IMT works</source>
+        <source>How Debrief works</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
           <context context-type="linenumber">80,81</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.how.label" datatype="html">
-        <source>How IMT works</source>
+        <source>How Debrief works</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/welcome/welcome.ts</context>
           <context context-type="linenumber">81</context>
@@ -42316,14 +42316,14 @@
         </context-group>
       </trans-unit>
       <trans-unit id="windowing.closePrompt.title" datatype="html">
-        <source>Close IMT?</source>
+        <source>Close Debrief?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/windowing/close-prompt.ts</context>
           <context context-type="linenumber">17</context>
         </context-group>
       </trans-unit>
       <trans-unit id="windowing.closePrompt.question" datatype="html">
-        <source>This is the last open window. Do you want to quit IMT, or keep it running in the system tray?</source>
+        <source>This is the last open window. Do you want to quit Debrief, or keep it running in the system tray?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/windowing/close-prompt.ts</context>
           <context context-type="linenumber">28,29</context>
@@ -42386,7 +42386,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="windowing.openAsk.question" datatype="html">
-        <source>Where should IMT open <x id="ICU" equiv-text="{ask().count, plural, =1 {this file} other {these files}}" xid="1627152976677827634"/>?</source>
+        <source>Where should Debrief open <x id="ICU" equiv-text="{ask().count, plural, =1 {this file} other {these files}}" xid="1627152976677827634"/>?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/windowing/open-ask-dialog.ts</context>
           <context context-type="linenumber">50,51</context>
@@ -42469,7 +42469,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="windowing.commands.quitMac" datatype="html">
-        <source>Quit IMT</source>
+        <source>Quit Debrief</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/windowing/window-commands.ts</context>
           <context context-type="linenumber">26</context>
@@ -42483,7 +42483,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="windowing.commands.quitAction" datatype="html">
-        <source>quit IMT</source>
+        <source>quit Debrief</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/windowing/window-commands.ts</context>
           <context context-type="linenumber">35</context>
@@ -42505,7 +42505,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="windowing.service.quitFailed" datatype="html">
-        <source>Could not quit IMT: <x id="error" equiv-text="error"/></source>
+        <source>Could not quit Debrief: <x id="error" equiv-text="error"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/windowing/windowing.service.ts</context>
           <context context-type="linenumber">61</context>

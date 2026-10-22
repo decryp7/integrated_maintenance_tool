@@ -12,7 +12,7 @@ import { VideoStore } from './video.store';
 
 @Component({
   imports: [VideoPlayer],
-  template: `<imt-video-player [video]="video()" [seekMs]="seek()" (time)="times.push($event)" (locate)="located = located + 1" />`,
+  template: `<debrief-video-player [video]="video()" [seekMs]="seek()" (time)="times.push($event)" (locate)="located = located + 1" />`,
 })
 class PlayerHost {
   readonly video = signal<VideoView>(undefined as never);
@@ -74,7 +74,7 @@ describe('VideoPlayer', () => {
   });
 });
 
-@Component({ imports: [FrameImage], template: `<imt-frame-image [videoKey]="key" [index]="index()" [image]="'a'" alt="Frame" />` })
+@Component({ imports: [FrameImage], template: `<debrief-frame-image [videoKey]="key" [index]="index()" [image]="'a'" alt="Frame" />` })
 class ImageHost {
   key = '';
   readonly index = signal(0);

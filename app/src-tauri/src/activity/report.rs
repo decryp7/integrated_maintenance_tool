@@ -1,12 +1,12 @@
 //! "Report a problem": one zip the user reviews and saves, to attach to a bug report. Nothing is sent
-//! anywhere. It holds the activity log and a bounded window of IMT's own logs, the logs of the child
-//! processes IMT supervises (AI engine, llama-server, plugin processes) with a `processes.json` summary,
+//! anywhere. It holds the activity log and a bounded window of Debrief's own logs, the logs of the child
+//! processes Debrief supervises (AI engine, llama-server, plugin processes) with a `processes.json` summary,
 //! the error snapshots (with their breadcrumbs), the steps to reproduce, system information (no secrets),
 //! the last crash marker and recoverable sessions, the user's description, and a versioned `manifest.json`
-//! listing every file with its kind (IMT opens such a zip as a diagnostics workspace: [`open`]).
-//! Also Help ▸ Show activity log, which opens IMT's own logs filtered to the activity entries.
+//! listing every file with its kind (Debrief opens such a zip as a diagnostics workspace: [`open`]).
+//! Also Help ▸ Show activity log, which opens Debrief's own logs filtered to the activity entries.
 //!
-//! The same report is written without the UI by `imt-app --export-diagnostics` ([`cli`]).
+//! The same report is written without the UI by `debrief-app --export-diagnostics` ([`cli`]).
 //!
 //! Commands: `problem_report_preview`, `save_problem_report`, `open_activity_log`, and [`open`]'s.
 
@@ -23,7 +23,7 @@ use super::privacy::is_secret_key;
 use crate::snapshots::{tail_of, SnapshotStore};
 use crate::{err, CmdResult};
 use chrono::{DateTime, Datelike, SecondsFormat, Timelike, Utc};
-use imt_ipc::child_log::ProcessSummary;
+use debrief_ipc::child_log::ProcessSummary;
 use manifest::{FileKind, Manifest, ManifestFile};
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -31,7 +31,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use tauri::Manager;
 
-/// IMT log bytes in a report, over the current and the newest rotated file.
+/// Debrief log bytes in a report, over the current and the newest rotated file.
 pub const LOG_WINDOW: u64 = 2 * 1024 * 1024;
 /// Longest description kept (bytes, cut at a character boundary).
 pub const MAX_DESCRIPTION: usize = 10 * 1024;
@@ -73,7 +73,7 @@ pub struct PluginLine {
 pub struct ReportInputs {
     pub log_dir: Option<PathBuf>,
     pub config_dir: Option<PathBuf>,
-    /// IMT's data folder: the running marker and the sessions a crash restore offers.
+    /// Debrief's data folder: the running marker and the sessions a crash restore offers.
     pub data_dir: Option<PathBuf>,
     pub snapshots: Option<SnapshotStore>,
     pub plugins: Vec<PluginLine>,
@@ -113,7 +113,7 @@ impl ReportInputs {
     }
 }
 
-/// The children's log folder under IMT's log folder.
+/// The children's log folder under Debrief's log folder.
 pub fn children_dir(log_dir: &Path) -> PathBuf {
     log_dir.join("children")
 }
@@ -152,8 +152,8 @@ pub fn without_secrets(v: &Value) -> Value {
     }
 }
 
-/// IMT's own log files, newest first: today's daily file, then older daily files (and earlier versions'
-/// `imt.log`, `imt_*.log`) by modification time.
+/// Debrief's own log files, newest first: today's daily file, then older daily files (and earlier versions'
+/// `debrief.log`, `debrief_*.log`) by modification time.
 pub fn log_files(log_dir: &Path) -> Vec<PathBuf> {
     let name = crate::diagnostics::LOG_NAME;
     let active = crate::logging::active_log_file(log_dir);
@@ -178,7 +178,7 @@ pub fn log_files(log_dir: &Path) -> Vec<PathBuf> {
     out
 }
 
-/// The newest [`LOG_WINDOW`] bytes of IMT's logs: the current file's tail, then the newest rotated file
+/// The newest [`LOG_WINDOW`] bytes of Debrief's logs: the current file's tail, then the newest rotated file
 /// with what is left. Returns (file name, bytes), newest first.
 fn log_window(log_dir: &Path) -> Vec<(String, Vec<u8>)> {
     let mut left = LOG_WINDOW;
@@ -196,13 +196,13 @@ fn log_window(log_dir: &Path) -> Vec<(String, Vec<u8>)> {
     out
 }
 
-/// Whether a CLEF line is an activity entry (`SourceContext = IMT.Activity`).
+/// Whether a CLEF line is an activity entry (`SourceContext = Debrief.Activity`).
 fn activity_entry(line: &str) -> Option<Value> {
     let v = serde_json::from_str::<Value>(line).ok()?;
     (v.get("SourceContext").and_then(Value::as_str) == Some(super::SOURCE_CONTEXT)).then_some(v)
 }
 
-/// The activity entries (`SourceContext = IMT.Activity`) among CLEF lines, oldest first.
+/// The activity entries (`SourceContext = Debrief.Activity`) among CLEF lines, oldest first.
 fn activity_lines(logs: &[(String, Vec<u8>)]) -> Vec<u8> {
     let mut out = Vec::new();
     // Oldest file first, so the result reads in time order.
@@ -350,10 +350,10 @@ fn report_files(inputs: &ReportInputs, description: &str) -> Vec<ReportFile> {
         name: "system-info.json".into(),
         kind: FileKind::SystemInfo,
         summary: if unreadable.is_empty() {
-            "OS, IMT version and build, memory, plugins, settings without secrets".into()
+            "OS, Debrief version and build, memory, plugins, settings without secrets".into()
         } else {
             format!(
-                "OS, IMT version and build, memory, plugins, settings without secrets ({} unreadable)",
+                "OS, Debrief version and build, memory, plugins, settings without secrets ({} unreadable)",
                 unreadable.len()
             )
         },
@@ -385,7 +385,7 @@ fn report_files(inputs: &ReportInputs, description: &str) -> Vec<ReportFile> {
         files.push(ReportFile {
             name: format!("logs/{name}"),
             kind: FileKind::Log,
-            summary: "IMT's own log (recent part)".into(),
+            summary: "Debrief's own log (recent part)".into(),
             data: bytes,
         });
     }
@@ -444,7 +444,10 @@ pub(crate) fn all_files(inputs: &ReportInputs, description: &str) -> Vec<ReportF
     all.push(ReportFile {
         name: manifest::MANIFEST_NAME.into(),
         kind: FileKind::Other,
-        summary: format!("Index of the {} files (IMT opens this zip as a diagnostics report)", files.len()),
+        summary: format!(
+            "Index of the {} files (Debrief opens this zip as a diagnostics report)",
+            files.len()
+        ),
         data: serde_json::to_vec_pretty(&manifest).unwrap_or_default(),
     });
     all.extend(files);
@@ -467,7 +470,7 @@ pub fn preview(inputs: &ReportInputs, description: &str) -> ProblemReportPreview
     }
 }
 
-/// A zip entry time (zip times are local wall clock without a zone; IMT writes UTC). Clamped to the
+/// A zip entry time (zip times are local wall clock without a zone; Debrief writes UTC). Clamped to the
 /// format's range (1980..2107).
 fn zip_time(t: &DateTime<Utc>) -> zip::DateTime {
     let year = t.year().clamp(1980, 2107) as u16;
@@ -539,7 +542,7 @@ fn inputs<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> ReportInputs {
         plugins,
         breadcrumbs: super::breadcrumbs(None, REPORT_BREADCRUMBS),
         safe_mode: life.as_ref().is_some_and(|l| l.safe_mode),
-        live_children: imt_ipc::child_log::statuses(),
+        live_children: debrief_ipc::child_log::statuses(),
         previous_crash: life.as_ref().map(|l| l.previous_crash),
         created_at: Utc::now(),
         system_override: None,
@@ -571,7 +574,7 @@ pub async fn save_problem_report<R: tauri::Runtime>(
     overwrite: Option<bool>,
 ) -> CmdResult<u64> {
     let target = grants.write(&path, &["zip"])?.path().to_path_buf();
-    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
+    debrief_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
     // What the report shows is gathered now (the steps up to the click), the zip is written in the job.
     let inputs = inputs(&app);
     let spec = crate::jobs::export_spec("Save problem report", None, &target);
@@ -584,24 +587,24 @@ pub async fn save_problem_report<R: tauri::Runtime>(
 }
 
 /// File name of the project Help ▸ Show activity log opens (rewritten each time).
-pub const ACTIVITY_PROJECT: &str = "activity-log.imtproj";
+pub const ACTIVITY_PROJECT: &str = "activity-log.debriefproj";
 
-/// A project over IMT's own log files whose saved query keeps only the activity entries
-/// (`SourceContext = IMT.Activity`): the UI restores it like any project, so the new window opens filtered.
-pub fn activity_project(logs: &[PathBuf]) -> imt_core::project::ProjectFile {
+/// A project over Debrief's own log files whose saved query keeps only the activity entries
+/// (`SourceContext = Debrief.Activity`): the UI restores it like any project, so the new window opens filtered.
+pub fn activity_project(logs: &[PathBuf]) -> debrief_core::project::ProjectFile {
     let activity = json!({ "field": "SourceContext", "op": "eq", "value": super::SOURCE_CONTEXT });
-    imt_core::project::ProjectFile {
-        version: imt_core::project::PROJECT_VERSION,
-        name: "IMT activity log".into(),
+    debrief_core::project::ProjectFile {
+        version: debrief_core::project::PROJECT_VERSION,
+        name: "Debrief activity log".into(),
         sources: logs.iter().map(|p| p.to_string_lossy().into_owned()).collect(),
-        profile: imt_core::profile::DEFAULT_PROFILE_TOML.into(),
+        profile: debrief_core::profile::DEFAULT_PROFILE_TOML.into(),
         ui: json!({
             "query": { "query": { "filters": [activity] } },
             // Presets in the saved-queries list of that window: the activity, its errors, everything.
             "savedQueries": [
-                { "id": "imt-activity", "name": "Activity", "query": { "filters": [activity] } },
-                { "id": "imt-activity-errors", "name": "Activity errors", "query": { "filters": [activity], "levels": ["Warning", "Error", "Fatal"] } },
-                { "id": "imt-all", "name": "All of IMT's log", "query": {} },
+                { "id": "debrief-activity", "name": "Activity", "query": { "filters": [activity] } },
+                { "id": "debrief-activity-errors", "name": "Activity errors", "query": { "filters": [activity], "levels": ["Warning", "Error", "Fatal"] } },
+                { "id": "debrief-all", "name": "All of Debrief's log", "query": {} },
             ],
         }),
         ..Default::default()
@@ -611,14 +614,14 @@ pub fn activity_project(logs: &[PathBuf]) -> imt_core::project::ProjectFile {
 /// Writes the activity project into `data_dir` and returns its path.
 pub fn write_activity_project(data_dir: &Path, log_dir: &Path) -> anyhow::Result<PathBuf> {
     let logs = log_files(log_dir);
-    anyhow::ensure!(!logs.is_empty(), "IMT has not written a log yet ({})", log_dir.display());
+    anyhow::ensure!(!logs.is_empty(), "Debrief has not written a log yet ({})", log_dir.display());
     std::fs::create_dir_all(data_dir)?;
     let path = data_dir.join(ACTIVITY_PROJECT);
     activity_project(&logs).save(&path)?;
     Ok(path)
 }
 
-/// Help ▸ Show activity log: opens IMT's own logs (they are CLEF, so IMT reads them) in a new window,
+/// Help ▸ Show activity log: opens Debrief's own logs (they are CLEF, so Debrief reads them) in a new window,
 /// filtered to the activity entries. Returns the new window's label.
 #[tauri::command]
 pub async fn open_activity_log<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> CmdResult<String> {
@@ -636,7 +639,7 @@ pub(crate) mod tests {
     use std::collections::BTreeMap;
 
     pub(crate) fn temp(tag: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("imt-report-{tag}-{}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("debrief-report-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d
@@ -663,8 +666,8 @@ pub(crate) mod tests {
         std::fs::create_dir_all(&logs).unwrap();
         std::fs::create_dir_all(&config).unwrap();
         std::fs::write(
-            logs.join("imt.log"),
-            "{\"@t\":\"2026-10-17T08:00:00Z\",\"@m\":\"started\",\"SourceContext\":\"imt_app\"}\n{\"@t\":\"2026-10-17T08:00:01Z\",\"@m\":\"User export.csv via menu\",\"SourceContext\":\"IMT.Activity\",\"Operation\":\"export.csv\",\"Trigger\":\"menu\",\"Window\":\"main\",\"DurationMs\":12}\n",
+            logs.join("debrief.log"),
+            "{\"@t\":\"2026-10-17T08:00:00Z\",\"@m\":\"started\",\"SourceContext\":\"debrief_app\"}\n{\"@t\":\"2026-10-17T08:00:01Z\",\"@m\":\"User export.csv via menu\",\"SourceContext\":\"Debrief.Activity\",\"Operation\":\"export.csv\",\"Trigger\":\"menu\",\"Window\":\"main\",\"DurationMs\":12}\n",
         )
         .unwrap();
         std::fs::write(
@@ -672,7 +675,7 @@ pub(crate) mod tests {
             r#"{"version":1,"sections":{"ai":{"serviceApiKey":"sk-secret","model":"small"},"web":{"token":"t0k"}}}"#,
         )
         .unwrap();
-        let store = SnapshotStore::new(logs.join("snapshots"), Some(logs.join("imt.log")), Limits::default());
+        let store = SnapshotStore::new(logs.join("snapshots"), Some(logs.join("debrief.log")), Limits::default());
         let ctx = SnapshotContext {
             reason: "panel-failed".into(),
             message: "boom".into(),
@@ -727,7 +730,7 @@ pub(crate) mod tests {
             "processes.json",
             "session-recovery.json",
             "logs/activity.log",
-            "logs/imt.log",
+            "logs/debrief.log",
         ] {
             assert!(names.contains(&want), "{want} missing from {names:?}");
         }
@@ -760,10 +763,10 @@ pub(crate) mod tests {
         // The manifest lists every other file with its kind and size.
         let m = manifest::parse(zip_text(&mut zip, "manifest.json").as_bytes()).unwrap();
         assert_eq!(m.files.len(), n - 1);
-        assert_eq!(m.imt_version, env!("CARGO_PKG_VERSION"));
+        assert_eq!(m.debrief_version, env!("CARGO_PKG_VERSION"));
         let kind = |name: &str| m.files.iter().find(|f| f.name == name).map(|f| f.kind);
         assert_eq!(kind("logs/activity.log"), Some(FileKind::Activity));
-        assert_eq!(kind("logs/imt.log"), Some(FileKind::Log));
+        assert_eq!(kind("logs/debrief.log"), Some(FileKind::Log));
         assert_eq!(kind(&sidecar), Some(FileKind::SnapshotDetails));
         assert_eq!(
             m.files.iter().find(|f| f.name == "description.txt").unwrap().bytes,
@@ -777,7 +780,7 @@ pub(crate) mod tests {
 
     #[test]
     fn child_logs_and_processes_are_in_the_report_and_capped() {
-        use imt_ipc::child_log::{ChildEvent, ChildKind, ChildLog, ChildLogSpec, Exit};
+        use debrief_ipc::child_log::{ChildEvent, ChildKind, ChildLog, ChildLogSpec, Exit};
         let d = temp("children");
         let mut inputs = inputs_in(&d);
         inputs.snapshots = None;
@@ -825,11 +828,11 @@ pub(crate) mod tests {
         let w = procs.iter().find(|p| p.name == "ai-worker").unwrap();
         assert_eq!(
             (w.state, w.restarts, w.pid),
-            (imt_ipc::child_log::ChildRunState::Running, 1, Some(11))
+            (debrief_ipc::child_log::ChildRunState::Running, 1, Some(11))
         );
         // The noisy plugin is not running live: its file ends on a start, so its state is unknown.
         let n = procs.iter().find(|p| p.name == "plugin-noisy").unwrap();
-        assert_eq!(n.state, imt_ipc::child_log::ChildRunState::Unknown);
+        assert_eq!(n.state, debrief_ipc::child_log::ChildRunState::Unknown);
         // Its tail starts at a whole line.
         let tail = zip_text(&mut zip, "logs/children/plugin-noisy.log");
         assert!(tail.lines().all(|l| serde_json::from_str::<Value>(l).is_ok()));
@@ -862,10 +865,10 @@ pub(crate) mod tests {
 
     #[test]
     fn breadcrumbs_are_rebuilt_from_the_activity_log() {
-        let lines = b"{\"@t\":\"2026-10-14T09:00:00Z\",\"SourceContext\":\"IMT.Activity\",\"Operation\":\"file.open\",\"Trigger\":\"menu\",\"Window\":\"main\",\"DurationMs\":5,\"Files\":3}\n\
-            {\"@t\":\"2026-10-14T09:00:01Z\",\"SourceContext\":\"imt_app\",\"Operation\":\"x\"}\n\
+        let lines = b"{\"@t\":\"2026-10-14T09:00:00Z\",\"SourceContext\":\"Debrief.Activity\",\"Operation\":\"file.open\",\"Trigger\":\"menu\",\"Window\":\"main\",\"DurationMs\":5,\"Files\":3}\n\
+            {\"@t\":\"2026-10-14T09:00:01Z\",\"SourceContext\":\"debrief_app\",\"Operation\":\"x\"}\n\
             not json\n\
-            {\"@t\":\"2026-10-14T09:00:02Z\",\"SourceContext\":\"IMT.Activity\",\"Operation\":\"query.change\",\"Trigger\":\"keyboard\"}\n";
+            {\"@t\":\"2026-10-14T09:00:02Z\",\"SourceContext\":\"Debrief.Activity\",\"Operation\":\"query.change\",\"Trigger\":\"keyboard\"}\n";
         let b = breadcrumbs_from_log(lines, 10);
         assert_eq!(b.len(), 2);
         assert_eq!((b[0].operation.as_str(), b[0].duration_ms), ("file.open", Some(5)));
@@ -909,16 +912,16 @@ pub(crate) mod tests {
         let d = temp("window");
         let line = format!("{{\"@m\":\"{}\"}}\n", "x".repeat(1000));
         let big = line.repeat((LOG_WINDOW as usize / line.len()) + 100);
-        std::fs::write(d.join("imt_old.log"), "old\n").unwrap();
+        std::fs::write(d.join("debrief_old.log"), "old\n").unwrap();
         std::thread::sleep(std::time::Duration::from_millis(20));
-        std::fs::write(d.join("imt.2000-01-02.log"), "newer\n").unwrap();
+        std::fs::write(d.join("debrief.2000-01-02.log"), "newer\n").unwrap();
         let today = crate::logging::active_log_file(&d);
         let today_name = today.file_name().unwrap().to_string_lossy().into_owned();
         std::fs::write(&today, &big).unwrap();
         std::fs::write(d.join("other.log"), "x").unwrap();
         let files = log_files(&d);
         assert_eq!(files.len(), 3);
-        assert!(files[0] == today && files[1].ends_with("imt.2000-01-02.log"), "{files:?}");
+        assert!(files[0] == today && files[1].ends_with("debrief.2000-01-02.log"), "{files:?}");
         let w = log_window(&d);
         let total: usize = w.iter().map(|(_, b)| b.len()).sum();
         assert!(total as u64 <= LOG_WINDOW, "{total}");
@@ -926,7 +929,7 @@ pub(crate) mod tests {
         // A small current file leaves room for the newest older one, never the oldest.
         std::fs::write(&today, "now\n").unwrap();
         let names: Vec<String> = log_window(&d).into_iter().map(|(n, _)| n).collect();
-        assert_eq!(names, [today_name.as_str(), "imt.2000-01-02.log"]);
+        assert_eq!(names, [today_name.as_str(), "debrief.2000-01-02.log"]);
         assert!(log_files(&d.join("missing")).is_empty());
         std::fs::remove_dir_all(d).unwrap();
     }
@@ -937,15 +940,15 @@ pub(crate) mod tests {
         let logs = d.join("logs");
         std::fs::create_dir_all(&logs).unwrap();
         assert!(write_activity_project(&d.join("data"), &logs).is_err(), "no log yet");
-        std::fs::write(logs.join("imt.log"), "{}\n").unwrap();
+        std::fs::write(logs.join("debrief.log"), "{}\n").unwrap();
         let path = write_activity_project(&d.join("data"), &logs).unwrap();
-        let p = imt_core::project::ProjectFile::load(&path).unwrap();
+        let p = debrief_core::project::ProjectFile::load(&path).unwrap();
         assert_eq!(p.sources.len(), 1);
-        assert!(p.sources[0].ends_with("imt.log"));
-        assert_eq!(p.ui["query"]["query"]["filters"][0]["value"], "IMT.Activity");
+        assert!(p.sources[0].ends_with("debrief.log"));
+        assert_eq!(p.ui["query"]["query"]["filters"][0]["value"], "Debrief.Activity");
         assert_eq!(p.ui["query"]["query"]["filters"][0]["field"], "SourceContext");
         assert_eq!(p.ui["savedQueries"][0]["name"], "Activity");
-        assert!(imt_core::profile::Profile::from_toml(&p.profile).is_ok());
+        assert!(debrief_core::profile::Profile::from_toml(&p.profile).is_ok());
         std::fs::remove_dir_all(d).unwrap();
     }
 
@@ -966,7 +969,7 @@ pub(crate) mod tests {
         let p = tauri::async_runtime::block_on(problem_report_preview(handle.clone(), Some("d".into()))).unwrap();
         assert!(p.steps.iter().any(|s| s.contains("report.test")), "{:?}", p.steps);
         assert!(!p.system_info["plugins"].as_array().unwrap().is_empty());
-        let out = std::env::temp_dir().join(format!("imt-report-cmd-{}.zip", std::process::id()));
+        let out = std::env::temp_dir().join(format!("debrief-report-cmd-{}.zip", std::process::id()));
         let _ = std::fs::remove_file(&out);
         let grants = || crate::paths::WindowGrants::of(&handle, "main");
         let refused = save_problem_report(handle.clone(), grants(), out.to_string_lossy().into(), None, None).now();

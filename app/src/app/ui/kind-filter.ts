@@ -16,7 +16,7 @@ export interface KindOption {
  * a row of chips that look like buttons (K5). Escape or a click outside closes it.
  */
 @Component({
-  selector: 'imt-kind-filter',
+  selector: 'debrief-kind-filter',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CdkListbox, CdkOption, CdkConnectedOverlay, CdkOverlayOrigin],
   template: `

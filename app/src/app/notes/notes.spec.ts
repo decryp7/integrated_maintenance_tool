@@ -411,7 +411,7 @@ describe('NotesPanel drop (drag and drop between views)', () => {
     const f = TestBed.createComponent(NotesPanel);
     await settle(f);
     const host = f.nativeElement as HTMLElement;
-    const over = dragEvent('dragover', { 'application/x-imt-event': payload });
+    const over = dragEvent('dragover', { 'application/x-debrief-event': payload });
     host.dispatchEvent(over);
     expect(over.defaultPrevented).toBe(true);
     await settle(f);
@@ -419,7 +419,7 @@ describe('NotesPanel drop (drag and drop between views)', () => {
     host.dispatchEvent(new Event('dragleave'));
     await settle(f);
     expect(host.classList.contains('drop-target')).toBe(false);
-    const drop = dragEvent('drop', { 'application/x-imt-event': payload });
+    const drop = dragEvent('drop', { 'application/x-debrief-event': payload });
     host.dispatchEvent(drop);
     expect(drop.defaultPrevented).toBe(true);
     const dialog = TestBed.inject(DialogService).stack().at(-1);
@@ -435,7 +435,7 @@ describe('NotesPanel drop (drag and drop between views)', () => {
     const over = dragEvent('dragover', { 'text/plain': 'hi' });
     host.dispatchEvent(over);
     expect(over.defaultPrevented).toBe(false);
-    const drop = dragEvent('drop', { 'application/x-imt-event': '{"id":"x"}' });
+    const drop = dragEvent('drop', { 'application/x-debrief-event': '{"id":"x"}' });
     host.dispatchEvent(drop);
     expect(drop.defaultPrevented).toBe(false);
     expect(TestBed.inject(DialogService).stack()).toHaveLength(0);

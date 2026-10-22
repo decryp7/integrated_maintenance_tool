@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Pins the llama.cpp release IMT downloads its inference runtimes from (ADR 0009).
+"""Pins the llama.cpp release Debrief downloads its inference runtimes from (ADR 0009).
 
-Writes crates/imt-ai/src/runtimes/llama-runtimes.json: the release tag and, per platform and build,
-the official prebuilt assets with their download URL, size and SHA-256. IMT embeds this file and
+Writes crates/debrief-ai/src/runtimes/llama-runtimes.json: the release tag and, per platform and build,
+the official prebuilt assets with their download URL, size and SHA-256. Debrief embeds this file and
 downloads nothing that is not listed in it, and verifies every byte against these checksums.
 
     python3 scripts/update-llama-runtimes.py                 # the release GitHub marks as latest
@@ -24,7 +24,7 @@ import urllib.request
 
 REPO = "ggml-org/llama.cpp"
 API = f"https://api.github.com/repos/{REPO}/releases"
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "crates", "imt-ai", "src", "runtimes", "llama-runtimes.json")
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "crates", "debrief-ai", "src", "runtimes", "llama-runtimes.json")
 
 # platform -> build id -> asset name patterns ({tag} is the build tag). The first pattern is the
 # llama-server archive; the others are runtimes unpacked into the same folder (CUDA's cudart).
@@ -64,7 +64,7 @@ BUILDS = {
 
 
 def get(url):
-    req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json", "User-Agent": "imt-update-llama-runtimes"})
+    req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json", "User-Agent": "debrief-update-llama-runtimes"})
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         req.add_header("Authorization", f"Bearer {token}")
@@ -74,7 +74,7 @@ def get(url):
 
 def sha256_of(url):
     h = hashlib.sha256()
-    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "imt"}), timeout=600) as r:
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "debrief"}), timeout=600) as r:
         while True:
             b = r.read(1 << 20)
             if not b:

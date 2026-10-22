@@ -45,7 +45,7 @@ describe('additional timelines in the dock', () => {
     expect(dock.isOpen(PANEL.timeline)).toBe(true);
     expect(container.querySelectorAll('.dv-groupview').length).toBe(groupsBefore + 1);
     // The panel renders the timeline component, which names its tab.
-    await vi.waitFor(() => expect(container.querySelectorAll('imt-timeline-panel.instance').length).toBe(1));
+    await vi.waitFor(() => expect(container.querySelectorAll('debrief-timeline-panel.instance').length).toBe(1));
     await vi.waitFor(() => expect(tabs()).toContain('Timeline 2'));
     views.rename('timeline#2', 'Errors DB01');
     await vi.waitFor(() => expect(tabs()).toContain('Errors DB01'));
@@ -76,7 +76,7 @@ describe('additional timelines in the dock', () => {
     const again = setup(false);
     expect(again.views.config('timeline#2')).toMatchObject({ title: 'Kept', scope: 'own', ql: 'level >= error' });
     expect(again.dock.isOpen('timeline#2')).toBe(true);
-    await vi.waitFor(() => expect(container.querySelector('imt-timeline-panel.instance')).not.toBeNull());
+    await vi.waitFor(() => expect(container.querySelector('debrief-timeline-panel.instance')).not.toBeNull());
     await vi.waitFor(() => expect(tabs()).toContain('Kept'));
   });
 });

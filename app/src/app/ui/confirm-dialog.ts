@@ -6,7 +6,7 @@ import { DIALOG_REF } from './dialog.service';
  * close button and the backdrop close it without a result (treat that as "no").
  */
 @Component({
-  selector: 'imt-confirm-dialog',
+  selector: 'debrief-confirm-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p data-testid="confirm-message">{{ message() }}</p>

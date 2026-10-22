@@ -16,7 +16,7 @@ const MODES: { id: GlyphMode; label: string }[] = [
 
 /** Chooses how a marker looks: a generated badge, a built-in icon or imported artwork. */
 @Component({
-  selector: 'imt-glyph-picker',
+  selector: 'debrief-glyph-picker',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MarkerGlyph],
   template: `
@@ -39,7 +39,7 @@ const MODES: { id: GlyphMode; label: string }[] = [
           <div class="shapes" role="group" aria-label="Badge shape" i18n-aria-label="@@markers.glyphPicker.badgeShape">
             @for (s of shapes; track s) {
               <button type="button" class="pick" [attr.aria-pressed]="shape() === s" [attr.aria-label]="shapeLabel(s)" [title]="s" (click)="shape.set(s)">
-                <imt-marker-glyph [glyph]="shapeStyle(s)" [size]="22" />
+                <debrief-marker-glyph [glyph]="shapeStyle(s)" [size]="22" />
               </button>
             }
           </div>
@@ -51,7 +51,7 @@ const MODES: { id: GlyphMode; label: string }[] = [
           <div class="grid" role="group" aria-label="Built-in icons" i18n-aria-label="@@markers.glyphPicker.builtinIcons">
             @for (i of results(); track i.name) {
               <button type="button" class="pick" [attr.aria-pressed]="icon() === i.name" [attr.aria-label]="i.name" [title]="i.name" (click)="icon.set(i.name)">
-                <imt-marker-glyph [glyph]="iconStyle(i.name)" [size]="20" />
+                <debrief-marker-glyph [glyph]="iconStyle(i.name)" [size]="20" />
               </button>
             } @empty {
               <span class="faint" i18n="@@markers.glyphPicker.noMatch">No icon matches "{{ query() }}".</span>
@@ -65,13 +65,13 @@ const MODES: { id: GlyphMode; label: string }[] = [
           </div>
           @if (importError(); as e) { <div class="err" role="alert">{{ e }}</div> }
           @if (pending(); as p) {
-            <div class="current"><imt-marker-glyph [glyph]="pendingStyle(p)" [size]="28" /> <span i18n="@@markers.glyphPicker.newIcon">New icon <span class="mono">{{ p.name }}</span> (saved with the marker)</span></div>
+            <div class="current"><debrief-marker-glyph [glyph]="pendingStyle(p)" [size]="28" /> <span i18n="@@markers.glyphPicker.newIcon">New icon <span class="mono">{{ p.name }}</span> (saved with the marker)</span></div>
           }
           @if (existing().length) {
             <div class="grid" role="group" aria-label="Custom icons in this profile" i18n-aria-label="@@markers.glyphPicker.customIcons">
               @for (i of existing(); track i.name) {
                 <button type="button" class="pick" [attr.aria-pressed]="!pending() && icon() === i.name" [attr.aria-label]="i.name" [title]="i.name" (click)="useExisting(i.name)">
-                  <imt-marker-glyph [glyph]="iconStyle(i.name)" [size]="20" />
+                  <debrief-marker-glyph [glyph]="iconStyle(i.name)" [size]="20" />
                 </button>
               }
             </div>

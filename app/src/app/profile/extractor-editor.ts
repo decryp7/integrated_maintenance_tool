@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { ExtractPreview, ExtractSample } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { valueToString } from '../core/format';
 import { EXTRACT_FIELD_TYPES, ExtractField, ExtractRule } from '../core/profile.model';
 import { WorkspaceStore } from '../core/workspace.store';
@@ -31,7 +31,7 @@ function segments(sample: ExtractSample, colorOf: (name: string) => string): Seg
 }
 
 @Component({
-  selector: 'imt-extractor-editor',
+  selector: 'debrief-extractor-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ConditionsEditor, Icon],
   template: `
@@ -39,12 +39,12 @@ function segments(sample: ExtractSample, colorOf: (name: string) => string): Seg
       <div class="grid2">
         <label class="lbl"><ng-container i18n="@@profile.extractor.name">Name</ng-container><input class="input mono" [value]="r.name" (input)="rename($any($event.target).value)" /></label>
         <label class="lbl"><ng-container i18n="@@profile.extractor.readFrom">Read from</ng-container>
-          <input class="input mono" list="imt-profile-fields" [value]="r.from ?? '@message'" (input)="patch({ from: $any($event.target).value })" />
+          <input class="input mono" list="debrief-profile-fields" [value]="r.from ?? '@message'" (input)="patch({ from: $any($event.target).value })" />
         </label>
       </div>
 
       <div class="lbl" i18n="@@profile.extractor.onlyWhen">Only when</div>
-      <imt-conditions-editor [conditions]="r.when ?? []" (changed)="patch({ when: $event.length ? $event : undefined })" />
+      <debrief-conditions-editor [conditions]="r.when ?? []" (changed)="patch({ when: $event.length ? $event : undefined })" />
 
       <label class="lbl"><span i18n="@@profile.extractor.pattern">Pattern — named groups become fields: <span class="mono">(?P&lt;name&gt;…)</span></span>
         <textarea class="input mono pattern" rows="3" spellcheck="false" [value]="r.regex" (input)="patch({ regex: $any($event.target).value })"></textarea>
@@ -64,7 +64,7 @@ function segments(sample: ExtractSample, colorOf: (name: string) => string): Seg
           <input class="input mono" [value]="o.spec.unit ?? ''" placeholder="%, ms, MB" [attr.aria-label]="outputLabel('unit', o.name)" (input)="patchOutput(o.name, { unit: $any($event.target).value || undefined })" />
           <input class="input mono" [value]="o.spec.unit_from ?? ''" placeholder="group" i18n-placeholder="@@profile.extractor.groupPlaceholder" [attr.aria-label]="outputLabel('unitFrom', o.name)" (input)="patchOutput(o.name, { unit_from: $any($event.target).value || undefined })" />
           <input class="input mono" [value]="o.spec.to ?? ''" placeholder="MB, ms, s" [attr.aria-label]="outputLabel('convert', o.name)" (input)="patchOutput(o.name, { to: $any($event.target).value || undefined })" />
-          <button class="icon-btn" [attr.aria-label]="removeLabel(o.name)" (click)="removeOutput(o.name)" [attr.title]="removeLabel(o.name)"><imt-icon name="close" [size]="12" /></button>
+          <button class="icon-btn" [attr.aria-label]="removeLabel(o.name)" (click)="removeOutput(o.name)" [attr.title]="removeLabel(o.name)"><debrief-icon name="close" [size]="12" /></button>
         } @empty {
           <span class="faint span-all" i18n="@@profile.extractor.noOutputs">No outputs yet. Add named groups to the pattern, then "Detect from pattern".</span>
         }
@@ -127,7 +127,7 @@ export class ExtractorEditor {
   readonly index = input.required<number>();
 
   private readonly draft = inject(ProfileDraft);
-  private readonly backend = inject(ImtBackend);
+  private readonly backend = inject(DebriefBackend);
   private readonly store = inject(WorkspaceStore);
   protected readonly types = EXTRACT_FIELD_TYPES;
   protected readonly preview = signal<ExtractPreview | null>(null);

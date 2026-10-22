@@ -90,7 +90,7 @@ describe('CollectorDialog', () => {
     buttonByText(fixture, 'Collect').click();
     await settle(fixture);
     const result = el(fixture, '[data-testid=collect-result]').textContent ?? '';
-    expect(result).toContain('/out/imt-diagnostics.imtz');
+    expect(result).toContain('/out/debrief-diagnostics.debriefz');
     expect(result).toContain('2 items');
     expect(result).toContain('3 values masked');
     expect(result).toContain('(email 2, token 1)');
@@ -100,14 +100,14 @@ describe('CollectorDialog', () => {
     expect(buttonByText(fixture, 'Collect again')).toBeTruthy();
     buttonByText(fixture, 'Open bundle').click();
     await settle(fixture);
-    expect(workspace.summary()?.sources.some((s) => s.path.endsWith('.imtz'))).toBe(true);
+    expect(workspace.summary()?.sources.some((s) => s.path.endsWith('.debriefz'))).toBe(true);
     expect(close).toHaveBeenCalled();
   });
 
   it('shows errors from the manifest and keeps the dialog open when the bundle fails to open', async () => {
     const { fixture, close, backend, workspace } = await setup();
     vi.spyOn(backend, 'collectDiagnostics').mockResolvedValue({
-      bundle: '/b.imtz',
+      bundle: '/b.debriefz',
       manifest: { name: 'n', host: 'h', platform: 'p', createdAt: 't', items: [], skipped: [], redaction: {}, errors: ['wevtutil failed', 'x'], totalBytes: 0, durationMs: 1 },
     });
     typeInto(el(fixture, 'input[aria-label="Output folder"]'), '/out');
@@ -184,7 +184,7 @@ describe('CollectorDialog', () => {
     buttonByText(fixture, 'Edit as JSON').click();
     await settle(fixture);
     const area = el<HTMLTextAreaElement>(fixture, 'textarea[aria-label="Plan JSON"]');
-    expect(JSON.parse(area.value).name).toBe('imt-diagnostics');
+    expect(JSON.parse(area.value).name).toBe('debrief-diagnostics');
     typeInto(area, '{ broken');
     await settle(fixture);
     expect(text(fixture)).toContain('Not valid JSON');

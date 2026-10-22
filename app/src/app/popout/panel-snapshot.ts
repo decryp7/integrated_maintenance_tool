@@ -17,7 +17,7 @@ export const SNAPSHOT_TIMEOUT_MS = 400;
 
 const XHTML = 'http://www.w3.org/1999/xhtml';
 /** Parts of a panel never worth drawing (and never safe to copy into another document). */
-const DROPPED = 'script, iframe, object, embed, video, audio, .dv-drop-target-container, .dv-drop-target-dropzone, [data-imt-overlay]';
+const DROPPED = 'script, iframe, object, embed, video, audio, .dv-drop-target-container, .dv-drop-target-dropzone, [data-debrief-overlay]';
 
 /** Draws an image URL on a canvas of `width`×`height` CSS px at `scale`: the PNG data URL, or null. */
 export type Rasterize = (url: string, width: number, height: number, scale: number) => Promise<string | null>;
@@ -69,7 +69,7 @@ export function cloneForSnapshot(el: HTMLElement, maxNodes = SNAPSHOT_MAX_NODES)
   return clone;
 }
 
-/** The page's own style rules (cross-origin sheets, which IMT does not have, are skipped). */
+/** The page's own style rules (cross-origin sheets, which Debrief does not have, are skipped). */
 export function documentCss(doc: Document): string {
   const parts: string[] = [];
   for (const sheet of Array.from(doc.styleSheets)) {

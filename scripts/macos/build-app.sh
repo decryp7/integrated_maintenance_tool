@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Local release build of the IMT app. On macOS, signs with the "IMT Local Dev"
+# Local release build of the Debrief app. On macOS, signs with the "Debrief Local Dev"
 # identity when present (see dev-signing.sh) so privacy grants survive rebuilds;
 # otherwise builds unsigned. Extra arguments go to `tauri build`.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-NAME="IMT Local Dev"
+NAME="Debrief Local Dev"
 
 if [[ "$(uname)" == "Darwin" && -z "${APPLE_SIGNING_IDENTITY:-}" ]] \
   && security find-identity -v -p codesigning | grep -q "\"$NAME\""; then

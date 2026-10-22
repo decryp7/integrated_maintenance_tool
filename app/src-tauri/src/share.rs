@@ -1,6 +1,6 @@
 //! Explain and share: the redacted view, redaction previews, dashboard
 //! tiles, incident report exports (HTML/PDF), chart and timeline images, and
-//! shareable `.imtz` bundles. Engine work runs on the calling window's
+//! shareable `.debriefz` bundles. Engine work runs on the calling window's
 //! workspace ([`CurrentWindow`]); every path and payload from the webview is
 //! validated here before anything is written.
 
@@ -9,13 +9,13 @@ use crate::paths::WindowGrants;
 use crate::windows::CurrentWindow;
 use crate::{err, CmdError, CmdResult, ErrorCode};
 use base64::Engine;
-use imt_core::bundle::{BundleEstimate, BundleOptions};
-use imt_core::dashboard::{TileData, TileRequest};
-use imt_core::overwrite::check_overwrite;
-use imt_core::redact::RedactionPreview;
-use imt_core::redact::{RedactionPreviewRequest, RedactionSummary, RedactionSummaryRequest};
-use imt_core::report::html::HtmlRenderer;
-use imt_core::report::{Report, ReportRenderer, Theme};
+use debrief_core::bundle::{BundleEstimate, BundleOptions};
+use debrief_core::dashboard::{TileData, TileRequest};
+use debrief_core::overwrite::check_overwrite;
+use debrief_core::redact::RedactionPreview;
+use debrief_core::redact::{RedactionPreviewRequest, RedactionSummary, RedactionSummaryRequest};
+use debrief_core::report::html::HtmlRenderer;
+use debrief_core::report::{Report, ReportRenderer, Theme};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -28,7 +28,7 @@ const MAX_REPORT_JSON: usize = 64 << 20;
 
 /// Folder under the system temp folder where bundles are extracted to be opened.
 pub(crate) fn bundles_root() -> PathBuf {
-    std::env::temp_dir().join("imt-bundles")
+    std::env::temp_dir().join("debrief-bundles")
 }
 
 /// Refuses to save a project into an opened bundle's folder (bundles open read-only).
@@ -50,7 +50,7 @@ fn parse_report(value: Value) -> CmdResult<Report> {
     if value.to_string().len() > MAX_REPORT_JSON {
         return Err(crate::CmdError::from(format!(
             "a report is limited to {}",
-            imt_plugin_api::units::bytes(MAX_REPORT_JSON as u64)
+            debrief_plugin_api::units::bytes(MAX_REPORT_JSON as u64)
         )));
     }
     crate::error::lift(Report::parse(value).map_err(err))
@@ -58,9 +58,9 @@ fn parse_report(value: Value) -> CmdResult<Report> {
 
 /// Switches the window's redacted view on or off; returns the new summary. While it is on, every reply that shows
 /// event text (pages, facets, source context, query tables, dashboard tiles) is redacted with the profile's rules
-/// (in the engine, [`imt_core::redact::view`]); a profile without rules refuses it with what to add.
+/// (in the engine, [`debrief_core::redact::view`]); a profile without rules refuses it with what to add.
 #[tauri::command]
-pub(crate) async fn set_redacted_view(state: CurrentWindow, op: OpId, enabled: bool) -> CmdResult<imt_core::api::WorkspaceSummary> {
+pub(crate) async fn set_redacted_view(state: CurrentWindow, op: OpId, enabled: bool) -> CmdResult<debrief_core::api::WorkspaceSummary> {
     state.host.set_redacted_view(enabled).map_err(|e| {
         CmdError::invalid(e.to_string()).hint("Edit the profile: add detectors or [[redact.rule]] entries to its [redact] section.")
     })?;
@@ -78,7 +78,7 @@ pub(crate) async fn set_redacted_view(state: CurrentWindow, op: OpId, enabled: b
 pub(crate) async fn preview_redaction(state: CurrentWindow, request: RedactionPreviewRequest) -> CmdResult<RedactionPreview> {
     let cfg = match &request.toml {
         None => state.host.compiled().profile.redact.clone(),
-        Some(t) => match imt_core::Profile::from_toml(t) {
+        Some(t) => match debrief_core::Profile::from_toml(t) {
             Ok(p) => p.redact,
             Err(e) => {
                 return Ok(RedactionPreview {
@@ -90,7 +90,7 @@ pub(crate) async fn preview_redaction(state: CurrentWindow, request: RedactionPr
             }
         },
     };
-    Ok(imt_core::redact::preview(&cfg, &request.sample))
+    Ok(debrief_core::redact::preview(&cfg, &request.sample))
 }
 
 /// What redaction would change in the events of a query (shown before exporting): hits per rule over at most
@@ -106,7 +106,7 @@ pub(crate) async fn dashboard_tile(state: CurrentWindow, request: TileRequest) -
     let registry = state.host.registry.clone();
     let view = state.host.redacted_view();
     crate::engine::with_store(&state, move |s| {
-        let mut tile = imt_core::tiles::evaluate(s, &|r| registry.annotations(r), &request)?;
+        let mut tile = debrief_core::tiles::evaluate(s, &|r| registry.annotations(r), &request)?;
         if let Some(r) = &view {
             r.view_tile(&mut tile);
         }
@@ -134,7 +134,7 @@ pub(crate) struct ReportExportRequest {
 fn renderer(format: &str) -> CmdResult<Box<dyn ReportRenderer>> {
     match format {
         "html" => Ok(Box::new(HtmlRenderer)),
-        "pdf" => Ok(Box::new(imt_pdf::PdfRenderer)),
+        "pdf" => Ok(Box::new(debrief_pdf::PdfRenderer)),
         other => Err(crate::CmdError::from(format!(
             "unknown report format \"{other}\" (use html or pdf)"
         ))),
@@ -169,11 +169,11 @@ pub(crate) async fn export_report<R: Runtime>(
     let redact_cfg = state.host.compiled().profile.redact.clone();
     crate::jobs::export(&app, &state, "Export report", &shown, move |store| {
         let redactor = if redact {
-            Some(imt_core::redact::Redactor::from_config(&redact_cfg, imt_core::redact::Salt::random()).map_err(err)?)
+            Some(debrief_core::redact::Redactor::from_config(&redact_cfg, debrief_core::redact::Salt::random()).map_err(err)?)
         } else {
             None
         };
-        let resolved = imt_core::report::resolve::resolve_in(store, &report, redactor.as_ref()).map_err(err)?;
+        let resolved = debrief_core::report::resolve::resolve_in(store, &report, redactor.as_ref()).map_err(err)?;
         let mut out = std::io::BufWriter::new(std::fs::File::create(&target).map_err(err)?);
         renderer.render(&resolved, theme, &mut out).map_err(err)?;
         drop(out);
@@ -190,7 +190,7 @@ pub(crate) async fn export_report<R: Runtime>(
 }
 
 /// "Report written (3 values redacted)": the line the export's message shows.
-fn report_line(redaction: &[imt_core::redact::RuleHits], redacted: bool) -> String {
+fn report_line(redaction: &[debrief_core::redact::RuleHits], redacted: bool) -> String {
     let masked: usize = redaction.iter().map(|h| h.count).sum();
     match (redacted, masked) {
         (true, 1) => "Report written (1 value redacted).".into(),
@@ -225,7 +225,10 @@ fn visual_bytes(kind: &str, data: &str) -> anyhow::Result<Vec<u8>> {
                 .strip_prefix("data:image/png;base64,")
                 .ok_or_else(|| anyhow::anyhow!("not a PNG image"))?;
             if b64.len() > MAX_VISUAL_BYTES / 3 * 4 + 4 {
-                anyhow::bail!("images are limited to {}", imt_plugin_api::units::bytes(MAX_VISUAL_BYTES as u64));
+                anyhow::bail!(
+                    "images are limited to {}",
+                    debrief_plugin_api::units::bytes(MAX_VISUAL_BYTES as u64)
+                );
             }
             let bytes = base64::engine::general_purpose::STANDARD
                 .decode(b64)
@@ -237,9 +240,12 @@ fn visual_bytes(kind: &str, data: &str) -> anyhow::Result<Vec<u8>> {
         }
         "svg" => {
             if data.len() > MAX_VISUAL_BYTES {
-                anyhow::bail!("images are limited to {}", imt_plugin_api::units::bytes(MAX_VISUAL_BYTES as u64));
+                anyhow::bail!(
+                    "images are limited to {}",
+                    debrief_plugin_api::units::bytes(MAX_VISUAL_BYTES as u64)
+                );
             }
-            let clean = imt_core::svg::sanitize(data, &imt_core::svg::FIGURE)?;
+            let clean = debrief_core::svg::sanitize(data, &debrief_core::svg::FIGURE)?;
             Ok(format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n{clean}\n").into_bytes())
         }
         other => anyhow::bail!("unknown image kind \"{other}\" (use png or svg)"),
@@ -270,11 +276,11 @@ pub(crate) async fn save_visual(grants: WindowGrants, op: OpId, request: VisualR
     .map_err(err)?
 }
 
-/// Share bundles of the log files are replaced by projects (`.imtz` of the store, ADR 0014 §6): saving the
+/// Share bundles of the log files are replaced by projects (`.debriefz` of the store, ADR 0014 §6): saving the
 /// project is how a workspace is shared now.
 fn bundles_replaced() -> CmdError {
     CmdError::new(ErrorCode::Unsupported, "share bundles of the log files are replaced by projects")
-        .hint("Save the project (File ▸ Save Project): the .imtz opens anywhere, without the original files.")
+        .hint("Save the project (File ▸ Save Project): the .debriefz opens anywhere, without the original files.")
 }
 
 /// What a bundle with `options` would contain (sizes before compression).
@@ -284,7 +290,7 @@ pub(crate) async fn estimate_bundle(state: CurrentWindow, options: BundleOptions
     Err(bundles_replaced())
 }
 
-/// Writes a shareable `.imtz` bundle of the window's workspace (replaced by projects).
+/// Writes a shareable `.debriefz` bundle of the window's workspace (replaced by projects).
 #[tauri::command]
 pub(crate) async fn create_bundle<R: Runtime>(
     app: AppHandle<R>,
@@ -298,7 +304,7 @@ pub(crate) async fn create_bundle<R: Runtime>(
     Err(bundles_replaced())
 }
 
-/// Opens a `.imtz`: extracts it into its own temporary folder (archive
+/// Opens a `.debriefz`: extracts it into its own temporary folder (archive
 /// limits, no path may leave it), checks it against its manifest and opens
 /// its project read-only. A bundle without a project (rare) opens its files.
 #[tauri::command]
@@ -309,19 +315,19 @@ pub(crate) async fn open_bundle<R: Runtime>(
     op: OpId,
     path: String,
 ) -> CmdResult<crate::services::project::OpenedProject> {
-    let source = grants.read_file(&path, &["imtz"])?.path().to_path_buf();
+    let source = grants.read_file(&path, &["debriefz"])?.path().to_path_buf();
     // Unpacking is part of the import: an import job of its own, listed with the files it opens next.
     let spec = crate::jobs::JobSpec::new(crate::jobs::JobKind::Import, "Unpack the bundle")
         .window(state.label())
         .link(crate::jobs::JobLink::Path { path: path.clone() });
     let extracted = crate::jobs::run(&app, spec, Default::default(), move |ctx| {
         ctx.message("Unpacking and checking the bundle");
-        imt_core::bundle::extract(&source, &bundles_root())
+        debrief_core::bundle::extract(&source, &bundles_root())
             .map(crate::jobs::Done::new)
             .map_err(err)
     })
     .await?;
-    // IMT's own folder: what the bundle holds may be opened from this window.
+    // Debrief's own folder: what the bundle holds may be opened from this window.
     grants.grant(&extracted.dir, crate::paths::Access::Read, crate::paths::GrantSource::Output)?;
     let mut opened = match &extracted.project {
         Some(project) => {
@@ -524,7 +530,7 @@ mod tests {
 
     #[test]
     fn message_lines_say_what_was_written_and_redacted() {
-        let hit = |count| imt_core::redact::RuleHits {
+        let hit = |count| debrief_core::redact::RuleHits {
             rule: "email".into(),
             count,
         };
@@ -634,7 +640,7 @@ mod tests {
             block(estimate_bundle(st(), options())).unwrap_err().code,
             crate::ErrorCode::Unsupported
         );
-        let path = d.0.join("case.imtz").to_string_lossy().into_owned();
+        let path = d.0.join("case.debriefz").to_string_lossy().into_owned();
         let e = block(create_bundle(
             app.handle().clone(),
             st(),
@@ -645,10 +651,10 @@ mod tests {
         ))
         .unwrap_err();
         assert!(e.hint.unwrap().contains("Save the project"));
-        // A bundle written by an earlier IMT (the engine's writer) still opens, read-only.
-        let mut ws = imt_core::Workspace::new(imt_core::Profile::default_profile()).unwrap();
+        // A bundle written by an earlier Debrief (the engine's writer) still opens, read-only.
+        let mut ws = debrief_core::Workspace::new(debrief_core::Profile::default_profile()).unwrap();
         ws.open(&[samples().join("log4net")]).unwrap();
-        ws.write_bundle(&options(), imt_core::DEFAULT_PROFILE_TOML, std::path::Path::new(&path))
+        ws.write_bundle(&options(), debrief_core::DEFAULT_PROFILE_TOML, std::path::Path::new(&path))
             .unwrap();
         let total = block(crate::workspace_commands::workspace_summary(st())).unwrap().json()["total"].clone();
         let opened = block(open_bundle(
@@ -664,12 +670,12 @@ mod tests {
         assert_eq!(opened["name"], "Case");
         assert_eq!(opened["ui"]["x"], 1);
         assert_eq!(opened["reports"][0]["id"], "r1");
-        assert_eq!(opened["bundle"]["format"], "imt-share");
+        assert_eq!(opened["bundle"]["format"], "debrief-share");
         assert!(opened["summary"]["total"].as_u64().unwrap() > 0);
         let _ = total;
         assert!(st().project().is_none());
         // Saving into the bundle's folder is refused.
-        let inside = PathBuf::from(opened["folder"].as_str().unwrap()).join("p.imtz");
+        let inside = PathBuf::from(opened["folder"].as_str().unwrap()).join("p.debriefz");
         assert!(block(crate::workspace_commands::save_project(
             app.handle().clone(),
             st(),
@@ -685,7 +691,7 @@ mod tests {
         .contains("read-only"));
 
         // A plain zip of logs opens its files.
-        let plain = d.0.join("plain.imtz");
+        let plain = d.0.join("plain.debriefz");
         {
             use std::io::Write;
             let mut z = zip::ZipWriter::new(std::fs::File::create(&plain).unwrap());
@@ -708,9 +714,9 @@ mod tests {
             st(),
             crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
-            d.0.join("missing.imtz").to_string_lossy().into_owned()
+            d.0.join("missing.debriefz").to_string_lossy().into_owned()
         ))
         .is_err());
-        assert!(refuse_bundle_folder(&d.0.join("ok.imtproj").to_string_lossy()).is_ok());
+        assert!(refuse_bundle_folder(&d.0.join("ok.debriefproj").to_string_lossy()).is_ok());
     }
 }

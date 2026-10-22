@@ -6,7 +6,7 @@ test('metrics tab renders chart cards with a canvas each', async ({ page }) => {
   await openView(page, 'metrics');
   await expect(page.getByRole('tab', { name: 'Metrics', selected: true })).toBeVisible();
 
-  const cards = page.locator('imt-chart-card');
+  const cards = page.locator('debrief-chart-card');
   await expect.poll(() => cards.count()).toBeGreaterThanOrEqual(2);
   const n = await cards.count();
   for (let i = 0; i < n; i++) {

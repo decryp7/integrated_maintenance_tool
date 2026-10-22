@@ -1,5 +1,5 @@
 import { inject, Injectable, Injector } from '@angular/core';
-import { ImtCommand, ImtView } from '../extensions/tokens';
+import { DebriefCommand, DebriefView } from '../extensions/tokens';
 import { describeError } from '../core/logger';
 import { DialogService } from '../ui/dialog.service';
 import { DiagnosticsExport } from './diagnostics-export.service';
@@ -10,7 +10,7 @@ import { ACTIVITY_LOG_COMMAND, REPORT_PROBLEM_COMMAND } from './snapshot.types';
 export { ACTIVITY_LOG_COMMAND, REPORT_PROBLEM_COMMAND };
 
 /** The view that lists the saved error snapshots. */
-export const DIAGNOSTICS_VIEWS: ImtView[] = [
+export const DIAGNOSTICS_VIEWS: DebriefView[] = [
   {
     id: 'error-snapshots',
     title: $localize`:@@diagnostics.commands.view.title:Error snapshots`,
@@ -39,7 +39,7 @@ export class DiagnosticsCommands {
   private readonly injector = inject(Injector);
   private readonly exporter = inject(DiagnosticsExport);
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     {
       id: 'diagnostics.capture',
       title: $localize`:@@diagnostics.commands.capture:Capture diagnostic screenshot`,

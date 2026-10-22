@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { query } from '../../testing/helpers';
 import { LIVE_ALERT_EVENT } from './api.types';
-import { ImtBackend, provideBackend, TauriBackend, WORKSPACE_CHANGED_EVENT } from './backend';
+import { DebriefBackend, provideBackend, TauriBackend, WORKSPACE_CHANGED_EVENT } from './backend';
 import { FailureReporter } from './failure-reporter';
 import { Logger } from './logger';
 import { MockBackend } from './mock/mock-backend';
@@ -66,7 +66,7 @@ describe('TauriBackend events', () => {
     const handler = vi.fn();
     expect(await b.onWorkspaceChanged(handler)).toBe(off);
     expect(at(subscribe.mock.calls, 0)[0]).toBe(WORKSPACE_CHANGED_EVENT);
-    expect(WORKSPACE_CHANGED_EVENT).toBe('imt://workspace-changed');
+    expect(WORKSPACE_CHANGED_EVENT).toBe('debrief://workspace-changed');
     const forward = at(subscribe.mock.calls, 0)[1];
     forward(undefined);
     expect(handler).toHaveBeenLastCalledWith(null);
@@ -124,14 +124,14 @@ describe('provideBackend', () => {
 
   it('uses the mock backend in a plain browser', () => {
     TestBed.configureTestingModule({ providers: [provideBackend()] });
-    expect(TestBed.inject(ImtBackend)).toBeInstanceOf(MockBackend);
+    expect(TestBed.inject(DebriefBackend)).toBeInstanceOf(MockBackend);
   });
 
   it('reads the mock switches from the URL', async () => {
     window.history.replaceState({}, '', '/?mockTotal=1234');
     try {
       TestBed.configureTestingModule({ providers: [provideBackend()] });
-      expect((await TestBed.inject(ImtBackend).workspaceSummary()).total).toBe(1234);
+      expect((await TestBed.inject(DebriefBackend).workspaceSummary()).total).toBe(1234);
     } finally {
       window.history.replaceState({}, '', '/');
     }
@@ -140,7 +140,7 @@ describe('provideBackend', () => {
   it('uses Tauri inside the desktop shell', () => {
     (window as unknown as Record<string, unknown>)['__TAURI_INTERNALS__'] = {};
     TestBed.configureTestingModule({ providers: [provideBackend()] });
-    expect(TestBed.inject(ImtBackend)).toBeInstanceOf(TauriBackend);
+    expect(TestBed.inject(DebriefBackend)).toBeInstanceOf(TauriBackend);
   });
 
   it('logs a failed command and reports it to the FailureReporter, then rethrows', async () => {
@@ -151,7 +151,7 @@ describe('provideBackend', () => {
       TestBed.configureTestingModule({
         providers: [provideBackend(), { provide: Logger, useValue: logger }, { provide: FailureReporter, useValue: { backendFailed, panelFailed: vi.fn() } }],
       });
-      const backend = TestBed.inject(ImtBackend);
+      const backend = TestBed.inject(DebriefBackend);
       await expect(backend.queryFacet({ query: query(), field: 'f', limit: 1 })).rejects.toBe('Simulated queryFacet failure');
       expect(backendFailed).toHaveBeenCalledWith('queryFacet', 'Simulated queryFacet failure');
       expect(logger.entries).toEqual([expect.objectContaining({ category: 'ui.backend', props: expect.objectContaining({ Command: 'queryFacet' }) })]);
@@ -164,7 +164,7 @@ describe('provideBackend', () => {
     window.history.replaceState({}, '', '/?mockFail=queryFacet:1');
     try {
       TestBed.configureTestingModule({ providers: [provideBackend()] });
-      await expect(TestBed.inject(ImtBackend).queryFacet({ query: query(), field: 'f', limit: 1 })).rejects.toBe('Simulated queryFacet failure');
+      await expect(TestBed.inject(DebriefBackend).queryFacet({ query: query(), field: 'f', limit: 1 })).rejects.toBe('Simulated queryFacet failure');
     } finally {
       window.history.replaceState({}, '', '/');
     }

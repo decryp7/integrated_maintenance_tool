@@ -16,7 +16,7 @@ test.describe('view home areas', () => {
   });
 
   test('Anomalies, Patterns and Exceptions land in one group below the events grid; timeline and events stay visible', async ({ page }, testInfo) => {
-    const timeline = page.locator('imt-timeline-panel');
+    const timeline = page.locator('debrief-timeline-panel');
     const grid = page.getByRole('grid', { name: 'Events' });
     const eventsBefore = (await groupOf(page, 'Events').boundingBox())!;
     await runCommand(page, 'Show anomalies');
@@ -34,7 +34,7 @@ test.describe('view home areas', () => {
     await expect(grid).toBeVisible();
     await expect(timeline).toBeVisible();
     await expect(timeline.locator('.lane').first()).toBeVisible();
-    await expect(page.locator('imt-events-grid [role=row].row').first()).toBeVisible();
+    await expect(page.locator('debrief-events-grid [role=row].row').first()).toBeVisible();
     // Exactly one group holds the analysis views.
     await expect(page.locator('.dv-groupview').filter({ has: tab(page, 'Anomalies') })).toHaveCount(1);
     await expect(page.locator('.dv-groupview').filter({ has: tab(page, 'Patterns') })).toHaveCount(1);
@@ -54,7 +54,7 @@ test.describe('view home areas', () => {
   });
 
   test('a view open behind another shows a dot on its activity button; the accent bar is for a view in front', async ({ page }, testInfo) => {
-    const button = page.locator('imt-activity-bar [data-activity-id=metrics]');
+    const button = page.locator('debrief-activity-bar [data-activity-id=metrics]');
     const dot = button.getByTestId('open-elsewhere');
     await expect(dot).toHaveCount(0);
     await button.click();
@@ -66,7 +66,7 @@ test.describe('view home areas', () => {
     await expect(tab(page, 'Metrics')).toHaveAttribute('aria-selected', 'false');
     await expect(dot).toHaveCount(1);
     await expect(button).not.toHaveClass(/\bon\b/);
-    await expectNoSeriousViolations(page, testInfo, 'view-areas-open-elsewhere', 'imt-activity-bar');
+    await expectNoSeriousViolations(page, testInfo, 'view-areas-open-elsewhere', 'debrief-activity-bar');
     // Clicking the button brings it to the front: the dot goes, the accent comes.
     await button.click();
     await expect(tab(page, 'Metrics')).toHaveAttribute('aria-selected', 'true');
@@ -76,11 +76,11 @@ test.describe('view home areas', () => {
 
   test('status tools (Jobs) slide out of the bottom edge and leave the timeline and events alone', async ({ page }) => {
     await runCommand(page, 'View: Jobs');
-    await expect(page.locator('#imt-ah-flyout')).toBeVisible();
-    await expect(page.locator('#imt-ah-flyout imt-jobs-panel')).toBeVisible();
-    await expect(page.locator('imt-timeline-panel')).toBeVisible();
+    await expect(page.locator('#debrief-ah-flyout')).toBeVisible();
+    await expect(page.locator('#debrief-ah-flyout debrief-jobs-panel')).toBeVisible();
+    await expect(page.locator('debrief-timeline-panel')).toBeVisible();
     await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible();
-    await expect(page.locator('.imt-ah-tab[data-ah-id="jobs"]')).toBeVisible();
+    await expect(page.locator('.debrief-ah-tab[data-ah-id="jobs"]')).toBeVisible();
     await expect(page.locator('.dv-groupview').filter({ has: tab(page, 'Jobs') })).toHaveCount(0);
   });
 });

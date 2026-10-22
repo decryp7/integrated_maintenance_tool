@@ -5,8 +5,8 @@
 //! - `now`: the current time in milliseconds.
 
 use anyhow::{bail, Result};
-use imt_plugin_api::prelude::*;
-use imt_plugin_api::tools::{OpSpec, Schema};
+use debrief_plugin_api::prelude::*;
+use debrief_plugin_api::tools::{OpSpec, Schema};
 use serde_json::{json, Value};
 use std::sync::Arc;
 

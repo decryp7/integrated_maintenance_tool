@@ -7,21 +7,21 @@ import { selected, selectId } from './switcher';
  * Ctrl and press Tab to move, release Ctrl to switch; arrows, Enter, Escape and the mouse work too.
  */
 @Component({
-  selector: 'imt-dock-switcher',
+  selector: 'debrief-dock-switcher',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (dock.switcher()) {
-      <div class="imt-switcher-backdrop" data-imt-overlay (pointerdown)="dock.cancelSwitch()"></div>
-      <div class="imt-switcher" role="dialog" aria-label="Switch to panel" i18n-aria-label="@@dock.switcher.label" (pointerdown)="$event.stopPropagation()">
+      <div class="debrief-switcher-backdrop" data-debrief-overlay (pointerdown)="dock.cancelSwitch()"></div>
+      <div class="debrief-switcher" role="dialog" aria-label="Switch to panel" i18n-aria-label="@@dock.switcher.label" (pointerdown)="$event.stopPropagation()">
         <div class="cols">
           @for (col of columns(); track col.title) {
             <div class="col">
-              <h2 [id]="'imt-sw-' + col.kind">{{ col.title }}</h2>
-              <ul role="listbox" [attr.aria-labelledby]="'imt-sw-' + col.kind" [attr.aria-activedescendant]="current()?.kind === col.kind ? activeId() : null">
+              <h2 [id]="'debrief-sw-' + col.kind">{{ col.title }}</h2>
+              <ul role="listbox" [attr.aria-labelledby]="'debrief-sw-' + col.kind" [attr.aria-activedescendant]="current()?.kind === col.kind ? activeId() : null">
                 @for (item of col.items; track item.id) {
                   <li
                     role="option"
-                    [id]="'imt-sw-item-' + item.id"
+                    [id]="'debrief-sw-item-' + item.id"
                     [class.on]="current()?.id === item.id"
                     [attr.aria-selected]="current()?.id === item.id"
                     (pointerenter)="pick(item.id)"
@@ -41,8 +41,8 @@ import { selected, selectId } from './switcher';
     }
   `,
   styles: `
-    .imt-switcher-backdrop { position: fixed; inset: 0; z-index: 200; }
-    .imt-switcher {
+    .debrief-switcher-backdrop { position: fixed; inset: 0; z-index: 200; }
+    .debrief-switcher {
       position: fixed; z-index: 201; inset-inline-start: 50%; top: 22%; transform: translateX(-50%); min-width: 460px; max-width: 80vw;
       background: var(--tooltip-bg); color: var(--text); border: 1px solid var(--border-3); border-radius: 8px;
       box-shadow: var(--shadow); padding: 12px 14px;
@@ -62,7 +62,7 @@ export class DockSwitcher {
     const s = this.dock.switcher();
     return s ? selected(s) : null;
   });
-  protected readonly activeId = computed(() => (this.current() ? `imt-sw-item-${this.current()!.id}` : null));
+  protected readonly activeId = computed(() => (this.current() ? `debrief-sw-item-${this.current()!.id}` : null));
   protected readonly columns = computed(() => {
     const items = this.dock.switcher()?.items ?? [];
     return [

@@ -33,29 +33,29 @@ const VISIBLE_ROWS = 6;
  * them out. Each tile loads and fails on its own.
  */
 @Component({
-  selector: 'imt-home-view',
+  selector: 'debrief-home-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, Icon, HelpHint, AiButton, CoverageNote, EChart, CdkVirtualScrollViewport, CdkFixedSizeVirtualScroll, CdkVirtualForOf],
   template: `
     <div class="bar">
       <h2 class="section-title" i18n="@@home.view.title">Home</h2>
-      <imt-help label="Home" i18n-label="@@home.view.helpLabel" text="A dashboard of everything you opened: what happened over time, what went wrong and where to look first. It is computed by the engine; your files are never changed." i18n-text="@@home.view.helpText" />
+      <debrief-help label="Home" i18n-label="@@home.view.helpLabel" text="A dashboard of everything you opened: what happened over time, what went wrong and where to look first. It is computed by the engine; your files are never changed." i18n-text="@@home.view.helpText" />
       <span class="spacer"></span>
       <button class="btn" type="button" data-testid="home-refresh" (click)="home.refresh()" [disabled]="home.summaryLoading()" i18n="@@home.view.refresh">Refresh</button>
-      <imt-ai-button label="Root causes" i18n-label="@@home.view.rootCauses" hint="The local model reads the findings and exceptions and lists the likely root causes" i18n-hint="@@home.view.rootCausesHint" testId="ai-root-causes" (pressed)="ai.rootCauses()" />
+      <debrief-ai-button label="Root causes" i18n-label="@@home.view.rootCauses" hint="The local model reads the findings and exceptions and lists the likely root causes" i18n-hint="@@home.view.rootCausesHint" testId="ai-root-causes" (pressed)="ai.rootCauses()" />
     </div>
     <div class="scroll" tabindex="0" role="region" aria-label="Home dashboard" i18n-aria-label="@@home.view.region">
       <div class="actions" role="group" aria-label="Quick actions" i18n-aria-label="@@home.view.quickActions">
-        <button class="btn" type="button" data-testid="home-open-files" (click)="run('file.openFiles')"><imt-icon name="file" [size]="14" /> <span i18n="@@home.view.openFiles">Open files…</span></button>
-        <button class="btn" type="button" data-testid="home-open-folder" (click)="run('file.openFolder')"><imt-icon name="folder" [size]="14" /> <span i18n="@@home.view.openFolder">Open folder…</span></button>
-        <button class="btn" type="button" data-testid="home-open-last" [disabled]="!lastProject()" [title]="lastProject()?.name ?? ''" (click)="run('project.openLast')"><imt-icon name="home" [size]="14" /> <span i18n="@@home.view.openLast">Open last project</span></button>
+        <button class="btn" type="button" data-testid="home-open-files" (click)="run('file.openFiles')"><debrief-icon name="file" [size]="14" /> <span i18n="@@home.view.openFiles">Open files…</span></button>
+        <button class="btn" type="button" data-testid="home-open-folder" (click)="run('file.openFolder')"><debrief-icon name="folder" [size]="14" /> <span i18n="@@home.view.openFolder">Open folder…</span></button>
+        <button class="btn" type="button" data-testid="home-open-last" [disabled]="!lastProject()" [title]="lastProject()?.name ?? ''" (click)="run('project.openLast')"><debrief-icon name="home" [size]="14" /> <span i18n="@@home.view.openLast">Open last project</span></button>
         <button class="btn" type="button" data-testid="home-open-recent" (click)="run('project.recent')" i18n="@@home.view.openRecent">Recent projects…</button>
       </div>
 
       @if (!hasData()) {
         <p class="muted pad" data-testid="home-empty" i18n="@@home.view.empty">Open files or a folder to see the dashboard here.</p>
       } @else {
-        <imt-analysis-state [loading]="home.summaryLoading()" [error]="home.summaryError()" [retryable]="home.summaryRetryable()" [hasData]="!!summary()" [empty]="false" (retry)="home.retrySummary()">
+        <debrief-analysis-state [loading]="home.summaryLoading()" [error]="home.summaryError()" [retryable]="home.summaryRetryable()" [hasData]="!!summary()" [empty]="false" (retry)="home.retrySummary()">
           @if (summary(); as s) {
             <dl class="tiles" aria-label="Summary" i18n-aria-label="@@home.view.summary" data-testid="home-tiles">
               <div><dt i18n="@@home.view.events">Events</dt><dd>{{ count(s.events) }}</dd></div>
@@ -79,17 +79,17 @@ const VISIBLE_ROWS = 6;
                 <div><dt i18n="@@home.view.memory">Memory</dt><dd>{{ bytes(m.worker?.rssBytes ?? m.duckUsedBytes) }}</dd></div>
               }
             </dl>
-            <imt-coverage-note [coverage]="s.coverage" />
+            <debrief-coverage-note [coverage]="s.coverage" />
 
             @if (option(); as o) {
               <section class="history" aria-labelledby="home-history">
                 <h3 id="home-history" i18n="@@home.view.history">Events over time</h3>
-                <imt-echart class="chart" data-testid="home-history" [options]="o" (plotClick)="selectBucket($event)" (brushed)="selectRange($event)" />
+                <debrief-echart class="chart" data-testid="home-history" [options]="o" (plotClick)="selectBucket($event)" (brushed)="selectRange($event)" />
                 <p class="faint hint" i18n="@@home.view.historyHint">Click a bar to show that period, or drag across the chart to select a range.</p>
               </section>
             }
           }
-        </imt-analysis-state>
+        </debrief-analysis-state>
 
         @if (stats(); as st) {
           @if (st.unrecognized.length) {
@@ -116,12 +116,12 @@ const VISIBLE_ROWS = 6;
 
         <section class="health" aria-labelledby="home-health">
           <h3 id="home-health" i18n="@@home.view.health">Health check</h3>
-          <imt-coverage-note [coverage]="home.health.coverage()" />
-          <imt-analysis-state [loading]="home.health.loading()" [error]="home.health.error()" [retryable]="home.health.retryable()" [hasData]="!!findings()" [empty]="false" (retry)="home.health.retry()">
+          <debrief-coverage-note [coverage]="home.health.coverage()" />
+          <debrief-analysis-state [loading]="home.health.loading()" [error]="home.health.error()" [retryable]="home.health.retryable()" [hasData]="!!findings()" [empty]="false" (retry)="home.health.retry()">
             @if (findings(); as list) {
               @if (!list.length) {
                 <div class="none" role="status">
-                  <imt-icon name="check" [size]="16" />
+                  <debrief-icon name="check" [size]="16" />
                   <div>
                     <strong i18n="@@home.view.none">Nothing alarming found</strong>
                     <p class="muted" i18n="@@home.view.noneDetail">No crashes, error spikes or unreadable files. Explore the timeline, or search the events for what you are after.</p>
@@ -144,7 +144,7 @@ const VISIBLE_ROWS = 6;
                 </cdk-virtual-scroll-viewport>
               }
             }
-          </imt-analysis-state>
+          </debrief-analysis-state>
         </section>
 
         <section class="feed" aria-labelledby="home-feed">
@@ -211,7 +211,7 @@ const VISIBLE_ROWS = 6;
     .detail { margin: 2px 0 0; font-size: var(--fs-sm); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .acts { flex: none; display: flex; gap: 6px; }
     .none { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); }
-    .none imt-icon { color: var(--ok); margin-top: 2px; }
+    .none debrief-icon { color: var(--ok); margin-top: 2px; }
     .none p { margin: 4px 0 0; font-size: var(--fs-sm); }
     .auto { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); color: var(--text-2); }
   `,

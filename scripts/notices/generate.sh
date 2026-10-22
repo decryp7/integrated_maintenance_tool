@@ -17,7 +17,7 @@ if [ ! -d app/node_modules ]; then
 fi
 
 rust=()
-for manifest in app/src-tauri/Cargo.toml crates/imt-ai-worker/Cargo.toml crates/imt-plugins/Cargo.toml crates/imt-store-worker/Cargo.toml; do
+for manifest in app/src-tauri/Cargo.toml crates/debrief-ai-worker/Cargo.toml crates/debrief-plugins/Cargo.toml crates/debrief-store-worker/Cargo.toml; do
   [ -f "$manifest" ] || continue
   out="$tmp/$(echo "$manifest" | tr '/' '_').json"
   cargo about generate -c scripts/notices/about.toml --format json --manifest-path "$manifest" -o "$out" 2>"$tmp/err.log" \

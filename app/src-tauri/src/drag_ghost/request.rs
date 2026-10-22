@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 /// The largest snapshot accepted (a PNG data URL); the UI scales its snapshot down to stay below.
 pub const MAX_SNAPSHOT_BYTES: usize = 2 * 1024 * 1024;
-/// The largest icon (an SVG path on IMT's 24×24 icon grid).
+/// The largest icon (an SVG path on Debrief's 24×24 icon grid).
 pub const MAX_ICON_BYTES: usize = 1024;
 const PNG_PREFIX: &str = "data:image/png;base64,";
 

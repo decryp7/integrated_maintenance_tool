@@ -4,11 +4,11 @@ import { MatIconRegistry } from '@angular/material/icon';
 import { firstValueFrom } from 'rxjs';
 import { el, settle } from '../../testing/helpers';
 import { Icon } from './icon';
-import { BLANK_ICON, ICON_PATHS, IMT_ICON_NAMESPACE, ImtIconSet, iconSvg, isImtIcon, provideImtIcons } from './material/imt-icons';
+import { BLANK_ICON, ICON_PATHS, DEBRIEF_ICON_NAMESPACE, DebriefIconSet, iconSvg, isDebriefIcon, provideDebriefIcons } from './material/debrief-icons';
 
 @Component({
   imports: [Icon],
-  template: `<imt-icon id="i" [name]="name()" [size]="size()" [stroke]="stroke()" [label]="label()" />`,
+  template: `<debrief-icon id="i" [name]="name()" [size]="size()" [stroke]="stroke()" [label]="label()" />`,
 })
 class Host {
   readonly name = signal('search');
@@ -19,7 +19,7 @@ class Host {
 
 const NAMES = Object.keys(ICON_PATHS);
 
-describe('imt icon set', () => {
+describe('debrief icon set', () => {
   it('builds a stroke-only, currentColor SVG with no stroke width baked in', () => {
     const svg = iconSvg('M1 1h2');
     expect(svg).toContain('viewBox="0 0 24 24"');
@@ -31,35 +31,35 @@ describe('imt icon set', () => {
   });
 
   it('knows its own names only', () => {
-    expect(isImtIcon('timeline')).toBe(true);
-    expect(isImtIcon('nope')).toBe(false);
-    expect(isImtIcon('toString')).toBe(false);
+    expect(isDebriefIcon('timeline')).toBe(true);
+    expect(isDebriefIcon('nope')).toBe(false);
+    expect(isDebriefIcon('toString')).toBe(false);
   });
 
-  it('registers every icon (and the blank fallback) in the imt namespace', async () => {
-    const set = TestBed.inject(ImtIconSet);
+  it('registers every icon (and the blank fallback) in the debrief namespace', async () => {
+    const set = TestBed.inject(DebriefIconSet);
     const registry = TestBed.inject(MatIconRegistry);
     for (const name of [...NAMES, BLANK_ICON]) {
-      const svg = await firstValueFrom(registry.getNamedSvgIcon(name, IMT_ICON_NAMESPACE));
+      const svg = await firstValueFrom(registry.getNamedSvgIcon(name, DEBRIEF_ICON_NAMESPACE));
       expect(svg.tagName.toLowerCase()).toBe('svg');
       expect(svg.getAttribute('stroke')).toBe('currentColor');
       expect(svg.querySelector('path')?.getAttribute('d') ?? '').toBe(ICON_PATHS[name] ?? '');
     }
-    expect(set.svgIcon('files')).toBe('imt:files');
-    expect(set.svgIcon('nope')).toBe(`imt:${BLANK_ICON}`);
+    expect(set.svgIcon('files')).toBe('debrief:files');
+    expect(set.svgIcon('nope')).toBe(`debrief:${BLANK_ICON}`);
   });
 
-  it('registers eagerly through provideImtIcons', () => {
+  it('registers eagerly through provideDebriefIcons', () => {
     const spy = vi.spyOn(MatIconRegistry.prototype, 'addSvgIconLiteralInNamespace');
-    TestBed.configureTestingModule({ providers: [provideImtIcons()] });
+    TestBed.configureTestingModule({ providers: [provideDebriefIcons()] });
     TestBed.inject(MatIconRegistry);
     expect(spy).toHaveBeenCalledTimes(NAMES.length + 1);
-    expect(spy).toHaveBeenCalledWith(IMT_ICON_NAMESPACE, 'timeline', expect.anything());
+    expect(spy).toHaveBeenCalledWith(DEBRIEF_ICON_NAMESPACE, 'timeline', expect.anything());
     spy.mockRestore();
   });
 });
 
-describe('<imt-icon>', () => {
+describe('<debrief-icon>', () => {
   it.each(NAMES)('renders %s as an inline svg', async (name) => {
     const f = TestBed.createComponent(Host);
     f.componentInstance.name.set(name);

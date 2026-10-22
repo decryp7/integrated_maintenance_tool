@@ -2,7 +2,7 @@ import { WhatsNewService } from '../whats-new/whats-new';
 import { EnvironmentProviders, inject, makeEnvironmentProviders, provideAppInitializer } from '@angular/core';
 import { DROPPED_FILES_HANDLERS } from '../core/dropped-files';
 import { provideToolsBackend } from '../core/tools-backend';
-import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, IMT_VIEWS } from '../extensions/tokens';
+import { DEBRIEF_ACTIVITY_ITEMS, DEBRIEF_COMMANDS, DEBRIEF_VIEWS } from '../extensions/tokens';
 import { CoreUiState } from '../lifecycle/core-ui-state';
 import { LifecycleCommands } from '../lifecycle/lifecycle-commands';
 import { LifecycleService } from '../lifecycle/lifecycle.service';
@@ -25,15 +25,15 @@ import { ToolsCommands, toolsViews } from './tools-commands';
 export function provideTools(): EnvironmentProviders {
   return makeEnvironmentProviders([
     ...provideToolsBackend(),
-    { provide: IMT_VIEWS, multi: true, useFactory: () => toolsViews(inject(ToolCatalog)) },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(ToolsCommands).commands },
-    { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: toolsActivityItems },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(LifecycleCommands).commands },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(ProjectCommands).commands },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(SavedQueryCommands).commands },
+    { provide: DEBRIEF_VIEWS, multi: true, useFactory: () => toolsViews(inject(ToolCatalog)) },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(ToolsCommands).commands },
+    { provide: DEBRIEF_ACTIVITY_ITEMS, multi: true, useFactory: toolsActivityItems },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(LifecycleCommands).commands },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(ProjectCommands).commands },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(SavedQueryCommands).commands },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => inject(CoreUiState).contributions },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => inject(ProjectUiState).contributions },
-    // `.imtplugin` files dropped on the window are reviewed for installing, never opened as logs.
+    // `.debriefplugin` files dropped on the window are reviewed for installing, never opened as logs.
     { provide: DROPPED_FILES_HANDLERS, multi: true, useFactory: pluginPackageDropHandler },
     provideAppInitializer(() => startTools()),
   ]);

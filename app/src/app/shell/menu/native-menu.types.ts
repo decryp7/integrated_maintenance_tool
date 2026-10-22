@@ -2,11 +2,11 @@
  * Wire contract of the macOS native menu bar (camelCase JSON). Mirrored by the Rust DTOs in
  * `app/src-tauri/src/menu.rs`; change both together.
  *
- * Command: `set_app_menu { menu: NativeMenuModel }`. Event (to the focused window): `imt://menu` with the item id.
+ * Command: `set_app_menu { menu: NativeMenuModel }`. Event (to the focused window): `debrief://menu` with the item id.
  */
 
 /** Event a native menu click is delivered as; the payload is the item id. */
-export const MENU_EVENT = 'imt://menu';
+export const MENU_EVENT = 'debrief://menu';
 
 export type NativeMenuEntry =
   | {

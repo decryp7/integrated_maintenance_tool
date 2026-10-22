@@ -131,7 +131,7 @@ describe('MockBackend live tail', () => {
     const offAlerts = await b.onLiveAlert((a) => alerts.push(a));
     const before = (await b.workspaceSummary()).total;
     expect(await b.setLive(true, { watch: 'polling' })).toBe(2);
-    expect((globalThis as Record<string, unknown>)['__imtMockLiveCalls']).toBe(b.liveCalls);
+    expect((globalThis as Record<string, unknown>)['__debriefMockLiveCalls']).toBe(b.liveCalls);
     await vi.waitFor(() => expect(reports.length).toBeGreaterThanOrEqual(3));
     await vi.waitFor(() => expect(alerts.length).toBeGreaterThanOrEqual(1));
     await b.setLive(false);

@@ -23,7 +23,7 @@ async function pasteImage(chat: Locator, name: string): Promise<void> {
 
 async function openImageView(page: Page): Promise<Locator> {
   await runCommand(page, 'AI: Open an image…');
-  const view = page.locator('imt-ai-image-panel');
+  const view = page.locator('debrief-ai-image-panel');
   await expect(view.getByTestId('image-viewer-img')).toBeVisible();
   return view;
 }
@@ -36,7 +36,7 @@ test.describe('AI vision', () => {
     const chip = chat.getByTestId('ai-attachment');
     await expect(chip).toContainText('dialog.png');
     await expect(chip.getByRole('img', { name: 'dialog.png' })).toHaveAttribute('src', /^data:image\//);
-    await expectNoSeriousViolations(page, testInfo, 'ai-vision-attachment', 'imt-ai-chat-panel');
+    await expectNoSeriousViolations(page, testInfo, 'ai-vision-attachment', 'debrief-ai-chat-panel');
 
     await ask(chat, 'What does this dialog say?');
     await waitAnswered(chat);
@@ -55,8 +55,8 @@ test.describe('AI vision', () => {
     await waitAnswered(chat);
     const answer = chat.getByTestId('ai-answer-0');
     await expect(answer).toContainText('Linked events:');
-    await answer.locator('imt-ai-rich-text button.cite.rec').first().click();
-    await expect(page.locator('imt-events-grid .row.sel .lvl')).toContainText('FTL');
+    await answer.locator('debrief-ai-rich-text button.cite.rec').first().click();
+    await expect(page.locator('debrief-events-grid .row.sel .lvl')).toContainText('FTL');
   });
 
   test('the image view explains an image and lists its related logs with their reasons', async ({ page }, testInfo) => {
@@ -65,7 +65,7 @@ test.describe('AI vision', () => {
     await expect(view.getByTestId('image-facts')).toContainText('original 2732 × 1536 PNG');
 
     await view.getByRole('button', { name: 'Explain with AI' }).click();
-    await expect(view.getByTestId('ai-image-explanation').locator('imt-ai-rich-text')).toContainText('error dialog', { timeout: 15_000 });
+    await expect(view.getByTestId('ai-image-explanation').locator('debrief-ai-rich-text')).toContainText('error dialog', { timeout: 15_000 });
 
     await view.getByRole('button', { name: 'Find related logs' }).click();
     const links = view.getByTestId('ai-related-link');
@@ -73,18 +73,18 @@ test.describe('AI vision', () => {
     await expect(links.first().getByTestId('ai-related-reason').first()).toContainText(/^time [+-]/);
     await expect(links.first()).toContainText('title matches Application OrderService');
     await expect(view.getByTestId('ai-related-time')).toContainText('shown on the screen');
-    await expectNoSeriousViolations(page, testInfo, 'ai-vision-related', 'imt-ai-image-panel');
+    await expectNoSeriousViolations(page, testInfo, 'ai-vision-related', 'debrief-ai-image-panel');
 
     await links.first().getByRole('button', { name: /^Open in grid \(event \d+\)$/ }).click();
-    await expect(page.locator('imt-events-grid .row.sel .lvl')).toContainText('FTL');
+    await expect(page.locator('debrief-events-grid .row.sel .lvl')).toContainText('FTL');
   });
 
   test('an Explorer image whose clocks disagree offers the clock correction', async ({ page }) => {
     await openAiApp(page, `mockOpen=${encodeURIComponent('/shots/clock-skew.png')}`);
-    const sidebar = page.locator('imt-sidebar');
+    const sidebar = page.locator('debrief-sidebar');
     await sidebar.getByRole('button', { name: 'Open files' }).click();
     await sidebar.getByRole('button', { name: 'Open image clock-skew.png' }).click();
-    const view = page.locator('imt-ai-image-panel');
+    const view = page.locator('debrief-ai-image-panel');
     await view.getByRole('button', { name: 'Find related logs' }).click();
     const note = view.getByTestId('ai-related-note-clockDisagreement');
     await expect(note).toContainText('The clocks likely disagree', { timeout: 15_000 });
@@ -101,7 +101,7 @@ test.describe('AI vision', () => {
     await expect(offer.getByRole('button', { name: 'Add image support (640 MB)' })).toBeVisible();
     await expect(offer.getByRole('button', { name: 'Choose a model that reads images…' })).toBeVisible();
     await expect(chat.getByTestId('ai-attachment')).toHaveCount(0);
-    await expectNoSeriousViolations(page, testInfo, 'ai-vision-no-vision', 'imt-ai-chat-panel');
+    await expectNoSeriousViolations(page, testInfo, 'ai-vision-no-vision', 'debrief-ai-chat-panel');
     // Nothing was downloaded: no projector job ran.
     await expect(offer.getByTestId('ai-projector-running')).toHaveCount(0);
     await expect(page.getByTestId('notice-toast').filter({ hasText: 'image support' })).toHaveCount(0);

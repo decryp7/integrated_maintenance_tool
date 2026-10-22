@@ -5,7 +5,7 @@ import { chooseMenu } from './menu-support';
 
 // What's new: shown once after an update (never on a first run), and always under Help.
 
-const SEEN = 'imt.whatsnew.seen';
+const SEEN = 'debrief.whatsnew.seen';
 
 test.describe("What's new", () => {
   test('opens once after an update, then stays closed', async ({ page }, testInfo) => {
@@ -20,7 +20,7 @@ test.describe("What's new", () => {
     await expect(dialog).toBeVisible();
     await expect(dialog.getByTestId('whats-new-current')).toContainText('Version 0.1.0');
     await expect(dialog.getByTestId('whats-new-current').locator('li').first()).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'whats-new', 'imt-whats-new');
+    await expectNoSeriousViolations(page, testInfo, 'whats-new', 'debrief-whats-new');
     await dialog.getByTestId('whats-new-close').click();
     await expect(dialog).toHaveCount(0);
 

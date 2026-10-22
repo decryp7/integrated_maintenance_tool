@@ -13,19 +13,19 @@ import { SettingsStore } from './settings.store';
  * markers, Home, layout. Everything but the language applies immediately. The look is in Appearance.
  */
 @Component({
-  selector: 'imt-general-settings',
+  selector: 'debrief-general-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [HelpHint],
   template: `
     <fieldset data-testid="language-setting">
-      <legend i18n="Setting for the UI language@@settings.general.language">Language <imt-help label="Language" text="The language of menus, dialogs and messages. Log text and file contents are never translated. The new language is used after IMT restarts." i18n-label="@@settings.general.language.helpLabel" i18n-text="@@settings.general.language.help" /></legend>
+      <legend i18n="Setting for the UI language@@settings.general.language">Language <debrief-help label="Language" text="The language of menus, dialogs and messages. Log text and file contents are never translated. The new language is used after Debrief restarts." i18n-label="@@settings.general.language.helpLabel" i18n-text="@@settings.general.language.help" /></legend>
       <select class="select lang" data-testid="language-select" aria-label="Language" i18n-aria-label="@@settings.general.language.selectLabel" (change)="language.choose($any($event.target).value)">
         @for (l of languages; track l.id) {
           <option [value]="l.id" [selected]="language.choice() === l.id" [attr.lang]="l.lang">{{ l.label }}</option>
         }
       </select>
       @if (language.reloadPending()) {
-        <p class="pending" role="status" i18n="@@settings.general.language.pending">The new language is used after IMT restarts. <button class="link" type="button" (click)="language.reload()">Restart now</button></p>
+        <p class="pending" role="status" i18n="@@settings.general.language.pending">The new language is used after Debrief restarts. <button class="link" type="button" (click)="language.reload()">Restart now</button></p>
       }
     </fieldset>
     <fieldset>
@@ -37,7 +37,7 @@ import { SettingsStore } from './settings.store';
       </div>
     </fieldset>
     <fieldset>
-      <legend i18n="@@settings.general.dateFormat">Date format <imt-help label="Date format" text="How times appear in the grid and the inspector. Readable: 14 Oct 10:41:22. ISO: 2026-10-14 10:41:22." i18n-label="@@settings.general.dateFormat.helpLabel" i18n-text="@@settings.general.dateFormat.help" /></legend>
+      <legend i18n="@@settings.general.dateFormat">Date format <debrief-help label="Date format" text="How times appear in the grid and the inspector. Readable: 14 Oct 10:41:22. ISO: 2026-10-14 10:41:22." i18n-label="@@settings.general.dateFormat.helpLabel" i18n-text="@@settings.general.dateFormat.help" /></legend>
       <div class="seg">
         @for (f of dateFormats; track f.id) {
           <button class="btn" type="button" [class.active]="settings.dateFormat() === f.id" [attr.aria-pressed]="settings.dateFormat() === f.id" (click)="settings.setDateFormat(f.id)">{{ f.label }}</button>
@@ -47,12 +47,12 @@ import { SettingsStore } from './settings.store';
     <label class="row" i18n="@@settings.general.alwaysShowLifecycle">
       <input type="checkbox" [checked]="store.alwaysShowLifecycle()" (change)="store.setAlwaysShowLifecycle($any($event.target).checked)" />
       Always show start/stop markers
-      <imt-help label="Start/stop markers" text="Keep process start and stop markers on the timeline even when level or text filters would hide them." i18n-label="@@settings.general.alwaysShowLifecycle.helpLabel" i18n-text="@@settings.general.alwaysShowLifecycle.help" />
+      <debrief-help label="Start/stop markers" text="Keep process start and stop markers on the timeline even when level or text filters would hide them." i18n-label="@@settings.general.alwaysShowLifecycle.helpLabel" i18n-text="@@settings.general.alwaysShowLifecycle.help" />
     </label>
     <label class="row" i18n="@@settings.general.homeAutoOpen">
       <input type="checkbox" data-testid="home-auto-open" [checked]="home.autoOpen()" (change)="home.setAutoOpen($any($event.target).checked)" />
       Home: show when files or a project open
-      <imt-help label="Home after import" text="Open Home as a document tab by itself each time files or a project are opened. The same choice is in Home." i18n-label="@@settings.general.homeAutoOpen.helpLabel" i18n-text="@@settings.general.homeAutoOpen.help" />
+      <debrief-help label="Home after import" text="Open Home as a document tab by itself each time files or a project are opened. The same choice is in Home." i18n-label="@@settings.general.homeAutoOpen.helpLabel" i18n-text="@@settings.general.homeAutoOpen.help" />
     </label>
     <div>
       <button class="btn" type="button" (click)="dock.reset(); layoutReset.emit()" i18n="@@settings.general.resetLayout">Reset layout</button>

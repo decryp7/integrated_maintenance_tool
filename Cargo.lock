@@ -793,13 +793,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "cargo-imt-plugin"
+name = "cargo-debrief-plugin"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "imt-plugin-api",
- "imt-plugin-package",
- "imt-plugin-test",
+ "debrief-plugin-api",
+ "debrief-plugin-package",
+ "debrief-plugin-test",
  "semver",
  "serde",
  "serde_json",
@@ -1515,6 +1515,728 @@ dependencies = [
  "libc",
  "libdbus-sys",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "debrief-agent"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "croner",
+ "ctrlc",
+ "debrief-collect",
+ "debrief-core",
+ "debrief-monitor",
+ "debrief-plugin-tools",
+ "globset",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tempfile",
+ "thiserror 2.0.21",
+ "toml 1.1.8+spec-1.1.0",
+ "toml_edit 0.25.17+spec-1.1.0",
+ "windows-service",
+]
+
+[[package]]
+name = "debrief-ai"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.23.1",
+ "debrief-collect",
+ "debrief-core",
+ "debrief-ipc",
+ "flate2",
+ "getrandom 0.4.3",
+ "image",
+ "log",
+ "percent-encoding",
+ "proptest",
+ "regex",
+ "rustls",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "sysinfo",
+ "tar",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "toml 1.1.8+spec-1.1.0",
+ "ureq",
+ "url",
+ "windows",
+ "zip",
+]
+
+[[package]]
+name = "debrief-ai-worker"
+version = "0.1.0"
+dependencies = [
+ "base64 0.23.1",
+ "debrief-ai",
+ "debrief-core",
+ "getrandom 0.4.3",
+ "libc",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tempfile",
+ "windows",
+]
+
+[[package]]
+name = "debrief-alloc"
+version = "0.1.0"
+dependencies = [
+ "libmimalloc-sys",
+ "mimalloc",
+]
+
+[[package]]
+name = "debrief-app"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "base64 0.23.1",
+ "block2",
+ "cairo-rs",
+ "chromium-driver",
+ "chrono",
+ "debrief-agent",
+ "debrief-ai",
+ "debrief-alloc",
+ "debrief-collect",
+ "debrief-core",
+ "debrief-dump",
+ "debrief-ipc",
+ "debrief-notes",
+ "debrief-pdf",
+ "debrief-plugin-api",
+ "debrief-plugin-dumps",
+ "debrief-plugin-host",
+ "debrief-plugin-package",
+ "debrief-plugin-profiling",
+ "debrief-profile",
+ "debrief-store-client",
+ "debrief-store-duck",
+ "debrief-symbols",
+ "debrief-video",
+ "dirs",
+ "image",
+ "log",
+ "notify-debouncer-mini",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
+ "objc2-web-kit",
+ "open",
+ "semver",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-log",
+ "tauri-plugin-notification",
+ "tauri-plugin-single-instance",
+ "tauri-plugin-updater",
+ "tauri-plugin-window-state",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-log",
+ "tracing-subscriber",
+ "ts-rs",
+ "webkit2gtk",
+ "webview2-com",
+ "windows",
+ "zip",
+]
+
+[[package]]
+name = "debrief-batch"
+version = "0.1.0"
+dependencies = [
+ "arrow-array",
+ "arrow-buffer",
+ "arrow-schema",
+ "serde",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "debrief-collect"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "debrief-core",
+ "globset",
+ "regex",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tempfile",
+ "thiserror 2.0.21",
+ "toml 1.1.8+spec-1.1.0",
+ "zip",
+]
+
+[[package]]
+name = "debrief-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.23.1",
+ "chardetng",
+ "chrono",
+ "criterion",
+ "csv",
+ "debrief-alloc",
+ "debrief-batch",
+ "debrief-plugin-api",
+ "encoding_rs",
+ "flate2",
+ "getrandom 0.4.3",
+ "globset",
+ "insta",
+ "log",
+ "proptest",
+ "quick-xml",
+ "rayon",
+ "regex",
+ "regex-syntax",
+ "rhai",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "thiserror 2.0.21",
+ "toml 1.1.8+spec-1.1.0",
+ "ts-rs",
+ "yaml-rust2",
+ "zip",
+]
+
+[[package]]
+name = "debrief-dump"
+version = "0.1.0"
+dependencies = [
+ "debrief-symbols",
+ "postcard",
+ "proptest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "ts-rs",
+]
+
+[[package]]
+name = "debrief-etw"
+version = "0.1.0"
+dependencies = [
+ "debrief-plugin-profiling",
+ "debrief-profile",
+ "proptest",
+ "serde",
+ "tempfile",
+ "thiserror 2.0.21",
+ "windows",
+]
+
+[[package]]
+name = "debrief-example-annotator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "debrief-plugin-api",
+ "debrief-plugin-test",
+ "serde_json",
+]
+
+[[package]]
+name = "debrief-example-collector"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "debrief-plugin-api",
+ "debrief-plugin-test",
+ "serde_json",
+]
+
+[[package]]
+name = "debrief-example-importer"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "debrief-plugin-api",
+ "debrief-plugin-test",
+ "serde_json",
+]
+
+[[package]]
+name = "debrief-example-tool"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "debrief-plugin-api",
+ "debrief-plugin-test",
+ "serde_json",
+]
+
+[[package]]
+name = "debrief-example-transform"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "debrief-plugin-api",
+ "debrief-plugin-test",
+]
+
+[[package]]
+name = "debrief-ipc"
+version = "0.1.0"
+dependencies = [
+ "getrandom 0.4.3",
+ "landlock",
+ "libc",
+ "postcard",
+ "proptest",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tempfile",
+ "tokio",
+ "windows",
+]
+
+[[package]]
+name = "debrief-monitor"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ctrlc",
+ "debrief-core",
+ "globset",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tempfile",
+ "windows",
+]
+
+[[package]]
+name = "debrief-notes"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "proptest",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "thiserror 2.0.21",
+ "ts-rs",
+]
+
+[[package]]
+name = "debrief-pdf"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "debrief-core",
+ "miniz_oxide 0.9.1",
+ "pdf-writer",
+ "proptest",
+ "serde_json",
+ "skrifa",
+ "subsetter",
+ "svg2pdf",
+ "usvg",
+]
+
+[[package]]
+name = "debrief-plugin-api"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "debrief-ipc",
+ "postcard",
+ "regex",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
+name = "debrief-plugin-dotnet"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "debrief-etw",
+ "debrief-plugin-api",
+ "debrief-plugin-profiling",
+ "debrief-profile",
+ "proptest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "windows",
+]
+
+[[package]]
+name = "debrief-plugin-dumps"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "debrief-dump",
+ "debrief-plugin-api",
+ "debrief-symbols",
+ "minidump",
+ "minidump-unwind",
+ "pdb",
+ "proptest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "windows",
+]
+
+[[package]]
+name = "debrief-plugin-e2e"
+version = "0.1.0"
+dependencies = [
+ "cargo-debrief-plugin",
+ "debrief-core",
+ "debrief-example-importer",
+ "debrief-plugin-api",
+ "debrief-plugin-host",
+ "debrief-plugin-package",
+ "debrief-store-worker",
+ "tempfile",
+]
+
+[[package]]
+name = "debrief-plugin-formats"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "debrief-plugin-api",
+ "debrief-plugin-otel",
+ "debrief-plugin-syslog",
+ "debrief-plugin-web",
+ "proptest",
+ "quick-xml",
+ "regex",
+ "serde_json",
+]
+
+[[package]]
+name = "debrief-plugin-host"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "debrief-core",
+ "debrief-dump",
+ "debrief-ipc",
+ "debrief-plugin-api",
+ "debrief-plugin-package",
+ "debrief-profile",
+ "log",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tempfile",
+]
+
+[[package]]
+name = "debrief-plugin-native"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "debrief-etw",
+ "debrief-plugin-api",
+ "debrief-plugin-profiling",
+ "debrief-profile",
+ "debrief-symbols",
+ "proptest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "windows",
+]
+
+[[package]]
+name = "debrief-plugin-otel"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "debrief-plugin-api",
+ "insta",
+ "proptest",
+ "serde_json",
+]
+
+[[package]]
+name = "debrief-plugin-package"
+version = "0.1.0"
+dependencies = [
+ "debrief-plugin-api",
+ "ed25519-compact",
+ "getrandom 0.4.3",
+ "proptest",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tempfile",
+ "thiserror 2.0.21",
+ "toml 1.1.8+spec-1.1.0",
+ "zip",
+]
+
+[[package]]
+name = "debrief-plugin-profiling"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "debrief-plugin-api",
+ "debrief-profile",
+ "flate2",
+ "proptest",
+ "prost",
+ "regex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "debrief-plugin-registry"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "debrief-plugin-api",
+ "proptest",
+ "serde_json",
+]
+
+[[package]]
+name = "debrief-plugin-syslog"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "debrief-plugin-api",
+ "insta",
+ "proptest",
+ "serde_json",
+]
+
+[[package]]
+name = "debrief-plugin-test"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "debrief-ipc",
+ "debrief-plugin-api",
+ "debrief-plugin-package",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "debrief-plugin-tools"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "debrief-collect",
+ "debrief-core",
+ "debrief-monitor",
+ "debrief-plugin-api",
+ "debrief-plugin-windows",
+ "quick-xml",
+ "serde",
+ "serde_json",
+ "windows",
+]
+
+[[package]]
+name = "debrief-plugin-web"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "debrief-plugin-api",
+ "insta",
+ "proptest",
+ "regex",
+ "serde_json",
+]
+
+[[package]]
+name = "debrief-plugin-windows"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "csv",
+ "debrief-plugin-api",
+ "evtx",
+ "insta",
+ "minidump",
+ "proptest",
+ "quick-xml",
+ "serde",
+ "serde_json",
+ "windows",
+]
+
+[[package]]
+name = "debrief-plugins"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "debrief-alloc",
+ "debrief-core",
+ "debrief-dump",
+ "debrief-ipc",
+ "debrief-plugin-api",
+ "debrief-plugin-dotnet",
+ "debrief-plugin-dumps",
+ "debrief-plugin-formats",
+ "debrief-plugin-host",
+ "debrief-plugin-native",
+ "debrief-plugin-otel",
+ "debrief-plugin-profiling",
+ "debrief-plugin-registry",
+ "debrief-plugin-syslog",
+ "debrief-plugin-tools",
+ "debrief-plugin-web",
+ "debrief-plugin-windows",
+ "debrief-profile",
+ "insta",
+ "proptest",
+ "serde_json",
+ "sha2 0.11.1",
+ "tempfile",
+ "ureq",
+ "zip",
+]
+
+[[package]]
+name = "debrief-profile"
+version = "0.1.0"
+dependencies = [
+ "postcard",
+ "proptest",
+ "regex",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "debrief-store-client"
+version = "0.1.0"
+dependencies = [
+ "arrow-array",
+ "arrow-ipc",
+ "debrief-core",
+ "debrief-ipc",
+ "debrief-plugin-api",
+ "log",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "debrief-store-duck"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "csv",
+ "debrief-alloc",
+ "debrief-core",
+ "debrief-store-client",
+ "duckdb",
+ "getrandom 0.4.3",
+ "log",
+ "memory-stats",
+ "parquet",
+ "rayon",
+ "serde",
+ "serde_json",
+ "tantivy",
+ "toml 1.1.8+spec-1.1.0",
+ "zip",
+]
+
+[[package]]
+name = "debrief-store-worker"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "debrief-alloc",
+ "debrief-core",
+ "debrief-ipc",
+ "debrief-plugin-api",
+ "debrief-plugin-host",
+ "debrief-store-client",
+ "debrief-store-duck",
+ "getrandom 0.4.3",
+ "log",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tempfile",
+]
+
+[[package]]
+name = "debrief-symbols"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "tempfile",
+ "thiserror 2.0.21",
+ "ureq",
+ "windows",
+]
+
+[[package]]
+name = "debrief-video"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "debrief-ai",
+ "debrief-core",
+ "debrief-ipc",
+ "log",
+ "lzma-rs",
+ "proptest",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tar",
+ "tempfile",
+ "thiserror 2.0.21",
+ "ts-rs",
+ "zip",
 ]
 
 [[package]]
@@ -3031,728 +3753,6 @@ name = "imagesize"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "edcd27d72f2f071c64249075f42e205ff93c9a4c5f6c6da53e79ed9f9832c285"
-
-[[package]]
-name = "imt-agent"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "croner",
- "ctrlc",
- "globset",
- "imt-collect",
- "imt-core",
- "imt-monitor",
- "imt-plugin-tools",
- "serde",
- "serde_json",
- "sysinfo",
- "tempfile",
- "thiserror 2.0.21",
- "toml 1.1.8+spec-1.1.0",
- "toml_edit 0.25.17+spec-1.1.0",
- "windows-service",
-]
-
-[[package]]
-name = "imt-ai"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "base64 0.23.1",
- "flate2",
- "getrandom 0.4.3",
- "image",
- "imt-collect",
- "imt-core",
- "imt-ipc",
- "log",
- "percent-encoding",
- "proptest",
- "regex",
- "rustls",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "sysinfo",
- "tar",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
- "toml 1.1.8+spec-1.1.0",
- "ureq",
- "url",
- "windows",
- "zip",
-]
-
-[[package]]
-name = "imt-ai-worker"
-version = "0.1.0"
-dependencies = [
- "base64 0.23.1",
- "getrandom 0.4.3",
- "imt-ai",
- "imt-core",
- "libc",
- "serde",
- "serde_json",
- "sysinfo",
- "tempfile",
- "windows",
-]
-
-[[package]]
-name = "imt-alloc"
-version = "0.1.0"
-dependencies = [
- "libmimalloc-sys",
- "mimalloc",
-]
-
-[[package]]
-name = "imt-app"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "base64 0.22.1",
- "base64 0.23.1",
- "block2",
- "cairo-rs",
- "chromium-driver",
- "chrono",
- "dirs",
- "image",
- "imt-agent",
- "imt-ai",
- "imt-alloc",
- "imt-collect",
- "imt-core",
- "imt-dump",
- "imt-ipc",
- "imt-notes",
- "imt-pdf",
- "imt-plugin-api",
- "imt-plugin-dumps",
- "imt-plugin-host",
- "imt-plugin-package",
- "imt-plugin-profiling",
- "imt-profile",
- "imt-store-client",
- "imt-store-duck",
- "imt-symbols",
- "imt-video",
- "log",
- "notify-debouncer-mini",
- "objc2",
- "objc2-app-kit",
- "objc2-foundation",
- "objc2-web-kit",
- "open",
- "semver",
- "serde",
- "serde_json",
- "sysinfo",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-log",
- "tauri-plugin-notification",
- "tauri-plugin-single-instance",
- "tauri-plugin-updater",
- "tauri-plugin-window-state",
- "tempfile",
- "tokio",
- "tracing",
- "tracing-appender",
- "tracing-log",
- "tracing-subscriber",
- "ts-rs",
- "webkit2gtk",
- "webview2-com",
- "windows",
- "zip",
-]
-
-[[package]]
-name = "imt-batch"
-version = "0.1.0"
-dependencies = [
- "arrow-array",
- "arrow-buffer",
- "arrow-schema",
- "serde",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "imt-collect"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "globset",
- "imt-core",
- "regex",
- "serde",
- "serde_json",
- "sysinfo",
- "tempfile",
- "thiserror 2.0.21",
- "toml 1.1.8+spec-1.1.0",
- "zip",
-]
-
-[[package]]
-name = "imt-core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "base64 0.23.1",
- "chardetng",
- "chrono",
- "criterion",
- "csv",
- "encoding_rs",
- "flate2",
- "getrandom 0.4.3",
- "globset",
- "imt-alloc",
- "imt-batch",
- "imt-plugin-api",
- "insta",
- "log",
- "proptest",
- "quick-xml",
- "rayon",
- "regex",
- "regex-syntax",
- "rhai",
- "semver",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "thiserror 2.0.21",
- "toml 1.1.8+spec-1.1.0",
- "ts-rs",
- "yaml-rust2",
- "zip",
-]
-
-[[package]]
-name = "imt-dump"
-version = "0.1.0"
-dependencies = [
- "imt-symbols",
- "postcard",
- "proptest",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "ts-rs",
-]
-
-[[package]]
-name = "imt-etw"
-version = "0.1.0"
-dependencies = [
- "imt-plugin-profiling",
- "imt-profile",
- "proptest",
- "serde",
- "tempfile",
- "thiserror 2.0.21",
- "windows",
-]
-
-[[package]]
-name = "imt-example-annotator"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "imt-plugin-api",
- "imt-plugin-test",
- "serde_json",
-]
-
-[[package]]
-name = "imt-example-collector"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "imt-plugin-api",
- "imt-plugin-test",
- "serde_json",
-]
-
-[[package]]
-name = "imt-example-importer"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "imt-plugin-api",
- "imt-plugin-test",
- "serde_json",
-]
-
-[[package]]
-name = "imt-example-tool"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "imt-plugin-api",
- "imt-plugin-test",
- "serde_json",
-]
-
-[[package]]
-name = "imt-example-transform"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "imt-plugin-api",
- "imt-plugin-test",
-]
-
-[[package]]
-name = "imt-ipc"
-version = "0.1.0"
-dependencies = [
- "getrandom 0.4.3",
- "landlock",
- "libc",
- "postcard",
- "proptest",
- "serde",
- "serde_json",
- "sysinfo",
- "tempfile",
- "tokio",
- "windows",
-]
-
-[[package]]
-name = "imt-monitor"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "ctrlc",
- "globset",
- "imt-core",
- "serde",
- "serde_json",
- "sysinfo",
- "tempfile",
- "windows",
-]
-
-[[package]]
-name = "imt-notes"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "proptest",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "thiserror 2.0.21",
- "ts-rs",
-]
-
-[[package]]
-name = "imt-pdf"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "imt-core",
- "miniz_oxide 0.9.1",
- "pdf-writer",
- "proptest",
- "serde_json",
- "skrifa",
- "subsetter",
- "svg2pdf",
- "usvg",
-]
-
-[[package]]
-name = "imt-plugin-api"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "imt-ipc",
- "postcard",
- "regex",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
-]
-
-[[package]]
-name = "imt-plugin-dotnet"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "imt-etw",
- "imt-plugin-api",
- "imt-plugin-profiling",
- "imt-profile",
- "proptest",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
- "windows",
-]
-
-[[package]]
-name = "imt-plugin-dumps"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "imt-dump",
- "imt-plugin-api",
- "imt-symbols",
- "minidump",
- "minidump-unwind",
- "pdb",
- "proptest",
- "serde",
- "serde_json",
- "tempfile",
- "windows",
-]
-
-[[package]]
-name = "imt-plugin-e2e"
-version = "0.1.0"
-dependencies = [
- "cargo-imt-plugin",
- "imt-core",
- "imt-example-importer",
- "imt-plugin-api",
- "imt-plugin-host",
- "imt-plugin-package",
- "imt-store-worker",
- "tempfile",
-]
-
-[[package]]
-name = "imt-plugin-formats"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "imt-plugin-api",
- "imt-plugin-otel",
- "imt-plugin-syslog",
- "imt-plugin-web",
- "proptest",
- "quick-xml",
- "regex",
- "serde_json",
-]
-
-[[package]]
-name = "imt-plugin-host"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "imt-core",
- "imt-dump",
- "imt-ipc",
- "imt-plugin-api",
- "imt-plugin-package",
- "imt-profile",
- "log",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "tempfile",
-]
-
-[[package]]
-name = "imt-plugin-native"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "imt-etw",
- "imt-plugin-api",
- "imt-plugin-profiling",
- "imt-profile",
- "imt-symbols",
- "proptest",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
- "windows",
-]
-
-[[package]]
-name = "imt-plugin-otel"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "imt-plugin-api",
- "insta",
- "proptest",
- "serde_json",
-]
-
-[[package]]
-name = "imt-plugin-package"
-version = "0.1.0"
-dependencies = [
- "ed25519-compact",
- "getrandom 0.4.3",
- "imt-plugin-api",
- "proptest",
- "semver",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "tempfile",
- "thiserror 2.0.21",
- "toml 1.1.8+spec-1.1.0",
- "zip",
-]
-
-[[package]]
-name = "imt-plugin-profiling"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "flate2",
- "imt-plugin-api",
- "imt-profile",
- "proptest",
- "prost",
- "regex",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "imt-plugin-registry"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "imt-plugin-api",
- "proptest",
- "serde_json",
-]
-
-[[package]]
-name = "imt-plugin-syslog"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "imt-plugin-api",
- "insta",
- "proptest",
- "serde_json",
-]
-
-[[package]]
-name = "imt-plugin-test"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "imt-ipc",
- "imt-plugin-api",
- "imt-plugin-package",
- "serde",
- "serde_json",
- "tempfile",
-]
-
-[[package]]
-name = "imt-plugin-tools"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "imt-collect",
- "imt-core",
- "imt-monitor",
- "imt-plugin-api",
- "imt-plugin-windows",
- "quick-xml",
- "serde",
- "serde_json",
- "windows",
-]
-
-[[package]]
-name = "imt-plugin-web"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "imt-plugin-api",
- "insta",
- "proptest",
- "regex",
- "serde_json",
-]
-
-[[package]]
-name = "imt-plugin-windows"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "csv",
- "evtx",
- "imt-plugin-api",
- "insta",
- "minidump",
- "proptest",
- "quick-xml",
- "serde",
- "serde_json",
- "windows",
-]
-
-[[package]]
-name = "imt-plugins"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "imt-alloc",
- "imt-core",
- "imt-dump",
- "imt-ipc",
- "imt-plugin-api",
- "imt-plugin-dotnet",
- "imt-plugin-dumps",
- "imt-plugin-formats",
- "imt-plugin-host",
- "imt-plugin-native",
- "imt-plugin-otel",
- "imt-plugin-profiling",
- "imt-plugin-registry",
- "imt-plugin-syslog",
- "imt-plugin-tools",
- "imt-plugin-web",
- "imt-plugin-windows",
- "imt-profile",
- "insta",
- "proptest",
- "serde_json",
- "sha2 0.11.1",
- "tempfile",
- "ureq",
- "zip",
-]
-
-[[package]]
-name = "imt-profile"
-version = "0.1.0"
-dependencies = [
- "postcard",
- "proptest",
- "regex",
- "rustc-hash",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "imt-store-client"
-version = "0.1.0"
-dependencies = [
- "arrow-array",
- "arrow-ipc",
- "imt-core",
- "imt-ipc",
- "imt-plugin-api",
- "log",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "imt-store-duck"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "csv",
- "duckdb",
- "getrandom 0.4.3",
- "imt-alloc",
- "imt-core",
- "imt-store-client",
- "log",
- "memory-stats",
- "parquet",
- "rayon",
- "serde",
- "serde_json",
- "tantivy",
- "toml 1.1.8+spec-1.1.0",
- "zip",
-]
-
-[[package]]
-name = "imt-store-worker"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "getrandom 0.4.3",
- "imt-alloc",
- "imt-core",
- "imt-ipc",
- "imt-plugin-api",
- "imt-plugin-host",
- "imt-store-client",
- "imt-store-duck",
- "log",
- "serde",
- "serde_json",
- "sysinfo",
- "tempfile",
-]
-
-[[package]]
-name = "imt-symbols"
-version = "0.1.0"
-dependencies = [
- "proptest",
- "tempfile",
- "thiserror 2.0.21",
- "ureq",
- "windows",
-]
-
-[[package]]
-name = "imt-video"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "imt-ai",
- "imt-core",
- "imt-ipc",
- "log",
- "lzma-rs",
- "proptest",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "tar",
- "tempfile",
- "thiserror 2.0.21",
- "ts-rs",
- "zip",
-]
 
 [[package]]
 name = "indexmap"

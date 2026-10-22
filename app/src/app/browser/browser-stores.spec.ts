@@ -44,7 +44,7 @@ describe('TauriBrowserBackend', () => {
     }) as never;
     const handlers: ((p: unknown) => void)[] = [];
     const b = new TauriBrowserBackend(call, async (event, h) => {
-      expect(event).toBe('imt://browser');
+      expect(event).toBe('debrief://browser');
       handlers.push(h);
       return () => undefined;
     });

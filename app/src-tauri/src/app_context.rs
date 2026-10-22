@@ -1,4 +1,4 @@
-//! The app's context, built once in `setup` (ADR 0016): IMT's folders and run flags, and the app-wide
+//! The app's context, built once in `setup` (ADR 0016): Debrief's folders and run flags, and the app-wide
 //! services that used to be created on first use (path grants, the recent lists, the per-window scopes, the
 //! UI dispatcher). Built up front, they exist before any command or window event needs them, in the same
 //! order every run, and tests build the same context ([`AppContext::for_tests`]).
@@ -10,7 +10,7 @@
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager, Runtime};
 
-/// IMT's folders and how this run was started.
+/// Debrief's folders and how this run was started.
 #[derive(Debug, Clone, Default)]
 pub struct AppContext {
     pub data: Option<PathBuf>,

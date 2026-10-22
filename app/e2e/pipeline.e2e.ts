@@ -22,7 +22,7 @@ test('a drop step added in the pipeline flow removes events and shows its effect
   await page.getByRole('group', { name: 'Add an activity' }).getByRole('button', { name: 'Drop' }).click();
   await expect(page.locator('.card .summary')).toHaveText('Drop events where @message contains');
 
-  const card = page.locator('imt-pipeline-editor .card').first();
+  const card = page.locator('debrief-pipeline-editor .card').first();
   await card.getByRole('combobox', { name: 'Field', exact: true }).fill('@level');
   await card.getByRole('textbox', { name: 'Value', exact: true }).fill('Debug');
   await expect(card.locator('.summary')).toHaveText('Drop events where @level contains Debug');
@@ -32,10 +32,10 @@ test('a drop step added in the pipeline flow removes events and shows its effect
   await page.getByRole('button', { name: 'Save & apply' }).click();
   await expect(page.getByText('● Unsaved')).toHaveCount(0);
 
-  await expect(page.locator('imt-status-bar')).toContainText('dropped by pipeline');
+  await expect(page.locator('debrief-status-bar')).toContainText('dropped by pipeline');
   await expect(card.locator('.stat')).toContainText(/in → .* out \(−/);
-  await expect(page.locator('imt-sidebar .src[title*="dropped by pipeline"]').first()).toBeVisible();
-  await expect(page.locator('imt-flow-overview')).toContainText('1 step');
+  await expect(page.locator('debrief-sidebar .src[title*="dropped by pipeline"]').first()).toBeVisible();
+  await expect(page.locator('debrief-flow-overview')).toContainText('1 step');
 });
 
 test('steps can be reordered with the keyboard-accessible buttons and disabled', async ({ page }) => {
@@ -46,7 +46,7 @@ test('steps can be reordered with the keyboard-accessible buttons and disabled',
   await palette.getByRole('button', { name: 'Drop' }).click();
   await palette.getByRole('button', { name: 'Set level' }).click();
   await page.getByRole('button', { name: 'Move step 2 up' }).click();
-  await expect(page.locator('imt-pipeline-editor .card').first()).toHaveAttribute('data-step', 'set_level');
+  await expect(page.locator('debrief-pipeline-editor .card').first()).toHaveAttribute('data-step', 'set_level');
   await page.getByLabel('Disable step 1').check();
-  await expect(page.locator('imt-pipeline-editor .card').first().locator('.stat')).toHaveText('disabled');
+  await expect(page.locator('debrief-pipeline-editor .card').first().locator('.stat')).toHaveText('disabled');
 });

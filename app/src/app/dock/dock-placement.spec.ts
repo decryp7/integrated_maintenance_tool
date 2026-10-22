@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import type { DockviewApi, IDockviewPanel } from 'dockview';
 import { provideDockTesting } from '../../testing/helpers';
-import { ImtView } from '../extensions/tokens';
+import { DebriefView } from '../extensions/tokens';
 import { DockPlacement } from './dock-placement';
 
-const view = (minSize?: ImtView['minSize']): ImtView => ({ id: 'v', title: 'V', icon: 'panel', defaultPosition: 'center', ...(minSize ? { minSize } : {}), component: async () => class {} }) as ImtView;
+const view = (minSize?: DebriefView['minSize']): DebriefView => ({ id: 'v', title: 'V', icon: 'panel', defaultPosition: 'center', ...(minSize ? { minSize } : {}), component: async () => class {} }) as DebriefView;
 
 /** A placement whose `place` returns a fake panel, so only the constraint step of `addView` is under test. */
 function setup(panel: IDockviewPanel | null) {
@@ -21,7 +21,7 @@ function fakePanel() {
 
 const api = {} as DockviewApi;
 
-describe('DockPlacement.addView: ImtView.minSize', () => {
+describe('DockPlacement.addView: DebriefView.minSize', () => {
   it('applies both dimensions of the minimum size as the group constraints', () => {
     const { panel, setConstraints } = fakePanel();
     expect(setup(panel).addView(api, view({ width: 360, height: 240 }), false)).toBe(panel);

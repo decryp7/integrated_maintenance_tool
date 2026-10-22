@@ -59,7 +59,7 @@ export const EventLogStore = signalStore(
       paused: computed(() => run()?.paused === true),
       problems: computed(() => eventLogProblems(store.draft())),
       visibleChannels: computed(() => filterChannels(store.channels(), store.search())),
-      /** Chosen channels that need administrator rights IMT does not have. */
+      /** Chosen channels that need administrator rights Debrief does not have. */
       needsAdmin: computed(() =>
         life.elevated() ? [] : store.channels().filter((c) => c.needsAdmin && store.draft().channels.includes(c.name)).map((c) => c.name),
       ),

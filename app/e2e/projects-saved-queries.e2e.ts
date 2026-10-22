@@ -7,7 +7,7 @@ test.describe('saved queries and highlight rules', () => {
     await openView(page, 'Saved queries');
     const search = page.getByTestId('query-field');
     await search.fill('timed out');
-    const panel = page.locator('imt-saved-queries-view');
+    const panel = page.locator('debrief-saved-queries-view');
     await panel.getByRole('textbox', { name: 'Saved query name' }).fill('Timeouts');
     await panel.getByRole('button', { name: 'Save current query' }).click();
     await search.fill('');
@@ -18,7 +18,7 @@ test.describe('saved queries and highlight rules', () => {
   test('highlight rules can be added and removed', async ({ page }) => {
     await openAppWith(page);
     await openView(page, 'Markers');
-    const panel = page.locator('imt-markers-manager');
+    const panel = page.locator('debrief-markers-manager');
     await panel.getByLabel('Highlight field').fill('@level');
     await panel.getByLabel('Highlight condition').selectOption('eq');
     await panel.getByRole('textbox', { name: 'Highlight value' }).fill('Error');
@@ -30,7 +30,7 @@ test.describe('saved queries and highlight rules', () => {
 
     // The grid paints matching rows with a left colour bar (not only a tint), and only those rows.
     await page.getByTestId('query-field').fill('failed');
-    const painted = page.locator('imt-events-grid [role=row].row.hl');
+    const painted = page.locator('debrief-events-grid [role=row].row.hl');
     await expect(painted.first()).toBeVisible();
     await expect(painted.first().locator('.lvl')).toContainText('ERR');
     const bar = await painted.first().evaluate((el) => {
@@ -38,7 +38,7 @@ test.describe('saved queries and highlight rules', () => {
       return { width: s.width, color: s.backgroundColor };
     });
     expect(bar).toEqual({ width: '4px', color: 'rgb(233, 174, 63)' });
-    await expect(page.locator('imt-events-grid [role=row].row:not(.hl) .lvl', { hasText: 'ERR' })).toHaveCount(0);
+    await expect(page.locator('debrief-events-grid [role=row].row:not(.hl) .lvl', { hasText: 'ERR' })).toHaveCount(0);
 
     await rules.getByRole('button', { name: 'Delete rule @level' }).click();
     await expect(rules).toHaveCount(0);

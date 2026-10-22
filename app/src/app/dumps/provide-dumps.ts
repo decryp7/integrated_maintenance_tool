@@ -3,7 +3,7 @@ import { DumpDocSummary } from '../core/api.types';
 import { DROPPED_FILES_HANDLERS, DroppedFilesHandler } from '../core/dropped-files';
 import { TOOL_IDS } from '../core/tools.types';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
-import { CommandContext, IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/tokens';
+import { CommandContext, DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefCommand, DebriefView } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS } from '../lifecycle/ui-state';
 import { ToolCatalog } from '../tools/tool-catalog.store';
 import { provideDumpsBackend } from './dumps-backend';
@@ -15,7 +15,7 @@ export const DUMP_VIEW_IDS = { dump: 'dump', umdh: 'umdh', capture: 'dump-captur
 const V = DUMP_VIEW_IDS;
 
 /** The dump views (same extension point as plugin views). */
-export function dumpsViews(tools: { listed(id: string): boolean }): ImtView[] {
+export function dumpsViews(tools: { listed(id: string): boolean }): DebriefView[] {
   return [
     { id: V.dump, category: 'Diagnostics', title: $localize`:@@dumps.views.dump:Dump`, icon: 'alert', defaultPosition: 'center', component: () => import('./dump-view').then((m) => m.DumpView) },
     { id: V.umdh, category: 'Diagnostics', title: $localize`:@@dumps.views.umdh:UMDH heap growth`, icon: 'metrics', defaultPosition: 'center', component: () => import('./umdh-view').then((m) => m.UmdhView) },
@@ -35,7 +35,7 @@ export class DumpsCommands {
   private readonly store = inject(DumpsStore);
   private readonly catalog = inject(ToolCatalog);
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     { id: 'dumps.open', title: $localize`:@@dumps.cmd.open:Open dump…`, category: 'File', run: (ctx) => this.open(ctx, 'dump') },
     { id: 'dumps.openUmdh', title: $localize`:@@dumps.cmd.openUmdh:Open UMDH snapshots…`, category: 'File', run: (ctx) => this.open(ctx, 'umdh') },
     { id: 'dumps.capture', title: $localize`:@@dumps.cmd.capture:Create dump of process…`, category: $localize`:@@tools.category.tools:Tools`, when: () => this.catalog.listed(TOOL_IDS.dumpCapture), run: (ctx) => ctx.showView(V.capture) },
@@ -72,8 +72,8 @@ export function dumpsDropHandler(): DroppedFilesHandler {
 export function provideDumps(): EnvironmentProviders {
   return makeEnvironmentProviders([
     ...provideDumpsBackend(),
-    { provide: IMT_VIEWS, multi: true, useFactory: () => dumpsViews(inject(ToolCatalog)) },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(DumpsCommands).commands },
+    { provide: DEBRIEF_VIEWS, multi: true, useFactory: () => dumpsViews(inject(ToolCatalog)) },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(DumpsCommands).commands },
     { provide: DROPPED_FILES_HANDLERS, multi: true, useFactory: dumpsDropHandler },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => [inject(DumpsPersistence).contribution] },
     provideAppInitializer(() => startDumps()),

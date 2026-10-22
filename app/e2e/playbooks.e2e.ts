@@ -8,7 +8,7 @@ import { openAppWith } from './mock-url';
 test('a template becomes a playbook, a run records a check and a manual step with a note', async ({ page }, testInfo) => {
   await openAppWith(page, '');
   await runCommand(page, 'View: Playbooks');
-  const panel = page.locator('imt-playbooks-panel');
+  const panel = page.locator('debrief-playbooks-panel');
   await expect(panel).toBeVisible();
 
   await panel.getByTestId('pb-template-service-crashed').click();
@@ -29,5 +29,5 @@ test('a template becomes a playbook, a run records a check and a manual step wit
   await expect(panel.getByTestId('pb-note-before')).toHaveValue('Opened the first fatal event');
   await expect(panel.getByTestId('pb-progress')).toContainText('2 of 4 steps');
 
-  await expectNoSeriousViolations(page, testInfo, 'playbooks', 'imt-playbooks-panel');
+  await expectNoSeriousViolations(page, testInfo, 'playbooks', 'debrief-playbooks-panel');
 });

@@ -77,7 +77,7 @@ describe('FormatWizard', () => {
     const draft = vi.spyOn(parsers, 'draft');
     const reread = vi.spyOn(parsers, 'reread');
     expect(el(fixture, '[data-testid=format-regex]').textContent).toContain('Mark a timestamp');
-    expect(text(fixture)).toContain('IMT did not recognise');
+    expect(text(fixture)).toContain('Debrief did not recognise');
     expect(text(fixture)).not.toContain('template…');
     await mark(fixture, '2026-10-14 10:41:02.114 +00:00', 'Timestamp');
     await mark(fixture, 'INF', 'Level');
@@ -232,7 +232,7 @@ describe('FormatWizard', () => {
     expect(text(fixture)).toContain('but not their timestamps');
     const input = el(fixture, '[data-testid=timestamp-format]') as HTMLInputElement;
     expect(input.value).toBe('%a %b %d %H:%M:%S %Y');
-    expect(text(fixture)).toContain('IMT checked this format');
+    expect(text(fixture)).toContain('Debrief checked this format');
     await preview(fixture);
     expect(at(requests, 0).toml).toContain('timestamp_formats = [ "%a %b %d %H:%M:%S %Y" ]');
     expect(at(requests, 0).toml).toContain('id = "serilog-text"');
@@ -240,7 +240,7 @@ describe('FormatWizard', () => {
     input.value = '%Y';
     input.dispatchEvent(new Event('input'));
     await settle(fixture);
-    expect(text(fixture)).not.toContain('IMT checked this format');
+    expect(text(fixture)).not.toContain('Debrief checked this format');
     input.value = '  ';
     input.dispatchEvent(new Event('input'));
     await settle(fixture);
@@ -261,7 +261,7 @@ describe('FormatWizard', () => {
   it('starts on an empty timestamp format when the engine had none to propose', async () => {
     const { fixture } = await mount(tinyBackend(), '/logs/system/export.reg', null);
     expect((el(fixture, '[data-testid=timestamp-format]') as HTMLInputElement).value).toBe('');
-    expect(text(fixture)).not.toContain('IMT checked this format');
+    expect(text(fixture)).not.toContain('Debrief checked this format');
   });
 
   it('does nothing on save without anything to save', async () => {

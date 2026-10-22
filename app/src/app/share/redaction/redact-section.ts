@@ -18,7 +18,7 @@ export interface RedactForm {
   rules: RedactRuleForm[];
 }
 
-/** The engine's defaults (crates/imt-core/src/default_profile.toml `[redact]`). */
+/** The engine's defaults (crates/debrief-core/src/default_profile.toml `[redact]`). */
 export const DEFAULT_DETECTORS: readonly RedactDetector[] = ['bearer-token', 'jwt', 'api-key', 'connection-string', 'password', 'user-path', 'email', 'credit-card', 'ipv4', 'ipv6'];
 export const DEFAULT_FIELDS: readonly string[] = ['@message', '@exception'];
 

@@ -1,6 +1,6 @@
 /**
  * Wire contract of the Settings screen (camelCase JSON), mirroring the Rust DTOs in
- * `crates/imt-core/src/settings.rs` (schema) and `app/src-tauri/src/settings.rs` (commands).
+ * `crates/debrief-core/src/settings.rs` (schema) and `app/src-tauri/src/settings.rs` (commands).
  * Commands: `settings_sections`, `set_settings`, `reset_settings`, `export_settings`, `import_settings`.
  */
 
@@ -31,7 +31,7 @@ export interface SettingField {
   description: string;
   kind: FieldKind;
   default: SettingValue;
-  /** The change takes effect after IMT restarts. */
+  /** The change takes effect after Debrief restarts. */
   restartRequired: boolean;
   /** Hidden unless "Show advanced" is on. */
   advanced: boolean;

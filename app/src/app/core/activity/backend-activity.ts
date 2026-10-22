@@ -119,7 +119,7 @@ export function backendCallSettled(op: Operation | null, error?: unknown): void 
 }
 
 /** Marks a proxy made by `withFailureLogging`, so the coverage guard can check every backend is behind one. */
-export const ACTIVITY_TRACKED = Symbol.for('imt.activity.tracked');
+export const ACTIVITY_TRACKED = Symbol.for('debrief.activity.tracked');
 
 /** True when `backend` is behind the shared proxy (every call is attributed). */
 export function isActivityTracked(backend: unknown): boolean {

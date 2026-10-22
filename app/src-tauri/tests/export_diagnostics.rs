@@ -1,19 +1,19 @@
-//! `imt-app --export-diagnostics` end to end: the real binary, IMT's folders under `IMT_DATA_DIR` (debug
+//! `debrief-app --export-diagnostics` end to end: the real binary, Debrief's folders under `DEBRIEF_DATA_DIR` (debug
 //! builds), no window. Checks the exit codes, the printed path and the zip.
 
 use std::path::{Path, PathBuf};
 
 fn temp(tag: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("imt-export-cli-{tag}-{}", std::process::id()));
+    let d = std::env::temp_dir().join(format!("debrief-export-cli-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&d);
     std::fs::create_dir_all(&d).unwrap();
     d
 }
 
 fn run(root: &Path, args: &[&str]) -> std::process::Output {
-    imt_core::process::quiet_command(env!("CARGO_BIN_EXE_imt-app"))
+    debrief_core::process::quiet_command(env!("CARGO_BIN_EXE_debrief-app"))
         .args(args)
-        .env("IMT_DATA_DIR", root)
+        .env("DEBRIEF_DATA_DIR", root)
         .current_dir(root)
         .output()
         .unwrap()
@@ -22,7 +22,7 @@ fn run(root: &Path, args: &[&str]) -> std::process::Output {
 #[test]
 fn the_cli_exports_a_report_without_a_window() {
     if !cfg!(debug_assertions) {
-        // Release builds ignore IMT_DATA_DIR by design.
+        // Release builds ignore DEBRIEF_DATA_DIR by design.
         return;
     }
     let root = temp("e2e");
@@ -30,8 +30,8 @@ fn the_cli_exports_a_report_without_a_window() {
     std::fs::create_dir_all(logs.join("children")).unwrap();
     std::fs::create_dir_all(root.join("config")).unwrap();
     std::fs::write(
-        logs.join("imt.2026-10-14.log"),
-        "{\"@t\":\"2026-10-14T13:00:05Z\",\"SourceContext\":\"IMT.Activity\",\"Operation\":\"file.open\",\"Trigger\":\"menu\",\"Window\":\"main\"}\n",
+        logs.join("debrief.2026-10-14.log"),
+        "{\"@t\":\"2026-10-14T13:00:05Z\",\"SourceContext\":\"Debrief.Activity\",\"Operation\":\"file.open\",\"Trigger\":\"menu\",\"Window\":\"main\"}\n",
     )
     .unwrap();
     std::fs::write(

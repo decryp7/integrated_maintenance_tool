@@ -1,8 +1,8 @@
 //! "AI is browsing" (ADR 0013, amended by ADR 0043). While a chat's agent mode or a research job drives a window's
-//! browser, IMT's status chip says so (with Stop); nothing is ever put into the page. It clears when the AI lets go: Stop, the turn or research ends (finished, cancelled or failed),
-//! agent mode is turned off, the chat is deleted, or the page or its IMT window closes.
+//! browser, Debrief's status chip says so (with Stop); nothing is ever put into the page. It clears when the AI lets go: Stop, the turn or research ends (finished, cancelled or failed),
+//! agent mode is turned off, the chat is deleted, or the page or its Debrief window closes.
 //!
-//! Who drives is the hub's state ([`BrowserHub::ai_driver`]); [`refresh`] announces a change to the IMT window (`imt://browser` `driving` event); `browser_driving` answers the current driver.
+//! Who drives is the hub's state ([`BrowserHub::ai_driver`]); [`refresh`] announces a change to the Debrief window (`debrief://browser` `driving` event); `browser_driving` answers the current driver.
 
 use super::hub::{AiDriver, BrowserHub};
 use super::{BrowserEvent, BrowserState};

@@ -4,7 +4,7 @@ let nextId = 0;
 
 /** A small "?" button that toggles a one- or two-sentence explanation next to a setting or section. */
 @Component({
-  selector: 'imt-help',
+  selector: 'debrief-help',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <button
@@ -34,5 +34,5 @@ export class HelpHint {
   readonly text = input.required<string>();
   protected readonly helpLabel = computed(() => $localize`:@@ui.help.ariaLabel:Help: ${this.label()}:label:`);
   protected readonly open = signal(false);
-  protected readonly id = `imt-help-${nextId++}`;
+  protected readonly id = `debrief-help-${nextId++}`;
 }

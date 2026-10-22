@@ -23,7 +23,7 @@ describe('PluginsView', () => {
     expect(text(fixture)).toContain('About plugins');
     // Third-party packages have their own section.
     expect(text(fixture)).toContain('Installed from packages');
-    expect(all(fixture, 'imt-installed-packages .package strong').map((e) => e.textContent)).toEqual(['SAP log importer']);
+    expect(all(fixture, 'debrief-installed-packages .package strong').map((e) => e.textContent)).toEqual(['SAP log importer']);
   });
 
   it('has Installed and Health tabs in one view (I4), opened on a chosen one and moved with the arrow keys', async () => {
@@ -33,11 +33,11 @@ describe('PluginsView', () => {
     const tabs = () => all<HTMLButtonElement>(fixture, '[role=tab]');
     expect(tabs().map((t) => t.textContent?.trim())).toEqual(['Installed', 'Health']);
     expect(tabs()[0]?.getAttribute('aria-selected')).toBe('true');
-    expect(fixture.nativeElement.querySelector('imt-plugin-health-view')).toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-plugin-health-view')).toBeNull();
     tabs()[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
     await settle(fixture);
     expect(TestBed.inject(PluginsTabs).tab()).toBe('health');
-    expect(fixture.nativeElement.querySelector('imt-plugin-health-view')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-plugin-health-view')).not.toBeNull();
     expect(fixture.debugElement.query((d) => d.componentInstance instanceof PluginHealthView)).not.toBeNull();
     tabs()[1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true }));
     tabs()[1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));

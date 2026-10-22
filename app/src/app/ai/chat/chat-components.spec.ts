@@ -19,7 +19,7 @@ function configure(ctx = new FakeContext(), backend = new MockAiBackend({ stepMs
 
 @Component({
   imports: [AiRichText],
-  template: `<imt-ai-rich-text [text]="text()" [citations]="cites()" (record)="got.push(['record', $event])" (query)="got.push(['query', $event])" (link)="got.push(['link', $event])" />`,
+  template: `<debrief-ai-rich-text [text]="text()" [citations]="cites()" (record)="got.push(['record', $event])" (query)="got.push(['query', $event])" (link)="got.push(['link', $event])" />`,
 })
 class RichHost {
   readonly text = signal('');

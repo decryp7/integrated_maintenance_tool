@@ -28,9 +28,9 @@ propose and correct; the engine should decide.
 
 ### A self-correcting loop
 
-`Assistant::generate_parser` (`imt-ai`, `assistant/parser.rs`) runs up to **5 rounds**:
+`Assistant::generate_parser` (`debrief-ai`, `assistant/parser.rs`) runs up to **5 rounds**:
 
-1. The engine cuts two samples from the file (`imt_core::parser::verify::sample`):
+1. The engine cuts two samples from the file (`debrief_core::parser::verify::sample`):
    - the **model sample**: the start (30 lines), the middle and the end (10 each) and up to 12 lines of other shapes
      with the line before each (continuations, stack traces, another layout), at most 6000 characters. This is all
      the model ever sees of the file;
@@ -56,7 +56,7 @@ reason. The model never decides anything on its own.
 
 ### Verification in the engine
 
-`imt_core::parser::verify` (pure; the store's `preview_parse` reads the sample) returns a `ParserVerdict`:
+`debrief_core::parser::verify` (pure; the store's `preview_parse` reads the sample) returns a `ParserVerdict`:
 score, lines, readable lines, events with a timestamp and a level, failing lines, the timestamp check, the zone,
 the identity and metric checks. A line fails when no pattern reads it, when it looks like the start of an event
 (the same shape as most event lines) but was joined to the event above, when its event has no timestamp, or no
@@ -64,7 +64,7 @@ level when the format reads levels.
 
 ### Timestamps first
 
-The timestamp parser (`imt_plugin_api::time`) reads, in addition to what it read before: Japanese dates
+The timestamp parser (`debrief_plugin_api::time`) reads, in addition to what it read before: Japanese dates
 (`2026年10月14日 10時00分03秒`, with 午前/午後), and by name in `timestamp_formats` C `asctime`, epoch seconds,
 milliseconds, microseconds and nanoseconds, .NET ticks, Windows FILETIME, and `uptime` (seconds since boot,
 `[   12.345]`) counted from `[format] boot_time`, which the engine sets to the file's modification time minus the

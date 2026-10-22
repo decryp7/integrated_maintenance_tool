@@ -11,7 +11,7 @@ import { PluginPackagesStore } from './plugin-packages.store';
  * is refused by the shell. Closes itself when the review ends (installed or cancelled).
  */
 @Component({
-  selector: 'imt-package-review-dialog',
+  selector: 'debrief-package-review-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ToolError],
   template: `
@@ -63,7 +63,7 @@ import { PluginPackagesStore } from './plugin-packages.store';
           <p class="faint note" i18n="@@pluginsPanel.packages.review.permissionsNote">Unchecked permissions are not granted; you can change them later in the Plugins panel.</p>
         }
       </fieldset>
-      <imt-tool-error [message]="store.error()" (dismissed)="store.dismissError()" />
+      <debrief-tool-error [message]="store.error()" (dismissed)="store.dismissError()" />
       <div class="foot">
         <button type="button" class="btn ghost" (click)="ref.close()" i18n="@@pluginsPanel.packages.review.cancel">Cancel</button>
         <button type="button" class="btn primary" [disabled]="!store.canInstall()" (click)="store.install()">{{ store.busy() ?? installLabel() }}</button>

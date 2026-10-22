@@ -27,7 +27,7 @@ version = "1.0.0"                # semver: decides "Update" on import
 description = "..."
 category = ".NET"                # grouping in Settings ▸ Parsers
 
-[match]                          # how IMT detects files in this format (all optional)
+[match]                          # how Debrief detects files in this format (all optional)
 files = ["*.csv", "*.log"]       # globs on the file name or the path relative to the opened folder
 sniff = '^\d{4}/\d{2}/\d{2},'    # regex that some of the first `lines` non-empty lines must match
 lines = 20                       # 1..=200
@@ -45,13 +45,13 @@ identity = ["Process"]           # fields naming who wrote an event: join the in
 ```
 
 The types are the profile's former ones (`ParseCfg` became `FormatCfg`, `JsonCfg`, `CsvCfg`, `DayFirst`), moved to
-`imt_core::parser`. Parsing a parser file is the edge: unknown keys are refused, errors carry line and column,
+`debrief_core::parser`. Parsing a parser file is the edge: unknown keys are refused, errors carry line and column,
 files over 256 KiB, more than 64 text formats and regexes over the `user_regex` limits are refused. Nothing in a
 parser is executed except the regexes and pipeline steps the profile could already hold.
 
 ### 2. The library
 
-- **Built-in parsers** ship in the engine (`crates/imt-core/parsers/*.toml`): `generic` (the formats IMT
+- **Built-in parsers** ship in the engine (`crates/debrief-core/parsers/*.toml`): `generic` (the formats Debrief
   understood out of the box, kind `auto`, the fallback; it also reads CSV with a header and plain timestamped
   text, so those two templates have no parser of their own), the former profile templates as parsers (Serilog
   CLEF/JSON/text, log4net pattern, NLog, MEL console, Apache error, logcat, Hadoop/Spark) and `log4net-csv`
@@ -68,7 +68,7 @@ parser is executed except the regexes and pipeline steps the profile could alrea
 
 ### 3. Matching per file
 
-For every file, IMT scores each **enabled** parser on the file's path and first lines:
+For every file, Debrief scores each **enabled** parser on the file's path and first lines:
 
 - `files` globs, when given, must match (+20);
 - each content rule given must hold: `sniff` (+40 scaled by the share of the first `lines` it matches),
@@ -122,7 +122,7 @@ fields went into the parsers, and their few charts were dropped (they are one li
 
 Export writes the parser file as stored: self-contained, with its `schema` line. Import reads the file through
 the path grants, validates it in Rust (typed errors with line/column, unknown schema versions refused with "this
-parser was written for parser schema N; this IMT reads schema 1 — update IMT"), and compares it with the
+parser was written for parser schema N; this Debrief reads schema 1 — update Debrief"), and compares it with the
 library: **new**, **newer** (Update: the versions' TOML diff is shown and confirmed), **same** version or
 **older** (replacing needs confirmation).
 
@@ -132,6 +132,6 @@ library: **new**, **newer** (Update: the versions' TOML diff is shown and confir
   current window each one read; adds parsers (format wizard, from a file, import), edits them in a TOML editor
   with Rust validation and a live preview against a chosen file, duplicates, removes, exports and updates them.
 - Every profile change no longer touches formats, and a parser change re-reads only the sources that parser read.
-- `default_profile.toml` no longer documents formats; the built-in `crates/imt-core/parsers/generic.toml`
+- `default_profile.toml` no longer documents formats; the built-in `crates/debrief-core/parsers/generic.toml`
   documents the parser schema (as `default_profile.toml` documents the profile's).
 - Store format: unchanged (the parser columns came with ADR 0014 6c); overrides live in the store's `meta`.

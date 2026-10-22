@@ -252,7 +252,7 @@ describe('open for live tail', () => {
 });
 
 describe('provideLive', () => {
-  afterEach(() => document.querySelectorAll('imt-alert-toasts').forEach((e) => e.remove()));
+  afterEach(() => document.querySelectorAll('debrief-alert-toasts').forEach((e) => e.remove()));
 
   it('registers the views, commands and saved state, mounts the toasts and keeps the alerts tab count', async () => {
     const backend = new MockBackend({ latency: false, dataset: tinyDataset, liveMs: 100_000 });
@@ -262,7 +262,7 @@ describe('provideLive', () => {
     const { dock, live } = setup(backend, [provideLive()]);
     TestBed.inject(CommandRegistry);
     await settle();
-    expect(document.querySelector('imt-alert-toasts')).not.toBeNull();
+    expect(document.querySelector('debrief-alert-toasts')).not.toBeNull();
     expect(sub).toHaveBeenCalled();
     expect(LIVE_VIEWS.map((v) => v.id)).toEqual([ALERTS_VIEW, TAIL_STATUS_VIEW]);
     for (const v of LIVE_VIEWS) expect(await v.component()).toBeTruthy();

@@ -8,9 +8,9 @@ const groups = (page: Page) => page.locator('.dv-groupview');
 /** The group (tabs and its header actions) that holds the panel with this tab name. */
 const groupOf = (page: Page, name: string) => groups(page).filter({ has: tab(page, name) });
 /** The side-bar tab of the auto-hidden inspector (the default). */
-const inspectorAhTab = (page: Page) => page.locator('.imt-ah-tab[data-ah-id="inspector"]');
+const inspectorAhTab = (page: Page) => page.locator('.debrief-ah-tab[data-ah-id="inspector"]');
 const layout = (page: Page) =>
-  page.evaluate(() => JSON.parse(localStorage.getItem('imt.layout') ?? 'null') as { version: number; layout: { panels: Record<string, unknown>; floatingGroups?: unknown[] }; extras?: unknown } | null);
+  page.evaluate(() => JSON.parse(localStorage.getItem('debrief.layout') ?? 'null') as { version: number; layout: { panels: Record<string, unknown>; floatingGroups?: unknown[] }; extras?: unknown } | null);
 
 async function box(page: Page, selector: string) {
   const b = await page.locator(selector).first().boundingBox();
@@ -25,8 +25,8 @@ test.describe('dock layout', () => {
   });
 
   test('default arrangement: timeline and registry over the events, the inspector auto-hidden on the right; it slides out on selection and pins', async ({ page }) => {
-    const timeline = await box(page, 'imt-timeline-panel');
-    const events = await box(page, 'imt-events-grid');
+    const timeline = await box(page, 'debrief-timeline-panel');
+    const events = await box(page, 'debrief-events-grid');
     expect(timeline.y + timeline.height).toBeLessThanOrEqual(events.y + 1);
     await expect(groups(page)).toHaveCount(3);
     for (const name of ['Timeline', 'Registry']) await expect(tab(page, name)).toBeVisible();
@@ -34,19 +34,19 @@ test.describe('dock layout', () => {
     for (const name of ['Metrics', 'Profile']) await expect(tab(page, name)).toHaveCount(0);
     await expect(tab(page, 'Timeline')).toHaveAttribute('aria-selected', 'true');
     await expect(inspectorAhTab(page)).toBeVisible();
-    await expect(page.locator('imt-inspector')).toHaveCount(0);
+    await expect(page.locator('debrief-inspector')).toHaveCount(0);
 
     // Selecting an event slides the inspector out over the right edge.
-    const rows = page.locator('imt-events-grid [role=row].row');
+    const rows = page.locator('debrief-events-grid [role=row].row');
     await rows.first().click();
-    const flyout = page.locator('#imt-ah-flyout');
-    await expect(flyout.locator('imt-inspector')).toBeVisible();
-    const slid = await box(page, '#imt-ah-flyout');
+    const flyout = page.locator('#debrief-ah-flyout');
+    await expect(flyout.locator('debrief-inspector')).toBeVisible();
+    const slid = await box(page, '#debrief-ah-flyout');
     expect(slid.width).toBeGreaterThan(300);
     expect(slid.x + slid.width).toBeGreaterThanOrEqual(events.x + events.width - 2);
     // Selecting another event keeps it open.
     await rows.nth(1).click();
-    await expect(flyout.locator('imt-inspector')).toBeVisible();
+    await expect(flyout.locator('debrief-inspector')).toBeVisible();
 
     // Pinning docks it as a tool window on the right, and that choice is kept in the layout.
     await flyout.getByRole('button', { name: 'Pin Inspector' }).click();
@@ -54,8 +54,8 @@ test.describe('dock layout', () => {
     await expect(groups(page)).toHaveCount(4);
     await expect
       .poll(async () => {
-        const inspector = await box(page, 'imt-inspector');
-        const grid = await box(page, 'imt-events-grid');
+        const inspector = await box(page, 'debrief-inspector');
+        const grid = await box(page, 'debrief-events-grid');
         return inspector.x - (grid.x + grid.width);
       })
       .toBeGreaterThanOrEqual(-2);
@@ -68,7 +68,7 @@ test.describe('dock layout', () => {
     await expect(groups(page)).toHaveCount(3);
     const source = tab(page, 'Metrics');
     // The right cell of the VS-style compass in the middle of the events group (see dock-geometry `compassCells`).
-    const c = (await page.locator('.dv-groupview:has(imt-events-grid) .dv-content-container').boundingBox())!;
+    const c = (await page.locator('.dv-groupview:has(debrief-events-grid) .dv-content-container').boundingBox())!;
     const right = { x: c.x + c.width / 2 + 36, y: c.y + c.height / 2 };
     const s = (await source.boundingBox())!;
     await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2);
@@ -79,8 +79,8 @@ test.describe('dock layout', () => {
     await page.mouse.up();
     await expect(groups(page)).toHaveCount(4);
     // Metrics now sits in its own group, to the right of the events grid.
-    const metrics = await box(page, 'imt-metrics-view');
-    const events = await box(page, 'imt-events-grid');
+    const metrics = await box(page, 'debrief-metrics-view');
+    const events = await box(page, 'debrief-events-grid');
     expect(metrics.x).toBeGreaterThanOrEqual(events.x + events.width - 2);
     await expect(tab(page, 'Metrics')).toHaveAttribute('aria-selected', 'true');
   });
@@ -109,7 +109,7 @@ test.describe('dock layout', () => {
   test('a group can be maximized and restored', async ({ page }) => {
     await groupOf(page, 'Events').getByRole('button', { name: 'Maximize panel' }).click();
     await expect(page.getByRole('button', { name: 'Restore panel size' })).toBeVisible();
-    const grid = await box(page, 'imt-events-grid');
+    const grid = await box(page, 'debrief-events-grid');
     expect(grid.width).toBeGreaterThan(1000);
     await page.getByRole('button', { name: 'Restore panel size' }).click();
     await expect(page.getByRole('button', { name: 'Restore panel size' })).toHaveCount(0);
@@ -147,14 +147,14 @@ test.describe('dock layout', () => {
     await expect(tab(page, 'Registry')).toBeVisible();
     await expect(tab(page, 'Metrics')).toHaveCount(0);
     // The pinned (docked) inspector is remembered.
-    await expect(page.locator('imt-inspector')).toBeVisible();
+    await expect(page.locator('debrief-inspector')).toBeVisible();
     await expect(inspectorAhTab(page)).toHaveCount(0);
 
     // Seed before the app starts so a pending save of the running page cannot overwrite it.
-    await page.addInitScript(() => localStorage.setItem('imt.layout', JSON.stringify({ version: 999, layout: {} })));
+    await page.addInitScript(() => localStorage.setItem('debrief.layout', JSON.stringify({ version: 999, layout: {} })));
     await page.reload();
     await expect(inspectorAhTab(page)).toBeVisible();
-    await expect(page.locator('imt-inspector')).toHaveCount(0);
+    await expect(page.locator('debrief-inspector')).toHaveCount(0);
   });
 
   test('tabs are keyboard accessible', async ({ page }) => {

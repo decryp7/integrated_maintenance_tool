@@ -27,7 +27,7 @@ export function waterfallTotal(rows: readonly WaterfallRow[]): number {
 
 /** Traces (spans with a waterfall) and requests (events sharing a request id). */
 @Component({
-  selector: 'imt-traces-view',
+  selector: 'debrief-traces-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, CoverageNote],
   template: `
@@ -47,8 +47,8 @@ export function waterfallTotal(rows: readonly WaterfallRow[]): number {
     </div>
 
     @if (mode() === 'traces') {
-      <imt-coverage-note [coverage]="traces.data()?.coverage ?? null" />
-      <imt-analysis-state [loading]="traces.loading()" [error]="traces.error()" [hasData]="!!traces.data()" [empty]="traces.data()?.traces?.length === 0" emptyText="No traces: no events carry trace and span ids." i18n-emptyText="@@analysis.traces.no.emptyText" emptyHint="Traces need events with trace and span id fields (such as TraceId and SpanId). If your logs name them differently, rename the fields in the profile." i18n-emptyHint="@@analysis.traces.no.emptyHint" suggest (retry)="traces.retry()">
+      <debrief-coverage-note [coverage]="traces.data()?.coverage ?? null" />
+      <debrief-analysis-state [loading]="traces.loading()" [error]="traces.error()" [hasData]="!!traces.data()" [empty]="traces.data()?.traces?.length === 0" emptyText="No traces: no events carry trace and span ids." i18n-emptyText="@@analysis.traces.no.emptyText" emptyHint="Traces need events with trace and span id fields (such as TraceId and SpanId). If your logs name them differently, rename the fields in the profile." i18n-emptyHint="@@analysis.traces.no.emptyHint" suggest (retry)="traces.retry()">
         <div class="split">
           <ul class="list tlist" aria-label="Traces" i18n-aria-label="@@analysis.traces.listLabel">
             @for (t of traces.data()?.traces ?? []; track t.traceId) {
@@ -67,7 +67,7 @@ export function waterfallTotal(rows: readonly WaterfallRow[]): number {
             @if (!selected()) {
               <p class="muted pad" i18n="@@analysis.traces.select">Select a trace to see its waterfall.</p>
             } @else {
-              <imt-analysis-state [loading]="waterfall.loading()" [error]="waterfall.error()" [hasData]="!!waterfall.data()" [empty]="!rows().length" emptyText="This trace has no spans." i18n-emptyText="@@analysis.traces.noSpans" (retry)="waterfall.retry()">
+              <debrief-analysis-state [loading]="waterfall.loading()" [error]="waterfall.error()" [hasData]="!!waterfall.data()" [empty]="!rows().length" emptyText="This trace has no spans." i18n-emptyText="@@analysis.traces.noSpans" (retry)="waterfall.retry()">
                 <p class="muted pad" i18n="@@analysis.traces.total">Total {{ duration(total()) }}</p>
                 <ul class="list">
                   @for (r of rows(); track r.spanId) {
@@ -80,14 +80,14 @@ export function waterfallTotal(rows: readonly WaterfallRow[]): number {
                     </li>
                   }
                 </ul>
-              </imt-analysis-state>
+              </debrief-analysis-state>
             }
           </div>
         </div>
-      </imt-analysis-state>
+      </debrief-analysis-state>
     } @else {
-      <imt-coverage-note [coverage]="requests.coverage()" />
-      <imt-analysis-state [loading]="requests.loading()" [error]="requests.error()" [hasData]="!!requests.result()" [empty]="requests.result()?.length === 0" emptyText="No requests found for these id fields." i18n-emptyText="@@analysis.traces.noRequests" (retry)="requests.retry()">
+      <debrief-coverage-note [coverage]="requests.coverage()" />
+      <debrief-analysis-state [loading]="requests.loading()" [error]="requests.error()" [hasData]="!!requests.result()" [empty]="requests.result()?.length === 0" emptyText="No requests found for these id fields." i18n-emptyText="@@analysis.traces.noRequests" (retry)="requests.retry()">
         <div class="body" tabindex="0" role="region" aria-label="Requests" i18n-aria-label="@@analysis.traces.requests">
           <ul class="list">
             @for (r of requests.result() ?? []; track r.id) {
@@ -104,7 +104,7 @@ export function waterfallTotal(rows: readonly WaterfallRow[]): number {
             }
           </ul>
         </div>
-      </imt-analysis-state>
+      </debrief-analysis-state>
     }
   `,
   styles: [

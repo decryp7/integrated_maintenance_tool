@@ -32,7 +32,7 @@ describe('Close prompt', () => {
     const fixture = await dialogHost();
     const ref = TestBed.inject(ClosePromptService).open();
     await settle(fixture);
-    expect(el(fixture, '.dialog h2').textContent).toBe('Close IMT?');
+    expect(el(fixture, '.dialog h2').textContent).toBe('Close Debrief?');
     expect(text(fixture)).toContain('keeps running in the tray');
     expect(el<HTMLInputElement>(fixture, 'input[type=checkbox]').checked).toBe(true);
     buttonByText(fixture, 'Keep running in tray').click();

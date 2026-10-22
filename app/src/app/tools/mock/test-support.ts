@@ -1,6 +1,6 @@
 import { EnvironmentProviders, Provider } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import {
   CollectBackend,
   EventLogBackend,
@@ -39,8 +39,8 @@ export class MemoryRecentProjects implements RecentProjects {
 
 /** A picker whose answers the test sets. */
 export class FakePicker {
-  open: string | null = '/p/a.imtz';
-  save: string | null = '/p/saved.imtz';
+  open: string | null = '/p/a.debriefz';
+  save: string | null = '/p/saved.debriefz';
   saveNames: string[] = [];
   pickOpen = async () => this.open;
   pickSave = async (name: string) => {
@@ -55,12 +55,12 @@ export function provideToolsTesting(
   packages: Partial<MockPluginPackagesOptions> = {},
 ): (Provider | EnvironmentProviders)[] {
   const tools = () => {
-    const imt = inject(ImtBackend);
+    const debrief = inject(DebriefBackend);
     return new MockToolsBackend(
       { ...MOCK_DEFAULTS, ...options },
-      () => imt.workspaceSummary(),
-      hasSkew(imt)
-        ? (source, offsetMs) => imt.setSourceOffset({ kind: 'manual', source, offsetMs })
+      () => debrief.workspaceSummary(),
+      hasSkew(debrief)
+        ? (source, offsetMs) => debrief.setSourceOffset({ kind: 'manual', source, offsetMs })
         : undefined,
     );
   };

@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, settle, text } from '../../testing/helpers';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { WorkspaceStore } from '../core/workspace.store';
 import { ProjectBackend } from '../core/tools-backend';
 import { CommandRegistry } from '../extensions/command-registry';
-import { IMT_COMMANDS } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS } from '../extensions/tokens';
 import { CoreUiState } from '../lifecycle/core-ui-state';
 import { UI_STATE_CONTRIBUTIONS, UiStateRegistry } from '../lifecycle/ui-state';
 import { mockTools, FakePicker, MemoryRecentProjects, provideToolsTesting } from '../tools/mock/test-support';
@@ -28,7 +28,7 @@ async function setup() {
       { provide: DIALOG_REF, useValue: { close: () => undefined, closed: Promise.resolve(undefined) } },
       { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => TestBed.inject(CoreUiState).contributions },
       { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => TestBed.inject(ProjectUiState).contributions },
-      { provide: IMT_COMMANDS, multi: true, useFactory: () => [...TestBed.inject(ProjectCommands).commands, ...TestBed.inject(SavedQueryCommands).commands] },
+      { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => [...TestBed.inject(ProjectCommands).commands, ...TestBed.inject(SavedQueryCommands).commands] },
     ],
   });
   const projects = TestBed.inject(ProjectService);
@@ -46,13 +46,13 @@ async function setup() {
 
 describe('project helpers', () => {
   it('recognises project files and names them', () => {
-    expect(isProjectPath('C:\\x\\A.IMTPROJ')).toBe(true);
+    expect(isProjectPath('C:\\x\\A.DEBRIEFPROJ')).toBe(true);
     expect(isProjectPath('/x/a.zip')).toBe(false);
-    expect(isProjectPath('/x/Case.IMTZ')).toBe(true);
-    expect(isProjectPath('/x/folder.imt')).toBe(true);
-    expect(projectNameFor('/x/Case 7.imtz')).toBe('Case 7');
-    expect(projectNameFor('/x/folder.imt')).toBe('folder');
-    expect(projectNameFor('/x/Incident 42.imtproj')).toBe('Incident 42');
+    expect(isProjectPath('/x/Case.DEBRIEFZ')).toBe(true);
+    expect(isProjectPath('/x/folder.debrief')).toBe(true);
+    expect(projectNameFor('/x/Case 7.debriefz')).toBe('Case 7');
+    expect(projectNameFor('/x/folder.debrief')).toBe('folder');
+    expect(projectNameFor('/x/Incident 42.debriefproj')).toBe('Incident 42');
     expect(projectNameFor('')).toBe('Untitled');
   });
 });
@@ -63,9 +63,9 @@ describe('ProjectService', () => {
     expect(projects.dirty()).toBe(false);
     store.patchQuery({ text: 'x' }); store.setTextInput('x');
     expect(projects.dirty()).toBe(true);
-    expect(projects.title()).toBe('● Untitled — IMT');
+    expect(projects.title()).toBe('● Untitled — Debrief');
     await settle();
-    expect(document.title).toBe('● Untitled — IMT');
+    expect(document.title).toBe('● Untitled — Debrief');
   });
 
   it('shows no unsaved dot when an untitled project has nothing open, e.g. after Close workspace (E2)', async () => {
@@ -75,9 +75,9 @@ describe('ProjectService', () => {
     await store.clearWorkspace();
     expect(store.summary()?.sources).toEqual([]);
     expect(projects.dirty()).toBe(false);
-    expect(projects.title()).toBe('Untitled — IMT');
+    expect(projects.title()).toBe('Untitled — Debrief');
     // A saved project that was emptied still has unsaved changes.
-    picker.save = '/p/empty.imtz';
+    picker.save = '/p/empty.debriefz';
     await store.openPaths(['/demo/extra']);
     await projects.saveAs();
     await store.clearWorkspace();
@@ -110,18 +110,18 @@ describe('ProjectService', () => {
     const { projects, tools, picker, recent, store } = await setup();
     store.patchQuery({ text: 'abc' }); store.setTextInput('abc');
     expect(await projects.save()).toBe(true);
-    expect(picker.saveNames).toEqual(['Untitled.imtz']);
-    expect(projects.path()).toBe('/p/saved.imtz');
+    expect(picker.saveNames).toEqual(['Untitled.debriefz']);
+    expect(projects.path()).toBe('/p/saved.debriefz');
     expect(projects.name()).toBe('saved');
     expect(projects.dirty()).toBe(false);
-    expect(tools.calls).toContain('saveProject:/p/saved.imtz');
+    expect(tools.calls).toContain('saveProject:/p/saved.debriefz');
     expect(store.notice()).toBe('Saved saved');
-    expect(recent.items).toEqual([{ path: '/p/saved.imtz', name: 'saved', openedAt: expect.any(Number) }]);
+    expect(recent.items).toEqual([{ path: '/p/saved.debriefz', name: 'saved', openedAt: expect.any(Number) }]);
     expect(projects.recent()).toEqual(recent.items);
     tools.calls.length = 0;
     expect(await projects.save()).toBe(true);
     expect(picker.saveNames).toHaveLength(1);
-    expect(tools.calls).toEqual(['saveProject:/p/saved.imtz']);
+    expect(tools.calls).toEqual(['saveProject:/p/saved.debriefz']);
   });
 
   it('an edit made while the save is in flight stays unsaved (the baseline is what was written)', async () => {
@@ -163,14 +163,14 @@ describe('ProjectService', () => {
     await settle();
     at(dialogs.stack(), 0).ref.close(true);
     expect(await saving).toBe(true);
-    expect(tools.calls).toEqual(['saveProject:/p/saved.imtz']);
+    expect(tools.calls).toEqual(['saveProject:/p/saved.debriefz']);
   });
 
   it('keeps everything when the save dialog is cancelled or saving fails', async () => {
     const { projects, picker, tools, store } = await setup();
     picker.save = null;
     expect(await projects.saveAs()).toBe(false);
-    picker.save = '/p/x.imtz';
+    picker.save = '/p/x.debriefz';
     vi.spyOn(tools, 'saveProject').mockRejectedValue('locked');
     expect(await projects.save()).toBe(false);
     expect(store.error()).toBe('Could not save the project: locked');
@@ -187,7 +187,7 @@ describe('ProjectService', () => {
     store.clearQuery();
     TestBed.inject(SavedQueryStore).replace([]);
     expect(projects.dirty()).toBe(true);
-    picker.open = '/p/saved.imtz';
+    picker.open = '/p/saved.debriefz';
     await projects.openFromDialog();
     expect(store.query()).toMatchObject({ text: 'needle', levels: ['Error'] });
     expect(TestBed.inject(SavedQueryStore).items()).toHaveLength(1);
@@ -201,41 +201,41 @@ describe('ProjectService', () => {
     picker.open = null;
     await projects.openFromDialog();
     expect(projects.path()).toBeNull();
-    expect(await projects.open('/nope.imtz')).toBe(false);
+    expect(await projects.open('/nope.debriefz')).toBe(false);
     expect(store.error()).toContain('Could not open the project');
   });
 
   it('shows missing paths after opening and can dismiss them', async () => {
     const { projects, tools, store } = await setup();
-    await tools.saveProject('/p/missing.imtz', 'M', {});
-    expect(await projects.open('/p/missing.imtz')).toBe(true);
+    await tools.saveProject('/p/missing.debriefz', 'M', {});
+    expect(await projects.open('/p/missing.debriefz')).toBe(true);
     expect(projects.missing()).toEqual(['/demo/gone/app.log']);
     expect(store.notice()).toBe('1 path of this project could not be found');
     projects.dismissMissing();
     expect(projects.missing()).toEqual([]);
-    vi.spyOn(tools, 'openProject').mockResolvedValue({ ...(await tools.openProject('/p/missing.imtz')), missing: ['/a', '/b'] });
-    await projects.open('/p/missing.imtz');
+    vi.spyOn(tools, 'openProject').mockResolvedValue({ ...(await tools.openProject('/p/missing.debriefz')), missing: ['/a', '/b'] });
+    await projects.open('/p/missing.debriefz');
     expect(store.notice()).toBe('2 paths of this project could not be found');
   });
 
   it('opens a read-only project as unsaved: Save asks for a new file', async () => {
     const { projects, tools } = await setup();
-    await tools.saveProject('/p/shared.imtz', 'Shared', {});
-    vi.spyOn(tools, 'openProject').mockResolvedValue({ ...(await tools.openProject('/p/shared.imtz')), readOnly: true });
-    expect(await projects.open('/p/shared.imtz')).toBe(true);
+    await tools.saveProject('/p/shared.debriefz', 'Shared', {});
+    vi.spyOn(tools, 'openProject').mockResolvedValue({ ...(await tools.openProject('/p/shared.debriefz')), readOnly: true });
+    expect(await projects.open('/p/shared.debriefz')).toBe(true);
     expect(projects.path()).toBeNull();
     expect(projects.name()).toBe('Shared');
   });
 
-  it('refuses to save a project anywhere but an .imtz file (the mock, like the engine)', async () => {
+  it('refuses to save a project anywhere but an .debriefz file (the mock, like the engine)', async () => {
     const { tools } = await setup();
-    await expect(tools.saveProject('/p/x.imtproj', 'X', {})).rejects.toThrow(/.imtz/);
+    await expect(tools.saveProject('/p/x.debriefproj', 'X', {})).rejects.toThrow(/.debriefz/);
   });
 
   it('opens the session without making it the current project', async () => {
     const { projects, recent, tools } = await setup();
     await tools.saveSession({ version: 1, query: { query: { text: 'sess' }, textInput: 'sess' } });
-    await projects.open('/x/last-session.imtproj', { session: true });
+    await projects.open('/x/last-session.debriefproj', { session: true });
     expect(TestBed.inject(WorkspaceStore).query().text).toBe('sess');
     expect(projects.path()).toBeNull();
     expect(recent.items).toEqual([]);
@@ -244,7 +244,7 @@ describe('ProjectService', () => {
   it('New closes the workspace and resets name, path and UI state', async () => {
     const { projects, store, picker } = await setup();
     await projects.saveAs();
-    expect(picker.save).toBe('/p/saved.imtz');
+    expect(picker.save).toBe('/p/saved.debriefz');
     store.patchQuery({ text: 'z' }); store.setTextInput('z');
     TestBed.inject(SavedQueryStore).replace([{ id: 'q', name: 'n', query: {} }]);
     await projects.newProject();
@@ -269,11 +269,11 @@ describe('ProjectCommands, SavedQueryCommands and the recent dialog', () => {
   it('runs New / Open / Save / Save As / Recent through the command registry', async () => {
     const { commands, picker, tools, projects } = await setup();
     expect(await commands.run('project.save')).toBe(true);
-    expect(projects.path()).toBe('/p/saved.imtz');
-    picker.save = '/p/other.imtz';
+    expect(projects.path()).toBe('/p/saved.debriefz');
+    picker.save = '/p/other.debriefz';
     await commands.run('project.saveAs');
     expect(projects.name()).toBe('other');
-    picker.open = '/p/saved.imtz';
+    picker.open = '/p/saved.debriefz';
     await commands.run('project.open');
     expect(projects.name()).toBe('saved');
     expect(tools.calls.filter((c) => c.startsWith('saveProject'))).toHaveLength(2);
@@ -364,10 +364,10 @@ describe('UnsavedChangesGuard', () => {
     await answer(dialogs, commands.run('project.new'), 'save');
     expect(store.textInput()).toBe('keep me');
     expect(projects.dirty()).toBe(true);
-    picker.save = '/p/kept.imtz';
-    picker.open = '/p/kept.imtz';
+    picker.save = '/p/kept.debriefz';
+    picker.open = '/p/kept.debriefz';
     await answer(dialogs, commands.run('project.open'), 'save');
-    expect(tools.calls).toContain('saveProject:/p/kept.imtz');
+    expect(tools.calls).toContain('saveProject:/p/kept.debriefz');
     expect(projects.name()).toBe('kept');
     expect(projects.dirty()).toBe(false);
   });
@@ -384,7 +384,7 @@ describe('UnsavedChangesGuard', () => {
     expect(open).not.toHaveBeenCalled();
     at(all<HTMLButtonElement>(f, '.item'), 0).click();
     await answer(dialogs, settle(f), 'discard');
-    await vi.waitFor(() => expect(open).toHaveBeenCalledWith('/p/saved.imtz'));
+    await vi.waitFor(() => expect(open).toHaveBeenCalledWith('/p/saved.debriefz'));
   });
 
   it('the dialog names the project and closes with the chosen answer', async () => {
@@ -408,9 +408,9 @@ describe('OpenRequests', () => {
 
   it('routes projects to open_project and other files to the workspace', async () => {
     const { tools, projects, store } = await setup();
-    await tools.saveProject('/p/a.imtz', 'A', {});
+    await tools.saveProject('/p/a.debriefz', 'A', {});
     const requests = TestBed.inject(OpenRequests);
-    await requests.handle(['/p/a.imtz', '/logs/x.log', '/logs/y.zip']);
+    await requests.handle(['/p/a.debriefz', '/logs/x.log', '/logs/y.zip']);
     expect(projects.name()).toBe('A');
     expect(store.summary()?.sources.map((s) => s.path)).toEqual(expect.arrayContaining(['/logs/x.log', '/logs/y.zip']));
     await requests.handle([]);
@@ -460,7 +460,7 @@ describe('OpenRequests', () => {
 
   it('waits (bounded) for the first workspace load before opening', async () => {
     TestBed.configureTestingModule({ providers: provideToolsTesting() });
-    vi.spyOn(TestBed.inject(ImtBackend), 'workspaceSummary').mockRejectedValue(new Error('engine not ready'));
+    vi.spyOn(TestBed.inject(DebriefBackend), 'workspaceSummary').mockRejectedValue(new Error('engine not ready'));
     const store = TestBed.inject(WorkspaceStore);
     vi.useFakeTimers();
     const requests = TestBed.inject(OpenRequests);

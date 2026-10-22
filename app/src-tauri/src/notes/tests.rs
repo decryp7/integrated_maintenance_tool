@@ -6,8 +6,8 @@ use super::commands::*;
 use crate::test_support::{block, main_window, samples, test_app, TempDir};
 use crate::windows::CurrentWindow;
 use crate::ErrorCode;
-use imt_notes::context::Focus;
-use imt_notes::{Anchor, NoteChange, NoteDraft, Region};
+use debrief_notes::context::Focus;
+use debrief_notes::{Anchor, NoteChange, NoteDraft, Region};
 use serde_json::{json, Value};
 use tauri::test::MockRuntime;
 
@@ -15,7 +15,7 @@ fn draft(v: Value) -> NoteDraft {
     serde_json::from_value(v).unwrap()
 }
 
-fn add(w: CurrentWindow, v: Value) -> crate::CmdResult<imt_notes::Note> {
+fn add(w: CurrentWindow, v: Value) -> crate::CmdResult<debrief_notes::Note> {
     block(notes_add(w, draft(v)))
 }
 
@@ -70,7 +70,7 @@ fn anchors_are_filled_and_checked_by_the_engine() {
     assert_eq!((n.id.as_str(), n.tags[0].as_str()), ("n1", "disk"));
     assert_eq!(n.author, super::author().chars().take(64).collect::<String>());
     // Typed refusals.
-    let code = |r: crate::CmdResult<imt_notes::Note>| r.unwrap_err().code;
+    let code = |r: crate::CmdResult<debrief_notes::Note>| r.unwrap_err().code;
     assert_eq!(
         code(add(
             main_window(&app),
@@ -96,9 +96,9 @@ fn anchors_are_filled_and_checked_by_the_engine() {
         )),
         ErrorCode::Invalid
     );
-    let unopened = json!({"anchor": {"kind": "image", "image": {"key": imt_notes::image_key(b"never"), "name": "x.png", "width": 4, "height": 4}, "regions": [{"x": 0, "y": 0, "w": 1, "h": 1}]}, "text": "x"});
+    let unopened = json!({"anchor": {"kind": "image", "image": {"key": debrief_notes::image_key(b"never"), "name": "x.png", "width": 4, "height": 4}, "regions": [{"x": 0, "y": 0, "w": 1, "h": 1}]}, "text": "x"});
     assert_eq!(code(add(main_window(&app), unopened)), ErrorCode::NotFound);
-    let big = "x".repeat(imt_notes::MAX_TEXT_BYTES + 1);
+    let big = "x".repeat(debrief_notes::MAX_TEXT_BYTES + 1);
     assert_eq!(
         code(add(main_window(&app), json!({"anchor": {"kind": "project"}, "text": big}))),
         ErrorCode::Limit
@@ -162,7 +162,7 @@ fn image_regions_are_checked_against_the_image_and_kept_in_the_project() {
         ErrorCode::NotFound
     );
     // Files that are not images, or not chosen, are refused.
-    let other = std::env::temp_dir().join("imt-notes-not-chosen.png");
+    let other = std::env::temp_dir().join("debrief-notes-not-chosen.png");
     std::fs::write(&other, b"x").unwrap();
     assert!(block(notes_image_open(
         main_window(&app),
@@ -209,7 +209,7 @@ fn anchors_resolve_after_reopening_a_project() {
     add(main_window(&app), json!({"anchor": {"kind": "image", "image": {"key": img.key, "name": "", "width": 1, "height": 1}, "regions": [{"x": 1, "y": 1, "w": 5, "h": 5}]}, "text": "red bar"})).unwrap();
     let record = serde_json::to_value(block(notes_record(main_window(&app))).unwrap()).unwrap();
     assert_eq!(record["version"], 1);
-    let file = dir.0.join("incident.imtz").to_string_lossy().into_owned();
+    let file = dir.0.join("incident.debriefz").to_string_lossy().into_owned();
     block(crate::workspace_commands::save_project(
         app.handle().clone(),
         main_window(&app),
@@ -256,7 +256,7 @@ fn anchors_resolve_after_reopening_a_project() {
 
 #[test]
 fn the_ai_reads_the_notes_as_a_knowledge_file_focused_first() {
-    let mut set = imt_notes::NoteSet::default();
+    let mut set = debrief_notes::NoteSet::default();
     assert!(super::ai_file(&set, &Focus::default()).is_none());
     for (anchor, text) in [(Anchor::Instant { at: 10 }, "early"), (Anchor::Instant { at: 500 }, "focused")] {
         let d = NoteDraft {

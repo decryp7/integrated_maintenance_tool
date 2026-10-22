@@ -1,7 +1,7 @@
-//! Third-party plugins (ADR 0027): installing `.imtplugin` packages the user chose, reviewing and changing their
+//! Third-party plugins (ADR 0027): installing `.debriefplugin` packages the user chose, reviewing and changing their
 //! permissions, turning them on and off, removing them; the "Plugin trust" settings section (developer mode and
-//! trusted publisher keys). The package format, verification and the install folder are `imt-plugin-package` and
-//! `imt_plugin_host::installed`; this module is the edge: it checks the webview's arguments (paths only from
+//! trusted publisher keys). The package format, verification and the install folder are `debrief-plugin-package` and
+//! `debrief_plugin_host::installed`; this module is the edge: it checks the webview's arguments (paths only from
 //! grants), keeps the run's state and converts errors.
 //!
 //! Wire contract: `app/src/app/core/generated/plugins.ts` (re-exported by `api.types.ts`).
@@ -13,10 +13,10 @@ mod trust_section;
 pub use commands::*;
 pub use trust_section::TrustSection;
 
-use imt_plugin_host::installed::{InstallRecord, PluginsDir};
-use imt_plugin_host::{Builtins, PluginProcess};
-use imt_plugin_package::TrustSettings;
-use imt_store_client::protocol::ThirdPartyPlugin;
+use debrief_plugin_host::installed::{InstallRecord, PluginsDir};
+use debrief_plugin_host::{Builtins, PluginProcess};
+use debrief_plugin_package::TrustSettings;
+use debrief_store_client::protocol::ThirdPartyPlugin;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};

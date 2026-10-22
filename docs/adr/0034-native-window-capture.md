@@ -32,7 +32,7 @@ npm dependency, a worker script that the CSP must allow, and keeps the work prop
 
 ### B. Ask the platform webview for a picture
 
-Every webview IMT runs on can snapshot itself asynchronously, from what it has already composited:
+Every webview Debrief runs on can snapshot itself asynchronously, from what it has already composited:
 
 | Platform | API | Result | Threading |
 | --- | --- | --- | --- |
@@ -41,7 +41,7 @@ Every webview IMT runs on can snapshot itself asynchronously, from what it has a
 | Linux | WebKitGTK `webkit_web_view_get_snapshot(region, options, cancellable, callback)` | `cairo_surface_t` (ARGB32) | GAsync: callback on the GTK main loop |
 
 All three are reached through Tauri's `Webview::with_webview`, which hands over the platform handle on the UI thread.
-The bindings are already in IMT's dependency tree: `webview2-com` (MIT) is a direct Windows dependency, wry links
+The bindings are already in Debrief's dependency tree: `webview2-com` (MIT) is a direct Windows dependency, wry links
 `objc2`/`objc2-web-kit`/`objc2-app-kit`/`block2` (MIT) on macOS and pins `webkit2gtk` 2.0.2 and `cairo-rs` 0.18
 (MIT) on Linux, and tauri pulls in `image` 0.25 (MIT OR Apache-2.0) with the PNG, JPEG and BMP codecs. Using them
 directly adds no crate to `Cargo.lock` and no licence beyond `deny.toml`'s allow-list.

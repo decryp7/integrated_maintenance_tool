@@ -31,7 +31,7 @@ const ENGINE_STATE: Record<string, string> = {
 
 /** The engine status, the inference runtimes, installed models, adding a local GGUF file and downloading other models. */
 @Component({
-  selector: 'imt-ai-model-manager',
+  selector: 'debrief-ai-model-manager',
   imports: [AiRuntimePanel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -69,7 +69,7 @@ const ENGINE_STATE: Record<string, string> = {
 
     <section aria-labelledby="ai-runtime-title" data-testid="ai-runtime-section">
       <h3 id="ai-runtime-title" i18n="@@ai.models.runtime">Inference runtime</h3>
-      <imt-ai-runtime-panel />
+      <debrief-ai-runtime-panel />
     </section>
 
     <section aria-labelledby="ai-installed-title">

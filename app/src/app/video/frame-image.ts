@@ -6,7 +6,7 @@ import { VideoStore } from './video.store';
  * when `eager`. The engine returns a data URL; it is shown in an `<img>`, never as markup.
  */
 @Component({
-  selector: 'imt-frame-image',
+  selector: 'debrief-frame-image',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (src(); as s) {

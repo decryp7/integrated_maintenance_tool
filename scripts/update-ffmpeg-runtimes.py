@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Pins the FFmpeg builds IMT downloads for its video support (ADR 0033).
+"""Pins the FFmpeg builds Debrief downloads for its video support (ADR 0033).
 
-Writes crates/imt-video/src/runtime/ffmpeg-runtimes.json: one month-end autobuild of BtbN/FFmpeg-Builds (those are kept
+Writes crates/debrief-video/src/runtime/ffmpeg-runtimes.json: one month-end autobuild of BtbN/FFmpeg-Builds (those are kept
 for about two years; daily builds are deleted within weeks) on the release branch given, and per platform its
-`lgpl-shared` archive with URL, size and SHA-256. IMT embeds this file and downloads nothing that is not listed in it;
-only LGPL builds are ever pinned (no GPL components such as x264/x265), and IMT never links or redistributes FFmpeg.
+`lgpl-shared` archive with URL, size and SHA-256. Debrief embeds this file and downloads nothing that is not listed in it;
+only LGPL builds are ever pinned (no GPL components such as x264/x265), and Debrief never links or redistributes FFmpeg.
 There is no macOS entry: no publisher offers LGPL macOS builds with stable URLs and checksums, so on macOS the user
 provides an ffmpeg (for example Homebrew's).
 
@@ -13,7 +13,7 @@ provides an ffmpeg (for example Homebrew's).
     python3 scripts/update-ffmpeg-runtimes.py --branch 9.0     # another release branch
     python3 scripts/update-ffmpeg-runtimes.py --verify         # also download every asset and check the hashes
 
-This is a maintenance script run by a developer; it is not part of IMT. The checksums come from the GitHub release API
+This is a maintenance script run by a developer; it is not part of Debrief. The checksums come from the GitHub release API
 (`digest`); `--verify` downloads each asset and recomputes them. Review the diff: a new pin is a supply-chain change,
 and it must pass the runtime self-test on every platform's CI before it is merged.
 """
@@ -29,7 +29,7 @@ import urllib.request
 
 REPO = "BtbN/FFmpeg-Builds"
 API = f"https://api.github.com/repos/{REPO}/releases"
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "crates", "imt-video", "src", "runtime", "ffmpeg-runtimes.json")
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "crates", "debrief-video", "src", "runtime", "ffmpeg-runtimes.json")
 
 # platform -> archive name pattern ({version} is the FFmpeg version, {branch} the release branch such as 9.0).
 PLATFORMS = {
@@ -43,7 +43,7 @@ TAG = re.compile(r"^autobuild-(\d{4})-(\d{2})-(\d{2})-\d{2}-\d{2}$")
 
 
 def get(url):
-    req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json", "User-Agent": "imt-update-ffmpeg-runtimes"})
+    req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json", "User-Agent": "debrief-update-ffmpeg-runtimes"})
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         req.add_header("Authorization", f"Bearer {token}")
@@ -53,7 +53,7 @@ def get(url):
 
 def sha256_of(url):
     h = hashlib.sha256()
-    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "imt"}), timeout=1200) as r:
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "debrief"}), timeout=1200) as r:
         while True:
             b = r.read(1 << 20)
             if not b:

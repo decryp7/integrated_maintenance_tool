@@ -1,10 +1,10 @@
 import { EnvironmentProviders, inject, makeEnvironmentProviders } from '@angular/core';
-import { IMT_COMMANDS, ImtCommand } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS, DebriefCommand } from '../extensions/tokens';
 import { DemoService } from './demo.service';
 import { TourService } from './tour.service';
 
 /** Help → Try the demo / Take the tour. */
-export function onboardingCommands(): ImtCommand[] {
+export function onboardingCommands(): DebriefCommand[] {
   const demo = inject(DemoService);
   const tour = inject(TourService);
   return [
@@ -15,5 +15,5 @@ export function onboardingCommands(): ImtCommand[] {
 
 /** One line in `app.config.ts`: the demo and the guided tour. */
 export function provideOnboarding(): EnvironmentProviders {
-  return makeEnvironmentProviders([{ provide: IMT_COMMANDS, multi: true, useFactory: onboardingCommands }]);
+  return makeEnvironmentProviders([{ provide: DEBRIEF_COMMANDS, multi: true, useFactory: onboardingCommands }]);
 }

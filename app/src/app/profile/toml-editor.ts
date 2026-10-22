@@ -13,7 +13,7 @@ export const TOML_DOCUMENT = new InjectionToken<TomlDocument>('TOML_DOCUMENT');
 
 /** Plain TOML editing with line numbers; the backend's validation error is pinned to its line. */
 @Component({
-  selector: 'imt-toml-editor',
+  selector: 'debrief-toml-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="editor">

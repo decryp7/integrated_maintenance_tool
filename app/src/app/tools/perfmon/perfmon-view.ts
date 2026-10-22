@@ -11,7 +11,7 @@ import { PerfmonStore } from './perfmon.store';
 
 /** Performance Monitor wizard: choose what to watch, generate the Data Collector Set, install it, import the results. */
 @Component({
-  selector: 'imt-perfmon-view',
+  selector: 'debrief-perfmon-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, HelpHint, ToolError, ToolUnavailable],
   template: `
@@ -22,9 +22,9 @@ import { PerfmonStore } from './perfmon.store';
           <ng-container i18n="@@tools.perfmon.notWindows"><strong>Collector sets can only be created on Windows.</strong> Here you can still generate the XML and the commands to run on the Windows machine.</ng-container>
         }
       </p>
-      <imt-tool-unavailable tool="perfmon.templates" />
+      <debrief-tool-unavailable tool="perfmon.templates" />
 
-      <imt-tool-error [message]="store.error()" (dismissed)="store.dismissError()" />
+      <debrief-tool-error [message]="store.error()" (dismissed)="store.dismissError()" />
       @if (store.notice(); as notice) { <div class="note" role="status">{{ notice }}</div> }
 
       <section aria-labelledby="pm-what">
@@ -33,10 +33,10 @@ import { PerfmonStore } from './perfmon.store';
           <input class="input" aria-label="Collector name" i18n-aria-label="@@tools.perfmon.collectorName.aria" [value]="store.draft().name" (input)="store.patchDraft({ name: val($event) })" />
         </label>
         <div class="lbl">
-          <span i18n="@@tools.perfmon.processes">Processes <imt-help label="Processes" i18n-label="@@tools.perfmon.processes.helpLabel" text="Instance names as Performance Monitor shows them, for example w3wp or OrderService#1. Leave empty to watch every process." i18n-text="@@tools.perfmon.processes.helpText" /></span>
+          <span i18n="@@tools.perfmon.processes">Processes <debrief-help label="Processes" i18n-label="@@tools.perfmon.processes.helpLabel" text="Instance names as Performance Monitor shows them, for example w3wp or OrderService#1. Leave empty to watch every process." i18n-text="@@tools.perfmon.processes.helpText" /></span>
           <div class="chips">
             @for (p of store.draft().processes; track p) {
-              <span class="chip">{{ p }}<button type="button" class="x" [attr.aria-label]="removeProcessLabel(p)" (click)="store.removeProcess(p)"><imt-icon name="close" [size]="10" /></button></span>
+              <span class="chip">{{ p }}<button type="button" class="x" [attr.aria-label]="removeProcessLabel(p)" (click)="store.removeProcess(p)"><debrief-icon name="close" [size]="10" /></button></span>
             } @empty { <span class="faint" i18n="@@tools.perfmon.allProcesses">All processes</span> }
           </div>
           <div class="inline">
@@ -52,7 +52,7 @@ import { PerfmonStore } from './perfmon.store';
           <div class="preset">
             <div class="head">
               <button type="button" class="icon-btn" [attr.aria-expanded]="isOpen(preset.id)" [attr.aria-label]="toggleCountersLabel(preset.id, preset.name)" (click)="toggleOpen(preset.id)">
-                <imt-icon [name]="isOpen(preset.id) ? 'chevronDown' : 'chevronRight'" [size]="14" />
+                <debrief-icon [name]="isOpen(preset.id) ? 'chevronDown' : 'chevronRight'" [size]="14" />
               </button>
               <label class="check">
                 <input type="checkbox" [checked]="state(preset) === 'all'" [indeterminate]="state(preset) === 'some'" [attr.aria-label]="presetLabel(preset.name)" (change)="store.togglePreset(preset)" />
@@ -124,7 +124,7 @@ import { PerfmonStore } from './perfmon.store';
           <p class="faint" i18n="@@tools.perfmon.commands.hint">Run these in an elevated Command Prompt to import and control the set from the XML file.</p>
           <ul class="cmds">
             @for (cmd of g.commands; track cmd) {
-              <li><code class="mono">{{ cmd }}</code><button type="button" class="icon-btn" [attr.aria-label]="copyCommandLabel(cmd)" title="Copy" i18n-title="@@tools.perfmon.copy.title" (click)="copy(cmd)"><imt-icon name="copy" [size]="13" /></button></li>
+              <li><code class="mono">{{ cmd }}</code><button type="button" class="icon-btn" [attr.aria-label]="copyCommandLabel(cmd)" title="Copy" i18n-title="@@tools.perfmon.copy.title" (click)="copy(cmd)"><debrief-icon name="copy" [size]="13" /></button></li>
             }
           </ul>
         }
@@ -139,7 +139,7 @@ import { PerfmonStore } from './perfmon.store';
           </div>
           <div class="faint" i18n="@@tools.perfmon.output">Output: <span class="mono">{{ s.outputLocation || s.rootPath }}</span></div>
           <div class="inline">
-            <button type="button" class="btn" [disabled]="!!store.busy()" (click)="store.control('query')" i18n="@@tools.perfmon.refresh"><imt-icon name="refresh" [size]="12" />Refresh</button>
+            <button type="button" class="btn" [disabled]="!!store.busy()" (click)="store.control('query')" i18n="@@tools.perfmon.refresh"><debrief-icon name="refresh" [size]="12" />Refresh</button>
             @if (s.status === 'running') {
               <button type="button" class="btn" [disabled]="!!store.busy()" (click)="store.control('stop')" i18n="@@tools.perfmon.btn.stop">Stop</button>
             } @else {

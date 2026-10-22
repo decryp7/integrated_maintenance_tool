@@ -4,7 +4,7 @@
 use crate::engine::with_store;
 use crate::windows::CurrentWindow;
 use crate::{CmdError, CmdResult};
-use imt_core::playbook::{self, Playbook, PlaybookRecord, PlaybookRun, Step, StepResult};
+use debrief_core::playbook::{self, Playbook, PlaybookRecord, PlaybookRun, Step, StepResult};
 use serde::Serialize;
 use serde_json::Value;
 use std::path::PathBuf;
@@ -13,7 +13,7 @@ use tauri::{AppHandle, Runtime};
 /// The library folder. Tests use a folder of their own so they never touch the user's configuration.
 #[cfg(test)]
 fn dir<R: Runtime>(_app: &AppHandle<R>) -> CmdResult<PathBuf> {
-    Ok(std::env::temp_dir().join(format!("imt-playbooks-shell-test-{}", std::process::id())))
+    Ok(std::env::temp_dir().join(format!("debrief-playbooks-shell-test-{}", std::process::id())))
 }
 
 #[cfg(not(test))]

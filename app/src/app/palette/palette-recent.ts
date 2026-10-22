@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 
-const KEY = 'imt.palette.recent.v1';
+const KEY = 'debrief.palette.recent.v1';
 /** How many recently run commands the empty palette lists first. */
 export const MAX_RECENT = 8;
 

@@ -2,7 +2,7 @@ import { CollectPlan, LogSpec, Manifest } from '../../core/tools.types';
 
 /** Mirrors the engine's defaults; used by the mock and as the base when a pasted plan omits keys. */
 export const DEFAULT_PLAN: CollectPlan = {
-  name: 'imt-diagnostics',
+  name: 'debrief-diagnostics',
   logs: [],
   eventLogs: ['System', 'Application'],
   eventLogDays: 7,

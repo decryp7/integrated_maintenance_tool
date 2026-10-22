@@ -2,7 +2,7 @@ import { EnvironmentProviders, inject, Injectable, Injector, makeEnvironmentProv
 import { VideoView as VideoViewDto } from '../core/generated/video';
 import { DROPPED_FILES_HANDLERS, DroppedFilesHandler } from '../core/dropped-files';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
-import { CommandContext, IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/tokens';
+import { CommandContext, DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefCommand, DebriefView } from '../extensions/tokens';
 import { provideVideoBackend } from './video-backend';
 import { VideoStore } from './video.store';
 
@@ -10,7 +10,7 @@ import { VideoStore } from './video.store';
 export const VIDEO_VIEW_ID = 'video';
 
 /** The Video view (same extension point as plugin views). */
-export function videoViews(): ImtView[] {
+export function videoViews(): DebriefView[] {
   return [
     {
       id: VIDEO_VIEW_ID,
@@ -33,7 +33,7 @@ export function showOpened(ctx: CommandContext, opened: readonly VideoViewDto[],
 export class VideoCommands {
   private readonly store = inject(VideoStore);
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     { id: 'video.open', title: $localize`:@@video.cmd.open:Open video…`, category: 'File', run: (ctx) => this.open(ctx) },
     { id: 'video.show', title: $localize`:@@video.cmd.show:Video: show`, category: $localize`:@@video.category:Video`, run: (ctx) => ctx.showView(VIDEO_VIEW_ID) },
   ];
@@ -64,8 +64,8 @@ export function videoDropHandler(): DroppedFilesHandler {
 export function provideVideo(): EnvironmentProviders {
   return makeEnvironmentProviders([
     ...provideVideoBackend(),
-    { provide: IMT_VIEWS, multi: true, useFactory: videoViews },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(VideoCommands).commands },
+    { provide: DEBRIEF_VIEWS, multi: true, useFactory: videoViews },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(VideoCommands).commands },
     { provide: DROPPED_FILES_HANDLERS, multi: true, useFactory: videoDropHandler },
     provideAppInitializer(() => startVideo()),
   ]);

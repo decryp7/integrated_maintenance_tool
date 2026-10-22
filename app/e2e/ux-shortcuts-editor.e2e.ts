@@ -20,7 +20,7 @@ test.describe('shortcut editor', () => {
   test('rebinds a command, warns about a conflict, shows it in the cheat sheet, survives a reload and resets', async ({ page }, testInfo) => {
     await openApp(page);
     const dialog = await openEditor(page);
-    await expectNoSeriousViolations(page, testInfo, 'shortcut-editor', 'imt-keyboard-settings');
+    await expectNoSeriousViolations(page, testInfo, 'shortcut-editor', 'debrief-keyboard-settings');
 
     await dialog.getByRole('searchbox', { name: 'Search shortcuts' }).fill('Toggle sidebar');
     const row = dialog.locator('tr[data-command="view.toggleSidebar"]');
@@ -44,7 +44,7 @@ test.describe('shortcut editor', () => {
     // Close Settings; the new key works, and the cheat sheet lists it.
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
-    const sidebar = page.locator('imt-sidebar');
+    const sidebar = page.locator('debrief-sidebar');
     const before = await sidebar.count();
     await page.keyboard.press('Alt+J');
     await expect(sidebar).toHaveCount(before === 0 ? 1 : 0);
@@ -53,7 +53,7 @@ test.describe('shortcut editor', () => {
     await page.keyboard.press('F1');
     const sheet = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
     await expect(sheet.locator('.cs-row').filter({ hasText: 'Toggle sidebar' }).locator('kbd')).toHaveText(ALT_J);
-    await expectNoSeriousViolations(page, testInfo, 'cheat-sheet-overrides', 'imt-cheat-sheet');
+    await expectNoSeriousViolations(page, testInfo, 'cheat-sheet-overrides', 'debrief-cheat-sheet');
     await page.keyboard.press('Escape');
 
     // Kept across a reload; Reset puts the default back.

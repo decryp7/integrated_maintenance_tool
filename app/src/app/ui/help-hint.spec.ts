@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { el, settle } from '../../testing/helpers';
 import { HelpHint } from './help-hint';
 
-@Component({ imports: [HelpHint], template: `<imt-help label="Pipeline" text="Steps run in order." />` })
+@Component({ imports: [HelpHint], template: `<debrief-help label="Pipeline" text="Steps run in order." />` })
 class Host {}
 
 describe('HelpHint', () => {

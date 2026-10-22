@@ -2,11 +2,11 @@
 //! with the importers of the given plugins (their processes, as in the store worker).
 
 use super::{SharedStore, StoreHost};
-use imt_core::package::ProjectManifest;
-use imt_core::ports::StoreResult;
-use imt_core::{PluginRegistry, Profile};
-use imt_plugin_host::Builtins;
-use imt_store_duck::DuckStore;
+use debrief_core::package::ProjectManifest;
+use debrief_core::ports::StoreResult;
+use debrief_core::{PluginRegistry, Profile};
+use debrief_plugin_host::Builtins;
+use debrief_store_duck::DuckStore;
 use std::path::Path;
 use std::sync::Arc;
 

@@ -1,7 +1,7 @@
 import { computed, effect, inject, untracked } from '@angular/core';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withProps, withState } from '@ngrx/signals';
 import { Timeline } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { WorkspaceStore } from '../core/workspace.store';
 import { TimeCursor } from '../analysis/time-cursor';
 import { DOCK_PANEL_ID } from '../dock/angular-panel';
@@ -46,7 +46,7 @@ export const TimelineInstanceStore = signalStore(
     main: false as const,
     _views: inject(TimelineViews),
     _workspace: inject(WorkspaceStore),
-    _backend: inject(ImtBackend),
+    _backend: inject(DebriefBackend),
     _sharedZoom: inject(TimelineZoom),
     _sharedCursor: inject(TimeCursor),
     _localCursor: new TimeCursor(),

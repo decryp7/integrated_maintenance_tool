@@ -16,18 +16,18 @@ import {
   formatKeybinding,
   fuzzyFilter,
   fuzzyScore,
-  IMT_COMMANDS,
-  IMT_FIELD_FORMATTERS,
-  IMT_INSPECTOR_SECTIONS,
-  IMT_VIEWS,
-  ImtCommand,
-  ImtEvents,
-  ImtView,
+  DEBRIEF_COMMANDS,
+  DEBRIEF_FIELD_FORMATTERS,
+  DEBRIEF_INSPECTOR_SECTIONS,
+  DEBRIEF_VIEWS,
+  DebriefCommand,
+  DebriefEvents,
+  DebriefView,
   InspectorSections,
   isViewAvailable,
   JUMP_TIMEOUT_MS,
   matchesKeybinding,
-  provideImtPlugin,
+  provideDebriefPlugin,
   ViewRegistry,
   WorkspaceCommandContext,
 } from './index';
@@ -86,34 +86,34 @@ describe('contributions', () => {
     expect(flattenContributions<number>([[1, 2], 3, [4]])).toEqual([1, 2, 3, 4]);
   });
 
-  it('provideImtPlugin registers each kind once per batch and skips empty ones', () => {
-    const view: ImtView = { id: 'v', title: 'V', icon: 'panel', component: async () => Component as never };
-    const command: ImtCommand = { id: 'c', title: 'C', run: () => undefined };
+  it('provideDebriefPlugin registers each kind once per batch and skips empty ones', () => {
+    const view: DebriefView = { id: 'v', title: 'V', icon: 'panel', component: async () => Component as never };
+    const command: DebriefCommand = { id: 'c', title: 'C', run: () => undefined };
     const formatter = { field: 'F', format: () => 'x' };
-    @Component({ selector: 'imt-test-section', template: '' })
+    @Component({ selector: 'debrief-test-section', template: '' })
     class Section {
       readonly record = input.required<RecordView>();
     }
     TestBed.configureTestingModule({
       providers: [
-        provideImtPlugin({ views: [view], commands: [command], fieldFormatters: [formatter], inspectorSections: [{ id: 's', title: 'S', order: 1, component: Section }] }),
-        provideImtPlugin({}),
+        provideDebriefPlugin({ views: [view], commands: [command], fieldFormatters: [formatter], inspectorSections: [{ id: 's', title: 'S', order: 1, component: Section }] }),
+        provideDebriefPlugin({}),
       ],
     });
-    expect(flattenContributions(TestBed.inject(IMT_VIEWS))).toEqual([view]);
-    expect(flattenContributions(TestBed.inject(IMT_COMMANDS))).toEqual([command]);
-    expect(flattenContributions(TestBed.inject(IMT_FIELD_FORMATTERS))).toEqual([formatter]);
-    expect(flattenContributions(TestBed.inject(IMT_INSPECTOR_SECTIONS))).toHaveLength(1);
-    expect(TestBed.inject(IMT_VIEWS, null)).toBeTruthy();
+    expect(flattenContributions(TestBed.inject(DEBRIEF_VIEWS))).toEqual([view]);
+    expect(flattenContributions(TestBed.inject(DEBRIEF_COMMANDS))).toEqual([command]);
+    expect(flattenContributions(TestBed.inject(DEBRIEF_FIELD_FORMATTERS))).toEqual([formatter]);
+    expect(flattenContributions(TestBed.inject(DEBRIEF_INSPECTOR_SECTIONS))).toHaveLength(1);
+    expect(TestBed.inject(DEBRIEF_VIEWS, null)).toBeTruthy();
   });
 });
 
 describe('ViewRegistry', () => {
-  const mk = (id: string, when?: ImtView['when']): ImtView => ({ id, title: id, icon: 'panel', component: async () => Component as never, when });
+  const mk = (id: string, when?: DebriefView['when']): DebriefView => ({ id, title: id, icon: 'panel', component: async () => Component as never, when });
 
-  function registry(views: ImtView[]) {
+  function registry(views: DebriefView[]) {
     TestBed.configureTestingModule({
-      providers: [provideTinyBackendBare(), provideFakeDock(), { provide: IMT_VIEWS, multi: true, useValue: views }, { provide: IMT_VIEWS, multi: true, useValue: [mk('dup')] }],
+      providers: [provideTinyBackendBare(), provideFakeDock(), { provide: DEBRIEF_VIEWS, multi: true, useValue: views }, { provide: DEBRIEF_VIEWS, multi: true, useValue: [mk('dup')] }],
     });
     return TestBed.inject(ViewRegistry);
   }
@@ -159,15 +159,15 @@ describe('CommandRegistry', () => {
   let ran: string[];
   let ctx: CommandContext & { summary: unknown };
 
-  function setup(commands: ImtCommand[]) {
+  function setup(commands: DebriefCommand[]) {
     ran = [];
     ctx = { summary: null, openPaths: async () => undefined, setQuery: () => undefined, addFilter: () => undefined, selectRecord: () => undefined, jumpTo: async () => undefined, showView: () => undefined, notifyError: () => undefined };
     TestBed.configureTestingModule({
-      providers: [provideTinyBackendBare(), provideFakeDock(), { provide: COMMAND_CONTEXT, useValue: ctx }, { provide: IMT_COMMANDS, multi: true, useValue: commands }],
+      providers: [provideTinyBackendBare(), provideFakeDock(), { provide: COMMAND_CONTEXT, useValue: ctx }, { provide: DEBRIEF_COMMANDS, multi: true, useValue: commands }],
     });
     return { registry: TestBed.inject(CommandRegistry), store: TestBed.inject(WorkspaceStore) };
   }
-  const cmd = (id: string, extra: Partial<ImtCommand> = {}): ImtCommand => ({ id, title: `Do ${id}`, run: () => void ran.push(id), ...extra });
+  const cmd = (id: string, extra: Partial<DebriefCommand> = {}): DebriefCommand => ({ id, title: `Do ${id}`, run: () => void ran.push(id), ...extra });
 
   it('lists, dedupes, searches with the category and respects `when`', () => {
     const { registry } = setup([cmd('a'), cmd('a'), cmd('b', { category: 'File', title: 'Open things' }), cmd('hidden', { when: () => false }), cmd('boom', { when: () => { throw new Error('x'); } })]);
@@ -215,8 +215,8 @@ describe('FieldFormatters', () => {
   it('formats EventId objects and falls back to plain strings', () => {
     TestBed.configureTestingModule({
       providers: [
-        { provide: IMT_FIELD_FORMATTERS, multi: true, useValue: [EVENT_ID_FORMATTER] },
-        { provide: IMT_FIELD_FORMATTERS, multi: true, useValue: [{ field: 'Bad', format: () => { throw new Error('x'); } }, { field: 'Upper', format: (v: unknown) => String(v).toUpperCase() }] },
+        { provide: DEBRIEF_FIELD_FORMATTERS, multi: true, useValue: [EVENT_ID_FORMATTER] },
+        { provide: DEBRIEF_FIELD_FORMATTERS, multi: true, useValue: [{ field: 'Bad', format: () => { throw new Error('x'); } }, { field: 'Upper', format: (v: unknown) => String(v).toUpperCase() }] },
       ],
     });
     const f = TestBed.inject(FieldFormatters);
@@ -235,7 +235,7 @@ describe('FieldFormatters', () => {
 });
 
 describe('InspectorSections', () => {
-  @Component({ selector: 'imt-test-a', template: '' })
+  @Component({ selector: 'debrief-test-a', template: '' })
   class A {
     readonly record: InputSignal<RecordView> = input.required<RecordView>();
   }
@@ -244,7 +244,7 @@ describe('InspectorSections', () => {
     TestBed.configureTestingModule({
       providers: [
         {
-          provide: IMT_INSPECTOR_SECTIONS,
+          provide: DEBRIEF_INSPECTOR_SECTIONS,
           multi: true,
           useValue: [
             { id: 'late', title: 'Late', order: 200, component: A },
@@ -266,11 +266,11 @@ describe('InspectorSections', () => {
   });
 });
 
-describe('ImtEvents and the command context', () => {
+describe('DebriefEvents and the command context', () => {
   function setup() {
     const dock = new FakeDock();
     TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock)] });
-    return { dock, store: TestBed.inject(WorkspaceStore), events: TestBed.inject(ImtEvents) };
+    return { dock, store: TestBed.inject(WorkspaceStore), events: TestBed.inject(DebriefEvents) };
   }
 
   it('exposes read-only signals and observables over the store', async () => {
@@ -383,8 +383,8 @@ describe('ImtEvents and the command context', () => {
     }
   });
 
-  it('StoreImtEvents can be created in an injection context', () => {
+  it('StoreDebriefEvents can be created in an injection context', () => {
     setup();
-    expect(runInInjectionContext(TestBed.inject(Injector), () => TestBed.inject(ImtEvents))).toBeTruthy();
+    expect(runInInjectionContext(TestBed.inject(Injector), () => TestBed.inject(DebriefEvents))).toBeTruthy();
   });
 });

@@ -6,7 +6,7 @@ import { Swatch } from './source-colors';
  * It carries its legend as tooltip and accessible name.
  */
 @Component({
-  selector: 'imt-source-swatch',
+  selector: 'debrief-source-swatch',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { role: 'img', '[attr.aria-label]': 'label()', '[attr.title]': 'label()', '[attr.data-slot]': 'swatch().slot', '[attr.data-pattern]': 'swatch().pattern' },
   template: `

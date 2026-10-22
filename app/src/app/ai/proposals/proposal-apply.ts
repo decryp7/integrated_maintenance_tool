@@ -75,7 +75,7 @@ export class ProposalApply {
       }
       case 'parser':
         // A parser for the library (ADR 0026); none when the library already reads the file.
-        if (!p.toml.trim()) return { kind: 'applied', message: $localize`:@@ai.proposalApply.parser.known:IMT's parsers already read this file.` };
+        if (!p.toml.trim()) return { kind: 'applied', message: $localize`:@@ai.proposalApply.parser.known:Debrief's parsers already read this file.` };
         await this.parsers.save(p.toml, { overwrite: true });
         void this.workspace.followReread(await this.parsers.reread());
         return { kind: 'applied', message: $localize`:@@ai.proposalApply.parser.done:Parser added to the library; the files are read again.` };

@@ -1,14 +1,14 @@
 import { effect, EnvironmentProviders, inject, Injectable, makeEnvironmentProviders, provideEnvironmentInitializer, untracked } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
 import { DockService } from '../dock/dock.service';
-import { provideImtPlugin } from '../extensions/provide';
-import { ImtView } from '../extensions/tokens';
+import { provideDebriefPlugin } from '../extensions/provide';
+import { DebriefView } from '../extensions/tokens';
 import { ProjectService } from '../projects/project.service';
 import { HomePrefs } from './home-prefs';
 
 export const HOME_VIEW = 'home';
 
-export const HOME_VIEWS: ImtView[] = [
+export const HOME_VIEWS: DebriefView[] = [
   {
     id: HOME_VIEW,
     title: $localize`:@@home.plugin.title:Home`,
@@ -58,7 +58,7 @@ export class HomeAutoOpen {
 /** One line in `app.config.ts`: the Home view, its command and opening it after an import. */
 export function provideHome(): EnvironmentProviders {
   return makeEnvironmentProviders([
-    provideImtPlugin({
+    provideDebriefPlugin({
       views: HOME_VIEWS,
       commands: [{ id: 'view.home', title: $localize`:@@home.plugin.show:Show Home`, category: $localize`:@@home.plugin.category:View`, run: (ctx) => ctx.showView(HOME_VIEW) }],
     }),

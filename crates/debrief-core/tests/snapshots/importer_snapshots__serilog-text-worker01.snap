@@ -1,0 +1,67 @@
+---
+source: crates/debrief-core/tests/importer_snapshots.rs
+expression: snap
+---
+sample: serilog-text/worker01/worker-20261014.txt
+importer: text
+records: 4354
+skipped: 0
+levels:
+  2-Information: 3795
+  3-Warning: 534
+  4-Error: 25
+with_timestamp: 4354
+first_timestamp: "2026-10-14T09:00:00.000Z"
+last_timestamp: "2026-10-14T11:59:57.690Z"
+fields:
+  - Application
+  - Backlog
+  - MachineName
+  - ProcessId
+  - SourceContext
+first:
+  - line: 1
+    timestamp: "2026-10-14T09:00:00.000Z"
+    level: Information
+    message: Application started — OrderWorker 3.14.2
+    fields:
+      Application: OrderWorker
+      MachineName: WORKER01
+      ProcessId: 2208
+      SourceContext: Program
+  - line: 2
+    timestamp: "2026-10-14T09:00:09.963Z"
+    level: Information
+    message: Dispatched 16 outbox messages
+    fields:
+      Application: OrderWorker
+      MachineName: WORKER01
+      ProcessId: 2208
+      SourceContext: Outbox.Dispatcher
+  - line: 3
+    timestamp: "2026-10-14T09:00:10.000Z"
+    level: Information
+    message: "Process stats: CPU 23.3% · WorkingSet 615 MB · Threads 63"
+    fields:
+      Application: OrderWorker
+      MachineName: WORKER01
+      ProcessId: 2208
+      SourceContext: Diagnostics.ProcessMonitor
+  - line: 4
+    timestamp: "2026-10-14T09:00:12.618Z"
+    level: Information
+    message: Dispatched 19 outbox messages
+    fields:
+      Application: OrderWorker
+      MachineName: WORKER01
+      ProcessId: 2208
+      SourceContext: Outbox.Dispatcher
+  - line: 5
+    timestamp: "2026-10-14T09:00:14.793Z"
+    level: Information
+    message: Dispatched 5 outbox messages
+    fields:
+      Application: OrderWorker
+      MachineName: WORKER01
+      ProcessId: 2208
+      SourceContext: Outbox.Dispatcher

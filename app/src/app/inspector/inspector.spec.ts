@@ -1,16 +1,16 @@
 import { Component, input } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { RecordView } from '../core/api.types';
-import { IMT_INSPECTOR_SECTIONS } from '../extensions/tokens';
+import { DEBRIEF_INSPECTOR_SECTIONS } from '../extensions/tokens';
 import { all, buttonByText, el, provideTinyBackend, settle, text } from '../../testing/helpers';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { Inspector } from './inspector';
 import { SelectionStore } from '../core/workspace/selection.store';
 import { at } from '../../testing/must';
 import { LEVEL_CODES } from '../shared/colors';
 
-@Component({ selector: 'imt-test-section', template: '<span class="plugin-section">id {{ record().id }}</span>' })
+@Component({ selector: 'debrief-test-section', template: '<span class="plugin-section">id {{ record().id }}</span>' })
 class TestSection {
   readonly record = input.required<RecordView>();
 }
@@ -20,13 +20,13 @@ describe('Inspector plugin sections', () => {
     TestBed.configureTestingModule({
       providers: [
         provideTinyBackend(),
-        { provide: IMT_INSPECTOR_SECTIONS, multi: true, useValue: [{ id: 'b', title: 'Second', order: 2, component: TestSection }, { id: 'a', title: 'First', order: 1, component: TestSection }, { id: 'no', title: 'Hidden', order: 3, component: TestSection, when: () => false }] },
+        { provide: DEBRIEF_INSPECTOR_SECTIONS, multi: true, useValue: [{ id: 'b', title: 'Second', order: 2, component: TestSection }, { id: 'a', title: 'First', order: 1, component: TestSection }, { id: 'no', title: 'Hidden', order: 3, component: TestSection, when: () => false }] },
       ],
     });
     const fixture = TestBed.createComponent(Inspector);
     const store = TestBed.inject(WorkspaceStore);
     await settle(fixture);
-    const page = await TestBed.inject(ImtBackend).queryPage({ query: EMPTY_QUERY, offset: 2, limit: 1, descending: false });
+    const page = await TestBed.inject(DebriefBackend).queryPage({ query: EMPTY_QUERY, offset: 2, limit: 1, descending: false });
     store.select(at(page.rows, 0));
     await settle(fixture);
     expect(all(fixture, '.section-title.sub').map((t) => t.textContent?.trim())).toEqual(expect.arrayContaining(['First', 'Second']));
@@ -41,7 +41,7 @@ describe('Inspector', () => {
     const fixture = TestBed.createComponent(Inspector);
     const store = TestBed.inject(WorkspaceStore);
     await settle(fixture);
-    const page = await TestBed.inject(ImtBackend).queryPage({ query: { ...EMPTY_QUERY, groupBy: ['MachineName', 'ProcessId'] }, offset: id, limit: 1, descending: false });
+    const page = await TestBed.inject(DebriefBackend).queryPage({ query: { ...EMPTY_QUERY, groupBy: ['MachineName', 'ProcessId'] }, offset: id, limit: 1, descending: false });
     store.select(at(page.rows, 0));
     await settle(fixture);
     return { fixture, store };
@@ -77,7 +77,7 @@ describe('Inspector', () => {
 
   it('says when an event has no timestamp, or took its time from the event before it', async () => {
     const { fixture, store } = await render(0);
-    const rows = (await TestBed.inject(ImtBackend).queryPage({ query: EMPTY_QUERY, offset: 0, limit: 100, descending: false })).rows;
+    const rows = (await TestBed.inject(DebriefBackend).queryPage({ query: EMPTY_QUERY, offset: 0, limit: 100, descending: false })).rows;
     const untimed = rows.find((r) => r.ts === null)!;
     expect(untimed.tsState).toBe('untimed');
     store.select(untimed);
@@ -99,10 +99,10 @@ describe('Inspector', () => {
 
   it('lets the event text be selected and copied, but not its buttons (ADR 0028)', async () => {
     const { fixture } = await render(5);
-    for (const sel of ['.ts', '.inst', '.message', '.prop .v', '.src-line']) expect(el(fixture, sel).classList, sel).toContain('imt-selectable');
+    for (const sel of ['.ts', '.inst', '.message', '.prop .v', '.src-line']) expect(el(fixture, sel).classList, sel).toContain('debrief-selectable');
     // The exception is a code block: selectable by nature.
     expect(el(fixture, '.exc').tagName).toBe('PRE');
-    expect(all(fixture, 'button.imt-selectable')).toEqual([]);
+    expect(all(fixture, 'button.debrief-selectable')).toEqual([]);
   });
 
   it('shows the event with badges, template holes, properties and exception', async () => {

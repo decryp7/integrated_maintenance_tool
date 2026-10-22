@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { invoke } from '../core/activity/ipc';
 import { IncidentRequest, IssueReport, IssueMatch, Playbook, PlaybookLibrary, PlaybookRestore, PlaybookRun, PlaybookStepResult, PlaybookStep, Report } from '../core/api.types';
 import { AiStatusStore } from '../ai/ai-status.store';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { reportBackendFailures } from '../core/failure-reporter';
 import { Logger, withFailureLogging } from '../core/logger';
 import { browserMocks } from '../core/mock-registry';
@@ -110,16 +110,16 @@ function mockHasModel(): () => boolean {
 }
 
 export function createKnownIssuesBackend(): KnownIssuesBackend {
-  const backend: KnownIssuesBackend = isTauri() ? new TauriKnownIssuesBackend() : new (browserMocks().MockKnownIssuesBackend)(inject(ImtBackend), mockHasModel());
+  const backend: KnownIssuesBackend = isTauri() ? new TauriKnownIssuesBackend() : new (browserMocks().MockKnownIssuesBackend)(inject(DebriefBackend), mockHasModel());
   return withFailureLogging<KnownIssuesBackend>(backend, inject(Logger), { onFailure: reportBackendFailures() });
 }
 
 export function createIncidentBackend(): IncidentBackend {
-  const backend: IncidentBackend = isTauri() ? new TauriIncidentBackend() : new (browserMocks().MockIncidentBackend)(inject(ImtBackend), mockHasModel());
+  const backend: IncidentBackend = isTauri() ? new TauriIncidentBackend() : new (browserMocks().MockIncidentBackend)(inject(DebriefBackend), mockHasModel());
   return withFailureLogging<IncidentBackend>(backend, inject(Logger), { onFailure: reportBackendFailures() });
 }
 
 export function createPlaybookBackend(): PlaybookBackend {
-  const backend: PlaybookBackend = isTauri() ? new TauriPlaybookBackend() : new (browserMocks().MockPlaybookBackend)(inject(ImtBackend));
+  const backend: PlaybookBackend = isTauri() ? new TauriPlaybookBackend() : new (browserMocks().MockPlaybookBackend)(inject(DebriefBackend));
   return withFailureLogging<PlaybookBackend>(backend, inject(Logger), { onFailure: reportBackendFailures() });
 }

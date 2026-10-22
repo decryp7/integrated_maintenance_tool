@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <title>IMT</title>
-  <!-- macOS menu-bar template: black on transparent (the system tints it), the app icon's motif without the tile. -->
-  <path d="M160 192H336M160 832H512" fill="none" stroke="#000000" stroke-opacity="0.55" stroke-width="128" stroke-linecap="round"/>
-  <path d="M160 512H400L528 288L656 736L768 512H864" fill="none" stroke="#000000" stroke-width="128" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="832" cy="192" r="104" fill="#000000"/>
-</svg>

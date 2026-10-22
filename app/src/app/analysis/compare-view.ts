@@ -14,7 +14,7 @@ import { aroundTime, midpoint, previousWindow, WIDTHS } from './windows';
 
 /** Two time windows side by side: counts, which fields changed, numeric shifts, new and gone values. */
 @Component({
-  selector: 'imt-compare-view',
+  selector: 'debrief-compare-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, CoverageNote],
   template: `
@@ -34,8 +34,8 @@ import { aroundTime, midpoint, previousWindow, WIDTHS } from './windows';
       <div><strong>A</strong> <span class="mono">{{ time.range(targets.windowA()) }}</span></div>
       <div><strong>B</strong> <span class="mono">{{ time.range(targets.windowB()) }}</span></div>
     </div>
-    <imt-coverage-note [coverage]="res.coverage()" />
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="!targets.windowA() || !targets.windowB()" emptyText="Pick two windows to compare, for example the current range against the one before it." i18n-emptyText="@@analysis.compare.emptyText" (retry)="res.retry()">
+    <debrief-coverage-note [coverage]="res.coverage()" />
+    <debrief-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="!targets.windowA() || !targets.windowB()" emptyText="Pick two windows to compare, for example the current range against the one before it." i18n-emptyText="@@analysis.compare.emptyText" (retry)="res.retry()">
       @if (res.result(); as c) {
         <div class="body" tabindex="0" role="region" aria-label="Comparison" i18n-aria-label="@@analysis.compare.region">
           <h3 class="sec first" i18n="@@analysis.compare.summary">Summary</h3>
@@ -108,7 +108,7 @@ import { aroundTime, midpoint, previousWindow, WIDTHS } from './windows';
           </div>
         </div>
       }
-    </imt-analysis-state>
+    </debrief-analysis-state>
   `,
   styles: [
     ANALYSIS_STYLES,

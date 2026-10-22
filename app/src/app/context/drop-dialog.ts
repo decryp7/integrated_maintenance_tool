@@ -11,12 +11,12 @@ import { addPipelineStep, describeConditions, dropStep } from './rule-builders';
 
 /** "Drop events like this": adds a `drop` step to the profile pipeline, with a live count of what it removes. */
 @Component({
-  selector: 'imt-drop-dialog',
+  selector: 'debrief-drop-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ConditionsEditor],
   template: `
     <p i18n="@@context.dropDialog.intro">Remove every event matching all of these conditions the next time files are imported. This adds a <span class="mono">drop</span> step to the profile's pipeline.</p>
-    <imt-conditions-editor [conditions]="conditions()" emptyText="Add a condition: a drop step without any would remove every event." i18n-emptyText="@@context.dropDialog.emptyText" (changed)="conditions.set($event)" />
+    <debrief-conditions-editor [conditions]="conditions()" emptyText="Add a condition: a drop step without any would remove every event." i18n-emptyText="@@context.dropDialog.emptyText" (changed)="conditions.set($event)" />
     <div class="status" role="status">
       @if (count() === null) { <ng-container i18n="@@context.counting">Counting…</ng-container> } @else { <ng-container i18n="@@context.dropDialog.matches">This matches <strong>{{ fmt(count()!) }}</strong> events right now.</ng-container> }
     </div>

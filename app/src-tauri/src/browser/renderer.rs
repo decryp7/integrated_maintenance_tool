@@ -1,5 +1,5 @@
-//! The renderer (ADR 0043): a real Chromium-based browser driven over the DevTools protocol, one per IMT window and
-//! started on demand. Research and the chat's browser modes read and drive its page through the `imt_ai::browser`
+//! The renderer (ADR 0043): a real Chromium-based browser driven over the DevTools protocol, one per Debrief window and
+//! started on demand. Research and the chat's browser modes read and drive its page through the `debrief_ai::browser`
 //! ports, with the same scripts as before (evaluated over the protocol, replies checked by a one-shot gate).
 //!
 //! Nothing here depends on Tauri, so it is tested (and live-tested) without an app. Indicators that the AI drives the
@@ -9,8 +9,8 @@
 use chromium_driver::cue::{window_title, Activity};
 use chromium_driver::launch::{LaunchOptions, Profile, Visibility};
 use chromium_driver::{Chromium, Error as DriverError, Page};
-use imt_ai::browser::policy::ScrollDirection;
-use imt_ai::browser::{
+use debrief_ai::browser::policy::ScrollDirection;
+use debrief_ai::browser::{
     capture_from, scripts, snapshot_from, BrowserError, ChatBrowser, DomSnapshot, Element, Nonce, PageCapture, PageDriver, PageReader,
     ReplyError, ReplyGate, ResultsPage, ResultsReader, WebUrl,
 };
@@ -31,7 +31,7 @@ const CHALLENGE_WAIT: Duration = Duration::from_secs(10 * 60);
 #[cfg(test)]
 const CHALLENGE_WAIT: Duration = Duration::from_secs(25);
 
-/// Where a browser may come from, in order: the user's setting, the one IMT installed, one found on the machine.
+/// Where a browser may come from, in order: the user's setting, the one Debrief installed, one found on the machine.
 #[derive(Debug, Clone, Default)]
 pub struct Sources {
     pub configured: Option<PathBuf>,
@@ -316,7 +316,7 @@ impl PageReader for ChromiumPage {
 impl ResultsReader for ChromiumPage {
     fn results_page(&self, region: &[&str]) -> Result<ResultsPage, BrowserError> {
         self.eval(|n| scripts::result_links(n, region))
-            .map(|m| imt_ai::browser::results_page_from(&m))
+            .map(|m| debrief_ai::browser::results_page_from(&m))
     }
 }
 
@@ -428,7 +428,7 @@ mod tests {
             on_screen,
             may_drive: Some(Box::new(|| true)),
             rules: None,
-            product: "IMT".into(),
+            product: "Debrief".into(),
             notify: Arc::new(move |c| s2.lock().unwrap().push(c)),
         };
         Some((renderers, page, seen))
@@ -451,11 +451,14 @@ mod tests {
         assert_eq!(links, 3, "the script-rendered results are read");
         let cap = page.capture().unwrap();
         assert!(cap.text.contains("Result 1"));
-        // Nothing of ours in the page: no node, attribute or text added by IMT.
+        // Nothing of ours in the page: no node, attribute or text added by Debrief.
         let s = renderers.current("main").unwrap();
         let html = s.page().evaluate("document.documentElement.outerHTML").unwrap();
         let html = html.as_str().unwrap();
-        assert!(!html.to_lowercase().contains("imt") && !html.contains("AI is browsing"), "{html}");
+        assert!(
+            !html.to_lowercase().contains("debrief") && !html.contains("AI is browsing"),
+            "{html}"
+        );
         assert_eq!(
             s.page().evaluate("document.querySelectorAll('script').length").unwrap(),
             serde_json::json!(1)
@@ -464,7 +467,7 @@ mod tests {
         let cues = seen.lock().unwrap().clone();
         assert!(cues
             .iter()
-            .any(|c| c.title == "IMT AI — reading: 127.0.0.1" || c.title.starts_with("IMT AI — searching")));
+            .any(|c| c.title == "Debrief AI — reading: 127.0.0.1" || c.title.starts_with("Debrief AI — searching")));
         // Stop: the process ends at once and later calls fail with a clear message.
         let pid = s.pid().unwrap();
         assert!(renderers.kill("main"));

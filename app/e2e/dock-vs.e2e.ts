@@ -49,7 +49,7 @@ test.describe('VS-style docking', () => {
   });
 
   test('dragging a tab onto the left edge guide docks it along the whole left edge', async ({ page, browserName }) => {
-    const dock = await box(page, '.imt-dock-mount');
+    const dock = await box(page, '.debrief-dock-mount');
     // A point of the left guide (32px, centred) that is not on a group's tab strip: a release over a tab strip tabs the
     // panel into that group even while the edge guide is lit (see the R5 report).
     const x = dock.x + 10 + 16;
@@ -61,21 +61,21 @@ test.describe('VS-style docking', () => {
       { x, mid: dock.y + dock.height / 2 },
     );
     await dragTabTo(page, 'Metrics', x, y);
-    await expect(page.locator('.imt-guide-left.hot')).toHaveCount(1);
-    await expect(page.locator('.imt-guide-edges .imt-guide')).toHaveCount(4);
+    await expect(page.locator('.debrief-guide-left.hot')).toHaveCount(1);
+    await expect(page.locator('.debrief-guide-edges .debrief-guide')).toHaveCount(4);
     if (browserName === 'chromium') await page.screenshot({ path: `${SCREENSHOTS}/docking-guides-edge.png` });
     await page.mouse.up();
-    const metrics = await box(page, 'imt-metrics-view');
-    const events = await box(page, 'imt-events-grid');
+    const metrics = await box(page, 'debrief-metrics-view');
+    const events = await box(page, 'debrief-events-grid');
     expect(metrics.x).toBeLessThan(events.x);
     // Full height: from above the timeline to below the events.
     expect(metrics.height).toBeGreaterThan(events.height + 200);
   });
 
   test('dragging a tab onto the centre of the compass tabs it into that group', async ({ page, browserName }) => {
-    const content = await box(page, '.dv-groupview:has(imt-events-grid) .dv-content-container');
+    const content = await box(page, '.dv-groupview:has(debrief-events-grid) .dv-content-container');
     await dragTabTo(page, 'Metrics', content.x + content.width / 2, content.y + content.height / 2);
-    await expect(page.locator('.imt-guide-center.hot')).toHaveCount(1);
+    await expect(page.locator('.debrief-guide-center.hot')).toHaveCount(1);
     if (browserName === 'chromium') await page.screenshot({ path: `${SCREENSHOTS}/docking-guides-compass.png` });
     await page.mouse.up();
     await expect(groupOf(page, 'Events')).toContainText('Metrics');
@@ -84,9 +84,9 @@ test.describe('VS-style docking', () => {
 
   test('a released drag away from any guide is cancelled: the panel stays where it was and nothing floats', async ({ page }) => {
     const before = await groupOf(page, 'Metrics').locator('[role="tab"]').allInnerTexts();
-    const content = await box(page, '.dv-groupview:has(imt-events-grid) .dv-content-container');
+    const content = await box(page, '.dv-groupview:has(debrief-events-grid) .dv-content-container');
     await dragTabTo(page, 'Metrics', content.x + 40, content.y + content.height - 20);
-    await expect(page.locator('.imt-float-cue')).toHaveText('Release to cancel');
+    await expect(page.locator('.debrief-float-cue')).toHaveText('Release to cancel');
     await page.mouse.up();
     await expect(page.locator('.dv-resize-container')).toHaveCount(0);
     await expect(groupOf(page, 'Events')).not.toContainText('Metrics');
@@ -104,12 +104,12 @@ test.describe('VS-style docking', () => {
     await sideTab.hover();
     const flyout = page.getByRole('region', { name: 'Inspector' });
     await expect(flyout).toBeVisible();
-    await expect(flyout.locator('imt-inspector')).toBeVisible();
+    await expect(flyout.locator('debrief-inspector')).toBeVisible();
     await expect(sideTab).toHaveAttribute('aria-expanded', 'true');
     await flyout.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
     if (browserName === 'chromium') await page.screenshot({ path: `${SCREENSHOTS}/docking-autohide.png` });
     await expectNoSeriousViolations(page, test.info(), 'auto-hide');
-    await flyout.locator('imt-inspector').click();
+    await flyout.locator('debrief-inspector').click();
     await page.keyboard.press('Escape');
     await expect(flyout).toHaveCount(0);
 
@@ -127,19 +127,19 @@ test.describe('VS-style docking', () => {
     await flyout.getByRole('button', { name: 'Pin Inspector' }).click();
     await expect(tab(page, 'Inspector')).toBeVisible();
     await expect(groups(page)).toHaveCount(4);
-    await expect(page.locator('imt-inspector')).toBeVisible();
+    await expect(page.locator('debrief-inspector')).toBeVisible();
     // Back at the right edge of the window, beside the groups it was beside, once the dock layout has settled.
     await expect
       .poll(async () => {
-        const inspector = await box(page, 'imt-inspector');
-        const timeline = await box(page, 'imt-timeline-panel');
+        const inspector = await box(page, 'debrief-inspector');
+        const timeline = await box(page, 'debrief-timeline-panel');
         return inspector.x - (timeline.x + timeline.width);
       })
       .toBeGreaterThanOrEqual(-2);
     // A full-height column again (as tall as the timeline over the events), not a split beside the top row only.
-    const column = await box(page, 'imt-inspector');
-    const top = await box(page, 'imt-timeline-panel');
-    const grid = await box(page, 'imt-events-grid');
+    const column = await box(page, 'debrief-inspector');
+    const top = await box(page, 'debrief-timeline-panel');
+    const grid = await box(page, 'debrief-events-grid');
     expect(column.y).toBeLessThanOrEqual(top.y + 2);
     expect(column.y + column.height).toBeGreaterThanOrEqual(grid.y + grid.height - 2);
   });
@@ -175,7 +175,7 @@ test.describe('VS-style docking', () => {
     await (await panelMenu(page, 'Profile')).getByRole('menuitem', { name: 'Pin tab' }).click();
     const tabs = groupOf(page, 'Profile').getByRole('tab');
     await expect(tabs.first()).toHaveAccessibleName('Profile');
-    await expect(groupOf(page, 'Profile').locator('.imt-tab.pinned')).toHaveCount(1);
+    await expect(groupOf(page, 'Profile').locator('.debrief-tab.pinned')).toHaveCount(1);
     await (await panelMenu(page, 'Timeline')).getByRole('menuitem', { name: 'Close all documents' }).click();
     await expect(tab(page, 'Profile')).toBeVisible();
     for (const name of ['Timeline', 'Metrics', 'Events']) await expect(tab(page, name)).toHaveCount(0);
@@ -215,7 +215,7 @@ test.describe('VS-style docking', () => {
     await expect(tab(page, 'Inspector')).toBeVisible();
     await expect(page.getByRole('navigation', { name: /Auto-hidden tool windows/ })).toHaveCount(0);
     // Saved app-wide, separately from the project.
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('imt.windowLayouts') ?? 'null')?.layouts?.[0]?.name)).toBe('Triage');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('debrief.windowLayouts') ?? 'null')?.layouts?.[0]?.name)).toBe('Triage');
     await runCommand(page, 'Manage perspectives…');
     await expect(page.getByRole('list', { name: 'Perspectives' })).toContainText('Triage');
     await expectNoSeriousViolations(page, test.info(), 'manage-layouts');
@@ -228,17 +228,17 @@ test.describe('VS-style docking', () => {
     await expect(tab(page, 'Inspector')).toHaveCount(0);
     await expect(page.getByRole('navigation', { name: 'Auto-hidden tool windows (right)' }).getByRole('button', { name: 'Inspector' })).toBeVisible();
     await expect(tab(page, 'Metrics')).toHaveCount(0);
-    await expect(page.locator('.imt-tab.pinned')).toHaveCount(0);
+    await expect(page.locator('.debrief-tab.pinned')).toHaveCount(0);
     await expect(groups(page)).toHaveCount(3);
   });
 
   test('full screen hides the chrome and the tool windows; again restores them', async ({ page }) => {
     await page.keyboard.press('Shift+Alt+Enter');
-    await expect(page.locator('imt-title-bar')).toBeHidden();
-    await expect(page.locator('imt-inspector')).toBeHidden();
+    await expect(page.locator('debrief-title-bar')).toBeHidden();
+    await expect(page.locator('debrief-inspector')).toBeHidden();
     await page.keyboard.press('Shift+Alt+Enter');
-    await expect(page.locator('imt-title-bar')).toBeVisible();
-    await expect(page.locator('imt-inspector')).toBeVisible();
+    await expect(page.locator('debrief-title-bar')).toBeVisible();
+    await expect(page.locator('debrief-inspector')).toBeVisible();
   });
 
   test('auto-hidden tool windows and pinned tabs survive a reload', async ({ page }) => {
@@ -246,10 +246,10 @@ test.describe('VS-style docking', () => {
     await page.getByRole('menu', { name: 'Actions' }).getByRole('menuitem', { name: 'Auto hide', exact: true }).click();
     await (await panelMenu(page, 'Metrics')).getByRole('menuitem', { name: 'Pin tab' }).click();
     await expect
-      .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('imt.layout') ?? 'null')?.extras))
+      .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('debrief.layout') ?? 'null')?.extras))
       .toMatchObject({ autoHidden: [{ id: 'inspector', side: 'right' }], pinnedTabs: ['metrics'] });
     await page.reload();
     await expect(page.getByRole('navigation', { name: 'Auto-hidden tool windows (right)' }).getByRole('button', { name: 'Inspector' })).toBeVisible();
-    await expect(groupOf(page, 'Metrics').locator('.imt-tab.pinned')).toHaveCount(1);
+    await expect(groupOf(page, 'Metrics').locator('.debrief-tab.pinned')).toHaveCount(1);
   });
 });

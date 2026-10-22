@@ -62,10 +62,10 @@ export function filterProcesses(list: readonly CaptureProcess[], filter: string)
 
 /**
  * Tools ▸ Create dump of process…: pick a running process, the dump type and a folder; the plugin writes the dump
- * with MiniDumpWriteDump (the process is only read) and IMT opens it.
+ * with MiniDumpWriteDump (the process is only read) and Debrief opens it.
  */
 @Component({
-  selector: 'imt-create-dump-view',
+  selector: 'debrief-create-dump-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CdkListbox, CdkOption, ToolError, ToolUnavailable],
   template: `
@@ -75,12 +75,12 @@ export function filterProcesses(list: readonly CaptureProcess[], filter: string)
       <button class="btn ghost" type="button" (click)="load()" [disabled]="loading()" i18n="@@dumps.capture.refresh">Refresh</button>
     </div>
     <div class="body">
-      <imt-tool-unavailable [tool]="toolId" />
+      <debrief-tool-unavailable [tool]="toolId" />
       @if (unsupported(); as reason) {
         <p class="faint" role="status" data-testid="capture-unsupported">{{ reason }}</p>
       } @else {
         <p class="faint" i18n="@@dumps.capture.intro">The process is only read through the operating system (MiniDumpWriteDump); nothing is injected into it. A full dump holds all of its memory and can be large.</p>
-        <imt-tool-error [message]="error()" [retry]="!!error()" (retried)="load()" (dismissed)="error.set(null)" />
+        <debrief-tool-error [message]="error()" [retry]="!!error()" (retried)="load()" (dismissed)="error.set(null)" />
         <div class="row-wrap">
           <div class="procs">
             <input type="search" [value]="filter()" (input)="filter.set(value($event))" placeholder="Filter by name or pid" i18n-placeholder="@@dumps.capture.filter" aria-label="Filter processes" i18n-aria-label="@@dumps.capture.filterLabel" />

@@ -8,7 +8,7 @@ import { AiProposalCard } from '../proposals/proposal-card';
 
 /** "Ask AI to write a query": a question in plain words → a query the engine checked, then Apply. */
 @Component({
-  selector: 'imt-ai-query-dialog',
+  selector: 'debrief-ai-query-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AiProposalCard, JobWait],
   template: `
@@ -20,13 +20,13 @@ import { AiProposalCard } from '../proposals/proposal-card';
       </div>
     </form>
     @if (jobId(); as id) {
-      <imt-job-wait [jobId]="id" [busyText]="busyText" />
+      <debrief-job-wait [jobId]="id" [busyText]="busyText" />
     }
     @if (error(); as e) {
       <p class="err" role="alert">{{ e }}</p>
     }
     @if (proposal(); as p) {
-      <imt-ai-proposal-card [proposal]="p" (applied)="ref.close(true)" (dismissed)="proposal.set(null)" />
+      <debrief-ai-proposal-card [proposal]="p" (applied)="ref.close(true)" (dismissed)="proposal.set(null)" />
     }
     <div class="foot"><button type="button" class="btn ghost" (click)="ref.close()" i18n="@@ai.query.close">Close</button></div>
   `,

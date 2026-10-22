@@ -15,10 +15,10 @@ import { ParsersStore } from './parsers.store';
 import { PARSERS_ID } from './parsers.types';
 
 async function setup() {
-  const imt = tinyBackend();
-  const backend = new MockParsersBackend(imt);
+  const debrief = tinyBackend();
+  const backend = new MockParsersBackend(debrief);
   const files = { pickImport: vi.fn().mockResolvedValue(DEMO_PARSER_IMPORT), pickExport: vi.fn().mockResolvedValue('/demo/exports/nlog.toml') };
-  TestBed.configureTestingModule({ providers: [provideTinyBackend(imt), { provide: ParsersBackend, useValue: backend }, { provide: ParserFiles, useValue: files }] });
+  TestBed.configureTestingModule({ providers: [provideTinyBackend(debrief), { provide: ParsersBackend, useValue: backend }, { provide: ParserFiles, useValue: files }] });
   await TestBed.inject(WorkspaceStore).init();
   const fixture = TestBed.createComponent(ParsersSettings);
   await settle(fixture);
@@ -142,7 +142,7 @@ describe('ParsersSettings', () => {
     const screen = TestBed.createComponent(SettingsScreen);
     await settle(screen);
     expect(el(screen, '[data-testid=settings-nav-parsers]').getAttribute('aria-current')).toBe('page');
-    expect(all(screen, 'imt-parsers-settings')).toHaveLength(0);
+    expect(all(screen, 'debrief-parsers-settings')).toHaveLength(0);
     expect(all(screen, '[data-testid=settings-open-parsers-view]')).toHaveLength(1);
   });
 

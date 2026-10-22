@@ -27,57 +27,57 @@ describe('MockPluginPackagesBackend', () => {
 
   it('reviews a trusted package with a digest stable per path', async () => {
     const b = make();
-    const a = await b.readPackage('/p/web.imtplugin');
+    const a = await b.readPackage('/p/web.debriefplugin');
     expect(a.signature).toEqual({ kind: 'trusted', signer: 'Example Software Inc.' });
     expect(a.refusal).toBeNull();
     expect(a.digest).toHaveLength(64);
-    expect((await b.readPackage('/p/web.imtplugin')).digest).toBe(a.digest);
-    expect((await b.readPackage('/q/web.IMTPLUGIN')).digest).not.toBe(a.digest);
-    expect(b.calls).toContain('inspect:/p/web.imtplugin');
+    expect((await b.readPackage('/p/web.debriefplugin')).digest).toBe(a.digest);
+    expect((await b.readPackage('/q/web.DEBRIEFPLUGIN')).digest).not.toBe(a.digest);
+    expect(b.calls).toContain('inspect:/p/web.debriefplugin');
   });
 
   it('rejects other files and tampered packages with typed errors', async () => {
     const b = make();
     await expect(b.readPackage('/p/app.log')).rejects.toMatchObject({ code: 'invalid' });
-    const err = await b.readPackage('/p/tampered.imtplugin').catch((e: unknown) => e);
+    const err = await b.readPackage('/p/tampered.debriefplugin').catch((e: unknown) => e);
     expect(err).toBeInstanceOf(CmdError);
     expect(err).toMatchObject({ code: 'signatureInvalid', detail: 'tampered' });
-    await expect(make({ variant: 'tampered' }).readPackage('/p/any.imtplugin')).rejects.toMatchObject({ detail: 'tampered' });
+    await expect(make({ variant: 'tampered' }).readPackage('/p/any.debriefplugin')).rejects.toMatchObject({ detail: 'tampered' });
   });
 
   it('refuses unsigned and unknown-key packages unless in developer mode', async () => {
-    const unsigned = await make().readPackage('/p/unsigned.imtplugin');
+    const unsigned = await make().readPackage('/p/unsigned.debriefplugin');
     expect(unsigned.signature.kind).toBe('unsigned');
     expect(unsigned.refusal?.reason).toBe('unsigned');
     expect(unsigned.warning).toBeNull();
-    const unknown = await make().readPackage('/p/unknown-key.imtplugin');
+    const unknown = await make().readPackage('/p/unknown-key.debriefplugin');
     expect(unknown.signature).toEqual({ kind: 'unknownKey', signer: '7f3a9c21' });
     expect(unknown.refusal?.reason).toBe('unknownKey');
-    const dev = await make({ developerMode: true }).readPackage('/p/unsigned.imtplugin');
+    const dev = await make({ developerMode: true }).readPackage('/p/unsigned.debriefplugin');
     expect(dev.refusal).toBeNull();
     expect(dev.warning).toContain('Developer mode');
     expect(dev.developerMode).toBe(true);
-    await expect(make().installPackage('/p/unsigned.imtplugin', unsigned.digest, [])).rejects.toMatchObject({ detail: 'unsigned' });
+    await expect(make().installPackage('/p/unsigned.debriefplugin', unsigned.digest, [])).rejects.toMatchObject({ detail: 'unsigned' });
   });
 
   it('reviews an update of the installed plugin with the added permission', async () => {
     const b = make();
-    const u = await b.readPackage('/p/update.imtplugin');
+    const u = await b.readPackage('/p/update.debriefplugin');
     expect(u.update).toEqual({ fromVersion: '1.2.0', added: ['runPrograms'], removed: [] });
     await b.removePackage('com.contoso.sap-logs');
-    expect((await b.readPackage('/p/update.imtplugin')).update).toBeNull();
+    expect((await b.readPackage('/p/update.debriefplugin')).update).toBeNull();
   });
 
   it('installs with the approved permissions, pending a restart, and replaces an update', async () => {
     const b = make();
-    const r = await b.readPackage('/p/web.imtplugin');
-    await expect(b.installPackage('/p/web.imtplugin', 'bad', [])).rejects.toMatchObject({ code: 'invalid' });
-    const installed = await b.installPackage('/p/web.imtplugin', r.digest, ['network', 'writeFolders']);
+    const r = await b.readPackage('/p/web.debriefplugin');
+    await expect(b.installPackage('/p/web.debriefplugin', 'bad', [])).rejects.toMatchObject({ code: 'invalid' });
+    const installed = await b.installPackage('/p/web.debriefplugin', r.digest, ['network', 'writeFolders']);
     expect(installed.granted).toEqual(['network']);
     expect(installed.state).toBe('pendingRestart');
-    expect(b.calls).toContain(`install:/p/web.imtplugin:${r.digest}:network,writeFolders`);
-    const u = await b.readPackage('/p/update.imtplugin');
-    await b.installPackage('/p/update.imtplugin', u.digest, ['runPrograms']);
+    expect(b.calls).toContain(`install:/p/web.debriefplugin:${r.digest}:network,writeFolders`);
+    const u = await b.readPackage('/p/update.debriefplugin');
+    await b.installPackage('/p/update.debriefplugin', u.digest, ['runPrograms']);
     const list = await b.listPackages();
     expect(list.plugins.map((p) => `${p.id}@${p.version}`)).toEqual(['net.example.web-enricher@2.0.1', 'com.contoso.sap-logs@1.3.0']);
   });

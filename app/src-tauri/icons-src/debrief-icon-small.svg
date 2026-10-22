@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <title>Debrief 32px</title>
+  <defs>
+    <linearGradient id="d4bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5590FF"/><stop offset="1" stop-color="#1D4FD3"/></linearGradient>
+    
+  </defs>
+  <path d="M8 1H24A7 7 0 0 1 31 8V24A7 7 0 0 1 24 31H8A7 7 0 0 1 1 24V8A7 7 0 0 1 8 1Z" fill="url(#d4bg)"/>
+  <path d="M8 1.25H24A6.75 6.75 0 0 1 30.75 8V24A6.75 6.75 0 0 1 24 30.75H8A6.75 6.75 0 0 1 1.25 24V8A6.75 6.75 0 0 1 8 1.25Z" fill="none" stroke="#10308A" stroke-opacity="0.35" stroke-width="0.5"/>
+  <g opacity="0.6"><path d="M8 10H18" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 22H16" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></g><path d="M7.5 16H12L14 12.5L17.5 20L19.5 16H24.5" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.75 10a2.25 2.25 0 1 1 4.5 0a2.25 2.25 0 1 1 -4.5 0Z" fill="#FFFFFF"/>
+</svg>

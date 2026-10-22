@@ -143,7 +143,7 @@ let instance: MockNotifications | null = null;
 /** The one mock centre of this page (shared by the mock jobs, live alerts and the UI). */
 export function mockNotifications(): MockNotifications {
   instance ??= new MockNotifications();
-  if (typeof window !== 'undefined') (window as unknown as { __imtMockNotifications?: MockNotifications }).__imtMockNotifications = instance;
+  if (typeof window !== 'undefined') (window as unknown as { __debriefMockNotifications?: MockNotifications }).__debriefMockNotifications = instance;
   return instance;
 }
 

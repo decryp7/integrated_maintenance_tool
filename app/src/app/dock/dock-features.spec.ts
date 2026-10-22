@@ -63,11 +63,11 @@ describe('DockService VS-style features', () => {
   afterEach(() => {
     TestBed.inject(DockService).detach();
     container.remove();
-    document.documentElement.classList.remove('imt-full-screen');
+    document.documentElement.classList.remove('debrief-full-screen');
   });
 
   const api = (d: DockService) => d['api']!;
-  const tabOf = (id: string) => container.querySelector<HTMLElement>(`.imt-tab[data-panel-id="${id}"]`)!.closest<HTMLElement>('[role=tab]')!;
+  const tabOf = (id: string) => container.querySelector<HTMLElement>(`.debrief-tab[data-panel-id="${id}"]`)!.closest<HTMLElement>('[role=tab]')!;
   const persisted = () => new Promise((r) => setTimeout(r, 300));
 
   it('classifies views: the inspector is a tool window, the timeline a document', () => {
@@ -124,7 +124,7 @@ describe('DockService VS-style features', () => {
     expect(api(dock).getPanel('profile')!.group).toBe(api(dock).getPanel('metrics')!.group);
     dock.runPanelAction('profile', 'pinTab');
     expect(at(api(dock).getPanel('profile')!.group.panels, 0).id).toBe('profile');
-    expect(container.querySelector('.imt-tab[data-panel-id="profile"]')!.classList.contains('pinned')).toBe(true);
+    expect(container.querySelector('.debrief-tab[data-panel-id="profile"]')!.classList.contains('pinned')).toBe(true);
     dock.runPanelAction('metrics', 'closeOthers');
     // Only the tabs of metrics' own group close, and the pinned one stays; the timeline is another group.
     expect(dock.isOpen('profile')).toBe(true);
@@ -225,7 +225,7 @@ describe('DockService VS-style features', () => {
       delete (document as { elementsFromPoint?: unknown }).elementsFromPoint;
       delete (document as { elementFromPoint?: unknown }).elementFromPoint;
     });
-    const ghost = () => document.querySelector<HTMLElement>('.imt-float-cue')!;
+    const ghost = () => document.querySelector<HTMLElement>('.debrief-float-cue')!;
     const pointer = (type: string, target: EventTarget, x: number, y: number) =>
       target.dispatchEvent(new PointerEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y, screenX: x, screenY: y }));
     expect(dock.tabDropOutcome('metrics', { x: 400, y: 300 })).toBe('cancel');
@@ -247,7 +247,7 @@ describe('DockService VS-style features', () => {
     expect(api(dock).getPanel('metrics')!.group.api.location.type).toBe('grid');
     expect(windows.calls.some((c) => c.startsWith('popOut:metrics'))).toBe(false);
     dock.detach();
-    expect(document.querySelector('.imt-float-cue')).toBeNull();
+    expect(document.querySelector('.debrief-float-cue')).toBeNull();
   });
 
   it('outside the window the ghost window of the shell replaces the in-window preview, and the pop-out opens where the ghost was', async () => {
@@ -271,7 +271,7 @@ describe('DockService VS-style features', () => {
         finish: async () => (finished++, { x: 700, y: 50, width: 560, height: 420 }),
       };
     };
-    const cue = () => document.querySelector<HTMLElement>('.imt-float-cue')!;
+    const cue = () => document.querySelector<HTMLElement>('.debrief-float-cue')!;
     const pointer = (type: string, target: EventTarget, x: number, y: number) =>
       target.dispatchEvent(new PointerEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y, screenX: x, screenY: y }));
     pointer('pointerdown', tabOf('metrics'), 10, 10);
@@ -306,12 +306,12 @@ describe('DockService VS-style features', () => {
     expect(dock.dropTargetAt({ x: 400, y: 300 })).toBeNull();
     expect(dock.dropTargetAt({ x: 900, y: 300 })).toBeNull();
     dock.showDropGuides({ x: 26, y: 300 });
-    expect(container.querySelector('.imt-drop-guides')!.classList.contains('on')).toBe(true);
-    expect((container.querySelector('.imt-guide-preview') as HTMLElement).hidden).toBe(false);
+    expect(container.querySelector('.debrief-drop-guides')!.classList.contains('on')).toBe(true);
+    expect((container.querySelector('.debrief-guide-preview') as HTMLElement).hidden).toBe(false);
     dock.showDropGuides({ x: 400, y: 300 });
-    expect((container.querySelector('.imt-guide-preview') as HTMLElement).hidden).toBe(true);
+    expect((container.querySelector('.debrief-guide-preview') as HTMLElement).hidden).toBe(true);
     dock.showDropGuides(null);
-    expect(container.querySelector('.imt-drop-guides')!.classList.contains('on')).toBe(false);
+    expect(container.querySelector('.debrief-drop-guides')!.classList.contains('on')).toBe(false);
     dock.takeOut('inspector');
     expect(dock.dockAt('inspector', { kind: 'edge', position: 'left' })).toBe(true);
     expect(dock.dockAt('inspector', { kind: 'edge', position: 'left' })).toBe(false);
@@ -380,7 +380,7 @@ describe('DockService VS-style features', () => {
     const prefs = TestBed.inject(FullScreenPrefs);
     prefs.set('os');
     dock.toggleFullScreen();
-    expect(document.documentElement.classList.contains('imt-full-screen')).toBe(false);
+    expect(document.documentElement.classList.contains('debrief-full-screen')).toBe(false);
     expect(os).toHaveBeenLastCalledWith(true);
     dock.toggleFullScreen();
     expect(os).toHaveBeenLastCalledWith(false);
@@ -391,10 +391,10 @@ describe('DockService VS-style features', () => {
     prefs.set('both');
     dock.toggleFullScreen();
     expect(os).toHaveBeenCalledTimes(3);
-    expect(document.documentElement.classList.contains('imt-full-screen')).toBe(true);
+    expect(document.documentElement.classList.contains('debrief-full-screen')).toBe(true);
     expect(api(dock).hasMaximizedGroup()).toBe(true);
     dock.toggleFullScreen();
-    expect(document.documentElement.classList.contains('imt-full-screen')).toBe(false);
+    expect(document.documentElement.classList.contains('debrief-full-screen')).toBe(false);
     expect(api(dock).hasMaximizedGroup()).toBe(false);
   });
 
@@ -450,20 +450,20 @@ describe('DockHost auto-hide bars, slide-out and navigator', () => {
     return { fixture, dock: TestBed.inject(DockService), el: fixture.nativeElement as HTMLElement };
   }
 
-  afterEach(() => document.querySelectorAll('imt-dock-host, [ng-version]').forEach((e) => e.remove()));
+  afterEach(() => document.querySelectorAll('debrief-dock-host, [ng-version]').forEach((e) => e.remove()));
 
   it('shows a side bar tab for an auto-hidden tool window that slides out on hover and hides on leave and Escape', async () => {
     const { fixture, dock, el } = await host();
     dock.unpin(PANEL.inspector);
     await settle(fixture);
-    const tab = el.querySelector<HTMLButtonElement>('.imt-ah-tab')!;
+    const tab = el.querySelector<HTMLButtonElement>('.debrief-ah-tab')!;
     expect(tab.textContent!.trim()).toBe('Inspector');
     expect(tab.closest('nav')!.getAttribute('aria-label')).toMatch(/^Auto-hidden tool windows/);
     tab.dispatchEvent(new MouseEvent('mouseenter'));
     await settle(fixture);
-    const flyout = el.querySelector<HTMLElement>('.imt-ah-flyout')!;
+    const flyout = el.querySelector<HTMLElement>('.debrief-ah-flyout')!;
     expect(flyout.getAttribute('aria-label')).toBe('Inspector');
-    await vi.waitFor(() => expect(flyout.querySelector('.imt-ah-body')!.children.length).toBe(1));
+    await vi.waitFor(() => expect(flyout.querySelector('.debrief-ah-body')!.children.length).toBe(1));
     tab.dispatchEvent(new MouseEvent('mouseleave'));
     flyout.dispatchEvent(new MouseEvent('mouseenter'));
     await new Promise((r) => setTimeout(r, 350));
@@ -475,7 +475,7 @@ describe('DockHost auto-hide bars, slide-out and navigator', () => {
     tab.dispatchEvent(new MouseEvent('click', { detail: 0, bubbles: true }));
     await settle(fixture);
     expect(dock.autoHide().openedBy).toBe('keyboard');
-    el.querySelector('.imt-ah-flyout')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    el.querySelector('.debrief-ah-flyout')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     await settle(fixture);
     expect(dock.autoHide().open).toBeNull();
   });
@@ -484,7 +484,7 @@ describe('DockHost auto-hide bars, slide-out and navigator', () => {
     const { fixture, dock, el } = await host();
     dock.unpin(PANEL.inspector);
     await settle(fixture);
-    el.querySelector<HTMLButtonElement>('.imt-ah-tab')!.dispatchEvent(new MouseEvent('click', { detail: 1, bubbles: true }));
+    el.querySelector<HTMLButtonElement>('.debrief-ah-tab')!.dispatchEvent(new MouseEvent('click', { detail: 1, bubbles: true }));
     await settle(fixture);
     document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     expect(dock.autoHide().open).toBeNull();
@@ -492,12 +492,12 @@ describe('DockHost auto-hide bars, slide-out and navigator', () => {
     await settle(fixture);
     const outside = document.createElement('button');
     document.body.appendChild(outside);
-    el.querySelector('.imt-ah-flyout')!.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: outside }));
+    el.querySelector('.debrief-ah-flyout')!.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: outside }));
     expect(dock.autoHide().open).toBeNull();
     outside.remove();
     dock.autoHideEvent({ type: 'click', id: 'inspector' });
     await settle(fixture);
-    const grip = el.querySelector<HTMLElement>('.imt-ah-grip')!;
+    const grip = el.querySelector<HTMLElement>('.debrief-ah-grip')!;
     const start = at(dock.autoHide().items, 0).size;
     grip.dispatchEvent(new PointerEvent('pointerdown', { clientX: 100, clientY: 0, bubbles: true }));
     document.dispatchEvent(new PointerEvent('pointermove', { clientX: 140, clientY: 0 }));
@@ -506,7 +506,7 @@ describe('DockHost auto-hide bars, slide-out and navigator', () => {
     el.querySelector<HTMLButtonElement>('button[aria-label="Pin Inspector"]')!.click();
     await settle(fixture);
     expect(dock.isOpen('inspector')).toBe(true);
-    expect(el.querySelector('.imt-ah-bar')).toBeNull();
+    expect(el.querySelector('.debrief-ah-bar')).toBeNull();
   });
 
   it('hides a slide-out on Escape anywhere, unless something else handled the key', async () => {
@@ -529,12 +529,12 @@ describe('DockHost auto-hide bars, slide-out and navigator', () => {
     const retry = vi.fn();
     dock.notice.set({ message: 'Could not pop out', retry });
     await settle(fixture);
-    expect(el.querySelector('.imt-dock-notice')!.textContent).toContain('Could not pop out');
-    [...el.querySelectorAll<HTMLButtonElement>('.imt-dock-notice button')].find((b) => b.textContent === 'Retry')!.click();
+    expect(el.querySelector('.debrief-dock-notice')!.textContent).toContain('Could not pop out');
+    [...el.querySelectorAll<HTMLButtonElement>('.debrief-dock-notice button')].find((b) => b.textContent === 'Retry')!.click();
     expect(retry).toHaveBeenCalled();
     dock.notice.set({ message: 'x' });
     await settle(fixture);
-    [...el.querySelectorAll<HTMLButtonElement>('.imt-dock-notice button')].find((b) => b.textContent === 'Dismiss')!.click();
+    [...el.querySelectorAll<HTMLButtonElement>('.debrief-dock-notice button')].find((b) => b.textContent === 'Dismiss')!.click();
     expect(dock.notice()).toBeNull();
   });
 
@@ -543,17 +543,17 @@ describe('DockHost auto-hide bars, slide-out and navigator', () => {
     dock.pin(PANEL.inspector);
     dock.switch();
     await settle(fixture);
-    const lists = [...el.querySelectorAll('imt-dock-switcher [role=listbox]')];
+    const lists = [...el.querySelectorAll('debrief-dock-switcher [role=listbox]')];
     expect(lists).toHaveLength(2);
     expect(at(lists, 0).textContent).toContain('Inspector');
     expect(at(lists, 1).textContent).toContain('Timeline');
-    const option = el.querySelector<HTMLElement>('imt-dock-switcher [role=option]')!;
+    const option = el.querySelector<HTMLElement>('debrief-dock-switcher [role=option]')!;
     option.dispatchEvent(new PointerEvent('pointerenter'));
     option.click();
     expect(dock.switcher()).toBeNull();
     dock.switch();
     await settle(fixture);
-    el.querySelector<HTMLElement>('.imt-switcher-backdrop')!.dispatchEvent(new PointerEvent('pointerdown'));
+    el.querySelector<HTMLElement>('.debrief-switcher-backdrop')!.dispatchEvent(new PointerEvent('pointerdown'));
     expect(dock.switcher()).toBeNull();
     expect(TestBed.createComponent(DockSwitcher)).toBeTruthy();
   });

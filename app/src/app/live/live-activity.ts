@@ -1,9 +1,9 @@
-import { ImtActivityItem } from '../extensions/tokens';
+import { DebriefActivityItem } from '../extensions/tokens';
 import { LiveTail } from '../workspace/live-tail';
 import { LiveFollow } from './live-follow.store';
 
 /** The Live tail toggle in the activity bar: pressed while live tail is on, with a pulsing dot while following; shown while there are files to follow. */
-export function liveActivityItems(live: LiveTail, follow: InstanceType<typeof LiveFollow>): ImtActivityItem[] {
+export function liveActivityItems(live: LiveTail, follow: InstanceType<typeof LiveFollow>): DebriefActivityItem[] {
   return [
     {
       id: 'live-tail',

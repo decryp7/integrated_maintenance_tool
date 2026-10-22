@@ -1,7 +1,7 @@
 import { effect, inject, untracked } from '@angular/core';
 import { patchState, signalStore, withHooks, withState } from '@ngrx/signals';
 import { Query } from '../api.types';
-import { ImtBackend } from '../backend';
+import { DebriefBackend } from '../backend';
 import { CmdError, isCmdErrorDto } from '../cmd-error';
 import { Logger } from '../logger';
 import { QueryStore } from './query.store';
@@ -35,7 +35,7 @@ export const SmartSearchStore = signalStore(
   withState<SmartSearchState>({ added: 0, scanning: false }),
   withHooks({
     onInit(store) {
-      const backend = inject(ImtBackend);
+      const backend = inject(DebriefBackend);
       const query = inject(QueryStore);
       const data = inject(WorkspaceDataStore);
       const logger = inject(Logger);

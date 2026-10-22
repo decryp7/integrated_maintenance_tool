@@ -1,8 +1,8 @@
-//! Settings ▸ Storage: what IMT keeps on disk, and clearing it.
+//! Settings ▸ Storage: what Debrief keeps on disk, and clearing it.
 //!
 //! Categories ([`model::CategoryId`]): temporary copies of opened bundles, the webview's caches and
-//! runtime builds of releases IMT no longer pins are `cache` (rebuilt when needed, cleared together by
-//! "Clear cache"); the internal browser's profile, the AI runtimes and models, IMT's logs, error
+//! runtime builds of releases Debrief no longer pins are `cache` (rebuilt when needed, cleared together by
+//! "Clear cache"); the internal browser's profile, the AI runtimes and models, Debrief's logs, error
 //! snapshots, session backups and (once they exist) persistent stores are `data` (each cleared on its own,
 //! after a confirmation in the UI).
 //!
@@ -99,7 +99,7 @@ fn folders<'a, R: Runtime>(app: &AppHandle<R>, ai: Option<&'a dyn AiPort>) -> Fo
         data: crate::app_dirs::data(app).ok(),
         active_log: log.as_deref().map(crate::logging::active_log_file),
         log,
-        runtime_tag: imt_ai::runtimes::RuntimeCatalog::embedded().tag,
+        runtime_tag: debrief_ai::runtimes::RuntimeCatalog::embedded().tag,
         session_start: session_start(),
         main_instance: app.try_state::<crate::instance::SingleInstance>().is_some_and(|s| s.0),
         // Without the lifecycle (tests) assume the worst: keep the previous run's sessions.
@@ -171,7 +171,7 @@ impl<R: Runtime> Job<R> {
         let jobs = app.state::<StorageJobs>();
         let mut running = crate::sync::lock(&jobs.running);
         if *running {
-            return Err("IMT is already clearing its storage; wait for it to finish".into());
+            return Err("Debrief is already clearing its storage; wait for it to finish".into());
         }
         *running = true;
         Ok(Job {
@@ -189,7 +189,7 @@ impl<R: Runtime> Drop for Job<R> {
     }
 }
 
-/// What IMT stores, per category (sizes are lower bounds when `capped`).
+/// What Debrief stores, per category (sizes are lower bounds when `capped`).
 #[tauri::command]
 pub async fn storage_usage<R: Runtime>(app: AppHandle<R>) -> CmdResult<StorageUsage> {
     crate::error::lift(
@@ -213,7 +213,7 @@ pub async fn storage_clear<R: Runtime>(app: AppHandle<R>, op: OpId, ids: Vec<Str
     let started = Instant::now();
     let names = ids.iter().map(|c| c.as_str()).collect::<Vec<_>>().join(",");
     let flag = job.cancel.clone();
-    let spec = JobSpec::new(JobKind::Maintenance, "Clear IMT's storage");
+    let spec = JobSpec::new(JobKind::Maintenance, "Clear Debrief's storage");
     crate::error::lift(
         crate::jobs::spawn(
             &app,
@@ -251,13 +251,13 @@ pub async fn storage_clear<R: Runtime>(app: AppHandle<R>, op: OpId, ids: Vec<Str
 
 /// "Freed 12 MB; 3 items stayed": the line the job's message shows.
 fn cleared_line(freed: u64, skipped: u64) -> String {
-    let freed = imt_plugin_api::units::bytes(freed);
+    let freed = debrief_plugin_api::units::bytes(freed);
     match skipped {
         0 => format!("Freed {freed}."),
         1 => format!("Freed {freed}; 1 item stayed (in use or not allowed)."),
         n => format!(
             "Freed {freed}; {} items stayed (in use or not allowed).",
-            imt_plugin_api::units::count(n)
+            debrief_plugin_api::units::count(n)
         ),
     }
 }
@@ -273,10 +273,10 @@ pub async fn storage_reveal<R: Runtime>(app: AppHandle<R>, id: String) -> CmdRes
     })
     .await
     .map_err(err)?
-    .ok_or_else(|| "IMT cannot find this folder on this computer".to_string())?;
+    .ok_or_else(|| "Debrief cannot find this folder on this computer".to_string())?;
     if !dir.is_dir() {
         return Err(crate::CmdError::from(format!(
-            "{} does not exist yet: IMT has not stored anything there",
+            "{} does not exist yet: Debrief has not stored anything there",
             dir.display()
         )));
     }
@@ -297,7 +297,7 @@ mod tests;
 const POLICY_FILE: &str = "storage-policy.json";
 const POLICY_VERSION: u32 = 1;
 
-/// Whether an IMT process with this id runs (the owner of a scratch store folder).
+/// Whether a Debrief process with this id runs (the owner of a scratch store folder).
 fn process_alive(pid: u32) -> bool {
     if pid == std::process::id() {
         return true;

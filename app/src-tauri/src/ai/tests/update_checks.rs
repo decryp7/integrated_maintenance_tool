@@ -5,20 +5,20 @@
 use super::*;
 use crate::ai::update_commands;
 use crate::ai::updates::{AiUpdates, AiUpdatesStatus, UpdateEffects};
-use imt_ai::net::{NetError, NetKind};
-use imt_ai::setup::SetupStage;
-use imt_ai::updates::{UpdateCandidate, UpdateKind};
+use debrief_ai::net::{NetError, NetKind};
+use debrief_ai::setup::SetupStage;
+use debrief_ai::updates::{UpdateCandidate, UpdateKind};
 use std::sync::atomic::AtomicI64;
 
 const OLD_TAG: &str = "b5";
 const OLD_MODEL: &str = "Old-4B-Q4_K_M.gguf";
 
-/// A complete build of an older release, as an earlier IMT installed it.
+/// A complete build of an older release, as an earlier Debrief installed it.
 fn plant_build(tmp: &TempDir, tag: &str, id: &str) -> PathBuf {
     let dir = tmp.0.join("runtimes").join(tag).join(id);
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join(SERVER_FILE), b"old server").unwrap();
-    std::fs::write(dir.join(imt_ai::runtimes::store::MARKER), b"{}").unwrap();
+    std::fs::write(dir.join(debrief_ai::runtimes::store::MARKER), b"{}").unwrap();
     dir
 }
 
@@ -69,8 +69,8 @@ fn service(core: Arc<AiCore>, record_dir: &Path) -> Service {
 
 fn set_policies(core: &AiCore, runtime: &str, model: &str) {
     let mut s = core.settings();
-    s.runtime_updates = imt_ai::updates::UpdatePolicy::parse(runtime).unwrap();
-    s.model_updates = imt_ai::updates::UpdatePolicy::parse(model).unwrap();
+    s.runtime_updates = debrief_ai::updates::UpdatePolicy::parse(runtime).unwrap();
+    s.model_updates = debrief_ai::updates::UpdatePolicy::parse(model).unwrap();
     core.apply_settings(s).unwrap();
 }
 
@@ -219,14 +219,14 @@ fn model_update_core(f: &Fixture, deps: AiDeps) -> Arc<AiCore> {
 /// A model host that cannot be reached through the network's TLS interception.
 struct Intercepted;
 impl ModelSource for Intercepted {
-    fn describe(&self, _: &str, _: &str) -> imt_ai::Result<RemoteFile> {
+    fn describe(&self, _: &str, _: &str) -> debrief_ai::Result<RemoteFile> {
         Err(AiError::Connection(NetError::new(
             NetKind::Tls,
             "huggingface.co",
             "invalid peer certificate: UnknownIssuer",
         )))
     }
-    fn fetch(&self, _: &RemoteFile, _: u64, _: &mut dyn FnMut(&[u8]) -> imt_ai::Result<()>, _: &AtomicBool) -> imt_ai::Result<()> {
+    fn fetch(&self, _: &RemoteFile, _: u64, _: &mut dyn FnMut(&[u8]) -> debrief_ai::Result<()>, _: &AtomicBool) -> debrief_ai::Result<()> {
         unreachable!()
     }
 }
@@ -360,7 +360,7 @@ fn a_runtime_update_keeps_the_old_build_working_until_the_new_one_verifies() {
             .runtimes
             .worker_env(&core.settings())
             .into_iter()
-            .find(|(k, _)| k == "IMT_LLAMA_DIR")
+            .find(|(k, _)| k == "DEBRIEF_LLAMA_DIR")
             .unwrap()
             .1
     };

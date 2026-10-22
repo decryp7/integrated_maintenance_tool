@@ -47,11 +47,11 @@ describe('MockWindowingBackend', () => {
     expect(url.searchParams.get('mockTotal')).toBe('5');
     expect(url.searchParams.get('window')).toBe('w-2');
     expect(changed).toHaveBeenCalledTimes(2);
-    h.titleText = 'P — IMT';
+    h.titleText = 'P — Debrief';
     expect((await b.listWindows()).map((w) => [w.label, w.title])).toEqual([
-      ['main', 'P — IMT'],
-      ['w-2', 'IMT — w-2'],
-      ['w-3', 'IMT — w-3'],
+      ['main', 'P — Debrief'],
+      ['w-2', 'Debrief — w-2'],
+      ['w-3', 'Debrief — w-3'],
     ]);
     at(h.popups, 0).win.closed = true;
     expect((await b.listWindows()).map((w) => w.label)).toEqual(['main', 'w-3']);
@@ -65,7 +65,7 @@ describe('MockWindowingBackend', () => {
     h.titleText = '';
     const b = new MockWindowingBackend(h);
     expect((await b.newWindow()).label).toBe('w-2');
-    expect((await b.listWindows())[0]?.title).toBe('IMT');
+    expect((await b.listWindows())[0]?.title).toBe('Debrief');
     await b.resolveClose('tray', true);
     const handler = vi.fn();
     await b.onCloseRequested(handler);
@@ -161,8 +161,8 @@ describe('MockWindowingBackend', () => {
   it('records the other commands and emits simulated events', async () => {
     const h = host();
     const b = new MockWindowingBackend(h);
-    await b.setWindowTitle('X — IMT');
-    expect(h.titleText).toBe('X — IMT');
+    await b.setWindowTitle('X — Debrief');
+    expect(h.titleText).toBe('X — Debrief');
     expect(await b.restoreWindows()).toBe(0);
     await b.resolveOpen('newWindow');
     const ask = vi.fn();

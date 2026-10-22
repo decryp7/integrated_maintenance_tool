@@ -16,7 +16,7 @@ import { RecentService } from '../../core/recent/recent.service';
 import { buildMenus, MENU_IDS, MenuCommand, TopMenu } from './menu-model';
 import { RecentOpener } from './recent-opener';
 
-/** Where the menus are shown: IMT's own menu bar, or the macOS native menu bar (the in-app bar is then hidden). */
+/** Where the menus are shown: Debrief's own menu bar, or the macOS native menu bar (the in-app bar is then hidden). */
 export type MenuMode = 'in-app' | 'native';
 
 /** The menu mode of this run: native in the macOS desktop app, else in-app (Windows, Linux, browser). */
@@ -95,6 +95,6 @@ export class AppMenu {
   private showFields(): void {
     if (!this.store.sidebarOpen()) this.store.toggleSidebar();
     this.sections.setFieldsOpen(true);
-    afterNextRender(() => document.querySelector<HTMLInputElement>('imt-fields-panel input.filter, imt-fields-panel input[aria-label="Filter fields"]')?.focus(), { injector: this.injector });
+    afterNextRender(() => document.querySelector<HTMLInputElement>('debrief-fields-panel input.filter, debrief-fields-panel input[aria-label="Filter fields"]')?.focus(), { injector: this.injector });
   }
 }

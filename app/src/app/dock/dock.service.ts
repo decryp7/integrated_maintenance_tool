@@ -152,7 +152,7 @@ export class DockService {
     this.detach();
     this.ctx.container = container;
     const api = lib.createDockview(container, {
-      theme: { name: 'imt', className: 'imt-dockview' },
+      theme: { name: 'debrief', className: 'debrief-dockview' },
       floatingGroupBounds: 'boundedWithinViewport',
       // A floating panel moves by the empty part of its tab strip, as a window by its title bar. dockview's default
       // is a separate blank bar above the tabs, which nothing marks as a handle: the panel looked stuck.
@@ -579,7 +579,7 @@ export class DockService {
   openActivePanelMenu(): void {
     const panel = this.api?.activePanel;
     if (!panel) return;
-    const tab = this.ctx.container?.querySelector<HTMLElement>(`.imt-tab[data-panel-id="${CSS.escape(panel.id)}"]`) ?? null;
+    const tab = this.ctx.container?.querySelector<HTMLElement>(`.debrief-tab[data-panel-id="${CSS.escape(panel.id)}"]`) ?? null;
     this.openPanelMenu(panel.id, tab?.closest<HTMLElement>('[role="tab"]') ?? tab);
   }
 
@@ -680,7 +680,7 @@ export class DockService {
 
   /** Moves keyboard focus to a panel's tab (after switching to it). */
   private focusPanel(id: string): void {
-    queueMicrotask(() => this.ctx.container?.querySelector<HTMLElement>(`.imt-tab[data-panel-id="${CSS.escape(id)}"]`)?.closest<HTMLElement>('[role="tab"]')?.focus());
+    queueMicrotask(() => this.ctx.container?.querySelector<HTMLElement>(`.debrief-tab[data-panel-id="${CSS.escape(id)}"]`)?.closest<HTMLElement>('[role="tab"]')?.focus());
   }
 
   /* ----------------------------------------------------------- full screen */
@@ -700,7 +700,7 @@ export class DockService {
     this.fullScreenOs = mode !== 'chrome';
     if (mode !== 'os') {
       const group = this.placement.documentWell();
-      document.documentElement.classList.add('imt-full-screen');
+      document.documentElement.classList.add('debrief-full-screen');
       if (group && !group.api.isMaximized()) {
         group.api.maximize();
         this.fullScreenGroup = group;
@@ -712,7 +712,7 @@ export class DockService {
   private exitFullScreen(): void {
     if (!this.fullScreen()) return;
     this.fullScreen.set(false);
-    document.documentElement.classList.remove('imt-full-screen');
+    document.documentElement.classList.remove('debrief-full-screen');
     if (this.fullScreenGroup?.api.isMaximized()) this.fullScreenGroup.api.exitMaximized();
     this.fullScreenGroup = null;
     if (this.fullScreenOs) void this.lazy.get(OsWindow).setFullscreen(false);
@@ -769,7 +769,7 @@ export class DockService {
     this.persistence.schedule();
   }
 
-  /** Opens/closes views that depend on the workspace (`ImtView.when`). */
+  /** Opens/closes views that depend on the workspace (`DebriefView.when`). */
   syncConditionalViews(): void {
     const api = this.api;
     if (!api) return;

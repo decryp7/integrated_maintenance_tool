@@ -15,16 +15,16 @@ const KIND_LABEL: Record<TargetKind, string> = {
   pid: $localize`:@@tools.monitor.kind.pid:Process id`,
 };
 
-/** Process monitor: samples CPU, memory, threads and handles of chosen processes into CLEF files IMT can chart. */
+/** Process monitor: samples CPU, memory, threads and handles of chosen processes into CLEF files Debrief can chart. */
 @Component({
-  selector: 'imt-monitor-view',
+  selector: 'debrief-monitor-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, HelpHint, ToolError, ToolUnavailable, MonitorLiveCharts],
   template: `
     <div class="scroll" role="region" aria-label="Process monitor" i18n-aria-label="@@tools.monitor.region" tabindex="0">
       <p class="intro" i18n="@@tools.monitor.intro">Sample the resource use of processes at an interval. The samples are written as log events and opened here with live tail, so they show up on the timeline, in Metrics and in the Live charts below.</p>
-      <imt-tool-unavailable tool="process-monitor" />
-      <imt-tool-error [message]="store.error()" (dismissed)="store.dismissError()" />
+      <debrief-tool-unavailable tool="process-monitor" />
+      <debrief-tool-error [message]="store.error()" (dismissed)="store.dismissError()" />
       @if (store.notice(); as notice) { <div class="note" role="status">{{ notice }}</div> }
 
       <div class="card status" data-testid="monitor-status" role="status">
@@ -32,10 +32,10 @@ const KIND_LABEL: Record<TargetKind, string> = {
         <strong>{{ runLabel() }}</strong>
         @if (store.dir(); as dir) { <span class="faint ellipsis" [title]="dir" i18n="@@tools.monitor.output">Output: <span class="mono">{{ dir }}</span></span> }
         <span class="spacer"></span>
-        <button type="button" class="icon-btn" aria-label="Refresh status" i18n-aria-label="@@tools.monitor.refresh.aria" title="Refresh status" i18n-title="@@tools.monitor.refresh.title" (click)="store.refresh()"><imt-icon name="refresh" [size]="14" /></button>
+        <button type="button" class="icon-btn" aria-label="Refresh status" i18n-aria-label="@@tools.monitor.refresh.aria" title="Refresh status" i18n-title="@@tools.monitor.refresh.title" (click)="store.refresh()"><debrief-icon name="refresh" [size]="14" /></button>
       </div>
 
-      <imt-monitor-live-charts />
+      <debrief-monitor-live-charts />
 
       @if (store.accessDeniedSeen() > 0) {
         <div class="warn" role="alert" data-testid="access-denied-note">
@@ -44,23 +44,23 @@ const KIND_LABEL: Record<TargetKind, string> = {
             <ng-container i18n="@@tools.monitor.adminNeeded">Administrator rights are needed for those.</ng-container>
             <button type="button" class="btn" (click)="life.restartElevated()" i18n="@@tools.monitor.restartAdmin">Restart as administrator</button>
           } @else {
-            <ng-container i18n="@@tools.monitor.runAsAdmin">Run IMT as administrator to include them.</ng-container>
+            <ng-container i18n="@@tools.monitor.runAsAdmin">Run Debrief as administrator to include them.</ng-container>
           }
         </div>
       }
 
       <section aria-labelledby="pmon-targets" (input)="edited.set(true)" (change)="edited.set(true)">
-        <h2 id="pmon-targets" class="section-title" i18n="@@tools.monitor.targets">Targets <imt-help label="Targets" i18n-label="@@tools.monitor.targets.helpLabel" text="A process is watched when any row matches. Names and paths accept globs such as order*, case-insensitive; a path matches the full executable path." i18n-text="@@tools.monitor.targets.helpText" /></h2>
+        <h2 id="pmon-targets" class="section-title" i18n="@@tools.monitor.targets">Targets <debrief-help label="Targets" i18n-label="@@tools.monitor.targets.helpLabel" text="A process is watched when any row matches. Names and paths accept globs such as order*, case-insensitive; a path matches the full executable path." i18n-text="@@tools.monitor.targets.helpText" /></h2>
         @for (t of store.draft().targets; track $index) {
           <div class="inline">
             <select class="select" [attr.aria-label]="targetTypeLabel($index)" [value]="t.kind" (change)="store.setTarget($index, { kind: kind($event) })">
               @for (k of kinds; track k) { <option [value]="k">{{ label[k] }}</option> }
             </select>
             <input class="input grow" [attr.aria-label]="targetValueLabel($index)" [value]="t.value" placeholder="e.g. OrderService*" i18n-placeholder="@@tools.monitor.target.placeholder" (input)="store.setTarget($index, { value: val($event) })" />
-            <button type="button" class="icon-btn" [attr.aria-label]="removeTargetLabel($index)" title="Remove" i18n-title="@@tools.monitor.remove.title" (click)="store.removeTarget($index)"><imt-icon name="close" [size]="13" /></button>
+            <button type="button" class="icon-btn" [attr.aria-label]="removeTargetLabel($index)" title="Remove" i18n-title="@@tools.monitor.remove.title" (click)="store.removeTarget($index)"><debrief-icon name="close" [size]="13" /></button>
           </div>
         }
-        <div><button type="button" class="btn" (click)="store.addTarget()" i18n="@@tools.monitor.addTarget"><imt-icon name="plus" [size]="12" />Add target</button></div>
+        <div><button type="button" class="btn" (click)="store.addTarget()" i18n="@@tools.monitor.addTarget"><debrief-icon name="plus" [size]="12" />Add target</button></div>
       </section>
 
       <section aria-labelledby="pmon-opts" (input)="edited.set(true)" (change)="edited.set(true)">
@@ -78,13 +78,13 @@ const KIND_LABEL: Record<TargetKind, string> = {
         </div>
         <label class="check" i18n="@@tools.monitor.includeChildren"><input type="checkbox" [checked]="store.draft().includeChildren" (change)="store.patchDraft({ includeChildren: checked($event) })" /> Include child processes</label>
         <label class="check" i18n="@@tools.monitor.dotnet"><input type="checkbox" [checked]="store.draft().dotnet" (change)="store.patchDraft({ dotnet: checked($event) })" /> .NET runtime counters (Framework)
-          <imt-help label=".NET runtime counters" i18n-label="@@tools.monitor.dotnet.helpLabel" i18n-text="@@tools.monitor.dotnet.helpText" text="Reads GC collections, heap sizes, % time in GC, exceptions/s, lock contention, threads and loaded assemblies of .NET Framework processes. .NET (Core) processes need EventPipe and are reported as not collected." /></label>
+          <debrief-help label=".NET runtime counters" i18n-label="@@tools.monitor.dotnet.helpLabel" i18n-text="@@tools.monitor.dotnet.helpText" text="Reads GC collections, heap sizes, % time in GC, exceptions/s, lock contention, threads and loaded assemblies of .NET Framework processes. .NET (Core) processes need EventPipe and are reported as not collected." /></label>
         @if (store.countersAvailable()) {
           <label class="lbl"><ng-container i18n="@@tools.monitor.extraCounters">Extra performance counters (one per line, optional)</ng-container>
             <textarea class="input mono" rows="3" [value]="store.draft().counters" placeholder="\\Process(*)\\IO Data Bytes/sec" (input)="store.patchDraft({ counters: val($event) })"></textarea>
           </label>
         }
-        <label class="lbl"><ng-container i18n="@@tools.monitor.outputFolder">Output folder (optional, defaults to IMT's data folder)</ng-container>
+        <label class="lbl"><ng-container i18n="@@tools.monitor.outputFolder">Output folder (optional, defaults to Debrief's data folder)</ng-container>
           <input class="input mono" [value]="store.draft().dir" (input)="store.patchDraft({ dir: val($event) })" />
         </label>
       </section>

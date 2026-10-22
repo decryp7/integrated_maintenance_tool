@@ -1,14 +1,14 @@
-//! The local AI assistant (`imt-ai`): set-up and models, the use cases, chat, and the Settings → AI section.
-//! Inference runs in one `imt-ai-worker` process shared by every window (a downloaded llama.cpp
+//! The local AI assistant (`debrief-ai`): set-up and models, the use cases, chat, and the Settings → AI section.
+//! Inference runs in one `debrief-ai-worker` process shared by every window (a downloaded llama.cpp
 //! `llama-server` build, ADR 0009; never a cloud service); each window has its own chats.
 //!
 //! Everything is optional: in safe mode, without the worker binary or before a model is set up, every
 //! command fails with a typed [`AiCmdError`] (`code` = `unavailable` / `noModel`) and the UI hides or greys
 //! its AI features.
 //!
-//! Events: `imt://ai-setup` (set-up and activation stages, all windows), `imt://ai-status` (engine state
-//! changed, all windows), `imt://ai-chat` (chat stream, to the window of the chat), `imt://ai-runtime`
-//! (inference runtime downloads, all windows), `imt://ai-updates` (runtime and model update checks, all windows).
+//! Events: `debrief://ai-setup` (set-up and activation stages, all windows), `debrief://ai-status` (engine state
+//! changed, all windows), `debrief://ai-chat` (chat stream, to the window of the chat), `debrief://ai-runtime`
+//! (inference runtime downloads, all windows), `debrief://ai-updates` (runtime and model update checks, all windows).
 
 mod chats;
 pub(crate) mod commands;
@@ -36,13 +36,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager, Runtime};
 
-pub const SETUP_EVENT: &str = "imt://ai-setup";
-pub const STATUS_EVENT: &str = "imt://ai-status";
-pub const CHAT_EVENT: &str = "imt://ai-chat";
+pub const SETUP_EVENT: &str = "debrief://ai-setup";
+pub const STATUS_EVENT: &str = "debrief://ai-status";
+pub const CHAT_EVENT: &str = "debrief://ai-chat";
 /// Inference runtime installs (`runtimes::RuntimeEvent`, all windows).
-pub const RUNTIME_EVENT: &str = "imt://ai-runtime";
+pub const RUNTIME_EVENT: &str = "debrief://ai-runtime";
 /// The AI update checks' status (`updates::AiUpdatesStatus`, all windows).
-pub const UPDATES_EVENT: &str = "imt://ai-updates";
+pub const UPDATES_EVENT: &str = "debrief://ai-updates";
 
 /// The app-wide AI runtime, managed as Tauri state.
 pub struct AiState(pub Arc<AiCore>);
@@ -89,16 +89,16 @@ impl Drop for WindowAi {
 /// Never fails: problems leave the AI unavailable with a reason the UI shows.
 pub fn init<R: Runtime>(app: &AppHandle<R>, safe_mode: bool) {
     let dir = crate::app_dirs::config(app).ok().map(|d| d.join("ai"));
-    let data = crate::app_dirs::data(app).unwrap_or_else(|_| std::env::temp_dir().join("imt-data"));
+    let data = crate::app_dirs::data(app).unwrap_or_else(|_| std::env::temp_dir().join("debrief-data"));
     let models = data.join("models");
     let deps = match app.try_state::<crate::app_state::AppState>().map(|s| s.performance.clone()) {
         Some(perf) => {
             let listener = Some(perf.hub.listener());
             let weak = Arc::downgrade(&perf);
-            let cap: imt_ai::worker::WorkerMemoryCap = Arc::new(move || weak.upgrade().and_then(|p| p.ai_cap()));
-            AiDeps::system_capped(imt_ai::worker::default_worker_path(), &data, cap, listener)
+            let cap: debrief_ai::worker::WorkerMemoryCap = Arc::new(move || weak.upgrade().and_then(|p| p.ai_cap()));
+            AiDeps::system_capped(debrief_ai::worker::default_worker_path(), &data, cap, listener)
         }
-        None => AiDeps::system(imt_ai::worker::default_worker_path(), &data),
+        None => AiDeps::system(debrief_ai::worker::default_worker_path(), &data),
     };
     let core = Arc::new(AiCore::new(dir, models, safe_mode, deps));
     manage(app, core.clone());

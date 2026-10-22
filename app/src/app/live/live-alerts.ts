@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { LiveAlert, Query } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { describeError, Logger } from '../core/logger';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { TimeCursor } from '../analysis/time-cursor';
@@ -8,10 +8,10 @@ import { DockService, PANEL } from '../dock/dock.service';
 import { TimelineZoom } from '../timeline/zoom';
 import { AlertsStore } from './alerts.store';
 
-/** Listens to `imt://live-alert` and applies an alert's evidence to the workspace ("Show"). */
+/** Listens to `debrief://live-alert` and applies an alert's evidence to the workspace ("Show"). */
 @Injectable({ providedIn: 'root' })
 export class LiveAlerts {
-  private readonly backend = inject(ImtBackend);
+  private readonly backend = inject(DebriefBackend);
   private readonly alerts = inject(AlertsStore);
   private readonly logger = inject(Logger);
   private readonly ws = inject(WorkspaceStore);

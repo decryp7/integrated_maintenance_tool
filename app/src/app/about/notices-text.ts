@@ -25,7 +25,7 @@ export function visibleRange(scrollTop: number, total: number, viewport = VIEWPO
 
 /** What "Copy version info" puts on the clipboard. */
 export function versionInfoText(version: string | null, platform: string | null, build: { commit?: string; date?: string } | null): string {
-  const rows = [`IMT ${version ?? 'unknown'}`, 'Licence: MIT OR Apache-2.0'];
+  const rows = [`Debrief ${version ?? 'unknown'}`, 'Licence: MIT OR Apache-2.0'];
   if (platform) rows.push(`Platform: ${platform}`);
   const known = (v: string | undefined): v is string => !!v && v !== 'unknown';
   if (known(build?.commit)) rows.push(`Commit: ${build.commit}`);

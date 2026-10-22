@@ -11,27 +11,27 @@ export function modeText(mode: RuntimeMode): string {
     case 'none':
       return $localize`:@@video.settings.mode.none:No FFmpeg is set up yet.`;
     case 'managed':
-      return $localize`:@@video.settings.mode.managed:IMT's downloaded FFmpeg is used.`;
+      return $localize`:@@video.settings.mode.managed:Debrief's downloaded FFmpeg is used.`;
     case 'custom':
       return $localize`:@@video.settings.mode.custom:The ffmpeg you chose is used.`;
   }
 }
 
 /**
- * Settings ▸ Video: the FFmpeg runtime (ADR 0033). IMT does not ship FFmpeg: where a pinned LGPL build exists it is
+ * Settings ▸ Video: the FFmpeg runtime (ADR 0033). Debrief does not ship FFmpeg: where a pinned LGPL build exists it is
  * downloaded once, checked and self-tested (a job; progress is in Jobs), with Roll back to the build before. You can
  * instead use an ffmpeg of your own (e.g. Homebrew's); the engine tests it before it is used.
  */
 @Component({
-  selector: 'imt-video-settings',
+  selector: 'debrief-video-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [VideoError],
   template: `
     <h3 class="title" i18n="Settings section@@video.settings.title">Video</h3>
-    <p class="desc" i18n="@@video.settings.desc">IMT reads videos with FFmpeg: it picks the frames where the picture changes and lines them up with the logs. FFmpeg is not part of IMT.</p>
+    <p class="desc" i18n="@@video.settings.desc">Debrief reads videos with FFmpeg: it picks the frames where the picture changes and lines them up with the logs. FFmpeg is not part of Debrief.</p>
     <h4 i18n="@@video.settings.runtime">FFmpeg runtime</h4>
     @if (store.errors().runtime; as e) {
-      <imt-video-error [failure]="e" (retry)="store.retry('runtime')" (dismiss)="store.dismiss('runtime')" />
+      <debrief-video-error [failure]="e" (retry)="store.retry('runtime')" (dismiss)="store.dismiss('runtime')" />
     }
     @if (store.runtime(); as r) {
       @if (r.status.problem; as problem) {
@@ -47,7 +47,7 @@ export function modeText(mode: RuntimeMode): string {
       @if (r.canDownload) {
         <p class="muted" data-testid="video-settings-pinned">
           @if (r.status.pinnedRelease; as rel) {
-            <ng-container i18n="@@video.settings.pinned">IMT offers {{ rel }} ({{ pinnedSize() }}), checked against its checksum and tested before use.</ng-container>
+            <ng-container i18n="@@video.settings.pinned">Debrief offers {{ rel }} ({{ pinnedSize() }}), checked against its checksum and tested before use.</ng-container>
           }
           @if (r.status.updateAvailable && r.status.active) {
             <strong data-testid="video-settings-update" i18n="@@video.settings.updateAvailable"> An update is available.</strong>
@@ -62,9 +62,9 @@ export function modeText(mode: RuntimeMode): string {
           <p class="muted" role="status" data-testid="video-installing" i18n="@@video.settings.installing">Downloading and testing FFmpeg. You can keep working; progress and Cancel are in Jobs.</p>
         }
       } @else if (isMac()) {
-        <p class="note" role="note" data-testid="video-settings-mac" i18n="@@video.settings.mac">There is no FFmpeg build for IMT to download on macOS yet. Install one with Homebrew (<span class="mono">brew install ffmpeg</span>) and use it here.</p>
+        <p class="note" role="note" data-testid="video-settings-mac" i18n="@@video.settings.mac">There is no FFmpeg build for Debrief to download on macOS yet. Install one with Homebrew (<span class="mono">brew install ffmpeg</span>) and use it here.</p>
       } @else {
-        <p class="note" role="note" data-testid="video-settings-nodownload" i18n="@@video.settings.noDownload">IMT has no FFmpeg build to download for this computer. Install ffmpeg yourself and use it here.</p>
+        <p class="note" role="note" data-testid="video-settings-nodownload" i18n="@@video.settings.noDownload">Debrief has no FFmpeg build to download for this computer. Install ffmpeg yourself and use it here.</p>
       }
 
       <h4 i18n="@@video.settings.custom">Your own ffmpeg</h4>

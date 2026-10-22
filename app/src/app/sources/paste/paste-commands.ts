@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { ImtCommand } from '../../extensions/tokens';
+import { DebriefCommand } from '../../extensions/tokens';
 import { DialogService } from '../../ui/dialog.service';
 
 /** Edit ▸ "Paste as log…" (Mod+Shift+V). */
@@ -13,7 +13,7 @@ export class PasteCommands {
     this.dialogs.open(PasteDialog, { title: $localize`:@@sources.paste.dialog.title:Paste as log`, inputs: { text }, width: 640 });
   }
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     {
       id: 'edit.pasteLog',
       title: $localize`:@@sources.paste.command:Paste as log…`,

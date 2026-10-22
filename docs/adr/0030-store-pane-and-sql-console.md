@@ -17,7 +17,7 @@ does not cover. The audit asked for a read-only Store pane (C1) and a sandboxed 
 
 ### 1. New ports, computed in the store
 
-Three small ports join `imt_core::ports::Store` (interface segregation; their default methods answer
+Three small ports join `debrief_core::ports::Store` (interface segregation; their default methods answer
 `StoreError::Unsupported`, so the in-memory test store needs no code):
 
 - **`Inspect`** (queries, no side effects): `store_overview` (folder, size on disk, events, sources, segments, data
@@ -45,7 +45,7 @@ The worker gains nine operations, **appended at the end of the op table** (`Stor
 app's commands are `store_overview`, `store_segments`, `store_fields`, `store_index`, `store_memory`,
 `store_maintenance → job id`, `sql_schema`, `sql_run → SqlOutcome` (an analysis job whose id is the channel's first
 event, cancelled with `jobs_cancel`; `explain` is a flag of the run, not a command of its own) and `sql_page`. The
-DTOs live in `imt_core::ports::{inspect, console}` and derive ts-rs behind imt-core's new `ts` feature;
+DTOs live in `debrief_core::ports::{inspect, console}` and derive ts-rs behind debrief-core's new `ts` feature;
 `app/src/app/core/generated/store.ts` is generated from them and re-exported by `api.types.ts`.
 
 ### 2. The console: a sandboxed database of its own
@@ -55,7 +55,7 @@ A console query never runs in the store's database. Each store opens, on first u
 1. may read only the store's `segments/` folder (`allowed_directories`), then has `enable_external_access = false`,
    `autoload_known_extensions = false` and `autoinstall_known_extensions = false`;
 2. has `memory_limit = 128MB` (inside the 300 MB query budget) and `threads = 2`;
-3. holds the `imt` schema with the views below and `search_path = 'imt,main'`;
+3. holds the `debrief` schema with the views below and `search_path = 'debrief,main'`;
 4. ends with `lock_configuration = true`, so no statement can change any setting (tested: `SET`, `RESET`,
    `enable_external_access`, `allowed_directories`, `lock_configuration` itself).
 
@@ -64,7 +64,7 @@ each run) when the store's generation or the notes changed; `events` is a view o
 The store's catalog, its internal tables (`segments`, `segment_fields`, `events_wide`, `meta`, `analysis_cache`, the
 promoted `p_*` columns) and its database file are not in the console's database at all.
 
-**Every text is checked in Rust before it runs** (`imt-store-duck/src/console/guard.rs`):
+**Every text is checked in Rust before it runs** (`debrief-store-duck/src/console/guard.rs`):
 
 - a lexical pass (quotes, `--` and `/* */` comments and `$tag$` strings skipped) allows exactly one statement whose
   first keyword reads (`SELECT`, `WITH`, `FROM`, `VALUES`, `TABLE`, `DESCRIBE`, `SUMMARIZE`, `PIVOT`, `UNPIVOT`,
@@ -91,7 +91,7 @@ second is `Busy`. The SQL text is at most 64 KB; notes are cut to 2,048 characte
 
 ### 3. The stable views (version 1)
 
-Queries see only these, in the `imt` schema (also reachable unqualified). Columns are only ever added; a change of
+Queries see only these, in the `debrief` schema (also reachable unqualified). Columns are only ever added; a change of
 meaning or a removal bumps `SQL_VIEWS_VERSION`. `docs/user-guide.md` lists the same columns.
 
 | View | Columns |

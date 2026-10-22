@@ -117,14 +117,14 @@ export class MockSnapshotBackend extends SnapshotBackend {
       { name: 'description.txt', bytes: text.length, summary: text ? `Your description (${text.length} characters)` : 'No description' },
       { name: 'steps-to-reproduce.txt', bytes: 400, summary: `${steps(crumbs).length} steps from your recent activity` },
       { name: 'breadcrumbs.json', bytes: 2048, summary: `${crumbs.length} recent operations (no file contents)` },
-      { name: 'system-info.json', bytes: 1536, summary: 'OS, IMT version and build, memory, plugins, settings without secrets' },
+      { name: 'system-info.json', bytes: 1536, summary: 'OS, Debrief version and build, memory, plugins, settings without secrets' },
       { name: 'manifest.json', bytes: 900, summary: 'What the report contains' },
       { name: 'processes.json', bytes: 700, summary: 'AI engine: 2 runs, 1 restart, last exit code 3' },
       { name: 'session-recovery.json', bytes: 300, summary: 'Previous run: closed properly, no recoverable session' },
       { name: 'logs/children/ai-worker.log', bytes: 4096, summary: 'AI worker: 1 run, no restarts' },
       { name: 'logs/children/llama-server.log', bytes: 8192, summary: 'AI engine: 2 runs, 1 restart, last exit code 3' },
       { name: 'logs/activity.log', bytes: 4096, summary: `${crumbs.length} activity entries` },
-      { name: 'logs/imt.log', bytes: 65536, summary: "IMT's own log (recent part)" },
+      { name: 'logs/debrief.log', bytes: 65536, summary: "Debrief's own log (recent part)" },
       ...this.items.flatMap((i) => [
         { name: `snapshots/${i.info.id}.png`, bytes: i.info.bytes, summary: `Screenshot: ${i.info.reason}` },
         { name: `snapshots/${i.info.id}.json`, bytes: 1024, summary: `Error details and ${i.info.breadcrumbs.length} breadcrumbs` },
@@ -155,7 +155,7 @@ export class MockSnapshotBackend extends SnapshotBackend {
     if (!sampleReportState(this.workspace()?.sources ?? []).report?.snapshots.some((s) => s.id === id)) throw new Error(`no snapshot "${id}" in the report`);
     return SAMPLE_REPORT_IMAGE;
   }
-  /** Test helper: delivers an `imt://error` event. */
+  /** Test helper: delivers an `debrief://error` event. */
   emit(error: EngineError): void {
     this.listeners.forEach((l) => l(error));
   }

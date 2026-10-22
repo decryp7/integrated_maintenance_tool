@@ -12,7 +12,7 @@ import { LiveTail } from '../workspace/live-tail';
 import { Sidebar } from './sidebar';
 import { StatusBar } from './status-bar';
 import { openedFolderName, TitleBar } from './title-bar';
-import { IMT_COMMANDS } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS } from '../extensions/tokens';
 import { memoryHost, MockWindowingBackend } from '../windowing/mock-windowing-backend';
 import { WindowCommands } from '../windowing/window-commands';
 import { WindowingBackend } from '../windowing/windowing-backend';
@@ -140,7 +140,7 @@ describe('TitleBar', () => {
   it('has a Window menu with one checkable item per window; New and Close window are in File', async () => {
     const windowing = new MockWindowingBackend(memoryHost());
     TestBed.configureTestingModule({
-      providers: [{ provide: WindowingBackend, useValue: windowing }, { provide: IMT_COMMANDS, multi: true, useFactory: () => TestBed.inject(WindowCommands).commands }],
+      providers: [{ provide: WindowingBackend, useValue: windowing }, { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => TestBed.inject(WindowCommands).commands }],
     });
     const { fixture } = setup(TitleBar);
     await TestBed.inject(WindowingService).init();
@@ -152,7 +152,7 @@ describe('TitleBar', () => {
     await choose(fixture, 'Window');
     const items = [...document.querySelectorAll<HTMLElement>('[role=menuitemcheckbox]')];
     expect(items.map((i) => i.getAttribute('aria-checked'))).toEqual(['true', 'false']);
-    expect(items[1]?.textContent).toContain('IMT — w-2');
+    expect(items[1]?.textContent).toContain('Debrief — w-2');
     at(items, 1).click();
     await settle(fixture);
     expect(windowing.calls).toEqual(['newWindow', 'focusWindow:w-2']);
@@ -171,7 +171,7 @@ describe('TitleBar', () => {
     TestBed.configureTestingModule({ providers: [{ provide: MENU_MODE, useValue: 'native' }, { provide: NATIVE_MENU_PORT, useValue: port }] });
     const { fixture, dock } = setup(TitleBar);
     await settle(fixture);
-    expect(fixture.nativeElement.querySelector('imt-menu-bar')).toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-menu-bar')).toBeNull();
     expect(fixture.nativeElement.querySelector('[role=menubar]')).toBeNull();
     expect(fixture.nativeElement.querySelector('.palette')).not.toBeNull();
     expect(sent.length).toBe(1);
@@ -218,7 +218,7 @@ describe('TitleBar', () => {
     await TestBed.inject(LifecycleService).init();
     await settle(fixture);
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.lastElementChild?.tagName.toLowerCase()).toBe('imt-title-extras');
+    expect(host.lastElementChild?.tagName.toLowerCase()).toBe('debrief-title-extras');
     expect(el(fixture, '[data-testid=project-title]').textContent).toContain('Untitled');
     expect(host.querySelector('[data-testid=admin-badge]')).toBeNull();
     await store.openPaths(['/more/added.log']);
@@ -372,12 +372,12 @@ describe('Sidebar', () => {
     await store.clearWorkspace();
     await settle(fixture);
     expect(text(fixture)).toContain('No files open');
-    expect(fixture.nativeElement.querySelector('imt-fields-panel')).toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-fields-panel')).toBeNull();
     expect(all(fixture, '.empty button')).toHaveLength(0);
     el<HTMLButtonElement>(fixture, 'button[aria-label="Open folder"]').click();
     await settle(fixture);
     expect(store.summary()?.sources).toHaveLength(1);
-    expect(fixture.nativeElement.querySelector('imt-fields-panel')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-fields-panel')).not.toBeNull();
     await store.clearWorkspace();
     await settle(fixture);
     el<HTMLButtonElement>(fixture, 'button[aria-label="Open files"]').click();

@@ -1,5 +1,5 @@
 import { EnvironmentProviders, inject, Injectable, makeEnvironmentProviders } from '@angular/core';
-import { IMT_COMMANDS, ImtCommand } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS, DebriefCommand } from '../extensions/tokens';
 import { SettingsDialogService } from '../settings/settings-dialog';
 import { MANAGE_PARSERS_COMMAND } from '../settings/parsers/parsers.types';
 import { EDIT_SHORTCUTS_COMMAND, KEYBOARD_ID } from '../settings/keyboard/keyboard.types';
@@ -19,7 +19,7 @@ export class HelpCommands {
   private readonly settings = inject(SettingsDialogService);
   private readonly whatsNew = inject(WhatsNewService);
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     {
       id: 'help.shortcuts',
       title: $localize`:@@help.command.shortcuts:Keyboard shortcuts`,
@@ -44,5 +44,5 @@ export class HelpCommands {
 
 /** One line in `app.config.ts`. */
 export function provideHelp(): EnvironmentProviders {
-  return makeEnvironmentProviders([{ provide: IMT_COMMANDS, multi: true, useFactory: () => inject(HelpCommands).commands }]);
+  return makeEnvironmentProviders([{ provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(HelpCommands).commands }]);
 }

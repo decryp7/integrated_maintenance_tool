@@ -27,7 +27,7 @@ export interface AnnotationHover {
  * keyboard path and the equivalent control for WCAG 2.5.8 (target size).
  */
 @Component({
-  selector: 'imt-annotation-track',
+  selector: 'debrief-annotation-track',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [SeverityBadge],
   template: `
@@ -49,7 +49,7 @@ export interface AnnotationHover {
         (pointerenter)="hovered.emit({ x: $event.clientX, y: $event.clientY, vm: v })"
         (pointerleave)="hovered.emit(null)"
       >
-        <span class="mark"><imt-severity-badge [severity]="v.ann.severity" [showLabel]="false" [size]="v.point ? 14 : 11" /></span>
+        <span class="mark"><debrief-severity-badge [severity]="v.ann.severity" [showLabel]="false" [size]="v.point ? 14 : 11" /></span>
       </button>
     }
   `,

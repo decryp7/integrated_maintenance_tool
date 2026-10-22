@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { ErrorDetails } from '../ui/error-details';
 import { Facet } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { formatCount } from '../core/format';
 import { describeError } from '../core/logger';
 import { WorkspaceStore } from '../core/workspace.store';
@@ -24,11 +24,11 @@ export interface FacetFilterEvent {
  * A failed request shows an inline error with Retry.
  */
 @Component({
-  selector: 'imt-facet-popover',
+  selector: 'debrief-facet-popover',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, VirtualList, ErrorDetails],
   // `closed` fires on a click outside or Escape.
-  hostDirectives: [{ directive: ClickOutside, outputs: ['imtClickOutside: closed'] }],
+  hostDirectives: [{ directive: ClickOutside, outputs: ['debriefClickOutside: closed'] }],
   host: { class: 'popover facet', '[style.top.px]': 'top()', '[style.left.px]': 'left()' },
   template: `
     <div class="facet-head">
@@ -45,24 +45,24 @@ export interface FacetFilterEvent {
     </div>
     @if (error(); as e) {
       <div class="err" role="alert">
-        <imt-error-details summary="Couldn't load the values." i18n-summary="@@workspace.facet.loadFailedSummary" [detail]="e" (retry)="load()" />
+        <debrief-error-details summary="Couldn't load the values." i18n-summary="@@workspace.facet.loadFailedSummary" [detail]="e" (retry)="load()" />
       </div>
     } @else if (!facet()) {
       <div class="faint" role="status" i18n="@@workspace.facet.loading">Loading…</div>
     } @else {
       <input class="input" type="search" placeholder="Search values" i18n-placeholder="@@workspace.facet.searchPlaceholder" aria-label="Search values" i18n-aria-label="@@workspace.facet.search" [value]="search()" (input)="search.set($any($event.target).value)" />
       @if (shown().length) {
-        <imt-virtual-list [items]="shown()" [itemHeight]="26" [maxHeight]="260" label="Values" i18n-label="@@workspace.facet.values">
+        <debrief-virtual-list [items]="shown()" [itemHeight]="26" [maxHeight]="260" label="Values" i18n-label="@@workspace.facet.values">
           <ng-template let-v>
             <div class="value">
               <span class="mono ellipsis" [title]="v.value">{{ v.value || emptyValue }}</span>
               <span class="bar"><span [style.width.%]="share(v.count)"></span></span>
               <span class="mono faint">{{ count(v.count) }}</span>
-              <button class="icon-btn" title="Only this value" i18n-title="@@workspace.facet.only" [attr.aria-label]="filterLabel('eq', v.value)" (click)="filter.emit({ op: 'eq', value: v.value })"><imt-icon name="plus" [size]="12" /></button>
-              <button class="icon-btn" title="Exclude this value" i18n-title="@@workspace.facet.exclude" [attr.aria-label]="filterLabel('ne', v.value)" (click)="filter.emit({ op: 'ne', value: v.value })"><imt-icon name="minus" [size]="12" /></button>
+              <button class="icon-btn" title="Only this value" i18n-title="@@workspace.facet.only" [attr.aria-label]="filterLabel('eq', v.value)" (click)="filter.emit({ op: 'eq', value: v.value })"><debrief-icon name="plus" [size]="12" /></button>
+              <button class="icon-btn" title="Exclude this value" i18n-title="@@workspace.facet.exclude" [attr.aria-label]="filterLabel('ne', v.value)" (click)="filter.emit({ op: 'ne', value: v.value })"><debrief-icon name="minus" [size]="12" /></button>
             </div>
           </ng-template>
-        </imt-virtual-list>
+        </debrief-virtual-list>
       } @else {
         <div class="faint">@if (search()) { <ng-container i18n="@@workspace.facet.noMatch">No value matches the search.</ng-container> } @else { <ng-container i18n="@@workspace.facet.noValues">No values in the current results.</ng-container> }</div>
       }
@@ -81,7 +81,7 @@ export interface FacetFilterEvent {
   `,
 })
 export class FacetPopover {
-  private readonly backend = inject(ImtBackend);
+  private readonly backend = inject(DebriefBackend);
   private readonly store = inject(WorkspaceStore);
 
   readonly field = input.required<string>();

@@ -22,7 +22,7 @@ const EDGES: readonly { dir: ResizeDirection; cls: string }[] = [
  * and this bar draws minimise / maximise / close and the resize edges. It dims while the window is inactive.
  */
 @Component({
-  selector: 'imt-popout-title-bar',
+  selector: 'debrief-popout-title-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class.inactive]': '!active()', '[class.mac]': "backend.chrome === 'overlay'" },
   template: `
@@ -30,7 +30,7 @@ const EDGES: readonly { dir: ResizeDirection; cls: string }[] = [
       <span class="grip" aria-hidden="true" title="Drag to dock: drop on a guide in the main window" i18n-title="@@popout.titleBar.grip">⠿</span>
       <div class="titles">
         <h1 class="title">{{ title() }}</h1>
-        <span class="host">{{ host() || 'IMT' }}</span>
+        <span class="host">{{ host() || 'Debrief' }}</span>
       </div>
       <button type="button" class="tb-btn icon" (click)="dockBack.emit()" aria-label="Dock back into the main window" title="Dock back into the main window" i18n-aria-label="@@popout.titleBar.dockBack" i18n-title="@@popout.titleBar.dockBackTitle">
         <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 10h16M12 13v4M10 15l2 2 2-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>

@@ -9,11 +9,11 @@ const LOAD_WAIT_TRIES = 100;
 const LOAD_WAIT_MS = 20;
 
 /** File name of the autosaved session (see lifecycle.rs); opened as a session, never as the current project. */
-export const SESSION_FILE_NAME = 'last-session.imtproj';
+export const SESSION_FILE_NAME = 'last-session.debriefproj';
 
 /**
- * Files the OS asks IMT to open (file association, "open with", command line). Projects (`.imtz`, `.imt`, IMT's own
- * `.imtproj`) open as projects; everything else is added to the workspace. (Live-tail refreshes are handled
+ * Files the OS asks Debrief to open (file association, "open with", command line). Projects (`.debriefz`, `.debrief`, Debrief's own
+ * `.debriefproj`) open as projects; everything else is added to the workspace. (Live-tail refreshes are handled
  * by `LiveTail` only.)
  */
 @Injectable({ providedIn: 'root' })

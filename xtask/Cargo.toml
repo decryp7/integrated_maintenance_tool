@@ -6,12 +6,12 @@ version = "0.0.0"
 edition.workspace = true
 rust-version.workspace = true
 publish = false
-description = "Repository chores for IMT developers (`cargo xtask <task>`); never part of the app"
+description = "Repository chores for Debrief developers (`cargo xtask <task>`); never part of the app"
 
 [dependencies]
 sha2.workspace = true
 toml.workspace = true
-# The pinned libduckdb download (`cargo xtask libduckdb`): the OS trust store, as in imt-ai, so TLS-inspecting
+# The pinned libduckdb download (`cargo xtask libduckdb`): the OS trust store, as in debrief-ai, so TLS-inspecting
 # proxies work; the proxy itself comes from the environment.
 ureq = { version = "3", default-features = false, features = ["rustls", "platform-verifier"] }
 zip.workspace = true

@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideTinyBackend, settle } from '../../testing/helpers';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { Platform } from '../core/platform';
 import { WorkspaceStore } from '../core/workspace.store';
 import { LiveRulesProfile } from '../live/live-rules.profile';
@@ -19,10 +19,10 @@ async function setup() {
   TestBed.configureTestingModule({ providers: [provideTinyBackend(), { provide: Platform, useValue: { pickProfileToOpen: async () => null, pickProfileToSave: async () => null, onFilesDropped: async () => () => undefined } }, ProfileDraft] });
   const store = TestBed.inject(WorkspaceStore);
   await settle();
-  return { store, undo: TestBed.inject(UndoStack), backend: TestBed.inject(ImtBackend) };
+  return { store, undo: TestBed.inject(UndoStack), backend: TestBed.inject(DebriefBackend) };
 }
 
-const profileText = async () => (await TestBed.inject(ImtBackend).getProfile()).toml;
+const profileText = async () => (await TestBed.inject(DebriefBackend).getProfile()).toml;
 
 describe('undoable UI-state edits', () => {
   it('highlight rules and saved queries', async () => {

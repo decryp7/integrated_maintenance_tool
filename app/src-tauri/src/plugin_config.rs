@@ -4,7 +4,7 @@
 
 use crate::windows::Windows;
 use crate::{err, AppState, CmdResult, State};
-use imt_core::{Plugin, PluginRegistry};
+use debrief_core::{Plugin, PluginRegistry};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Arc;
@@ -31,7 +31,7 @@ pub(crate) fn save_plugin_settings(dir: &Path, s: &PluginSettings) -> anyhow::Re
 }
 
 /// Installs `all` and resolves them. A plugin that fails to install does not
-/// stop IMT: the error is logged, and a plugin whose registration failed is
+/// stop Debrief: the error is logged, and a plugin whose registration failed is
 /// listed as inactive with the reason (so are its dependents).
 pub(crate) fn install(all: Vec<Arc<dyn Plugin>>, safe_mode: bool, disabled: &[String]) -> anyhow::Result<PluginRegistry> {
     let mut registry = PluginRegistry::new();

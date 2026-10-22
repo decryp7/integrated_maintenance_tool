@@ -1,0 +1,45 @@
+[package]
+name = "debrief-plugins"
+license.workspace = true
+repository.workspace = true
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+description = "Debrief's built-in plugins, each served in its own sandboxed process (debrief-plugins --plugin <id>, ADR 0017); its tests run every plugin through the engine over the real IPC"
+
+[[bin]]
+name = "debrief-plugins"
+path = "src/main.rs"
+
+[dependencies]
+debrief-alloc = { path = "../debrief-alloc" }
+debrief-plugin-api = { path = "../debrief-plugin-api" }
+debrief-plugin-registry = { path = "../debrief-plugin-registry" }
+debrief-plugin-otel = { path = "../debrief-plugin-otel" }
+debrief-plugin-syslog = { path = "../debrief-plugin-syslog" }
+debrief-plugin-windows = { path = "../debrief-plugin-windows" }
+debrief-plugin-web = { path = "../debrief-plugin-web" }
+debrief-plugin-formats = { path = "../debrief-plugin-formats" }
+debrief-plugin-profiling = { path = "../debrief-plugin-profiling" }
+debrief-plugin-dotnet = { path = "../debrief-plugin-dotnet" }
+debrief-plugin-tools = { path = "../debrief-plugin-tools" }
+debrief-plugin-dumps = { path = "../debrief-plugin-dumps" }
+debrief-plugin-native = { path = "../debrief-plugin-native" }
+serde_json.workspace = true
+
+[dev-dependencies]
+chrono.workspace = true
+debrief-core = { path = "../debrief-core" }
+debrief-plugin-host = { path = "../debrief-plugin-host" }
+debrief-profile = { path = "../debrief-profile" }
+debrief-dump = { path = "../debrief-dump" }
+debrief-ipc = { path = "../debrief-ipc" }
+insta.workspace = true
+proptest.workspace = true
+# The real-world EVTX corpus test (tests/evtx_corpus.rs, nightly): downloads a pinned archive and checks its hash.
+sha2.workspace = true
+ureq = { version = "3", default-features = false, features = ["rustls", "platform-verifier"] }
+zip.workspace = true
+serde_json = { workspace = true, features = ["preserve_order"] }
+tempfile.workspace = true

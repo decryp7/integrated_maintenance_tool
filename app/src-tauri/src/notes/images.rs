@@ -4,8 +4,8 @@
 //! image opens from a shared project without the original file. Keys are the SHA-256 of the original file.
 
 use crate::error::{CmdError, CmdResult, ErrorCode};
-use imt_ai::vision::image::{sanitize, ImageLimits, SanitizedImage};
-use imt_notes::{image_key, is_image_key, ImageRef};
+use debrief_ai::vision::image::{sanitize, ImageLimits, SanitizedImage};
+use debrief_notes::{image_key, is_image_key, ImageRef};
 use serde::Serialize;
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
@@ -106,7 +106,7 @@ impl NoteImages {
     }
 }
 
-fn bad_image(e: imt_ai::vision::ImageError) -> CmdError {
+fn bad_image(e: debrief_ai::vision::ImageError) -> CmdError {
     CmdError::invalid(e.to_string())
 }
 

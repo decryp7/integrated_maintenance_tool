@@ -42,7 +42,7 @@ import { listenHere } from '../windowing/window-events';
 import { browserMocks } from './mock-registry';
 
 /** Everything the UI can ask the backend. Injected as a class token. */
-export abstract class ImtBackend {
+export abstract class DebriefBackend {
   abstract workspaceSummary(): Promise<WorkspaceSummary>;
   abstract openPaths(paths: string[]): Promise<WorkspaceSummary>;
   abstract removeSource(sourceId: number): Promise<WorkspaceSummary>;
@@ -101,10 +101,10 @@ export abstract class ImtBackend {
 }
 
 /** Tauri event emitted by the engine after live tail re-imported changed files. */
-export const WORKSPACE_CHANGED_EVENT = 'imt://workspace-changed';
+export const WORKSPACE_CHANGED_EVENT = 'debrief://workspace-changed';
 
 /** Talks to the Rust core through Tauri commands. */
-export class TauriBackend extends ImtBackend {
+export class TauriBackend extends DebriefBackend {
   /** `call` is Tauri's `invoke`; tests pass a fake. */
   constructor(
     private readonly call: typeof invoke = invoke,
@@ -257,9 +257,9 @@ export function isLiveAlert(payload: unknown): payload is LiveAlert {
  */
 export function provideBackend(): Provider {
   return {
-    provide: ImtBackend,
+    provide: DebriefBackend,
     useFactory: () =>
-      withFailureLogging<ImtBackend>(isTauri() ? new TauriBackend() : new (browserMocks().MockBackend)(browserMocks().mockOptionsFromSearch(window.location.search)), inject(Logger), {
+      withFailureLogging<DebriefBackend>(isTauri() ? new TauriBackend() : new (browserMocks().MockBackend)(browserMocks().mockOptionsFromSearch(window.location.search)), inject(Logger), {
         onFailure: reportBackendFailures(),
       }),
   };

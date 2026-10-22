@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { iconNameFromFile } from './marker-rules';
 import { PendingIcon } from './markers.types';
 
-/** The engine's limit for icon sources (crates/imt-core/src/icons.rs MAX_ICON_BYTES). */
+/** The engine's limit for icon sources (crates/debrief-core/src/icons.rs MAX_ICON_BYTES). */
 export const MAX_ICON_BYTES = 16 * 1024;
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47];
 

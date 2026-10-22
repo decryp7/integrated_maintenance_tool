@@ -6,8 +6,8 @@ use crate::ai::error::AiResult;
 use crate::engine::with_store;
 use crate::windows::CurrentWindow;
 use crate::CmdResult;
-use imt_ai::StoreAccess;
-use imt_core::known_issues::{match_known_issues, IssueMatch, IssueReport, KnowledgeText};
+use debrief_ai::StoreAccess;
+use debrief_core::known_issues::{match_known_issues, IssueMatch, IssueReport, KnowledgeText};
 use tauri::{AppHandle, Runtime};
 
 /// Matches the known issues declared in the enabled knowledge files against the open data (no AI).
@@ -22,9 +22,9 @@ pub async fn known_issues_match<R: Runtime>(app: AppHandle<R>, win: CurrentWindo
 }
 
 /// A digest of the data's problems for the model: the exception types and error messages with counts.
-fn problems_digest(store: &dyn imt_core::ports::Store) -> String {
-    let req = imt_core::api::QueryRequest {
-        query: imt_core::query::Query {
+fn problems_digest(store: &dyn debrief_core::ports::Store) -> String {
+    let req = debrief_core::api::QueryRequest {
+        query: debrief_core::query::Query {
             ql: "level >= error".into(),
             ..Default::default()
         },
@@ -59,7 +59,7 @@ pub async fn known_issues_suggest<R: Runtime>(app: AppHandle<R>, win: CurrentWin
         let known = crate::ai::knowledge::for_window(&w, &Default::default());
         let assistant = core(&a2)?.assistant(&known, cancel)?;
         let access = crate::ai::commands::WindowStore(w.clone());
-        let store: imt_ai::StoreRef<'_> = (&access as &dyn StoreAccess).into();
+        let store: debrief_ai::StoreRef<'_> = (&access as &dyn StoreAccess).into();
         let digest = store.with(problems_digest);
         Ok(assistant.suggest_known_issues(store, &files, &digest)?)
     })

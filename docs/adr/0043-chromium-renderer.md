@@ -19,7 +19,7 @@ The user decided (2026-10-22) to drive a real Chromium over the DevTools protoco
 
 ## Decision
 
-1. **A neutral renderer crate, `chromium-driver`** (`crates/chromium-driver`, no IMT types, so other apps can copy it):
+1. **A neutral renderer crate, `chromium-driver`** (`crates/chromium-driver`, no Debrief types, so other apps can copy it):
    - `discover`: Edge, Chrome or Chromium on Windows, macOS and Linux (`CHROMIUM_PATH` wins). Candidate lists are pure.
    - `launch`: a supervised child (own process group on Unix, `taskkill /T` on Windows) killed on drop, with a time cap
      (a watchdog) and a throwaway `--user-data-dir` per launch (or a persistent per-purpose profile when cookies must
@@ -40,9 +40,9 @@ The user decided (2026-10-22) to drive a real Chromium over the DevTools protoco
    unpacked, self-tested). Only on request. An update installs beside the old version and switches only when the new
    one passes its self-test (rollback by never switching). Without any browser and without the download, research and the
    browser modes are unavailable, with a message that says what to do.
-3. **Research and the chat modes use the renderer** through the unchanged `imt_ai::browser` ports (`PageReader`,
+3. **Research and the chat modes use the renderer** through the unchanged `debrief_ai::browser` ports (`PageReader`,
    `ResultsReader`, `PageDriver`): the same page scripts are evaluated over the protocol and their replies pass the same
-   one-shot gate (nonce, origin, size). Read along and Agent show the Chromium window on screen next to IMT; research
+   one-shot gate (nonce, origin, size). Read along and Agent show the Chromium window on screen next to Debrief; research
    keeps it off screen. A challenge page comes to the front; when the user has dealt with it the work continues and the
    window goes back. The leak guard (`check_query`), drafts, citations, site rules and approvals are unchanged; site
    rules are enforced after a navigation (the page is sent back and the action fails) because the protocol client does
@@ -57,16 +57,16 @@ The user decided (2026-10-22) to drive a real Chromium over the DevTools protoco
 
 All indicators are outside the page. Nothing is injected into a page (no overlay, badge, frame, title change or
 attribute): that could disturb page scripts and layout and leak into extracted text and screenshots, and a test asserts
-that the page's DOM and text contain nothing added by IMT.
+that the page's DOM and text contain nothing added by Debrief.
 
 1. **Chrome's automation banner** ("Chrome is being controlled by automated test software"), kept by `--enable-automation`.
-2. **A distinct frame colour**: IMT's accent in the title bar and tab strip, written into the throwaway profile's
+2. **A distinct frame colour**: Debrief's accent in the title bar and tab strip, written into the throwaway profile's
    `Preferences` before launch (`browser.theme.user_color2` and friends). Best effort: a browser version that ignores it
    still shows the others.
 3. **A window title** `"<product> AI — <reading|searching|waiting for you>: <host>"` (`cue::window_title`, product name
    from the app configuration). It is carried in the status chip's events; applying it to the OS window needs
    platform window APIs (a page's title cannot be changed without touching the page) and is left as a follow-up.
-4. **A status chip in IMT** while the AI drives: the activity ("Reading 3 of 5 results"), the host and a Stop button that
+4. **A status chip in Debrief** while the AI drives: the activity ("Reading 3 of 5 results"), the host and a Stop button that
    ends the browser process at once (`browser_stop`). Accessible (`role=status`), localised.
 5. **The research log** keeps listing every page opened and skipped (unchanged; the renderer feeds the same ports).
 

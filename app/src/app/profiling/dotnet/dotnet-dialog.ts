@@ -45,7 +45,7 @@ const STATE_LABEL: Record<DotnetCaptureStatus['state'], string> = {
  * A finished capture opens in the profiling views; captures also run as Jobs, so the dialog may be closed.
  */
 @Component({
-  selector: 'imt-dotnet-dialog',
+  selector: 'debrief-dotnet-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CdkListbox, CdkOption, ToolError],
   template: `
@@ -57,7 +57,7 @@ const STATE_LABEL: Record<DotnetCaptureStatus['state'], string> = {
     @if (store.loading() && !store.processes().length) {
       <p class="muted" i18n="@@profiling.dotnet.loading">Looking for .NET processes…</p>
     } @else if (!store.visible().length) {
-      <p class="muted" i18n="@@profiling.dotnet.none">No .NET process found. Start the application, then Refresh. Processes of other users are listed only when IMT runs as administrator.</p>
+      <p class="muted" i18n="@@profiling.dotnet.none">No .NET process found. Start the application, then Refresh. Processes of other users are listed only when Debrief runs as administrator.</p>
     } @else {
       <ul class="procs" cdkListbox [cdkListboxValue]="selectedValue()" (cdkListboxValueChange)="onSelect($event.value)" aria-label="NET processes" i18n-aria-label="@@profiling.dotnet.list">
         @for (p of store.visible(); track p.pid) {
@@ -98,9 +98,9 @@ const STATE_LABEL: Record<DotnetCaptureStatus['state'], string> = {
       <button type="button" class="btn primary" (click)="store.start()" [disabled]="!store.canRecord()" data-testid="dotnet-record" i18n="@@profiling.dotnet.record">Record</button>
     </div>
     @if (store.selected()?.needsElevation) {
-      <imt-tool-error [message]="elevationText" (dismissed)="store.dismissError()" />
+      <debrief-tool-error [message]="elevationText" (dismissed)="store.dismissError()" />
     }
-    <imt-tool-error [message]="store.error()" [code]="store.errorCode()" (dismissed)="store.dismissError()" />
+    <debrief-tool-error [message]="store.error()" [code]="store.errorCode()" (dismissed)="store.dismissError()" />
 
     @if (store.captures().length) {
       <h3 class="section-title" i18n="@@profiling.dotnet.captures">Captures</h3>
@@ -118,7 +118,7 @@ const STATE_LABEL: Record<DotnetCaptureStatus['state'], string> = {
                 <button type="button" class="btn ghost" (click)="store.cancel(c.id)" [attr.aria-label]="cancelLabel(c)" i18n="@@profiling.dotnet.cancel">Cancel</button>
               }
             </div>
-            @if (c.error) { <imt-tool-error [message]="c.error" /> }
+            @if (c.error) { <debrief-tool-error [message]="c.error" /> }
             @for (n of c.notes; track $index) { <p class="note muted">{{ n }}</p> }
             @if (c.state === 'done' && c.path) { <p class="note muted mono ellipsis" [title]="c.path">{{ c.path }}</p> }
           </li>

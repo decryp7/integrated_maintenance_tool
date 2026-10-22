@@ -15,7 +15,7 @@ AI model at all, and where a model helps it may only suggest or narrate: every f
 
 1. **Known issues are declarations in knowledge files.** A fenced block labelled `known-issue` holds `title`, `fix`,
    `id` (optional) and exactly one of `pattern` (a regex, compiled with `user_regex::compile`) or `query` (a
-   query-language filter). `imt_core::known_issues` parses them (bounded: 100 per file, 200 evaluated per call, field
+   query-language filter). `debrief_core::known_issues` parses them (bounded: 100 per file, 200 evaluated per call, field
    lengths; a damaged block is skipped with a warning naming the file and what to fix) and matches them by running
    the filter through the store port. A match carries its count, five sample events and the exact query, so the UI
    opens the same events the engine counted. A pattern becomes `@message ~ "p" or @exception ~ "p"`.
@@ -23,7 +23,7 @@ AI model at all, and where a model helps it may only suggest or narrate: every f
    exception groups and error patterns plus the notes and asks for `{title, fix, ql}`. The engine keeps a suggestion
    only if its `fix` is a quote from one of the notes (whitespace-insensitive), its query is valid and it selects at
    least one event. Suggestions are marked `origin: ai` everywhere and are not part of the incident report.
-3. **The incident summary is an ordinary report.** `imt_core::incident::build_incident_report` returns a
+3. **The incident summary is an ordinary report.** `debrief_core::incident::build_incident_report` returns a
    `Report` (ADR 0007): period, levels, key moments (anomaly windows, first occurrence of each exception type), top
    anomalies, exceptions and error patterns with sample events as evidence, sources and hosts with most errors,
    import problems, matched known issues with their fixes, and the project's notes. It is saved with the project's
@@ -33,7 +33,7 @@ AI model at all, and where a model helps it may only suggest or narrate: every f
    data) to the model, which writes at most about 150 words citing events; citations are checked against the events
    the report and the tools returned. The UI inserts it as its own first section, labelled AI-written, with any
    unverified citation listed. Without a model the report is complete without it.
-5. **Playbooks are versioned JSON files.** `imt_core::playbook::Playbook` (format `version: 1`, schema in
+5. **Playbooks are versioned JSON files.** `debrief_core::playbook::Playbook` (format `version: 1`, schema in
    `docs/playbooks.md`) has steps of five kinds: `manual`, `query`, `filter`, `openView` and `check` (a query and an
    expected outcome). The library is one `<id>.json` per playbook in the configuration folder's `playbooks/`
    directory (ids are file-name safe; a file whose id does not match its name is refused; writes are atomic), so

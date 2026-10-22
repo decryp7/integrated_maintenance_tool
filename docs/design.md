@@ -1,6 +1,6 @@
-# IMT design
+# Debrief design
 
-All of IMT's design diagrams on one page, from the big picture down to individual flows. Each image
+All of Debrief's design diagrams on one page, from the big picture down to individual flows. Each image
 is exported from its editable draw.io source (linked under the image) with
 [`scripts/export-diagrams.sh`](../scripts/export-diagrams.sh); edit the `.drawio`, then re-run the
 script. The style rules are in [diagrams/STYLE.md](diagrams/STYLE.md), the reasoning behind the
@@ -16,13 +16,13 @@ Contents: [Overview](#overview) · [C4 model](#c4-model) · [Deployment](#deploy
 Many sources and collectors, one Rust engine with a DuckDB store, Rust plugins in their own sandboxed processes, and a workbench that shows
 and shares what the engine computes.
 
-![IMT at a glance](diagrams/imt-overview.svg)
+![Debrief at a glance](diagrams/debrief-overview.svg)
 
 ## C4 model
 
 ### Level 1 — system context
 
-Who uses IMT and which outside systems it reads from or talks to. IMT runs offline; the network is
+Who uses Debrief and which outside systems it reads from or talks to. Debrief runs offline; the network is
 used only for downloads the user starts (models, AI runtimes, updates).
 
 ![C4 system context](diagrams/svg/c4-1-context.svg)
@@ -33,7 +33,7 @@ Source: [c4-1-context.drawio](diagrams/c4-1-context.drawio)
 
 The runnable units and the processes they run in: the Tauri app with its linked Rust libraries,
 the Angular UI in the OS webview, and the supervised, sandboxed child processes (the plugins process and
-third-party plugins, the store worker with DuckDB and Tantivy, the AI worker driving `llama-server`), all over `imt-ipc`, plus the headless tools.
+third-party plugins, the store worker with DuckDB and Tantivy, the AI worker driving `llama-server`), all over `debrief-ipc`, plus the headless tools.
 See ADR [0009](adr/0009-prebuilt-llama-server-runtimes.md), [0014](adr/0014-database-first-engine.md),
 [0017](adr/0017-one-ipc-out-of-process-plugins.md) and [0027](adr/0027-plugin-sdk.md).
 
@@ -43,7 +43,7 @@ Source: [c4-2-containers.drawio](diagrams/c4-2-containers.drawio)
 
 ### Level 3 — engine components
 
-Inside `imt-core`: the `Store` ports (adapted by the DuckDB store in the store worker; the in-memory workspace is the test oracle), Home, search, investigation (known issues, incident report, playbooks), ingest (importers, archives,
+Inside `debrief-core`: the `Store` ports (adapted by the DuckDB store in the store worker; the in-memory workspace is the test oracle), Home, search, investigation (known issues, incident report, playbooks), ingest (importers, archives,
 the parser library, profiles, the pipeline with calculated fields and Rhai scripts), query and aggregation, analysis,
 sharing and reports, projects and configuration, and the plugin runtime with its guards.
 
@@ -63,8 +63,8 @@ Source: [c4-3-components-ui.drawio](diagrams/c4-3-components-ui.drawio)
 
 ## Deployment
 
-Where each part runs: the desktop app and its child processes on a workstation, the `imt-agent`
-service on monitored servers, the CI runners and release assets on Gitea, and the hosts IMT
+Where each part runs: the desktop app and its child processes on a workstation, the `debrief-agent`
+service on monitored servers, the CI runners and release assets on Gitea, and the hosts Debrief
 downloads from.
 
 ![Deployment](diagrams/svg/uml-deployment.svg)
@@ -73,7 +73,7 @@ Source: [uml-deployment.drawio](diagrams/uml-deployment.drawio)
 
 ## Use cases
 
-What support engineers, developers, administrators and plugin authors do with IMT.
+What support engineers, developers, administrators and plugin authors do with Debrief.
 
 ![Use cases](diagrams/svg/uml-use-cases.svg)
 
@@ -94,7 +94,7 @@ Source: [uml-class-domain.drawio](diagrams/uml-class-domain.drawio)
 
 The plugin contract, the registry with its guarded adapters and quarantine, the extension traits
 (importers, transforms, markers, annotators, tools, config parsers),
-and, since ADR 0017, plugins that each run in their own sandboxed process over one IPC (`imt-plugin-api`, `imt-plugins`). See ADR [0003](adr/0003-plugin-dependencies-services-events.md) (engine-internal since 0017) and
+and, since ADR 0017, plugins that each run in their own sandboxed process over one IPC (`debrief-plugin-api`, `debrief-plugins`). See ADR [0003](adr/0003-plugin-dependencies-services-events.md) (engine-internal since 0017) and
 [0017](adr/0017-one-ipc-out-of-process-plugins.md).
 
 ![Plugin API classes](diagrams/svg/uml-class-plugin-api.svg)
@@ -186,7 +186,7 @@ Source: [uml-state-project.drawio](diagrams/uml-state-project.drawio)
 
 ### Performance Monitor collector sets
 
-Installing, starting and stopping Windows data collector sets from IMT, and importing their output.
+Installing, starting and stopping Windows data collector sets from Debrief, and importing their output.
 
 ![Performance Monitor states](diagrams/svg/uml-state-perfmon.svg)
 

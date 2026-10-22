@@ -105,7 +105,7 @@ describe('DotnetCaptureStore', () => {
     store.select(5150);
     expect(await store.start()).toBeNull();
     expect(store.errorCode()).toBe('denied');
-    expect(store.error()).toContain('Restart IMT as administrator');
+    expect(store.error()).toContain('Restart Debrief as administrator');
     expect(store.captures()[0]?.state).toBe('failed');
     expect(store.captures()[0]?.needsElevation).toBe(true);
   });

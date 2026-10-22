@@ -1,6 +1,6 @@
 import { effect, EnvironmentProviders, inject, Injectable, makeEnvironmentProviders, provideEnvironmentInitializer, untracked } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
-import { IMT_COMMANDS, ImtCommand } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS, DebriefCommand } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS, UiStateContribution } from '../lifecycle/ui-state';
 import { QueryUndo } from './query-undo';
 import { RangeUndo } from './range-undo';
@@ -23,7 +23,7 @@ export class UndoCommands {
     });
   }
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     { id: UNDO_COMMAND, title: $localize`:Command title|@@undo.cmd.undo:Undo`, category: $localize`:Command palette category|@@undo.cmd.category:Edit`, keybinding: 'Mod+Z', run: () => this.step('undo') },
     { id: REDO_COMMAND, title: $localize`:Command title|@@undo.cmd.redo:Redo`, category: $localize`:Command palette category|@@undo.cmd.category:Edit`, keybinding: 'Mod+Shift+Z', run: () => this.step('redo') },
   ];
@@ -59,7 +59,7 @@ export function undoResetContribution(undo: UndoStack, query: QueryUndo, range: 
 /** One line in `app.config.ts`: the undo/redo commands, filter-change tracking and the reset on project switch. */
 export function provideUndo(): EnvironmentProviders {
   return makeEnvironmentProviders([
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(UndoCommands).commands },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(UndoCommands).commands },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => [undoResetContribution(inject(UndoStack), inject(QueryUndo), inject(RangeUndo))] },
     provideEnvironmentInitializer(() => {
       inject(QueryUndo).start();

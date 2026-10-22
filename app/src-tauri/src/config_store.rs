@@ -38,7 +38,7 @@ pub enum ReadError {
     Missing,
     /// It is not a file, too large, or not the expected JSON (kept aside as `.corrupt`).
     Damaged(String),
-    /// It was written by a newer IMT (left as it is).
+    /// It was written by a newer Debrief (left as it is).
     Newer(u32),
 }
 
@@ -82,7 +82,7 @@ impl ConfigStore {
             Ok(t) => t,
             Err(ReadError::Missing) => T::default(),
             Err(ReadError::Newer(v)) => {
-                log::warn!("{name} was written by a newer IMT (format {v}); defaults are used");
+                log::warn!("{name} was written by a newer Debrief (format {v}); defaults are used");
                 T::default()
             }
             Err(ReadError::Damaged(why)) => {
@@ -234,7 +234,7 @@ impl<T: Send + 'static> Debounced<T> {
     /// `write` runs on the writer thread with the newest snapshot of each burst.
     pub fn new(delay: Duration, write: impl Fn(T) + Send + 'static) -> Arc<Debounced<T>> {
         let (tx, rx) = mpsc::channel::<Msg<T>>();
-        let spawned = std::thread::Builder::new().name("imt-config-writer".into()).spawn(move || {
+        let spawned = std::thread::Builder::new().name("debrief-config-writer".into()).spawn(move || {
             let mut pending: Option<T> = None;
             loop {
                 let msg = if pending.is_some() {

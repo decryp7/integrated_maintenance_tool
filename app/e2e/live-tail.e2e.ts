@@ -7,9 +7,9 @@ import { chooseMenu } from './menu-support';
 /** Realistic live simulation: 40 events/s, no rotations or alerts unless a test asks for them. */
 const LIVE = '?mockLive=1&mockLiveRate=40&mockLiveRotateMs=0&mockLiveAlertMs=0';
 
-const liveButton = (page: Page) => page.locator('imt-status-bar').getByRole('button', { name: 'Live tail', exact: true });
-const timelineTo = async (page: Page) => Number(await page.locator('imt-timeline-panel .wrap').getAttribute('data-to'));
-const timelineFrom = async (page: Page) => Number(await page.locator('imt-timeline-panel .wrap').getAttribute('data-from'));
+const liveButton = (page: Page) => page.locator('debrief-status-bar').getByRole('button', { name: 'Live tail', exact: true });
+const timelineTo = async (page: Page) => Number(await page.locator('debrief-timeline-panel .wrap').getAttribute('data-to'));
+const timelineFrom = async (page: Page) => Number(await page.locator('debrief-timeline-panel .wrap').getAttribute('data-from'));
 
 async function liveOn(page: Page): Promise<void> {
   await liveButton(page).click();
@@ -18,7 +18,7 @@ async function liveOn(page: Page): Promise<void> {
 
 /** The `setLive` calls the mock backend received (published by `?mockLive=1`). */
 function liveCalls(page: Page) {
-  return page.evaluate(() => (globalThis as unknown as { __imtMockLiveCalls?: { enabled: boolean; options: Record<string, unknown> | null }[] }).__imtMockLiveCalls ?? []);
+  return page.evaluate(() => (globalThis as unknown as { __debriefMockLiveCalls?: { enabled: boolean; options: Record<string, unknown> | null }[] }).__debriefMockLiveCalls ?? []);
 }
 
 /** Live alerts on Playwright's clock: one live tick every 500 ms (few ticks to run), the alert interval added per test. */
@@ -57,7 +57,7 @@ test.describe('live tail: follow now', () => {
     await expect.poll(() => timelineFrom(page), { timeout: 10_000 }).toBeGreaterThan(to1 - 60_000);
     // The grid follows newest-first at the top.
     await page.getByRole('button', { name: /Oldest first/ }).click();
-    const first = page.locator('imt-events-grid [role=row].row').first();
+    const first = page.locator('debrief-events-grid [role=row].row').first();
     await expect(first).toContainText(/Live event|Process stats/);
     const t1 = await first.textContent();
     await expect.poll(() => first.textContent(), { timeout: 10_000 }).not.toBe(t1);
@@ -68,10 +68,10 @@ test.describe('live tail: follow now', () => {
     await liveOn(page);
     await page.getByRole('combobox', { name: 'Live window' }).selectOption('5m');
     await expect(page.getByTestId('follow-toggle')).toBeVisible();
-    await page.locator('imt-timeline-panel').getByRole('button', { name: 'Zoom in' }).click();
+    await page.locator('debrief-timeline-panel').getByRole('button', { name: 'Zoom in' }).click();
     const resume = page.getByTestId('resume-following');
     await expect(resume).toHaveText(/Paused — Resume following/);
-    await expectNoSeriousViolations(page, testInfo, 'live-paused', 'imt-timeline-panel .head');
+    await expectNoSeriousViolations(page, testInfo, 'live-paused', 'debrief-timeline-panel .head');
     // While paused the grid holds its rows and counts what arrives.
     await expect(page.getByTestId('new-events')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTestId('new-events')).toHaveText(/\d[\d,]* new events? — show/);
@@ -107,7 +107,7 @@ test.describe('live tail: alerts', () => {
     await expect(toast).toBeVisible();
     await expect(toast).toContainText('Critical');
     await expect(toast).toContainText('Error spike');
-    await expectNoSeriousViolations(page, testInfo, 'alert-toast', 'imt-alert-toasts');
+    await expectNoSeriousViolations(page, testInfo, 'alert-toast', 'debrief-alert-toasts');
     await toast.getByRole('button', { name: 'Show' }).click();
     // The evidence: errors and fatals in the alert's time range (which pauses following).
     const level = (l: string) => page.getByRole('toolbar', { name: 'Levels' }).locator(`button[data-level=${l}]`);
@@ -115,7 +115,7 @@ test.describe('live tail: alerts', () => {
     await expect(level('Fatal')).toHaveAttribute('aria-pressed', 'true');
     await expect(level('Information')).toHaveAttribute('aria-pressed', 'false');
     await expect(page.getByTestId('resume-following')).toBeVisible();
-    await expect(page.locator('imt-events-grid [role=row].row').first()).toBeVisible();
+    await expect(page.locator('debrief-events-grid [role=row].row').first()).toBeVisible();
   });
 
   test('mute this kind for 15 min stops its toasts', async ({ page }) => {
@@ -136,7 +136,7 @@ test.describe('live tail: alerts', () => {
     await expect(page.getByTestId('alert-toast').filter({ hasText: /Rule: payment errors|Silence/ }).first()).toBeVisible();
     // Two more rule alerts mean an error spike was due in between, and it was not toasted (the engine holds muted
     // kinds back).
-    const ruleRows = page.locator('imt-alerts-view').getByTestId('alert-row').filter({ hasText: 'Rule: payment errors' });
+    const ruleRows = page.locator('debrief-alerts-view').getByTestId('alert-row').filter({ hasText: 'Rule: payment errors' });
     const rules = await ruleRows.count();
     await page.clock.runFor(6_000);
     await expect.poll(() => ruleRows.count()).toBeGreaterThanOrEqual(rules + 2);
@@ -148,14 +148,14 @@ test.describe('live tail: alerts', () => {
     test.slow();
     await openOnClock(page, `${ALERTS}&mockLiveAlertMs=500`);
     await openView(page, 'Alerts');
-    const panel = page.locator('imt-alerts-view');
+    const panel = page.locator('debrief-alerts-view');
     await expect(panel).toContainText('No alerts yet');
     await liveOn(page);
     // Three alerts (one of each kind) are due within 1.5 s of live ticks.
     await page.clock.runFor(2_000);
     await expect.poll(() => panel.getByTestId('alert-row').count()).toBeGreaterThanOrEqual(3);
-    await expect(page.locator('.imt-tab-label', { hasText: /^Alerts \(\d+\)$/ })).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'alerts-panel', 'imt-alerts-view');
+    await expect(page.locator('.debrief-tab-label', { hasText: /^Alerts \(\d+\)$/ })).toBeVisible();
+    await expectNoSeriousViolations(page, testInfo, 'alerts-panel', 'debrief-alerts-view');
     await liveButton(page).click();
     await expect(liveButton(page)).toHaveAttribute('aria-pressed', 'false');
     // The toasts float over the panel (critical ones stay until closed): close them so they cannot cover its buttons.
@@ -173,16 +173,16 @@ test.describe('live tail: alerts', () => {
     await panel.getByRole('button', { name: 'Show evidence: Error spike' }).first().click();
     await expect(page.getByRole('toolbar', { name: 'Levels' }).locator('button[data-level=Error]')).toHaveAttribute('aria-pressed', 'true');
     // "Show" brings the events grid to the front; go back to the alerts tab.
-    await page.locator('.imt-tab-label', { hasText: /^Alerts/ }).click();
+    await page.locator('.debrief-tab-label', { hasText: /^Alerts/ }).click();
     await panel.getByRole('button', { name: 'Clear' }).click();
     await expect(panel).toContainText('No alerts yet');
-    await expect(page.locator('.imt-tab-label', { hasText: /^Alerts$/ })).toBeVisible();
+    await expect(page.locator('.debrief-tab-label', { hasText: /^Alerts$/ })).toBeVisible();
   });
 
   test('the alert rules editor shows the engine error next to the rule and saves a valid rule', async ({ page }, testInfo) => {
     await openAppWith(page, LIVE);
     await openView(page, 'Alerts');
-    await page.locator('imt-alerts-view').getByRole('button', { name: 'Alert rules…' }).click();
+    await page.locator('debrief-alerts-view').getByRole('button', { name: 'Alert rules…' }).click();
     const dialog = page.getByRole('dialog', { name: 'Live alert rules' });
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', { name: '+ Add rule' }).click();
@@ -207,12 +207,12 @@ test.describe('live tail: status, sources and opening', () => {
   test('the tail status panel shows each file and links to Settings ▸ Live tail, whose controls call set_live', async ({ page }, testInfo) => {
     await openAppWith(page, LIVE);
     await openView(page, 'Tail status');
-    const panel = page.locator('imt-tail-status-view');
+    const panel = page.locator('debrief-tail-status-view');
     await expect(panel.getByTestId('tail-file').first()).toBeVisible();
     await panel.getByRole('button', { name: 'Live tail off' }).click();
     await expect(panel.getByRole('button', { name: 'Live tail on' })).toHaveAttribute('aria-pressed', 'true');
     await expect(panel).toContainText('lines/s');
-    await expectNoSeriousViolations(page, testInfo, 'tail-status', 'imt-tail-status-view');
+    await expectNoSeriousViolations(page, testInfo, 'tail-status', 'debrief-tail-status-view');
 
     // The options live in Settings ▸ Live tail (I2); Settings… opens them.
     await panel.getByTestId('tail-settings').click();
@@ -255,10 +255,10 @@ test.describe('live tail: status, sources and opening', () => {
     await expect(group).toContainText(/\d+ files/);
     await group.click();
     await expect(group).toHaveAttribute('aria-expanded', 'true');
-    const members = page.locator('imt-sidebar .src.member');
+    const members = page.locator('debrief-sidebar .src.member');
     await expect.poll(() => members.count()).toBeGreaterThanOrEqual(2);
-    await expect(page.locator('imt-sidebar .state', { hasText: 'Rotated' }).first()).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'source-groups', 'imt-sidebar');
+    await expect(page.locator('debrief-sidebar .state', { hasText: 'Rotated' }).first()).toBeVisible();
+    await expectNoSeriousViolations(page, testInfo, 'source-groups', 'debrief-sidebar');
     await group.click();
     await expect(members).toHaveCount(0);
   });
@@ -273,7 +273,7 @@ test.describe('live tail: status, sources and opening', () => {
     await dialog.getByRole('button', { name: 'Open files…' }).click();
     await expect(dialog).toHaveCount(0);
     await expect(liveButton(page)).toHaveAttribute('aria-pressed', 'true');
-    const row = page.locator('imt-sidebar .src', { hasText: 'extra-service.log' });
+    const row = page.locator('debrief-sidebar .src', { hasText: 'extra-service.log' });
     await expect(row).toBeVisible();
     // Its history was skipped: none of the file's existing lines ("Sent N notifications") were imported...
     await page.getByTestId('query-field').fill('notifications');

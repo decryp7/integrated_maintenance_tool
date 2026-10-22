@@ -1,0 +1,24 @@
+[package]
+name = "debrief-plugin-formats"
+license.workspace = true
+repository.workspace = true
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+description = "Debrief plugin: log4j/log4net/NLog XML events, SQL Server ERRORLOG, Docker json-file and Kubernetes CRI container logs"
+
+[dependencies]
+debrief-plugin-api = { path = "../debrief-plugin-api" }
+anyhow.workspace = true
+serde_json = { workspace = true, features = ["preserve_order"] }
+chrono.workspace = true
+regex.workspace = true
+quick-xml.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+# End-to-end tests check that no other text-format importer outranks these.
+debrief-plugin-web = { path = "../debrief-plugin-web" }
+debrief-plugin-syslog = { path = "../debrief-plugin-syslog" }
+debrief-plugin-otel = { path = "../debrief-plugin-otel" }

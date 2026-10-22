@@ -12,17 +12,17 @@ import { PROFILING_STYLES } from '../profiling-styles';
 
 /** Callers above, callees below the selected function; clicking one makes it the selection. */
 @Component({
-  selector: 'imt-butterfly-view',
+  selector: 'debrief-butterfly-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, ProfileBar, MeasurementTag, NoCapture],
   template: `
     @if (active.profile()) {
-      <imt-profile-bar />
+      <debrief-profile-bar />
       <div class="bar">
         <span class="section-title" i18n="@@profiling.butterfly.title">Callers and callees</span>
         @if (state.selectedFrame(); as f) { <span class="mono ellipsis grow" [title]="f.name">{{ f.name }}</span> }
       </div>
-      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="!state.selectedFrame()" emptyText="Select a function (in the hotspots, a tree or the flame graph) to see who calls it and what it calls." i18n-emptyText="@@profiling.butterfly.empty" (retry)="res.retry()">
+      <debrief-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="!state.selectedFrame()" emptyText="Select a function (in the hotspots, a tree or the flame graph) to see who calls it and what it calls." i18n-emptyText="@@profiling.butterfly.empty" (retry)="res.retry()">
         @if (res.data(); as b) {
           <div class="body">
             <h3 class="sec" id="bf-callers" i18n="@@profiling.butterfly.callers">Callers ({{ b.callers.length }})</h3>
@@ -42,7 +42,7 @@ import { PROFILING_STYLES } from '../profiling-styles';
             <div class="focus" role="group" aria-label="Selected function" i18n-aria-label="@@profiling.butterfly.selected">
               <strong class="ellipsis" [title]="b.function.name">{{ b.function.name }}</strong>
               <span class="mono" i18n="@@profiling.butterfly.totals">total {{ value(b.function.total) }} ({{ pct(b.function.totalPct) }}) · self {{ value(b.function.self) }} ({{ pct(b.function.selfPct) }})</span>
-              @if (measurement(); as m) { <imt-measurement [m]="m" /> }
+              @if (measurement(); as m) { <debrief-measurement [m]="m" /> }
               <span class="spacer"></span>
               @if (b.function.frame; as f) {
                 <button class="mini" type="button" (click)="nav.showInFlame(f)" i18n="@@profiling.butterfly.showInFlame">Show in flame graph</button>
@@ -65,9 +65,9 @@ import { PROFILING_STYLES } from '../profiling-styles';
             </ul>
           </div>
         }
-      </imt-analysis-state>
+      </debrief-analysis-state>
     } @else {
-      <imt-no-capture text="Open a performance capture to see callers and callees." i18n-text="@@profiling.butterfly.noCapture" />
+      <debrief-no-capture text="Open a performance capture to see callers and callees." i18n-text="@@profiling.butterfly.noCapture" />
     }
   `,
   styles: [

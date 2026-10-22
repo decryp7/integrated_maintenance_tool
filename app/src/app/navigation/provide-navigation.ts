@@ -1,5 +1,5 @@
 import { EnvironmentProviders, inject, Injectable, makeEnvironmentProviders, provideEnvironmentInitializer } from '@angular/core';
-import { IMT_COMMANDS, ImtCommand } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS, DebriefCommand } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS, UiStateContribution } from '../lifecycle/ui-state';
 import { NavigationHistory } from './navigation.service';
 
@@ -10,7 +10,7 @@ const CATEGORY = $localize`:Command category@@navigation.category:Go`;
 export class NavigationCommands {
   private readonly history = inject(NavigationHistory);
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     { id: 'nav.back', title: $localize`:@@navigation.cmd.back:Go back`, category: CATEGORY, keybinding: 'Alt+Left', when: () => this.history.canBack(), run: () => void this.history.back() },
     { id: 'nav.forward', title: $localize`:@@navigation.cmd.forward:Go forward`, category: CATEGORY, keybinding: 'Alt+Right', when: () => this.history.canForward(), run: () => void this.history.forward() },
   ];
@@ -37,7 +37,7 @@ export function navigationResetContribution(history: NavigationHistory): UiState
 /** One line in `app.config.ts`: back/forward commands, recording of places and the mouse buttons. */
 export function provideNavigation(): EnvironmentProviders {
   return makeEnvironmentProviders([
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(NavigationCommands).commands },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(NavigationCommands).commands },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => [navigationResetContribution(inject(NavigationHistory))] },
     provideEnvironmentInitializer(() => {
       const history = inject(NavigationHistory);

@@ -11,7 +11,7 @@ import { PerfmonStore } from './perfmon.store';
 import { PerfmonView } from './perfmon-view';
 import { at } from '../../../testing/must';
 
-async function setup(options: Partial<MockToolsOptions> = {}, picker: string | null = '/x/IMT.xml') {
+async function setup(options: Partial<MockToolsOptions> = {}, picker: string | null = '/x/Debrief.xml') {
   TestBed.configureTestingModule({
     providers: [...provideToolsTesting(options), { provide: Platform, useValue: { pickExportPath: async () => picker, pickPaths: async () => [], onFilesDropped: async () => () => undefined } }],
   });
@@ -56,8 +56,8 @@ describe('PerfmonStore', () => {
     expect(store.generated()).toBeNull();
     await store.generate();
     await store.saveXml();
-    expect(store.generated()?.path).toBe('/x/IMT.xml');
-    expect(store.notice()).toBe('Saved /x/IMT.xml');
+    expect(store.generated()?.path).toBe('/x/Debrief.xml');
+    expect(store.notice()).toBe('Saved /x/Debrief.xml');
   });
 
   it('never replaces an existing XML file without asking', async () => {
@@ -76,7 +76,7 @@ describe('PerfmonStore', () => {
     await vi.waitFor(() => expect(dialogs.stack()).toHaveLength(1));
     at(dialogs.stack(), 0).ref.close(true);
     await saving;
-    expect(store.notice()).toBe('Saved /x/IMT.xml');
+    expect(store.notice()).toBe('Saved /x/Debrief.xml');
     expect(store.generated()?.xml).toContain('<DataCollectorSet>');
   });
 
@@ -95,7 +95,7 @@ describe('PerfmonStore', () => {
     await store.control('query');
     await store.control('delete');
     expect(store.status()).toBeNull();
-    expect(store.notice()).toBe('Deleted IMT');
+    expect(store.notice()).toBe('Deleted Debrief');
   });
 
   it('imports the output with live tail, or says there is nothing yet', async () => {
@@ -218,7 +218,7 @@ describe('PerfmonView', () => {
     expect(write).toHaveBeenCalledTimes(2);
     buttonByText(fixture, 'Save as…').click();
     await settle(fixture);
-    expect(store.notice()).toBe('Saved /x/IMT.xml');
+    expect(store.notice()).toBe('Saved /x/Debrief.xml');
   });
 
   it('shows problems and disables generating until fixed', async () => {

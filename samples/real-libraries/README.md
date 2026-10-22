@@ -3,7 +3,7 @@
 Written by [`tools/dotnet-sample-gen`](../../tools/dotnet-sample-gen/README.md) through the real libraries,
 not by `generate.py`; regenerate them with that tool, never by hand. Every event is invented. The files sit
 outside the incident's time window (`real-libraries` is excluded from the whole-folder tests in
-`crates/imt-core/tests/samples.rs`).
+`crates/debrief-core/tests/samples.rs`).
 
 Written on 22 Oct 2026 on Windows 11 (machine time zone Singapore, UTC+08:00) with:
 
@@ -28,7 +28,7 @@ Written on 22 Oct 2026 on Windows 11 (machine time zone Singapore, UTC+08:00) wi
 | `nlog-default.log` | NLog `FileTarget` default layout | parser `nlog` | Tokyo wall clock, no offset (read as UTC) |
 | `mel-console.log` | Microsoft.Extensions.Logging simple console | parser `mel-console` | time of the run, with offset (+08:00) |
 
-Tests: `crates/imt-core/tests/real_libraries.rs` (the text and JSON files) and
-`crates/imt-plugins/tests/real_libraries.rs` (the XML). They also hold the regression tests for the gaps these
+Tests: `crates/debrief-core/tests/real_libraries.rs` (the text and JSON files) and
+`crates/debrief-plugins/tests/real_libraries.rs` (the XML). They also hold the regression tests for the gaps these
 files showed: the log4net CSV layout's unquoted messages with commas and multi-line exceptions, NLog's exception
 after the `|` of `${message:withexception=true}`, and the console formatter's message moving into the exception.

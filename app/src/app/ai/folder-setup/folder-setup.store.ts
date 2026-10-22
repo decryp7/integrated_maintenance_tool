@@ -1,6 +1,6 @@
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { sanitizeQuery } from '../../lifecycle/core-ui-state';
 import { newId } from '../../projects/bookmarks/ids';
@@ -133,7 +133,7 @@ export const FolderSetupStore = signalStore(
     (
       s,
       backend = inject(FolderSetupBackend),
-      imt = inject(ImtBackend),
+      debrief = inject(DebriefBackend),
       jobs = inject(JobsBackend),
       workspace = inject(WorkspaceStore),
       savedQueries = inject(SavedQueryStore),
@@ -251,8 +251,8 @@ export const FolderSetupStore = signalStore(
         if (!composed || s.phase() !== 'review') return false;
         patchState(s, { phase: 'applying', error: null });
         try {
-          const before = (await imt.getProfile()).toml;
-          void workspace.applyProfile(await imt.saveProfile(composed.toml));
+          const before = (await debrief.getProfile()).toml;
+          void workspace.applyProfile(await debrief.saveProfile(composed.toml));
           for (const toml of composed.parsers) await parsers.save(toml, { overwrite: true });
           if (composed.parsers.length) void workspace.followReread(await parsers.reread());
           const queriesBefore = savedQueries.items();
@@ -265,11 +265,11 @@ export const FolderSetupStore = signalStore(
           undo.record({
             label: $localize`:Undo history entry@@ai.folderSetup.undo:folder set-up`,
             do: async () => {
-              void workspace.applyProfile(await imt.saveProfile(after));
+              void workspace.applyProfile(await debrief.saveProfile(after));
               savedQueries.replace(queriesAfter);
             },
             undo: async () => {
-              void workspace.applyProfile(await imt.saveProfile(before));
+              void workspace.applyProfile(await debrief.saveProfile(before));
               savedQueries.replace(queriesBefore);
             },
           });

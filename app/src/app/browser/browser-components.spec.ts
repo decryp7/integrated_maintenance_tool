@@ -115,7 +115,7 @@ describe('ResearchDialog', () => {
     vi.spyOn(ai, 'researchDraft').mockResolvedValueOnce({ question: 'q', checked: { query: 'engine text', needsConfirm: false, segments: [] }, source: 'engine' });
     el<HTMLButtonElement>(f, '[data-testid=research-draft]').click();
     await until(f, () => el<HTMLInputElement>(f, '[data-testid=research-query]').value === 'engine text');
-    expect(el(f, '[data-testid=research-source]').textContent).toContain('Built by IMT');
+    expect(el(f, '[data-testid=research-source]').textContent).toContain('Built by Debrief');
     expect(root.querySelector('.err')).toBeNull();
   });
 });
@@ -167,9 +167,9 @@ describe('SearchWebDialog', () => {
 @Component({
   imports: [AgentApprovalCard, LinkCard, AgentPaused],
   template: `
-    <imt-agent-approval [approval]="a()" (decide)="got.push($event)" />
-    <imt-link-card [link]="l()" (open)="opened.push($event)" />
-    <imt-agent-paused [paused]="p()" (continue)="continued = continued + 1" />
+    <debrief-agent-approval [approval]="a()" (decide)="got.push($event)" />
+    <debrief-link-card [link]="l()" (open)="opened.push($event)" />
+    <debrief-agent-paused [paused]="p()" (continue)="continued = continued + 1" />
   `,
 })
 class CardsHost {

@@ -7,7 +7,7 @@ import { ErrorDetails } from '../ui/error-details';
  * inline error with Retry instead of breaking the panel; an empty result says what to do next.
  */
 @Component({
-  selector: 'imt-analysis-state',
+  selector: 'debrief-analysis-state',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NextSteps, ErrorDetails],
   template: `
@@ -15,12 +15,12 @@ import { ErrorDetails } from '../ui/error-details';
       <div class="state" role="alert">
         @if (retryable()) {
           <!-- A failure (not something to fix in the query): a sentence, Retry, and the message as technical details. -->
-          <imt-error-details summary="Couldn't finish this analysis." i18n-summary="@@analysis.state.failedSummary" [detail]="message" (retry)="retry.emit()" />
+          <debrief-error-details summary="Couldn't finish this analysis." i18n-summary="@@analysis.state.failedSummary" [detail]="message" (retry)="retry.emit()" />
         } @else {
           <span class="msg">{{ message }}</span>
         }
         @if (suggest()) {
-          <imt-next-steps />
+          <debrief-next-steps />
         }
       </div>
     } @else if (loading() && !hasData()) {
@@ -32,7 +32,7 @@ import { ErrorDetails } from '../ui/error-details';
           <span class="hint">{{ emptyHint() }}</span>
         }
         @if (suggest()) {
-          <imt-next-steps />
+          <debrief-next-steps />
         }
       </div>
     } @else {

@@ -30,7 +30,7 @@ const APPLY: Record<Proposal['kind'], string> = {
  * without the click. With `customApply` the host handles Apply itself (e.g. "Use this pattern").
  */
 @Component({
-  selector: 'imt-ai-proposal-card',
+  selector: 'debrief-ai-proposal-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ParserVerdictView],
   template: `
@@ -58,7 +58,7 @@ const APPLY: Record<Proposal['kind'], string> = {
         @case ('parser') {
           @if (profile(); as r) {
             <p class="facts" i18n="@@ai.proposalCard.profile.facts">{{ r.name }} · {{ r.importer ?? noImporter }} · parses {{ r.parsed }} entries, {{ r.withTimestamp }} with a timestamp</p>
-            <imt-ai-parser-verdict [p]="r" />
+            <debrief-ai-parser-verdict [p]="r" />
             @if (r.preview.length) {
               <table class="preview">
                 <thead><tr><th scope="col" i18n="@@ai.proposalCard.col.line">Line</th><th scope="col" i18n="log level|@@ai.proposalCard.col.level">Level</th><th scope="col" i18n="@@ai.proposalCard.col.message">Message</th></tr></thead>
@@ -68,7 +68,7 @@ const APPLY: Record<Proposal['kind'], string> = {
             @if (r.toml) {
               <details><summary i18n="@@ai.proposalCard.parserToml">Parser TOML</summary><pre class="mono">{{ r.toml }}</pre></details>
             } @else {
-              <p class="facts" i18n="@@ai.proposalCard.parserKnown">IMT's parsers already read this file.</p>
+              <p class="facts" i18n="@@ai.proposalCard.parserKnown">Debrief's parsers already read this file.</p>
             }
           }
         }

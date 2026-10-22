@@ -28,13 +28,13 @@ type Phase = 'idle' | 'running' | 'done';
 
 /** Form over the collection plan, with an "Edit as JSON" escape hatch, a progress state and the manifest summary. */
 @Component({
-  selector: 'imt-collector-dialog',
+  selector: 'debrief-collector-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, HelpHint, ToolError, ToolUnavailable],
   template: `
-    <p class="intro" i18n="@@tools.collector.intro">Gather logs, system information and counters into one bundle (.imtz) you can open here or send to support. Secrets are masked before anything is written.</p>
-    <imt-tool-unavailable tool="diagnostics" />
-    <imt-tool-error [message]="error()" (dismissed)="error.set(null)" />
+    <p class="intro" i18n="@@tools.collector.intro">Gather logs, system information and counters into one bundle (.debriefz) you can open here or send to support. Secrets are masked before anything is written.</p>
+    <debrief-tool-unavailable tool="diagnostics" />
+    <debrief-tool-error [message]="error()" (dismissed)="error.set(null)" />
 
     <div class="bar">
       <button type="button" class="btn" [class.active]="jsonMode()" [attr.aria-pressed]="jsonMode()" [disabled]="phase() === 'running'" (click)="toggleJson()" i18n="@@tools.collector.editAsJson">Edit as JSON</button>
@@ -56,7 +56,7 @@ type Phase = 'idle' | 'running' | 'done';
           <div class="log">
             <div class="inline">
               <input class="input grow mono" [attr.aria-label]="logFolderLabel($index)" placeholder="C:\\ProgramData\\Contoso\\Logs" [value]="l.path" (input)="setLog($index, { path: val($event) })" />
-              <button type="button" class="icon-btn" [attr.aria-label]="removeLogLabel($index)" title="Remove" i18n-title="@@tools.collector.remove.title" (click)="removeLog($index)"><imt-icon name="close" [size]="13" /></button>
+              <button type="button" class="icon-btn" [attr.aria-label]="removeLogLabel($index)" title="Remove" i18n-title="@@tools.collector.remove.title" (click)="removeLog($index)"><debrief-icon name="close" [size]="13" /></button>
             </div>
             <div class="row">
               <label class="lbl"><ng-container i18n="@@tools.collector.include.label">Include (globs, comma separated)</ng-container>
@@ -71,7 +71,7 @@ type Phase = 'idle' | 'running' | 'done';
             </div>
           </div>
         }
-        <div><button type="button" class="btn" (click)="addLog()"><imt-icon name="plus" [size]="12" /><ng-container i18n="@@tools.collector.addLogFolder">Add log folder</ng-container></button></div>
+        <div><button type="button" class="btn" (click)="addLog()"><debrief-icon name="plus" [size]="12" /><ng-container i18n="@@tools.collector.addLogFolder">Add log folder</ng-container></button></div>
 
         <legend class="section-title" i18n="@@tools.collector.systemInfo">System information</legend>
         <div class="checks">
@@ -108,7 +108,7 @@ type Phase = 'idle' | 'running' | 'done';
           </label>
         }
 
-        <legend class="section-title" i18n="@@tools.collector.redaction">Redaction <imt-help label="Redaction" i18n-label="@@tools.collector.redaction.helpLabel" text="Text files are scanned and matches are replaced before they enter the bundle. The manifest lists how many values each rule masked." i18n-text="@@tools.collector.redaction.helpText" /></legend>
+        <legend class="section-title" i18n="@@tools.collector.redaction">Redaction <debrief-help label="Redaction" i18n-label="@@tools.collector.redaction.helpLabel" text="Text files are scanned and matches are replaced before they enter the bundle. The manifest lists how many values each rule masked." i18n-text="@@tools.collector.redaction.helpText" /></legend>
         <div class="checks">
           <label class="check" i18n="@@tools.collector.mask.builtIn"><input type="checkbox" [checked]="plan().redact.builtIn" (change)="patchRedact({ builtIn: checked($event) })" /> Mask e-mail addresses, tokens, passwords and card numbers</label>
           <label class="check" i18n="@@tools.collector.mask.ip"><input type="checkbox" [checked]="plan().redact.ipAddresses" (change)="patchRedact({ ipAddresses: checked($event) })" /> Mask IP addresses</label>
@@ -118,10 +118,10 @@ type Phase = 'idle' | 'running' | 'done';
             <input class="input" [attr.aria-label]="patternNameLabel($index)" placeholder="name" i18n-placeholder="@@tools.collector.pattern.namePlaceholder" [value]="p.name" (input)="setPattern($index, { name: val($event) })" />
             <input class="input grow mono" [attr.aria-label]="patternRegexLabel($index)" placeholder="regular expression" i18n-placeholder="@@tools.collector.pattern.regexPlaceholder" [value]="p.regex" (input)="setPattern($index, { regex: val($event) })" />
             <input class="input" [attr.aria-label]="patternReplaceLabel($index)" placeholder="[REDACTED]" [value]="p.replace" (input)="setPattern($index, { replace: val($event) })" />
-            <button type="button" class="icon-btn" [attr.aria-label]="removePatternLabel($index)" title="Remove" i18n-title="@@tools.collector.remove.title" (click)="removePattern($index)"><imt-icon name="close" [size]="13" /></button>
+            <button type="button" class="icon-btn" [attr.aria-label]="removePatternLabel($index)" title="Remove" i18n-title="@@tools.collector.remove.title" (click)="removePattern($index)"><debrief-icon name="close" [size]="13" /></button>
           </div>
         }
-        <div><button type="button" class="btn" (click)="addPattern()"><imt-icon name="plus" [size]="12" /><ng-container i18n="@@tools.collector.addPattern">Add custom pattern</ng-container></button></div>
+        <div><button type="button" class="btn" (click)="addPattern()"><debrief-icon name="plus" [size]="12" /><ng-container i18n="@@tools.collector.addPattern">Add custom pattern</ng-container></button></div>
 
         <legend class="section-title" i18n="@@tools.collector.limits">Limits</legend>
         <div class="row">

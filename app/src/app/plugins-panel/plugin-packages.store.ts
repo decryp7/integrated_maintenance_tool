@@ -9,7 +9,7 @@ import { ConfirmDialog } from '../ui/confirm-dialog';
 import { DialogService } from '../ui/dialog.service';
 
 /** The file extension of a plugin package. */
-export const PACKAGE_EXTENSION = 'imtplugin';
+export const PACKAGE_EXTENSION = 'debriefplugin';
 
 /** Whether a path names a plugin package (by its extension, any case). */
 export function isPackagePath(path: string): boolean {
@@ -40,7 +40,7 @@ interface PackagesState {
 const INITIAL: PackagesState = { installed: null, loading: false, busy: null, error: null, retry: null, review: null, restartNeeded: false };
 
 /**
- * Third-party plugins installed from `.imtplugin` packages: the review before installing (signature, permissions),
+ * Third-party plugins installed from `.debriefplugin` packages: the review before installing (signature, permissions),
  * then enable/disable, permissions, quarantine reset and removal. Failures never throw out of the store; they land in
  * `error`.
  */
@@ -107,7 +107,7 @@ export const PluginPackagesStore = signalStore(
           let path: string | null;
           try {
             path = await platform.pickOpenPath($localize`:@@pluginsPanel.packages.pickTitle:Install a plugin`, [
-              { name: $localize`:@@pluginsPanel.packages.pickFilter:IMT plugin package`, extensions: [PACKAGE_EXTENSION] },
+              { name: $localize`:@@pluginsPanel.packages.pickFilter:Debrief plugin package`, extensions: [PACKAGE_EXTENSION] },
             ]);
           } catch (e) {
             patchState(store, { error: errorMessage(e), retry: null });

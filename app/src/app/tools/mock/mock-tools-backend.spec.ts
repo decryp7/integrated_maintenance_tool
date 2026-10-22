@@ -14,7 +14,7 @@ import {
 import { at } from '../../../testing/must';
 
 const template: CollectorTemplate = {
-  name: 'IMT',
+  name: 'Debrief',
   processes: ['svc'],
   presets: ['cpu'],
   extraCounters: ['\\Memory\\Pages/sec'],
@@ -146,13 +146,13 @@ describe('MockToolsBackend', () => {
     const b = make();
     const installed = await b.perfmonInstall(template);
     expect(installed.status).toBe('stopped');
-    expect((await b.perfmonControl('IMT', 'start'))?.status).toBe('running');
-    expect((await b.perfmonControl('IMT', 'query'))?.status).toBe('running');
-    expect((await b.perfmonControl('IMT', 'stop'))?.status).toBe('stopped');
-    expect(await b.perfmonOutputs('IMT')).toHaveLength(1);
-    expect(await b.perfmonControl('IMT', 'delete')).toBeNull();
-    await expect(b.perfmonControl('IMT', 'query')).rejects.toThrow('not found');
-    await expect(b.perfmonOutputs('IMT')).rejects.toThrow('not found');
+    expect((await b.perfmonControl('Debrief', 'start'))?.status).toBe('running');
+    expect((await b.perfmonControl('Debrief', 'query'))?.status).toBe('running');
+    expect((await b.perfmonControl('Debrief', 'stop'))?.status).toBe('stopped');
+    expect(await b.perfmonOutputs('Debrief')).toHaveLength(1);
+    expect(await b.perfmonControl('Debrief', 'delete')).toBeNull();
+    await expect(b.perfmonControl('Debrief', 'query')).rejects.toThrow('not found');
+    await expect(b.perfmonOutputs('Debrief')).rejects.toThrow('not found');
   });
 
   it('fails like Windows tooling when not on Windows or without rights', async () => {
@@ -173,8 +173,8 @@ describe('MockToolsBackend', () => {
     const b = make();
     await b.perfmonInstall(template);
     (b as unknown as { options: MockToolsOptions }).options.denied = true;
-    await expect(b.perfmonControl('IMT', 'start')).rejects.toThrow('Access is denied');
-    expect((await b.perfmonControl('IMT', 'query'))?.name).toBe('IMT');
+    await expect(b.perfmonControl('Debrief', 'start')).rejects.toThrow('Access is denied');
+    expect((await b.perfmonControl('Debrief', 'query'))?.name).toBe('Debrief');
   });
 
   it('runs one process monitor at a time', async () => {
@@ -213,17 +213,17 @@ describe('MockToolsBackend', () => {
       JSON.stringify({ ...plan, logs: [{ path: 'C:\\L' }], msinfo: true }),
       '/out',
     );
-    expect(r.bundle).toBe('/out/imt-diagnostics.imtz');
+    expect(r.bundle).toBe('/out/debrief-diagnostics.debriefz');
     expect(r.manifest.items[0]?.origin).toBe('C:\\L');
     expect(r.manifest.skipped).toEqual([]);
     expect(mockManifest(DEFAULT_PLAN).skipped).toHaveLength(1);
     expect(mockManifest(DEFAULT_PLAN).items[0]?.origin).toBe('C:\\logs');
     // The same bundle again: refused unless confirmed.
     await expect(b.collectDiagnostics(JSON.stringify(plan), '/out')).rejects.toThrow(
-      `/out/imt-diagnostics.imtz${FILE_EXISTS_SUFFIX}`,
+      `/out/debrief-diagnostics.debriefz${FILE_EXISTS_SUFFIX}`,
     );
     expect((await b.collectDiagnostics(JSON.stringify(plan), '/out', true)).bundle).toBe(
-      '/out/imt-diagnostics.imtz',
+      '/out/debrief-diagnostics.debriefz',
     );
     await expect(b.collectDiagnostics('{nope', '/out')).rejects.toThrow('not valid JSON');
     await expect(b.collectDiagnostics('{}', ' ')).rejects.toThrow('output folder');
@@ -246,7 +246,7 @@ describe('MockToolsBackend', () => {
       previousCrash: true,
       sessionAvailable: true,
     });
-    expect(await b.lastSession()).toBe('/demo/session/last-session.imtproj');
+    expect(await b.lastSession()).toBe('/demo/session/last-session.debriefproj');
     const c = make();
     expect(await c.appStatus()).toMatchObject({ sessionAvailable: false });
     expect(await c.lastSession()).toBeNull();
@@ -270,63 +270,63 @@ describe('MockToolsBackend', () => {
 
   it('round-trips projects and the session', async () => {
     const b = make();
-    await b.saveProject('/p/a.imtz', 'A', { bookmarks: [1] });
-    const opened = await b.openProject('/p/a.imtz');
+    await b.saveProject('/p/a.debriefz', 'A', { bookmarks: [1] });
+    const opened = await b.openProject('/p/a.debriefz');
     expect(opened).toMatchObject({ name: 'A', ui: { bookmarks: [1] }, missing: [] });
-    expect(await b.openProject('/p/missing.imtz').catch(() => null)).toBeNull();
-    await b.saveProject('/p/missing.imtz', 'M', {});
-    expect((await b.openProject('/p/missing.imtz')).missing).toHaveLength(1);
+    expect(await b.openProject('/p/missing.debriefz').catch(() => null)).toBeNull();
+    await b.saveProject('/p/missing.debriefz', 'M', {});
+    expect((await b.openProject('/p/missing.debriefz')).missing).toHaveLength(1);
     await b.saveSession({ q: 1 });
-    expect((await b.openProject('/x/last-session.imtproj')).ui).toEqual({ q: 1 });
-    await expect(b.openProject('/nope.imtz')).rejects.toThrow('not an IMT project');
+    expect((await b.openProject('/x/last-session.debriefproj')).ui).toEqual({ q: 1 });
+    await expect(b.openProject('/nope.debriefz')).rejects.toThrow('not a Debrief project');
     expect(await b.takePendingOpen()).toEqual([]);
     (await b.onOpenRequested())();
   });
 
   it('keeps clock offsets in projects and the session, by source path, like the engine', async () => {
-    const imt = new MockBackend({ latency: false, dataset: tinyDataset, pluginMarkerKinds: [] });
+    const debrief = new MockBackend({ latency: false, dataset: tinyDataset, pluginMarkerKinds: [] });
     const b = new MockToolsBackend(
       { ...MOCK_DEFAULTS },
-      () => imt.workspaceSummary(),
-      (source, offsetMs) => imt.setSourceOffset({ kind: 'manual', source, offsetMs }),
+      () => debrief.workspaceSummary(),
+      (source, offsetMs) => debrief.setSourceOffset({ kind: 'manual', source, offsetMs }),
     );
-    const sources = (await imt.workspaceSummary()).sources;
+    const sources = (await debrief.workspaceSummary()).sources;
     const first = at(sources, 0);
     const second = at(sources, 1);
-    await imt.setSourceOffset({ kind: 'manual', source: first.id, offsetMs: 2350 });
-    await b.saveProject('/p/skew.imtz', 'Skew', {});
+    await debrief.setSourceOffset({ kind: 'manual', source: first.id, offsetMs: 2350 });
+    await b.saveProject('/p/skew.debriefz', 'Skew', {});
     await b.saveSession({});
     // Changed after saving: reopening restores the saved offsets (and clears ones the project did not have).
-    await imt.setSourceOffset({ kind: 'manual', source: first.id, offsetMs: 0 });
-    await imt.setSourceOffset({ kind: 'manual', source: second.id, offsetMs: -100 });
-    const opened = await b.openProject('/p/skew.imtz');
+    await debrief.setSourceOffset({ kind: 'manual', source: first.id, offsetMs: 0 });
+    await debrief.setSourceOffset({ kind: 'manual', source: second.id, offsetMs: -100 });
+    const opened = await b.openProject('/p/skew.debriefz');
     const offsets = (s: { sources: { path: string; offsetMs?: number }[] }) =>
       Object.fromEntries(s.sources.map((x) => [x.path, x.offsetMs ?? 0]));
     expect(offsets(opened.summary)[first.path]).toBe(2350);
     expect(offsets(opened.summary)[second.path]).toBe(0);
-    await imt.setSourceOffset({ kind: 'manual', source: first.id, offsetMs: 5 });
-    expect(offsets((await b.openProject('/x/last-session.imtproj')).summary)[first.path]).toBe(
+    await debrief.setSourceOffset({ kind: 'manual', source: first.id, offsetMs: 5 });
+    expect(offsets((await b.openProject('/x/last-session.debriefproj')).summary)[first.path]).toBe(
       2350,
     );
     // Nothing to change: the summary is returned as is; without an offset setter offsets are left alone.
-    expect(offsets((await b.openProject('/p/skew.imtz')).summary)[first.path]).toBe(2350);
-    const plain = new MockToolsBackend({ ...MOCK_DEFAULTS }, () => imt.workspaceSummary());
-    await plain.saveProject('/p/plain.imtz', 'P', {});
-    await imt.setSourceOffset({ kind: 'manual', source: first.id, offsetMs: 7 });
-    expect(offsets((await plain.openProject('/p/plain.imtz')).summary)[first.path]).toBe(7);
+    expect(offsets((await b.openProject('/p/skew.debriefz')).summary)[first.path]).toBe(2350);
+    const plain = new MockToolsBackend({ ...MOCK_DEFAULTS }, () => debrief.workspaceSummary());
+    await plain.saveProject('/p/plain.debriefz', 'P', {});
+    await debrief.setSourceOffset({ kind: 'manual', source: first.id, offsetMs: 7 });
+    expect(offsets((await plain.openProject('/p/plain.debriefz')).summary)[first.path]).toBe(7);
   });
 
   it('saves projects without offsets when the workspace summary fails', async () => {
     const b = new MockToolsBackend({ ...MOCK_DEFAULTS });
-    await expect(b.saveProject('/p/x.imtz', 'X', {})).resolves.toEqual({
-      path: '/p/x.imtz',
+    await expect(b.saveProject('/p/x.debriefz', 'X', {})).resolves.toEqual({
+      path: '/p/x.debriefz',
       name: 'X',
     });
   });
 
   it('rejects open_project when no workspace summary source is wired', async () => {
     const b = new MockToolsBackend({ ...MOCK_DEFAULTS });
-    await b.saveProject('/p.imtz', 'P', {});
-    await expect(b.openProject('/p.imtz')).rejects.toThrow('no workspace summary');
+    await b.saveProject('/p.debriefz', 'P', {});
+    await expect(b.openProject('/p.debriefz')).rejects.toThrow('no workspace summary');
   });
 });

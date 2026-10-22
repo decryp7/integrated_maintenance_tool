@@ -1,10 +1,10 @@
-// Regenerates IMT's app icons from the SVG masters in src-tauri/icons-src (see docs/development.md, "App icon").
+// Regenerates Debrief's app icons from the SVG masters in src-tauri/icons-src (see docs/development.md, "App icon").
 // Run from app/: node scripts/app-icon.mjs
 //
-// 1. `tauri icon` renders every bundle icon (ico, icns, PNGs, Store logos) from imt-icon.svg.
+// 1. `tauri icon` renders every bundle icon (ico, icns, PNGs, Store logos) from debrief-icon.svg.
 // 2. The small sizes (16/24/32 px in the .ico, 32x32.png, Square30x30Logo.png) are re-rendered from the
-//    pixel-snapped imt-icon-small.svg, which stays legible where the master blurs.
-// 3. tray-template.png (macOS menu bar) is rendered from imt-tray-template.svg.
+//    pixel-snapped debrief-icon-small.svg, which stays legible where the master blurs.
+// 3. tray-template.png (macOS menu bar) is rendered from debrief-tray-template.svg.
 // 4. public/favicon.ico is a copy of the patched icon.ico.
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -67,14 +67,14 @@ function main() {
   const appDir = fileURLToPath(new URL('..', import.meta.url));
   const src = join(appDir, 'src-tauri', 'icons-src');
   const icons = join(appDir, 'src-tauri', 'icons');
-  tauriIcon(appDir, [join(src, 'imt-icon.svg')]);
-  // IMT ships no mobile build: drop the Android/iOS sets `tauri icon` always writes.
+  tauriIcon(appDir, [join(src, 'debrief-icon.svg')]);
+  // Debrief ships no mobile build: drop the Android/iOS sets `tauri icon` always writes.
   rmSync(join(icons, 'android'), { recursive: true, force: true });
   rmSync(join(icons, 'ios'), { recursive: true, force: true });
 
-  const tmp = mkdtempSync(join(tmpdir(), 'imt-icon-'));
+  const tmp = mkdtempSync(join(tmpdir(), 'debrief-icon-'));
   try {
-    tauriIcon(appDir, [join(src, 'imt-icon-small.svg'), '-o', tmp, ...SMALL_SIZES.flatMap((s) => ['-p', String(s)])]);
+    tauriIcon(appDir, [join(src, 'debrief-icon-small.svg'), '-o', tmp, ...SMALL_SIZES.flatMap((s) => ['-p', String(s)])]);
     const small = new Map(SMALL_SIZES.map((s) => [s, readFileSync(join(tmp, `${s}x${s}.png`))]));
     const ico = join(icons, 'icon.ico');
     writeFileSync(ico, replaceIcoEntries(readFileSync(ico), small));
@@ -82,7 +82,7 @@ function main() {
     writeFileSync(join(icons, 'Square30x30Logo.png'), small.get(30));
     copyFileSync(ico, join(appDir, 'public', 'favicon.ico'));
 
-    tauriIcon(appDir, [join(src, 'imt-tray-template.svg'), '-o', tmp, '-p', '44']);
+    tauriIcon(appDir, [join(src, 'debrief-tray-template.svg'), '-o', tmp, '-p', '44']);
     copyFileSync(join(tmp, '44x44.png'), join(icons, 'tray-template.png'));
   } finally {
     rmSync(tmp, { recursive: true, force: true });

@@ -1,4 +1,4 @@
-format = "imt-project"
+format = "debrief-project"
 version = 1
 name = "demo"
 

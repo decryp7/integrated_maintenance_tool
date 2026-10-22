@@ -15,7 +15,7 @@ test.describe('import progress', () => {
   test('over a workspace the status bar is the one progress surface; it opens the job in Jobs; cancelling leaves a banner', async ({ page }, testInfo) => {
     await page.clock.install();
     await openAppWith(page, SLOW_IMPORT);
-    await page.locator('imt-sidebar').getByRole('button', { name: 'Open files' }).click();
+    await page.locator('debrief-sidebar').getByRole('button', { name: 'Open files' }).click();
 
     const status = page.getByTestId('import-status');
     await expect(status).toBeVisible();
@@ -28,9 +28,9 @@ test.describe('import progress', () => {
     await page.clock.runFor(FILE_MS);
     await expect(status).toContainText('Importing 1 of 6 files');
     await expect(page.getByTestId('import-toast')).toHaveCount(0);
-    await expect(page.locator('imt-title-bar')).not.toContainText(/Opening|Importing/);
+    await expect(page.locator('debrief-title-bar')).not.toContainText(/Opening|Importing/);
     await status.getByTestId('import-status-open').click();
-    await expect(page.locator('imt-jobs-panel').first()).toBeVisible();
+    await expect(page.locator('debrief-jobs-panel').first()).toBeVisible();
     await status.getByRole('button', { name: 'Cancel' }).click();
     await page.clock.runFor(FILE_MS);
 
@@ -39,7 +39,7 @@ test.describe('import progress', () => {
     await expect(banner).toContainText('Partially imported: 2 of 6 files were read');
     await expect(status).toHaveCount(0);
     // The files not read are listed as not opened, with the reason.
-    await expect(page.locator('imt-sidebar .src.dim[title="Not imported: the import was cancelled"]').first()).toBeVisible();
+    await expect(page.locator('debrief-sidebar .src.dim[title="Not imported: the import was cancelled"]').first()).toBeVisible();
 
     await banner.getByRole('button', { name: 'Re-import all' }).click();
     await expect(banner).toHaveCount(0);
@@ -50,8 +50,8 @@ test.describe('import progress', () => {
     await openAppWith(page, SLOW_IMPORT);
     // Typed only once the palette is open and lists the command: keys pressed before that are lost.
     await runCommand(page, 'Close workspace');
-    await expect(page.locator('imt-title-bar')).toContainText('No folder open');
-    await page.locator('imt-welcome').getByRole('button', { name: /Open files/ }).click();
+    await expect(page.locator('debrief-title-bar')).toContainText('No folder open');
+    await page.locator('debrief-welcome').getByRole('button', { name: /Open files/ }).click();
     const toast = page.getByTestId('import-toast');
     await page.clock.runFor(FILE_MS);
     await expect(toast).toBeVisible();
@@ -66,7 +66,7 @@ test.describe('import progress', () => {
   test('the status bar Cancel works too, and Dismiss hides the banner', async ({ page }) => {
     await page.clock.install();
     await openAppWith(page, SLOW_IMPORT);
-    await page.locator('imt-sidebar').getByRole('button', { name: 'Open folder' }).click();
+    await page.locator('debrief-sidebar').getByRole('button', { name: 'Open folder' }).click();
     const status = page.getByTestId('import-status');
     await expect(status).toContainText('Importing 0 of 6 files');
     // In a narrow window the status bar's other items give way: Cancel stays clear of the Live button (it once
@@ -76,7 +76,7 @@ test.describe('import progress', () => {
     const live = await page.getByTestId('live-toggle').boundingBox();
     expect(cancel && live && cancel.x + cancel.width <= live.x).toBe(true);
     // ...and the event count stays readable: it once shrank to nothing while the bar made room.
-    const events = await page.locator('imt-status-bar span', { hasText: /\d[\d,]* events/ }).boundingBox();
+    const events = await page.locator('debrief-status-bar span', { hasText: /\d[\d,]* events/ }).boundingBox();
     expect(events?.width ?? 0).toBeGreaterThan(30);
     await status.getByRole('button', { name: 'Cancel' }).click();
     await page.clock.runFor(FILE_MS);

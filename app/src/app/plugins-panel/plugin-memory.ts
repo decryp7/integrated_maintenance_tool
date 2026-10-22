@@ -7,7 +7,7 @@ import { MAX_PLUGIN_MB, MIN_PLUGIN_MB } from '../settings/performance/performanc
  * cap over the default (applied from the plugin's next start). The engine validates the cap.
  */
 @Component({
-  selector: 'imt-plugin-memory',
+  selector: 'debrief-plugin-memory',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (row(); as r) {

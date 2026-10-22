@@ -23,7 +23,7 @@ test.describe('command palette', () => {
     await expect(options.first()).toContainText('Toggle UTC / local time');
     await page.keyboard.press('Enter');
     await expect(input).toHaveCount(0);
-    await expect(page.locator('imt-status-bar .tz')).not.toHaveText('UTC');
+    await expect(page.locator('debrief-status-bar .tz')).not.toHaveText('UTC');
   });
 
   test('arrow keys move the highlight and Enter runs it', async ({ page }) => {

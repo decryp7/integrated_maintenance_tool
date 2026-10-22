@@ -1,6 +1,6 @@
 import { computed, DestroyRef, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { LiveOptions, LiveState, TailReport } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { describeError, Logger } from '../core/logger';
 import { WorkspaceStore } from '../core/workspace.store';
 import { RECENT_STORE } from '../welcome/recent-store';
@@ -18,7 +18,7 @@ export const DEFAULT_LIVE_OPTIONS: LiveOptions = {
 export type LiveSink = (report: TailReport | null) => void;
 
 /**
- * Live tail: while on, the engine watches the opened files and tells us ("imt://workspace-changed", with a
+ * Live tail: while on, the engine watches the opened files and tells us ("debrief://workspace-changed", with a
  * `TailReport`) what changed. This is the only handler of that event in the UI. By default each change
  * refreshes the summary through `WorkspaceStore.refreshSummary`, which reloads the timeline, fields and grid
  * while the query, filters and selection stay as they are; the live feature (`app/live`) connects a sink that
@@ -29,7 +29,7 @@ export type LiveSink = (report: TailReport | null) => void;
  */
 @Injectable({ providedIn: 'root' })
 export class LiveTail {
-  private readonly backend = inject(ImtBackend);
+  private readonly backend = inject(DebriefBackend);
   private readonly store = inject(WorkspaceStore);
   private readonly logger = inject(Logger);
   private readonly recent = inject(RECENT_STORE);

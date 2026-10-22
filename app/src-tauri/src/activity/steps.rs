@@ -236,7 +236,7 @@ mod tests {
             b("live.on", "button", &[]),
             b("edit.undo", "shortcut", &[]),
             b("file.open", "native-menu", &[]),
-            b("file.save", "context-menu", &[("File", "p.imtproj")]),
+            b("file.save", "context-menu", &[("File", "p.debriefproj")]),
             b("dock.layout", "menu", &[]),
             b("ai.ask", "button", &[]),
         ];
@@ -254,7 +254,7 @@ mod tests {
                 "9. Turned live tail on with a button",
                 "10. Undid the last change with a keyboard shortcut",
                 "11. Opened files from the app menu",
-                "12. Saved p.imtproj from a context menu",
+                "12. Saved p.debriefproj from a context menu",
                 "13. Applied a panel layout from the menu",
                 "14. Asked the AI assistant with a button",
             ]

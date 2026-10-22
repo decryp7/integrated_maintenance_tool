@@ -41,15 +41,15 @@ describe('FindingsView', () => {
     const items = all(fixture, 'li.finding');
     expect(items.length).toBeGreaterThan(1);
     const lock = items.find((i) => i.getAttribute('data-kind') === 'lockContention')!;
-    expect(lock.querySelector('imt-severity-badge')!.textContent).toContain('Critical');
+    expect(lock.querySelector('debrief-severity-badge')!.textContent).toContain('Critical');
     expect(lock.querySelector('.title')!.textContent).toBe('Lock contention in OrderRepository.Save');
     expect(lock.querySelector('.detail')!.textContent).toContain('Monitor.Enter');
     expect(lock.querySelector('.mono')!.textContent).toMatch(/\d/);
     expect(lock.textContent).toContain('call tree · ');
-    expect(items.some((i) => i.querySelector('imt-severity-badge')!.textContent?.includes('Info'))).toBe(true);
-    expect(items.some((i) => i.querySelector('imt-severity-badge')!.textContent?.includes('Warning'))).toBe(true);
+    expect(items.some((i) => i.querySelector('debrief-severity-badge')!.textContent?.includes('Info'))).toBe(true);
+    expect(items.some((i) => i.querySelector('debrief-severity-badge')!.textContent?.includes('Warning'))).toBe(true);
     // Sorted critical first.
-    expect(items[0]?.querySelector('imt-severity-badge')!.textContent).toContain('Critical');
+    expect(items[0]?.querySelector('debrief-severity-badge')!.textContent).toContain('Critical');
     expect(text(fixture)).not.toContain('including regressions');
   });
 

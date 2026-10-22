@@ -7,9 +7,9 @@ import { PackageReviewOpener } from './package-review-dialog';
 import { PluginPackagesStore } from './plugin-packages.store';
 import { PluginPermissionsDialog } from './plugin-permissions-dialog';
 
-/** Third-party plugins installed from `.imtplugin` packages, with install, permissions, enable/disable and removal. */
+/** Third-party plugins installed from `.debriefplugin` packages, with install, permissions, enable/disable and removal. */
 @Component({
-  selector: 'imt-installed-packages',
+  selector: 'debrief-installed-packages',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ToolError],
   template: `
@@ -17,12 +17,12 @@ import { PluginPermissionsDialog } from './plugin-permissions-dialog';
       <h2 class="section-title" i18n="@@pluginsPanel.packages.title">Installed from packages</h2>
       <button type="button" class="btn" [disabled]="!!store.busy()" (click)="store.pickAndReview()" i18n="@@pluginsPanel.packages.installFromFile">Install from file…</button>
     </div>
-    <p class="faint hint" i18n="@@pluginsPanel.packages.dropHint">Or drop a .imtplugin file on the window. You review the publisher and the permissions before anything is installed.</p>
+    <p class="faint hint" i18n="@@pluginsPanel.packages.dropHint">Or drop a .debriefplugin file on the window. You review the publisher and the permissions before anything is installed.</p>
     @if (store.safeMode()) {
       <div class="note" role="status" data-testid="packages-safe-mode" i18n="@@pluginsPanel.packages.safeMode">Safe mode: third-party plugins are not loaded. Restart normally to use them.</div>
     }
     @if (!store.review()) {
-      <imt-tool-error [message]="store.error()" [retry]="store.retry() !== null" (retried)="store.retryFailed()" (dismissed)="store.dismissError()" />
+      <debrief-tool-error [message]="store.error()" [retry]="store.retry() !== null" (retried)="store.retryFailed()" (dismissed)="store.dismissError()" />
     }
     @if (store.showRestart()) {
       <div class="restart" role="status" data-testid="packages-restart">

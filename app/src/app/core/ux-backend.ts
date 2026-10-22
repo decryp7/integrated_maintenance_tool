@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { invoke } from './activity/ipc';
 import { ImportProgress, ProfileDoc, ProfileVersionInfo } from './api.types';
-import { ImtBackend } from './backend';
+import { DebriefBackend } from './backend';
 import { reportBackendFailures } from './failure-reporter';
 import { Logger, withFailureLogging } from './logger';
 import { isTauri } from './platform';
@@ -52,6 +52,6 @@ export class TauriUxBackend extends UxBackend {
 }
 
 export function createUxBackend(): UxBackend {
-  const backend: UxBackend = isTauri() ? new TauriUxBackend() : new (browserMocks().MockUxBackend)(inject(ImtBackend));
+  const backend: UxBackend = isTauri() ? new TauriUxBackend() : new (browserMocks().MockUxBackend)(inject(DebriefBackend));
   return withFailureLogging<UxBackend>(backend, inject(Logger), { onFailure: reportBackendFailures() });
 }

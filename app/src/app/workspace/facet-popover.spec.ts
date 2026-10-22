@@ -10,7 +10,7 @@ import { at } from '../../testing/must';
 @Component({
   imports: [FacetPopover],
   template: `
-    <imt-facet-popover
+    <debrief-facet-popover
       [field]="field()"
       [top]="40"
       [left]="12"

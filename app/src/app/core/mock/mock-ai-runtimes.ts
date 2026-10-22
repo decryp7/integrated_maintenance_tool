@@ -1,7 +1,7 @@
 /**
  * The inference runtimes of the mock AI backend: the llama-server builds a Windows laptop with an NVIDIA
  * GPU would be offered (sizes of the pinned release), which are installed and work, and scripted
- * downloads. Mimics `imt_ai::runtimes::overview` closely enough for the UI; the engine is the reference.
+ * downloads. Mimics `debrief_ai::runtimes::overview` closely enough for the UI; the engine is the reference.
  */
 import { AiError } from '../../ai/ai-backend';
 import { MockClock, systemMockClock } from './mock-clock';
@@ -230,7 +230,7 @@ export class MockRuntimes {
     };
   }
 
-  /** The archives of build `id` (as `imt_ai::manual::runtime_files`). */
+  /** The archives of build `id` (as `debrief_ai::manual::runtime_files`). */
   manualFiles(id: string): ManualFile[] {
     const b = BUILDS.find((x) => x.id === id);
     if (!b) throw new AiError('notFound', `there is no inference build '${id}' for this computer`);

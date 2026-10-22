@@ -22,7 +22,7 @@ interface Drag {
  * The range is applied on release, so dragging stays smooth while the lanes below load once.
  */
 @Component({
-  selector: 'imt-timeline-minimap',
+  selector: 'debrief-timeline-minimap',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (rect(); as r) {

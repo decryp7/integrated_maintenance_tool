@@ -29,7 +29,7 @@ test('an update found by the check is announced with Update, Later and Skip this
 
   // Update runs as a download job and the message goes.
   await toast.getByTestId('notice-toast-primary').click();
-  await expect(page.locator('imt-jobs-panel')).toContainText('Updating the Vulkan (any GPU vendor) inference runtime');
+  await expect(page.locator('debrief-jobs-panel')).toContainText('Updating the Vulkan (any GPU vendor) inference runtime');
   await expect(toast).toHaveCount(0);
 
   // Once installed, Settings has nothing to offer for the runtime.

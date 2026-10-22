@@ -23,19 +23,19 @@ export abstract class SnapshotBackend {
   abstract remove(id: string): Promise<void>;
   /** Shows the folder in the OS file manager; resolves to its path. */
   abstract openFolder(): Promise<string>;
-  /** Zips the chosen snapshots and the recent IMT log to `path`; resolves to the number of files. */
+  /** Zips the chosen snapshots and the recent Debrief log to `path`; resolves to the number of files. */
   /** Zips the snapshots; never replaces an existing file unless `overwrite`. */
   /** Zips the snapshots and the recent log as a background export job; resolves with the job at once. */
   abstract exportDiagnostics(path: string, ids: string[], overwrite?: boolean): Promise<number>;
   /** Whether automatic snapshots are on (the shared diagnostics setting). */
   abstract automaticEnabled(): Promise<boolean>;
-  /** Calls `handler` for every `imt://error` event. */
+  /** Calls `handler` for every `debrief://error` event. */
   abstract onEngineError(handler: (error: EngineError) => void): Promise<Unlisten>;
   /** What a problem report would contain, for the user to review before saving. */
   abstract reportPreview(description: string): Promise<ProblemReportPreview>;
   /** Writes the problem report as a background export job; resolves with the job at once. */
   abstract saveReport(path: string, description: string, overwrite?: boolean): Promise<number>;
-  /** Opens IMT's own logs in a new window, filtered to the activity entries (Help ▸ Show activity log). Resolves to the window label. */
+  /** Opens Debrief's own logs in a new window, filtered to the activity entries (Help ▸ Show activity log). Resolves to the window label. */
   abstract openActivityLog(): Promise<string>;
   /** The diagnostics report this window opened (a zip saved by "Report a problem"), if any. */
   abstract diagnosticsReport(): Promise<DiagnosticsReportState>;

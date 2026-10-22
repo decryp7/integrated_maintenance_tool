@@ -18,7 +18,7 @@ async function popOut(page: Page, context: BrowserContext, name: string): Promis
   await groupOf(page, name).getByRole('button', { name: 'Panel menu', exact: true }).click();
   await page.getByRole('menu', { name: 'Actions' }).getByRole('menuitem', { name: 'Pop out to window', exact: true }).click();
   const popup = await opened;
-  await expect(popup.locator('imt-popout-shell')).toBeVisible();
+  await expect(popup.locator('debrief-popout-shell')).toBeVisible();
   await expect(popup.getByRole('heading', { level: 1, name })).toBeVisible();
   await expect(tab(page, name)).toHaveCount(0);
   return popup;
@@ -36,15 +36,15 @@ test.describe('pop-out windows', () => {
     const popup = await popOut(page, context, 'Inspector');
     expect(popup.url()).toContain('#/popout?view=inspector');
     await expect(popup.getByRole('button', { name: 'Dock back into the main window' })).toBeVisible();
-    const row = page.locator('imt-events-grid [role=row].row').nth(3);
+    const row = page.locator('debrief-events-grid [role=row].row').nth(3);
     const message = (await row.locator('.msg').innerText()).trim();
     await row.click();
-    await expect(popup.locator('imt-inspector')).toContainText(message.slice(0, 20));
+    await expect(popup.locator('debrief-inspector')).toContainText(message.slice(0, 20));
     // And back: moving the selection in the host moves it in the pop-out.
-    const next = page.locator('imt-events-grid [role=row].row').nth(6);
+    const next = page.locator('debrief-events-grid [role=row].row').nth(6);
     const nextMessage = (await next.locator('.msg').innerText()).trim();
     await next.click();
-    await expect(popup.locator('imt-inspector')).toContainText(nextMessage.slice(0, 20));
+    await expect(popup.locator('debrief-inspector')).toContainText(nextMessage.slice(0, 20));
   });
 
   test('a stats query run in the host shows its table in the Query results pop-out', async ({ page, context }) => {
@@ -53,7 +53,7 @@ test.describe('pop-out windows', () => {
     await input.press('ControlOrMeta+Enter');
     await expect(tab(page, 'Query results')).toBeVisible();
     const popup = await popOut(page, context, 'Query results');
-    await expect(popup.locator('imt-query-results-view')).toBeVisible();
+    await expect(popup.locator('debrief-query-results-view')).toBeVisible();
   });
 
   test('Dock back returns the panel to where it was', async ({ page, context }) => {
@@ -63,12 +63,12 @@ test.describe('pop-out windows', () => {
     await closed;
     await expect(tab(page, 'Inspector')).toBeVisible();
     // Back on the right of the timeline and the document beside it, as before.
-    const inspector = (await page.locator('imt-inspector').boundingBox())!;
+    const inspector = (await page.locator('debrief-inspector').boundingBox())!;
     const documents = (await groupOf(page, 'Registry').boundingBox())!;
     expect(inspector.x).toBeGreaterThanOrEqual(documents.x + documents.width - 2);
     // A full-height column, as tall as the timeline over the events grid.
-    const timeline = (await page.locator('imt-timeline-panel').boundingBox())!;
-    const grid = (await page.locator('imt-events-grid').boundingBox())!;
+    const timeline = (await page.locator('debrief-timeline-panel').boundingBox())!;
+    const grid = (await page.locator('debrief-events-grid').boundingBox())!;
     expect(inspector.y).toBeLessThanOrEqual(timeline.y + 2);
     expect(inspector.y + inspector.height).toBeGreaterThanOrEqual(grid.y + grid.height - 2);
   });
@@ -105,24 +105,24 @@ test.describe('pop-out windows', () => {
 
   test('a pop-out dragged back over the host shows its guides and docks where it is dropped', async ({ page, context }) => {
     const popup = await popOut(page, context, 'Inspector');
-    await expect(popup.locator('imt-inspector')).toBeVisible();
+    await expect(popup.locator('debrief-inspector')).toBeVisible();
     // The left edge guide of the host's dock, in screen coordinates (the browser adapter maps them back).
-    const dock = (await page.locator('.imt-dock-mount').boundingBox())!;
+    const dock = (await page.locator('.debrief-dock-mount').boundingBox())!;
     const origin = await page.evaluate(() => ({ x: screenX + Math.max(0, (outerWidth - innerWidth) / 2), y: screenY + Math.max(0, outerHeight - innerHeight) }));
     const at = { x: origin.x + dock.x + 26, y: origin.y + dock.y + dock.height / 2 };
-    const handle = popup.locator('imt-popout-title-bar .bar');
+    const handle = popup.locator('debrief-popout-title-bar .bar');
     await handle.dispatchEvent('pointerdown', { button: 0, pointerId: 1 });
     await handle.dispatchEvent('pointermove', { screenX: at.x + 300, screenY: at.y, pointerId: 1 });
     await handle.dispatchEvent('pointermove', { screenX: at.x, screenY: at.y, pointerId: 1 });
-    await expect(page.locator('.imt-guide-edges .imt-guide-left.hot')).toBeVisible();
-    await expect(page.locator('.imt-guide-preview')).toBeVisible();
+    await expect(page.locator('.debrief-guide-edges .debrief-guide-left.hot')).toBeVisible();
+    await expect(page.locator('.debrief-guide-preview')).toBeVisible();
     const closed = popup.waitForEvent('close');
     await handle.dispatchEvent('pointerup', { pointerId: 1 });
     await closed;
     await expect(tab(page, 'Inspector')).toBeVisible();
-    await expect(page.locator('.imt-drop-guides.on')).toHaveCount(0);
-    const inspector = (await page.locator('imt-inspector').boundingBox())!;
-    const events = (await page.locator('imt-events-grid').boundingBox())!;
+    await expect(page.locator('.debrief-drop-guides.on')).toHaveCount(0);
+    const inspector = (await page.locator('debrief-inspector').boundingBox())!;
+    const events = (await page.locator('debrief-events-grid').boundingBox())!;
     expect(inspector.x + inspector.width).toBeLessThanOrEqual(events.x + 2);
   });
 
@@ -149,7 +149,7 @@ test.describe('pop-out windows', () => {
 
   test('the pop-out reopens where it was after a reload of the host', async ({ page, context }) => {
     const popup = await popOut(page, context, 'Inspector');
-    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('imt.layout') ?? 'null')?.extras?.poppedOut?.length ?? 0)).toBe(1);
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('debrief.layout') ?? 'null')?.extras?.poppedOut?.length ?? 0)).toBe(1);
     const reopened = context.waitForEvent('page', { predicate: (p) => p !== popup });
     await page.reload();
     // The old pop-out closes itself once its host is gone; the reloaded host opens it again.

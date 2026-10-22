@@ -1,7 +1,7 @@
 //! The "Updates" settings section: automatic checks (off by default) and the channel. Its description
 //! says exactly what a check sends.
 
-use imt_core::settings::{Configurable, EnumOption, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
+use debrief_core::settings::{Configurable, EnumOption, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
 use std::sync::{Arc, RwLock};
 
 pub const SECTION: &str = "updates";
@@ -63,8 +63,8 @@ pub fn privacy_note(host: &str) -> String {
     format!(
         "A check is one HTTPS request to {host} for the latest release's latest.json (version, notes, download links \
          and signatures). It sends no identifier, usage data or file content: the server sees your IP address and the \
-         user agent of IMT's updater. A download goes to the same releases, and is installed only when its signature \
-         matches the IMT signing key built into this version."
+         user agent of Debrief's updater. A download goes to the same releases, and is installed only when its signature \
+         matches the Debrief signing key built into this version."
     )
 }
 
@@ -83,7 +83,7 @@ impl Configurable for UpdatesSection {
             .describe(description)
             .field(
                 SettingField::new("autoCheck", "Check for updates automatically", FieldKind::Bool, false)
-                    .describe("Off by default. When on, IMT checks a minute after it starts and then once a day, and tells you when a new version is available. Nothing is downloaded without asking."),
+                    .describe("Off by default. When on, Debrief checks a minute after it starts and then once a day, and tells you when a new version is available. Nothing is downloaded without asking."),
             )
             .field(
                 SettingField::new(

@@ -33,7 +33,7 @@ function jobInfo(p: Partial<JobInfo> & { id: number }): JobInfo {
   };
 }
 
-@Component({ imports: [JobWait], template: `<imt-job-wait [jobId]="id()" busyText="The local model proposes…" />` })
+@Component({ imports: [JobWait], template: `<debrief-job-wait [jobId]="id()" busyText="The local model proposes…" />` })
 class Host {
   readonly id = signal(5);
 }

@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { AnalysisBackend } from '../core/analysis-backend';
 import { Analyzed, Anomaly, Comparison, Coverage, ExceptionGroup, FieldStats, fullCoverage, MomentSummary, Pattern, RequestSpan, TracesResult, RecordView } from '../core/api.types';
 import { Logger } from '../core/logger';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { MockBackend } from '../core/mock/mock-backend';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { CommandContext } from '../extensions/tokens';
@@ -49,9 +49,9 @@ export class FakeContext implements CommandContext {
 
 export function provideAnalysisTesting(extra: { backend?: AnalysisBackend; history?: HistoryStore; context?: CommandContext } = {}): Provider[] {
   return [
-    { provide: ImtBackend, useFactory: () => new MockBackend({ latency: false }) },
+    { provide: DebriefBackend, useFactory: () => new MockBackend({ latency: false }) },
     { provide: Logger, useFactory: () => new MemoryLogger() },
-    { provide: AnalysisBackend, useFactory: () => extra.backend ?? new MockAnalysisBackend(recordsFrom(inject(ImtBackend))) },
+    { provide: AnalysisBackend, useFactory: () => extra.backend ?? new MockAnalysisBackend(recordsFrom(inject(DebriefBackend))) },
     { provide: HISTORY_STORE, useValue: extra.history ?? new MemoryHistory() },
     ...(extra.context ? [{ provide: COMMAND_CONTEXT, useValue: extra.context }] : []),
   ];
@@ -65,7 +65,7 @@ export async function loadWorkspace() {
 }
 
 export async function allRecords(): Promise<RecordView[]> {
-  return recordsFrom(TestBed.inject(ImtBackend))();
+  return recordsFrom(TestBed.inject(DebriefBackend))();
 }
 
 /** Fixed engine answers for view tests (exact assertions); the mock backend covers the plausible-data path. */

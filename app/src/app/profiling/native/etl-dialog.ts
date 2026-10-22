@@ -15,7 +15,7 @@ import { NativeOpener } from './native-capture.store';
  * .NET process (else its busiest process) directly; this dialog is for choosing another.
  */
 @Component({
-  selector: 'imt-etl-dialog',
+  selector: 'debrief-etl-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CdkListbox, CdkOption, ToolError],
   template: `
@@ -35,7 +35,7 @@ import { NativeOpener } from './native-capture.store';
         }
       </ul>
     }
-    <imt-tool-error [message]="error()" [retry]="true" (retried)="load()" (dismissed)="error.set(null)" />
+    <debrief-tool-error [message]="error()" [retry]="true" (retried)="load()" (dismissed)="error.set(null)" />
     <div class="foot">
       <button type="button" class="btn ghost" (click)="ref.close()" i18n="@@profiling.etl.close">Close</button>
       <button type="button" class="btn primary" [disabled]="selected() === null || converting()" (click)="convert()" data-testid="etl-open">{{ openLabel() }}</button>

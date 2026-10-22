@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { all, el, provideFakeDock, provideTinyBackendBare, settle, text, typeInto } from '../../testing/helpers';
 import { CommandRegistry } from '../extensions/command-registry';
 import { KeybindingOverridesStore } from '../extensions/keybinding-overrides.store';
-import { IMT_COMMANDS, ImtCommand } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS, DebriefCommand } from '../extensions/tokens';
 import { DialogService } from '../ui/dialog.service';
 import { DockService } from '../dock/dock.service';
 import { CheatSheet, PRINT_CLASS } from './cheat-sheet';
@@ -11,7 +11,7 @@ import { FIXED_KEYS, shortcutGroups } from './shortcuts';
 import { SettingsDialogService } from '../settings/settings-dialog';
 import { at } from '../../testing/must';
 
-const cmd = (id: string, title: string, extra: Partial<ImtCommand> = {}): ImtCommand => ({ id, title, run: () => undefined, ...extra });
+const cmd = (id: string, title: string, extra: Partial<DebriefCommand> = {}): DebriefCommand => ({ id, title, run: () => undefined, ...extra });
 
 describe('shortcutGroups', () => {
   const commands = [
@@ -45,7 +45,7 @@ describe('cheat sheet and help commands', () => {
         provideTinyBackendBare(),
         provideFakeDock(),
         provideHelp(),
-        { provide: IMT_COMMANDS, multi: true, useValue: [cmd('t.open', 'Open files…', { category: 'File', keybinding: 'Mod+O' })] },
+        { provide: DEBRIEF_COMMANDS, multi: true, useValue: [cmd('t.open', 'Open files…', { category: 'File', keybinding: 'Mod+O' })] },
       ],
     });
     return TestBed.inject(CommandRegistry);
@@ -113,7 +113,7 @@ describe('cheat sheet with user key bindings', () => {
         provideFakeDock(),
         provideHelp(),
         {
-          provide: IMT_COMMANDS,
+          provide: DEBRIEF_COMMANDS,
           multi: true,
           useValue: [cmd('t.open', 'Open files…', { category: 'File', keybinding: 'Mod+O' }), cmd('t.save', 'Save things', { category: 'File', keybinding: 'Mod+S' })],
         },

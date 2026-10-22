@@ -41,7 +41,7 @@ describe('drag ghost backends', () => {
     expect(m.state.visible).toBe(false);
     expect(await m.start({ title: 'Metrics', snapshot: 'data:image/png;base64,AA==', width: 560, height: 420, grabX: 120, grabY: 12 })).toBe(true);
     expect(m.state.request).toMatchObject({ title: 'Metrics', hasSnapshot: true });
-    expect((window as unknown as { __imtMockGhost: unknown }).__imtMockGhost).toBe(m.state);
+    expect((window as unknown as { __debriefMockGhost: unknown }).__debriefMockGhost).toBe(m.state);
     move(500, 300);
     expect(m.state.rect).toBeNull();
     await m.show(true);

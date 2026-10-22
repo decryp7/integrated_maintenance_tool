@@ -260,6 +260,6 @@ describe('HotspotsView', () => {
     const { fixture } = await mount();
     const p = TestBed.inject(ProfileViewState);
     expect(p.profileId()).not.toBeNull();
-    expect(all(fixture, 'imt-capture-notes').length).toBe(1);
+    expect(all(fixture, 'debrief-capture-notes').length).toBe(1);
   });
 });

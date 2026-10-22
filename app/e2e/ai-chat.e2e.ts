@@ -21,17 +21,17 @@ test.describe('AI chat', () => {
     const answer = chat.getByTestId('ai-answer-0');
     await expect(answer).toContainText('OutOfMemoryException');
     await expect(answer.locator('pre')).toContainText('System.OutOfMemoryException');
-    await expectNoSeriousViolations(page, testInfo, 'ai-chat-answer', 'imt-ai-chat-panel');
+    await expectNoSeriousViolations(page, testInfo, 'ai-chat-answer', 'debrief-ai-chat-panel');
 
-    await answer.locator('imt-ai-rich-text button.cite.rec').first().click();
-    const selected = page.locator('imt-events-grid .row.sel');
+    await answer.locator('debrief-ai-rich-text button.cite.rec').first().click();
+    const selected = page.locator('debrief-events-grid .row.sel');
     await expect(selected).toBeVisible();
     await expect(selected.locator('.lvl')).toContainText('FTL');
   });
 
   test('the Context menu chooses what is sent; chats are created and exported', async ({ page }, testInfo) => {
     await openAiApp(page);
-    await page.locator('imt-events-grid [role=row].row').first().click();
+    await page.locator('debrief-events-grid [role=row].row').first().click();
     await hideInspectorFlyout(page);
     const chat = await openChat(page);
     const context = chat.getByTestId('ai-context-menu');
@@ -81,7 +81,7 @@ test.describe('AI chat', () => {
     await expect(card).toContainText('Matches 2 of 2 examples');
     await expect(card).toContainText('(?<timestamp>');
     await waitAnswered(chat);
-    await expectNoSeriousViolations(page, testInfo, 'ai-chat-proposal', 'imt-ai-chat-panel');
+    await expectNoSeriousViolations(page, testInfo, 'ai-chat-proposal', 'debrief-ai-chat-panel');
 
     await card.getByRole('button', { name: 'Add as highlight…' }).click();
     const dialog = page.getByRole('dialog', { name: 'Highlight lines' });
@@ -130,14 +130,14 @@ test.describe('AI chat', () => {
     expect(extra).toEqual([]);
     // Every panel container clips: it cannot be scrolled, even programmatically (focus, scrollIntoView).
     const scrolled = await page.evaluate(() =>
-      Array.from(document.querySelectorAll<HTMLElement>('.imt-panel')).filter((el) => {
+      Array.from(document.querySelectorAll<HTMLElement>('.debrief-panel')).filter((el) => {
         el.scrollTop = 10_000;
         return el.scrollTop !== 0;
       }).length,
     );
     expect(scrolled).toBe(0);
     const panel = (await chat.boundingBox())!;
-    const composer = (await chat.locator('imt-chat-composer').boundingBox())!;
+    const composer = (await chat.locator('debrief-chat-composer').boundingBox())!;
     expect(Math.abs(composer.y + composer.height - (panel.y + panel.height))).toBeLessThan(2);
   });
 });

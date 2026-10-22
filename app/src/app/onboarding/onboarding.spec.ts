@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { buttonByText, FakeDock, provideFakeDock, provideTinyBackend, settle, text } from '../../testing/helpers';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { WorkspaceStore } from '../core/workspace.store';
 import { UxBackend } from '../core/ux-backend';
 import { CommandRegistry } from '../extensions/command-registry';
@@ -37,7 +37,7 @@ describe('TourService', () => {
     tour.start();
     expect(tour.index()).toBe(0);
     // The first step is anchored to the timeline like the rest (J3), not a centred modal.
-    expect(TOUR_STEPS[0]?.target).toBe('imt-timeline-panel');
+    expect(TOUR_STEPS[0]?.target).toBe('debrief-timeline-panel');
     await settle();
     expect(tour.spot()).toEqual({ top: 100, left: 50, width: 400, height: 200 });
     expect(tour.isFirst()).toBe(true);
@@ -79,7 +79,7 @@ describe('TourService', () => {
 
   it('skips steps whose panel never appears, in either direction', async () => {
     vi.useFakeTimers();
-    const { tour } = setupTour((s) => (s === 'imt-events-grid' || s === 'imt-home-view' ? null : box()));
+    const { tour } = setupTour((s) => (s === 'debrief-events-grid' || s === 'debrief-home-view' ? null : box()));
     tour.start();
     await vi.advanceTimersByTimeAsync(2000);
     expect(tour.step()?.id).toBe('timeline');
@@ -144,7 +144,7 @@ describe('TourOverlay', () => {
     tour.start();
     await settle(fixture);
     expect(text(fixture)).toContain('Step 1 of 6');
-    expect((fixture.nativeElement.querySelector('[role=dialog]') as HTMLElement).getAttribute('aria-labelledby')).toBe('imt-tour-title');
+    expect((fixture.nativeElement.querySelector('[role=dialog]') as HTMLElement).getAttribute('aria-labelledby')).toBe('debrief-tour-title');
     expect(document.activeElement?.textContent).toBe('Next');
     const key = (k: string, target: EventTarget = document.body) => {
       const e = new KeyboardEvent('keydown', { key: k, bubbles: true });
@@ -220,7 +220,7 @@ describe('DemoService, commands and the welcome button', () => {
   it('opens the demo through the normal open path and starts the tour once', async () => {
     const { demo, store, tour } = setup();
     await settle();
-    const open = vi.spyOn(TestBed.inject(ImtBackend), 'openPaths');
+    const open = vi.spyOn(TestBed.inject(DebriefBackend), 'openPaths');
     TestBed.inject(WelcomeService).show();
     expect(await demo.start()).toBe(true);
     expect(open).toHaveBeenCalledWith(['/demo/samples/serilog-clef']);
@@ -245,7 +245,7 @@ describe('DemoService, commands and the welcome button', () => {
     TestBed.resetTestingModule();
     const bad = setup();
     await settle();
-    vi.spyOn(TestBed.inject(ImtBackend), 'openPaths').mockRejectedValue('disk gone');
+    vi.spyOn(TestBed.inject(DebriefBackend), 'openPaths').mockRejectedValue('disk gone');
     expect(await bad.demo.start()).toBe(false);
     expect(bad.tour.active()).toBe(false);
     TestBed.resetTestingModule();

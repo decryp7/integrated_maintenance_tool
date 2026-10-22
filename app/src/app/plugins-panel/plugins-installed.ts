@@ -5,7 +5,7 @@ import { ExporterInfo, PluginInfo } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { InstalledPackages } from './installed-packages';
 
-/** Importers that ship with IMT (plugins can add more). */
+/** Importers that ship with Debrief (plugins can add more). */
 export const BUILTIN_IMPORTERS = [
   { id: 'json', name: $localize`:@@pluginsPanel.importer.json:JSON lines / CLEF (Serilog)` },
   { id: 'text', name: $localize`:@@pluginsPanel.importer.text:Plain text logs (output templates and regexes)` },
@@ -19,7 +19,7 @@ export function contributionLabel(contribution: string): string {
 
 /** The Installed tab of the Plugins view: backend plugins reported by the engine, third-party packages, plus what is built in. */
 @Component({
-  selector: 'imt-plugins-installed',
+  selector: 'debrief-plugins-installed',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [InstalledPackages, PluginMemory],
   template: `
@@ -33,15 +33,15 @@ export function contributionLabel(contribution: string): string {
               <div class="badges">
                 @for (c of p.contributes; track c) { <span class="badge" [title]="c">{{ label(c) }}</span> }
               </div>
-              <imt-plugin-memory [pluginId]="p.id" [pluginName]="p.name" />
+              <debrief-plugin-memory [pluginId]="p.id" [pluginName]="p.name" />
             </li>
           }
         </ul>
       } @else {
-        <p class="faint" i18n="@@pluginsPanel.none">No plugins are installed. IMT works with its built-in importers and exporters.</p>
+        <p class="faint" i18n="@@pluginsPanel.none">No plugins are installed. Debrief works with its built-in importers and exporters.</p>
       }
 
-      <imt-installed-packages />
+      <debrief-installed-packages />
 
       <h2 class="section-title" i18n="@@pluginsPanel.builtIn">Built in</h2>
       <div class="builtin">
@@ -55,7 +55,7 @@ export function contributionLabel(contribution: string): string {
 
       <h2 class="section-title" i18n="@@pluginsPanel.about">About plugins</h2>
       <div class="help">
-        <p i18n="@@pluginsPanel.about.p1">A plugin extends IMT without changing the app. Backend plugins can add <strong>importers</strong> (read a new file format), <strong>transforms</strong> (a step you can use in the profile pipeline), <strong>exporters</strong> (write events to a new format) and <strong>hooks</strong> (react to events such as a finished import).</p>
+        <p i18n="@@pluginsPanel.about.p1">A plugin extends Debrief without changing the app. Backend plugins can add <strong>importers</strong> (read a new file format), <strong>transforms</strong> (a step you can use in the profile pipeline), <strong>exporters</strong> (write events to a new format) and <strong>hooks</strong> (react to events such as a finished import).</p>
         <p i18n="@@pluginsPanel.about.p2">Plugins are loaded by the engine when it starts; what it found is listed above. A plugin's importer shows up in the Explorer as the format badge of its files, and a transform can be added from the Pipeline section of the profile.</p>
         <p i18n="@@pluginsPanel.about.p3">UI plugins add panels (like the Registry viewer), commands, inspector sections and field formatters, and are registered when the app is built.</p>
       </div>

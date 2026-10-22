@@ -28,11 +28,11 @@ const HELP = $localize`:@@profile.pipelineEditor.help:The pipeline runs on every
 
 /** The ordered `[[pipeline]]` as an activity flow: a palette of step kinds and a vertical chain of cards. */
 @Component({
-  selector: 'imt-pipeline-editor',
+  selector: 'debrief-pipeline-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, ConditionsEditor, StringList, HelpHint, CdkDropList, CdkDrag, CdkDragHandle],
   template: `
-    <h2><ng-container i18n="@@profile.pipelineEditor.title">Pipeline</ng-container> <imt-help label="Pipeline" i18n-label="@@profile.pipelineEditor.helpLabel" [text]="help" /></h2>
+    <h2><ng-container i18n="@@profile.pipelineEditor.title">Pipeline</ng-container> <debrief-help label="Pipeline" i18n-label="@@profile.pipelineEditor.helpLabel" [text]="help" /></h2>
     <p class="help" i18n="@@profile.pipelineEditor.intro">Each event flows through these steps in order after parsing. Add an activity, then fill in what it should do.</p>
 
     <div class="palette" role="group" aria-label="Add an activity" i18n-aria-label="@@profile.pipelineEditor.palette">
@@ -42,7 +42,7 @@ const HELP = $localize`:@@profile.pipelineEditor.help:The pipeline runs on every
           <div class="pal-items">
             @for (k of g.kinds; track k.kind) {
               <button class="btn" type="button" [title]="k.blurb" [disabled]="k.kind === 'plugin' && !plugins().length" (click)="add(k.kind)">
-                <imt-icon [name]="k.icon" [size]="13" /> {{ k.label }}
+                <debrief-icon [name]="k.icon" [size]="13" /> {{ k.label }}
               </button>
             }
           </div>
@@ -59,20 +59,20 @@ const HELP = $localize`:@@profile.pipelineEditor.help:The pipeline runs on every
         <div class="arrow" aria-hidden="true">↓</div>
         <div class="card" [class.off]="s.disabled" cdkDrag cdkDragLockAxis="y" [attr.data-step]="s.step">
           <div class="card-head">
-            <button class="icon-btn handle" type="button" cdkDragHandle [attr.aria-label]="stepLabel('drag', i)" title="Drag to reorder" i18n-title="@@profile.pipelineEditor.dragTitle"><imt-icon name="drag" [size]="14" [stroke]="3" /></button>
+            <button class="icon-btn handle" type="button" cdkDragHandle [attr.aria-label]="stepLabel('drag', i)" title="Drag to reorder" i18n-title="@@profile.pipelineEditor.dragTitle"><debrief-icon name="drag" [size]="14" [stroke]="3" /></button>
             <span class="num">{{ i + 1 }}</span>
-            <imt-icon [name]="icon(s.step)" [size]="15" />
+            <debrief-icon [name]="icon(s.step)" [size]="15" />
             <span class="summary">{{ summary(s) }}</span>
             <span class="stat" [class.ok]="status(s, i).state === 'ok'" [class.bad]="status(s, i).state === 'failed'" [class.dim]="status(s, i).state === 'stale' || status(s, i).state === 'disabled'" [attr.data-state]="status(s, i).state">{{ status(s, i).text }}</span>
             <span class="actions">
               <button class="icon-btn" type="button" [attr.aria-label]="stepLabel('up', i)" title="Move up" i18n-title="@@profile.pipelineEditor.moveUp" [disabled]="i === 0" (click)="move(i, -1)">↑</button>
               <button class="icon-btn" type="button" [attr.aria-label]="stepLabel('down', i)" title="Move down" i18n-title="@@profile.pipelineEditor.moveDown" [disabled]="i === steps().length - 1" (click)="move(i, 1)">↓</button>
-              <button class="icon-btn" type="button" [attr.aria-label]="stepLabel('duplicate', i)" title="Duplicate" i18n-title="@@profile.pipelineEditor.duplicate" (click)="duplicate(i)"><imt-icon name="copy" [size]="13" /></button>
+              <button class="icon-btn" type="button" [attr.aria-label]="stepLabel('duplicate', i)" title="Duplicate" i18n-title="@@profile.pipelineEditor.duplicate" (click)="duplicate(i)"><debrief-icon name="copy" [size]="13" /></button>
               <label class="off-toggle" [title]="offTitle(s.disabled)" i18n="@@profile.pipelineEditor.off">
                 <input type="checkbox" [checked]="!!s.disabled" [attr.aria-label]="stepLabel('disable', i)" (change)="setStep(i, 'disabled', $any($event.target).checked || undefined)" /> off
               </label>
-              <button class="icon-btn" type="button" [attr.aria-label]="stepLabel('remove', i)" title="Remove" i18n-title="@@profile.pipelineEditor.remove" (click)="remove(i)"><imt-icon name="trash" [size]="13" /></button>
-              <button class="icon-btn" type="button" [attr.aria-label]="stepLabel(open().has(i) ? 'hide' : 'edit', i)" [attr.aria-expanded]="open().has(i)" title="Edit" i18n-title="@@profile.pipelineEditor.edit" (click)="toggle(i)"><imt-icon [name]="open().has(i) ? 'chevronDown' : 'chevronRight'" [size]="13" /></button>
+              <button class="icon-btn" type="button" [attr.aria-label]="stepLabel('remove', i)" title="Remove" i18n-title="@@profile.pipelineEditor.remove" (click)="remove(i)"><debrief-icon name="trash" [size]="13" /></button>
+              <button class="icon-btn" type="button" [attr.aria-label]="stepLabel(open().has(i) ? 'hide' : 'edit', i)" [attr.aria-expanded]="open().has(i)" title="Edit" i18n-title="@@profile.pipelineEditor.edit" (click)="toggle(i)"><debrief-icon [name]="open().has(i) ? 'chevronDown' : 'chevronRight'" [size]="13" /></button>
             </span>
           </div>
           @if (problem(i); as p) {
@@ -87,7 +87,7 @@ const HELP = $localize`:@@profile.pipelineEditor.help:The pipeline runs on every
                       <span>{{ f.label }}</span>
                       @switch (f.control) {
                         @case ('list') {
-                          <imt-string-list [label]="f.label" datalist="imt-profile-fields" [values]="listValue(s, f.key)" (changed)="setStep(i, f.key, $event)" />
+                          <debrief-string-list [label]="f.label" datalist="debrief-profile-fields" [values]="listValue(s, f.key)" (changed)="setStep(i, f.key, $event)" />
                         }
                         @case ('number') {
                           <input class="input mono" type="number" min="0" [attr.aria-label]="f.label" [value]="textValue(s, f.key)" (input)="setNumber(i, f.key, $any($event.target).value)" />
@@ -108,11 +108,11 @@ const HELP = $localize`:@@profile.pipelineEditor.help:The pipeline runs on every
                           @if (jsonError() === i) { <span class="bad" role="alert" i18n="@@profile.pipelineEditor.badJson">That is not valid JSON; the table was left unchanged.</span> }
                         }
                         @case ('script') {
-                          <textarea class="input mono script" rows="8" spellcheck="false" autocapitalize="off" [attr.aria-label]="f.label" [attr.aria-describedby]="'imt-script-help-' + i" [attr.aria-invalid]="!!problem(i)" [value]="textValue(s, f.key)" (input)="setStep(i, f.key, $any($event.target).value)"></textarea>
-                          <span class="faint small" [id]="'imt-script-help-' + i">{{ scriptHelp }}</span>
+                          <textarea class="input mono script" rows="8" spellcheck="false" autocapitalize="off" [attr.aria-label]="f.label" [attr.aria-describedby]="'debrief-script-help-' + i" [attr.aria-invalid]="!!problem(i)" [value]="textValue(s, f.key)" (input)="setStep(i, f.key, $any($event.target).value)"></textarea>
+                          <span class="faint small" [id]="'debrief-script-help-' + i">{{ scriptHelp }}</span>
                         }
                         @case ('field') {
-                          <input class="input mono" list="imt-profile-fields" [attr.aria-label]="f.label" [value]="textValue(s, f.key)" [placeholder]="f.placeholder ?? ''" (input)="setStep(i, f.key, $any($event.target).value)" />
+                          <input class="input mono" list="debrief-profile-fields" [attr.aria-label]="f.label" [value]="textValue(s, f.key)" [placeholder]="f.placeholder ?? ''" (input)="setStep(i, f.key, $any($event.target).value)" />
                         }
                         @default {
                           <input class="input" [class.mono]="f.key === 'regex'" [attr.aria-label]="f.label" [value]="textValue(s, f.key)" [placeholder]="f.placeholder ?? ''" (input)="setStep(i, f.key, $any($event.target).value)" />
@@ -123,8 +123,8 @@ const HELP = $localize`:@@profile.pipelineEditor.help:The pipeline runs on every
                 </div>
               }
               <div class="lbl">
-                <span><ng-container i18n="@@profile.pipelineEditor.onlyFor">Only for events where</ng-container>&ngsp;<imt-help label="Conditions" i18n-label="@@profile.pipelineEditor.conditionsLabel" text="All conditions must hold (AND). With none, the step applies to every event." i18n-text="@@profile.pipelineEditor.conditionsHelp" /></span>
-                <imt-conditions-editor [conditions]="s.when ?? []" emptyText="Applies to every event." i18n-emptyText="@@profile.conditions.everyEvent" (changed)="setStep(i, 'when', $event)" />
+                <span><ng-container i18n="@@profile.pipelineEditor.onlyFor">Only for events where</ng-container>&ngsp;<debrief-help label="Conditions" i18n-label="@@profile.pipelineEditor.conditionsLabel" text="All conditions must hold (AND). With none, the step applies to every event." i18n-text="@@profile.pipelineEditor.conditionsHelp" /></span>
+                <debrief-conditions-editor [conditions]="s.when ?? []" emptyText="Applies to every event." i18n-emptyText="@@profile.conditions.everyEvent" (changed)="setStep(i, 'when', $event)" />
               </div>
             </div>
           }

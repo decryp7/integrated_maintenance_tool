@@ -1,4 +1,4 @@
-// Wire contract of the jobs commands and the `imt://jobs` event (camelCase JSON), mirrored by
+// Wire contract of the jobs commands and the `debrief://jobs` event (camelCase JSON), mirrored by
 // app/src-tauri/src/jobs/{model,queue,persist}.rs. Change both sides together.
 
 /** Each kind has its own queue and limit (enforced by the engine). */
@@ -106,7 +106,7 @@ export interface JobsSnapshot {
   paused: PausedKind[];
 }
 
-/** What `imt://jobs` carries: the change since the window's last event (`version` follows the one before by 1): the jobs
+/** What `debrief://jobs` carries: the change since the window's last event (`version` follows the one before by 1): the jobs
  * in their order by id, those new or changed in full, the paused queues. Mirrors `jobs::JobsDelta`. */
 export interface JobsDelta {
   version: number;

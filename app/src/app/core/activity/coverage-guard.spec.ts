@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { MemoryLogger } from '../../../testing/helpers';
 import { appConfig } from '../../app.config';
 import { COMMAND_CONTEXT, CommandRegistry } from '../../extensions/command-registry';
-import { CommandContext, flattenContributions, IMT_COMMANDS, ImtCommand } from '../../extensions/tokens';
+import { CommandContext, flattenContributions, DEBRIEF_COMMANDS, DebriefCommand } from '../../extensions/tokens';
 import { Logger, withFailureLogging } from '../logger';
 import { isActivityTracked, methodKind } from './backend-activity';
 import { activity } from './runtime';
@@ -40,14 +40,14 @@ describe('activity coverage guard', () => {
   it('every registered command logs exactly one entry when run', async () => {
     // The real app's providers, with the logger captured; only the command list is read from them.
     TestBed.configureTestingModule({ providers: [...appConfig.providers, { provide: Logger, useFactory: () => new MemoryLogger() }] });
-    const real = flattenContributions<ImtCommand>(TestBed.inject(IMT_COMMANDS, null) ?? []);
+    const real = flattenContributions<DebriefCommand>(TestBed.inject(DEBRIEF_COMMANDS, null) ?? []);
     expect(real.length).toBeGreaterThan(50);
 
     // Run each through a registry of stubs (the guard is about the path, not about what commands do).
     const ran: string[] = [];
     const stubs = real.map((c) => ({ ...c, when: undefined, run: () => void ran.push(c.id) }));
     const scope = Injector.create({
-      providers: [{ provide: COMMAND_CONTEXT, useValue: {} as CommandContext }, { provide: IMT_COMMANDS, multi: true, useValue: stubs }, CommandRegistry],
+      providers: [{ provide: COMMAND_CONTEXT, useValue: {} as CommandContext }, { provide: DEBRIEF_COMMANDS, multi: true, useValue: stubs }, CommandRegistry],
       parent: TestBed.inject(EnvironmentInjector),
     });
     const registry = scope.get(CommandRegistry);
@@ -55,9 +55,9 @@ describe('activity coverage guard', () => {
     const ids = [...new Set(stubs.map((c) => c.id))];
     const missing: string[] = [];
     for (const id of ids) {
-      const before = logger.entries.filter((e) => e.category === 'IMT.Activity').length;
+      const before = logger.entries.filter((e) => e.category === 'Debrief.Activity').length;
       await registry.run(id);
-      const after = logger.entries.filter((e) => e.category === 'IMT.Activity');
+      const after = logger.entries.filter((e) => e.category === 'Debrief.Activity');
       if (after.length !== before + 1 || at(after, after.length - 1).props?.['Operation'] !== id) missing.push(id);
     }
     expect(missing).toEqual([]);
@@ -68,7 +68,7 @@ describe('activity coverage guard', () => {
   it('nothing runs a command except the registry', () => {
     const offenders = sources()
       .filter((f) => f.path !== 'extensions/command-registry.ts')
-      .filter((f) => /\b(command|cmd)\.run\(\s*(this\.)?(context|ctx)\b/.test(f.text) || /IMT_COMMANDS[\s\S]*\.run\(\s*(this\.)?(context|ctx)\b/.test(f.text))
+      .filter((f) => /\b(command|cmd)\.run\(\s*(this\.)?(context|ctx)\b/.test(f.text) || /DEBRIEF_COMMANDS[\s\S]*\.run\(\s*(this\.)?(context|ctx)\b/.test(f.text))
       .map((f) => f.path);
     expect(offenders).toEqual([]);
   });
@@ -115,17 +115,17 @@ describe('activity coverage guard', () => {
     for (const name of names) {
       const kind = methodKind(name);
       activity.reset();
-      activity.setSink((level, message, props) => logger[level]('IMT.Activity', message, props));
+      activity.setSink((level, message, props) => logger[level]('Debrief.Activity', message, props));
       logger.entries.length = 0;
       // Outside any operation: a change is an operation of its own; anything else is not a user operation.
       activity.triggers.note('button');
       await must((proxied as Record<string, () => Promise<unknown>>)[name])();
-      const logged = logger.entries.filter((e) => e.category === 'IMT.Activity').length;
+      const logged = logger.entries.filter((e) => e.category === 'Debrief.Activity').length;
       if (kind === 'mutation' && logged !== 1) silent.push(`${name}: mutation without an entry`);
       if (kind !== 'mutation' && logged !== 0) silent.push(`${name}: ${kind} logged as an operation`);
       // Inside an operation: attributed to it, no extra entry.
       await activity.track('outer', 'menu', {}, () => must((proxied as Record<string, () => Promise<unknown>>)[name])());
-      const inside = logger.entries.filter((e) => e.category === 'IMT.Activity').length - logged;
+      const inside = logger.entries.filter((e) => e.category === 'Debrief.Activity').length - logged;
       if (inside !== 1) silent.push(`${name}: not attributed to the running operation`);
     }
     expect(silent).toEqual([]);
@@ -143,7 +143,7 @@ describe('activity coverage guard', () => {
 /** Backend ports by name (the guard fails with a hint when a new one is missing here). */
 import { AiBackend } from '../../ai/ai-backend';
 import { AnalysisBackend } from '../analysis-backend';
-import { ImtBackend } from '../backend';
+import { DebriefBackend } from '../backend';
 import { CollectBackend, EventLogBackend, LifecycleBackend, PerfmonBackend, PluginPackagesBackend, ProjectBackend, ToolCatalogBackend, ToolsBackend } from '../tools-backend';
 import { ProblemsBackend } from '../../problems/problems-backend';
 import { IncidentBackend, KnownIssuesBackend, PlaybookBackend } from '../../investigate/investigate-backend';
@@ -187,7 +187,7 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   AiBackend,
   AnalysisBackend,
   HomeBackend,
-  ImtBackend,
+  DebriefBackend,
   BrowserBackend,
   ChatBrowserBackend,
   BrowserRuntimeBackend,

@@ -1,4 +1,4 @@
-import type { ImtView } from '../extensions/tokens';
+import type { DebriefView } from '../extensions/tokens';
 
 /**
  * Visual Studio's two kinds of panels: tool windows dock around the edges (and can auto-hide); documents live in
@@ -32,7 +32,7 @@ const DOCUMENT_VIEWS: ReadonlySet<string> = new Set(['events', 'query-results', 
  * Is the view a tool window or a document? Views whose home is a side or status area are tool windows; then known
  * ids; otherwise right-hand views are tools.
  */
-export function viewKind(view: Pick<ImtView, 'id' | 'defaultPosition' | 'area'> | undefined | null): ViewKind {
+export function viewKind(view: Pick<DebriefView, 'id' | 'defaultPosition' | 'area'> | undefined | null): ViewKind {
   if (!view) return 'document';
   if (view.area === 'side' || view.area === 'status' || TOOL_VIEWS.has(view.id)) return 'tool';
   if (view.area === 'document' || DOCUMENT_VIEWS.has(view.id)) return 'document';

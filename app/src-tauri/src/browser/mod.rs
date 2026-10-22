@@ -1,16 +1,16 @@
 //! The AI's browser (ADR 0043, replacing the docked panel of ADR 0024): research and the chat's Read along and Agent
 //! modes drive a real Chromium-based browser over the DevTools protocol ([`renderer`], built on `chromium_driver`).
-//! There is no browser panel and no child web view in IMT any more; links open in the user's default browser.
-//! A chat reads or drives the page only through `imt_ai::browser`.
+//! There is no browser panel and no child web view in Debrief any more; links open in the user's default browser.
+//! A chat reads or drives the page only through `debrief_ai::browser`.
 //!
 //! Indicators that the AI drives a page are all outside the page: Chrome's automation banner, the window frame colour,
-//! the status chip in IMT (activity, host, Stop) and the research log. Nothing is injected into a page.
+//! the status chip in Debrief (activity, host, Stop) and the research log. Nothing is injected into a page.
 //!
 //! Commands: `browser_open`, `browser_event_query`, `browser_capture`, `browser_sources`, `browser_discard_sources`,
 //! `browser_chat_status`, `browser_set_read_along`, `browser_set_agent`, `browser_agent_stop`, `browser_agent_continue`,
 //! `browser_agent_respond`, `browser_open_suggested`, `browser_open_and_read`, `browser_stop`, `browser_runtime_status`,
 //! `browser_runtime_install`, `browser_runtime_remove`, `ai_research_draft`, `ai_research`, `browser_driving`.
-//! Events: `imt://browser` (to the window). Wire contract: `app/src/app/browser/browser.types.ts`.
+//! Events: `debrief://browser` (to the window). Wire contract: `app/src/app/browser/browser.types.ts`.
 
 mod approvals;
 pub(crate) mod commands;
@@ -30,12 +30,12 @@ pub use approvals::Approvals;
 pub use hub::{AiDriver, BrowserHub};
 pub use turn::TurnBrowser;
 
-use imt_ai::browser::{ActionEntry, ActionLog, ChatBrowserStatus, PageCapture};
+use debrief_ai::browser::{ActionEntry, ActionLog, ChatBrowserStatus, PageCapture};
 use serde::Serialize;
 use std::sync::Arc;
 use tauri::{AppHandle, Manager, Runtime};
 
-pub const BROWSER_EVENT: &str = "imt://browser";
+pub const BROWSER_EVENT: &str = "debrief://browser";
 /// Id of the browser's settings section.
 pub const SECTION: &str = "browser";
 
@@ -113,16 +113,16 @@ pub fn renderers<R: Runtime>(app: &AppHandle<R>) -> Option<Arc<renderer::Rendere
 }
 
 fn product<R: Runtime>(app: &AppHandle<R>) -> String {
-    app.config().product_name.clone().unwrap_or_else(|| "IMT".into())
+    app.config().product_name.clone().unwrap_or_else(|| "Debrief".into())
 }
 
-/// A page of the window's renderer for the chat ports. `on_screen`: the window shows next to IMT.
+/// A page of the window's renderer for the chat ports. `on_screen`: the window shows next to Debrief.
 pub(crate) fn page_for<R: Runtime>(
     app: &AppHandle<R>,
     owner: &str,
     on_screen: bool,
     may_drive: Option<Box<dyn Fn() -> bool + Send + Sync>>,
-    rules: Option<Arc<imt_ai::browser::ChatBrowser>>,
+    rules: Option<Arc<debrief_ai::browser::ChatBrowser>>,
 ) -> Option<renderer::ChromiumPage> {
     let (a, o) = (app.clone(), owner.to_string());
     Some(renderer::ChromiumPage {
@@ -224,7 +224,7 @@ pub fn owner_destroyed<R: Runtime>(app: &AppHandle<R>, owner: &str) {
     }
 }
 
-/// IMT exits: every browser process ends.
+/// Debrief exits: every browser process ends.
 pub fn shutdown<R: Runtime>(app: &AppHandle<R>) {
     if let Some(r) = renderers(app) {
         r.kill_all();

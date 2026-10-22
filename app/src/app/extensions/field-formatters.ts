@@ -1,17 +1,17 @@
 import { inject, Injectable } from '@angular/core';
 import { RecordView } from '../core/api.types';
 import { valueToString } from '../core/format';
-import { flattenContributions, IMT_FIELD_FORMATTERS, ImtFieldFormatter } from './tokens';
+import { flattenContributions, DEBRIEF_FIELD_FORMATTERS, DebriefFieldFormatter } from './tokens';
 
 /** Picks the first formatter registered for a field. Pure, so it is easy to test. */
-export function findFormatter(formatters: readonly ImtFieldFormatter[], field: string): ImtFieldFormatter | undefined {
+export function findFormatter(formatters: readonly DebriefFieldFormatter[], field: string): DebriefFieldFormatter | undefined {
   return formatters.find((f) => (typeof f.field === 'string' ? f.field === field : f.field.test(field)));
 }
 
 /** Formats field values for display, falling back to the plain string form. */
 @Injectable({ providedIn: 'root' })
 export class FieldFormatters {
-  private readonly formatters = flattenContributions<ImtFieldFormatter>(inject(IMT_FIELD_FORMATTERS, { optional: true }));
+  private readonly formatters = flattenContributions<DebriefFieldFormatter>(inject(DEBRIEF_FIELD_FORMATTERS, { optional: true }));
 
   format(field: string, value: unknown, record: RecordView): string {
     const formatter = findFormatter(this.formatters, field);
@@ -25,7 +25,7 @@ export class FieldFormatters {
 }
 
 /** Serilog EventId objects `{Id, Name}` as "10100 · Name". */
-export const EVENT_ID_FORMATTER: ImtFieldFormatter = {
+export const EVENT_ID_FORMATTER: DebriefFieldFormatter = {
   field: /^EventId$/,
   format: (value) => {
     if (value && typeof value === 'object' && 'Id' in value) {

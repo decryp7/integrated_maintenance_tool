@@ -424,7 +424,7 @@ impl JobQueue {
         self.paused.get(&kind).map(String::as_str)
     }
 
-    /// Ends every queued and running job as interrupted (IMT is closing). Returns them.
+    /// Ends every queued and running job as interrupted (Debrief is closing). Returns them.
     pub fn interrupt_all(&mut self, reason: &str, now: i64) -> Vec<Finished> {
         let ids: Vec<JobId> = self.active.iter().map(|j| j.id).collect();
         ids.into_iter()
@@ -433,7 +433,7 @@ impl JobQueue {
     }
 
     /// Replaces the window's history with saved jobs: renumbered, oldest first, bounded; jobs that were
-    /// queued or running when IMT closed come back as interrupted (with Retry when they have a request).
+    /// queued or running when Debrief closed come back as interrupted (with Retry when they have a request).
     pub fn restore(&mut self, window: &str, saved: Vec<Job>) {
         self.history.retain(|j| j.window() != Some(window));
         let skip = saved.len().saturating_sub(HISTORY_CAP);
@@ -445,7 +445,7 @@ impl JobQueue {
             if !job.state.is_finished() {
                 job.state = JobState::Interrupted;
                 job.finished_at = Some(job.started_at.unwrap_or(job.queued_at));
-                job.error = Some("IMT closed before this job finished".into());
+                job.error = Some("Debrief closed before this job finished".into());
                 job.seen = false;
             }
             job.result = job.result.and_then(JobResult::bounded);
@@ -835,7 +835,7 @@ mod tests {
         let summarise = finished.iter().find(|j| j.title == "summarise").unwrap();
         assert_eq!(summarise.state, JobState::Interrupted);
         assert!(summarise.retryable && summarise.unseen);
-        assert_eq!(summarise.error.as_deref(), Some("IMT closed before this job finished"));
+        assert_eq!(summarise.error.as_deref(), Some("Debrief closed before this job finished"));
         let waiting = finished.iter().find(|j| j.title == "waiting").unwrap();
         assert!(!waiting.retryable, "no request: cannot be retried");
         let explained = finished.iter().find(|j| j.title == "explained").unwrap();
@@ -852,7 +852,7 @@ mod tests {
         let a = q.submit(ai("a"), 0).unwrap();
         q.start(a, 0).unwrap();
         q.submit(ai("b"), 0).unwrap();
-        let ended = q.interrupt_all("IMT is closing", 5_000);
+        let ended = q.interrupt_all("Debrief is closing", 5_000);
         assert_eq!(ended.len(), 2);
         assert!(ended.iter().all(|f| f.job.state() == JobState::Interrupted && f.kept));
         assert!(!q.has_active() && q.active_ids().is_empty());

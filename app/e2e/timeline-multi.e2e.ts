@@ -23,11 +23,11 @@ test.describe('multiple timelines', () => {
   test.beforeEach(async ({ page }) => openApp(page));
 
   test('a second timeline with its own query zooms with the main one until it is unlinked', async ({ page }) => {
-    const main = page.locator('imt-timeline-panel:not(.instance)');
+    const main = page.locator('debrief-timeline-panel:not(.instance)');
     await main.getByRole('button', { name: 'Timeline menu' }).click();
     await page.getByRole('menuitem', { name: 'New timeline' }).click();
 
-    const second = page.locator('imt-timeline-panel.instance');
+    const second = page.locator('debrief-timeline-panel.instance');
     await expect(second).toBeVisible();
     await expect(main).toBeVisible();
     await expect(second.getByTestId('timeline-title')).toHaveText('Timeline 2');
@@ -76,15 +76,15 @@ test.describe('multiple timelines', () => {
 
   test('"New timeline" is in the View menu and the panel survives a reload', async ({ page }) => {
     await chooseMenu(page, 'View', 'New timeline');
-    const second = page.locator('imt-timeline-panel.instance');
+    const second = page.locator('debrief-timeline-panel.instance');
     await expect(second).toBeVisible();
     await second.getByLabel('Lanes').selectOption('level');
     await expect(second.locator('.lane-label .key').first()).toHaveText(/^(Verbose|Debug|Information|Warning|Error|Fatal)$/);
 
     // The layout is saved shortly after it changes.
-    await expect.poll(() => page.evaluate(() => localStorage.getItem('imt.layout')?.includes('timeline#2') ?? false)).toBe(true);
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('debrief.layout')?.includes('timeline#2') ?? false)).toBe(true);
     await page.reload();
-    await expect(page.locator('imt-timeline-panel.instance')).toBeVisible();
-    await expect(page.locator('imt-timeline-panel.instance').getByLabel('Lanes')).toHaveValue('level');
+    await expect(page.locator('debrief-timeline-panel.instance')).toBeVisible();
+    await expect(page.locator('debrief-timeline-panel.instance').getByLabel('Lanes')).toHaveValue('level');
   });
 });

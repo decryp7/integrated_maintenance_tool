@@ -78,7 +78,7 @@ export function tileFromForm(f: TileForm): { tile: TileCfg } | { error: string }
 
 /** "Add tile": picks the kind and its settings; closes with the new tile. */
 @Component({
-  selector: 'imt-add-tile-dialog',
+  selector: 'debrief-add-tile-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <form (submit)="$event.preventDefault(); submit()">

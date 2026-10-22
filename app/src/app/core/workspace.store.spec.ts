@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideTinyBackend, settle, SEC, T0, testLogger, tinyBackend } from '../../testing/helpers';
-import { ImtBackend } from './backend';
+import { DebriefBackend } from './backend';
 import { Platform } from './platform';
 import { DROPPED_FILES_HANDLERS } from './dropped-files';
 import { EMPTY_QUERY, loadPrefs, savePrefs, WorkspaceStore } from './workspace.store';
@@ -25,7 +25,7 @@ const fakePlatform = {
   pickProfileToSave: async () => null,
 };
 
-function setup(backend: ImtBackend = tinyBackend()) {
+function setup(backend: DebriefBackend = tinyBackend()) {
   TestBed.configureTestingModule({ providers: [provideTinyBackend(backend), { provide: Platform, useValue: fakePlatform }] });
   return TestBed.inject(WorkspaceStore);
 }
@@ -262,7 +262,7 @@ describe('WorkspaceStore', () => {
   it('tracks selection, anchors and totals', async () => {
     const store = setup();
     await settle();
-    const page = await TestBed.inject(ImtBackend).queryPage({ query: EMPTY_QUERY, offset: 0, limit: 1, descending: false });
+    const page = await TestBed.inject(DebriefBackend).queryPage({ query: EMPTY_QUERY, offset: 0, limit: 1, descending: false });
     store.select(at(page.rows, 0));
     expect(store.selected()?.id).toBe(0);
     store.jumpTo(4);
@@ -310,26 +310,26 @@ describe('WorkspaceStore', () => {
     expect(store.focusSearchNonce()).toBe(1);
     expect(document.documentElement.getAttribute('data-scheme')).toBe('light');
     expect(document.documentElement.getAttribute('data-theme')).toBe('console');
-    expect(JSON.parse(localStorage.getItem('imt.prefs.v1')!)).toMatchObject({ timezone: 'local', theme: 'console', scheme: 'light', extraColumns: ['ws'], alwaysShowLifecycle: false });
+    expect(JSON.parse(localStorage.getItem('debrief.prefs.v1')!)).toMatchObject({ timezone: 'local', theme: 'console', scheme: 'light', extraColumns: ['ws'], alwaysShowLifecycle: false });
     store.setScheme('system');
     await settle();
     expect(['light', 'dark']).toContain(document.documentElement.getAttribute('data-scheme'));
   });
 
   it('reads and writes preferences defensively', () => {
-    localStorage.setItem('imt.prefs.v1', JSON.stringify({ timezone: 'local', extraColumns: ['x'] }));
+    localStorage.setItem('debrief.prefs.v1', JSON.stringify({ timezone: 'local', extraColumns: ['x'] }));
     const defaults = { timezone: 'utc', alwaysShowLifecycle: true, theme: null, scheme: 'system', uiFont: 'system', extraColumns: [] };
     expect(loadPrefs()).toEqual({ ...defaults, timezone: 'local', extraColumns: ['x'] });
-    localStorage.setItem('imt.prefs.v1', '{not json');
+    localStorage.setItem('debrief.prefs.v1', '{not json');
     expect(loadPrefs()).toEqual(defaults);
-    localStorage.removeItem('imt.prefs.v1');
+    localStorage.removeItem('debrief.prefs.v1');
     expect(loadPrefs()).toEqual(defaults);
     // Untrusted values fall back one by one; known ones are kept.
-    localStorage.setItem('imt.prefs.v1', JSON.stringify({ timezone: 'mars', theme: 'neon', scheme: 'dark', uiFont: 'comic', alwaysShowLifecycle: false, extraColumns: ['a', 3] }));
+    localStorage.setItem('debrief.prefs.v1', JSON.stringify({ timezone: 'mars', theme: 'neon', scheme: 'dark', uiFont: 'comic', alwaysShowLifecycle: false, extraColumns: ['a', 3] }));
     expect(loadPrefs()).toEqual({ ...defaults, scheme: 'dark', alwaysShowLifecycle: false, extraColumns: ['a'] });
-    localStorage.setItem('imt.prefs.v1', JSON.stringify([1]));
+    localStorage.setItem('debrief.prefs.v1', JSON.stringify([1]));
     expect(loadPrefs()).toEqual(defaults);
-    localStorage.setItem('imt.prefs.v1', JSON.stringify({ theme: 'precision', uiFont: 'theme', extraColumns: 'x' }));
+    localStorage.setItem('debrief.prefs.v1', JSON.stringify({ theme: 'precision', uiFont: 'theme', extraColumns: 'x' }));
     expect(loadPrefs()).toEqual({ ...defaults, theme: 'precision', uiFont: 'theme' });
     const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('quota');

@@ -6,7 +6,7 @@ interface BrushEndEvent {
   areas?: { coordRange?: [number, number] }[];
 }
 
-/** What ECharts passes to a series item's `contextmenu` handler (the parts IMT reads). */
+/** What ECharts passes to a series item's `contextmenu` handler (the parts Debrief reads). */
 interface ItemMenuEvent {
   componentType?: string;
   seriesName?: string;
@@ -28,7 +28,7 @@ interface ZrMenuEvent {
 export interface ChartPointMenu {
   x: number;
   y: number;
-  /** The x-axis value (epoch ms on IMT's time charts). */
+  /** The x-axis value (epoch ms on Debrief's time charts). */
   at: number;
   series: string | null;
   value: number | null;
@@ -43,7 +43,7 @@ export function pointOf(value: unknown): { at: number; value: number | null } | 
 
 /** Thin ECharts host: owns the instance, resizes with its box, reports x-range brushes and right-clicks on the plot. */
 @Component({
-  selector: 'imt-echart',
+  selector: 'debrief-echart',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: '',
   styles: `:host { display: block; position: relative; min-height: 120px; }`,

@@ -1,4 +1,4 @@
-//! One IMT process per user: a second launch hands its arguments to the
+//! One Debrief process per user: a second launch hands its arguments to the
 //! running instance, which opens them per the `openFilesIn` setting and
 //! focuses the window. `--new-instance` and safe mode start a separate
 //! process. macOS "Open with" / double-click (`RunEvent::Opened`) follows the
@@ -13,11 +13,11 @@ use crate::windows::{queue_open, Windows};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, Runtime};
 
-/// Starts a separate process even when IMT is already running.
+/// Starts a separate process even when Debrief is already running.
 pub const NEW_INSTANCE_FLAG: &str = "--new-instance";
 /// Opens the given files (or nothing) in a new window of the running instance.
 pub const NEW_WINDOW_FLAG: &str = "--new-window";
-/// Command-line arguments are capped (a hostile caller cannot make IMT open millions of paths).
+/// Command-line arguments are capped (a hostile caller cannot make Debrief open millions of paths).
 const MAX_PATHS: usize = 256;
 /// Ends the flags: every later argument is a path, even one that looks like a flag.
 pub const END_OF_FLAGS: &str = "--";
@@ -178,7 +178,7 @@ pub fn on_second_instance<R: Runtime>(app: &AppHandle<R>, argv: Vec<String>, cwd
 /// Whether this process holds the single-instance lock (managed state).
 pub struct SingleInstance(pub bool);
 
-/// Releases the single-instance lock before IMT relaunches itself, so the new
+/// Releases the single-instance lock before Debrief relaunches itself, so the new
 /// process becomes the running instance instead of handing over to this one.
 pub fn release<R: Runtime>(app: &AppHandle<R>) {
     if app.try_state::<SingleInstance>().is_some_and(|s| s.0) {
@@ -199,10 +199,10 @@ mod tests {
     #[test]
     fn parses_flags_and_resolves_relative_paths() {
         let a = parse_args(
-            args(&["logs", "/abs/x.imtproj", "--new-window", "--verbose", ""]),
+            args(&["logs", "/abs/x.debriefproj", "--new-window", "--verbose", ""]),
             Some(Path::new("/home/u")),
         );
-        assert_eq!(a.paths, [PathBuf::from("/home/u/logs"), PathBuf::from("/abs/x.imtproj")]);
+        assert_eq!(a.paths, [PathBuf::from("/home/u/logs"), PathBuf::from("/abs/x.debriefproj")]);
         assert!(a.new_window && !a.new_instance && !a.safe_mode);
         assert!(wants_single_instance(&a, false));
         let b = parse_args(args(&["--new-instance", "rel"]), None);
@@ -210,7 +210,7 @@ mod tests {
         assert!(!wants_single_instance(&b, false));
         let c = parse_args(args(&[SAFE_MODE_FLAG]), None);
         assert!(c.safe_mode && !wants_single_instance(&c, false));
-        assert!(!wants_single_instance(&LaunchArgs::default(), true), "IMT_SAFE_MODE");
+        assert!(!wants_single_instance(&LaunchArgs::default(), true), "DEBRIEF_SAFE_MODE");
         let many: Vec<String> = (0..1000).map(|i| format!("/p{i}")).collect();
         assert_eq!(parse_args(many, None).paths.len(), MAX_PATHS);
         assert!(parse_args(args(&["a\0b"]), None).paths.is_empty());
@@ -274,14 +274,14 @@ mod tests {
         window(&app, "main");
         let csv = samples().join("csv").to_string_lossy().into_owned();
         // The empty main window takes the files.
-        on_second_instance(&h, args(&["imt-app", &csv, "/does/not/exist"]), String::new());
+        on_second_instance(&h, args(&["debrief-app", &csv, "/does/not/exist"]), String::new());
         assert_eq!(main_window(&app).take_pending().len(), 1);
         // Relative to the caller's folder.
         let dir = samples().to_string_lossy().into_owned();
-        on_second_instance(&h, args(&["imt-app", "--new-window", "csv"]), dir);
+        on_second_instance(&h, args(&["debrief-app", "--new-window", "csv"]), dir);
         assert_eq!(crate::windows::CurrentWindow::of(&h, "w-2").unwrap().take_pending().len(), 1);
         // No paths: the window is just shown.
-        on_second_instance(&h, args(&["imt-app"]), String::new());
+        on_second_instance(&h, args(&["debrief-app"]), String::new());
         assert_eq!(app.webview_windows().len(), 2);
         // Releasing without holding the lock does nothing.
         app.manage(SingleInstance(false));

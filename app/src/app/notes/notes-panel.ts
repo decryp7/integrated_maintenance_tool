@@ -14,7 +14,7 @@ import { NotesStore } from './notes.store';
  * and text; each jumps to its anchor, edits, or deletes after confirming. "Add note" writes one on the project.
  */
 @Component({
-  selector: 'imt-notes-panel',
+  selector: 'debrief-notes-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MarkdownView],
   host: {
@@ -67,7 +67,7 @@ import { NotesStore } from './notes.store';
               @if (when(n); as w) {
                 <div class="when faint">{{ w }}</div>
               }
-              <imt-markdown-view class="text" [text]="n.text" />
+              <debrief-markdown-view class="text" [text]="n.text" />
               @if (n.tags.length) {
                 <div class="tags">
                   @for (t of n.tags; track t) {

@@ -28,7 +28,7 @@ const PROMPTS: Record<ProposeKind, { label: string; placeholder: string }> = {
  * the file and previews the effect; Apply saves through the profile's normal (validated, undoable) save.
  */
 @Component({
-  selector: 'imt-ai-propose-dialog',
+  selector: 'debrief-ai-propose-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AiProposalCard, JobWait],
   template: `
@@ -49,13 +49,13 @@ const PROMPTS: Record<ProposeKind, { label: string; placeholder: string }> = {
       <button type="button" class="btn primary" [disabled]="(current() !== 'parser' && !goal().trim()) || busy()" (click)="propose()">{{ proposeLabel() }}</button>
     </div>
     @if (jobId(); as id) {
-      <imt-job-wait [jobId]="id" [busyText]="busyText" />
+      <debrief-job-wait [jobId]="id" [busyText]="busyText" />
     }
     @if (error(); as e) {
       <p class="err" role="alert">{{ e }}</p>
     }
     @if (proposal(); as p) {
-      <imt-ai-proposal-card [proposal]="p" [state]="state()" (applied)="state.set('applied')" (dismissed)="proposal.set(null)" />
+      <debrief-ai-proposal-card [proposal]="p" [state]="state()" (applied)="state.set('applied')" (dismissed)="proposal.set(null)" />
     }
     <div class="foot"><button type="button" class="btn ghost" (click)="ref.close()" i18n="@@ai.propose.close">Close</button></div>
   `,

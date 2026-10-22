@@ -1,11 +1,11 @@
 import { inject, Injectable } from '@angular/core';
 import { DockService } from '../dock/dock.service';
 import { PANEL } from '../dock/dock-context';
-import { ImtCommand } from '../extensions/tokens';
+import { DebriefCommand } from '../extensions/tokens';
 import { WorkspaceStore } from '../core/workspace.store';
 
 /** Marks a shell region (activity bar, side bar, filter bar, status bar): a landmark that F6 focuses. */
-export const REGION_ATTR = 'data-imt-region';
+export const REGION_ATTR = 'data-debrief-region';
 const GROUP = '.dv-groupview';
 
 /** Whether an element takes up room on screen (a hidden dock group or a closed side bar does not). */
@@ -84,7 +84,7 @@ export class RegionNavigator {
   /** Brings the events grid to the front and focuses it. */
   events(): void {
     this.dock.show(PANEL.events);
-    focusWhenThere('imt-events-grid [role=grid]');
+    focusWhenThere('debrief-events-grid [role=grid]');
   }
 
   /**
@@ -100,7 +100,7 @@ export class RegionNavigator {
     return true;
   }
 
-  readonly commands: ImtCommand[] = (() => {
+  readonly commands: DebriefCommand[] = (() => {
     const category = $localize`:@@shell.regions.category:View`;
     return [
       { id: 'view.focusNextRegion', title: $localize`:@@shell.regions.next:Focus next region`, category, keybinding: 'F6', run: () => void this.cycle(1) },

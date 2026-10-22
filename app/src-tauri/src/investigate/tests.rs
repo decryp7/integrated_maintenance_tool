@@ -42,7 +42,7 @@ fn known_issues_come_from_the_enabled_knowledge_files_and_the_incident_report_ci
         .change(|s| {
             s.update(
                 &id,
-                &imt_ai::knowledge::KnowledgeChange {
+                &debrief_ai::knowledge::KnowledgeChange {
                     enabled: Some(false),
                     ..Default::default()
                 },
@@ -57,7 +57,7 @@ fn known_issues_come_from_the_enabled_knowledge_files_and_the_incident_report_ci
         .change(|s| {
             s.update(
                 &id,
-                &imt_ai::knowledge::KnowledgeChange {
+                &debrief_ai::knowledge::KnowledgeChange {
                     enabled: Some(true),
                     ..Default::default()
                 },
@@ -82,7 +82,7 @@ fn known_issues_come_from_the_enabled_knowledge_files_and_the_incident_report_ci
         .collect();
     assert!(titles.contains(&"Known issues") && titles.contains(&"Top exceptions"), "{titles:?}");
     // It is an ordinary report: the report pipeline accepts it.
-    imt_core::report::Report::parse(report).unwrap();
+    debrief_core::report::Report::parse(report).unwrap();
 
     assert!(err(ipc(&main, "incident_report_build", json!({"request": {"from": 5, "to": 1}}))).contains("before its start"));
     assert!(err(ipc(&main, "incident_report_build", json!({"request": {"title": "x".repeat(201)}}))).contains("longer than 200"));

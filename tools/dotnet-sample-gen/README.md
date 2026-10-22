@@ -1,8 +1,8 @@
 # dotnet-sample-gen
 
-A developer tool, **not part of IMT**: a small .NET console program that logs invented events through the
-real .NET logging libraries, so IMT's parsers are tested against what those libraries actually write
-rather than against hand-made imitations. The app, `cargo` and CI never build or run it (IMT ships only
+A developer tool, **not part of Debrief**: a small .NET console program that logs invented events through the
+real .NET logging libraries, so Debrief's parsers are tested against what those libraries actually write
+rather than against hand-made imitations. The app, `cargo` and CI never build or run it (Debrief ships only
 Rust and the Angular UI); its output is committed under [`samples/real-libraries/`](../../samples/real-libraries/).
 
 It writes the same seven events (start-up, a destructured object, Japanese text, a slow call, an error with
@@ -38,8 +38,8 @@ the time zone of the machine) in [`samples/real-libraries/README.md`](../../samp
 and run the engine tests over the files:
 
 ```sh
-cargo test -p imt-core --test real_libraries
-cargo test -p imt-plugins --test real_libraries
+cargo test -p debrief-core --test real_libraries
+cargo test -p debrief-plugins --test real_libraries
 ```
 
 To try newer library versions, change them in `DotnetSampleGen.csproj` (or `dotnet add package <name>`).

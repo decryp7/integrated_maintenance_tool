@@ -8,13 +8,13 @@ const PSEUDO_FIELDS = ['@level', '@message', '@exception', '@source'];
 
 /** Highlight rules: "when this field matches, colour the row". The grid reads `HighlightRules.colorFor`. */
 @Component({
-  selector: 'imt-highlight-editor',
+  selector: 'debrief-highlight-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   template: `
     <div class="add">
-      <input class="input" list="imt-hl-fields" aria-label="Highlight field" i18n-aria-label="@@projects.highlightEditor.field" placeholder="Field, e.g. @level" i18n-placeholder="@@projects.highlightEditor.fieldPlaceholder" [value]="field()" (input)="field.set(val($event))" />
-      <datalist id="imt-hl-fields">@for (f of fields(); track f) { <option [value]="f"></option> }</datalist>
+      <input class="input" list="debrief-hl-fields" aria-label="Highlight field" i18n-aria-label="@@projects.highlightEditor.field" placeholder="Field, e.g. @level" i18n-placeholder="@@projects.highlightEditor.fieldPlaceholder" [value]="field()" (input)="field.set(val($event))" />
+      <datalist id="debrief-hl-fields">@for (f of fields(); track f) { <option [value]="f"></option> }</datalist>
       <select class="select" aria-label="Highlight condition" i18n-aria-label="@@projects.highlightEditor.condition" [value]="op()" (change)="op.set(opOf($event))">
         @for (o of ops; track o.id) { <option [value]="o.id">{{ o.label }}</option> }
       </select>
@@ -35,7 +35,7 @@ const PSEUDO_FIELDS = ['@level', '@message', '@exception', '@source'];
             <input type="checkbox" [checked]="r.enabled" [attr.aria-label]="enableLabel(r.field)" (change)="rules.update(r.id, { enabled: checked($event) })" />
             <span class="sw static" [style.background]="r.color" aria-hidden="true"></span>
             <span class="grow ellipsis"><span class="mono">{{ r.field }}</span> {{ opLabel(r.op) }} <span class="mono">{{ r.value }}</span></span>
-            <button type="button" class="icon-btn" [attr.aria-label]="deleteLabel(r.field)" title="Delete" i18n-title="@@projects.highlightEditor.delete" (click)="rules.remove(r.id)"><imt-icon name="trash" [size]="13" /></button>
+            <button type="button" class="icon-btn" [attr.aria-label]="deleteLabel(r.field)" title="Delete" i18n-title="@@projects.highlightEditor.delete" (click)="rules.remove(r.id)"><debrief-icon name="trash" [size]="13" /></button>
           </li>
         }
       </ul>

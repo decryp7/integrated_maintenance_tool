@@ -8,10 +8,10 @@ import { openAppWith } from './mock-url';
 test('Store pane: reports, maintenance and the read-only SQL console', async ({ page }, testInfo) => {
   await openAppWith(page, '');
   await chooseMenu(page, 'View', 'Store');
-  const pane = page.locator('imt-store-pane');
+  const pane = page.locator('debrief-store-pane');
   await expect(pane.getByTestId('store-overview')).toContainText('Size on disk');
   await expect(pane.getByTestId('store-activity')).toHaveText('Ready');
-  await expectNoSeriousViolations(page, testInfo, 'store-pane', 'imt-store-pane');
+  await expectNoSeriousViolations(page, testInfo, 'store-pane', 'debrief-store-pane');
 
   // Maintenance asks first.
   await pane.getByTestId('store-maintain-clearCachedAnalyses').click();

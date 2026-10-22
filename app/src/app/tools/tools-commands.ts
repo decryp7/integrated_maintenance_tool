@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { TOOL_IDS } from '../core/tools.types';
-import { ImtCommand, ImtView } from '../extensions/tokens';
+import { DebriefCommand, DebriefView } from '../extensions/tokens';
 import { CollectorDialogService } from './collector/collector-dialog';
 import { PluginsTabs } from '../plugins-panel/plugins-tabs';
 import { ToolCatalog } from './tool-catalog.store';
@@ -14,7 +14,7 @@ export interface ToolListing {
  * The tool panels. Same extension point as plugin views. Panels of plugin tools are offered only while their tool is
  * listed (not in safe mode, not with the tools plugin disabled).
  */
-export function toolsViews(tools: ToolListing): ImtView[] {
+export function toolsViews(tools: ToolListing): DebriefView[] {
   return [
     { id: 'perfmon', category: 'Tools', title: $localize`:@@tools.view.perfmon:Performance Monitor`, icon: 'chart', defaultPosition: 'center', area: 'document', component: () => import('./perfmon/perfmon-view').then((m) => m.PerfmonView), enabled: () => tools.listed(TOOL_IDS.perfmonTemplates) },
     { id: 'process-monitor', category: 'Tools', title: $localize`:@@tools.view.processMonitor:Process Monitor`, icon: 'metrics', defaultPosition: 'center', area: 'document', component: () => import('./monitor/monitor-view').then((m) => m.MonitorView), enabled: () => tools.listed(TOOL_IDS.processMonitor) },
@@ -30,7 +30,7 @@ export class ToolsCommands {
   private readonly catalog = inject(ToolCatalog);
   private readonly plugins = inject(PluginsTabs);
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     { id: 'tools.perfmon.show', title: $localize`:@@tools.cmd.perfmon:Open Performance Monitor`, category: $localize`:@@tools.category.tools:Tools`, when: () => this.catalog.listed(TOOL_IDS.perfmonTemplates), run: (ctx) => ctx.showView('perfmon') },
     { id: 'tools.monitor.show', title: $localize`:@@tools.cmd.processMonitor:Open Process Monitor`, category: $localize`:@@tools.category.tools:Tools`, when: () => this.catalog.listed(TOOL_IDS.processMonitor), run: (ctx) => ctx.showView('process-monitor') },
     { id: 'tools.eventlog.show', title: $localize`:@@tools.cmd.eventLog:Open Event Log Follower`, category: $localize`:@@tools.category.tools:Tools`, when: () => this.catalog.listed(TOOL_IDS.eventLog), run: (ctx) => ctx.showView('event-log-follower') },

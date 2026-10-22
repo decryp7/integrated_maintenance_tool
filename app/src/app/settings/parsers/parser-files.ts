@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { nativePickOne } from '../../core/native-dialog';
 import { isTauri } from '../../core/platform';
 
-const FILTERS = [{ name: $localize`:File type in the open/save dialog@@settings.parsers.files.filter:IMT parser`, extensions: ['toml'] }];
+const FILTERS = [{ name: $localize`:File type in the open/save dialog@@settings.parsers.files.filter:Debrief parser`, extensions: ['toml'] }];
 
 /** What "Import .toml…" picks in the browser build: a parser file the mock backend knows. */
 export const DEMO_PARSER_IMPORT = '/demo/parsers/inventory-csv.toml';

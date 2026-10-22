@@ -15,7 +15,7 @@ type Phase = 'loading' | 'ready' | 'busy';
  * the engine's message is shown next to the rule or field it is about.
  */
 @Component({
-  selector: 'imt-alert-rules-editor',
+  selector: 'debrief-alert-rules-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [QlInput],
   template: `
@@ -73,7 +73,7 @@ type Phase = 'loading' | 'ready' | 'busy';
               <button type="button" class="icon-btn rm" [attr.aria-label]="removeLabel(r.name)" [title]="removeLabel(r.name)" (click)="removeRule(i)">×</button>
             </div>
             <div class="lbl"><ng-container i18n="@@live.rulesEditor.when">When</ng-container>
-              <imt-ql-input [value]="r.when" [label]="conditionLabel(i)" (valueChange)="patchRule(i, { when: $event })" />
+              <debrief-ql-input [value]="r.when" [label]="conditionLabel(i)" (valueChange)="patchRule(i, { when: $event })" />
             </div>
             @if (isRule(i)) { <div class="err" role="alert">{{ failure()!.message }}</div> }
           </fieldset>

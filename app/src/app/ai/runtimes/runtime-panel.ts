@@ -32,7 +32,7 @@ import {
  * and cancel), delete, "Use this" and automatic choice. Used by the set-up wizard and the model manager.
  */
 @Component({
-  selector: 'imt-ai-runtime-panel',
+  selector: 'debrief-ai-runtime-panel',
   imports: [AiManualDownload],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -133,7 +133,7 @@ import {
       }
     }
     @if (manual(); as m) {
-      <imt-ai-manual-download kind="runtime" [id]="m.id" [code]="m.code" />
+      <debrief-ai-manual-download kind="runtime" [id]="m.id" [code]="m.code" />
     }
     <div class="choice" data-testid="ai-runtime-choice">
       @if (store.overview(); as o) {

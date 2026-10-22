@@ -1,9 +1,9 @@
 //! The plugin's binary under the test harness: conformance, and the bursts it finds in a view of records.
 
-use imt_plugin_api::{Level, Record};
-use imt_plugin_test::PluginUnderTest;
+use debrief_plugin_api::{Level, Record};
+use debrief_plugin_test::PluginUnderTest;
 
-const PLUGIN: &str = env!("CARGO_BIN_EXE_imt-example-annotator");
+const PLUGIN: &str = env!("CARGO_BIN_EXE_debrief-example-annotator");
 
 fn event(ts: i64, level: Level, instance: &str) -> Record {
     let mut r = Record::new(1);

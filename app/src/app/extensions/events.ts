@@ -9,8 +9,8 @@ import { WorkspaceStore } from '../core/workspace.store';
  * Read-only stream of what happens in the app, for plugins. Plugins can only observe; to change
  * something they use the `CommandContext` passed to their commands.
  */
-@Injectable({ providedIn: 'root', useFactory: () => inject(StoreImtEvents) })
-export abstract class ImtEvents {
+@Injectable({ providedIn: 'root', useFactory: () => inject(StoreDebriefEvents) })
+export abstract class DebriefEvents {
   /** Latest workspace summary (null until loaded). */
   abstract readonly workspace: Signal<WorkspaceSummary | null>;
   /** Current query (search text, filters, range, ...). */
@@ -29,9 +29,9 @@ export abstract class ImtEvents {
   abstract readonly profileSaved: Observable<WorkspaceSummary>;
 }
 
-/** `ImtEvents` backed by the workspace store. */
+/** `DebriefEvents` backed by the workspace store. */
 @Injectable({ providedIn: 'root' })
-export class StoreImtEvents extends ImtEvents {
+export class StoreDebriefEvents extends DebriefEvents {
   private readonly store = inject(WorkspaceStore);
   private readonly injector = inject(Injector);
 

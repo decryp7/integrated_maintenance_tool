@@ -1,5 +1,5 @@
 import { isMac } from './keybinding';
-import { ImtCommand } from './tokens';
+import { DebriefCommand } from './tokens';
 
 /**
  * Pure helpers of user key bindings: canonical form, recording from a key event, conflict detection and merging
@@ -145,7 +145,7 @@ export interface FixedBinding {
 export function findConflicts(
   binding: string,
   forId: string,
-  commands: readonly Pick<ImtCommand, 'id' | 'title' | 'keybinding'>[],
+  commands: readonly Pick<DebriefCommand, 'id' | 'title' | 'keybinding'>[],
   fixed: readonly FixedBinding[],
   mac = isMac(),
 ): Occupant[] {
@@ -174,7 +174,7 @@ export function withoutOverride(overrides: KeybindingOverrides, id: string): Key
 }
 
 /** The commands with the user's bindings applied: an override replaces the declared binding, `null` removes it. */
-export function applyOverrides<T extends Pick<ImtCommand, 'id' | 'keybinding'>>(commands: readonly T[], overrides: KeybindingOverrides): T[] {
+export function applyOverrides<T extends Pick<DebriefCommand, 'id' | 'keybinding'>>(commands: readonly T[], overrides: KeybindingOverrides): T[] {
   return commands.map((c) => {
     if (!Object.hasOwn(overrides, c.id)) return c;
     const o = overrides[c.id];

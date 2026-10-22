@@ -6,8 +6,8 @@ import { isTauri } from '../core/platform';
 import { listenHere, PayloadListenFn, Unlisten } from '../windowing/window-events';
 import { NoticesEvent, NoticesRecord, NoticesSnapshot, RestoredNotices } from './notifications.types';
 
-export const NOTIFICATIONS_EVENT = 'imt://notifications';
-export const NOTIFICATIONS_OPEN_EVENT = 'imt://notifications-open';
+export const NOTIFICATIONS_EVENT = 'debrief://notifications';
+export const NOTIFICATIONS_OPEN_EVENT = 'debrief://notifications-open';
 
 /**
  * The notification centre of this window (contract: `notifications.types.ts`). Injected as a class token: the

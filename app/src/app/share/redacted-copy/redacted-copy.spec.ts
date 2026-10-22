@@ -23,9 +23,9 @@ function dataset(): MockDataset {
   return { ...d, records, sources: [...d.sources, { id: 2, path: '/logs/orders.csv', name: 'orders.csv', importer: 'csv', skipped: 0 }] };
 }
 
-function mockShare(): { imt: MockBackend; share: MockShareBackend } {
-  const imt = tinyBackend({ dataset });
-  return { imt, share: new MockShareBackend(imt, new MockAnalysisBackend(recordsFrom(imt))) };
+function mockShare(): { debrief: MockBackend; share: MockShareBackend } {
+  const debrief = tinyBackend({ dataset });
+  return { debrief, share: new MockShareBackend(debrief, new MockAnalysisBackend(recordsFrom(debrief))) };
 }
 
 describe('TauriShareBackend redacted copy', () => {
@@ -34,13 +34,13 @@ describe('TauriShareBackend redacted copy', () => {
     const b = new TauriShareBackend(call as never);
     await b.redactedCopyChoices();
     await b.redactedCopyPreview({ detectors: ['email'], mode: 'hash' });
-    await b.exportRedactedCopy({ path: '/c.imtz', name: 'c', options: { rules: [] }, ui: { a: 1 } });
-    await b.exportRedactedCopy({ path: '/c.imtz', name: 'c', options: {}, ui: null, reports: [], overwrite: true });
+    await b.exportRedactedCopy({ path: '/c.debriefz', name: 'c', options: { rules: [] }, ui: { a: 1 } });
+    await b.exportRedactedCopy({ path: '/c.debriefz', name: 'c', options: {}, ui: null, reports: [], overwrite: true });
     expect(call.mock.calls).toEqual([
       ['redacted_copy_choices'],
       ['redacted_copy_preview', { options: { detectors: ['email'], mode: 'hash' } }],
-      ['export_redacted_copy', { path: '/c.imtz', name: 'c', options: { rules: [] }, ui: { a: 1 } }],
-      ['export_redacted_copy', { path: '/c.imtz', name: 'c', options: {}, ui: null, reports: [], overwrite: true }],
+      ['export_redacted_copy', { path: '/c.debriefz', name: 'c', options: { rules: [] }, ui: { a: 1 } }],
+      ['export_redacted_copy', { path: '/c.debriefz', name: 'c', options: {}, ui: null, reports: [], overwrite: true }],
     ]);
   });
 });
@@ -75,14 +75,14 @@ describe('MockShareBackend redacted copy', () => {
 
   it('writes the copy once; a second write needs overwrite', async () => {
     const { share } = mockShare();
-    const req = { path: '/c.imtz', name: 'c', options: { detectors: ['email'] }, ui: {} };
+    const req = { path: '/c.debriefz', name: 'c', options: { detectors: ['email'] }, ui: {} };
     const out = await share.exportRedactedCopy(req);
     expect(out).toMatchObject({ sources: 2, events: 11, excluded: [{ name: 'orders.csv' }], hits: [{ rule: 'email', count: 1 }] });
     expect(out.bytes).toBeGreaterThan(0);
     expect(share.written).toHaveLength(1);
     await expect(share.exportRedactedCopy(req)).rejects.toThrow('already exists');
     await expect(share.exportRedactedCopy({ ...req, overwrite: true })).resolves.toBeTruthy();
-    await expect(share.exportRedactedCopy({ ...req, path: '/c.zip', overwrite: true })).rejects.toThrow('.imtz');
+    await expect(share.exportRedactedCopy({ ...req, path: '/c.zip', overwrite: true })).rejects.toThrow('.debriefz');
   });
 });
 
@@ -124,7 +124,7 @@ const preview = (changed: number): RedactedCopyPreview => ({
 });
 const RESULT: RedactedExport = { bytes: 2048, sources: 2, events: 11, excluded: [{ name: 'orders.csv', reason: 'CSV cannot be redacted' }], hits: [{ rule: 'email', count: 3 }] };
 
-async function setup(patch: Partial<Record<'choices' | 'preview' | 'export', ReturnType<typeof vi.fn>>> = {}, path: string | null = '/out/c.imtz') {
+async function setup(patch: Partial<Record<'choices' | 'preview' | 'export', ReturnType<typeof vi.fn>>> = {}, path: string | null = '/out/c.debriefz') {
   const backend = {
     redactedCopyChoices: patch.choices ?? vi.fn(async () => CHOICES),
     redactedCopyPreview: patch.preview ?? vi.fn(async () => preview(3)),
@@ -232,8 +232,8 @@ describe('RedactedCopyDialog', () => {
     TestBed.inject(ProjectService).name.set('Outage');
     createBtn(fixture).click();
     await settle(fixture);
-    expect(pickSavePath).toHaveBeenCalledWith('Save redacted copy', 'Outage-redacted.imtz', [{ name: 'IMT project', extensions: ['imtz'] }]);
-    expect(backend.exportRedactedCopy).toHaveBeenCalledWith(expect.objectContaining({ path: '/out/c.imtz', name: 'Outage', options: { detectors: ['email'], rules: ['order-ref'], mode: 'hash' }, overwrite: true, reports: [] }));
+    expect(pickSavePath).toHaveBeenCalledWith('Save redacted copy', 'Outage-redacted.debriefz', [{ name: 'Debrief project', extensions: ['debriefz'] }]);
+    expect(backend.exportRedactedCopy).toHaveBeenCalledWith(expect.objectContaining({ path: '/out/c.debriefz', name: 'Outage', options: { detectors: ['email'], rules: ['order-ref'], mode: 'hash' }, overwrite: true, reports: [] }));
     expect(el(fixture, '[data-testid=rc-result-summary]').textContent).toContain('2 sources and 11 events written (2 KB)');
     expect(el(fixture, '[data-testid=rc-result]').textContent).toContain('Email addresses3');
     expect(el(fixture, '[data-testid=rc-result-excluded]').textContent).toContain('orders.csv');
@@ -273,7 +273,7 @@ describe('RedactedCopyDialog', () => {
   });
 
   it('keeps the dialog open without a result when the user declines to replace an existing file', async () => {
-    const exists = new Error('/out/c.imtz already exists; confirm to replace it');
+    const exists = new Error('/out/c.debriefz already exists; confirm to replace it');
     const { fixture } = await setup({ export: vi.fn().mockRejectedValue(exists) });
     vi.spyOn(TestBed.inject(OverwriteGuard), 'confirm').mockResolvedValue(false);
     createBtn(fixture).click();

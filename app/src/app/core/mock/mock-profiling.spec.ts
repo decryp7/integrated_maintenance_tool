@@ -56,7 +56,7 @@ describe('MockProfilingBackend: captures', () => {
 
   it('rejects unrecognised and missing files with typed failures, without consuming an id', async () => {
     const b = new MockProfilingBackend();
-    expect(await rejection(b.open('/x/notes.txt'))).toContain('notes.txt is not a profile or heap snapshot that IMT recognises');
+    expect(await rejection(b.open('/x/notes.txt'))).toContain('notes.txt is not a profile or heap snapshot that Debrief recognises');
     await expect(b.open('/x/notes.txt')).rejects.toMatchObject({ code: 'notACapture' });
     await expect(b.open('/gone/missing.nettrace')).rejects.toMatchObject({ code: 'notFound', message: expect.stringContaining('/gone/missing.nettrace') });
     expect((await b.open('/x/a.folded')).id).toBe(1);

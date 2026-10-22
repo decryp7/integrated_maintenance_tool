@@ -20,7 +20,7 @@ describe('real app: query language', () => {
     await input.click();
     await input.setValue('level >= Error');
     await browser.keys(['Control', 'Enter']);
-    await expect($('imt-query-view .applied')).toHaveText(
+    await expect($('debrief-query-view .applied')).toHaveText(
       expect.stringContaining('level >= Error'),
       { wait: 30_000 },
     );
@@ -34,13 +34,13 @@ describe('real app: query language', () => {
       },
       { timeout: 30_000, timeoutMsg: `the total did not drop below ${all}` },
     );
-    const rows = $$('imt-events-grid [role=row].row');
+    const rows = $$('debrief-events-grid [role=row].row');
     await expect(rows[0]).toHaveText(/ERR|FTL/);
     for (const row of await rows.getElements())
       await expect(row).not.toHaveText(/\b(INF|WRN|DBG|VRB)\b/);
 
     await showQuery();
-    await $('imt-query-view .applied').$(`.//button[normalize-space()='Clear']`).click();
+    await $('debrief-query-view .applied').$(`.//button[normalize-space()='Clear']`).click();
     await tab('Events').click();
     await browser.waitUntil(async () => (await gridTotal()) === all, {
       timeout: 30_000,

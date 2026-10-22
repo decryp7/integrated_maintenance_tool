@@ -59,7 +59,7 @@ describe('TauriDumpsBackend', () => {
     const b = new TauriDumpsBackend((async () => null) as never, listen);
     const ids: number[] = [];
     await b.onSymbolsChanged((id) => ids.push(id));
-    expect(event).toBe('imt://dump-symbols');
+    expect(event).toBe('debrief://dump-symbols');
     deliver({ id: 3 });
     deliver({ id: 'x' });
     deliver(null);

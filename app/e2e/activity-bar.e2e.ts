@@ -5,9 +5,9 @@ import { expectNoSeriousViolations } from './axe';
 
 // The left activity bar: every major area one click (or a few keys) away, built from the activity-item registry.
 
-const bar = (page: Page) => page.locator('imt-activity-bar');
+const bar = (page: Page) => page.locator('debrief-activity-bar');
 const barButton = (page: Page, name: string) => bar(page).getByRole('button', { name, exact: true });
-const tab = (page: Page, id: string) => page.locator('.dv-tab', { has: page.locator(`.imt-tab[data-panel-id="${id}"]`) });
+const tab = (page: Page, id: string) => page.locator('.dv-tab', { has: page.locator(`.debrief-tab[data-panel-id="${id}"]`) });
 
 test.describe('activity bar', () => {
   test.beforeEach(async ({ page }) => openApp(page));
@@ -34,7 +34,7 @@ test.describe('activity bar', () => {
     await expect(menu.getByRole('menuitemcheckbox', { name: 'Patterns' })).toHaveAttribute('aria-checked', 'false');
     // Scoped to the bar and its fly-out: this test owns those, not the panels behind them.
     await expectNoSeriousViolations(page, testInfo, 'activity-analysis-menu', '[data-activity-menu=analysis]');
-    await expectNoSeriousViolations(page, testInfo, 'activity-bar-open', 'imt-activity-bar');
+    await expectNoSeriousViolations(page, testInfo, 'activity-bar-open', 'debrief-activity-bar');
     await menu.getByRole('menuitemcheckbox', { name: 'Patterns' }).click();
     await expect(menu).toHaveCount(0);
     await expect(tab(page, 'patterns')).toBeVisible();
@@ -46,7 +46,7 @@ test.describe('activity bar', () => {
 
   test('toggles live tail together with the status bar toggle', async ({ page }) => {
     const live = barButton(page, 'Toggle live tail');
-    const status = page.locator('imt-status-bar').getByRole('button', { name: 'Live tail', exact: true });
+    const status = page.locator('debrief-status-bar').getByRole('button', { name: 'Live tail', exact: true });
     await expect(live).toHaveAttribute('aria-pressed', 'false');
     await live.click();
     await expect(live).toHaveAttribute('aria-pressed', 'true');
@@ -60,7 +60,7 @@ test.describe('activity bar', () => {
 
   test('opens the AI chat once AI is set up', async ({ page }) => {
     await barButton(page, 'AI assistant').click();
-    await expect(page.locator('imt-ai-chat-panel')).toBeVisible();
+    await expect(page.locator('debrief-ai-chat-panel')).toBeVisible();
     await expect(barButton(page, 'AI assistant')).toHaveClass(/\bon\b/);
   });
 
@@ -70,7 +70,7 @@ test.describe('activity bar', () => {
     await expect(menu.getByRole('menuitemcheckbox', { name: 'Process Monitor' })).toBeVisible();
     await menu.getByRole('menuitemcheckbox', { name: 'Process Monitor' }).click();
     await expect(tab(page, 'process-monitor')).toBeVisible();
-    await expect(page.locator('imt-monitor-view')).toBeVisible();
+    await expect(page.locator('debrief-monitor-view')).toBeVisible();
   });
 
   test('works from the keyboard alone: open, move, choose, and Escape back to the button', async ({ page }, testInfo) => {
@@ -99,7 +99,7 @@ test.describe('activity bar', () => {
     await expect(barButton(page, 'Toggle live tail')).toBeFocused();
     await page.keyboard.press('Space');
     await expect(barButton(page, 'Toggle live tail')).toHaveAttribute('aria-pressed', 'true');
-    await expectNoSeriousViolations(page, testInfo, 'activity-bar', 'imt-activity-bar');
+    await expectNoSeriousViolations(page, testInfo, 'activity-bar', 'debrief-activity-bar');
   });
 
   test('collapses the lower-priority buttons into More on a short window', async ({ page }) => {

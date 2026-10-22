@@ -14,7 +14,7 @@ test.describe('app load', () => {
   });
 
   test('default (Investigate) perspective: the timeline with the registry viewer beside it over the events, the inspector auto-hidden; Ctrl+/ focuses the search field above them', async ({ page }) => {
-    const names = async (selected?: boolean) => (await page.getByRole('tab', selected ? { selected } : {}).locator('.imt-tab-label').allInnerTexts()).map((t) => t.trim()).sort();
+    const names = async (selected?: boolean) => (await page.getByRole('tab', selected ? { selected } : {}).locator('.debrief-tab-label').allInnerTexts()).map((t) => t.trim()).sort();
     // Each group shows one tab: Timeline, the viewer of the opened registry export beside it, and Events below.
     await expect.poll(() => names(true)).toEqual(['Events', 'Registry', 'Timeline']);
     expect(await names()).toEqual(['Events', 'Registry', 'Timeline']);
@@ -25,19 +25,19 @@ test.describe('app load', () => {
     expect(events.y).toBeGreaterThanOrEqual(timeline.y + timeline.height - 2);
     // The inspector waits as an auto-hidden tool window on the right edge; Overview (off by default) and Metrics open on demand.
     await expect(page.getByRole('navigation', { name: 'Auto-hidden tool windows (right)' }).getByRole('button', { name: 'Inspector' })).toBeVisible();
-    await expect(page.locator('imt-inspector')).toHaveCount(0);
-    await expect(page.locator('imt-home-view')).toHaveCount(0);
+    await expect(page.locator('debrief-inspector')).toHaveCount(0);
+    await expect(page.locator('debrief-home-view')).toHaveCount(0);
     // The one search field is part of the filter bar, above the dock, and no Query panel exists.
     await expect(page.getByRole('tab', { name: 'Query' })).toHaveCount(0);
     await page.getByRole('grid', { name: 'Events' }).focus();
     await page.keyboard.press('ControlOrMeta+/');
     await expect(page.getByTestId('query-field')).toBeFocused();
-    const field = (await page.locator('imt-query-field').boundingBox())!;
+    const field = (await page.locator('debrief-query-field').boundingBox())!;
     expect(field.y + field.height).toBeLessThanOrEqual(timeline.y + 2);
   });
 
   test('explorer lists the sources', async ({ page }) => {
-    const sidebar = page.locator('imt-sidebar');
+    const sidebar = page.locator('debrief-sidebar');
     await expect(sidebar.getByText('Explorer', { exact: true })).toBeVisible();
     await expect(sidebar.locator('.src[title*="web01/orders-20261014.clef"]')).toBeVisible();
     await expect(sidebar.locator('.src:not(.dim)')).toHaveCount(6);
@@ -48,7 +48,7 @@ test.describe('app load', () => {
   });
 
   test('status bar shows the event count', async ({ page }) => {
-    const status = page.locator('imt-status-bar');
+    const status = page.locator('debrief-status-bar');
     await expect(status).toContainText('6 sources');
     await expect(status).toContainText(/\d[\d,]+ events/);
     await expect(status).toContainText(/\d[\d,]+ matching/);
@@ -56,9 +56,9 @@ test.describe('app load', () => {
   });
 
   test('timeline shows a lane per instance', async ({ page }) => {
-    const lanes = page.locator('imt-timeline-panel .lane-label');
+    const lanes = page.locator('debrief-timeline-panel .lane-label');
     await expect(lanes).toHaveCount(7);
     await expect(lanes.filter({ hasText: 'WEB02' })).toHaveCount(2);
-    await expect(page.locator('imt-timeline-panel')).toContainText('7 instances');
+    await expect(page.locator('debrief-timeline-panel')).toContainText('7 instances');
   });
 });

@@ -9,7 +9,7 @@ import { SnapshotBackend } from './snapshot-backend';
 import { formatBytes } from '../shared/format/units';
 
 /** Name the save dialog suggests. */
-export const REPORT_FILE_NAME = 'imt-problem-report.zip';
+export const REPORT_FILE_NAME = 'debrief-problem-report.zip';
 /** Longest description the engine keeps (bytes); the field stops there. */
 export const MAX_DESCRIPTION = 10 * 1024;
 
@@ -19,10 +19,10 @@ export const MAX_DESCRIPTION = 10 * 1024;
  * Nothing is sent anywhere.
  */
 @Component({
-  selector: 'imt-report-problem-dialog',
+  selector: 'debrief-report-problem-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <p class="lead" i18n="@@diagnostics.reportDialog.lead">IMT puts what is needed to diagnose the problem into one zip file that you save and attach to your report. Nothing is sent anywhere.</p>
+    <p class="lead" i18n="@@diagnostics.reportDialog.lead">Debrief puts what is needed to diagnose the problem into one zip file that you save and attach to your report. Nothing is sent anywhere.</p>
     <label class="field">
       <span i18n="@@diagnostics.reportDialog.whatHappened">What happened? What did you expect?</span>
       <textarea

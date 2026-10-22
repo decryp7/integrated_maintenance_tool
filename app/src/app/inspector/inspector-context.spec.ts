@@ -34,9 +34,9 @@ describe('Inspector context section and edge cases', () => {
 
   it('offers the Context section for the selected event and loads it on demand', async () => {
     const { fixture } = await render(record());
-    expect(all(fixture, 'imt-context-section')).toHaveLength(1);
+    expect(all(fixture, 'debrief-context-section')).toHaveLength(1);
     expect(all(fixture, '.line')).toHaveLength(0);
-    el<HTMLButtonElement>(fixture, 'imt-context-section button.toggle').click();
+    el<HTMLButtonElement>(fixture, 'debrief-context-section button.toggle').click();
     await settle(fixture);
     expect(all(fixture, '.line.hit')).toHaveLength(1);
   });

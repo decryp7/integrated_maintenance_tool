@@ -1,5 +1,5 @@
 //! Search everything (`search_everything`): the palette's text looked up in the window's events, sources, fields,
-//! marker kinds, notes and knowledge files by `imt_core::search_all`, within its time budget.
+//! marker kinds, notes and knowledge files by `debrief_core::search_all`, within its time budget.
 //!
 //! Thin: this module hands the engine the window's store and what the app holds outside it (notes, project and
 //! global knowledge; never anything from the webview) and keeps one search per window: a newer search of the
@@ -8,8 +8,8 @@
 use crate::error::{CmdError, ErrorCode};
 use crate::windows::{CurrentWindow, WindowState};
 use crate::CmdResult;
-use imt_core::batch::EventId;
-use imt_core::search_all::{self, Control, Corpus, DocScope, SearchAllError, SearchAllReply, SearchAllRequest, SearchDoc};
+use debrief_core::batch::EventId;
+use debrief_core::search_all::{self, Control, Corpus, DocScope, SearchAllError, SearchAllReply, SearchAllRequest, SearchDoc};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
@@ -78,7 +78,7 @@ fn corpus<R: Runtime>(app: &AppHandle<R>, win: &WindowState) -> Corpus {
         })
         .collect();
     let file = |scope: DocScope| {
-        move |f: &imt_ai::knowledge::KnowledgeFile| SearchDoc {
+        move |f: &debrief_ai::knowledge::KnowledgeFile| SearchDoc {
             id: f.id.clone(),
             scope,
             title: f.name.clone(),
@@ -125,7 +125,7 @@ pub async fn search_everything<R: Runtime>(
 mod tests {
     use super::*;
     use crate::test_support::{block, import, main_window, samples, test_app};
-    use imt_core::search_all::KindOutcome;
+    use debrief_core::search_all::KindOutcome;
 
     fn search(app: &tauri::App<tauri::test::MockRuntime>, text: &str) -> CmdResult<Option<SearchAllReply>> {
         block(search_everything(
@@ -149,7 +149,7 @@ mod tests {
 
         import(&main_window(&app), &[samples().join("serilog-clef")]);
         let win = main_window(&app);
-        let draft: imt_notes::NoteDraft = serde_json::from_value(serde_json::json!({
+        let draft: debrief_notes::NoteDraft = serde_json::from_value(serde_json::json!({
             "anchor": { "kind": "project" },
             "text": "Gateway timeouts\nThey start after the deploy."
         }))

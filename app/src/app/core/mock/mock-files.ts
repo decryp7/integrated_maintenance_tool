@@ -28,6 +28,6 @@ export function mockOpenSourceFile(sources: readonly { id: number; path: string;
     return { with: 'editor', path: source.path };
   }
   const ext = (source.path.split(/[\\/]/).pop() ?? '').split('.').slice(1).pop()?.toLowerCase() ?? '';
-  if (RUNS_ON_OPEN.has(ext)) throw new Error(`IMT does not open ${source.name} with its default program, because that could run it: use Show in folder or Open at line`);
+  if (RUNS_ON_OPEN.has(ext)) throw new Error(`Debrief does not open ${source.name} with its default program, because that could run it: use Show in folder or Open at line`);
   return { with: 'defaultApp', path: source.path };
 }

@@ -15,7 +15,7 @@ const PREVIEW_MS = 250;
 
 /** Edits the profile's `[redact]` section with a live preview computed by the engine. */
 @Component({
-  selector: 'imt-redaction-dialog',
+  selector: 'debrief-redaction-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (!form()) {

@@ -1,5 +1,5 @@
 import type { DockviewApi } from 'dockview';
-import { ImtView } from '../extensions/tokens';
+import { DebriefView } from '../extensions/tokens';
 import { PANEL } from './dock-context';
 import { DockExtras, EMPTY_EXTRAS } from './layout-store';
 import { BUILT_IN_PERSPECTIVES, buildPerspective, PERSPECTIVE_REQUIRES, PERSPECTIVE_VIEWS } from './perspective-layouts';
@@ -30,7 +30,7 @@ function harness(registered: readonly string[], opts: { events?: boolean } = {})
   const ctx = {
     api,
     buildDefault: () => (defaults++, extras),
-    find: (id: string): ImtView | undefined => (registered.includes(id) ? ({ id, title: `T:${id}`, icon: 'panel', component: async () => null as never } as ImtView) : undefined),
+    find: (id: string): DebriefView | undefined => (registered.includes(id) ? ({ id, title: `T:${id}`, icon: 'panel', component: async () => null as never } as DebriefView) : undefined),
   };
   return { ctx, added, sizes, extras, defaults: () => defaults };
 }

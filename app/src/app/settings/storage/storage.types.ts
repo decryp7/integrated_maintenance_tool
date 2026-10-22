@@ -19,7 +19,7 @@ export type StorageCategoryId =
   | 'sessions'
   | 'stores';
 
-/** `cache`: IMT rebuilds it, cleared together by "Clear cache". `data`: the user's, cleared one at a time. */
+/** `cache`: Debrief rebuilds it, cleared together by "Clear cache". `data`: the user's, cleared one at a time. */
 export type StorageKind = 'cache' | 'data';
 
 export interface StorageCategory {
@@ -27,7 +27,7 @@ export interface StorageCategory {
   /** English label from the engine (the UI shows its translation by id). */
   label: string;
   kind: StorageKind;
-  /** The folder; null when IMT cannot resolve it on this computer. */
+  /** The folder; null when Debrief cannot resolve it on this computer. */
   path: string | null;
   exists: boolean;
   bytes: number;
@@ -72,7 +72,7 @@ export interface StorageClearResult {
 
 /**
  * Why a store folder is on disk (`storage_stores`): `open` a window has it open; `session` an autosaved session reopens
- * it (kept so it can be restored); `running` another IMT process uses it; `orphaned` nothing references it (for
+ * it (kept so it can be restored); `running` another Debrief process uses it; `orphaned` nothing references it (for
  * example the extraction of a project that was closed). Only orphaned stores can be cleaned up.
  */
 export type StoreFolderState = 'open' | 'session' | 'running' | 'orphaned';

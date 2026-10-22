@@ -8,7 +8,7 @@ export const MOCK_RECENT_FILES_MAX = 8;
 /** Recent projects kept. */
 export const MOCK_RECENT_PROJECTS_MAX = 10;
 /** Where the browser build keeps its lists (a versioned JSON envelope). */
-export const MOCK_RECENT_KEY = 'imt.mock.recent';
+export const MOCK_RECENT_KEY = 'debrief.mock.recent';
 
 /**
  * The browser build's recent lists: what the UI reports it opened, in `localStorage` (survives a reload,

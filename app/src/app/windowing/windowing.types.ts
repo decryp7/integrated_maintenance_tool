@@ -27,7 +27,7 @@ export interface BackgroundTask {
   startedAt: number;
 }
 
-/** The answer to "Close IMT?" when the last window closes. */
+/** The answer to "Close Debrief?" when the last window closes. */
 export type CloseChoice = 'quit' | 'tray';
 
 /** The answer to the open-ask: open the waiting files here, in a new window, or drop them (dismissed). */
@@ -41,10 +41,10 @@ export interface OpenAsk {
 }
 
 /** Events emitted to the owning window only. */
-export const CLOSE_REQUESTED_EVENT = 'imt://close-requested';
-export const OPEN_ASK_EVENT = 'imt://open-ask';
-export const CAPTURE_EVENT = 'imt://capture';
-export const LIVE_STOPPED_EVENT = 'imt://live-stopped';
+export const CLOSE_REQUESTED_EVENT = 'debrief://close-requested';
+export const OPEN_ASK_EVENT = 'debrief://open-ask';
+export const CAPTURE_EVENT = 'debrief://capture';
+export const LIVE_STOPPED_EVENT = 'debrief://live-stopped';
 /** Global events. */
-export const BACKGROUND_TASKS_EVENT = 'imt://background-tasks';
-export const WINDOWS_CHANGED_EVENT = 'imt://windows-changed';
+export const BACKGROUND_TASKS_EVENT = 'debrief://background-tasks';
+export const WINDOWS_CHANGED_EVENT = 'debrief://windows-changed';

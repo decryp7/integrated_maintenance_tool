@@ -2,9 +2,9 @@
 //! Parser library files (`parsers/*.toml`, user library folders, imported parsers; ADR 0026): `Parser::from_toml`
 //! (syntax, schema, limits, compile), an override fragment over a built-in, and the library's import check.
 //! What is accepted round-trips through its canonical TOML with the same content hash.
-use imt_core::parser::builtin;
-use imt_core::parser::library::Library;
-use imt_core::parser::Parser;
+use debrief_core::parser::builtin;
+use debrief_core::parser::library::Library;
+use debrief_core::parser::Parser;
 use libfuzzer_sys::fuzz_target;
 use std::sync::OnceLock;
 

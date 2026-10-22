@@ -1,10 +1,10 @@
 #![no_main]
 // GC heap-walk events (GCBulkType/Node/Edge/roots) with fuzzed payloads in a well-formed nettrace,
 // so the input reaches the heap decoder and the snapshot builder rather than the container checks.
-use imt_plugin_profiling::nettrace::heap::ids as h;
-use imt_plugin_profiling::nettrace::writer::{Meta, Row, TraceHeader, Writer, RUNTIME};
-use imt_plugin_profiling::nettrace::NettraceImporter;
-use imt_profile::{CaptureImporter, Limits};
+use debrief_plugin_profiling::nettrace::heap::ids as h;
+use debrief_plugin_profiling::nettrace::writer::{Meta, Row, TraceHeader, Writer, RUNTIME};
+use debrief_plugin_profiling::nettrace::NettraceImporter;
+use debrief_profile::{CaptureImporter, Limits};
 use libfuzzer_sys::fuzz_target;
 
 const IDS: [u32; 7] = [

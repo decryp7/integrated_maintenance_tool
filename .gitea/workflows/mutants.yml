@@ -1,5 +1,5 @@
 # Mutation testing of the engine with cargo-mutants: how many deliberately injected bugs the tests catch.
-# Weekly over all of imt-core; on pull requests only the mutants in the changed lines (--in-diff).
+# Weekly over all of debrief-core; on pull requests only the mutants in the changed lines (--in-diff).
 # Surviving mutants are listed in mutants.out (uploaded); they point at untested behaviour.
 
 name: mutants
@@ -8,7 +8,7 @@ on:
   schedule:
     - cron: "41 3 * * 0"
   pull_request:
-    paths: ["crates/imt-core/**"]
+    paths: ["crates/debrief-core/**"]
   workflow_dispatch:
 
 env:
@@ -41,12 +41,12 @@ jobs:
       - name: Mutants in the changed lines
         if: github.event_name == 'pull_request'
         run: |
-          git diff "origin/${{ github.base_ref }}...HEAD" -- crates/imt-core > pr.diff
-          cargo mutants -p imt-core --in-diff pr.diff --timeout-multiplier 3 --no-shuffle
+          git diff "origin/${{ github.base_ref }}...HEAD" -- crates/debrief-core > pr.diff
+          cargo mutants -p debrief-core --in-diff pr.diff --timeout-multiplier 3 --no-shuffle
 
-      - name: Mutants in imt-core
+      - name: Mutants in debrief-core
         if: github.event_name != 'pull_request'
-        run: cargo mutants -p imt-core --timeout-multiplier 3 --jobs 2
+        run: cargo mutants -p debrief-core --timeout-multiplier 3 --jobs 2
 
       - name: Upload results
         if: always()

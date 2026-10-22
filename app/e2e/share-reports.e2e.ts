@@ -5,23 +5,23 @@ import { openAppWith, runCommand } from './tools-support';
 
 /** What the mock share backend "wrote" (it records every report and image save). */
 async function written(page: Page): Promise<{ path: string; kind: string; bytes: number }[]> {
-  return page.evaluate(() => ((globalThis as Record<string, unknown>)['__imtMockShareWritten'] as { path: string; kind: string; bytes: number }[]) ?? []);
+  return page.evaluate(() => ((globalThis as Record<string, unknown>)['__debriefMockShareWritten'] as { path: string; kind: string; bytes: number }[]) ?? []);
 }
 
 test.describe('incident report builder', () => {
   test('builds a report from a note and a chart and exports it as HTML', async ({ page }, testInfo) => {
     await openAppWith(page);
-    await page.locator('imt-events-grid [role=row].row').nth(2).click();
+    await page.locator('debrief-events-grid [role=row].row').nth(2).click();
     await runCommand(page, 'Add note to the selected event…');
     await page.getByTestId('note-text').fill('Start of the failure');
     await page.getByTestId('note-save').click();
     await runCommand(page, 'Add notes to report');
 
-    const view = page.locator('imt-report-view');
+    const view = page.locator('debrief-report-view');
     await expect(view.getByRole('group', { name: /^Events block/ })).toBeVisible();
 
     await openView(page, 'metrics');
-    const card = page.locator('imt-chart-card').first();
+    const card = page.locator('debrief-chart-card').first();
     await expect(card.locator('canvas').first()).toBeVisible();
     await card.getByRole('button', { name: /^Add chart .* to report$/ }).click();
     await expect(page.getByRole('status').filter({ hasText: 'to the report' })).toBeVisible();
@@ -37,9 +37,9 @@ test.describe('incident report builder', () => {
     await chart.focus();
     await page.keyboard.press('Alt+ArrowUp');
     await page.keyboard.press('Alt+ArrowUp');
-    await expect(view.locator('imt-report-block').first()).toHaveAttribute('aria-label', /^Chart block/);
-    await expect(view.locator('imt-report-block').first()).toBeFocused();
-    await expectNoSeriousViolations(page, testInfo, 'report-builder', 'imt-report-view');
+    await expect(view.locator('debrief-report-block').first()).toHaveAttribute('aria-label', /^Chart block/);
+    await expect(view.locator('debrief-report-block').first()).toBeFocused();
+    await expectNoSeriousViolations(page, testInfo, 'report-builder', 'debrief-report-view');
 
     await runCommand(page, 'Export report');
     const dialog = page.getByRole('dialog', { name: 'Export report' });
@@ -60,12 +60,12 @@ test.describe('incident report builder', () => {
   test('adds text, sections and the timeline, and removes blocks', async ({ page }) => {
     await openAppWith(page);
     await runCommand(page, 'New incident report');
-    const view = page.locator('imt-report-view');
+    const view = page.locator('debrief-report-view');
     await view.getByRole('toolbar', { name: 'Add to report' }).getByRole('button', { name: 'Text' }).click();
     const text = view.getByRole('textbox', { name: /^Text of / });
     await text.fill('# Impact\nPayments **failed**');
     await text.press('Tab');
-    await expect(view.locator('imt-markdown-view strong')).toHaveText('failed');
+    await expect(view.locator('debrief-markdown-view strong')).toHaveText('failed');
     await view.getByRole('button', { name: 'Add section' }).click();
     await view.getByRole('toolbar', { name: 'Add to report' }).getByRole('button', { name: 'Timeline' }).click();
     await expect(view.getByRole('group', { name: /^Timeline block/ }).locator('img')).toBeVisible();

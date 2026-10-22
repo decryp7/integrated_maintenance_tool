@@ -6,12 +6,12 @@ import { chooseMenu, menubar, menuItem, openMenu, openMenuPath } from './menu-su
 // The VS-style menus of the in-app menu bar (Windows, Linux and the browser build) and the clean
 // default layout. Also runs against the production build with the Tauri CSP.
 
-const tabNames = async (page: Page) => (await page.getByRole('tab').locator('.imt-tab-label').allInnerTexts()).map((t) => t.trim()).sort();
+const tabNames = async (page: Page) => (await page.getByRole('tab').locator('.debrief-tab-label').allInnerTexts()).map((t) => t.trim()).sort();
 /** The default (Investigate) perspective: the timeline and the registry viewer over the events. */
 const CORE_TABS = ['Events', 'Registry', 'Timeline'];
 /** The menu bar and its open menus (CDK overlays): what the menu checks scan, not the whole window (slow on WebKit). */
-const OPEN_MENUS = 'imt-menu-bar, .cdk-overlay-container';
-const inspectorTab = (page: Page) => page.locator('.imt-ah-tab[data-ah-id="inspector"]');
+const OPEN_MENUS = 'debrief-menu-bar, .cdk-overlay-container';
+const inspectorTab = (page: Page) => page.locator('.debrief-ah-tab[data-ah-id="inspector"]');
 
 function watchProblems(page: Page): string[] {
   const problems: string[] = [];
@@ -43,7 +43,7 @@ test.describe('menus', () => {
     await page.keyboard.press('Escape');
     await chooseMenu(page, 'View', 'Analysis', 'Anomalies');
     await expect(page.getByRole('tab', { name: 'Anomalies' })).toBeVisible();
-    await expect(page.locator('imt-anomalies-view')).toBeVisible();
+    await expect(page.locator('debrief-anomalies-view')).toBeVisible();
     const analysis = await openMenuPath(page, 'View', 'Analysis');
     await expect(menuItem(analysis, 'Anomalies')).toHaveAttribute('aria-checked', 'true');
     await page.keyboard.press('Escape');
@@ -149,9 +149,9 @@ test.describe('menus', () => {
   test('Help has no dummy items, and keeps the app version in About', async ({ page }) => {
     const help = await openMenu(page, 'Help');
     await expect(help.getByRole('menuitem')).toContainText(['Welcome', 'Try the demo', 'Take the tour', 'Keyboard shortcuts']);
-    await expect(menuItem(help, /IMT 0\.1\.0/)).toHaveCount(0);
-    await menuItem(help, 'About IMT').click();
-    await expect(page.getByRole('dialog', { name: 'About IMT' })).toContainText('Version');
+    await expect(menuItem(help, /Debrief 0\.1\.0/)).toHaveCount(0);
+    await menuItem(help, 'About Debrief').click();
+    await expect(page.getByRole('dialog', { name: 'About Debrief' })).toContainText('Version');
   });
 
   test('open menus are accessible in both colour schemes', async ({ page }, testInfo) => {
@@ -170,7 +170,7 @@ test.describe('menus', () => {
   });
 
   test('screenshot: View ▸ Analysis', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium' || !process.env['IMT_MENU_SCREENSHOTS'], 'documentation screenshots on request');
+    test.skip(testInfo.project.name !== 'chromium' || !process.env['DEBRIEF_MENU_SCREENSHOTS'], 'documentation screenshots on request');
     await chooseMenu(page, 'View', 'Theme', 'Dark');
     await openMenuPath(page, 'View', 'Analysis');
     await page.screenshot({ path: '../docs/screenshots/menu-view-browser.png', clip: { x: 0, y: 0, width: 900, height: 760 } });

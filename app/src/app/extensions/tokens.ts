@@ -20,11 +20,11 @@ export type ViewArea = 'document' | 'analysis' | 'side' | 'status';
 export type ViewCategory = 'core' | 'Analysis' | 'Live' | 'Profiling' | 'Tools' | 'Sharing' | 'Diagnostics' | 'Plugins' | 'AI';
 
 /** A dockable panel contributed by a plugin (or built in). */
-export interface ImtView {
+export interface DebriefView {
   /** Unique, stable id (also the dock panel id and the key in saved layouts). */
   id: string;
   title: string;
-  /** Name of an `<imt-icon>` icon. */
+  /** Name of an `<debrief-icon>` icon. */
   icon: string;
   /** Lazily loads the standalone component rendered inside the panel. */
   component: () => Promise<Type<unknown>>;
@@ -62,7 +62,7 @@ export interface ImtView {
   instances?: boolean;
 }
 
-/** The only handle plugins get on the app; deliberately small (see `ImtEvents` for reading state). */
+/** The only handle plugins get on the app; deliberately small (see `DebriefEvents` for reading state). */
 export interface CommandContext {
   /** Opens files or folders in the workspace. */
   openPaths(paths: string[]): Promise<void>;
@@ -91,7 +91,7 @@ export interface CommandContext {
 }
 
 /** An action in the command palette and menus, optionally bound to a key. */
-export interface ImtCommand {
+export interface DebriefCommand {
   id: string;
   title: string;
   /** Groups commands in the palette; also selects the menu in the title bar for built-ins. */
@@ -112,7 +112,7 @@ export interface ImtCommand {
 export const VIEW_OPEN_PREFIX = 'view.open.';
 
 /** A block rendered in the inspector below the properties. */
-export interface ImtInspectorSection {
+export interface DebriefInspectorSection {
   id: string;
   title: string;
   /** Ascending; built-in sections use multiples of 100. */
@@ -123,27 +123,27 @@ export interface ImtInspectorSection {
 }
 
 /** Formats a field's value for display in the grid and inspector. */
-export interface ImtFieldFormatter {
+export interface DebriefFieldFormatter {
   /** Exact field name, or a pattern tested against it. */
   field: string | RegExp;
   format: (value: unknown, record: RecordView) => string;
 }
 
 /** What an activity-bar button or fly-out entry does: show a view, or run a command. */
-export type ImtActivityTarget = { view: string } | { command: string };
+export type DebriefActivityTarget = { view: string } | { command: string };
 
 /** One entry of an activity-bar fly-out menu. */
-export interface ImtActivityMenuItem {
+export interface DebriefActivityMenuItem {
   /** Unique within the menu. */
   id: string;
   label: string;
-  /** Name of an `<imt-icon>` icon. */
+  /** Name of an `<debrief-icon>` icon. */
   icon?: string;
   /** Shows a check mark (e.g. the view is open). */
   checked?: boolean;
   /** Key binding in command syntax, shown as a hint. */
   keybinding?: string;
-  run: ImtActivityTarget;
+  run: DebriefActivityTarget;
 }
 
 /**
@@ -151,12 +151,12 @@ export interface ImtActivityMenuItem {
  * fly-out menu whose entries are built on every opening. Every function is evaluated defensively: one that throws
  * hides the button (`when`) or drops just that extra (`badge`, `active`, `pulse`, `disabled`, `menu`), never the bar.
  */
-export interface ImtActivityItem {
+export interface DebriefActivityItem {
   /** Unique, stable id (also `data-activity-id` on the button). */
   id: string;
   /** Accessible name and tooltip. */
   label: string;
-  /** Name of an `<imt-icon>` icon. */
+  /** Name of an `<debrief-icon>` icon. */
   icon: string;
   /** Ascending, top to bottom within its section; built-in items use multiples of 100. Higher orders collapse into More first. */
   order: number;
@@ -176,19 +176,19 @@ export interface ImtActivityItem {
   disabled?: (ctx: CommandContext) => string | null;
   /** Key binding in command syntax (e.g. "Mod+B"), or a key as shown (e.g. "/"). Defaults to the run command's binding. */
   keybinding?: string;
-  run: ImtActivityTarget | { menu: () => readonly ImtActivityMenuItem[] };
+  run: DebriefActivityTarget | { menu: () => readonly DebriefActivityMenuItem[] };
 }
 
 /**
  * Multi-provider tokens. Each provider supplies one batch (an array) of contributions, so
- * `provideImtPlugin` registers a whole plugin with one provider per kind. Readers flatten the
+ * `provideDebriefPlugin` registers a whole plugin with one provider per kind. Readers flatten the
  * batches with `flattenContributions`.
  */
-export const IMT_VIEWS = new InjectionToken<readonly ImtView[]>('IMT_VIEWS');
-export const IMT_COMMANDS = new InjectionToken<readonly ImtCommand[]>('IMT_COMMANDS');
-export const IMT_INSPECTOR_SECTIONS = new InjectionToken<readonly ImtInspectorSection[]>('IMT_INSPECTOR_SECTIONS');
-export const IMT_FIELD_FORMATTERS = new InjectionToken<readonly ImtFieldFormatter[]>('IMT_FIELD_FORMATTERS');
-export const IMT_ACTIVITY_ITEMS = new InjectionToken<readonly ImtActivityItem[]>('IMT_ACTIVITY_ITEMS');
+export const DEBRIEF_VIEWS = new InjectionToken<readonly DebriefView[]>('DEBRIEF_VIEWS');
+export const DEBRIEF_COMMANDS = new InjectionToken<readonly DebriefCommand[]>('DEBRIEF_COMMANDS');
+export const DEBRIEF_INSPECTOR_SECTIONS = new InjectionToken<readonly DebriefInspectorSection[]>('DEBRIEF_INSPECTOR_SECTIONS');
+export const DEBRIEF_FIELD_FORMATTERS = new InjectionToken<readonly DebriefFieldFormatter[]>('DEBRIEF_FIELD_FORMATTERS');
+export const DEBRIEF_ACTIVITY_ITEMS = new InjectionToken<readonly DebriefActivityItem[]>('DEBRIEF_ACTIVITY_ITEMS');
 
 /** Flattens what a multi-provider token injects (batches, or single items) into one list. */
 export function flattenContributions<T>(injected: readonly (T | readonly T[])[] | null | undefined): T[] {

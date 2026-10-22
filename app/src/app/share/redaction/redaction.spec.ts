@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, settle, text, tinyBackend, typeInto } from '../../../testing/helpers';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { mockUnsupported } from '../../core/mock/mock-unsupported';
 import { RedactionSummary } from '../../core/api.types';
 import { WorkspaceStore } from '../../core/workspace.store';
@@ -22,11 +22,11 @@ const closed = vi.fn();
 async function setup() {
   closed.mockClear();
   TestBed.configureTestingModule({
-    providers: [...provideToolsTesting(), { provide: ImtBackend, useValue: tinyBackend() }, provideMockShare(), { provide: DIALOG_REF, useValue: { close: closed, closed: Promise.resolve(undefined) } }],
+    providers: [...provideToolsTesting(), { provide: DebriefBackend, useValue: tinyBackend() }, provideMockShare(), { provide: DIALOG_REF, useValue: { close: closed, closed: Promise.resolve(undefined) } }],
   });
   const store = TestBed.inject(WorkspaceStore);
   await settle();
-  return { store, service: TestBed.inject(RedactionService), backend: TestBed.inject(ImtBackend) };
+  return { store, service: TestBed.inject(RedactionService), backend: TestBed.inject(DebriefBackend) };
 }
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));

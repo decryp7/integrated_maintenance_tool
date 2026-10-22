@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Finding, fullCoverage } from '../../core/api.types';
 import { loadWorkspace } from '../../analysis/test-setup';
-import { IMT_RECORD_MENU_ITEMS, RecordActions } from '../../context/record-actions';
+import { DEBRIEF_RECORD_MENU_ITEMS, RecordActions } from '../../context/record-actions';
 import { settle } from '../../../testing/helpers';
 import { MockShareBackend } from '../mock/mock-share-backend';
 import { ShareBackend } from '../share-backend';
@@ -14,7 +14,7 @@ import { ReportStore } from './report.store';
 import { at } from '../../../testing/must';
 
 async function setup() {
-  setupVisuals(undefined, [{ provide: IMT_RECORD_MENU_ITEMS, multi: true, useFactory: reportMenuItems }]);
+  setupVisuals(undefined, [{ provide: DEBRIEF_RECORD_MENU_ITEMS, multi: true, useFactory: reportMenuItems }]);
   const store = await loadWorkspace();
   await settle(undefined, 6);
   return { store, reports: TestBed.inject(ReportStore), actions: TestBed.inject(ReportActions), share: TestBed.inject(ShareBackend) as MockShareBackend };
@@ -50,7 +50,7 @@ describe('health-check findings and events in reports', () => {
 
   it('adds events from the record context menu (one, or the multi-selection)', async () => {
     const { store, reports } = await setup();
-    const rows = (await (TestBed.inject(ShareBackend) as MockShareBackend)['imt'].queryPage({ query: store.query(), offset: 0, limit: 3, descending: false, anchor: null })).rows;
+    const rows = (await (TestBed.inject(ShareBackend) as MockShareBackend)['debrief'].queryPage({ query: store.query(), offset: 0, limit: 3, descending: false, anchor: null })).rows;
     const items = TestBed.inject(RecordActions).itemsFor(at(rows, 0));
     const add = items.find((i) => i.label === 'Add to report')!;
     add.run();

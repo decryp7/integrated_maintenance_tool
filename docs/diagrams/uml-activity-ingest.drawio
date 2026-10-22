@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" agent="IMT docs" version="24.0.0">
+<mxfile host="app.diagrams.net" agent="Debrief docs" version="24.0.0">
   <diagram id="UML-Activity-ingest" name="UML Activity ingest">
     <mxGraphModel dx="0" dy="0" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1900" pageHeight="2050" math="0" shadow="0" background="#FFFFFF">
       <root>
@@ -146,7 +146,7 @@
         <mxCell id="c140" value="Importer (built-in or plugin)" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;spacing=0;align=left;verticalAlign=middle;fontSize=11;" parent="c126" vertex="1"><mxGeometry x="466" y="64" width="144" height="22" as="geometry"/></mxCell>
         <mxCell id="c141" value="" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=6;absoluteArcSize=1;fillColor=none;strokeColor=#8A93A6;strokeWidth=1.5;dashed=1;dashPattern=6 4;" parent="c126" vertex="1"><mxGeometry x="616" y="65" width="36" height="20" as="geometry"/></mxCell>
         <mxCell id="c142" value="Region" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;spacing=0;align=left;verticalAlign=middle;fontSize=11;" parent="c126" vertex="1"><mxGeometry x="666" y="64" width="144" height="22" as="geometry"/></mxCell>
-        <mxCell id="c143" value="&lt;span style=&quot;font-size:10px;color:#5A6375&quot;&gt;IMT · updated 2026-10-22&lt;/span&gt;" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;spacing=0;align=right;verticalAlign=top;" parent="1" vertex="1"><mxGeometry x="1640" y="2010" width="220" height="18" as="geometry"/></mxCell>
+        <mxCell id="c143" value="&lt;span style=&quot;font-size:10px;color:#5A6375&quot;&gt;Debrief · updated 2026-10-22&lt;/span&gt;" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;spacing=0;align=right;verticalAlign=top;" parent="1" vertex="1"><mxGeometry x="1640" y="2010" width="220" height="18" as="geometry"/></mxCell>
       </root>
     </mxGraphModel>
   </diagram>

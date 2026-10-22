@@ -16,17 +16,17 @@ const MAX_TEXT = 2000;
  * text), the user's note and what can be done with the frame: Explain with AI, Find related logs, Describe, Remove.
  */
 @Component({
-  selector: 'imt-frame-detail',
+  selector: 'debrief-frame-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FrameImage, VideoError],
   template: `
     @if (store.errors().frame; as e) {
-      <imt-video-error [failure]="e" (retry)="store.retry('frame')" (dismiss)="store.dismiss('frame')" />
+      <debrief-video-error [failure]="e" (retry)="store.retry('frame')" (dismiss)="store.dismiss('frame')" />
     }
     @if (selected(); as sel) {
       @if (store.active(); as v) {
         <div class="detail" data-testid="video-frame-detail">
-          <imt-frame-image class="big" [videoKey]="v.record.key" [index]="sel.index" [image]="sel.frame.image" [alt]="name()" [eager]="true" />
+          <debrief-frame-image class="big" [videoKey]="v.record.key" [index]="sel.index" [image]="sel.frame.image" [alt]="name()" [eager]="true" />
           <div class="side">
             <h3 data-testid="video-frame-name">{{ name() }}</h3>
             <p class="muted" data-testid="video-frame-aligned" i18n="@@video.frame.aligned">On the logs' clock: {{ aligned() }}</p>

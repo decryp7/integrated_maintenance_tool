@@ -1,7 +1,7 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { TomlError } from 'smol-toml';
 import { ProfileDoc, ProfileValidation } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { Logger } from '../core/logger';
 import { Platform } from '../core/platform';
 import { ProfileModel } from '../core/profile.model';
@@ -25,7 +25,7 @@ function profileName(toml: string): string | null {
  */
 @Injectable()
 export class ProfileDraft {
-  private readonly backend = inject(ImtBackend);
+  private readonly backend = inject(DebriefBackend);
   private readonly store = inject(WorkspaceStore);
   private readonly platform = inject(Platform);
   private readonly overwrite = inject(OverwriteGuard);

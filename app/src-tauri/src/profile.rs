@@ -8,7 +8,7 @@ use crate::paths::WindowGrants;
 use crate::services::profile::ProfileFiles;
 use crate::windows::CurrentWindow;
 use crate::{err, AppState, CmdResult, State};
-use imt_core::{Profile, DEFAULT_PROFILE_TOML};
+use debrief_core::{Profile, DEFAULT_PROFILE_TOML};
 use serde::Serialize;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -147,7 +147,7 @@ pub(crate) async fn import_profile(grants: WindowGrants, path: String) -> CmdRes
 #[tauri::command]
 pub(crate) async fn export_profile(grants: WindowGrants, op: OpId, path: String, toml: String, overwrite: Option<bool>) -> CmdResult<()> {
     let target = grants.write(&path, &["toml"])?;
-    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
+    debrief_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
     std::fs::write(target.path(), &toml).map_err(err)?;
     let (safe, bytes) = (privacy::safe_path(Path::new(&path)), toml.len().to_string());
     domain_event(
@@ -159,7 +159,7 @@ pub(crate) async fn export_profile(grants: WindowGrants, op: OpId, path: String,
 }
 
 /// The saved profile if it still compiles with the installed plugins, else the built-in default.
-pub(crate) fn load_profile(dir: Option<&PathBuf>, registry: &imt_core::PluginRegistry) -> (Profile, ProfileDoc) {
+pub(crate) fn load_profile(dir: Option<&PathBuf>, registry: &debrief_core::PluginRegistry) -> (Profile, ProfileDoc) {
     ProfileFiles::new(dir.cloned()).load(registry)
 }
 
@@ -242,13 +242,13 @@ regex = '('
         assert!(saved.exists());
 
         // A fresh start picks the saved profile up; an invalid one falls back to the default.
-        let fresh = imt_core::PluginRegistry::new;
+        let fresh = debrief_core::PluginRegistry::new;
         assert_eq!(load_profile(Some(&dir.0), &fresh()).1.name, "Saved");
         std::fs::write(&saved, "[parse]\nregexes = ['(']").unwrap();
         assert_eq!(load_profile(Some(&dir.0), &fresh()).1.name, "Default (Serilog)");
         assert_eq!(load_profile(None, &fresh()).1.path, None);
 
-        let exported = dir.0.join("out.imtprofile.toml");
+        let exported = dir.0.join("out.debriefprofile.toml");
         let grants = || crate::paths::WindowGrants::of(app.handle(), "main");
         let refused = export_profile(
             grants(),

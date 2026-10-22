@@ -6,11 +6,11 @@
 //! - [`persist`]: the versioned records: project-scoped messages travel with the project (UI state key
 //!   `notifications`), app-scoped ones live in `notifications.json` in the app data folder.
 //! - Here: the managed [`NotificationCentre`], [`post`] for producers (which also raises an OS notification
-//!   through [`crate::notify`] when no IMT window is focused) and the commands.
+//!   through [`crate::notify`] when no Debrief window is focused) and the commands.
 //!
 //! Not to be confused with [`crate::notify`], the OS notification adapter it uses.
-//! Events: `imt://notifications` (the window's list and the message just posted, for its toast) and
-//! `imt://notifications-open` (an OS notification was clicked: open that message).
+//! Events: `debrief://notifications` (the window's list and the message just posted, for its toast) and
+//! `debrief://notifications-open` (an OS notification was clicked: open that message).
 
 pub mod centre;
 pub mod persist;
@@ -29,9 +29,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{AppHandle, Manager, Runtime};
 
-pub const NOTIFICATIONS_EVENT: &str = "imt://notifications";
-pub const OPEN_EVENT: &str = "imt://notifications-open";
-/// An OS notification clicked (IMT focused) within this time opens its message.
+pub const NOTIFICATIONS_EVENT: &str = "debrief://notifications";
+pub const OPEN_EVENT: &str = "debrief://notifications-open";
+/// An OS notification clicked (Debrief focused) within this time opens its message.
 const OPEN_WITHIN_MS: i64 = 120_000;
 const FILE_NAME: &str = "notifications.json";
 /// How long changes to the app list wait before they are written (bursts are written once).
@@ -107,7 +107,7 @@ impl NotificationCentre {
         }
     }
 
-    /// Writes what is pending now (IMT is closing; tests).
+    /// Writes what is pending now (Debrief is closing; tests).
     pub fn flush(&self) {
         if let Some(w) = &self.writer {
             w.flush(Duration::from_secs(2));
@@ -219,7 +219,7 @@ impl NotificationCentre {
         lock(&self.projects).remove(window);
     }
 
-    /// An OS notification for `id` was shown: focusing IMT soon after opens it.
+    /// An OS notification for `id` was shown: focusing Debrief soon after opens it.
     fn note_shown(&self, id: NoticeId, window: Option<&str>) {
         *lock(&self.pending) = Some(PendingOpen {
             id,
@@ -228,7 +228,7 @@ impl NotificationCentre {
         });
     }
 
-    /// The message to open when IMT got the focus (once), if an OS notification was shown recently.
+    /// The message to open when Debrief got the focus (once), if an OS notification was shown recently.
     fn take_pending(&self) -> Option<(NoticeId, Option<String>)> {
         let p = lock(&self.pending).take()?;
         (self.clock.now_ms() - p.at <= OPEN_WITHIN_MS).then_some((p.id, p.window))
@@ -241,8 +241,8 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
     app.manage(NotificationCentre::new(file, Arc::new(SystemClock)));
 }
 
-/// Whether some IMT window has the focus (the user sees in-app toasts).
-fn imt_focused<R: Runtime>(app: &AppHandle<R>) -> bool {
+/// Whether some Debrief window has the focus (the user sees in-app toasts).
+fn debrief_focused<R: Runtime>(app: &AppHandle<R>) -> bool {
     app.windows().iter().any(|(_, w)| w.is_focused().unwrap_or(false))
 }
 
@@ -261,7 +261,7 @@ fn labels<R: Runtime>(app: &AppHandle<R>) -> Vec<String> {
 }
 
 /// Posts a message for producers and tells the windows that show it. `os` raises an OS notification of
-/// that kind when no IMT window is focused (the user's notification setting and the rate limit apply).
+/// that kind when no Debrief window is focused (the user's notification setting and the rate limit apply).
 /// Never fails: without the centre nothing happens.
 pub fn post<R: Runtime>(app: &AppHandle<R>, window: Option<&str>, new: NewNotice, os: Option<NotificationKind>) -> Option<Notice> {
     let centre = app.try_state::<NotificationCentre>()?;
@@ -285,7 +285,7 @@ pub fn post<R: Runtime>(app: &AppHandle<R>, window: Option<&str>, new: NewNotice
         // Focus is a window getter, which waits for the main thread: decided there, never here.
         let (shown, window) = (notice.clone(), window.map(str::to_string));
         crate::ui_dispatch::run(app, move |app| {
-            if crate::notify::notify(app, kind, imt_focused(app), &shown.title, &shown.body) {
+            if crate::notify::notify(app, kind, debrief_focused(app), &shown.title, &shown.body) {
                 if let Some(centre) = app.try_state::<NotificationCentre>() {
                     centre.note_shown(shown.id, window.as_deref());
                 }
@@ -315,7 +315,7 @@ pub fn forget_window<R: Runtime>(app: &AppHandle<R>, label: &str) {
 
 fn centre<'a, R: Runtime>(app: &'a AppHandle<R>) -> crate::CmdResult<tauri::State<'a, NotificationCentre>> {
     app.try_state::<NotificationCentre>()
-        .ok_or_else(|| crate::CmdError::unavailable("IMT is not ready yet"))
+        .ok_or_else(|| crate::CmdError::unavailable("Debrief is not ready yet"))
 }
 
 fn changed<R: Runtime>(app: &AppHandle<R>, centre: &NotificationCentre, label: &str, app_wide: bool) {
@@ -418,8 +418,13 @@ mod tests {
         c.post(Some("w-2"), alert(2));
         let update = c.post(
             Some("main"),
-            NewNotice::new(NoticeSource::Update, NoticeSeverity::Info, "IMT 2.0 is available", NoticeScope::App)
-                .primary(NoticeAction::InstallUpdate),
+            NewNotice::new(
+                NoticeSource::Update,
+                NoticeSeverity::Info,
+                "Debrief 2.0 is available",
+                NoticeScope::App,
+            )
+            .primary(NoticeAction::InstallUpdate),
         );
         c.post(
             None,
@@ -549,7 +554,7 @@ mod tests {
         let list = app.state::<NotificationCentre>().snapshot("main");
         let titles: Vec<&str> = list.notices.iter().map(|n| n.title.as_str()).collect();
         assert_eq!(titles.len(), 2, "one per session: {titles:?}");
-        assert!(titles.contains(&"IMT did not close properly") && titles.contains(&"IMT runs in safe mode"));
+        assert!(titles.contains(&"Debrief did not close properly") && titles.contains(&"Debrief runs in safe mode"));
         assert!(list
             .notices
             .iter()

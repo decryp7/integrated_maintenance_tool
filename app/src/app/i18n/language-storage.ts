@@ -9,7 +9,7 @@ export interface LanguageStorage {
   save(choice: LanguageChoice): void;
 }
 
-export const LANGUAGE_KEY = 'imt.language';
+export const LANGUAGE_KEY = 'debrief.language';
 export const LANGUAGE_VERSION = 1;
 
 /** Validates an untrusted stored value; anything unknown is "System default". */

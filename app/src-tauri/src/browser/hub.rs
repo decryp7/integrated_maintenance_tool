@@ -1,9 +1,9 @@
-//! The browsers of the open IMT windows (one per window, opened on demand) and what the shell keeps about
+//! The browsers of the open Debrief windows (one per window, opened on demand) and what the shell keeps about
 //! them: the page shown, where the Browser panel last placed it, popups waiting for the user's decision, pages
-//! handed to a chat, links a chat suggested, and each chat's hold on the browser (`imt_ai::browser::ChatBrowser`).
+//! handed to a chat, links a chat suggested, and each chat's hold on the browser (`debrief_ai::browser::ChatBrowser`).
 //! Plain Rust, no Tauri.
 
-use imt_ai::browser::{AgentLimits, ChatBrowser, PageCapture, ResearchSettings, SearchSettings};
+use debrief_ai::browser::{AgentLimits, ChatBrowser, PageCapture, ResearchSettings, SearchSettings};
 use serde::Serialize;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};

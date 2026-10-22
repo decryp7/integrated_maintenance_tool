@@ -1,0 +1,42 @@
+[package]
+name = "debrief-ai-worker"
+license.workspace = true
+repository.workspace = true
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+description = "Inference worker for Debrief: serves the worker protocol over debrief-ipc frames on a private local socket and runs inference in a supervised child, the official prebuilt llama.cpp `llama-server` (ADR 0009)"
+
+[lib]
+name = "debrief_ai_worker"
+path = "src/lib.rs"
+
+[[bin]]
+name = "debrief-ai-worker"
+path = "src/main.rs"
+
+# A stand-in for llama-server (/health, /tokenize, /props, /completion with SSE; error, slow and crash
+# modes) used only by the tests. It is not part of the app and is never bundled.
+[[bin]]
+name = "debrief-fake-llama-server"
+path = "src/bin/fake_llama_server.rs"
+test = false
+
+[dependencies]
+debrief-ai = { path = "../debrief-ai" }
+debrief-core = { path = "../debrief-core" }
+serde.workspace = true
+serde_json.workspace = true
+getrandom.workspace = true
+sysinfo = { workspace = true, features = ["system"] }
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = ["Win32_System_JobObjects"] }
+
+[dev-dependencies]
+tempfile.workspace = true
+base64.workspace = true

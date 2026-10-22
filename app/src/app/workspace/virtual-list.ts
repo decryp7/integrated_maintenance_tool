@@ -13,10 +13,10 @@ export interface VirtualItemContext<T> {
 /**
  * A scrolling list that renders only the rows in view (plus a little overscan), so a list of tens of
  * thousands of values costs a few dozen DOM nodes. Rows have a fixed height. Pass the row template as
- * the only content: `<imt-virtual-list [items]="x" label="Values"><ng-template let-item>…</ng-template></imt-virtual-list>`.
+ * the only content: `<debrief-virtual-list [items]="x" label="Values"><ng-template let-item>…</ng-template></debrief-virtual-list>`.
  */
 @Component({
-  selector: 'imt-virtual-list',
+  selector: 'debrief-virtual-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NgTemplateOutlet],
   template: `

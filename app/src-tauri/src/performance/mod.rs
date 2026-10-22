@@ -1,4 +1,4 @@
-//! Settings ▸ Performance (ADR 0031): how much memory and CPU IMT's processes may use (the store worker, plugins,
+//! Settings ▸ Performance (ADR 0031): how much memory and CPU Debrief's processes may use (the store worker, plugins,
 //! the AI worker), DuckDB's knobs, the warning before a cap stops a process and suggested values for this computer.
 //!
 //! - here: what `performance.json` holds ([`PerformanceSettings`], format 2; missing, older, newer or damaged: the
@@ -54,7 +54,7 @@ pub struct PerformanceSettings {
     pub index_threads: u32,
     /// The plugins' CPU share, percent.
     pub plugin_cpu_percent: u32,
-    /// Cores no thread pool of IMT's uses.
+    /// Cores no thread pool of Debrief's uses.
     pub leave_cores_free: u32,
     /// DuckDB's memory limit; 0: from the query budget.
     pub duck_memory_limit_mb: u32,
@@ -124,7 +124,7 @@ impl PerformanceSettings {
     /// bounded: a hand-edited file cannot ask for what the section would refuse.
     pub fn bounded(self) -> PerformanceSettings {
         let schema = section::schema();
-        let (valid, problems) = imt_core::settings::sanitize(&schema, &self.to_values());
+        let (valid, problems) = debrief_core::settings::sanitize(&schema, &self.to_values());
         for p in &problems {
             log::warn!("{FILE}: {} ({}); its default is used", p.message, p.key);
         }
@@ -174,7 +174,7 @@ mod tests {
     use serde_json::json;
 
     pub(crate) fn temp(tag: &str) -> std::path::PathBuf {
-        let d = std::env::temp_dir().join(format!("imt-performance-{tag}-{}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("debrief-performance-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d

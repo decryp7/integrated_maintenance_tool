@@ -21,7 +21,7 @@ interface Tip {
  * live region), and a list of the largest visible frames offers the same zoom actions as buttons.
  */
 @Component({
-  selector: 'imt-flame-chart',
+  selector: 'debrief-flame-chart',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MeasurementTag],
   template: `
@@ -38,7 +38,7 @@ interface Tip {
       }
       @if (graph(); as g) {
         <span class="spacer"></span>
-        <imt-measurement [m]="g.measurement" />
+        <debrief-measurement [m]="g.measurement" />
       }
     </div>
     <div class="scroll" #scroll>

@@ -1,6 +1,6 @@
 import { Provider } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { Logger } from '../../core/logger';
 import { MockProfilingBackend, MockProfilingOptions } from '../../core/mock/mock-profiling';
 import { MOCK_CAPTURE_PATHS } from '../../core/mock/mock-profiling-data';
@@ -50,7 +50,7 @@ export function provideProfilingTesting(extra: { backend?: ProfilingBackend; opt
   return {
     doubles,
     providers: [
-      { provide: ImtBackend, useFactory: () => tinyBackend() },
+      { provide: DebriefBackend, useFactory: () => tinyBackend() },
       { provide: Logger, useFactory: () => new MemoryLogger() },
       { provide: ProfilingBackend, useValue: doubles.backend },
       { provide: COMMAND_CONTEXT, useValue: doubles.context },

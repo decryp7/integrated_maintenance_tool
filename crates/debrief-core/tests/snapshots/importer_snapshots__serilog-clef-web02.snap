@@ -1,0 +1,113 @@
+---
+source: crates/debrief-core/tests/importer_snapshots.rs
+expression: snap
+---
+sample: serilog-clef/web02/orders-20261014.clef
+importer: json
+records: 3964
+skipped: 0
+levels:
+  1-Debug: 20
+  2-Information: 3650
+  3-Warning: 161
+  4-Error: 132
+  5-Fatal: 1
+with_timestamp: 3964
+first_timestamp: "2026-10-14T09:00:00.000Z"
+last_timestamp: "2026-10-14T12:00:00.374Z"
+fields:
+  - Application
+  - Attempt
+  - CacheKey
+  - CorrelationId
+  - CpuPercent
+  - Elapsed
+  - ElapsedMs
+  - EnvironmentName
+  - EventId.Id
+  - EventId.Name
+  - MachineName
+  - MaxAttempts
+  - OrderId
+  - ProcessId
+  - Reason
+  - RequestMethod
+  - RequestPath
+  - Runtime
+  - SourceContext
+  - StatusCode
+  - Threads
+  - TimeoutMs
+  - Version
+  - WorkingSetMb
+  - address
+  - contextType
+first:
+  - line: 1
+    timestamp: "2026-10-14T09:00:00.000Z"
+    level: Information
+    message: Application starting — OrderService 3.14.2 (net9.0)
+    template: "Application starting — {Application} {Version} ({Runtime})"
+    fields:
+      Application: OrderService
+      EnvironmentName: Production
+      MachineName: WEB02
+      ProcessId: 4120
+      Runtime: net9.0
+      SourceContext: Program
+      Version: 3.14.2
+  - line: 2
+    timestamp: "2026-10-14T09:00:00.640Z"
+    level: Information
+    message: "Now listening on: http://0.0.0.0:8080"
+    template: "Now listening on: {address}"
+    fields:
+      Application: OrderService
+      EnvironmentName: Production
+      MachineName: WEB02
+      ProcessId: 4120
+      SourceContext: Microsoft.Hosting.Lifetime
+      address: "http://0.0.0.0:8080"
+  - line: 3
+    timestamp: "2026-10-14T09:00:00.702Z"
+    level: Information
+    message: Application started. Press Ctrl+C to shut down.
+    template: Application started. Press Ctrl+C to shut down.
+    fields:
+      Application: OrderService
+      EnvironmentName: Production
+      MachineName: WEB02
+      ProcessId: 4120
+      SourceContext: Microsoft.Hosting.Lifetime
+  - line: 4
+    timestamp: "2026-10-14T09:00:01.877Z"
+    level: Information
+    message: HTTP GET /api/orders/88003 responded 200 in 131.5076 ms
+    template: "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms"
+    fields:
+      Application: OrderService
+      CorrelationId: 5c8adaa4-65de-4f4c-3fce-be3c0835f5f4
+      Elapsed: 131.5076
+      EnvironmentName: Production
+      MachineName: WEB02
+      ProcessId: 4120
+      RequestMethod: GET
+      RequestPath: /api/orders/88003
+      SourceContext: Serilog.AspNetCore.RequestLoggingMiddleware
+      StatusCode: 200
+  - line: 5
+    timestamp: "2026-10-14T09:00:02.382Z"
+    level: Information
+    message: HTTP GET /api/orders/88005 responded 200 in 55.3845 ms
+    template: "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms"
+    fields:
+      Application: OrderService
+      CorrelationId: 23aa2c56-82e3-4776-3921-e8bbf6280c5f
+      Elapsed: 55.3845
+      EnvironmentName: Production
+      MachineName: WEB02
+      ProcessId: 4120
+      RequestMethod: GET
+      RequestPath: /api/orders/88005
+      SourceContext: Serilog.AspNetCore.RequestLoggingMiddleware
+      StatusCode: 200

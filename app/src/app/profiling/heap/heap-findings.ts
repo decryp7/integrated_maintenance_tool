@@ -22,16 +22,16 @@ const ACTION: Record<HeapFindingView, string> = {
 
 /** The engine's findings for a heap snapshot (growth against the snapshot taken before it), each linking to its evidence. */
 @Component({
-  selector: 'imt-heap-findings',
+  selector: 'debrief-heap-findings',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, SeverityBadge],
   template: `
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No findings: nothing in this snapshot crosses a threshold." i18n-emptyText="@@profiling.heapFindings.empty" (retry)="res.retry()">
+    <debrief-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No findings: nothing in this snapshot crosses a threshold." i18n-emptyText="@@profiling.heapFindings.empty" (retry)="res.retry()">
       <ul class="list body" aria-label="Memory findings" i18n-aria-label="@@profiling.heapFindings.listLabel">
         @for (f of res.data() ?? []; track $index) {
           <li class="finding" [attr.data-kind]="f.kind">
             <div class="head">
-              <imt-severity-badge [severity]="f.severity" />
+              <debrief-severity-badge [severity]="f.severity" />
               <strong class="title">{{ f.title }}</strong>
               @if (f.valueBytes !== null) { <span class="mono muted" [title]="exact(f.valueBytes)">{{ bytes(f.valueBytes) }}</span> }
             </div>
@@ -40,7 +40,7 @@ const ACTION: Record<HeapFindingView, string> = {
           </li>
         }
       </ul>
-    </imt-analysis-state>
+    </debrief-analysis-state>
   `,
   styles: [
     PROFILING_STYLES,

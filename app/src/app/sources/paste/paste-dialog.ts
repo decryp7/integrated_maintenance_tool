@@ -15,7 +15,7 @@ export const DEFAULT_PASTE_NAME = 'Pasted log';
  * imports it, this dialog only refuses early what is over the cap.
  */
 @Component({
-  selector: 'imt-paste-dialog',
+  selector: 'debrief-paste-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p class="intro" i18n="@@sources.paste.dialog.intro">The text is saved in the project as a log file and opened like any other log.</p>

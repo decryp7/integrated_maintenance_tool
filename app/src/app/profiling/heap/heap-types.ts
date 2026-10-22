@@ -13,7 +13,7 @@ const PAGE = 200;
 
 /** Types of a snapshot by count, bytes or retained size; a type opens its instances. */
 @Component({
-  selector: 'imt-heap-types',
+  selector: 'debrief-heap-types',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState],
   template: `
@@ -21,7 +21,7 @@ const PAGE = 200;
       <input type="search" placeholder="Search types…" i18n-placeholder="@@profiling.heapTypes.searchPlaceholder" aria-label="Search types" i18n-aria-label="@@profiling.heapTypes.searchLabel" (input)="onSearch($event)" />
       @if (res.data(); as d) { <span class="muted" i18n="@@profiling.heapTypes.summary">{{ count(d.totalRows) // i18n(ph: "types") }} types · {{ count(d.totalCount) // i18n(ph: "objects") }} objects · {{ bytes(d.totalBytes) // i18n(ph: "bytes") }}</span> }
     </div>
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.totalRows === 0" emptyText="No types match." i18n-emptyText="@@profiling.heapTypes.empty" (retry)="res.retry()">
+    <debrief-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.totalRows === 0" emptyText="No types match." i18n-emptyText="@@profiling.heapTypes.empty" (retry)="res.retry()">
       <div class="body tight" tabindex="0" role="region" aria-label="Type rows" i18n-aria-label="@@profiling.heapTypes.rowsRegion">
         <table class="grid" aria-label="Types" i18n-aria-label="@@profiling.heapTypes.tableLabel">
           <thead>
@@ -48,7 +48,7 @@ const PAGE = 200;
         </table>
         @if (more() > 0) { <button class="btn more" type="button" (click)="loadMore()" i18n="@@profiling.heapTypes.loadMore">Load {{ more() // i18n(ph: "count") }} more</button> }
       </div>
-    </imt-analysis-state>
+    </debrief-analysis-state>
   `,
   styles: [PROFILING_STYLES, `.tight { padding: 0; } .fn { max-width: 480px; } .more { margin: 8px 12px; }`],
 })

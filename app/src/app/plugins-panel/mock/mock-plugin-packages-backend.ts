@@ -21,7 +21,7 @@ export function packagesOptionsFromSearch(search: string): MockPluginPackagesOpt
 }
 
 const ALLOWS: Record<PermissionDto, string> = {
-  openedFilePaths: 'Read the files you open in IMT.',
+  openedFilePaths: 'Read the files you open in Debrief.',
   runPrograms: 'Start programs on this computer.',
   writeFolders: 'Write files into folders you choose.',
   network: 'Connect to servers on the network or the internet.',
@@ -87,7 +87,7 @@ export class MockPluginPackagesBackend extends PluginPackagesBackend {
 
   async readPackage(path: string): Promise<PackageReviewDto> {
     this.calls.push(`inspect:${path}`);
-    if (!path.toLowerCase().endsWith('.imtplugin')) throw new CmdError({ code: 'invalid', message: 'This is not an IMT plugin package (.imtplugin).', retryable: false });
+    if (!path.toLowerCase().endsWith('.debriefplugin')) throw new CmdError({ code: 'invalid', message: 'This is not a Debrief plugin package (.debriefplugin).', retryable: false });
     const kind = `${path} ${this.options.variant}`;
     if (kind.includes('tampered')) {
       throw new CmdError({
@@ -130,8 +130,8 @@ export class MockPluginPackagesBackend extends PluginPackagesBackend {
         refusal: dev
           ? null
           : unsigned
-            ? { reason: 'unsigned', message: 'The package is not signed, so IMT cannot tell who made it.' }
-            : { reason: 'unknownKey', message: 'The package is signed with a key IMT does not trust.' },
+            ? { reason: 'unsigned', message: 'The package is not signed, so Debrief cannot tell who made it.' }
+            : { reason: 'unknownKey', message: 'The package is signed with a key Debrief does not trust.' },
         warning: dev ? 'Developer mode: this package is not verified. Install it only if you built it yourself.' : null,
       };
     }

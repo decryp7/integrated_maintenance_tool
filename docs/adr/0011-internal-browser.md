@@ -11,7 +11,7 @@ read result pages. In use this proved the wrong shape:
 
 - Search APIs return snippets ranked for crawlers, not the forum thread or vendor page a support engineer
   would open, and every search needs a key, an instance or both.
-- Each query, however redacted, is a request IMT makes on the user's behalf to a third party.
+- Each query, however redacted, is a request Debrief makes on the user's behalf to a third party.
 - Users look things up in a browser anyway, and then paste text into the chat by hand.
 
 The user's decision: remove all AI-initiated web search and replace it with an internal browser the user
@@ -22,19 +22,19 @@ evasion is explicitly out.
 
 1. **AI web search is removed**: the SearXNG and Brave adapters, the Brave key in the keychain (and the
    keyring dependency), the `web_search` and `fetch_page` tools with their approval flow, the web search
-   settings and their UI. Kept for the browser: the privacy guard (`imt_ai::web::privacy`), names known
+   settings and their UI. Kept for the browser: the privacy guard (`debrief_ai::web::privacy`), names known
    from the logs, host classification and the untrusted-content quoting. The HTML-to-text extractor was
    removed with the page fetcher: the browser reads the rendered page (see below).
 2. **An internal browser window** on the system webview (WebView2, WKWebView, WebKitGTK; nothing bundled)
-   with its own profile: a `web-profile` folder in IMT's data folder (WebView2 user data folder, WebKitGTK
+   with its own profile: a `web-profile` folder in Debrief's data folder (WebView2 user data folder, WebKitGTK
    data manager) and a fixed WebKit data store id on macOS 14+. The profile is a category of Settings ▸
-   Storage. The user drives it from a **Web panel** in their IMT window (back, forward, reload/stop, an
+   Storage. The user drives it from a **Web panel** in their Debrief window (back, forward, reload/stop, an
    address and search box with an engine picker: Google (the default), DuckDuckGo, Bing (Stack Overflow was dropped on 2026-10-21: it shows
-   a human check to IMT's browser every time) or a
+   a human check to Debrief's browser every time) or a
    URL template with `{q}`, "Add page to AI context", "Open in your browser"). *Search the web for this error* (event
    context menu, inspector, chat, palette) opens a search text the engine built from the event with the
    privacy guard; the user edits it before anything opens.
-3. **The AI gets web content four ways, all through `imt_ai::browser`:**
+3. **The AI gets web content four ways, all through `debrief_ai::browser`:**
    - *Hand-off*: "Add page to AI context" captures the visible page's readable text (headings, paragraphs,
      lists, code, tables; never scripts, styles or hidden elements), capped and redacted, and adds it to the
      chat's next question as a cited source quoted as untrusted web content.
@@ -62,22 +62,22 @@ evasion is explicitly out.
 
 ### Architecture: a separate window controlled from a dock panel
 
-Two shapes were possible: (a) an IMT dock panel that controls a separate browser window, or (b) Tauri's
+Two shapes were possible: (a) a Debrief dock panel that controls a separate browser window, or (b) Tauri's
 multi-webview, a local toolbar webview and a remote content webview in one window. Tauri 2.12 (our
 `Cargo.lock`) still ships multi-webview (`Window::add_child`) behind the `unstable` feature, which would
 apply to the whole app, and it has open issues with focus, resizing and DPI on Linux and macOS. **We chose
 (a)**: stable APIs only (`WebviewWindowBuilder` with `on_navigation`, `on_new_window`, `on_download`,
 `on_page_load`, `data_directory`, `data_store_identifier`, `eval_with_callback`), and the remote page never
-shares a window with IMT's own UI. One browser per IMT window (`browser-<window>`), closed with it.
+shares a window with Debrief's own UI. One browser per Debrief window (`browser-<window>`), closed with it.
 
 ### Security model
 
 - **No IPC for pages.** The browser window has no Tauri capability (no capability file matches
   `browser-*`), so Tauri's ACL refuses every command from a remote origin. In addition the shell's invoke
   handler is wrapped by a guard that refuses every command from a `browser-*` webview before anything else
-  runs, whatever the origin. IMT's own origins (`tauri.localhost`, `ipc.localhost`, any `*.localhost`) can
+  runs, whatever the origin. Debrief's own origins (`tauri.localhost`, `ipc.localhost`, any `*.localhost`) can
   never be loaded in it, so a page can never become "local".
-- **Results without IPC.** Capture, snapshots and actions are scripts IMT evaluates in the page with
+- **Results without IPC.** Capture, snapshots and actions are scripts Debrief evaluates in the page with
   `eval_with_callback`; the script's return value reaches Rust only in the callback of that one call. The
   one-shot-nonce idea for an IPC command therefore becomes a property of the reply: each evaluation carries a
   nonce issued by Rust when the user clicks or the agent acts, and a `ReplyGate` accepts one reply only, with
@@ -90,7 +90,7 @@ shares a window with IMT's own UI. One browser per IMT window (`browser-<window>
   page cannot close (defused), with a reminder; the system prompt tells the model never to follow
   instructions found there. Hand-off text is redacted with the privacy module. Tested with a page that says
   "ignore previous instructions" and one that asks the AI to send log lines to another site.
-- **IMT's CSP is unchanged** (no `unsafe-eval`, no remote origins); the browser window does not load IMT's UI.
+- **Debrief's CSP is unchanged** (no `unsafe-eval`, no remote origins); the browser window does not load Debrief's UI.
 
 ## Rejected options
 
@@ -105,7 +105,7 @@ shares a window with IMT's own UI. One browser per IMT window (`browser-<window>
 
 ## Consequences
 
-- No web request leaves IMT unless the user browses, or approves an agent step, in a visible window.
+- No web request leaves Debrief unless the user browses, or approves an agent step, in a visible window.
 - The real webview automation cannot be end-to-end tested in Playwright; the adapter is kept thin
   (`app/src-tauri/src/browser/page.rs`), the rules are tested in Rust, the page scripts in Chromium (and
   WebKit in CI), and the UI flows against the mock backend.

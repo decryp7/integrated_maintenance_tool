@@ -7,9 +7,9 @@ import { at } from '../../testing/must';
 @Component({
   imports: [VirtualList],
   template: `
-    <imt-virtual-list [items]="items()" [itemHeight]="24" [maxHeight]="240" label="Things">
+    <debrief-virtual-list [items]="items()" [itemHeight]="24" [maxHeight]="240" label="Things">
       <ng-template let-item let-i="index"><span class="cell">{{ i }}:{{ item }}</span></ng-template>
-    </imt-virtual-list>
+    </debrief-virtual-list>
   `,
 })
 class Host {

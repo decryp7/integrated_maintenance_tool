@@ -6,8 +6,8 @@
 ## Context
 
 The inference runtimes (llama.cpp `llama-server` builds, [ADR 0009](0009-prebuilt-llama-server-runtimes.md)) and the
-models are downloaded by the user, not bundled. Until now a newer pinned runtime (after an IMT update) or a
-newer model revision reached nobody: the worker only looked in the pinned release's folder, so after an IMT
+models are downloaded by the user, not bundled. Until now a newer pinned runtime (after a Debrief update) or a
+newer model revision reached nobody: the worker only looked in the pinned release's folder, so after a Debrief
 update that pinned a newer llama.cpp the AI stopped working until the user downloaded the new build by hand.
 
 Users want periodic checks with a choice per kind (Automatic, Ask, Manual), through the existing Jobs
@@ -16,12 +16,12 @@ interrupting a chat.
 
 ## Decision
 
-- **Only pinned catalogs.** An update is what IMT's own catalogs pin: a runtime update is the pinned release
+- **Only pinned catalogs.** An update is what Debrief's own catalogs pin: a runtime update is the pinned release
   (`runtimes/llama-runtimes.json`, SHA-256 per asset) of a build installed from an older release; a model
   update is a catalog entry whose new `supersedes` list names an installed file. A model update is confirmed
   with the model host (size and SHA-256, no download) before it is offered. Nothing discovered upstream
   (e.g. GitHub's "latest release") is installed.
-- **Rust decides** (`imt_ai::updates`): when a check is due, the backoff after failures (5 min doubling up to
+- **Rust decides** (`debrief_ai::updates`): when a check is due, the backoff after failures (5 min doubling up to
   the interval), and the decision per update (`Install`, `Defer` while a chat runs, `Announce` once, `List`).
   The app (`ai/updates.rs`) runs it with injected clock, "busy" probe and effects; the UI only shows the
   status and sends Update / Later / Skip.
@@ -38,9 +38,9 @@ interrupting a chat.
 
 ## Consequences
 
-- Runtime updates arrive with IMT updates (which move the pin); a periodic check then finds and installs them
-  by policy. A signed remote catalog feed would let updates arrive without an IMT update; it needs its own
+- Runtime updates arrive with Debrief updates (which move the pin); a periodic check then finds and installs them
+  by policy. A signed remote catalog feed would let updates arrive without a Debrief update; it needs its own
   signing key and is not done here.
 - The embedded model catalog has no `supersedes` entries yet: model updates appear when a catalog lists them
-  (a newer IMT, or a user-provided `local-models.json`). An in-place change of a file under the same name
+  (a newer Debrief, or a user-provided `local-models.json`). An in-place change of a file under the same name
   cannot be detected without hashing the installed file and is not offered.

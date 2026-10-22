@@ -13,7 +13,7 @@ import { SettingsDialogService } from '../settings/settings-dialog';
 import { MANAGE_PARSERS_COMMAND } from '../settings/parsers/parsers.types';
 
 @Component({
-  selector: 'imt-profile-editor',
+  selector: 'debrief-profile-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ProfileForm, TomlEditor, Icon, ProfileHistory, AiButton],
   providers: [ProfileDraft],
@@ -25,9 +25,9 @@ import { MANAGE_PARSERS_COMMAND } from '../settings/parsers/parsers.types';
       <span class="mono faint path ellipsis">{{ draft.importedFrom() ?? draft.doc()?.path ?? builtInDefault }}</span>
       @if (draft.dirty()) { <span class="unsaved" i18n="@@profile.editor.unsaved">● Unsaved</span> }
       @if (draft.problem(); as p) {
-        <span class="bad"><imt-icon name="alert" [size]="13" /> {{ problemText(p) }}</span>
+        <span class="bad"><debrief-icon name="alert" [size]="13" /> {{ problemText(p) }}</span>
       } @else if (draft.validation()?.ok) {
-        <span class="good" i18n="@@profile.editor.valid"><imt-icon name="check" [size]="13" /> Valid</span>
+        <span class="good" i18n="@@profile.editor.valid"><debrief-icon name="check" [size]="13" /> Valid</span>
       }
       <span class="spacer"></span>
       <div class="seg" role="tablist">
@@ -36,7 +36,7 @@ import { MANAGE_PARSERS_COMMAND } from '../settings/parsers/parsers.types';
         <button role="tab" class="btn" [class.active]="mode() === 'history'" [attr.aria-selected]="mode() === 'history'" (click)="mode.set('history')" i18n="@@profile.editor.tab.history">History</button>
       </div>
       <button class="btn ghost" data-testid="profile-parsers" title="File formats are parsers: Settings ▸ Parsers" i18n-title="@@profile.editor.parsersHint" (click)="openParsers()" i18n="@@profile.editor.parsers">Parsers…</button>
-      <imt-ai-button label="Propose…" i18n-label="@@profile.editor.propose" [disabled]="draft.dirty()" [hint]="proposeHint()" testId="ai-profile-propose" (pressed)="proposeWithAi()" />
+      <debrief-ai-button label="Propose…" i18n-label="@@profile.editor.propose" [disabled]="draft.dirty()" [hint]="proposeHint()" testId="ai-profile-propose" (pressed)="proposeWithAi()" />
       <button class="btn ghost" (click)="draft.importFile()" i18n="@@profile.editor.import">Import…</button>
       <button class="btn ghost" (click)="draft.exportFile()" i18n="@@profile.editor.export">Export…</button>
       <button class="btn" [disabled]="!draft.dirty()" (click)="draft.revert()" i18n="@@profile.editor.revert">Revert</button>
@@ -46,12 +46,12 @@ import { MANAGE_PARSERS_COMMAND } from '../settings/parsers/parsers.types';
     </div>
     @if (draft.stale()) {
       <div class="stale" role="alert">
-        <imt-icon name="alert" [size]="13" />&ngsp;<ng-container i18n="@@profile.editor.stale">The active profile changed (undo or restore). Your edits are based on the previous version.</ng-container>
+        <debrief-icon name="alert" [size]="13" />&ngsp;<ng-container i18n="@@profile.editor.stale">The active profile changed (undo or restore). Your edits are based on the previous version.</ng-container>
         <button type="button" class="btn" (click)="draft.revert()" i18n="@@profile.editor.discard">Discard my edits</button>
       </div>
     }
     @if (mode() === 'history') {
-      <imt-profile-history />
+      <debrief-profile-history />
     } @else if (mode() === 'form') {
       @if (draft.parseError(); as e) {
         <div class="empty-state">
@@ -60,11 +60,11 @@ import { MANAGE_PARSERS_COMMAND } from '../settings/parsers/parsers.types';
           <button class="btn" (click)="mode.set('toml')" i18n="@@profile.editor.fixToml">Fix in TOML view</button>
         </div>
       } @else {
-        <imt-profile-form />
+        <debrief-profile-form />
       }
     } @else {
       <div class="note faint" i18n="@@profile.editor.note">Comments are kept while you edit here; editing in the form rewrites the file without comments.</div>
-      <imt-toml-editor />
+      <debrief-toml-editor />
     }
   `,
   styles: `

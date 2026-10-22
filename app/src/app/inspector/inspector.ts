@@ -27,7 +27,7 @@ const CORRELATION_FIELDS = ['CorrelationId', 'RequestId', 'TraceId', 'OperationI
 const CONTEXT_MS = 2 * 60 * 1000;
 
 @Component({
-  selector: 'imt-inspector',
+  selector: 'debrief-inspector',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, MarkerIcon, NgComponentOutlet, ContextSection, NextSteps, SourceSwatch],
   host: { '(document:selectionchange)': 'onSelectionChange()' },
@@ -53,26 +53,26 @@ const CONTEXT_MS = 2 * 60 * 1000;
           <div class="badges">
             <span class="badge-lvl"><span class="dot" [style.background]="levelVar()"></span>{{ r.level }}</span>
             @for (m of r.markers; track m) {
-              <span class="badge-mk"><imt-marker-icon [kind]="m" [color]="markerColor(m)" />{{ markerLabel(m) }}</span>
+              <span class="badge-mk"><debrief-marker-icon [kind]="m" [color]="markerColor(m)" />{{ markerLabel(m) }}</span>
             }
           </div>
           @if (r.ts === null) {
             <div class="mono ts untimed" data-testid="untimed-note" i18n="@@inspector.untimed">No timestamp: this event is not on the timeline</div>
           } @else {
-            <div class="mono ts imt-selectable">{{ fullTime() }}</div>
+            <div class="mono ts debrief-selectable">{{ fullTime() }}</div>
           }
           @if (r.tsState === 'inherited') {
             <div class="mono time-note" data-testid="inherited-note" i18n="@@inspector.inheritedTime">Time taken from the event before it in the file</div>
           }
           @if (skewMs(); as skew) {
             @if (r.ts !== null) {
-              <div class="mono skew imt-selectable" data-testid="skew-note" i18n="@@inspector.skewNote">Shifted by {{ skewText(skew) //i18n(ph="offset") }} · original {{ originalTime(r.ts, skew) //i18n(ph="original") }}</div>
+              <div class="mono skew debrief-selectable" data-testid="skew-note" i18n="@@inspector.skewNote">Shifted by {{ skewText(skew) //i18n(ph="offset") }} · original {{ originalTime(r.ts, skew) //i18n(ph="original") }}</div>
             }
           }
-          <div class="mono inst imt-selectable">{{ r.group }}</div>
-          <div class="message imt-selectable">{{ r.message }}</div>
+          <div class="mono inst debrief-selectable">{{ r.group }}</div>
+          <div class="message debrief-selectable">{{ r.message }}</div>
           @if (r.template && r.template !== r.message) {
-            <div class="mono template imt-selectable">
+            <div class="mono template debrief-selectable">
               @for (part of templateParts(); track $index) {
                 @if (part.hole) { <span class="hole">{{ part.text }}</span> } @else { {{ part.text }} }
               }
@@ -95,12 +95,12 @@ const CONTEXT_MS = 2 * 60 * 1000;
           @for (p of props(); track p.key) {
             <div class="prop" (contextmenu)="openPropMenu($event, p.key, p.value)" (keydown)="onPropKey($event, p.key, p.value)">
               <span class="mono k ellipsis" [title]="p.key">{{ p.key }}</span>
-              <span class="mono v imt-selectable" [title]="p.display">@for (part of breakParts(p.display); track $index) {{{ part }}<wbr />}</span>
+              <span class="mono v debrief-selectable" [title]="p.display">@for (part of breakParts(p.display); track $index) {{{ part }}<wbr />}</span>
               <span class="pa">
-                <button class="icon-btn" data-testid="prop-copy" [attr.aria-label]="copyValueLabel(p.key)" [title]="copyValueLabel(p.key)" (click)="copyValue(p.value)"><imt-icon name="copy" [size]="12" /></button>
-                <button class="icon-btn" [attr.aria-label]="filterEqLabel(p.key, p.value)" title="Only this value" i18n-title="@@inspector.prop.only" (click)="filter(p.key, 'eq', p.value)"><imt-icon name="plus" [size]="12" /></button>
-                <button class="icon-btn" [attr.aria-label]="filterNeLabel(p.key, p.value)" title="Exclude this value" i18n-title="@@inspector.prop.exclude" (click)="filter(p.key, 'ne', p.value)"><imt-icon name="minus" [size]="12" /></button>
-                <button class="icon-btn" aria-haspopup="menu" [attr.aria-label]="moreActionsLabel(p.key)" title="More actions" i18n-title="@@inspector.prop.moreActions" (click)="openPropMenu($event, p.key, p.value)"><imt-icon name="drag" [size]="12" /></button>
+                <button class="icon-btn" data-testid="prop-copy" [attr.aria-label]="copyValueLabel(p.key)" [title]="copyValueLabel(p.key)" (click)="copyValue(p.value)"><debrief-icon name="copy" [size]="12" /></button>
+                <button class="icon-btn" [attr.aria-label]="filterEqLabel(p.key, p.value)" title="Only this value" i18n-title="@@inspector.prop.only" (click)="filter(p.key, 'eq', p.value)"><debrief-icon name="plus" [size]="12" /></button>
+                <button class="icon-btn" [attr.aria-label]="filterNeLabel(p.key, p.value)" title="Exclude this value" i18n-title="@@inspector.prop.exclude" (click)="filter(p.key, 'ne', p.value)"><debrief-icon name="minus" [size]="12" /></button>
+                <button class="icon-btn" aria-haspopup="menu" [attr.aria-label]="moreActionsLabel(p.key)" title="More actions" i18n-title="@@inspector.prop.moreActions" (click)="openPropMenu($event, p.key, p.value)"><debrief-icon name="drag" [size]="12" /></button>
               </span>
             </div>
           } @empty {
@@ -108,7 +108,7 @@ const CONTEXT_MS = 2 * 60 * 1000;
           }
         </div>
 
-        <imt-context-section [record]="r" />
+        <debrief-context-section [record]="r" />
 
         @for (section of sections(); track section.id) {
           <div class="section-title sub">{{ section.title }}</div>
@@ -121,9 +121,9 @@ const CONTEXT_MS = 2 * 60 * 1000;
         }
 
         <div class="src">
-          <div class="src-line faint imt-selectable">
+          <div class="src-line faint debrief-selectable">
             @if (mark(); as m) {
-              <imt-source-swatch [swatch]="m.swatch" [label]="m.label" />
+              <debrief-source-swatch [swatch]="m.swatch" [label]="m.label" />
             }
             <span i18n="@@inspector.source">Source <span class="mono">{{ r.sourceName }}:{{ r.line }}</span></span>
           </div>
@@ -144,7 +144,7 @@ const CONTEXT_MS = 2 * 60 * 1000;
           <div class="faint" i18n="@@inspector.empty.keys">↑ / ↓ move through events.</div>
         } @else {
           <div i18n="@@inspector.empty.noFiles">Every property of an event shows here once you select it.</div>
-          <imt-next-steps />
+          <debrief-next-steps />
         }
       </div>
     }

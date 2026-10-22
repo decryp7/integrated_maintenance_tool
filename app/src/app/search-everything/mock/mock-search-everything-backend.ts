@@ -1,7 +1,7 @@
 import type { KnowledgeBackend } from '../../ai/knowledge/knowledge-backend';
 import type { AnalysisBackend } from '../../core/analysis-backend';
 import { DocHit, DocScope, FieldHit, KindHits, LEVELS, Query, SearchAllReply, SearchAllRequest, SnippetPart } from '../../core/api.types';
-import type { ImtBackend } from '../../core/backend';
+import type { DebriefBackend } from '../../core/backend';
 import type { NotesBackend } from '../../notes/notes-backend';
 import { CmdError } from '../../core/cmd-error';
 import type { SearchEverythingBackend } from '../search-everything-backend';
@@ -60,7 +60,7 @@ export interface MockSearchSources {
  */
 export class MockSearchEverythingBackend implements SearchEverythingBackend {
   constructor(
-    private readonly workspace: ImtBackend,
+    private readonly workspace: DebriefBackend,
     private readonly sources: MockSearchSources,
   ) {}
 

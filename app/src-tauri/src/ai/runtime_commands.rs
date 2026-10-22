@@ -1,5 +1,5 @@
 //! The inference runtime commands (ADR 0009): list, install (a download job streaming
-//! `imt://ai-runtime`), cancel, delete and choose llama-server builds. Thin: they validate the IPC
+//! `debrief://ai-runtime`), cancel, delete and choose llama-server builds. Thin: they validate the IPC
 //! arguments, run the work off the UI thread and turn errors into [`AiCmdError`]s.
 
 use super::commands::core;
@@ -9,8 +9,8 @@ use super::runtimes::RuntimeEvent;
 use super::{RUNTIME_EVENT, STATUS_EVENT};
 use crate::jobs::{self, Controls, Done, JobKind, JobLink, JobProgress, JobResult, JobSpec};
 use crate::settings::AI_SECTION;
-use imt_ai::runtimes::builds::label;
-use imt_ai::runtimes::{InstalledRuntime, RuntimeOverview};
+use debrief_ai::runtimes::builds::label;
+use debrief_ai::runtimes::{InstalledRuntime, RuntimeOverview};
 use serde_json::Value;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -45,7 +45,7 @@ pub async fn ai_runtimes<R: Runtime>(app: AppHandle<R>) -> AiResult<RuntimeOverv
     blocking(move || core.runtime_overview()).await
 }
 
-/// Downloads, verifies and unpacks a build. Returns at once; progress arrives as `imt://ai-runtime`
+/// Downloads, verifies and unpacks a build. Returns at once; progress arrives as `debrief://ai-runtime`
 /// events ending in `ready`, `failed` or `cancelled`. Runs as a download job, returned (`jobs_cancel` stops it).
 #[tauri::command]
 pub async fn ai_runtime_install<R: Runtime>(app: AppHandle<R>, id: String) -> AiResult<u64> {

@@ -10,12 +10,12 @@ import { AiRichText } from '../chat/rich-text';
  * in the background as an AI job; this opens from its notification or the Jobs pane (View) once the answer is ready.
  */
 @Component({
-  selector: 'imt-ai-narrative-dialog',
+  selector: 'debrief-ai-narrative-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AiRichText],
   template: `
     <div class="answer" [class.neutral]="notFound()" data-testid="ai-narrative">
-      <imt-ai-rich-text [text]="preset().text" [citations]="preset().citations" (record)="jump($event)" (query)="applyQuery($event)" (link)="openWeb($event.url, $event.title)" />
+      <debrief-ai-rich-text [text]="preset().text" [citations]="preset().citations" (record)="jump($event)" (query)="applyQuery($event)" (link)="openWeb($event.url, $event.title)" />
     </div>
     @if (note(); as n) {
       <p class="note" role="status">{{ n }}</p>

@@ -11,14 +11,14 @@ import { SidebarSections } from '../shell/sidebar-sections';
 
 /** The workspace's fields with coverage and distinct counts; a field opens its facet popover or its statistics. */
 @Component({
-  selector: 'imt-fields-panel',
+  selector: 'debrief-fields-panel',
   host: { '[class.open]': 'sections.fieldsOpen()' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, FacetPopover],
   template: `
     <div class="head">
-      <button type="button" class="toggle" data-testid="fields-toggle" aria-controls="imt-fields-body" [attr.aria-expanded]="sections.fieldsOpen()" (click)="sections.setFieldsOpen(!sections.fieldsOpen())">
-        <imt-icon [name]="sections.fieldsOpen() ? 'chevronDown' : 'chevronRight'" [size]="12" />
+      <button type="button" class="toggle" data-testid="fields-toggle" aria-controls="debrief-fields-body" [attr.aria-expanded]="sections.fieldsOpen()" (click)="sections.setFieldsOpen(!sections.fieldsOpen())">
+        <debrief-icon [name]="sections.fieldsOpen() ? 'chevronDown' : 'chevronRight'" [size]="12" />
         <span class="section-title" i18n="@@workspace.fields.title">Fields</span>
       </button>
       @if (sections.fieldsOpen()) {
@@ -26,7 +26,7 @@ import { SidebarSections } from '../shell/sidebar-sections';
       }
     </div>
     @if (sections.fieldsOpen()) {
-    <div class="body" id="imt-fields-body">
+    <div class="body" id="debrief-fields-body">
     <input class="input filter" placeholder="Filter fields" i18n-placeholder="@@workspace.fields.filterPlaceholder" aria-label="Filter fields" i18n-aria-label="@@workspace.fields.filter" [value]="fieldFilter()" (input)="fieldFilter.set($any($event.target).value)" />
     <div class="fields">
       @for (f of fields(); track f.name) {
@@ -39,7 +39,7 @@ import { SidebarSections } from '../shell/sidebar-sections';
             <span class="mono faint distinct">{{ f.distinct >= 10000 ? '10k+' : compact(f.distinct) }}</span>
           </button>
           <button class="icon-btn stats" type="button" [attr.aria-label]="statsLabel(f.name)" title="Statistics…" i18n-title="@@workspace.fields.stats" (click)="showStats(f.name)">
-            <imt-icon name="chart" [size]="12" />
+            <debrief-icon name="chart" [size]="12" />
           </button>
         </div>
       }
@@ -47,7 +47,7 @@ import { SidebarSections } from '../shell/sidebar-sections';
     </div>
     }
     @if (facetPos(); as pos) {
-      <imt-facet-popover
+      <debrief-facet-popover
         [field]="pos.field"
         [top]="pos.top"
         [left]="pos.left"

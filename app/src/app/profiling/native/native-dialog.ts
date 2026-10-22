@@ -17,7 +17,7 @@ export const MODE_CHOICES: ModeChoice[] = [
   {
     mode: 'sampling',
     label: $localize`:@@profiling.native.mode.sampling:Sampling (no administrator rights)`,
-    help: $localize`:@@profiling.native.mode.sampling.help:IMT pauses one thread of the process at a time for a few microseconds, copies its stack and lets it run again, about 100 times a second per thread. Shows where threads spend CPU time and where they wait (wall clock, approximate). Works for your own processes.`,
+    help: $localize`:@@profiling.native.mode.sampling.help:Debrief pauses one thread of the process at a time for a few microseconds, copies its stack and lets it run again, about 100 times a second per thread. Shows where threads spend CPU time and where they wait (wall clock, approximate). Works for your own processes.`,
   },
   {
     mode: 'etw',
@@ -39,7 +39,7 @@ const STATE_LABEL: Record<NativeCaptureStatus['state'], string> = {
  * the process. A finished capture opens on its findings; captures also run as Jobs, so the dialog may be closed.
  */
 @Component({
-  selector: 'imt-native-dialog',
+  selector: 'debrief-native-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CdkListbox, CdkOption, ToolError],
   template: `
@@ -114,9 +114,9 @@ const STATE_LABEL: Record<NativeCaptureStatus['state'], string> = {
       <button type="button" class="btn primary" (click)="store.start()" [disabled]="!store.canRecord()" data-testid="native-record" i18n="@@profiling.native.record">Record</button>
     </div>
     @if (store.needsEtw()) {
-      <imt-tool-error [message]="etwOnlyText" />
+      <debrief-tool-error [message]="etwOnlyText" />
     }
-    <imt-tool-error [message]="store.error()" [code]="store.errorCode()" (dismissed)="store.dismissError()" />
+    <debrief-tool-error [message]="store.error()" [code]="store.errorCode()" (dismissed)="store.dismissError()" />
 
     @if (store.captures().length) {
       <h3 class="section-title" i18n="@@profiling.native.captures">Captures</h3>
@@ -134,7 +134,7 @@ const STATE_LABEL: Record<NativeCaptureStatus['state'], string> = {
                 <button type="button" class="btn ghost" (click)="store.cancel(c)" [attr.aria-label]="cancelLabel(c)" i18n="@@profiling.native.cancel">Cancel</button>
               }
             </div>
-            @if (c.error) { <imt-tool-error [message]="c.error" /> }
+            @if (c.error) { <debrief-tool-error [message]="c.error" /> }
             @for (n of c.notes; track $index) { <p class="note muted">{{ n }}</p> }
             @if (c.state === 'done' && c.path) { <p class="note muted mono ellipsis" [title]="c.path">{{ c.path }}</p> }
           </li>
@@ -174,7 +174,7 @@ export class NativeDialog implements OnInit {
   protected readonly modes = MODE_CHOICES;
   protected readonly minRate = MIN_RATE_HZ;
   protected readonly maxRate = MAX_RATE_HZ;
-  protected readonly etwOnlyText = $localize`:@@profiling.native.etwOnlyText:IMT cannot read this process without administrator rights (it runs elevated or as another user). Choose ETW (administrator) to record it.`;
+  protected readonly etwOnlyText = $localize`:@@profiling.native.etwOnlyText:Debrief cannot read this process without administrator rights (it runs elevated or as another user). Choose ETW (administrator) to record it.`;
   protected readonly selectedValue = computed(() => {
     const pid = this.store.selectedPid();
     return pid === null ? [] : [pid];

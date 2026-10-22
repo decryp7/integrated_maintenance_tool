@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { Type } from '@angular/core';
 import { all, buttonByText, el, provideTinyBackend, settle, text, tinyBackend, typeInto } from '../../testing/helpers';
 import { RecordView } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { WorkspaceStore } from '../core/workspace.store';
 import { ContextMenuHost } from '../ui/context-menu-host';
 import { ContextMenuService } from '../ui/context-menu.service';
@@ -37,7 +37,7 @@ async function mount<T>(cmp: Type<T>, inputs: Record<string, unknown>, backend =
 }
 
 async function record(match: (r: RecordView) => boolean): Promise<RecordView> {
-  const page = await TestBed.inject(ImtBackend).queryPage({
+  const page = await TestBed.inject(DebriefBackend).queryPage({
     query: { from: null, to: null, levels: [], text: '', regex: false, caseSensitive: false, filters: [], groupBy: [], groups: [], markers: [] },
     offset: 0,
     limit: 100,

@@ -13,25 +13,25 @@ import { MENU_MODE } from './menu/app-menu.service';
 import { NativeMenuBridge } from './menu/native-menu';
 
 @Component({
-  selector: 'imt-title-bar',
+  selector: 'debrief-title-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AppLogo, Icon, MenuBar, TitleExtras],
   template: `
     <div class="brand">
-      <imt-app-logo [size]="20" />
-      <span class="name">IMT</span>
+      <debrief-app-logo [size]="20" />
+      <span class="name">Debrief</span>
     </div>
     @if (mode === 'in-app') {
-      <imt-menu-bar class="menus" />
+      <debrief-menu-bar class="menus" />
     }
     <div class="palette-wrap">
       <button class="palette" (click)="openPalette()" [title]="paletteTitle">
-        <imt-icon name="search" [size]="13" />
+        <debrief-icon name="search" [size]="13" />
         <span class="ellipsis" data-testid="command-centre-name"><span class="where">{{ where() }}</span> <ng-container i18n="@@shell.titleBar.palettePromptShort">— type a command</ng-container></span>
         <span class="mono faint kbd">{{ paletteKey }}</span>
       </button>
     </div>
-    <imt-title-extras />
+    <debrief-title-extras />
   `,
   host: { '(document:keydown)': 'onKey($event)' },
   styles: `

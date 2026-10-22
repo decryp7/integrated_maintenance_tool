@@ -34,7 +34,7 @@ describe('GeneralSettings language', () => {
 
   it('says a restart is pending and offers it', async () => {
     const { fixture, reloads } = await setup(true);
-    expect(el(fixture, '.pending').textContent).toContain('The new language is used after IMT restarts.');
+    expect(el(fixture, '.pending').textContent).toContain('The new language is used after Debrief restarts.');
     el<HTMLButtonElement>(fixture, '.pending button').click();
     expect(reloads()).toBe(1);
   });

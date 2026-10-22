@@ -3,7 +3,7 @@ import { ensureInspector, openApp } from './app';
 import { chooseMenu } from './menu-support';
 
 // The activity log in the browser build: entries go to the console logger (the mock "log sink"), as
-// `[IMT.Activity] User <operation> via <trigger>` with the entry's properties as the second argument.
+// `[Debrief.Activity] User <operation> via <trigger>` with the entry's properties as the second argument.
 
 interface Entry {
   message: string;
@@ -14,12 +14,12 @@ interface Entry {
 function collect(page: Page): Entry[] {
   const entries: Entry[] = [];
   page.on('console', (msg: ConsoleMessage) => {
-    if (!msg.text().startsWith('[IMT.Activity]')) return;
+    if (!msg.text().startsWith('[Debrief.Activity]')) return;
     const [first, second] = msg.args();
     // The page may close while the arguments are read (end of test); such late messages are dropped.
     void Promise.all([first?.jsonValue(), second?.jsonValue()])
       .then(([message, props]) =>
-        entries.push({ message: String(message).replace('[IMT.Activity] ', ''), props: (props ?? {}) as Record<string, string> }),
+        entries.push({ message: String(message).replace('[Debrief.Activity] ', ''), props: (props ?? {}) as Record<string, string> }),
       )
       .catch(() => undefined);
   });
@@ -35,7 +35,7 @@ async function popOut(page: Page, context: BrowserContext, name: string): Promis
   await groupOf(page, name).getByRole('button', { name: 'Panel menu', exact: true }).click();
   await page.getByRole('menu', { name: 'Actions' }).getByRole('menuitem', { name: 'Pop out to window', exact: true }).click();
   const popup = await opened;
-  await expect(popup.locator('imt-popout-shell')).toBeVisible();
+  await expect(popup.locator('debrief-popout-shell')).toBeVisible();
   return popup;
 }
 
@@ -54,8 +54,8 @@ test('a user journey is logged once per operation, in order, with triggers and w
 
   // Open the demo from the welcome page.
   await chooseMenu(page, 'File', 'Close workspace');
-  await page.locator('imt-welcome').getByRole('button', { name: 'Try a demo' }).click();
-  await expect(page.locator('imt-status-bar')).toContainText('events');
+  await page.locator('debrief-welcome').getByRole('button', { name: 'Try a demo' }).click();
+  await expect(page.locator('debrief-status-bar')).toContainText('events');
   // The demo offers the guided tour (it may appear a moment after the data): skip it.
   const tour = page.getByTestId('tour');
   await expect(tour).toBeVisible();
@@ -69,7 +69,7 @@ test('a user journey is logged once per operation, in order, with triggers and w
   await expect.poll(() => entries.filter((e) => e.props['Operation'] === 'search.change').length).toBe(2);
 
   // Select an event.
-  const row = page.locator('imt-events-grid [role=row].row').nth(2);
+  const row = page.locator('debrief-events-grid [role=row].row').nth(2);
   const rowText = (await row.locator('.msg').innerText()).trim();
   await row.click();
   await expect.poll(() => find(entries, 0, { Operation: 'selection.change' })).toBeGreaterThanOrEqual(0);
@@ -120,7 +120,7 @@ test('a user journey is logged once per operation, in order, with triggers and w
   // Every entry is complete: an operation id, the window, a duration and an outcome.
   for (const e of entries) {
     expect(e.message).toBe(`User ${e.props['Operation']} via ${e.props['Trigger']}`);
-    expect(e.props).toMatchObject({ SourceContext: 'IMT.Activity', MessageTemplate: 'User {Operation} via {Trigger}', Window: 'main' });
+    expect(e.props).toMatchObject({ SourceContext: 'Debrief.Activity', MessageTemplate: 'User {Operation} via {Trigger}', Window: 'main' });
     expect(e.props['OperationId']).toMatch(/^[0-9a-f-]{36}$/);
     expect(e.props['Outcome']).toMatch(/^(ok|cancelled|error)$/);
   }

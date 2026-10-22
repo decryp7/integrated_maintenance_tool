@@ -1,4 +1,0 @@
-//! The sandbox of a plugin's process: the policy lives in the SDK ([`imt_plugin_api::sandbox`]), so the test
-//! harness launches plugins exactly as IMT does.
-
-pub use imt_plugin_api::sandbox::{container_name, sandbox_for, sandbox_for_third_party, PluginHome, DEFAULT_MEMORY_LIMIT};

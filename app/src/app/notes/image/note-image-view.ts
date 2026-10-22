@@ -32,7 +32,7 @@ interface RegionVm {
  * writes one note on the marked areas. Clicking a region or a note highlights the note's regions.
  */
 @Component({
-  selector: 'imt-note-image-view',
+  selector: 'debrief-note-image-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="bar" role="toolbar" aria-label="Image" i18n-aria-label="@@notes.image.toolbar">

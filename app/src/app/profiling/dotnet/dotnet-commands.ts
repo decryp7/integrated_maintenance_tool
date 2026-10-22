@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { ImtCommand } from '../../extensions/tokens';
+import { DebriefCommand } from '../../extensions/tokens';
 import { DialogService } from '../../ui/dialog.service';
 
 /** "Profile .NET process…" (Tools); the dialog loads lazily. `.etl` traces are the native profiler's commands. */
@@ -7,7 +7,7 @@ import { DialogService } from '../../ui/dialog.service';
 export class DotnetCommands {
   private readonly dialogs = inject(DialogService);
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     { id: 'profiling.dotnet', title: $localize`:@@profiling.cmd.dotnet:Profile .NET process…`, category: 'Tools', run: () => this.openCapture() },
   ];
 

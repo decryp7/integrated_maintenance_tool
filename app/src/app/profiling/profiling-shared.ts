@@ -13,7 +13,7 @@ let tagIds = 0;
  * the meaning is in the tooltip and spelled out for screen readers.
  */
 @Component({
-  selector: 'imt-measurement',
+  selector: 'debrief-measurement',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<span class="m" [class.sampled]="m() === 'sampled'" [attr.title]="help()" [attr.data-measurement]="m()" aria-hidden="true">{{ glyph() }}</span><span class="sr">{{ srLabel() }}</span>`,
   styles: `
@@ -36,17 +36,17 @@ export class MeasurementTag {
 
 /** Explains the measurement tags once per view. */
 @Component({
-  selector: 'imt-measurement-legend',
+  selector: 'debrief-measurement-legend',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MeasurementTag],
-  template: `<span class="lg" i18n="@@profiling.legend.sampled"><imt-measurement m="sampled" /> sampled estimate</span><span class="lg" i18n="@@profiling.legend.exact"><imt-measurement m="exact" /> exact</span>`,
+  template: `<span class="lg" i18n="@@profiling.legend.sampled"><debrief-measurement m="sampled" /> sampled estimate</span><span class="lg" i18n="@@profiling.legend.exact"><debrief-measurement m="exact" /> exact</span>`,
   styles: `:host { display: inline-flex; gap: 10px; font-size: var(--fs-xs); color: var(--muted); } .lg { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }`,
 })
 export class MeasurementLegend {}
 
 /** Import notes (truncations, limits, unresolved frames) shown as a banner. */
 @Component({
-  selector: 'imt-capture-notes',
+  selector: 'debrief-capture-notes',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (notes().length) {
@@ -72,7 +72,7 @@ export class CaptureNotes {
 
 /** "Open a performance capture" empty state with the open action. */
 @Component({
-  selector: 'imt-no-capture',
+  selector: 'debrief-no-capture',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="state" role="status">
@@ -102,7 +102,7 @@ const RECURSION: { id: RecursionMode; label: string }[] = [
  * just-my-code (with its framework patterns) and recursion folding. Changing one re-queries all views.
  */
 @Component({
-  selector: 'imt-profile-bar',
+  selector: 'debrief-profile-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MeasurementTag],
   template: `
@@ -119,7 +119,7 @@ const RECURSION: { id: RecursionMode; label: string }[] = [
               @for (m of p.metrics; track m.id) { <option [value]="m.id" [selected]="m.id === active.metric()">{{ m.label }} ({{ m.measurement }})</option> }
             </select>
           </label>
-          @if (measurement(); as m) { <imt-measurement [m]="m" /> }
+          @if (measurement(); as m) { <debrief-measurement [m]="m" /> }
         }
         @if (state.range(); as r) {
           <span class="pill" data-testid="range-pill"><ng-container i18n="@@profiling.bar.range">Range {{ ns(r.fromNs) // i18n(ph: "from") }} – {{ ns(r.toNs) // i18n(ph: "to") }}</ng-container><button type="button" aria-label="Clear time range" i18n-aria-label="@@profiling.bar.clearRange" (click)="state.setRange(null)">✕</button></span>

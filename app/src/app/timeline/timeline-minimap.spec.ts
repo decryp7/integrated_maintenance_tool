@@ -4,7 +4,7 @@ import { all, provideFakeDock, provideTinyBackend, settle } from '../../testing/
 import { HomeBackend } from '../home/home-backend';
 import { HomeSummary } from '../core/api.types';
 import { AnalysisBackend } from '../core/analysis-backend';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { MockAnalysisBackend, recordsFrom } from '../mock-backends';
 import { inject } from '@angular/core';
 import { TimelineMinimap } from './timeline-minimap';
@@ -44,7 +44,7 @@ describe('TimelineMinimap', () => {
       providers: [
         provideTinyBackend(),
         provideFakeDock(),
-        { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(ImtBackend))) },
+        { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(DebriefBackend))) },
         { provide: HomeBackend, useValue: { querySummary } },
         { provide: TIMELINE_SOURCE, useValue: { zoom: () => src.zoom } },
       ],
@@ -148,7 +148,7 @@ describe('TimelineMinimapStore', () => {
       providers: [
         provideTinyBackend(),
         provideFakeDock(),
-        { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(ImtBackend))) },
+        { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(DebriefBackend))) },
         { provide: HomeBackend, useValue: { querySummary } },
       ],
     });

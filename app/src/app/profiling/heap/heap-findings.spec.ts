@@ -11,7 +11,7 @@ import { HeapSelection } from './heap-selection';
 @Component({
   imports: [HeapFindings],
   providers: [HeapSelection],
-  template: `<imt-heap-findings [snapshotId]="id" />`,
+  template: `<debrief-heap-findings [snapshotId]="id" />`,
 })
 class Host {
   id = 0;

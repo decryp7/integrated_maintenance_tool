@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { Logger } from '../../core/logger';
 import { MockAiBackend } from '../../core/mock/mock-ai-backend';
 import { MockBackend } from '../../core/mock/mock-backend';
@@ -28,7 +28,7 @@ function setup(aiMode: 'ready' | 'setup' | 'off' = 'off') {
   const ref = { close: vi.fn(), closed: new Promise(() => undefined) };
   TestBed.configureTestingModule({
     providers: [
-      { provide: ImtBackend, useValue: workspace },
+      { provide: DebriefBackend, useValue: workspace },
       { provide: FolderSetupBackend, useValue: new MockFolderSetupBackend(workspace, { stageMs: 0 }) },
       { provide: AiBackend, useValue: new MockAiBackend({ mode: aiMode, stepMs: 0 }) },
       { provide: Logger, useClass: MemoryLogger },

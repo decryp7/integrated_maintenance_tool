@@ -10,13 +10,13 @@ use crate::error::{CmdError, CmdResult, ErrorCode};
 use crate::jobs::{self, Controls, Done, JobCtx, JobKind, JobLink, JobProgress, JobResult, JobSpec};
 use crate::paths::WindowGrants;
 use crate::windows::{CurrentWindow, WindowState};
-use imt_ai::vision::{sanitize, ImageLimits};
-use imt_core::related::{ExifStamp, TimeEvidence};
-use imt_video::api::*;
-use imt_video::describe::{describe_frame, explain_range, load_frame, read_clock, utc_stamp};
-use imt_video::ingest::{add_frame, analyse, media_file, Ingest, Stage};
-use imt_video::media::{sniff, EXTENSIONS};
-use imt_video::record::{clean_text, is_key, VideoFolder, VideoRecord, MAX_PROJECT_FRAMES};
+use debrief_ai::vision::{sanitize, ImageLimits};
+use debrief_core::related::{ExifStamp, TimeEvidence};
+use debrief_video::api::*;
+use debrief_video::describe::{describe_frame, explain_range, load_frame, read_clock, utc_stamp};
+use debrief_video::ingest::{add_frame, analyse, media_file, Ingest, Stage};
+use debrief_video::media::{sniff, EXTENSIONS};
+use debrief_video::record::{clean_text, is_key, VideoFolder, VideoRecord, MAX_PROJECT_FRAMES};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Runtime};
@@ -24,7 +24,7 @@ use tauri::{AppHandle, Runtime};
 /// Paths one `video_sniff` call accepts (one drop).
 const MAX_SNIFF_PATHS: usize = 1_000;
 /// Frames one explanation may name.
-const MAX_EXPLAIN: usize = imt_ai::vision::MAX_IMAGES_PER_REQUEST;
+const MAX_EXPLAIN: usize = debrief_ai::vision::MAX_IMAGES_PER_REQUEST;
 /// Largest frame image read for display.
 const MAX_FRAME_BYTES: u64 = 24 << 20;
 
@@ -154,7 +154,8 @@ pub async fn video_open<R: Runtime>(
     let name = input.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     if !is_video_name(&name) {
         return Err(
-            CmdError::new(ErrorCode::Unsupported, format!("{name} is not a video IMT can open")).hint("Videos: MP4, MOV, MKV, WebM, AVI.")
+            CmdError::new(ErrorCode::Unsupported, format!("{name} is not a video Debrief can open"))
+                .hint("Videos: MP4, MOV, MKV, WebM, AVI."),
         );
     }
     let tools = state(&app)?.ffmpeg.tools().map_err(cmd)?;
@@ -313,7 +314,7 @@ pub async fn video_remove_frame<R: Runtime>(app: AppHandle<R>, win: CurrentWindo
                 return Err(CmdError::invalid("a video keeps at least one frame: remove the video instead"));
             }
             r.frames.remove(i);
-            imt_video::ingest::renumber(&folder.dir(&r.key).map_err(cmd)?, &mut r.frames).map_err(cmd)?;
+            debrief_video::ingest::renumber(&folder.dir(&r.key).map_err(cmd)?, &mut r.frames).map_err(cmd)?;
             Ok(())
         })?;
         publish(&w, &folder, r)
@@ -446,7 +447,7 @@ fn assistant<R: Runtime>(
     app: &AppHandle<R>,
     w: &Arc<WindowState>,
     ctx: &JobCtx,
-) -> CmdResult<imt_ai::assistant::Assistant<Arc<dyn imt_ai::llm::LlmProvider>>> {
+) -> CmdResult<debrief_ai::assistant::Assistant<Arc<dyn debrief_ai::llm::LlmProvider>>> {
     let core = crate::ai::commands::core(app)?;
     core.assistant(&crate::ai::knowledge::for_window(w, &Default::default()), ctx.cancel_flag())
 }
@@ -486,8 +487,8 @@ pub async fn video_describe<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, r
                     })?;
                 }
                 // The model cannot see, is gone or was cancelled: stop and say so.
-                Err(e @ (imt_video::VideoError::AiUnavailable { .. } | imt_video::VideoError::Cancelled)) => {
-                    if matches!(e, imt_video::VideoError::Cancelled) {
+                Err(e @ (debrief_video::VideoError::AiUnavailable { .. } | debrief_video::VideoError::Cancelled)) => {
+                    if matches!(e, debrief_video::VideoError::Cancelled) {
                         break;
                     }
                     return Err(cmd(e));

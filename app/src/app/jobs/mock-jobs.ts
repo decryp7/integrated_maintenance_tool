@@ -382,7 +382,7 @@ export class MockJobs implements JobsBackend {
     }
     const restored = ((r?.jobs ?? []) as (JobInfo & { result?: JobResult | null })[]).map((j): Entry => {
       const unfinished = j.state === 'queued' || j.state === 'running';
-      const info: JobInfo = { ...j, id: this.next++, state: unfinished ? 'interrupted' : j.state, finishedAt: j.finishedAt ?? j.queuedAt, error: unfinished ? 'IMT closed before this job finished' : j.error, unseen: unfinished || j.unseen };
+      const info: JobInfo = { ...j, id: this.next++, state: unfinished ? 'interrupted' : j.state, finishedAt: j.finishedAt ?? j.queuedAt, error: unfinished ? 'Debrief closed before this job finished' : j.error, unseen: unfinished || j.unseen };
       return { info, result: j.result ?? null, start: null, cancel: () => undefined, rerun: null };
     });
     this.entries = [...restored, ...active];

@@ -31,12 +31,12 @@ mod tests {
     #[test]
     fn title_format() {
         assert_eq!(
-            window_title("IMT", Activity::Reading, "example.com"),
-            "IMT AI — reading: example.com"
+            window_title("Debrief", Activity::Reading, "example.com"),
+            "Debrief AI — reading: example.com"
         );
         assert_eq!(
-            window_title("IMT", Activity::WaitingForYou, "g.test"),
-            "IMT AI — waiting for you: g.test"
+            window_title("Debrief", Activity::WaitingForYou, "g.test"),
+            "Debrief AI — waiting for you: g.test"
         );
         assert_eq!(window_title("X", Activity::Searching, "h"), "X AI — searching: h");
     }

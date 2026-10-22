@@ -13,7 +13,7 @@ const AGGREGATES = ['avg', 'max', 'min', 'sum', 'last', 'count'] as const;
 const BUCKETS = ['auto', '10s', '30s', '1m', '5m', '15m', '1h'];
 
 @Component({
-  selector: 'imt-metrics-view',
+  selector: 'debrief-metrics-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ChartCard, Icon, NextSteps],
   template: `
@@ -23,7 +23,7 @@ const BUCKETS = ['auto', '10s', '30s', '1m', '5m', '15m', '1h'];
       <span class="spacer"></span>
       <span class="mono range">{{ range() }}</span>
       @if (store.hasRange()) {
-        <button class="btn" (click)="zoom.fit()" i18n="@@metrics.resetZoom"><imt-icon name="zoomOut" [size]="13" /> Reset zoom</button>
+        <button class="btn" (click)="zoom.fit()" i18n="@@metrics.resetZoom"><debrief-icon name="zoomOut" [size]="13" /> Reset zoom</button>
       }
       <button class="btn dashed" (click)="builderOpen.set(!builderOpen())" [attr.aria-expanded]="builderOpen()" i18n="@@metrics.addChartToggle">+ Add chart</button>
       <button class="btn ghost" (click)="dock.show('profile')" i18n="@@metrics.editInProfile">Edit charts in profile</button>
@@ -72,10 +72,10 @@ const BUCKETS = ['auto', '10s', '30s', '1m', '5m', '15m', '1h'];
 
     <div class="charts" tabindex="0" role="region" aria-label="Charts" i18n-aria-label="@@metrics.charts.region">
       @for (c of profileCharts(); track c.id) {
-        <imt-chart-card [def]="c" />
+        <debrief-chart-card [def]="c" />
       }
       @for (c of adhoc(); track c.id) {
-        <imt-chart-card [def]="c" [fromProfile]="false" [removable]="true" (remove)="removeChart(c.id)" />
+        <debrief-chart-card [def]="c" [fromProfile]="false" [removable]="true" (remove)="removeChart(c.id)" />
       }
       @if (!charts().length) {
         <div class="empty-state">
@@ -84,7 +84,7 @@ const BUCKETS = ['auto', '10s', '30s', '1m', '5m', '15m', '1h'];
           @if (store.summary()?.sources?.length) {
             <button type="button" class="btn" (click)="dock.show('profile')" i18n="@@metrics.openProfile">Open the profile</button>
           } @else {
-            <imt-next-steps />
+            <debrief-next-steps />
           }
         </div>
       }

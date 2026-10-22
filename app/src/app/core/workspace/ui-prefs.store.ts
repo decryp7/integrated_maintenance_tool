@@ -19,7 +19,7 @@ interface UiPrefsState {
   extraColumns: string[];
 }
 
-const PREFS_KEY = 'imt.prefs.v1';
+const PREFS_KEY = 'debrief.prefs.v1';
 /** The preferences kept across sessions. */
 export type Prefs = Pick<UiPrefsState, 'timezone' | 'theme' | 'scheme' | 'uiFont' | 'extraColumns' | 'alwaysShowLifecycle'>;
 

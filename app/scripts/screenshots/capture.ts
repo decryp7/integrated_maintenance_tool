@@ -46,8 +46,8 @@ async function settle(page: Page, ms = 600): Promise<void> {
  * With `maximize`, the dock group holding that tab fills the window for the capture.
  */
 async function shot(page: Page, name: string, prepare: () => Promise<void>, maximize?: string): Promise<void> {
-  // IMT_SHOT_ONLY=home,light restricts a run to the named shots.
-  const only = process.env['IMT_SHOT_ONLY'];
+  // DEBRIEF_SHOT_ONLY=home,light restricts a run to the named shots.
+  const only = process.env['DEBRIEF_SHOT_ONLY'];
   if (only && !only.split(',').includes(name)) return;
   let restore: (() => Promise<void>) | undefined;
   try {
@@ -82,8 +82,8 @@ async function showPanel(page: Page, tab: string, toggleCommand: string): Promis
  * click cannot reach); the first row when none is.
  */
 async function clickRow(page: Page, text: string): Promise<void> {
-  const grid = (await page.locator('imt-events-grid').boundingBox())!;
-  const rows = page.locator('imt-events-grid [role=row].row');
+  const grid = (await page.locator('debrief-events-grid').boundingBox())!;
+  const rows = page.locator('debrief-events-grid [role=row].row');
   for (let i = 0; i < (await rows.count()); i++) {
     const row = rows.nth(i);
     const b = await row.boundingBox();
@@ -124,7 +124,7 @@ test('capture README screenshots', async ({ page }) => {
 
   await shot(page, 'welcome', async () => {
     await need(page, 'Close workspace');
-    await expect(page.locator('imt-welcome')).toBeVisible();
+    await expect(page.locator('debrief-welcome')).toBeVisible();
   });
   await fresh(page);
   await growTimeline(page);
@@ -133,7 +133,7 @@ test('capture README screenshots', async ({ page }) => {
     // The default layout keeps the inspector auto-hidden; the README shot shows it docked with an event selected.
     await clickRow(page, 'HTTP POST');
     await ensureInspector(page);
-    await expect(page.locator('imt-timeline-panel .lane').first()).toBeVisible();
+    await expect(page.locator('debrief-timeline-panel .lane').first()).toBeVisible();
   });
 
   await shot(page, 'format-wizard', async () => {
@@ -151,7 +151,7 @@ test('capture README screenshots', async ({ page }) => {
 
   await shot(page, 'inspector', async () => {
     await clickRow(page, 'HTTP POST');
-    await expect(page.locator('imt-inspector')).toContainText(/Properties|RequestPath/i);
+    await expect(page.locator('debrief-inspector')).toContainText(/Properties|RequestPath/i);
   });
 
   await shot(page, 'query', async () => {
@@ -192,7 +192,7 @@ test('capture README screenshots', async ({ page }) => {
 
   await shot(page, 'moment', async () => {
     await showPanel(page, 'Events', 'Toggle Events panel');
-    await page.locator('imt-events-grid [role=row].row').nth(8).click();
+    await page.locator('debrief-events-grid [role=row].row').nth(8).click();
     await need(page, 'Analyse this moment');
     await page.waitForTimeout(1500);
   }, 'Moment');
@@ -248,7 +248,7 @@ test('capture README screenshots', async ({ page }) => {
     await growTimeline(page);
     await shot(page, theme === 'dark' ? 'home' : 'home-light', async () => {
       await command(page, 'Show Home');
-      await expect(page.locator('imt-home-view [data-testid=home-history]')).toBeVisible();
+      await expect(page.locator('debrief-home-view [data-testid=home-history]')).toBeVisible();
       await page.waitForTimeout(800);
     }, 'Home');
   }

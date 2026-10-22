@@ -16,14 +16,14 @@ export const KNOWN_ISSUE_EXAMPLE = '```known-issue\ntitle: Payment gateway timeo
  * texts come from the engine and are shown as plain text.
  */
 @Component({
-  selector: 'imt-known-issues',
+  selector: 'debrief-known-issues',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, NgTemplateOutlet],
   template: `
     <section class="issues" aria-labelledby="known-issues-title" data-testid="known-issues">
       <div class="head">
         <button type="button" class="icon-btn" data-testid="known-issues-toggle" [attr.aria-expanded]="expanded()" aria-controls="known-issues-body" aria-label="Show or hide the known issues" i18n-aria-label="@@known.issues.toggle" (click)="toggle()">
-          <imt-icon [name]="expanded() ? 'chevronDown' : 'chevronRight'" [size]="12" />
+          <debrief-icon [name]="expanded() ? 'chevronDown' : 'chevronRight'" [size]="12" />
         </button>
         <h3 id="known-issues-title" i18n="@@known.issues.title">Known issues ({{ total() }})</h3>
         <span class="spacer"></span>
@@ -35,11 +35,11 @@ export const KNOWN_ISSUE_EXAMPLE = '```known-issue\ntitle: Payment gateway timeo
           [attr.title]="ai.hasModel() ? null : noModelHint"
           (click)="store.suggest()"
         >
-          <imt-icon name="ai" [size]="12" />
+          <debrief-icon name="ai" [size]="12" />
           <span>{{ store.suggesting() ? suggestingLabel : suggestLabel }}</span>
         </button>
         <button type="button" class="icon-btn" data-testid="known-issues-refresh" aria-label="Check known issues again" i18n-aria-label="@@known.issues.refresh" title="Check again" i18n-title="@@known.issues.refreshTitle" [disabled]="store.loading()" (click)="store.load()">
-          <imt-icon name="refresh" [size]="13" />
+          <debrief-icon name="refresh" [size]="13" />
         </button>
       </div>
       <div id="known-issues-body" class="body" [hidden]="!expanded()">
@@ -55,7 +55,7 @@ export const KNOWN_ISSUE_EXAMPLE = '```known-issue\ntitle: Payment gateway timeo
       @if (store.suggestError(); as error) {
         <div class="error" role="alert" data-testid="known-issues-suggest-error">
           <span>{{ error }}</span>
-          <button type="button" class="icon-btn" aria-label="Dismiss" i18n-aria-label="@@known.issues.dismiss" (click)="store.clearSuggestions()"><imt-icon name="close" [size]="12" /></button>
+          <button type="button" class="icon-btn" aria-label="Dismiss" i18n-aria-label="@@known.issues.dismiss" (click)="store.clearSuggestions()"><debrief-icon name="close" [size]="12" /></button>
         </div>
       }
       @if (store.suggesting()) {

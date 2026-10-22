@@ -1,6 +1,6 @@
-# IMT — engineering rules for coding agents and contributors
+# Debrief — engineering rules for coding agents and contributors
 
-IMT is an IDE for analysing logs and diagnostic files: a Rust engine (`crates/imt-core`),
+Debrief is an IDE for analysing logs and diagnostic files: a Rust engine (`crates/debrief-core`),
 a Tauri 2 shell (`app/src-tauri`) and an Angular 22 UI (`app/src`). See README.md for
 the architecture and user-facing behaviour.
 
@@ -19,7 +19,7 @@ Apply these deliberately. They are not decoration:
 - **Interface segregation.** Keep traits and TypeScript interfaces small and purpose-built;
   don't make consumers depend on methods they don't use.
 - **Dependency inversion / code against abstractions.**
-  - The Tauri shell depends on the `imt_core::ports::Store` traits, never on a concrete store, so the
+  - The Tauri shell depends on the `debrief_core::ports::Store` traits, never on a concrete store, so the
     store engine (DuckDB in the store worker today) can be replaced without touching commands or the UI.
   - Importers are reached only through the `Importer` trait.
   - Angular components never call Tauri `invoke` directly: they go through the backend
@@ -27,7 +27,7 @@ Apply these deliberately. They are not decoration:
     and state lives in SignalStores.
 - **Pure core, thin edges.** Parsing, query evaluation, geometry, formatting and zoom math
   are pure functions that are trivially unit-testable; I/O and framework glue stay thin.
-- **Ports and adapters.** `imt-core` is the core; `Importer` and `Store` (`imt_core::ports`) are its ports;
+- **Ports and adapters.** `debrief-core` is the core; `Importer` and `Store` (`debrief_core::ports`) are its ports;
   Tauri, future stores (DuckDB) and file-format plugins are adapters. The core never
   depends on an adapter.
 - **Parse, don't validate.** Convert untrusted input (file bytes, IPC JSON, profile TOML)
@@ -60,11 +60,11 @@ The app reads untrusted, possibly huge files and renders their content:
 
 ## Languages
 
-- All code that ships inside IMT is Rust (engine, shell, plugins, workers, profiler agent) plus the
+- All code that ships inside Debrief is Rust (engine, shell, plugins, workers, profiler agent) plus the
   Angular UI. Don't add C#, C++, Python or other runtimes to the app itself.
-- Plugins are Rust only and always run out of process (docs/adr/0017): a plugin depends on `imt-plugin-api`
-  alone (never on `imt-core`), is served by `imt_plugin_api::serve`, and talks to IMT over the one IPC
-  (`imt-ipc`: length-prefixed postcard frames on a private local stream). There are no SDKs for other languages,
+- Plugins are Rust only and always run out of process (docs/adr/0017): a plugin depends on `debrief-plugin-api`
+  alone (never on `debrief-core`), is served by `debrief_plugin_api::serve`, and talks to Debrief over the one IPC
+  (`debrief-ipc`: length-prefixed postcard frames on a private local stream). There are no SDKs for other languages,
   no gRPC and no in-process plugins. Code that several plugins or the agent share is a library crate, not a
   plugin service.
 
@@ -91,7 +91,7 @@ The app reads untrusted, possibly huge files and renders their content:
 - **Contain failures.** A bug in one file, plugin, panel or command must never take down the
   app or poison later work:
   - Plugin contributions are always registered through `PluginRegistry`, which wraps them in
-    guarded adapters (`imt_core::guard`): panics become errors attributed to the plugin, and
+    guarded adapters (`debrief_core::guard`): panics become errors attributed to the plugin, and
     repeat offenders are quarantined. Never call plugin code outside these adapters.
   - Per-file work (`import_file`) runs under `guard::catch`: one bad file is reported as
     unrecognised with a reason; the rest imports.
@@ -127,15 +127,15 @@ The app reads untrusted, possibly huge files and renders their content:
 
 - The UI ↔ backend wire contract is `app/src/app/core/api.types.ts` (camelCase JSON).
   Any change there must be mirrored in the Rust DTOs, and vice versa, in the same change.
-- The profile schema is `crates/imt-core/src/default_profile.toml`, which also serves as its
+- The profile schema is `crates/debrief-core/src/default_profile.toml`, which also serves as its
   documentation. Keep new keys optional (merged over defaults) and documented there.
 
 ## Testing and quality gates
 
 - Every change ships with tests. Every bug fix starts with a failing regression test.
-- Coverage targets: `imt-core` ≥ 99% lines (`cargo llvm-cov -p imt-core --summary-only`),
+- Coverage targets: `debrief-core` ≥ 99% lines (`cargo llvm-cov -p debrief-core --summary-only`),
   Angular ≥ 80% lines overall and near 100% for stores, services and pure utilities.
-- End-to-end engine behaviour is tested against `/samples` (`crates/imt-core/tests`).
+- End-to-end engine behaviour is tested against `/samples` (`crates/debrief-core/tests`).
   Regenerate samples with `cargo xtask gen-samples`; don't hand-edit them.
 - UI tests are layered: unit/component tests (Vitest + TestBed) for logic and components;
   Playwright end-to-end flows against the browser build with the mock backend (Chromium and
@@ -173,9 +173,9 @@ The app reads untrusted, possibly huge files and renders their content:
 - UI building blocks: use **Angular CDK** (`@angular/cdk`: menu, overlay, dialog, a11y, listbox,
   scrolling, drag-drop) for behaviour and accessibility instead of hand-rolling them, and
   **Angular Material** selectively for complex inputs (e.g. slide toggle, tooltip, datepicker,
-  autocomplete), themed through IMT's CSS tokens so the look stays consistent. Icons use Angular
-  Material's `MatIconRegistry` with IMT's own themed SVG icon set registered as literals in the
-  `imt` namespace (`<mat-icon svgIcon="imt:timeline">`, wrapped by `<imt-icon>`); no icon fonts
+  autocomplete), themed through Debrief's CSS tokens so the look stays consistent. Icons use Angular
+  Material's `MatIconRegistry` with Debrief's own themed SVG icon set registered as literals in the
+  `debrief` namespace (`<mat-icon svgIcon="debrief:timeline">`, wrapped by `<debrief-icon>`); no icon fonts
   and no icon URLs fetched at runtime (the CSP forbids it).
 - Charts use Apache ECharts; the timeline is custom. Validate categorical palettes for
   colour-vision deficiency before adding series colours.

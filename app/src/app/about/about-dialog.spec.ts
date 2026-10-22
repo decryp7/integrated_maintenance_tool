@@ -28,7 +28,7 @@ describe('AboutDialog', () => {
     const f = await setup();
     expect(el(f, '.version').textContent).toBe('1.2.3');
     expect(text(f)).toContain('MIT OR Apache-2.0');
-    expect(el(f, '[data-testid=read-only-promise]').textContent).toContain('IMT never modifies your files.');
+    expect(el(f, '[data-testid=read-only-promise]').textContent).toContain('Debrief never modifies your files.');
     expect(rows(f)).toContain('- serde 1.0.0 — MIT');
     expect(el(f, '.viewport').getAttribute('aria-label')).toBe('Third-party notices text');
     expect(text(f)).toContain('4 of 4 lines');
@@ -101,7 +101,7 @@ describe('AboutDialog', () => {
     const f = await setup();
     buttonByText(f, 'Copy version info').click();
     await settle(f);
-    expect(writeText).toHaveBeenCalledWith('IMT 1.2.3\nLicence: MIT OR Apache-2.0\nPlatform: linux');
+    expect(writeText).toHaveBeenCalledWith('Debrief 1.2.3\nLicence: MIT OR Apache-2.0\nPlatform: linux');
     expect(text(f)).toContain('Copied');
     vi.unstubAllGlobals();
   });
@@ -139,7 +139,7 @@ describe('AboutDialog build info', () => {
     expect(el(f, '.built').textContent).toBe('2026-10-17');
     buttonByText(f, 'Copy version info').click();
     await settle(f);
-    expect(writeText).toHaveBeenCalledWith('IMT 1.0.0\nLicence: MIT OR Apache-2.0\nCommit: abc1234\nBuilt: 2026-10-17');
+    expect(writeText).toHaveBeenCalledWith('Debrief 1.0.0\nLicence: MIT OR Apache-2.0\nCommit: abc1234\nBuilt: 2026-10-17');
     vi.unstubAllGlobals();
   });
 });
@@ -151,7 +151,7 @@ describe('AboutService and the bundled sources', () => {
     svc.open();
     svc.open();
     expect(dialogs.stack().filter((d) => d.component === AboutDialog)).toHaveLength(1);
-    expect(dialogs.stack()[0]?.options.title).toBe('About IMT');
+    expect(dialogs.stack()[0]?.options.title).toBe('About Debrief');
   });
 
   it('loads the generated notices and both licences', async () => {

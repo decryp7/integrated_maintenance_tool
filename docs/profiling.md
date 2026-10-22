@@ -1,7 +1,7 @@
 # Profiling engine
 
-The profiler analysis views (roadmap phase 4b) run on one engine, `crates/imt-profile`, a pure
-library with no I/O. Importers are in the `crates/imt-plugin-profiling` plugin. The app exposes
+The profiler analysis views (roadmap phase 4b) run on one engine, `crates/debrief-profile`, a pure
+library with no I/O. Importers are in the `crates/debrief-plugin-profiling` plugin. The app exposes
 the engine per window through `app/src-tauri/src/profiling.rs`. The wire contract is the
 "Profiling" section of `app/src/app/core/api.types.ts`.
 
@@ -121,7 +121,7 @@ Profiles view's notice instead of failing the restore. A new project closes ever
 
 ## Limits
 
-`imt_profile::Limits` sets these defaults:
+`debrief_profile::Limits` sets these defaults:
 
 | Limit | Default |
 |---|---|
@@ -151,7 +151,7 @@ Paths to roots stop after 2M visited objects. At most 32 captures can be open pe
 | `chrome-trace` | Chrome trace event JSON | `Profile`/`ProfileChunk` CPU samples. Without those, `X` and `B`/`E` duration events become an exact wall-clock profile. |
 | `pprof` | `profile.proto` (gzip or raw) | prost messages written from google/pprof's `profile.proto` (Apache-2.0), no protoc. Sample types map to metrics. Inlined frames are expanded. Threads come from labels. |
 | `perf-script` | `perf script` text | Kernel, `[unknown]` and JIT-map frames are recognised. Period → `timeNs` for cpu-clock and task-clock. |
-| `nettrace` | .NET EventPipe and IMT ETW captures (NetTrace V4/V5/V6) | Details below the table. |
+| `nettrace` | .NET EventPipe and Debrief ETW captures (NetTrace V4/V5/V6) | Details below the table. |
 | `heapsnapshot` | V8 `.heapsnapshot` | Field layout comes from `meta`. Weak and shortcut edges are skipped. Only V8's synthetic root (node 0) is a GC root. |
 
 `nettrace` decodes the following:
@@ -163,7 +163,7 @@ Paths to roots stop after 2M visited objects. At most 32 captures can be open pe
 - Thread-pool worker starts (thread names) and starvation adjustments (markers).
 - GC heap walks (`GCBulkType`/`Node`/`Edge` and root events): a trace with one imports as a heap snapshot
   (roots grouped as `[Stack roots]`, `[Finalizer queue]`, `[Handles]`, `[Static variables]`, ...).
-- IMT's ETW extension events (`IMT-Windows-Kernel`, ADR 0019 and ADR 0022): image loads (native frames as
+- Debrief's ETW extension events (`Debrief-Windows-Kernel`, ADR 0019 and ADR 0022): image loads (native frames as
   `module+0xoffset`), context-switch waits (`wait` events, `waitNs`), thread names, `NativeSymbol` (native
   frames named by function, with module, source file and the function's first line) and the native heap events
   `HeapAlloc`/`HeapFree`/`HeapReAlloc` (paired by address: `allocBytes`/`allocCount` at the allocating stack,
@@ -181,7 +181,7 @@ Every importer meets these requirements:
 - **No panics:** it never panics on any input.
 - **Bounds:** it checks every count against the bytes that remain and against `Limits` before
   allocating.
-- **Tests:** it has a proptest "never panics" test (`crates/imt-plugin-profiling/tests/properties_*.rs`)
+- **Tests:** it has a proptest "never panics" test (`crates/debrief-plugin-profiling/tests/properties_*.rs`)
   and a cargo-fuzz target (`fuzz_prof_*`, see [fuzzing](fuzzing.md)).
 
 Importers run as guarded contributions. A panic becomes an error that names the importer and
@@ -199,38 +199,38 @@ snapshots and other files apart without importing anything: the best importer's 
 ### Deferred formats
 
 - **`.gcdump`** (dotnet-gcdump / PerfView heap snapshots): not read. The format is TraceEvent's
-  FastSerialization of a `GCHeapDump` object graph and is documented only by the TraceEvent source. IMT takes .NET
+  FastSerialization of a `GCHeapDump` object graph and is documented only by the TraceEvent source. Debrief takes .NET
   heap snapshots itself instead: *Profile .NET process…* with the *Heap snapshot* kind records the runtime's heap-walk
   events and builds a `HeapSnapshot` from them ([ADR 0019](adr/0019-dotnet-profiling.md); a NetTrace with heap-walk
   events imports as a heap snapshot). Plugins are Rust only ([ADR 0017](adr/0017-one-ipc-out-of-process-plugins.md)),
   so there is no .NET helper process.
-- **`.etl`** (WPR/PerfView/logman): read on Windows by the native profiling plugin (`imt-plugin-native`,
+- **`.etl`** (WPR/PerfView/logman): read on Windows by the native profiling plugin (`debrief-plugin-native`,
   ADR 0022), which converts one process (.NET or native) to NetTrace with symbols; see
   [Native (C/C++) captures](#native-cc-captures).
 
-Crash dumps and UMDH heap logs are not profiles; they have their own engine (`imt-dump`) and views
+Crash dumps and UMDH heap logs are not profiles; they have their own engine (`debrief-dump`) and views
 ([ADR 0023](adr/0023-dumps-and-umdh.md), [features](features.md#crash-dumps-and-umdh-heap-logs)).
 
 ## Samples
 
 `samples/profiling/` holds small synthetic captures of a fictional "OrderService": profiler
-captures, not logs (`crates/imt-plugin-profiling/tests/samples.rs` checks that every file there
+captures, not logs (`crates/debrief-plugin-profiling/tests/samples.rs` checks that every file there
 sniffs as a capture or heap snapshot and imports non-empty). They were generated by deterministic
 tests, and no third-party captures are included. Never edit them by hand: change the generator,
-regenerate with `IMT_REGENERATE_SAMPLES=1` and `--ignored`, then commit the result. Tests fail if
+regenerate with `DEBRIEF_REGENERATE_SAMPLES=1` and `--ignored`, then commit the result. Tests fail if
 a committed sample no longer matches its generator.
 
 `orders.perf.txt` is kept to about 100 KB (`PERF_SAMPLES` = 120 samples in `gen_pprof.rs`; each
 sample is ~800 bytes of text). To change its size, edit `PERF_SAMPLES` and run:
 
 ```sh
-IMT_REGENERATE_SAMPLES=1 cargo test -p imt-plugin-profiling --no-default-features \
+DEBRIEF_REGENERATE_SAMPLES=1 cargo test -p debrief-plugin-profiling --no-default-features \
     --test gen_pprof -- --ignored regenerate_samples
 ```
 
 | Files | Generator |
 |---|---|
-| `orders.nettrace` | `cargo test -p imt-plugin-profiling --no-default-features --test gen_nettrace -- --ignored` (spec-following writer in `nettrace::writer`) |
+| `orders.nettrace` | `cargo test -p debrief-plugin-profiling --no-default-features --test gen_nettrace -- --ignored` (spec-following writer in `nettrace::writer`) |
 | `orders.pb.gz`, `orders-alloc.pb.gz`, `orders.perf.txt`, `orders.folded`, `orders-regression.folded` | `... --test gen_pprof -- --ignored regenerate_samples` (pprof written with the prost messages) |
 | `orders*.speedscope.json`, `orders.cpuprofile`, `orders.trace.json`, `heap-{1,2,3}.heapsnapshot` | `... --test gen_json_samples -- --ignored` |
 
@@ -241,26 +241,26 @@ from 50 to 100 to 150 instances, and `AuditLog` first appears in the second snap
 
 ## .NET captures
 
-`crates/imt-plugin-dotnet` ([ADR 0019](adr/0019-dotnet-profiling.md)) records a running .NET process without loading
+`crates/debrief-plugin-dotnet` ([ADR 0019](adr/0019-dotnet-profiling.md)) records a running .NET process without loading
 anything into it: ETW for .NET Framework and Core (administrator rights; the recorder runs in an elevated plugin
 process), EventPipe over the runtime's diagnostics IPC for .NET Core (no elevation). Presets are *CPU and waits*,
 *Allocations* (an allocation sample about every 100 KB, with its type and stack) and *Heap snapshot* (the runtime
 induces one GC and describes the heap). The trace is written as NetTrace, so the existing importer and every view
-serve it; ETW-only data (waits, native frames as `module+0xoffset`) travels in IMT's `IMT-Windows-Kernel` events.
-`imt-etw` holds the ETW decoders, the converter and the `.etl` reader that both this plugin and the native plugin use.
+serve it; ETW-only data (waits, native frames as `module+0xoffset`) travels in Debrief's `Debrief-Windows-Kernel` events.
+`debrief-etw` holds the ETW decoders, the converter and the `.etl` reader that both this plugin and the native plugin use.
 Captures are cancellable jobs with size and duration caps.
 
 ## Native (C/C++) captures
 
 *Profile native process…* (command palette) records a running native process with the native profiling plugin
-(`crates/imt-plugin-native`, ADR 0022). Nothing is loaded into the target. Two modes:
+(`crates/debrief-plugin-native`, ADR 0022). Nothing is loaded into the target. Two modes:
 
 | Mode | Rights | How | What it gives |
 |---|---|---|---|
 | Sampling | none (your own processes) | the plugin suspends one target thread at a time, copies its registers and the top 64 KiB of its stack, resumes it (an RAII guard resumes on every path) and walks the copy with DbgHelp `StackWalkEx`; 100 Hz per thread by default, 1 kHz at most | CPU samples where a thread's CPU time advanced since its previous sample, `wait` events otherwise (one interval each; the reason is read from the leaf frames: sleep, lock, I/O completion, object wait). Wall clock, approximate |
 | ETW | administrator (the plugin's elevated process, started through the administrator prompt) | a system-logger session: kernel `PROFILE` (1 ms) and `CSWITCH`/`DISPATCHER` with stack walks, image loads; optionally the heap provider for the target (allocations with stacks); the CLR providers when the target runs .NET (mixed stacks) | every CPU sample, waits with the thread that ended them, heap allocations and unfreed memory by stack |
 
-Both write NetTrace through `imt-etw`'s writer; after recording, `imt-symbols` names the distinct code addresses
+Both write NetTrace through `debrief-etw`'s writer; after recording, `debrief-symbols` names the distinct code addresses
 (symbol path from the dialog or *Settings ▸ Native profiling*, the cache `<app data>/symbols` in symstore layout,
 and, only when enabled, the Microsoft symbol server) and the capture ends with `NativeSymbol` events. Kernel image
 paths (`\Device\HarddiskVolumeN\…`) are mapped to drive paths first. A finished capture opens on *Profile
@@ -272,18 +272,18 @@ waits, locks recognised), **native heap growth** (the call path holding most `li
 (`ntdll.dll`, `kernelbase.dll`, `ucrtbase.dll`, `vcruntime*`, ...) are never reported as the place of a fix.
 
 `.etl` traces (WPR/xperf: `wpr -start CPU -start Heap`, PerfView, `logman`) open through this plugin's importer,
-IMT's one `.etl` importer for .NET and native processes: dropping one opens its busiest .NET process (else its
+Debrief's one `.etl` importer for .NET and native processes: dropping one opens its busiest .NET process (else its
 busiest process), *File ▸ Open process from .etl…* lists the processes (.NET first) to choose from. The same
 converter and symbolisation run: managed frames from the CLR events, native frames from symbols.
 
-Limits: x64 and x86 (WOW64) targets from the 64-bit IMT; ARM64 targets are not sampled. Sampled stacks stop at
+Limits: x64 and x86 (WOW64) targets from the 64-bit Debrief; ARM64 targets are not sampled. Sampled stacks stop at
 JIT-compiled frames whose unwind data only the runtime knows (managed parts of sampled stacks are truncated; use
 ETW for mixed stacks). Captures stop at 1 hour, 1 GiB, or 4M samples; at most 200,000 distinct addresses are
 symbolised. Heap tracing slows allocation-heavy targets while it runs.
 
 ## Performance
 
-`crates/imt-profile/tests/perf.rs` builds 1M samples over 50k functions, with about 1.19M call-tree
+`crates/debrief-profile/tests/perf.rs` builds 1M samples over 50k functions, with about 1.19M call-tree
 nodes, 16 threads, and stacks 8–38 frames deep. Release build, Apple silicon:
 
 | Operation | Time |

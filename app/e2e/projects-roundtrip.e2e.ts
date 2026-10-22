@@ -63,12 +63,12 @@ test.describe('projects', () => {
     await runCommand(page, 'New project');
     await unsaved.getByRole('button', { name: 'Cancel' }).click();
     await expect(search).toHaveValue('timed out');
-    await expect(page.locator('imt-status-bar')).toContainText('6 sources');
+    await expect(page.locator('debrief-status-bar')).toContainText('6 sources');
 
     await runCommand(page, 'New project');
     await unsaved.getByRole('button', { name: 'Discard' }).click();
     await expect(search).toHaveCount(0);
-    await expect(page.locator('imt-status-bar')).toContainText('No files open');
+    await expect(page.locator('debrief-status-bar')).toContainText('No files open');
     await expect(page.getByRole('img', { name: 'Unsaved changes' })).toHaveCount(0);
   });
 

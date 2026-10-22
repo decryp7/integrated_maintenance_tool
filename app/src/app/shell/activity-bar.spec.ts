@@ -7,7 +7,7 @@ import { ANALYSIS_MENU_ORDER } from '../analysis/analysis-menu-order';
 import { ANALYSIS_VIEWS } from '../analysis/analysis.plugin';
 import { TOOL_IDS } from '../core/tools.types';
 import { WorkspaceStore } from '../core/workspace.store';
-import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, IMT_VIEWS, ImtActivityItem } from '../extensions/tokens';
+import { DEBRIEF_ACTIVITY_ITEMS, DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefActivityItem } from '../extensions/tokens';
 import { liveActivityItems } from '../live/live-activity';
 import { SCHEDULES_VIEWS } from '../schedules/provide-schedules';
 import { toolsActivityItems } from '../tools/tools-activity';
@@ -24,7 +24,7 @@ function press(target: Element, key: string): void {
 }
 
 interface Setup {
-  plugin?: ImtActivityItem[];
+  plugin?: DebriefActivityItem[];
 }
 
 function setup(options: Setup = {}) {
@@ -37,23 +37,23 @@ function setup(options: Setup = {}) {
     providers: [
       provideTinyBackend(),
       provideFakeDock(dock),
-      { provide: IMT_VIEWS, multi: true, useValue: ANALYSIS_VIEWS },
-      { provide: IMT_VIEWS, multi: true, useValue: toolsViews({ listed: (id) => id !== TOOL_IDS.eventLog }) },
-      { provide: IMT_VIEWS, multi: true, useValue: SCHEDULES_VIEWS },
-      { provide: IMT_VIEWS, multi: true, useValue: [{ id: 'ai-chat', category: 'AI', title: 'AI assistant', icon: 'ai', component: async () => ActivityBar }] },
+      { provide: DEBRIEF_VIEWS, multi: true, useValue: ANALYSIS_VIEWS },
+      { provide: DEBRIEF_VIEWS, multi: true, useValue: toolsViews({ listed: (id) => id !== TOOL_IDS.eventLog }) },
+      { provide: DEBRIEF_VIEWS, multi: true, useValue: SCHEDULES_VIEWS },
+      { provide: DEBRIEF_VIEWS, multi: true, useValue: [{ id: 'ai-chat', category: 'AI', title: 'AI assistant', icon: 'ai', component: async () => ActivityBar }] },
       {
-        provide: IMT_COMMANDS,
+        provide: DEBRIEF_COMMANDS,
         multi: true,
         useValue: [
           { id: 'live.toggle', title: 'Toggle live tail', when: () => live.available(), run: () => live.enabled.set(!live.enabled()) },
           { id: 'tools.collect', title: 'Collect diagnostics bundle…', run: () => void ran.push('tools.collect') },
         ],
       },
-      { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: analysisActivityItems },
-      { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: toolsActivityItems },
-      { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: () => liveActivityItems(live as unknown as LiveTail, follow as never) },
-      { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: () => aiActivityItems(ai as never, 'ai-chat') },
-      { provide: IMT_ACTIVITY_ITEMS, multi: true, useValue: options.plugin ?? [] },
+      { provide: DEBRIEF_ACTIVITY_ITEMS, multi: true, useFactory: analysisActivityItems },
+      { provide: DEBRIEF_ACTIVITY_ITEMS, multi: true, useFactory: toolsActivityItems },
+      { provide: DEBRIEF_ACTIVITY_ITEMS, multi: true, useFactory: () => liveActivityItems(live as unknown as LiveTail, follow as never) },
+      { provide: DEBRIEF_ACTIVITY_ITEMS, multi: true, useFactory: () => aiActivityItems(ai as never, 'ai-chat') },
+      { provide: DEBRIEF_ACTIVITY_ITEMS, multi: true, useValue: options.plugin ?? [] },
     ],
   });
   const fixture = TestBed.createComponent(ActivityBar);
@@ -70,7 +70,7 @@ const entryLabels = (label: string) => entries(label).map((e) => e.querySelector
 
 describe('ActivityBar', () => {
   afterEach(() => {
-    document.querySelectorAll('imt-activity-bar, .cdk-overlay-container').forEach((n) => n.remove());
+    document.querySelectorAll('debrief-activity-bar, .cdk-overlay-container').forEach((n) => n.remove());
   });
 
   it('renders the contributed buttons in order, Settings at the bottom, AI hidden until a model is set up', async () => {
@@ -173,7 +173,7 @@ describe('ActivityBar', () => {
     expect(entryLabels('Analysis')).toEqual([...ANALYSIS_MENU_ORDER.map((id) => ANALYSIS_VIEWS.find((v) => v.id === id)?.title), 'Parsers', 'Saved queries']);
     expect(entry('Analysis', 'Patterns')?.getAttribute('aria-checked')).toBe('true');
     expect(entry('Analysis', 'Anomalies')?.getAttribute('aria-checked')).toBe('false');
-    expect(entry('Analysis', 'Patterns')?.querySelector('imt-icon.mi-icon')).toBeTruthy();
+    expect(entry('Analysis', 'Patterns')?.querySelector('debrief-icon.mi-icon')).toBeTruthy();
     entry('Analysis', 'Anomalies')?.click();
     await settle(fixture);
     expect(dock.calls).toEqual(['show:anomalies']);

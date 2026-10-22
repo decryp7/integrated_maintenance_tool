@@ -1,4 +1,4 @@
-//! Jobs: every long-running task of IMT (AI requests, imports, long queries and analyses, exports and
+//! Jobs: every long-running task of Debrief (AI requests, imports, long queries and analyses, exports and
 //! sharing, downloads, the folder survey, storage clean-up, diagnostics collections) in one service with
 //! per-kind queues and limits, progress, Cancel, Retry and a history saved with the project.
 //!
@@ -14,7 +14,7 @@
 //! stopped (live tail, the process monitor, PerfMon) stays a background task. Running jobs are mirrored
 //! into the background tasks, so the tray and the status bar list (and stop) them too.
 //!
-//! Event: `imt://jobs` (the window's [`JobsSnapshot`]). Wire contract: `app/src/app/jobs/jobs.types.ts`.
+//! Event: `debrief://jobs` (the window's [`JobsSnapshot`]). Wire contract: `app/src/app/jobs/jobs.types.ts`.
 
 pub mod model;
 pub mod persist;
@@ -39,7 +39,7 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager, Runtime};
 
-pub const JOBS_EVENT: &str = "imt://jobs";
+pub const JOBS_EVENT: &str = "debrief://jobs";
 const TASK_PREFIX: &str = "job:";
 
 /// Creates the service and wires it to the windows, the tray and the notification centre.
@@ -72,7 +72,7 @@ pub fn wire<R: Runtime>(app: &AppHandle<R>, jobs: &Jobs) {
 /// What each window was last sent: its version and snapshot.
 type Sent = std::collections::HashMap<String, (u64, JobsSnapshot)>;
 
-/// What `imt://jobs` carries: the window's jobs as a change of the last event (version `version`, the one
+/// What `debrief://jobs` carries: the window's jobs as a change of the last event (version `version`, the one
 /// before is `version - 1`): the jobs in their order by id, those new or changed in full, the paused queues.
 /// A window that missed a version asks for the list again (`jobs_list`).
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -177,7 +177,7 @@ fn job_title(kind: JobKind, state: JobState, title: &str) -> String {
     }
 }
 
-/// A finished job that needs attention becomes a message (and an OS notification while IMT is not focused).
+/// A finished job that needs attention becomes a message (and an OS notification while Debrief is not focused).
 fn finished<R: Runtime>(app: &AppHandle<R>, f: &Finished) {
     if !f.attention {
         return;
@@ -307,15 +307,15 @@ where
 /// cancelled with it (the worker interrupts its statements).
 pub(crate) fn with_store<T>(
     win: &crate::windows::WindowState,
-    control: &imt_core::ql::QueryControl,
-    f: impl FnOnce(&dyn imt_core::ports::Store) -> CmdResult<T>,
+    control: &debrief_core::ql::QueryControl,
+    f: impl FnOnce(&dyn debrief_core::ports::Store) -> CmdResult<T>,
 ) -> CmdResult<T> {
     let store = win.engine.store()?;
     control.scope(|| f(store.as_ref()))
 }
 
 /// `controls` with Cancel also cancelling `control` (the store work of the job).
-fn cancelling(mut controls: Controls, control: &imt_core::ql::QueryControl) -> Controls {
+fn cancelling(mut controls: Controls, control: &debrief_core::ql::QueryControl) -> Controls {
     let c = control.clone();
     let previous = controls.cancel.take();
     controls.cancel = Some(Arc::new(move || {
@@ -329,7 +329,7 @@ fn cancelling(mut controls: Controls, control: &imt_core::ql::QueryControl) -> C
 
 /// `controls` with a probe of `control`'s progress (the events the store has read of those it will read, as its
 /// worker reports them) unless they have their own.
-fn with_query_progress(controls: Controls, control: &imt_core::ql::QueryControl) -> Controls {
+fn with_query_progress(controls: Controls, control: &debrief_core::ql::QueryControl) -> Controls {
     if controls.probe.is_some() {
         return controls;
     }
@@ -349,7 +349,7 @@ pub(crate) async fn analysis<R: Runtime, T: Send + 'static>(
     view: &str,
     ql: Option<String>,
     controls: Controls,
-    f: impl FnOnce(&dyn imt_core::ports::Store, &JobCtx) -> CmdResult<T> + Send + 'static,
+    f: impl FnOnce(&dyn debrief_core::ports::Store, &JobCtx) -> CmdResult<T> + Send + 'static,
 ) -> CmdResult<T> {
     analysis_announced(app, win, title, view, ql, controls, |_| {}, f).await
 }
@@ -364,7 +364,7 @@ pub(crate) async fn analysis_announced<R: Runtime, T: Send + 'static>(
     ql: Option<String>,
     controls: Controls,
     announce: impl FnOnce(JobId),
-    f: impl FnOnce(&dyn imt_core::ports::Store, &JobCtx) -> CmdResult<T> + Send + 'static,
+    f: impl FnOnce(&dyn debrief_core::ports::Store, &JobCtx) -> CmdResult<T> + Send + 'static,
 ) -> CmdResult<T> {
     let mut spec = JobSpec::new(JobKind::Analysis, title).window(win.label());
     let ql = ql.filter(|q| !q.trim().is_empty());
@@ -376,7 +376,7 @@ pub(crate) async fn analysis_announced<R: Runtime, T: Send + 'static>(
         ql,
     };
     let w = win.arc().clone();
-    let control = imt_core::ql::QueryControl::new();
+    let control = debrief_core::ql::QueryControl::new();
     let controls = with_query_progress(cancelling(controls, &control), &control);
     run_announced(app, spec, controls, announce, move |ctx| {
         with_store(&w, &control, |store| f(store, ctx)).map(|v| Done::new(v).with_result(result))
@@ -427,11 +427,11 @@ pub(crate) fn export<R: Runtime>(
     win: &CurrentWindow,
     title: &str,
     path: &std::path::Path,
-    f: impl FnOnce(&dyn imt_core::ports::Store) -> CmdResult<String> + Send + 'static,
+    f: impl FnOnce(&dyn debrief_core::ports::Store) -> CmdResult<String> + Send + 'static,
 ) -> CmdResult<u64> {
     let spec = export_spec(title, Some(win.label()), path);
     let w = win.arc().clone();
-    let control = imt_core::ql::QueryControl::new();
+    let control = debrief_core::ql::QueryControl::new();
     let result = JobResult::File {
         path: path.display().to_string(),
     };
@@ -458,7 +458,7 @@ where
     T: Send + 'static,
     E: JobFailure + Send + 'static,
 {
-    let jobs = app.try_state::<Jobs>().ok_or("IMT is not ready yet")?;
+    let jobs = app.try_state::<Jobs>().ok_or("Debrief is not ready yet")?;
     jobs.submit(spec, controls, f).map(|h| h.id).map_err(|r| r.to_string())
 }
 
@@ -466,7 +466,7 @@ fn service<R: Runtime>(app: &AppHandle<R>) -> CmdResult<Jobs> {
     crate::error::lift(
         app.try_state::<Jobs>()
             .map(|j| j.inner().clone())
-            .ok_or_else(|| "IMT is not ready yet".to_string()),
+            .ok_or_else(|| "Debrief is not ready yet".to_string()),
     )
 }
 
@@ -488,7 +488,7 @@ pub fn forget_window<R: Runtime>(app: &AppHandle<R>, label: &str) {
     }
 }
 
-/// IMT is closing.
+/// Debrief is closing.
 pub fn shutdown<R: Runtime>(app: &AppHandle<R>) {
     if let Some(jobs) = app.try_state::<Jobs>() {
         jobs.shutdown();

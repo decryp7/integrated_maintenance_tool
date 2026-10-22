@@ -5,7 +5,7 @@
  * decoration (a rate or an ETA), which returns '' so callers can drop the whole fragment.
  *
  * Byte sizes use binary steps (1024) with the short labels KB / MB / GB / TB, as Windows Explorer does, so a file
- * shown in IMT matches what the file manager shows. Keep exact values in a tooltip (`formatExactBytes`).
+ * shown in Debrief matches what the file manager shows. Keep exact values in a tooltip (`formatExactBytes`).
  */
 import { activeLocale, groupedNumber, plural } from '../../i18n/locale';
 

@@ -1,7 +1,7 @@
 //! `cargo xtask libduckdb`: fetches the official prebuilt libduckdb the store worker links and points Cargo at
 //! it, so plain `cargo build` / `cargo test` work afterwards on Windows, macOS and Linux without a shell.
 //!
-//! - The pins (version, release assets, SHA-256) stay in one place, `crates/imt-store-duck/scripts/fetch-libduckdb.sh`,
+//! - The pins (version, release assets, SHA-256) stay in one place, `crates/debrief-store-duck/scripts/fetch-libduckdb.sh`,
 //!   which CI runs directly; they are parsed from it here as `app/scripts/libduckdb.mjs` does.
 //! - The archive is checked against its pin before it is unpacked into a fresh `<target>/libduckdb/<version>/<asset>/`.
 //! - `DUCKDB_LIB_DIR` and `DUCKDB_INCLUDE_DIR` go into `.cargo/libduckdb.toml`, a machine-local file that this task
@@ -233,7 +233,7 @@ fn download(url: &str) -> Result<Vec<u8>, String> {
 pub fn run(root: &Path) -> Result<(), String> {
     let script_path = root
         .join("crates")
-        .join("imt-store-duck")
+        .join("debrief-store-duck")
         .join("scripts")
         .join("fetch-libduckdb.sh");
     let script = std::fs::read_to_string(&script_path).map_err(|e| format!("could not read {}: {e}", script_path.display()))?;
@@ -316,7 +316,7 @@ mod tests {
 
     #[test]
     fn the_committed_script_pins_every_supported_host() {
-        let script = std::fs::read_to_string(crate::repo_root().join("crates/imt-store-duck/scripts/fetch-libduckdb.sh")).unwrap();
+        let script = std::fs::read_to_string(crate::repo_root().join("crates/debrief-store-duck/scripts/fetch-libduckdb.sh")).unwrap();
         let pins = Pins::parse(&script).unwrap();
         for (os, arch) in [
             ("windows", "x86_64"),

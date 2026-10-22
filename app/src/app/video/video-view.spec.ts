@@ -104,7 +104,7 @@ describe('VideoView with videos', () => {
     expect(all(fixture, '[role="option"]')).toHaveLength(6);
     expect(all(fixture, '[role="option"]')[1]!.getAttribute('aria-label')).toBe('Frame 2 at 00:04');
     expect(testId(fixture, 'video-frame-name').textContent).toBe('Frame 1 at 00:00');
-    expect(all(fixture, 'imt-frame-image img').length).toBeGreaterThan(0);
+    expect(all(fixture, 'debrief-frame-image img').length).toBeGreaterThan(0);
   });
 
   it('picks between several videos', async () => {
@@ -165,7 +165,7 @@ describe('VideoView with videos', () => {
   it('shows a model that cannot see inline, with the way to Settings ▸ AI', async () => {
     const { fixture, settings } = await mount({ open: both.slice(0, 1), mock: { vision: false } });
     await click(fixture, 'video-frame-describe');
-    const err = el(fixture, 'imt-frame-detail [role="alert"]');
+    const err = el(fixture, 'debrief-frame-detail [role="alert"]');
     expect(err.textContent).toContain('reads text only');
     expect(err.textContent).toContain('Settings ▸ AI');
     await click(fixture, 'video-error-ai');
@@ -243,7 +243,7 @@ describe('VideoView with videos', () => {
     typeInto(testId(fixture, 'video-align-offset') as HTMLInputElement, '9999999');
     await settle(fixture);
     await click(fixture, 'video-align-shift');
-    expect(el(fixture, 'imt-alignment-panel [role="alert"]').textContent).toContain('more than a week');
+    expect(el(fixture, 'debrief-alignment-panel [role="alert"]').textContent).toContain('more than a week');
     buttonByText(fixture, 'Dismiss').click();
     await settle(fixture);
   });
@@ -263,7 +263,7 @@ describe('VideoView with videos', () => {
     box.click();
     await settle(fixture, 4);
     expect(dialogs.stack()).toHaveLength(1);
-    expect(testId(fixture, 'video-include').closest('imt-video-storage')).toBeTruthy();
+    expect(testId(fixture, 'video-include').closest('debrief-video-storage')).toBeTruthy();
     expect(dialogs.stack()[0]!.options.inputs?.['message']).toMatch(/MB\)/);
     await answer(fixture, dialogs, false);
     expect(store.active()!.record.included).toBe(false);

@@ -7,7 +7,7 @@ import { IssueMatch, IssueReport } from '../../core/api.types';
 import { CmdError } from '../../core/cmd-error';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { COMMAND_CONTEXT } from '../../extensions/command-registry';
-import { CommandContext, IMT_COMMANDS, ImtCommand } from '../../extensions/tokens';
+import { CommandContext, DEBRIEF_COMMANDS, DebriefCommand } from '../../extensions/tokens';
 import { PROBLEMS_VIEW } from '../../problems/problems-model';
 import { ProblemsPanel } from '../../problems/problems-panel';
 import { KnownIssuesBackend } from '../investigate-backend';
@@ -15,7 +15,7 @@ import { MockKnownIssuesBackend } from '../mock/mock-investigate-backends';
 import { KnownIssues } from './known-issues';
 import { KnownIssuesStore } from './known-issues.store';
 import { knownIssuesCommands, provideKnownIssues } from './provide-known-issues';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 
 const match = (patch: Partial<IssueMatch> = {}): IssueMatch => ({
   issue: { id: 'gw', title: 'Payment gateway timeouts', fix: 'Raise the timeout.\nCheck the provider.', matcher: { type: 'pattern', pattern: 'timed out' }, file: 'Payments' },
@@ -299,7 +299,7 @@ describe('KnownIssues component', () => {
     withModel();
     const f = TestBed.createComponent(ProblemsPanel);
     await settle(f);
-    expect(el(f, 'imt-known-issues')).toBeTruthy();
+    expect(el(f, 'debrief-known-issues')).toBeTruthy();
   });
 });
 
@@ -321,7 +321,7 @@ describe('known-issues command', () => {
     TestBed.configureTestingModule({
       providers: [...provideTinyBackend(), ...provideFakeDock(), provideKnownIssues(), { provide: COMMAND_CONTEXT, useValue: {} }],
     });
-    const commands = TestBed.inject(IMT_COMMANDS) as unknown as (ImtCommand | ImtCommand[])[];
+    const commands = TestBed.inject(DEBRIEF_COMMANDS) as unknown as (DebriefCommand | DebriefCommand[])[];
     expect(commands.flat().some((c) => c.id === 'knownIssues.check')).toBe(true);
   });
 });
@@ -330,7 +330,7 @@ describe('with the real mock backend', () => {
   it('finds the sample issue and reports a missing model as the friendly message', async () => {
     TestBed.configureTestingModule({ providers: [...provideTinyBackend(), ...provideFakeDock(), { provide: COMMAND_CONTEXT, useValue: {} }] });
     let hasModel = true;
-    TestBed.overrideProvider(KnownIssuesBackend, { useFactory: () => new MockKnownIssuesBackend(TestBed.inject(ImtBackend), () => hasModel) });
+    TestBed.overrideProvider(KnownIssuesBackend, { useFactory: () => new MockKnownIssuesBackend(TestBed.inject(DebriefBackend), () => hasModel) });
     const store = TestBed.inject(KnownIssuesStore);
     await TestBed.inject(WorkspaceStore).init();
     await store.load();

@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import type { DockviewApi, DockviewGroupPanel, IDockviewPanel } from 'dockview';
-import { ImtView, ViewPosition } from '../extensions/tokens';
+import { DebriefView, ViewPosition } from '../extensions/tokens';
 import { DockContext, PANEL, rectOf } from './dock-context';
 import { adjacentNeighbour, atEdge, DockSlot, fullSpanEdge, Point, Rect } from './dock-geometry';
 import { DockTarget, GroupBox, hitDockTarget, outsideViewport, targetPreview } from './dock-target';
@@ -46,7 +46,7 @@ const FIXED: Readonly<Record<string, { referencePanel: string; direction: 'above
  * The inspector, auto-hidden on the right edge. Pinning it docks it as a full-height tool window on the right
  * (no reference panel: it opens where a right-hand tool window opens by default).
  */
-export function defaultAutoHidden(inspector: ImtView | undefined): AutoHideItem[] {
+export function defaultAutoHidden(inspector: DebriefView | undefined): AutoHideItem[] {
   if (!inspector) return [];
   return [{ id: inspector.id, title: inspector.title, side: 'right', size: INSPECTOR_WIDTH, slot: { referencePanel: null, direction: 'within' } }];
 }
@@ -85,7 +85,7 @@ export class DockPlacement {
    * tool group, and status tools slide out of the bottom edge (auto-hidden) unless one is docked there. Returns the
    * docked panel, or null when the view went to the bottom side bar.
    */
-  addView(api: DockviewApi, view: ImtView, inactive: boolean, id = view.id): IDockviewPanel | null {
+  addView(api: DockviewApi, view: DebriefView, inactive: boolean, id = view.id): IDockviewPanel | null {
     const panel = this.place(api, view, inactive, id);
     // The view's minimum size (A4): the dock refuses a split that would make the group smaller.
     const min = view.minSize;
@@ -93,7 +93,7 @@ export class DockPlacement {
     return panel;
   }
 
-  private place(api: DockviewApi, view: ImtView, inactive: boolean, id: string): IDockviewPanel | null {
+  private place(api: DockviewApi, view: DebriefView, inactive: boolean, id: string): IDockviewPanel | null {
     const base: AddPanel = { id, component: view.id, title: view.title, inactive };
     const fixed = FIXED[view.id];
     if (fixed && api.getPanel(fixed.referencePanel)) return api.addPanel({ ...base, position: fixed });

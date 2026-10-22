@@ -1,12 +1,12 @@
 //! Paste as log: pasted or dropped text becomes a source of the window's project. The engine checks and names it
-//! (`imt_core::paste`); the text is written into the project folder's `pasted/` folder (so a saved project carries it)
+//! (`debrief_core::paste`); the text is written into the project folder's `pasted/` folder (so a saved project carries it)
 //! and opened like any file, so the normal importer detection decides how it is read.
 
 use crate::activity::{domain_event, OpId};
 use crate::windows::CurrentWindow;
 use crate::{CmdError, CmdResult, ErrorCode};
-use imt_core::api::WorkspaceSummary;
-use imt_core::paste::{prepare, PASTE_DIR};
+use debrief_core::api::WorkspaceSummary;
+use debrief_core::paste::{prepare, PASTE_DIR};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Runtime};
@@ -15,7 +15,7 @@ use tauri::{AppHandle, Runtime};
 fn store_text(dir: &Path, name: Option<&str>, text: &str) -> CmdResult<PathBuf> {
     let folder = dir.join(PASTE_DIR);
     let io = |what: &str, e: std::io::Error| {
-        CmdError::new(ErrorCode::Io, format!("cannot {what}: {e}")).hint("Check the disk space and that IMT's data folder is writable.")
+        CmdError::new(ErrorCode::Io, format!("cannot {what}: {e}")).hint("Check the disk space and that Debrief's data folder is writable.")
     };
     std::fs::create_dir_all(&folder).map_err(|e| io("create the folder for pasted logs", e))?;
     let taken: HashSet<String> = std::fs::read_dir(&folder)
@@ -34,7 +34,7 @@ fn store_text(dir: &Path, name: Option<&str>, text: &str) -> CmdResult<PathBuf> 
 }
 
 /// Adds pasted (or dropped) text as a source named `name` (any name; made safe and unique) and opens it. The text
-/// may be at most `imt_core::paste::MAX_PASTE_BYTES`.
+/// may be at most `debrief_core::paste::MAX_PASTE_BYTES`.
 #[tauri::command]
 pub(crate) async fn paste_log<R: Runtime>(
     app: AppHandle<R>,
@@ -46,7 +46,7 @@ pub(crate) async fn paste_log<R: Runtime>(
     let store = state.engine.store()?;
     let dir = store.store_dir();
     let file = crate::sync::blocking("saving the pasted text", move || store_text(&dir, name.as_deref(), &text)).await?;
-    // IMT's own file: opened without a grant check, like the files of an unpacked bundle.
+    // Debrief's own file: opened without a grant check, like the files of an unpacked bundle.
     let summary = crate::workspace_commands::open_granted(&app, &state, vec![file.to_string_lossy().into_owned()]).await?;
     domain_event("source.pasted", op.as_deref(), &[]);
     Ok(summary)
@@ -78,7 +78,7 @@ mod tests {
         let dir = TempDir::new("paste-refuse");
         let e = store_text(&dir.0, None, "  \n").unwrap_err();
         assert_eq!(e.code, ErrorCode::Invalid);
-        let big = "a".repeat(imt_core::paste::MAX_PASTE_BYTES + 1);
+        let big = "a".repeat(debrief_core::paste::MAX_PASTE_BYTES + 1);
         assert!(store_text(&dir.0, None, &big).unwrap_err().message.contains("open the file"));
         assert!(!dir.0.join(PASTE_DIR).join("pasted-log.log").exists());
     }

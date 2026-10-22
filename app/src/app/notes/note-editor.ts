@@ -22,7 +22,7 @@ export function parseTags(text: string): string[] {
  * refuses. Closes with the note's id once saved.
  */
 @Component({
-  selector: 'imt-note-editor',
+  selector: 'debrief-note-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MarkdownView],
   template: `
@@ -34,7 +34,7 @@ export function parseTags(text: string): string[] {
       <span class="size" [class.over]="tooLarge()">{{ bytes() }} / {{ maxBytes() }}</span>
     </div>
     @if (preview()) {
-      <imt-markdown-view class="preview" [text]="text()" [placeholder]="emptyPreview" data-testid="note-preview" />
+      <debrief-markdown-view class="preview" [text]="text()" [placeholder]="emptyPreview" data-testid="note-preview" />
     } @else {
       <textarea
         class="input"

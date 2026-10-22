@@ -2,7 +2,7 @@ import { computed, DestroyRef, effect, inject, untracked } from '@angular/core';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withProps, withState } from '@ngrx/signals';
 import { AiLauncher } from '../ai/ai-launcher';
 import { DiagnosticRow, FixEvaluation, IndexStatus } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { failureText } from '../core/cmd-error';
 import { ConsumerGate } from '../core/panel-visibility';
 import { EMPTY_QUERY } from '../core/workspace/query.store';
@@ -86,7 +86,7 @@ export const ProblemsStore = signalStore(
     (
       store,
       backend = inject(ProblemsBackend),
-      imt = inject(ImtBackend),
+      debrief = inject(DebriefBackend),
       parsers = inject(ParsersBackend),
       workspace = inject(WorkspaceStore),
       ctx = inject(COMMAND_CONTEXT),
@@ -100,7 +100,7 @@ export const ProblemsStore = signalStore(
       /** The id of the stored event that starts at `line` of the row's source; null when none does (a skipped line). */
       const eventAt = async (row: DiagnosticRow, line: number): Promise<number | null> => {
         if (row.source === null) return null;
-        const page = await imt.queryPage({
+        const page = await debrief.queryPage({
           query: { ...EMPTY_QUERY, sources: [row.source], filters: [{ field: '@line', op: 'eq', value: String(line) }] },
           offset: 0,
           limit: 1,
@@ -189,7 +189,7 @@ export const ProblemsStore = signalStore(
               await ai.propose('parser', { recordId, fileName: row.sourceName });
               return;
             }
-            const head = await imt.readFileHead(row.path, AI_SAMPLE_BYTES);
+            const head = await debrief.readFileHead(row.path, AI_SAMPLE_BYTES);
             const sample = head.split(/\r?\n/).filter((l) => l.length > 0).slice(0, AI_SAMPLE_LINES).join('\n');
             await ai.propose('parser', { sample, fileName: row.sourceName });
           } catch (e) {

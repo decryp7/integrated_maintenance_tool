@@ -149,7 +149,7 @@ describe('MonitorView', () => {
     const s = workspace.summary()!;
     workspace.applySummary({ ...s, fields: [...s.fields, { name: ACCESS_DENIED_FIELD, count: 1, distinct: 1, numeric: false, derived: false }] });
     await settle(fixture);
-    expect(text(fixture)).toContain('Run IMT as administrator to include them');
+    expect(text(fixture)).toContain('Run Debrief as administrator to include them');
   });
 
   it('shows start errors', async () => {

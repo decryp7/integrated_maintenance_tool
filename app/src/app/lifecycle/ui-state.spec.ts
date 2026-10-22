@@ -100,7 +100,7 @@ describe('CoreUiState', () => {
     dock.openIds.set(new Set(['timeline', 'events']));
     const ui = registry.serialize();
     expect(ui.query).toMatchObject({ query: { text: 'boom', levels: ['Error'] }, textInput: 'boom' });
-    expect(ui.layout).toEqual({ id: 'imt.layout.v1', openViews: ['events', 'timeline'] });
+    expect(ui.layout).toEqual({ id: 'debrief.layout.v1', openViews: ['events', 'timeline'] });
     expect(ui.selection).toEqual({ recordId: null });
   });
 

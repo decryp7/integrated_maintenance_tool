@@ -1,0 +1,28 @@
+[package]
+name = "debrief-plugin-profiling"
+license.workspace = true
+repository.workspace = true
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+description = "Debrief plugin: profile and heap snapshot importers (speedscope, folded stacks, Chrome, pprof, perf script, nettrace, V8 heap snapshots) and the profiling.importers extension point"
+
+[dependencies]
+debrief-plugin-api = { path = "../debrief-plugin-api", optional = true }
+debrief-profile = { path = "../debrief-profile" }
+anyhow = { workspace = true, optional = true }
+flate2.workspace = true
+prost.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[features]
+# The plugin adapter (debrief-core). Without it the crate is the pure importers,
+# which is what the fuzz targets build.
+default = ["plugin"]
+plugin = ["dep:debrief-plugin-api", "dep:anyhow"]

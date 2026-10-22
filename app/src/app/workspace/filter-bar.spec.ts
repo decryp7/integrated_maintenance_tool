@@ -3,7 +3,7 @@ import { all, buttonByText, el, provideTinyBackend, settle, SEC, T0, text, typeI
 import { at } from '../../testing/must';
 import { WorkspaceStore } from '../core/workspace.store';
 import { AnalysisBackend } from '../core/analysis-backend';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { HISTORY_STORE } from '../analysis/history-store';
 import { MemoryHistory } from '../analysis/test-setup';
 import { MockAnalysisBackend, recordsFrom } from '../analysis/mock/mock-analysis-backend';
@@ -15,7 +15,7 @@ describe('FilterBar', () => {
     TestBed.configureTestingModule({
       providers: [
         provideTinyBackend(),
-        { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(ImtBackend))) },
+        { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(DebriefBackend))) },
         { provide: HISTORY_STORE, useValue: new MemoryHistory() },
       ],
     });
@@ -49,11 +49,11 @@ describe('FilterBar', () => {
     store.setTextInput('(');
     await new Promise((r) => setTimeout(r, 300));
     await settle(fixture);
-    expect(el(fixture, 'imt-query-field .box').classList.contains('invalid')).toBe(true);
+    expect(el(fixture, 'debrief-query-field .box').classList.contains('invalid')).toBe(true);
     store.setTextInput('(?P<x>a)');
     await new Promise((r) => setTimeout(r, 300));
     await settle(fixture);
-    expect(el(fixture, 'imt-query-field .box').classList.contains('invalid')).toBe(false);
+    expect(el(fixture, 'debrief-query-field .box').classList.contains('invalid')).toBe(false);
   });
 
   it('toggles levels and shows counts', async () => {
@@ -185,7 +185,7 @@ describe('FilterBar', () => {
     el<HTMLButtonElement>(fixture, '[data-testid=view-options]').click();
     await settle(fixture);
     const switchFor = (name: RegExp) =>
-      [...fixture.nativeElement.querySelectorAll('imt-switch')].find((s: HTMLElement) => name.test(s.textContent ?? ''))!.querySelector('input[role=switch]') as HTMLInputElement;
+      [...fixture.nativeElement.querySelectorAll('debrief-switch')].find((s: HTMLElement) => name.test(s.textContent ?? ''))!.querySelector('input[role=switch]') as HTMLInputElement;
     expect(switchFor(/Marked only/).checked).toBe(false);
     switchFor(/Marked only/).click();
     expect(store.markedOnly()).toBe(true);
@@ -206,7 +206,7 @@ describe('FilterBar', () => {
     store.addFilter({ field: 'MachineName', op: 'eq', value: 'WEB01' });
     await settle(fixture);
     expect(all(fixture, '.row')).toHaveLength(2);
-    expect(all(fixture, 'imt-switch')).toHaveLength(0);
+    expect(all(fixture, 'debrief-switch')).toHaveLength(0);
   });
 
   it('focuses the search box on request', async () => {

@@ -7,7 +7,7 @@ import { DIALOG_REF, DialogService } from './dialog.service';
 import { DialogHost } from './dialog-host';
 
 @Component({
-  selector: 'imt-test-dialog',
+  selector: 'debrief-test-dialog',
   template: `<input id="first" /><button id="last" (click)="ref.close('done')">Done</button>`,
 })
 class TestDialog {
@@ -113,7 +113,7 @@ describe('DialogService and DialogHost', () => {
   });
 
   it('tolerates a dialog without focusable content', async () => {
-    @Component({ selector: 'imt-empty-dialog', template: 'nothing to focus' })
+    @Component({ selector: 'debrief-empty-dialog', template: 'nothing to focus' })
     class EmptyDialog {}
     const { fixture, dialogs } = await setup();
     dialogs.open(EmptyDialog, { title: 'Empty' });

@@ -16,32 +16,32 @@ import { TreeStore } from './tree.store';
  * goes to the parent, Enter shows callers and callees, * expands the hottest path below).
  */
 @Component({
-  selector: 'imt-profile-tree',
+  selector: 'debrief-profile-tree',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, ProfileBar, MeasurementTag, MeasurementLegend, CaptureNotes, NoCapture],
   providers: [TreeStore],
   template: `
     @if (active.profile(); as p) {
-      <imt-profile-bar />
-      <imt-capture-notes [notes]="p.notes" [name]="p.name" />
+      <debrief-profile-bar />
+      <debrief-capture-notes [notes]="p.notes" [name]="p.name" />
       <div class="bar">
         <span class="section-title">{{ title() }}</span>
         <button class="btn" type="button" [disabled]="store.busy()" (click)="hotPath()" i18n="@@profiling.tree.hotPath">Expand hottest path</button>
         <button class="btn" type="button" [disabled]="!store.expanded().length" (click)="collapseAll()" i18n="@@profiling.tree.collapseAll">Collapse all</button>
         @if (store.notice(); as n) { <span class="muted" role="status">{{ n }}</span> }
         <span class="spacer"></span>
-        <imt-measurement-legend />
+        <debrief-measurement-legend />
       </div>
-      <imt-analysis-state [loading]="store.root().loading" [error]="store.root().error" [hasData]="store.root().children !== null" [empty]="store.root().children?.length === 0" emptyText="No samples match this view." i18n-emptyText="@@profiling.tree.empty" (retry)="store.retry('')">
+      <debrief-analysis-state [loading]="store.root().loading" [error]="store.root().error" [hasData]="store.root().children !== null" [empty]="store.root().children?.length === 0" emptyText="No samples match this view." i18n-emptyText="@@profiling.tree.empty" (retry)="store.retry('')">
         <div class="body tight" tabindex="0" role="region" aria-label="Call tree rows" i18n-aria-label="@@profiling.tree.rowsRegion">
           <table class="grid" role="treegrid" [attr.aria-label]="title()" (keydown)="onKey($event)" #grid>
             <thead>
               <tr role="row">
                 <th role="columnheader" scope="col" i18n="@@profiling.tree.col.function">Function</th>
-                <th role="columnheader" scope="col" class="num"><ng-container i18n="@@profiling.tree.col.totalPct">Total %</ng-container>&ngsp;@if (store.measurement(); as m) { <imt-measurement [m]="m" /> }</th>
-                <th role="columnheader" scope="col" class="num"><ng-container i18n="@@profiling.tree.col.total">Total</ng-container>&ngsp;@if (store.measurement(); as m) { <imt-measurement [m]="m" /> }</th>
-                <th role="columnheader" scope="col" class="num"><ng-container i18n="@@profiling.tree.col.selfPct">Self %</ng-container>&ngsp;@if (store.measurement(); as m) { <imt-measurement [m]="m" /> }</th>
-                <th role="columnheader" scope="col" class="num"><ng-container i18n="@@profiling.tree.col.self">Self</ng-container>&ngsp;@if (store.measurement(); as m) { <imt-measurement [m]="m" /> }</th>
+                <th role="columnheader" scope="col" class="num"><ng-container i18n="@@profiling.tree.col.totalPct">Total %</ng-container>&ngsp;@if (store.measurement(); as m) { <debrief-measurement [m]="m" /> }</th>
+                <th role="columnheader" scope="col" class="num"><ng-container i18n="@@profiling.tree.col.total">Total</ng-container>&ngsp;@if (store.measurement(); as m) { <debrief-measurement [m]="m" /> }</th>
+                <th role="columnheader" scope="col" class="num"><ng-container i18n="@@profiling.tree.col.selfPct">Self %</ng-container>&ngsp;@if (store.measurement(); as m) { <debrief-measurement [m]="m" /> }</th>
+                <th role="columnheader" scope="col" class="num"><ng-container i18n="@@profiling.tree.col.self">Self</ng-container>&ngsp;@if (store.measurement(); as m) { <debrief-measurement [m]="m" /> }</th>
               </tr>
             </thead>
             <tbody>
@@ -94,9 +94,9 @@ import { TreeStore } from './tree.store';
             </tbody>
           </table>
         </div>
-      </imt-analysis-state>
+      </debrief-analysis-state>
     } @else {
-      <imt-no-capture text="Open a performance capture to see its call tree." i18n-text="@@profiling.tree.noCapture" />
+      <debrief-no-capture text="Open a performance capture to see its call tree." i18n-text="@@profiling.tree.noCapture" />
     }
   `,
   styles: [
@@ -229,20 +229,20 @@ export class ProfileTree {
 
 /** The "Call tree" dock view. */
 @Component({
-  selector: 'imt-call-tree-view',
+  selector: 'debrief-call-tree-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ProfileTree],
-  template: `<imt-profile-tree direction="topDown" />`,
-  styles: `:host { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; } imt-profile-tree { flex: 1; min-height: 0; }`,
+  template: `<debrief-profile-tree direction="topDown" />`,
+  styles: `:host { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; } debrief-profile-tree { flex: 1; min-height: 0; }`,
 })
 export class CallTreeView {}
 
 /** The "Inverted tree" dock view. */
 @Component({
-  selector: 'imt-inverted-tree-view',
+  selector: 'debrief-inverted-tree-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ProfileTree],
-  template: `<imt-profile-tree direction="bottomUp" />`,
-  styles: `:host { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; } imt-profile-tree { flex: 1; min-height: 0; }`,
+  template: `<debrief-profile-tree direction="bottomUp" />`,
+  styles: `:host { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; } debrief-profile-tree { flex: 1; min-height: 0; }`,
 })
 export class InvertedTreeView {}

@@ -22,7 +22,7 @@ function view(svc: ImportProgressService) {
  * files, bytes, ETA and the current file, and Cancel. The text opens the import's job in Jobs.
  */
 @Component({
-  selector: 'imt-import-status',
+  selector: 'debrief-import-status',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (vm(); as v) {
@@ -75,15 +75,15 @@ export class ImportStatus {
  * bar is the only progress surface (the card would cover the Explorer and the grid).
  */
 @Component({
-  selector: 'imt-import-toast',
+  selector: 'debrief-import-toast',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   template: `
     @if (svc.long() && welcome.visible()) {
       @if (vm(); as v) {
-        <div class="toast" data-imt-overlay role="status" aria-label="Import in progress" i18n-aria-label="@@import.ui.inProgress" data-testid="import-toast">
+        <div class="toast" data-debrief-overlay role="status" aria-label="Import in progress" i18n-aria-label="@@import.ui.inProgress" data-testid="import-toast">
           <div class="head">
-            <imt-icon name="refresh" [size]="14" />
+            <debrief-icon name="refresh" [size]="14" />
             <strong i18n="@@import.ui.heading">Importing…</strong>
             <span class="spacer"></span>
             <button type="button" class="btn" [disabled]="svc.cancelling()" (click)="svc.cancel()">{{ svc.cancelling() ? cancellingLabel : cancelImportLabel }}</button>
@@ -99,7 +99,7 @@ export class ImportStatus {
   styles: `
     .toast { position: fixed; left: 16px; bottom: 36px; z-index: 100; width: 360px; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 8px; background: var(--tooltip-bg); border: 1px solid var(--border-3); box-shadow: var(--shadow); color: var(--text); font-size: var(--fs-sm); }
     .head { display: flex; align-items: center; gap: 8px; }
-    .head imt-icon { color: var(--accent-text); }
+    .head debrief-icon { color: var(--accent-text); }
     .spacer { flex: 1; }
     .bar { height: 6px; border-radius: 3px; background: var(--bg-3); overflow: hidden; }
     .fill { display: block; height: 100%; background: var(--accent); transition: width 0.2s; }
@@ -119,14 +119,14 @@ export class ImportToast {
 
 /** Shown after a cancelled import: what was read, and how to read the rest. */
 @Component({
-  selector: 'imt-partial-import-banner',
+  selector: 'debrief-partial-import-banner',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   host: { style: 'display: contents' },
   template: `
     @if (svc.partial(); as p) {
       <div class="banner" role="status" data-testid="partial-import-banner">
-        <imt-icon name="alert" [size]="14" />
+        <debrief-icon name="alert" [size]="14" />
         <span class="msg" i18n="@@import.ui.partial"><strong>Partially imported:</strong> {{ fmt(p.done) }} of {{ fmt(p.total) }} files were read before you cancelled. The rest are listed as not imported in the Explorer.</span>
         <button type="button" class="btn primary" (click)="svc.reimportAll()" i18n="@@import.ui.reimportAll">Re-import all</button>
         <button type="button" class="btn ghost" (click)="svc.dismissPartial()" i18n="@@import.ui.dismiss">Dismiss</button>
@@ -135,7 +135,7 @@ export class ImportToast {
   `,
   styles: `
     .banner { flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 12px; font-size: var(--fs-sm); border-bottom: 1px solid var(--border); background: var(--bg-3); color: var(--text); border-left: 3px solid var(--lvl-warn); }
-    .banner imt-icon { color: var(--warn-text); }
+    .banner debrief-icon { color: var(--warn-text); }
     .msg { flex: 1; min-width: 0; }
   `,
 })

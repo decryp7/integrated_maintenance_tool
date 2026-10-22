@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { invoke } from '../../core/activity/ipc';
 import { WorkspaceSummary } from '../../core/api.types';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { reportBackendFailures } from '../../core/failure-reporter';
 import { Logger, withFailureLogging } from '../../core/logger';
 import { browserMocks } from '../../core/mock-registry';
@@ -30,6 +30,6 @@ export class TauriPasteBackend extends PasteBackend {
 }
 
 export function createPasteBackend(): PasteBackend {
-  const backend: PasteBackend = isTauri() ? new TauriPasteBackend() : new (browserMocks().MockPasteBackend)(inject(ImtBackend));
+  const backend: PasteBackend = isTauri() ? new TauriPasteBackend() : new (browserMocks().MockPasteBackend)(inject(DebriefBackend));
   return withFailureLogging<PasteBackend>(backend, inject(Logger), { onFailure: reportBackendFailures() });
 }

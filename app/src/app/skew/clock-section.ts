@@ -16,7 +16,7 @@ export class ClockDialogService {
 
 /** Inspector section: mark the event as the clock reference, or align its source on the reference. */
 @Component({
-  selector: 'imt-clock-section',
+  selector: 'debrief-clock-section',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="row">

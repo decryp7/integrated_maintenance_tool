@@ -36,7 +36,7 @@ describe('BroadcastChannelPort', () => {
 
   it('uses a channel named after the group and needs no relay', () => {
     const { port, ch } = make();
-    expect(ch.name).toBe('imt-ui-sync:g1');
+    expect(ch.name).toBe('debrief-ui-sync:g1');
     expect(port.needsRelay).toBe(false);
   });
 
@@ -82,7 +82,7 @@ describe('BroadcastChannelPort', () => {
     } finally {
       globalThis.BroadcastChannel = orig;
     }
-    expect(created).toEqual(['imt-ui-sync:x']);
+    expect(created).toEqual(['debrief-ui-sync:x']);
   });
 });
 

@@ -1,7 +1,7 @@
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { MarkerKind, WorkspaceSummary } from '../api.types';
-import { ImtBackend } from '../backend';
+import { DebriefBackend } from '../backend';
 import { failureText } from '../cmd-error';
 import { Logger } from '../logger';
 import { Platform } from '../platform';
@@ -63,7 +63,7 @@ export const WorkspaceDataStore = signalStore(
   withMethods(
     (
       store,
-      backend = inject(ImtBackend),
+      backend = inject(DebriefBackend),
       platform = inject(Platform),
       logger = inject(Logger),
       recent = inject(RECENT_STORE),

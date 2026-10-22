@@ -34,15 +34,15 @@ function put(o: Obj, key: string, value: unknown): void {
 const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
 
 @Component({
-  selector: 'imt-profile-form',
+  selector: 'debrief-profile-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [StringList, ConditionsEditor, ExtractorEditor, FlowOverview, PipelineEditor, HelpHint, Icon, MarkerGlyph, CdkDropList, CdkDrag, CdkDragHandle],
   template: `
-    <datalist id="imt-profile-fields">
+    <datalist id="debrief-profile-fields">
       @for (f of fieldChoices(); track f) { <option [value]="f"></option> }
     </datalist>
 
-    <imt-flow-overview (open)="section.set($event)" />
+    <debrief-flow-overview (open)="section.set($event)" />
     <div class="main">
     <nav class="nav" aria-label="Profile sections" i18n-aria-label="@@profile.form.sections">
       @for (s of sections; track s.id) {
@@ -61,30 +61,30 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
           <p class="help" i18n="@@profile.form.general.help">A profile is a pipeline: which files to read, what identifies an instance, which values to extract, which events are important, and which charts to draw. Extracted values become fields on the event, usable like any Serilog property.</p>
         }
         @case ('files') {
-          <h2><ng-container i18n="@@profile.form.files.title">Files</ng-container> <imt-help label="Files" i18n-label="@@profile.form.files.helpLabel" [text]="helpText.files" /></h2>
+          <h2><ng-container i18n="@@profile.form.files.title">Files</ng-container> <debrief-help label="Files" i18n-label="@@profile.form.files.helpLabel" [text]="helpText.files" /></h2>
           <p class="help" i18n="@@profile.form.files.help">Globs matched against the path relative to the opened folder. Extensions do not matter: each file is read by the parser that recognises it.</p>
           <p class="help" data-testid="profile-parsers-hint"><ng-container i18n="@@profile.form.files.parsersHint">Formats are parsers:</ng-container>&ngsp;<button type="button" class="link" (click)="openParsers()" i18n="@@profile.form.files.parsersLink">Settings ▸ Parsers</button></p>
           <div class="lbl" i18n="@@profile.form.files.include">Include</div>
-          <imt-string-list label="glob" i18n-label="@@profile.form.glob" [values]="m().files?.include ?? []" (changed)="set(['files'], 'include', $event)" />
+          <debrief-string-list label="glob" i18n-label="@@profile.form.glob" [values]="m().files?.include ?? []" (changed)="set(['files'], 'include', $event)" />
           <div class="lbl" i18n="@@profile.form.files.exclude">Exclude</div>
-          <imt-string-list label="glob" i18n-label="@@profile.form.glob" [values]="m().files?.exclude ?? []" (changed)="set(['files'], 'exclude', $event)" />
+          <debrief-string-list label="glob" i18n-label="@@profile.form.glob" [values]="m().files?.exclude ?? []" (changed)="set(['files'], 'exclude', $event)" />
         }
         @case ('instance') {
-          <h2><ng-container i18n="@@profile.form.instance.title">Instance</ng-container> <imt-help label="Instance" i18n-label="@@profile.form.instance.helpLabel" [text]="helpText.instance" /></h2>
+          <h2><ng-container i18n="@@profile.form.instance.title">Instance</ng-container> <debrief-help label="Instance" i18n-label="@@profile.form.instance.helpLabel" [text]="helpText.instance" /></h2>
           <p class="help" i18n="@@profile.form.instance.help">Fields forming the instance key — one timeline lane per distinct combination. Leave the key empty to pick candidates automatically (present on at least half of the events and not constant).</p>
           <div class="grid2">
             <div>
               <div class="lbl" i18n="@@profile.form.instance.key">Key</div>
-              <imt-string-list label="field" i18n-label="@@profile.form.field" datalist="imt-profile-fields" [values]="m().instance?.key ?? []" (changed)="set(['instance'], 'key', $event)" />
+              <debrief-string-list label="field" i18n-label="@@profile.form.field" datalist="debrief-profile-fields" [values]="m().instance?.key ?? []" (changed)="set(['instance'], 'key', $event)" />
             </div>
             <div>
               <div class="lbl" i18n="@@profile.form.instance.candidates">Candidates</div>
-              <imt-string-list label="field" i18n-label="@@profile.form.field" datalist="imt-profile-fields" [values]="m().instance?.candidates ?? []" (changed)="set(['instance'], 'candidates', $event)" />
+              <debrief-string-list label="field" i18n-label="@@profile.form.field" datalist="debrief-profile-fields" [values]="m().instance?.candidates ?? []" (changed)="set(['instance'], 'candidates', $event)" />
             </div>
           </div>
         }
         @case ('extract') {
-          <h2><ng-container i18n="@@profile.form.extract.title">Field extractors</ng-container> <imt-help label="Field extractors" i18n-label="@@profile.form.extract.helpLabel" [text]="helpText.extract" /></h2>
+          <h2><ng-container i18n="@@profile.form.extract.title">Field extractors</ng-container> <debrief-help label="Field extractors" i18n-label="@@profile.form.extract.helpLabel" [text]="helpText.extract" /></h2>
           <div class="split">
             <div class="list">
               @for (x of m().extract ?? []; track $index; let i = $index) {
@@ -93,14 +93,14 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
                     <span class="mono ellipsis">{{ x.name || unnamed }}</span>
                     <span class="faint small ellipsis">{{ outputNames(x.fields) }}</span>
                   </button>
-                  <button class="icon-btn" [attr.aria-label]="deleteExtractorLabel(x.name)" (click)="removeAt('extract', i)" [attr.title]="deleteExtractorLabel(x.name)"><imt-icon name="trash" [size]="13" /></button>
+                  <button class="icon-btn" [attr.aria-label]="deleteExtractorLabel(x.name)" (click)="removeAt('extract', i)" [attr.title]="deleteExtractorLabel(x.name)"><debrief-icon name="trash" [size]="13" /></button>
                 </div>
               }
               <button class="btn dashed" (click)="addExtractor()" i18n="@@profile.form.extract.new">+ New extractor</button>
             </div>
             <div class="detail">
               @if ((m().extract ?? []).length) {
-                <imt-extractor-editor [index]="selExtractClamped()" />
+                <debrief-extractor-editor [index]="selExtractClamped()" />
               } @else {
                 <p class="help" i18n="@@profile.form.extract.help">Extractors pull values out of text with a regex (named groups) and turn them into typed fields — for example CPU and memory from "Process stats CPU 71.2% · WorkingSet 884 MB". Those fields can then be filtered, grouped and charted.</p>
               }
@@ -108,31 +108,31 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
           </div>
         }
         @case ('pipeline') {
-          <imt-pipeline-editor />
+          <debrief-pipeline-editor />
         }
         @case ('marker') {
-          <h2><ng-container i18n="@@profile.form.marker.title">Markers</ng-container> <imt-help label="Markers" i18n-label="@@profile.form.marker.helpLabel" [text]="helpText.marker" /></h2>
+          <h2><ng-container i18n="@@profile.form.marker.title">Markers</ng-container> <debrief-help label="Markers" i18n-label="@@profile.form.marker.helpLabel" [text]="helpText.marker" /></h2>
           <p class="help" i18n="@@profile.form.marker.help">Important events shown on the timeline. Order matters: the first matching rule is the event's primary marker. Drag to reorder.</p>
           <div cdkDropList class="markers" (cdkDropListDropped)="dropMarker($event)">
             @for (mk of m().marker ?? []; track $index; let i = $index) {
               <div class="marker-card" cdkDrag>
                 <div class="mk-row">
-                  <button class="icon-btn handle" cdkDragHandle aria-label="Drag to reorder" i18n-aria-label="@@profile.form.marker.drag" title="Drag to reorder" i18n-title="@@profile.form.marker.dragTitle"><imt-icon name="drag" [size]="14" [stroke]="3" /></button>
-                  <imt-marker-glyph [glyph]="glyphOf(mk)" [size]="18" />
+                  <button class="icon-btn handle" cdkDragHandle aria-label="Drag to reorder" i18n-aria-label="@@profile.form.marker.drag" title="Drag to reorder" i18n-title="@@profile.form.marker.dragTitle"><debrief-icon name="drag" [size]="14" [stroke]="3" /></button>
+                  <debrief-marker-glyph [glyph]="glyphOf(mk)" [size]="18" />
                   <input class="input mono kind" [value]="mk.kind" aria-label="Kind" i18n-aria-label="@@profile.form.marker.kind" (input)="setItem('marker', i, 'kind', $any($event.target).value)" />
                   <input class="input" [value]="mk.label ?? ''" placeholder="Label" i18n-placeholder="@@profile.form.marker.labelPlaceholder" aria-label="Label" i18n-aria-label="@@profile.form.marker.label" (input)="setItem('marker', i, 'label', $any($event.target).value || undefined)" />
                   <input type="color" class="color" [value]="mk.color ?? '#8a91a3'" aria-label="Colour" i18n-aria-label="@@profile.form.marker.colour" (input)="setItem('marker', i, 'color', $any($event.target).value)" />
                   <label class="row small" i18n="@@profile.form.marker.lifecycle"><input type="checkbox" [checked]="!!mk.lifecycle" (change)="setItem('marker', i, 'lifecycle', $any($event.target).checked || undefined)" /> lifecycle</label>
-                  <button class="icon-btn" [attr.aria-label]="deleteMarkerLabel(mk.kind)" (click)="removeAt('marker', i)" [attr.title]="deleteMarkerLabel(mk.kind)"><imt-icon name="trash" [size]="13" /></button>
+                  <button class="icon-btn" [attr.aria-label]="deleteMarkerLabel(mk.kind)" (click)="removeAt('marker', i)" [attr.title]="deleteMarkerLabel(mk.kind)"><debrief-icon name="trash" [size]="13" /></button>
                 </div>
-                <imt-conditions-editor [conditions]="mk.when ?? []" emptyText="Matches every event — add a condition." i18n-emptyText="@@profile.form.marker.empty" (changed)="setItem('marker', i, 'when', $event)" />
+                <debrief-conditions-editor [conditions]="mk.when ?? []" emptyText="Matches every event — add a condition." i18n-emptyText="@@profile.form.marker.empty" (changed)="setItem('marker', i, 'when', $event)" />
               </div>
             }
           </div>
           <button class="btn dashed" (click)="addMarker()" i18n="@@profile.form.marker.new">+ New marker</button>
         }
         @case ('chart') {
-          <h2><ng-container i18n="@@profile.form.chart.title">Charts</ng-container> <imt-help label="Charts" i18n-label="@@profile.form.chart.helpLabel" [text]="helpText.chart" /></h2>
+          <h2><ng-container i18n="@@profile.form.chart.title">Charts</ng-container> <debrief-help label="Charts" i18n-label="@@profile.form.chart.helpLabel" [text]="helpText.chart" /></h2>
           <p class="help" i18n="@@profile.form.chart.help">Charts shown on the Metrics tab. y is an aggregate of a numeric field per time bucket, optionally split into one series per value of other fields.</p>
           @for (c of m().chart ?? []; track $index; let i = $index) {
             <div class="chart-card">
@@ -145,7 +145,7 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
                   </select>
                 </label>
                 <label class="lbl"><ng-container i18n="@@profile.form.chart.field">Field</ng-container>
-                  <input class="input mono" list="imt-profile-fields" [value]="yField(c)" [disabled]="yAgg(c) === 'count'" (input)="setY(i, yAgg(c), $any($event.target).value)" />
+                  <input class="input mono" list="debrief-profile-fields" [value]="yField(c)" [disabled]="yAgg(c) === 'count'" (input)="setY(i, yAgg(c), $any($event.target).value)" />
                 </label>
                 <label class="lbl"><ng-container i18n="@@profile.form.chart.bucket">Bucket</ng-container><input class="input mono" [value]="c.bucket ?? 'auto'" placeholder="auto, 30s, 1m" (input)="setItem('chart', i, 'bucket', $any($event.target).value || undefined)" /></label>
                 <label class="lbl"><ng-container i18n="@@profile.form.chart.type">Type</ng-container>
@@ -154,16 +154,16 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
                   </select>
                 </label>
                 <label class="lbl"><ng-container i18n="@@profile.form.chart.unit">Unit</ng-container><input class="input" [value]="c.unit ?? ''" (input)="setItem('chart', i, 'unit', $any($event.target).value || undefined)" /></label>
-                <div class="del"><button class="btn ghost" (click)="removeAt('chart', i)" i18n="@@profile.form.chart.delete"><imt-icon name="trash" [size]="13" /> Delete</button></div>
+                <div class="del"><button class="btn ghost" (click)="removeAt('chart', i)" i18n="@@profile.form.chart.delete"><debrief-icon name="trash" [size]="13" /> Delete</button></div>
               </div>
               <div class="grid2">
                 <div>
                   <div class="lbl" i18n="@@profile.form.chart.splitBy">Split by</div>
-                  <imt-string-list label="field" i18n-label="@@profile.form.field" datalist="imt-profile-fields" [values]="c.split_by ?? []" (changed)="setItem('chart', i, 'split_by', $event)" />
+                  <debrief-string-list label="field" i18n-label="@@profile.form.field" datalist="debrief-profile-fields" [values]="c.split_by ?? []" (changed)="setItem('chart', i, 'split_by', $event)" />
                 </div>
                 <div>
                   <div class="lbl" i18n="@@profile.form.chart.onlyWhen">Only when</div>
-                  <imt-conditions-editor [conditions]="c.when ?? []" (changed)="setItem('chart', i, 'when', $event)" />
+                  <debrief-conditions-editor [conditions]="c.when ?? []" (changed)="setItem('chart', i, 'when', $event)" />
                 </div>
               </div>
             </div>
@@ -222,7 +222,7 @@ export class ProfileForm {
   protected readonly selExtractClamped = computed(() => Math.min(this.selExtract(), Math.max(0, (this.m().extract?.length ?? 1) - 1)));
 
   protected readonly helpText = {
-    files: $localize`:@@profile.form.files.helpText:Which files in an opened folder IMT reads. Include and exclude are glob patterns; anything that is not a log is skipped.`,
+    files: $localize`:@@profile.form.files.helpText:Which files in an opened folder Debrief reads. Include and exclude are glob patterns; anything that is not a log is skipped.`,
     instance: $localize`:@@profile.form.instance.helpText:An instance is one running copy of a service. The key fields decide which events share a timeline lane, for example MachineName + ProcessId.`,
     extract: $localize`:@@profile.form.extract.helpText:Extractors read a value out of the message text (for example CPU %) and store it as a typed field you can filter and chart.`,
     marker: $localize`:@@profile.form.marker.helpText:Markers highlight important events (start, crash, deployment) on the timeline. The first matching rule is the primary marker.`,

@@ -2,8 +2,8 @@
 //! replaces e-mail addresses in messages and text fields with `<email>`, and drops records left without a message.
 
 use anyhow::Result;
-use imt_plugin_api::prelude::*;
-use imt_plugin_api::user_regex;
+use debrief_plugin_api::prelude::*;
+use debrief_plugin_api::user_regex;
 
 /// The transform. Transforms are deterministic and keep no shared mutable state.
 pub struct RedactEmails {

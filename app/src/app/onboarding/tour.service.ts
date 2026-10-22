@@ -2,7 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { DockService } from '../dock/dock.service';
 import { TOUR_STEPS, TourStep } from './tour-steps';
 
-export const TOUR_DONE_KEY = 'imt.tour.done.v1';
+export const TOUR_DONE_KEY = 'debrief.tour.done.v1';
 /** How long a step waits for its panel to appear before it is skipped. */
 export const TARGET_WAIT_MS = 1500;
 const TARGET_POLL_MS = 50;

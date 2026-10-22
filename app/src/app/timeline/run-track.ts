@@ -22,7 +22,7 @@ export interface RunHover {
  * menu lists every run in view, which is the keyboard path and the equivalent control (WCAG 2.5.8).
  */
 @Component({
-  selector: 'imt-run-track',
+  selector: 'debrief-run-track',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @for (v of items(); track v.id) {

@@ -1,0 +1,33 @@
+[package]
+name = "debrief-plugin-e2e"
+license.workspace = true
+repository.workspace = true
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+description = "End-to-end tests of third-party plugins (ADR 0027): the importer example packaged, signed, installed and importing a file through Debrief's real host and engine. Tests only; never bundled."
+
+# The importer example's program, built here so the tests can package it.
+[[bin]]
+name = "debrief-plugin-e2e-kv"
+path = "src/kv.rs"
+test = false
+
+# Debrief's store worker program, built here so the tests can import through it (needs libduckdb, like the worker).
+[[bin]]
+name = "debrief-plugin-e2e-store-worker"
+path = "src/store_worker.rs"
+test = false
+
+[dependencies]
+debrief-example-importer = { path = "../../examples/plugins/importer-example" }
+debrief-plugin-api = { path = "../debrief-plugin-api" }
+debrief-store-worker = { path = "../debrief-store-worker" }
+
+[dev-dependencies]
+cargo-debrief-plugin = { path = "../cargo-debrief-plugin" }
+debrief-core = { path = "../debrief-core" }
+debrief-plugin-host = { path = "../debrief-plugin-host" }
+debrief-plugin-package = { path = "../debrief-plugin-package" }
+tempfile.workspace = true

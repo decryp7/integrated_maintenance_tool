@@ -51,7 +51,7 @@ describe('SettingsScreen', () => {
     nav(fixture, 'Web browser').click();
     await settle(fixture);
     expect(text(fixture)).toContain('Browser to use');
-    expect(el(fixture, 'imt-browser-runtime-settings')).toBeTruthy();
+    expect(el(fixture, 'debrief-browser-runtime-settings')).toBeTruthy();
     expect(text(fixture)).toContain('Browser for research');
   });
 
@@ -60,7 +60,7 @@ describe('SettingsScreen', () => {
     nav(fixture, 'Video').click();
     await settle(fixture);
     expect(el(fixture, 'nav [aria-current=page]').textContent).toContain('Video');
-    expect(el(fixture, 'imt-video-settings')).toBeTruthy();
+    expect(el(fixture, 'debrief-video-settings')).toBeTruthy();
     expect(text(fixture)).toContain('FFmpeg runtime');
   });
 
@@ -93,7 +93,7 @@ describe('SettingsScreen', () => {
     nav(fixture, 'Appearance').click();
     await settle(fixture);
     expect(el(fixture, 'nav [aria-current=page]').textContent).toContain('Appearance');
-    expect(el(fixture, 'imt-appearance-settings')).toBeTruthy();
+    expect(el(fixture, 'debrief-appearance-settings')).toBeTruthy();
     expect(text(fixture)).toContain('Colour scheme');
   });
 
@@ -101,15 +101,15 @@ describe('SettingsScreen', () => {
     const { fixture } = await setup();
     nav(fixture, 'Diagnostics').click();
     await settle(fixture);
-    expect(all(fixture, 'imt-setting-field')).toHaveLength(6);
+    expect(all(fixture, 'debrief-setting-field')).toHaveLength(6);
     expect(text(fixture)).toContain('4 advanced settings hidden');
     buttonByText(fixture, 'Show advanced').click();
     await settle(fixture);
-    expect(all(fixture, 'imt-setting-field')).toHaveLength(10);
+    expect(all(fixture, 'debrief-setting-field')).toHaveLength(10);
     expect(el<HTMLInputElement>(fixture, '.adv input').checked).toBe(true);
     el<HTMLInputElement>(fixture, '.adv input').click();
     await settle(fixture);
-    expect(all(fixture, 'imt-setting-field')).toHaveLength(6);
+    expect(all(fixture, 'debrief-setting-field')).toHaveLength(6);
   });
 
   it('searches label, description and key across sections', async () => {
@@ -117,7 +117,7 @@ describe('SettingsScreen', () => {
     typeInto(el<HTMLInputElement>(fixture, 'input[type=search]'), 'timeout');
     await settle(fixture);
     expect(all(fixture, '.content h3').map((h) => h.textContent)).toEqual(['Windows diagnostics']);
-    expect(all(fixture, 'imt-setting-field')).toHaveLength(2);
+    expect(all(fixture, 'debrief-setting-field')).toHaveLength(2);
     typeInto(el<HTMLInputElement>(fixture, 'input[type=search]'), 'liveTailDebounce');
     await settle(fixture);
     expect(all(fixture, '.content h3').map((h) => h.textContent)).toEqual(['Live tail']);
@@ -127,12 +127,12 @@ describe('SettingsScreen', () => {
     typeInto(el<HTMLInputElement>(fixture, 'input[type=search]'), 'cache');
     await settle(fixture);
     // A read-only (disabled plugin) hit is shown disabled.
-    expect(el<HTMLInputElement>(fixture, 'imt-setting-field input').disabled).toBe(true);
+    expect(el<HTMLInputElement>(fixture, 'debrief-setting-field input').disabled).toBe(true);
     typeInto(el<HTMLInputElement>(fixture, 'input[type=search]'), 'log level');
     await settle(fixture);
-    typeInto(el<HTMLSelectElement>(fixture, 'imt-setting-field select'), 'debug', 'change');
+    typeInto(el<HTMLSelectElement>(fixture, 'debrief-setting-field select'), 'debug', 'change');
     await settle(fixture);
-    el<HTMLButtonElement>(fixture, 'imt-setting-field button.reset').click();
+    el<HTMLButtonElement>(fixture, 'debrief-setting-field button.reset').click();
     await settle(fixture);
     expect(text(fixture)).not.toContain('Not saved in');
   });
@@ -155,7 +155,7 @@ describe('SettingsScreen', () => {
     expect(el(fixture, 'nav [aria-current=page]').textContent).toContain('Parsers');
     // Settings keeps a link: the library itself is the Parsers view (I3).
     expect(el(fixture, '[data-testid=settings-open-parsers-view]')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('imt-parsers-settings')).toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-parsers-settings')).toBeNull();
   });
 
   it('opens the keyboard shortcut editor from its navigation entry', async () => {
@@ -163,7 +163,7 @@ describe('SettingsScreen', () => {
     nav(fixture, 'Keyboard shortcuts').click();
     await settle(fixture);
     expect(el(fixture, 'nav [aria-current=page]').textContent).toContain('Keyboard shortcuts');
-    expect(el(fixture, 'imt-keyboard-settings')).toBeTruthy();
+    expect(el(fixture, 'debrief-keyboard-settings')).toBeTruthy();
   });
 
   it('applies a change by itself, shows the engine\'s errors inline and offers Undo (I1)', async () => {
@@ -179,15 +179,15 @@ describe('SettingsScreen', () => {
       nav(fixture, 'Live tail').click();
       await settle(fixture);
       expect(all(fixture, 'button').some((b) => b.textContent?.trim() === 'Apply')).toBe(false);
-      typeInto(el<HTMLInputElement>(fixture, 'imt-setting-field input'), '5');
+      typeInto(el<HTMLInputElement>(fixture, 'debrief-setting-field input'), '5');
       await vi.advanceTimersByTimeAsync(AUTO_APPLY_MS + 10);
       await settle(fixture);
-      expect(el(fixture, 'imt-setting-field [role=alert]').textContent).toContain('Must be between 100 ms and 10 s.');
+      expect(el(fixture, 'debrief-setting-field [role=alert]').textContent).toContain('Must be between 100 ms and 10 s.');
       expect(el(fixture, 'nav [aria-label="unsaved changes"]')).toBeTruthy();
       expect(text(fixture)).toContain('Not saved in 1 section');
-      typeInto(el<HTMLInputElement>(fixture, 'imt-setting-field input'), '900');
+      typeInto(el<HTMLInputElement>(fixture, 'debrief-setting-field input'), '900');
       await settle(fixture);
-      expect(all(fixture, 'imt-setting-field [role=alert]')).toHaveLength(0);
+      expect(all(fixture, 'debrief-setting-field [role=alert]')).toHaveLength(0);
       await vi.advanceTimersByTimeAsync(AUTO_APPLY_MS + 10);
       await settle(fixture);
       expect(store.valueOf('workspace', 'liveTailDebounce')).toBe(900);
@@ -209,7 +209,7 @@ describe('SettingsScreen', () => {
     const { fixture } = await setup();
     nav(fixture, 'Live tail').click();
     await settle(fixture);
-    expect(el(fixture, 'imt-live-tail-settings')).toBeTruthy();
+    expect(el(fixture, 'debrief-live-tail-settings')).toBeTruthy();
     expect(text(fixture)).toContain('Live tail delay');
     expect(text(fixture)).toContain('Poll every');
     expect(text(fixture)).toContain('Run detectors every');
@@ -219,7 +219,7 @@ describe('SettingsScreen', () => {
     const { fixture } = await setup();
     nav(fixture, 'Updates').click();
     await settle(fixture);
-    expect(el(fixture, 'imt-updates-settings')).toBeTruthy();
+    expect(el(fixture, 'debrief-updates-settings')).toBeTruthy();
     expect(el(fixture, '[data-testid=updates-facts]').textContent).toContain('Schedule');
     // AI runtime and model updates stay in the AI section; this page only says so.
     expect(el(fixture, '[data-testid=updates-ai-note]').textContent).toContain('AI section');
@@ -240,20 +240,20 @@ describe('SettingsScreen', () => {
     const { fixture, restart } = await setup();
     nav(fixture, 'Diagnostics').click();
     await settle(fixture);
-    const size = at(all<HTMLInputElement>(fixture, 'imt-setting-field input[type=number]'), 0);
+    const size = at(all<HTMLInputElement>(fixture, 'debrief-setting-field input[type=number]'), 0);
     typeInto(size, '20');
     await settle(fixture);
     await TestBed.inject(EngineSettingsStore).apply();
     await settle(fixture);
     const banner = el(fixture, '.banner.restart');
     expect(banner.getAttribute('role')).toBe('status');
-    expect(banner.textContent).toContain('take effect after IMT restarts');
+    expect(banner.textContent).toContain('take effect after Debrief restarts');
     buttonByText(fixture, 'Restart now').click();
     expect(restart).toHaveBeenCalled();
     buttonByText(fixture, 'Reset section').click();
     await settle(fixture);
     expect(text(fixture)).toContain('Diagnostics reset to defaults.');
-    expect(all<HTMLInputElement>(fixture, 'imt-setting-field input[type=number]')[0]?.value).toBe('10');
+    expect(all<HTMLInputElement>(fixture, 'debrief-setting-field input[type=number]')[0]?.value).toBe('10');
   });
 
   it('shows read-only and not-installed sections with their note', async () => {
@@ -262,11 +262,11 @@ describe('SettingsScreen', () => {
     await settle(fixture);
     expect(el(fixture, '[role=note]').textContent).toContain('disabled');
     expect(buttonByText(fixture, 'Reset section').disabled).toBe(true);
-    expect(all<HTMLInputElement>(fixture, 'imt-setting-field input').every((i) => i.disabled)).toBe(true);
+    expect(all<HTMLInputElement>(fixture, 'debrief-setting-field input').every((i) => i.disabled)).toBe(true);
     nav(fixture, 'AI assistant').click();
     await settle(fixture);
     expect(el(fixture, '[role=note]').textContent).toContain('not installed');
-    expect(all(fixture, 'imt-setting-field')).toHaveLength(0);
+    expect(all(fixture, 'debrief-setting-field')).toHaveLength(0);
     expect(text(fixture)).not.toContain('This section has no settings.');
   });
 

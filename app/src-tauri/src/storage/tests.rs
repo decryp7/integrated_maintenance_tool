@@ -10,7 +10,7 @@ fn log_folders(d: &std::path::Path) -> Folders<'static> {
         webview: None,
         data: None,
         log: Some(d.join("logs")),
-        active_log: Some(d.join("logs").join("imt.2026-10-18.log")),
+        active_log: Some(d.join("logs").join("debrief.2026-10-18.log")),
         runtime_tag: "b200".into(),
         session_start: None,
         main_instance: true,
@@ -22,7 +22,7 @@ fn log_folders(d: &std::path::Path) -> Folders<'static> {
 #[test]
 fn usage_sums_the_categories_and_reports_a_cap() {
     let d = TempDir::new("storage-usage");
-    write(&d.0.join("logs").join("imt.2026-10-17.log"), 40);
+    write(&d.0.join("logs").join("debrief.2026-10-17.log"), 40);
     write(&d.0.join("logs").join("snapshots").join("a.png"), 2);
     let cats = plan::categories(&log_folders(&d.0));
     let u = usage_of(&cats, &mut Budget::standard());
@@ -40,8 +40,8 @@ fn usage_sums_the_categories_and_reports_a_cap() {
 #[test]
 fn clearing_several_categories_reports_each_with_progress_and_stops_when_cancelled() {
     let d = TempDir::new("storage-clear-all");
-    write(&d.0.join("logs").join("imt.2026-10-16.log"), 10);
-    write(&d.0.join("logs").join("imt.2026-10-17.log"), 20);
+    write(&d.0.join("logs").join("debrief.2026-10-16.log"), 10);
+    write(&d.0.join("logs").join("debrief.2026-10-17.log"), 20);
     write(&d.0.join("logs").join("snapshots").join("a.png"), 5);
     let cats = plan::categories(&log_folders(&d.0));
     let ids = [CategoryId::Logs, CategoryId::ErrorSnapshots, CategoryId::Stores];
@@ -58,12 +58,12 @@ fn clearing_several_categories_reports_each_with_progress_and_stops_when_cancell
     assert_eq!(seen.last().copied(), Some(1.0));
     assert!(seen.windows(2).all(|w| w[0] <= w[1]));
 
-    write(&d.0.join("logs").join("imt.2026-10-15.log"), 10);
+    write(&d.0.join("logs").join("debrief.2026-10-15.log"), 10);
     let cats = plan::categories(&log_folders(&d.0));
     let r = clear_all(&cats, &ids, None, &AtomicBool::new(true), &mut |_| {});
     assert!(r.cancelled);
     assert_eq!(r.freed_bytes, 0);
-    assert!(d.0.join("logs").join("imt.2026-10-15.log").is_file());
+    assert!(d.0.join("logs").join("debrief.2026-10-15.log").is_file());
 }
 
 #[test]

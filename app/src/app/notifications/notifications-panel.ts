@@ -14,7 +14,7 @@ import { sourceLabel, titleWithCount } from './notifications-text';
  * message's action, Dismiss and Mark all read. The engine keeps the list (dedupe with counts, caps, read state).
  */
 @Component({
-  selector: 'imt-notifications-panel',
+  selector: 'debrief-notifications-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [KindFilter],
   template: `
@@ -23,7 +23,7 @@ import { sourceLabel, titleWithCount } from './notifications-text';
         <button type="button" class="btn small" [attr.aria-pressed]="store.read() === 'all'" (click)="store.setRead('all')" data-testid="notices-view-all" i18n="@@notifications.panel.view.all">All</button>
         <button type="button" class="btn small" [attr.aria-pressed]="store.read() === 'unread'" (click)="store.setRead('unread')" data-testid="notices-unread-only" i18n="@@notifications.panel.view.unread">Unread</button>
       </div>
-      <imt-kind-filter label="Source" i18n-label="@@notifications.panel.source" [options]="sourceOptions()" [selected]="store.sources()" (toggled)="store.toggleSource($any($event))" (cleared)="clearSources()" />
+      <debrief-kind-filter label="Source" i18n-label="@@notifications.panel.source" [options]="sourceOptions()" [selected]="store.sources()" (toggled)="store.toggleSource($any($event))" (cleared)="clearSources()" />
       <span class="spacer"></span>
       <button type="button" class="btn ghost small" [disabled]="!store.unread()" (click)="store.markAllRead()" data-testid="notices-mark-all" i18n="@@notifications.panel.markAll">Mark all read</button>
     </div>
@@ -51,7 +51,7 @@ import { sourceLabel, titleWithCount } from './notifications-text';
               <span class="muted small time">{{ time(n.at) }}</span>
             </div>
             @if (n.body) {
-              <p class="body imt-selectable">{{ n.body }}</p>
+              <p class="body debrief-selectable">{{ n.body }}</p>
             }
             @if (cleared(n)) {
               <p class="muted small cleared" [attr.data-testid]="'notice-cleared-' + n.id">{{ clearedNote }}</p>

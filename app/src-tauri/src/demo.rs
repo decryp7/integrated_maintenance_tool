@@ -20,7 +20,7 @@ pub(crate) fn demo_paths_in(resources: Option<&Path>) -> Vec<String> {
         .collect()
 }
 
-/// The demo's sample folders to open (granted to the calling window: IMT's own files); empty when they
+/// The demo's sample folders to open (granted to the calling window: Debrief's own files); empty when they
 /// are not installed with this build.
 #[tauri::command]
 pub(crate) async fn demo_paths<R: Runtime>(app: AppHandle<R>, grants: crate::paths::WindowGrants) -> Vec<String> {

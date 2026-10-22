@@ -15,7 +15,7 @@ test.describe('runs between lifecycle markers', () => {
   test.beforeEach(async ({ page }) => openApp(page));
 
   test('the default rule draws runs per lane, with anomalies, a tooltip and click-to-filter', async ({ page }, testInfo) => {
-    const timeline = page.locator('imt-timeline-panel');
+    const timeline = page.locator('debrief-timeline-panel');
     const legend = timeline.getByRole('group', { name: 'Runs' });
     await expect(legend).toContainText('Running');
     const runs = timeline.locator('.lane .run[data-kind="run"]');
@@ -25,7 +25,7 @@ test.describe('runs between lifecycle markers', () => {
     // The shared worker file: 2208 restarted without a stop; WEB01's log starts with a stop without start.
     await expect(timeline.locator('.lane .run[data-status="noStop"]')).toHaveCount(1);
     await expect(timeline.locator('.lane .run[data-status="noStart"]')).toHaveCount(1);
-    await expect(timeline.locator('.lane imt-run-track .still').first()).toHaveText('still running');
+    await expect(timeline.locator('.lane debrief-run-track .still').first()).toHaveText('still running');
     await expect(runs.first()).toHaveAttribute('tabindex', '-1');
     await expectNoSeriousViolations(page, testInfo, 'timeline-runs');
 
@@ -55,7 +55,7 @@ test.describe('runs between lifecycle markers', () => {
 
   test('a run rule from a preset in the guided editor shows bands and fills the Runs view', async ({ page }, testInfo) => {
     await runCommand(page, 'Manage markers');
-    const editor = page.locator('imt-runs-editor');
+    const editor = page.locator('debrief-runs-editor');
     await editor.getByTestId('runs-new').click();
     const form = editor.getByTestId('runs-form');
     await form.getByLabel('Process start / exit by process id').check();
@@ -64,7 +64,7 @@ test.describe('runs between lifecycle markers', () => {
     const preview = editor.getByTestId('runs-preview');
     await expect(preview).toContainText('runs on');
     await expect(preview.getByRole('table', { name: 'First runs' })).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'runs-editor', 'imt-runs-editor');
+    await expectNoSeriousViolations(page, testInfo, 'runs-editor', 'debrief-runs-editor');
 
     // An invalid pattern is explained next to the field and blocks saving.
     const startPattern = form.getByRole('textbox', { name: 'Text that starts a run (regex)' });
@@ -79,20 +79,20 @@ test.describe('runs between lifecycle markers', () => {
     await expect(editor.locator('.rules li[data-kind="process"]')).toContainText('Process');
 
     // The timeline draws the new kind, with its own legend entry.
-    const timeline = page.locator('imt-timeline-panel');
+    const timeline = page.locator('debrief-timeline-panel');
     await expect(timeline.getByRole('group', { name: 'Runs' }).locator('[data-run-kind="process"]')).toBeVisible();
     await expect(timeline.locator('.lane .run[data-kind="process"]').first()).toBeAttached();
 
     // The Runs view lists them, sortable; a row jumps to its run.
     const all = await initialTotal(page);
     await runCommand(page, 'Show runs');
-    const view = page.locator('imt-runs-view');
+    const view = page.locator('debrief-runs-view');
     const table = view.getByRole('table', { name: 'Runs' });
     await expect(table.locator('tbody tr').first()).toBeVisible();
     await expect(view.locator('.card[data-kind="process"]')).toContainText('Process');
     await view.getByRole('button', { name: /^Duration/ }).click();
     await expect(table.getByRole('columnheader', { name: /Duration/ })).toHaveAttribute('aria-sort', 'descending');
-    await expectNoSeriousViolations(page, testInfo, 'runs-view', 'imt-runs-view');
+    await expectNoSeriousViolations(page, testInfo, 'runs-view', 'debrief-runs-view');
     await table.locator('tbody .link').first().click();
     await expect(gridTotal(page)).not.toHaveText(all);
   });

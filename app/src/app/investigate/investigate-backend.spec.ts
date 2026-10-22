@@ -3,7 +3,7 @@ import { provideTinyBackend } from '../../testing/helpers';
 import { AiError } from '../ai/ai-backend';
 import { AiStatusStore } from '../ai/ai-status.store';
 import { Playbook, PlaybookStep, PlaybookStepResult, Report } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { IncidentBackend, KnownIssuesBackend, PlaybookBackend, TauriIncidentBackend, TauriKnownIssuesBackend, TauriPlaybookBackend } from './investigate-backend';
 import { MockIncidentBackend, MockKnownIssuesBackend } from './mock/mock-investigate-backends';
 
@@ -50,10 +50,10 @@ describe('the Tauri investigation backends', () => {
 describe('the mock investigation backends', () => {
   it('follow the AI status: no model rejects with noModel, a model answers (one switch, ?mockAi=setup)', async () => {
     TestBed.configureTestingModule({ providers: provideTinyBackend() });
-    const imt = TestBed.inject(ImtBackend);
+    const debrief = TestBed.inject(DebriefBackend);
     let hasModel = false;
-    const issues = new MockKnownIssuesBackend(imt, () => hasModel);
-    const incident = new MockIncidentBackend(imt, () => hasModel);
+    const issues = new MockKnownIssuesBackend(debrief, () => hasModel);
+    const incident = new MockIncidentBackend(debrief, () => hasModel);
     await expect(issues.suggest()).rejects.toBeInstanceOf(AiError);
     await expect(issues.suggest()).rejects.toMatchObject({ code: 'noModel' });
     const built = await incident.build({ top: 5 } as never);

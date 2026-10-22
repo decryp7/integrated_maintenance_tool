@@ -1,4 +1,4 @@
-# IMT parsing profile.
+# Debrief parsing profile.
 #
 # A profile is a pipeline: which files to read, how to parse them into events,
 # what identifies an instance, which values to extract, which events are
@@ -14,7 +14,7 @@ name = "Default (Serilog)"
 # Globs matched against the path relative to the opened folder. Extensions do
 # not matter: the format is detected from the file content.
 include = ["**/*"]
-exclude = ["**/*-filtered.*", "**/*.imtprofile.toml", "**/*.imtproj", "**/*.exe", "**/*.dll", "**/.*"]
+exclude = ["**/*-filtered.*", "**/*.debriefprofile.toml", "**/*.debriefproj", "**/*.exe", "**/*.dll", "**/.*"]
 
 [parse]
 # auto | json | text | csv

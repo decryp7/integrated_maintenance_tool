@@ -1,6 +1,6 @@
 import { EnvironmentProviders, inject, makeEnvironmentProviders, provideAppInitializer } from '@angular/core';
 import { POPOUT_ROUTE } from '../popout/popout-route';
-import { IMT_COMMANDS } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS } from '../extensions/tokens';
 import { WindowCommands } from './window-commands';
 import { WindowTitleSync } from './window-title';
 import { provideWindowingBackend } from './windowing-backend';
@@ -13,7 +13,7 @@ import { WindowingService } from './windowing.service';
 export function provideWindowing(): EnvironmentProviders {
   return makeEnvironmentProviders([
     provideWindowingBackend(),
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(WindowCommands).commands },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(WindowCommands).commands },
     provideAppInitializer(() => startWindowing()),
   ]);
 }

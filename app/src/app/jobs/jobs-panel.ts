@@ -17,7 +17,7 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
  * (jobs appear after about 2 s) and in which order.
  */
 @Component({
-  selector: 'imt-jobs-panel',
+  selector: 'debrief-jobs-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, KindFilter],
   template: `
@@ -27,13 +27,13 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
           <button type="button" class="btn small" [attr.aria-pressed]="store.view() === v.id" (click)="store.setView(v.id)" [attr.data-testid]="'jobs-view-' + v.id">{{ v.label }} <span class="faint">{{ store.viewCounts()[v.id] }}</span></button>
         }
       </div>
-      <imt-kind-filter label="Kind" i18n-label="@@jobs.panel.kind" [options]="kindOptions()" [selected]="store.kinds()" (toggled)="store.toggleKind($any($event))" (cleared)="store.setKinds([])" />
+      <debrief-kind-filter label="Kind" i18n-label="@@jobs.panel.kind" [options]="kindOptions()" [selected]="store.kinds()" (toggled)="store.toggleKind($any($event))" (cleared)="store.setKinds([])" />
       <span class="spacer"></span>
       <button type="button" class="btn ghost small" [disabled]="!store.finished().length" (click)="store.clearFinished()" data-testid="jobs-clear" i18n="@@jobs.panel.clear">Clear finished</button>
     </div>
     @for (p of store.paused(); track p.kind) {
       <div class="paused" role="alert" data-testid="jobs-paused">
-        <imt-icon name="alert" [size]="14" />
+        <debrief-icon name="alert" [size]="14" />
         <span class="grow">{{ pausedText(p.kind, p.reason) }}</span>
         @if (p.kind === 'ai') {
           <button type="button" class="btn small" (click)="resetAi()" i18n="@@jobs.panel.resetAi">Reset AI</button>
@@ -44,7 +44,7 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
       <div class="err" role="alert">
         <span class="grow">{{ e }}</span>
         <button type="button" class="btn small" (click)="store.retryRequest()" i18n="@@jobs.panel.retryRequest">Retry</button>
-        <button type="button" class="icon-btn" aria-label="Dismiss" i18n-aria-label="@@jobs.panel.dismissError" (click)="store.dismissError()"><imt-icon name="close" [size]="12" /></button>
+        <button type="button" class="icon-btn" aria-label="Dismiss" i18n-aria-label="@@jobs.panel.dismissError" (click)="store.dismissError()"><debrief-icon name="close" [size]="12" /></button>
       </div>
     }
     @if (note(); as n) {
@@ -93,8 +93,8 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
               }
               <div class="actions">
                 @if (j.movable) {
-                  <button type="button" class="icon-btn" [attr.aria-label]="moveLabel(j, true)" [title]="moveLabel(j, true)" [disabled]="j.position === 1" (click)="store.move(j.id, true)"><imt-icon name="arrowUp" [size]="14" /></button>
-                  <button type="button" class="icon-btn" [attr.aria-label]="moveLabel(j, false)" [title]="moveLabel(j, false)" (click)="store.move(j.id, false)"><imt-icon name="arrowDown" [size]="14" /></button>
+                  <button type="button" class="icon-btn" [attr.aria-label]="moveLabel(j, true)" [title]="moveLabel(j, true)" [disabled]="j.position === 1" (click)="store.move(j.id, true)"><debrief-icon name="arrowUp" [size]="14" /></button>
+                  <button type="button" class="icon-btn" [attr.aria-label]="moveLabel(j, false)" [title]="moveLabel(j, false)" (click)="store.move(j.id, false)"><debrief-icon name="arrowDown" [size]="14" /></button>
                 }
                 @if (j.cancellable) {
                   <button type="button" class="btn small" (click)="store.cancel(j.id)" [attr.data-testid]="'job-cancel-' + j.id" [attr.aria-label]="cancelLabel(j)" i18n="@@jobs.panel.cancel">Cancel</button>

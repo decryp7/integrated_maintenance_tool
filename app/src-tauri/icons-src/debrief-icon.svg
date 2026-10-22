@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Debrief</title>
+  <defs>
+    <linearGradient id="d1bg" x1="0" y1="40" x2="0" y2="984" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5590FF"/><stop offset="0.55" stop-color="#2E6BF0"/><stop offset="1" stop-color="#1D4FD3"/>
+    </linearGradient>
+    <radialGradient id="d1sheen" cx="304.32000000000005" cy="40" r="802.4" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="d1edge" x1="0" y1="40" x2="0" y2="984" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.4"/><stop offset="0.3" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="0.75" stop-color="#000000" stop-opacity="0"/><stop offset="1" stop-color="#000000" stop-opacity="0.18"/>
+    </linearGradient>
+    <clipPath id="d1clip"><path d="M240 40H784A200 200 0 0 1 984 240V784A200 200 0 0 1 784 984H240A200 200 0 0 1 40 784V240A200 200 0 0 1 240 40Z"/></clipPath>
+    <filter id="d1gs" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="11.46" stdDeviation="13.75" flood-color="#10308A" flood-opacity="0.32"/></filter>
+    
+    
+  </defs>
+  <path d="M240 40H784A200 200 0 0 1 984 240V784A200 200 0 0 1 784 984H240A200 200 0 0 1 40 784V240A200 200 0 0 1 240 40Z" fill="url(#d1bg)"/>
+  <g clip-path="url(#d1clip)">
+    <path d="M0 965.12L965.12 0L1097.2800000000002 0L0 1097.2800000000002Z" fill="#FFFFFF" opacity="0.08"/>
+    <path d="M0 1163.36L1163.36 0L1201.12 0L0 1201.12Z" fill="#FFFFFF" opacity="0.08800000000000001"/>
+    <rect x="40" y="40" width="944" height="944" fill="url(#d1sheen)"/>
+    <path d="M240 40H784A200 200 0 0 1 984 240V784A200 200 0 0 1 784 984H240A200 200 0 0 1 40 784V240A200 200 0 0 1 240 40Z" fill="none" stroke="url(#d1edge)" stroke-width="6.87"/>
+    
+  </g>
+  <g filter="url(#d1gs)" transform="translate(512 512) scale(1.15) translate(-512 -512)"><g opacity="0.6"><path d="M300 340H600" fill="none" stroke="#FFFFFF" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/><path d="M300 684H552" fill="none" stroke="#FFFFFF" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/></g><path d="M300 512H426L480 424L568 604L620 512H724" fill="none" stroke="#FFFFFF" stroke-width="68" stroke-linecap="round" stroke-linejoin="round"/><path d="M668 340a46 46 0 1 1 92 0a46 46 0 1 1 -92 0Z" fill="#FFFFFF"/></g>
+</svg>

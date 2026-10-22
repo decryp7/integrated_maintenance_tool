@@ -1,4 +1,4 @@
-<mxfile host="drawio" agent="IMT diagram generator" version="24.7.17" compressed="false">
+<mxfile host="drawio" agent="Debrief diagram generator" version="24.7.17" compressed="false">
   <diagram id="UML use cases" name="UML use cases">
     <mxGraphModel dx="0" dy="0" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1920" pageHeight="1920" math="0" shadow="0" background="#FFFFFF">
       <root>
@@ -7,16 +7,16 @@
         <mxCell id="frame" value="" style="fontFamily=Arial,Helvetica,sans-serif;rounded=0;fillColor=none;strokeColor=none;" vertex="1" parent="1">
           <mxGeometry x="0" y="0" width="1920" height="1920" as="geometry" />
         </mxCell>
-        <mxCell id="c1" value="&lt;b style=&quot;font-size:20px&quot;&gt;IMT — use cases&lt;/b&gt;" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;" parent="1" vertex="1">
+        <mxCell id="c1" value="&lt;b style=&quot;font-size:20px&quot;&gt;Debrief — use cases&lt;/b&gt;" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;" parent="1" vertex="1">
           <mxGeometry x="40" y="30" width="1000" height="28" as="geometry" />
         </mxCell>
         <mxCell id="c2" value="&lt;span style=&quot;font-size:12px;color:#5A6375&quot;&gt;UML · Use case diagram&lt;/span&gt;" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;" parent="1" vertex="1">
           <mxGeometry x="40" y="62" width="1000" height="18" as="geometry" />
         </mxCell>
-        <mxCell id="c3" value="&lt;span style=&quot;font-size:11px;color:#5A6375&quot;&gt;What each role does with IMT. A Developer can do everything a Support engineer does (generalisation); «include» marks a step that is always part of the base use case.&lt;/span&gt;" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;" parent="1" vertex="1">
+        <mxCell id="c3" value="&lt;span style=&quot;font-size:11px;color:#5A6375&quot;&gt;What each role does with Debrief. A Developer can do everything a Support engineer does (generalisation); «include» marks a step that is always part of the base use case.&lt;/span&gt;" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;" parent="1" vertex="1">
           <mxGeometry x="40" y="82" width="1000" height="18" as="geometry" />
         </mxCell>
-        <mxCell id="c4" value="&lt;b style=&quot;font-size:12px;color:#5A6375&quot;&gt;IMT&lt;/b&gt; &lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[desktop app and &lt;span style=&quot;font-family:Consolas,Menlo,monospace;white-space:nowrap&quot;&gt;imt-agent&lt;/span&gt;]&lt;/i&gt;" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;dashed=1;dashPattern=6 4;fillColor=none;strokeColor=#5A6375;strokeWidth=1.5;align=left;verticalAlign=top;spacingLeft=12;spacingTop=6;container=1;collapsible=0;recursiveResize=0;shadow=1;" parent="1" vertex="1">
+        <mxCell id="c4" value="&lt;b style=&quot;font-size:12px;color:#5A6375&quot;&gt;Debrief&lt;/b&gt; &lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[desktop app and &lt;span style=&quot;font-family:Consolas,Menlo,monospace;white-space:nowrap&quot;&gt;debrief-agent&lt;/span&gt;]&lt;/i&gt;" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;dashed=1;dashPattern=6 4;fillColor=none;strokeColor=#5A6375;strokeWidth=1.5;align=left;verticalAlign=top;spacingLeft=12;spacingTop=6;container=1;collapsible=0;recursiveResize=0;shadow=1;" parent="1" vertex="1">
           <mxGeometry x="280" y="150" width="1340" height="1614" as="geometry" />
         </mxCell>
         <mxCell id="c5" value="Open logs, folders and archives" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;ellipse;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;fontSize=12;spacing=10;" parent="1" vertex="1">
@@ -43,7 +43,7 @@
         <mxCell id="c12" value="Correct clock skew" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;ellipse;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;fontSize=12;spacing=10;" parent="1" vertex="1">
           <mxGeometry x="330" y="714" width="260" height="58" as="geometry" />
         </mxCell>
-        <mxCell id="c13" value="Share a bundle (&lt;span style=&quot;font-family:Consolas,Menlo,monospace;white-space:nowrap&quot;&gt;.imtz&lt;/span&gt;)" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;ellipse;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;fontSize=12;spacing=10;" parent="1" vertex="1">
+        <mxCell id="c13" value="Share a bundle (&lt;span style=&quot;font-family:Consolas,Menlo,monospace;white-space:nowrap&quot;&gt;.debriefz&lt;/span&gt;)" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;ellipse;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;fontSize=12;spacing=10;" parent="1" vertex="1">
           <mxGeometry x="330" y="786" width="260" height="58" as="geometry" />
         </mxCell>
         <mxCell id="c14" value="Write an incident report (HTML, PDF)" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;ellipse;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;fontSize=12;spacing=10;" parent="1" vertex="1">
@@ -106,7 +106,7 @@
         <mxCell id="c33" value="Follow the Windows Event Log" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;ellipse;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;fontSize=12;spacing=10;" parent="1" vertex="1">
           <mxGeometry x="1300" y="426" width="260" height="58" as="geometry" />
         </mxCell>
-        <mxCell id="c34" value="Schedule collection (&lt;span style=&quot;font-family:Consolas,Menlo,monospace;white-space:nowrap&quot;&gt;imt-agent&lt;/span&gt;)" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;ellipse;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;fontSize=12;spacing=10;" parent="1" vertex="1">
+        <mxCell id="c34" value="Schedule collection (&lt;span style=&quot;font-family:Consolas,Menlo,monospace;white-space:nowrap&quot;&gt;debrief-agent&lt;/span&gt;)" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;ellipse;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;fontSize=12;spacing=10;" parent="1" vertex="1">
           <mxGeometry x="1300" y="498" width="260" height="58" as="geometry" />
         </mxCell>
         <mxCell id="c35" value="Install updates" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;ellipse;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;fontSize=12;spacing=10;" parent="1" vertex="1">
@@ -268,7 +268,7 @@
         <mxCell id="c87" value="&lt;span style=&quot;font-size:11px&quot;&gt;Generalisation&lt;/span&gt;" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacing=0;" parent="c73" vertex="1">
           <mxGeometry x="856" y="38" width="150" height="20" as="geometry" />
         </mxCell>
-        <mxCell id="c88" value="&lt;span style=&quot;font-size:10px;color:#5A6375&quot;&gt;IMT · updated 2026-10-22&lt;/span&gt;" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;align=right;verticalAlign=top;spacing=0;" parent="1" vertex="1">
+        <mxCell id="c88" value="&lt;span style=&quot;font-size:10px;color:#5A6375&quot;&gt;Debrief · updated 2026-10-22&lt;/span&gt;" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;align=right;verticalAlign=top;spacing=0;" parent="1" vertex="1">
           <mxGeometry x="1660" y="1880" width="220" height="18" as="geometry" />
         </mxCell>
               <mxCell id="n1" value="Take notes on events and images" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;ellipse;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;fontSize=12;spacing=10;" parent="1" vertex="1">
@@ -295,7 +295,7 @@
               <mxCell id="en4" value="" style="fontFamily=Arial,Helvetica,sans-serif;html=1;fontColor=#1B2130;fontSize=11;edgeStyle=none;strokeWidth=1.5;strokeColor=#5A6375;endArrow=none;" parent="1" edge="1" source="c42" target="n4">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-              <mxCell id="n5" value="Install a signed plugin (.imtplugin)" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;ellipse;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;fontSize=12;spacing=10;" parent="1" vertex="1">
+              <mxCell id="n5" value="Install a signed plugin (.debriefplugin)" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;ellipse;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;fontSize=12;spacing=10;" parent="1" vertex="1">
           <mxGeometry x="1300" y="786" width="260" height="58" as="geometry" />
         </mxCell>
               <mxCell id="en5" value="" style="fontFamily=Arial,Helvetica,sans-serif;html=1;fontColor=#1B2130;fontSize=11;edgeStyle=none;strokeWidth=1.5;strokeColor=#5A6375;endArrow=none;" parent="1" edge="1" source="c44" target="n5">

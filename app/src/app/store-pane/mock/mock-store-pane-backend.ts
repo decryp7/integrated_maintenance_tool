@@ -15,7 +15,7 @@ import {
   StoreOverview,
   WorkspaceSummary,
 } from '../../core/api.types';
-import type { ImtBackend } from '../../core/backend';
+import type { DebriefBackend } from '../../core/backend';
 import { CmdError } from '../../core/cmd-error';
 import { EMPTY_QUERY } from '../../core/workspace/query.store';
 import type { StorePaneBackend } from '../store-pane-backend';
@@ -98,7 +98,7 @@ export class MockStorePaneBackend implements StorePaneBackend {
   private readonly running = new Map<string, () => void>();
   private cachedAnalyses = 3;
 
-  constructor(private readonly imt: ImtBackend) {}
+  constructor(private readonly debrief: DebriefBackend) {}
 
   private flag(name: string): boolean {
     return typeof location !== 'undefined' && new URLSearchParams(location.search).get(name) === '1';
@@ -106,14 +106,14 @@ export class MockStorePaneBackend implements StorePaneBackend {
 
   private async summary(): Promise<WorkspaceSummary> {
     if (this.flag('mockStoreFail')) throw new CmdError({ code: 'failed', message: 'the store worker stopped (mock)', retryable: true });
-    return this.imt.workspaceSummary();
+    return this.debrief.workspaceSummary();
   }
 
   async overview(): Promise<StoreOverview> {
     const s = await this.summary();
     const segments = Math.ceil(s.total / SEGMENT_ROWS);
     return {
-      dir: '/home/me/.local/share/imt/scratch/main',
+      dir: '/home/me/.local/share/debrief/scratch/main',
       sizeBytes: s.total * 180 + 4 * MB,
       events: s.total,
       sources: s.sources.length,
@@ -237,15 +237,15 @@ export class MockStorePaneBackend implements StorePaneBackend {
     if (explain || word === 'explain') return { result: this.result([], [], false, '┌─────────────┐\n│ READ_PARQUET │\n└─────────────┘', started) };
     const s = await this.summary();
     if (/count\s*\(\s*\*\s*\)/i.test(text)) return { result: this.result([{ name: 'count_star()', type: 'BIGINT' }], [[s.total]], false, null, started) };
-    if (/\bfrom\s+(imt\.)?sources\b/i.test(text)) {
+    if (/\bfrom\s+(debrief\.)?sources\b/i.test(text)) {
       return { result: this.result([{ name: 'id', type: 'UINTEGER' }, { name: 'name', type: 'VARCHAR' }, { name: 'events', type: 'UBIGINT' }], s.sources.map((x) => [x.id, x.name, x.records]), false, null, started) };
     }
-    if (/\bfrom\s+(imt\.)?fields\b/i.test(text)) {
+    if (/\bfrom\s+(debrief\.)?fields\b/i.test(text)) {
       return { result: this.result([{ name: 'key', type: 'VARCHAR' }, { name: 'events', type: 'UBIGINT' }], s.fields.map((f) => [f.name, f.count]), false, null, started) };
     }
-    if (/\bfrom\s+(imt\.)?events\b/i.test(text)) {
+    if (/\bfrom\s+(debrief\.)?events\b/i.test(text)) {
       const limit = Number(/\blimit\s+(\d+)/i.exec(text)?.[1] ?? MAX_ROWS + 1);
-      const page = await this.imt.queryPage({ query: EMPTY_QUERY, offset: 0, limit: Math.min(limit, MAX_ROWS + 1, 5_000), descending: false });
+      const page = await this.debrief.queryPage({ query: EMPTY_QUERY, offset: 0, limit: Math.min(limit, MAX_ROWS + 1, 5_000), descending: false });
       const rows = page.rows.map((r) => [r.id, r.ts === null ? null : new Date(r.ts).toISOString().replace('T', ' ').replace('Z', ''), r.level, r.message]);
       const truncated = rows.length > MAX_ROWS || (limit > MAX_ROWS && s.total > MAX_ROWS);
       return {
@@ -263,8 +263,8 @@ export class MockStorePaneBackend implements StorePaneBackend {
         ),
       };
     }
-    if (/\bfrom\s+(imt\.)?\w+/i.test(text) && !/\bfrom\s+(imt\.)?(notes|range|unnest|generate_series)\b/i.test(text)) {
-      const name = /\bfrom\s+(?:imt\.)?(\w+)/i.exec(text)?.[1] ?? '';
+    if (/\bfrom\s+(debrief\.)?\w+/i.test(text) && !/\bfrom\s+(debrief\.)?(notes|range|unnest|generate_series)\b/i.test(text)) {
+      const name = /\bfrom\s+(?:debrief\.)?(\w+)/i.exec(text)?.[1] ?? '';
       return refusal(`Catalog Error: Table with name ${name} does not exist!`, 0, 0);
     }
     return { result: this.result([{ name: '1', type: 'INTEGER' }], [[1]], false, null, started) };

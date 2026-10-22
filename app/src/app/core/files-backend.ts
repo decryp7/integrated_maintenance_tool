@@ -1,12 +1,12 @@
 import { inject, Injectable } from '@angular/core';
 import { invoke } from './activity/ipc';
 import { FileOpened, OpenFileRequest } from './api.types';
-import { ImtBackend } from './backend';
+import { DebriefBackend } from './backend';
 import { Logger, withFailureLogging } from './logger';
 import { isTauri } from './platform';
 
 /**
- * Opening an opened source outside IMT (default program, editor at a line, file manager). The UI names the source by
+ * Opening an opened source outside Debrief (default program, editor at a line, file manager). The UI names the source by
  * id; the engine resolves and checks the path. Injected as a class token: Tauri in the desktop app, the mock in a browser.
  */
 @Injectable({ providedIn: 'root', useFactory: () => createFilesBackend() })
@@ -45,7 +45,7 @@ export class UnsupportedFilesBackend extends FilesBackend {
  */
 export function createFilesBackend(): FilesBackend {
   if (!isTauri()) {
-    const workspace = inject(ImtBackend);
+    const workspace = inject(DebriefBackend);
     return hasFiles(workspace) ? workspace : new UnsupportedFilesBackend();
   }
   return withFailureLogging<FilesBackend>(new TauriFilesBackend(), inject(Logger));

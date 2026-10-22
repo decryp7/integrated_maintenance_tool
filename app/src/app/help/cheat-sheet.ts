@@ -6,14 +6,14 @@ import { KEYBOARD_ID } from '../settings/keyboard/keyboard.types';
 import { FIXED_KEYS, shortcutGroups } from './shortcuts';
 
 /** Class on `<body>` while the cheat sheet is printed (the print styles below show only the sheet). */
-export const PRINT_CLASS = 'imt-print-cheat-sheet';
+export const PRINT_CLASS = 'debrief-print-cheat-sheet';
 
 /**
  * The keyboard cheat sheet (F1): every command's key binding by category plus the keys components handle
  * themselves, searchable and printable. Generated, so it always matches what is registered.
  */
 @Component({
-  selector: 'imt-cheat-sheet',
+  selector: 'debrief-cheat-sheet',
   changeDetection: ChangeDetectionStrategy.OnPush,
   // Not encapsulated: the print rules must hide the rest of the app. Every rule is scoped to the sheet or the print class.
   encapsulation: ViewEncapsulation.None,
@@ -38,24 +38,24 @@ export const PRINT_CLASS = 'imt-print-cheat-sheet';
     }
   `,
   styles: `
-    imt-cheat-sheet { display: flex; flex-direction: column; gap: 10px; }
-    imt-cheat-sheet .cs-bar { display: flex; gap: 8px; }
-    imt-cheat-sheet .cs-search { flex: 1; }
-    imt-cheat-sheet .cs-count { margin: 0; font-size: var(--fs-xs); color: var(--muted); }
-    imt-cheat-sheet .cs-group h3 { margin: 6px 0 4px; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
-    imt-cheat-sheet dl { margin: 0; display: grid; gap: 2px; }
-    imt-cheat-sheet .cs-row { display: grid; grid-template-columns: 180px 1fr; gap: 12px; align-items: baseline; padding: 3px 0; border-bottom: 1px solid var(--border); }
-    imt-cheat-sheet dt, imt-cheat-sheet dd { margin: 0; }
-    imt-cheat-sheet dd { color: var(--text-2); }
-    imt-cheat-sheet kbd { font-family: var(--font-mono); font-size: var(--fs-sm); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border-3); background: var(--bg-3); color: var(--text); }
-    imt-cheat-sheet .cs-none { color: var(--muted); }
+    debrief-cheat-sheet { display: flex; flex-direction: column; gap: 10px; }
+    debrief-cheat-sheet .cs-bar { display: flex; gap: 8px; }
+    debrief-cheat-sheet .cs-search { flex: 1; }
+    debrief-cheat-sheet .cs-count { margin: 0; font-size: var(--fs-xs); color: var(--muted); }
+    debrief-cheat-sheet .cs-group h3 { margin: 6px 0 4px; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+    debrief-cheat-sheet dl { margin: 0; display: grid; gap: 2px; }
+    debrief-cheat-sheet .cs-row { display: grid; grid-template-columns: 180px 1fr; gap: 12px; align-items: baseline; padding: 3px 0; border-bottom: 1px solid var(--border); }
+    debrief-cheat-sheet dt, debrief-cheat-sheet dd { margin: 0; }
+    debrief-cheat-sheet dd { color: var(--text-2); }
+    debrief-cheat-sheet kbd { font-family: var(--font-mono); font-size: var(--fs-sm); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border-3); background: var(--bg-3); color: var(--text); }
+    debrief-cheat-sheet .cs-none { color: var(--muted); }
     @media print {
       body.${PRINT_CLASS} * { visibility: hidden !important; }
-      body.${PRINT_CLASS} imt-cheat-sheet, body.${PRINT_CLASS} imt-cheat-sheet * { visibility: visible !important; }
-      body.${PRINT_CLASS} imt-cheat-sheet { position: absolute; inset: 0 auto auto 0; width: 100%; color: #000; background: #fff; }
-      body.${PRINT_CLASS} imt-cheat-sheet .cs-bar { display: none; }
-      body.${PRINT_CLASS} imt-cheat-sheet kbd { color: #000; background: #fff; border-color: #888; }
-      body.${PRINT_CLASS} imt-cheat-sheet dd, body.${PRINT_CLASS} imt-cheat-sheet .cs-group h3 { color: #000; }
+      body.${PRINT_CLASS} debrief-cheat-sheet, body.${PRINT_CLASS} debrief-cheat-sheet * { visibility: visible !important; }
+      body.${PRINT_CLASS} debrief-cheat-sheet { position: absolute; inset: 0 auto auto 0; width: 100%; color: #000; background: #fff; }
+      body.${PRINT_CLASS} debrief-cheat-sheet .cs-bar { display: none; }
+      body.${PRINT_CLASS} debrief-cheat-sheet kbd { color: #000; background: #fff; border-color: #888; }
+      body.${PRINT_CLASS} debrief-cheat-sheet dd, body.${PRINT_CLASS} debrief-cheat-sheet .cs-group h3 { color: #000; }
       body.${PRINT_CLASS} .dialog, body.${PRINT_CLASS} .dialog .body { position: static !important; max-height: none !important; overflow: visible !important; transform: none !important; }
     }
   `,

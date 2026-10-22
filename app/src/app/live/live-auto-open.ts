@@ -5,7 +5,7 @@ import { LiveTail } from '../workspace/live-tail';
 /** Views that open (in the background) when live tail starts, unless the user closed them before. */
 export const LIVE_AUTO_OPEN_VIEWS = ['tail-status', 'live-alerts'] as const;
 
-const KEY = 'imt.live.autoOpen.dismissed.v1';
+const KEY = 'debrief.live.autoOpen.dismissed.v1';
 
 /** Where the views the user closed are remembered (per user, across sessions). */
 export interface DismissedStore {

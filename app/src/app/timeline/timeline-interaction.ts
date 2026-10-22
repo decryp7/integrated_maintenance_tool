@@ -19,8 +19,8 @@ function isTyping(target: HTMLElement | null): boolean {
  * not mark the timeline for change detection; only what a key changes (zoom history) re-renders.
  */
 @Directive({
-  selector: '[imtTimelineInteraction]',
-  exportAs: 'imtTimelineInteraction',
+  selector: '[debriefTimelineInteraction]',
+  exportAs: 'debriefTimelineInteraction',
   host: {
     '[class.panning]': 'panning()',
     '(pointermove)': 'publishHover($event)',
@@ -32,7 +32,7 @@ function isTyping(target: HTMLElement | null): boolean {
 })
 export class TimelineInteraction {
   /** The visible time range (null before the first timeline arrives). */
-  readonly range = input.required<Range | null>({ alias: 'imtTimelineInteraction' });
+  readonly range = input.required<Range | null>({ alias: 'debriefTimelineInteraction' });
   /** Left edge of the plot inside this element (px). */
   readonly plotLeft = input.required<number>();
   readonly plotWidth = input.required<number>();
@@ -114,7 +114,7 @@ export class TimelineInteraction {
     if (e.code === 'Space') this.spaceDown = true;
     if (!e.altKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
     const panel = this.panel();
-    const inInstance = !!target?.closest?.('imt-timeline-panel.instance');
+    const inInstance = !!target?.closest?.('debrief-timeline-panel.instance');
     if (this.src.main ? inInstance : !(target && panel.contains(target))) return;
     e.preventDefault();
     if (e.key === 'ArrowLeft') this.zoom.back();

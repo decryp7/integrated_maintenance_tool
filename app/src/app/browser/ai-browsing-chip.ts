@@ -6,12 +6,12 @@ import { AiDriver } from './browser.types';
 
 /**
  * "The AI is browsing — Stop" in the status bar while a chat's agent mode or a research job drives the browser window
- * (ADR 0013, amended): IMT's own UI, never anything injected into a page. What it shows comes from Rust through
+ * (ADR 0013, amended): Debrief's own UI, never anything injected into a page. What it shows comes from Rust through
  * `BrowserActivityStore`. Stop ends the chat's agent mode or the window's research (the same paths as the chat and the
  * Jobs pane) and closes the AI's browser window at once.
  */
 @Component({
-  selector: 'imt-ai-browsing-chip',
+  selector: 'debrief-ai-browsing-chip',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   template: `
@@ -28,7 +28,7 @@ import { AiDriver } from './browser.types';
           <span class="err" role="alert" data-testid="ai-browsing-error">{{ e }}</span>
         }
         <button type="button" class="stop" [disabled]="stopping()" (click)="stop(d)" data-testid="ai-browsing-stop" aria-label="Stop the AI's browser" i18n-aria-label="@@browser.chip.stopLabel" title="Stop the AI's browser" i18n-title="@@browser.chip.stopTitle">
-          <imt-icon name="close" [size]="11" />
+          <debrief-icon name="close" [size]="11" />
         </button>
       </span>
     }

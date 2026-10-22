@@ -16,13 +16,13 @@ const MAX_VIDEO_FRAMES = 120;
  * frames were chosen, and what the selection had to do about it, is explained here too.
  */
 @Component({
-  selector: 'imt-video-storage',
+  selector: 'debrief-video-storage',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [VideoError],
   template: `
     <h3 i18n="@@video.storage.title">Storage</h3>
     @if (store.errors().storage; as e) {
-      <imt-video-error [failure]="e" (retry)="store.retry('storage')" (dismiss)="store.dismiss('storage')" />
+      <debrief-video-error [failure]="e" (retry)="store.retry('storage')" (dismiss)="store.dismiss('storage')" />
     }
     @if (store.active(); as v) {
       <p data-testid="video-frames-count" i18n="@@video.storage.frames">This video keeps {{ v.record.frames.length }} of {{ maxVideoFrames }} frames; the project keeps {{ store.projectFrames() }} of {{ store.maxProjectFrames() }}.</p>

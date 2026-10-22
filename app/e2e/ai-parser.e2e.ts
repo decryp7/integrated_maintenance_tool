@@ -9,7 +9,7 @@ test.describe('AI parser generation', () => {
     await page.keyboard.press('ControlOrMeta+k');
     await page.getByRole('combobox', { name: 'Type a command' }).fill('Manage parsers');
     await page.keyboard.press('Enter');
-    const parsers = page.locator('imt-parsers-view');
+    const parsers = page.locator('debrief-parsers-view');
     await parsers.getByRole('button', { name: 'Generate with AI…' }).click();
     await page.getByRole('menu', { name: 'Generate a parser for a file of this window' }).getByRole('menuitem').first().click();
 

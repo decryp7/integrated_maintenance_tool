@@ -1,6 +1,6 @@
 import { Locator, Page } from '@playwright/test';
 
-/** IMT's in-app menu bar (Windows, Linux and the browser build). */
+/** Debrief's in-app menu bar (Windows, Linux and the browser build). */
 export function menubar(page: Page): Locator {
   return page.getByRole('menubar', { name: 'Application menu' });
 }
@@ -47,5 +47,5 @@ export async function showView(page: Page, title: string): Promise<void> {
 /** Opens the profile editor (not part of the default layout) from the activity bar. */
 export async function showProfileEditor(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Profile editor' }).click();
-  await page.locator('imt-profile-editor').waitFor();
+  await page.locator('debrief-profile-editor').waitFor();
 }

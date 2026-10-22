@@ -18,7 +18,7 @@ test.describe('plugin annotations on the timeline', () => {
   test.beforeEach(async ({ page }) => openApp(page));
 
   test('bands, glyphs, legend toggle, tooltip and evidence', async ({ page }, testInfo) => {
-    const timeline = page.locator('imt-timeline-panel');
+    const timeline = page.locator('debrief-timeline-panel');
     const legend = timeline.getByRole('group', { name: 'Annotations' });
     await expect(legend).toContainText('Annotations');
     const downtime = timeline.locator(`.lane .ann[data-kind="${DOWNTIME}"]`);
@@ -50,7 +50,7 @@ test.describe('plugin annotations on the timeline', () => {
   });
 
   test('the Evidence menu reaches every annotation from the keyboard', async ({ page }, testInfo) => {
-    const timeline = page.locator('imt-timeline-panel');
+    const timeline = page.locator('debrief-timeline-panel');
     // Bands and glyphs are pointer shortcuts (markers may cover them): they are not tab stops.
     await expect(timeline.locator('.lane .ann').first()).toHaveAttribute('tabindex', '-1');
     const evidence = timeline.getByRole('group', { name: 'Annotations' }).getByRole('button', { name: 'Evidence…' });
@@ -71,7 +71,7 @@ test('annotations come back after a failed request with Retry', async ({ page })
   // Load the app once, with the failure (no prior load to wait for), and sync on the timeline's lanes: the
   // annotations are requested only once the timeline has data, so the error can only appear after them.
   await openAppWith(page, '?mockFail=annotations:1&mockSnapshots=off');
-  const timeline = page.locator('imt-timeline-panel');
+  const timeline = page.locator('debrief-timeline-panel');
   await expect(timeline.locator('.lane').first()).toBeVisible();
   const legend = timeline.getByRole('group', { name: 'Annotations' });
   await expect(legend.getByRole('alert')).toHaveText('Annotations unavailable');
@@ -96,7 +96,7 @@ test.describe('plugin marker kinds', () => {
     await table.getByRole('checkbox', { name: 'Disable Application crash' }).click();
     await expect(crash).toHaveClass(/off/);
     await page.getByRole('tab', { name: 'Timeline' }).click();
-    await expect(page.locator('imt-timeline-panel .legend').getByRole('button', { name: 'Application crash' })).toHaveCount(0);
+    await expect(page.locator('debrief-timeline-panel .legend').getByRole('button', { name: 'Application crash' })).toHaveCount(0);
     await page.getByRole('tab', { name: 'Markers' }).click();
     await table.getByRole('checkbox', { name: 'Enable net.decryptology.windows/app-crash' }).click();
     await expect(crash).not.toHaveClass(/off/);

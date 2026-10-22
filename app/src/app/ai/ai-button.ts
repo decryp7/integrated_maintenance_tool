@@ -6,7 +6,7 @@ import { AiStatusStore } from './ai-status.store';
  * editor, markers manager). Renders nothing while AI is unavailable in this run, so hosts need no checks.
  */
 @Component({
-  selector: 'imt-ai-button',
+  selector: 'debrief-ai-button',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (status.available()) {

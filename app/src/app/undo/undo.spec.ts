@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideTinyBackend, settle } from '../../testing/helpers';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { CommandRegistry } from '../extensions/command-registry';
 import { UiStateRegistry } from '../lifecycle/ui-state';
@@ -231,7 +231,7 @@ describe('QueryUndo', () => {
 describe('ProfileUndo', () => {
   function setup() {
     TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
-    return { p: TestBed.inject(ProfileUndo), undo: TestBed.inject(UndoStack), backend: TestBed.inject(ImtBackend), store: TestBed.inject(WorkspaceStore) };
+    return { p: TestBed.inject(ProfileUndo), undo: TestBed.inject(UndoStack), backend: TestBed.inject(DebriefBackend), store: TestBed.inject(WorkspaceStore) };
   }
 
   it('saves, then undoes and redoes through the validated save', async () => {

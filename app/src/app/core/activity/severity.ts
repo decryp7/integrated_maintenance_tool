@@ -19,7 +19,7 @@ function text(e: unknown): string {
 
 /**
  * Whether each engine error code is an expected outcome (the user's input, choices or environment: a cleared job, a
- * refused permission, an offline machine, a missing model) rather than IMT failing. A `Record` over every code, so a
+ * refused permission, an offline machine, a missing model) rather than Debrief failing. A `Record` over every code, so a
  * new engine code does not compile until it is classified here.
  */
 const EXPECTED: Record<ErrorCode, boolean> = {
@@ -41,7 +41,7 @@ const EXPECTED: Record<ErrorCode, boolean> = {
   noRuntime: true,
   noVision: true,
   engine: false,
-  // A page of the research or agent browser failing (not open, slow, changed) is the web's, not an IMT bug.
+  // A page of the research or agent browser failing (not open, slow, changed) is the web's, not a Debrief bug.
   browser: true,
   contextOverflow: true,
   malformed: false,
@@ -71,7 +71,7 @@ const EXPECTED: Record<ErrorCode, boolean> = {
   tooLarge: true,
   diskFull: true,
   installFailed: false,
-  // Plugin packages: a package that is not trusted or not for this IMT is the user's to resolve.
+  // Plugin packages: a package that is not trusted or not for this Debrief is the user's to resolve.
   untrusted: true,
   incompatible: true,
 };

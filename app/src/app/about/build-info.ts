@@ -9,10 +9,10 @@ export interface BuildInfo {
 export const UNKNOWN_BUILD: BuildInfo = { commit: 'unknown', date: 'unknown' };
 
 /**
- * Replaced at build time by `scripts/build-info.mjs` (`ng build --define IMT_BUILD_INFO=…`, used by `npm run build`
+ * Replaced at build time by `scripts/build-info.mjs` (`ng build --define DEBRIEF_BUILD_INFO=…`, used by `npm run build`
  * and so by `tauri build`). Undeclared in builds that do not define it.
  */
-declare const IMT_BUILD_INFO: unknown;
+declare const DEBRIEF_BUILD_INFO: unknown;
 
 const COMMIT = /^[0-9a-f]{4,40}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -27,5 +27,5 @@ export function parseBuildInfo(raw: unknown): BuildInfo {
 /** The build's commit and date, from build-time data. Override in tests. */
 export const BUILD_INFO = new InjectionToken<BuildInfo>('BUILD_INFO', {
   providedIn: 'root',
-  factory: () => parseBuildInfo(typeof IMT_BUILD_INFO === 'undefined' ? undefined : IMT_BUILD_INFO),
+  factory: () => parseBuildInfo(typeof DEBRIEF_BUILD_INFO === 'undefined' ? undefined : DEBRIEF_BUILD_INFO),
 });

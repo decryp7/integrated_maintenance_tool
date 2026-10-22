@@ -6,10 +6,10 @@ use crate::ai::error::{AiCmdError, AiResult};
 use crate::engine::with_store;
 use crate::windows::CurrentWindow;
 use crate::CmdResult;
-use imt_ai::{StoreAccess, StoreRef};
-use imt_core::incident::{build_incident_report, digest, IncidentOptions};
-use imt_core::known_issues::{match_known_issues, KnowledgeText};
-use imt_core::report::Report;
+use debrief_ai::{StoreAccess, StoreRef};
+use debrief_core::incident::{build_incident_report, digest, IncidentOptions};
+use debrief_core::known_issues::{match_known_issues, KnowledgeText};
+use debrief_core::report::Report;
 use serde::Deserialize;
 use serde_json::Value;
 use tauri::{AppHandle, Runtime};
@@ -69,7 +69,7 @@ pub async fn incident_narrative<R: Runtime>(
     app: AppHandle<R>,
     win: CurrentWindow,
     report: Value,
-) -> AiResult<imt_ai::assistant::Narrative> {
+) -> AiResult<debrief_ai::assistant::Narrative> {
     let report = Report::parse(report).map_err(|e| AiCmdError::invalid(format!("{e:#}")))?;
     let ai = core(&app)?;
     ai.availability()?;

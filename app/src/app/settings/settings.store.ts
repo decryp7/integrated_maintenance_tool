@@ -21,7 +21,7 @@ export interface SettingsStorage {
   save(settings: Settings): void;
 }
 
-export const SETTINGS_KEY = 'imt.settings';
+export const SETTINGS_KEY = 'debrief.settings';
 export const SETTINGS_VERSION = 1;
 
 export class LocalStorageSettingsStorage implements SettingsStorage {

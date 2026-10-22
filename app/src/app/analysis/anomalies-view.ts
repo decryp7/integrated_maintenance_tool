@@ -14,7 +14,7 @@ import { TimeCursor } from './time-cursor';
 
 /** Findings of the engine's anomaly detectors; clicking one zooms to its range and selects a sample event. */
 @Component({
-  selector: 'imt-anomalies-view',
+  selector: 'debrief-anomalies-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, CoverageNote],
   template: `
@@ -24,8 +24,8 @@ import { TimeCursor } from './time-cursor';
       <span class="spacer"></span>
       <button class="btn" type="button" (click)="res.retry()" i18n="@@analysis.anomalies.refresh">Refresh</button>
     </div>
-    <imt-coverage-note [coverage]="res.coverage()" />
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="res.result()?.length === 0" emptyText="No anomalies detected in the current query." i18n-emptyText="@@analysis.anomalies.emptyText" emptyHint="IMT looks for crashes, error spikes, silences, slow outliers, rate changes and memory growth in the events the query matches." i18n-emptyHint="@@analysis.anomalies.emptyHint" suggest (retry)="res.retry()">
+    <debrief-coverage-note [coverage]="res.coverage()" />
+    <debrief-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="res.result()?.length === 0" emptyText="No anomalies detected in the current query." i18n-emptyText="@@analysis.anomalies.emptyText" emptyHint="Debrief looks for crashes, error spikes, silences, slow outliers, rate changes and memory growth in the events the query matches." i18n-emptyHint="@@analysis.anomalies.emptyHint" suggest (retry)="res.retry()">
       <div class="head" role="group" aria-label="Sort anomalies by" i18n-aria-label="@@analysis.anomalies.sortLabel" data-testid="anomaly-head">
         <span class="kind"></span>
         @for (c of columns; track c.id) {
@@ -48,7 +48,7 @@ import { TimeCursor } from './time-cursor';
           </li>
         }
       </ul>
-    </imt-analysis-state>
+    </debrief-analysis-state>
   `,
   styles: [
     ANALYSIS_STYLES,

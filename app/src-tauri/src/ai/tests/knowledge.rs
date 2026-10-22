@@ -37,7 +37,7 @@ fn knowledge_files_are_managed_in_both_scopes() {
     assert_eq!(list["global"][0]["name"], "Glossary");
     assert_eq!(list["project"][0]["bytes"], 28);
     assert!(list["project"][0].get("text").is_none(), "lists carry no text");
-    // The global file is on disk in IMT's configuration folder.
+    // The global file is on disk in Debrief's configuration folder.
     let dir = f.tmp.0.join("ai/knowledge");
     assert_eq!(
         std::fs::read_to_string(dir.join(format!("{g}.md"))).unwrap(),
@@ -61,7 +61,7 @@ fn knowledge_files_are_managed_in_both_scopes() {
     assert_eq!(bad("ai_knowledge_get", json!({"scope": "global", "id": "k9"})), "notFound");
     assert_eq!(bad("ai_knowledge_remove", json!({"scope": "global", "id": "../index"})), "invalid");
     assert_eq!(bad("ai_knowledge_create", json!({"scope": "project", "name": " "})), "invalid");
-    let huge = "x".repeat(imt_ai::knowledge::MAX_FILE_BYTES + 1);
+    let huge = "x".repeat(debrief_ai::knowledge::MAX_FILE_BYTES + 1);
     assert_eq!(
         bad("ai_knowledge_create", json!({"scope": "project", "name": "Big", "text": huge})),
         "invalid"
@@ -130,7 +130,7 @@ fn import_and_export_only_use_paths_the_user_chose() {
     assert_eq!(doc["text"], "# Runbook\nRestart the gateway.", "BOM and CRLF are normalised");
     // Too large or not text.
     let big = f.tmp.0.join("big.md");
-    std::fs::write(&big, "x".repeat(imt_ai::knowledge::MAX_FILE_BYTES + 1)).unwrap();
+    std::fs::write(&big, "x".repeat(debrief_ai::knowledge::MAX_FILE_BYTES + 1)).unwrap();
     grant(&app, &big, crate::paths::Access::Read);
     let e = ipc(
         &main,
@@ -199,8 +199,8 @@ fn every_ai_feature_reads_the_enabled_knowledge_project_first() {
     assert_eq!(sent.len(), 2);
     for r in &sent {
         let s = &r.system;
-        let (rules, knowledge) = s.split_once(imt_ai::knowledge::BLOCK_OPEN).expect("the knowledge block");
-        assert!(!rules.trim().is_empty(), "IMT's rules come first");
+        let (rules, knowledge) = s.split_once(debrief_ai::knowledge::BLOCK_OPEN).expect("the knowledge block");
+        assert!(!rules.trim().is_empty(), "Debrief's rules come first");
         let (p, g) = (knowledge.find("ACME-GW").unwrap(), knowledge.find("eu-west").unwrap());
         assert!(p < g, "project before global");
         assert!(!s.contains("UNFINISHED-NOTE"), "disabled files are skipped");

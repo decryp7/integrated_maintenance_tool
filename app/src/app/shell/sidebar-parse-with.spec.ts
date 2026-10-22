@@ -11,10 +11,10 @@ import { Sidebar } from './sidebar';
 
 describe('Explorer ▸ Parse with… (I3)', () => {
   it('opens the Parsers view with that source as the one being chosen for, instead of a dialog of its own', async () => {
-    const imt = tinyBackend();
+    const debrief = tinyBackend();
     const showView = vi.fn();
     TestBed.configureTestingModule({
-      providers: [provideTinyBackend(imt), { provide: ParsersBackend, useValue: new MockParsersBackend(imt) }, { provide: COMMAND_CONTEXT, useValue: { showView } }],
+      providers: [provideTinyBackend(debrief), { provide: ParsersBackend, useValue: new MockParsersBackend(debrief) }, { provide: COMMAND_CONTEXT, useValue: { showView } }],
     });
     await TestBed.inject(WorkspaceStore).init();
     const fixture = TestBed.createComponent(Sidebar);

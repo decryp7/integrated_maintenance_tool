@@ -1,4 +1,4 @@
-// Pure helpers for IMT's translation files: XLIFF 1.2 (what `ng extract-i18n` writes and translators edit) to the
+// Pure helpers for Debrief's translation files: XLIFF 1.2 (what `ng extract-i18n` writes and translators edit) to the
 // runtime JSON that `loadTranslations` takes, and the generated pseudo-locale. No I/O here; see build-locales.mjs.
 
 const ENTITIES = { lt: '<', gt: '>', quot: '"', apos: "'", amp: '&' };

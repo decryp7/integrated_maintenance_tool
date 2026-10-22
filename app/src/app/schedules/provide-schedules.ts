@@ -1,24 +1,24 @@
 import { EnvironmentProviders, makeEnvironmentProviders } from '@angular/core';
-import { IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefCommand, DebriefView } from '../extensions/tokens';
 
 /** The scheduled-collection views. Same extension point as plugin views. */
-export const SCHEDULES_VIEWS: ImtView[] = [
+export const SCHEDULES_VIEWS: DebriefView[] = [
   { id: 'collection-schedules', category: 'Tools', title: $localize`:@@schedules.view.schedules:Collection schedules`, icon: 'timeline', defaultPosition: 'center', area: 'document', component: () => import('./schedules-view').then((m) => m.SchedulesView) },
   { id: 'collection-runs', category: 'Tools', title: $localize`:@@schedules.view.runs:Collection runs`, icon: 'folder', defaultPosition: 'center', component: () => import('./runs-view').then((m) => m.RunsView) },
 ];
 
-export const SCHEDULES_COMMANDS: ImtCommand[] = [
+export const SCHEDULES_COMMANDS: DebriefCommand[] = [
   { id: 'tools.schedules.show', title: $localize`:@@schedules.cmd.schedules:Open collection schedules`, category: $localize`:@@schedules.category.tools:Tools`, run: (ctx) => ctx.showView('collection-schedules') },
   { id: 'tools.runs.show', title: $localize`:@@schedules.cmd.runs:Open collection runs`, category: $localize`:@@schedules.category.tools:Tools`, run: (ctx) => ctx.showView('collection-runs') },
 ];
 
 /**
- * Scheduled collection with the headless agent (`imt-agent`): the schedules editor and the runs
+ * Scheduled collection with the headless agent (`debrief-agent`): the schedules editor and the runs
  * browser. One line in `app.config.ts`.
  */
 export function provideSchedules(): EnvironmentProviders {
   return makeEnvironmentProviders([
-    { provide: IMT_VIEWS, multi: true, useValue: SCHEDULES_VIEWS },
-    { provide: IMT_COMMANDS, multi: true, useValue: SCHEDULES_COMMANDS },
+    { provide: DEBRIEF_VIEWS, multi: true, useValue: SCHEDULES_VIEWS },
+    { provide: DEBRIEF_COMMANDS, multi: true, useValue: SCHEDULES_COMMANDS },
   ]);
 }

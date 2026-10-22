@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { QlQuery } from '../core/api.types';
 import { AnalysisBackend } from '../core/analysis-backend';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
-import { ImtEvents } from '../extensions/events';
+import { DebriefEvents } from '../extensions/events';
 import { andQl } from './ql-text';
 import { TimeRange } from './time-cursor';
 
@@ -10,7 +10,7 @@ import { TimeRange } from './time-cursor';
 @Injectable({ providedIn: 'root' })
 export class AnalysisActions {
   private readonly ctx = inject(COMMAND_CONTEXT);
-  private readonly events = inject(ImtEvents);
+  private readonly events = inject(DebriefEvents);
   private readonly analysis = inject(AnalysisBackend);
 
   /** Sets the workspace query's `ql` (filters grid, timeline and charts). */

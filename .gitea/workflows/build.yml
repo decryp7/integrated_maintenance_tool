@@ -1,4 +1,4 @@
-# Checks IMT on every push and pull request. Installers are built only for v* tags (which also publish a
+# Checks Debrief on every push and pull request. Installers are built only for v* tags (which also publish a
 # Gitea release with them attached), the nightly run and manual runs (see the bundle job).
 #
 # Runner labels: ubuntu-latest, windows-latest, macos-latest. Adjust `runs-on`
@@ -77,13 +77,13 @@ jobs:
       - uses: actions/cache@v4
         if: runner.os != 'Windows'
         with:
-          path: ~/.cache/imt-libduckdb
-          key: libduckdb-${{ runner.os }}-${{ hashFiles('crates/imt-store-duck/scripts/fetch-libduckdb.sh') }}
+          path: ~/.cache/debrief-libduckdb
+          key: libduckdb-${{ runner.os }}-${{ hashFiles('crates/debrief-store-duck/scripts/fetch-libduckdb.sh') }}
 
       - name: libduckdb (prebuilt, pinned SHA-256)
         shell: bash
         run: |
-          eval "$(bash crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+          eval "$(bash crates/debrief-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/debrief-libduckdb")"
           : "${DUCKDB_LIB_DIR:?fetch-libduckdb.sh did not set DUCKDB_LIB_DIR}"
           echo "DUCKDB_LIB_DIR=$DUCKDB_LIB_DIR" >> "$GITHUB_ENV"
           echo "DUCKDB_INCLUDE_DIR=$DUCKDB_INCLUDE_DIR" >> "$GITHUB_ENV"
@@ -144,13 +144,13 @@ jobs:
       - uses: actions/cache@v4
         if: runner.os != 'Windows'
         with:
-          path: ~/.cache/imt-libduckdb
-          key: libduckdb-${{ runner.os }}-${{ hashFiles('crates/imt-store-duck/scripts/fetch-libduckdb.sh') }}
+          path: ~/.cache/debrief-libduckdb
+          key: libduckdb-${{ runner.os }}-${{ hashFiles('crates/debrief-store-duck/scripts/fetch-libduckdb.sh') }}
 
       - name: libduckdb (prebuilt, pinned SHA-256)
         shell: bash
         run: |
-          eval "$(bash crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+          eval "$(bash crates/debrief-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/debrief-libduckdb")"
           : "${DUCKDB_LIB_DIR:?fetch-libduckdb.sh did not set DUCKDB_LIB_DIR}"
           echo "DUCKDB_LIB_DIR=$DUCKDB_LIB_DIR" >> "$GITHUB_ENV"
           echo "DUCKDB_INCLUDE_DIR=$DUCKDB_INCLUDE_DIR" >> "$GITHUB_ENV"
@@ -173,7 +173,7 @@ jobs:
       # (DuckDB's jemalloc is the allocator there; the test skips itself in debug builds).
       - name: Memory budget
         if: runner.os == 'Linux'
-        run: cargo test --release -p imt-store-duck --test analysis_memory -- --nocapture
+        run: cargo test --release -p debrief-store-duck --test analysis_memory -- --nocapture
 
       # Saved only when the dependencies changed (no exact hit).
       - uses: actions/cache/save@v4
@@ -184,8 +184,8 @@ jobs:
             ~/.cargo/git
           key: test-registry-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
 
-  # The plugin SDK as an author uses it: a project of every kind from `cargo imt-plugin new` builds, and one of them
-  # passes `cargo imt-plugin test` (conformance in the sandbox, then its own tests). The examples themselves are
+  # The plugin SDK as an author uses it: a project of every kind from `cargo debrief-plugin new` builds, and one of them
+  # passes `cargo debrief-plugin test` (conformance in the sandbox, then its own tests). The examples themselves are
   # workspace members and run in `rust tests`.
   plugin-sdk:
     name: plugin SDK templates
@@ -193,7 +193,7 @@ jobs:
     container:
       image: catthehacker/ubuntu:act-latest
     env:
-      CARGO_TARGET_DIR: /tmp/imt-sdk-target
+      CARGO_TARGET_DIR: /tmp/debrief-sdk-target
     steps:
       - uses: actions/checkout@v4
 
@@ -207,8 +207,8 @@ jobs:
           key: test-registry-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: test-registry-${{ runner.os }}-
 
-      - name: Install cargo imt-plugin
-        run: cargo install --path crates/cargo-imt-plugin --locked --debug
+      - name: Install cargo debrief-plugin
+        run: cargo install --path crates/cargo-debrief-plugin --locked --debug
 
       - name: New projects of every kind build
         shell: bash
@@ -216,17 +216,17 @@ jobs:
           set -e
           mkdir -p /tmp/plugins
           for kind in importer transform tool collector annotator; do
-            cargo imt-plugin new "my-$kind" --kind "$kind" --dir /tmp/plugins --sdk-path .
+            cargo debrief-plugin new "my-$kind" --kind "$kind" --dir /tmp/plugins --sdk-path .
             cargo build --manifest-path "/tmp/plugins/my-$kind/Cargo.toml" --all-targets
           done
 
-      - name: A new importer passes cargo imt-plugin test, packages and signs
+      - name: A new importer passes cargo debrief-plugin test, packages and signs
         working-directory: /tmp/plugins/my-importer
         run: |
-          cargo imt-plugin test
-          cargo imt-plugin keygen --out ci.secret-key
-          cargo imt-plugin package --sign ci.secret-key
-          cargo imt-plugin inspect my-importer-0.1.0.imtplugin
+          cargo debrief-plugin test
+          cargo debrief-plugin keygen --out ci.secret-key
+          cargo debrief-plugin package --sign ci.secret-key
+          cargo debrief-plugin inspect my-importer-0.1.0.debriefplugin
 
   licences:
     name: licences, notices + commits
@@ -384,7 +384,7 @@ jobs:
     timeout-minutes: 60
     # Windows runners usually run as administrator, where WebView2 ignores WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS (how
     # msedgedriver enables remote debugging); the debug build hands those arguments to WebView2 itself, so both legs
-    # are required. Each run keeps IMT's folders in a temp IMT_DATA_DIR (see app/e2e-tauri/wdio.conf.ts).
+    # are required. Each run keeps Debrief's folders in a temp DEBRIEF_DATA_DIR (see app/e2e-tauri/wdio.conf.ts).
     steps:
       - uses: actions/checkout@v4
 
@@ -405,9 +405,9 @@ jobs:
           rem which is deleted afterwards). One build folder per job: the smoke (debug) and installer (release)
           rem jobs run at the same time and would otherwise wait for each other on the cargo lock. The npm cache
           rem is shared: npm ci then installs from disk instead of downloading every package again.
-          set "IMT_CI=%USERPROFILE%\.imt-ci"
-          echo CARGO_TARGET_DIR=%IMT_CI%\target-%GITHUB_JOB%>>"%GITHUB_ENV%"
-          echo npm_config_cache=%IMT_CI%\npm-cache>>"%GITHUB_ENV%"
+          set "DEBRIEF_CI=%USERPROFILE%\.debrief-ci"
+          echo CARGO_TARGET_DIR=%DEBRIEF_CI%\target-%GITHUB_JOB%>>"%GITHUB_ENV%"
+          echo npm_config_cache=%DEBRIEF_CI%\npm-cache>>"%GITHUB_ENV%"
           echo npm_config_prefer_offline=true>>"%GITHUB_ENV%"
           echo npm_config_audit=false>>"%GITHUB_ENV%"
           echo npm_config_fund=false>>"%GITHUB_ENV%"
@@ -440,7 +440,7 @@ jobs:
           restore-keys: smoke-${{ runner.os }}-
 
       # Windows runs on the host, which keeps its own Node: setup-node downloaded Node again on every job and its
-      # npm cache took about 7 minutes to restore (the npm cache already lives in %USERPROFILE%\.imt-ci). Fail fast
+      # npm cache took about 7 minutes to restore (the npm cache already lives in %USERPROFILE%\.debrief-ci). Fail fast
       # when the host's Node is missing or not the major version app/.nvmrc asks for.
       - name: Host Node matches app/.nvmrc (Windows)
         if: runner.os == 'Windows'
@@ -475,13 +475,13 @@ jobs:
       - uses: actions/cache@v4
         if: runner.os != 'Windows'
         with:
-          path: ~/.cache/imt-libduckdb
-          key: libduckdb-${{ runner.os }}-${{ hashFiles('crates/imt-store-duck/scripts/fetch-libduckdb.sh') }}
+          path: ~/.cache/debrief-libduckdb
+          key: libduckdb-${{ runner.os }}-${{ hashFiles('crates/debrief-store-duck/scripts/fetch-libduckdb.sh') }}
 
       - name: libduckdb (prebuilt, pinned SHA-256)
         shell: bash
         run: |
-          eval "$(bash crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+          eval "$(bash crates/debrief-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/debrief-libduckdb")"
           : "${DUCKDB_LIB_DIR:?fetch-libduckdb.sh did not set DUCKDB_LIB_DIR}"
           echo "DUCKDB_LIB_DIR=$DUCKDB_LIB_DIR" >> "$GITHUB_ENV"
           echo "DUCKDB_INCLUDE_DIR=$DUCKDB_INCLUDE_DIR" >> "$GITHUB_ENV"
@@ -505,7 +505,7 @@ jobs:
         run: node e2e-tauri/scripts/fetch-msedgedriver.mjs
 
       # Windows host: unpacking ~900 packages into a fresh node_modules took 7–14 min per job even with the npm cache
-      # on disk. A finished node_modules per package-lock.json lives in %USERPROFILE%\.imt-ci and is linked into the
+      # on disk. A finished node_modules per package-lock.json lives in %USERPROFILE%\.debrief-ci and is linked into the
       # job's checkout (a directory junction); npm ci runs only when the lockfile changed. The last step removes the
       # junction before the runner deletes the work folder, so its cleanup never walks into the shared copy (if a
       # killed job skips that step, the worst case is one reinstall).
@@ -514,7 +514,7 @@ jobs:
         shell: bash
         run: |
           key=$(sha256sum app/package-lock.json | cut -c1-16)
-          base="$USERPROFILE/.imt-ci"
+          base="$USERPROFILE/.debrief-ci"
           # <hash>/node_modules, not node_modules-<hash>: Node resolves packages from the junction's real path, so it
           # must still contain a folder named node_modules (else e.g. @tauri-apps/cli cannot find its native binary).
           cached="$base/node-cache/$key/node_modules"
@@ -541,40 +541,40 @@ jobs:
         if: runner.os == 'Windows'
         working-directory: app
         shell: bash
-        # Keep IMT's folders so a failure can show the app's own logs (next step).
+        # Keep Debrief's folders so a failure can show the app's own logs (next step).
         env:
-          IMT_E2E_KEEP_DATA: "1"
+          DEBRIEF_E2E_KEEP_DATA: "1"
         run: npm run e2e:tauri
 
-      - name: IMT logs of the failed smoke run (Windows)
+      - name: Debrief logs of the failed smoke run (Windows)
         if: failure() && runner.os == 'Windows'
         working-directory: app
         shell: bash
         run: |
-          for f in $(find e2e-tauri/.tmp -path '*imt-e2e-*' -name '*.log' 2>/dev/null | sort); do
+          for f in $(find e2e-tauri/.tmp -path '*debrief-e2e-*' -name '*.log' 2>/dev/null | sort); do
             echo "::group::$f"; tail -n 150 "$f"; echo "::endgroup::"
           done
-          tasklist //FI "IMAGENAME eq imt-app.exe" || true
+          tasklist //FI "IMAGENAME eq debrief-app.exe" || true
 
       # A session bus for the single-instance plugin and notifications, and a virtual display for WebKitGTK.
       - name: Smoke tests (Linux)
         if: runner.os == 'Linux'
         working-directory: app
         # WebKitGTK in a CI container: its web-process sandbox (bubblewrap) cannot start as root inside Docker, and
-        # there is no GPU. These switches apply to this throwaway test container only, never to IMT itself.
+        # there is no GPU. These switches apply to this throwaway test container only, never to Debrief itself.
         env:
           WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS: "1"
           WEBKIT_DISABLE_DMABUF_RENDERER: "1"
           WEBKIT_DISABLE_COMPOSITING_MODE: "1"
           LIBGL_ALWAYS_SOFTWARE: "1"
-          # Keep IMT's folders so a failure can show the app's own logs (next step).
-          IMT_E2E_KEEP_DATA: "1"
+          # Keep Debrief's folders so a failure can show the app's own logs (next step).
+          DEBRIEF_E2E_KEEP_DATA: "1"
         run: dbus-run-session -- xvfb-run -a --server-args="-screen 0 1600x1000x24" npm run e2e:tauri
 
-      - name: IMT logs of the failed smoke run (Linux)
+      - name: Debrief logs of the failed smoke run (Linux)
         if: failure() && runner.os == 'Linux'
         run: |
-          for f in $(find /tmp -path '*imt-e2e-*' -name '*.log' 2>/dev/null | sort); do
+          for f in $(find /tmp -path '*debrief-e2e-*' -name '*.log' 2>/dev/null | sort); do
             echo "::group::$f"; tail -n 150 "$f"; echo "::endgroup::"
           done
           dmesg 2>/dev/null | tail -n 30 || true
@@ -595,9 +595,9 @@ jobs:
         if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && !cancelled()
         shell: bash
         env:
-          IMT_LIVE_SEARCH: "1"
-          IMT_E2E_LIVE_SEARCH_OUT: ${{ runner.temp }}/live-search
-        run: cargo test -p imt-app --lib live_search -- --ignored --nocapture
+          DEBRIEF_LIVE_SEARCH: "1"
+          DEBRIEF_E2E_LIVE_SEARCH_OUT: ${{ runner.temp }}/live-search
+        run: cargo test -p debrief-app --lib live_search -- --ignored --nocapture
 
       # The report and page screenshots, passed or not (a warning is worth a look too).
       - name: Live search test report
@@ -654,9 +654,9 @@ jobs:
           rem which is deleted afterwards). One build folder per job: the smoke (debug) and installer (release)
           rem jobs run at the same time and would otherwise wait for each other on the cargo lock. The npm cache
           rem is shared: npm ci then installs from disk instead of downloading every package again.
-          set "IMT_CI=%USERPROFILE%\.imt-ci"
-          echo CARGO_TARGET_DIR=%IMT_CI%\target-%GITHUB_JOB%>>"%GITHUB_ENV%"
-          echo npm_config_cache=%IMT_CI%\npm-cache>>"%GITHUB_ENV%"
+          set "DEBRIEF_CI=%USERPROFILE%\.debrief-ci"
+          echo CARGO_TARGET_DIR=%DEBRIEF_CI%\target-%GITHUB_JOB%>>"%GITHUB_ENV%"
+          echo npm_config_cache=%DEBRIEF_CI%\npm-cache>>"%GITHUB_ENV%"
           echo npm_config_prefer_offline=true>>"%GITHUB_ENV%"
           echo npm_config_audit=false>>"%GITHUB_ENV%"
           echo npm_config_fund=false>>"%GITHUB_ENV%"
@@ -686,7 +686,7 @@ jobs:
           restore-keys: bundle-${{ runner.os }}-
 
       # Windows runs on the host, which keeps its own Node: setup-node downloaded Node again on every job and its
-      # npm cache took about 7 minutes to restore (the npm cache already lives in %USERPROFILE%\.imt-ci). Fail fast
+      # npm cache took about 7 minutes to restore (the npm cache already lives in %USERPROFILE%\.debrief-ci). Fail fast
       # when the host's Node is missing or not the major version app/.nvmrc asks for.
       - name: Host Node matches app/.nvmrc (Windows)
         if: runner.os == 'Windows'
@@ -721,13 +721,13 @@ jobs:
       - uses: actions/cache@v4
         if: runner.os != 'Windows'
         with:
-          path: ~/.cache/imt-libduckdb
-          key: libduckdb-${{ runner.os }}-${{ hashFiles('crates/imt-store-duck/scripts/fetch-libduckdb.sh') }}
+          path: ~/.cache/debrief-libduckdb
+          key: libduckdb-${{ runner.os }}-${{ hashFiles('crates/debrief-store-duck/scripts/fetch-libduckdb.sh') }}
 
       - name: libduckdb (prebuilt, pinned SHA-256)
         shell: bash
         run: |
-          eval "$(bash crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+          eval "$(bash crates/debrief-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/debrief-libduckdb")"
           : "${DUCKDB_LIB_DIR:?fetch-libduckdb.sh did not set DUCKDB_LIB_DIR}"
           echo "DUCKDB_LIB_DIR=$DUCKDB_LIB_DIR" >> "$GITHUB_ENV"
           echo "DUCKDB_INCLUDE_DIR=$DUCKDB_INCLUDE_DIR" >> "$GITHUB_ENV"
@@ -741,7 +741,7 @@ jobs:
       # (app/src-tauri/resources, app/src/app/about/generated) are out of date, and a release needs that job.
 
       # Signed updater artifacts (docs/releasing.md): with the signing secrets set, Tauri writes a .sig next to
-      # every installer (v2 updater artifacts: the installers themselves, plus IMT.app.tar.gz on macOS; never
+      # every installer (v2 updater artifacts: the installers themselves, plus Debrief.app.tar.gz on macOS; never
       # v1 zips) and the public key is built into the app. Without them (forks, pull requests) the app has no
       # update key and reports "updates are not available in this build".
       - name: Build installers
@@ -752,7 +752,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
           # Installers use the size-optimised `dist` profile (thin LTO, one codegen unit, stripped); the sidecars match.
-          IMT_CARGO_PROFILE: dist
+          DEBRIEF_CARGO_PROFILE: dist
         run: |
           npm ci
           bundles='${{ matrix.bundles }}'
@@ -768,7 +768,7 @@ jobs:
             npx tauri build --bundles "$bundles" --config src-tauri/tauri.sidecars.conf.json -- --profile dist
           fi
 
-      # The packaged store worker finds libduckdb by run path (crates/imt-store-worker/build/rpath.rs): a signed,
+      # The packaged store worker finds libduckdb by run path (crates/debrief-store-worker/build/rpath.rs): a signed,
       # notarized macOS app ignores DYLD_LIBRARY_PATH. Unpack the package and check that one of the worker's run paths
       # reaches the packaged library, so a change to the bundle layout cannot ship a worker that fails to start.
       - name: Packaged store worker finds libduckdb by run path (Linux, macOS)
@@ -780,12 +780,12 @@ jobs:
             deb=$(find "$bundle/deb" -name '*.deb' | head -n 1)
             tree=$(mktemp -d)
             dpkg-deb -x "$deb" "$tree"
-            bin="$tree/usr/bin/imt-store-worker"; lib=libduckdb.so; origin='$ORIGIN'
+            bin="$tree/usr/bin/debrief-store-worker"; lib=libduckdb.so; origin='$ORIGIN'
             readelf -d "$bin" | grep -E 'R(UN)?PATH' || true
             paths=$(readelf -d "$bin" | sed -n 's/.*(R\(UN\)\{0,1\}PATH).*\[\(.*\)\]/\2/p')
           else
             app=$(find "$bundle/macos" -maxdepth 1 -name '*.app' | head -n 1)
-            bin="$app/Contents/MacOS/imt-store-worker"; lib=libduckdb.dylib; origin='@executable_path'
+            bin="$app/Contents/MacOS/debrief-store-worker"; lib=libduckdb.dylib; origin='@executable_path'
             otool -L "$bin" | grep duckdb
             paths=$(otool -l "$bin" | awk '/cmd LC_RPATH/ { getline; getline; print $2 }' | paste -sd: -)
           fi
@@ -815,7 +815,7 @@ jobs:
       # Gitea Actions supports upload/download-artifact v3.
       - uses: actions/upload-artifact@v3
         with:
-          name: imt-${{ runner.os }}
+          name: debrief-${{ runner.os }}
           path: dist/*
           if-no-files-found: error
 
@@ -849,9 +849,9 @@ jobs:
       - name: SBOMs (CycloneDX)
         run: |
           cargo install cargo-cyclonedx --locked
-          cargo cyclonedx --manifest-path app/src-tauri/Cargo.toml --format json --override-filename imt-rust.cdx
-          cp app/src-tauri/imt-rust.cdx.json artifacts/
-          (cd app && npm ci && npx --yes @cyclonedx/cyclonedx-npm --omit dev --output-file ../artifacts/imt-ui.cdx.json)
+          cargo cyclonedx --manifest-path app/src-tauri/Cargo.toml --format json --override-filename debrief-rust.cdx
+          cp app/src-tauri/debrief-rust.cdx.json artifacts/
+          (cd app && npm ci && npx --yes @cyclonedx/cyclonedx-npm --omit dev --output-file ../artifacts/debrief-ui.cdx.json)
 
       # latest.json for the updater: version, notes from RELEASE_NOTES.md, pub_date and, per platform, the
       # installer's URL in this release, its signature (.sig) and size. Installed apps fetch

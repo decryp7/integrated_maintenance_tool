@@ -180,7 +180,7 @@ describe('MarkerOverrideDialog', () => {
     typeInto(input('label'), ' New label ');
     typeInto(el<HTMLSelectElement>(fixture, '[name="shape"]'), 'square', 'change');
     await settle(fixture);
-    expect(el(fixture, 'imt-marker-glyph').getAttribute('data-glyph')).toBe('badge');
+    expect(el(fixture, 'debrief-marker-glyph').getAttribute('data-glyph')).toBe('badge');
     buttonByText(fixture, 'Save style').click();
     expect(close).toHaveBeenCalledWith({ label: 'New label', description: undefined, color: '#f2545b', badge: 'Z', shape: 'square' });
     buttonByText(fixture, 'Cancel').click();

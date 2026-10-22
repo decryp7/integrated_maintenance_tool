@@ -16,11 +16,11 @@ export function lastCheckedText(iso: string | null): string {
  * and model updates are. The flow itself (check, download, install) stays in the Updates dialog.
  */
 @Component({
-  selector: 'imt-updates-settings',
+  selector: 'debrief-updates-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h3 i18n="Settings section|Application and AI updates@@settings.updates.nav">Updates</h3>
-    <p class="desc" i18n="@@settings.updates.desc">IMT checks for new versions by itself and never installs one without asking.</p>
+    <p class="desc" i18n="@@settings.updates.desc">Debrief checks for new versions by itself and never installs one without asking.</p>
     <dl class="facts" data-testid="updates-facts">
       <dt i18n="@@settings.updates.version">Version</dt>
       <dd>{{ store.status()?.currentVersion ?? '…' }}</dd>

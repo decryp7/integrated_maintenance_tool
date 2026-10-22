@@ -50,13 +50,13 @@ export function dropPoint(position: { x: number; y: number } | null | undefined,
 /** Native open dialog for a single profile file; null when cancelled. */
 export async function pickProfileToOpen(): Promise<string | null> {
   if (!isTauri()) return '/demo/profiles/imported.toml';
-  return nativePickOne({ kind: 'openFile', title: $localize`:@@core.dialog.importProfile:Import profile`, filters: [{ name: $localize`:@@core.dialog.profileFilter:IMT profile`, extensions: ['toml'] }] });
+  return nativePickOne({ kind: 'openFile', title: $localize`:@@core.dialog.importProfile:Import profile`, filters: [{ name: $localize`:@@core.dialog.profileFilter:Debrief profile`, extensions: ['toml'] }] });
 }
 
 /** Native save dialog for a profile file; null when cancelled. */
 export async function pickProfileToSave(defaultName: string): Promise<string | null> {
   if (!isTauri()) return defaultName;
-  return nativePickOne({ kind: 'save', title: $localize`:@@core.dialog.exportProfile:Export profile`, defaultName, filters: [{ name: $localize`:@@core.dialog.profileFilter:IMT profile`, extensions: ['toml'] }] });
+  return nativePickOne({ kind: 'save', title: $localize`:@@core.dialog.exportProfile:Export profile`, defaultName, filters: [{ name: $localize`:@@core.dialog.profileFilter:Debrief profile`, extensions: ['toml'] }] });
 }
 
 /** Native save dialog for an events export; null when cancelled. Browser mode returns the default name. */

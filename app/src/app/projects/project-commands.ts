@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { ImtCommand } from '../extensions/tokens';
+import { DebriefCommand } from '../extensions/tokens';
 import { ProjectService } from './project.service';
 import { RecentProjectsDialogService } from './recent-dialog';
 import { RECENT_PROJECTS } from './recent-projects';
@@ -13,7 +13,7 @@ export class ProjectCommands {
   private readonly guard = inject(UnsavedChangesGuard);
   private readonly recentList = inject(RECENT_PROJECTS);
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     { id: 'project.new', title: $localize`:@@projects.cmd.new:New project`, category: $localize`:Command palette category|@@projects.cmd.fileCategory:File`, run: () => this.newProject() },
     { id: 'project.open', title: $localize`:@@projects.cmd.open:Open project…`, category: $localize`:Command palette category|@@projects.cmd.fileCategory:File`, run: () => this.openProject() },
     { id: 'project.recent', title: $localize`:@@projects.cmd.recent:Open recent project…`, category: $localize`:Command palette category|@@projects.cmd.fileCategory:File`, run: () => this.recent.open() },

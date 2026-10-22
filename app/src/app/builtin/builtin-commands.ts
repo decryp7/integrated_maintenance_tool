@@ -3,7 +3,7 @@ import { ExportService } from '../export/export.service';
 import { WorkspaceStore } from '../core/workspace.store';
 import { DockService } from '../dock/dock.service';
 import { PaletteService } from '../palette/palette.service';
-import { ImtCommand, VIEW_OPEN_PREFIX } from '../extensions/tokens';
+import { DebriefCommand, VIEW_OPEN_PREFIX } from '../extensions/tokens';
 import { isViewAvailable, ViewRegistry } from '../extensions/view-registry';
 import { DIAGNOSTICS_SECTION, SETTINGS_DIAGNOSTICS_COMMAND, SettingsDialogService } from '../settings/settings-dialog';
 import { CLEAR_CACHE_COMMAND, STORAGE_ID } from '../settings/storage/storage.types';
@@ -32,7 +32,7 @@ export class BuiltinCommands {
     this.dock.show(id);
   }
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     { id: 'palette.open', title: $localize`:@@builtin.cmd.palette.open:Show all commands`, category: $localize`:@@builtin.category.view:View`, keybinding: 'Mod+K', run: () => this.palette.open() },
     { id: 'file.openFiles', title: $localize`:@@builtin.cmd.file.openFiles:Open files…`, category: $localize`:@@builtin.category.file:File`, keybinding: 'Mod+O', run: () => this.store.pickAndOpen(false) },
     { id: 'file.openFolder', title: $localize`:@@builtin.cmd.file.openFolder:Open folder…`, category: $localize`:@@builtin.category.file:File`, keybinding: 'Mod+Shift+O', run: () => this.store.pickAndOpen(true) },
@@ -47,7 +47,7 @@ export class BuiltinCommands {
       run: () => this.exporter.exportCurrent(),
     },
     { id: 'help.welcome', title: $localize`:@@builtin.cmd.help.welcome:Show welcome`, category: $localize`:@@builtin.category.help:Help`, run: () => this.welcome.show() },
-    { id: 'help.about', title: $localize`:@@builtin.cmd.help.about:About IMT`, category: $localize`:@@builtin.category.help:Help`, run: () => this.about.open() },
+    { id: 'help.about', title: $localize`:@@builtin.cmd.help.about:About Debrief`, category: $localize`:@@builtin.category.help:Help`, run: () => this.about.open() },
     // The About dialog opens on the third-party notices viewer.
     { id: 'help.notices', title: $localize`:@@builtin.cmd.help.notices:Third-party notices`, category: $localize`:@@builtin.category.help:Help`, run: () => this.about.open() },
     { id: 'settings.open', title: $localize`:@@builtin.cmd.settings.open:Open settings`, category: $localize`:@@builtin.category.view:View`, keybinding: 'Mod+,', run: () => this.settings.open() },
@@ -83,7 +83,7 @@ export class BuiltinCommands {
     },
     // One "Open <view>" command per registered view (built in and from plugins); the View menu toggles them.
     ...this.views.all.map(
-      (view): ImtCommand => ({
+      (view): DebriefCommand => ({
         id: `${VIEW_OPEN_PREFIX}${view.id}`,
         title: $localize`:@@builtin.cmd.openView:Open ${view.title}:view:`,
         category: $localize`:@@builtin.category.view:View`,

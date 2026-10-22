@@ -8,13 +8,13 @@ use crate::jobs::{Controls, Done, JobKind, JobSpec};
 use crate::query_cancel::QueryStreamEvent;
 use crate::windows::CurrentWindow;
 use crate::{CmdError, CmdResult};
-use imt_core::ports::{
+use debrief_core::ports::{
     MaintenanceAction, RunningJob, SegmentsPage, SegmentsRequest, SqlExportRequest, SqlIds, SqlIdsRequest, SqlNote, SqlPage,
     SqlPageRequest, SqlRequest, SqlResult, SqlSchema, StoreError, StoreFields, StoreIndex, StoreMemory, StoreOverview, MAX_SQL_LEN,
     SQL_MAX_NOTES, SQL_NOTE_CHARS,
 };
-use imt_core::ql::{QlError, QueryControl};
-use imt_notes::{Anchor, Note};
+use debrief_core::ql::{QlError, QueryControl};
+use debrief_notes::{Anchor, Note};
 use serde::Serialize;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, Runtime};
@@ -102,7 +102,7 @@ pub(crate) async fn sql_ids(state: CurrentWindow, request: SqlIdsRequest) -> Cmd
     with_store(&state, move |s| s.sql_ids(&request)).await
 }
 
-/// The window's notes as `imt.notes` sees them.
+/// The window's notes as `debrief.notes` sees them.
 fn window_notes(state: &CurrentWindow) -> Vec<SqlNote> {
     state.notes.snapshot().notes().iter().take(SQL_MAX_NOTES).map(sql_note).collect()
 }
@@ -125,7 +125,7 @@ pub(crate) async fn sql_export<R: Runtime>(
         .path()
         .to_path_buf();
     // Checked now, so the dialog can ask to replace the file; the store checks again when it writes.
-    imt_core::overwrite::check_overwrite(std::path::Path::new(&path), overwrite)?;
+    debrief_core::overwrite::check_overwrite(std::path::Path::new(&path), overwrite)?;
     let request = SqlExportRequest {
         sql,
         notes: window_notes(&state),
@@ -181,7 +181,7 @@ fn outcome(out: Result<SqlResult, StoreError>) -> CmdResult<SqlOutcome> {
     }
 }
 
-/// A note as `imt.notes` sees it (text cut to [`SQL_NOTE_CHARS`]).
+/// A note as `debrief.notes` sees it (text cut to [`SQL_NOTE_CHARS`]).
 fn sql_note(n: &Note) -> SqlNote {
     let mut out = SqlNote {
         id: n.id.clone(),
@@ -219,7 +219,7 @@ fn sql_note(n: &Note) -> SqlNote {
 }
 
 /// Runs a console query as an analysis job (Cancel in the Jobs pane, or `jobs_cancel` with the id sent first on
-/// `on_event`, interrupts it in the store). The window's notes go with it (`imt.notes`).
+/// `on_event`, interrupts it in the store). The window's notes go with it (`debrief.notes`).
 #[tauri::command]
 pub(crate) async fn sql_run<R: Runtime>(
     app: AppHandle<R>,
@@ -360,7 +360,7 @@ mod tests {
             anchor,
             text: "é".repeat(SQL_NOTE_CHARS + 10),
             tags: vec!["t".into()],
-            severity: imt_notes::NoteSeverity::Problem,
+            severity: debrief_notes::NoteSeverity::Problem,
             author: "me".into(),
             created_ms: 1,
             updated_ms: 2,

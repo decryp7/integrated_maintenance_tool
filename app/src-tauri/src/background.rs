@@ -1,4 +1,4 @@
-//! Background work the user may want to see or stop while IMT runs (also from
+//! Background work the user may want to see or stop while Debrief runs (also from
 //! the tray): what keeps running until stopped (live tail per window, the
 //! process monitor, PerfMon collection), plus the running jobs, which
 //! [`crate::jobs`] mirrors here. Producers register a [`TaskSpec`] with an
@@ -6,13 +6,13 @@
 //!
 //! The registry is plain Rust (no Tauri) so it is unit-testable; `lib.rs`
 //! manages one instance and wires the listeners. Commands:
-//! `background_tasks`, `stop_background_task`. Event: `imt://background-tasks`.
+//! `background_tasks`, `stop_background_task`. Event: `debrief://background-tasks`.
 
 use serde::Serialize;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 /// Event carrying the current task list (`TaskInfo[]`) to every window.
-pub const TASKS_EVENT: &str = "imt://background-tasks";
+pub const TASKS_EVENT: &str = "debrief://background-tasks";
 /// More tasks than this are refused (a runaway producer must not grow the tray menu forever).
 const MAX_TASKS: usize = 64;
 const MAX_LABEL: usize = 120;
@@ -181,7 +181,7 @@ impl BackgroundTasks {
                 Err(e)
             }
             Err(p) => {
-                let message = imt_core::guard::panic_message(&*p);
+                let message = debrief_core::guard::panic_message(&*p);
                 log::error!(Task = id; "Stopping a background task crashed: {message}");
                 Err(anyhow::anyhow!("stopping failed: {message}"))
             }
@@ -199,7 +199,7 @@ impl BackgroundTasks {
         for l in listeners {
             // A failing listener (e.g. the tray is gone) must not break the producer.
             if let Err(p) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| l(&list))) {
-                log::error!("A background task listener crashed: {}", imt_core::guard::panic_message(&*p));
+                log::error!("A background task listener crashed: {}", debrief_core::guard::panic_message(&*p));
             }
         }
     }
@@ -216,7 +216,7 @@ pub async fn background_tasks(tasks: tauri::State<'_, BackgroundTasks>) -> crate
 pub async fn stop_background_task<R: tauri::Runtime>(app: tauri::AppHandle<R>, id: String) -> crate::CmdResult<()> {
     crate::error::lift(
         tauri::async_runtime::spawn_blocking(move || {
-            let tasks = tauri::Manager::try_state::<BackgroundTasks>(&app).ok_or("IMT is not ready yet")?;
+            let tasks = tauri::Manager::try_state::<BackgroundTasks>(&app).ok_or("Debrief is not ready yet")?;
             tasks.stop(&id).map_err(crate::err)
         })
         .await

@@ -20,7 +20,7 @@ const AROUND_MS = 60_000;
  * and "Show on timeline".
  */
 @Component({
-  selector: 'imt-ai-related-results',
+  selector: 'debrief-ai-related-results',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AiRichText],
   template: `
@@ -34,7 +34,7 @@ const AROUND_MS = 60_000;
         <p class="time" data-testid="ai-related-time">{{ timeLabel(t) }}</p>
       }
       @if (o.explanation.text) {
-        <imt-ai-rich-text [text]="o.explanation.text" [citations]="o.explanation.citations" (record)="open($event)" (query)="query($event)" (link)="web($event.url, $event.title)" />
+        <debrief-ai-rich-text [text]="o.explanation.text" [citations]="o.explanation.citations" (record)="open($event)" (query)="query($event)" (link)="web($event.url, $event.title)" />
       }
       @for (n of o.result.notes; track $index) {
         <p class="note" role="note" [attr.data-testid]="'ai-related-note-' + n.kind">

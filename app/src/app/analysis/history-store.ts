@@ -6,7 +6,7 @@ export interface HistoryStore {
   save(entries: string[]): void;
 }
 
-const KEY = 'imt.queryHistory.v1';
+const KEY = 'debrief.queryHistory.v1';
 export const MAX_HISTORY = 50;
 
 export class LocalHistoryStore implements HistoryStore {

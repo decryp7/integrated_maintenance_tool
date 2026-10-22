@@ -5,8 +5,8 @@
 //! reported for its plugin (the plugin's status lists the note; repeated panics quarantine it).
 
 use crate::windows::WindowState;
-use imt_core::plugin::annotate::{PortView, RecordCursor};
-use imt_core::ports::{NewEvents, Store};
+use debrief_core::plugin::annotate::{PortView, RecordCursor};
+use debrief_core::ports::{NewEvents, Store};
 use std::time::{Duration, Instant};
 
 /// Annotators run at most this often while live tail appends (their work is the appended events since).
@@ -85,7 +85,7 @@ fn run_since(win: &WindowState, store: &dyn Store, since: Option<RecordCursor>) 
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use imt_core::plugin::annotate::{AnnotationView, Annotator};
+    use debrief_core::plugin::annotate::{AnnotationView, Annotator};
     use std::sync::{Arc, Mutex};
 
     /// An annotator that records the cursor of each run.
@@ -102,13 +102,13 @@ pub(crate) mod tests {
             &self,
             _: &dyn AnnotationView,
             since: Option<RecordCursor>,
-        ) -> anyhow::Result<Vec<imt_core::plugin::annotate::Annotation>> {
+        ) -> anyhow::Result<Vec<debrief_core::plugin::annotate::Annotation>> {
             self.0.lock().unwrap().push(since);
             Ok(Vec::new())
         }
     }
 
-    impl imt_core::Plugin for RecorderPlugin {
+    impl debrief_core::Plugin for RecorderPlugin {
         fn id(&self) -> &str {
             "test.recorder-plugin"
         }
@@ -118,15 +118,15 @@ pub(crate) mod tests {
         fn version(&self) -> &str {
             "1.0.0"
         }
-        fn register(&self, registry: &mut imt_core::PluginRegistry) -> anyhow::Result<()> {
+        fn register(&self, registry: &mut debrief_core::PluginRegistry) -> anyhow::Result<()> {
             registry.add_annotator(self.0.clone()).map(|_| ())
         }
     }
 
     /// A registry with an annotator that records its runs.
-    pub(crate) fn recording_registry() -> (imt_core::PluginRegistry, Arc<Recorder>) {
+    pub(crate) fn recording_registry() -> (debrief_core::PluginRegistry, Arc<Recorder>) {
         let recorder = Arc::new(Recorder::default());
-        let mut registry = imt_core::PluginRegistry::new();
+        let mut registry = debrief_core::PluginRegistry::new();
         registry.install_shared(Arc::new(RecorderPlugin(recorder.clone()))).unwrap();
         (registry, recorder)
     }
@@ -199,7 +199,7 @@ pub(crate) mod tests {
 
     #[test]
     fn without_annotators_the_tail_keeps_nothing_pending() {
-        let win = crate::windows::tests::window_state("annotate-none", imt_core::PluginRegistry::new());
+        let win = crate::windows::tests::window_state("annotate-none", debrief_core::PluginRegistry::new());
         let store = win.engine.store().unwrap();
         let mut pending = Some(RecordCursor { id: 1, ts: None });
         let mut last = None;

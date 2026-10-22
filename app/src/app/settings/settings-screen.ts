@@ -32,7 +32,7 @@ import { SettingField, SettingsSection } from './settings.types';
  * are marked inline and collected in one bar. Opened in a dialog by `SettingsDialogService`.
  */
 @Component({
-  selector: 'imt-settings-screen',
+  selector: 'debrief-settings-screen',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, KnowledgeSettings, StorageSettings, PerformanceExtras, LiveTailSettings, BrowserRuntimeSettings, UpdatesSettings, KeyboardSettings, VideoSettings],
   host: { '(keydown.escape)': 'onEscape($event)' },
@@ -49,8 +49,8 @@ import { SettingField, SettingsSection } from './settings.types';
       </div>
     }
     @if (store.confirmDiscard()) {
-      <div class="banner warn" role="alertdialog" aria-label="Unsaved changes" i18n-aria-label="@@settings.screen.discard.label" aria-describedby="imt-settings-discard-text">
-        <span id="imt-settings-discard-text" i18n="@@settings.screen.discard.text">Some changes were refused and are not saved.</span>
+      <div class="banner warn" role="alertdialog" aria-label="Unsaved changes" i18n-aria-label="@@settings.screen.discard.label" aria-describedby="debrief-settings-discard-text">
+        <span id="debrief-settings-discard-text" i18n="@@settings.screen.discard.text">Some changes were refused and are not saved.</span>
         <button class="btn" type="button" (click)="discardAndClose()" i18n="@@settings.screen.discard.discard">Discard changes</button>
         <button class="btn primary" type="button" (click)="store.keepEditing()" i18n="@@settings.screen.discard.keepEditing">Keep editing</button>
       </div>
@@ -97,7 +97,7 @@ import { SettingField, SettingsSection } from './settings.types';
         }
         @if (store.query().trim()) {
           @if (parserHits(); as ph) {
-            <h3 i18n="Settings section|The log formats IMT reads@@settings.parsers.nav">Parsers</h3>
+            <h3 i18n="Settings section|The log formats Debrief reads@@settings.parsers.nav">Parsers</h3>
             @if (ph.parsers.length) {
               <ul class="parser-hits" aria-label="Matching parsers" i18n-aria-label="@@settings.screen.search.parserHits">
                 @for (p of ph.parsers; track p.id) {
@@ -110,7 +110,7 @@ import { SettingField, SettingsSection } from './settings.types';
           @for (r of results(); track r.section.id) {
             <h3>{{ titleOf(r.section) }}</h3>
             @for (f of r.fields; track f.key) {
-              <imt-setting-field
+              <debrief-setting-field
                 [field]="f"
                 [value]="store.valueOf(r.section.id, f.key)"
                 [error]="store.errorFor(r.section.id, f.key)"
@@ -127,24 +127,24 @@ import { SettingField, SettingsSection } from './settings.types';
         } @else if (isSelected(general)) {
           <h3 i18n="Settings section|Name of the first settings section@@settings.screen.general">General</h3>
           <p class="desc" i18n="@@settings.screen.general.desc">Display preferences of this window. They apply immediately.</p>
-          <imt-general-settings (layoutReset)="close()" />
+          <debrief-general-settings (layoutReset)="close()" />
         } @else if (isSelected(appearance)) {
           <h3 i18n="Settings section|Theme, colour scheme and density@@settings.screen.appearance">Appearance</h3>
           <p class="desc" i18n="@@settings.screen.appearance.desc">Theme, colour scheme and density of every window. They apply immediately.</p>
-          <imt-appearance-settings />
+          <debrief-appearance-settings />
         } @else if (isSelected(updates)) {
-          <imt-updates-settings />
+          <debrief-updates-settings />
         } @else if (isSelected(storage)) {
-          <imt-storage-settings />
+          <debrief-storage-settings />
         } @else if (isSelected(parsers)) {
-          <h3 i18n="Settings section|The log formats IMT reads@@settings.parsers.title">Parsers</h3>
+          <h3 i18n="Settings section|The log formats Debrief reads@@settings.parsers.title">Parsers</h3>
           <p class="desc" i18n="@@settings.parsers.link.desc">A parser describes one log format and is one TOML file you can share. The parser library, with its editor and a live preview against your open files, is a view of its own.</p>
           <button type="button" class="btn primary" data-testid="settings-open-parsers-view" (click)="openParsersView()" i18n="@@settings.parsers.link.open">Open the Parsers view</button>
         } @else if (isSelected(keyboard)) {
           <h3 i18n="Settings section|Key bindings of the commands@@settings.keyboard.nav">Keyboard shortcuts</h3>
-          <imt-keyboard-settings />
+          <debrief-keyboard-settings />
         } @else if (isSelected(video)) {
-          <imt-video-settings />
+          <debrief-video-settings />
         } @else if (store.current(); as s) {
           <div class="section-head">
             <h3>{{ titleOf(s) }}</h3>
@@ -163,19 +163,19 @@ import { SettingField, SettingsSection } from './settings.types';
             <p class="note" role="note">{{ s.note }}</p>
           }
           @if (s.id === 'performance' && !s.readOnly) {
-            <imt-performance-extras />
+            <debrief-performance-extras />
           }
           @if (s.id === 'ai') {
             @defer {
-              <imt-ai-settings-extras />
-              <imt-knowledge-settings />
+              <debrief-ai-settings-extras />
+              <debrief-knowledge-settings />
             }
           }
           @for (e of sectionErrors(s.id); track $index) {
             <p class="error" role="alert">{{ e }}</p>
           }
           @for (f of visibleFields(s); track f.key) {
-            <imt-setting-field
+            <debrief-setting-field
               [field]="f"
               [value]="store.valueOf(s.id, f.key)"
               [error]="store.errorFor(s.id, f.key)"
@@ -185,10 +185,10 @@ import { SettingField, SettingsSection } from './settings.types';
             />
           }
           @if (s.id === liveTail) {
-            <imt-live-tail-settings />
+            <debrief-live-tail-settings />
           }
           @if (s.id === 'browser') {
-            <imt-browser-runtime-settings />
+            <debrief-browser-runtime-settings />
           }
           @if (hiddenAdvanced(s); as n) {
             <p class="muted" i18n="@@settings.screen.hiddenAdvanced">{n, plural, =1 {{{ n }} advanced setting hidden.} other {{{ n }} advanced settings hidden.}} <button class="link" type="button" (click)="store.setShowAdvanced(true)">Show advanced</button></p>
@@ -246,7 +246,7 @@ import { SettingField, SettingsSection } from './settings.types';
 export class SettingsScreen {
   protected readonly store = inject(EngineSettingsStore);
   private readonly parserLibrary = inject(ParsersStore);
-  private readonly parsersTitle = $localize`:Settings section|The log formats IMT reads@@settings.parsers.nav:Parsers`;
+  private readonly parsersTitle = $localize`:Settings section|The log formats Debrief reads@@settings.parsers.nav:Parsers`;
   private readonly files = inject(SettingsFiles);
   private readonly ref = inject(DIALOG_REF, { optional: true });
   protected readonly general = GENERAL_ID;
@@ -266,10 +266,10 @@ export class SettingsScreen {
     const n = this.store.restartChanges().length;
     return n
       ? plural(n, {
-          one: $localize`:Restart bar in Settings@@settings.screen.restartBar.one:${n}:count: change takes effect after IMT restarts.`,
-          other: $localize`:Restart bar in Settings@@settings.screen.restartBar.other:${n}:count: changes take effect after IMT restarts.`,
+          one: $localize`:Restart bar in Settings@@settings.screen.restartBar.one:${n}:count: change takes effect after Debrief restarts.`,
+          other: $localize`:Restart bar in Settings@@settings.screen.restartBar.other:${n}:count: changes take effect after Debrief restarts.`,
         })
-      : $localize`:@@settings.screen.restartBanner:Some changes take effect after IMT restarts.`;
+      : $localize`:@@settings.screen.restartBanner:Some changes take effect after Debrief restarts.`;
   });
 
   /** Search hits across every section (advanced settings included). */

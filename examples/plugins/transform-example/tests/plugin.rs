@@ -1,9 +1,9 @@
 //! The plugin's binary under the test harness: conformance, and the transform over a few records.
 
-use imt_plugin_api::Record;
-use imt_plugin_test::PluginUnderTest;
+use debrief_plugin_api::Record;
+use debrief_plugin_test::PluginUnderTest;
 
-const PLUGIN: &str = env!("CARGO_BIN_EXE_imt-example-transform");
+const PLUGIN: &str = env!("CARGO_BIN_EXE_debrief-example-transform");
 
 fn record(message: &str, user: &str) -> Record {
     let mut r = Record::new(1);

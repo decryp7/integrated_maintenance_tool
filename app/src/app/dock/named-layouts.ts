@@ -11,7 +11,7 @@ export interface NamedLayout {
 
 export const MAX_NAMED_LAYOUTS = 20;
 export const MAX_LAYOUT_NAME = 60;
-export const NAMED_LAYOUTS_KEY = 'imt.windowLayouts';
+export const NAMED_LAYOUTS_KEY = 'debrief.windowLayouts';
 const VERSION = 1;
 
 /** A layout name as typed: one line, trimmed, at most 60 characters; null when nothing is left. */

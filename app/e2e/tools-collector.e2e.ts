@@ -33,7 +33,7 @@ test.describe('Diagnostics collector dialog', () => {
     await dialog.getByLabel('Output folder').fill('/demo/out');
     await dialog.getByRole('button', { name: 'Collect', exact: true }).click();
     const result = dialog.getByTestId('collect-result');
-    await expect(result).toContainText('/demo/out/case-42.imtz');
+    await expect(result).toContainText('/demo/out/case-42.debriefz');
     await expect(result).toContainText('2 items');
     await expect(result).toContainText('3 values masked');
     await expect(result).toContainText('msinfo32: disabled in the plan');

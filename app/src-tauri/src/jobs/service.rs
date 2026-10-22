@@ -202,7 +202,7 @@ impl<T, E> JobHandle<T, E> {
             job = self.jobs.get(self.id);
         }
         Err(match job {
-            Some(j) if j.state() == JobState::Interrupted => Stopped::Interrupted("IMT is closing".into()),
+            Some(j) if j.state() == JobState::Interrupted => Stopped::Interrupted("Debrief is closing".into()),
             Some(j) if j.state() == JobState::Failed => Stopped::Failed(j.error.unwrap_or_default()),
             _ => Stopped::Cancelled,
         })
@@ -316,7 +316,7 @@ impl Jobs {
         for l in listeners {
             // A failing listener (the UI is gone) must not break the producer.
             if let Err(p) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| l(event))) {
-                log::error!("A jobs listener crashed: {}", imt_core::guard::panic_message(&*p));
+                log::error!("A jobs listener crashed: {}", debrief_core::guard::panic_message(&*p));
             }
         }
     }
@@ -462,14 +462,14 @@ impl Jobs {
                 Ok(JobEnd::Failed(_)) if ctx.is_cancelled() => JobEnd::Cancelled,
                 Ok(end) => end,
                 Err(p) => {
-                    let message = imt_core::guard::panic_message(&*p);
+                    let message = debrief_core::guard::panic_message(&*p);
                     log::error!(Job = id.0; "A job crashed: {message}");
                     JobEnd::Failed(format!("the job stopped unexpectedly: {message}"))
                 }
             };
             jobs.complete(id, end);
         };
-        if let Err(e) = std::thread::Builder::new().name(format!("imt-job-{id}")).spawn(run) {
+        if let Err(e) = std::thread::Builder::new().name(format!("debrief-job-{id}")).spawn(run) {
             // No thread: the job fails, the queue goes on.
             self.complete(id, JobEnd::Failed(format!("cannot start the job: {e}")));
         }
@@ -516,7 +516,7 @@ impl Jobs {
             return;
         }
         let jobs = self.clone();
-        let spawned = std::thread::Builder::new().name("imt-jobs-ticker".into()).spawn(move || loop {
+        let spawned = std::thread::Builder::new().name("debrief-jobs-ticker".into()).spawn(move || loop {
             std::thread::sleep(jobs.0.tick);
             let probes: Vec<(JobId, ProbeFn)> = {
                 let inner = jobs.lock();
@@ -605,7 +605,7 @@ impl Jobs {
             .cloned()
             .ok_or_else(|| format!("{} jobs cannot be retried", job.kind.as_str()))?;
         let new = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| handler(&job)))
-            .map_err(|p| format!("retrying failed: {}", imt_core::guard::panic_message(&*p)))??;
+            .map_err(|p| format!("retrying failed: {}", debrief_core::guard::panic_message(&*p)))??;
         {
             let mut inner = self.lock();
             if let Some(new) = new {
@@ -654,7 +654,7 @@ impl Jobs {
                 }
             }
         };
-        // No answer: the waiter stopped waiting (`unwait`) or IMT is closing; the job's state now.
+        // No answer: the waiter stopped waiting (`unwait`) or Debrief is closing; the job's state now.
         rx.recv().unwrap_or_else(|_| match self.lock().queue.get(id) {
             Some(j) => JobOutcome::of(j, None),
             None => JobOutcome {
@@ -760,7 +760,7 @@ impl Jobs {
         self.emit(&JobsEvent::Changed);
     }
 
-    /// IMT is closing: every active job is stopped and ends as interrupted.
+    /// Debrief is closing: every active job is stopped and ends as interrupted.
     pub fn shutdown(&self) {
         let now = self.now();
         let stops: Vec<CancelFn> = {
@@ -774,7 +774,7 @@ impl Jobs {
                 })
                 .collect();
             inner.controls.clear();
-            let ended = inner.queue.interrupt_all("IMT closed before this job finished", now);
+            let ended = inner.queue.interrupt_all("Debrief closed before this job finished", now);
             for f in ended {
                 for w in inner.waiters.remove(&f.job.id).unwrap_or_default() {
                     let _ = w.send(JobOutcome::of(&f.job, None));
@@ -800,9 +800,9 @@ pub const STOP_WAIT: Duration = Duration::from_secs(2);
 /// The receiver gets the outcome (a crash as `Err`).
 fn spawn_stop(id: JobId, stop: CancelFn) -> Option<mpsc::Receiver<Result<(), String>>> {
     let (tx, rx) = std::sync::mpsc::channel();
-    let spawned = std::thread::Builder::new().name("imt-job-stop".into()).spawn(move || {
+    let spawned = std::thread::Builder::new().name("debrief-job-stop".into()).spawn(move || {
         let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| stop())).map_err(|p| {
-            let message = imt_core::guard::panic_message(&*p);
+            let message = debrief_core::guard::panic_message(&*p);
             log::error!(Job = id.0; "Stopping a job crashed: {message}");
             format!("stopping failed: {message}")
         });
@@ -1135,7 +1135,7 @@ pub(crate) mod tests {
         jobs.shutdown();
         assert_eq!(
             pending.wait(),
-            Err(Stopped::Interrupted("IMT is closing".into())),
+            Err(Stopped::Interrupted("Debrief is closing".into())),
             "the waiting one never runs"
         );
         assert_eq!(running.wait(), Ok(Err("stopped".to_string())), "the running one was told to stop");

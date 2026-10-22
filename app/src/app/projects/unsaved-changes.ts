@@ -27,7 +27,7 @@ export class UnsavedChangesGuard {
 }
 
 @Component({
-  selector: 'imt-unsaved-changes-dialog',
+  selector: 'debrief-unsaved-changes-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p data-testid="unsaved-message" i18n="@@projects.unsaved.message">Save the changes to {{ name() }} before you {{ action() }}? Unsaved changes are lost if you don't save them.</p>

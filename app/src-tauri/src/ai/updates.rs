@@ -1,4 +1,4 @@
-//! Update checks for the inference runtimes and models (`imt_ai::updates` decides; this runs it). Plain Rust,
+//! Update checks for the inference runtimes and models (`debrief_ai::updates` decides; this runs it). Plain Rust,
 //! no Tauri: the clock, "is a chat running" and the effects (start a job, post a message, tell the windows)
 //! are injected, so every rule is tested with fakes (`update_commands.rs` is the Tauri glue).
 //!
@@ -13,15 +13,15 @@
 
 use super::core::AiCore;
 use super::error::{AiCmdError, AiErrorCode, AiResult};
-use imt_ai::models::source::Progress;
-use imt_ai::runtimes::builds::is_build_id;
-use imt_ai::setup::SetupStage;
-use imt_ai::updates::record::is_update_key;
-use imt_ai::updates::{
+use debrief_ai::models::source::Progress;
+use debrief_ai::runtimes::builds::is_build_id;
+use debrief_ai::setup::SetupStage;
+use debrief_ai::updates::record::is_update_key;
+use debrief_ai::updates::{
     check_due, confirm_model, decide, model_candidates, runtime_candidates, Decision, Situation, UpdateCandidate, UpdateKind, UpdatePolicy,
     UpdatesRecord,
 };
-use imt_ai::AiError;
+use debrief_ai::AiError;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -75,7 +75,7 @@ pub struct KindStatus {
     pub updates: Vec<UpdateView>,
 }
 
-/// What Settings → AI → Updates shows (`imt://ai-updates`).
+/// What Settings → AI → Updates shows (`debrief://ai-updates`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AiUpdatesStatus {

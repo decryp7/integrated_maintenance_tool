@@ -3,7 +3,7 @@ import { KnowledgeBackend } from '../ai/knowledge/knowledge-backend';
 import { invoke } from '../core/activity/ipc';
 import { SearchAllReply, SearchAllRequest } from '../core/api.types';
 import { AnalysisBackend } from '../core/analysis-backend';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { reportBackendFailures } from '../core/failure-reporter';
 import { Logger, withFailureLogging } from '../core/logger';
 import { browserMocks } from '../core/mock-registry';
@@ -36,7 +36,7 @@ export class TauriSearchEverythingBackend extends SearchEverythingBackend {
 export function createSearchEverythingBackend(): SearchEverythingBackend {
   const injector = inject(Injector);
   const mock = () =>
-    new (browserMocks().MockSearchEverythingBackend)(inject(ImtBackend), {
+    new (browserMocks().MockSearchEverythingBackend)(inject(DebriefBackend), {
       notes: () => injector.get(NotesBackend),
       knowledge: () => injector.get(KnowledgeBackend),
       analysis: () => injector.get(AnalysisBackend),

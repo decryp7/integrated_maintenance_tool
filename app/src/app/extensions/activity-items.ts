@@ -2,7 +2,7 @@ import { computed, inject, Injectable } from '@angular/core';
 import { Logger } from '../core/logger';
 import { DockService } from '../dock/dock.service';
 import { COMMAND_CONTEXT, CommandRegistry } from './command-registry';
-import { CommandContext, flattenContributions, IMT_ACTIVITY_ITEMS, ImtActivityItem, ImtActivityMenuItem, ImtActivityTarget, VIEW_OPEN_PREFIX, ViewCategory } from './tokens';
+import { CommandContext, flattenContributions, DEBRIEF_ACTIVITY_ITEMS, DebriefActivityItem, DebriefActivityMenuItem, DebriefActivityTarget, VIEW_OPEN_PREFIX, ViewCategory } from './tokens';
 import { ViewRegistry } from './view-registry';
 import { WelcomeService } from '../welcome/welcome';
 
@@ -14,20 +14,20 @@ export function whenDataOpen(ctx: CommandContext): boolean {
 }
 
 /** True for `{ view }` or `{ command }` with a non-empty id. */
-function isTarget(run: unknown): run is ImtActivityTarget {
+function isTarget(run: unknown): run is DebriefActivityTarget {
   if (!run || typeof run !== 'object') return false;
   const r = run as Record<string, unknown>;
   return (typeof r['view'] === 'string' && !!r['view']) || (typeof r['command'] === 'string' && !!r['command']);
 }
 
-function isMenu(run: ImtActivityItem['run']): run is { menu: () => readonly ImtActivityMenuItem[] } {
+function isMenu(run: DebriefActivityItem['run']): run is { menu: () => readonly DebriefActivityMenuItem[] } {
   return typeof (run as { menu?: unknown }).menu === 'function';
 }
 
 /** Why a contribution cannot be used, or null when it is well-formed. Plugin input is untrusted. */
 export function activityItemProblem(item: unknown): string | null {
   if (!item || typeof item !== 'object') return 'not an object';
-  const i = item as Partial<ImtActivityItem>;
+  const i = item as Partial<DebriefActivityItem>;
   if (typeof i.id !== 'string' || !i.id) return 'missing id';
   if (typeof i.label !== 'string' || !i.label) return 'missing label';
   if (typeof i.icon !== 'string') return 'missing icon';
@@ -38,7 +38,7 @@ export function activityItemProblem(item: unknown): string | null {
 }
 
 /**
- * The activity bar's buttons, contributed through `IMT_ACTIVITY_ITEMS` (built-in features and plugins alike):
+ * The activity bar's buttons, contributed through `DEBRIEF_ACTIVITY_ITEMS` (built-in features and plugins alike):
  * validated, de-duplicated by id (first wins) and sorted by `order`. Broken contributions are logged and left out,
  * and every contributed function is evaluated defensively, so one bad item never breaks the bar.
  */
@@ -54,7 +54,7 @@ export class ActivityItems {
   private readonly reported = new Set<string>();
 
   /** Every usable contribution, in order. */
-  readonly all: readonly ImtActivityItem[] = this.collect(flattenContributions<ImtActivityItem>(inject(IMT_ACTIVITY_ITEMS, { optional: true })));
+  readonly all: readonly DebriefActivityItem[] = this.collect(flattenContributions<DebriefActivityItem>(inject(DEBRIEF_ACTIVITY_ITEMS, { optional: true })));
 
   /** The items shown right now (their `when` holds, the view they show is offered, their fly-out is not empty). */
   readonly visible = computed(() => {
@@ -71,7 +71,7 @@ export class ActivityItems {
   readonly bottom = computed(() => this.visible().filter((i) => i.section === 'bottom'));
 
   /** Highlighted: its own `active`, else the view it shows is in front. */
-  isActive(item: ImtActivityItem): boolean {
+  isActive(item: DebriefActivityItem): boolean {
     if (item.active) return this.safe(item, 'active', () => item.active?.(this.ctx) === true, false);
     return 'view' in item.run ? this.dock.isVisible(item.run.view) : false;
   }
@@ -80,38 +80,38 @@ export class ActivityItems {
    * A fly-out item: `shown` while one of its views is in front, `open` while some are open only behind others or
    * auto-hidden, else null. Entries that run a command say nothing about views.
    */
-  menuState(item: ImtActivityItem): 'shown' | 'open' | null {
+  menuState(item: DebriefActivityItem): 'shown' | 'open' | null {
     const views = this.menu(item).flatMap((e) => ('view' in e.run ? [e.run.view] : []));
     if (views.some((v) => this.dock.isVisible(v))) return 'shown';
     return views.some((v) => this.dock.isOpen(v)) ? 'open' : null;
   }
 
   /** The item's view is open but not in front (a tab behind another, or auto-hidden): the bar marks it with a dot. */
-  isOpenElsewhere(item: ImtActivityItem): boolean {
+  isOpenElsewhere(item: DebriefActivityItem): boolean {
     return !item.active && 'view' in item.run && this.dock.isOpen(item.run.view) && !this.dock.isVisible(item.run.view);
   }
 
   /** The badge text, or null for none. */
-  badge(item: ImtActivityItem): string | null {
+  badge(item: DebriefActivityItem): string | null {
     if (!item.badge) return null;
     const value = this.safe(item, 'badge', () => item.badge?.(this.ctx) ?? null, null);
     if (value === null || value === '') return null;
     return typeof value === 'number' ? (value > 99 ? '99+' : String(value)) : String(value).slice(0, 4);
   }
 
-  pulse(item: ImtActivityItem): boolean {
+  pulse(item: DebriefActivityItem): boolean {
     return item.pulse ? this.safe(item, 'pulse', () => item.pulse?.(this.ctx) === true, false) : false;
   }
 
   /** Why the item is inert right now, or null when it can be used. */
-  disabledReason(item: ImtActivityItem): string | null {
+  disabledReason(item: DebriefActivityItem): string | null {
     if (!item.disabled) return null;
     const reason = this.safe(item, 'disabled', () => item.disabled?.(this.ctx) ?? null, null);
     return typeof reason === 'string' && reason ? reason : null;
   }
 
   /** The key binding (command syntax or display text): its own, else its command's, else its view's "Open <view>" command's. */
-  keybinding(item: ImtActivityItem | ImtActivityMenuItem): string | null {
+  keybinding(item: DebriefActivityItem | DebriefActivityMenuItem): string | null {
     if (item.keybinding) return item.keybinding;
     const run = item.run;
     if (isTarget(run)) return this.commands.find('command' in run ? run.command : `${VIEW_OPEN_PREFIX}${run.view}`)?.keybinding ?? null;
@@ -119,7 +119,7 @@ export class ActivityItems {
   }
 
   /** The fly-out entries of a menu item: well-formed, unique, and only those that can run now. */
-  menu(item: ImtActivityItem): ImtActivityMenuItem[] {
+  menu(item: DebriefActivityItem): DebriefActivityMenuItem[] {
     if (!isMenu(item.run)) return [];
     const run = item.run;
     const entries = this.safe(item, 'menu', () => [...run.menu()], []);
@@ -133,12 +133,12 @@ export class ActivityItems {
     });
   }
 
-  hasMenu(item: ImtActivityItem): boolean {
+  hasMenu(item: DebriefActivityItem): boolean {
     return isMenu(item.run);
   }
 
   /** Shows the view or runs the command. Unavailable commands are ignored by the registry. */
-  run(target: ImtActivityTarget): void {
+  run(target: DebriefActivityTarget): void {
     if ('view' in target) {
       // The welcome screen covers the dock while nothing is open: the view asked for must be visible.
       this.welcome.stepAside();
@@ -147,9 +147,9 @@ export class ActivityItems {
     else void this.commands.run(target.command, 'button');
   }
 
-  private collect(items: readonly ImtActivityItem[]): ImtActivityItem[] {
+  private collect(items: readonly DebriefActivityItem[]): DebriefActivityItem[] {
     const seen = new Set<string>();
-    const out: ImtActivityItem[] = [];
+    const out: DebriefActivityItem[] = [];
     for (const item of items) {
       const problem = activityItemProblem(item);
       if (problem) {
@@ -167,7 +167,7 @@ export class ActivityItems {
     return out.map((item, i) => ({ item, i })).sort((a, b) => a.item.order - b.item.order || a.i - b.i).map((x) => x.item);
   }
 
-  private safe<T>(item: ImtActivityItem, what: string, fn: () => T, fallback: T): T {
+  private safe<T>(item: DebriefActivityItem, what: string, fn: () => T, fallback: T): T {
     try {
       return fn();
     } catch {
@@ -186,7 +186,7 @@ export class ActivityItems {
  * commands. `first` lists view ids to put at the top, in that order. Call it in an injection context (a provider's
  * `useFactory`).
  */
-export function viewCategoryMenu(category: ViewCategory, options: { first?: readonly string[]; commands?: readonly string[] } = {}): () => ImtActivityMenuItem[] {
+export function viewCategoryMenu(category: ViewCategory, options: { first?: readonly string[]; commands?: readonly string[] } = {}): () => DebriefActivityMenuItem[] {
   const views = inject(ViewRegistry);
   const dock = inject(DockService);
   const commands = inject(CommandRegistry);
@@ -195,8 +195,8 @@ export function viewCategoryMenu(category: ViewCategory, options: { first?: read
     const first = (options.first ?? []).map((id) => listed.find((v) => v.id === id)).filter((v) => !!v);
     const ordered = [...first, ...listed.filter((v) => !first.includes(v))];
     return [
-      ...ordered.map((v): ImtActivityMenuItem => ({ id: `view:${v.id}`, label: v.title, icon: v.icon, checked: dock.isOpen(v.id), run: { view: v.id } })),
-      ...(options.commands ?? []).flatMap((id): ImtActivityMenuItem[] => {
+      ...ordered.map((v): DebriefActivityMenuItem => ({ id: `view:${v.id}`, label: v.title, icon: v.icon, checked: dock.isOpen(v.id), run: { view: v.id } })),
+      ...(options.commands ?? []).flatMap((id): DebriefActivityMenuItem[] => {
         const c = commands.find(id);
         return c ? [{ id: `command:${id}`, label: c.title, run: { command: id } }] : [];
       }),

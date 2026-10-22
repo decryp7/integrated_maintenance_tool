@@ -13,7 +13,7 @@ let nextId = 0;
  * range pre-check while typing.
  */
 @Component({
-  selector: 'imt-setting-field',
+  selector: 'debrief-setting-field',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, Switch],
   host: { class: 'setting', '[class.invalid]': '!!message()', '[attr.data-key]': 'field().key' },
@@ -22,7 +22,7 @@ let nextId = 0;
     @let k = f.kind;
     <div class="head">
       @if (k.type === 'bool') {
-        <imt-switch class="label" [inputId]="id" [checked]="value() === true" [disabled]="readOnly()" [describedBy]="describedBy()" [invalid]="!!message()" (checkedChange)="emit($event)">{{ f.label }}</imt-switch>
+        <debrief-switch class="label" [inputId]="id" [checked]="value() === true" [disabled]="readOnly()" [describedBy]="describedBy()" [invalid]="!!message()" (checkedChange)="emit($event)">{{ f.label }}</debrief-switch>
       } @else {
         <label class="label" [for]="id">{{ f.label }}</label>
       }
@@ -35,7 +35,7 @@ let nextId = 0;
       <span class="spacer"></span>
       @if (!readOnly() && !isDefault()) {
         <button class="btn ghost reset" type="button" [attr.aria-label]="resetLabel()" [title]="defaultTitle()" (click)="resetToDefault.emit()" i18n="@@settings.field.reset">
-          <imt-icon name="refresh" [size]="12" /> Reset to default
+          <debrief-icon name="refresh" [size]="12" /> Reset to default
         </button>
       }
     </div>
@@ -119,7 +119,7 @@ export class SettingFieldControl {
   readonly changed = output<SettingValue>();
   readonly resetToDefault = output<void>();
 
-  protected readonly id = `imt-setting-${nextId++}`;
+  protected readonly id = `debrief-setting-${nextId++}`;
   protected readonly unit = computed(() => editUnit(this.field().kind));
   protected readonly unitLabel = computed(() => {
     const k = this.field().kind;

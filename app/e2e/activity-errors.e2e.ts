@@ -3,7 +3,7 @@ import { APP_LOAD_TIMEOUT } from './app';
 import { chooseMenu } from './menu-support';
 
 // Error capture: every failure is logged once, with the operation that caused it. The browser build logs to the
-// console (the mock log sink); `?imtFault=view:*` (core/activity/fault-injection.ts) makes every view throw.
+// console (the mock log sink); `?debriefFault=view:*` (core/activity/fault-injection.ts) makes every view throw.
 
 interface LogLine {
   category: string;
@@ -30,8 +30,8 @@ function collect(page: Page): LogLine[] {
 test('a view that throws is contained and logged with the operation that opened it, for every registered view', async ({ page }) => {
   test.setTimeout(120_000);
   const lines = collect(page);
-  await page.goto('/?imtFault=view:*');
-  await expect(page.locator('.imt-panel-failed').first()).toBeVisible({ timeout: APP_LOAD_TIMEOUT });
+  await page.goto('/?debriefFault=view:*');
+  await expect(page.locator('.debrief-panel-failed').first()).toBeVisible({ timeout: APP_LOAD_TIMEOUT });
 
   // Every view the app offers, from View ▸ Other windows….
   await chooseMenu(page, 'View', 'Other windows…');
@@ -64,7 +64,7 @@ test('a view that throws is contained and logged with the operation that opened 
       const op = fresh.props['OperationId'];
       if (op) {
         // The operation is logged when it ends, which may be after the panel failed inside it.
-        await expect.poll(() => lines.some((l) => l.category === 'IMT.Activity' && l.props['OperationId'] === op), { timeout: 5000 }).toBe(true);
+        await expect.poll(() => lines.some((l) => l.category === 'Debrief.Activity' && l.props['OperationId'] === op), { timeout: 5000 }).toBe(true);
         correlated++;
       }
     }
@@ -96,7 +96,7 @@ test('uncaught errors and unhandled rejections are logged with their type, stack
   // Errors carry the latest activity as breadcrumbs (Rust attaches them in the desktop app).
   await chooseMenu(page, 'Help', 'Keyboard shortcuts');
   await page.keyboard.press('Escape');
-  await expect.poll(() => lines.some((l) => l.category === 'IMT.Activity' && l.props['Trigger'] === 'menu')).toBe(true);
+  await expect.poll(() => lines.some((l) => l.category === 'Debrief.Activity' && l.props['Trigger'] === 'menu')).toBe(true);
   await page.evaluate(() => void Promise.reject(new Error('after a menu command')));
   await expect.poll(() => lines.some((l) => l.message === 'after a menu command')).toBe(true);
   const last = lines.find((l) => l.message === 'after a menu command')!;

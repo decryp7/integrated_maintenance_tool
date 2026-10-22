@@ -2,7 +2,7 @@ import { parse } from 'smol-toml';
 import { RedactDetector, RedactionPreview, RedactMode, RuleHits } from '../../core/api.types';
 
 /**
- * A plausible stand-in for the engine's redaction (crates/imt-core/src/redact) for browser development
+ * A plausible stand-in for the engine's redaction (crates/debrief-core/src/redact) for browser development
  * and UI tests. It mirrors the detectors' intent with simpler patterns; the engine is the reference.
  */
 

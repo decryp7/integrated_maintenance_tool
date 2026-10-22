@@ -2,13 +2,13 @@ import { Injectable } from '@angular/core';
 import { isTauri } from '../core/platform';
 import { nativePickOne } from '../core/native-dialog';
 
-const FILTERS = [{ name: $localize`:File dialog filter|@@projects.picker.filter:IMT project`, extensions: ['imtz'] }];
+const FILTERS = [{ name: $localize`:File dialog filter|@@projects.picker.filter:Debrief project`, extensions: ['debriefz'] }];
 
 /** Native open/save dialogs for project files. In a plain browser it returns demo paths. */
 @Injectable({ providedIn: 'root' })
 export class ProjectPicker {
   /** Browser mode only: the path last chosen to save, offered again by "Open". */
-  private browserPath = '/demo/projects/untitled.imtz';
+  private browserPath = '/demo/projects/untitled.debriefz';
 
   /** Asks for a project to open; null when cancelled. */
   async pickOpen(): Promise<string | null> {

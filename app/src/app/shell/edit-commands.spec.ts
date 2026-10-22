@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideTinyBackend, settle } from '../../testing/helpers';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { GridSelection } from '../grid/grid-selection';
 import { EditCommands, eventsJson } from './edit-commands';
 
@@ -18,7 +18,7 @@ describe('Edit menu commands (F4)', () => {
   it('copies the selected events (messages, or JSON), and says when nothing is selected', async () => {
     const store = TestBed.inject(WorkspaceStore);
     await settle();
-    const rows = (await TestBed.inject(ImtBackend).queryPage({ query: EMPTY_QUERY, offset: 0, limit: 2, descending: false })).rows;
+    const rows = (await TestBed.inject(DebriefBackend).queryPage({ query: EMPTY_QUERY, offset: 0, limit: 2, descending: false })).rows;
     window.getSelection()?.removeAllRanges();
     await run('edit.copy');
     expect(written).toEqual([]);

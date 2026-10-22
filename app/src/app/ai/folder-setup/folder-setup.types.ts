@@ -1,6 +1,6 @@
 /**
- * Wire contract of "Set up analysis for this folder…" (camelCase JSON). Mirrors `crates/imt-core/src/survey/dto.rs`
- * and `imt_ai::assistant::FolderRefinement`; the Tauri commands are in `app/src-tauri/src/ai/folder_setup.rs`.
+ * Wire contract of "Set up analysis for this folder…" (camelCase JSON). Mirrors `crates/debrief-core/src/survey/dto.rs`
+ * and `debrief_ai::assistant::FolderRefinement`; the Tauri commands are in `app/src-tauri/src/ai/folder_setup.rs`.
  */
 import { Level } from '../../core/api.types';
 

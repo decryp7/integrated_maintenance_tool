@@ -19,7 +19,7 @@ It also re-imported a whole file whenever it changed, which is quadratic for a l
    two events, suggest offsets from shared correlation ids) and `Tail` (how each followed file was last read, open files
    at their end). `Ingest::append_tail` returns a `TailAppend` (what changed, per kind of source) instead of a count.
    Every store implements them (`WorkspaceStore` as the reference, `DuckStore`, `RemoteStore` over six new `StoreOp`s);
-   suggestions are one function over `Query::scan` (`imt_core::skew::suggest_over`) so no store re-implements the maths.
+   suggestions are one function over `Query::scan` (`debrief_core::skew::suggest_over`) so no store re-implements the maths.
 2. **An offset is applied to the stored events.** `clock_offsets(path, offset_ms)` is the truth; events carry the
    corrected `ts`. Files read later (imports, appended lines) are shifted as they are written (`SegmentSink`); changing
    an offset rewrites the segments holding that file's events with `ts` moved by the difference, keeping each segment's
@@ -43,7 +43,7 @@ It also re-imported a whole file whenever it changed, which is quadratic for a l
    caller to ask again with no paths after that time; the shell does so once per wait. One-line formats (CLEF, JSON
    lines) are never held. This costs a short delay for the newest event of a multi-line format and avoids splitting
    an event across two rows.
-5. **Alerts and the tail status are computed over the ports.** `imt_core::live::LiveSession` (one per window, in the
+5. **Alerts and the tail status are computed over the ports.** `debrief_core::live::LiveSession` (one per window, in the
    shell) evaluates rules, silences and the anomaly detectors over `Query`/`Analysis` after each refresh, keeps
    cooldowns and mutes, and builds the per-file status (lines per second from the store's line counts) from
    `Tail::tail_files`. Nothing about alerts is stored in the catalog.

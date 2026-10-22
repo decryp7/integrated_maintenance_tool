@@ -3,7 +3,7 @@
 //! tray. Stored in `settings.json` by [`crate::settings`]; the live values are
 //! kept in [`SharedPrefs`] for the window, tray and notification code.
 
-use imt_core::settings::{Configurable, EnumOption, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
+use debrief_core::settings::{Configurable, EnumOption, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
 use serde_json::{json, Value};
 use std::sync::{Arc, RwLock};
 
@@ -124,14 +124,14 @@ impl Configurable for WindowSection {
                     OpenFilesIn::default().as_str(),
                 )
                 .describe(
-                    "Files opened from Finder or Explorer, or by starting IMT again while it runs. An empty window is always reused.",
+                    "Files opened from Finder or Explorer, or by starting Debrief again while it runs. An empty window is always reused.",
                 ),
             )
             .field(
                 SettingField::new(
                     "onClose",
                     "When the last window is closed",
-                    options(&[("ask", "Ask"), ("quit", "Quit IMT"), ("tray", "Keep running in the tray")]),
+                    options(&[("ask", "Ask"), ("quit", "Quit Debrief"), ("tray", "Keep running in the tray")]),
                     OnClose::default().as_str(),
                 )
                 .describe("In the tray, live tail, the process monitor and downloads keep running."),
@@ -150,7 +150,7 @@ impl Configurable for WindowSection {
             )
             .field(
                 SettingField::new("startMinimized", "Start in the system tray", FieldKind::Bool, false)
-                    .describe("IMT starts with its window hidden; open it from the tray icon."),
+                    .describe("Debrief starts with its window hidden; open it from the tray icon."),
             )
     }
 
@@ -173,7 +173,7 @@ pub fn register<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> anyhow::Result<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_core::settings::{sanitize, validate};
+    use debrief_core::settings::{sanitize, validate};
 
     #[test]
     fn section_round_trips_and_defaults() {

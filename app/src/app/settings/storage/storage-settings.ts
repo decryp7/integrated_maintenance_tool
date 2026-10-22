@@ -21,7 +21,7 @@ export function categoryLabel(c: { id: StorageCategoryId; label: string }): stri
     case 'ai-models':
       return $localize`:Storage category@@settings.storage.category.aiModels:AI models`;
     case 'logs':
-      return $localize`:Storage category@@settings.storage.category.logs:IMT logs`;
+      return $localize`:Storage category@@settings.storage.category.logs:Debrief logs`;
     case 'error-snapshots':
       return $localize`:Storage category@@settings.storage.category.errorSnapshots:Error snapshots`;
     case 'sessions':
@@ -48,12 +48,12 @@ export function resultLine(r: StorageCategoryClearResult, label: string): string
 }
 
 /**
- * Settings ▸ Storage: what IMT keeps on this computer, per category, with "Clear cache" for everything
- * IMT can rebuild and a separate, confirmed Clear for each data category. Sizes and what may be removed
+ * Settings ▸ Storage: what Debrief keeps on this computer, per category, with "Clear cache" for everything
+ * Debrief can rebuild and a separate, confirmed Clear for each data category. Sizes and what may be removed
  * come from the engine.
  */
 @Component({
-  selector: 'imt-storage-settings',
+  selector: 'debrief-storage-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [StorageStores],
   template: `
@@ -63,11 +63,11 @@ export function resultLine(r: StorageCategoryClearResult, label: string): string
       <button class="btn" type="button" [disabled]="store.busy()" (click)="refresh()" i18n="@@settings.storage.refresh">Refresh</button>
       <button class="btn primary" type="button" [disabled]="store.busy() || !store.cacheBytes()" (click)="confirmClearCache()" i18n="@@settings.storage.clearCache">Clear cache…</button>
     </div>
-    <p class="desc" i18n="@@settings.storage.desc">What IMT keeps on this computer. The cache is rebuilt when needed; data is yours and is removed one category at a time.</p>
+    <p class="desc" i18n="@@settings.storage.desc">What Debrief keeps on this computer. The cache is rebuilt when needed; data is yours and is removed one category at a time.</p>
 
     @if (store.loadError(); as e) {
       <div class="banner err" role="alert">
-        <span i18n="@@settings.storage.loadError">Could not measure IMT's storage: {{ e }}</span>
+        <span i18n="@@settings.storage.loadError">Could not measure Debrief's storage: {{ e }}</span>
         <button class="btn" type="button" (click)="store.load()" i18n="@@settings.storage.retry">Retry</button>
       </div>
     }
@@ -102,7 +102,7 @@ export function resultLine(r: StorageCategoryClearResult, label: string): string
     }
 
     @if (store.usage(); as u) {
-      <table aria-label="IMT's storage" i18n-aria-label="@@settings.storage.table.label">
+      <table aria-label="Debrief's storage" i18n-aria-label="@@settings.storage.table.label">
         <thead>
           <tr>
             <th scope="col" i18n="@@settings.storage.col.category">Category</th>
@@ -154,7 +154,7 @@ export function resultLine(r: StorageCategoryClearResult, label: string): string
         </tfoot>
       </table>
     }
-    <imt-storage-stores />
+    <debrief-storage-stores />
   `,
   styles: `
     :host { display: flex; flex-direction: column; gap: 8px; }
@@ -191,7 +191,7 @@ export class StorageSettings {
   protected readonly fmt = formatCount;
   protected readonly store = inject(StorageStore);
   private readonly dialogs = inject(DialogService);
-  protected readonly cacheLabel = $localize`:Kind of storage IMT can rebuild@@settings.storage.kind.cache:cache`;
+  protected readonly cacheLabel = $localize`:Kind of storage Debrief can rebuild@@settings.storage.kind.cache:cache`;
   protected readonly dataLabel = $localize`:Kind of storage that belongs to the user@@settings.storage.kind.data:data`;
 
   constructor() {
@@ -239,7 +239,7 @@ export class StorageSettings {
       title: $localize`:Dialog title@@settings.storage.clearCache.title:Clear cache?`,
       width: 480,
       inputs: {
-        message: $localize`:@@settings.storage.clearCache.message:IMT removes ${total}:size: of files it can rebuild. Your logs, models and sessions are not touched.`,
+        message: $localize`:@@settings.storage.clearCache.message:Debrief removes ${total}:size: of files it can rebuild. Your logs, models and sessions are not touched.`,
         detail: cache.map((c) => `${categoryLabel(c)} — ${sizeLabel(c.clearableBytes, c.capped)}`).join(' · '),
         confirmLabel: $localize`:@@settings.storage.clearCache.confirm:Clear cache`,
         danger: true,

@@ -5,7 +5,7 @@
 
 ## Context
 
-IMT grew from a small regex line filter into an "IDE for analysing logs and diagnostic
+Debrief grew from a small regex line filter into an "IDE for analysing logs and diagnostic
 files". Users open folders of logs from many machines and processes (Serilog JSON/text,
 log4net, CSV and more later: registry exports, msinfo), on Windows and macOS, often offline,
 and need a per-instance timeline, a fast filterable grid, metric charts and configurable
@@ -13,7 +13,7 @@ parsing. Files are untrusted and can be large.
 
 ## Decision
 
-- **Engine in Rust** (`crates/imt-core`): importers, parsing profiles, query, timeline and
+- **Engine in Rust** (`crates/debrief-core`): importers, parsing profiles, query, timeline and
   chart aggregation. Parallel parsing and scanning with rayon; records held in memory.
 - **Ports and adapters.** The engine exposes two seams:
   - `Importer`: one implementation per file format, chosen by content sniffing and
@@ -30,7 +30,7 @@ parsing. Files are untrusted and can be large.
 - **Configuration over code**: TOML parsing profiles describe files, formats, instance
   keys, extractors, markers and charts; extracted values become ordinary fields.
 - **Charts** with Apache ECharts (Apache-2.0); the timeline is custom.
-- **Wire contract** in `app/src/app/core/api.types.ts`, mirrored by `imt_core::api`.
+- **Wire contract** in `app/src/app/core/api.types.ts`, mirrored by `debrief_core::api`.
 
 ## Consequences
 

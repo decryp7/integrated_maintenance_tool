@@ -1,7 +1,7 @@
-import { ImtView } from '../extensions/tokens';
+import { DebriefView } from '../extensions/tokens';
 
-/** The panels IMT ships with. They use the same extension point as plugin views. */
-export const BUILTIN_VIEWS: ImtView[] = [
+/** The panels Debrief ships with. They use the same extension point as plugin views. */
+export const BUILTIN_VIEWS: DebriefView[] = [
   { id: 'timeline', category: 'core', title: $localize`:@@builtin.view.timeline:Timeline`, icon: 'timeline', defaultPosition: 'center', instances: true, component: () => import('../timeline/timeline-panel').then((m) => m.TimelinePanel) },
   { id: 'events', category: 'core', title: $localize`:@@builtin.view.events:Events`, icon: 'columns', defaultPosition: 'bottom', area: 'document', component: () => import('../grid/events-grid').then((m) => m.EventsGrid) },
   { id: 'inspector', category: 'core', title: $localize`:@@builtin.view.inspector:Inspector`, icon: 'panel', defaultPosition: 'right', component: () => import('../inspector/inspector').then((m) => m.Inspector) },

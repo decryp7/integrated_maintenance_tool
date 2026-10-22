@@ -1,0 +1,67 @@
+---
+source: crates/debrief-core/tests/importer_snapshots.rs
+expression: snap
+---
+sample: runs/batch01/report-service-20261014.txt
+importer: text
+records: 165
+skipped: 0
+levels:
+  2-Information: 151
+  3-Warning: 14
+with_timestamp: 165
+first_timestamp: "2026-10-14T09:04:58.420Z"
+last_timestamp: "2026-10-14T11:59:19.860Z"
+fields:
+  - Application
+  - MachineName
+  - Rows
+  - RunId
+  - SourceContext
+first:
+  - line: 1
+    timestamp: "2026-10-14T09:04:58.420Z"
+    level: Information
+    message: "ReportService 2.3.0 ready; export schedule */30 at :05 and :35"
+    fields:
+      Application: ReportService
+      MachineName: BATCH01
+      SourceContext: Reports.ExportWorker
+  - line: 2
+    timestamp: "2026-10-14T09:05:00.478Z"
+    level: Information
+    message: "Report worker started: run 1 (sales-daily)"
+    fields:
+      Application: ReportService
+      MachineName: BATCH01
+      RunId: 1
+      SourceContext: Reports.ExportWorker
+  - line: 3
+    timestamp: "2026-10-14T09:05:30.316Z"
+    level: Information
+    message: "Exported 2,089 rows of sales-daily"
+    fields:
+      Application: ReportService
+      MachineName: BATCH01
+      Rows: 2089
+      RunId: 1
+      SourceContext: Reports.ExportWorker
+  - line: 4
+    timestamp: "2026-10-14T09:06:09.711Z"
+    level: Information
+    message: "Exported 3,291 rows of sales-daily"
+    fields:
+      Application: ReportService
+      MachineName: BATCH01
+      Rows: 3291
+      RunId: 1
+      SourceContext: Reports.ExportWorker
+  - line: 5
+    timestamp: "2026-10-14T09:06:43.366Z"
+    level: Warning
+    message: Slow query for sales-daily page 4 took 4922 ms
+    fields:
+      Application: ReportService
+      MachineName: BATCH01
+      RunId: 1
+      SourceContext: Reports.ExportWorker

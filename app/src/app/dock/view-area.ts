@@ -1,4 +1,4 @@
-import type { ImtView, ViewArea } from '../extensions/tokens';
+import type { DebriefView, ViewArea } from '../extensions/tokens';
 import { viewKind } from './view-kind';
 
 export type { ViewArea } from '../extensions/tokens';
@@ -11,7 +11,7 @@ export const ANALYSIS_TAB_CAP = 8;
  * declare none): tool windows on the right are side tools, other tool windows status tools; documents at the bottom
  * open in the analysis panel, the others in the centre.
  */
-export function viewArea(view: Pick<ImtView, 'id' | 'defaultPosition' | 'area'> | undefined | null): ViewArea {
+export function viewArea(view: Pick<DebriefView, 'id' | 'defaultPosition' | 'area'> | undefined | null): ViewArea {
   if (!view) return 'document';
   if (view.area) return view.area;
   if (viewKind(view) === 'tool') return view.defaultPosition === 'right' ? 'side' : 'status';

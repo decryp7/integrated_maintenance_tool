@@ -17,7 +17,7 @@ import { ReportStore } from './report.store';
  * added from across the app ("Add to report"). Reorder with the arrows or Alt+↑/↓ on a focused block.
  */
 @Component({
-  selector: 'imt-report-view',
+  selector: 'debrief-report-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, MarkdownView, ReportBlockView],
   template: `
@@ -30,7 +30,7 @@ import { ReportStore } from './report.store';
             </select>
           </label>
         }
-        <button type="button" class="btn" (click)="reports.create()" i18n="@@share.reportView.new"><imt-icon name="plus" [size]="13" /> New report</button>
+        <button type="button" class="btn" (click)="reports.create()" i18n="@@share.reportView.new"><debrief-icon name="plus" [size]="13" /> New report</button>
         <button type="button" class="btn" data-testid="report-incident" (click)="incident()" i18n="@@share.reportView.incident">Incident summary…</button>
         @if (reports.active(); as r) {
           <button type="button" class="btn" (click)="reports.remove(r.id)" i18n="@@share.reportView.delete">Delete report</button>
@@ -46,7 +46,7 @@ import { ReportStore } from './report.store';
         <label class="field"><ng-container i18n="@@share.reportView.summary">Summary (Markdown)</ng-container>
           <textarea class="input summary" rows="3" [value]="r.summary" (change)="reports.update(r.id, { summary: val($event) })" placeholder="What happened, impact, cause…" i18n-placeholder="@@share.reportView.summaryPlaceholder"></textarea>
         </label>
-        @if (r.summary) { <imt-markdown-view class="md" [text]="r.summary" /> }
+        @if (r.summary) { <debrief-markdown-view class="md" [text]="r.summary" /> }
 
         <div class="add" role="toolbar" aria-label="Add to report" i18n-aria-label="@@share.reportView.addAria">
           <span class="faint" i18n="@@share.reportView.addLabel">Add:</span>
@@ -66,20 +66,20 @@ import { ReportStore } from './report.store';
               <input class="input stitle" [attr.aria-label]="sectionTitleLabel(si)" [value]="s.title" (change)="reports.renameSection(s.id, val($event))" />
               <button type="button" class="icon-btn" [attr.aria-label]="sectionUpLabel(s.title)" [disabled]="si === 0" (click)="reports.moveSection(s.id, -1)"><span aria-hidden="true">↑</span></button>
               <button type="button" class="icon-btn" [attr.aria-label]="sectionDownLabel(s.title)" [disabled]="si === r.sections.length - 1" (click)="reports.moveSection(s.id, 1)"><span aria-hidden="true">↓</span></button>
-              <button type="button" class="icon-btn" [attr.aria-label]="sectionRemoveLabel(s.title)" (click)="reports.removeSection(s.id)"><imt-icon name="trash" [size]="13" /></button>
+              <button type="button" class="icon-btn" [attr.aria-label]="sectionRemoveLabel(s.title)" (click)="reports.removeSection(s.id)"><debrief-icon name="trash" [size]="13" /></button>
             </div>
             @for (b of s.blocks; track b.id; let bi = $index) {
-              <imt-report-block [block]="b" [first]="si === 0 && bi === 0" [last]="si === r.sections.length - 1 && bi === s.blocks.length - 1" (moved)="refocus($event)" />
+              <debrief-report-block [block]="b" [first]="si === 0 && bi === 0" [last]="si === r.sections.length - 1 && bi === s.blocks.length - 1" (moved)="refocus($event)" />
             } @empty {
               <p class="faint" i18n="@@share.reportView.emptySection">Empty section. Blocks are added to the last section.</p>
             }
           </section>
         }
-        <button type="button" class="btn add-section" (click)="reports.addSection()" i18n="@@share.reportView.addSection"><imt-icon name="plus" [size]="13" /> Add section</button>
+        <button type="button" class="btn add-section" (click)="reports.addSection()" i18n="@@share.reportView.addSection"><debrief-icon name="plus" [size]="13" /> Add section</button>
       } @else {
         <div class="empty-next">
           <p class="faint" i18n="@@share.reportView.none">No report yet. Create one, or use “Add to report” on an event, a note, a chart or the timeline.</p>
-          <button type="button" class="btn primary" (click)="reports.create()" i18n="@@share.reportView.create"><imt-icon name="plus" [size]="13" /> Create a report</button>
+          <button type="button" class="btn primary" (click)="reports.create()" i18n="@@share.reportView.create"><debrief-icon name="plus" [size]="13" /> Create a report</button>
           <button type="button" class="btn" data-testid="report-incident" (click)="incident()" i18n="@@share.reportView.incident">Incident summary…</button>
         </div>
       }

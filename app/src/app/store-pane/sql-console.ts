@@ -12,7 +12,7 @@ import { SqlExportFiles } from './sql-export-files';
  * the span it named, and the result: a table that pages on, Copy, and Open in Events for rows with event ids.
  */
 @Component({
-  selector: 'imt-sql-console',
+  selector: 'debrief-sql-console',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="editor-wrap">

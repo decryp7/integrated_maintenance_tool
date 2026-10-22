@@ -3,12 +3,12 @@
 
 use super::hub::{BrowserHub, BrowserSettings};
 use super::SECTION;
-use imt_ai::browser::pace::{
+use debrief_ai::browser::pace::{
     DEFAULT_ACTIONS_PER_MINUTE, DEFAULT_STEP_LIMIT, MAX_ACTIONS_PER_MINUTE, MAX_STEP_LIMIT, MIN_ACTIONS_PER_MINUTE, MIN_STEP_LIMIT,
 };
-use imt_ai::browser::research::{DEFAULT_RESULTS, RESULT_CHOICES};
-use imt_ai::browser::{clamp_results, AgentLimits, ResearchSettings, SearchEngine, SearchSettings, SearchTemplate};
-use imt_core::settings::{Configurable, EnumOption, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
+use debrief_ai::browser::research::{DEFAULT_RESULTS, RESULT_CHOICES};
+use debrief_ai::browser::{clamp_results, AgentLimits, ResearchSettings, SearchEngine, SearchSettings, SearchTemplate};
+use debrief_core::settings::{Configurable, EnumOption, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
 use std::sync::Arc;
 
 pub struct BrowserSection {
@@ -63,7 +63,7 @@ impl Configurable for BrowserSection {
         let engines = SearchEngine::ALL.iter().map(|e| EnumOption::new(e.id(), e.label())).collect();
         SettingsSection::new(SECTION, "Web browser", SectionOwner::App)
             .describe(
-                "The AI's browser: research, Read along and Agent mode drive a real Chromium-based browser (its own throwaway profile; the window shows next to IMT). The AI sees a page only through research, read-along or agent mode, or when you add one to a chat. Links you open go to your default browser.",
+                "The AI's browser: research, Read along and Agent mode drive a real Chromium-based browser (its own throwaway profile; the window shows next to Debrief). The AI sees a page only through research, read-along or agent mode, or when you add one to a chat. Links you open go to your default browser.",
             )
             .field(
                 SettingField::new("searchEngine", "Search engine", FieldKind::Enum { options: engines }, SearchEngine::default().id())
@@ -74,7 +74,7 @@ impl Configurable for BrowserSection {
                     "customSearchUrl",
                     "Custom search address",
                     FieldKind::Text {
-                        max_len: imt_ai::browser::engines::MAX_TEMPLATE_CHARS,
+                        max_len: debrief_ai::browser::engines::MAX_TEMPLATE_CHARS,
                         pattern: None,
                     },
                     "",

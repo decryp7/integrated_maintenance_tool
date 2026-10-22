@@ -10,7 +10,7 @@ import { engineLabel, ENGINE_OPTIONS } from './browser-text';
  * and private details, is removed. The user checks or edits it and picks the engine before anything opens.
  */
 @Component({
-  selector: 'imt-search-web-dialog',
+  selector: 'debrief-search-web-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (loading()) {
@@ -69,7 +69,7 @@ export class SearchWebDialog implements OnInit {
   /** Who wrote the text (null: the user, or not prepared yet). */
   protected readonly source = signal<QuerySource | null>(null);
   protected readonly byModel = $localize`:@@browser.searchDialog.byModel:The AI wrote this search from the event.`;
-  protected readonly byEngine = $localize`:@@browser.searchDialog.byEngine:IMT built this search from the event (the AI could not write it).`;
+  protected readonly byEngine = $localize`:@@browser.searchDialog.byEngine:Debrief built this search from the event (the AI could not write it).`;
   /** Null: the backend searches with the engine from Settings ▸ Web browser. */
   protected readonly engine = signal<SearchEngine | null>(null);
   protected readonly loading = signal(false);

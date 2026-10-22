@@ -6,7 +6,7 @@ import { FILE_EXISTS_SUFFIX } from '../core/api.types';
 import { Logger } from '../core/logger';
 import { Platform } from '../core/platform';
 import { DialogService } from '../ui/dialog.service';
-import { IMT_COMMANDS, IMT_VIEWS } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS, DEBRIEF_VIEWS } from '../extensions/tokens';
 import { MOCK_AGENT_PATH, MockSchedulesBackend, mockAgentSchema, mockStarter, mockValidate } from './mock/mock-schedules-backend';
 import { RunsStore } from './runs.store';
 import { RunsView } from './runs-view';
@@ -203,7 +203,7 @@ describe('SchedulesStore', () => {
     store.addAction(1, 'monitor');
     store.setActionKey(1, 1, 'targets', ['svc*'], true);
     store.setActionKind(1, 0, 'perfmon');
-    store.setActionKey(1, 0, 'collector', 'IMT', true);
+    store.setActionKey(1, 0, 'collector', 'Debrief', true);
     store.removeAction(1, 2);
     store.setAgent('stateDir', '');
     store.setAgent('tickSecs', 30, true);
@@ -214,7 +214,7 @@ describe('SchedulesStore', () => {
       name: 'spike',
       enabled: true,
       trigger: { kind: 'log', path: '/var/log/app.log', ql: 'level >= Error' },
-      actions: [{ kind: 'perfmon', collector: 'IMT', duration: '5m' }, { kind: 'monitor', targets: ['svc*'], duration: '5m', intervalMs: 1000, includeChildren: false, dotnet: false }],
+      actions: [{ kind: 'perfmon', collector: 'Debrief', duration: '5m' }, { kind: 'monitor', targets: ['svc*'], duration: '5m', intervalMs: 1000, includeChildren: false, dotnet: false }],
     });
     expect(c.agent.tickSecs).toBe(30);
     expect(c.agent.log.level).toBe('debug');
@@ -242,7 +242,7 @@ describe('SchedulesStore', () => {
     const dialogs = TestBed.inject(DialogService);
     await store.load();
     expect(store.exists()).toBe(false);
-    // Created meanwhile (e.g. by imt-agent itself): the starter would replace it, so the app asks.
+    // Created meanwhile (e.g. by debrief-agent itself): the starter would replace it, so the app asks.
     await mock.save(mockStarter());
     let saving = store.save();
     await vi.waitFor(() => expect(dialogs.stack()[0]?.options.title).toBe('Replace file?'));
@@ -292,11 +292,11 @@ describe('SchedulesStore', () => {
   it('starts from a starter document and reports backend failures', async () => {
     const mock = new MockSchedulesBackend({ saved: false });
     const { store } = setup(mock);
-    store.setPath('/etc/imt-agent.toml');
+    store.setPath('/etc/debrief-agent.toml');
     await store.load();
     expect(store.exists()).toBe(false);
     expect(store.notice()).toContain('starter configuration');
-    expect(mock.calls).toContain('load:/etc/imt-agent.toml');
+    expect(mock.calls).toContain('load:/etc/debrief-agent.toml');
     vi.spyOn(mock, 'validate').mockRejectedValueOnce('engine down');
     await store.validate();
     expect(store.error()).toBe('engine down');
@@ -358,7 +358,7 @@ describe('RunsStore', () => {
 
 @Component({
   imports: [SchemaField],
-  template: `<imt-schema-field [field]="field()" [value]="value()" [issues]="issues()" (valueChange)="got.push($event)" />`,
+  template: `<debrief-schema-field [field]="field()" [value]="value()" [issues]="issues()" (valueChange)="got.push($event)" />`,
 })
 class FieldHost {
   readonly field = signal<AgentFieldSchema>({ key: 'k', label: 'Label', kind: 'text', required: true, help: 'Help', default: null });
@@ -482,14 +482,14 @@ describe('SchedulesView', () => {
     await settle(fixture);
     expect(store.config()!.schedules[1]?.actions).toHaveLength(1);
     // Edit a field through the generic renderer.
-    const name = el<HTMLInputElement>(fixture, '[data-testid=schedule-1] imt-schema-field input');
+    const name = el<HTMLInputElement>(fixture, '[data-testid=schedule-1] debrief-schema-field input');
     typeInto(name, 'spike');
     expect(store.config()!.schedules[1]?.name).toBe('spike');
     // Agent, log and retention fields.
-    const tick = at(all<HTMLInputElement>(fixture, 'section imt-schema-field input[type=number]'), 1);
+    const tick = at(all<HTMLInputElement>(fixture, 'section debrief-schema-field input[type=number]'), 1);
     typeInto(tick, '20');
     expect(store.config()!.agent.tickSecs).toBe(20);
-    const logLevel = at(all<HTMLSelectElement>(fixture, 'section imt-schema-field select'), 1);
+    const logLevel = at(all<HTMLSelectElement>(fixture, 'section debrief-schema-field select'), 1);
     typeInto(logLevel, 'warning', 'change');
     expect(store.config()!.agent.log.level).toBe('warning');
     const keepRuns = el<HTMLInputElement>(fixture, '[aria-labelledby=sch-retention] input, section:nth-of-type(2) input');
@@ -526,14 +526,14 @@ describe('SchedulesView', () => {
 
   it('shows file-level issues, the path input and the empty state', async () => {
     const mock = new MockSchedulesBackend();
-    vi.spyOn(mock, 'load').mockResolvedValueOnce({ path: '/x.toml', exists: true, config: null, issues: [{ path: '', message: 'not a valid imt-agent.toml' }, { path: 'version', message: 'too new' }] });
+    vi.spyOn(mock, 'load').mockResolvedValueOnce({ path: '/x.toml', exists: true, config: null, issues: [{ path: '', message: 'not a valid debrief-agent.toml' }, { path: 'version', message: 'too new' }] });
     const { fixture, store } = await view(mock);
-    expect(el(fixture, '[data-testid=file-issues]').textContent).toContain('not a valid imt-agent.toml');
+    expect(el(fixture, '[data-testid=file-issues]').textContent).toContain('not a valid debrief-agent.toml');
     expect(el(fixture, '[data-testid=file-issues]').textContent).toContain('version: too new');
     expect(text(fixture)).toContain('Load the configuration');
     const path = el<HTMLInputElement>(fixture, 'input.mono');
-    typeInto(path, '/etc/imt-agent.toml');
-    expect(store.path()).toBe('/etc/imt-agent.toml');
+    typeInto(path, '/etc/debrief-agent.toml');
+    expect(store.path()).toBe('/etc/debrief-agent.toml');
     buttonByText(fixture, 'Load').click();
     await settle(fixture);
     expect(store.config()).not.toBeNull();
@@ -600,9 +600,9 @@ describe('RunsView', () => {
 describe('provideSchedules', () => {
   it('registers the two views and their commands', () => {
     TestBed.configureTestingModule({ providers: [provideSchedules()] });
-    const views = TestBed.inject(IMT_VIEWS).flat();
+    const views = TestBed.inject(DEBRIEF_VIEWS).flat();
     expect(views.map((v) => v.id)).toEqual(['collection-schedules', 'collection-runs']);
-    expect(TestBed.inject(IMT_COMMANDS).flat()).toEqual(SCHEDULES_COMMANDS);
+    expect(TestBed.inject(DEBRIEF_COMMANDS).flat()).toEqual(SCHEDULES_COMMANDS);
     const shown: string[] = [];
     for (const c of SCHEDULES_COMMANDS) void c.run({ showView: (id: string) => shown.push(id) } as never);
     expect(shown).toEqual(['collection-schedules', 'collection-runs']);

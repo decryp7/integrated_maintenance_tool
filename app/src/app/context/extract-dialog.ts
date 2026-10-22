@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, signal, untracked } from '@angular/core';
 import { ExtractPreview, RecordView } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { Condition, EXTRACT_FIELD_TYPES, ExtractFieldType, ProfileModel } from '../core/profile.model';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { ConditionsEditor } from '../profile/conditions-editor';
@@ -15,11 +15,11 @@ const PREVIEW_DELAY_MS = 300;
 
 /** "Extract value": turns the selected part of a message into a typed field (with an optional chart). */
 @Component({
-  selector: 'imt-extract-dialog',
+  selector: 'debrief-extract-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ConditionsEditor, HelpHint],
   template: `
-    <p><ng-container i18n="@@context.extractDialog.intro">Make the selected value a field you can filter, group by and chart. This adds an <span class="mono">[[extract]]</span> rule to the profile.</ng-container>&ngsp;<imt-help label="Extract" i18n-label="@@context.extractDialog.helpLabel" i18n-text="@@context.extractDialog.helpText" text="The regex is built from the text around your selection; the highlighted part becomes the named group. Edit it if it matches too little or too much." /></p>
+    <p><ng-container i18n="@@context.extractDialog.intro">Make the selected value a field you can filter, group by and chart. This adds an <span class="mono">[[extract]]</span> rule to the profile.</ng-container>&ngsp;<debrief-help label="Extract" i18n-label="@@context.extractDialog.helpLabel" i18n-text="@@context.extractDialog.helpText" text="The regex is built from the text around your selection; the highlighted part becomes the named group. Edit it if it matches too little or too much." /></p>
     <div class="status" i18n="@@context.extractDialog.message">Message</div>
     <div class="box" data-testid="extract-message">{{ record().message }}</div>
     <label class="lbl"><ng-container i18n="@@context.extractDialog.regex">Regex (the named group is the value)</ng-container><input class="input mono" [value]="regex()" (input)="regex.set($any($event.target).value)" /></label>
@@ -38,7 +38,7 @@ const PREVIEW_DELAY_MS = 300;
       }
     </div>
     <div class="status" i18n="@@context.extractDialog.onlyWhere">Only for events where</div>
-    <imt-conditions-editor [conditions]="when()" emptyText="Applies to every event." i18n-emptyText="@@context.extractDialog.appliesToAll" (changed)="when.set($event)" />
+    <debrief-conditions-editor [conditions]="when()" emptyText="Applies to every event." i18n-emptyText="@@context.extractDialog.appliesToAll" (changed)="when.set($event)" />
     <div class="status" role="status" aria-live="polite" data-testid="extract-preview">
       @if (preview(); as p) {
         @if (p.error) { <span class="err">{{ p.error }}</span> }
@@ -60,7 +60,7 @@ const PREVIEW_DELAY_MS = 300;
 export class ExtractDialog {
   protected readonly ref = inject(DIALOG_REF);
   private readonly edits = inject(ProfileEdits);
-  private readonly backend = inject(ImtBackend);
+  private readonly backend = inject(DebriefBackend);
   private readonly store = inject(WorkspaceStore);
 
   readonly record = input.required<RecordView>();

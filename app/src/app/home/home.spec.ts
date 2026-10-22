@@ -4,7 +4,7 @@ import { buttonByText, FakeDock, provideFakeDock, provideTinyBackend, settle, te
 import { FakeECharts } from '../../testing/fake-echarts';
 import { AnalysisBackend } from '../core/analysis-backend';
 import { Finding, fullCoverage, HomeSummary } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { MockAnalysisBackend, recordsFrom } from '../mock-backends';
 import { WorkspaceStore } from '../core/workspace.store';
 import { COMMAND_CONTEXT, CommandRegistry } from '../extensions/command-registry';
@@ -115,7 +115,7 @@ describe('HomeView', () => {
     const answer = typeof findings === 'function' ? findings : async () => findings;
     const overview = vi.fn(async () => ({ result: await answer(), coverage: fullCoverage(3) }));
     const ctx = new FakeCtx();
-    TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(), charts.provider, { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(ImtBackend))) }, { provide: ShareBackend, useValue: { overview } }, { provide: COMMAND_CONTEXT, useValue: ctx }] });
+    TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(), charts.provider, { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(DebriefBackend))) }, { provide: ShareBackend, useValue: { overview } }, { provide: COMMAND_CONTEXT, useValue: ctx }] });
     const fixture = TestBed.createComponent(HomeView);
     return { fixture, overview, ctx };
   }
@@ -233,7 +233,7 @@ describe('HomeStore', () => {
         provideTinyBackend(),
         provideFakeDock(),
         charts.provider,
-        { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(ImtBackend))) },
+        { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(DebriefBackend))) },
         { provide: HomeBackend, useValue: { querySummary } },
         { provide: ShareBackend, useValue: { overview: async () => ({ result: [], coverage: fullCoverage(0) }) } },
         { provide: COMMAND_CONTEXT, useValue: new FakeCtx() },
@@ -340,7 +340,7 @@ describe('HomeView tiles link to the views instead of repeating their lists', ()
     const charts = new FakeECharts();
     const ctx = new FakeCtx();
     TestBed.configureTestingModule({
-      providers: [provideTinyBackend(), provideFakeDock(), charts.provider, { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(ImtBackend))) }, { provide: ShareBackend, useValue: { overview: async () => ({ result: [], coverage: fullCoverage(0) }) } }, { provide: COMMAND_CONTEXT, useValue: ctx }],
+      providers: [provideTinyBackend(), provideFakeDock(), charts.provider, { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(DebriefBackend))) }, { provide: ShareBackend, useValue: { overview: async () => ({ result: [], coverage: fullCoverage(0) }) } }, { provide: COMMAND_CONTEXT, useValue: ctx }],
     });
     const fixture = TestBed.createComponent(HomeView);
     await settle(fixture, 8);

@@ -1,15 +1,15 @@
 import { EnvironmentProviders, inject, makeEnvironmentProviders } from '@angular/core';
 import { provideSkewBackend } from '../core/skew-backend';
 import { WorkspaceStore } from '../core/workspace.store';
-import { IMT_COMMANDS, IMT_INSPECTOR_SECTIONS, ImtCommand, ImtInspectorSection } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS, DEBRIEF_INSPECTOR_SECTIONS, DebriefCommand, DebriefInspectorSection } from '../extensions/tokens';
 import { ClockDialogService, ClockSection } from './clock-section';
 import { ClockSkewStore } from './clock-skew.store';
 
 /** The inspector section offering "Use as clock reference" and alignment (timed events only). */
-export const CLOCK_SECTION: ImtInspectorSection = { id: 'clock', title: $localize`:@@skew.plugin.section:Clock`, order: 150, component: ClockSection, when: (r) => r.ts !== null };
+export const CLOCK_SECTION: DebriefInspectorSection = { id: 'clock', title: $localize`:@@skew.plugin.section:Clock`, order: 150, component: ClockSection, when: (r) => r.ts !== null };
 
 /** Palette commands for clock-skew correction. */
-export function clockCommands(): ImtCommand[] {
+export function clockCommands(): DebriefCommand[] {
   const store = inject(WorkspaceStore);
   const skew = inject(ClockSkewStore);
   const dialog = inject(ClockDialogService);
@@ -41,7 +41,7 @@ export function clockCommands(): ImtCommand[] {
 export function provideClockSkew(): EnvironmentProviders {
   return makeEnvironmentProviders([
     provideSkewBackend(),
-    { provide: IMT_INSPECTOR_SECTIONS, multi: true, useValue: [CLOCK_SECTION] },
-    { provide: IMT_COMMANDS, multi: true, useFactory: clockCommands },
+    { provide: DEBRIEF_INSPECTOR_SECTIONS, multi: true, useValue: [CLOCK_SECTION] },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: clockCommands },
   ]);
 }

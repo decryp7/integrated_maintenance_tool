@@ -5,7 +5,7 @@ import { MemoryLogger } from '../../testing/helpers';
 import { Query, WorkspaceSummary } from '../core/api.types';
 import { Logger } from '../core/logger';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
-import { ImtEvents } from '../extensions/events';
+import { DebriefEvents } from '../extensions/events';
 import { CommandContext } from '../extensions/tokens';
 import { OverwriteGuard } from '../ui/overwrite-guard';
 import { mockJobs } from '../jobs/mock-jobs';
@@ -23,7 +23,7 @@ import { MockSnapshotBackend } from './mock/mock-snapshot-backend';
 import { SnapshotBackend, TauriSnapshotBackend } from './snapshot-backend';
 import { createSnapshotBackend } from './provide-diagnostics';
 
-const ZIP = { path: '/samples/diagnostics/imt-diagnostics-sample.zip', name: 'imt-diagnostics-sample.zip' };
+const ZIP = { path: '/samples/diagnostics/debrief-diagnostics-sample.zip', name: 'debrief-diagnostics-sample.zip' };
 
 function summary(sources: { path: string; name: string }[]): WorkspaceSummary {
   return { sources } as unknown as WorkspaceSummary;
@@ -54,7 +54,7 @@ function setup(sources: { path: string; name: string }[] = [ZIP]) {
       { provide: SnapshotBackend, useValue: backend },
       { provide: Logger, useValue: new MemoryLogger() },
       { provide: COMMAND_CONTEXT, useValue: ctx as unknown as CommandContext },
-      { provide: ImtEvents, useValue: { workspaceChanged: changed.asObservable(), workspace } },
+      { provide: DebriefEvents, useValue: { workspaceChanged: changed.asObservable(), workspace } },
       { provide: ExportTarget, useValue: target },
       { provide: OverwriteGuard, useValue: overwrite },
     ],
@@ -77,7 +77,7 @@ describe('mock diagnostics report', () => {
     TestBed.resetTestingModule();
     const { backend } = setup();
     const { report } = await backend.diagnosticsReport();
-    expect(report?.name).toBe('imt-diagnostics-sample.zip');
+    expect(report?.name).toBe('debrief-diagnostics-sample.zip');
     expect(report?.processes.map((p) => p.kind)).toEqual(expect.arrayContaining(['ai-worker', 'llama-server', 'plugin']));
     const llama = report?.processes.find((p) => p.name === 'llama-server');
     expect([llama?.state, llama?.restarts, llama?.lastExit]).toEqual(['crashed', 1, 'exit code 3']);
@@ -88,22 +88,22 @@ describe('mock diagnostics report', () => {
   });
 
   it('matches by name when the path does not and falls back to the path for the name', () => {
-    expect(sampleReportState([{ path: '/x/y', name: 'IMT-Diagnostics-1.ZIP' }]).report?.name).toBe('IMT-Diagnostics-1.ZIP');
-    expect(sampleReportState([{ path: 'C:\\x\\imt-diagnostics-2.zip', name: '' }]).report?.name).toBe('imt-diagnostics-2.zip');
+    expect(sampleReportState([{ path: '/x/y', name: 'Debrief-Diagnostics-1.ZIP' }]).report?.name).toBe('Debrief-Diagnostics-1.ZIP');
+    expect(sampleReportState([{ path: 'C:\\x\\debrief-diagnostics-2.zip', name: '' }]).report?.name).toBe('debrief-diagnostics-2.zip');
     expect(sampleReport('a.zip').name).toBe('a.zip');
   });
 
   it('lists the new report files in the preview', async () => {
     const { backend } = setup([]);
     const names = (await backend.reportPreview('')).entries.map((e) => e.name);
-    expect(names).toEqual(expect.arrayContaining(['manifest.json', 'processes.json', 'session-recovery.json', 'logs/children/ai-worker.log', 'logs/children/llama-server.log', 'logs/imt.log']));
+    expect(names).toEqual(expect.arrayContaining(['manifest.json', 'processes.json', 'session-recovery.json', 'logs/children/ai-worker.log', 'logs/children/llama-server.log', 'logs/debrief.log']));
   });
 
   it('is created by createSnapshotBackend with a lazy workspace lookup', async () => {
     const workspace = signal<WorkspaceSummary | null>(summary([ZIP]));
-    TestBed.configureTestingModule({ providers: [{ provide: Logger, useValue: new MemoryLogger() }, { provide: ImtEvents, useValue: { workspace } }] });
+    TestBed.configureTestingModule({ providers: [{ provide: Logger, useValue: new MemoryLogger() }, { provide: DebriefEvents, useValue: { workspace } }] });
     const backend = TestBed.runInInjectionContext(() => createSnapshotBackend());
-    expect((await backend.diagnosticsReport()).report?.name).toBe('imt-diagnostics-sample.zip');
+    expect((await backend.diagnosticsReport()).report?.name).toBe('debrief-diagnostics-sample.zip');
   });
 });
 
@@ -129,7 +129,7 @@ describe('DiagnosticsReportStore', () => {
     expect(store.current()?.id).toBe(id);
     await store.refresh();
     expect(store.selected()).toBe(id);
-    workspace.set(summary([{ path: '/x/imt-diagnostics-other.zip', name: 'imt-diagnostics-other.zip' }]));
+    workspace.set(summary([{ path: '/x/debrief-diagnostics-other.zip', name: 'debrief-diagnostics-other.zip' }]));
     await store.refresh();
     expect(store.selected()).toBeNull();
     expect(store.images()).toEqual({});
@@ -166,7 +166,7 @@ describe('DiagnosticsReportPanel', () => {
     const f = TestBed.createComponent(DiagnosticsReportPanel);
     await flush(f);
     const el: HTMLElement = f.nativeElement;
-    expect(el.querySelector('[data-testid=diag-header]')?.textContent).toContain('imt-diagnostics-sample.zip');
+    expect(el.querySelector('[data-testid=diag-header]')?.textContent).toContain('debrief-diagnostics-sample.zip');
     expect(el.querySelector('[data-testid=diag-header]')?.textContent).toContain('0.9.0');
     expect(el.querySelector('[data-testid=diag-description]')?.textContent).toContain('stopped answering');
     expect(el.querySelector('[data-testid=diag-unreadable]')).toBeNull();
@@ -282,7 +282,7 @@ describe('DiagnosticsReportPanel', () => {
     const store = TestBed.inject(DiagnosticsReportStore);
     // Drop the cached thumbnail so the large view has to load it again.
     await store.refresh();
-    const other = sampleReport('imt-diagnostics-sample.zip');
+    const other = sampleReport('debrief-diagnostics-sample.zip');
     vi.spyOn(backend, 'diagnosticsReport').mockResolvedValue({ report: { ...other, snapshots: other.snapshots.map((s) => ({ ...s, id: 'fresh' })) }, notice: null });
     await store.refresh();
     await store.show('fresh');
@@ -306,14 +306,14 @@ describe('DiagnosticsReportService', () => {
     await flush();
     expect(ctx.showView).toHaveBeenCalledTimes(1);
     expect(ctx.showView).toHaveBeenCalledWith(DIAGNOSTICS_REPORT_VIEW);
-    expect(TestBed.inject(DiagnosticsReportStore).report()?.name).toBe('imt-diagnostics-sample.zip');
+    expect(TestBed.inject(DiagnosticsReportStore).report()?.name).toBe('debrief-diagnostics-sample.zip');
     expect(Object.keys(TestBed.inject(DiagnosticsReportStore).images())).toHaveLength(1);
 
     changed.next(summary([ZIP]));
     await flush();
     expect(ctx.showView).toHaveBeenCalledTimes(1);
 
-    workspace.set(summary([{ path: '/b/imt-diagnostics-b.zip', name: 'imt-diagnostics-b.zip' }]));
+    workspace.set(summary([{ path: '/b/debrief-diagnostics-b.zip', name: 'debrief-diagnostics-b.zip' }]));
     changed.next(summary([]));
     await flush();
     expect(ctx.showView).toHaveBeenCalledTimes(2);
@@ -347,7 +347,7 @@ describe('DiagnosticsReportService', () => {
 
 describe('DiagnosticsExport', () => {
   it('names the file with the local time', () => {
-    expect(diagnosticsFileName(new Date(2026, 9, 5, 7, 8, 9))).toBe('imt-diagnostics-20261005-070809.zip');
+    expect(diagnosticsFileName(new Date(2026, 9, 5, 7, 8, 9))).toBe('debrief-diagnostics-20261005-070809.zip');
   });
 
   it('starts saving the report as a job at once, says so in a toast and in the status, and the job writes the file', async () => {
@@ -356,7 +356,7 @@ describe('DiagnosticsExport', () => {
     const exporter = TestBed.inject(DiagnosticsExport);
     await exporter.save();
     expect(save).toHaveBeenCalledWith('/out/diag.zip', '', false);
-    expect(target.asked[0]?.name).toMatch(/^imt-diagnostics-\d{8}-\d{6}\.zip$/);
+    expect(target.asked[0]?.name).toMatch(/^debrief-diagnostics-\d{8}-\d{6}\.zip$/);
     expect(target.asked[0]?.title).toBe('Save diagnostics');
     expect(exporter.status()?.kind).toBe('saved');
     expect(exporter.status()?.text).toBe('Saving diagnostics to /out/diag.zip; a message tells you when the file is ready.');

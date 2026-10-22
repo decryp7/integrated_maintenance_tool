@@ -11,14 +11,14 @@ import { BLANK_PARSER, initialChoice, ParsersStore } from './parsers.store';
 import type { ParserLibraryDto } from '../../core/api.types';
 
 function setup() {
-  const imt = tinyBackend();
-  const backend = new MockParsersBackend(imt);
+  const debrief = tinyBackend();
+  const backend = new MockParsersBackend(debrief);
   const dialogs = { confirmRemove: vi.fn().mockResolvedValue(true), confirmImport: vi.fn().mockResolvedValue(true), edit: vi.fn().mockResolvedValue(undefined) };
   const files = { pickImport: vi.fn().mockResolvedValue(DEMO_PARSER_IMPORT), pickExport: vi.fn().mockResolvedValue('/demo/exports/x.toml') };
   TestBed.configureTestingModule({
-    providers: [provideTinyBackend(imt), { provide: ParsersBackend, useValue: backend }, { provide: ParserDialogs, useValue: dialogs }, { provide: ParserFiles, useValue: files }],
+    providers: [provideTinyBackend(debrief), { provide: ParsersBackend, useValue: backend }, { provide: ParserDialogs, useValue: dialogs }, { provide: ParserFiles, useValue: files }],
   });
-  return { store: TestBed.inject(ParsersStore), backend, dialogs, files, imt };
+  return { store: TestBed.inject(ParsersStore), backend, dialogs, files, debrief };
 }
 
 describe('ParsersStore', () => {

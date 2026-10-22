@@ -11,7 +11,7 @@ import { ProblemsBadge } from '../problems/problems-badge';
 import { AiBrowsingChip } from '../browser/ai-browsing-chip';
 
 @Component({
-  selector: 'imt-status-bar',
+  selector: 'debrief-status-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [BackgroundWork, ImportStatus, StatusJobs, ProblemsBadge, AiBrowsingChip],
   template: `
@@ -43,8 +43,8 @@ import { AiBrowsingChip } from '../browser/ai-browsing-chip';
     @if (otherBusy(); as busy) {
       <span class="busy keep" role="status" data-testid="status-busy"><span class="spinner" aria-hidden="true"></span>{{ busy }}</span>
     }
-    <imt-import-status />
-    <imt-ai-browsing-chip />
+    <debrief-import-status />
+    <debrief-ai-browsing-chip />
     <button
       type="button"
       class="live"
@@ -61,12 +61,12 @@ import { AiBrowsingChip } from '../browser/ai-browsing-chip';
     >
       <span class="live-dot" aria-hidden="true"></span>Live
     </button>
-    <imt-background-work />
-    <imt-problems-badge />
-    <imt-status-jobs />
+    <debrief-background-work />
+    <debrief-problems-badge />
+    <debrief-status-jobs />
     <span class="low" i18n="@@shell.statusBar.importers">Importers: {{ importers() }}</span>
     <button class="tz" (click)="store.setTimezone(store.timezone() === 'utc' ? 'local' : 'utc')" title="Toggle UTC / local time" i18n-title="@@shell.statusBar.toggleTimezone">{{ tz() }}</button>
-    <span class="low">IMT 0.1.0</span>
+    <span class="low">Debrief 0.1.0</span>
   `,
   styles: `
     :host { height: var(--status-h); flex: none; display: flex; align-items: center; gap: 16px; padding: 0 12px; background: var(--statusbar-bg); color: var(--statusbar-text); border-top: 1px solid var(--border); font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; }

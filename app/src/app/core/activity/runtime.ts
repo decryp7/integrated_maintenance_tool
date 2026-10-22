@@ -96,7 +96,7 @@ export function activeViewTitle(): string | undefined {
   if (typeof document === 'undefined') return undefined;
   const tab =
     document.querySelector('.dv-active-group .dv-tab.dv-active-tab') ?? document.querySelector('.dv-tab.dv-active-tab, .dv-tab.active-tab');
-  const text = (tab?.querySelector('.imt-tab-label') ?? tab)?.textContent?.trim();
+  const text = (tab?.querySelector('.debrief-tab-label') ?? tab)?.textContent?.trim();
   return text ? text.slice(0, 80) : undefined;
 }
 

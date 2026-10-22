@@ -5,7 +5,7 @@ import { openAppWith, runCommand } from './tools-support';
 test('Configuration diff compares two files side by side and unified, filters, folds and exports', async ({ page }, testInfo) => {
   await openAppWith(page);
   await runCommand(page, 'Compare configuration files');
-  const panel = page.locator('imt-config-diff-view');
+  const panel = page.locator('debrief-config-diff-view');
   await expect(panel.getByText('Choose two configuration files to compare.')).toBeVisible();
   const choose = panel.getByRole('button', { name: 'Choose…' });
   await choose.first().click();
@@ -42,7 +42,7 @@ test('Configuration diff compares two files side by side and unified, filters, f
 test('Configuration diff scrolls a large diff in pages and reports unreadable files with Retry', async ({ page }) => {
   await openAppWith(page);
   await runCommand(page, 'Compare configuration files');
-  const panel = page.locator('imt-config-diff-view');
+  const panel = page.locator('debrief-config-diff-view');
   await panel.getByRole('textbox').nth(0).fill('/demo/config/broken.json');
   await panel.getByRole('textbox').nth(0).press('Tab');
   await panel.getByRole('textbox').nth(1).fill('/demo/config/right.json');
@@ -63,7 +63,7 @@ test('Configuration diff scrolls a large diff in pages and reports unreadable fi
 test('Configuration diff compares two snapshot folders and opens a changed file', async ({ page }, testInfo) => {
   await openAppWith(page);
   await runCommand(page, 'Compare configuration files');
-  const panel = page.locator('imt-config-diff-view');
+  const panel = page.locator('debrief-config-diff-view');
   await panel.getByRole('button', { name: 'Two snapshot folders' }).click();
   await panel.getByRole('button', { name: 'Choose…' }).first().click();
   await panel.getByRole('button', { name: 'Choose…' }).last().click();

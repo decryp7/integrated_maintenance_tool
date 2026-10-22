@@ -14,9 +14,9 @@ let nextId = 0;
  * the matched words marked; Enter or a click goes to the result. The engine searches; this only shows and navigates.
  */
 @Component({
-  selector: 'imt-search-everything',
+  selector: 'debrief-search-everything',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { 'data-activity-trigger': 'palette', class: 'imt-search-everything' },
+  host: { 'data-activity-trigger': 'palette', class: 'debrief-search-everything' },
   template: `
     <input
       class="input"
@@ -102,7 +102,7 @@ export class SearchEverythingPalette {
   private readonly dialog = inject(DialogRef, { optional: true });
   private readonly injector = inject(Injector);
 
-  protected readonly listId = `imt-search-everything-${nextId++}`;
+  protected readonly listId = `debrief-search-everything-${nextId++}`;
   /** The highlighted result (CDK ActiveDescendantKeyManager; focus stays in the input). */
   protected readonly nav = new ActiveDescendantNavigation(
     computed(() => this.store.rows().length),

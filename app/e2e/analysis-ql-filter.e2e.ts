@@ -20,7 +20,7 @@ test.describe('query language filters the workspace', () => {
       const n = parseCount(await gridTotal(page).innerText());
       return n > 0 && n < all;
     }).toBe(true);
-    const rows = page.locator('imt-events-grid [role=row].row');
+    const rows = page.locator('debrief-events-grid [role=row].row');
     await expect(rows.first()).toContainText(/ERR|FTL/);
     await expect(rows.filter({ hasText: /INF|WRN|DBG|VRB/ })).toHaveCount(0);
 

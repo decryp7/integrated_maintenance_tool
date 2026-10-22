@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { ImtCommand } from '../extensions/tokens';
+import { DebriefCommand } from '../extensions/tokens';
 import { DialogService } from '../ui/dialog.service';
 import { UpdatesDialog } from './updates-dialog';
 import { UpdatesStore } from './updates.store';
@@ -20,5 +20,5 @@ export class UpdatesCommands {
     if (CHECK_FROM.has(kind)) void this.store.check();
   }
 
-  readonly commands: ImtCommand[] = [{ id: 'help.checkForUpdates', title: $localize`:@@updates.command.check:Check for updates…`, category: $localize`:@@updates.command.category:Help`, run: () => this.open() }];
+  readonly commands: DebriefCommand[] = [{ id: 'help.checkForUpdates', title: $localize`:@@updates.command.check:Check for updates…`, category: $localize`:@@updates.command.category:Help`, run: () => this.open() }];
 }

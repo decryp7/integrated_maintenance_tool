@@ -47,20 +47,20 @@ export function shortPath(path: string): string {
 }
 
 @Component({
-  selector: 'imt-welcome',
+  selector: 'debrief-welcome',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, HelpHint],
   template: `
     <section class="welcome" aria-labelledby="welcome-title">
-      <h1 id="welcome-title" i18n="@@welcome.title">Welcome to IMT</h1>
+      <h1 id="welcome-title" i18n="@@welcome.title">Welcome to Debrief</h1>
       <p class="lead" i18n="@@welcome.lead">Open log files or a whole folder and explore what happened, instance by instance.</p>
       <div class="actions">
-        <button class="btn primary big" type="button" (click)="store.pickAndOpen(true)" i18n="@@welcome.openFolder"><imt-icon name="folder" [size]="15" /> Open folder…</button>
-        <button class="btn big" type="button" (click)="store.pickAndOpen(false)" i18n="@@welcome.openFiles"><imt-icon name="file" [size]="15" /> Open files…</button>
-        <button class="btn big" type="button" data-testid="welcome-open-project" (click)="openProject()" i18n="@@welcome.openProject"><imt-icon name="files" [size]="15" /> Open project…</button>
-        <button class="btn big" type="button" data-testid="try-demo" [disabled]="demo.loading()" (click)="demo.start()"><imt-icon name="timeline" [size]="15" /> {{ demoLabel() }}</button>
+        <button class="btn primary big" type="button" (click)="store.pickAndOpen(true)" i18n="@@welcome.openFolder"><debrief-icon name="folder" [size]="15" /> Open folder…</button>
+        <button class="btn big" type="button" (click)="store.pickAndOpen(false)" i18n="@@welcome.openFiles"><debrief-icon name="file" [size]="15" /> Open files…</button>
+        <button class="btn big" type="button" data-testid="welcome-open-project" (click)="openProject()" i18n="@@welcome.openProject"><debrief-icon name="files" [size]="15" /> Open project…</button>
+        <button class="btn big" type="button" data-testid="try-demo" [disabled]="demo.loading()" (click)="demo.start()"><debrief-icon name="timeline" [size]="15" /> {{ demoLabel() }}</button>
       </div>
-      <p class="safe" data-testid="read-only-promise"><imt-icon name="check" [size]="14" /> {{ promise }} <imt-help label="Your files are safe" i18n-label="@@welcome.safe.helpLabel" [text]="detail" /></p>
+      <p class="safe" data-testid="read-only-promise"><debrief-icon name="check" [size]="14" /> {{ promise }} <debrief-help label="Your files are safe" i18n-label="@@welcome.safe.helpLabel" [text]="detail" /></p>
       <p class="faint hint" i18n="@@welcome.hint">Or drag and drop files or folders anywhere in the window. The format is detected from the content, not the extension.</p>
 
       @if (recentProjects().length || recent().length) {
@@ -68,7 +68,7 @@ export function shortPath(path: string): string {
           <h2 class="section-title" i18n="@@welcome.recent">Recent</h2>
           <ul>
             @for (p of recentProjects(); track p.path) {
-              <li><button class="link" type="button" data-testid="welcome-recent-project" [title]="p.path" (click)="openRecentProject(p.path)"><imt-icon name="files" [size]="13" /> <strong>{{ p.name }}</strong> <span class="path mono">{{ short(p.path) }}</span> <span class="when" data-testid="recent-when">{{ when(p.openedAt) }}</span></button></li>
+              <li><button class="link" type="button" data-testid="welcome-recent-project" [title]="p.path" (click)="openRecentProject(p.path)"><debrief-icon name="files" [size]="13" /> <strong>{{ p.name }}</strong> <span class="path mono">{{ short(p.path) }}</span> <span class="when" data-testid="recent-when">{{ when(p.openedAt) }}</span></button></li>
             }
             @for (p of recent(); track p.path) {
               <li><button class="link" type="button" data-testid="welcome-recent-file" [title]="p.path" (click)="open(p.path)"><span class="mono">{{ short(p.path) }}</span> <span class="when" data-testid="recent-when">{{ when(p.openedAt) }}</span></button></li>
@@ -77,8 +77,8 @@ export function shortPath(path: string): string {
         </div>
       }
 
-      <h2 class="section-title how" i18n="@@welcome.how.title">How IMT works</h2>
-      <ol class="steps" aria-label="How IMT works" i18n-aria-label="@@welcome.how.label">
+      <h2 class="section-title how" i18n="@@welcome.how.title">How Debrief works</h2>
+      <ol class="steps" aria-label="How Debrief works" i18n-aria-label="@@welcome.how.label">
         <li><strong i18n="@@welcome.how.open.title">1 · Open</strong><span i18n="@@welcome.how.open.text">Add log files or a folder.</span></li>
         <li><strong i18n="@@welcome.how.filter.title">2 · Filter</strong><span i18n="@@welcome.how.filter.text">Search, pick levels, add field filters.</span></li>
         <li><strong i18n="@@welcome.how.timeline.title">3 · Timeline</strong><span i18n="@@welcome.how.timeline.text">See instances over time; drag to zoom.</span></li>
@@ -98,7 +98,7 @@ export function shortPath(path: string): string {
     .big { height: 34px; padding: 0 16px; gap: 8px; }
     .hint { margin: 0; font-size: var(--fs-sm); }
     .safe { margin: 0; display: flex; align-items: center; gap: 6px; font-size: var(--fs-md); color: var(--text-2); }
-    .safe imt-icon { color: var(--ok); }
+    .safe debrief-icon { color: var(--ok); }
     .recent ul { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
     .link { border: 0; background: transparent; color: var(--chip-text); cursor: pointer; padding: 3px 0; text-align: left; font-size: var(--fs-sm); }
     .link:hover { text-decoration: underline; }

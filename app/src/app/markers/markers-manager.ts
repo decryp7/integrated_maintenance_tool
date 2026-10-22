@@ -25,7 +25,7 @@ function failureText(f: { message: string; line: number | null }): string {
 
 /** The "Markers" view: every marker rule in priority order with its look, meaning and live match count. */
 @Component({
-  selector: 'imt-markers-manager',
+  selector: 'debrief-markers-manager',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MarkerGlyph, Icon, CdkDropList, CdkDrag, CdkDragHandle, AiButton, RunsEditor, HighlightEditor],
   template: `
@@ -33,8 +33,8 @@ function failureText(f: { message: string; line: number | null }): string {
       <span class="section-title" i18n="@@markers.manager.title">Markers</span>
       <span class="faint" i18n="@@markers.manager.intro">First matching rule is an event's primary marker. Drag or use the arrows to reorder.</span>
       <span class="spacer"></span>
-      <imt-ai-button label="Propose markers" i18n-label="@@markers.manager.propose" hint="The local model proposes markers from the selected event's file; the engine checks them" i18n-hint="@@markers.manager.proposeHint" testId="ai-propose-markers" (pressed)="proposeWithAi()" />
-      <button type="button" class="btn primary" (click)="add()" i18n="@@markers.manager.new"><imt-icon name="plus" [size]="13" /> New marker</button>
+      <debrief-ai-button label="Propose markers" i18n-label="@@markers.manager.propose" hint="The local model proposes markers from the selected event's file; the engine checks them" i18n-hint="@@markers.manager.proposeHint" testId="ai-propose-markers" (pressed)="proposeWithAi()" />
+      <button type="button" class="btn primary" (click)="add()" i18n="@@markers.manager.new"><debrief-icon name="plus" [size]="13" /> New marker</button>
     </div>
     @if (error(); as e) {
       <div class="err" role="alert">{{ e }} <button type="button" class="btn" (click)="reload()" i18n="@@markers.manager.retry">Retry</button></div>
@@ -56,8 +56,8 @@ function failureText(f: { message: string; line: number | null }): string {
         <tbody cdkDropList (cdkDropListDropped)="dropped($event)">
           @for (r of rows(); track r.rule.kind; let i = $index) {
             <tr cdkDrag [class.off]="!r.enabled" [attr.data-kind]="r.rule.kind">
-              <td><span cdkDragHandle class="grip" aria-hidden="true"><imt-icon name="drag" [size]="14" /></span></td>
-              <td><imt-marker-glyph [glyph]="glyph(r.rule)" [size]="20" /></td>
+              <td><span cdkDragHandle class="grip" aria-hidden="true"><debrief-icon name="drag" [size]="14" /></span></td>
+              <td><debrief-marker-glyph [glyph]="glyph(r.rule)" [size]="20" /></td>
               <th scope="row" class="lbl" [title]="r.rule.description ?? ''">{{ r.rule.label || r.rule.kind }}<span class="faint mono id">{{ r.rule.kind }}</span></th>
               <td class="desc narrow-hide">{{ r.rule.description }}</td>
               <td class="when narrow-hide">{{ when(r) }}</td>
@@ -67,12 +67,12 @@ function failureText(f: { message: string; line: number | null }): string {
                 <button type="button" class="icon-btn" [disabled]="i === 0"  [attr.aria-label]="moveLabel('up', r.rule.label || r.rule.kind)" (click)="move(i, i - 1)">↑</button>
                 <button type="button" class="icon-btn" [disabled]="i === rows().length - 1"  [attr.aria-label]="moveLabel('down', r.rule.label || r.rule.kind)" (click)="move(i, i + 1)">↓</button>
                 <button type="button" class="btn" (click)="edit(r)" [attr.aria-label]="editLabel(r.rule.label || r.rule.kind)" i18n="@@markers.manager.edit">Edit</button>
-                <button type="button" class="icon-btn" [attr.aria-label]="duplicateLabel(r.rule.label || r.rule.kind)" title="Duplicate" i18n-title="@@markers.manager.duplicate" (click)="duplicate(i)"><imt-icon name="copy" [size]="13" /></button>
+                <button type="button" class="icon-btn" [attr.aria-label]="duplicateLabel(r.rule.label || r.rule.kind)" title="Duplicate" i18n-title="@@markers.manager.duplicate" (click)="duplicate(i)"><debrief-icon name="copy" [size]="13" /></button>
                 @if (confirming() === r.rule.kind) {
                   <button type="button" class="btn danger" (click)="remove(i)" i18n="@@markers.manager.confirmDelete">Confirm delete</button>
                   <button type="button" class="btn ghost" (click)="confirming.set(null)" i18n="@@markers.manager.keep">Keep</button>
                 } @else {
-                  <button type="button" class="icon-btn" [attr.aria-label]="deleteLabel(r.rule.label || r.rule.kind)" title="Delete" i18n-title="@@markers.manager.delete" (click)="confirming.set(r.rule.kind)"><imt-icon name="trash" [size]="13" /></button>
+                  <button type="button" class="icon-btn" [attr.aria-label]="deleteLabel(r.rule.label || r.rule.kind)" title="Delete" i18n-title="@@markers.manager.delete" (click)="confirming.set(r.rule.kind)"><debrief-icon name="trash" [size]="13" /></button>
                 }
               </td>
             </tr>
@@ -101,7 +101,7 @@ function failureText(f: { message: string; line: number | null }): string {
             @for (p of pluginKinds(); track p.kind) {
               <tr [class.off]="!p.enabled" [attr.data-kind]="p.kind">
                 <td>
-                  @if (p.info; as k) { <imt-marker-glyph [glyph]="{ kind: k.kind, color: k.color, icon: k.icon, badge: k.badge, shape: k.shape }" [size]="20" /> }
+                  @if (p.info; as k) { <debrief-marker-glyph [glyph]="{ kind: k.kind, color: k.color, icon: k.icon, badge: k.badge, shape: k.shape }" [size]="20" /> }
                 </td>
                 <th scope="row" class="lbl" [title]="p.info?.description ?? ''">{{ p.label }}<span class="faint mono id">{{ p.kind }}</span></th>
                 <td><span class="badge owner mono" [title]="ownerTitle(p.owner)">{{ p.owner }}</span>@if (p.info?.role; as role) { <span class="badge">{{ role }}</span> }</td>
@@ -120,8 +120,8 @@ function failureText(f: { message: string; line: number | null }): string {
           </tbody>
         </table>
       }
-      <imt-runs-editor />
-      <section class="highlights" aria-labelledby="hl-h"><h2 id="hl-h" class="section-title" i18n="@@projects.view.highlights">Highlight rules</h2><imt-highlight-editor /></section>
+      <debrief-runs-editor />
+      <section class="highlights" aria-labelledby="hl-h"><h2 id="hl-h" class="section-title" i18n="@@projects.view.highlights">Highlight rules</h2><debrief-highlight-editor /></section>
     </div>
   `,
   styles: `

@@ -146,7 +146,7 @@ dist
 .pnp.*
 
 
-# IMT
+# Debrief
 app/dist/
 app/.angular/
 app/src-tauri/gen/schemas/
@@ -156,7 +156,7 @@ app/src-tauri/gen/schemas/
 app/src-tauri/binaries/
 
 # Sample logs that are part of the source tree (the *.log rule above would hide them)
-!crates/imt-core/templates/samples/*.log
+!crates/debrief-core/templates/samples/*.log
 
 # cargo-mutants results
 mutants.out/
@@ -169,5 +169,5 @@ mutants.out.old/
 .DS_Store
 ._*
 
-# The example plugins' samples are source (cargo-imt-plugin embeds them).
+# The example plugins' samples are source (cargo-debrief-plugin embeds them).
 !examples/plugins/*/tests/samples/*.log

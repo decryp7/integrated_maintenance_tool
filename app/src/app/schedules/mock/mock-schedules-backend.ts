@@ -11,7 +11,7 @@ import {
 } from '../../core/agent.types';
 
 /** Default config path of the mock (as the app's config folder would give). */
-export const MOCK_AGENT_PATH = '/demo/config/imt-agent.toml';
+export const MOCK_AGENT_PATH = '/demo/config/debrief-agent.toml';
 export const MOCK_OUTPUT_DIR = '/demo/agent/runs';
 
 const f = (key: string, label: string, kind: AgentFieldSchema['kind'], extra: Partial<AgentFieldSchema> = {}): AgentFieldSchema => ({
@@ -24,13 +24,13 @@ const f = (key: string, label: string, kind: AgentFieldSchema['kind'], extra: Pa
   ...extra,
 });
 
-/** A copy of the agent's schema (crates/imt-agent/src/schema.rs) for browser development. */
+/** A copy of the agent's schema (crates/debrief-agent/src/schema.rs) for browser development. */
 export function mockAgentSchema(): AgentSchema {
   return {
     version: 1,
     agent: [
       f('outputDir', 'Output folder', 'path', { required: true, help: 'Each run gets a folder here, with a manifest.json.' }),
-      f('stateDir', 'State folder', 'path', { help: 'Lock files and state.json. Default: <output>/.imt-agent.' }),
+      f('stateDir', 'State folder', 'path', { help: 'Lock files and state.json. Default: <output>/.debrief-agent.' }),
       f('logDir', 'Log folder', 'path', { help: "The agent's CLEF logs. Default: <state>/logs." }),
       f('minFreeMb', 'Minimum free space (MB)', 'number', { default: 1024, min: 0, max: 10_000_000 }),
       f('tickSecs', 'Check every (s)', 'number', { default: 15, min: 1, max: 3600 }),
@@ -89,7 +89,7 @@ export function mockAgentSchema(): AgentSchema {
       {
         kind: 'collect',
         label: 'Collect diagnostics',
-        help: 'Runs the diagnostics collector into an .imtz bundle.',
+        help: 'Runs the diagnostics collector into an .debriefz bundle.',
         fields: [f('planFile', 'Plan file', 'path'), f('plan', 'Inline plan', 'json')],
       },
       {
@@ -256,7 +256,7 @@ export class MockSchedulesBackend {
       durationMs: r.durationMs,
       status: r.status,
       actions: [
-        { kind: 'collect', status: 'ok', outputs: [`collect/imt-diagnostics-WEB01.imtz`], bytes: 10_485_760, ms: 30_000 },
+        { kind: 'collect', status: 'ok', outputs: [`collect/debrief-diagnostics-WEB01.debriefz`], bytes: 10_485_760, ms: 30_000 },
         { kind: failed ? 'copyLogs' : 'monitor', status: failed ? 'failed' : 'ok', message: r.error, outputs: failed ? [] : ['monitor'], bytes: failed ? 0 : 2_097_152, ms: 12_000 },
       ],
       totalBytes: r.totalBytes,

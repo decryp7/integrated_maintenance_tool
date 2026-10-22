@@ -47,7 +47,7 @@ fn to_u32(n: u64) -> u32 {
     u32::try_from(n).unwrap_or(u32::MAX)
 }
 
-/// The memory IMT's processes may share, MB: the total less the system's reserve and the AI model, no more than is
+/// The memory Debrief's processes may share, MB: the total less the system's reserve and the AI model, no more than is
 /// free now, at least 1 GB.
 pub fn pool_mb(env: &Environment) -> u64 {
     let reserve = MIN_RESERVE_MB.max(env.total_memory_mb / 4);
@@ -130,7 +130,7 @@ pub fn proposal(environment: Option<Environment>, before: &PerformanceSettings, 
             current: b.get(&f.key).cloned().unwrap_or(Value::Null),
             suggested: a.get(&f.key).cloned().unwrap_or(Value::Null),
             unit: match &f.kind {
-                imt_core::settings::FieldKind::Int { unit, .. } => unit.clone(),
+                debrief_core::settings::FieldKind::Int { unit, .. } => unit.clone(),
                 _ => None,
             },
         })
@@ -144,7 +144,7 @@ pub fn proposal(environment: Option<Environment>, before: &PerformanceSettings, 
 
 /// This computer: its memory and cores (sysinfo), the free space where projects are kept, and the active AI model.
 pub fn probe(data_dir: &Path, ai_model_bytes: u64) -> Environment {
-    use imt_ai::models::DiskSpace;
+    use debrief_ai::models::DiskSpace;
     let mut sys = sysinfo::System::new();
     sys.refresh_memory();
     let mb = |b: u64| b >> 20;
@@ -152,8 +152,8 @@ pub fn probe(data_dir: &Path, ai_model_bytes: u64) -> Environment {
         total_memory_mb: mb(sys.total_memory()),
         free_memory_mb: mb(sys.available_memory()),
         cores: super::section::cores(),
-        disk_free_mb: imt_ai::models::SystemDisk.available_bytes(data_dir).map(mb),
-        // sysinfo tells the kind only with its disk feature, which IMT does not build; unknown is treated as fast.
+        disk_free_mb: debrief_ai::models::SystemDisk.available_bytes(data_dir).map(mb),
+        // sysinfo tells the kind only with its disk feature, which Debrief does not build; unknown is treated as fast.
         disk_kind: None,
         ai_model_mb: mb(ai_model_bytes),
     }
@@ -235,7 +235,7 @@ mod tests {
                 super::super::section::check(&s, e.cores).is_empty(),
                 "{name}: the suggestion is valid"
             );
-            let (_, errors) = imt_core::settings::sanitize(&schema(), &s.to_values());
+            let (_, errors) = debrief_core::settings::sanitize(&schema(), &s.to_values());
             assert!(errors.is_empty(), "{name}: {errors:?}");
         }
     }

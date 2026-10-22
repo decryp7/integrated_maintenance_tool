@@ -1,12 +1,12 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { ImtEvents } from '../extensions/events';
+import { DebriefEvents } from '../extensions/events';
 import { QlQuery } from '../core/api.types';
 import { TimeCursor, TimeRange } from './time-cursor';
 
 /** What the analysis views were asked to look at: the moment, the two compare windows, a field. */
 @Injectable({ providedIn: 'root' })
 export class AnalysisTargets {
-  private readonly events = inject(ImtEvents);
+  private readonly events = inject(DebriefEvents);
   private readonly cursor = inject(TimeCursor);
 
   private readonly momentSignal = signal<TimeRange | null>(null);

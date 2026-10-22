@@ -7,9 +7,9 @@
 
 ## Context
 
-IMT runs its work in child processes: the store worker (DuckDB, the parse threads, the full-text index writer), one
+Debrief runs its work in child processes: the store worker (DuckDB, the parse threads, the full-text index writer), one
 process per plugin, and the AI worker. Each has a memory cap the host enforces with its memory watcher
-(`imt_ipc::process`, the same on every platform): the store worker 2 GiB (`DEFAULT_MEMORY_CAP`), plugins what their
+(`debrief_ipc::process`, the same on every platform): the store worker 2 GiB (`DEFAULT_MEMORY_CAP`), plugins what their
 manifest asks for (1 GiB otherwise), the AI worker none. The store's knobs (DuckDB memory limit and threads, parse
 threads, index writer) were constants tuned for the budgets of ADR 0014 (768 MB importing, 300 MB querying), and the
 only user setting was *Low memory mode* (Settings ▸ Advanced ▸ Performance, `performance.json`, the worker's
@@ -53,7 +53,7 @@ other values, and when a cap stops a process the user saw only an error in the p
    spinning disk, and a spill cap of a quarter of the free disk when it is short. It is table-tested for 8 GB/4 cores
    with a model, 16 GB/8 and 32 GB/16. The *Suggest settings* button shows the current and suggested values side by
    side and applies them on request; the first run (no `performance.json`) applies them silently and saves them.
-5. **The watcher reports to the host.** `imt_ipc::process` gets a pure `MemoryWatch` (peak, an 80% warning with
+5. **The watcher reports to the host.** `debrief_ipc::process` gets a pure `MemoryWatch` (peak, an 80% warning with
    hysteresis: re-armed below 70%) and a `MemoryListener` in `SpawnSpec` that hears `Warning`, `Stopped` and `Ended`
    events with the use, the peak and the cap. The store client, the plugin host and the AI launcher pass the app's
    listener through. The app turns them into notification-centre messages:
@@ -66,8 +66,8 @@ other values, and when a cap stops a process the user saw only an error in the p
    cap, an explicit DuckDB limit must fit in the query budget, the spill folder must be an existing folder. Errors are
    field errors, like range errors.
 7. **When changes apply.** The section is marked *needs restart*: caps, budgets and threads are read when a process
-   starts. The values are handed to the store worker's supervisor at once, so the worker's next start (after IMT
-   restarts, a crash or a cap stop) uses them; IMT does not restart a worker that may hold open stores and running
+   starts. The values are handed to the store worker's supervisor at once, so the worker's next start (after Debrief
+   restarts, a crash or a cap stop) uses them; Debrief does not restart a worker that may hold open stores and running
    imports on its own.
 
 ## Consequences

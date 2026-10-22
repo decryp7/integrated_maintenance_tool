@@ -1,11 +1,11 @@
 //! The plugin's binary under the test harness: conformance, a run of the collector with its task reports, its
 //! output in the private data folder, and stopping it.
 
-use imt_plugin_test::{PluginUnderTest, TaskReport};
+use debrief_plugin_test::{PluginUnderTest, TaskReport};
 use serde_json::json;
 use std::time::{Duration, Instant};
 
-const PLUGIN: &str = env!("CARGO_BIN_EXE_imt-example-collector");
+const PLUGIN: &str = env!("CARGO_BIN_EXE_debrief-example-collector");
 
 fn wait_until(mut done: impl FnMut() -> bool) {
     let started = Instant::now();

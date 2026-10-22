@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 // Regenerates the README screenshots (docs/screenshots) from the browser build with the mock backend.
 // Run from app/: npm run screenshots   (needs `npm run e2e:install` once for the Chromium browser)
-const PORT = Number(process.env['IMT_SHOT_PORT'] ?? 4320);
+const PORT = Number(process.env['DEBRIEF_SHOT_PORT'] ?? 4320);
 
 export default defineConfig({
   testDir: '.',

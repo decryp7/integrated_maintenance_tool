@@ -1,5 +1,5 @@
 //! Share a redacted copy (ADR 0041): preview what redaction would change in the window's project and write the project
-//! as an `.imtz` in which every copyable source holds redacted text only, together with the redacted UI state (notes,
+//! as an `.debriefz` in which every copyable source holds redacted text only, together with the redacted UI state (notes,
 //! chats, saved queries, reports). The engine does the work (`Redaction::export_redacted_project`); this module turns
 //! the user's choices into a redaction configuration, redacts the UI state the webview sends and checks the target path.
 //!
@@ -9,10 +9,10 @@
 use crate::activity::{domain_event, privacy, OpId};
 use crate::windows::CurrentWindow;
 use crate::{CmdError, CmdResult};
-use imt_core::package::ProjectManifest;
-use imt_core::ports::Filter;
-use imt_core::redact::copy::{excluded_reason, ExcludedSource, RedactedExport, RedactedExportRequest};
-use imt_core::redact::{Counts, Detector, Mode, RedactCfg, RedactionSummary, RedactionSummaryRequest, Redactor, Salt};
+use debrief_core::package::ProjectManifest;
+use debrief_core::ports::Filter;
+use debrief_core::redact::copy::{excluded_reason, ExcludedSource, RedactedExport, RedactedExportRequest};
+use debrief_core::redact::{Counts, Detector, Mode, RedactCfg, RedactionSummary, RedactionSummaryRequest, Redactor, Salt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Runtime};
@@ -91,7 +91,7 @@ pub(crate) async fn redacted_copy_preview(state: CurrentWindow, options: CopyOpt
     let base = state.host.compiled().profile.redact.clone();
     let cfg = config_for(&base, &options).map_err(|m| CmdError::invalid(m).field("options"))?;
     crate::engine::with_store(&state, move |s| {
-        let summary = imt_core::redact::view::summary(
+        let summary = debrief_core::redact::view::summary(
             s,
             &cfg,
             &RedactionSummaryRequest {
@@ -129,7 +129,7 @@ fn redacted_ui(redactor: &Redactor, ui: &Value, reports: &[Value]) -> Result<Str
     serde_json::to_string(&doc).map_err(|e| CmdError::new(crate::ErrorCode::Internal, e.to_string()))
 }
 
-/// Writes the window's project as `<name>.imtz` with everything redacted (see the module docs). Returns what it holds
+/// Writes the window's project as `<name>.debriefz` with everything redacted (see the module docs). Returns what it holds
 /// and what it left out.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)] // the command's arguments are its wire contract
@@ -147,9 +147,9 @@ pub(crate) async fn export_redacted_copy<R: Runtime>(
 ) -> CmdResult<RedactedExport> {
     let _ = &app;
     crate::share::refuse_bundle_folder(&path)?;
-    let target = grants.write(&path, &[imt_core::package::ARCHIVE_EXTENSION])?;
+    let target = grants.write(&path, &[debrief_core::package::ARCHIVE_EXTENSION])?;
     let file = target.path().to_path_buf();
-    imt_core::overwrite::check_overwrite(&file, overwrite.unwrap_or(false))?;
+    debrief_core::overwrite::check_overwrite(&file, overwrite.unwrap_or(false))?;
     let base = state.host.compiled().profile.redact.clone();
     let cfg = config_for(&base, &options).map_err(|m| CmdError::invalid(m).field("options"))?;
     let redactor = Redactor::from_config(&cfg, Salt::random()).map_err(|e| CmdError::invalid(format!("{e:#}")))?;
@@ -176,7 +176,7 @@ pub(crate) async fn export_redacted_copy<R: Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_core::redact::RedactRuleCfg;
+    use debrief_core::redact::RedactRuleCfg;
 
     fn base() -> RedactCfg {
         RedactCfg {
@@ -279,7 +279,7 @@ mod tests {
         ))
         .unwrap_err();
         assert!(refused.message.contains("at least one"));
-        let out = dir.0.join("shared.imtz");
+        let out = dir.0.join("shared.debriefz");
         let report = block(export_redacted_copy(
             app.handle().clone(),
             main_window(&app),

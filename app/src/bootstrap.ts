@@ -11,7 +11,7 @@ import { isTauri } from './app/core/platform';
 // separate chunks, so a pop-out never loads the main window's chrome.
 const popout = parsePopoutRoute(location.hash) !== null;
 const locale = { provide: LOCALE_ID, useValue: activeLocale() };
-if (popout) document.querySelector('imt-root')?.replaceWith(document.createElement('imt-popout-shell'));
+if (popout) document.querySelector('debrief-root')?.replaceWith(document.createElement('debrief-popout-shell'));
 const config = { ...appConfig, providers: [...appConfig.providers, locale] };
 
 // Outside Tauri (dev server, e2e) the backends are mocks: loaded first, in their own chunk the desktop app never loads.

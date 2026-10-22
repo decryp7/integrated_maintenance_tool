@@ -8,8 +8,8 @@ import { baseName, errorMessage } from '../../tools/tool-errors';
 import { ReportStore } from '../report/report.store';
 import { ShareBackend } from '../share-backend';
 
-export const BUNDLE_EXTENSION = '.imtz';
-export const BUNDLE_FILTERS = [{ name: $localize`:@@share.bundle.filterName:IMT bundle`, extensions: ['imtz'] }];
+export const BUNDLE_EXTENSION = '.debriefz';
+export const BUNDLE_FILTERS = [{ name: $localize`:@@share.bundle.filterName:Debrief bundle`, extensions: ['debriefz'] }];
 
 export function isBundlePath(path: string): boolean {
   return path.toLowerCase().endsWith(BUNDLE_EXTENSION);
@@ -23,7 +23,7 @@ export interface OpenedBundle {
 }
 
 /**
- * Sharing: a saved project (`.imtz`) is self-contained and opens anywhere, so "share" saves the project. Old share
+ * Sharing: a saved project (`.debriefz`) is self-contained and opens anywhere, so "share" saves the project. Old share
  * bundles still open read-only, and can be left or saved as a project.
  */
 @Injectable({ providedIn: 'root' })
@@ -61,7 +61,7 @@ export class BundleService {
       this.store.profileSaved(o.summary);
       this.registry.restore(o.ui);
       this.reports.replace(o.reports);
-      this.projects.adoptReadOnly(o.name || baseName(path).replace(/\.imtz$/i, ''), o.missing);
+      this.projects.adoptReadOnly(o.name || baseName(path).replace(/\.debriefz$/i, ''), o.missing);
       this.opened.set({ path, name: o.name || baseName(path), manifest: o.bundle });
       this.store.setNotice($localize`:@@share.bundleService.opened:Opened ${baseName(path)}:file: (read-only)`);
       return true;

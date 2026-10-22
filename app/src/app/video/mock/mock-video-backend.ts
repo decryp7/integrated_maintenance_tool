@@ -252,7 +252,7 @@ export class MockVideoBackend extends VideoBackend {
   }
 
   async installRuntime(): Promise<VideoRuntimeView> {
-    if (!this.runtime.canDownload) throw fail('noPlatform', 'IMT has no FFmpeg build to download for this computer.', { hint: 'Install ffmpeg yourself (on macOS: brew install ffmpeg) and choose it here.' });
+    if (!this.runtime.canDownload) throw fail('noPlatform', 'Debrief has no FFmpeg build to download for this computer.', { hint: 'Install ffmpeg yourself (on macOS: brew install ffmpeg) and choose it here.' });
     const s = this.runtime.status;
     this.runtime = { ...this.runtime, status: { ...s, mode: s.customPath ? 'custom' : 'managed', active: RELEASE, previous: s.active, updateAvailable: false, problem: null } };
     return structuredClone(this.runtime);
@@ -300,7 +300,7 @@ export class MockVideoBackend extends VideoBackend {
     const file = name(request.path);
     if (this.runtime.status.mode === 'none') throw fail('noRuntime', 'FFmpeg is not set up.', { hint: 'Set it up in Settings ▸ Video.' });
     if (request.path.includes('missing-file')) throw fail('notFound', `${file} was not found.`);
-    if (!(await this.sniff([request.path])).length) throw fail('unsupported', `${file} is not a video IMT can read.`, { hint: 'IMT reads MP4, MOV, MKV, WebM and AVI.' });
+    if (!(await this.sniff([request.path])).length) throw fail('unsupported', `${file} is not a video Debrief can read.`, { hint: 'Debrief reads MP4, MOV, MKV, WebM and AVI.' });
     const key = mockKey(file);
     const known = this.videos.get(key);
     if (known) {

@@ -1,12 +1,12 @@
 import { effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
 import { DockService } from '../dock/dock.service';
-import { ImtCommand } from '../extensions/tokens';
+import { DebriefCommand } from '../extensions/tokens';
 import { UiStateContribution } from '../lifecycle/ui-state';
 import { defaultConfig, MAIN_TIMELINE, MAX_TIMELINES, nextTimelineId, sanitizeConfigs, TimelineConfig } from './timeline-config';
 
 /** Where the settings of additional timelines are kept between runs (next to the dock layout, which holds the panels). */
-export const TIMELINES_KEY = 'imt.timelines';
+export const TIMELINES_KEY = 'debrief.timelines';
 const STORAGE_VERSION = 1;
 
 /** Reads the stored configs; anything missing or corrupt counts as none. */
@@ -94,5 +94,5 @@ export class TimelineViews {
     reset: () => this.list.set([]),
   };
 
-  readonly commands: ImtCommand[] = [{ id: 'timeline.new', title: $localize`:@@timeline.command.new:New timeline`, category: $localize`:@@timeline.command.category:View`, run: () => void this.open() }];
+  readonly commands: DebriefCommand[] = [{ id: 'timeline.new', title: $localize`:@@timeline.command.new:New timeline`, category: $localize`:@@timeline.command.category:View`, run: () => void this.open() }];
 }

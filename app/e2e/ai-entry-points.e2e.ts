@@ -41,15 +41,15 @@ test.describe('AI entry points', () => {
     await expectNoSeriousViolations(page, testInfo, 'ai-narrative', '[role=dialog]');
     await answer.locator('button.cite.rec').first().click();
     await expect(dialog).toHaveCount(0);
-    await expect(page.locator('imt-events-grid .row.sel')).toBeVisible();
+    await expect(page.locator('debrief-events-grid .row.sel')).toBeVisible();
   });
 
   test('Root causes from Home and Summarize from the Moment view', async ({ page }) => {
     await openAiApp(page);
-    await page.locator('imt-sidebar').getByRole('button', { name: 'Open files' }).click();
+    await page.locator('debrief-sidebar').getByRole('button', { name: 'Open files' }).click();
     // Review on the timeline header's headline opens Home.
     await page.getByRole('toolbar', { name: 'Health check' }).getByRole('button', { name: 'Review' }).click({ timeout: 10_000 });
-    const home = page.locator('imt-home-view');
+    const home = page.locator('debrief-home-view');
     await expect(home).toBeVisible({ timeout: 10_000 });
     await home.getByTestId('ai-root-causes').click();
     await viewAnswer(page, 'Root causes ready');
@@ -58,7 +58,7 @@ test.describe('AI entry points', () => {
     await causes.getByRole('button', { name: 'Close', exact: true }).click();
 
     await runCommand(page, 'Analyse this moment');
-    const moment = page.locator('imt-moment-view');
+    const moment = page.locator('debrief-moment-view');
     await expect(moment).toBeVisible();
     await moment.getByTestId('ai-summarize').click();
     await viewAnswer(page, 'Summary ready');
@@ -67,7 +67,7 @@ test.describe('AI entry points', () => {
 
   test('Propose markers from the markers manager, and pipeline changes from the profile editor', async ({ page }, testInfo) => {
     await openAiApp(page);
-    await page.locator('imt-events-grid [role=row].row').first().click();
+    await page.locator('debrief-events-grid [role=row].row').first().click();
     await hideInspectorFlyout(page);
     await runCommand(page, 'Manage markers');
     await page.getByTestId('ai-propose-markers').click();
@@ -111,7 +111,7 @@ test.describe('AI entry points', () => {
     await page.keyboard.press('ControlOrMeta+k');
     const input = page.getByRole('combobox', { name: 'Type a command' });
     await input.fill('AI:');
-    await expect(page.locator('imt-command-palette').getByRole('option', { name: /AI: Open the assistant chat/ })).toHaveCount(0);
+    await expect(page.locator('debrief-command-palette').getByRole('option', { name: /AI: Open the assistant chat/ })).toHaveCount(0);
     await page.keyboard.press('Escape');
 
     const view = await openMenu(page, 'View');

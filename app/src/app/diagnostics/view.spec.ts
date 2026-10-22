@@ -81,7 +81,7 @@ describe('ErrorSnapshotsView', () => {
     const exportButton = () => [...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Export diagnostics'))!;
     // Nothing captured: only the empty-state sentence and Capture now, the primary action; no claim that a screenshot was saved (E6).
     expect(exportButton()).toBeUndefined();
-    expect(el.textContent).not.toContain('IMT saved a screenshot');
+    expect(el.textContent).not.toContain('Debrief saved a screenshot');
     expect(el.querySelector('label.all')).toBeNull();
     expect([...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Capture now'))?.classList.contains('primary')).toBe(true);
 
@@ -92,7 +92,7 @@ describe('ErrorSnapshotsView', () => {
     await flush(f);
     expect(exportButton().classList.contains('primary')).toBe(true);
     expect([...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Capture now'))?.classList.contains('primary')).toBe(false);
-    expect(el.textContent).toContain('IMT saved a screenshot');
+    expect(el.textContent).toContain('Debrief saved a screenshot');
 
     // Export all when nothing is ticked.
     const exported = vi.spyOn(backend, 'exportDiagnostics');
@@ -198,7 +198,7 @@ describe('ErrorSnapshotsView', () => {
 });
 
 describe('SnapshotToast', () => {
-  @Component({ selector: 'imt-host', imports: [SnapshotToast], template: '<imt-snapshot-toast />' })
+  @Component({ selector: 'debrief-host', imports: [SnapshotToast], template: '<debrief-snapshot-toast />' })
   class Host {}
 
   it('says "Something went wrong in <panel>." with Details folded; Details holds the screenshot notice and View snapshot (E4)', async () => {

@@ -12,7 +12,7 @@ import { GlyphStyle } from './markers.types';
  * Decorative by default (the label sits beside it); pass `label` to expose it as an image.
  */
 @Component({
-  selector: 'imt-marker-glyph',
+  selector: 'debrief-marker-glyph',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MarkerIcon],
   host: {
@@ -27,7 +27,7 @@ import { GlyphStyle } from './markers.types';
   template: `
     @switch (spec().type) {
       @case ('shape') {
-        <imt-marker-icon [kind]="shapeKind()" [color]="shapeColor()" aria-hidden="true" />
+        <debrief-marker-icon [kind]="shapeKind()" [color]="shapeColor()" aria-hidden="true" />
       }
       @case ('badge') {
         <svg viewBox="0 0 24 24" width="100%" height="100%" focusable="false" aria-hidden="true">

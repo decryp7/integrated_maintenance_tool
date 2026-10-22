@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideTinyBackend, settle } from '../../testing/helpers';
 import { WorkspaceStore } from '../core/workspace.store';
 import { CommandRegistry } from '../extensions/command-registry';
-import { IMT_COMMANDS } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS } from '../extensions/tokens';
 import { DialogService } from '../ui/dialog.service';
 import { LiveTail } from '../workspace/live-tail';
 import { ClosePrompt } from './close-prompt';
@@ -17,7 +17,7 @@ import { CAPTURE_COMMAND, WindowingService } from './windowing.service';
 function setup(href = 'http://localhost/?mock-tasks') {
   const backend = new MockWindowingBackend(memoryHost(href));
   TestBed.configureTestingModule({
-    providers: [...provideTinyBackend(), { provide: WindowingBackend, useValue: backend }, { provide: IMT_COMMANDS, multi: true, useFactory: () => TestBed.inject(WindowCommands).commands }],
+    providers: [...provideTinyBackend(), { provide: WindowingBackend, useValue: backend }, { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => TestBed.inject(WindowCommands).commands }],
   });
   return { backend, service: TestBed.inject(WindowingService), store: TestBed.inject(WorkspaceStore), dialogs: TestBed.inject(DialogService) };
 }
@@ -48,7 +48,7 @@ describe('WindowingService', () => {
     await service.closeWindow();
     await service.closeWindow();
     expect(dialogs.stack().map((d) => d.component)).toEqual([ClosePrompt]);
-    expect(dialogs.stack()[0]?.options.title).toBe('Close IMT?');
+    expect(dialogs.stack()[0]?.options.title).toBe('Close Debrief?');
     dialogs.dismissTop();
     await settle();
     await backend.closeWindow();
@@ -143,7 +143,7 @@ describe('WindowCommands', () => {
     expect(backend.calls).toEqual(['newWindow', 'focusWindow:w-2', 'closeWindow']);
   });
 
-  it('quits IMT in one step after asking about unsaved work', async () => {
+  it('quits Debrief in one step after asking about unsaved work', async () => {
     const confirm = vi.fn(async (_action: string) => false);
     TestBed.overrideProvider(UnsavedChangesGuard, { useValue: { confirm } });
     const { service, backend } = setup('http://localhost/');
@@ -153,8 +153,8 @@ describe('WindowCommands', () => {
     expect(backend.calls).not.toContain('quitApp');
     confirm.mockResolvedValueOnce(true);
     await registry.run('app.quit');
-    expect(confirm).toHaveBeenCalledWith('quit IMT');
+    expect(confirm).toHaveBeenCalledWith('quit Debrief');
     expect(backend.calls).toContain('quitApp');
-    expect(registry.find('app.quit')?.title).toBe(isMac() ? 'Quit IMT' : 'Exit');
+    expect(registry.find('app.quit')?.title).toBe(isMac() ? 'Quit Debrief' : 'Exit');
   });
 });

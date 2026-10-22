@@ -12,7 +12,7 @@ test.describe('keyboard cheat sheet', () => {
     await expect(dialog).toContainText('Show all commands');
     await expect(dialog).toContainText('Focus the search box');
     await expect(dialog.getByRole('button', { name: 'Print…' })).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'cheat-sheet', 'imt-cheat-sheet');
+    await expectNoSeriousViolations(page, testInfo, 'cheat-sheet', 'debrief-cheat-sheet');
 
     const search = dialog.getByRole('searchbox', { name: 'Search shortcuts' });
     await search.fill('sidebar');

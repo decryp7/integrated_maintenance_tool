@@ -1,6 +1,6 @@
 import { CollectorTemplate, CounterPreset, LogFormat } from '../../core/tools.types';
 
-export const DEFAULT_OUTPUT_DIR = '%systemdrive%\\PerfLogs\\IMT\\';
+export const DEFAULT_OUTPUT_DIR = '%systemdrive%\\PerfLogs\\Debrief\\';
 
 /** What the wizard edits. Counters are a set of paths; the template splits them into presets and extras. */
 export interface PerfmonDraft {
@@ -16,7 +16,7 @@ export interface PerfmonDraft {
 }
 
 export const DEFAULT_DRAFT: PerfmonDraft = {
-  name: 'IMT',
+  name: 'Debrief',
   processes: [],
   counters: [],
   extraCounters: [],

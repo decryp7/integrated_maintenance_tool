@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { WorkspaceStore } from '../core/workspace.store';
 import { UndoStack } from '../undo/undo-stack';
 import { provideTinyBackend, settle } from '../../testing/helpers';
@@ -11,7 +11,7 @@ describe('ProfileEdits', () => {
 
   function setup() {
     TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
-    return { edits: TestBed.inject(ProfileEdits), store: TestBed.inject(WorkspaceStore), backend: TestBed.inject(ImtBackend), undo: TestBed.inject(UndoStack) };
+    return { edits: TestBed.inject(ProfileEdits), store: TestBed.inject(WorkspaceStore), backend: TestBed.inject(DebriefBackend), undo: TestBed.inject(UndoStack) };
   }
 
   it('apply saves the profile and returns the re-import job at once; the workspace follows it in the background', async () => {

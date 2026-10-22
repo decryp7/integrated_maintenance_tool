@@ -10,7 +10,7 @@ Edit them with draw.io (desktop or diagrams.net); keep the source `.drawio` unco
 - **Title block** top-left: diagram name (20 px bold), level/type on the line below (e.g. "C4 · Level 2 — Containers",
   "UML · Sequence diagram", 12 px muted), and a one-line description (11 px muted).
 - **Legend** bottom-left: one sample of every element kind and line style used on the diagram.
-- **Footer** bottom-right: `IMT · updated 2026-10-18` (10 px muted). Update the date when the diagram changes.
+- **Footer** bottom-right: `Debrief · updated 2026-10-18` (10 px muted). Update the date when the diagram changes.
 
 ## Typography
 
@@ -27,9 +27,9 @@ extension, diagrams.net, Gitea previews, offline) renders the same text. No web 
   right kind of face, never to a serif.
 - **Code identifiers** are anything you could grep for in the code: type, trait and module names (`LogStore`,
   `ql::Filter`), functions, commands and messages (`run_query_stream(…)`, `query_timeline`), fields and settings keys
-  (`group_by`, `liveTailDebounce`), enum variants, crate and binary names (`imt-core`, `imt-plugin-host`), file names,
-  extensions and paths (`latest.json`, `.imtz`, `app/src/app`), CLI flags, event names (`imt://error`), protocol
-  packages (`imt.plugin.v1`) and profile values (`5m`).
+  (`group_by`, `liveTailDebounce`), enum variants, crate and binary names (`debrief-core`, `debrief-plugin-host`), file names,
+  extensions and paths (`latest.json`, `.debriefz`, `app/src/app`), CLI flags, event names (`debrief://error`), protocol
+  packages (`debrief.plugin.v1`) and profile values (`5m`).
   - Class diagrams: member compartments are whole-label monospace; the class name in the header is a monospace span,
     the «stereotype» stays in the text font.
   - Sequence diagrams: a message label that is only code (a call, a reply type, a struct literal) is whole-label
@@ -54,7 +54,7 @@ The app's colour-blind-safe series tokens (light theme). Fills are ~12–15 % ti
 
 | Role                                   | Stroke    | Fill      |
 | -------------------------------------- | --------- | --------- |
-| IMT containers / components (primary)  | `#3869BB` | `#E3EAF6` |
+| Debrief containers / components (primary)  | `#3869BB` | `#E3EAF6` |
 | People, actors and the Angular UI      | `#E65F2A` | `#FCE9E1` |
 | Rust engine / core                     | `#29A077` | `#E0F2EC` |
 | Plugins and extensions                 | `#A664FE` | `#F2E8FF` |

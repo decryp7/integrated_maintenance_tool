@@ -23,7 +23,7 @@ const TAB_LABELS: Record<StoreTab, string> = {
  * and the read-only SQL console.
  */
 @Component({
-  selector: 'imt-store-pane',
+  selector: 'debrief-store-pane',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NgTemplateOutlet, SqlConsole],
   template: `
@@ -211,7 +211,7 @@ const TAB_LABELS: Record<StoreTab, string> = {
           }
         }
         @case ('sql') {
-          <imt-sql-console />
+          <debrief-sql-console />
         }
       }
     </div>

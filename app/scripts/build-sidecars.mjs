@@ -1,28 +1,28 @@
 #!/usr/bin/env node
-// Builds IMT's helper processes and puts them where Tauri bundles them as sidecars
+// Builds Debrief's helper processes and puts them where Tauri bundles them as sidecars
 // (src-tauri/binaries/<name>-<target-triple>[.exe], listed in src-tauri/tauri.sidecars.conf.json):
-//   imt-ai-worker    the AI assistant's engine process
-//   imt-plugins      serves every built-in plugin, each in its own sandboxed process (ADR 0017)
-//   imt-store-worker hosts every window's DuckDB store and full-text index (ADR 0014)
-// At run time IMT finds them next to its executable. The store worker links libduckdb (duckdb.dll / libduckdb.so /
+//   debrief-ai-worker    the AI assistant's engine process
+//   debrief-plugins      serves every built-in plugin, each in its own sandboxed process (ADR 0017)
+//   debrief-store-worker hosts every window's DuckDB store and full-text index (ADR 0014)
+// At run time Debrief finds them next to its executable. The store worker links libduckdb (duckdb.dll / libduckdb.so /
 // libduckdb.dylib): it is copied from DUCKDB_LIB_DIR into src-tauri/binaries/lib/; when DUCKDB_LIB_DIR is not set,
-// crates/imt-store-duck/scripts/fetch-libduckdb.sh fetches the pinned, checksummed library into <target>/libduckdb
+// crates/debrief-store-duck/scripts/fetch-libduckdb.sh fetches the pinned, checksummed library into <target>/libduckdb
 // first. The installers ship src-tauri/binaries/lib/ as the resource folder `lib/` (tauri.sidecars.conf.json). On
-// macOS and Linux the worker finds it there by run path (crates/imt-store-worker/build/rpath.rs); the official
+// macOS and Linux the worker finds it there by run path (crates/debrief-store-worker/build/rpath.rs); the official
 // libduckdb.dylib already has the install name `@rpath/libduckdb.dylib`, so it is copied as is.
 //
 // Run by the release build (`npx tauri build --config src-tauri/tauri.sidecars.conf.json` chains it after the
 // UI build). Tauri passes the target in TAURI_ENV_TARGET_TRIPLE; `universal-apple-darwin` builds both macOS
 // architectures and joins them with lipo.
 // Usage: node scripts/build-sidecars.mjs [--target <triple>] [--debug]
-// IMT_CARGO_PROFILE names another cargo profile (e.g. `dist` for releases); it must match the app's `--profile`.
+// DEBRIEF_CARGO_PROFILE names another cargo profile (e.g. `dist` for releases); it must match the app's `--profile`.
 import { execFileSync } from 'node:child_process';
 import { chmodSync, copyFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fetchLibduckdb } from './libduckdb.mjs';
 
-export const SIDECARS = ['imt-ai-worker', 'imt-plugins', 'imt-store-worker'];
+export const SIDECARS = ['debrief-ai-worker', 'debrief-plugins', 'debrief-store-worker'];
 
 /** The file name of the prebuilt libduckdb for a target triple. */
 export function libduckdbFile(target) {
@@ -60,7 +60,7 @@ async function main() {
     const i = args.indexOf(name);
     return i >= 0 ? args[i + 1] : undefined;
   };
-  const profile = args.includes('--debug') ? 'debug' : (process.env.IMT_CARGO_PROFILE ?? 'release');
+  const profile = args.includes('--debug') ? 'debug' : (process.env.DEBRIEF_CARGO_PROFILE ?? 'release');
   const host = /^host: (.+)$/m.exec(execFileSync('rustc', ['-vV'], { encoding: 'utf8' }))?.[1]?.trim();
   const target = flag('--target') ?? process.env.TAURI_ENV_TARGET_TRIPLE ?? host;
   if (!target) throw new Error('cannot tell the target: pass --target <triple>');
@@ -76,7 +76,7 @@ async function main() {
   // The store worker links libduckdb: fetch the pinned library unless the caller already did (CI, the docs).
   if (!process.env.DUCKDB_LIB_DIR) {
     // In Node, not the shell script: Windows has no bash.
-    const script = join(root, 'crates', 'imt-store-duck', 'scripts', 'fetch-libduckdb.sh');
+    const script = join(root, 'crates', 'debrief-store-duck', 'scripts', 'fetch-libduckdb.sh');
     console.log('DUCKDB_LIB_DIR is not set: fetching the pinned libduckdb');
     Object.assign(process.env, await fetchLibduckdb(script, join(targetDir, 'libduckdb')));
   }
@@ -98,7 +98,7 @@ async function main() {
   console.log(`library: ${join(libOut, lib)}`);
   // And next to the built worker, where an app run straight from the target folder (development, the end-to-end
   // builds) finds it.
-  for (const built of binaries.find((b) => b.name === 'imt-store-worker').built) {
+  for (const built of binaries.find((b) => b.name === 'debrief-store-worker').built) {
     copyFileSync(join(libDir, lib), join(dirname(built), lib));
     console.log(`library: ${join(dirname(built), lib)}`);
   }

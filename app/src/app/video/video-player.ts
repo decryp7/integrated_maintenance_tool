@@ -11,7 +11,7 @@ export const MEDIA_PREFIX = 'media://localhost/';
  * where it was (another computer, a moved file) is explained, with "Locate the video…": frames and notes still work.
  */
 @Component({
-  selector: 'imt-video-player',
+  selector: 'debrief-video-player',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (video().media === 'missing') {

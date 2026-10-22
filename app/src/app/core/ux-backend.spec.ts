@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideTinyBackendBare, tinyBackend } from '../../testing/helpers';
-import { ImtBackend } from './backend';
+import { DebriefBackend } from './backend';
 import { MOCK_DEMO_PATHS } from './mock/mock-import';
 import { MockUxBackend } from './mock/mock-ux-backend';
 import { TauriUxBackend, UxBackend } from './ux-backend';
@@ -33,19 +33,19 @@ describe('UxBackend', () => {
   });
 
   it('the mock reads progress, history and versions from the mock workspace', async () => {
-    const imt = tinyBackend();
-    const ux = new MockUxBackend(imt);
-    await imt.openPaths(['/x/new.log']);
+    const debrief = tinyBackend();
+    const ux = new MockUxBackend(debrief);
+    await debrief.openPaths(['/x/new.log']);
     expect(await ux.importProgress()).toMatchObject({ running: false, done: 1, total: 1 });
     await ux.cancelImport();
-    const before = (await imt.getProfile()).toml;
-    await imt.saveProfile('name = "Second"\n');
+    const before = (await debrief.getProfile()).toml;
+    await debrief.saveProfile('name = "Second"\n');
     const v = at(await ux.profileHistory(), 0);
     expect((await ux.profileVersion(v.file)).toml).toBe(before);
   });
 
   it('the mock degrades over a backend that is not the mock workspace', async () => {
-    const ux = new MockUxBackend({} as ImtBackend);
+    const ux = new MockUxBackend({} as DebriefBackend);
     expect((await ux.importProgress()).total).toBe(0);
     await expect(ux.cancelImport()).resolves.toBeUndefined();
     expect(await ux.profileHistory()).toEqual([]);

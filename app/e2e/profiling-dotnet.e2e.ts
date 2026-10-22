@@ -9,7 +9,7 @@ test.describe('.NET profiling (mock plugin tool)', () => {
     const dialog = page.getByRole('dialog', { name: 'Profile .NET process' });
     const list = dialog.getByRole('listbox', { name: 'NET processes' });
     await expect(list.getByRole('option')).toHaveCount(3);
-    await expectNoSeriousViolations(page, testInfo, 'profiling-dotnet-dialog', 'imt-dotnet-dialog');
+    await expectNoSeriousViolations(page, testInfo, 'profiling-dotnet-dialog', 'debrief-dotnet-dialog');
 
     await list.getByRole('option', { name: /Legacy\.Billing/ }).click();
     await expect(dialog.getByRole('alert').first()).toContainText('administrator');

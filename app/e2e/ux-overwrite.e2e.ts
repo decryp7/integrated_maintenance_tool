@@ -39,10 +39,10 @@ test('an export never replaces an existing file without asking', async ({ page }
   await expect(page.getByTestId('notice-toast').filter({ hasText: 'Exporting to events.csv — running in Jobs' })).toBeVisible();
 });
 
-test('About says IMT never modifies your files', async ({ page }) => {
+test('About says Debrief never modifies your files', async ({ page }) => {
   await openApp(page);
-  await chooseMenu(page, 'Help', 'About IMT');
-  await expect(page.getByTestId('read-only-promise')).toContainText('IMT never modifies your files.');
+  await chooseMenu(page, 'Help', 'About Debrief');
+  await expect(page.getByTestId('read-only-promise')).toContainText('Debrief never modifies your files.');
 });
 
 test.describe('tools never replace a file without asking', () => {
@@ -53,12 +53,12 @@ test.describe('tools never replace a file without asking', () => {
     await dialog.getByLabel('Output folder').fill('/demo/out');
     await dialog.getByRole('button', { name: 'Collect', exact: true }).click();
     const result = dialog.getByTestId('collect-result');
-    await expect(result).toContainText('/demo/out/imt-diagnostics.imtz');
+    await expect(result).toContainText('/demo/out/debrief-diagnostics.debriefz');
 
     // The same bundle name again: the app asks, and "Keep" collects nothing.
     await dialog.getByRole('button', { name: 'Collect again' }).click();
     const confirm = page.getByRole('dialog', { name: 'Replace file?' });
-    await expect(confirm).toContainText('imt-diagnostics.imtz already exists');
+    await expect(confirm).toContainText('debrief-diagnostics.debriefz already exists');
     await confirm.getByRole('button', { name: 'Keep the existing file' }).click();
     await expect(confirm).toHaveCount(0);
     await expect(result).toHaveCount(0);
@@ -66,13 +66,13 @@ test.describe('tools never replace a file without asking', () => {
 
     await dialog.getByRole('button', { name: 'Collect', exact: true }).click();
     await page.getByRole('dialog', { name: 'Replace file?' }).getByRole('button', { name: 'Replace' }).click();
-    await expect(result).toContainText('/demo/out/imt-diagnostics.imtz');
+    await expect(result).toContainText('/demo/out/debrief-diagnostics.debriefz');
   });
 
   test('a Performance Monitor template saved twice', async ({ page }) => {
     await openAppWith(page);
     await openView(page, 'Performance Monitor');
-    const panel = page.locator('imt-perfmon-view');
+    const panel = page.locator('debrief-perfmon-view');
     await panel.getByRole('textbox', { name: 'Collector name' }).fill('Repro');
     await panel.getByRole('button', { name: 'Generate XML' }).click();
     await panel.getByRole('button', { name: 'Save as…' }).click();
@@ -92,14 +92,14 @@ test.describe('tools never replace a file without asking', () => {
   test('the agent configuration saved over another existing file', async ({ page }) => {
     await openAppWith(page);
     await openView(page, 'Collection schedules');
-    const panel = page.locator('imt-schedules-view');
+    const panel = page.locator('debrief-schedules-view');
     await expect(panel.getByTestId('schedules-state')).toHaveText('Saved');
     const path = panel.getByRole('textbox', { name: 'Config file' });
     const save = panel.getByRole('button', { name: 'Save' });
 
     // Its own file: saved without a question.
     await save.click();
-    await expect(panel.getByRole('status').first()).toContainText('Saved /demo/config/imt-agent.toml');
+    await expect(panel.getByRole('status').first()).toContainText('Saved /demo/config/debrief-agent.toml');
     // A new file: no question either.
     await path.fill('/demo/config/copy.toml');
     await save.click();
@@ -107,14 +107,14 @@ test.describe('tools never replace a file without asking', () => {
     await expect(page.getByRole('dialog', { name: 'Replace file?' })).toHaveCount(0);
 
     // Back to the first file, which this editor did not load: asked before replacing it.
-    await path.fill('/demo/config/imt-agent.toml');
+    await path.fill('/demo/config/debrief-agent.toml');
     await save.click();
     const confirm = page.getByRole('dialog', { name: 'Replace file?' });
-    await expect(confirm).toContainText('imt-agent.toml already exists');
+    await expect(confirm).toContainText('debrief-agent.toml already exists');
     await confirm.getByRole('button', { name: 'Keep the existing file' }).click();
     await expect(panel.getByRole('status').first()).toContainText('Not saved: the existing file was kept.');
     await save.click();
     await page.getByRole('dialog', { name: 'Replace file?' }).getByRole('button', { name: 'Replace' }).click();
-    await expect(panel.getByRole('status').first()).toContainText('Saved /demo/config/imt-agent.toml');
+    await expect(panel.getByRole('status').first()).toContainText('Saved /demo/config/debrief-agent.toml');
   });
 });

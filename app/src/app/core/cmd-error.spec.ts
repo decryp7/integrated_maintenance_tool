@@ -26,9 +26,9 @@ describe('CmdError', () => {
   });
 
   it('is read by every error helper: message and next step shown, code and retryable used', () => {
-    const e = new CmdError({ code: 'denied', message: 'Access is denied.', retryable: false, hint: 'Restart IMT as administrator.', line: 3, detail: 'd' });
+    const e = new CmdError({ code: 'denied', message: 'Access is denied.', retryable: false, hint: 'Restart Debrief as administrator.', line: 3, detail: 'd' });
     expect([e.line, e.detail, e.name]).toEqual([3, 'd', 'CmdError']);
-    expect(failureText(e)).toBe('Access is denied. Restart IMT as administrator.');
+    expect(failureText(e)).toBe('Access is denied. Restart Debrief as administrator.');
     expect(errorText(e)).toBe(failureText(e));
     expect(errorMessage(e)).toBe(failureText(e));
     expect(isRetryable(e)).toBe(false);
@@ -60,8 +60,8 @@ describe('operations the log store does not offer yet, and the next step', () =>
   });
 
   it('shows the hint of an unavailable log store in the workspace error banner', () => {
-    const e = new CmdError({ code: 'unavailable', message: 'The log store could not start.', retryable: false, hint: 'Reinstall IMT.' });
-    expect(workspaceErrorText(e)).toBe('The log store could not start. Reinstall IMT.');
+    const e = new CmdError({ code: 'unavailable', message: 'The log store could not start.', retryable: false, hint: 'Reinstall Debrief.' });
+    expect(workspaceErrorText(e)).toBe('The log store could not start. Reinstall Debrief.');
     expect(workspaceErrorText('text')).toBe('text');
     expect(workspaceErrorText({ a: 1 })).toBe('{"a":1}');
   });

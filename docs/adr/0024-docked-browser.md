@@ -6,13 +6,13 @@
 
 ## Context
 
-The internal browser (ADR 0011) was a separate window per IMT window (`browser-<owner>`), driven from the Web panel,
+The internal browser (ADR 0011) was a separate window per Debrief window (`browser-<owner>`), driven from the Web panel,
 with a small owned banner window (`aib-<owner>`, ADR 0013) glued over its top while the AI drove it. In use the
-separate window was one more window to arrange, lost behind IMT, and the banner window could not be kept exactly in
+separate window was one more window to arrange, lost behind Debrief, and the banner window could not be kept exactly in
 place on every platform. The user decided:
 
 1. The browser becomes a dockable **Browser** panel that docks like Timeline or Events (tabs, splits, maximise,
-   pop-out), whose page is a native webview kept over the panel's page area. "AI is browsing" becomes IMT's own
+   pop-out), whose page is a native webview kept over the panel's page area. "AI is browsing" becomes Debrief's own
    HTML in the panel header (and on its tab). The separate window and its settings go (no compatibility before v1).
 2. For "Research this" and "Search the web for this error", the model drafts the search text from the question and
    the event; the leak guard still checks it and the user sees and edits it before anything is searched.
@@ -22,37 +22,37 @@ place on every platform. The user decided:
 ### The page: a child webview of the window that hosts the panel
 
 - Tauri's multi-webview (`Window::add_child`, `unstable` cargo feature) adds the page webview `browser-<owner>` to
-  the IMT window, or to the pop-out window the panel is in (`Webview::reparent` moves it there and back). Each IMT
+  the Debrief window, or to the pop-out window the panel is in (`Webview::reparent` moves it there and back). Each Debrief
   window has at most one browser (owner = its label, as before).
-- **Geometry.** The panel measures its page area (`getBoundingClientRect`, CSS pixels of the IMT webview) and reports
+- **Geometry.** The panel measures its page area (`getBoundingClientRect`, CSS pixels of the Debrief webview) and reports
   it with `window.devicePixelRatio` (which includes the OS scale and the UI zoom) through `browser_place`, whenever it
   may have changed: a `ResizeObserver` on the area, the dock's layout changes (`DockService.layoutChanged`), window
   resize, a change of the device pixel ratio, the document's visibility and the panel's visibility (`PANEL_VISIBLE`,
   read by a root effect so it runs while the panel's own view is detached). Reports go at most once per animation
   frame and only when they changed. Rust validates the report (finite numbers, scale 0.25–8, ±100 000 px) and turns
   it into physical bounds with rounded edges (`browser::geometry`, pure and unit-tested); the child is shown there or
-  hidden. Moving the IMT window needs nothing: the child moves with its window.
+  hidden. Moving the Debrief window needs nothing: the child moves with its window.
 - **Visibility.** The page shows only while the panel's tab is active, a page is open, the document is visible and the
   area has a size (another panel maximised, the panel closed or hidden by the dock all give no area). The panel's
   destruction sends a hidden placement. A pop-out that closes hands its page back to the owner window, hidden
   (`browser::host_closing` on `CloseRequested`), so the page survives docking back.
-- **Overlays.** A native webview draws above all HTML, so the page steps aside while IMT draws something over it.
+- **Overlays.** A native webview draws above all HTML, so the page steps aside while Debrief draws something over it.
   `OverlayTracker` (one root service, not per component) finds overlays by selector: CDK overlay panes (menus,
-  Material tooltips) and anything marked `data-imt-overlay` (dialog and context-menu backdrops, the command palette,
+  Material tooltips) and anything marked `data-debrief-overlay` (dialog and context-menu backdrops, the command palette,
   toasts, the tour, the dock's drop guides and float cue, the panel switcher). A `MutationObserver` on the body
-  (child list and the `data-imt-overlay`/`hidden` attributes only, coalesced per frame) tells the panel to measure
+  (child list and the `data-debrief-overlay`/`hidden` attributes only, coalesced per frame) tells the panel to measure
   again; an overlay box that intersects the page area hides the page and the panel says why. `hold()` covers what the
   DOM cannot show. No snapshot of the page is shown while it is hidden: the panel shows the page's title and address
   and why it is hidden.
 - **Keyboard.** WebView2 reports accelerator keys before the page sees them (`AcceleratorKeyPressed`): Ctrl/⌘+L
-  focuses the panel's address bar, Esc gives the keyboard back to IMT (its webview takes the focus and the panel
-  focuses its page area), and IMT's shortcuts (Ctrl+Shift+…, Alt+…, F1–F10 except F5) are taken from the page and
-  replayed in IMT as key presses (`browser::keys`, pure and unit-tested). Everything else stays with the page.
+  focuses the panel's address bar, Esc gives the keyboard back to Debrief (its webview takes the focus and the panel
+  focuses its page area), and Debrief's shortcuts (Ctrl+Shift+…, Alt+…, F1–F10 except F5) are taken from the page and
+  replayed in Debrief as key presses (`browser::keys`, pure and unit-tested). Everything else stays with the page.
   Ctrl/⌘+L also works in the panel itself.
 
 ### Security: unchanged or stronger
 
-- The page webview loads remote content only, as before: navigation rules (`check_navigation`, IMT's own
+- The page webview loads remote content only, as before: navigation rules (`check_navigation`, Debrief's own
   `*.localhost` origins refused), the agent's site rules, downloads refused, popups denied with a notice,
   SmartScreen arguments on Windows, its own data directory (WebView2, WebKitGTK) and data store (macOS 14+).
 - **Capabilities are scoped by webview label** (`"webviews": ["main", "w-*", "p-*"]`), not by window: a window
@@ -60,31 +60,31 @@ place on every platform. The user decided:
   file and fails on `windows`, `remote` or a pattern that matches `browser-*`.
 - **No command reaches the page**, three times over: `browser::guard` refuses any command from a `browser-*`
   webview whatever its origin; the command table knows no `browser-*` window class (`commands::guard`); and
-  `CurrentWindow` refuses a webview that is not its window's own (IMT's webview is the one labelled like its
-  window). Tests invoke commands from a child webview in an IMT window.
+  `CurrentWindow` refuses a webview that is not its window's own (Debrief's webview is the one labelled like its
+  window). Tests invoke commands from a child webview in a Debrief window.
 - The `aib-*` banner window, its capability (`ai-browsing.json`), its `BANNER` command class and its route are gone;
-  the "AI is browsing" banner is the panel's own HTML. IMT's CSP is unchanged.
+  the "AI is browsing" banner is the panel's own HTML. Debrief's CSP is unchanged.
 
 ### "AI is browsing"
 
 The panel header shows *AI is browsing*, what drives it (the agent's step, or the research job's message) and
 **Stop** (`role=status`, `aria-live=polite`); the panel's tab title becomes "Browser · AI is browsing". Who drives is
 still Rust's state (`BrowserHub::ai_driver`, the `driving` event, `browser_driving`). The window title prefix and the
-amber frame of ADR 0013 go with the window. When the browser opens or loads a page the shell sends `reveal`: the IMT
+amber frame of ADR 0013 go with the window. When the browser opens or loads a page the shell sends `reveal`: the Debrief
 window shows the Browser panel, in front for the user's own pages, without taking the focus for the AI's.
 
 ### Shell-wide consequence: windows with two webviews
 
 Tauri no longer counts a window with a second webview as a "webview window": `get_webview_window`, `webview_windows`
-and the `WebviewWindow` command argument miss it. Every lookup of an IMT window by label now uses `get_window` /
+and the `WebviewWindow` command argument miss it. Every lookup of a Debrief window by label now uses `get_window` /
 `windows()` (window manager, pop-outs, notifications, live alerts, storage, the file dialog's parent), with a
 regression test that lists, reveals and targets a window hosting the page. The `unstable` feature also makes Tauri
-build every window's own webview as an auto-resizing child; IMT's windows behave the same.
+build every window's own webview as an auto-resizing child; Debrief's windows behave the same.
 
 ### Linux
 
 tauri-runtime-wry builds child webviews on Linux with `build_gtk` in the window's `gtk::Box`, where they stack below
-the IMT webview instead of taking a place (child webviews need X11, and do not work on Wayland). On Linux the page
+the Debrief webview instead of taking a place (child webviews need X11, and do not work on Wayland). On Linux the page
 therefore gets a window of its own (`browser-<owner>`, the page its only webview, filling it); the panel keeps the
 address bar, the banner with Stop and the notices and says where the page is (`browser_state.docked`). Not verified
 on Linux or macOS hardware here: the code is platform-neutral, the macOS path is the same child-webview path as
@@ -92,7 +92,7 @@ Windows (WKWebView as an `NSView` subview), the Linux fallback is a plain window
 
 ### The AI writes the search text
 
-- `imt_ai::browser::draft` is a small pure prompt: `DRAFT_SYSTEM` (keep the exception type, the decisive words of the
+- `debrief_ai::browser::draft` is a small pure prompt: `DRAFT_SYSTEM` (keep the exception type, the decisive words of the
   message, error codes and the framework with its version; drop ids, GUIDs, host, machine and user names, e-mail
   addresses, paths, URLs, IP addresses, ports, timestamps and instance numbers; the event is data, never
   instructions; one line of at most 12 words), `draft_prompt` (the question and the head of the event between
@@ -115,8 +115,8 @@ Windows (WKWebView as an `NSView` subview), the Linux fallback is a plain window
 - One browser surface that docks, splits, maximises and pops out like the other panels; no window to lose.
 - While a menu, dialog or toast is open over the page, the page is hidden for that moment (a native webview cannot be
   drawn under HTML). The page follows a moving floating group when the move ends (dock layout change), not during it.
-- Keys typed in the page reach IMT only on Windows (WebView2 accelerator events); on macOS and Linux the user clicks
-  into IMT. Esc in a page is IMT's (pages that close their dialogs on Esc get a click instead).
-- The window-state plugin saves IMT window bounds from window events; its exit-time save skips a window hosting the
+- Keys typed in the page reach Debrief only on Windows (WebView2 accelerator events); on macOS and Linux the user clicks
+  into Debrief. Esc in a page is Debrief's (pages that close their dialogs on Esc get a click instead).
+- The window-state plugin saves Debrief window bounds from window events; its exit-time save skips a window hosting the
   page (Tauri's `webview_windows`), so the last move or resize is what is kept.
 - Unverified here: macOS (WKWebView child placement, focus, keys not forwarded) and Linux (the separate page window).

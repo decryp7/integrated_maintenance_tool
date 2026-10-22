@@ -4,7 +4,7 @@
 
 use super::*;
 use base64::Engine as _;
-use imt_ai::vision::image::testing::{claimed_png, screenshot_png};
+use debrief_ai::vision::image::testing::{claimed_png, screenshot_png};
 
 fn vision(replies: Vec<Reply>) -> Arc<dyn LlmProvider> {
     Arc::new(ScriptedProvider::new(replies).with_vision())
@@ -52,7 +52,7 @@ fn images_open_as_clean_copies_within_limits() {
         (Some(2400), Some(1350))
     );
     let (w, h) = (img["width"].as_u64().unwrap(), img["height"].as_u64().unwrap());
-    assert!(w * h <= imt_ai::vision::image::DEFAULT_TARGET_PIXELS && w < 2400, "{w}x{h}");
+    assert!(w * h <= debrief_ai::vision::image::DEFAULT_TARGET_PIXELS && w < 2400, "{w}x{h}");
     assert!(img["dataUrl"].as_str().unwrap().starts_with("data:image/png;base64,"));
     assert_eq!(img["sourceFormat"], "png");
     // Not an image, a bomb's header, an unsupported extension: typed refusals.
@@ -247,7 +247,7 @@ fn image_support_is_added_to_an_installed_model_and_reported() {
     assert!(e["message"].as_str().unwrap().contains("Text + images"), "{e}");
     // A projector file the user picked: one of another model is refused, the right one pairs.
     let wrong = f.tmp.0.join("other-mmproj.gguf");
-    std::fs::write(&wrong, imt_ai::testing::gguf::projector_like(4096)).unwrap();
+    std::fs::write(&wrong, debrief_ai::testing::gguf::projector_like(4096)).unwrap();
     let e = ipc(
         &main,
         "ai_model_add_projector",
@@ -256,7 +256,7 @@ fn image_support_is_added_to_an_installed_model_and_reported() {
     .unwrap_err();
     assert!(e["message"].as_str().unwrap().contains("another model"), "{e}");
     let proj = f.tmp.0.join("mmproj-F16.gguf");
-    std::fs::write(&proj, imt_ai::testing::gguf::projector_like(2560)).unwrap();
+    std::fs::write(&proj, debrief_ai::testing::gguf::projector_like(2560)).unwrap();
     let m = ipc(
         &main,
         "ai_model_add_projector",

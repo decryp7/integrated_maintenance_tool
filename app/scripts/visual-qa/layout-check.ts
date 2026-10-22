@@ -18,10 +18,10 @@ export function layoutProblems(page: Page): Promise<LayoutProblem[]> {
       'button, input, select, textarea, label, [role=switch], [role=checkbox], [role=tab], [role=menuitem], .badge, h1, h2, h3, h4, legend, span, a';
     // Timeline markers, annotation spans and lane contents layer on purpose; the checks cover the timeline's chrome.
     const IGNORE =
-      'canvas, svg, .dv-sash, [aria-hidden=true], .cdk-visually-hidden, .sr-only, imt-timeline-panel .marker, imt-timeline-panel .lane, imt-timeline-panel .lane-label, imt-annotation-track';
+      'canvas, svg, .dv-sash, [aria-hidden=true], .cdk-visually-hidden, .sr-only, debrief-timeline-panel .marker, debrief-timeline-panel .lane, debrief-timeline-panel .lane-label, debrief-annotation-track';
     const describe = (el: Element) => {
       const text = (el.getAttribute('aria-label') || (el as HTMLElement).innerText || el.getAttribute('placeholder') || '').trim().slice(0, 40);
-      const host = el.closest('[class*="imt-"], [ng-version]')?.tagName.toLowerCase() ?? '';
+      const host = el.closest('[class*="debrief-"], [ng-version]')?.tagName.toLowerCase() ?? '';
       let owner = el.parentElement;
       while (owner && !owner.tagName.includes('-')) owner = owner.parentElement;
       return `${owner?.tagName.toLowerCase() ?? host} ${el.tagName.toLowerCase()}${el.classList.length ? '.' + [...el.classList].join('.') : ''} "${text}"`;

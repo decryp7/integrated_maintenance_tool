@@ -1,0 +1,56 @@
+---
+source: crates/debrief-plugin-windows/tests/samples.rs
+expression: "snapshot_of(\"windows/WEB02/perfmon-OrderService_000001.csv\",\n&debrief_plugin_windows::PerfmonCsvImporter)"
+---
+sample: windows/WEB02/perfmon-OrderService_000001.csv
+importer: perfmon-csv
+records: 5753
+skipped: 0
+first_ts: 1791968400000
+last_ts: 1791979200000
+fields:
+  - Counter
+  - CounterPath
+  - Instance
+  - MachineName
+  - Object
+  - ProcessId
+  - ProcessName
+  - Value
+first:
+  - ts: 1791968400000
+    level: Information
+    message: "Process(OrderService)\\% Processor Time = 254.206312"
+    fields:
+      MachineName: WEB02
+      Object: Process
+      Instance: OrderService
+      Counter: "% Processor Time"
+      CounterPath: "\\\\WEB02\\Process(OrderService)\\% Processor Time"
+      Value: 254.206312
+      ProcessName: OrderService
+      ProcessId: 4120
+  - ts: 1791968400000
+    level: Information
+    message: "Process(OrderService)\\Private Bytes = 595195229.883777"
+    fields:
+      MachineName: WEB02
+      Object: Process
+      Instance: OrderService
+      Counter: Private Bytes
+      CounterPath: "\\\\WEB02\\Process(OrderService)\\Private Bytes"
+      Value: 595195229.883777
+      ProcessName: OrderService
+      ProcessId: 4120
+  - ts: 1791968400000
+    level: Information
+    message: "Process(OrderService)\\ID Process = 4120"
+    fields:
+      MachineName: WEB02
+      Object: Process
+      Instance: OrderService
+      Counter: ID Process
+      CounterPath: "\\\\WEB02\\Process(OrderService)\\ID Process"
+      Value: 4120
+      ProcessName: OrderService
+      ProcessId: 4120

@@ -1,14 +1,14 @@
 //! An example collector plugin: a tool whose `start` operation runs in the background, reports itself as a task
-//! (listed in IMT's Jobs pane and tray, with Stop), and writes what it collects into the plugin's private data
-//! folder. Third-party plugins never write elsewhere: what they collect reaches the user through IMT.
+//! (listed in Debrief's Jobs pane and tray, with Stop), and writes what it collects into the plugin's private data
+//! folder. Third-party plugins never write elsewhere: what they collect reaches the user through Debrief.
 //!
 //! - `start { count, intervalMs }`: records `count` heartbeats `intervalMs` apart into `heartbeats.csv`;
 //! - `samples`: the heartbeats so far (polled by the UI);
 //! - stopping the task ends it early.
 
 use anyhow::{bail, Context, Result};
-use imt_plugin_api::prelude::*;
-use imt_plugin_api::tools::{OpSpec, Schema, ToolTask};
+use debrief_plugin_api::prelude::*;
+use debrief_plugin_api::tools::{OpSpec, Schema, ToolTask};
 use serde_json::{json, Value};
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -58,7 +58,7 @@ impl Tool for Heartbeat {
                 let interval = Duration::from_millis(args["intervalMs"].as_u64().unwrap_or(1000));
                 let opened = ctx
                     .data_dir()
-                    .context("IMT gave the plugin no data folder")
+                    .context("Debrief gave the plugin no data folder")
                     .and_then(|d| std::fs::File::create(d.join("heartbeats.csv")).context("cannot write heartbeats.csv"));
                 let mut file = match opened {
                     Ok(f) => f,

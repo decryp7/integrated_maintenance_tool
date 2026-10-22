@@ -4,7 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
-/// Calls that build a window (directly or through IMT's window helpers).
+/// Calls that build a window (directly or through Debrief's window helpers).
 const WINDOW_BUILDERS: &[&str] = &[
     "open_new(",
     "WebviewWindowBuilder",

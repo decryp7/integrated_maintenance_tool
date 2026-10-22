@@ -14,7 +14,7 @@ import { notSelectableReason, parseAutoCleanDays, shortStoreName, stateLabel } f
  * Rust; this only presents it.
  */
 @Component({
-  selector: 'imt-storage-stores',
+  selector: 'debrief-storage-stores',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="head">
@@ -23,7 +23,7 @@ import { notSelectableReason, parseAutoCleanDays, shortStoreName, stateLabel } f
       <button class="btn small" type="button" [disabled]="store.storesClearing() || !store.selected().length" data-testid="stores-clean-selected" (click)="confirm(store.selected())" i18n="@@settings.storage.stores.cleanSelected">Clean up selected…</button>
       <button class="btn small" type="button" [disabled]="store.storesClearing() || !store.orphanedFolders().length" data-testid="stores-clean-all" (click)="confirm(allOrphaned())" i18n="@@settings.storage.stores.cleanAll">Clean up all orphaned</button>
     </div>
-    <p class="desc" i18n="@@settings.storage.stores.desc">The event stores IMT keeps on disk. Only orphaned stores, which nothing references any more, can be removed; a store that is open is never touched.</p>
+    <p class="desc" i18n="@@settings.storage.stores.desc">The event stores Debrief keeps on disk. Only orphaned stores, which nothing references any more, can be removed; a store that is open is never touched.</p>
 
     @if (store.storesError(); as e) {
       <div class="banner err" role="alert">

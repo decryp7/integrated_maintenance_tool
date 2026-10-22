@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideTinyBackend, settle, testLogger, tinyBackend, tinyDataset } from '../../testing/helpers';
 import { LiveState } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { MockBackend } from '../core/mock/mock-backend';
 import { WorkspaceStore } from '../core/workspace.store';
 import { DEFAULT_LIVE_OPTIONS, LiveTail } from './live-tail';
@@ -34,7 +34,7 @@ describe('LiveTail', () => {
   it('refreshes the summary on every change, keeps the selection and the query, and marks the refresh as live', async () => {
     const { store, live } = await setup();
     store.toggleLevel('Information');
-    const row = at((await TestBed.inject(ImtBackend).queryPage({ query: store.effectiveQuery(), offset: 1, limit: 1, descending: false })).rows, 0);
+    const row = at((await TestBed.inject(DebriefBackend).queryPage({ query: store.effectiveQuery(), offset: 1, limit: 1, descending: false })).rows, 0);
     store.select(row);
     const version = store.dataVersion();
     expect(live.isLiveRefresh()).toBe(false);

@@ -19,7 +19,7 @@ const MB = 1024 * 1024;
 /** Plausible categories shaped like the engine's. Browser development and UI tests only. */
 export function mockCategories(): StorageCategory[] {
   const row = (c: Partial<StorageCategory> & Pick<StorageCategory, 'id' | 'label' | 'kind' | 'bytes'>): StorageCategory => ({
-    path: `C:\\Users\\demo\\AppData\\Roaming\\imt\\${c.id}`,
+    path: `C:\\Users\\demo\\AppData\\Roaming\\debrief\\${c.id}`,
     exists: true,
     files: Math.max(1, Math.round(c.bytes / MB)),
     clearableBytes: c.bytes,
@@ -30,11 +30,11 @@ export function mockCategories(): StorageCategory[] {
   });
   return [
     row({ id: 'bundle-extracts', label: 'Opened bundles (temporary copies)', kind: 'cache', bytes: 12 * MB, note: 'Bundles opened in this session are kept.' }),
-    row({ id: 'webview-cache', label: 'Web view cache', kind: 'cache', bytes: 48 * MB, clearableBytes: 45 * MB, note: 'Files the running web view holds open are removed after IMT restarts.' }),
+    row({ id: 'webview-cache', label: 'Web view cache', kind: 'cache', bytes: 48 * MB, clearableBytes: 45 * MB, note: 'Files the running web view holds open are removed after Debrief restarts.' }),
     row({ id: 'ai-runtimes-outdated', label: 'Outdated AI runtimes', kind: 'cache', bytes: 210 * MB }),
     row({ id: 'ai-runtimes', label: 'AI runtimes', kind: 'data', bytes: 230 * MB, note: 'The AI assistant downloads a runtime again when it needs one.' }),
     row({ id: 'ai-models', label: 'AI models', kind: 'data', bytes: 4_400 * MB, clearableBytes: 0, note: 'The active model is kept.' }),
-    row({ id: 'logs', label: 'IMT logs', kind: 'data', bytes: 6 * MB, clearableBytes: 5 * MB, note: "Today's log is kept." }),
+    row({ id: 'logs', label: 'Debrief logs', kind: 'data', bytes: 6 * MB, clearableBytes: 5 * MB, note: "Today's log is kept." }),
     row({ id: 'error-snapshots', label: 'Error snapshots', kind: 'data', bytes: 3 * MB }),
     row({ id: 'sessions', label: 'Session backups', kind: 'data', bytes: 1 * MB, clearableBytes: 0, note: 'Sessions of this run are kept.' }),
   ];
@@ -44,7 +44,7 @@ export function mockCategories(): StorageCategory[] {
 const KEPT: Partial<Record<StorageCategoryId, string>> = {
   'webview-cache': 'in use by a running program',
   'ai-models': 'the active model: choose another one or remove it in Settings ▸ AI',
-  logs: 'IMT is writing to it',
+  logs: 'Debrief is writing to it',
   sessions: 'saved in this session',
 };
 
@@ -72,7 +72,7 @@ export function mockStoreFolders(now = Date.now()): StoreFolder[] {
 const STORE_KEPT: Record<Exclude<StoreFolderState, 'orphaned'>, string> = {
   open: 'a window has this store open',
   session: 'an autosaved session reopens it',
-  running: 'another IMT process is using it',
+  running: 'another Debrief process is using it',
 };
 
 /**
@@ -111,17 +111,17 @@ export class MockStorageBackend implements StorageBackend {
   }
 
   async usage(): Promise<StorageUsage> {
-    await this.maybeFail('measure IMT’s storage');
+    await this.maybeFail('measure Debrief’s storage');
     const categories = this.categories.map((c) => ({ ...c }));
     return { categories, totalBytes: categories.reduce((n, c) => n + c.bytes, 0), capped: categories.some((c) => c.capped) };
   }
 
   /** Like the engine: checked now, cleared by a maintenance job (resolves with it at once). */
   async clear(ids: StorageCategoryId[]): Promise<number> {
-    await this.maybeFail('clear IMT’s storage');
+    await this.maybeFail('clear Debrief’s storage');
     if (!ids.length) throw 'choose what to clear';
     for (const id of ids) if (!this.categories.some((x) => x.id === id) && !(['stores'] as string[]).includes(id)) throw `unknown storage category '${id}'`;
-    const job = mockJobs().start({ kind: 'maintenance', title: "Clear IMT's storage", appWide: true }, async (ctx) => {
+    const job = mockJobs().start({ kind: 'maintenance', title: "Clear Debrief's storage", appWide: true }, async (ctx) => {
       await mockSteps(ctx, this.clearMs, 4);
       const result = this.clearNow(ids);
       ctx.message(`Freed ${(result.freedBytes / MB).toFixed(1)} MB.`);

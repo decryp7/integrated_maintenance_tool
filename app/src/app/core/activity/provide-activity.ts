@@ -6,7 +6,7 @@ import { ActivityObservers } from './observers';
 import { Detail } from './privacy';
 
 /** The native menu's click event (macOS), see `shell/menu/native-menu.types.ts`. */
-const MENU_EVENT = 'imt://menu';
+const MENU_EVENT = 'debrief://menu';
 
 /** Reads the activity detail setting (Settings ▸ Diagnostics ▸ Activity log detail) from the engine. */
 export async function loadDetail(call: typeof invoke = invoke): Promise<Detail> {
