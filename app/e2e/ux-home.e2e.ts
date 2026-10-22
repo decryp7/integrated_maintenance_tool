@@ -60,6 +60,8 @@ test.describe('home (dashboard and health check)', () => {
     // The unrecognised file's action opens the format wizard.
     // Only the first findings show until "Show all"; the list is virtualised: scroll to the end for the info findings.
     await region.getByTestId('home-findings-toggle').click();
+    await expect(region.getByTestId('home-findings-toggle')).toContainText('Show fewer');
+    await page.waitForTimeout(300);
     await findings.evaluate((el) => el.scrollTo(0, el.scrollHeight));
     await findings.locator('.finding[data-severity=info]').getByRole('button', { name: 'Set up format…' }).first().click();
     await expect(page.getByRole('dialog', { name: 'Set up format' })).toBeVisible();
