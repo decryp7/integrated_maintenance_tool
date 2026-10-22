@@ -513,19 +513,17 @@ mod tests {
     }
 
     /// The report of the only outcome of an import, which must have been imported.
+    #[rustfmt::skip]
     fn imported(mut outcomes: Vec<Outcome>) -> SourceReport {
-        match outcomes.remove(0) {
-            Outcome::Imported(r) => r,
-            other => panic!("not imported: {other:?}"),
-        }
+        let Outcome::Imported(r) = outcomes.remove(0) else { panic!("not imported") };
+        r
     }
 
     /// The only outcome of an import, which must have been refused.
+    #[rustfmt::skip]
     fn unrecognised(mut outcomes: Vec<Outcome>) -> UnrecognizedFile {
-        match outcomes.remove(0) {
-            Outcome::Unrecognized(u) => u,
-            other => panic!("not unrecognised: {other:?}"),
-        }
+        let Outcome::Unrecognized(u) = outcomes.remove(0) else { panic!("not unrecognised") };
+        u
     }
 
     /// A binary importer for files starting with `BINX`: `BINX<n>` yields n events; `BINXfail` fails and

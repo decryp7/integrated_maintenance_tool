@@ -438,11 +438,10 @@ mod tests {
     }
 
     #[test]
+    #[rustfmt::skip]
     fn every_offered_option_is_a_known_label_and_round_trips() {
         for o in options() {
-            let EncodingChoice::Fixed(e) = EncodingChoice::parse(&o.label).unwrap() else {
-                panic!("{}", o.label)
-            };
+            let EncodingChoice::Fixed(e) = EncodingChoice::parse(&o.label).unwrap() else { panic!("not fixed") };
             assert_eq!(e.label(), o.label);
         }
     }

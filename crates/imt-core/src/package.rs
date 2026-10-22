@@ -412,11 +412,10 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
+    #[rustfmt::skip]
     fn project(p: Package) -> (ProjectDir, ProjectManifest) {
-        match p {
-            Package::Project { dir, manifest } => (dir, manifest),
-            other => panic!("not a project: {other:?}"),
-        }
+        let Package::Project { dir, manifest } = p else { panic!("not a project") };
+        (dir, manifest)
     }
 
     fn zip_with(path: &Path, files: &[(&str, &[u8])]) {

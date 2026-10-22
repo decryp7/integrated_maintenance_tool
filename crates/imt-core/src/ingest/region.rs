@@ -437,11 +437,10 @@ mod tests {
         f(&env)
     }
 
+    #[rustfmt::skip]
     fn read(env: &ImportEnv, p: &Path, src: &NewSource, start: TailStart, flush: bool, sink: &mut Memory) -> RegionRead {
-        match read_appended(env, p, src, SourceId(7), start, flush, sink).unwrap() {
-            Region::Read(r) => r,
-            Region::Whole(why) => panic!("whole: {why}"),
-        }
+        let Region::Read(r) = read_appended(env, p, src, SourceId(7), start, flush, sink).unwrap() else { panic!("whole") };
+        r
     }
 
     #[test]
