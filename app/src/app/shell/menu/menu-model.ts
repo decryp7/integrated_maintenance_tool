@@ -58,6 +58,12 @@ export const MENU_IDS = {
   otherWindows: 'menu.otherWindows',
   /** Shows the sidebar and focuses the fields filter. */
   fields: 'menu.fields',
+  /** `recent:file:<path>` opens a recent file or folder. */
+  recentFile: 'recent:file:',
+  /** `recent:project:<path>` opens a recent project. */
+  recentProject: 'recent:project:',
+  /** Empties both recent lists. */
+  recentClear: 'menu.recentClear',
 } as const;
 
 /**
@@ -98,24 +104,26 @@ export interface MenuState {
   views: readonly MenuView[];
   sidebarOpen: boolean;
   /** View › Theme: the look and the colour scheme. */
-  theme: ThemeId;
+  theme: ThemeId | null;
   scheme: 'system' | 'dark' | 'light';
   /** What the source colour marker stands for (View › Source colours); default by file. */
   sourceColors?: 'source' | 'instance' | 'off';
-  /** View › Layout: what the window opens by itself; default focused. */
-  layoutMode?: 'focused' | 'full';
+  /** Id of the active perspective (Window ▸ Perspectives checks its command). */
+  activePerspective?: number;
   timezone: 'utc' | 'local';
   markedOnly: boolean;
   undoLabel: string | null;
   redoLabel: string | null;
   windows: readonly MenuWindow[];
   popouts: readonly MenuPopout[];
+  /** File ▸ Open recent: newest first (the model shows the first few of each). */
+  recent?: { projects: readonly { path: string; name: string }[]; files: readonly string[] };
   /** macOS native menu bar: About and Settings are in the app menu, not in Help/Tools. */
   nativeAppMenu: boolean;
 }
 
 /** Order of the core views at the top of the View menu (after Explorer and Fields). */
-export const CORE_VIEW_ORDER = ['inspector', 'timeline', 'events', 'metrics', 'query', 'overview', 'profile'];
+export const CORE_VIEW_ORDER = ['inspector', 'timeline', 'events', 'metrics', 'query', 'home', 'profile'];
 
 /** Order of the View submenus. */
 export const VIEW_SUBMENUS: readonly Exclude<ViewCategory, 'core'>[] = ['Analysis', 'Live', 'Profiling', 'Tools', 'Sharing', 'Diagnostics', 'Plugins', 'AI'];
@@ -152,6 +160,15 @@ const CATEGORY_LABELS: Readonly<Record<Exclude<ViewCategory, 'core'>, string>> =
   AI: $localize`:View submenu@@shell.menu.view.category.ai:AI`,
 };
 
+/** How many recent projects and files File ▸ Open recent lists. */
+export const RECENT_MENU_PROJECTS = 5;
+export const RECENT_MENU_FILES = 10;
+
+/** The last two path segments, e.g. "web01/orders.clef": what a recent item is called in a menu (the path is its tooltip elsewhere). */
+export function recentLabel(path: string): string {
+  return path.split(/[\\/]/).filter(Boolean).slice(-2).join('/') || path;
+}
+
 /** A separator; collapsed when leading, trailing or doubled. */
 const SEP: SeparatorNode = { kind: 'separator' };
 
@@ -173,6 +190,25 @@ export function tidy(parts: readonly Part[]): MenuNode[] {
   }
   while (out.length && out[out.length - 1]?.kind === 'separator') out.pop();
   return out;
+}
+
+/** File ▸ Open recent ▸: projects, then folders and files, then Clear recent. Missing when nothing was opened yet. */
+function recentMenu(state: MenuState): SubmenuNode | null {
+  const projects = (state.recent?.projects ?? []).slice(0, RECENT_MENU_PROJECTS);
+  const files = (state.recent?.files ?? []).slice(0, RECENT_MENU_FILES);
+  if (!projects.length && !files.length) return null;
+  return {
+    kind: 'submenu',
+    id: 'file.openRecent',
+    label: $localize`:@@shell.menu.file.openRecent:Open recent`,
+    items: tidy([
+      ...projects.map((p): MenuItemNode => ({ kind: 'item', id: MENU_IDS.recentProject + p.path, label: p.name })),
+      projects.length && files.length ? SEP : null,
+      ...files.map((f): MenuItemNode => ({ kind: 'item', id: MENU_IDS.recentFile + f, label: recentLabel(f) })),
+      SEP,
+      { kind: 'item', id: MENU_IDS.recentClear, label: $localize`:@@shell.menu.file.clearRecent:Clear recent` },
+    ]),
+  };
 }
 
 /** Builds the menu bar. Pure: same state, same menus. */
@@ -222,7 +258,7 @@ export function buildMenus(state: MenuState): TopMenu[] {
         cmd('dumps.openUmdh'),
         cmd('video.open'),
         cmd('project.open'),
-        cmd('project.recent', $localize`:@@shell.menu.file.openRecentProject:Open recent project…`),
+        recentMenu(state),
         SEP,
         cmd('project.save'),
         cmd('project.saveAs'),
@@ -260,6 +296,8 @@ export function buildMenus(state: MenuState): TopMenu[] {
         cmd('analyze.fit'),
         cmd('analyze.back'),
         cmd('analyze.forward'),
+        cmd('nav.back'),
+        cmd('nav.forward'),
         sub('analyze.timezone', $localize`:@@shell.menu.analyze.timeZone:Time zone`, [
           cmd('analyze.utc', $localize`:@@shell.menu.analyze.utc:UTC`, state.timezone === 'utc'),
           cmd('analyze.local', $localize`:Time zone option@@shell.menu.analyze.local:Local`, state.timezone === 'local'),
@@ -378,17 +416,15 @@ function viewMenu(state: MenuState, cmd: Cmd, sub: Sub): MenuNode[] {
     { kind: 'item', id: MENU_IDS.otherWindows, label: $localize`:@@shell.menu.view.otherWindows:Other windows…` },
     SEP,
     sub('view.theme', $localize`:@@shell.menu.view.theme:Theme`, [
+      cmd('view.theme.system', $localize`:Theme name@@shell.menu.view.theme.system:Follow system`, state.theme === null),
       cmd('view.theme.calm', $localize`:Theme name@@shell.menu.view.theme.calm:Calm`, state.theme === 'calm'),
       cmd('view.theme.console', $localize`:Theme name@@shell.menu.view.theme.console:Console`, state.theme === 'console'),
       cmd('view.theme.precision', $localize`:Theme name@@shell.menu.view.theme.precision:Precision`, state.theme === 'precision'),
+      cmd('view.theme.contrast', $localize`:Theme name@@shell.menu.view.theme.contrast:High contrast`, state.theme === 'contrast'),
       SEP,
       cmd('view.scheme.system', $localize`:Colour scheme option@@shell.menu.view.scheme.system:System`, state.scheme === 'system'),
       cmd('view.scheme.dark', $localize`:Colour scheme option@@shell.menu.view.scheme.dark:Dark`, state.scheme === 'dark'),
       cmd('view.scheme.light', $localize`:Colour scheme option@@shell.menu.view.scheme.light:Light`, state.scheme === 'light'),
-    ]),
-    sub('view.layout', $localize`:@@shell.menu.view.layout:Layout`, [
-      cmd('view.layout.focused', $localize`:@@shell.menu.view.layout.focused:Focused`, (state.layoutMode ?? 'focused') === 'focused'),
-      cmd('view.layout.full', $localize`:@@shell.menu.view.layout.full:Full`, state.layoutMode === 'full'),
     ]),
     sub('view.sourceColors', $localize`:@@shell.menu.view.sourceColors:Source colours`, [
       cmd('view.sourceColors.source', $localize`:@@shell.menu.view.sourceColors.source:By file`, (state.sourceColors ?? 'source') === 'source'),
@@ -413,15 +449,15 @@ function pluginItems(views: readonly MenuView[]): MenuNode[] {
   return tidy([...manager.map(viewItem), SEP, ...groups]);
 }
 
-/** Layouts, tool window and document actions, then the open windows and pop-outs. */
+/** Perspectives, tool window and document actions, then the open windows and pop-outs. */
 function windowMenu(state: MenuState, cmd: Cmd, sub: Sub): MenuNode[] {
   const windows: MenuItemNode[] = state.windows.map((w) => ({ kind: 'item', id: MENU_IDS.window + w.label, label: w.title || w.label, checked: w.current }));
   const popouts: MenuItemNode[] = state.popouts.map((p) => ({ kind: 'item', id: MENU_IDS.popout + p.id, label: p.title }));
   return tidy([
-    sub('window.layouts', $localize`:@@shell.menu.window.layouts:Layouts`, [
-      cmd('window.layout.save'),
+    sub('window.perspectives', $localize`:@@shell.menu.window.perspectives:Perspectives`, [
+      ...Array.from({ length: 9 }, (_, i) => cmd(`window.perspective.${i + 1}`, undefined, state.activePerspective === i + 1)),
       SEP,
-      ...[1, 2, 3, 4].map((n) => cmd(`window.layout.apply${n}`)),
+      cmd('window.layout.save'),
       SEP,
       cmd('window.layout.manage'),
       cmd('window.layout.reset'),

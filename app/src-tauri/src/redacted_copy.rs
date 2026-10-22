@@ -1,4 +1,4 @@
-//! Share a redacted copy (ADR 0039): preview what redaction would change in the window's project and write the project
+//! Share a redacted copy (ADR 0041): preview what redaction would change in the window's project and write the project
 //! as an `.imtz` in which every copyable source holds redacted text only, together with the redacted UI state (notes,
 //! chats, saved queries, reports). The engine does the work (`Redaction::export_redacted_project`); this module turns
 //! the user's choices into a redaction configuration, redacts the UI state the webview sends and checks the target path.

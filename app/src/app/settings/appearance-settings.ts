@@ -5,7 +5,6 @@ import { SOURCE_COLOR_LABELS } from '../sources/source-colors';
 import { resolveTokens } from '../theme/theme-tokens';
 import { BUILT_IN_THEMES } from '../theme/themes';
 import { Density, DENSITIES, SCHEME_MODES, SchemeMode, ThemeId, UI_FONTS, UiFont } from '../theme/theme.types';
-import { Switch } from '../shared/switch';
 import { HelpHint } from '../ui/help-hint';
 import { SettingsStore, SOURCE_COLOR_MODES } from './settings.store';
 
@@ -19,11 +18,26 @@ const PREVIEW = ['bg-0', 'bg-1', 'accent', 'src-1', 'src-2', 'src-3', 'mk-fatal'
 @Component({
   selector: 'imt-appearance-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Switch, HelpHint],
+  imports: [HelpHint],
   template: `
     <fieldset data-testid="theme-setting">
       <legend i18n="@@settings.appearance.theme">Theme</legend>
       <div class="themes" role="radiogroup" aria-label="Theme" i18n-aria-label="@@settings.appearance.theme.aria">
+        <label class="theme" [class.on]="prefs.theme() === null" data-theme-card="system">
+          <input type="radio" name="imt-theme" [checked]="prefs.theme() === null" (change)="prefs.setTheme(null)" />
+          <span class="preview" aria-hidden="true" [style.background]="followed().swatches[0]" [style.border-color]="followed().swatches[1]">
+            <span class="panel" [style.background]="followed().swatches[1]">
+              <span class="bar" [style.background]="followed().swatches[2]"></span>
+              <span class="dots">
+                @for (c of followed().swatches.slice(3); track $index) {
+                  <span class="dot" [style.background]="c"></span>
+                }
+              </span>
+            </span>
+          </span>
+          <span class="name" i18n="@@settings.appearance.theme.system">Follow system</span>
+          <span class="about" i18n="@@settings.appearance.theme.system.about">Calm, or High contrast when your system asks for more contrast.</span>
+        </label>
         @for (t of themes(); track t.id) {
           <label class="theme" [class.on]="prefs.theme() === t.id" [attr.data-theme-card]="t.id">
             <input type="radio" name="imt-theme" [value]="t.id" [checked]="prefs.theme() === t.id" (change)="prefs.setTheme(t.id)" />
@@ -68,17 +82,7 @@ const PREVIEW = ['bg-0', 'bg-1', 'accent', 'src-1', 'src-2', 'src-3', 'mk-fatal'
       </div>
     </fieldset>
     <fieldset>
-      <legend i18n="@@settings.appearance.timeline">Timeline</legend>
-      <div class="row">
-        <imt-switch data-testid="lanes-by-source" [checked]="bySource()" (checkedChange)="prefs.setLanesBySource($event)" i18n="@@settings.appearance.lanesBySource">Colour lanes by source</imt-switch>
-        <imt-help label="Colour lanes by source" text="Draw each lane's volume in the colour of its source instead of a neutral grey. Each theme has its own default." i18n-label="@@settings.appearance.lanesBySource.helpLabel" i18n-text="@@settings.appearance.lanesBySource.help" />
-        @if (prefs.lanesBySource() !== null) {
-          <button class="link" type="button" (click)="prefs.setLanesBySource(null)" i18n="@@settings.appearance.lanesBySource.reset">Use the theme's default</button>
-        }
-      </div>
-    </fieldset>
-    <fieldset>
-      <legend i18n="@@settings.general.sourceColors">Source colours <imt-help label="Source colours" text="A coloured stripe at the start of each log line, with matching dots in the Explorer, the inspector and the timeline lanes, tells which file or instance the line came from. Hover a stripe or dot for its name." i18n-label="@@settings.general.sourceColors.helpLabel" i18n-text="@@settings.general.sourceColors.help" /></legend>
+      <legend i18n="@@settings.general.sourceColors">Source colours <imt-help label="Source colours" text="A coloured stripe at the start of each log line, with matching dots in the Explorer, the inspector and the timeline lanes, tells which file or instance the line came from. Off also draws the timeline lanes in neutral grey. Hover a stripe or dot for its name." i18n-label="@@settings.general.sourceColors.helpLabel" i18n-text="@@settings.general.sourceColors.help" /></legend>
       <div class="seg" data-testid="source-colors">
         @for (m of sourceColorModes; track m) {
           <button class="btn" type="button" [class.active]="settings.sourceColors() === m" [attr.aria-pressed]="settings.sourceColors() === m" (click)="settings.setSourceColors(m)">{{ sourceColorLabels[m] }}</button>
@@ -92,9 +96,7 @@ const PREVIEW = ['bg-0', 'bg-1', 'accent', 'src-1', 'src-2', 'src-3', 'mk-fatal'
     legend { padding: 0 0 6px; font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 6px; }
     .seg { display: flex; gap: var(--s-1); flex-wrap: wrap; }
     .seg .btn { text-transform: capitalize; }
-    .row { display: flex; align-items: center; gap: var(--s-2); color: var(--text-2); flex-wrap: wrap; }
-    .link { border: 0; background: none; padding: 0; color: var(--accent-text); cursor: pointer; text-decoration: underline; font-size: var(--fs-sm); }
-    .themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--s-3); }
+        .themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--s-3); }
     .theme { position: relative; display: grid; grid-template-rows: auto auto auto; gap: var(--s-1); padding: var(--s-2); border: 1px solid var(--border-2); border-radius: var(--r-3); background: var(--bg-3); cursor: pointer; transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease); }
     .theme:hover { border-color: var(--border-3); }
     .theme.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
@@ -121,8 +123,11 @@ export class AppearanceSettings {
       return { id: t.id, name: THEME_NAMES[t.id], about: THEME_ABOUT[t.id], swatches: PREVIEW.map((n) => tokens[n] ?? '') };
     }),
   );
-  /** "Colour lanes by source" as it is in effect (the user's choice or the theme's default). */
-  protected readonly bySource = computed(() => this.theme.traits().laneFill === 'bySource');
+  /** The card of the theme "Follow system" resolves to right now. */
+  protected readonly followed = computed(() => {
+    const id = this.theme.theme().id;
+    return this.themes().find((t) => t.id === id) ?? this.themes()[0]!;
+  });
 
   protected readonly schemes: readonly SchemeMode[] = SCHEME_MODES;
   protected readonly schemeLabels: Record<SchemeMode, string> = {
@@ -149,10 +154,12 @@ export const THEME_NAMES: Record<ThemeId, string> = {
   calm: $localize`:Theme name@@settings.appearance.theme.calm:Calm`,
   console: $localize`:Theme name@@settings.appearance.theme.console:Console`,
   precision: $localize`:Theme name@@settings.appearance.theme.precision:Precision`,
+  contrast: $localize`:Theme name@@settings.appearance.theme.contrast:High contrast`,
 };
 
 const THEME_ABOUT: Record<ThemeId, string> = {
   calm: $localize`:Theme description@@settings.appearance.theme.calm.about:Quiet and neutral; only the data has colour.`,
   console: $localize`:Theme description@@settings.appearance.theme.console.about:Soft cards and richer colour; problems stand out.`,
   precision: $localize`:Theme description@@settings.appearance.theme.precision.about:Paper and ink, hairlines and mono figures; the densest view.`,
+  contrast: $localize`:Theme description@@settings.appearance.theme.contrast.about:Black or white, AAA text contrast, strong outlines and focus rings.`,
 };

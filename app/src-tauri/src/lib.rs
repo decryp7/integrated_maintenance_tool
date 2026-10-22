@@ -44,6 +44,7 @@ mod file_commands;
 mod generated_types;
 mod insights;
 mod instance;
+mod investigate;
 mod jobs;
 mod lifecycle;
 mod live;
@@ -67,6 +68,7 @@ mod profiling;
 mod query_cancel;
 mod recent;
 mod redacted_copy;
+mod search_everything;
 mod services;
 mod settings;
 mod share;
@@ -83,6 +85,7 @@ mod tray;
 mod ui_dispatch;
 mod updater;
 mod video;
+mod window_capture;
 mod window_manager;
 mod window_prefs;
 mod window_scoped;
@@ -145,6 +148,7 @@ command_table! {
     Mutation [WINDOW] => workspace_commands::set_live,
     Quiet [WINDOW] => workspace_commands::import_progress,
     Query [WINDOW] => workspace_commands::overview,
+    Query [WINDOW] => workspace_commands::home_summary,
     Query [WINDOW] => workspace_commands::annotations,
     Query [WINDOW] => workspace_commands::query_runs,
     Query [WINDOW] => workspace_commands::preview_spans,
@@ -173,8 +177,10 @@ command_table! {
     Query [WINDOW] => insights::run_query,
     Query [WINDOW] => query_cancel::run_query_stream,
     Query [WINDOW] => smart_search::search_partial,
+    Query [WINDOW] => search_everything::search_everything,
     Query [WINDOW] => insights::check_query,
     Query [WINDOW] => insights::complete_query,
+    Query [WINDOW] limit MIB => insights::classify_search,
     Query [WINDOW] => insights::query_patterns,
     Query [WINDOW] => insights::query_exceptions,
     Query [WINDOW] => insights::query_anomalies,
@@ -278,6 +284,7 @@ command_table! {
     Query [WINDOW] => demo::demo_paths,
     Mutation [WINDOW] limit 8 * MIB => snapshots::save_error_snapshot,
     Query [WINDOW] => snapshots::list_error_snapshots,
+    Query [WINDOW] => window_capture::capture_window_image,
     Query [WINDOW] => snapshots::read_error_snapshot,
     Mutation [WINDOW] => snapshots::delete_error_snapshot,
     Mutation [WINDOW] => snapshots::open_snapshots_folder,
@@ -460,6 +467,19 @@ command_table! {
     Query [WINDOW] => share::preview_redaction,
     Query [WINDOW] => share::redaction_summary,
     Query [WINDOW] => share::dashboard_tile,
+    Query [WINDOW] => investigate::issues::known_issues_match,
+    Query [WINDOW] => investigate::issues::known_issues_suggest,
+    Query [WINDOW] => investigate::incident::incident_report_build,
+    Query [WINDOW] => investigate::incident::incident_narrative,
+    Query [WINDOW] => investigate::playbooks::playbook_library,
+    Mutation [WINDOW] => investigate::playbooks::playbook_save,
+    Mutation [WINDOW] => investigate::playbooks::playbook_remove,
+    Mutation [WINDOW] => investigate::playbooks::playbook_import,
+    Mutation [WINDOW] => investigate::playbooks::playbook_export,
+    Query [WINDOW] => investigate::playbooks::playbook_run_step,
+    Query [WINDOW] => investigate::playbooks::playbook_start,
+    Query [WINDOW] => investigate::playbooks::playbook_record,
+    Query [WINDOW] => investigate::playbooks::playbook_restore,
     Mutation [WINDOW] limit 32 * MIB => share::export_report,
     Mutation [WINDOW] limit 32 * MIB => share::save_visual,
     Query [WINDOW] => share::estimate_bundle,

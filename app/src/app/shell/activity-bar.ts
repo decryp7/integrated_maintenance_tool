@@ -63,7 +63,7 @@ export const FLYOUT_POSITIONS: ConnectedPosition[] = [
           [cdkMenuTriggerData]="{ $implicit: item }"
           [cdkMenuPosition]="positions"
           #trigger="cdkMenuTriggerFor"
-          [class.on]="trigger.isOpen() || anyChecked(item)"
+          [class.on]="trigger.isOpen() || items.menuState(item) === 'shown'"
           (keydown.arrowright)="openWithKeyboard(trigger, $event)"
         >
           <ng-container *ngTemplateOutlet="face; context: { $implicit: item }" />
@@ -88,6 +88,9 @@ export const FLYOUT_POSITIONS: ConnectedPosition[] = [
 
     <ng-template #face let-item>
       <imt-icon [name]="item.icon" [size]="18" />
+      @if (items.isOpenElsewhere(item) || (items.hasMenu(item) && items.menuState(item) === 'open')) {
+        <span class="open-dot" aria-hidden="true" data-testid="open-elsewhere"></span>
+      }
       @if (items.pulse(item)) {
         <span class="pulse" aria-hidden="true"></span>
       }
@@ -184,6 +187,7 @@ export const FLYOUT_POSITIONS: ConnectedPosition[] = [
     .act[aria-disabled='true'] { opacity: 0.45; cursor: default; }
     .act[aria-disabled='true']:hover { color: var(--faint); }
     .spacer { flex: 1; min-height: 0; }
+    .open-dot { position: absolute; bottom: 5px; inset-inline-start: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--faint); }
     .pulse { position: absolute; top: 6px; inset-inline-end: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: imt-activity-pulse 1.6s ease-in-out infinite; }
     @keyframes imt-activity-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.7); } }
     @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
@@ -242,11 +246,6 @@ export class ActivityBar {
     event.preventDefault();
     trigger.open();
     trigger.getMenu()?.focusFirstItem('keyboard');
-  }
-
-  /** A fly-out button is highlighted while one of its views is open. */
-  protected anyChecked(item: ImtActivityItem): boolean {
-    return this.items.menu(item).some((e) => e.checked);
   }
 
   /**

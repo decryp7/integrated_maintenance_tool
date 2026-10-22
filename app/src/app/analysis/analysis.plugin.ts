@@ -10,27 +10,16 @@ import { analysisActivityItems } from './analysis-activity';
 import { AnalysisCommands } from './analysis-commands';
 import { browserMocks } from '../core/mock-registry';
 
-/** The analysis views. Only the query bar opens by itself (in the Full layout); the rest open from the palette. */
+/** The analysis views; they open from the palette, menus and the Analyze activity. Queries are typed in the filter bar. */
 export const ANALYSIS_VIEWS: ImtView[] = [
-  {
-    id: 'query',
-    title: $localize`:@@analysis.plugin.view.query:Query`,
-    category: 'core',
-    icon: 'search',
-    defaultPosition: 'bottom',
-    component: () => import('./query-view').then((m) => m.QueryView),
-    when: (s) => s.total > 0,
-    // The Focused layout keeps the window to the timeline and the events; Ctrl+/ opens the query bar.
-    autoOpen: 'full',
-  },
   { id: 'query-results', category: 'Analysis', title: $localize`:@@analysis.plugin.view.queryResults:Query results`, icon: 'columns', defaultPosition: 'bottom', component: () => import('./query-results-view').then((m) => m.QueryResultsView) },
-  { id: 'moment', category: 'Analysis', title: $localize`:@@analysis.plugin.view.moment:Moment`, icon: 'timeline', defaultPosition: 'center', component: () => import('./moment-view').then((m) => m.MomentView) },
+  { id: 'moment', category: 'Analysis', area: 'analysis', title: $localize`:@@analysis.plugin.view.moment:Moment`, icon: 'timeline', defaultPosition: 'center', component: () => import('./moment-view').then((m) => m.MomentView) },
   { id: 'anomalies', category: 'Analysis', title: $localize`:@@analysis.plugin.view.anomalies:Anomalies`, icon: 'alert', defaultPosition: 'bottom', component: () => import('./anomalies-view').then((m) => m.AnomaliesView) },
   { id: 'patterns', category: 'Analysis', title: $localize`:@@analysis.plugin.view.patterns:Patterns`, icon: 'group', defaultPosition: 'bottom', component: () => import('./patterns-view').then((m) => m.PatternsView) },
   { id: 'exceptions', category: 'Analysis', title: $localize`:@@analysis.plugin.view.exceptions:Exceptions`, icon: 'alert', defaultPosition: 'bottom', component: () => import('./exceptions-view').then((m) => m.ExceptionsView) },
-  { id: 'compare', category: 'Analysis', title: $localize`:@@analysis.plugin.view.compare:Compare time ranges`, icon: 'columns', defaultPosition: 'center', component: () => import('./compare-view').then((m) => m.CompareView) },
-  { id: 'field-stats', category: 'Analysis', title: $localize`:@@analysis.plugin.view.fieldStatistics:Field statistics`, icon: 'chart', defaultPosition: 'center', component: () => import('./field-stats-view').then((m) => m.FieldStatsView) },
-  { id: 'traces', category: 'Analysis', title: $localize`:@@analysis.plugin.view.traces:Traces`, icon: 'timeline', defaultPosition: 'center', component: () => import('./traces-view').then((m) => m.TracesView) },
+  { id: 'compare', category: 'Analysis', area: 'analysis', title: $localize`:@@analysis.plugin.view.compare:Compare time ranges`, icon: 'columns', defaultPosition: 'center', component: () => import('./compare-view').then((m) => m.CompareView) },
+  { id: 'field-stats', category: 'Analysis', area: 'analysis', title: $localize`:@@analysis.plugin.view.fieldStatistics:Field statistics`, icon: 'chart', defaultPosition: 'center', component: () => import('./field-stats-view').then((m) => m.FieldStatsView) },
+  { id: 'traces', category: 'Analysis', area: 'analysis', title: $localize`:@@analysis.plugin.view.traces:Traces`, icon: 'timeline', defaultPosition: 'center', component: () => import('./traces-view').then((m) => m.TracesView) },
 ];
 
 /** The engine-backed analysis backend inside Tauri, the mock (derived from the demo records) in a browser. */

@@ -1,6 +1,6 @@
 //! Redaction on the store: what it would change in the matching events (the engine's summary
 //! ([`imt_core::redact::view::summary`]) over the store's own scan, with the active profile's `[redact]` rules), and the
-//! redacted copy of a project ([`imt_core::redact::copy`], ADR 0039).
+//! redacted copy of a project ([`imt_core::redact::copy`], ADR 0041).
 //!
 //! The copy reads the `raw` text of every copyable source, redacts it, writes it as a file in a work folder under this
 //! store's `tmp`, imports those files into a new store with the same profile and parsers, and exports that store. Nothing

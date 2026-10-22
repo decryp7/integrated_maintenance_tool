@@ -1,4 +1,4 @@
-//! A redacted copy of a project (ADR 0039): which sources can be copied, the names and profile the copy carries, and
+//! A redacted copy of a project (ADR 0041): which sources can be copied, the names and profile the copy carries, and
 //! the request and report of the store operation that writes it.
 //!
 //! The copy is built by reading the redacted text of every copyable source into a new store, so every derived thing

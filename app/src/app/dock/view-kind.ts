@@ -14,12 +14,10 @@ export const TOOL_VIEWS: ReadonlySet<string> = new Set([
   'inspector',
   'live-alerts',
   'tail-status',
-  'overview',
   'saved-queries',
   'notes',
   'problems',
   'markers',
-  'plugin-health',
   'error-snapshots',
   'profiling-captures',
   'profiling-butterfly',
@@ -28,12 +26,15 @@ export const TOOL_VIEWS: ReadonlySet<string> = new Set([
 ]);
 
 /** Views that are documents even though they open on the right or at the bottom by default. */
-const DOCUMENT_VIEWS: ReadonlySet<string> = new Set(['events', 'query', 'query-results', 'report', 'anomalies', 'patterns', 'exceptions', 'profiling-threads']);
+const DOCUMENT_VIEWS: ReadonlySet<string> = new Set(['events', 'query-results', 'report', 'anomalies', 'patterns', 'exceptions', 'profiling-threads']);
 
-/** Is the view a tool window or a document? Known ids first; otherwise right/bottom views are tools. */
-export function viewKind(view: Pick<ImtView, 'id' | 'defaultPosition'> | undefined | null): ViewKind {
+/**
+ * Is the view a tool window or a document? Views whose home is a side or status area are tool windows; then known
+ * ids; otherwise right-hand views are tools.
+ */
+export function viewKind(view: Pick<ImtView, 'id' | 'defaultPosition' | 'area'> | undefined | null): ViewKind {
   if (!view) return 'document';
-  if (TOOL_VIEWS.has(view.id)) return 'tool';
+  if (view.area === 'side' || view.area === 'status' || TOOL_VIEWS.has(view.id)) return 'tool';
   if (DOCUMENT_VIEWS.has(view.id)) return 'document';
   return view.defaultPosition === 'right' ? 'tool' : 'document';
 }

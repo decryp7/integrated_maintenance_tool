@@ -3,6 +3,9 @@ import { all, buttonByText, el, provideTinyBackend, settle, text } from '../../t
 import { Platform } from '../core/platform';
 import { WorkspaceStore } from '../core/workspace.store';
 import { RECENT_STORE, RecentStore } from './recent-store';
+import { CommandRegistry } from '../extensions/command-registry';
+import { RecentService } from '../core/recent/recent.service';
+import { RecentOpener } from '../shell/menu/recent-opener';
 import { shortPath, Welcome, WelcomeService } from './welcome';
 
 const fakePlatform = {
@@ -84,6 +87,23 @@ describe('Welcome', () => {
     buttonByText(fixture, 'Back to workspace').click();
   });
 
+  it('opens a project from its button, and lists recent projects before files (J1)', async () => {
+    const { fixture, welcome } = setup();
+    const run = vi.spyOn(TestBed.inject(CommandRegistry), 'run').mockResolvedValue(undefined as never);
+    await settle(fixture);
+    TestBed.inject(RecentService).projects.set([{ path: '/p/incident/case.imtproj', name: 'Case 12' }]);
+    await settle(fixture);
+    buttonByText(fixture, 'Open project…').click();
+    expect(run).toHaveBeenCalledWith('project.open');
+    const links = all(fixture, '.recent .link').map((b) => b.textContent?.replace(/\s+/g, ' ').trim());
+    expect(links).toEqual(['Case 12incident/case.imtproj', 'web01/a.log', 'logs/web02']);
+    const openProject = vi.spyOn(TestBed.inject(RecentOpener), 'openProject').mockResolvedValue();
+    welcome.show();
+    el<HTMLButtonElement>(fixture, '[data-testid=welcome-recent-project]').click();
+    expect(openProject).toHaveBeenCalledWith('/p/incident/case.imtproj');
+    expect(welcome.visible()).toBe(false);
+  });
+
   it('has no back button or recent list when empty', async () => {
     const { fixture, store } = setup();
     recent.items = [];
@@ -91,7 +111,7 @@ describe('Welcome', () => {
     await store.clearWorkspace();
     await settle(fixture);
     expect(fixture.nativeElement.querySelector('.recent')).toBeNull();
-    expect(all(fixture, 'button').map((b) => b.textContent?.trim())).toEqual(['Open folder…', 'Open files…', 'Try a demo', '?']);
+    expect(all(fixture, 'button').map((b) => b.textContent?.trim())).toEqual(['Open folder…', 'Open files…', 'Open project…', 'Try a demo', '?']);
   });
 
   it('does not remember paths that failed to open', async () => {

@@ -129,7 +129,7 @@ describe('built-in views', () => {
   it('lazily load their components', async () => {
     const types = await Promise.all(BUILTIN_VIEWS.map((v) => v.component()));
     expect(types.every((t) => typeof t === 'function')).toBe(true);
-    expect(BUILTIN_VIEWS.map((v) => v.id)).toEqual(['timeline', 'events', 'inspector', 'metrics', 'profile', 'plugins'].slice(0, BUILTIN_VIEWS.length));
+    expect(BUILTIN_VIEWS.map((v) => v.id)).toEqual(['timeline', 'events', 'inspector', 'metrics', 'profile', 'parsers', 'plugins'].slice(0, BUILTIN_VIEWS.length));
   });
 });
 

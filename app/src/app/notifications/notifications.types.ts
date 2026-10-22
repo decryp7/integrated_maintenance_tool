@@ -2,9 +2,9 @@
 // `imt://notifications-open` events; camelCase JSON), mirrored by
 // app/src-tauri/src/notification_centre/{centre,persist,mod}.rs. Change both sides together.
 
-export type NoticeSource = 'job' | 'liveAlert' | 'import' | 'plugin' | 'ai' | 'update' | 'session' | 'performance';
+export type NoticeSource = 'job' | 'liveAlert' | 'import' | 'plugin' | 'ai' | 'update' | 'session' | 'performance' | 'workspace';
 
-export const NOTICE_SOURCES: readonly NoticeSource[] = ['job', 'liveAlert', 'import', 'plugin', 'ai', 'update', 'session', 'performance'];
+export const NOTICE_SOURCES: readonly NoticeSource[] = ['job', 'liveAlert', 'import', 'plugin', 'ai', 'update', 'session', 'performance', 'workspace'];
 
 /** One of IMT's capped processes (Settings ▸ Performance, `performance.types.ts`). */
 export type NoticeProcess = { kind: 'storeWorker' } | { kind: 'ai' } | { kind: 'plugin'; pluginId: string };

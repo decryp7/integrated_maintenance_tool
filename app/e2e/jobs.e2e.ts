@@ -17,14 +17,18 @@ async function openAiApp(page: Page, search: string): Promise<void> {
 const jobsPane = (page: Page) => page.locator('imt-jobs-panel');
 const noticesPane = (page: Page) => page.locator('imt-notifications-panel');
 
-async function openJobs(page: Page): Promise<void> {
-  await page.locator('[data-activity-id="jobs"]').click();
+// Jobs and Notifications are status tools: they slide out of the bottom edge and slide away again when focus moves
+// elsewhere (a dialog, Escape), so each assertion on them opens them first (and does nothing when they are open).
+async function openJobs(page: Page) {
+  if (!(await jobsPane(page).isVisible())) await runCommand(page, 'View: Jobs');
   await expect(jobsPane(page)).toBeVisible();
+  return jobsPane(page);
 }
 
-async function openNotifications(page: Page): Promise<void> {
-  await page.locator('[data-activity-id="notifications"]').click();
+async function openNotifications(page: Page) {
+  if (!(await noticesPane(page).isVisible())) await page.getByTestId('status-notifications').click();
   await expect(noticesPane(page)).toBeVisible();
+  return noticesPane(page);
 }
 
 /** Explains the first event: no dialog, the request runs as a job and a toast says so. */
@@ -69,7 +73,7 @@ test.describe('jobs', () => {
     await toast.getByTestId('notice-toast-primary').click();
     await expect(page.getByTestId('ai-narrative')).toContainText('failed order submission');
     await page.keyboard.press('Escape');
-    await expect(pane.locator('li').filter({ hasText: 'Explain event' })).toContainText('Done');
+    await expect((await openJobs(page)).locator('li').filter({ hasText: 'Explain event' })).toContainText('Done');
   });
 
   test('a waiting AI request can be cancelled and a failed export retried', async ({ page }) => {
@@ -85,11 +89,11 @@ test.describe('jobs', () => {
     await expect(waiting).toContainText('Cancelled');
 
     await exportReport(page, 'Case 9');
-    const failed = pane.locator('li').filter({ hasText: 'Export report case-9.html' });
+    const failed = (await openJobs(page)).locator('li').filter({ hasText: 'Export report case-9.html' });
     await expect(failed).toContainText('Failed');
     await expect(failed).toContainText('The disk is full');
     await failed.getByRole('button', { name: /^Retry / }).click();
-    await expect(pane.locator('li').filter({ hasText: 'Export report case-9.html' }).filter({ hasText: 'Done' })).toBeVisible();
+    await expect((await openJobs(page)).locator('li').filter({ hasText: 'Export report case-9.html' }).filter({ hasText: 'Done' })).toBeVisible();
   });
 });
 
@@ -103,23 +107,25 @@ test.describe('notifications', () => {
     const bell = page.getByTestId('status-notifications');
     await explainInBackground(page);
     await expect(bell).toContainText('1', { timeout: 10_000 });
-    await openNotifications(page);
-    const pane = noticesPane(page);
+    const pane = await openNotifications(page);
     const finished = pane.locator('li').filter({ hasText: 'Explanation ready' });
     await expect(finished).toHaveClass(/unread/);
     await expectNoSeriousViolations(page, testInfo, 'notifications-pane', 'imt-notifications-panel');
     await finished.getByRole('button', { name: 'View', exact: true }).click();
     await expect(page.getByTestId('ai-narrative')).toBeVisible();
     await page.keyboard.press('Escape');
+    await openNotifications(page);
     await expect(finished).not.toHaveClass(/unread/);
 
     // Live alerts: the same kind on the same instance merges into one message with a count.
     await page.locator('imt-status-bar').getByRole('button', { name: 'Live tail', exact: true }).click();
     // An alert every 300 ms of live ticks, the kinds in turn: within 3 s each kind came more than once.
     await page.clock.runFor(3_000);
+    await openNotifications(page);
     await expect(pane.locator('li').filter({ hasText: /\(×\d+\)/ }).first()).toBeVisible();
     await page.locator('imt-status-bar').getByRole('button', { name: 'Live tail', exact: true }).click();
-    await pane.getByTestId('notices-mark-all').click();
+    await openNotifications(page);
+    await pane.getByTestId('notices-mark-all').dispatchEvent('click');
     await expect(pane.locator('li.unread')).toHaveCount(0);
     await expect(bell).not.toContainText(/\d/);
     await expectNoSeriousViolations(page, testInfo, 'notifications-read', 'imt-notifications-panel');
@@ -142,8 +148,7 @@ test.describe('research', () => {
     await expect(chat.getByTestId('ai-browser-menu')).toContainText('Browser: Off');
     // The research ran as a job: "Research finished" with View.
     await expect(page.getByTestId('notice-toast').filter({ hasText: 'Research finished' })).toBeVisible();
-    await openJobs(page);
-    await expect(jobsPane(page).locator('li').filter({ hasText: 'Research: what does HRESULT 0x80070005' })).toContainText('Done');
+    await expect((await openJobs(page)).locator('li').filter({ hasText: 'Research: what does HRESULT 0x80070005' })).toContainText('Done');
     await expectNoSeriousViolations(page, testInfo, 'research-answer', 'imt-ai-chat-panel');
   });
 

@@ -361,6 +361,12 @@ pub(crate) async fn overview(state: CurrentWindow, request: imt_core::api::Query
     with_store(&state, move |s| s.overview(&request)).await
 }
 
+/// The Home dashboard's summary: counts, the history by level with its markers and anomalies, exception groups.
+#[tauri::command]
+pub(crate) async fn home_summary(state: CurrentWindow, request: imt_core::home::HomeRequest) -> CmdResult<imt_core::home::HomeSummary> {
+    with_store(&state, move |s| imt_core::home::home_summary(s, &request)).await
+}
+
 /// Ranges and points found by plugin annotators (reboots, service uptime, ...) overlapping the request, by
 /// start time: what they found when they last ran over the store (after each import, see `engine::annotate`).
 #[tauri::command]

@@ -5,7 +5,7 @@ import { DockService } from './dock.service';
 import { PANEL_WINDOWS } from './panel-windows';
 import { ManageLayoutsDialog, SaveLayoutDialog } from './layout-dialogs';
 import { FullScreenMode, FullScreenPrefs } from './os-window';
-import { WindowLayouts } from './window-layouts';
+import { Perspectives, PERSPECTIVE_KEYS } from './perspectives';
 
 const CATEGORY = $localize`:Command category@@dock.commands.category:Window`;
 
@@ -13,7 +13,7 @@ const CATEGORY = $localize`:Command category@@dock.commands.category:Window`;
 @Injectable({ providedIn: 'root' })
 export class DockCommands {
   private readonly dock = inject(DockService);
-  private readonly layouts = inject(WindowLayouts);
+  private readonly perspectives = inject(Perspectives);
   private readonly dialogs = inject(DialogService);
   private readonly windows = inject(PANEL_WINDOWS, { optional: true });
   private readonly prefs = inject(FullScreenPrefs);
@@ -22,14 +22,19 @@ export class DockCommands {
     return { id: `window.fullScreenMode.${mode}`, title, category: CATEGORY, when: () => this.prefs.mode() !== mode, run: () => this.prefs.set(mode) };
   }
 
-  private applyAt(n: number): ImtCommand {
+  /** Ctrl+n switches to perspective n; the title follows the perspective's (current) name. */
+  private perspectiveAt(n: number): ImtCommand {
+    const perspectives = this.perspectives;
     return {
-      id: `window.layout.apply${n}`,
-      title: $localize`:@@dock.commands.applyN:Apply window layout ${n}:n:`,
+      id: `window.perspective.${n}`,
+      get title() {
+        const name = perspectives.at(n)?.name ?? String(n);
+        return $localize`:Command title|@@dock.commands.perspective:Perspective: ${name}:name:`;
+      },
       category: CATEGORY,
-      keybinding: `Ctrl+Alt+${n}`,
-      when: () => this.layouts.has(n),
-      run: () => void this.layouts.applyAt(n),
+      keybinding: `Mod+${n}`,
+      when: () => !!this.perspectives.at(n),
+      run: () => void this.perspectives.switchToAt(n),
     };
   }
 
@@ -48,16 +53,12 @@ export class DockCommands {
     this.mode('os', $localize`:@@dock.commands.fullScreenMode.os:Full screen does: OS full screen only`),
     {
       id: 'window.layout.save',
-      title: $localize`:@@dock.commands.layout.save:Save window layout…`,
+      title: $localize`:@@dock.commands.perspective.save:Save current as perspective…`,
       category: CATEGORY,
-      run: () => void this.dialogs.open(SaveLayoutDialog, { title: $localize`:@@dock.commands.layout.saveDialog:Save window layout`, width: 420 }),
+      run: () => void this.dialogs.open(SaveLayoutDialog, { title: $localize`:@@dock.commands.perspective.saveDialog:Save as perspective`, width: 420 }),
     },
-    { id: 'window.layout.manage', title: $localize`:@@dock.commands.layout.manage:Manage window layouts…`, category: CATEGORY, run: () => void this.dialogs.open(ManageLayoutsDialog, { title: $localize`:@@dock.commands.layout.dialogTitle:Window layouts`, width: 620 }) },
-    { id: 'window.layout.apply', title: $localize`:@@dock.commands.layout.apply:Apply window layout…`, category: CATEGORY, run: () => void this.dialogs.open(ManageLayoutsDialog, { title: $localize`:@@dock.commands.layout.dialogTitle:Window layouts`, width: 620 }) },
-    this.applyAt(1),
-    this.applyAt(2),
-    this.applyAt(3),
-    this.applyAt(4),
-    { id: 'window.layout.reset', title: $localize`:@@dock.commands.layout.reset:Reset window layout`, category: CATEGORY, run: () => this.dock.reset() },
+    { id: 'window.layout.manage', title: $localize`:@@dock.commands.perspective.manage:Manage perspectives…`, category: CATEGORY, run: () => void this.dialogs.open(ManageLayoutsDialog, { title: $localize`:@@dock.commands.perspective.dialogTitle:Perspectives`, width: 620 }) },
+    ...Array.from({ length: PERSPECTIVE_KEYS }, (_, i) => this.perspectiveAt(i + 1)),
+    { id: 'window.layout.reset', title: $localize`:@@dock.commands.perspective.reset:Reset perspective`, category: CATEGORY, run: () => this.perspectives.reset() },
   ];
 }

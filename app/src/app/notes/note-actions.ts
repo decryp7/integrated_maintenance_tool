@@ -16,7 +16,8 @@ export const NOTE_IMAGE_VIEW = 'note-image';
 
 /** Anchors for what the views offer notes on (the engine fills and checks them). */
 export const anchors = {
-  event: (r: RecordView): NoteAnchor => ({ kind: 'event', eventId: r.id, ts: r.ts, source: r.sourceName, excerpt: r.message.split('\n')[0] ?? '' }),
+  /** An event, from the grid's row or from a dragged event. */
+  event: (r: Pick<RecordView, 'id' | 'ts' | 'sourceName' | 'message'>): NoteAnchor => ({ kind: 'event', eventId: r.id, ts: r.ts, source: r.sourceName, excerpt: r.message.split('\n')[0] ?? '' }),
   instant: (at: number): NoteAnchor => ({ kind: 'instant', at: Math.round(at) }),
   range: (from: number, to: number): NoteAnchor => ({ kind: 'range', from: Math.round(Math.min(from, to)), to: Math.round(Math.max(from, to)) }),
   source: (path: string): NoteAnchor => ({ kind: 'source', path }),

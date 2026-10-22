@@ -60,7 +60,7 @@ test.describe('commands without another spec', () => {
   });
 
   test('Edit ▸ Find and the "Search events" command focus the search box', async ({ page }) => {
-    const search = page.getByRole('textbox', { name: 'Search messages and exceptions' });
+    const search = page.getByTestId('query-field');
     await page.locator('imt-events-grid [role=row].row').first().click();
     await expect(search).not.toBeFocused();
     await chooseMenu(page, 'Edit', 'Find');
@@ -89,7 +89,7 @@ test.describe('commands without another spec', () => {
     await expect(stripes.first()).toHaveAttribute('aria-label', /^File: /);
   });
 
-  test('Settings… and Manage parsers… open the settings dialog, the latter on Parsers', async ({ page }) => {
+  test('Settings… opens the settings dialog and Manage parsers… the Parsers view', async ({ page }) => {
     const dialog = page.getByRole('dialog', { name: 'Settings' });
     await runCommand(page, 'Open settings');
     await expect(dialog).toBeVisible();
@@ -98,8 +98,8 @@ test.describe('commands without another spec', () => {
     await expect(dialog).toHaveCount(0);
 
     await chooseMenu(page, 'Tools', 'Manage parsers…');
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole('heading', { name: 'Parsers' })).toBeVisible();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.locator('imt-parsers-view').getByRole('heading', { name: 'Parsers' })).toBeVisible();
   });
 
   test('Analyze ▸ Edit live alert rules… opens the rules editor and Escape closes it', async ({ page }) => {

@@ -24,6 +24,7 @@ export const LIVE_VIEWS: ImtView[] = [
     category: 'Live',
     icon: 'alert',
     defaultPosition: 'bottom',
+    area: 'analysis',
     component: () => import('./alerts-view').then((m) => m.AlertsView),
   },
   {
@@ -32,6 +33,7 @@ export const LIVE_VIEWS: ImtView[] = [
     category: 'Live',
     icon: 'refresh',
     defaultPosition: 'bottom',
+    area: 'analysis',
     component: () => import('./tail-status-view').then((m) => m.TailStatusView),
   },
 ];

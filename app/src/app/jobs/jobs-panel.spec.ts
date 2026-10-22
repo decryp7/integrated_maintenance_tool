@@ -223,24 +223,46 @@ describe('JobsPanel', () => {
     expect(all(f, '[data-testid=job-1] .icon-btn')).toHaveLength(0);
   });
 
-  it('filters by kind with pressed chips and combines kinds', async () => {
+  it('shows All, Running and Failed as a segmented control with counts, and a Kind filter with counts that combines kinds (K5)', async () => {
     const { f } = setup(sample());
     await render(f);
-    const chip = (k: string) => el<HTMLButtonElement>(f, `[data-testid=jobs-kind-${k}]`);
-    expect(all(f, '.chip').map((c) => c.textContent)).toEqual(['AI', 'Research', 'Analysis', 'Import', 'Export', 'Download', 'Collection', 'Capture', 'Maintenance']);
-    expect(chip('ai').getAttribute('aria-pressed')).toBe('false');
-    chip('export').click();
+    expect(all(f, '.chip')).toHaveLength(0);
+    const view = (v: string) => el<HTMLButtonElement>(f, `[data-testid=jobs-view-${v}]`);
+    expect(all(f, '[data-testid=jobs-view] button').map((b) => b.textContent?.replace(/\s+/g, ' ').trim())).toEqual(['All 5', 'Running 3', 'Failed 1']);
+    expect(view('all').getAttribute('aria-pressed')).toBe('true');
+    view('failed').click();
     f.detectChanges();
-    expect(chip('export').getAttribute('aria-pressed')).toBe('true');
+    expect(view('failed').getAttribute('aria-pressed')).toBe('true');
     expect(all(f, '[data-testid^=job-state-]')).toHaveLength(1);
-    chip('import').click();
+    view('running').click();
+    f.detectChanges();
+    expect(all(f, '[data-testid^=job-state-]')).toHaveLength(3);
+    view('all').click();
+    f.detectChanges();
+
+    el<HTMLButtonElement>(f, '[data-testid=kind-filter]').click();
+    f.detectChanges();
+    const kind = (k: string) => el<HTMLInputElement>(f, `[data-testid=kind-${k}]`);
+    expect(el(f, '[data-testid=kind-filter-list] label:first-of-type').textContent?.replace(/\s+/g, ' ').trim()).toBe('AI3');
+    expect(kind('ai').checked).toBe(false);
+    kind('export').click();
+    f.detectChanges();
+    expect(kind('export').checked).toBe(true);
+    expect(el(f, '[data-testid=kind-filter]').textContent).toContain('Kind: 1');
+    expect(all(f, '[data-testid^=job-state-]')).toHaveLength(1);
+    kind('import').click();
     f.detectChanges();
     expect(all(f, '[data-testid^=job-state-]')).toHaveLength(2);
-    chip('export').click();
-    chip('import').click();
+    // The counts of the views follow the kind filter.
+    expect(view('failed').textContent).toContain('1');
+    el<HTMLButtonElement>(f, '[data-testid=kind-filter-clear]').click();
     f.detectChanges();
     expect(all(f, '[data-testid^=job-state-]')).toHaveLength(5);
-    expect(chip('import').getAttribute('aria-pressed')).toBe('false');
+    expect(kind('import').checked).toBe(false);
+    // Escape closes the list.
+    el<HTMLElement>(f, '[data-testid=kind-filter-list]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('[data-testid=kind-filter-list]')).toBeNull();
   });
 
   it('clears finished jobs', async () => {

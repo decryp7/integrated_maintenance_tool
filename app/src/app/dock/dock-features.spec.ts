@@ -52,7 +52,7 @@ describe('DockService VS-style features', () => {
     document.body.appendChild(container);
     const dock = TestBed.inject(DockService);
     dock.attach(container);
-    // The feature tests start from the fuller arrangement: the inspector docked, metrics tabbed with the timeline.
+    // The feature tests start from the fuller arrangement: the inspector docked, metrics beside the timeline.
     if (!stored) {
       dock.pin(PANEL.inspector);
       dock.show(PANEL.metrics, { inactive: true });
@@ -114,14 +114,16 @@ describe('DockService VS-style features', () => {
 
   it('pins a tab to the left of its strip; "close all documents" and "close others" keep it', () => {
     const dock = setup();
-    // The profile editor is not in the default layout: opened as a document next to the timeline.
+    // The profile editor is not in the default layout: opened as a document in the group beside the timeline.
     dock.show('profile', { inactive: true });
+    expect(api(dock).getPanel('profile')!.group).toBe(api(dock).getPanel('metrics')!.group);
     dock.runPanelAction('profile', 'pinTab');
-    expect(at(api(dock).getPanel('timeline')!.group.panels, 0).id).toBe('profile');
+    expect(at(api(dock).getPanel('profile')!.group.panels, 0).id).toBe('profile');
     expect(container.querySelector('.imt-tab[data-panel-id="profile"]')!.classList.contains('pinned')).toBe(true);
     dock.runPanelAction('metrics', 'closeOthers');
+    // Only the tabs of metrics' own group close, and the pinned one stays; the timeline is another group.
     expect(dock.isOpen('profile')).toBe(true);
-    expect(dock.isOpen('timeline')).toBe(false);
+    expect(dock.isOpen('timeline')).toBe(true);
     dock.closeAllDocuments();
     expect([...dock.openIds()].sort()).toEqual(['inspector', 'profile']);
     dock.runPanelAction('profile', 'unpinTab');
@@ -131,18 +133,27 @@ describe('DockService VS-style features', () => {
   it('runs the panel menu actions: close to the right, float, dock, new groups, move to next group, dock as document, pop out', () => {
     const dock = setup();
     const groups = () => api(dock).groups.filter((g) => g.api.location.type === 'grid').length;
+    dock.show('profile', { inactive: true });
+    dock.runPanelAction('metrics', 'closeRight');
+    expect(dock.isOpen('profile')).toBe(false);
+    expect(dock.isOpen('metrics')).toBe(true);
     dock.runPanelAction('timeline', 'closeRight');
-    expect(dock.isOpen('metrics') || dock.isOpen('profile')).toBe(false);
+    expect(dock.isOpen('timeline')).toBe(true);
+    dock.close('metrics');
     dock.show('metrics');
     dock.runPanelAction('metrics', 'float');
     expect(api(dock).getPanel('metrics')!.group.api.location.type).toBe('floating');
     dock.runPanelAction('metrics', 'dock');
     expect(api(dock).getPanel('metrics')!.group.api.location.type).toBe('grid');
+    // A group needs a second tab for the panel to be split off it.
+    dock.show('profile', { inactive: true });
     const before = groups();
     dock.runPanelAction('metrics', 'newVerticalGroup');
     expect(groups()).toBe(before + 1);
     dock.runPanelAction('metrics', 'moveToNextGroup');
     dock.show('profile');
+    // Splitting a panel off needs another tab in its group.
+    api(dock).getPanel('metrics')!.api.moveTo({ group: api(dock).getPanel('profile')!.group, position: 'center' });
     dock.runPanelAction('profile', 'newHorizontalGroup');
     dock.runPanelAction('inspector', 'dockAsDocument');
     expect(api(dock).getPanel('inspector')!.group.panels.some((p) => dock.kindOf(p.id) === 'document')).toBe(true);
@@ -321,11 +332,14 @@ describe('DockService VS-style features', () => {
 
   it('captures a slot and puts a panel back there', () => {
     const dock = setup();
+    // Metrics is alone in its group beside the timeline: its slot is against that neighbour, not a tab.
+    expect(dock.captureSlot('metrics')?.direction).not.toBe(undefined);
+    dock.show('profile', { inactive: true });
     const slot = dock.captureSlot('metrics')!;
-    expect(slot).toMatchObject({ direction: 'within' });
+    expect(slot).toMatchObject({ referencePanel: 'profile', direction: 'within' });
     dock.takeOut('metrics');
     dock.restoreSlot('metrics', slot);
-    expect(api(dock).getPanel('metrics')!.group).toBe(api(dock).getPanel('timeline')!.group);
+    expect(api(dock).getPanel('metrics')!.group).toBe(api(dock).getPanel('profile')!.group);
     // Alone in its group: placed against a neighbour, or by default when there is none.
     expect(dock.captureSlot('inspector')).not.toBeNull();
     dock.takeOut('inspector');
@@ -415,9 +429,9 @@ describe('DockService VS-style features', () => {
     const dock = setup();
     const shown: string[] = [];
     dock.setRemote((id) => shown.push(id));
-    dock.show('overview');
+    dock.show('home');
     dock.setRemote(null);
-    expect(shown).toEqual(['overview']);
+    expect(shown).toEqual(['home']);
   });
 });
 

@@ -11,6 +11,7 @@ export function storePaneViews(): ImtView[] {
       icon: 'metrics',
       category: 'core',
       defaultPosition: 'bottom',
+      area: 'status',
       component: () => import('./store-pane').then((m) => m.StorePane),
     },
   ];

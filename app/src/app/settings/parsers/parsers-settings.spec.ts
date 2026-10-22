@@ -135,12 +135,13 @@ describe('ParsersSettings', () => {
     expect(text(fixture)).not.toContain('engine gone');
   });
 
-  it('is a section of the Settings screen', async () => {
+  it('is a section of the Settings screen, as a link to the Parsers view', async () => {
     await setup();
     TestBed.inject(EngineSettingsStore).select(PARSERS_ID);
     const screen = TestBed.createComponent(SettingsScreen);
     await settle(screen);
     expect(el(screen, '[data-testid=settings-nav-parsers]').getAttribute('aria-current')).toBe('page');
-    expect(all(screen, 'imt-parsers-settings')).toHaveLength(1);
+    expect(all(screen, 'imt-parsers-settings')).toHaveLength(0);
+    expect(all(screen, '[data-testid=settings-open-parsers-view]')).toHaveLength(1);
   });
 });

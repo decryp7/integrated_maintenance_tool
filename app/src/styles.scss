@@ -47,6 +47,11 @@
   }
 }
 
+/* While the shell captures the window for an error snapshot (ADR 0034), toasts stay out of the picture. */
+html[data-snapshot-capturing] [data-snapshot-ignore] {
+  visibility: hidden !important;
+}
+
 /* Trait: tabular figures where the theme asks for them (counts and times line up). */
 :root[data-numerals='tabular'] {
   font-variant-numeric: tabular-nums;
@@ -507,6 +512,11 @@ textarea.input {
   color: var(--text);
 }
 .imt-panel-error { padding: 16px; color: var(--muted); }
+/* Narrow panels (< 420 px, set by the panel renderer): secondary columns and long descriptions drop out (their text is
+   in a tooltip), action rows wrap, and wide tables scroll inside the panel instead of being clipped. */
+.imt-panel[data-narrow] .narrow-hide { display: none; }
+.imt-panel[data-narrow] .narrow-wrap { flex-wrap: wrap; white-space: normal; }
+.imt-panel[data-narrow] table.narrow-scroll { display: block; overflow-x: auto; }
 
 .imt-dock-actions { display: flex; align-items: center; gap: 2px; padding: 0 6px; height: 100%; }
 /* dockview's "N hidden tabs" chip: a 24 px target like the header buttons. */

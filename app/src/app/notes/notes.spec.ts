@@ -396,6 +396,52 @@ describe('NotesPanel', () => {
   });
 });
 
+describe('NotesPanel drop (drag and drop between views)', () => {
+  /** A drag event with a DataTransfer-like object (jsdom has no DataTransfer). */
+  function dragEvent(type: string, data: Record<string, string>): DragEvent {
+    const e = new Event(type, { bubbles: true, cancelable: true }) as DragEvent;
+    const store = new Map(Object.entries(data));
+    Object.defineProperty(e, 'dataTransfer', { value: { types: [...store.keys()], getData: (t: string) => store.get(t) ?? '', dropEffect: 'none' } });
+    return e;
+  }
+  const payload = JSON.stringify({ id: 9, ts: 5_000, source: 'app.log', excerpt: 'boom' });
+
+  it('accepts a dragged event, marks the panel, and writes a note on it when dropped', async () => {
+    provide();
+    const f = TestBed.createComponent(NotesPanel);
+    await settle(f);
+    const host = f.nativeElement as HTMLElement;
+    const over = dragEvent('dragover', { 'application/x-imt-event': payload });
+    host.dispatchEvent(over);
+    expect(over.defaultPrevented).toBe(true);
+    await settle(f);
+    expect(host.classList.contains('drop-target')).toBe(true);
+    host.dispatchEvent(new Event('dragleave'));
+    await settle(f);
+    expect(host.classList.contains('drop-target')).toBe(false);
+    const drop = dragEvent('drop', { 'application/x-imt-event': payload });
+    host.dispatchEvent(drop);
+    expect(drop.defaultPrevented).toBe(true);
+    const dialog = TestBed.inject(DialogService).stack().at(-1);
+    expect(dialog?.options.title).toBe('Add a note');
+    expect(dialog?.options.inputs).toEqual({ anchor: { kind: 'event', eventId: 9, ts: 5_000, source: 'app.log', excerpt: 'boom' } });
+  });
+
+  it('ignores other drags and malformed drops', async () => {
+    provide();
+    const f = TestBed.createComponent(NotesPanel);
+    await settle(f);
+    const host = f.nativeElement as HTMLElement;
+    const over = dragEvent('dragover', { 'text/plain': 'hi' });
+    host.dispatchEvent(over);
+    expect(over.defaultPrevented).toBe(false);
+    const drop = dragEvent('drop', { 'application/x-imt-event': '{"id":"x"}' });
+    host.dispatchEvent(drop);
+    expect(drop.defaultPrevented).toBe(false);
+    expect(TestBed.inject(DialogService).stack()).toHaveLength(0);
+  });
+});
+
 describe('notes contributions', () => {
   it('registers views, commands, the record menu and the inspector section', async () => {
     const { context } = provide();

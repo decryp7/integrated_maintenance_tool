@@ -19,7 +19,7 @@ interface DataState {
   appendVersion: number;
   /** Bumped whenever the profile is saved and applied. */
   profileVersion: number;
-  /** Bumped after files or folders were opened successfully (the overview opens after an import). */
+  /** Bumped after files or folders were opened successfully (Home opens after an import). */
   importVersion: number;
 }
 

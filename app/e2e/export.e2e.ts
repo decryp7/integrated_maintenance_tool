@@ -30,7 +30,7 @@ test('export dialog counts events, exports through the backend and reports it', 
 test('export dialog counts only what matches the current filter and closes with Escape', async ({ page }) => {
   await openApp(page);
   const total = parseCount(await initialTotal(page));
-  await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('timeout');
+  await page.getByTestId('query-field').fill('timeout');
   // The narrowed total itself, read once it has settled (not a transient "different" value).
   let filtered = 0;
   await expect.poll(async () => {

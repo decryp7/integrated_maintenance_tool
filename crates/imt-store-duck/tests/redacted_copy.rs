@@ -1,4 +1,4 @@
-//! The redacted project copy (ADR 0039): the produced `.imtz` is searched, byte for byte and entry by entry, for the
+//! The redacted project copy (ADR 0041): the produced `.imtz` is searched, byte for byte and entry by entry, for the
 //! invented secrets that were in the logs; the copy still opens and holds the redacted events; sources that cannot be
 //! redacted are left out and listed; a store without rules or with nothing copyable refuses with what to do.
 

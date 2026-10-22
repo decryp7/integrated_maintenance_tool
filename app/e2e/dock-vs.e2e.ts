@@ -5,7 +5,7 @@ import { runCommand } from './analysis-support';
 import { showProfileEditor } from './menu-support';
 
 // Visual Studio-style docking: drop guides, auto hide, the panel menu, pinned tabs, the Ctrl+Tab navigator and
-// named window layouts.
+// named perspectives.
 
 const tab = (page: Page, name: string) => page.getByRole('tab', { name, exact: true });
 const groups = (page: Page) => page.locator('.dv-groupview');
@@ -41,9 +41,8 @@ async function panelMenu(page: Page, name: string) {
 test.describe('VS-style docking', () => {
   // These start from the fuller arrangement (the inspector docked, Metrics tabbed with the timeline) that the
   // minimal default no longer opens.
-  // The docking mechanics are checked on the Full layout (timeline, query bar and events in three groups).
+  // The docking mechanics are checked on the default arrangement (timeline and the registry beside it over the events).
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('imt.layout.mode.v1', 'full'));
     await openApp(page);
     await ensureInspector(page);
     await openView(page, 'metrics');
@@ -129,12 +128,12 @@ test.describe('VS-style docking', () => {
     await expect(tab(page, 'Inspector')).toBeVisible();
     await expect(groups(page)).toHaveCount(4);
     await expect(page.locator('imt-inspector')).toBeVisible();
-    // Back to the right of the events grid once the dock layout has settled.
+    // Back at the right edge of the window, beside the groups it was beside, once the dock layout has settled.
     await expect
       .poll(async () => {
         const inspector = await box(page, 'imt-inspector');
-        const events = await box(page, 'imt-events-grid');
-        return inspector.x - (events.x + events.width);
+        const timeline = await box(page, 'imt-timeline-panel');
+        return inspector.x - (timeline.x + timeline.width);
       })
       .toBeGreaterThanOrEqual(-2);
   });
@@ -168,9 +167,9 @@ test.describe('VS-style docking', () => {
   test('a pinned tab stays left and survives "Close all documents"', async ({ page }) => {
     await showProfileEditor(page);
     await (await panelMenu(page, 'Profile')).getByRole('menuitem', { name: 'Pin tab' }).click();
-    const tabs = groupOf(page, 'Timeline').getByRole('tab');
+    const tabs = groupOf(page, 'Profile').getByRole('tab');
     await expect(tabs.first()).toHaveAccessibleName('Profile');
-    await expect(groupOf(page, 'Timeline').locator('.imt-tab.pinned')).toHaveCount(1);
+    await expect(groupOf(page, 'Profile').locator('.imt-tab.pinned')).toHaveCount(1);
     await (await panelMenu(page, 'Timeline')).getByRole('menuitem', { name: 'Close all documents' }).click();
     await expect(tab(page, 'Profile')).toBeVisible();
     for (const name of ['Timeline', 'Metrics', 'Events']) await expect(tab(page, name)).toHaveCount(0);
@@ -193,9 +192,9 @@ test.describe('VS-style docking', () => {
     await expect(tab(page, second)).toHaveAttribute('aria-selected', 'true');
   });
 
-  test('a named window layout is saved and applied with Ctrl+Alt+1', async ({ page }) => {
-    await runCommand(page, 'Save window layout…');
-    const name = page.getByRole('textbox', { name: 'Layout name' });
+  test('a saved perspective is rebuilt by Reset perspective', async ({ page }) => {
+    await runCommand(page, 'Save current as perspective…');
+    const name = page.getByRole('textbox', { name: 'Perspective name' });
     await name.fill('Triage');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(name).toHaveCount(0);
@@ -204,21 +203,22 @@ test.describe('VS-style docking', () => {
     await groupOf(page, 'Inspector').getByRole('button', { name: 'Panel menu', exact: true }).click();
     await page.getByRole('menu', { name: 'Actions' }).getByRole('menuitem', { name: 'Auto hide', exact: true }).click();
     await expect(tab(page, 'Metrics')).toHaveCount(0);
-    await page.keyboard.press('Control+Alt+1');
+    // Triage is the active perspective; resetting it rebuilds the arrangement that was saved.
+    await runCommand(page, 'Reset perspective');
     await expect(tab(page, 'Metrics')).toBeVisible();
     await expect(tab(page, 'Inspector')).toBeVisible();
     await expect(page.getByRole('navigation', { name: /Auto-hidden tool windows/ })).toHaveCount(0);
     // Saved app-wide, separately from the project.
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('imt.windowLayouts') ?? 'null')?.layouts?.[0]?.name)).toBe('Triage');
-    await runCommand(page, 'Manage window layouts…');
-    await expect(page.getByRole('list', { name: 'Saved window layouts' })).toContainText('Triage');
+    await runCommand(page, 'Manage perspectives…');
+    await expect(page.getByRole('list', { name: 'Perspectives' })).toContainText('Triage');
     await expectNoSeriousViolations(page, test.info(), 'manage-layouts');
   });
 
-  test('Reset window layout restores the minimal default arrangement', async ({ page }) => {
+  test('Reset perspective restores the minimal default arrangement', async ({ page }) => {
     await (await panelMenu(page, 'Metrics')).getByRole('menuitem', { name: 'Pin tab' }).click();
-    await runCommand(page, 'Reset window layout');
-    // Timeline, query bar and events; the inspector auto-hidden on the right; Metrics closed.
+    await runCommand(page, 'Reset perspective');
+    // Timeline, registry and events; the inspector auto-hidden on the right; Metrics closed.
     await expect(tab(page, 'Inspector')).toHaveCount(0);
     await expect(page.getByRole('navigation', { name: 'Auto-hidden tool windows (right)' }).getByRole('button', { name: 'Inspector' })).toBeVisible();
     await expect(tab(page, 'Metrics')).toHaveCount(0);
@@ -244,6 +244,6 @@ test.describe('VS-style docking', () => {
       .toMatchObject({ autoHidden: [{ id: 'inspector', side: 'right' }], pinnedTabs: ['metrics'] });
     await page.reload();
     await expect(page.getByRole('navigation', { name: 'Auto-hidden tool windows (right)' }).getByRole('button', { name: 'Inspector' })).toBeVisible();
-    await expect(groupOf(page, 'Timeline').locator('.imt-tab.pinned')).toHaveCount(1);
+    await expect(groupOf(page, 'Metrics').locator('.imt-tab.pinned')).toHaveCount(1);
   });
 });

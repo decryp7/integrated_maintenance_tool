@@ -1,4 +1,4 @@
-import { ErrorHandler, Injector, runInInjectionContext } from '@angular/core';
+import { Component, ErrorHandler, Injector, runInInjectionContext, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Logger, LoggingErrorHandler } from '../core/logger';
 import { MemoryLogger, provideTinyBackendBare } from '../../testing/helpers';
@@ -10,25 +10,40 @@ import { ErrorSnapshotService, SNAPSHOT_CLOCK } from './error-snapshot.service';
 import { mockJobs } from '../jobs/mock-jobs';
 import { MockSnapshotBackend } from './mock/mock-snapshot-backend';
 import { createSnapshotBackend, provideDiagnostics } from './provide-diagnostics';
-import { capturedStyleProperties, encodeWithin, MAX_BYTES, ScreenCapture, scaleFor } from './screen-capture';
 import { SnapshotBackend, TauriSnapshotBackend } from './snapshot-backend';
 import { SnapshotErrorHandler } from './snapshot-error-handler';
 import { SnapshotGate } from './snapshot-gate';
-import { CapturedImage } from './snapshot.types';
-import { SnapshotContext } from '../core/api.types';
+import { CapturedImage, CAPTURING_ATTRIBUTE, NO_SCREENSHOT_IMAGE } from './snapshot.types';
+import { SnapshotContext, WindowCapture } from '../core/api.types';
 import { FailureReporter } from '../core/failure-reporter';
 import { at } from '../../testing/must';
 
 const IMAGE: CapturedImage = { base64: 'iVBORw0KGgo=', mime: 'image/png', bytes: 8 };
 
-class FakeScreen extends ScreenCapture {
+const CAPTURED: WindowCapture = { status: 'captured', image: IMAGE.base64, mime: 'image/png', bytes: IMAGE.bytes };
+
+/** Stands in for the shell's native capture (`capture_window_image`) on a backend. */
+class FakeScreen {
   calls = 0;
   fail: Error | null = null;
-  async capture() {
-    this.calls++;
-    if (this.fail) throw this.fail;
-    return IMAGE;
+  capture: () => Promise<WindowCapture> = async () => CAPTURED;
+  /** The `userRequested` argument of each call. */
+  asked: (boolean | undefined)[] = [];
+  install(backend: SnapshotBackend): this {
+    backend.captureWindow = async (userRequested) => {
+      this.calls++;
+      this.asked.push(userRequested);
+      if (this.fail) throw this.fail;
+      return this.capture();
+    };
+    return this;
   }
+}
+
+/** A component that must keep reacting while a capture is pending. */
+@Component({ selector: 'imt-capture-probe', template: '<button type="button" (click)="clicks.set(clicks() + 1)">{{ clicks() }}</button>' })
+class CaptureProbe {
+  readonly clicks = signal(0);
 }
 
 describe('SnapshotGate', () => {
@@ -70,84 +85,6 @@ describe('error classification', () => {
   });
 });
 
-describe('encodeWithin / scaleFor', () => {
-  const url = (mime: string, bytes: number) => `data:${mime};base64,${'A'.repeat(Math.ceil((bytes * 4) / 3))}`;
-
-  it('keeps a PNG that fits and falls back to JPEG at quality 0.8 when it does not', () => {
-    const calls: [string, number | undefined][] = [];
-    const canvas = (pngBytes: number) => ({
-      toDataURL: (type?: string, q?: number) => {
-        calls.push([type ?? '', q]);
-        return type === 'image/jpeg' ? url('image/jpeg', 1000) : url('image/png', pngBytes);
-      },
-    });
-    expect(encodeWithin(canvas(MAX_BYTES - 10)).mime).toBe('image/png');
-    expect(calls).toEqual([['image/png', undefined]]);
-    calls.length = 0;
-    const big = encodeWithin(canvas(MAX_BYTES + 3000));
-    expect(big.mime).toBe('image/jpeg');
-    expect(calls).toEqual([
-      ['image/png', undefined],
-      ['image/jpeg', 0.8],
-    ]);
-    expect(big.bytes).toBeLessThan(MAX_BYTES);
-  });
-
-  it('counts base64 padding and rejects an unusable encoding', () => {
-    expect(encodeWithin({ toDataURL: () => 'data:image/png;base64,QQ==' }).bytes).toBe(1);
-    expect(() => encodeWithin({ toDataURL: () => 'data:,' })).toThrow(/encode/);
-  });
-
-  it('scales down to 1600 px wide and never up', () => {
-    expect(scaleFor(3200)).toBe(0.5);
-    expect(scaleFor(1440)).toBe(1);
-  });
-});
-
-describe('DomScreenCapture', () => {
-  it('draws the body with html-to-image without fonts, skipping elements marked to ignore', async () => {
-    const toCanvas = vi.fn(async (_n: unknown, _o: { filter: (n: Node) => boolean; skipFonts: boolean; pixelRatio: number }) => ({
-      toDataURL: () => 'data:image/png;base64,QUJD',
-    }));
-    vi.doMock('html-to-image', () => ({ toCanvas }));
-    vi.resetModules();
-    const { DomScreenCapture } = await import('./screen-capture');
-    const image = await new DomScreenCapture().capture();
-    expect(image).toEqual({ mime: 'image/png', base64: 'QUJD', bytes: 3 });
-    const options = at(toCanvas.mock.calls, 0)[1];
-    expect(at(toCanvas.mock.calls, 0)[0]).toBe(document.body);
-    expect(options.skipFonts).toBe(true);
-    const toast = document.createElement('div');
-    toast.setAttribute('data-snapshot-ignore', '');
-    expect(options.filter(toast)).toBe(false);
-    expect(options.filter(document.createElement('div'))).toBe(true);
-    expect(options.filter(document.createTextNode('x'))).toBe(true);
-    vi.doUnmock('html-to-image');
-  });
-
-  // Regression: Angular Material's theme puts ~165 --mat-sys-* tokens on :root. html-to-image copies every
-  // property of the root's computed style onto every cloned node, which made a capture ~80% slower (several
-  // seconds), so the toast came too late. Computed values already resolve var(), so the clone does not need them.
-  it('copies standard and IMT properties but not Angular Material theme tokens', async () => {
-    const toCanvas = vi.fn(async (_n: unknown, _o: { includeStyleProperties?: string[] }) => ({ toDataURL: () => 'data:image/png;base64,QUJD' }));
-    vi.doMock('html-to-image', () => ({ toCanvas }));
-    vi.resetModules();
-    document.documentElement.style.setProperty('--mat-sys-primary', 'red');
-    document.documentElement.style.setProperty('--accent', 'blue');
-    const { DomScreenCapture } = await import('./screen-capture');
-    await new DomScreenCapture().capture();
-    const props = at(toCanvas.mock.calls, 0)[1].includeStyleProperties ?? [];
-    expect(props.some((p) => p.startsWith('--mat-'))).toBe(false);
-    document.documentElement.style.removeProperty('--mat-sys-primary');
-    document.documentElement.style.removeProperty('--accent');
-    vi.doUnmock('html-to-image');
-  });
-
-  it('keeps every computed property except Material tokens', () => {
-    expect(capturedStyleProperties(['color', '--accent', '--mat-sys-primary', 'stroke', '--mat-slide-toggle-x'])).toEqual(['color', '--accent', 'stroke']);
-  });
-});
-
 describe('ErrorSnapshotService', () => {
   let now = 0;
   let frames = 0;
@@ -160,12 +97,11 @@ describe('ErrorSnapshotService', () => {
     now = 1_000_000;
     frames = 0;
     backend = new MockSnapshotBackend();
-    screen = new FakeScreen();
+    screen = new FakeScreen().install(backend);
     logger = new MemoryLogger();
     TestBed.configureTestingModule({
       providers: [
         { provide: SnapshotBackend, useValue: backend },
-        { provide: ScreenCapture, useValue: screen },
         { provide: Logger, useValue: logger },
         { provide: SNAPSHOT_CLOCK, useValue: { now: () => now, nextFrame: async () => void frames++ } },
       ],
@@ -216,7 +152,7 @@ describe('ErrorSnapshotService', () => {
 
   it('never captures twice at once, so an error raised while capturing cannot recurse', async () => {
     let release!: () => void;
-    screen.capture = () => new Promise((r) => (release = () => r(IMAGE)));
+    screen.capture = () => new Promise((r) => (release = () => r(CAPTURED)));
     const first = service.capture('unhandled-error');
     await Promise.resolve();
     service.unhandled(new Error('raised while capturing'));
@@ -227,9 +163,57 @@ describe('ErrorSnapshotService', () => {
     expect((await backend.list()).length).toBe(1);
   });
 
+  // Regression: html-to-image rasterised the whole DOM in the page and froze the window for 3–8 s. The picture is
+  // now the shell's native capture: the page only awaits a promise, and draws nothing itself.
+  it('asks the shell for a native picture and keeps the UI responsive while it is pending', async () => {
+    let deliver!: (c: WindowCapture) => void;
+    screen.capture = () => new Promise((r) => (deliver = r));
+    const rasterising = [
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext'),
+      vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL'),
+      vi.spyOn(XMLSerializer.prototype, 'serializeToString'),
+      vi.spyOn(document.body, 'cloneNode'),
+      vi.spyOn(document.documentElement, 'cloneNode'),
+    ];
+    const fixture = TestBed.createComponent(CaptureProbe);
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    const started = performance.now();
+    const pending = service.capture('manual');
+    expect(performance.now() - started).toBeLessThan(50);
+    await vi.waitFor(() => expect(screen.calls).toBe(1));
+    // The capture is in flight: toasts are hidden for the picture, and the page still handles input and renders.
+    expect(document.documentElement.hasAttribute(CAPTURING_ATTRIBUTE)).toBe(true);
+    button.click();
+    button.click();
+    fixture.detectChanges();
+    expect(button.textContent).toBe('2');
+    const timer = await new Promise<string>((r) => setTimeout(() => r('ran'), 0));
+    expect(timer).toBe('ran');
+    expect(service.toast()).toBeNull();
+    deliver(CAPTURED);
+    expect(await pending).not.toBeNull();
+    expect(document.documentElement.hasAttribute(CAPTURING_ATTRIBUTE)).toBe(false);
+    expect(at(await backend.list(), 0)).toMatchObject({ mime: 'image/png', bytes: IMAGE.bytes });
+    for (const spy of rasterising) expect(spy).not.toHaveBeenCalled();
+    for (const spy of rasterising) spy.mockRestore();
+  });
+
+  it('saves the snapshot with a blank picture and a note when the window cannot be captured', async () => {
+    screen.capture = async () => ({ status: 'unavailable', reason: 'screenshots are not available on this platform' });
+    expect(await service.capture('panel-failed', { message: 'Panel "Timeline" failed: x' })).not.toBeNull();
+    const saved = at(await backend.list(), 0);
+    expect(saved.message).toBe('Panel "Timeline" failed: x\nNo screenshot: screenshots are not available on this platform.');
+    expect([saved.mime, saved.bytes]).toEqual([NO_SCREENSHOT_IMAGE.mime, NO_SCREENSHOT_IMAGE.bytes]);
+    expect(await backend.image(saved.id)).toBe(`data:image/png;base64,${NO_SCREENSHOT_IMAGE.base64}`);
+    expect(logger.entries.some((e) => e.level === 'info' && e.message === 'No screenshot for the error snapshot')).toBe(true);
+    expect(service.toast()).toMatchObject({ kind: 'captured' });
+  });
+
   it('logs a failed capture and does not throw, even from the error handler path', async () => {
     screen.fail = new Error('canvas tainted at /tmp/x');
     await expect(service.capture('unhandled-error')).resolves.toBeNull();
+    expect(document.documentElement.hasAttribute(CAPTURING_ATTRIBUTE)).toBe(false);
     expect(logger.entries.at(-1)).toMatchObject({ level: 'warn', category: 'ui.snapshot', message: 'Could not capture an error snapshot' });
     expect(logger.entries.at(-1)?.props?.['Error']).toBe('canvas tainted at <path>');
     expect(service.toast()).toBeNull();
@@ -370,6 +354,8 @@ describe('backends', () => {
     });
     const b = new TauriSnapshotBackend(invoke as never, listen);
     const ctx: SnapshotContext = { reason: 'manual', message: 'm', manual: true };
+    await b.captureWindow();
+    await b.captureWindow(true);
     await b.save(IMAGE, ctx);
     await b.list();
     await b.image('a');
@@ -378,6 +364,8 @@ describe('backends', () => {
     await b.exportDiagnostics('/x.zip', ['a']);
     expect(await b.automaticEnabled()).toBe(false);
     expect(invoke.mock.calls).toEqual([
+      ['capture_window_image', { userRequested: false }],
+      ['capture_window_image', { userRequested: true }],
       ['save_error_snapshot', { image: IMAGE.base64, mime: 'image/png', context: ctx }],
       ['list_error_snapshots'],
       ['read_error_snapshot', { id: 'a' }],
@@ -401,6 +389,13 @@ describe('backends', () => {
     } finally {
       window.history.replaceState(null, '', url);
     }
+  });
+
+  it('the mock backend "captures" a small placeholder PNG at once', async () => {
+    const shot = await new MockSnapshotBackend().captureWindow();
+    if (shot.status !== 'captured') throw new Error('the mock always captures');
+    const bytes = atob(shot.image);
+    expect([shot.mime, bytes.slice(1, 4), bytes.length]).toEqual(['image/png', 'PNG', shot.bytes]);
   });
 
   it('the mock backend stores, lists newest first, serves images and removes', async () => {

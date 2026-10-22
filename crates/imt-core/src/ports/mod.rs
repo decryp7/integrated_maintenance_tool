@@ -328,7 +328,7 @@ pub trait Redaction: Send + Sync {
         &self,
         _req: &crate::redact::copy::RedactedExportRequest,
     ) -> StoreResult<crate::redact::copy::RedactedExport> {
-        Err(StoreError::unsupported("the redacted project copy", "ADR 0039"))
+        Err(StoreError::unsupported("the redacted project copy", "ADR 0041"))
     }
     fn redaction_summary(&self, _req: &crate::redact::RedactionSummaryRequest) -> StoreResult<crate::redact::RedactionSummary> {
         Err(StoreError::unsupported("the redaction summary", "ADR 0014 6c"))

@@ -1,4 +1,4 @@
-import { buildMenus, menuItems, MenuNode, MenuState, MenuView, tidy, TopMenu, topLevelSize } from './menu-model';
+import { buildMenus, menuItems, recentLabel, RECENT_MENU_FILES, RECENT_MENU_PROJECTS, MenuNode, MenuState, MenuView, tidy, TopMenu, topLevelSize } from './menu-model';
 import { at } from '../../../testing/must';
 
 const COMMANDS: [string, string, string?][] = [
@@ -27,9 +27,11 @@ const COMMANDS: [string, string, string?][] = [
   ['palette.open', 'Show all commands', 'Mod+K'],
   ['view.toggleSidebar', 'Toggle sidebar', 'Mod+B'],
   ['view.resetLayout', 'Reset layout'],
+  ['view.theme.system', 'Theme: Follow system'],
   ['view.theme.calm', 'Theme: Calm'],
   ['view.theme.console', 'Theme: Console'],
   ['view.theme.precision', 'Theme: Precision'],
+  ['view.theme.contrast', 'Theme: High contrast'],
   ['view.scheme.system', 'Colour scheme: system'],
   ['view.scheme.dark', 'Colour scheme: dark'],
   ['view.scheme.light', 'Colour scheme: light'],
@@ -41,6 +43,8 @@ const COMMANDS: [string, string, string?][] = [
   ['analyze.fit', 'Fit time range'],
   ['analyze.back', 'Previous time range'],
   ['analyze.forward', 'Next time range'],
+  ['nav.back', 'Go back', 'Alt+Left'],
+  ['nav.forward', 'Go forward', 'Alt+Right'],
   ['analyze.utc', 'Time in UTC'],
   ['analyze.local', 'Time in local zone'],
   ['analyze.toggleUtc', 'Toggle UTC / local time'],
@@ -60,12 +64,11 @@ const COMMANDS: [string, string, string?][] = [
   ['diagnostics.capture', 'Capture diagnostic screenshot', 'Mod+Shift+F12'],
   ['parsers.manage', 'Manage parsers…'],
   ['app.restartSafeMode', 'Restart in safe mode'],
-  ['window.layout.save', 'Save window layout…'],
-  ['window.layout.apply', 'Apply window layout…'],
-  ['window.layout.apply1', 'Apply window layout 1', 'Ctrl+Alt+1'],
-  ['window.layout.apply3', 'Apply window layout 3', 'Ctrl+Alt+3'],
-  ['window.layout.manage', 'Manage window layouts…'],
-  ['window.layout.reset', 'Reset window layout'],
+  ['window.layout.save', 'Save current as perspective…'],
+  ['window.perspective.1', 'Perspective: Investigate', 'Mod+1'],
+  ['window.perspective.3', 'Perspective: Live', 'Mod+3'],
+  ['window.layout.manage', 'Manage perspectives…'],
+  ['window.layout.reset', 'Reset perspective'],
   ['window.autoHideAll', 'Auto hide all tool windows'],
   ['window.pinAll', 'Pin all tool windows'],
   ['window.closeAllDocuments', 'Close all documents'],
@@ -78,6 +81,7 @@ const COMMANDS: [string, string, string?][] = [
   ['help.demo', 'Try the demo'],
   ['help.tour', 'Take the tour'],
   ['help.shortcuts', 'Keyboard shortcuts', 'F1'],
+  ['help.whatsNew', "What's new"],
   ['help.notices', 'Third-party notices'],
   ['help.about', 'About IMT'],
 ];
@@ -91,7 +95,7 @@ const VIEWS: MenuView[] = [
   view('metrics', 'Metrics', 'core'),
   view('profile', 'Profile', 'core'),
   view('query', 'Query', 'core', { open: true }),
-  view('overview', 'Overview', 'core'),
+  view('home', 'Home', 'core'),
   view('plugins', 'Plugins', 'Plugins'),
   view('markers', 'Markers', 'Analysis'),
   ...(
@@ -164,7 +168,7 @@ describe('menu model', () => {
       'Events',
       'Metrics',
       'Query',
-      'Overview',
+      'Home',
       'Profile editor',
       '—',
       'Analysis',
@@ -191,8 +195,8 @@ describe('menu model', () => {
     expect(items.find((i) => i.label === 'Explorer')).toMatchObject({ id: 'view.toggleSidebar', checked: true, keybinding: 'Mod+B' });
     expect(items.find((i) => i.label === 'Timeline')).toMatchObject({ id: 'view:timeline', checked: true });
     expect(items.find((i) => i.label === 'Metrics')).toMatchObject({ checked: false });
-    expect(labels(sub(v, 'Theme'))).toEqual(['Calm', 'Console', 'Precision', '—', 'System', 'Dark', 'Light']);
-    expect(sub(v, 'Theme').map((n) => n.kind === 'item' && n.checked)).toEqual([false, true, false, false, false, true, false]);
+    expect(labels(sub(v, 'Theme'))).toEqual(['Follow system', 'Calm', 'Console', 'Precision', 'High contrast', '—', 'System', 'Dark', 'Light']);
+    expect(sub(v, 'Theme').map((n) => n.kind === 'item' && n.checked)).toEqual([false, false, true, false, false, false, false, true, false]);
   });
 
   it('puts plugin views in Plugins, grouped by plugin, after the plugin manager', () => {
@@ -200,6 +204,27 @@ describe('menu model', () => {
     expect(labels(plugins)).toEqual(['Manage plugins', '—', 'Other plugins', 'Windows events', 'Windows registry']);
     const registry = plugins.find((n) => n.kind === 'group' && n.label === 'Windows registry');
     expect(registry?.kind === 'group' && registry.items.map((i) => i.id)).toEqual(['view:registry']);
+  });
+
+  it('File > Open recent lists projects, then files, then Clear recent; it is absent when nothing was opened (F5)', () => {
+    const fileMenu = (s: MenuState) => menu(buildMenus(s), 'file').items;
+    expect(labels(fileMenu(state()))).not.toContain('Open recent');
+    const files = Array.from({ length: RECENT_MENU_FILES + 3 }, (_, i) => `C:\\logs\\web01\\app-${i}.log`);
+    const projects = Array.from({ length: RECENT_MENU_PROJECTS + 2 }, (_, i) => ({ path: `/p/proj-${i}.imtproj`, name: `Proj ${i}` }));
+    const recent = sub(fileMenu(state({ recent: { projects, files } })), 'Open recent');
+    const items = recent.map((n) => (n.kind === 'item' ? n.label : '—'));
+    expect(items).toHaveLength(RECENT_MENU_PROJECTS + 1 + RECENT_MENU_FILES + 1 + 1);
+    expect(items[0]).toBe('Proj 0');
+    expect(items[RECENT_MENU_PROJECTS]).toBe('—');
+    expect(items[RECENT_MENU_PROJECTS + 1]).toBe('web01/app-0.log');
+    expect(items.at(-1)).toBe('Clear recent');
+    expect(menuItems(recent).map((i) => i.id)).toContain('recent:project:/p/proj-0.imtproj');
+    expect(menuItems(recent).map((i) => i.id)).toContain('menu.recentClear');
+    // Only files: no separator between the groups.
+    const onlyFiles = sub(fileMenu(state({ recent: { projects: [], files: ['/a/b.log'] } })), 'Open recent');
+    expect(onlyFiles.map((n) => (n.kind === 'item' ? n.label : '—'))).toEqual(['a/b.log', '—', 'Clear recent']);
+    expect(recentLabel('single')).toBe('single');
+    expect(recentLabel('')).toBe('');
   });
 
   it('leaves out commands that are not available, and menus and submenus that end up empty', () => {
@@ -213,10 +238,11 @@ describe('menu model', () => {
     const menus = buildMenus(state());
     const ids = menus.flatMap((m) => menuItems(m.items).map((i) => i.id));
     expect(new Set(ids).size).toBe(ids.length);
-    for (const demoted of ['palette.open', 'view.resetLayout', 'analyze.toggleUtc', 'ai.explain', 'notes.addSelected', 'skew.adjust', 'window.panelMenu', 'window.switcher', 'window.layout.apply']) {
+    for (const demoted of ['palette.open', 'view.resetLayout', 'analyze.toggleUtc', 'ai.explain', 'notes.addSelected', 'skew.adjust', 'window.panelMenu', 'window.switcher']) {
       expect(ids, demoted).not.toContain(demoted);
     }
     expect(ids).toContain('window.layout.reset');
+    expect(ids).toContain('window.perspective.1');
   });
 
   it('keeps every menu at most about 20 entries at the top level', () => {
@@ -231,10 +257,11 @@ describe('menu model', () => {
     expect(edit.find((n) => n.kind === 'item' && n.id === 'edit.find')).toMatchObject({ keybinding: 'Mod+F' });
   });
 
-  it('groups Window: layouts submenu, tool window actions, then the windows and pop-outs when there are several', () => {
+  it('groups Window: perspectives submenu, tool window actions, then the windows and pop-outs when there are several', () => {
     const w = menu(buildMenus(state()), 'window').items;
-    expect(labels(w)).toEqual(['Layouts', '—', 'Auto hide all tool windows', 'Pin all tool windows', 'Close all documents', '—', 'Float panel', 'Pop out to window', 'Full screen']);
-    expect(labels(sub(w, 'Layouts'))).toEqual(['Save window layout…', '—', 'Apply window layout 1', 'Apply window layout 3', '—', 'Manage window layouts…', 'Reset window layout']);
+    expect(labels(w)).toEqual(['Perspectives', '—', 'Auto hide all tool windows', 'Pin all tool windows', 'Close all documents', '—', 'Float panel', 'Pop out to window', 'Full screen']);
+    expect(labels(sub(w, 'Perspectives'))).toEqual(['Perspective: Investigate', 'Perspective: Live', '—', 'Save current as perspective…', '—', 'Manage perspectives…', 'Reset perspective']);
+    expect(menuItems(sub(w, 'Perspectives')).some((i) => i.checked)).toBe(false);
     const two = menu(
       buildMenus(
         state({
@@ -257,12 +284,42 @@ describe('menu model', () => {
     ]);
   });
 
+  it('puts Go back / Go forward in Analyze beside the time range steps, with their keys', () => {
+    const items = menuItems(menu(buildMenus(state()), 'analyze').items);
+    const ids = items.map((i) => i.id);
+    expect(ids.slice(ids.indexOf('analyze.fit'), ids.indexOf('analyze.fit') + 5)).toEqual(['analyze.fit', 'analyze.back', 'analyze.forward', 'nav.back', 'nav.forward']);
+    expect(items.find((i) => i.id === 'nav.back')).toMatchObject({ label: 'Go back', keybinding: 'Alt+Left' });
+    expect(items.find((i) => i.id === 'nav.forward')).toMatchObject({ label: 'Go forward', keybinding: 'Alt+Right' });
+  });
+
+  it('leaves Go back / Go forward out when they are unavailable', () => {
+    const without = new Map([...state().commands].filter(([id]) => !id.startsWith('nav.')));
+    const ids = menuItems(menu(buildMenus(state({ commands: without })), 'analyze').items).map((i) => i.id);
+    expect(ids).not.toContain('nav.back');
+    expect(ids).not.toContain('nav.forward');
+  });
+
+  it('checks the active perspective in Window > Perspectives', () => {
+    const checked = (active?: number) =>
+      menuItems(sub(menu(buildMenus(state({ activePerspective: active })), 'window').items, 'Perspectives'))
+        .filter((i) => i.checked)
+        .map((i) => i.id);
+    expect(checked()).toEqual([]);
+    expect(checked(1)).toEqual(['window.perspective.1']);
+    expect(checked(3)).toEqual(['window.perspective.3']);
+    // A perspective without a command (hidden, or beyond nine) checks nothing.
+    expect(checked(2)).toEqual([]);
+    expect(checked(0)).toEqual([]);
+  });
+
   it('builds Help, with About and Check for updates in the app menu on macOS', () => {
     expect(labels(menu(buildMenus(state()), 'help').items)).toEqual([
       'Welcome',
       'Try the demo',
       'Take the tour',
       'Keyboard shortcuts',
+      '—',
+      "What's new",
       '—',
       'Restart in safe mode',
       '—',

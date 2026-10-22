@@ -2,9 +2,9 @@ import { inject, Injectable, InjectionToken, signal } from '@angular/core';
 import { FailureReporter } from '../core/failure-reporter';
 import { describeError, Logger, redactPaths } from '../core/logger';
 import { BackendFailureClassifier, DEFAULT_CLASSIFIER } from './error-classify';
-import { ScreenCapture } from './screen-capture';
 import { SnapshotBackend, Unlisten } from './snapshot-backend';
 import { SnapshotGate } from './snapshot-gate';
+import { CapturedImage, CAPTURING_ATTRIBUTE, NO_SCREENSHOT_IMAGE, noScreenshotNote } from './snapshot.types';
 import { EngineError, SnapshotContext, SnapshotReason } from '../core/api.types';
 
 /** Time sources, replaceable in tests. */
@@ -59,7 +59,6 @@ export interface CaptureDetail {
 @Injectable({ providedIn: 'root' })
 export class ErrorSnapshotService implements FailureReporter {
   private readonly backend = inject(SnapshotBackend);
-  private readonly screen = inject(ScreenCapture);
   private readonly logger = inject(Logger);
   private readonly clock = inject(SNAPSHOT_CLOCK);
   private readonly gate = new SnapshotGate();
@@ -136,9 +135,10 @@ export class ErrorSnapshotService implements FailureReporter {
     if (this.busy || (!manual && !this.automatic) || !this.gate.tryAcquire(this.clock.now(), manual)) return null;
     this.busy = true;
     try {
-      await this.clock.nextFrame();
-      const image = await this.screen.capture();
-      const result = await this.backend.save(image, await this.filtered(this.context(reason, detail, manual)));
+      const { image, note } = await this.screenshot(manual);
+      const context = this.context(reason, detail, manual);
+      if (note) context.message = `${context.message}\n${note}`;
+      const result = await this.backend.save(image, await this.filtered(context));
       this.saved.update((n) => n + 1);
       this.toast.set({ kind: 'captured', id: result.id, firstTime: result.firstTime, ...(manual ? { manual } : {}), ...(detail.where ? { where: detail.where } : {}) });
       return result.id;
@@ -148,6 +148,26 @@ export class ErrorSnapshotService implements FailureReporter {
       return null;
     } finally {
       this.busy = false;
+    }
+  }
+
+  /**
+   * The window as the shell captures it natively (ADR 0034): nothing is rasterised in the page, so the UI keeps
+   * running while the webview takes its picture. Toasts are hidden for that frame. Without a picture the snapshot
+   * keeps a blank image and a note saying why.
+   */
+  private async screenshot(manual: boolean): Promise<{ image: CapturedImage; note?: string }> {
+    const root = document.documentElement;
+    root.setAttribute(CAPTURING_ATTRIBUTE, '');
+    try {
+      await this.clock.nextFrame();
+      const shot = await this.backend.captureWindow(manual);
+      if (shot.status === 'captured') return { image: { base64: shot.image, mime: shot.mime, bytes: shot.bytes } };
+      const why = redactPaths(shot.reason);
+      this.logger.info(CATEGORY, 'No screenshot for the error snapshot', { Reason: why });
+      return { image: NO_SCREENSHOT_IMAGE, note: noScreenshotNote(why) };
+    } finally {
+      root.removeAttribute(CAPTURING_ATTRIBUTE);
     }
   }
 

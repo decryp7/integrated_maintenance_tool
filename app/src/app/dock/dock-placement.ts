@@ -5,10 +5,11 @@ import { DockContext, PANEL, rectOf } from './dock-context';
 import { adjacentNeighbour, atEdge, DockSlot, Point, Rect } from './dock-geometry';
 import { DockTarget, GroupBox, hitDockTarget, outsideViewport, targetPreview } from './dock-target';
 import { cancelHintRect, FLOAT_MAX, ghostRect, previewSize, TabDropOutcome, tabDropOutcome } from './float-cue';
-import { AutoHideItem } from './auto-hide';
+import { AutoHideItem, autoHideReduce } from './auto-hide';
 import { DockExtras, EMPTY_EXTRAS } from './layout-store';
-import { viewKind } from './view-kind';
-import { LayoutModeStore } from '../core/workspace/layout-mode';
+import { analysisTabToClose, viewArea } from './view-area';
+
+type AddPanel = { id: string; component: string; title: string; inactive: boolean };
 
 const INSPECTOR_WIDTH = 372;
 const TIMELINE_HEIGHT = 300;
@@ -17,33 +18,28 @@ const FLOAT_SIZE = FLOAT_MAX;
 /** Size of a new tool window group at a window edge, px (a right-hand column as wide as the inspector's). */
 const TOOL_SIZE = { side: INSPECTOR_WIDTH, bottom: 240 };
 
-/** A view with a fixed place in the default layout, relative to a built-in panel. */
-interface Pin {
-  referencePanel: string;
-  direction: 'above' | 'below' | 'left' | 'right';
-  /** Height of the view's group in px, for views placed above or below. */
-  height?: number;
-}
+/** Height of a new analysis panel below the events grid, px. */
+const ANALYSIS_HEIGHT = 280;
+/** Height of a status tool window sliding out of the bottom edge, px. */
+const STATUS_HEIGHT = 260;
 
-/** Id of the query bar view (contributed by the analysis plugin). */
-export const QUERY_VIEW = 'query';
-/** Tab strip plus one line of query input; dockview groups are otherwise at least 100px tall. */
-export const QUERY_HEIGHT = 80;
-
-/**
- * Views that open in their own group at a fixed place instead of tabbed by `defaultPosition`: the
- * query bar sits right above the events grid it filters. Used by the default layout and whenever
- * such a view is (re)opened while its reference panel is in the layout.
- */
-const PINNED: Readonly<Record<string, Pin>> = {
-  [QUERY_VIEW]: { referencePanel: PANEL.events, direction: 'above', height: QUERY_HEIGHT },
-};
+/** The two panels a new view never covers: it opens beside them (documents) or below them (analysis). */
+const MAIN_PANELS: ReadonlySet<string> = new Set([PANEL.timeline, PANEL.events]);
 
 /** Panels a new view with a given default position is placed next to (first one that exists wins). */
 const ANCHORS: Record<ViewPosition, string[]> = {
   center: [PANEL.timeline, PANEL.metrics, PANEL.profile],
   right: [PANEL.inspector],
   bottom: [PANEL.events],
+};
+
+/**
+ * The built-in core panels' fixed places, used when one is (re)opened while the other is docked: the events grid
+ * right below the timeline, the timeline right above the grid.
+ */
+const FIXED: Readonly<Record<string, { referencePanel: string; direction: 'above' | 'below' }>> = {
+  [PANEL.events]: { referencePanel: PANEL.timeline, direction: 'below' },
+  [PANEL.timeline]: { referencePanel: PANEL.events, direction: 'above' },
 };
 
 /**
@@ -63,12 +59,11 @@ export function defaultAutoHidden(inspector: ImtView | undefined): AutoHideItem[
 @Injectable({ providedIn: 'root' })
 export class DockPlacement {
   private readonly ctx = inject(DockContext);
-  private readonly layout = inject(LayoutModeStore);
 
   /**
-   * The minimal default: the timeline over the events (in the Full layout with the query bar pinned above them); the
-   * inspector is an auto-hidden tool window on the right edge that slides out when an event is selected (pin it to keep it docked).
-   * Everything else (metrics, profile editor, analysis, tools, ...) opens on demand. Returns the extras to apply.
+   * The minimal default (the Investigate perspective): the timeline over the events; the inspector is an auto-hidden
+   * tool window on the right edge that slides out when an event is selected (pin it to keep it docked). Everything
+   * else (metrics, profile editor, analysis, tools, ...) opens on demand in its home area. Returns the extras to apply.
    */
   buildDefault(api: DockviewApi): DockExtras {
     const views = this.ctx.views;
@@ -78,44 +73,108 @@ export class DockPlacement {
     };
     add(PANEL.timeline);
     add(PANEL.events, { referencePanel: PANEL.timeline, direction: 'below' });
-    const query = this.layout.full() ? views.find(QUERY_VIEW) : undefined;
-    if (query) this.addView(api, query, false);
     api.getPanel(PANEL.timeline)?.api.setActive();
     api.getPanel(PANEL.timeline)?.group.api.setSize({ height: TIMELINE_HEIGHT });
-    api.getPanel(QUERY_VIEW)?.group.api.setSize({ height: QUERY_HEIGHT });
     return { ...EMPTY_EXTRAS, autoHidden: defaultAutoHidden(views.find(PANEL.inspector)) };
   }
 
-  /** Adds a panel for the view; `id` differs from the view id for one more panel of a view that allows several. */
-  addView(api: DockviewApi, view: ImtView, inactive: boolean, id = view.id): IDockviewPanel {
-    const pin = PINNED[view.id];
-    if (pin && api.getPanel(pin.referencePanel)) {
-      // dockview's default minimum group height (100px) is taller than a query bar; the panel's own
-      // minimum (saved with the layout) lets its group be that short.
-      const size = pin.height ? { initialHeight: pin.height, minimumHeight: pin.height } : {};
-      const panel = api.addPanel({ id, component: view.id, title: view.title, inactive, ...size, position: { referencePanel: pin.referencePanel, direction: pin.direction } });
-      if (pin.height) panel.group.api.setSize({ height: pin.height });
-      return panel;
-    }
-    // A tool window without a place opens in a tool group at its window edge (VS: right, or bottom).
-    if (viewKind(view) === 'tool') {
-      const sameKind = this.toolGroupFor(api, view.defaultPosition ?? 'right');
-      if (sameKind) return api.addPanel({ id, component: view.id, title: view.title, inactive, position: { referencePanel: sameKind, direction: 'within' } });
-      if (view.defaultPosition === 'bottom' || !api.getPanel(PANEL.inspector)) {
-        const bottom = view.defaultPosition === 'bottom';
-        const panel = api.addPanel({ id, component: view.id, title: view.title, inactive, position: { direction: bottom ? 'below' : 'right' } });
-        panel.group.api.setSize(bottom ? { height: TOOL_SIZE.bottom } : { width: TOOL_SIZE.side });
-        return panel;
+  /**
+   * Adds a panel for the view in its home area (`viewArea`); `id` differs from the view id for one more panel of a
+   * view that allows several. Documents open beside the timeline and the events grid (never over them), analysis
+   * views in the one analysis panel below the grid (at most `ANALYSIS_TAB_CAP` tabs), side tools in the right-hand
+   * tool group, and status tools slide out of the bottom edge (auto-hidden) unless one is docked there. Returns the
+   * docked panel, or null when the view went to the bottom side bar.
+   */
+  addView(api: DockviewApi, view: ImtView, inactive: boolean, id = view.id): IDockviewPanel | null {
+    const panel = this.place(api, view, inactive, id);
+    // The view's minimum size (A4): the dock refuses a split that would make the group smaller.
+    const min = view.minSize;
+    if (panel && min) panel.group.api.setConstraints({ ...(min.width ? { minimumWidth: min.width } : {}), ...(min.height ? { minimumHeight: min.height } : {}) });
+    return panel;
+  }
+
+  private place(api: DockviewApi, view: ImtView, inactive: boolean, id: string): IDockviewPanel | null {
+    const base: AddPanel = { id, component: view.id, title: view.title, inactive };
+    const fixed = FIXED[view.id];
+    if (fixed && api.getPanel(fixed.referencePanel)) return api.addPanel({ ...base, position: fixed });
+    switch (viewArea(view)) {
+      case 'side':
+        return this.addTool(api, base);
+      case 'status': {
+        const docked = this.toolGroupFor(api, 'bottom');
+        if (docked) return api.addPanel({ ...base, position: { referencePanel: docked, direction: 'within' } });
+        this.slideOut(id, view.title, inactive);
+        return null;
       }
+      case 'analysis':
+        return this.addAnalysis(api, base);
+      case 'document':
+        return this.addDocument(api, base);
     }
-    const ref = this.anchorFor(api, view.defaultPosition ?? 'center');
-    return api.addPanel({
-      id,
-      component: view.id,
-      title: view.title,
-      inactive,
-      ...(ref ? { position: { referencePanel: ref, direction: 'within' as const } } : {}),
+  }
+
+  /** A side tool window in the tool group at the right edge, else a new group there. */
+  private addTool(api: DockviewApi, base: AddPanel): IDockviewPanel {
+    const sameKind = this.toolGroupFor(api, 'right');
+    if (sameKind) return api.addPanel({ ...base, position: { referencePanel: sameKind, direction: 'within' } });
+    const panel = api.addPanel({ ...base, position: { direction: 'right' } });
+    panel.group.api.setSize({ width: TOOL_SIZE.side });
+    return panel;
+  }
+
+  /** A status tool window as a tab on the bottom side bar, slid out unless opened in the background. */
+  private slideOut(id: string, title: string, inactive: boolean): void {
+    const anchor = this.ctx.api?.getPanel(PANEL.events) ? PANEL.events : null;
+    const item: AutoHideItem = { id, title, side: 'bottom', size: STATUS_HEIGHT, slot: { referencePanel: anchor, direction: anchor ? 'below' : 'within' } };
+    this.ctx.autoHide.update((s) => {
+      const hidden = autoHideReduce(s, { type: 'unpin', item });
+      return inactive ? hidden : autoHideReduce(hidden, { type: 'activate', id });
     });
+    this.ctx.refreshOpen();
+  }
+
+  /** The analysis panel: tabbed into it (closing its oldest tab when full), else a new group below the events grid. */
+  private addAnalysis(api: DockviewApi, base: AddPanel): IDockviewPanel {
+    const group = this.analysisGroup(api);
+    if (group) {
+      const victim = analysisTabToClose(
+        group.panels.map((p) => p.id),
+        group.activePanel?.id ?? null,
+        this.ctx.pinned(),
+        this.ctx.mru,
+      );
+      const old = victim ? api.getPanel(victim) : undefined;
+      if (old) api.removePanel(old);
+      return api.addPanel({ ...base, position: { referenceGroup: group.id, direction: 'within' } });
+    }
+    const below = api.getPanel(PANEL.events) ?? this.documentWell()?.activePanel;
+    if (!below) return api.addPanel(base);
+    const panel = api.addPanel({ ...base, position: { referenceGroup: below.group.id, direction: 'below' } });
+    panel.group.api.setSize({ height: ANALYSIS_HEIGHT });
+    return panel;
+  }
+
+  /** The docked group holding analysis views (the most recently used one when the user made several). */
+  analysisGroup(api: DockviewApi): DockviewGroupPanel | null {
+    const isAnalysis = (g: DockviewGroupPanel) => g.api.location.type === 'grid' && g.panels.some((p) => viewArea(this.ctx.views.find(p.id)) === 'analysis');
+    for (const id of this.ctx.mru) {
+      const g = api.getPanel(id)?.group;
+      if (g && isAnalysis(g)) return g;
+    }
+    return api.groups.find(isAnalysis) ?? null;
+  }
+
+  /**
+   * A document beside the timeline and the grid: tabbed into the most recently used document group that holds
+   * neither, else a new group to the right of the timeline (or the grid).
+   */
+  private addDocument(api: DockviewApi, base: AddPanel): IDockviewPanel {
+    const well = this.documentWell(undefined, true);
+    if (well) return api.addPanel({ ...base, position: { referenceGroup: well.id, direction: 'within' } });
+    const main = api.getPanel(PANEL.timeline) ?? api.getPanel(PANEL.events);
+    if (main && main.group.api.location.type === 'grid') return api.addPanel({ ...base, position: { referenceGroup: main.group.id, direction: 'right' } });
+    const ref = this.anchorFor(api, 'center');
+    return api.addPanel({ ...base, ...(ref ? { position: { referencePanel: ref, direction: 'within' as const } } : {}) });
   }
 
   /** A docked tool window already open on that side, to tab a new one with. */
@@ -136,16 +195,21 @@ export class DockPlacement {
     return id ?? api.panels.find((p) => !exclude.has(p.id))?.id ?? null;
   }
 
-  /** The group documents go to: that of the most recently used document, else the one holding the timeline. */
-  documentWell(excluding?: string): DockviewGroupPanel | null {
+  /**
+   * The group documents go to: that of the most recently used document, else the one holding the timeline. With
+   * `besideMain`, only a group holding neither the timeline nor the events grid (null when there is none).
+   */
+  documentWell(excluding?: string, besideMain = false): DockviewGroupPanel | null {
     const api = this.ctx.api;
     if (!api) return null;
-    const isDocument = (id: string) => this.ctx.kindOf(id) === 'document';
-    const isWell = (g: DockviewGroupPanel) => g.api.location.type === 'grid' && g.panels.some((p) => p.id !== excluding && isDocument(p.id));
+    const isDocument = (id: string) => this.ctx.kindOf(id) === 'document' && viewArea(this.ctx.views.find(id)) === 'document';
+    const isWell = (g: DockviewGroupPanel) =>
+      g.api.location.type === 'grid' && g.panels.some((p) => p.id !== excluding && isDocument(p.id)) && (!besideMain || !g.panels.some((p) => MAIN_PANELS.has(p.id)));
     for (const id of this.ctx.mru) {
       const g = api.getPanel(id)?.group;
       if (g && id !== excluding && isDocument(id) && isWell(g)) return g;
     }
+    if (besideMain) return api.groups.find(isWell) ?? null;
     return api.getPanel(PANEL.timeline)?.group ?? api.groups.find(isWell) ?? null;
   }
 

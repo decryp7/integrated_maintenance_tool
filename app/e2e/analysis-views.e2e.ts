@@ -108,12 +108,11 @@ test.describe('analysis views', () => {
     await input.click();
     await input.fill('level >= warning');
     await input.press('ControlOrMeta+Enter');
-    await expect(page.locator('imt-query-view .applied')).toContainText('level >= warning');
+    await expect(page.locator('[data-testid=query-applied]')).toContainText('level >= warning');
     await runCommand(page, 'Show patterns');
     const patterns = page.locator('imt-patterns-view');
     await patterns.getByRole('list', { name: 'Patterns' }).locator('.row').first().click();
-    await page.getByRole('tab', { name: 'Query', exact: true }).click();
-    await expect(page.locator('imt-query-view .applied')).toContainText(/level >= warning and (@template|@message)/);
+    await expect(page.locator('[data-testid=query-applied]')).toContainText(/level >= warning and (@template|@message)/);
   });
 
   test('Traces & requests: waterfall and request filter', async ({ page }, testInfo) => {

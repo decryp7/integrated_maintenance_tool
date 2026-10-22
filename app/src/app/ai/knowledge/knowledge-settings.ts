@@ -6,7 +6,7 @@ import { OverwriteGuard } from '../../ui/overwrite-guard';
 import { formatBytes } from '../ai-format';
 import { toAiError } from '../ai-backend';
 import { KnowledgeInfo, KnowledgeScope } from '../ai.types';
-import { KnowledgeEditor } from './knowledge-editor';
+import { openKnowledgeEditor } from './knowledge-editor';
 import { KnowledgePersistence } from './knowledge-persistence';
 import { KnowledgeStore } from './knowledge.store';
 
@@ -156,11 +156,7 @@ export class KnowledgeSettings implements OnInit {
   }
 
   private openEditor(file: KnowledgeInfo | null, scope: KnowledgeScope): void {
-    this.dialogs.open<boolean>(KnowledgeEditor, {
-      title: file ? $localize`:@@ai.knowledge.editor.editTitle:Edit knowledge file` : $localize`:@@ai.knowledge.editor.newTitle:New knowledge file`,
-      width: 720,
-      inputs: { file, scope, maxBytes: this.store.list()?.maxFileBytes ?? 64 * 1024 },
-    });
+    openKnowledgeEditor(this.dialogs, file, scope, this.store.list()?.maxFileBytes ?? 64 * 1024);
   }
 
   write(scope: KnowledgeScope): void {

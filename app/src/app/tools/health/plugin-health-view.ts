@@ -54,7 +54,7 @@ import { eventName, PluginHealthStore, PluginRow } from './plugin-health.store';
                 </ul>
               }
               @if (store.eventsByPlugin().get(p.id); as subs) {
-                <table class="events" [attr.aria-label]="eventsLabel(p.name)">
+                <table class="events narrow-scroll" [attr.aria-label]="eventsLabel(p.name)">
                   <thead><tr><th scope="col" i18n="@@tools.health.col.event">Event</th><th scope="col" class="num" i18n="@@tools.health.col.delivered">Delivered</th><th scope="col" class="num" i18n="@@tools.health.col.dropped">Dropped</th><th scope="col" class="num" i18n="@@tools.health.col.failures">Failures</th><th scope="col" class="num" i18n="@@tools.health.col.queued">Queued</th></tr></thead>
                   <tbody>
                     @for (m of subs; track m.id) {

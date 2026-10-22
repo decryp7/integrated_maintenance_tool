@@ -2,6 +2,7 @@ import { effect, EffectRef, inject, Injectable, Injector, untracked } from '@ang
 import { FieldFilter, Query, RecordView, WorkspaceSummary } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { DockService } from '../dock/dock.service';
+import { Perspectives } from '../dock/perspectives';
 import { WelcomeService } from '../welcome/welcome';
 import { CommandContext } from './tokens';
 
@@ -15,6 +16,7 @@ export class WorkspaceCommandContext implements CommandContext {
   private readonly dock = inject(DockService);
   private readonly welcome = inject(WelcomeService);
   private readonly injector = inject(Injector);
+  private readonly perspectives = inject(Perspectives);
 
   get summary(): WorkspaceSummary | null {
     return this.store.summary();
@@ -58,6 +60,9 @@ export class WorkspaceCommandContext implements CommandContext {
     // The welcome screen covers the dock while nothing is open: a view the user asks for must be visible.
     this.welcome.stepAside();
     this.dock.show(id);
+  }
+  suggestPerspective(id: string): void {
+    this.perspectives.suggest(id);
   }
   notifyError(message: string): void {
     this.store.setError(message);

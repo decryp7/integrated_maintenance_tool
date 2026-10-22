@@ -43,11 +43,11 @@ test.describe('keyboard regions', () => {
     expect(await focusedRegion(page)).toBe('activity');
   });
 
-  test('Ctrl+1… focus a dock group, Ctrl+0 the side bar, Ctrl+Shift+G the events grid', async ({ page }) => {
+  test('Ctrl+Alt+1… focus a dock group, Ctrl+0 the side bar, Ctrl+Shift+G the events grid', async ({ page }) => {
     const groups = await page.locator('.dv-groupview').count();
     expect(groups).toBeGreaterThan(1);
     for (let n = 1; n <= Math.min(groups, 3); n++) {
-      await page.keyboard.press(`ControlOrMeta+${n}`);
+      await page.keyboard.press(`Control+Alt+Digit${n}`);
       expect(await focusedRegion(page)).toBe(`group:${n}`);
     }
     await page.keyboard.press('ControlOrMeta+0');

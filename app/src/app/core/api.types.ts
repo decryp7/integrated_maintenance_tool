@@ -465,6 +465,99 @@ export interface PartialMatches {
   complete: boolean;
 }
 
+// ---- Search everything (Rust `imt_core::search_all`; `search_everything({ request })` → `SearchAllReply | null`) ----
+
+/** What the search everything palette asks: its text (words like smart search) and results per kind (0/absent = 8, at most 50). */
+export interface SearchAllRequest {
+  text: string;
+  limit?: number;
+}
+
+/** A run of a snippet: a matched word (`mark`) or the text around it. */
+export interface SnippetPart {
+  text: string;
+  mark: boolean;
+}
+
+/** An event holding every word; the snippet is of its message (or exception or template, when the words are there). */
+export interface EventHit {
+  id: number;
+  ts: number | null;
+  level: Level;
+  /** The source's name. */
+  source: string;
+  snippet: SnippetPart[];
+}
+
+/** A source whose name or path holds the words (`id` is `SourceInfo.id`). */
+export interface SourceHit {
+  id: number;
+  name: string;
+  path: string;
+  records: number;
+  snippet: SnippetPart[];
+}
+
+/** A field whose name holds the words (`value` null), or a value of a field with few distinct values that does. */
+export interface FieldHit {
+  field: string;
+  value: string | null;
+  /** Events with the field (with the value). */
+  count: number;
+  snippet: SnippetPart[];
+}
+
+/** A marker kind whose name holds the words. */
+export interface MarkerHit {
+  kind: string;
+  snippet: SnippetPart[];
+}
+
+/** An exception group whose type, message or top frame holds the words. */
+export interface ExceptionHit {
+  fingerprint: string;
+  typeName: string;
+  /** Events in the group. */
+  count: number;
+  /** The group's first sample event. */
+  sample: number | null;
+  /** `Type: message` with the matched words marked. */
+  snippet: SnippetPart[];
+}
+
+/** Whose a note or knowledge file is. */
+export type DocScope = 'project' | 'global';
+
+/** A note or knowledge file holding the words; `event` is the event a note is about. */
+export interface DocHit {
+  id: string;
+  scope: DocScope;
+  title: string;
+  event: number | null;
+  snippet: SnippetPart[];
+}
+
+/** How far the search of one kind got: all of it, until the time budget ran out, or not at all (the store failed). */
+export type KindOutcome = { kind: 'complete' } | { kind: 'timedOut' } | { kind: 'failed'; message: string };
+
+/** The first `items` of `total` matches of a kind. */
+export interface KindHits<T> {
+  total: number;
+  items: T[];
+  outcome: KindOutcome;
+}
+
+/** Every kind's results, in the order the palette shows them. */
+export interface SearchAllReply {
+  events: KindHits<EventHit>;
+  sources: KindHits<SourceHit>;
+  fields: KindHits<FieldHit>;
+  markers: KindHits<MarkerHit>;
+  exceptions: KindHits<ExceptionHit>;
+  notes: KindHits<DocHit>;
+  knowledge: KindHits<DocHit>;
+}
+
 /**
  * A time window relative to "now": the newest record (default) or the wall clock (`[live] clock = "wall"`).
  * The engine resolves it, so the UI never computes "now" itself.
@@ -739,6 +832,7 @@ export interface InferredRegex {
  *   run_query        { request: { query } }                 -> { result: QlResult } | { error: QlError }
  *   check_query      { text }                               -> QlError | null
  *   complete_query   { request: { text, cursor } }          -> Completion[]
+ *   classify_search  { text, fields }                       -> SearchInputKind
  *   query_patterns   { request: { query } }                 -> Analyzed<Pattern[]>
  *   query_exceptions { request: { query } }                 -> Analyzed<ExceptionGroup[]>
  *   query_anomalies  { request: { query } }                 -> Analyzed<Anomaly[]>
@@ -774,6 +868,12 @@ export type QlResult =
   | { kind: 'table'; columns: string[]; rows: unknown[][] };
 
 export type QueryOutcome = { result: QlResult } | { error: QlError };
+
+/**
+ * What the filter bar's one search field holds (`ql::InputKind`): words to find in messages, or a query-language
+ * query. The engine decides (`classify_search`); `fields` are the workspace's field names.
+ */
+export type SearchInputKind = 'text' | 'query';
 
 export type CompletionKind = 'field' | 'keyword' | 'operator' | 'function' | 'value';
 
@@ -1003,7 +1103,8 @@ export interface MomentSummary {
 
 /*
  * Mirrors app/src-tauri/src/snapshots.rs:
- *   save_error_snapshot    { image: base64, mime, context: SnapshotContext } -> SnapshotSaveResult
+ *   capture_window_image   { userRequested? }     -> WindowCapture  (app/src-tauri/src/window_capture, ADR 0034)
+ *   save_error_snapshot   { image: base64, mime, context: SnapshotContext } -> SnapshotSaveResult
  *   list_error_snapshots   {}                     -> SnapshotInfo[]  (newest first)
  *   read_error_snapshot    { id }                 -> string (data: URL)
  *   delete_error_snapshot  { id }                 -> void
@@ -1034,6 +1135,20 @@ export interface SnapshotContext {
   /** The user asked for it; allowed even when automatic snapshots are off. */
   manual: boolean;
 }
+
+/**
+ * Result of `capture_window_image` (Rust `window_capture::WindowCapture`): a native picture of the calling window's
+ * webview, bounded (at most 1600 px wide, PNG or JPEG) and ready for `save_error_snapshot`, or why there is none.
+ */
+export type WindowCapture =
+  | {
+      status: 'captured';
+      /** Base64, without the `data:` prefix. */
+      image: string;
+      mime: 'image/png' | 'image/jpeg';
+      bytes: number;
+    }
+  | { status: 'unavailable'; reason: string };
 
 /** Result of `save_error_snapshot` (Rust `SaveResult`). */
 export interface SnapshotSaveResult {
@@ -2250,7 +2365,8 @@ export type FindingKind =
   | 'noTimestamps'
   | 'fileNotOpened'
   | 'dropped'
-  | 'pluginQuarantined';
+  | 'pluginQuarantined'
+  | 'notShown';
 
 /** One line of the automatic health check (`overview { request: { query } } -> Finding[]`), most severe first. */
 export interface Finding {
@@ -2260,6 +2376,65 @@ export interface Finding {
   title: string;
   detail: string;
   action: FindingAction | null;
+}
+
+/** What the Home dashboard asks for (`home_summary { request }`, Rust `home::HomeRequest`). */
+export interface HomeRequest {
+  /** Usually no filters, just the grouping. */
+  query: Query;
+  /** History buckets, clamped by the engine to 10..=240. */
+  buckets: number;
+  /** Run the analyses (anomalies, exception groups)? They are the slow part: ask without them first, then with. */
+  analyses?: boolean;
+}
+
+/** Markers of one kind in one history bucket. */
+export interface HomeMarker {
+  kind: string;
+  /** The first marker's time (Unix ms). */
+  ts: number;
+  count: number;
+}
+
+/** One anomaly to mark on the Home history. */
+export interface HomeAnomaly {
+  kind: AnomalyKind;
+  from: number;
+  to: number;
+  message: string;
+}
+
+/** The Home dashboard's numbers (Rust `home::HomeSummary`). A query: no side effects. */
+export interface HomeSummary {
+  sources: number;
+  events: number;
+  /** Error and Fatal events. */
+  errors: number;
+  warnings: number;
+  /** Time span of the timed events (Unix ms); null without timestamps. */
+  from: number | null;
+  to: number | null;
+  /** Width of one history bucket in ms (0 without timestamps). */
+  bucketMs: number;
+  /** `[bucket][level index in LEVELS order]` = events (empty without timestamps). */
+  histogram: number[][];
+  /** Error and Fatal events per bucket. */
+  errorTrend: number[];
+  /** Warning events per bucket. */
+  warningTrend: number[];
+  /** Markers per kind and bucket, by time (at most 200). */
+  markers: HomeMarker[];
+  /** Every anomaly found. */
+  anomalyCount: number;
+  /** The anomalies to mark, by start time (at most 200). */
+  anomalies: HomeAnomaly[];
+  exceptionGroups: number;
+  /** Events in all exception groups. */
+  exceptionEvents: number;
+  /** Whether the analyses ran; when false the anomaly and exception numbers are zero because they were not asked for. */
+  analysed: boolean;
+  /** How much of the data the analyses covered. */
+  coverage: Coverage;
 }
 
 /** Built-in redaction detectors, in the order the engine applies them (`[redact] detectors`). */
@@ -3044,3 +3219,124 @@ export type {
 } from './generated/store';
 /** A console run's outcome (`sql_run`). Mirrors `store_pane::SqlOutcome`. */
 export type SqlOutcome = { result: import('./generated/store').SqlResult } | { error: QlError } | { cancelled: true };
+
+// ---- Known issues, incident summary and playbooks (ADR 0039; crates/imt-core/src/{known_issues,incident,playbook}) ----
+
+/** How a known issue is recognised: a regex over the message and exception, or a query-language filter. */
+export type IssueMatcher = { type: 'pattern'; pattern: string } | { type: 'query'; ql: string };
+
+/** A known issue declared in a knowledge file (or suggested by the AI and verified by the engine). */
+export interface KnownIssue {
+  id: string;
+  title: string;
+  fix: string;
+  matcher: IssueMatcher;
+  /** The knowledge file that declares it. */
+  file: string;
+}
+
+/** Who found the match: the user's declared rule, or an AI suggestion the engine verified. */
+export type IssueOrigin = 'rule' | 'ai';
+
+/** A known issue present in the open data, with the evidence. */
+export interface IssueMatch {
+  issue: KnownIssue;
+  origin: IssueOrigin;
+  /** The filter that selects the events. */
+  query: string;
+  count: number;
+  /** Up to 5 events that show it. */
+  sampleIds: number[];
+}
+
+/** `known_issues_match`: what is present, and what the user should fix in their knowledge files. */
+export interface IssueReport {
+  matches: IssueMatch[];
+  checked: number;
+  truncated: number;
+  warnings: string[];
+}
+
+/** `incident_report_build` arguments. */
+export interface IncidentRequest {
+  title?: string;
+  /** Epoch ms. */
+  from?: number | null;
+  to?: number | null;
+  /** Entries per ranking, 1 to 10 (5 when absent). */
+  top?: number | null;
+}
+
+export type PlaybookExpect = { kind: 'noMatch' } | { kind: 'anyMatch' } | { kind: 'atLeast'; n: number } | { kind: 'atMost'; n: number };
+
+/** What a playbook step does. */
+export type PlaybookAction =
+  | { type: 'manual' }
+  | { type: 'query'; ql: string }
+  | { type: 'filter'; ql: string }
+  | { type: 'openView'; view: string }
+  | { type: 'check'; ql: string; expect: PlaybookExpect };
+
+export interface PlaybookStep {
+  id: string;
+  title: string;
+  instruction: string;
+  action: PlaybookAction;
+}
+
+/** A saved investigation (a versioned JSON file; see docs/playbooks.md). */
+export interface Playbook {
+  version: number;
+  id: string;
+  title: string;
+  description: string;
+  tags: string[];
+  steps: PlaybookStep[];
+}
+
+export type PlaybookStatus = 'pass' | 'fail' | 'info' | 'error' | 'skipped';
+
+/** What running a step found; the engine computes it. */
+export interface PlaybookStepResult {
+  status: PlaybookStatus;
+  summary: string;
+  count: number | null;
+  sampleIds: number[];
+  columns: string[];
+  rows: unknown[][];
+}
+
+export interface PlaybookStepRecord {
+  stepId: string;
+  status: PlaybookStatus;
+  summary: string;
+  count: number | null;
+  sampleIds: number[];
+  note: string;
+  at: number;
+}
+
+/** One execution of a playbook, with the playbook as it was. Saved in the project. */
+export interface PlaybookRun {
+  id: string;
+  playbook: Playbook;
+  startedAt: number;
+  steps: PlaybookStepRecord[];
+}
+
+/** The runs a project keeps (`PlaybookRecord` v1; the project's UI state key `playbooks`). */
+export interface PlaybookRecord {
+  version: number;
+  runs: PlaybookRun[];
+}
+
+export interface PlaybookLibrary {
+  playbooks: Playbook[];
+  templates: Playbook[];
+  warnings: string[];
+}
+
+export interface PlaybookRestore {
+  record: PlaybookRecord;
+  warnings: string[];
+}
