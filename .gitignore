@@ -162,6 +162,9 @@ app/src-tauri/binaries/
 mutants.out/
 mutants.out.old/
 
+# Machine-local Cargo settings written by `cargo xtask libduckdb`
+.cargo/libduckdb.toml
+
 # macOS Finder metadata
 .DS_Store
 ._*

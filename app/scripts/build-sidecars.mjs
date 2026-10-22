@@ -7,7 +7,9 @@
 // At run time IMT finds them next to its executable. The store worker links libduckdb (duckdb.dll / libduckdb.so /
 // libduckdb.dylib): it is copied from DUCKDB_LIB_DIR into src-tauri/binaries/lib/; when DUCKDB_LIB_DIR is not set,
 // crates/imt-store-duck/scripts/fetch-libduckdb.sh fetches the pinned, checksummed library into <target>/libduckdb
-// first. The installers ship src-tauri/binaries/lib/ as the resource folder `lib/` (tauri.sidecars.conf.json).
+// first. The installers ship src-tauri/binaries/lib/ as the resource folder `lib/` (tauri.sidecars.conf.json). On
+// macOS and Linux the worker finds it there by run path (crates/imt-store-worker/build/rpath.rs); the official
+// libduckdb.dylib already has the install name `@rpath/libduckdb.dylib`, so it is copied as is.
 //
 // Run by the release build (`npx tauri build --config src-tauri/tauri.sidecars.conf.json` chains it after the
 // UI build). Tauri passes the target in TAURI_ENV_TARGET_TRIPLE; `universal-apple-darwin` builds both macOS
