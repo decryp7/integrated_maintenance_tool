@@ -69,8 +69,6 @@ impl FieldSource for Fields {
 #[derive(Debug, Clone, Default)]
 pub struct Columns {
     pub message: bool,
-    /// When set, the message is read only where this SQL condition holds (empty elsewhere).
-    pub message_when: Option<String>,
     pub fields: Option<Vec<String>>,
 }
 
@@ -79,7 +77,6 @@ impl Columns {
     pub fn all() -> Columns {
         Columns {
             message: true,
-            message_when: None,
             fields: None,
         }
     }
@@ -87,7 +84,6 @@ impl Columns {
     pub fn only(message: bool, fields: impl IntoIterator<Item = impl Into<String>>) -> Columns {
         Columns {
             message,
-            message_when: None,
             fields: Some(fields.into_iter().map(Into::into).collect()),
         }
     }
@@ -113,10 +109,6 @@ pub fn row_columns(schema: &EventSchema, cols: &Columns) -> String {
         out.push(match name {
             "raw" => "'' AS raw".to_string(),
             "message" if !cols.message => "'' AS message".to_string(),
-            "message" => match &cols.message_when {
-                Some(cond) => format!("CASE WHEN {cond} THEN e.message ELSE '' END AS message"),
-                None => col,
-            },
             "extra" => match &cols.fields {
                 None => col,
                 Some(fields) => {

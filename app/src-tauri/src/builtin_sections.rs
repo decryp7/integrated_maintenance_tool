@@ -13,6 +13,7 @@ use std::sync::Arc;
 pub const DIAGNOSTICS_SECTION: &str = "diagnostics";
 pub const WORKSPACE_SECTION: &str = "workspace";
 pub const PLUGINS_SECTION: &str = "plugins";
+pub const PERFORMANCE_SECTION: &str = "performance";
 
 pub(crate) fn int(min: i64, max: i64, unit: Option<&str>) -> FieldKind {
     FieldKind::Int {

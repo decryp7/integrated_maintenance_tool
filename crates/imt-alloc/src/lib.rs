@@ -42,6 +42,16 @@ pub fn tune() {
     }
 }
 
+/// Gives freed memory back to the OS at once (purge delay 0): low memory mode. Halves the import peak and costs
+/// 20-40% of the import speed (ADR 0014's performance notes); call it after [`tune`].
+pub fn purge_at_once() {
+    // SAFETY: plain option setters of the linked mimalloc; any value is valid for these options.
+    unsafe {
+        libmimalloc_sys::mi_option_set(PURGE_DELAY, 0);
+        libmimalloc_sys::mi_option_set(ARENA_PURGE_MULT, 1);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -61,5 +71,8 @@ mod tests {
         assert_eq!(get(ARENA_PURGE_MULT), 1, "arena_purge_mult");
         tune();
         assert_eq!((get(PURGE_DELAY), get(ARENA_PURGE_MULT)), (10, 10));
+        purge_at_once();
+        assert_eq!((get(PURGE_DELAY), get(ARENA_PURGE_MULT)), (0, 1));
+        tune();
     }
 }

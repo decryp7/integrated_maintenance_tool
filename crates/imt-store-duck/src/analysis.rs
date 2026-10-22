@@ -30,6 +30,10 @@ use std::sync::Arc;
 /// Most events one analysis looks at; the coverage says when it stopped early.
 pub const MAX_ANALYSED: usize = 2_000_000;
 
+/// Most events of its window the Moment (an interactive summary) reads, in time order; the coverage says when
+/// it stopped early. 2M events took 15-30 s and 300 MB at 10M events.
+pub const MOMENT_EVENTS: usize = 250_000;
+
 /// How an analysis reads its events.
 pub(crate) struct Read<'a> {
     /// An extra SQL condition.
@@ -37,6 +41,8 @@ pub(crate) struct Read<'a> {
     /// In time order (else in storage order: cheaper, for analyses that do not depend on order).
     pub ordered: bool,
     pub columns: Columns,
+    /// Most events read.
+    pub limit: usize,
 }
 
 impl Read<'_> {
@@ -45,6 +51,7 @@ impl Read<'_> {
             extra: None,
             ordered: true,
             columns,
+            limit: MAX_ANALYSED,
         }
     }
 
@@ -53,6 +60,7 @@ impl Read<'_> {
             extra: None,
             ordered: false,
             columns,
+            limit: MAX_ANALYSED,
         }
     }
 }
@@ -444,7 +452,7 @@ impl Iterator for EventStream<'_> {
 }
 
 /// FNV-1a, a stable hash of the canonical query text (cache keys must not change between builds).
-fn fnv1a(text: &str) -> String {
+pub(crate) fn fnv1a(text: &str) -> String {
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
     for b in text.bytes() {
         h ^= u64::from(b);
@@ -468,7 +476,7 @@ fn canonical(q: &Filter) -> String {
 impl Inner {
     /// The data version (bumped by every change to the events, persisted, so cached results of an
     /// earlier session are never mistaken for current ones).
-    fn data_version(&self, conn: &Connection) -> StoreResult<u64> {
+    pub(crate) fn data_version(&self, conn: &Connection) -> StoreResult<u64> {
         let v: Option<String> = conn
             .query_row("SELECT value FROM meta WHERE key = 'data_version'", [], |r| r.get(0))
             .ok();
@@ -555,10 +563,10 @@ impl Inner {
         let select = self.select_list(&sf, &cq, &read.columns);
         let filter = format!("{} AND {}", sf.all_sql(), read.extra.unwrap_or("TRUE"));
         let mut stream = if read.ordered {
-            EventStream::ordered(&conn, &select, &filter, self.schema.clone(), &ctx, &cq, sf.exact, MAX_ANALYSED)?
+            EventStream::ordered(&conn, &select, &filter, self.schema.clone(), &ctx, &cq, sf.exact, read.limit)?
         } else {
             let sql = format!("SELECT {select} FROM {FROM} WHERE {filter}");
-            EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, sf.exact, MAX_ANALYSED)?
+            EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, sf.exact, read.limit)?
         };
         let result = f(&mut stream, &cq);
         let coverage = stream.finish()?;
@@ -687,32 +695,62 @@ impl Inner {
         })
     }
 
+    /// The SQL condition that selects exactly the events matching a compiled filter: the filter's own SQL when
+    /// it is exact, else the ids of the events that pass the scan's check, written to a file (no limit, bounded
+    /// memory). The returned files must be kept while the condition is used.
+    fn exact_selection(
+        &self,
+        conn: &Connection,
+        ctx: &Ctx,
+        sf: &SqlFilter,
+        cq: &CompiledQuery,
+    ) -> StoreResult<(String, Vec<Arc<crate::hits::HitsFile>>)> {
+        if sf.exact {
+            return Ok((sf.all_sql(), sf.keep.clone()));
+        }
+        let sql = format!(
+            "SELECT {} FROM {FROM} WHERE {}",
+            self.select_list(sf, cq, &Columns::all()),
+            sf.all_sql()
+        );
+        let mut stream = EventStream::new(conn, &sql, self.schema.clone(), ctx, cq, false, usize::MAX)?;
+        let mut ids = self.hits.writer().map_err(|e| StoreError::Io(format!("{e:#}")))?;
+        for r in stream.by_ref() {
+            ids.push(r.id).map_err(|e| StoreError::Io(format!("{e:#}")))?;
+        }
+        stream.finish()?;
+        let hits = ids.finish().map_err(|e| StoreError::Io(format!("{e:#}")))?;
+        let (condition, file) = hits
+            .condition()
+            .ok_or_else(|| StoreError::Engine("the selected events' file has an unusable path".into()))?;
+        Ok((condition, file.into_iter().chain(sf.keep.iter().cloned()).collect()))
+    }
+
+    /// Anomalies detected in SQL (see `crate::anomalies`): memory for per-instance aggregates, not per event,
+    /// and every matching event analysed.
+    fn anomalies_sql(&self, q: &Filter, cfg: &AnomalyConfig) -> StoreResult<Analyzed<Vec<Anomaly>>> {
+        let conn = self.conn()?;
+        let ctx = self.ctx(&conn)?;
+        let (sf, cq) = self.compile(&ctx, q)?;
+        let key = group_key_expr(&cq.group_by, &ctx.fields)
+            .ok_or_else(|| StoreError::Invalid("the instance fields cannot be grouped (a name contains a NUL character)".into()))?;
+        let (filter, _keep) = self.exact_selection(&conn, &ctx, &sf, &cq)?;
+        let matched = count(&conn, &format!("SELECT count(*) FROM {FROM} WHERE {filter}"))? as u64;
+        let mut inputs = crate::anomalies::SqlInputs::new(&conn, &filter, &key, &ctx.fields);
+        let result = analysis::detect_with(&mut inputs, cfg)?;
+        Ok(Analyzed {
+            result,
+            coverage: Coverage {
+                matched,
+                analysed: matched,
+                limits: Vec::new(),
+            },
+        })
+    }
+
     fn anomalies(&self, req: &QueryRequest) -> StoreResult<Analyzed<Vec<Anomaly>>> {
         self.cached("anomalies", &req.query, || {
-            let cfg = AnomalyConfig::default();
-            let fields = cfg
-                .latency_fields
-                .iter()
-                .chain(&cfg.growth.fields)
-                .cloned()
-                .chain(["Counter", "Value", "MachineName", "ProcessName", "Instance", "InstanceIndex"].map(String::from));
-            // The detectors read the message of error events (crash triggers) and whether an instance's last
-            // event says it stopped: other messages are not read.
-            let cols = Columns {
-                message_when: Some(
-                    "e.level >= 4 OR contains(lower(e.message), 'stop') OR contains(lower(e.message), 'shutting down')".into(),
-                ),
-                ..Columns::only(true, fields)
-            };
-            self.analyse(&req.query, Read::ordered(cols), |rows, cq| {
-                analysis::detect(
-                    rows.map(|r| {
-                        let key = cq.group_key_of(&r);
-                        (r, key)
-                    }),
-                    &AnomalyConfig::default(),
-                )
-            })
+            self.anomalies_sql(&req.query, &AnomalyConfig::default())
         })
     }
 
@@ -725,7 +763,6 @@ impl Inner {
         // Every field is compared, the message is not; the order does not matter.
         let cols = Columns {
             message: false,
-            message_when: None,
             fields: None,
         };
         let sql = |f: &SqlFilter, q: &CompiledQuery| format!("SELECT {} FROM {FROM} WHERE {}", self.select_list(f, q, &cols), f.all_sql());
@@ -798,6 +835,78 @@ impl Inner {
         })
     }
 
+    /// The metrics of the events of `q` as `MetricCollector` collects them, aggregated in SQL (only their
+    /// averages are used: the Moment's window before): PerfMon counters per machine and instance, the other
+    /// events' metric fields per instance.
+    fn metric_averages<'f>(&self, q: &Filter, metrics: &'f [String]) -> StoreResult<Analyzed<MetricCollector<'f>>> {
+        let conn = self.conn()?;
+        let ctx = self.ctx(&conn)?;
+        let (sf, cq) = self.compile(&ctx, q)?;
+        let (filter, _keep) = self.exact_selection(&conn, &ctx, &sf, &cq)?;
+        let unreadable = |f: &str| StoreError::Invalid(format!("the field name {f:?} cannot be read"));
+        let text = |f: &str| text_expr(f, &ctx.fields).ok_or_else(|| unreadable(f));
+        let number = |f: &str| number_expr(f, &ctx.fields).ok_or_else(|| unreadable(f));
+        let key = group_key_expr(&cq.group_by, &ctx.fields)
+            .ok_or_else(|| StoreError::Invalid("the instance fields cannot be grouped (a name contains a NUL character)".into()))?;
+        let (machine, instance, counter, value) = (text("MachineName")?, text("Instance")?, text("Counter")?, number("Value")?);
+        let is_counter = format!("(({counter}) IS NOT NULL AND ({value}) IS NOT NULL)");
+        let mut collector = MetricCollector::new(metrics);
+        let mut add = |sql: &str| -> StoreResult<()> {
+            let mut stmt = conn.prepare(sql).map_err(engine)?;
+            let rows = stmt
+                .query_map([], |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, u64>(2)?,
+                        r.get::<_, f64>(3)?,
+                    ))
+                })
+                .map_err(engine)?;
+            for row in rows {
+                let (series, metric, n, sum) = row.map_err(engine)?;
+                collector.add_summary(series, metric, n as usize, sum);
+            }
+            Ok(())
+        };
+        add(&format!(
+            "SELECT CASE WHEN coalesce({instance}, '') <> '' THEN concat(coalesce({machine}, ''), ' · ', {instance}) ELSE coalesce({machine}, '') END,
+                    {counter}, count(*), sum({value})
+             FROM {FROM} WHERE ({filter}) AND {is_counter} GROUP BY 1, 2"
+        ))?;
+        // Every metric field in one pass over the other events.
+        if !metrics.is_empty() {
+            let mut sums = Vec::new();
+            for m in metrics {
+                let v = number(m)?;
+                sums.push(format!("count({v}), sum({v})"));
+            }
+            let sql = format!(
+                "SELECT ({key}), {} FROM {FROM} WHERE ({filter}) AND NOT {is_counter} GROUP BY 1",
+                sums.join(", ")
+            );
+            let mut stmt = conn.prepare(&sql).map_err(engine)?;
+            let mut rows = stmt.query([]).map_err(engine)?;
+            while let Some(r) = rows.next().map_err(engine)? {
+                let series: String = r.get(0).map_err(engine)?;
+                for (i, m) in metrics.iter().enumerate() {
+                    let n: u64 = r.get(1 + 2 * i).map_err(engine)?;
+                    let sum: Option<f64> = r.get(2 + 2 * i).map_err(engine)?;
+                    collector.add_summary(series.clone(), m.clone(), n as usize, sum.unwrap_or(0.0));
+                }
+            }
+        }
+        let matched = count(&conn, &format!("SELECT count(*) FROM {FROM} WHERE {filter}"))? as u64;
+        Ok(Analyzed {
+            result: collector,
+            coverage: Coverage {
+                matched,
+                analysed: matched,
+                limits: Vec::new(),
+            },
+        })
+    }
+
     fn moment(&self, req: &MomentRequest) -> StoreResult<Analyzed<MomentSummary>> {
         let query = self.resolve_window(&req.query)?;
         let (from, to) = (req.from.min(req.to), req.from.max(req.to));
@@ -811,20 +920,19 @@ impl Inner {
                 .chain(["Counter", "Value", "MachineName", "Instance"].map(String::from))
         };
         let fields = cfg.user.iter().chain(&cfg.action).cloned().chain(metric_fields());
-        let builder = self.analyse(&window, Read::ordered(Columns::only(true, fields)), |rows, cq| {
+        let read = Read {
+            limit: MOMENT_EVENTS,
+            ..Read::ordered(Columns::only(true, fields))
+        };
+        let builder = self.analyse(&window, read, |rows, cq| {
             let mut b = MomentBuilder::new(cfg, from);
             for r in rows {
                 b.add(&r, &cq.group_key_of(&r));
             }
             b
         })?;
-        let before = self.analyse(&previous, Read::unordered(Columns::only(false, metric_fields())), |rows, cq| {
-            let mut m = MetricCollector::new(&cfg.metrics);
-            for r in rows {
-                m.add(&r, &cq.group_key_of(&r));
-            }
-            m
-        })?;
+        let before = self.metric_averages(&previous, &cfg.metrics)?;
+        // Detected over every event once per data version and query (cached), whatever the window.
         let anomalies = self.anomalies(&QueryRequest { query: all })?;
         let overlapping = anomalies.result.into_iter().filter(|a| a.from <= to && a.to >= from).collect();
         Ok(Analyzed {

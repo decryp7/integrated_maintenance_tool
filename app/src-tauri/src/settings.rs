@@ -622,6 +622,7 @@ pub fn builtins(
     debounce: Arc<AtomicU64>,
 ) -> Vec<Builtin> {
     let diagnostics = Arc::new(DiagnosticsSection { dir: dir.clone() });
+    let performance = Arc::new(crate::performance::PerformanceSection { dir: dir.clone() });
     let plugins = Arc::new(PluginsSection { dir, plugins, set_enabled });
     vec![
         Builtin {
@@ -638,6 +639,11 @@ pub fn builtins(
             configurable: Arc::new(WorkspaceSection { debounce_ms: debounce }),
             group: SectionGroup::Advanced,
             external: None,
+        },
+        Builtin {
+            configurable: performance.clone(),
+            group: SectionGroup::Advanced,
+            external: Some(performance),
         },
     ]
 }
@@ -955,7 +961,7 @@ pub(crate) mod tests {
         let ids: Vec<&str> = o.sections.iter().map(|s| s.section.id.as_str()).collect();
         assert_eq!(
             ids,
-            ["diagnostics", "plugins", "workspace", "net.decryptology.windows", "t.fragile", "ai"]
+            ["diagnostics", "plugins", "workspace", "performance", "net.decryptology.windows", "t.fragile", "ai"]
         );
         assert!(!o.restart_pending && !o.safe_mode);
         let diag = view(&o, "diagnostics");
@@ -1220,7 +1226,7 @@ pub(crate) mod tests {
         assert_eq!((p.status, p.read_only), (SectionStatus::SafeMode, true));
         assert!(p.note.as_deref().unwrap().contains("safe mode"));
         assert!(fx.service.set(PLUGINS_SECTION, &json!({})).unwrap_err().contains("safe mode"));
-        assert_eq!(o.sections.len(), 4);
+        assert_eq!(o.sections.len(), 5);
     }
 
     #[test]
