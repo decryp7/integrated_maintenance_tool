@@ -161,4 +161,33 @@ mod tests {
         assert_eq!(all.len(), 1);
         std::fs::remove_dir_all(dir).ok();
     }
+
+    #[cfg(unix)]
+    #[test]
+    fn links_and_files_the_profile_does_not_include_are_not_listed() {
+        let dir = std::env::temp_dir().join(format!("imt-ingest-links-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("a.log"), "x").unwrap();
+        std::fs::write(dir.join("only.txt"), "x").unwrap();
+        std::os::unix::fs::symlink(dir.join("missing-target"), dir.join("dangling.log")).unwrap();
+        let profile = Profile::default_profile()
+            .with_override("[files]\ninclude = [\"**/*.log\"]\n")
+            .unwrap();
+        let p = CompiledProfile::compile(profile).unwrap();
+        let mut out = Vec::new();
+        collect_files(&dir, &p, &HashSet::new(), &mut out);
+        out.sort();
+        assert_eq!(
+            out.iter().filter(|f| f.ends_with("a.log") || f.ends_with("only.txt")).count(),
+            1,
+            "{out:?}"
+        );
+        assert!(out.contains(&dir.join("a.log")), "{out:?}");
+        assert!(
+            !out.contains(&dir.join("dangling.log")),
+            "a link is neither a file nor a folder: {out:?}"
+        );
+        std::fs::remove_dir_all(dir).ok();
+    }
 }

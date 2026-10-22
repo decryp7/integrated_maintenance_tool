@@ -281,6 +281,8 @@ mod tests {
         assert_eq!(r.score(&head("a", "a,b,c\n1,\"2,x\",3\n"), "auto"), Some(30));
         assert_eq!(r.score(&head("a", "a,b,c\n1,2\n"), "auto"), None);
         assert_eq!(r.score(&head("a", "a;b;c\n"), ";"), Some(30));
+        // Consistent columns, but not the number the rule asks for.
+        assert_eq!(r.score(&head("a", "a,b\n1,2\n"), "auto"), None);
         assert_eq!(
             r.score(
                 &FileHead {

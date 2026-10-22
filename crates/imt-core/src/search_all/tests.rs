@@ -559,6 +559,19 @@ fn snippets_are_a_bounded_window_around_the_first_match() {
 }
 
 #[test]
+fn matches_beyond_the_shown_window_are_not_marked() {
+    let n = needles(&WordQuery::parse("needle "));
+    let text = format!("needle {} needle", "filler ".repeat(200));
+    let parts = snippet(&text, &n);
+    assert_eq!(
+        marked(&parts),
+        vec!["needle"],
+        "only the match inside the window is marked: {parts:?}"
+    );
+    assert!(joined(&parts).ends_with('…'), "the cut end is shown: {parts:?}");
+}
+
+#[test]
 fn snippets_fold_whitespace_ignore_case_merge_overlaps_and_read_a_bounded_prefix() {
     let q = WordQuery::parse("\"time out\" timeout");
     let n = needles(&q);

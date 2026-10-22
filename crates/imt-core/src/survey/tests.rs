@@ -643,6 +643,16 @@ fn unrecognised_files_are_grouped_with_their_first_lines() {
     assert!(bin.sample_lines.is_empty() && bin.sample_file.is_none());
     assert_eq!(unrecognised::extension("noext"), "(none)");
     assert_eq!(unrecognised::head_lines("does/not/exist"), None);
+    // Empty files and archives (zip, gzip) have no text lines to show.
+    for (name, bytes) in [
+        ("empty.dat", &b""[..]),
+        ("a.zip", b"PK\x03\x04rest"),
+        ("a.gz", &[0x1f, 0x8b, 8, 0, 0, 0, 0, 0][..]),
+    ] {
+        let p = dir.join(name);
+        std::fs::write(&p, bytes).unwrap();
+        assert_eq!(unrecognised::head_lines(&p.to_string_lossy()), None, "{name}");
+    }
     std::fs::remove_dir_all(dir).ok();
 }
 
