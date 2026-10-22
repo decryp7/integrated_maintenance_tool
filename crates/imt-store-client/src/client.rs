@@ -10,7 +10,7 @@
 
 use crate::protocol::{
     self, ExportProject, Handle, IdsAt, Limits, OpenProject, OpenStore, OpenedProject, Paths, Session, Source, StoreOp, StoreRequest,
-    WorkerStatus,
+    ThirdPartyPlugin, WorkerStatus,
 };
 use imt_core::analysis::{Anomaly, Comparison, FieldStats, RequestSpan, WaterfallRow};
 use imt_core::api::{
@@ -81,6 +81,8 @@ pub struct WorkerConfig {
     pub child_log: bool,
     /// Safe mode: the worker starts no plugin.
     pub safe_mode: bool,
+    /// Installed third-party plugins the worker starts for their importers (ADR 0027; ignored in safe mode).
+    pub third_party: Vec<ThirdPartyPlugin>,
     /// Where libduckdb is looked for before the worker starts (`None`: `lib_dir`, the worker's folder and the
     /// library path), so a missing library is a clear message instead of a failing process.
     pub library_dirs: Option<Vec<PathBuf>>,
@@ -96,6 +98,7 @@ impl WorkerConfig {
             disabled_plugins: Vec::new(),
             child_log: false,
             safe_mode: false,
+            third_party: Vec::new(),
             library_dirs: None,
         }
     }
@@ -187,9 +190,15 @@ struct Inner {
     sup: Supervisor<Conn>,
     disabled: Vec<String>,
     safe_mode: bool,
+    /// The installed third-party plugins now (sent with every open, so a restarted worker has them too).
+    third_party: Mutex<Vec<ThirdPartyPlugin>>,
     /// Why the worker cannot start (its database library is missing).
     unavailable: Option<String>,
 }
+
+/// Variables Windows needs to create a third-party plugin's AppContainer (they name the profile folders, not
+/// secrets); the worker starts those plugins itself.
+const CONTAINER_ENV: &[&str] = &["USERPROFILE", "LOCALAPPDATA", "APPDATA"];
 
 /// The supervised worker process. Cheap to clone.
 #[derive(Clone)]
@@ -206,6 +215,13 @@ impl StoreWorker {
         spawn.below_normal_priority = false;
         if let Some(kv) = library_path_env(cfg.lib_dir.as_deref()) {
             spawn.env.push(kv);
+        }
+        if cfg!(windows) {
+            spawn.env.extend(
+                CONTAINER_ENV
+                    .iter()
+                    .filter_map(|k| std::env::var(k).ok().map(|v| (k.to_string(), v))),
+            );
         }
         let unavailable = find_library(libduckdb_file(), &library_search(&cfg)).is_none().then(|| {
             format!(
@@ -243,9 +259,29 @@ impl StoreWorker {
                 sup,
                 disabled: cfg.disabled_plugins,
                 safe_mode: cfg.safe_mode,
+                third_party: Mutex::new(cfg.third_party),
                 unavailable,
             }),
         })
+    }
+
+    /// The installed third-party plugins now: the next open sends them, and a running worker applies them at
+    /// once (changed grants restart a plugin in its new sandbox; a plugin no longer listed stops).
+    pub fn set_third_party(&self, plugins: Vec<ThirdPartyPlugin>) -> StoreResult<()> {
+        *lock(&self.inner.third_party) = plugins.clone();
+        if self.status().state != imt_ipc::supervisor::ChildState::Running {
+            return Ok(());
+        }
+        let body = encode(&plugins)?;
+        self.inner
+            .sup
+            .call(|c| raw(c, &StoreRequest::SetPlugins(body), CALL_TIMEOUT))
+            .map_err(ipc_error)
+            .and_then(decode::<()>)
+    }
+
+    fn third_party(&self) -> Vec<ThirdPartyPlugin> {
+        lock(&self.inner.third_party).clone()
     }
 
     /// Supervisor state (running, restarts, quarantine).
@@ -303,6 +339,7 @@ impl StoreWorker {
             profile,
             disabled_plugins: self.inner.disabled.clone(),
             safe_mode: self.inner.safe_mode,
+            third_party: self.third_party(),
             limits: limits.clone(),
             parsers: None,
         };
@@ -400,6 +437,7 @@ impl RemoteStore {
             create,
             disabled_plugins: self.worker.inner.disabled.clone(),
             safe_mode: self.worker.inner.safe_mode,
+            third_party: self.worker.third_party(),
             limits: self.limits.clone(),
             parsers: lock(&self.parsers).clone(),
         };

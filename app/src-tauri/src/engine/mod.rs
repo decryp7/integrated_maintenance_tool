@@ -36,6 +36,9 @@ pub(crate) trait StoreHost: Send + Sync {
     fn open(&self, dir: &Path, profile: &Profile) -> StoreResult<SharedStore>;
     /// A project: a `.imt` folder in place, or an `.imtz` extracted into a new folder under `dest_root`.
     fn open_project(&self, path: &Path, dest_root: &Path, profile: &Profile) -> StoreResult<(SharedStore, ProjectManifest)>;
+    /// The installed third-party plugins that read files now (after a grant change or a removal), for hosts that
+    /// start plugins themselves.
+    fn set_third_party(&self, _plugins: Vec<imt_store_client::protocol::ThirdPartyPlugin>) {}
 }
 
 /// The store worker of the app: one process for every window's store.
@@ -46,13 +49,20 @@ pub(crate) struct WorkerHost {
 impl WorkerHost {
     /// The worker next to IMT's executable (`IMT_STORE_WORKER` overrides it), with libduckdb from the installed
     /// resource folder `lib_dir` (installers), next to the worker, or from IMT's own library path (development
-    /// builds, `fetch-libduckdb.sh`).
-    pub(crate) fn new(disabled_plugins: Vec<String>, safe_mode: bool, lib_dir: Option<PathBuf>) -> StoreResult<WorkerHost> {
+    /// builds, `fetch-libduckdb.sh`). The worker starts the built-in plugins and the installed `third_party` ones
+    /// for imports itself (ADR 0027).
+    pub(crate) fn new(
+        disabled_plugins: Vec<String>,
+        safe_mode: bool,
+        lib_dir: Option<PathBuf>,
+        third_party: Vec<imt_store_client::protocol::ThirdPartyPlugin>,
+    ) -> StoreResult<WorkerHost> {
         let exe = worker_binary();
         let mut cfg = imt_store_client::WorkerConfig::new(&exe);
         cfg.lib_dir = lib_dir.filter(|d| d.is_dir()).or_else(|| exe.parent().map(Path::to_path_buf));
         cfg.disabled_plugins = disabled_plugins;
         cfg.safe_mode = safe_mode;
+        cfg.third_party = third_party;
         cfg.child_log = true;
         Ok(WorkerHost {
             worker: imt_store_client::StoreWorker::new(cfg)?,
@@ -88,6 +98,12 @@ impl StoreHost for WorkerHost {
     fn open_project(&self, path: &Path, dest_root: &Path, profile: &Profile) -> StoreResult<(SharedStore, ProjectManifest)> {
         let (store, manifest) = self.worker.open_project(path, dest_root, profile.clone(), None)?;
         Ok((Arc::new(store), manifest))
+    }
+
+    fn set_third_party(&self, plugins: Vec<imt_store_client::protocol::ThirdPartyPlugin>) {
+        if let Err(e) = self.worker.set_third_party(plugins) {
+            log::warn!("The store worker did not take the plugin change: {e}");
+        }
     }
 }
 

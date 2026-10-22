@@ -29,4 +29,6 @@ serde_json = { workspace = true, features = ["preserve_order", "float_roundtrip"
 
 [dev-dependencies]
 getrandom.workspace = true
+imt-plugin-api = { path = "../imt-plugin-api" }
+tempfile.workspace = true
 sysinfo = { workspace = true, features = ["system"] }

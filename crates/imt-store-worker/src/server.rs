@@ -4,6 +4,7 @@
 //! is an engine error for that call, not a crash of the worker. A cancelled call interrupts the statement it
 //! runs (the caller's `Cancel` frame reaches [`DuckStore::with_control`]).
 
+use crate::plugins::{NoPlugins, PluginChoice, PluginSource};
 use imt_core::api::WorkspaceState;
 use imt_core::package::ProjectManifest;
 use imt_core::ports::{
@@ -13,7 +14,8 @@ use imt_core::ql::QueryControl;
 use imt_core::{PluginRegistry, Profile};
 use imt_ipc::CancelProbe;
 use imt_store_client::protocol::{
-    self, ExportProject, Handle, IdsAt, OpenProject, OpenStore, OpenedProject, Paths, Session, Source, StoreOp, StoreRequest, WorkerStatus,
+    self, ExportProject, Handle, IdsAt, OpenProject, OpenStore, OpenedProject, Paths, Session, Source, StoreOp, StoreRequest,
+    ThirdPartyPlugin, WorkerStatus,
 };
 use imt_store_duck::{DuckStore, StoreOptions};
 use serde::de::DeserializeOwned;
@@ -38,47 +40,38 @@ fn reply<T: Serialize>(v: &T) -> StoreResult<serde_json::Value> {
     serde_json::to_value(v).map_err(|e| StoreError::Engine(format!("cannot encode the reply: {e}")))
 }
 
-/// Builds the plugin registry of a store: the importers of every plugin except those the user turned off
-/// (the first argument); none in safe mode (the second).
-pub type RegistryFactory = Arc<dyn Fn(&[String], bool) -> PluginRegistry + Send + Sync>;
-
-/// A registry with `plugins` installed except the `disabled` ones (the same rules as IMT's own registry: a
-/// plugin that cannot be installed is logged and left out).
-pub fn install_plugins(plugins: Vec<Arc<dyn imt_core::Plugin>>, disabled: &[String]) -> PluginRegistry {
-    let mut registry = PluginRegistry::new();
-    registry.disable(disabled.iter().cloned());
-    for plugin in plugins {
-        let id = plugin.id().to_string();
-        if let Err(e) = registry.install_shared(plugin) {
-            log::error!("plugin {id} not installed in the store worker: {e:#}");
-        }
-    }
-    registry.resolve();
-    registry
-}
+pub use crate::plugins::install_plugins;
 
 /// The stores of this worker.
 pub struct Worker {
     stores: Mutex<HashMap<u64, (PathBuf, DuckStore)>>,
     sessions: Mutex<HashMap<u64, ImportSession>>,
     next: AtomicU64,
-    registry: RegistryFactory,
+    plugins: Arc<dyn PluginSource>,
 }
 
 impl Default for Worker {
     fn default() -> Self {
-        Worker::new(Arc::new(|_, _| PluginRegistry::new()))
+        Worker::new(Arc::new(NoPlugins))
     }
 }
 
 impl Worker {
-    pub fn new(registry: RegistryFactory) -> Worker {
+    pub fn new(plugins: Arc<dyn PluginSource>) -> Worker {
         Worker {
             stores: Mutex::default(),
             sessions: Mutex::default(),
             next: AtomicU64::new(0),
-            registry,
+            plugins,
         }
+    }
+
+    fn registry(&self, disabled: &[String], safe_mode: bool, third_party: &[ThirdPartyPlugin]) -> PluginRegistry {
+        self.plugins.registry(&PluginChoice {
+            disabled,
+            safe_mode,
+            third_party,
+        })
     }
 
     fn store(&self, handle: u64) -> StoreResult<DuckStore> {
@@ -107,7 +100,7 @@ impl Worker {
             },
             None => StoreOptions::default(),
         };
-        let registry = (self.registry)(&req.disabled_plugins, req.safe_mode);
+        let registry = self.registry(&req.disabled_plugins, req.safe_mode, &req.third_party);
         let store = if req.create {
             DuckStore::create_with(&dir, req.profile, registry, opts)?
         } else {
@@ -123,7 +116,7 @@ impl Worker {
 
     fn open_project(&self, req: OpenProject) -> StoreResult<OpenedProject> {
         std::fs::create_dir_all(&req.dest_root)?;
-        let registry = (self.registry)(&req.disabled_plugins, req.safe_mode);
+        let registry = self.registry(&req.disabled_plugins, req.safe_mode, &req.third_party);
         let (store, manifest) = DuckStore::open_project(&req.path, &req.dest_root, req.profile, registry)?;
         if let Some(setup) = &req.parsers {
             imt_core::ports::Profiles::set_parsers(&store, setup)?;
@@ -174,6 +167,11 @@ impl Worker {
         match req {
             StoreRequest::OpenStore(b) => reply(&self.open_store(body(b.0)?)?),
             StoreRequest::OpenProject(b) => reply(&self.open_project(body(b.0)?)?),
+            StoreRequest::SetPlugins(b) => {
+                let plugins: Vec<ThirdPartyPlugin> = body(b.0)?;
+                self.plugins.set_third_party(&plugins);
+                reply(&())
+            }
             StoreRequest::CloseStore { store } => {
                 lock(&self.stores).remove(&store);
                 reply(&())
@@ -399,8 +397,8 @@ impl imt_ipc::Handler for StoreHandler {
 
 /// The worker's `main`: reads its bootstrap, connects to IMT and serves until IMT closes the connection (or
 /// stdin closes: IMT is gone).
-pub fn run(registry: RegistryFactory) -> std::io::Result<()> {
-    imt_ipc::child::child_main("IMT", move |_| Arc::new(StoreHandler::new(Arc::new(Worker::new(registry.clone())))))
+pub fn run(plugins: Arc<dyn PluginSource>) -> std::io::Result<()> {
+    imt_ipc::child::child_main("IMT", move |_| Arc::new(StoreHandler::new(Arc::new(Worker::new(plugins.clone())))))
 }
 
 #[cfg(test)]

@@ -16,6 +16,7 @@ pub use trust_section::TrustSection;
 use imt_plugin_host::installed::{InstallRecord, PluginsDir};
 use imt_plugin_host::{Builtins, PluginProcess};
 use imt_plugin_package::TrustSettings;
+use imt_store_client::protocol::ThirdPartyPlugin;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
@@ -73,6 +74,30 @@ impl Installed {
     /// The trust settings now.
     pub fn trust(&self) -> TrustSettings {
         crate::sync::read(&self.trust).clone()
+    }
+
+    /// The plugins the store worker starts for imports (ADR 0027, imports run in the worker since ADR 0014 6c):
+    /// those loaded in this run that read files and are still installed, with what they are granted now.
+    pub fn for_store_worker(&self) -> Vec<ThirdPartyPlugin> {
+        let Some(dir) = &self.dir else { return Vec::new() };
+        let mut out: Vec<ThirdPartyPlugin> = self
+            .loaded
+            .iter()
+            .filter_map(|(id, (record, process))| {
+                let p = process.as_ref().ok()?;
+                let m = p.manifest();
+                let reads_files = !m.importers.is_empty() || !m.document_importers.is_empty() || !m.profile_importers.is_empty();
+                let still_installed = matches!(dir.record(id), Ok(Some(_)));
+                (reads_files && still_installed).then(|| ThirdPartyPlugin {
+                    plugins_dir: dir.root().to_path_buf(),
+                    id: id.clone(),
+                    sha256: record.sha256.clone(),
+                    granted: p.granted_now(),
+                })
+            })
+            .collect();
+        out.sort_by(|a, b| a.id.cmp(&b.id));
+        out
     }
 }
 
