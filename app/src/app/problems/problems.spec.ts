@@ -317,8 +317,11 @@ describe('Problems pane', () => {
     await settle(f, 8);
     expect(el(f, '[data-testid=fix-evaluation]').getAttribute('data-tone')).toBe('good');
     el<HTMLButtonElement>(f, '[data-testid=fix-apply]').click();
-    await settle(f, 12);
-    expect(text(f)).toContain('read its files again');
+    // Apply re-reads the files: wait for it rather than a fixed number of change-detection rounds (slow CI).
+    await vi.waitFor(async () => {
+      await settle(f);
+      expect(text(f)).toContain('read its files again');
+    }, { timeout: 10_000 });
     expect(text(f)).not.toContain('without a readable timestamp');
   });
 

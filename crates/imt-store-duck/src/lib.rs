@@ -417,6 +417,10 @@ fn open_db(dir: &Path, opts: &StoreOptions) -> StoreResult<Connection> {
         // Freed memory goes back to the OS after each task above this (DuckDB's jemalloc on Linux keeps up to
         // 128 MB by default, which the worker's 300 MB query budget cannot spare).
         .and_then(|c| c.with("allocator_flush_threshold", ALLOCATOR_FLUSH))
+        // DuckDB's own jemalloc (IMT's Rust code uses mimalloc) returns freed pages through background threads, off by
+        // default: without them a Linux store kept anomaly detection's freed memory (+165 MB over a 64 MB limit in
+        // CI). No effect where DuckDB uses the system allocator.
+        .and_then(|c| c.with("allocator_background_threads", "true"))
         .map_err(engine)?;
     let conn = Connection::open_with_flags(dir.join(DB_FILE), config).map_err(engine)?;
     // Segment footers are parsed once, not per query (a setting of the Parquet reader, so set after opening).
@@ -1042,6 +1046,7 @@ mod tests {
                 .unwrap()
         };
         assert_eq!(setting("allocator_flush_threshold"), "32.0 MiB");
+        assert_eq!(setting("allocator_background_threads"), "true");
         assert_eq!(setting("threads"), DUCK_THREADS.to_string());
         drop(conn);
         let _ = std::fs::remove_dir_all(&dir);

@@ -339,7 +339,9 @@ fn a_locked_child_cannot_write_files_or_start_programs() {
     let notes = notes(&locked);
     // Where landlock is enforced, no thread may escape it; without landlock no thread is file-restricted anyway (and
     // that gap is reported on its own), so an early thread changes nothing there.
-    let landlock_missing = notes.iter().any(|n| n.message.contains("landlock is not available"));
+    let landlock_missing = notes
+        .iter()
+        .any(|n| n.message.contains("landlock is not available") || n.message.contains("landlock is not enabled"));
     if landlock_missing {
         eprintln!("skipped the early-thread check: landlock is not available here: {notes:?}");
     } else {
