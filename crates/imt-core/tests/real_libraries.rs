@@ -154,7 +154,6 @@ fn log4net_csv_layout_keeps_the_offset() {
 }
 
 #[test]
-#[ignore = "known bug: the log4net CSV parser splits an unquoted message at its commas and turns exception lines into empty untimed events"]
 fn log4net_csv_layout_keeps_messages_with_commas_and_exceptions() {
     let (_, recs) = read("log4net-csv.log");
     assert_scenario("log4net-csv.log", &recs);
