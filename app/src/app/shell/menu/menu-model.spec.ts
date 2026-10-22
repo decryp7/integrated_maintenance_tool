@@ -1,4 +1,4 @@
-import { buildMenus, menuItems, MenuNode, MenuState, MenuView, tidy, TopMenu, topLevelSize } from './menu-model';
+import { buildMenus, menuItems, recentLabel, RECENT_MENU_FILES, RECENT_MENU_PROJECTS, MenuNode, MenuState, MenuView, tidy, TopMenu, topLevelSize } from './menu-model';
 import { at } from '../../../testing/must';
 
 const COMMANDS: [string, string, string?][] = [
@@ -201,6 +201,27 @@ describe('menu model', () => {
     expect(labels(plugins)).toEqual(['Manage plugins', '—', 'Other plugins', 'Windows events', 'Windows registry']);
     const registry = plugins.find((n) => n.kind === 'group' && n.label === 'Windows registry');
     expect(registry?.kind === 'group' && registry.items.map((i) => i.id)).toEqual(['view:registry']);
+  });
+
+  it('File > Open recent lists projects, then files, then Clear recent; it is absent when nothing was opened (F5)', () => {
+    const fileMenu = (s: MenuState) => menu(buildMenus(s), 'file').items;
+    expect(labels(fileMenu(state()))).not.toContain('Open recent');
+    const files = Array.from({ length: RECENT_MENU_FILES + 3 }, (_, i) => `C:\\logs\\web01\\app-${i}.log`);
+    const projects = Array.from({ length: RECENT_MENU_PROJECTS + 2 }, (_, i) => ({ path: `/p/proj-${i}.imtproj`, name: `Proj ${i}` }));
+    const recent = sub(fileMenu(state({ recent: { projects, files } })), 'Open recent');
+    const items = recent.map((n) => (n.kind === 'item' ? n.label : '—'));
+    expect(items).toHaveLength(RECENT_MENU_PROJECTS + 1 + RECENT_MENU_FILES + 1 + 1);
+    expect(items[0]).toBe('Proj 0');
+    expect(items[RECENT_MENU_PROJECTS]).toBe('—');
+    expect(items[RECENT_MENU_PROJECTS + 1]).toBe('web01/app-0.log');
+    expect(items.at(-1)).toBe('Clear recent');
+    expect(menuItems(recent).map((i) => i.id)).toContain('recent:project:/p/proj-0.imtproj');
+    expect(menuItems(recent).map((i) => i.id)).toContain('menu.recentClear');
+    // Only files: no separator between the groups.
+    const onlyFiles = sub(fileMenu(state({ recent: { projects: [], files: ['/a/b.log'] } })), 'Open recent');
+    expect(onlyFiles.map((n) => (n.kind === 'item' ? n.label : '—'))).toEqual(['a/b.log', '—', 'Clear recent']);
+    expect(recentLabel('single')).toBe('single');
+    expect(recentLabel('')).toBe('');
   });
 
   it('leaves out commands that are not available, and menus and submenus that end up empty', () => {
