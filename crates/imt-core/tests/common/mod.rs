@@ -2,6 +2,8 @@
 //! integration tests of code that reads a store only through its ports.
 #![allow(dead_code)]
 
+pub mod delegate;
+
 use imt_core::api::{
     ChartData, ChartRequest, CompletionRequest, ContextRequest, ExportRequest, ExportResult, Facet, FacetRequest, FieldStatsRequest,
     QueryRequest, SourceContext, SourceInfo, Timeline, TimelineRequest,

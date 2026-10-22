@@ -119,8 +119,10 @@ let legendSeq = 0;
     }
   `,
   styles: `
-    /* The legend is one row until "+N more" is pressed; clipped sideways only, so the 24px hit areas are not cut. */
-    .legend-row.collapsed { flex-wrap: nowrap; overflow-x: clip; }
+    /* Each group is one line until "+N more" is pressed (clipped sideways only, so the 24px hit areas are not cut). The
+       groups themselves wrap onto a second line when the panel is narrow (a document open beside the timeline), so none
+       is pushed out of reach. */
+    .legend-row.collapsed { overflow-x: clip; }
     .legend-row.collapsed > div { flex-wrap: nowrap; flex: none; }
     .legend-row { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 0 14px 6px; }
     .legend, .ann-legend, .run-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: var(--fs-sm); color: var(--muted); min-width: 0; }

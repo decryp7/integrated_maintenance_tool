@@ -56,6 +56,7 @@ const SAMPLES: &[(&str, &str, &str)] = &[
     ("serilog-text-worker01", "serilog-text/worker01/worker-20261014.txt", "text"),
     ("sqlserver-errorlog-upper", "sqlserver/SQL01/ERRORLOG", "text"),
     ("sqlserver-errorlog-lower", "sqlserver/sqlrpt01/errorlog", "text"),
+    ("video-frames-checkout", "video/checkout-web02.mp4.frames", "video-frames"),
 ];
 
 fn samples() -> PathBuf {

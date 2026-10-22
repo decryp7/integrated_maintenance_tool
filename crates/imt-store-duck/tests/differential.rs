@@ -548,11 +548,37 @@ fn check_operators(p: &Pair) {
     assert!(matched > 20, "most cases match events ({matched})");
 }
 
+/// `@id` lists (the Console's "Open all in Events") filter to as many events in DuckDB as in the Workspace. The two
+/// number events differently, so the counts are compared, not the rows.
+fn check_id_lists(p: &Pair) {
+    for ql in [
+        "@id in (0, 1, 2, 7)",
+        "@id in (3)",
+        "@id in (99999999)",
+        "@id in (4, 4, 4)",
+        "@id = 5",
+        "@id in (1, 2, 3) and level >= information",
+        "@id > 5 and @id < 9",
+    ] {
+        let q = ranged(
+            p,
+            Filter {
+                ql: ql.into(),
+                ..Filter::default()
+            },
+        );
+        let (wt, _) = ws_rows(p, &q, 0, 50, false);
+        let (dt, _) = duck_rows(p, &q, 0, 50, false);
+        assert_eq!(dt, wt, "{ql}: total");
+    }
+}
+
 #[test]
 fn answers_like_the_workspace_with_the_default_profile() {
     let p = pair(Profile::default_profile());
     check_summary(&p);
     check_operators(&p);
+    check_id_lists(&p);
     check_pages(&p);
     check_sources_filter(&p);
     check_anchor(&p);

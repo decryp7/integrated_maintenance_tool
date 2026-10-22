@@ -1,0 +1,73 @@
+---
+source: crates/imt-core/tests/importer_snapshots.rs
+expression: snap
+---
+sample: video/checkout-web02.mp4.frames
+importer: video-frames
+records: 6
+skipped: 0
+levels:
+  2-Information: 6
+with_timestamp: 6
+first_timestamp: "2026-10-14T10:36:40.774Z"
+last_timestamp: "2026-10-14T10:37:45.260Z"
+fields:
+  - AlignedBy
+  - Confidence
+  - Frame
+  - Note
+  - Video
+  - VideoTime
+first:
+  - line: 2
+    timestamp: "2026-10-14T10:36:40.774Z"
+    level: Information
+    message: The checkout page shows the cart with three items and a Pay now button.
+    fields:
+      AlignedBy: file name
+      Confidence: high
+      Frame: 1
+      Video: checkout-web02.mp4
+      VideoTime: "00:00.774"
+  - line: 3
+    timestamp: "2026-10-14T10:36:53.140Z"
+    level: Information
+    message: A spinner covers the payment form; the button is greyed out.
+    fields:
+      AlignedBy: file name
+      Confidence: high
+      Frame: 2
+      Video: checkout-web02.mp4
+      VideoTime: "00:13.140"
+  - line: 4
+    timestamp: "2026-10-14T10:37:06.874Z"
+    level: Information
+    message: "A banner reads: We could not reach the payment service. Retrying..."
+    fields:
+      AlignedBy: file name
+      Confidence: high
+      Frame: 3
+      Note: the retry banner first appears
+      Video: checkout-web02.mp4
+      VideoTime: "00:26.874"
+  - line: 5
+    timestamp: "2026-10-14T10:37:19.065Z"
+    level: Information
+    message: The same banner is shown with a second retry counter.
+    fields:
+      AlignedBy: file name
+      Confidence: high
+      Frame: 4
+      Video: checkout-web02.mp4
+      VideoTime: "00:39.065"
+  - line: 6
+    timestamp: "2026-10-14T10:37:32.530Z"
+    level: Information
+    message: "An error dialog says the order could not be placed, with an OK button."
+    fields:
+      AlignedBy: file name
+      Confidence: medium
+      Frame: 5
+      Note: dialog covers the form
+      Video: checkout-web02.mp4
+      VideoTime: "00:52.530"

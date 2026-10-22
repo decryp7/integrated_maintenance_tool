@@ -847,6 +847,10 @@ mod tests {
     /// Closing the last window and exiting finish in bounded time with a live tail whose batch waits for
     /// the workspace (an import holds it), a job whose stop never returns, and the tray present.
     #[test]
+    #[cfg_attr(
+        target_os = "macos",
+        ignore = "macOS creates the tray menu on the main thread only, and the test harness runs tests on worker threads; it runs on Linux and Windows CI"
+    )]
     fn quitting_finishes_with_live_tail_jobs_and_the_tray() {
         use crate::test_support::{block, test_app_with_commands, window, TempDir};
         use tauri::Manager;

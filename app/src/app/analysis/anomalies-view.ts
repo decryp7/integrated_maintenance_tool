@@ -85,7 +85,7 @@ export class AnomaliesView {
     { id: 'kind', label: $localize`:@@analysis.anomalies.col.kind:Kind`, sortLabel: $localize`:@@analysis.anomalies.sort.kind:Sort by kind` },
     { id: 'instance', label: $localize`:@@analysis.anomalies.col.instance:Instance`, sortLabel: $localize`:@@analysis.anomalies.sort.instance:Sort by instance` },
     { id: 'time', label: $localize`:@@analysis.anomalies.col.time:Time`, sortLabel: $localize`:@@analysis.anomalies.sort.time:Sort by time` },
-    { id: 'message', label: $localize`:@@analysis.anomalies.col.what:What`, sortLabel: $localize`:@@analysis.anomalies.sort.what:Sort by description` },
+    { id: 'message', label: $localize`:@@analysis.anomalies.col.what:What`, sortLabel: $localize`:@@analysis.anomalies.sort.what:Sort by what happened` },
     { id: 'score', label: $localize`:@@analysis.anomalies.col.score:Score`, sortLabel: $localize`:@@analysis.anomalies.sort.score:Sort by score` },
   ];
   private readonly backend = inject(AnalysisBackend);

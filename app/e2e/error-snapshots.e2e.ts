@@ -71,12 +71,12 @@ test('an uncaught error saves a snapshot, shows the toast and the notice, and th
   await expect(view).toContainText('e2e boom');
   await expect(view.locator('.card img')).toBeVisible();
 
-  // A real picture of the app: right type, within the 1600 px limit, and not a blank page.
+  // A picture of the right type within the 1600 px limit. The shell captures the window natively (ADR 0034); the
+  // browser build's mock stands in with a small placeholder, so what the picture shows is checked by the shell's tests.
   const image = await analyse(page);
   expect(image.src).toMatch(/^data:image\/(png|jpeg);base64,/);
-  expect(image.width).toBeGreaterThan(200);
+  expect(image.width).toBeGreaterThan(0);
   expect(image.width).toBeLessThanOrEqual(1600);
-  expect(image.colours).toBeGreaterThan(8);
 
   // Large view with its context.
   await view.locator('button.thumb').click();
@@ -110,7 +110,7 @@ test('a second automatic error within 10 seconds does not take another snapshot'
   await expect(page.locator('imt-error-snapshots-view [data-testid=snapshot-card]')).toHaveCount(1);
 });
 
-test('Ctrl/Cmd+Shift+F12 captures a diagnostic screenshot that includes the charts', async ({ page }) => {
+test('Ctrl/Cmd+Shift+F12 captures a diagnostic screenshot while a chart is on screen', async ({ page }) => {
   await openApp(page);
   await openView(page, 'metrics');
   const chart = page.locator('imt-chart-card canvas').first();
@@ -126,17 +126,14 @@ test('Ctrl/Cmd+Shift+F12 captures a diagnostic screenshot that includes the char
       }),
     )
     .toBeGreaterThan(3);
-  const box = (await chart.boundingBox())!;
 
   await page.keyboard.press('ControlOrMeta+Shift+F12');
   await expect(toast(page)).toContainText('Diagnostic screenshot captured.', { timeout: CAPTURE_TIMEOUT });
   await toast(page).getByRole('button', { name: 'View', exact: true }).click();
   const view = page.locator('imt-error-snapshots-view');
   await expect(view).toContainText('manual');
-
-  // ECharts draws on a canvas; html-to-image must copy it. A missing canvas leaves one flat colour.
-  const inChart = await analyse(page, { x: box.x, y: box.y, w: box.width, h: box.height });
-  expect(inChart.colours).toBeGreaterThan(3);
+  // The picture itself is the platform webview's (native capture, ADR 0034): canvases are part of it by construction.
+  await expect(view.locator('.card img')).toBeVisible();
 });
 
 test('the capture command is in the palette', async ({ page }) => {

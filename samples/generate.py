@@ -2180,4 +2180,28 @@ for enc_name, (codec, messages) in ENC_LINES.items():
         data = b"\xff\xfe" + data
     write_bytes(data, "encodings", f"{enc_name}.log")
 
+# Video frames (ADR 0033 §4): what `imt-video` writes for a screen recording of the checkout page on WEB02 while it
+# struggles. The header and one JSON line per kept frame; the file name is `<video name>.frames`. Invented content.
+vrnd = random.Random(3007)
+VIDEO_START = datetime(2026, 10, 14, 10, 36, 40, tzinfo=timezone.utc)
+VIDEO_DESCRIPTIONS = [
+    "The checkout page shows the cart with three items and a Pay now button.",
+    "A spinner covers the payment form; the button is greyed out.",
+    "A banner reads: We could not reach the payment service. Retrying...",
+    "The same banner is shown with a second retry counter.",
+    "An error dialog says the order could not be placed, with an OK button.",
+    "The cart page is shown again; the cart is empty.",
+]
+VIDEO_NOTES = {2: "the retry banner first appears", 4: "dialog covers the form"}
+frames_lines = [json.dumps({"videoFrames": 1, "video": "checkout-web02.mp4", "sha256": "".join(f"{vrnd.randrange(256):02x}" for _ in range(32)), "durationMs": 75000}, separators=(",", ":"))]
+for i, text in enumerate(VIDEO_DESCRIPTIONS):
+    video_ms = i * 13000 + vrnd.randrange(0, 900)
+    frame = {"frame": i, "videoMs": video_ms, "time": ms_of(VIDEO_START) + video_ms, "text": text}
+    if i in VIDEO_NOTES:
+        frame["note"] = VIDEO_NOTES[i]
+    frame["alignedBy"] = "fileName"
+    frame["confidence"] = "high" if i < 4 else "medium"
+    frames_lines.append(json.dumps(frame, separators=(",", ":")))
+write_text("\n".join(frames_lines) + "\n", "video", "checkout-web02.mp4.frames")
+
 print("samples written to", ROOT)

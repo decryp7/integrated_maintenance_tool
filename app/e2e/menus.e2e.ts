@@ -37,7 +37,7 @@ test.describe('menus', () => {
     const problems = watchProblems(page);
     const view = await openMenu(page, 'View');
     // Core tool windows at the top level, the rest in submenus.
-    for (const name of ['Explorer', 'Fields', 'Inspector', 'Timeline', 'Events', 'Metrics', 'Overview']) await expect(menuItem(view, name)).toBeVisible();
+    for (const name of ['Explorer', 'Fields', 'Inspector', 'Timeline', 'Events', 'Metrics', 'Home']) await expect(menuItem(view, name)).toBeVisible();
     for (const name of ['Analysis', 'Live', 'Profiling', 'Tools', 'Sharing', 'Diagnostics', 'Plugins']) await expect(view.getByRole('menuitem', { name, exact: true })).toHaveAttribute('aria-haspopup', 'menu');
     await expect(menuItem(view, 'Anomalies')).toHaveCount(0);
     await page.keyboard.press('Escape');

@@ -1,5 +1,8 @@
 //! Known issues, the incident summary and playbooks against the generated samples (ADR 0039).
 
+mod common;
+
+use common::delegate::Delegating;
 use imt_core::incident::{build_incident_report, IncidentOptions};
 use imt_core::known_issues::{match_known_issues, KnowledgeText, Origin};
 use imt_core::playbook::{run_step, Action, Expect, Playbook, PlaybookRecord, PlaybookRun, Step, StepStatus};
@@ -331,4 +334,77 @@ fn a_filter_step_reports_a_bad_query_and_counts_the_rows_of_a_table() {
     .unwrap();
     assert_eq!(table.status, StepStatus::Info);
     assert!(table.count.unwrap() >= 1 && table.sample_ids.is_empty(), "{table:?}");
+}
+
+fn problem(name: &str, kind: imt_core::ingest::ProblemKind, count: u64, detail: Option<&str>) -> imt_core::ports::DiagnosticRow {
+    imt_core::ports::DiagnosticRow {
+        source: None,
+        source_name: name.into(),
+        path: format!("logs/{name}"),
+        kind,
+        severity: kind.severity(),
+        count,
+        sample_lines: vec![3],
+        detail: detail.map(Into::into),
+        fix: None,
+    }
+}
+
+#[test]
+fn import_problems_are_listed_with_their_severity_count_and_detail() {
+    use imt_core::ingest::ProblemKind;
+    let rows = vec![
+        problem("web01.log", ProblemKind::LineTooLong, 4, Some("longest line 2 MB")),
+        problem("clean.log", ProblemKind::LineNotParsed, 0, None),
+        problem("odd.bin", ProblemKind::UnknownFormat, 1, None),
+    ];
+    let wrapped = Delegating::with_problems(store(), Ok(rows));
+    let r = build_incident_report(
+        &wrapped,
+        &IncidentOptions {
+            id: "i".into(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let section = r
+        .sections
+        .iter()
+        .find(|s| s.title == "Import problems")
+        .expect("a problems section");
+    let findings: Vec<(&str, &str, &str)> = section
+        .blocks
+        .iter()
+        .filter_map(|b| match b {
+            StoredBlock::Known(i) => match &i.block {
+                Block::Finding { severity, title, detail } => Some((severity.as_str(), title.as_str(), detail.as_str())),
+                _ => None,
+            },
+            StoredBlock::Unknown(_) => None,
+        })
+        .collect();
+    assert_eq!(findings.len(), 2, "a problem with a zero count is left out: {findings:?}");
+    assert!(
+        findings[0].1.starts_with("web01.log: ") && findings[0].1.ends_with("(4)"),
+        "{findings:?}"
+    );
+    assert_eq!(findings[0].2, "longest line 2 MB");
+    assert!(findings[1].1.starts_with("odd.bin: "), "{findings:?}");
+    assert_eq!(findings[1].2, "", "no detail is an empty one");
+    assert!(findings.iter().all(|f| ["critical", "warning", "info"].contains(&f.0)));
+}
+
+#[test]
+fn a_failing_problem_list_leaves_the_section_out_and_the_rest_of_the_summary_stands() {
+    let wrapped = Delegating::with_problems(store(), Err(imt_core::ports::StoreError::Busy("importing".into())));
+    let r = build_incident_report(
+        &wrapped,
+        &IncidentOptions {
+            id: "i".into(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert!(r.sections.iter().all(|s| s.title != "Import problems"));
+    assert!(r.sections.iter().any(|s| s.title == "Summary"));
 }

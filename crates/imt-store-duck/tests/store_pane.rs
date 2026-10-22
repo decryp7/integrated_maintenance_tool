@@ -458,7 +458,7 @@ fn open_in_events_takes_every_id_of_a_result() {
     let (_dir, store, total) = opened("pane-sql-ids");
     let r = run(
         &store,
-        "SELECT id, message FROM events WHERE level >= 3 UNION ALL SELECT id, message FROM events WHERE level >= 3",
+        "SELECT id, message FROM events WHERE level IN ('Warning', 'Error', 'Fatal') UNION ALL SELECT id, message FROM events WHERE level IN ('Warning', 'Error', 'Fatal')",
     )
     .unwrap();
     assert!(r.event_ids);
@@ -473,7 +473,7 @@ fn open_in_events_takes_every_id_of_a_result() {
                 ql: ql.clone(),
                 ..Default::default()
             },
-            limit: 500,
+            limit: imt_core::ports::MAX_PAGE_ROWS,
             ..PageQuery::default()
         })
         .unwrap();
@@ -482,6 +482,7 @@ fn open_in_events_takes_every_id_of_a_result() {
     shown.sort_unstable();
     let mut wanted = ids.ids.clone();
     wanted.sort_unstable();
+    assert_eq!(shown.len(), wanted.len(), "{} ids", wanted.len());
     assert_eq!(shown, wanted);
     let one = store
         .page(&PageQuery {

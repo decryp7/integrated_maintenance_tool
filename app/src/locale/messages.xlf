@@ -5546,7 +5546,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.anomalies.sort.what" datatype="html">
-        <source>Sort by description</source>
+        <source>Sort by what happened</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/anomalies-view.ts</context>
           <context context-type="linenumber">88</context>
@@ -37650,70 +37650,70 @@
         <source>Hide the runs between start and stop markers</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-legend.ts</context>
-          <context context-type="linenumber">158</context>
+          <context context-type="linenumber">160</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.legend.showRuns" datatype="html">
         <source>Show the runs between start and stop markers</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-legend.ts</context>
-          <context context-type="linenumber">159</context>
+          <context context-type="linenumber">161</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.legend.fewer" datatype="html">
         <source>Show fewer</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-legend.ts</context>
-          <context context-type="linenumber">165</context>
+          <context context-type="linenumber">167</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.legend.more" datatype="html">
         <source>+<x id="count" equiv-text="n"/> more</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-legend.ts</context>
-          <context context-type="linenumber">208</context>
+          <context context-type="linenumber">210</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.legend.hideRunKind" datatype="html">
         <source>Hide <x id="label" equiv-text="label"/> runs (<x id="count" equiv-text="count"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-legend.ts</context>
-          <context context-type="linenumber">219</context>
+          <context context-type="linenumber">221</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.legend.showRunKind" datatype="html">
         <source>Show <x id="label" equiv-text="label"/> runs (<x id="count" equiv-text="count"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-legend.ts</context>
-          <context context-type="linenumber">220</context>
+          <context context-type="linenumber">222</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.legend.runAnomalies" datatype="html">
         <source><x id="count" equiv-text="n"/> anomalies</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-legend.ts</context>
-          <context context-type="linenumber">224</context>
+          <context context-type="linenumber">226</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.legend.hideAnnotation" datatype="html">
         <source>Hide <x id="label" equiv-text="label"/> (<x id="owner" equiv-text="owner"/>, <x id="count" equiv-text="count"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-legend.ts</context>
-          <context context-type="linenumber">230</context>
+          <context context-type="linenumber">232</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.legend.showAnnotation" datatype="html">
         <source>Show <x id="label" equiv-text="label"/> (<x id="owner" equiv-text="owner"/>, <x id="count" equiv-text="count"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-legend.ts</context>
-          <context context-type="linenumber">231</context>
+          <context context-type="linenumber">233</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.legend.evidenceMore" datatype="html">
         <source><x id="count" equiv-text="more"/> more — zoom in to list them</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-legend.ts</context>
-          <context context-type="linenumber">245</context>
+          <context context-type="linenumber">247</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.minimap.label" datatype="html">

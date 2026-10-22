@@ -13,6 +13,8 @@ type AddPanel = { id: string; component: string; title: string; inactive: boolea
 
 const INSPECTOR_WIDTH = 372;
 const TIMELINE_HEIGHT = 300;
+/** The share of the dock's height the events grid keeps when a document opens beside the timeline. */
+const DOCUMENT_GRID_SHARE = 0.35;
 /** Size of a group floated with the "Float panel" button. */
 const FLOAT_SIZE = FLOAT_MAX;
 /** Size of a new tool window group at a window edge, px (a right-hand column as wide as the inspector's). */
@@ -74,8 +76,28 @@ export class DockPlacement {
     add(PANEL.timeline);
     add(PANEL.events, { referencePanel: PANEL.timeline, direction: 'below' });
     api.getPanel(PANEL.timeline)?.api.setActive();
-    api.getPanel(PANEL.timeline)?.group.api.setSize({ height: TIMELINE_HEIGHT });
+    this.whenSized(api, () => api.getPanel(PANEL.timeline)?.group.api.setSize({ height: TIMELINE_HEIGHT }));
     return { ...EMPTY_EXTRAS, autoHidden: defaultAutoHidden(views.find(PANEL.inspector)) };
+  }
+
+  /**
+   * Runs `apply` once the dock has a measured size. A size set before the container is measured is rescaled
+   * proportionally when dockview first lays out, so the split landed on a different height from run to run; applied
+   * after that layout it is exactly the requested one.
+   */
+  private whenSized(api: DockviewApi, apply: () => void): void {
+    const container = this.ctx.container;
+    const sized = () => api.width > 0 && api.height > 0;
+    if (sized() || !container || typeof ResizeObserver === 'undefined') {
+      apply();
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      if (!sized()) return;
+      observer.disconnect();
+      if (this.ctx.api === api) apply();
+    });
+    observer.observe(container);
   }
 
   /**
@@ -172,9 +194,25 @@ export class DockPlacement {
     const well = this.documentWell(undefined, true);
     if (well) return api.addPanel({ ...base, position: { referenceGroup: well.id, direction: 'within' } });
     const main = api.getPanel(PANEL.timeline) ?? api.getPanel(PANEL.events);
-    if (main && main.group.api.location.type === 'grid') return api.addPanel({ ...base, position: { referenceGroup: main.group.id, direction: 'right' } });
+    if (main && main.group.api.location.type === 'grid') {
+      const panel = api.addPanel({ ...base, position: { referenceGroup: main.group.id, direction: 'right' } });
+      this.giveDocumentsRoom(api);
+      return panel;
+    }
     const ref = this.anchorFor(api, 'center');
     return api.addPanel({ ...base, ...(ref ? { position: { referencePanel: ref, direction: 'within' as const } } : {}) });
+  }
+
+  /**
+   * A document opened beside the timeline shares the timeline's row, which is a strip (300 px) next to the grid. Dumps,
+   * registries and reports need height, so the row grows to the share of the dock the grid gives up (the grid keeps
+   * its share when it is already smaller). Only the grid's height is set: dockview resizes along the split's own axis.
+   */
+  private giveDocumentsRoom(api: DockviewApi): void {
+    const events = api.getPanel(PANEL.events)?.group;
+    if (!events || events.api.location.type !== 'grid' || api.height <= 0) return;
+    const wanted = Math.round(api.height * DOCUMENT_GRID_SHARE);
+    if (events.height > wanted) events.api.setSize({ height: wanted });
   }
 
   /** A docked tool window already open on that side, to tab a new one with. */

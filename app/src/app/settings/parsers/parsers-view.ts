@@ -28,7 +28,7 @@ import { ParsersStore } from './parsers.store';
   `,
   styles: `
     :host { flex: 1; min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(320px, 2fr) minmax(360px, 3fr); background: var(--bg-1); }
-    .list { min-width: 0; overflow: auto; padding: 12px 14px; border-inline-end: 1px solid var(--border); }
+    .list { position: relative; min-width: 0; overflow: auto; padding: 12px 14px; border-inline-end: 1px solid var(--border); }
     .detail { min-width: 0; min-height: 0; overflow: auto; padding: 12px 14px; display: flex; flex-direction: column; }
     .detail imt-parser-editor { flex: 1; min-height: 0; }
     .hint { margin: 0; color: var(--muted); line-height: 1.5; }
