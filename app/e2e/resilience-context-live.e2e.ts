@@ -39,7 +39,7 @@ test.describe('context view', () => {
 });
 
 test('a failed context request shows an inline error with Retry', async ({ page }) => {
-  await openAppWith(page, '?mockFail=sourceContext:1');
+  await openAppWith(page, '?mockFail=sourceContext:1&mockSnapshots=off');
   await page.locator('imt-events-grid [role=row].row').nth(3).click();
   const ctx = page.locator('imt-context-section');
   await ctx.getByRole('button', { name: 'Context' }).click();
