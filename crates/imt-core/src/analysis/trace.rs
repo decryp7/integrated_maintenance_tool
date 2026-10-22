@@ -45,16 +45,17 @@ fn first_text(r: &dyn RowRef, names: &[&str]) -> Option<String> {
         .find(|v| !v.is_empty())
 }
 
-/// Ids of the events whose `key_field` equals `value`, in time order
-/// (events without a timestamp last).
+/// Ids of the events whose `key_field` equals `value`, in time order (events without a timestamp last);
+/// events at the same time in source and line order, as every store keeps them (ids are assigned in import
+/// order, which differs between stores and between parallel imports).
 pub fn correlate<R: RowRef>(records: impl IntoIterator<Item = R>, key_field: &str, value: &str) -> Vec<u32> {
-    let mut hits: Vec<(i64, u32)> = records
+    let mut hits: Vec<(i64, u32, u32, u32)> = records
         .into_iter()
         .filter(|r| r.text_of(key_field).is_some_and(|v| v == value))
-        .map(|r| (r.ts().unwrap_or(i64::MAX), sid(&r)))
+        .map(|r| (r.ts().unwrap_or(i64::MAX), r.source(), r.line(), sid(&r)))
         .collect();
     hits.sort_unstable();
-    hits.into_iter().map(|(_, id)| id).collect()
+    hits.into_iter().map(|(.., id)| id).collect()
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
