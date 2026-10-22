@@ -162,3 +162,59 @@ pub struct SqlSchema {
     #[cfg_attr(feature = "ts", ts(type = "number"))]
     pub time_limit_ms: u64,
 }
+
+/// Most rows a CSV export of a console query writes (the rest are counted as cut off).
+pub const SQL_EXPORT_MAX_ROWS: u64 = 5_000_000;
+/// Most bytes a CSV export writes; it stops before the row that would cross it.
+pub const SQL_EXPORT_MAX_BYTES: u64 = 2 << 30;
+/// A CSV export is stopped after this long (it runs as a job; Cancel stops it earlier).
+pub const SQL_EXPORT_TIME_LIMIT: Duration = Duration::from_secs(600);
+
+/// The event ids of a kept result (its `id` column), for *Open in Events* on the whole result.
+#[cfg_attr(feature = "ts", derive(TS))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SqlIdsRequest {
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub result: u64,
+}
+
+/// The ids of a result's rows, in row order without repeats (at most [`SQL_MAX_ROWS`]; NULL ids left out).
+#[cfg_attr(feature = "ts", derive(TS))]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SqlIds {
+    #[cfg_attr(feature = "ts", ts(type = "number[]"))]
+    pub ids: Vec<u64>,
+    /// The query returned more rows than the result kept: these are the ids of the kept rows only.
+    pub truncated: bool,
+}
+
+/// Runs a console query again and writes all its rows (up to [`SQL_EXPORT_MAX_ROWS`]) as CSV to `path`.
+#[cfg_attr(feature = "ts", derive(TS))]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct SqlExportRequest {
+    pub sql: String,
+    /// What `imt.notes` holds (as for a run).
+    pub notes: Vec<SqlNote>,
+    /// The file the user chose.
+    pub path: String,
+    /// Replace an existing file at `path` (confirmed by the user); otherwise it is refused.
+    pub overwrite: bool,
+}
+
+/// What a CSV export wrote.
+#[cfg_attr(feature = "ts", derive(TS))]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SqlExportResult {
+    pub path: String,
+    /// Data rows written (the header row not counted).
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub rows: u64,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub bytes: u64,
+    /// The query had more rows than the export's limits let it write.
+    pub truncated: bool,
+}

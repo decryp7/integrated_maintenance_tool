@@ -9,6 +9,7 @@ pub const NTDLL_BASE: u64 = 0x7FFA_0000_0000;
 pub const UCRT_BASE: u64 = 0x7FFB_0000_0000;
 
 fn module(base: u64, path: &str, symbols: bool) -> Module {
+    let symbols = if symbols { SymbolStatus::Loaded } else { SymbolStatus::Missing };
     Module {
         base,
         size: 0x10_0000,

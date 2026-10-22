@@ -7,8 +7,8 @@
 //! - [`model`]: the document model;
 //! - [`exceptions`]: exception codes with names and meanings;
 //! - [`modules`]: which modules and functions are system, runtime, allocator or wait code;
-//! - [`symbols`]: the [`symbols::SymbolProvider`] port (implemented by the plugin's PDB reader, and later by
-//!   `imt-symbols`);
+//! - [`symbols`]: the [`symbols::SymbolProvider`] port, by PDB identity (implemented by the plugin's PDB reader
+//!   over the symbol folders and the cache the host fills from symbol servers), and each module's symbol status;
 //! - [`views`], [`findings`], [`umdh`], [`explain`]: the analyses;
 //! - [`import`]: the importer port the plugin's importers are reached through.
 

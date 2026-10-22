@@ -13,7 +13,7 @@ thiserror.workspace = true
 ureq = { version = "3", default-features = false, features = ["rustls", "platform-verifier"], optional = true }
 
 [target.'cfg(windows)'.dependencies]
-windows = { workspace = true, features = [
+windows = { workspace = true, optional = true, features = [
     "Win32_System_Diagnostics_Debug",
     "Win32_System_Kernel",
     "Win32_System_SystemInformation",
@@ -25,6 +25,8 @@ proptest.workspace = true
 tempfile.workspace = true
 
 [features]
-# Downloads from a symbol server (the Microsoft symbol server when the user enables it).
-default = ["server"]
+default = ["server", "dbghelp"]
+# Downloads from symbol servers (only those the user enables).
 server = ["dep:ureq"]
+# The DbgHelp resolver and stack walker (Windows). Without it the crate is pure: identities, the cache, downloads.
+dbghelp = ["dep:windows"]

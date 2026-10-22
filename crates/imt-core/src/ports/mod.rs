@@ -21,6 +21,9 @@ pub use console::{
     SQL_MAX_NOTES, SQL_MAX_RESULT_BYTES, SQL_MAX_ROWS, SQL_MEMORY_LIMIT, SQL_NOTE_CHARS, SQL_PAGE_ROWS, SQL_THREADS, SQL_TIME_LIMIT,
     SQL_VIEWS_VERSION,
 };
+pub use console::{
+    SqlExportRequest, SqlExportResult, SqlIds, SqlIdsRequest, SQL_EXPORT_MAX_BYTES, SQL_EXPORT_MAX_ROWS, SQL_EXPORT_TIME_LIMIT,
+};
 pub use inspect::{
     parse_size, FieldStorage, FieldType, LastImport, MaintenanceAction, MaintenanceReport, RunningJob, SegmentRow, SegmentsPage,
     SegmentsRequest, StoreActivity, StoreField, StoreFields, StoreIndex, StoreMemory, StoreOverview, WorkerMemory, IMPORT_BUDGET_BYTES,
@@ -291,6 +294,18 @@ pub trait Console: Send + Sync {
     }
     fn sql_page(&self, _req: &SqlPageRequest) -> StoreResult<SqlPage> {
         Err(StoreError::unsupported("the SQL console", "ADR 0030"))
+    }
+    /// The event ids of a kept result (*Open in Events* on all its rows); [`StoreError::NotFound`] when the result
+    /// is gone, [`StoreError::Invalid`] when it has no `id` column of an integer type.
+    fn sql_ids(&self, _req: &SqlIdsRequest) -> StoreResult<SqlIds> {
+        Err(StoreError::unsupported("the SQL console's event ids", "ADR 0030"))
+    }
+    /// Runs the query again and streams its rows as CSV to the request's file (bounded by
+    /// [`SQL_EXPORT_MAX_ROWS`], [`SQL_EXPORT_MAX_BYTES`] and [`SQL_EXPORT_TIME_LIMIT`]; cancelled with the thread's
+    /// [`QueryControl`]). An existing file is replaced only when the request says so; a failed or cancelled export
+    /// leaves no file behind.
+    fn sql_export(&self, _req: &SqlExportRequest) -> StoreResult<SqlExportResult> {
+        Err(StoreError::unsupported("CSV export of the SQL console", "ADR 0030"))
     }
 }
 

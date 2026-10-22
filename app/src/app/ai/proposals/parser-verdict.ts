@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { FailedRule, ParserProposal, ZoneSource } from '../ai.types';
+import { formatCount } from '../../shared/format/units';
 
 const RULES: Record<FailedRule, string> = {
   format: $localize`:@@ai.parserVerdict.rule.format:no pattern`,
@@ -30,7 +31,7 @@ const ZONES: Record<ZoneSource, string> = {
       <div class="verdict" data-testid="parser-verdict">
         <p class="score" [class.ok]="p().status !== 'bestEffort'">
           <strong data-testid="parser-score">{{ percent(v.score) }}</strong>
-          <span i18n="@@ai.parserVerdict.score">of {{ v.lines }} lines read with a timestamp{{ v.readsLevels ? levelSuffix : '' }}</span>
+          <span i18n="@@ai.parserVerdict.score">of {{ count(v.lines) }} lines read with a timestamp{{ v.readsLevels ? levelSuffix : '' }}</span>
           <span class="status" data-testid="parser-status">{{ statusText() }}</span>
         </p>
         @if (!v.timestamps.accepted && v.timestamps.reason) {
@@ -38,7 +39,7 @@ const ZONES: Record<ZoneSource, string> = {
         }
         @if (v.failures.length) {
           <details [open]="p().status === 'bestEffort'">
-            <summary i18n="@@ai.parserVerdict.unreadable">{{ v.lines - v.readable }} lines not read — examples</summary>
+            <summary i18n="@@ai.parserVerdict.unreadable">{{ count(v.lines - v.readable) }} lines not read — examples</summary>
             <table class="failures">
               <thead><tr><th scope="col" i18n="@@ai.parserVerdict.col.line">Line</th><th scope="col" i18n="@@ai.parserVerdict.col.rule">Rule</th><th scope="col" i18n="@@ai.parserVerdict.col.text">Text</th></tr></thead>
               <tbody>
@@ -102,6 +103,7 @@ const ZONES: Record<ZoneSource, string> = {
 })
 export class ParserVerdictView {
   readonly p = input.required<ParserProposal>();
+  protected readonly count = formatCount;
 
   protected readonly levelSuffix = $localize`:@@ai.parserVerdict.andLevel: and a level`;
   protected readonly kept = $localize`:@@ai.parserVerdict.kept:kept`;
