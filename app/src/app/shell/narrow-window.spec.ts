@@ -54,14 +54,12 @@ describe('NarrowWindow', () => {
 
   it('does nothing without matchMedia', () => {
     const { narrow, store } = setup();
-    const original = window.matchMedia;
-    // @ts-expect-error simulating an environment without matchMedia
-    window.matchMedia = undefined;
+    const spy = vi.spyOn(window, 'matchMedia').mockImplementation(undefined as never);
     try {
       narrow.start();
       expect(store.sidebarOpen()).toBe(true);
     } finally {
-      window.matchMedia = original;
+      spy.mockRestore();
     }
   });
 });

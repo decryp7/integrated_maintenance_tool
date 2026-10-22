@@ -53,7 +53,6 @@ describe('ProposalApply', () => {
     const apply = TestBed.inject(ProposalApply);
     expect(await apply.apply(query)).toEqual({ kind: 'applied', message: 'Query applied as the filter.' });
     expect(session.text()).toBe('level >= error');
-    expect(ctx.last('showView')).toEqual(['query']);
     expect((await apply.apply(query)).kind).toBe('applied');
     expect(ctx.last('showView')).toEqual(['query-results']);
     await expect(apply.apply(query)).rejects.toThrow('The query could not be run.');

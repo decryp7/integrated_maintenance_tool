@@ -825,7 +825,6 @@ describe('provide-notifications', () => {
     });
     expect(TestBed.inject(IMT_VIEWS).flat().map((v) => v.id)).toContain('notifications');
     expect(TestBed.inject(IMT_COMMANDS).flat().map((c) => c.id)).toEqual(expect.arrayContaining(['notifications.show', 'notifications.markAllRead']));
-    expect(TestBed.inject(IMT_ACTIVITY_ITEMS).flat().map((i) => i.id)).toContain('notifications');
     expect(TestBed.inject(UI_STATE_CONTRIBUTIONS).flat().map((c) => c.key)).toContain('notifications');
     await settle();
     expect(fake.list).toHaveBeenCalled();

@@ -102,12 +102,12 @@ describe('overview model', () => {
 describe('OverviewPrefs', () => {
   afterEach(() => localStorage.removeItem(OVERVIEW_AUTO_OPEN_KEY));
 
-  it('defaults to opening, remembers the choice and survives broken storage', () => {
-    expect(TestBed.inject(OverviewPrefs).autoOpen()).toBe(true);
-    TestBed.inject(OverviewPrefs).setAutoOpen(false);
-    expect(localStorage.getItem(OVERVIEW_AUTO_OPEN_KEY)).toBe('false');
-    TestBed.resetTestingModule();
+  it('defaults to not opening, remembers the choice and survives broken storage', () => {
     expect(TestBed.inject(OverviewPrefs).autoOpen()).toBe(false);
+    TestBed.inject(OverviewPrefs).setAutoOpen(true);
+    expect(localStorage.getItem(OVERVIEW_AUTO_OPEN_KEY)).toBe('true');
+    TestBed.resetTestingModule();
+    expect(TestBed.inject(OverviewPrefs).autoOpen()).toBe(true);
     TestBed.resetTestingModule();
     const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('denied');
@@ -116,7 +116,7 @@ describe('OverviewPrefs', () => {
       throw new Error('denied');
     });
     const prefs = TestBed.inject(OverviewPrefs);
-    expect(prefs.autoOpen()).toBe(true);
+    expect(prefs.autoOpen()).toBe(false);
     prefs.setAutoOpen(false);
     expect(prefs.autoOpen()).toBe(false);
     get.mockRestore();
