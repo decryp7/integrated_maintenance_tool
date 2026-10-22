@@ -357,6 +357,7 @@ there works as described under [Troubleshooting](#behind-a-corporate-proxy-zscal
 | `F1` | Keyboard shortcuts (searchable, printable; generated from the commands) |
 | `Mod+Z` / `Mod+Shift+Z` | Undo / redo the last edit (filters, marker and highlight rules, profile edits, dashboards, reports) |
 | `Mod+O` / `Mod+Shift+O` | Open files / open folder |
+| `Mod+F` | Find: focus the search box (*Edit ▸ Find*) |
 | `Mod+/` | Focus the query bar |
 | `Mod+Enter` | Run the query (in the query bar) |
 | `Mod+Shift+M` | Analyse this moment |
@@ -376,7 +377,7 @@ there works as described under [Troubleshooting](#behind-a-corporate-proxy-zscal
 | `↑` / `↓` | Move through the events grid |
 | `Esc` (while dragging a tab) | Cancel the drag |
 
-Browser keys such as `F5`/`Mod+R` (reload), `Mod+F` (find, unless IMT binds it), `Mod+P` (print),
+Browser keys such as `F5`/`Mod+R` (reload), `Mod+P` (print),
 `Mod` `+`/`-`/`0` (page zoom) and `Alt+←`/`Alt+→` as browser back/forward do nothing in IMT's windows
 (IMT's own bindings, such as the time-range history above, still work). Release builds also turn off
 the developer tools (`F12`, `Mod+Shift+I`).
