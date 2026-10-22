@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import type { DockviewApi, DockviewGroupPanel, IDockviewPanel } from 'dockview';
 import { ImtView, ViewPosition } from '../extensions/tokens';
 import { DockContext, PANEL, rectOf } from './dock-context';
-import { adjacentNeighbour, atEdge, DockSlot, Point, Rect } from './dock-geometry';
+import { adjacentNeighbour, atEdge, DockSlot, fullSpanEdge, Point, Rect } from './dock-geometry';
 import { DockTarget, GroupBox, hitDockTarget, outsideViewport, targetPreview } from './dock-target';
 import { cancelHintRect, FLOAT_MAX, ghostRect, previewSize, TabDropOutcome, tabDropOutcome } from './float-cue';
 import { AutoHideItem, autoHideReduce } from './auto-hide';
@@ -228,6 +228,12 @@ export class DockPlacement {
       return { referencePanel: reference.id, direction: 'within', index };
     }
     const rect = rectOf(group.element);
+    const root = this.ctx.rootRect();
+    const edge = rect && root ? fullSpanEdge(rect, root) : null;
+    if (edge) {
+      const size = edge === 'bottom' ? rect?.height : rect?.width;
+      return { referencePanel: null, direction: 'within', edge, ...(size ? { size: Math.round(size) } : {}) };
+    }
     const others = api.groups
       .filter((g) => g !== group && g.api.location.type === 'grid' && g.activePanel)
       .map((g) => ({ rect: rectOf(g.element), value: g.activePanel!.id }));
@@ -242,6 +248,12 @@ export class DockPlacement {
     const api = this.ctx.api;
     const view = this.ctx.views.find(id);
     if (!api || !view || api.getPanel(id)) return;
+    if (slot?.edge) {
+      // A full-span column or strip goes back to its window edge (a split against one neighbour would only span that neighbour).
+      const panel = api.addPanel({ id, component: view.id, title: view.title, inactive: options.inactive ?? false, position: { direction: slot.edge === 'bottom' ? 'below' : slot.edge } });
+      if (slot.size) panel.group.api.setSize(slot.edge === 'bottom' ? { height: slot.size } : { width: slot.size });
+      return;
+    }
     const ref = slot?.referencePanel ? api.getPanel(slot.referencePanel) : undefined;
     if (!slot || !ref) {
       this.addView(api, view, options.inactive ?? false, id);

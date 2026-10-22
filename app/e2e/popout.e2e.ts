@@ -66,6 +66,11 @@ test.describe('pop-out windows', () => {
     const inspector = (await page.locator('imt-inspector').boundingBox())!;
     const documents = (await groupOf(page, 'Registry').boundingBox())!;
     expect(inspector.x).toBeGreaterThanOrEqual(documents.x + documents.width - 2);
+    // A full-height column, as tall as the timeline over the events grid.
+    const timeline = (await page.locator('imt-timeline-panel').boundingBox())!;
+    const grid = (await page.locator('imt-events-grid').boundingBox())!;
+    expect(inspector.y).toBeLessThanOrEqual(timeline.y + 2);
+    expect(inspector.y + inspector.height).toBeGreaterThanOrEqual(grid.y + grid.height - 2);
   });
 
   test('closing the pop-out window docks the panel back; it is never lost', async ({ page, context }) => {
