@@ -193,40 +193,60 @@ describe('SnapshotToast', () => {
   @Component({ selector: 'imt-host', imports: [SnapshotToast], template: '<imt-snapshot-toast />' })
   class Host {}
 
-  it('says "Error captured — View", opens the view and dismisses', async () => {
+  it('says "Something went wrong in <panel>." with Details folded; Details holds the screenshot notice and View snapshot (E4)', async () => {
     const { backend, run } = setup();
     const f = TestBed.createComponent(Host);
     const service = TestBed.inject(ErrorSnapshotService);
     f.detectChanges();
     expect(f.nativeElement.querySelector('[data-testid=snapshot-toast]')).toBeNull();
-    service.toast.set({ kind: 'captured', id: 'a', firstTime: false });
+    service.toast.set({ kind: 'captured', id: 'a', firstTime: true, where: 'Timeline' });
     await flush(f);
     const toast: HTMLElement = f.nativeElement.querySelector('[data-testid=snapshot-toast]');
-    expect(toast.textContent).toContain('Error captured');
+    expect(toast.textContent).toContain('Something went wrong in Timeline.');
+    expect(toast.textContent).not.toContain('screenshot');
     expect(toast.querySelector('[data-testid=snapshot-notice]')).toBeNull();
-    (toast.querySelector('.link') as HTMLButtonElement).click();
+    const toggle = toast.querySelector('[data-testid=snapshot-details-toggle]') as HTMLButtonElement;
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    toggle.click();
+    await flush(f);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(toast.querySelector('[data-testid=snapshot-notice]')?.textContent).toContain(SNAPSHOT_NOTICE);
+    // A new toast starts folded again.
+    service.toast.set({ kind: 'captured', id: 'b', firstTime: false });
+    await flush(f);
+    expect(toast.textContent).toContain('Something went wrong.');
+    expect(toast.querySelector('[data-testid=snapshot-notice]')).toBeNull();
+    toggle.click();
+    await flush(f);
+    [...toast.querySelectorAll<HTMLButtonElement>('[data-testid=snapshot-notice] button')].find((b) => b.textContent === 'View snapshot')!.click();
     expect(run).toHaveBeenCalledWith('diagnostics.snapshots.show');
     expect(service.toast()).toBeNull();
     expect(backend.folderOpened).toBe(0);
   });
 
-  it('shows the one-time notice with links to the folder and the settings', async () => {
+  it('a manual capture says so with View; Details links to the folder and the settings', async () => {
     const { backend, run } = setup();
     const f = TestBed.createComponent(Host);
     const service = TestBed.inject(ErrorSnapshotService);
+    service.toast.set({ kind: 'captured', id: 'm', firstTime: false, manual: true });
+    await flush(f);
+    expect(f.nativeElement.textContent).toContain('Diagnostic screenshot captured.');
+    expect(f.nativeElement.textContent).not.toContain('went wrong');
     service.toast.set({ kind: 'captured', id: 'a', firstTime: true });
+    await flush(f);
+    (f.nativeElement.querySelector('[data-testid=snapshot-details-toggle]') as HTMLButtonElement).click();
     await flush(f);
     const notice: HTMLElement = f.nativeElement.querySelector('[data-testid=snapshot-notice]');
     expect(notice.textContent).toContain(SNAPSHOT_NOTICE);
     const links = notice.querySelectorAll('button');
-    (links[0] as HTMLButtonElement).click();
     (links[1] as HTMLButtonElement).click();
+    (links[2] as HTMLButtonElement).click();
     expect(backend.folderOpened).toBe(1);
     expect(run).toHaveBeenCalledWith('settings.diagnostics');
     backend.openFolder = async () => {
       throw new Error('x');
     };
-    (links[0] as HTMLButtonElement).click();
+    (links[1] as HTMLButtonElement).click();
     (f.nativeElement.querySelector('.x') as HTMLButtonElement).click();
     await flush(f);
     expect(f.nativeElement.querySelector('[data-testid=snapshot-toast]')).toBeNull();

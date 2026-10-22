@@ -35,6 +35,10 @@ export interface SnapshotToast {
   id: string | null;
   /** First snapshot ever: also show that it is saved locally and nothing is sent. */
   firstTime: boolean;
+  /** Taken by the capture command rather than after an error. */
+  manual?: boolean;
+  /** The panel that failed, when one did ("Something went wrong in Timeline."). */
+  where?: string;
 }
 
 const CATEGORY = 'ui.snapshot';
@@ -43,6 +47,8 @@ const CATEGORY = 'ui.snapshot';
 export interface CaptureDetail {
   message?: string;
   error?: unknown;
+  /** The panel that failed, for the toast. */
+  where?: string;
 }
 
 /**
@@ -109,7 +115,7 @@ export class ErrorSnapshotService implements FailureReporter {
 
   /** From a panel's error boundary when it shows its error card. */
   panelFailed(panel: string, error: unknown): void {
-    void this.capture('panel-failed', { error, message: `Panel "${panel}" failed: ${describeError(error)}` });
+    void this.capture('panel-failed', { error, where: panel, message: `Panel "${panel}" failed: ${describeError(error)}` });
   }
 
   /** From a failed backend command. User mistakes (validation, syntax, ...) are skipped unless `classify` says otherwise. */
@@ -134,7 +140,7 @@ export class ErrorSnapshotService implements FailureReporter {
       const image = await this.screen.capture();
       const result = await this.backend.save(image, await this.filtered(this.context(reason, detail, manual)));
       this.saved.update((n) => n + 1);
-      this.toast.set({ kind: 'captured', id: result.id, firstTime: result.firstTime });
+      this.toast.set({ kind: 'captured', id: result.id, firstTime: result.firstTime, ...(manual ? { manual } : {}), ...(detail.where ? { where: detail.where } : {}) });
       return result.id;
     } catch (e) {
       this.logger.warn(CATEGORY, 'Could not capture an error snapshot', { Reason: reason, Error: redactPaths(describeError(e)) });

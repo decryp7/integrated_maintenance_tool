@@ -50,7 +50,7 @@ const OP_LABELS: Record<FilterOp, string> = {
 
       <div class="levels" role="group" aria-label="Levels" i18n-aria-label="@@workspace.filterBar.levels">
         @for (l of levels; track l) {
-          <button class="lvl" [class.on]="levelOn(l)" [class.none]="levelMatching(l) === 0" (click)="store.toggleLevel(l)" [attr.aria-pressed]="levelOn(l)" [title]="levelTitle(l)">
+          <button class="lvl" [attr.data-level]="l" [class.on]="levelOn(l)" [class.none]="levelMatching(l) === 0" (click)="store.toggleLevel(l)" [attr.aria-pressed]="levelOn(l)" [title]="levelTitle(l)">
             <span class="dot" [style.background]="levelVar(l)"></span>
             <span class="mono code">{{ code(l) }}</span>
             <span class="mono faint">{{ levelCount(l) }}</span>
