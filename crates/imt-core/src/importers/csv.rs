@@ -672,4 +672,27 @@ mod tests {
         assert!(first_row_is_data(&ctx, b',', "2026-10-14 10:00:00,a\n"));
         assert!(!first_row_is_data(&ctx, b',', "Time,Message\n2026-10-14 10:00:00,a\n"));
     }
+
+    #[test]
+    fn rows_without_a_timestamp_continue_the_previous_event() {
+        let out = run(
+            "[format.csv]\ndelimiter = ','",
+            "Timestamp,Level,Message\r\n2026-10-14 10:00:00,Error,boom\r\n   at Shop.Cart.Save(),1\r\n   at Shop.Run(),2\r\n2026-10-14 10:00:01,Information,ok\r\n",
+        )
+        .unwrap();
+        assert_eq!(out.records.len(), 2, "the stack lines belong to the first event");
+        assert_eq!(out.records[0].line, 2);
+        assert_eq!(out.records[1].line, 5, "CRLF line ends are counted once");
+        let exception = out.records[0].exception.as_deref().unwrap_or("");
+        assert!(
+            exception.contains("Shop.Cart.Save()") && exception.contains("Shop.Run()"),
+            "{exception:?}"
+        );
+    }
+
+    #[test]
+    fn a_blank_first_line_means_there_is_no_event_to_mistake_for_a_header() {
+        let out = run("", "\nTimestamp,Message\n2026-10-14 10:00:00,a\n").unwrap();
+        assert!(out.records.len() <= 1);
+    }
 }

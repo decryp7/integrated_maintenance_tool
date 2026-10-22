@@ -335,4 +335,23 @@ mod tests {
         assert_eq!(machine_offset(&["web01".into()], &sources), None, "no offset");
         assert_eq!(machine_offset(&["x".into()], &sources), None);
     }
+
+    #[test]
+    fn an_exif_offset_is_used_and_unreadable_screen_times_fall_back_to_the_other_evidence() {
+        let ev = TimeEvidence {
+            shown: vec![shown("not a date", true), shown("99:99", false)],
+            exif: Some(ExifStamp {
+                local: "2026-10-21 09:00:00".into(),
+                offset: Some("+02:00".into()),
+            }),
+            ..TimeEvidence::default()
+        };
+        let t = resolve(&ev, "UTC", (None, None)).unwrap();
+        assert_eq!(
+            (t.at_ms, t.precision_ms, t.source),
+            (utc(2026, 10, 21, 7, 0, 0), SECOND, TimeSource::Exif),
+            "the camera's own offset beats the profile zone"
+        );
+        assert_eq!(t.text, "2026-10-21 09:00:00");
+    }
 }
