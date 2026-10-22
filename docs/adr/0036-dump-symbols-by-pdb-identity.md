@@ -44,8 +44,22 @@ names did not say why.
 ## Consequences
 
 - A wrong-build PDB can no longer name frames; the UI says "another build" and what to get.
-- Opening a dump with downloads on can take as long as the downloads (each bounded by `downloadLimit`); it runs in the
-  open command's blocking task. Making it a cancellable job with progress is future work.
+- Opening a dump with downloads on no longer waits for the downloads: see the amendment of 2026-10-22 below.
 - The dumps plugin's own symbol-folder setting stays; the cache is added by the host and is not a setting of the plugin.
 - Windows-only `dbghelp` code is behind the `dbghelp` feature of `imt-symbols`; `imt-dump` and the dumps plugin depend
   on the pure part only.
+
+## Amendment (2026-10-22): downloads are a Jobs job after the dump is open
+
+`dumps_open` reads the dump with what is already local, marks the modules whose PDB is `Missing` and is to be asked of
+the servers as `Downloading` (a new `SymbolStatus`, shown as "Downloading..."), stores the document and returns. The
+download then runs as a `Download` job of the window (Jobs pane: progress counted in PDBs, Cancel is the job's, the
+Jobs queue limits apply): `imt_symbols::servers::get_all_observed` asks no more PDBs once cancelled (a download
+already running ends within its own time and size limits) and reports each outcome as it is known.
+
+When it ends, the shell reads the dump again if any PDB arrived and replaces the open document's body
+(`DumpDocs::replace`; `update` when nothing arrived), giving every module still missing or downloading the status its
+outcome says (not asked because of Cancel: `Missing`). A document closed or reopened meanwhile (its id is gone) is left
+alone. The window gets `imt://dump-symbols` `{ id }` and the Dump view reads the overview, findings, and the module
+table again. A job whose servers or network could not be reached for any PDB (and none arrived) ends as failed with that
+reason; a PDB that is simply not on the servers is an answer, not a failure.

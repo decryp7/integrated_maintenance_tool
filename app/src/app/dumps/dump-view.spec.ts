@@ -87,6 +87,28 @@ describe('DumpView', () => {
     expect(view.selectedThread()).toBe(4121);
   });
 
+  it('reads the dump again when its downloaded symbols arrived, and only for the dump it shows', async () => {
+    const { fixture, t, store } = await mount();
+    const backend = t.backend as MockDumpsBackend;
+    const overview = vi.spyOn(backend, 'overview');
+    const findings = vi.spyOn(backend, 'findings');
+    const id = store.dump()!.id;
+    store.noteSymbolsChanged(id + 100);
+    await settle(fixture, 4);
+    expect(overview).not.toHaveBeenCalled();
+    store.noteSymbolsChanged(id);
+    await settle(fixture, 4);
+    expect(overview).toHaveBeenCalledTimes(1);
+    expect(findings).toHaveBeenCalledTimes(1);
+    // On the Modules tab the table is read again too.
+    tab(fixture, 'modules').click();
+    await settle(fixture, 6);
+    const modules = vi.spyOn(backend, 'modules');
+    store.noteSymbolsChanged(id);
+    await settle(fixture, 4);
+    expect(modules).toHaveBeenCalledTimes(1);
+  });
+
   it('lists modules and details', async () => {
     const { fixture } = await mount();
     tab(fixture, 'modules').click();

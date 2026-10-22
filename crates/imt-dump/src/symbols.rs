@@ -123,10 +123,23 @@ pub fn missing(d: &Dump, max: usize) -> Vec<PdbKey> {
     out
 }
 
-/// Sets the status of every module whose PDB is still missing to what `why` says about its identity (the outcome
-/// of a download, or that downloads are off); modules `why` says nothing about stay `Missing`.
-pub fn mark_missing(d: &mut Dump, why: impl Fn(&PdbKey) -> Option<SymbolStatus>, max_text: usize) {
+/// Marks the modules whose PDB is `Missing` and is one of `keys` as [`SymbolStatus::Downloading`].
+pub fn mark_downloading(d: &mut Dump, keys: &[PdbKey]) {
     for m in d.modules.iter_mut().filter(|m| m.symbols == SymbolStatus::Missing) {
+        if pdb_key(m).is_ok_and(|k| keys.contains(&k)) {
+            m.symbols = SymbolStatus::Downloading;
+        }
+    }
+}
+
+/// Sets the status of every module whose PDB is still missing (or being downloaded) to what `why` says about its
+/// identity (the outcome of a download, or that downloads are off); modules `why` says nothing about keep their status.
+pub fn mark_missing(d: &mut Dump, why: impl Fn(&PdbKey) -> Option<SymbolStatus>, max_text: usize) {
+    for m in d
+        .modules
+        .iter_mut()
+        .filter(|m| matches!(m.symbols, SymbolStatus::Missing | SymbolStatus::Downloading))
+    {
         if let Some(s) = pdb_key(m).ok().and_then(|k| why(&k)) {
             m.symbols = clip_status(s, max_text);
         }
@@ -235,5 +248,28 @@ mod tests {
         assert_eq!(d.modules[1].symbols, SymbolStatus::ServersDisabled);
         assert_eq!(d.modules[0].symbols, SymbolStatus::Missing, "no identity to download by");
         assert_eq!(d.modules[3].symbols.detail(), Some("xxxxxxxxx…"));
+    }
+
+    #[test]
+    fn modules_being_downloaded_are_marked_and_then_get_their_outcome() {
+        let mut d = sample_dump();
+        for m in &mut d.modules {
+            m.symbols = SymbolStatus::Missing;
+        }
+        let keys = missing(&d, 10);
+        let (first, rest) = (keys[0].clone(), &keys[1..]);
+        mark_downloading(&mut d, std::slice::from_ref(&first));
+        let downloading = |d: &Dump| d.modules.iter().filter(|m| m.symbols == SymbolStatus::Downloading).count();
+        assert_eq!(downloading(&d), 1);
+        assert!(!rest.is_empty());
+        // A module that is not being downloaded keeps its status; one being downloaded gets the outcome.
+        mark_missing(&mut d, |k| (k == &first).then_some(SymbolStatus::NotOnServer), 100);
+        assert_eq!(downloading(&d), 0);
+        assert!(d.modules.iter().any(|m| m.symbols == SymbolStatus::NotOnServer));
+        // Nothing to say (cancelled): it goes back to missing.
+        mark_downloading(&mut d, &keys);
+        assert!(downloading(&d) > 0);
+        mark_missing(&mut d, |_| Some(SymbolStatus::Missing), 100);
+        assert_eq!(downloading(&d), 0);
     }
 }

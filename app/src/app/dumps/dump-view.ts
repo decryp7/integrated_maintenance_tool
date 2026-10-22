@@ -265,6 +265,22 @@ export class DumpView {
         void this.findings.load(() => this.backend.findings({ ids: [id] }));
       });
     });
+    // Downloaded PDBs arrived: the engine read this dump again, so what is shown is read again (the tab stays).
+    effect(() => {
+      const changed = this.store.symbols();
+      untracked(() => {
+        const id = this.id();
+        if (changed === null || id === null || changed.id !== id) return;
+        void this.overview.load(() => this.backend.overview(id));
+        void this.findings.load(() => this.backend.findings({ ids: [id] }));
+        const thread = this.selectedThread();
+        if (thread !== null) void this.stack.load(() => this.backend.stack({ id, threadId: thread }));
+        if (this.tab() === 'modules') {
+          const filter = this.moduleFilter().trim() || null;
+          void this.modules.load(() => this.backend.modules({ id, offset: 0, limit: PAGE, filter }));
+        }
+      });
+    });
     effect(() => {
       const id = this.id();
       const filter = this.threadFilter().trim() || null;

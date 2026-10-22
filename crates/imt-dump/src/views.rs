@@ -219,6 +219,7 @@ pub fn symbol_problems(d: &Dump) -> SymbolProblems {
             S::Mismatch { .. } => &mut p.mismatch,
             S::Unreadable { .. } => &mut p.unreadable,
             S::DownloadFailed { .. } => &mut p.download_failed,
+            S::Downloading => &mut p.downloading,
         };
         *slot += 1;
     }
@@ -483,6 +484,7 @@ mod tests {
             (S::Missing, "missing"),
             (S::NotOnServer, "notOnServer"),
             (S::Unreadable { detail: "x".into() }, "unreadable"),
+            (S::Downloading, "downloading"),
         ] {
             let json = serde_json::to_value(SymbolStatusDto::from(&s)).unwrap();
             assert_eq!(json["kind"], kind);

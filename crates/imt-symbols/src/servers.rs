@@ -6,7 +6,7 @@ use crate::fetch::{FetchError, Fetcher, HttpFetcher, ServerList};
 use crate::id::PdbKey;
 use crate::{ServerConfig, SymbolError};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Condvar, Mutex};
 use std::time::Duration;
 
@@ -122,11 +122,27 @@ pub enum Outcome {
     /// Downloads are off: nothing was asked.
     Disabled,
     Failed(FetchError),
+    /// The caller cancelled before it was asked (a download already running is bounded by its own time and size
+    /// limits and finishes).
+    Cancelled,
 }
 
 /// Gets every PDB of `keys` (duplicates once) into `cache` through `fetcher`, with at most `gate.max()` downloads
 /// at a time (the gate may be shared with other callers). `None` as the fetcher makes no request.
 pub fn get_all(fetcher: Option<&dyn Fetcher>, keys: &[PdbKey], cache: &Path, gate: &Gate) -> Vec<(PdbKey, Outcome)> {
+    get_all_observed(fetcher, keys, cache, gate, &AtomicBool::new(false), &|_, _| {})
+}
+
+/// [`get_all`] that stops asking for more once `cancel` is set (the rest are [`Outcome::Cancelled`]) and tells
+/// `each` every PDB's outcome as soon as it is known (from the worker threads), for progress and early use.
+pub fn get_all_observed(
+    fetcher: Option<&dyn Fetcher>,
+    keys: &[PdbKey],
+    cache: &Path,
+    gate: &Gate,
+    cancel: &AtomicBool,
+    each: &(dyn Fn(&PdbKey, &Outcome) + Sync),
+) -> Vec<(PdbKey, Outcome)> {
     let mut unique: Vec<PdbKey> = keys.to_vec();
     unique.sort();
     unique.dedup();
@@ -142,6 +158,7 @@ pub fn get_all(fetcher: Option<&dyn Fetcher>, keys: &[PdbKey], cache: &Path, gat
             .into_iter()
             .map(|k| {
                 let o = cached(&k).map_or(Outcome::Disabled, Outcome::Cached);
+                each(&k, &o);
                 (k, o)
             })
             .collect();
@@ -154,16 +171,26 @@ pub fn get_all(fetcher: Option<&dyn Fetcher>, keys: &[PdbKey], cache: &Path, gat
             s.spawn(|| loop {
                 let i = next.fetch_add(1, Ordering::Relaxed);
                 let Some(k) = unique.get(i) else { break };
-                let outcome = match cached(k) {
-                    Some(f) => Outcome::Cached(f),
-                    None => {
-                        let _permit = gate.acquire();
-                        match fetcher.fetch(k, cache) {
-                            Ok(f) => Outcome::Downloaded(f),
-                            Err(e) => Outcome::Failed(e),
+                let outcome = if cancel.load(Ordering::Relaxed) {
+                    Outcome::Cancelled
+                } else {
+                    match cached(k) {
+                        Some(f) => Outcome::Cached(f),
+                        None => {
+                            let _permit = gate.acquire();
+                            // Waiting for a place may have taken a while.
+                            if cancel.load(Ordering::Relaxed) {
+                                Outcome::Cancelled
+                            } else {
+                                match fetcher.fetch(k, cache) {
+                                    Ok(f) => Outcome::Downloaded(f),
+                                    Err(e) => Outcome::Failed(e),
+                                }
+                            }
                         }
                     }
                 };
+                each(k, &outcome);
                 *results[i].lock().unwrap_or_else(|p| p.into_inner()) = Some(outcome);
             });
         }
@@ -291,6 +318,37 @@ mod tests {
         });
         assert_eq!(slow.peak.load(Ordering::SeqCst), 2);
         assert_eq!((Gate::new(0).max(), Gate::new(99).max()), (1, MAX_CONCURRENT));
+    }
+
+    #[test]
+    fn cancelling_stops_the_downloads_not_yet_asked_and_each_outcome_is_reported() {
+        struct Counting(AtomicUsize);
+        impl Fetcher for Counting {
+            fn fetch(&self, k: &PdbKey, _: &Path) -> Result<PathBuf, FetchError> {
+                self.0.fetch_add(1, Ordering::SeqCst);
+                Err(FetchError::NotFound(k.name().to_string()))
+            }
+        }
+        let f = Counting(AtomicUsize::new(0));
+        let cache = tempfile::tempdir().unwrap();
+        let keys: Vec<PdbKey> = (0..6).map(|i| key("m.pdb", i)).collect();
+        let seen = Mutex::new(Vec::new());
+        let cancel = AtomicBool::new(false);
+        // Cancelled by the first outcome: with one worker nothing more is asked.
+        let got = get_all_observed(Some(&f), &keys, cache.path(), &Gate::new(1), &cancel, &|k, o| {
+            seen.lock().unwrap().push((k.clone(), o.clone()));
+            cancel.store(true, Ordering::SeqCst);
+        });
+        assert_eq!(got.len(), 6);
+        assert!(matches!(got[0].1, Outcome::Failed(FetchError::NotFound(_))), "{got:?}");
+        assert!(got[1..].iter().all(|(_, o)| *o == Outcome::Cancelled), "{got:?}");
+        assert_eq!(f.0.load(Ordering::SeqCst), 1);
+        assert_eq!(seen.lock().unwrap().len(), 6, "every PDB is reported, cancelled ones too");
+        // Cancelled before it started: nothing is asked at all.
+        let off = AtomicBool::new(true);
+        let none = get_all_observed(Some(&f), &keys, cache.path(), &Gate::new(2), &off, &|_, _| {});
+        assert!(none.iter().all(|(_, o)| *o == Outcome::Cancelled));
+        assert_eq!(f.0.load(Ordering::SeqCst), 1);
     }
 
     #[test]
