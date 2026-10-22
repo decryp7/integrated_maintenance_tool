@@ -10,7 +10,7 @@ use serde_json::Value;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ChangeClass {
-    /// Nothing stored changes (charts, dashboards, instance key, activity, spans, live tail, marker
+    /// Nothing stored changes (charts, dashboards, lenses, instance key, activity, spans, live tail, marker
     /// looks, overrides, icons, redaction of the view, the name).
     Presentation,
     /// Fields and markers are re-derived from each event's raw text (extractors, pipeline, marker rules).
@@ -87,6 +87,7 @@ pub fn classify(old: &Profile, new: &Profile) -> ProfileChange {
         ("marker_override", json(&old.marker_override), json(&new.marker_override)),
         ("redact", json(&old.redact), json(&new.redact)),
         ("dashboard", json(&old.dashboard), json(&new.dashboard)),
+        ("lens", json(&old.lens), json(&new.lens)),
         ("span", json(&old.span), json(&new.span)),
     ] {
         note(name, a != b, ChangeClass::Presentation);
@@ -111,6 +112,9 @@ mod tests {
         assert_eq!((c.class, c.sections.clone()), (ChangeClass::Presentation, vec!["name".to_string()]));
         let chart = with("[[chart]]\ntitle = \"t\"\ny = \"count()\"");
         assert_eq!(classify(&base, &chart).class, ChangeClass::Presentation);
+        let lens = with("[[lens]]\nid = \"l\"\ntitle = \"L\"");
+        let c = classify(&base, &lens);
+        assert_eq!((c.class, c.sections), (ChangeClass::Presentation, vec!["lens".to_string()]));
         let extract = with("[[extract]]\nname = \"ms\"\nregex = '(?P<ms>\\d+)ms'");
         assert_eq!(classify(&base, &extract).class, ChangeClass::Derivation);
         let parse = with("[files]\ninclude = [\"**/*.log\"]");

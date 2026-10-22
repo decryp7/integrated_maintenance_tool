@@ -53,6 +53,7 @@ import { emptyReport, LEGACY_LIVE, MockAlertMutes, MockLiveConfig, MockLiveSim, 
 import { validateLiveSection } from './mock-live-profile';
 import { BUILTIN_ICONS } from '../../markers/builtin-icons';
 import { mockDashboards, mockDashboardsError } from '../../share/mock/mock-dashboards';
+import { mockLenses } from './mock-lenses';
 import { mockRedactCfg, MockRedactor } from '../../share/mock/mock-redact';
 import { OffsetChange, SetOffsetRequest, SuggestRequest, SuggestResult } from '../api.types';
 import { CmdError } from '../cmd-error';
@@ -294,6 +295,7 @@ export class MockBackend implements ImtBackend {
       exporters: MOCK_EXPORTERS,
       pipeline: e.pipelineStats,
       dashboards: mockDashboards(this.profile),
+      lenses: mockLenses(this.profile),
       redactedView: this.redactor !== null,
       untimed: synthetic !== null ? 0 : e.records.filter((r) => r.ts === null).length,
     };

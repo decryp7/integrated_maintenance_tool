@@ -11,6 +11,7 @@ import { Switch } from '../shared/switch';
 import { TimelineZoom } from '../timeline/zoom';
 import { QueryField, QueryStatus } from '../analysis/query-field';
 import { SearchField } from '../analysis/search-field';
+import { LensBar } from '../lenses/lens-bar';
 
 /** The filter bar folds its secondary controls into a menu when the bar is narrower than this, px (H1). */
 export const COMPACT_WIDTH_PX = 1000;
@@ -31,7 +32,7 @@ const OP_LABELS: Record<FilterOp, string> = {
   selector: 'imt-filter-bar',
   host: { '[class.compact]': 'compact()' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, ClickOutside, Switch, QueryField, QueryStatus],
+  imports: [Icon, ClickOutside, Switch, QueryField, QueryStatus, LensBar],
   template: `
     <div class="row">
       <imt-query-field #qf />
@@ -167,6 +168,7 @@ const OP_LABELS: Record<FilterOp, string> = {
 
     </div>
     }
+    <imt-lens-bar />
   `,
   styles: `
     :host { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg-1); }

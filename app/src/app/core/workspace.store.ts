@@ -115,6 +115,7 @@ export class WorkspaceStore {
   readonly toggleSort = this.prefs.toggleSort;
   readonly addColumn = this.prefs.addColumn;
   readonly removeColumn = this.prefs.removeColumn;
+  readonly setColumns = this.prefs.setColumns;
   readonly sidebarOpen = this.shell.sidebarOpen;
   readonly dropHover = this.shell.dropHover;
   readonly focusSearchNonce = this.shell.focusSearchNonce;

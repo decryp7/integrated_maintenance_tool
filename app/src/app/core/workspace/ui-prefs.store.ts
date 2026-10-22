@@ -82,6 +82,8 @@ export const UiPrefsStore = signalStore(
     addColumn(field: string) {
       if (!store.extraColumns().includes(field)) patchState(store, { extraColumns: [...store.extraColumns(), field] });
     },
+    /** Replaces the extra columns (a lens switch); duplicates are dropped. */
+    setColumns: (fields: readonly string[]) => patchState(store, { extraColumns: [...new Set(fields)] }),
     removeColumn: (field: string) => patchState(store, { extraColumns: store.extraColumns().filter((c) => c !== field) }),
     /** The preferences to persist. */
     snapshot: (): Prefs => ({

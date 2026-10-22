@@ -301,6 +301,8 @@ export interface WorkspaceSummary {
   pipeline: PipelineStat[];
   /** The profile's `[[dashboard]]`s. */
   dashboards: DashboardCfg[];
+  /** The profile's `[[lens]]`s: named view presets. */
+  lenses: LensCfg[];
   /** Pages, facets and source context are redacted (the window's "Redacted view"). */
   redactedView: boolean;
   /** Events without a timestamp (counted in `total`; in the grid, not on the timeline). */
@@ -2650,6 +2652,32 @@ export interface TileCfg {
   unit?: string;
   /** A sliding window of its own ("15m"); absent = the window's query. */
   window?: string;
+}
+
+/** A row colour rule of a lens (`[[lens.highlight]]`; Rust `lens::LensHighlight`). */
+export interface LensHighlight {
+  field: string;
+  op: 'eq' | 'ne' | 'contains' | 'notContains' | 'exists' | 'missing' | 'gt' | 'lt';
+  value: string;
+  /** `#rrggbb`. */
+  color: string;
+}
+
+/** `[[lens]]`: a named view preset of the profile (Rust `lens::LensCfg`; absent keys are empty). */
+export interface LensCfg {
+  id: string;
+  title: string;
+  description?: string;
+  levels?: Level[];
+  text?: string;
+  regex?: boolean;
+  ql?: string;
+  markers?: string[];
+  filter?: FieldFilter[];
+  columns?: string[];
+  highlight?: LensHighlight[];
+  /** Id of the profile chart to show first. */
+  chart?: string;
 }
 
 /** `[[dashboard]]`. */

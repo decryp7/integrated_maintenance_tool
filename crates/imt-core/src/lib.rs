@@ -13,6 +13,7 @@ pub mod chart;
 pub mod condition;
 pub mod config;
 pub mod dashboard;
+pub mod lens;
 pub mod events;
 pub mod exceptions;
 pub mod export;

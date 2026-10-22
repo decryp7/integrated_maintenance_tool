@@ -52,6 +52,9 @@ pub struct Profile {
     /// Dashboards: grids of chart, stat, table, top, alert and annotation tiles.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dashboard: Vec<crate::dashboard::DashboardCfg>,
+    /// Lenses: named view presets (query, columns, highlights, chart) the grid switches between.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub lens: Vec<crate::lens::LensCfg>,
     /// Runs between lifecycle markers (start … stop), paired per lane.
     #[serde(default)]
     pub span: Vec<crate::spans::SpanCfg>,
@@ -565,6 +568,8 @@ impl CompiledProfile {
         let pipeline = crate::pipeline::Pipeline::compile(&profile.pipeline, transforms)?;
         crate::redact::Redactor::from_config(&profile.redact, crate::redact::Salt::fixed([0; 16])).context("[redact]")?;
         crate::dashboard::validate_all(&profile.dashboard).context("[[dashboard]]")?;
+        let chart_ids: Vec<String> = profile.chart.iter().enumerate().map(|(i, c)| c.id.clone().unwrap_or_else(|| format!("chart-{}", i + 1))).collect();
+        crate::lens::validate_all(&profile.lens, &chart_ids).context("[[lens]]")?;
         let mut spans = crate::spans::config::compile(&profile.span)?;
         crate::spans::config::resolve(&mut spans, &markers);
         let routes = crate::route::compile_all(&profile.route)?;
