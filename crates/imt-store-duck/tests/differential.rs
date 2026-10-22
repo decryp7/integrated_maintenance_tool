@@ -167,13 +167,18 @@ fn duck_rows(p: &Pair, q: &Filter, offset: usize, limit: usize, descending: bool
 }
 
 fn check_pages(p: &Pair) {
+    check_pages_of(p, true);
+}
+
+/// Pages of every query; `samples`: the queries are about /samples, so each must match events.
+fn check_pages_of(p: &Pair, samples: bool) {
     for (name, q) in queries(p) {
         let q = ranged(p, q);
         for (offset, desc) in [(0, false), (0, true), (1000, false), (7777, true)] {
             let (wt, wr) = ws_rows(p, &q, offset, 300, desc);
             let (dt, dr) = duck_rows(p, &q, offset, 300, desc);
             assert_eq!(dt, wt, "{name}: total");
-            assert!(wt > 0 && (offset < wt || dr.is_empty()), "{name} matches events");
+            assert!((wt > 0 || !samples) && (offset < wt || dr.is_empty()), "{name} matches events");
             assert_eq!(dr, wr, "{name}: page at {offset} (descending: {desc})");
         }
     }
@@ -575,6 +580,40 @@ fn answers_like_the_workspace_with_the_sample_profile() {
         assert_eq!((d.total, d.distinct), (w.total, w.distinct), "declared field {field}");
         assert!(d.total > 0 || field == "Backlog", "{field} has values");
     }
+}
+
+/// Mixed sources (ADR 0020) on the DuckDB path: one file written by several products, every line read with its own
+/// format (Serilog text, log4net, CLEF lines, unmatched haproxy lines) and the instance key chosen per source.
+#[test]
+fn answers_like_the_workspace_on_a_file_of_several_products() {
+    let apps = common::samples().join("linux/logserver01/apps-20261014.log");
+    let p = common::pair_of(Profile::default_profile(), std::slice::from_ref(&apps));
+    check_summary(&p);
+    check_pages_of(&p, false);
+    check_facets(&p);
+    check_timelines(&p);
+    for field in ["Application", "Logger", "ProcessId", "SourceContext"] {
+        let req = FacetRequest {
+            query: Filter::default(),
+            field: field.into(),
+            limit: 50,
+        };
+        let (w, d) = (p.ws.facet(&req).unwrap(), p.duck.facet(&req).unwrap());
+        assert_eq!((d.total, d.distinct), (w.total, w.distinct), "{field}");
+    }
+    // Lanes per product's process: the per-source instance key (`check_summary` compared the keys).
+    let (w, d) = (p.ws.summary(), p.duck.summary().unwrap());
+    assert!(!d.default_group_by.is_empty(), "an instance key was chosen");
+    // The lines no format reads are reported per source the same way (the Explorer lists them).
+    let unmatched = |s: &[imt_core::api::SourceInfo]| {
+        s.iter()
+            .flat_map(|s| s.problems.iter())
+            .filter(|p| p.kind == imt_core::ingest::ProblemKind::UnmatchedLine)
+            .map(|p| (p.count, p.sample_lines.clone()))
+            .collect::<Vec<_>>()
+    };
+    assert!(!unmatched(&w.sources).is_empty(), "the haproxy lines");
+    assert_eq!(unmatched(&d.sources), unmatched(&w.sources));
 }
 
 #[test]

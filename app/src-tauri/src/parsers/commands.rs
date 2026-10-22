@@ -41,10 +41,11 @@ pub(crate) fn library_dto(lib: &Library, uses: &[ParserUse], names: &HashMap<u32
             let mut sources: Vec<ParserSourceDto> = uses
                 .iter()
                 .filter(|u| u.parser.id == reference.id)
-                .flat_map(|u| u.sources.iter())
-                .map(|s| ParserSourceDto {
+                .flat_map(|u| u.sources.iter().map(move |s| (s, u.chosen.contains(s))))
+                .map(|(s, chosen)| ParserSourceDto {
                     id: s.0,
                     name: names.get(&s.0).cloned().unwrap_or_else(|| format!("source {}", s.0)),
+                    chosen,
                 })
                 .collect();
             sources.sort_by(|a, b| a.name.cmp(&b.name));

@@ -1,6 +1,7 @@
 //! Parsers composed for the format wizard (ADR 0026 §5): a new parser for a file IMT did not recognise (from
 //! a regex or a Serilog output template), or a changed copy of a source's parser (a timestamp format, a
-//! regex or a template added first). Nothing is saved: the wizard previews the draft and saves it.
+//! regex or a template added first, or a quick fix's `[format]` fragment merged over it). Nothing is saved: the
+//! wizard and the Problems pane preview the draft and save it.
 
 use super::{Parser, ParserError, ParserVersion};
 use serde::{Deserialize, Serialize};
@@ -19,6 +20,9 @@ pub struct DraftRequest {
     pub template: Option<String>,
     /// A timestamp format, added first.
     pub timestamp_format: Option<String>,
+    /// A quick fix's `[format]` fragment (`QuickFix.parserOverride`) merged over `base` before the additions;
+    /// it needs a base, and its id and version stay the base's (the version bumped).
+    pub parser_override: Option<String>,
 }
 
 fn given(s: &Option<String>) -> Option<&str> {
@@ -51,17 +55,24 @@ pub fn id_for(file_name: &str) -> String {
 /// version, or a new text parser. Returns its TOML, checked like any parser file.
 pub fn compose(req: &DraftRequest, base: Option<&Parser>) -> Result<String, ParserError> {
     let (regex, template, ts) = (given(&req.regex), given(&req.template), given(&req.timestamp_format));
-    if regex.is_none() && template.is_none() && ts.is_none() {
+    let fragment = given(&req.parser_override);
+    if regex.is_none() && template.is_none() && ts.is_none() && fragment.is_none() {
         return Err(ParserError::new(
-            "nothing to add: give a regex, an output template or a timestamp format",
+            "nothing to add: give a regex, an output template, a timestamp format or a parser change",
         ));
     }
     let mut parser = match base {
         Some(b) => {
-            let mut p = b.clone();
-            p.version = p.version.bump_patch();
+            let mut p = match fragment {
+                Some(f) => b.with_override(f)?,
+                None => b.clone(),
+            };
+            // The fix changes this parser: it keeps its id, and its version is the base's next one.
+            p.id = b.id.clone();
+            p.version = b.version.bump_patch();
             p
         }
+        None if fragment.is_some() => return Err(ParserError::new("a parser change needs the parser it changes")),
         None => {
             let name = std::path::Path::new(&req.file_name)
                 .file_name()
@@ -165,5 +176,50 @@ mod tests {
         let again = Parser::from_toml(&compose(&r, Some(&p)).unwrap()).unwrap();
         assert_eq!(again.format.timestamp_formats.len(), 1);
         assert_eq!(again.version.to_string(), "1.0.2");
+    }
+
+    #[test]
+    fn a_quick_fix_fragment_is_merged_over_the_base() {
+        let base = builtin::find("log4net-csv").unwrap();
+        let r = DraftRequest {
+            base: Some("log4net-csv".into()),
+            parser_override: Some("[format]\ntimestamp_formats = [\"%a %b %d %H:%M:%S %Y\"]\n".into()),
+            ..req("orders.csv")
+        };
+        let p = Parser::from_toml(&compose(&r, Some(base)).unwrap()).unwrap();
+        assert_eq!((p.id.as_str(), p.version.to_string().as_str()), ("log4net-csv", "1.0.1"));
+        assert_eq!(p.format.timestamp_formats, ["%a %b %d %H:%M:%S %Y"]);
+        assert_eq!(p.format.csv, base.format.csv, "the rest of the parser stays");
+        // The fragment cannot rename the parser or pick its version; the additions still come first.
+        let both = DraftRequest {
+            parser_override: Some("id = \"other\"\nversion = \"9.0.0\"\n[format]\ntimestamp_formats = [\"%H:%M:%S\"]\n".into()),
+            timestamp_format: Some("%Y".into()),
+            ..r.clone()
+        };
+        let p = Parser::from_toml(&compose(&both, Some(base)).unwrap()).unwrap();
+        assert_eq!((p.id.as_str(), p.version.to_string().as_str()), ("log4net-csv", "1.0.1"));
+        assert_eq!(p.format.timestamp_formats, ["%Y", "%H:%M:%S"]);
+        // A fragment that is not TOML, or that makes the parser invalid, is refused with its reason.
+        let broken = DraftRequest {
+            parser_override: Some("[format".into()),
+            ..r.clone()
+        };
+        assert!(compose(&broken, Some(base)).is_err());
+        let unknown = DraftRequest {
+            parser_override: Some("[format]\nno_such_key = 1\n".into()),
+            ..r.clone()
+        };
+        assert!(compose(&unknown, Some(base)).is_err());
+        // It changes a parser: without one it is refused; a blank one is no change.
+        let alone = DraftRequest {
+            parser_override: r.parser_override.clone(),
+            ..req("orders.csv")
+        };
+        assert!(compose(&alone, None).unwrap_err().message.contains("needs the parser"));
+        let blank = DraftRequest {
+            parser_override: Some("  ".into()),
+            ..req("x.log")
+        };
+        assert!(compose(&blank, None).unwrap_err().message.contains("nothing to add"));
     }
 }

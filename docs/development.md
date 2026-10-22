@@ -23,20 +23,44 @@ contributors are in [AGENTS.md](../AGENTS.md); the design is in [architecture.md
 - **libduckdb 1.5.6** (the store, ADR 0014), the official prebuilt library, never compiled (the `bundled` feature
   needs several GB of RAM). The pins (version, assets, SHA-256) live in
   `crates/imt-store-duck/scripts/fetch-libduckdb.sh`. Every cargo build of the workspace needs
-  `DUCKDB_LIB_DIR`/`DUCKDB_INCLUDE_DIR`; in each shell, before cargo, either:
+  `DUCKDB_LIB_DIR`/`DUCKDB_INCLUDE_DIR`. Once per checkout (and again after `cargo clean` or a version bump), on any
+  OS:
+
+  ```sh
+  cargo xtask libduckdb
+  ```
+
+  It fetches the pinned archive for the host, checks its SHA-256, unpacks it into
+  `<target>/libduckdb/<version>/<asset>/` (`<target>` is `CARGO_TARGET_DIR` or `target/`) and writes both variables
+  into `.cargo/libduckdb.toml`, which the committed `.cargo/config.toml` includes. That file is machine-local and
+  git-ignored (it names the host's asset, and an absolute path when the target folder is outside the checkout); the
+  committed config holds only the optional `include`. Plain `cargo build` / `cargo test` / `cargo run` then work
+  in any shell, and a `DUCKDB_LIB_DIR` set in the environment still wins (CI). Run time needs no `PATH` /
+  `LD_LIBRARY_PATH` either: imt-store-duck's build script stages the runtime library (`duckdb.dll`,
+  `libduckdb.so`, `libduckdb.dylib`) into its `OUT_DIR` and names it as a search path, which Cargo puts on the
+  library path of every test and binary it runs (it does so only for folders inside `target/<profile>/`, so the cache
+  folder itself would not do). Delete `.cargo/libduckdb.toml` to stop using it.
+
+  Per shell instead (CI does this):
 
   ```sh
   eval "$(bash crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"   # sh, CI
   node app/scripts/libduckdb.mjs                                                                  # any OS: prints the lines to run
   ```
 
-  `node app/scripts/libduckdb.mjs [cache-dir]` is the way on Windows, which has no bash: it reads the same pins from
+  `node app/scripts/libduckdb.mjs [cache-dir]` works on Windows, which has no bash: it reads the same pins from
   the script, checks the SHA-256 before unpacking, and prints PowerShell lines (`$env:DUCKDB_LIB_DIR = ...`, and the
   library folder added to `PATH`) or `export` lines for sh. `npm run tauri build` and
   `node app/scripts/build-sidecars.mjs` fetch the library themselves when `DUCKDB_LIB_DIR` is not set. The sidecar
   build copies the library into the installer's `lib/` resource folder and also next to the built store worker, so an
-  app run straight from the target folder (development, the end-to-end builds) finds it. The worker finds it on
-  `PATH` / `LD_LIBRARY_PATH` / `DYLD_LIBRARY_PATH` otherwise.
+  app run straight from the target folder (development, the end-to-end builds) finds it. On macOS and Linux the
+  worker finds it by run path (`crates/imt-store-worker/build/rpath.rs`), because a signed, notarized app ignores
+  `DYLD_LIBRARY_PATH`: next to itself (`@executable_path`, `$ORIGIN`) and in the installed resource folder
+  (`@executable_path/../Resources/lib` in `IMT.app`, `$ORIGIN/../lib/IMT/lib` from `/usr/bin` in the deb and rpm).
+  The official `libduckdb.dylib` is installed as `@rpath/libduckdb.dylib` and `libduckdb.so` has the SONAME
+  `libduckdb.so`, so no `install_name_tool` / `patchelf` step is needed; the bundle job checks the packaged worker's
+  run paths. IMT also passes the library folder in `PATH` / `LD_LIBRARY_PATH` / `DYLD_LIBRARY_PATH` as a fallback
+  (the only way on Windows).
 
 ### Develop
 
@@ -54,7 +78,8 @@ cargo test -p imt-core        # engine tests, including end-to-end runs over /sa
 Regenerate the samples with `cargo xtask gen-samples` (do not edit them by hand). It runs
 `samples/generate.py` (with `python3`, `python` or `py -3`, whichever works) and then the Rust generators
 of the profiler captures and the crash dump (`IMT_REGENERATE_SAMPLES=1` tests in `imt-plugin-profiling`
-and `imt-plugin-windows`); `cargo xtask help` lists the tasks.
+and `imt-plugin-windows`); `cargo xtask libduckdb` sets up the database library (above); `cargo xtask help` lists
+the tasks.
 [`samples/README.md`](../samples/README.md) lists every sample, its format and the views it shows.
 
 ### Visual Studio Code (Windows and macOS)

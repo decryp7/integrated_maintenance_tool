@@ -1,8 +1,8 @@
 //! Read access to what plugins registered, for serving them out of process.
 //!
-//! The plugin host process (`imt-plugin-host`) and the plugin SDK install a
-//! plugin into a registry of their own and then answer `imt.plugin.v1`
-//! calls from IMT with its contributions. These accessors expose those
+//! The plugins process (`imt-plugins`) installs a plugin into a registry of
+//! its own and then answers IMT's calls over imt-ipc (ADR 0017) with its
+//! contributions. These accessors expose those
 //! contributions (already wrapped in their guarded adapters) without
 //! letting anything else change the registry.
 

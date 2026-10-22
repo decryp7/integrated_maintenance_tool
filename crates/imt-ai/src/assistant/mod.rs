@@ -6,7 +6,7 @@ mod folder;
 mod markers;
 mod narrative;
 mod pipeline;
-mod profile;
+mod parser;
 mod proposals;
 mod query;
 mod regex;

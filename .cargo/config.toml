@@ -1,3 +1,6 @@
+# Machine-local settings written by `cargo xtask libduckdb` (DUCKDB_LIB_DIR, DUCKDB_INCLUDE_DIR); git-ignored.
+include = [{ path = "libduckdb.toml", optional = true }]
+
 [alias]
-# Repository chores (xtask/): `cargo xtask gen-samples`, `cargo xtask help`.
+# Repository chores (xtask/): `cargo xtask gen-samples`, `cargo xtask libduckdb`, `cargo xtask help`.
 xtask = "run -p xtask --"

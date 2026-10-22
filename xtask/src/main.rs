@@ -2,6 +2,10 @@
 //!
 //! - `gen-samples`: regenerates every committed sample: the logs from `samples/generate.py`, then the
 //!   profiler captures and the crash dump, which Rust tests write when `IMT_REGENERATE_SAMPLES=1`.
+//! - `libduckdb`: fetches the pinned prebuilt libduckdb the store worker links and points Cargo at it
+//!   (see [`libduckdb`]).
+
+mod libduckdb;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
@@ -116,12 +120,13 @@ fn gen_samples() -> Result<(), String> {
     Ok(())
 }
 
-const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  gen-samples   regenerate every committed sample (samples/generate.py and the Rust sample generators)\n  help          show this message";
+const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  gen-samples   regenerate every committed sample (samples/generate.py and the Rust sample generators)\n  libduckdb     fetch the pinned prebuilt libduckdb and point Cargo at it (.cargo/libduckdb.toml)\n  help         show this message";
 
 fn main() -> ExitCode {
     let task = std::env::args().nth(1);
     let result = match task.as_deref() {
         Some("gen-samples") => gen_samples(),
+        Some("libduckdb") => libduckdb::run(&repo_root()),
         Some("help" | "-h" | "--help") | None => {
             println!("{USAGE}");
             Ok(())
@@ -164,9 +169,11 @@ mod tests {
             assert_eq!(step.env, vec![("IMT_REGENERATE_SAMPLES".to_owned(), "1".to_owned())]);
             assert!(step.args.ends_with(&["--".into(), "--ignored".into(), "regenerate_".into()]));
         }
-        assert!(plan[1]
-            .display()
-            .starts_with("IMT_REGENERATE_SAMPLES=1 cargo test -p imt-plugin-profiling --no-default-features"));
+        assert!(
+            plan[1]
+                .display()
+                .starts_with("IMT_REGENERATE_SAMPLES=1 cargo test -p imt-plugin-profiling --no-default-features")
+        );
         assert_eq!(plan.last().map(|s| s.args[2].as_str()), Some("imt-plugin-windows"));
     }
 

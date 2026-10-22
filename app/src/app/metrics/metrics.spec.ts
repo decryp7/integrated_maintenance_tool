@@ -10,7 +10,9 @@ import { ImtBackend } from '../core/backend';
 import { LiveTail } from '../workspace/live-tail';
 import { chartTokensOf, ChartTheme, ChartTokens } from './chart-theme';
 import { UiPrefsStore } from '../core/workspace/ui-prefs.store';
-import { EChart } from './echart';
+import { ChartPointMenu, EChart, pointOf } from './echart';
+import { NoteActions } from '../notes/note-actions';
+import { ContextMenuService } from '../ui/context-menu.service';
 import { MetricsView } from './metrics-view';
 import { TimeCursor } from '../analysis/time-cursor';
 import { at, must } from '../../testing/must';
@@ -145,7 +147,48 @@ describe('EChart', () => {
     fixture.destroy();
     expect(c.dispose).toHaveBeenCalled();
   });
+
+  it('reports a right-click on a point once, and one on the empty plot with its x', async () => {
+    const fixture = TestBed.createComponent(MenuHost);
+    await settle(fixture);
+    const c = at(charts.instances, 0);
+    const native = () => new MouseEvent('contextmenu', { clientX: 40, clientY: 50, cancelable: true });
+    const onPoint = native();
+    must(c.handlers['contextmenu'])({ componentType: 'series', seriesName: 'web01', value: [1_000, 93.5], event: { event: onPoint } });
+    // zrender then reports the same click: it is not taken again.
+    must(c.zrHandlers['contextmenu'])({ offsetX: 1, offsetY: 2, event: onPoint });
+    expect(onPoint.defaultPrevented).toBe(true);
+    expect(fixture.componentInstance.menus).toEqual([{ x: 40, y: 50, at: 1_000, series: 'web01', value: 93.5 }]);
+
+    const onPlot = native();
+    must(c.zrHandlers['contextmenu'])({ offsetX: 7.4, offsetY: 2, event: onPlot });
+    expect(fixture.componentInstance.menus.at(-1)).toEqual({ x: 40, y: 50, at: 7_400, series: null, value: null });
+    expect(onPlot.defaultPrevented).toBe(true);
+
+    // Outside the plot, on an item that is not a point, or without a native event: nothing.
+    c.containPixel.mockReturnValueOnce(false);
+    must(c.zrHandlers['contextmenu'])({ offsetX: 1, offsetY: 1, event: native() });
+    c.convertFromPixel.mockReturnValueOnce([Number.NaN, 0]);
+    must(c.zrHandlers['contextmenu'])({ offsetX: 1, offsetY: 1, event: native() });
+    must(c.zrHandlers['contextmenu'])({ offsetX: 1, offsetY: 1 });
+    must(c.handlers['contextmenu'])({ componentType: 'markLine', value: 5, event: { event: native() } });
+    must(c.handlers['contextmenu'])({ componentType: 'series', value: [1, 2] });
+    expect(fixture.componentInstance.menus).toHaveLength(2);
+  });
+
+  it('reads points as [x, y] pairs', () => {
+    expect(pointOf([5, 2])).toEqual({ at: 5, value: 2 });
+    expect(pointOf([5, null])).toEqual({ at: 5, value: null });
+    expect(pointOf([5, Number.POSITIVE_INFINITY])).toEqual({ at: 5, value: null });
+    expect(pointOf(['a', 1])).toBeNull();
+    expect(pointOf(3)).toBeNull();
+  });
 });
+
+@Component({ selector: 'imt-menu-host', imports: [EChart], template: `<imt-echart [options]="{ series: [] }" (pointMenu)="menus.push($event)" />` })
+class MenuHost {
+  readonly menus: ChartPointMenu[] = [];
+}
 
 describe('ChartTheme', () => {
   it('takes the tokens of the theme and scheme in effect, and follows changes', () => {
@@ -209,6 +252,23 @@ describe('ChartCard', () => {
     expect(TestBed.inject(TimeCursor).selection()).toEqual({ from: t0 + 1000, to: t0 + 60_000 });
     el<HTMLButtonElement>(fixture, '[aria-label="Remove chart C"]').click();
     expect(removed).toBe(true);
+  });
+
+  it('offers "Add note…" on a chart point and on a moment of the plot', async () => {
+    const { fixture } = await render(def({ id: 'x', title: 'CPU', y: 'count()', splitBy: [], bucket: 'auto' }), false);
+    const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+    const write = vi.spyOn(TestBed.inject(NoteActions), 'write').mockResolvedValue(null);
+    const c = at(charts.instances, 0);
+    must(c.handlers['contextmenu'])({ componentType: 'series', seriesName: 'web01', value: [1_000.4, 93], event: { event: new MouseEvent('contextmenu', { clientX: 3, clientY: 4 }) } });
+    expect(open).toHaveBeenCalledWith(3, 4, [expect.objectContaining({ label: 'Add note to this point (web01)…' })]);
+    at(open.mock.calls[0]![2], 0).run();
+    expect(write).toHaveBeenCalledWith({ kind: 'chartPoint', chart: 'CPU', series: 'web01', at: 1_000, value: 93 });
+
+    must(c.zrHandlers['contextmenu'])({ offsetX: 2, offsetY: 1, event: new MouseEvent('contextmenu', { clientX: 5, clientY: 6 }) });
+    expect(open).toHaveBeenLastCalledWith(5, 6, [expect.objectContaining({ label: 'Add note at this moment…' })]);
+    at(open.mock.calls[1]![2], 0).run();
+    expect(write).toHaveBeenLastCalledWith({ kind: 'chartPoint', chart: 'CPU', series: null, at: 2_000, value: null });
+    await settle(fixture);
   });
 });
 

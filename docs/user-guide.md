@@ -134,6 +134,17 @@ or a click on the icon) opens the format wizard on the proposed format: the prev
 reads with it, and **Save and re-import** adds it to the profile's `timestamp_formats`. The message is
 posted once per file; a reload does not repeat it.
 
+**Problems pane.** Everything that went wrong while reading the files is listed in the **Problems** pane, like an
+IDE's: open it from **View ▸ Problems**, the command palette (*View: Problems*) or the problem count in the status
+bar; its tab shows the count too. Problems are grouped by file and kind (events without a readable timestamp,
+lines that are not events, lines over the size limit, files no parser reads...), with how many and the first line
+numbers: a line number jumps to its event in the grid (or opens the file at that line when the line was not
+stored). Where the engine found a fix (for unreadable timestamps, a `[format]` change of the file's parser), the
+details show it: **Preview effect** checks it on the stored events ("Fixes 1,204 of 1,204 checked events") without
+changing anything, and **Apply and re-read** saves the changed parser in the library (a built-in becomes an
+override) and reads its files again. **Ask the AI to fix…** opens the AI's parser proposal for the lines around
+the problem; nothing changes until you review and apply it.
+
 ## Profiles
 
 A profile only needs the keys that differ from the built-in default. The full schema, with every key

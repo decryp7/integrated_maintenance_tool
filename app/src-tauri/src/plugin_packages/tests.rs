@@ -184,3 +184,69 @@ fn nothing_is_loaded_in_safe_mode_and_a_missing_folder_is_empty() {
     let i = Installed::load(None, false, &mut b);
     assert!(i.dir.is_none());
 }
+
+#[test]
+fn the_store_worker_gets_the_loaded_importers_still_installed_with_their_grants_now() {
+    use imt_plugin_api::manifest::{ImporterCap, Manifest};
+    use imt_plugin_host::{PluginProcess, PluginSpec};
+    let t = crate::test_support::TempDir::new("plugin-packages-worker");
+    let dir = PluginsDir::new(t.0.as_path());
+    let manifest = |id: &str, importer: bool| Manifest {
+        id: id.into(),
+        name: "Kv".into(),
+        version: "1.0.0".into(),
+        protocol: imt_plugin_api::PROTOCOL,
+        permissions: Vec::new(),
+        memory_limit: None,
+        importers: if importer {
+            vec![ImporterCap {
+                id: "kv".into(),
+                binary: false,
+                tail: false,
+                multiline: false,
+                identity_fields: Vec::new(),
+            }]
+        } else {
+            Vec::new()
+        },
+        config_parsers: Vec::new(),
+        marker_kinds: Vec::new(),
+        annotators: Vec::new(),
+        transforms: Vec::new(),
+        settings: None,
+        tools: Vec::new(),
+        profile_importers: Vec::new(),
+        document_importers: Vec::new(),
+    };
+    let mut loaded = std::collections::HashMap::new();
+    for (id, importer) in [("com.example.kv", true), ("com.example.tool", false), ("com.example.gone", true)] {
+        let r = record(id);
+        if id != "com.example.gone" {
+            std::fs::create_dir_all(t.0.as_path().join(id)).unwrap();
+            std::fs::write(t.0.as_path().join(id).join(RECORD_FILE), serde_json::to_vec(&r).unwrap()).unwrap();
+        }
+        let p = PluginProcess::new(manifest(id, importer), PluginSpec::new("/no/program", id));
+        loaded.insert(id.to_string(), (r, Ok(p)));
+    }
+    loaded.insert("com.example.broken".into(), (record("com.example.broken"), Err("missing".into())));
+    let installed = Installed {
+        dir: Some(dir),
+        loaded,
+        ..Installed::none()
+    };
+    let list = installed.for_store_worker();
+    assert_eq!(list.len(), 1, "only importers that are loaded and still installed: {list:?}");
+    assert_eq!(
+        (list[0].id.as_str(), list[0].plugins_dir.as_path()),
+        ("com.example.kv", t.0.as_path())
+    );
+    assert_eq!(list[0].sha256, "0".repeat(64));
+    assert!(list[0].granted.is_empty(), "the grants the process has now");
+    installed.loaded["com.example.kv"]
+        .1
+        .as_ref()
+        .unwrap()
+        .set_granted(vec![Permission::Network]);
+    assert_eq!(installed.for_store_worker()[0].granted, [Permission::Network]);
+    assert!(Installed::none().for_store_worker().is_empty());
+}

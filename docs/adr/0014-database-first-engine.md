@@ -750,7 +750,12 @@ up to 3x between runs (one run had `page text` at 45 s, the next at 1.1 s); read
   promoted it) and re-promotion on compaction are open.
 - Slow analyses run as jobs with coverage; results are cached per query and generation in the catalog. Anomalies'
   peak memory and timeline instance lanes at 10M are measured above; see the open points there.
-- Mixed sources on the DuckDB path (ADR 0020) wait for the merge of main.
+- Mixed sources on the DuckDB path (ADR 0020), 2026-10-22: per-line formats and the per-source instance key are
+  on the streaming ingest and the store; differential tests (`differential.rs`, a file of several products: pages,
+  facets, timelines and lanes, instance key, unmatched-line problems) and a worker-vs-in-process parity test on
+  `samples/linux/logserver01` (with the syslog plugin in the worker) check them. The summary now lists each
+  source's import problems (from the diagnostics table, as the in-memory store does). Still open: routes
+  (logical sources, ADR 0020 §5) on the streaming path.
 
 ## Performance notes (perf/rust, 2026-10-21)
 

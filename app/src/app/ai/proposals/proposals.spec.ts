@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QuerySession } from '../../analysis/query-session';
 import { FakeContext, provideAnalysisTesting } from '../../analysis/test-setup';
 import { MarkDialog } from '../../context/mark-dialog';
-import { mockExtractorsProposal, mockMarkersProposal, mockPipelineProposal, mockProfileProposal, mockRegexProposal } from '../../core/mock/mock-ai-data';
+import { mockExtractorsProposal, mockMarkersProposal, mockPipelineProposal, mockParserProposal, mockRegexProposal } from '../../core/mock/mock-ai-data';
 import { MockAiBackend } from '../../core/mock/mock-ai-backend';
 import { ProfileUndo } from '../../undo/profile-undo';
 import { WorkspaceStore } from '../../core/workspace.store';
@@ -83,7 +83,7 @@ describe('ProposalApply', () => {
     const reread = vi.spyOn(parsers, 'reread').mockResolvedValue(7);
     const follow = vi.spyOn(TestBed.inject(WorkspaceStore), 'followReread').mockResolvedValue();
     const apply = TestBed.inject(ProposalApply);
-    const profile = mockProfileProposal();
+    const profile = mockParserProposal();
     expect(profile.toml).toContain('schema = 1');
     expect(await apply.apply(profile)).toEqual({ kind: 'applied', message: 'Parser added to the library; the files are read again.' });
     expect(saveParser).toHaveBeenCalledWith(profile.toml, { overwrite: true });
@@ -124,9 +124,9 @@ describe('AiProposalCard', () => {
       [{ ...query, estimatedMatches: null, repaired: false }, ['Errors.']],
       [mockRegexProposal(['2026-10-14 09:00:02 [INF] x', 'nope']), ['Regular expression', 'Matches 1 of 2 examples', 'timestamp: timestamp', 'Group "level"', 'Add as highlight…']],
       [{ ...mockRegexProposal(['x']), source: 'inferred', groups: [], explanation: [] }, ["the engine's own inference", 'Matches 0 of 1 example']],
-      [mockProfileProposal(), ['Parser', 'Worker text logs · text · parses 58 entries, 58 with a timestamp', 'Queue depth 812', 'Parser TOML', 'Add to parsers']],
-      [{ ...mockProfileProposal(), toml: '' }, ["IMT's parsers already read this file."]],
-      [{ ...mockProfileProposal(), importer: null, preview: [] }, ['no importer']],
+      [mockParserProposal(), ['Parser', 'Worker text logs · text · parses 58 entries, 58 with a timestamp', 'Queue depth 812', 'Parser TOML', 'Add to parsers']],
+      [{ ...mockParserProposal(), toml: '' }, ["IMT's parsers already read this file."]],
+      [{ ...mockParserProposal(), importer: null, preview: [] }, ['no importer']],
       [mockPipelineProposal('g'), ['Pipeline steps', 'keeps 52, drops 8, changes 0', '60 → 52', 'GET /health check', 'Add to profile']],
       [mockMarkersProposal('g'), ['Markers', 'Timeout', '6 matches']],
       [{ ...mockMarkersProposal('g'), markers: [{ kind: 'k', label: 'K', matches: 1 }] }, ['1 match']],

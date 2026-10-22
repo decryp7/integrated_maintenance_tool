@@ -10,7 +10,7 @@ use serde_json::{Map, Value};
 #[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum Proposal {
     Regex(RegexProposal),
-    Profile(ProfileProposal),
+    Parser(ParserProposal),
     Pipeline(PipelineProposal),
     Markers(MarkersProposal),
     Extractors(ExtractorsProposal),
@@ -21,7 +21,7 @@ impl Proposal {
     pub fn title(&self) -> &'static str {
         match self {
             Proposal::Regex(_) => "Regular expression",
-            Proposal::Profile(_) => "Parsing profile",
+            Proposal::Parser(_) => "Parser",
             Proposal::Pipeline(_) => "Pipeline steps",
             Proposal::Markers(_) => "Markers",
             Proposal::Extractors(_) => "Extractors",
@@ -55,7 +55,7 @@ pub struct RegexProposal {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ProfileProposal {
+pub struct ParserProposal {
     pub name: String,
     /// The candidate parser (TOML, ADR 0026) for the library; empty when the library already reads the file.
     pub toml: String,

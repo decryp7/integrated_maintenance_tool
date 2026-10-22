@@ -6,7 +6,7 @@ import {
   InstalledModel,
   MarkersProposal,
   PipelineProposal,
-  ProfileProposal,
+  ParserProposal,
   ProjectorInfo,
   Recommendation,
   Recommendations,
@@ -175,9 +175,9 @@ kind = "text"
 regexes = ['^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?(?: [+-]\d{2}:\d{2})?) \[(?P<level>[A-Z]{3})\] (?P<message>.*)$']
 `;
 
-export function mockProfileProposal(): ProfileProposal {
+export function mockParserProposal(): ParserProposal {
   return {
-    kind: 'profile',
+    kind: 'parser',
     name: 'Worker text logs',
     // A parser for the library (ADR 0026); empty when the library already reads the file.
     toml: MOCK_PROPOSED_PARSER,

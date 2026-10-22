@@ -5,7 +5,11 @@ export type ParserOrigin = "builtin" | "user" | "override";
 
 export type ParserErrorDto = { message: string, line: number | null, column: number | null, };
 
-export type ParserSourceDto = { id: number, name: string, };
+export type ParserSourceDto = { id: number, name: string, 
+/**
+ * The user chose this parser for it ("Parse with…"); else it was matched automatically.
+ */
+chosen: boolean, };
 
 export type ParserEntryDto = { id: string, name: string, version: string, description: string, category: string, 
 /**
@@ -48,4 +52,8 @@ fileName: string,
 /**
  * The parser to change (the source's); `None` for a new parser.
  */
-base: string | null, regex: string | null, template: string | null, timestampFormat: string | null, };
+base: string | null, regex: string | null, template: string | null, timestampFormat: string | null, 
+/**
+ * A quick fix's `[format]` fragment merged over `base` (the Problems pane's Apply); needs `base`.
+ */
+parserOverride?: string, };

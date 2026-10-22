@@ -96,6 +96,32 @@ export function compareVersions(a: string, b: string): number {
   return 0;
 }
 
+/** The next patch version (`1.2.3` → `1.2.4`); a version that is not semver becomes `1.0.1`. */
+export function bumpPatch(version: string): string {
+  const m = SEMVER.exec(version);
+  return m ? `${m[1]}.${m[2]}.${Number(m[3]) + 1}` : '1.0.1';
+}
+
+/** A quick fix's TOML fragment (`[format]` keys), or a refusal with the reason, like the engine's. */
+export function parseFragment(fragment: string): Record<string, unknown> {
+  try {
+    return parse(fragment) as Record<string, unknown>;
+  } catch (e) {
+    const reason = e instanceof TomlError ? e.message.split('\n')[0] : String(e);
+    throw new CmdError({ code: 'invalid', message: `the fix is not a valid parser change: ${reason}`, retryable: false });
+  }
+}
+
+/** Merges `over` into `base` like the engine's profile merge: tables merge, other values (arrays too) replace. */
+export function mergeTables(base: Record<string, unknown>, over: Record<string, unknown>): void {
+  const isTable = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v) && !(v instanceof Date);
+  for (const [key, value] of Object.entries(over)) {
+    const current = base[key];
+    if (isTable(current) && isTable(value)) mergeTables(current, value);
+    else base[key] = value;
+  }
+}
+
 /** FNV-1a of the text, as hex: the mock's content hash. */
 export function mockHash(text: string): string {
   let h = 0x811c9dc5;
@@ -231,7 +257,7 @@ export class MockParserLibrary {
         origin: this.origin(id),
         enabled: !this.disabled.has(id),
         hash: mockHash(this.toml(id) ?? ''),
-        sources: sources.filter((s) => this.recorded.get(s.id)?.id === id).map((s) => ({ id: s.id, name: s.name })),
+        sources: sources.filter((s) => this.recorded.get(s.id)?.id === id).map((s) => ({ id: s.id, name: s.name, chosen: this.assigned.get(s.id) === id })),
       });
     }
     parsers.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
@@ -320,15 +346,23 @@ export class MockParserLibrary {
       prepend('output_templates', req.template);
       prepend('regexes', req.regex);
     };
+    const fragment = req.parserOverride?.trim() ? req.parserOverride : null;
     if (req.base) {
       const toml = this.toml(req.base);
       if (toml === undefined) throw notFound(req.base);
       const doc = parse(toml) as Record<string, unknown>;
+      // A quick fix's `[format]` fragment is merged over the parser (tables merge, other values replace); it keeps its id.
+      if (fragment !== null) {
+        mergeTables(doc, parseFragment(fragment));
+        doc['id'] = req.base;
+        doc['version'] = bumpPatch(String((parse(toml) as Record<string, unknown>)['version'] ?? '1.0.0'));
+      }
       const format = ((doc['format'] as Record<string, unknown> | undefined) ?? {}) as Record<string, unknown>;
       add(format);
       doc['format'] = format;
       return { id: req.base, origin: this.builtins.has(req.base) ? 'override' : 'user', toml: stringify(doc) + '\n' };
     }
+    if (fragment !== null) throw new CmdError({ code: 'invalid', message: 'a parser change needs the parser it changes', retryable: false });
     const slug =
       req.fileName
         .toLowerCase()

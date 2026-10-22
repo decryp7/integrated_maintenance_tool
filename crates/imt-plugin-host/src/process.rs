@@ -293,6 +293,8 @@ pub struct PluginProcess {
     services: Arc<HostServices>,
     /// The settings last applied, restored when the process restarts.
     settings: Arc<Mutex<Option<serde_json::Value>>>,
+    /// What the launcher reported it could not enforce at the last start (Linux: landlock).
+    reported: Arc<Mutex<Vec<imt_ipc::sandbox::Note>>>,
 }
 
 impl PluginProcess {
@@ -319,11 +321,14 @@ impl PluginProcess {
         let granted = Arc::new(Mutex::new(spec.granted.clone()));
         let handler: Arc<dyn Handler> = services.clone();
         let restore_settings = settings.clone();
-        let (m, s, g) = (manifest.clone(), spec.clone(), granted.clone());
+        let reported: Arc<Mutex<Vec<imt_ipc::sandbox::Note>>> = Arc::default();
+        let (m, s, g, r) = (manifest.clone(), spec.clone(), granted.clone(), reported.clone());
         let start = move || {
             verify_program(&m, &s)?;
             let child_spec = child_spec(&m, &s, &lock(&g), false);
-            launch(&child_spec, handler.clone())
+            let child = launch(&child_spec, handler.clone())?;
+            *lock(&r) = child.sandbox_notes().to_vec();
+            Ok(child)
         };
         let sup = Supervisor::new(spec.supervisor.clone(), start).with_restore(move |c: &Child, restarted| {
             let values = lock(&restore_settings).clone();
@@ -342,6 +347,7 @@ impl PluginProcess {
             granted,
             services,
             settings,
+            reported,
         })
     }
 
@@ -378,6 +384,13 @@ impl PluginProcess {
     /// The sandbox its process gets with the current grants.
     pub fn sandbox(&self) -> imt_ipc::SandboxSpec {
         child_spec(&self.manifest, &self.spec, &lock(&self.granted), false).spawn.sandbox
+    }
+
+    /// Its sandbox status: one line per restriction this system cannot enforce (Linux without landlock:
+    /// [`imt_ipc::sandbox::FILES_NOT_CONFINED`]), from what the host knows before the start and what the launcher
+    /// reported at the last start. Empty when everything holds.
+    pub fn sandbox_status(&self) -> Vec<String> {
+        sandbox_status(imt_ipc::sandbox::host_notes(&self.sandbox()), lock(&self.reported).clone())
     }
 
     /// Whether it is a third-party plugin (installed from a package).
@@ -562,6 +575,24 @@ fn verify_program(manifest: &Manifest, spec: &PluginSpec) -> Result<(), IpcError
 }
 
 /// The child spec of a plugin's normal or elevated process with `granted`.
+/// The status lines of `host` and `reported` notes: gaps only (not information), each once; a file gap the
+/// launcher reported replaces the host's own guess about files.
+fn sandbox_status(host: Vec<imt_ipc::sandbox::Note>, reported: Vec<imt_ipc::sandbox::Note>) -> Vec<String> {
+    use imt_ipc::sandbox::Gap;
+    let reported_files = reported.iter().any(|n| n.gap == Gap::Files);
+    let mut lines: Vec<String> = Vec::new();
+    for n in host
+        .into_iter()
+        .filter(|n| !(reported_files && n.gap == Gap::Files))
+        .chain(reported)
+    {
+        if n.gap != Gap::Info && !lines.contains(&n.message) {
+            lines.push(n.message);
+        }
+    }
+    lines
+}
+
 fn child_spec(manifest: &Manifest, spec: &PluginSpec, granted: &[Permission], elevated: bool) -> ChildSpec {
     let label = if elevated {
         format!("plugin \"{}\" (elevated)", manifest.id)
@@ -592,4 +623,48 @@ fn child_spec(manifest: &Manifest, spec: &PluginSpec, granted: &[Permission], el
         };
     }
     c
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use imt_ipc::sandbox::{Gap, Note, FILES_NOT_CONFINED};
+
+    #[test]
+    fn the_sandbox_status_lists_each_gap_once_and_prefers_what_the_launcher_reported() {
+        assert!(sandbox_status(Vec::new(), Vec::new()).is_empty());
+        let host = vec![
+            Note::new(Gap::Files, FILES_NOT_CONFINED),
+            Note::new(Gap::Info, "how it is enforced"),
+        ];
+        assert_eq!(sandbox_status(host.clone(), Vec::new()), [FILES_NOT_CONFINED]);
+        assert_eq!(
+            sandbox_status(host.clone(), vec![Note::new(Gap::Files, FILES_NOT_CONFINED)]),
+            [FILES_NOT_CONFINED]
+        );
+        let partly = Note::new(Gap::Files, "landlock is only partly supported");
+        let seccomp = Note::new(Gap::Syscalls, "seccomp is not available");
+        assert_eq!(
+            sandbox_status(host, vec![partly.clone(), seccomp.clone()]),
+            [partly.message, seccomp.message]
+        );
+    }
+
+    #[test]
+    fn a_plugin_that_never_started_has_the_status_the_host_can_tell() {
+        let m: Manifest = serde_json::from_value(serde_json::json!({
+            "id": "com.example.x", "name": "X", "version": "1.0.0", "protocol": imt_plugin_api::PROTOCOL,
+            "permissions": [], "importers": [], "configParsers": [], "markerKinds": [], "annotators": [],
+            "transforms": [], "tools": [], "profileImporters": [], "documentImporters": []
+        }))
+        .unwrap();
+        let p = PluginProcess::new(m, PluginSpec::new("/no/program", "com.example.x"));
+        let expected: Vec<String> = imt_ipc::sandbox::host_notes(&p.sandbox()).into_iter().map(|n| n.message).collect();
+        assert_eq!(p.sandbox_status(), expected);
+        if imt_ipc::sandbox::files_confinable() {
+            assert!(p.sandbox_status().is_empty());
+        } else {
+            assert_eq!(p.sandbox_status(), [FILES_NOT_CONFINED]);
+        }
+    }
 }

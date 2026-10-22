@@ -1,0 +1,6 @@
+//! IMT's store worker program (`imt_store_worker::main`), built here so the end-to-end tests can start it next to
+//! the importer example's program and import through it.
+
+fn main() {
+    imt_store_worker::main();
+}

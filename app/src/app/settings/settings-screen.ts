@@ -11,6 +11,8 @@ import { StorageSettings } from './storage/storage-settings';
 import { STORAGE_ID } from './storage/storage.types';
 import { ParsersSettings } from './parsers/parsers-settings';
 import { PARSERS_ID } from './parsers/parsers.types';
+import { ParsersStore } from './parsers/parsers.store';
+import { searchParsers } from './parsers/parser-search';
 import { APPEARANCE_ID, fieldMatches, GENERAL_ID, GROUPS, statusLabel } from './settings-model';
 import { SettingField, SettingsSection } from './settings.types';
 
@@ -82,6 +84,17 @@ import { SettingField, SettingsSection } from './settings.types';
           <p class="muted" i18n="@@settings.screen.loading">Loading settings…</p>
         }
         @if (store.query().trim()) {
+          @if (parserHits(); as ph) {
+            <h3 i18n="Settings section|The log formats IMT reads@@settings.parsers.nav">Parsers</h3>
+            @if (ph.parsers.length) {
+              <ul class="parser-hits" aria-label="Matching parsers" i18n-aria-label="@@settings.screen.search.parserHits">
+                @for (p of ph.parsers; track p.id) {
+                  <li data-testid="settings-search-parser">{{ p.name }} <span class="muted">{{ p.id }} · {{ p.category }}</span></li>
+                }
+              </ul>
+            }
+            <button class="btn" type="button" data-testid="settings-search-open-parsers" (click)="openParsers()" i18n="@@settings.screen.search.openParsers">Open Parsers</button>
+          }
           @for (r of results(); track r.section.id) {
             <h3>{{ r.section.title }}</h3>
             @for (f of r.fields; track f.key) {
@@ -95,7 +108,9 @@ import { SettingField, SettingsSection } from './settings.types';
               />
             }
           } @empty {
-            <p class="muted" i18n="@@settings.screen.noMatch">No settings match “{{ store.query() }}”.</p>
+            @if (!parserHits()) {
+              <p class="muted" i18n="@@settings.screen.noMatch">No settings match “{{ store.query() }}”.</p>
+            }
           }
         } @else if (isSelected(general)) {
           <h3 i18n="Settings section|Name of the first settings section@@settings.screen.general">General</h3>
@@ -170,6 +185,7 @@ import { SettingField, SettingsSection } from './settings.types';
     :host { display: flex; flex-direction: column; gap: 10px; height: min(640px, calc(100vh - 170px)); min-height: 0; }
     .top { display: flex; align-items: center; gap: 12px; }
     .search { flex: 1; }
+    .parser-hits { margin: 0 0 8px; padding-left: 18px; }
     .adv { display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); white-space: nowrap; }
     .banner { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-3); background: var(--bg-3); color: var(--text-2); }
     .banner > span { flex: 1; }
@@ -200,6 +216,8 @@ import { SettingField, SettingsSection } from './settings.types';
 })
 export class SettingsScreen {
   protected readonly store = inject(EngineSettingsStore);
+  private readonly parserLibrary = inject(ParsersStore);
+  private readonly parsersTitle = $localize`:Settings section|The log formats IMT reads@@settings.parsers.nav:Parsers`;
   private readonly files = inject(SettingsFiles);
   private readonly ref = inject(DIALOG_REF, { optional: true });
   protected readonly general = GENERAL_ID;
@@ -222,8 +240,19 @@ export class SettingsScreen {
       .filter((r) => r.fields.length > 0);
   });
 
+  /** Search hits in the Parsers section (the section and the library's parsers). */
+  protected readonly parserHits = computed(() => searchParsers(this.parserLibrary.parsers(), this.store.query(), this.parsersTitle));
+
   constructor() {
     void this.store.load();
+    // The search covers the parser library too, before the Parsers section was ever opened.
+    if (!this.parserLibrary.library() && !this.parserLibrary.loading()) void this.parserLibrary.load();
+  }
+
+  /** Leaves the search for the Parsers section. */
+  protected openParsers(): void {
+    this.store.setQuery('');
+    this.store.select(PARSERS_ID);
   }
 
   protected isSelected(id: string): boolean {

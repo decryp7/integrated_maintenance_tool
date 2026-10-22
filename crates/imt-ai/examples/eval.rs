@@ -79,7 +79,7 @@ struct RegexCase {
 }
 
 #[derive(Debug, Deserialize)]
-struct ProfileCase {
+struct ParserCase {
     id: String,
     #[serde(flatten)]
     sample: Sample,
@@ -154,7 +154,7 @@ struct Cases {
     #[serde(default)]
     propose_regex: Vec<RegexCase>,
     #[serde(default)]
-    propose_profile: Vec<ProfileCase>,
+    propose_parser: Vec<ParserCase>,
     #[serde(default)]
     propose_pipeline: Vec<SampleGoalCase>,
     #[serde(default)]
@@ -418,14 +418,14 @@ fn regex_case(cx: &Ctx, c: &RegexCase) -> imt_ai::Result<Verdict> {
     })
 }
 
-fn profile_case(cx: &Ctx, c: &ProfileCase) -> imt_ai::Result<Verdict> {
+fn parser_case(cx: &Ctx, c: &ParserCase) -> imt_ai::Result<Verdict> {
     let sample = c.sample.load(&cx.samples);
     let name = if c.sample.file.is_empty() {
         "sample.log"
     } else {
         c.sample.file.rsplit('/').next().unwrap_or("sample.log")
     };
-    let p = cx.assistant.propose_profile(cx.store.as_ref(), &sample, name)?;
+    let p = cx.assistant.propose_parser(cx.store.as_ref(), &sample, name)?;
     let parsed = p.parsed as f64 / c.records.max(1) as f64;
     let shown = p.parsed.clamp(1, 200) as f64;
     let ts = p.with_timestamp as f64 / shown;
@@ -812,7 +812,7 @@ fn main() {
     }
     group!("nl_to_query", cases.nl_to_query, nl, true);
     group!("propose_regex", cases.propose_regex, regex_case, true);
-    group!("propose_profile", cases.propose_profile, profile_case, true);
+    group!("propose_parser", cases.propose_parser, parser_case, true);
     group!("propose_pipeline", cases.propose_pipeline, pipeline_case, true);
     group!("propose_markers", cases.propose_markers, markers_case, true);
     group!("propose_extractors", cases.propose_extractors, extractors_case, true);

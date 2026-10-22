@@ -55,6 +55,8 @@ impl From<&ParserError> for ParserErrorDto {
 pub struct ParserSourceDto {
     pub id: u32,
     pub name: String,
+    /// The user chose this parser for it ("Parse with…"); else it was matched automatically.
+    pub chosen: bool,
 }
 
 /// One parser of the library.
@@ -178,6 +180,10 @@ pub struct ParserDraftRequest {
     pub regex: Option<String>,
     pub template: Option<String>,
     pub timestamp_format: Option<String>,
+    /// A quick fix's `[format]` fragment merged over `base` (the Problems pane's Apply); needs `base`.
+    #[serde(default)]
+    #[cfg_attr(test, ts(optional))]
+    pub parser_override: Option<String>,
 }
 
 impl From<ParserDraftRequest> for imt_core::parser::draft::DraftRequest {
@@ -188,6 +194,7 @@ impl From<ParserDraftRequest> for imt_core::parser::draft::DraftRequest {
             regex: r.regex,
             template: r.template,
             timestamp_format: r.timestamp_format,
+            parser_override: r.parser_override,
         }
     }
 }

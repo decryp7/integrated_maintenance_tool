@@ -340,9 +340,11 @@ impl Profiles for WorkspaceStore {
             let Some(r) = ws.parser_of(s.id) else { continue };
             match uses.iter_mut().find(|u| u.parser == *r) {
                 Some(u) => u.sources.push(SourceId(s.id)),
+                // The in-memory store has no "Parse with…": every source is matched automatically.
                 None => uses.push(crate::ports::ParserUse {
                     parser: r.clone(),
                     sources: vec![SourceId(s.id)],
+                    chosen: Vec::new(),
                 }),
             }
         }

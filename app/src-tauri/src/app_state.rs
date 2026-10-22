@@ -57,7 +57,7 @@ impl AppState {
         let config_dir = profile_dir.as_ref().and_then(|d| d.parent()).map(PathBuf::from);
         let disabled = crate::plugin_config::load_plugin_settings(config_dir.as_deref()).disabled;
         let memory_mode = crate::performance::load(config_dir.as_deref()).memory_mode();
-        let stores = crate::engine::WorkerHost::new(disabled, safe_mode, lib_dir, memory_mode)?;
+        let stores = crate::engine::WorkerHost::new(disabled, safe_mode, lib_dir, installed.for_store_worker(), memory_mode)?;
         let mut state = AppState::with(
             profile_dir,
             safe_mode,
