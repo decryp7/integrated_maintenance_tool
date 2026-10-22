@@ -8,6 +8,8 @@ import { SettingsBackend } from './settings-backend';
 import { SettingsFiles } from './settings-files';
 import { SettingsScreen } from './settings-screen';
 import { at } from '../../testing/must';
+import { MockVideoBackend } from '../video/mock/mock-video-backend';
+import { VideoBackend } from '../video/video-backend';
 
 async function setup(backend = new MockSettingsBackend(), withRef = true) {
   const closed = vi.fn();
@@ -20,6 +22,7 @@ async function setup(backend = new MockSettingsBackend(), withRef = true) {
       provideFakeDock(dock),
       { provide: SettingsBackend, useValue: backend },
       { provide: SettingsFiles, useValue: files },
+      { provide: VideoBackend, useFactory: () => new MockVideoBackend() },
       { provide: LifecycleService, useValue: { restartKeepingSession: restart } },
       ...(withRef ? [{ provide: DIALOG_REF, useValue: { close: closed, closed: Promise.resolve() } }] : []),
     ],
@@ -37,12 +40,21 @@ const escape = (fixture: Parameters<typeof el>[0]) => {
 };
 
 describe('SettingsScreen', () => {
+  it('shows the FFmpeg runtime under Video', async () => {
+    const { fixture } = await setup();
+    nav(fixture, 'Video').click();
+    await settle(fixture);
+    expect(el(fixture, 'nav [aria-current=page]').textContent).toContain('Video');
+    expect(el(fixture, 'imt-video-settings')).toBeTruthy();
+    expect(text(fixture)).toContain('FFmpeg runtime');
+  });
+
   it('lists General, then the engine sections by group with their status', async () => {
     const { fixture } = await setup();
     const groups = all(fixture, 'nav .group').map((g) => g.textContent?.trim());
     expect(groups).toEqual(['Application', 'Diagnostics', 'Plugins', 'AI', 'Performance', 'Advanced']);
     const items = all(fixture, 'nav .nav').map((b) => [...b.querySelectorAll('.name, .badge')].map((x) => x.textContent?.trim()).join(' ') || b.textContent?.trim());
-    expect(items).toEqual(['General', 'Appearance', 'Disk usage', 'Parsers', 'Window & tray', 'Diagnostics', 'Plugins', 'Windows diagnostics', 'Example plugin disabled', 'AI assistant not installed', 'Performance', 'Workspace']);
+    expect(items).toEqual(['General', 'Appearance', 'Disk usage', 'Parsers', 'Video', 'Window & tray', 'Diagnostics', 'Plugins', 'Windows diagnostics', 'Example plugin disabled', 'AI assistant not installed', 'Performance', 'Workspace']);
     expect(el(fixture, 'nav [aria-current=page]').textContent).toContain('General');
     expect(text(fixture)).toContain('Time zone');
     nav(fixture, 'Appearance').click();

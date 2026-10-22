@@ -14,10 +14,10 @@ pub(crate) mod source;
 use crate::error::{CmdError, ErrorCode};
 use crate::windows::WindowState;
 use imt_video::api::{MediaState, VideoView};
-use imt_video::AiUnavailable;
 use imt_video::ingest::media_file;
 use imt_video::record::{VideoFolder, VideoRecord};
 use imt_video::runtime::{FfmpegCatalog, FfmpegStore};
+use imt_video::AiUnavailable;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, Runtime};
@@ -100,7 +100,7 @@ pub(crate) fn state<R: Runtime>(app: &AppHandle<R>) -> Result<tauri::State<'_, V
 }
 
 /// An engine error as the one command error.
-pub(crate) fn cmd(e: VideoError) -> CmdError {
+pub(crate) fn cmd(e: imt_video::VideoError) -> CmdError {
     use imt_video::VideoError as V;
     let msg = e.to_string();
     match e {
@@ -117,9 +117,9 @@ pub(crate) fn cmd(e: VideoError) -> CmdError {
         V::Io(_) => CmdError::new(ErrorCode::Io, msg),
         V::AiUnavailable { kind, .. } => CmdError::new(
             match kind {
-                V::AiUnavailable::NoModel => ErrorCode::NoModel,
-                V::AiUnavailable::NoRuntime => ErrorCode::NoRuntime,
-                V::AiUnavailable::NoVision => ErrorCode::NoVision,
+                AiUnavailable::NoModel => ErrorCode::NoModel,
+                AiUnavailable::NoRuntime => ErrorCode::NoRuntime,
+                AiUnavailable::NoVision => ErrorCode::NoVision,
             },
             msg,
         ),

@@ -11,7 +11,7 @@ use crate::test_support::{block, main_window, samples, test_app, window, TempDir
 use crate::windows::CurrentWindow;
 use imt_video::align::UserAlignment;
 use imt_video::api::*;
-use imt_video::record::{key_of, FrameRecord, VideoFolder, VideoRecord, RECORD_VERSION};
+use imt_video::record::{key_of, FrameRecord, VideoRecord, RECORD_VERSION};
 use imt_video::select::SelectOptions;
 use tauri::http::{header, Request, StatusCode};
 use tauri::test::MockRuntime;
@@ -229,7 +229,7 @@ fn a_note_or_alignment_rewrites_the_frames_source_in_the_workspace() {
         },
     ))
     .unwrap();
-    assert_eq!(v.record.frames[1].note.as_deref(), Some("the dialog opens here"));
+    assert_eq!(v.record.frames[1].note.as_deref(), Some("the dialog opens\nhere"));
     let source = frames_source(&win).expect("the frames are a source");
     assert_eq!((source.records, Some(source.id)), (3, v.source_id));
     // The alignment moves every event.
@@ -543,6 +543,7 @@ fn a_generated_clip_is_analysed_end_to_end_when_ffmpeg_is_installed() {
     app.manage(VideoState::new(dir.0.join("video")));
     crate::paths::allow_under(app.handle(), "main", &dir.0);
     let clip = dir.0.join("recording 2026-10-14 10-40-00.mp4");
+    #[allow(clippy::disallowed_methods)] // a test generating its clip
     let made = std::process::Command::new(&ffmpeg)
         .args([
             "-v",

@@ -17,6 +17,7 @@ fn find_ffmpeg() -> Option<PathBuf> {
         .find(|p| p.is_file() && p.with_file_name("ffprobe").is_file())
 }
 
+#[allow(clippy::disallowed_methods)] // a test generating its clip; no console window matters here
 fn make_clip(ffmpeg: &Path, out: &Path) -> bool {
     // 6 s: two seconds of colour bars, two of a test pattern, two of a gradient, so there are scene changes.
     Command::new(ffmpeg)

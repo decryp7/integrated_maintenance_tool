@@ -220,6 +220,7 @@ export function buildMenus(state: MenuState): TopMenu[] {
         cmd('profiling.open'),
         cmd('dumps.open'),
         cmd('dumps.openUmdh'),
+        cmd('video.open'),
         cmd('project.open'),
         cmd('project.recent', $localize`:@@shell.menu.file.openRecentProject:Open recent project…`),
         SEP,

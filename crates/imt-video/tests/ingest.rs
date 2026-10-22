@@ -110,8 +110,10 @@ fn analysing_again_keeps_the_users_work() {
     r.frames[2].description = Some("An error dialog".into());
     r.user_alignment = imt_video::align::UserAlignment::Offset { offset_ms: 2000 };
     e.folder.save(&r).unwrap();
-    let mut opts = SelectOptions::default();
-    opts.cap = 3;
+    let opts = SelectOptions {
+        cap: 3,
+        ..SelectOptions::default()
+    };
     let again = analyse(&ingest(&e, &cancel, opts), &mut |_, _| {}).unwrap();
     assert_eq!(again.key, r.key);
     assert_eq!(again.frames.len(), 3);

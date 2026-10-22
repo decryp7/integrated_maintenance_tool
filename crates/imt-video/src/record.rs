@@ -133,7 +133,7 @@ pub fn safe_file_name(name: &str) -> String {
     }
 }
 
-/// Description or note text as kept: one line, no control characters, at most 2 000 characters; `None` when empty.
+/// Description or note text as kept: no control characters except line breaks, at most 2 000 characters; `None` when empty.
 pub fn clean_text(s: &str) -> Option<String> {
     let t: String = s.chars().map(|c| if c.is_control() && c != '\n' { ' ' } else { c }).collect();
     let t = t.trim();
