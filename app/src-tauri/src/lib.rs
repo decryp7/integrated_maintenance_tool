@@ -79,6 +79,7 @@ mod tools;
 mod tray;
 mod ui_dispatch;
 mod updater;
+mod video;
 mod window_manager;
 mod window_prefs;
 mod window_scoped;
@@ -212,6 +213,26 @@ command_table! {
     Query [WINDOW] => profiling::profiling_heap_instances,
     Query [WINDOW] => profiling::profiling_heap_paths,
     Query [WINDOW] limit 4 * 1024 => profiling::profiling_heap_findings,
+    Query [WINDOW] => video::runtime_commands::video_runtime,
+    Mutation [WINDOW] => video::runtime_commands::video_runtime_install,
+    Mutation [WINDOW] => video::runtime_commands::video_runtime_rollback,
+    Mutation [WINDOW] => video::runtime_commands::video_runtime_delete,
+    Mutation [WINDOW] => video::runtime_commands::video_runtime_set_custom,
+    Mutation [WINDOW] => video::runtime_commands::video_runtime_clear_custom,
+    Query [WINDOW] => video::commands::video_sniff,
+    Query [WINDOW] => video::commands::video_list,
+    Mutation [WINDOW] => video::commands::video_open,
+    Query [WINDOW] => video::commands::video_frame_image,
+    Mutation [WINDOW] => video::commands::video_frame_to_image,
+    Mutation [WINDOW] => video::commands::video_set_alignment,
+    Mutation [WINDOW] => video::commands::video_set_note,
+    Mutation [WINDOW] => video::commands::video_remove_frame,
+    Mutation [WINDOW] => video::commands::video_add_frame,
+    Mutation [WINDOW] => video::commands::video_include,
+    Mutation [WINDOW] => video::commands::video_remove,
+    Mutation [WINDOW] => video::commands::video_describe,
+    Mutation [WINDOW] => video::commands::video_read_clock,
+    Query [WINDOW] => video::commands::video_explain,
     Query [WINDOW] => dumps::dumps_sniff,
     Mutation [WINDOW] => dumps::dumps_open,
     Query [WINDOW] => dumps::dumps_list,
@@ -495,6 +516,8 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(window_state_plugin())
         .plugin(updater::plugin())
+        // The player's videos (ADR 0033 §7): only the calling window's project videos, in bounded ranges.
+        .register_asynchronous_uri_scheme_protocol(video::media::SCHEME, video::media::handler)
         .setup(move |app| setup(app, &launch, safe_mode, single))
         .on_window_event(window_manager::on_window_event)
         // Every IPC command is logged (with the UI's operation id) before it runs: see `activity`. A web page
@@ -568,6 +591,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     window_prefs::register(app.handle())?;
     updater::init(app.handle());
     ai::init(app.handle(), safe_mode);
+    video::init(app.handle());
     browser::init(app.handle());
     snapshots::prune_on_startup(app.handle());
 

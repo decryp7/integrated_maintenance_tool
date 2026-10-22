@@ -31,6 +31,8 @@ imt-dump = { path = "../../crates/imt-dump" }
 # PDB identities, the symbol cache and (user-enabled) symbol-server downloads for dumps (ADR 0036).
 imt-symbols = { path = "../../crates/imt-symbols", default-features = false, features = ["server"] }
 imt-notes = { path = "../../crates/imt-notes" }
+# Video sources (ADR 0033): the FFmpeg runtime, the sandboxed analysis and the project's video records.
+imt-video = { path = "../../crates/imt-video" }
 imt-agent = { path = "../../crates/imt-agent" }
 # Plugins run out of process (ADR 0017): the host side only; no plugin is linked into the app.
 imt-plugin-host = { path = "../../crates/imt-plugin-host" }
@@ -82,6 +84,8 @@ imt-plugin-dumps = { path = "../../crates/imt-plugin-dumps", default-features = 
 # The dump DTOs' TypeScript bindings (`generated_types`).
 imt-dump = { path = "../../crates/imt-dump", features = ["ts"] }
 imt-notes = { path = "../../crates/imt-notes", features = ["ts"] }
+# The video DTOs' TypeScript bindings (`generated_types`, ADR 0033).
+imt-video = { path = "../../crates/imt-video", features = ["ts"] }
 # The Store pane's DTOs' TypeScript bindings (`generated_types`, ADR 0030).
 imt-core = { path = "../../crates/imt-core", features = ["ts"] }
 # TypeScript bindings of the wire types (`generated_types` test; ADR 0016).

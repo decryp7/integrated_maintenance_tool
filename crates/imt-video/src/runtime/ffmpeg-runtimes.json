@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "source": "BtbN/FFmpeg-Builds",
+  "tag": "autobuild-2026-09-30-13-08",
+  "release": "n9.0.2-17-g2a571b6068",
+  "license": "LGPL-2.1-or-later",
+  "platforms": {
+    "linux-arm64": {
+      "name": "ffmpeg-n9.0.2-17-g2a571b6068-linuxarm64-lgpl-shared-9.0.tar.xz",
+      "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/ffmpeg-n9.0.2-17-g2a571b6068-linuxarm64-lgpl-shared-9.0.tar.xz",
+      "size": 53867800,
+      "sha256": "1aa02c59afe06dea2602b40517a5cb75c0ff6d524f217b5aea1f0ca07977cd51"
+    },
+    "linux-x64": {
+      "name": "ffmpeg-n9.0.2-17-g2a571b6068-linux64-lgpl-shared-9.0.tar.xz",
+      "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/ffmpeg-n9.0.2-17-g2a571b6068-linux64-lgpl-shared-9.0.tar.xz",
+      "size": 63245836,
+      "sha256": "7a1ba2af36e5beeb98151e766a903b1d115f2206a86571f17f873cd7292c424f"
+    },
+    "windows-arm64": {
+      "name": "ffmpeg-n9.0.2-17-g2a571b6068-winarm64-lgpl-shared-9.0.zip",
+      "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/ffmpeg-n9.0.2-17-g2a571b6068-winarm64-lgpl-shared-9.0.zip",
+      "size": 53257646,
+      "sha256": "f3133abf5c2b6ae45bd428d480cf830a9fbda3a3866dc249110e85f99f13b8ce"
+    },
+    "windows-x64": {
+      "name": "ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0.zip",
+      "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0.zip",
+      "size": 76972461,
+      "sha256": "7157177b8a6cb2174c1650ba8c71b363f2c78cba5330f88c4c02cf5b2b880646"
+    }
+  }
+}

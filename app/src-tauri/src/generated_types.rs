@@ -128,6 +128,42 @@ fn files() -> Vec<(&'static str, String)> {
             ];
             format!("{header}{}", decls.into_iter().map(decl).collect::<Vec<_>>().join("\n"))
         }),
+        ("video.ts", {
+            use imt_video::{align::*, api::*, record::*, runtime::*, select::*};
+            let decls = [
+                UserAlignment::decl(),
+                ClockReading::decl(),
+                AlignEvidence::decl(),
+                Alignment::decl(),
+                SelectMode::decl(),
+                SelectOptions::decl(),
+                SelectNote::decl(),
+                FrameRecord::decl(),
+                VideoRecord::decl(),
+                InstallStage::decl(),
+                RuntimeMode::decl(),
+                InstalledRelease::decl(),
+                RuntimeStatus::decl(),
+                SelfTestReport::decl(),
+                MediaState::decl(),
+                VideoView::decl(),
+                VideoList::decl(),
+                SkippedVideo::decl(),
+                DetectedFfmpeg::decl(),
+                VideoRuntimeView::decl(),
+                OpenVideoRequest::decl(),
+                AlignRequest::decl(),
+                FrameRef::decl(),
+                NoteRequest::decl(),
+                FramesRequest::decl(),
+                ExplainRangeRequest::decl(),
+                AddFrameRequest::decl(),
+                IncludeRequest::decl(),
+                FrameImage::decl(),
+                FrameExplanation::decl(),
+            ];
+            format!("{header}{}", decls.into_iter().map(decl).collect::<Vec<_>>().join("\n"))
+        }),
         ("notes.ts", {
             use imt_notes::*;
             let decls = [
