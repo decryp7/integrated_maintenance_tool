@@ -146,10 +146,12 @@ impl Download {
     }
 
     /// How many PDBs are asked.
+    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.keys.len()
     }
 
+    #[cfg(test)]
     pub fn is_empty(&self) -> bool {
         self.keys.is_empty()
     }
@@ -195,6 +197,7 @@ pub struct Update {
 
 impl Update {
     /// Whether any PDB was downloaded.
+    #[cfg(test)]
     pub fn arrived(&self) -> bool {
         self.outcomes.iter().any(|(_, o)| matches!(o, Outcome::Downloaded(_)))
     }

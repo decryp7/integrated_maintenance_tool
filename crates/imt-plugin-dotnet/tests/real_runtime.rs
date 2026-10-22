@@ -229,7 +229,8 @@ fn etw_framework_and_core_targets_elevated() {
                 Box::new(imt_plugin_dotnet::recording::FileSink::create(&out).unwrap()),
                 &out,
                 limits(),
-            ).expect("start ETW");
+            )
+            .expect("start ETW");
             let start = std::time::Instant::now();
             let secs = if preset == Preset::HeapSnapshot { 60 } else { 4 };
             while !r.is_finished() && start.elapsed() < Duration::from_secs(secs) {
