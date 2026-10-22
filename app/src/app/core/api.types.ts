@@ -2239,6 +2239,61 @@ export interface Finding {
   action: FindingAction | null;
 }
 
+/** What the Home dashboard asks for (`home_summary { request }`, Rust `home::HomeRequest`). */
+export interface HomeRequest {
+  /** Usually no filters, just the grouping. */
+  query: Query;
+  /** History buckets, clamped by the engine to 10..=240. */
+  buckets: number;
+}
+
+/** Markers of one kind in one history bucket. */
+export interface HomeMarker {
+  kind: string;
+  /** The first marker's time (Unix ms). */
+  ts: number;
+  count: number;
+}
+
+/** One anomaly to mark on the Home history. */
+export interface HomeAnomaly {
+  kind: AnomalyKind;
+  from: number;
+  to: number;
+  message: string;
+}
+
+/** The Home dashboard's numbers (Rust `home::HomeSummary`). A query: no side effects. */
+export interface HomeSummary {
+  sources: number;
+  events: number;
+  /** Error and Fatal events. */
+  errors: number;
+  warnings: number;
+  /** Time span of the timed events (Unix ms); null without timestamps. */
+  from: number | null;
+  to: number | null;
+  /** Width of one history bucket in ms (0 without timestamps). */
+  bucketMs: number;
+  /** `[bucket][level index in LEVELS order]` = events (empty without timestamps). */
+  histogram: number[][];
+  /** Error and Fatal events per bucket. */
+  errorTrend: number[];
+  /** Warning events per bucket. */
+  warningTrend: number[];
+  /** Markers per kind and bucket, by time (at most 200). */
+  markers: HomeMarker[];
+  /** Every anomaly found. */
+  anomalyCount: number;
+  /** The anomalies to mark, by start time (at most 200). */
+  anomalies: HomeAnomaly[];
+  exceptionGroups: number;
+  /** Events in all exception groups. */
+  exceptionEvents: number;
+  /** How much of the data the analyses covered. */
+  coverage: Coverage;
+}
+
 /** Built-in redaction detectors, in the order the engine applies them (`[redact] detectors`). */
 export type RedactDetector =
   | 'bearer-token'

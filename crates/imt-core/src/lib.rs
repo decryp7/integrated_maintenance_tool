@@ -18,6 +18,7 @@ pub mod exceptions;
 pub mod export;
 pub mod file_target;
 pub mod guard;
+pub mod home;
 pub mod icons;
 pub mod importers;
 pub mod ingest;
