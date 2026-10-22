@@ -6582,7 +6582,7 @@
         <source>Remove pages</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/chat-browser-bar.ts</context>
-          <context context-type="linenumber">21,24</context>
+          <context context-type="linenumber">21,23</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.chatBar.search" datatype="html">
@@ -19396,7 +19396,7 @@
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/problems/problems-panel.ts</context>
-          <context context-type="linenumber">51,54</context>
+          <context context-type="linenumber">51,53</context>
         </context-group>
       </trans-unit>
       <trans-unit id="problems.dismiss" datatype="html">
