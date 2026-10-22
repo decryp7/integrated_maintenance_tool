@@ -154,7 +154,6 @@ fn log4net_csv_layout_keeps_the_offset() {
 }
 
 #[test]
-#[ignore = "known bug: the log4net CSV parser splits an unquoted message at its commas and turns exception lines into empty untimed events"]
 fn log4net_csv_layout_keeps_messages_with_commas_and_exceptions() {
     let (_, recs) = read("log4net-csv.log");
     assert_scenario("log4net-csv.log", &recs);
@@ -173,7 +172,6 @@ fn nlog_default_layout_reads_its_wall_clock_as_utc() {
 }
 
 #[test]
-#[ignore = "known bug: NLog's ${message:withexception=true} puts the exception after a '|', which the nlog parser keeps in the message"]
 fn nlog_exception_after_the_separator_is_the_exception() {
     let (_, recs) = read("nlog-default.log");
     assert_eq!(recs[4].message, "Payment capture failed for order 88412");
@@ -201,7 +199,6 @@ fn mel_console_keeps_the_offset_category_and_event_id() {
 }
 
 #[test]
-#[ignore = "known bug: for an event with an exception the mel-console parser moves the message (and scope) lines into the exception"]
 fn mel_console_message_stays_the_message_when_there_is_an_exception() {
     let (_, recs) = read("mel-console.log");
     assert!(

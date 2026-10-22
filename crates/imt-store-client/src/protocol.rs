@@ -325,6 +325,9 @@ pub struct StoreTuning {
     pub allocator_flush_mb: Option<u64>,
     /// DuckDB's allocator background threads (`allocator_background_threads`).
     pub allocator_background_threads: Option<bool>,
+    /// Arenas of DuckDB's own allocator where it brings jemalloc (Linux), bounded to 1..=256; absent: the worker's
+    /// default (2). Ignored on other systems.
+    pub allocator_arenas: Option<usize>,
     /// The memory cap of the worker's plugin processes whose manifests name none, MB.
     pub plugin_memory_mb: Option<u64>,
     /// Memory caps the user set for single plugins, MB, by plugin id.
@@ -384,6 +387,7 @@ impl StoreTuning {
             max_spill_mb: mb(self.max_spill_mb),
             allocator_flush_mb: mb(self.allocator_flush_mb),
             allocator_background_threads: self.allocator_background_threads,
+            allocator_arenas: threads(self.allocator_arenas),
             plugin_memory_mb: mb(self.plugin_memory_mb),
             plugin_memory_overrides_mb: self
                 .plugin_memory_overrides_mb
@@ -611,6 +615,11 @@ mod tests {
             (Some(1), Some(MAX_TUNING_THREADS), Some(1), Some(MAX_TUNING_MB), None)
         );
         assert_eq!((wild.plugin_cpu_percent, wild.plugin_memory_overrides_mb["a"]), (Some(100), 1));
+        let arenas = |n: u32| StoreTuning::from_args([format!(r#"{TUNING_ARG}{{"allocatorArenas":{n}}}"#)]).allocator_arenas;
+        assert_eq!(
+            (arenas(0), arenas(2), arenas(100_000)),
+            (Some(1), Some(2), Some(MAX_TUNING_THREADS))
+        );
         let old: WorkerStatus = serde_json::from_str(r#"{"pid":1,"rssBytes":2,"stores":0}"#).unwrap();
         assert_eq!(old.tuning, StoreTuning::default());
     }

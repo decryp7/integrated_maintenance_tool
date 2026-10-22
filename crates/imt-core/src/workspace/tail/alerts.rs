@@ -10,7 +10,7 @@ use super::types::LiveAlert;
 use crate::analysis::{self, AnomalyConfig, AnomalyKind};
 use crate::api::Severity;
 use crate::model::{Level, Record};
-use crate::query::{group_key, CompiledQuery, Query};
+use crate::query::{group_key_in, CompiledQuery, Query};
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
@@ -260,6 +260,8 @@ pub struct Batch<'a> {
     pub inserted: &'a [u32],
     pub names: &'a dyn Fn(u32) -> &'a str,
     pub group_by: &'a [String],
+    /// Where the identity fields of `group_by` apply.
+    pub scopes: &'a std::sync::Arc<crate::instance::KeyScopes>,
     pub marker_kinds: &'a [String],
     pub instances: &'a HashMap<String, InstanceSeen>,
     pub mutes: &'a AlertMutes,
@@ -323,7 +325,7 @@ impl AlertState {
     fn rules(&mut self, rules: &LiveRules, b: &Batch, out: &mut Vec<LiveAlert>) {
         self.rule_hits.resize_with(rules.rules.len(), VecDeque::new);
         for (i, rule) in rules.rules.iter().enumerate() {
-            let Ok(cq) = CompiledQuery::new(&rule.query, b.group_by, b.marker_kinds) else {
+            let Ok(cq) = CompiledQuery::new_scoped(&rule.query, b.group_by, b.scopes, b.marker_kinds) else {
                 continue;
             };
             let hits = &mut self.rule_hits[i];
@@ -407,7 +409,10 @@ impl AlertState {
         let start = b.records[..end].partition_point(|r| r.ts.is_some_and(|t| t < since));
         let start = start.max(end.saturating_sub(MAX_LIVE_ANALYSED));
         let window = &b.records[start..end];
-        let keys: Vec<String> = window.iter().map(|r| group_key(b.group_by, r, (b.names)(r.source))).collect();
+        let keys: Vec<String> = window
+            .iter()
+            .map(|r| group_key_in(b.group_by, b.scopes, r, (b.names)(r.source)))
+            .collect();
         let found = analysis::detect(window.iter().zip(keys.iter().map(String::as_str)), &AnomalyConfig::default());
         let prev = self.prev_detect.replace(b.now);
         for a in found {

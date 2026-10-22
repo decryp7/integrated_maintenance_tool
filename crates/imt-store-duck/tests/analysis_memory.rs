@@ -81,6 +81,25 @@ fn req<T: serde::de::DeserializeOwned>(v: serde_json::Value) -> T {
 
 #[test]
 fn analyses_stay_within_the_query_budget() {
+    // DuckDB's jemalloc reads its options when libduckdb loads, before this test runs: like the store worker, the
+    // measured process gets them in its environment at start. On Linux the test runs itself once more with them.
+    if let Some((key, value)) = imt_store_client::allocator::worker_env(None) {
+        if std::env::var(&key).ok().as_deref() != Some(value.as_str()) {
+            #[allow(clippy::disallowed_methods)] // Linux only: no console window to hide.
+            let status = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "analyses_stay_within_the_query_budget",
+                    "--exact",
+                    "--nocapture",
+                    "--test-threads=1",
+                ])
+                .env(&key, &value)
+                .status()
+                .unwrap();
+            assert!(status.success(), "the measured run failed: {status}");
+            return;
+        }
+    }
     imt_alloc::tune();
     let events: u64 = std::env::var("IMT_BENCH_EVENTS")
         .ok()
@@ -104,6 +123,11 @@ fn analyses_stay_within_the_query_budget() {
         }
     };
     let summary = store.summary().unwrap();
+    // The full-text index is built in the background after an import (its writer's 64 MB heap and its reads
+    // count against the import budget, as in the worker's budget test): measured alongside the analyses, it made
+    // them look 60-70 MB larger on Linux, where indexing 1M events was still running when they started.
+    let index = store.wait_for_index(std::time::Duration::from_secs(600)).unwrap();
+    assert!(index.ready, "the full-text index is built: {index:?}");
     let duck_mb: u64 = std::env::var("IMT_BENCH_DUCK_MB")
         .ok()
         .and_then(|v| v.parse().ok())

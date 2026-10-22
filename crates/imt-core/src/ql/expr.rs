@@ -235,6 +235,8 @@ pub enum Expr {
     Group {
         by: Vec<FieldKey>,
         set: Arc<HashSet<String>>,
+        /// Where `by`'s identity fields apply.
+        scopes: Arc<crate::instance::KeyScopes>,
     },
 }
 
@@ -307,7 +309,9 @@ impl Expr {
                 Some(ts) => from.is_none_or(|f| ts >= f) && to.is_none_or(|t| ts <= t),
                 None => from.is_none() && to.is_none(),
             }),
-            Expr::Group { by, set } => row.event().is_some_and(|e| set.contains(&crate::query::group_key_row(by, e))),
+            Expr::Group { by, set, scopes } => row
+                .event()
+                .is_some_and(|e| set.contains(&crate::query::group_key_row_in(by, scopes, e))),
         }
     }
 

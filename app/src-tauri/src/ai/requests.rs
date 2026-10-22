@@ -62,11 +62,14 @@ pub enum AiRequest {
         lines: Vec<String>,
         intent: Option<String>,
     },
+    /// Generate a parser (ADR 0032) for an open source's file, the file of an event, or a sample.
     #[serde(rename_all = "camelCase")]
     Parser {
         record_id: Option<u32>,
         sample: Option<String>,
         file_name: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        source_id: Option<u32>,
     },
     #[serde(rename_all = "camelCase")]
     Pipeline {
@@ -206,13 +209,17 @@ impl AiRequest {
                 record_id,
                 sample,
                 file_name,
+                source_id,
             } => {
                 check_sample(&sample)?;
-                needs_source(record_id, &sample)?;
+                if source_id.is_none() {
+                    needs_source(record_id, &sample)?;
+                }
                 Parser {
                     record_id,
                     sample,
                     file_name,
+                    source_id,
                 }
             }
             Pipeline { goal, record_id, sample } => {
@@ -272,7 +279,7 @@ impl AiRequest {
             Summarize { .. } => "Summarize a time range".into(),
             RootCauses => "Find likely root causes".into(),
             Regex { .. } => "Suggest a regex".into(),
-            Parser { .. } => "Propose a parser".into(),
+            Parser { .. } => "Generate a parser".into(),
             Pipeline { goal, .. } => format!("Propose pipeline steps: {}", snippet(goal)),
             Markers { goal, .. } => format!("Propose markers: {}", snippet(goal)),
             Extractors { goal, .. } => format!("Propose extractors: {}", snippet(goal)),
@@ -323,9 +330,15 @@ impl AiRequest {
                 record_id,
                 sample,
                 file_name,
+                source_id,
             } => {
-                let (sample, file) = sample_of(store, record_id, sample, file_name)?;
-                AiOutcome::Proposal(Proposal::Parser(a.propose_parser(store, &sample, &file)?))
+                let input = super::parser_job::parser_input(store, record_id, source_id, sample, file_name)?;
+                let job = imt_ai::assistant::ParserJob {
+                    file_name: &input.file_name,
+                    content: &input.content,
+                    facts: input.facts.clone(),
+                };
+                AiOutcome::Proposal(Proposal::Parser(a.generate_parser(store, &job)?))
             }
             Pipeline { goal, record_id, sample } => {
                 let (sample, _) = sample_of(store, record_id, sample, None)?;
@@ -629,6 +642,13 @@ mod tests {
                 record_id: Some(1),
                 sample: None,
                 file_name: None,
+                source_id: None,
+            },
+            AiRequest::Parser {
+                record_id: None,
+                sample: None,
+                file_name: None,
+                source_id: Some(2),
             },
             AiRequest::Extractors {
                 goal: "g".into(),

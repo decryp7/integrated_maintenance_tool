@@ -20,6 +20,76 @@
 
 use crate::api::FieldInfo;
 use crate::profile::InstanceCfg;
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, BTreeSet};
+
+/// Where the identity fields of the instance key apply.
+///
+/// An identity field an importer or a parser declares (e.g. `Category` of the Microsoft.Extensions.Logging console
+/// parser, `Logger` of the Hadoop/Spark one) tells apart the processes of the sources that importer or parser reads,
+/// not of every file: another product may write a field of the same name with another meaning (an EVTX `Category`).
+/// Such a field is part of an event's instance key only when the event's source declares it. Fields of the profile's
+/// `[instance] candidates` (and an explicit `[instance] key`) apply everywhere.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct KeyScopes(BTreeMap<String, BTreeSet<String>>);
+
+impl KeyScopes {
+    /// The scopes of the identity fields `sources` (name, declared identity fields) declare: a field not among the
+    /// profile's candidates that some source does not declare applies only to the sources that do.
+    pub fn new<'a>(cfg: &InstanceCfg, sources: impl IntoIterator<Item = (&'a str, &'a [String])>) -> KeyScopes {
+        let sources: Vec<(&str, &[String])> = sources.into_iter().collect();
+        let mut scopes: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        if !cfg.key.is_empty() {
+            return KeyScopes(scopes);
+        }
+        for (name, identity) in &sources {
+            for field in identity.iter() {
+                if !cfg.candidates.iter().any(|c| c.eq_ignore_ascii_case(field)) {
+                    scopes.entry(field.to_ascii_lowercase()).or_default().insert((*name).to_string());
+                }
+            }
+        }
+        // A field every source declares applies everywhere anyway.
+        scopes.retain(|_, names| names.len() < sources.len());
+        KeyScopes(scopes)
+    }
+
+    /// Whether `field` is part of the instance key of the events of source `source`.
+    pub fn applies(&self, field: &str, source: &str) -> bool {
+        self.sources_of(field).is_none_or(|names| names.contains(source))
+    }
+
+    /// The sources a scoped field applies to; `None` when it applies everywhere.
+    pub fn sources_of(&self, field: &str) -> Option<&BTreeSet<String>> {
+        if self.0.is_empty() {
+            return None;
+        }
+        self.0.get(&field.to_ascii_lowercase())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+/// [`FieldPresence`] that counts a scoped identity field only in the sources it applies to.
+pub struct ScopedPresence<'a> {
+    pub inner: &'a dyn FieldPresence,
+    pub scopes: &'a KeyScopes,
+    /// The name of each source (by index, as given to [`instance_key`]).
+    pub names: &'a [String],
+}
+
+impl FieldPresence for ScopedPresence<'_> {
+    fn count_in(&self, field: &str, source: usize) -> usize {
+        let applies = self.names.get(source).is_none_or(|name| self.scopes.applies(field, name));
+        if applies {
+            self.inner.count_in(field, source)
+        } else {
+            0
+        }
+    }
+}
 
 /// How often one field occurs in one source.
 pub trait FieldPresence {
@@ -199,6 +269,49 @@ mod tests {
         let b = instance_key(&c, &[], &fields, &[100, 4, 10], &backward);
         assert_eq!(a, ["Application", "Pid", "pid"]);
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn identity_fields_apply_only_to_the_sources_that_declare_them() {
+        let c = cfg(&["ProcessId"]);
+        let (spark, web, evtx) = (
+            vec!["Logger".to_string()],
+            vec!["ProcessId".to_string()],
+            vec!["logger".to_string()],
+        );
+        let scopes = KeyScopes::new(
+            &c,
+            [
+                ("spark.log", spark.as_slice()),
+                ("web.log", web.as_slice()),
+                ("app.evtx", evtx.as_slice()),
+            ],
+        );
+        assert!(
+            scopes.applies("Logger", "spark.log") && scopes.applies("LOGGER", "app.evtx"),
+            "any case"
+        );
+        assert!(!scopes.applies("Logger", "web.log"));
+        assert!(scopes.applies("ProcessId", "spark.log"), "a profile candidate applies everywhere");
+        assert!(scopes.applies("Thread", "web.log"), "undeclared fields apply everywhere");
+        assert_eq!(scopes.sources_of("logger").map(|s| s.len()), Some(2));
+        // Declared by every source, or an explicit key: nothing is scoped.
+        assert!(KeyScopes::new(&c, [("a", spark.as_slice()), ("b", spark.as_slice())]).is_empty());
+        let explicit = InstanceCfg {
+            key: vec!["Logger".into()],
+            candidates: Vec::new(),
+        };
+        assert!(KeyScopes::new(&explicit, [("a", spark.as_slice()), ("b", web.as_slice())]).is_empty());
+        // Presence: a scoped field does not count in the other sources.
+        let counts = Counts(HashMap::from([(("Logger", 0), 10), (("Logger", 1), 10)]));
+        let names = ["spark.log".to_string(), "web.log".to_string()];
+        let scoped = ScopedPresence {
+            inner: &counts,
+            scopes: &scopes,
+            names: &names,
+        };
+        assert_eq!((scoped.count_in("Logger", 0), scoped.count_in("Logger", 1)), (10, 0));
+        assert_eq!(scoped.count_in("Logger", 7), 0, "a source without a name falls back to the counts");
     }
 
     #[test]

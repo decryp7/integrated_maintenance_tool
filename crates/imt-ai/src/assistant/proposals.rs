@@ -64,6 +64,40 @@ pub struct ParserProposal {
     pub with_timestamp: usize,
     pub preview: Vec<ParsedPreview>,
     pub rationale: String,
+    /// Whether the engine's verdict reached the target (ADR 0032), only came close, or the library reads the file.
+    pub status: ParserStatus,
+    /// The engine's verdict on the final parser (on the larger sample of the file).
+    pub verdict: Option<Box<imt_core::parser::verify::ParserVerdict>>,
+    /// Each round of drafting and verification.
+    pub rounds: Vec<ParserRound>,
+    /// Profile `[[chart]]` sections for the accepted metrics (per instance); empty without metrics.
+    pub charts_toml: String,
+}
+
+/// How a parser generation ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ParserStatus {
+    /// The verdict reached the target share of lines with an accepted timestamp rule.
+    Done,
+    /// The best verified parser after the rounds, below the target: the user edits it.
+    BestEffort,
+    /// The library already reads the file; nothing to add.
+    Builtin,
+}
+
+/// One round of a parser generation.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserRound {
+    pub round: usize,
+    /// The verdict's score (0..1); 0 when the answer could not be used.
+    pub score: f64,
+    pub timestamps_accepted: bool,
+    /// Failing lines reported to the model.
+    pub failures: usize,
+    /// What happened ("the engine's regex was used", "the answer was not JSON", ...).
+    pub note: String,
 }
 
 #[derive(Debug, Clone, Serialize)]

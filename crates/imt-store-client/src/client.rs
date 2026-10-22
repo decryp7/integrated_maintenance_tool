@@ -289,6 +289,8 @@ impl StoreWorker {
             let current = lock(&now).clone();
             spec.spawn.args = current.args();
             spec.spawn.sandbox.memory_limit = current.memory_cap;
+            // In the environment at spawn: DuckDB's jemalloc may read it before the worker's `main` runs.
+            spec.spawn.env.extend(crate::allocator::worker_env(current.tuning.allocator_arenas));
             Ok(Conn {
                 child: launch(&spec, Arc::new(NoCalls))?,
                 handles: Mutex::new(HashMap::new()),

@@ -205,7 +205,12 @@ impl<'p> LineParser<'p> {
         LineParser {
             profile,
             dominant,
-            parser: profile.timestamps.with_day_first(day_first),
+            // Formats without a year are read near the file's date (rolling back over New Year), not near today.
+            parser: profile.timestamps.with_day_first(day_first).with_reference(
+                file_date
+                    .and_then(|d| d.and_hms_opt(23, 59, 59))
+                    .map(|t| t.and_utc().timestamp_millis()),
+            ),
             names: profile
                 .text_formats
                 .iter()

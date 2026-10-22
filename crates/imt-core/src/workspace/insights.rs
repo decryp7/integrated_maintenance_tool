@@ -29,12 +29,13 @@ impl Workspace {
     }
 
     fn keyed<'a>(&'a self, records: &[&'a Record], q: &Query) -> Vec<(&'a Record, String)> {
-        let by = if q.group_by.is_empty() {
-            &self.default_group_by
-        } else {
-            &q.group_by
-        };
-        records.iter().map(|r| (*r, group_key(by, r, self.source_name(r.source)))).collect()
+        if q.group_by.is_empty() {
+            return records.iter().map(|r| (*r, self.default_key_of(r))).collect();
+        }
+        records
+            .iter()
+            .map(|r| (*r, group_key(&q.group_by, r, self.source_name(r.source))))
+            .collect()
     }
 
     /// Runs a full query-language program (including `stats`, `sort`, `head`)
@@ -277,7 +278,7 @@ pub fn preview_parse(
             dropped,
             records: records
                 .into_iter()
-                .take(req.limit.clamp(1, 1000))
+                .take(req.limit.clamp(1, crate::parser::verify::MAX_PREVIEW_RECORDS))
                 .map(|r| ParsedPreview {
                     markers: (0..kinds.len())
                         .filter(|i| r.markers & (1 << i) != 0)

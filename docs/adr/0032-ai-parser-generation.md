@@ -1,0 +1,118 @@
+# ADR 0032: AI-assisted parser generation, verified by the engine
+
+- Status: Accepted
+- Date: 2026-10-22
+- Related: ADR 0026 (parser library), ADR 0020 (mixed sources, instance key), ADR 0029 (knowledge files),
+  ADR 0012 (jobs), ADR 0006 (clock skew)
+
+## Context
+
+Files no built-in parser reads end up with the generic parser: events without timestamps, stack traces split
+into empty events, one lane for every process. `propose_parser` asked the local model once (with one repair round)
+and accepted an answer when 95% of the first 400 lines were parsed. That was too weak and too blind:
+
+- the model saw the first lines only, never the stack traces, continuation lines or other layouts further down;
+- the check looked at the head of the file only and reported one example line;
+- a timestamp rule was accepted when the text parsed, even if the times ran backwards (day and month swapped, a
+  12-hour clock read as 24-hour) or landed in the wrong year;
+- the time zone of a file without offsets was always UTC;
+- identity fields the model proposed went straight into the instance key, unchecked;
+- numbers in messages (`WorkingSet 600 MB · CPU 29.3% · Threads 69`) were left for the user to extract by hand.
+
+Small local models make mistakes; the engine can tell exactly which lines a parser fails on. The model should
+propose and correct; the engine should decide.
+
+## Decision
+
+### A self-correcting loop
+
+`Assistant::generate_parser` (`imt-ai`, `assistant/parser.rs`) runs up to **5 rounds**:
+
+1. The engine cuts two samples from the file (`imt_core::parser::verify::sample`):
+   - the **model sample**: the start (30 lines), the middle and the end (10 each) and up to 12 lines of other shapes
+     with the line before each (continuations, stack traces, another layout), at most 6000 characters. This is all
+     the model ever sees of the file;
+   - the **verification sample**: the whole file up to 4000 lines, else its start, middle and end, each piece
+     starting at a line that can start an event. Line numbers stay those of the file.
+2. Before asking the model, the built-in parsers are verified; when they reach the target the proposal says so
+   and nothing is added to the library.
+3. The model answers JSON: format, regex, timestamp formats, identity fields, metrics.
+4. The engine builds the parser, verifies it (`verify::verify_text`, through the store's parse preview) and, when
+   the timestamp rule fails, tries a format of its own for the timestamp texts ("timestamps first").
+5. The failures go back to the model: a summary line, then a few failing lines per reason (at most 8): line
+   number, rule (`format`, `missedEntry`, `timestamp`, `level`), the fragment that failed and why; rejected
+   identity fields and metrics with the reason. Never the file.
+6. The loop stops when the **target** is reached (99% of the non-empty lines belong to an event with a timestamp
+   and, when the format has levels, a level; the timestamp rule accepted), when a round brings **no improvement**
+   over the best so far, or after the fifth round.
+
+The best verified draft is finished by the engine: rejected identity fields are removed, accepted metrics become
+the parser's `[[extract]]`, the zone and an uptime boot time are set, and the result is **verified again**, so what
+the user saves is what the engine checked. A round whose answer cannot be used (not JSON, no `message` group, a
+regex that reads no entry) counts as a round; if no round produced a usable parser, the job fails with the last
+reason. The model never decides anything on its own.
+
+### Verification in the engine
+
+`imt_core::parser::verify` (pure; the store's `preview_parse` reads the sample) returns a `ParserVerdict`:
+score, lines, readable lines, events with a timestamp and a level, failing lines, the timestamp check, the zone,
+the identity and metric checks. A line fails when no pattern reads it, when it looks like the start of an event
+(the same shape as most event lines) but was joined to the event above, when its event has no timestamp, or no
+level when the format reads levels.
+
+### Timestamps first
+
+The timestamp parser (`imt_plugin_api::time`) reads, in addition to what it read before: Japanese dates
+(`2026年10月14日 10時00分03秒`, with 午前/午後), and by name in `timestamp_formats` C `asctime`, epoch seconds,
+milliseconds, microseconds and nanoseconds, .NET ticks, Windows FILETIME, and `uptime` (seconds since boot,
+`[   12.345]`) counted from `[format] boot_time`, which the engine sets to the file's modification time minus the
+last uptime. Formats without a year are read near a reference time (the file's modification time during
+verification) with the year rolled back across New Year. The day/month order is decided per file from values
+above 12 (unchanged). A date and time split by a delimiter (`2025/11/08,00:00:00.013+01:00`) was read already.
+
+A timestamp rule is accepted only when at least 98% of the events have a timestamp, the times do not go back by
+more than 5 s more than once in a hundred events, and they are plausible: not before 1990, not more than ten years
+before the modification time and not more than 15 h after it. When it is not accepted, the engine tries its own
+formats (the format suggestion of `timestamp_issue`, `asctime`, the numeric clocks) on the timestamp texts and
+uses one that is accepted.
+
+### Time zone
+
+For timestamps without an offset, the zone is decided in this order (`verify::zone`): offsets in the timestamps
+(the zone does not matter) → offsets other files of the same folder write (the edge reads their first 16 KB) →
+the modification time against the last event (to the quarter hour, within 5 minutes) → zone names in the text
+(`UTC+09:00`, `JST`, `CEST`) → otherwise the user is asked, with the modification time's estimate as the
+suggestion. The decision is stored in the parser: `assume_timezone`, `timezone_source` (`timestamps`,
+`same-machine`, `modification-time`, `text-hint`, `asked`, `user`) and `timezone_confidence`; the user overrides
+`assume_timezone` in the editor. Once the file is open, the existing clock-skew suggestions (ADR 0006) cross-check
+it against the other sources.
+
+### Identity fields and metrics
+
+Proposed identity fields are kept only when they are on at least 90% of the events and stable: at most 256
+values, and (from 9 events on) each value seen three times on average. They then apply only to the sources that
+parser reads (ADR 0020 amendment). Metrics are regexes over the message with a `(?P<value>...)` group and a unit
+(bytes, KB, MB, GB, %, ms, s, count); they are kept when they match and at least 95% of their values are plausible
+for the unit (non-negative; percent up to 6400 for many cores; counts whole). Accepted metrics become extractors
+of the parser and profile `[[chart]]` sections (`avg(name)` split by `@group`, one line per instance) offered with
+the proposal.
+
+### Modes
+
+The generation is an AI job (`ai_start`, op `parser`) with an optional `sourceId`: the edge reads the source's file
+(paths of open sources only, at most 16 MB), its modification time and the offsets of its folder; without a source
+it uses the lines around an event or a sample. It is started from Settings ▸ Parsers ("Generate with AI…" for a
+file of the window), from the Problems pane ("Ask the AI to fix…"), by the folder set-up survey, and offered as a
+notification when an opened file is read by no parser but the generic one with problems. The proposal card shows
+the final parser, the score, the remaining unreadable lines, the zone and its source, the identity and metric
+checks and the rounds; the user saves it to the library (and edits it there).
+
+## Consequences
+
+- The model's mistakes cost rounds, not wrong data: only engine-verified rules reach the library.
+- Confidential data stays local and minimal: the model sees a few dozen lines; failures quote fragments of at most
+  120 characters.
+- Each round costs a model call and a parse of up to 4000 lines; five rounds stay within the AI job's budget.
+- `ParsePreview` returns up to 5000 events (it was 1000) so the whole verification sample is judged.
+- `asctime` must be named in `timestamp_formats`: reading it by default would change which files the timestamp
+  suggestion flags.

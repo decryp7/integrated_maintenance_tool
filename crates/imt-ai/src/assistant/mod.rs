@@ -18,6 +18,7 @@ pub use folder::FolderRefinement;
 #[allow(unused_imports)]
 pub(crate) use narrative::prefetch;
 pub use narrative::{Narrative, ANALYST_SYSTEM};
+pub use parser::{ParserJob, MAX_ROUNDS};
 pub use proposals::*;
 pub use tools::{clip_json, collect_ids, truncate_chars, EngineTools, Evidence, ToolHost, ToolLimits, ToolOutcome, WebSource};
 

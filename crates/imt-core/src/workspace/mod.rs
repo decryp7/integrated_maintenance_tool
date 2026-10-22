@@ -208,6 +208,8 @@ pub struct Workspace {
     records: Vec<Record>,
     fields: Vec<FieldInfo>,
     default_group_by: Vec<String>,
+    /// Where the identity fields of the default key apply (ADR 0020).
+    key_scopes: Arc<crate::instance::KeyScopes>,
     marker_kinds: Vec<String>,
     load_ms: u64,
     /// Matching ids of recent queries, updated incrementally on append.
@@ -271,6 +273,7 @@ impl Workspace {
             records: Vec::new(),
             fields: Vec::new(),
             default_group_by: vec!["@source".into()],
+            key_scopes: Arc::default(),
             marker_kinds,
             load_ms: 0,
             cache: Mutex::new(tail::MatchCache::default()),
@@ -736,7 +739,7 @@ impl Workspace {
         self.records.par_sort_by_key(|r| (r.ts.unwrap_or(i64::MAX), r.source, r.line));
         self.records.par_iter_mut().enumerate().for_each(|(i, r)| r.id = i as u32);
         self.compute_fields();
-        self.default_group_by = self.pick_group_by();
+        (self.default_group_by, self.key_scopes) = self.pick_group_by();
         self.generation += 1;
         self.cache.lock().unwrap_or_else(|p| p.into_inner()).clear();
         *self.anomaly_cache.lock().unwrap_or_else(|p| p.into_inner()) = None;
@@ -759,8 +762,8 @@ impl Workspace {
         self.fields = self.field_index.infos(&derived);
     }
 
-    /// The instance key, its candidates checked per source (ADR 0020).
-    fn pick_group_by(&self) -> Vec<String> {
+    /// The instance key, its candidates checked per source, and where its identity fields apply (ADR 0020).
+    fn pick_group_by(&self) -> (Vec<String>, Arc<crate::instance::KeyScopes>) {
         let mut identity: Vec<String> = Vec::new();
         for s in &self.sources {
             for f in &s.identity {
@@ -769,8 +772,22 @@ impl Workspace {
                 }
             }
         }
+        let cfg = &self.profile.profile.instance;
+        let scopes = crate::instance::KeyScopes::new(cfg, self.sources.iter().map(|s| (s.name.as_str(), s.identity.as_slice())));
+        let names: Vec<String> = self.sources.iter().map(|s| s.name.clone()).collect();
+        let presence = crate::instance::ScopedPresence {
+            inner: self,
+            scopes: &scopes,
+            names: &names,
+        };
         let events: Vec<usize> = self.sources.iter().map(|s| s.records).collect();
-        crate::instance::instance_key(&self.profile.profile.instance, &identity, &self.fields, &events, self)
+        let key = crate::instance::instance_key(cfg, &identity, &self.fields, &events, &presence);
+        (key, Arc::new(scopes))
+    }
+
+    /// The instance (timeline lane) of `r` under the default key.
+    fn default_key_of(&self, r: &Record) -> String {
+        crate::query::group_key_in(&self.default_group_by, &self.key_scopes, r, self.source_name(r.source))
     }
 
     fn source_name(&self, id: u32) -> &str {
@@ -778,7 +795,12 @@ impl Workspace {
     }
 
     fn compile(&self, q: &Query) -> Result<CompiledQuery> {
-        CompiledQuery::new(&self.resolve_window(q), &self.default_group_by, &self.marker_kinds)
+        CompiledQuery::new_scoped(
+            &self.resolve_window(q),
+            &self.default_group_by,
+            &self.key_scopes,
+            &self.marker_kinds,
+        )
     }
 
     fn marker_names(&self, mask: crate::model::MarkerMask) -> Vec<&str> {
@@ -808,7 +830,7 @@ impl Workspace {
         {
             return Ok(ids);
         }
-        let cq = CompiledQuery::new(&resolved, &self.default_group_by, &self.marker_kinds)?;
+        let cq = CompiledQuery::new_scoped(&resolved, &self.default_group_by, &self.key_scopes, &self.marker_kinds)?;
         control.begin(crate::ql::QueryStage::Matching, self.records.len());
         let ids: Vec<u32> = self
             .records
