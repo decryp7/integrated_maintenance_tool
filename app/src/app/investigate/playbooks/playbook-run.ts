@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { PlaybookRun, PlaybookStep } from '../../core/api.types';
 import { COMMAND_CONTEXT } from '../../extensions/command-registry';
+import { formatCount } from '../../shared/format/units';
 import { Icon } from '../../shared/icon';
 import { actionLabel, actionQuery, expectLabel, finishedText, isRunnable, progressOf, progressText, recordOf, stateOf, statusIcon, statusLabel } from './playbook-model';
 import { PlaybookStore } from './playbook.store';
@@ -71,7 +72,7 @@ import { PlaybookStore } from './playbook.store';
             }
             @if (rec.count !== null) {
               <p class="count">
-                <span [attr.data-testid]="'pb-count-' + step.id" i18n="@@playbooks.count">{{ rec.count }} events</span>
+                <span [attr.data-testid]="'pb-count-' + step.id" i18n="@@playbooks.count">{{ count(rec.count) }} events</span>
                 @if (rec.sampleIds.length) {
                   <button type="button" class="btn" [attr.data-testid]="'pb-show-' + step.id" (click)="store.showEvents(showQuery(step), rec.sampleIds)" i18n="@@playbooks.showEvents">Show events</button>
                 }
@@ -142,6 +143,7 @@ export class PlaybookRunView {
   protected readonly runLabel = $localize`:@@playbooks.runStep:Run step`;
   protected readonly rerunLabel = $localize`:@@playbooks.rerunStep:Run again`;
 
+  protected readonly count = formatCount;
   protected readonly stateOf = stateOf;
   protected readonly recordOf = recordOf;
   protected readonly icon = statusIcon;

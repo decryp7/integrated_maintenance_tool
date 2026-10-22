@@ -14788,63 +14788,63 @@
         <source>Dismiss</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/investigate/playbooks/playbook-run.ts</context>
-          <context context-type="linenumber">23,26</context>
+          <context context-type="linenumber">24,27</context>
         </context-group>
       </trans-unit>
       <trans-unit id="playbooks.openView" datatype="html">
         <source>Open view</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/investigate/playbooks/playbook-run.ts</context>
-          <context context-type="linenumber">61,63</context>
+          <context context-type="linenumber">62,64</context>
         </context-group>
       </trans-unit>
       <trans-unit id="playbooks.markDone" datatype="html">
         <source>Mark done</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/investigate/playbooks/playbook-run.ts</context>
-          <context context-type="linenumber">64,65</context>
+          <context context-type="linenumber">65,66</context>
         </context-group>
       </trans-unit>
       <trans-unit id="playbooks.skip" datatype="html">
         <source>Skip</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/investigate/playbooks/playbook-run.ts</context>
-          <context context-type="linenumber">65,67</context>
+          <context context-type="linenumber">66,68</context>
         </context-group>
       </trans-unit>
       <trans-unit id="playbooks.count" datatype="html">
-        <source><x id="INTERPOLATION" equiv-text="{{ rec.count }}"/> events</source>
+        <source><x id="INTERPOLATION" equiv-text="{{ count(rec.count) }}"/> events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/investigate/playbooks/playbook-run.ts</context>
-          <context context-type="linenumber">74,75</context>
+          <context context-type="linenumber">75,76</context>
         </context-group>
       </trans-unit>
       <trans-unit id="playbooks.showEvents" datatype="html">
         <source>Show events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/investigate/playbooks/playbook-run.ts</context>
-          <context context-type="linenumber">76,78</context>
+          <context context-type="linenumber">77,79</context>
         </context-group>
       </trans-unit>
       <trans-unit id="playbooks.note" datatype="html">
         <source>Note</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/investigate/playbooks/playbook-run.ts</context>
-          <context context-type="linenumber">102,103</context>
+          <context context-type="linenumber">103,104</context>
         </context-group>
       </trans-unit>
       <trans-unit id="playbooks.runStep" datatype="html">
         <source>Run step</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/investigate/playbooks/playbook-run.ts</context>
-          <context context-type="linenumber">142</context>
+          <context context-type="linenumber">143</context>
         </context-group>
       </trans-unit>
       <trans-unit id="playbooks.rerunStep" datatype="html">
         <source>Run again</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/investigate/playbooks/playbook-run.ts</context>
-          <context context-type="linenumber">143</context>
+          <context context-type="linenumber">144</context>
         </context-group>
       </trans-unit>
       <trans-unit id="playbooks.exported" datatype="html">
