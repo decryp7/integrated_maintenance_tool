@@ -1,4 +1,4 @@
-//! Reading what FFmpeg wrote (ADR 0032 §2): ffprobe's JSON, the `metadata` filter's frame list with scene scores and
+//! Reading what FFmpeg wrote (ADR 0033 §2): ffprobe's JSON, the `metadata` filter's frame list with scene scores and
 //! the `showinfo` lines of FFmpeg's report. Everything is untrusted text: bounded, never panicking, unknown or
 //! damaged parts skipped.
 
@@ -136,17 +136,21 @@ fn short(line: &str) -> &str {
 /// frame (`lavfi.scene_score=0.123`). Frames without a score get 0.
 pub fn candidates(text: &str) -> Vec<Candidate> {
     let mut out: Vec<Candidate> = Vec::new();
+    // Whether the last `frame:` line was kept: a score belongs to the frame line before it, kept or not.
+    let mut open = false;
     for line in text.lines().map(short) {
         let line = line.trim();
         if line.starts_with("frame:") {
             if out.len() >= MAX_ENTRIES {
                 break;
             }
+            open = false;
             if let Some(ms) = value_after(line, "pts_time:").and_then(seconds_ms) {
                 out.push(Candidate { ms, score: 0.0 });
+                open = true;
             }
         } else if let Some(v) = line.strip_prefix("lavfi.scene_score=") {
-            if let (Some(last), Ok(s)) = (out.last_mut(), v.trim().parse::<f32>()) {
+            if let (true, Some(last), Ok(s)) = (open, out.last_mut(), v.trim().parse::<f32>()) {
                 last.score = s;
             }
         }
@@ -226,7 +230,9 @@ mod tests {
         assert_eq!(probe(&counted).unwrap().frames, Some(6));
         let epoch = PROBE.replace("2026-10-21T08:41:00.250000Z", "1970-01-01T00:00:00Z");
         assert_eq!(probe(&epoch).unwrap().creation_ms, None);
-        let from_stream = PROBE.replace(r#""duration": "90.000000","#, "").replace(r#""nb_frames""#, r#""duration": "5.5", "nb_frames""#);
+        let from_stream = PROBE
+            .replace(r#""duration": "90.000000","#, "")
+            .replace(r#""nb_frames""#, r#""duration": "5.5", "nb_frames""#);
         assert_eq!(probe(&from_stream).unwrap().duration_ms, 5_500);
     }
 

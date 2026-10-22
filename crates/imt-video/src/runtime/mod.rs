@@ -1,4 +1,4 @@
-//! The FFmpeg runtime (ADR 0032 §1): pinned LGPL builds downloaded on demand like the inference runtime (ADR 0009),
+//! The FFmpeg runtime (ADR 0033 §1): pinned LGPL builds downloaded on demand like the inference runtime (ADR 0009),
 //! never linked or bundled.
 //!
 //! - [`catalog`]: the pinned release and its archive per platform (`ffmpeg-runtimes.json`);

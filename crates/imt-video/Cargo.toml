@@ -6,7 +6,7 @@ version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 publish = false
-description = "Video sources (ADR 0032): the downloadable FFmpeg runtime (pinned LGPL builds, verified, self-tested, updated with rollback), sandboxed ffmpeg/ffprobe runs, frame selection, alignment to the logs and the video records kept in the project"
+description = "Video sources (ADR 0033): the downloadable FFmpeg runtime (pinned LGPL builds, verified, self-tested, updated with rollback), sandboxed ffmpeg/ffprobe runs, frame selection, alignment to the logs and the video records kept in the project"
 
 # A fake ffmpeg/ffprobe (scripted output, hang, memory hog, bad output) used only by the tests. Never bundled.
 [[bin]]

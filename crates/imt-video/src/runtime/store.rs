@@ -1,4 +1,4 @@
-//! The FFmpeg runtimes on disk, in the app data folder (ADR 0032 §1):
+//! The FFmpeg runtimes on disk, in the app data folder (ADR 0033 §1):
 //!
 //! ```text
 //! <data>/video/ffmpeg/
@@ -109,7 +109,13 @@ pub struct FfmpegStore {
 
 fn dir_bytes(dir: &Path) -> u64 {
     std::fs::read_dir(dir)
-        .map(|it| it.flatten().filter_map(|e| e.metadata().ok()).filter(|m| m.is_file()).map(|m| m.len()).sum())
+        .map(|it| {
+            it.flatten()
+                .filter_map(|e| e.metadata().ok())
+                .filter(|m| m.is_file())
+                .map(|m| m.len())
+                .sum()
+        })
         .unwrap_or(0)
 }
 
@@ -124,13 +130,22 @@ impl Drop for Busy<'_> {
 /// The tools of a user-provided path: an `ffmpeg` executable (with `ffprobe` next to it) or their folder. Its folder
 /// and, on Unix, the installation prefix above `bin/` may be read (their libraries).
 pub fn custom_tools(path: &Path) -> Result<Tools> {
+    // Homebrew's `ffmpeg` is a link into `Cellar/` whose libraries are in sibling folders of the same prefix: the
+    // prefix of the path as the user gave it (`/opt/homebrew`) must be readable too.
+    let given_prefix = (if path.is_dir() { Some(path) } else { path.parent() })
+        .filter(|d| d.file_name().is_some_and(|n| n == "bin"))
+        .and_then(Path::parent)
+        .and_then(|p| p.canonicalize().ok());
     let path = path
         .canonicalize()
         .map_err(|_| VideoError::NotFound(format!("{}", path.display())))?;
     let dir = if path.is_dir() {
         path.clone()
     } else {
-        let name = path.file_name().map(|n| n.to_string_lossy().to_ascii_lowercase()).unwrap_or_default();
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_ascii_lowercase())
+            .unwrap_or_default();
         if name != exe("ffmpeg") {
             return Err(VideoError::Invalid(format!(
                 "choose the {} program or the folder it is in",
@@ -146,14 +161,12 @@ pub fn custom_tools(path: &Path) -> Result<Tools> {
             tools.read.push(prefix.to_path_buf());
         }
     }
-    tools.present().map_err(|_| {
-        VideoError::NotFound(format!(
-            "{} and {} in {}",
-            exe("ffmpeg"),
-            exe("ffprobe"),
-            dir.display()
-        ))
-    })?;
+    if let Some(p) = given_prefix.filter(|p| !tools.read.contains(p)) {
+        tools.read.push(p);
+    }
+    tools
+        .present()
+        .map_err(|_| VideoError::NotFound(format!("{} and {} in {}", exe("ffmpeg"), exe("ffprobe"), dir.display())))?;
     Ok(tools)
 }
 
@@ -197,13 +210,19 @@ impl FfmpegStore {
 
     fn state(&self) -> State {
         let text = std::fs::read_to_string(self.root.join(STATE_FILE)).unwrap_or_default();
-        let mut s: State = serde_json::from_str(&text).ok().filter(|s: &State| s.version == STATE_VERSION).unwrap_or_default();
+        let mut s: State = serde_json::from_str(&text)
+            .ok()
+            .filter(|s: &State| s.version == STATE_VERSION)
+            .unwrap_or_default();
         s.version = STATE_VERSION;
         // What is on disk wins over a stale or damaged state: the active release must exist, else the newest one.
         if !s.active.as_deref().is_some_and(|t| self.complete(t)) {
             s.active = self.installed().pop();
         }
-        if s.previous.as_deref().is_some_and(|p| !self.complete(p) || Some(p) == s.active.as_deref()) {
+        if s.previous
+            .as_deref()
+            .is_some_and(|p| !self.complete(p) || Some(p) == s.active.as_deref())
+        {
             s.previous = None;
         }
         s
@@ -268,9 +287,9 @@ impl FfmpegStore {
                 });
             }
         }
-        let tag = s.active.ok_or_else(|| {
-            VideoError::NoRuntime("FFmpeg is not installed: install it in Settings ▸ Video to analyse videos".into())
-        })?;
+        let tag = s
+            .active
+            .ok_or_else(|| VideoError::NoRuntime("FFmpeg is not installed: install it in Settings ▸ Video to analyse videos".into()))?;
         let tools = Tools::in_dir(&self.release_dir(&tag));
         tools.present()?;
         Ok(tools)
@@ -340,7 +359,8 @@ impl FfmpegStore {
                 return Err(VideoError::Cancelled);
             }
             on_stage(InstallStage::Finishing);
-            let marker = serde_json::json!({"version": 1, "tag": tag, "release": catalog.release, "asset": asset.name, "sha256": asset.sha256});
+            let marker =
+                serde_json::json!({"version": 1, "tag": tag, "release": catalog.release, "asset": asset.name, "sha256": asset.sha256});
             std::fs::write(staging.join(MARKER), marker.to_string())?;
             let dest = self.release_dir(tag);
             if dest.exists() {
@@ -399,8 +419,11 @@ impl FfmpegStore {
         if !self.complete(tag) {
             return Err(VideoError::NotFound(format!("the FFmpeg release {tag}")));
         }
-        std::fs::remove_dir_all(self.release_dir(tag))
-            .map_err(|e| VideoError::Io(format!("cannot delete the FFmpeg release ({e}): wait for running analyses and try again")))?;
+        std::fs::remove_dir_all(self.release_dir(tag)).map_err(|e| {
+            VideoError::Io(format!(
+                "cannot delete the FFmpeg release ({e}): wait for running analyses and try again"
+            ))
+        })?;
         let mut s = self.state();
         s.versions.remove(tag);
         self.save(&s)
@@ -458,7 +481,13 @@ mod tests {
             })
         }
 
-        fn fetch(&self, r: &RemoteFile, offset: u64, sink: &mut dyn FnMut(&[u8]) -> imt_ai::Result<()>, _c: &AtomicBool) -> imt_ai::Result<()> {
+        fn fetch(
+            &self,
+            r: &RemoteFile,
+            offset: u64,
+            sink: &mut dyn FnMut(&[u8]) -> imt_ai::Result<()>,
+            _c: &AtomicBool,
+        ) -> imt_ai::Result<()> {
             sink(&self.0[&r.file][offset as usize..])
         }
     }
@@ -502,11 +531,19 @@ mod tests {
         })
     }
 
-    fn install(store: &FfmpegStore, c: &FfmpegCatalog, m: &Mem, check: Check<'_>) -> Result<InstalledRelease> {
+    fn install(store: &FfmpegStore, c: &FfmpegCatalog, m: &dyn ModelSource, check: Check<'_>) -> Result<InstalledRelease> {
         let mut stages = Vec::new();
         let r = store.install(c, "test-x64", m, &Roomy, &Progress::new(), &mut |s| stages.push(s), check);
         if r.is_ok() {
-            assert_eq!(stages, [InstallStage::Downloading, InstallStage::Unpacking, InstallStage::Testing, InstallStage::Finishing]);
+            assert_eq!(
+                stages,
+                [
+                    InstallStage::Downloading,
+                    InstallStage::Unpacking,
+                    InstallStage::Testing,
+                    InstallStage::Finishing
+                ]
+            );
         }
         r
     }
@@ -524,7 +561,15 @@ mod tests {
         assert!(!st.update_available);
         assert!(store.status(&c, "macos-arm64").pinned_tag.is_none());
         let e = store
-            .install(&c, "macos-arm64", &Mem(BTreeMap::new()), &Roomy, &Progress::new(), &mut |_| {}, &passes)
+            .install(
+                &c,
+                "macos-arm64",
+                &Mem(BTreeMap::new()),
+                &Roomy,
+                &Progress::new(),
+                &mut |_| {},
+                &passes,
+            )
             .unwrap_err();
         assert!(e.to_string().contains("choose your own ffmpeg"), "{e}");
     }
@@ -538,7 +583,10 @@ mod tests {
         assert_eq!((r.tag.as_str(), r.version.as_deref()), ("t1", Some("n9")));
         let tools = store.tools().unwrap();
         assert_eq!(std::fs::read(&tools.ffmpeg).unwrap(), b"one");
-        assert!(!dir.path().join("downloads").join(&c1.platforms["test-x64"].name).exists(), "the archive is removed");
+        assert!(
+            !dir.path().join("downloads").join(&c1.platforms["test-x64"].name).exists(),
+            "the archive is removed"
+        );
 
         // An update: the new release is active, the old one the rollback target.
         let (c2, m2) = archive("t2", b"two");
@@ -546,7 +594,10 @@ mod tests {
         assert!(st.update_available);
         install(&store, &c2, &m2, &passes).unwrap();
         let st = store.status(&c2, "test-x64");
-        assert_eq!((st.mode, st.active.unwrap().tag, st.previous.unwrap().tag), (RuntimeMode::Managed, "t2".into(), "t1".into()));
+        assert_eq!(
+            (st.mode, st.active.unwrap().tag, st.previous.unwrap().tag),
+            (RuntimeMode::Managed, "t2".into(), "t1".into())
+        );
         assert!(!st.update_available);
         assert_eq!(std::fs::read(store.tools().unwrap().ffmpeg).unwrap(), b"two");
 
@@ -587,10 +638,17 @@ mod tests {
         };
         let e = install(&store, &c2, &m2, &fails).unwrap_err();
         assert!(e.to_string().contains("self-test failed while probing"), "{e}");
-        assert_eq!(std::fs::read(store.tools().unwrap().ffmpeg).unwrap(), b"one", "still the old release");
+        assert_eq!(
+            std::fs::read(store.tools().unwrap().ffmpeg).unwrap(),
+            b"one",
+            "still the old release"
+        );
         assert_eq!(store.installed(), ["t1"]);
         assert!(!dir.path().join(".staging-t2").exists());
-        assert!(dir.path().join("downloads").join(&c2.platforms["test-x64"].name).exists(), "kept for another try");
+        assert!(
+            dir.path().join("downloads").join(&c2.platforms["test-x64"].name).exists(),
+            "kept for another try"
+        );
         // Another try uses the verified archive.
         install(&store, &c2, &m2, &passes).unwrap();
         assert_eq!(store.status(&c2, "test-x64").active.unwrap().tag, "t2");
@@ -603,7 +661,10 @@ mod tests {
         let (mut c, m) = archive("t1", b"one");
         c.platforms.get_mut("test-x64").unwrap().sha256 = "0".repeat(64);
         let e = install(&store, &c, &m, &passes).unwrap_err();
-        assert!(matches!(e, VideoError::Integrity(_)) && e.to_string().contains("does not match the pinned catalog"), "{e}");
+        assert!(
+            matches!(e, VideoError::Integrity(_)) && e.to_string().contains("does not match the pinned catalog"),
+            "{e}"
+        );
         assert!(store.installed().is_empty());
         // A served file that differs from what its host claims is caught by the download's own check.
         struct Liar(Mem);
@@ -611,7 +672,13 @@ mod tests {
             fn describe(&self, repo: &str, file: &str) -> imt_ai::Result<RemoteFile> {
                 self.0.describe(repo, file)
             }
-            fn fetch(&self, _r: &RemoteFile, _o: u64, sink: &mut dyn FnMut(&[u8]) -> imt_ai::Result<()>, _c: &AtomicBool) -> imt_ai::Result<()> {
+            fn fetch(
+                &self,
+                _r: &RemoteFile,
+                _o: u64,
+                sink: &mut dyn FnMut(&[u8]) -> imt_ai::Result<()>,
+                _c: &AtomicBool,
+            ) -> imt_ai::Result<()> {
                 sink(&vec![0u8; _r.size as usize])
             }
         }

@@ -1,4 +1,4 @@
-//! The frames of an analysed video as a source (ADR 0032 §4): `<video name>.frames`, written by `imt-video` into the
+//! The frames of an analysed video as a source (ADR 0033 §4): `<video name>.frames`, written by `imt-video` into the
 //! project folder, is JSON lines: a typed header (`{"videoFrames": 1, ...}`) and one line per kept frame. Each frame
 //! becomes one event: time = the aligned moment, message = the AI description (or "Frame 3 at 00:01:23.400" before
 //! there is one), fields `Video`, `Frame`, `VideoTime`, `Note`, `AlignedBy`, `Confidence`. `Video` identifies the
@@ -38,7 +38,7 @@ pub struct FramesHeader {
     pub duration_ms: u64,
 }
 
-/// How a frame's time was decided (ADR 0032 §5).
+/// How a frame's time was decided (ADR 0033 §5).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum AlignedBy {
@@ -119,7 +119,12 @@ pub fn video_time(ms: u64) -> String {
 
 fn clean(s: &str) -> String {
     let one: String = s.chars().map(|c| if c.is_control() { ' ' } else { c }).collect();
-    one.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(MAX_TEXT_CHARS).collect()
+    one.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(MAX_TEXT_CHARS)
+        .collect()
 }
 
 impl FrameLine {
@@ -163,7 +168,9 @@ fn header_of(head: &str) -> Option<FramesHeader> {
     if !first.starts_with("{\"videoFrames\"") {
         return None;
     }
-    serde_json::from_str::<FramesHeader>(first).ok().filter(|h| h.video_frames == FRAMES_VERSION)
+    serde_json::from_str::<FramesHeader>(first)
+        .ok()
+        .filter(|h| h.video_frames == FRAMES_VERSION)
 }
 
 /// Reads frames files (see the module docs).
@@ -248,7 +255,10 @@ mod tests {
             path: Path::new("checkout.mp4.frames"),
             file_date: None,
         };
-        assert_eq!(VideoFramesImporter.sniff(&ctx, text), if header_of(text).is_some() { 100 } else { 0 });
+        assert_eq!(
+            VideoFramesImporter.sniff(&ctx, text),
+            if header_of(text).is_some() { 100 } else { 0 }
+        );
         VideoFramesImporter.import(&ctx, text)
     }
 
@@ -293,7 +303,14 @@ mod tests {
         assert_eq!(video_time(0), "00:00.000");
         assert_eq!(video_time(83_400), "01:23.400");
         assert_eq!(video_time(3_723_004), "1:02:03.004");
-        for a in [AlignedBy::User, AlignedBy::Clock, AlignedBy::FileName, AlignedBy::Container, AlignedBy::FileTime, AlignedBy::None] {
+        for a in [
+            AlignedBy::User,
+            AlignedBy::Clock,
+            AlignedBy::FileName,
+            AlignedBy::Container,
+            AlignedBy::FileTime,
+            AlignedBy::None,
+        ] {
             assert!(!a.as_str().is_empty());
         }
         assert_eq!(

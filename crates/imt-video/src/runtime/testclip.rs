@@ -1,4 +1,4 @@
-//! The clip the self-test analyses (ADR 0032 §1): generated, never bundled and never real footage. A YUV4MPEG2 file
+//! The clip the self-test analyses (ADR 0033 §1): generated, never bundled and never real footage. A YUV4MPEG2 file
 //! (FFmpeg reads it without any codec library): 64×48 pixels, 5 frames per second, six frames, each with another
 //! background and a white block in another place, so every frame is a change and `mpdecimate` keeps all of them.
 
@@ -49,7 +49,9 @@ mod tests {
         assert_eq!(&b[..header_len], b"YUV4MPEG2 W64 H48 F5:1 Ip A1:1 C420jpeg\n");
         let frame = 6 + WIDTH * HEIGHT * 3 / 2;
         assert_eq!(b.len(), header_len + FRAMES * frame);
-        let lumas: Vec<&[u8]> = (0..FRAMES).map(|i| &b[header_len + i * frame + 6..header_len + i * frame + 6 + WIDTH * HEIGHT]).collect();
+        let lumas: Vec<&[u8]> = (0..FRAMES)
+            .map(|i| &b[header_len + i * frame + 6..header_len + i * frame + 6 + WIDTH * HEIGHT])
+            .collect();
         assert!(lumas.windows(2).all(|w| w[0] != w[1]));
         assert_eq!(frame_times(), [0, 200, 400, 600, 800, 1000]);
         assert_eq!(duration_ms(), 1200);

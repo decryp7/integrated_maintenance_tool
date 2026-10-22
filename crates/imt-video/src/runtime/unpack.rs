@@ -34,7 +34,9 @@ fn safe_name(name: &str) -> bool {
         && name.len() <= 200
         && !name.starts_with('.')
         && !name.contains("..")
-        && name.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_' | '+'))
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_' | '+'))
 }
 
 /// Whether the runtime needs the file.
@@ -151,7 +153,7 @@ fn unzip(archive: &Path, w: &mut Writer) -> Result<()> {
         if entry.is_dir() {
             continue;
         }
-        let path = entry.name().to_string();
+        let path = String::from_utf8_lossy(entry.name_raw()).into_owned();
         let Some(name) = base_name(&path) else {
             return Err(bad(format!("it contains the unsafe path {path}")));
         };
@@ -203,7 +205,11 @@ fn untar_xz(archive: &Path, dest: &Path, w: &mut Writer) -> Result<()> {
                     .map(|t| t.to_string_lossy().into_owned())
                     .unwrap_or_default();
                 // Only a sibling (`libavcodec.so.62 -> libavcodec.so.62.3.100`) or the same folder by its archive path.
-                let t = if kind.is_hard_link() { base_name(&target) } else { Some(target.as_str()) };
+                let t = if kind.is_hard_link() {
+                    base_name(&target)
+                } else {
+                    Some(target.as_str())
+                };
                 match t.filter(|t| safe_name(t) && !t.contains('/')) {
                     Some(t) => {
                         w.links.insert(name, t.to_string());
@@ -346,7 +352,8 @@ pub(crate) mod tests {
     fn unsafe_or_incomplete_zips_are_refused() {
         let dir = tempfile::tempdir().unwrap();
         let ff = exe("ffmpeg");
-        let cases: Vec<(&str, Vec<(String, &[u8])>, &str)> = vec![
+        type Case<'a> = (&'a str, Vec<(String, &'a [u8])>, &'a str);
+        let cases: Vec<Case> = vec![
             ("slip.zip", vec![("../evil.dll".into(), b"x")], "unsafe path"),
             ("deep.zip", vec![("a/b/c/d/e/f/x.dll".into(), b"x")], "unsafe path"),
             ("twice.zip", vec![(format!("a/{ff}"), b"x"), (format!("b/{ff}"), b"y")], "twice"),
@@ -366,12 +373,18 @@ pub(crate) mod tests {
             max_file_bytes: 1024,
             ..UnpackLimits::default()
         };
-        assert!(unpack(&big, &dir.path().join("o-big"), tight).unwrap_err().to_string().contains("too large"));
+        assert!(unpack(&big, &dir.path().join("o-big"), tight)
+            .unwrap_err()
+            .to_string()
+            .contains("too large"));
         let few = UnpackLimits {
             max_entries: 1,
             ..UnpackLimits::default()
         };
-        assert!(unpack(&big, &dir.path().join("o-few"), few).unwrap_err().to_string().contains("too many"));
+        assert!(unpack(&big, &dir.path().join("o-few"), few)
+            .unwrap_err()
+            .to_string()
+            .contains("too many"));
         assert!(unpack(&dir.path().join("x.rar"), &dir.path().join("o-rar"), UnpackLimits::default()).is_err());
         std::fs::write(dir.path().join("junk.zip"), b"not a zip").unwrap();
         assert!(unpack(&dir.path().join("junk.zip"), &dir.path().join("o-junk"), UnpackLimits::default()).is_err());
@@ -401,11 +414,21 @@ pub(crate) mod tests {
         assert!(!dir.path().join("out.tar").exists(), "the decompressed tar is removed");
 
         let escape = dir.path().join("escape.tar.xz");
-        tar_xz_of(&escape, &[(&ff, None, b"ff"), (&fp, None, b"fp"), ("b/lib/libx.so", Some("/etc/passwd"), b"")]);
+        tar_xz_of(
+            &escape,
+            &[(&ff, None, b"ff"), (&fp, None, b"fp"), ("b/lib/libx.so", Some("/etc/passwd"), b"")],
+        );
         let e = unpack(&escape, &dir.path().join("o-escape"), UnpackLimits::default()).unwrap_err();
         assert!(e.to_string().contains("outside"), "{e}");
         let dangling = dir.path().join("dangling.tar.xz");
-        tar_xz_of(&dangling, &[(&ff, None, b"ff"), (&fp, None, b"fp"), ("b/lib/libx.so", Some("libmissing.so"), b"")]);
+        tar_xz_of(
+            &dangling,
+            &[
+                (&ff, None, b"ff"),
+                (&fp, None, b"fp"),
+                ("b/lib/libx.so", Some("libmissing.so"), b""),
+            ],
+        );
         let e = unpack(&dangling, &dir.path().join("o-dangling"), UnpackLimits::default()).unwrap_err();
         assert!(e.to_string().contains("outside"), "{e}");
         std::fs::write(dir.path().join("junk.tar.xz"), b"not xz").unwrap();
@@ -414,7 +437,15 @@ pub(crate) mod tests {
 
     #[test]
     fn expected_names() {
-        for ok in ["ffmpeg", "ffprobe.exe", "avutil-60.dll", "libavutil.so.60", "libx.dylib", "LICENSE.txt", "COPYING.LGPLv2.1"] {
+        for ok in [
+            "ffmpeg",
+            "ffprobe.exe",
+            "avutil-60.dll",
+            "libavutil.so.60",
+            "libx.dylib",
+            "LICENSE.txt",
+            "COPYING.LGPLv2.1",
+        ] {
             assert!(is_expected(ok), "{ok}");
         }
         for no in ["ffplay", "ffplay.exe", "avutil.lib", ".hidden.dll", "a..b.dll", "x.h"] {

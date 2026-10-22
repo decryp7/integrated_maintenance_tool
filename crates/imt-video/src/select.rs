@@ -1,4 +1,4 @@
-//! Which frames of a video are kept (ADR 0032 §3). Pure: the candidates are the frames FFmpeg's `mpdecimate` left
+//! Which frames of a video are kept (ADR 0033 §3). Pure: the candidates are the frames FFmpeg's `mpdecimate` left
 //! (near-duplicates such as a blinking cursor or a ticking clock are gone) with their scene scores; the selection keeps
 //! the first and the last always, then the changes (score at least the threshold) or one frame per interval, within
 //! the cap: the threshold rises while there are too many, and what is still too many is spread evenly, with a note.
@@ -33,7 +33,10 @@ pub enum SelectMode {
     /// Every change at least `threshold` (adaptive, see the module docs).
     Changes { threshold: f32 },
     /// One frame per interval.
-    Interval { every_ms: u64 },
+    Interval {
+        #[cfg_attr(feature = "ts", ts(type = "number"))]
+        every_ms: u64,
+    },
 }
 
 impl Default for SelectMode {
@@ -131,13 +134,11 @@ fn spread(inner: &[Candidate], n: usize, from: u64, to: u64) -> Vec<Candidate> {
     let span = to.saturating_sub(from) as f64;
     for k in 1..=n {
         let target = from as f64 + span * k as f64 / (n + 1) as f64;
-        let best = (0..inner.len())
-            .filter(|i| !taken[*i])
-            .min_by(|a, b| {
-                let da = (inner[*a].ms as f64 - target).abs();
-                let db = (inner[*b].ms as f64 - target).abs();
-                da.total_cmp(&db).then(a.cmp(b))
-            });
+        let best = (0..inner.len()).filter(|i| !taken[*i]).min_by(|a, b| {
+            let da = (inner[*a].ms as f64 - target).abs();
+            let db = (inner[*b].ms as f64 - target).abs();
+            da.total_cmp(&db).then(a.cmp(b))
+        });
         if let Some(i) = best {
             taken[i] = true;
         }

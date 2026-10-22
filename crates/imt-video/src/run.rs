@@ -1,4 +1,4 @@
-//! Running `ffmpeg` and `ffprobe` (ADR 0032 §2): a separate process through IMT's one launcher (`imt_ipc::process`),
+//! Running `ffmpeg` and `ffprobe` (ADR 0033 §2): a separate process through IMT's one launcher (`imt_ipc::process`),
 //! contained before its first instruction (`Containment::Launcher`): no network, reading only the runtime's folders
 //! and the chosen video, writing only a fresh work folder, no child processes, below-normal priority, an environment
 //! of a few variables. The host's memory watcher stops it over its cap; a wall-clock limit and Cancel kill it.
@@ -120,8 +120,13 @@ pub struct Ran {
     pub uncontained: bool,
 }
 
+/// `p` with symbolic links resolved: sandbox profiles match real paths (macOS `/var` is a link to `/private/var`).
+fn real(p: &Path) -> PathBuf {
+    std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf())
+}
+
 fn spec(tools: &Tools, run: &Run, contained: bool, stopped: Arc<AtomicBool>) -> SpawnSpec {
-    let mut s = SpawnSpec::new(run.exe, format!("FFmpeg ({})", run.label));
+    let mut s = SpawnSpec::new(real(run.exe), format!("FFmpeg ({})", run.label));
     s.args = run.args.clone();
     s.keep_env = KEEP_ENV;
     s.env = vec![
@@ -131,13 +136,13 @@ fn spec(tools: &Tools, run: &Run, contained: bool, stopped: Arc<AtomicBool>) -> 
     if let Some(lib) = &tools.lib_dir {
         s.env.push(("LD_LIBRARY_PATH".into(), lib.to_string_lossy().into_owned()));
     }
-    s.current_dir = Some(run.work.to_path_buf());
+    s.current_dir = Some(real(run.work));
     s.below_normal_priority = true;
-    let mut read = tools.read.clone();
+    let mut read: Vec<PathBuf> = tools.read.iter().map(|p| real(p)).collect();
     if let Some(i) = run.input {
-        read.push(i.to_path_buf());
+        read.push(real(i));
     }
-    let write = vec![run.work.to_path_buf()];
+    let write = vec![real(run.work)];
     s.sandbox = SandboxSpec {
         memory_limit: Some(run.caps.memory_bytes),
         cpu_rate_percent: None,
@@ -283,7 +288,11 @@ mod tests {
     fn progress_is_read_from_the_last_line() {
         let dir = tempfile::tempdir().unwrap();
         assert_eq!(progress_of(dir.path(), 10_000), None);
-        std::fs::write(dir.path().join(PROGRESS_FILE), "out_time_us=1000000\nprogress=continue\nout_time_us=2500000\n").unwrap();
+        std::fs::write(
+            dir.path().join(PROGRESS_FILE),
+            "out_time_us=1000000\nprogress=continue\nout_time_us=2500000\n",
+        )
+        .unwrap();
         assert_eq!(progress_of(dir.path(), 10_000), Some(0.25));
         assert_eq!(progress_of(dir.path(), 0), None);
         std::fs::write(dir.path().join(PROGRESS_FILE), "out_time_us=99000000\n").unwrap();

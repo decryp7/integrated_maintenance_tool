@@ -1,4 +1,4 @@
-//! The check every FFmpeg runtime passes before IMT uses it (ADR 0032 §1): a downloaded build in its staging folder,
+//! The check every FFmpeg runtime passes before IMT uses it (ADR 0033 §1): a downloaded build in its staging folder,
 //! an update, or a user-provided `ffmpeg`. It runs the real pipeline — sandboxed, as every analysis does — on the
 //! generated clip ([`super::testclip`]): `-version`, ffprobe counting the frames, the candidates pass and the extraction
 //! of every frame. Six frames at 0, 0.2, … 1.0 s must come back, each a readable PNG.
@@ -54,21 +54,33 @@ pub fn self_test(tools: &Tools, scratch: &Path, cancel: &AtomicBool) -> Result<S
         std::fs::write(&clip, testclip::y4m())?;
         let work = scratch.join("work");
         std::fs::create_dir_all(&work)?;
+        // `-version` prints to stdout, which the runner does not capture; decoding one frame without `-hide_banner`
+        // puts the banner (version and configuration) into FFmpeg's report.
+        let real_clip = std::fs::canonicalize(&clip)?;
         let ran = step(
             "asking ffmpeg for its version",
             run::run(
                 tools,
                 Run {
                     exe: &tools.ffmpeg,
-                    args: vec!["-hide_banner".into(), "-version".into()],
+                    args: vec![
+                        "-nostdin".into(),
+                        "-i".into(),
+                        real_clip.to_string_lossy().into_owned(),
+                        "-frames:v".into(),
+                        "1".into(),
+                        "-f".into(),
+                        "null".into(),
+                        "-".into(),
+                    ],
                     work: &work,
-                    input: None,
+                    input: Some(&clip),
                     caps: Caps {
                         memory_bytes: SELF_TEST_MEMORY,
                         timeout: Duration::from_secs(20),
                     },
                     cancel,
-                    label: "ffmpeg -version",
+                    label: "ffmpeg",
                     on_tick: None,
                 },
             ),

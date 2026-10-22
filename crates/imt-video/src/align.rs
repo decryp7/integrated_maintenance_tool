@@ -1,4 +1,4 @@
-//! When a video started, in the logs' clock (ADR 0032 §5). Pure: from the evidence in order of trust — what the user
+//! When a video started, in the logs' clock (ADR 0033 §5). Pure: from the evidence in order of trust — what the user
 //! set, a clock on screen the vision model read, a date and time in the file name (screen recorders name files by
 //! their start), the container's `creation_time`, the file's modification time minus the duration — each with where it
 //! came from and how far it can be trusted. Times without a zone are read in the profile's zone, like screenshots
@@ -211,7 +211,10 @@ mod tests {
     }
 
     fn local(s: &str) -> i64 {
-        NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S").unwrap().and_utc().timestamp_millis()
+        NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")
+            .unwrap()
+            .and_utc()
+            .timestamp_millis()
     }
 
     fn input<'a>(clock: Option<&'a ClockReading>) -> AlignInput<'a> {
@@ -269,7 +272,10 @@ mod tests {
         let mut i = input(Some(&unreadable));
         i.file_name = "Screen Recording 2026-10-21 at 09.14.03.mov";
         let a = align(&i);
-        assert_eq!((a.by, a.start_ms, a.confidence), (AlignedBy::FileName, local("2026-10-21 09:14:03"), Confidence::Medium));
+        assert_eq!(
+            (a.by, a.start_ms, a.confidence),
+            (AlignedBy::FileName, local("2026-10-21 09:14:03"), Confidence::Medium)
+        );
         i.file_name = "recording.mp4";
         let a = align(&i);
         assert_eq!((a.by, a.start_ms), (AlignedBy::Container, utc("2026-10-21T08:40:00Z")));
@@ -287,7 +293,10 @@ mod tests {
         let mut i = input(None);
         i.user = UserAlignment::Start { start_ms: 42 };
         let a = align(&i);
-        assert_eq!((a.start_ms, a.by, a.confidence, a.evidence), (42, AlignedBy::User, Confidence::High, AlignEvidence::UserStart));
+        assert_eq!(
+            (a.start_ms, a.by, a.confidence, a.evidence),
+            (42, AlignedBy::User, Confidence::High, AlignEvidence::UserStart)
+        );
         i.user = UserAlignment::Offset { offset_ms: -3_000 };
         let a = align(&i);
         assert_eq!(a.start_ms, utc("2026-10-21T08:39:57Z"));
@@ -303,6 +312,9 @@ mod tests {
         let json = serde_json::to_value(&a).unwrap();
         assert_eq!(json["by"], "user");
         assert_eq!(json["evidence"]["kind"], "userOffset");
-        assert_eq!(serde_json::to_value(UserAlignment::Offset { offset_ms: 5 }).unwrap(), serde_json::json!({"kind": "offset", "offsetMs": 5}));
+        assert_eq!(
+            serde_json::to_value(UserAlignment::Offset { offset_ms: 5 }).unwrap(),
+            serde_json::json!({"kind": "offset", "offsetMs": 5})
+        );
     }
 }

@@ -1,4 +1,4 @@
-//! The FFmpeg passes over one video (ADR 0032 §3): probe it, list the candidates (`mpdecimate` + scene scores), and
+//! The FFmpeg passes over one video (ADR 0033 §3): probe it, list the candidates (`mpdecimate` + scene scores), and
 //! extract exactly the selected frames (`select` on their times, scaled for the vision model, `showinfo` for their
 //! exact times). The argument lists are pure functions (tested); [`crate::run`] runs them sandboxed.
 
@@ -34,7 +34,15 @@ fn input_arg(input: &Path) -> String {
 /// `ffprobe` of the video's format and streams into [`PROBE_FILE`]; `count_frames` decodes it to count them (slow:
 /// the self-test only).
 pub fn probe_args(input: &Path, count_frames: bool) -> Vec<String> {
-    let mut a = vec![s("-hide_banner"), s("-v"), s("error"), s("-print_format"), s("json"), s("-show_format"), s("-show_streams")];
+    let mut a = vec![
+        s("-hide_banner"),
+        s("-v"),
+        s("error"),
+        s("-print_format"),
+        s("json"),
+        s("-show_format"),
+        s("-show_streams"),
+    ];
     if count_frames {
         a.push(s("-count_frames"));
     }
@@ -188,7 +196,19 @@ pub struct Pass<'a> {
 }
 
 impl Pass<'_> {
-    fn run(&self, exe: &Path, args: Vec<String>, timeout: Duration, label: &str, on_tick: Option<&mut dyn FnMut()>) -> Result<run::Ran> {
+    /// The video's real path: the sandbox opens it by the path it is given and cannot resolve links outside its folders.
+    fn real_input(&self) -> PathBuf {
+        std::fs::canonicalize(self.input).unwrap_or_else(|_| self.input.to_path_buf())
+    }
+
+    fn run<'b>(
+        &'b self,
+        exe: &'b Path,
+        args: Vec<String>,
+        timeout: Duration,
+        label: &'b str,
+        on_tick: Option<&'b mut dyn FnMut()>,
+    ) -> Result<run::Ran> {
         run::run(
             self.tools,
             Run {
@@ -210,7 +230,13 @@ impl Pass<'_> {
     /// Probes the video; refuses one without a video stream or longer than [`MAX_DURATION_MS`].
     pub fn probe(&self, count_frames: bool) -> Result<VideoInfo> {
         let _ = std::fs::remove_file(self.work.join(PROBE_FILE));
-        self.run(&self.tools.ffprobe, probe_args(self.input, count_frames), Duration::from_secs(30), "ffprobe", None)?;
+        self.run(
+            &self.tools.ffprobe,
+            probe_args(&self.real_input(), count_frames),
+            Duration::from_secs(30),
+            "ffprobe",
+            None,
+        )?;
         let info = parse::probe(&run::output(self.work, PROBE_FILE)).map_err(VideoError::Tool)?;
         if info.duration_ms > MAX_DURATION_MS {
             return Err(VideoError::Limit(format!(
@@ -234,7 +260,7 @@ impl Pass<'_> {
         let _ = std::fs::remove_file(self.work.join(CANDIDATES_FILE));
         self.run(
             &self.tools.ffmpeg,
-            candidates_args(self.input),
+            candidates_args(&self.real_input()),
             run::pass_timeout(duration),
             "the frame analysis",
             Some(&mut tick),
@@ -268,7 +294,7 @@ impl Pass<'_> {
         let ms: Vec<u64> = targets.iter().map(|t| t.ms).collect();
         let ran = self.run(
             &self.tools.ffmpeg,
-            extract_args(self.input, &ms),
+            extract_args(&self.real_input(), &ms),
             run::pass_timeout(duration),
             "the frame extraction",
             Some(&mut tick),
@@ -288,7 +314,7 @@ impl Pass<'_> {
         self.clear_frames();
         let ran = self.run(
             &self.tools.ffmpeg,
-            extract_at_args(self.input, ms),
+            extract_at_args(&self.real_input(), ms),
             run::pass_timeout(info.duration_ms),
             "the frame extraction",
             None,
@@ -322,11 +348,16 @@ mod tests {
         assert!(p.contains(&"-count_frames".to_string()) && !probe_args(input, false).contains(&"-count_frames".to_string()));
         let a = candidates_args(input);
         assert_eq!(&a[..2], ["-nostdin", "-hide_banner"]);
-        assert!(a.iter().any(|x| x.contains("mpdecimate") && x.contains("metadata=mode=print:file=candidates.txt")));
+        assert!(a
+            .iter()
+            .any(|x| x.contains("mpdecimate") && x.contains("metadata=mode=print:file=candidates.txt")));
         assert_eq!(a.iter().filter(|x| *x == "/videos/a b;rm -rf.mp4").count(), 1);
         let e = extract_args(input, &[0, 1500]);
         let vf = &e[e.iter().position(|x| x == "-vf").unwrap() + 1];
-        assert!(vf.starts_with("select='lt(abs(t-0.000000),0.000500)+lt(abs(t-1.500000),0.0005"), "{vf}");
+        assert!(
+            vf.starts_with("select='lt(abs(t-0.000000),0.000500)+lt(abs(t-1.500000),0.0005"),
+            "{vf}"
+        );
         assert!(vf.contains(")',scale="), "{vf}");
         assert!(vf.ends_with(",showinfo"));
         assert_eq!(e.last().unwrap(), "frame-%04d.png");
@@ -343,7 +374,10 @@ mod tests {
         assert_eq!(ms, [0, 999, 1001], "a far-away output is not a match");
         assert_eq!(got[1].path, files[1]);
         assert!(match_outputs(&[c(5)], &[], &[]).is_empty());
-        assert!(match_outputs(&[c(5)], &[5, 6], &files[..1]).len() == 1, "times without a file are ignored");
+        assert!(
+            match_outputs(&[c(5)], &[5, 6], &files[..1]).len() == 1,
+            "times without a file are ignored"
+        );
     }
 
     #[test]

@@ -1,4 +1,4 @@
-//! What the project keeps of a video (ADR 0032 §4), in the project (store) folder:
+//! What the project keeps of a video (ADR 0033 §4), in the project (store) folder:
 //!
 //! ```text
 //! videos/<key>/video.json        the VideoRecord (versioned)
@@ -31,9 +31,11 @@ const MAX_RECORD_BYTES: u64 = 8 << 20;
 
 /// One kept frame.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[serde(rename_all = "camelCase")]
 pub struct FrameRecord {
     /// Its exact time in the video (ms), as FFmpeg's `showinfo` reported it.
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
     pub video_ms: u64,
     /// Its image, relative to the video's folder (`frames/0003.png`).
     pub image: String,
@@ -53,6 +55,7 @@ pub struct FrameRecord {
 
 /// A video of the project.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[serde(rename_all = "camelCase")]
 pub struct VideoRecord {
     pub version: u32,
@@ -60,6 +63,7 @@ pub struct VideoRecord {
     /// The file name.
     pub name: String,
     pub sha256: String,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
     pub size: u64,
     /// Where the file was on the machine that analysed it (it is referenced, not copied, by default).
     #[serde(default)]
@@ -67,6 +71,7 @@ pub struct VideoRecord {
     /// A copy is in `media/` (and goes with the project).
     #[serde(default)]
     pub included: bool,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
     pub duration_ms: u64,
     pub width: u32,
     pub height: u32,
@@ -75,8 +80,10 @@ pub struct VideoRecord {
     #[serde(default)]
     pub fps: Option<f64>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(type = "number | null"))]
     pub creation_ms: Option<i64>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(type = "number | null"))]
     pub file_modified_ms: Option<i64>,
     #[serde(default)]
     pub options: SelectOptions,
@@ -91,6 +98,7 @@ pub struct VideoRecord {
     pub frames: Vec<FrameRecord>,
     /// When it was analysed (epoch ms).
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
     pub analysed_ms: i64,
 }
 
@@ -431,7 +439,8 @@ pub(crate) mod tests {
         let source = folder.save(&r).unwrap();
         assert_eq!(source.file_name().unwrap(), "checkout crash.mp4.frames");
         let listed = folder.list();
-        assert_eq!(listed.videos, [r.clone()]);
+        assert_eq!(listed.videos.len(), 1);
+        assert_eq!(listed.videos[0], r);
         let text = std::fs::read_to_string(&source).unwrap();
         assert!(text.starts_with("{\"videoFrames\":1"));
         assert_eq!(text.lines().count(), 4);
@@ -535,7 +544,14 @@ pub(crate) mod tests {
         assert_eq!(clean_text(" \t "), None);
         assert!(is_key("0123456789abcdef") && !is_key("0123456789ABCDEF") && !is_key("01"));
         assert!(is_frame_image("frames/0001.png") && is_frame_image("frames/12.jpg"));
-        for bad in ["frames/../x.png", "x.png", "frames/a.png", "frames/0001.gif", "frames/.png", "frames/1234567.png"] {
+        for bad in [
+            "frames/../x.png",
+            "x.png",
+            "frames/a.png",
+            "frames/0001.gif",
+            "frames/.png",
+            "frames/1234567.png",
+        ] {
             assert!(!is_frame_image(bad), "{bad}");
         }
     }

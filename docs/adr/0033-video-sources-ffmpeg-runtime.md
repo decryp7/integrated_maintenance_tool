@@ -113,6 +113,11 @@ medium: some recorders write the start, others the end), the file's modification
 time*, low). Every frame event carries the method and confidence; the Video pane shows them with the evidence ("the
 clock in frame 4 read 10:42:07"). The frames source takes clock offsets like any other source (ADR 0006).
 
+The order of automatic evidence is therefore: on-screen clock, then a date and time in the file name (screen
+recorders name files by their start), then the container, then the file time. A user-provided ffmpeg on macOS (e.g.
+Homebrew's) lives outside the runtime folder: its installation prefix (e.g. `/opt/homebrew`) is added to what the
+sandbox may read, so its libraries load; the prefix must be readable by the sandbox profile.
+
 ### 6. AI
 
 The one loaded model describes frames (ADR 0025): one request per kept frame with its video time, as an AI job with
