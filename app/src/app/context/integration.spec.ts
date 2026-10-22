@@ -40,25 +40,28 @@ describe('Inspector context actions', () => {
     return { fixture, store, dialogs: TestBed.inject(DialogService), menu: TestBed.inject(ContextMenuService) };
   }
 
-  it('enables mask and extract only while text is selected in the message', async () => {
-    const { fixture, dialogs } = await render();
-    const mask = buttonByText(fixture, /Mask/);
-    const extract = buttonByText(fixture, /Extract value/);
-    expect(mask.disabled).toBe(true);
-    expect(extract.disabled).toBe(true);
+  it('offers mask and extract in More actions: disabled with a reason until text is selected in the message', async () => {
+    const { fixture, dialogs, menu } = await render();
+    const entries = () => {
+      buttonByText(fixture, /More actions/).click();
+      const items = menu.menu()!.items;
+      menu.close();
+      return { mask: items.find((i) => i.label.startsWith('Mask'))!, extract: items.find((i) => i.label.startsWith('Extract'))! };
+    };
+    expect(entries().mask).toMatchObject({ disabled: true, hint: 'Select text in the message first' });
+    expect(entries().extract.disabled).toBe(true);
     selectText(el(fixture, '.message'), '1500');
     await settle(fixture);
-    expect(mask.disabled).toBe(false);
-    mask.click();
-    extract.click();
+    const { mask, extract } = entries();
+    expect(mask.disabled).toBeFalsy();
+    mask.run();
+    extract.run();
     expect(dialogs.stack().map((d) => d.component)).toEqual([MaskDialog, ExtractDialog]);
     expect(dialogs.stack()[1]?.options.inputs).toMatchObject({ start: 23, end: 27 });
-    // A selection outside the message is ignored; collapsing inside it clears the buttons.
-    document.getSelection()!.removeAllRanges();
-    document.dispatchEvent(new Event('selectionchange'));
+    // A selection outside the message is ignored; the one inside it stays.
     selectText(el(fixture, '.k'), 'Application');
     await settle(fixture);
-    expect(buttonByText(fixture, /Mask/).disabled).toBe(false);
+    expect(entries().mask.disabled).toBeFalsy();
   });
 
   it('opens the record menu and the property menu (mouse and keyboard)', async () => {

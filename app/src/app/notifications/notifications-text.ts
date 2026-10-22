@@ -18,6 +18,8 @@ export function sourceLabel(source: NoticeSource): string {
       return $localize`:@@notifications.source.session:Session`;
     case 'performance':
       return $localize`:@@notifications.source.performance:Performance`;
+    case 'workspace':
+      return $localize`:@@notifications.source.workspace:Workspace`;
   }
 }
 

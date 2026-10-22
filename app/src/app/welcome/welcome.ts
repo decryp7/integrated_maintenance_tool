@@ -4,6 +4,9 @@ import { Icon } from '../shared/icon';
 import { RECENT_STORE } from './recent-store';
 import { DemoService } from '../onboarding/demo.service';
 import { HelpHint } from '../ui/help-hint';
+import { CommandRegistry } from '../extensions/command-registry';
+import { RecentService } from '../core/recent/recent.service';
+import { RecentOpener } from '../shell/menu/recent-opener';
 import { READ_ONLY_DETAIL, READ_ONLY_PROMISE } from '../shared/read-only';
 
 /**
@@ -53,15 +56,19 @@ export function shortPath(path: string): string {
       <div class="actions">
         <button class="btn primary big" type="button" (click)="store.pickAndOpen(true)" i18n="@@welcome.openFolder"><imt-icon name="folder" [size]="15" /> Open folder…</button>
         <button class="btn big" type="button" (click)="store.pickAndOpen(false)" i18n="@@welcome.openFiles"><imt-icon name="file" [size]="15" /> Open files…</button>
+        <button class="btn big" type="button" data-testid="welcome-open-project" (click)="openProject()" i18n="@@welcome.openProject"><imt-icon name="files" [size]="15" /> Open project…</button>
         <button class="btn big" type="button" data-testid="try-demo" [disabled]="demo.loading()" (click)="demo.start()"><imt-icon name="timeline" [size]="15" /> {{ demoLabel() }}</button>
       </div>
       <p class="safe" data-testid="read-only-promise"><imt-icon name="check" [size]="14" /> {{ promise }} <imt-help label="Your files are safe" i18n-label="@@welcome.safe.helpLabel" [text]="detail" /></p>
       <p class="faint hint" i18n="@@welcome.hint">Or drag and drop files or folders anywhere in the window. The format is detected from the content, not the extension.</p>
 
-      @if (recent().length) {
-        <div class="recent">
+      @if (recentProjects().length || recent().length) {
+        <div class="recent" data-testid="welcome-recent">
           <h2 class="section-title" i18n="@@welcome.recent">Recent</h2>
           <ul>
+            @for (p of recentProjects(); track p.path) {
+              <li><button class="link" type="button" data-testid="welcome-recent-project" [title]="p.path" (click)="openRecentProject(p.path)"><imt-icon name="files" [size]="13" /> <strong>{{ p.name }}</strong> <span class="path mono">{{ short(p.path) }}</span></button></li>
+            }
             @for (p of recent(); track p) {
               <li><button class="link mono" type="button" [title]="p" (click)="open(p)">{{ short(p) }}</button></li>
             }
@@ -94,6 +101,7 @@ export function shortPath(path: string): string {
     .recent ul { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
     .link { border: 0; background: transparent; color: var(--chip-text); cursor: pointer; padding: 3px 0; text-align: left; font-size: var(--fs-sm); }
     .link:hover { text-decoration: underline; }
+    .link .path { color: var(--muted); margin-inline-start: 6px; }
     .how { margin-top: 18px; }
     .steps { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: 100%; }
     .steps li { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); color: var(--muted); font-size: var(--fs-sm); }
@@ -105,6 +113,9 @@ export class Welcome {
   protected readonly welcome = inject(WelcomeService);
   private readonly recentStore = inject(RECENT_STORE);
   protected readonly demo = inject(DemoService);
+  private readonly commands = inject(CommandRegistry);
+  private readonly recentProjectsList = inject(RecentService);
+  private readonly opener = inject(RecentOpener);
   protected readonly promise = READ_ONLY_PROMISE;
   protected readonly detail = READ_ONLY_DETAIL;
   protected readonly short = shortPath;
@@ -116,6 +127,17 @@ export class Welcome {
     this.store.sourcesVersion();
     return this.recentStore.list();
   });
+
+  protected readonly recentProjects = computed(() => this.recentProjectsList.projects());
+
+  protected openProject(): void {
+    void this.commands.run('project.open');
+  }
+
+  protected openRecentProject(path: string): void {
+    this.welcome.hide();
+    void this.opener.openProject(path);
+  }
 
   protected open(path: string): void {
     this.welcome.hide();

@@ -24,13 +24,13 @@ import { ProblemsBadge } from '../problems/problems-badge';
       @if (store.matchTotal() !== null) {
         <span class="keep" i18n="@@shell.statusBar.matching">{{ fmt(store.matchTotal()!) }} matching</span>
       }
-      <span i18n="@@shell.statusBar.instances">{{ fmt(store.instanceCount()) }} instances</span>
+      <span class="low" i18n="@@shell.statusBar.instances">{{ fmt(store.instanceCount()) }} instances</span>
       @if (s.dropped > 0) {
         <span class="dropped" title="Events removed by the profile pipeline" i18n-title="@@shell.statusBar.droppedTitle" i18n="@@shell.statusBar.dropped">{{ fmt(s.dropped) }} dropped by pipeline</span>
       }
-      <span i18n="@@shell.statusBar.group">Group: {{ store.effectiveGroupBy().join(', ') || '—' }}</span>
+      <span class="low" i18n="@@shell.statusBar.group">Group: {{ store.effectiveGroupBy().join(', ') || '—' }}</span>
       @if (s.profileName) {
-        <span data-testid="status-profile" title="The parsing profile in use" i18n-title="@@shell.statusBar.profileTitle" i18n="@@shell.statusBar.profile">Profile: {{ s.profileName }}</span>
+        <span class="low" data-testid="status-profile" title="The parsing profile in use" i18n-title="@@shell.statusBar.profileTitle" i18n="@@shell.statusBar.profile">Profile: {{ s.profileName }}</span>
       }
       } @else {
         <span i18n="@@shell.statusBar.noFiles">No files open</span>
@@ -62,9 +62,9 @@ import { ProblemsBadge } from '../problems/problems-badge';
     <imt-background-work />
     <imt-problems-badge />
     <imt-status-jobs />
-    <span i18n="@@shell.statusBar.importers">Importers: {{ importers() }}</span>
+    <span class="low" i18n="@@shell.statusBar.importers">Importers: {{ importers() }}</span>
     <button class="tz" (click)="store.setTimezone(store.timezone() === 'utc' ? 'local' : 'utc')" title="Toggle UTC / local time" i18n-title="@@shell.statusBar.toggleTimezone">{{ tz() }}</button>
-    <span>IMT 0.1.0</span>
+    <span class="low">IMT 0.1.0</span>
   `,
   styles: `
     :host { height: var(--status-h); flex: none; display: flex; align-items: center; gap: 16px; padding: 0 12px; background: var(--statusbar-bg); color: var(--statusbar-text); border-top: 1px solid var(--border); font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; }
@@ -72,6 +72,8 @@ import { ProblemsBadge } from '../problems/problems-badge';
        (import Cancel, Live, time zone) keep their size. */
     :host > span:not(.spacer):not(.keep):not(.strong) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .keep, .strong { flex: none; }
+    /* Narrow windows (H1): the low-priority items go; the counts and the controls stay. */
+    @media (max-width: 1000px) { .low { display: none; } }
     .strong { font-weight: 600; color: var(--statusbar-strong); }
     .spacer { flex: 1; }
     .busy { display: inline-flex; align-items: center; gap: 6px; }

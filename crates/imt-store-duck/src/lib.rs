@@ -213,6 +213,9 @@ pub(crate) struct Inner {
     options: RwLock<StoreOptions>,
     pub(crate) progress: Arc<ImportProgress>,
     pub(crate) derived: Mutex<Option<(u64, Arc<read::Derived>)>>,
+    /// Analyses being computed now, by kind and query: a second identical request waits for the first and reads its
+    /// cached result instead of computing the same thing again (Home, the health check and the headline ask together).
+    pub(crate) flights: Mutex<std::collections::HashMap<String, Arc<Mutex<()>>>>,
     /// From this many events on, timelines use the pre-aggregated histogram (approximate at bucket edges)
     /// instead of grouping the events.
     pub(crate) preaggregate_above: AtomicU64,
@@ -648,6 +651,7 @@ impl DuckStore {
                 options: RwLock::new(opts),
                 progress: Arc::new(ImportProgress::default()),
                 derived: Mutex::new(None),
+                flights: Mutex::new(std::collections::HashMap::new()),
                 preaggregate_above: AtomicU64::new(PREAGGREGATE_ABOVE),
                 tail_read_at: Mutex::new(std::collections::HashMap::new()),
             }),

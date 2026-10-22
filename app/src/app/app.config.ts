@@ -19,8 +19,9 @@ import { provideProfiling } from './profiling/provide-profiling';
 import { provideDumps } from './dumps/provide-dumps';
 import { provideVideo } from './video/provide-video';
 import { provideHelp } from './help/help.commands';
+import { provideNavigation } from './navigation/provide-navigation';
 import { provideUndo } from './undo/provide-undo';
-import { provideOverview } from './overview/overview.plugin';
+import { provideHome } from './home/home.plugin';
 import { provideOnboarding } from './onboarding/onboarding.plugin';
 import { provideDocking } from './dock/provide-docking';
 import { provideTimelines } from './timeline/provide-timelines';
@@ -36,6 +37,7 @@ import { provideNotifications } from './notifications/provide-notifications';
 import { provideNativeFeel } from './core/native-feel';
 import { provideWorkspace } from './core/workspace/provide-workspace';
 import { provideNotes } from './notes/provide-notes';
+import { provideSearchEverything } from './search-everything/provide-search-everything';
 import { provideProblems } from './problems/provide-problems';
 import { provideIncident } from './investigate/incident/provide-incident';
 import { provideKnownIssues } from './investigate/known-issues/provide-known-issues';
@@ -68,7 +70,8 @@ export const appConfig: ApplicationConfig = {
     provideVideo(),
     provideHelp(),
     provideUndo(),
-    provideOverview(),
+    provideNavigation(),
+    provideHome(),
     provideOnboarding(),
     provideDocking(),
     provideTimelines(),
@@ -82,6 +85,7 @@ export const appConfig: ApplicationConfig = {
     provideJobs(),
     provideNotifications(),
     provideNotes(),
+    provideSearchEverything(),
     provideProblems(),
     provideKnownIssues(),
     provideIncident(),

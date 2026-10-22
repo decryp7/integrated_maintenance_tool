@@ -15,6 +15,7 @@ import { Welcome, WelcomeService } from './welcome/welcome';
 import { LifecycleBanners } from './lifecycle/lifecycle-banners';
 import { ImportToast, PartialImportBanner } from './import/import-ui';
 import { TourOverlay } from './onboarding/tour-overlay';
+import { NarrowWindow } from './shell/narrow-window';
 
 @Component({
   selector: 'imt-root',
@@ -27,7 +28,8 @@ import { TourOverlay } from './onboarding/tour-overlay';
     <div class="body">
       <!-- The regions F6 cycles through (shell/regions.ts): each a named landmark that takes focus. -->
       <imt-activity-bar data-imt-region="activity" role="navigation" aria-label="Activity bar" i18n-aria-label="@@app.region.activity" tabindex="-1" />
-      @if (store.sidebarOpen()) {
+      <!-- The empty Explorer says nothing the welcome page does not: it appears with the first data. -->
+      @if (store.sidebarOpen() && !(welcome.visible() && !hasData())) {
         <imt-sidebar data-imt-region="sidebar" role="complementary" aria-label="Side bar" i18n-aria-label="@@app.region.sidebar" tabindex="-1" />
       }
       <main class="center">
@@ -55,7 +57,7 @@ import { TourOverlay } from './onboarding/tour-overlay';
     }
   `,
   styles: `
-    :host { display: flex; flex-direction: column; height: 100vh; min-width: 1024px; background: var(--bg-1); }
+    :host { display: flex; flex-direction: column; height: 100vh; min-width: 600px; background: var(--bg-1); }
     .body { flex: 1; min-height: 0; display: flex; }
     .center { flex: 1; min-width: 0; display: flex; flex-direction: column; }
     .stage { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; }
@@ -75,6 +77,7 @@ export class App {
   protected readonly hasData = computed(() => (this.store.summary()?.sources.length ?? 0) > 0);
 
   constructor() {
+    inject(NarrowWindow).start();
     const toasts = mountInToastStack(WorkspaceToasts, 'imt-workspace-toasts', inject(EnvironmentInjector), inject(ApplicationRef));
     inject(DestroyRef).onDestroy(() => toasts.destroy());
   }

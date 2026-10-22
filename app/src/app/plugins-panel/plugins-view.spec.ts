@@ -3,6 +3,8 @@ import { all, settle, text } from '../../testing/helpers';
 import { provideToolsTesting } from '../tools/mock/test-support';
 import { WorkspaceStore } from '../core/workspace.store';
 import { contributionLabel, PluginsView } from './plugins-view';
+import { PluginsTabs } from './plugins-tabs';
+import { PluginHealthView } from '../tools/health/plugin-health-view';
 
 describe('PluginsView', () => {
   it('labels transform contributions by kind', () => {
@@ -22,6 +24,28 @@ describe('PluginsView', () => {
     // Third-party packages have their own section.
     expect(text(fixture)).toContain('Installed from packages');
     expect(all(fixture, 'imt-installed-packages .package strong').map((e) => e.textContent)).toEqual(['SAP log importer']);
+  });
+
+  it('has Installed and Health tabs in one view (I4), opened on a chosen one and moved with the arrow keys', async () => {
+    TestBed.configureTestingModule({ providers: provideToolsTesting() });
+    const fixture = TestBed.createComponent(PluginsView);
+    await settle(fixture);
+    const tabs = () => all<HTMLButtonElement>(fixture, '[role=tab]');
+    expect(tabs().map((t) => t.textContent?.trim())).toEqual(['Installed', 'Health']);
+    expect(tabs()[0]?.getAttribute('aria-selected')).toBe('true');
+    expect(fixture.nativeElement.querySelector('imt-plugin-health-view')).toBeNull();
+    tabs()[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+    await settle(fixture);
+    expect(TestBed.inject(PluginsTabs).tab()).toBe('health');
+    expect(fixture.nativeElement.querySelector('imt-plugin-health-view')).not.toBeNull();
+    expect(fixture.debugElement.query((d) => d.componentInstance instanceof PluginHealthView)).not.toBeNull();
+    tabs()[1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true }));
+    tabs()[1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    await settle(fixture);
+    expect(TestBed.inject(PluginsTabs).tab()).toBe('installed');
+    TestBed.inject(PluginsTabs).show('health');
+    await settle(fixture);
+    expect(tabs()[1]?.getAttribute('aria-selected')).toBe('true');
   });
 
   it('says so when no plugins are installed', async () => {

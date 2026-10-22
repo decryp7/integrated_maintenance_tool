@@ -3,6 +3,7 @@ import { formatDateTime } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
 import { JobsStore } from '../jobs/jobs.store';
 import { actionAvailable, actionLabel, jobClearedNote, listedJobs, NoticeActions } from './notice-actions';
+import { KindFilter, KindOption } from '../ui/kind-filter';
 import { NotificationsStore } from './notifications.store';
 import { Notice, NOTICE_SOURCES, NoticeAction } from './notifications.types';
 import { sourceLabel, titleWithCount } from './notifications-text';
@@ -15,13 +16,14 @@ import { sourceLabel, titleWithCount } from './notifications-text';
 @Component({
   selector: 'imt-notifications-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [],
+  imports: [KindFilter],
   template: `
     <div class="bar" role="toolbar" aria-label="Notification filters" i18n-aria-label="@@notifications.panel.filters">
-      <button type="button" class="chip" [attr.aria-pressed]="store.read() === 'unread'" (click)="store.setRead(store.read() === 'unread' ? 'all' : 'unread')" data-testid="notices-unread-only" i18n="@@notifications.panel.unreadOnly">Unread only</button>
-      @for (s of sources; track s) {
-        <button type="button" class="chip" [attr.aria-pressed]="store.sources().includes(s)" (click)="store.toggleSource(s)">{{ sourceLabel(s) }}</button>
-      }
+      <div class="seg" role="group" aria-label="Show" i18n-aria-label="@@notifications.panel.show" data-testid="notices-view">
+        <button type="button" class="btn small" [attr.aria-pressed]="store.read() === 'all'" (click)="store.setRead('all')" data-testid="notices-view-all" i18n="@@notifications.panel.view.all">All</button>
+        <button type="button" class="btn small" [attr.aria-pressed]="store.read() === 'unread'" (click)="store.setRead('unread')" data-testid="notices-unread-only" i18n="@@notifications.panel.view.unread">Unread</button>
+      </div>
+      <imt-kind-filter label="Source" i18n-label="@@notifications.panel.source" [options]="sourceOptions()" [selected]="store.sources()" (toggled)="store.toggleSource($any($event))" (cleared)="clearSources()" />
       <span class="spacer"></span>
       <button type="button" class="btn ghost small" [disabled]="!store.unread()" (click)="store.markAllRead()" data-testid="notices-mark-all" i18n="@@notifications.panel.markAll">Mark all read</button>
     </div>
@@ -121,7 +123,14 @@ export class NotificationsPanel {
   private readonly listed = computed(() => listedJobs(this.jobs));
   protected readonly clearedNote = jobClearedNote();
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
-  protected readonly sources = NOTICE_SOURCES;
+  protected readonly sourceOptions = computed<KindOption[]>(() => {
+    const counts = this.store.sourceCounts();
+    return NOTICE_SOURCES.map((s) => ({ id: s, label: sourceLabel(s), count: counts.get(s) ?? 0 }));
+  });
+
+  protected clearSources(): void {
+    for (const s of this.store.sources()) this.store.toggleSource(s);
+  }
   protected readonly sourceLabel = sourceLabel;
   protected readonly actionLabel = actionLabel;
   protected readonly titleWithCount = titleWithCount;

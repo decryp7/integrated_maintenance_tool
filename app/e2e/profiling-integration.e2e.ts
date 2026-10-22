@@ -1,19 +1,21 @@
 import { expect, test } from '@playwright/test';
 import { APP_LOAD_TIMEOUT } from './app';
 import { expectNoSeriousViolations } from './axe';
-import { hotspots, openProfiles, runCommand } from './profiling-support';
+import { hotspots, openProfiles, runCommand, showCaptures } from './profiling-support';
 
 test.describe('Profiling with the logs', () => {
   test('capture spans on the log timeline open the profile', async ({ page }, testInfo) => {
     await openProfiles(page);
-    // The profiling views open tabbed with the timeline; bring it back.
+    // Opening a capture switched to the Profiling perspective; the log timeline is in Investigate.
+    await page.keyboard.press('ControlOrMeta+1');
     await page.getByRole('tab', { name: /Timeline/ }).click();
+    await runCommand(page, 'Profiling: show captures');
     const spans = page.locator('imt-timeline-panel').getByTestId('profile-span');
     await expect(spans).toHaveCount(5);
     await expectNoSeriousViolations(page, testInfo, 'profiling-captures', 'imt-captures-view');
 
     // Make the other profile active, then open the first from the timeline.
-    await page.locator('imt-captures-view').getByRole('button', { name: 'orders-regression.speedscope.json', exact: true }).click();
+    await (await showCaptures(page)).getByRole('button', { name: 'orders-regression.speedscope.json', exact: true }).click();
     await page.getByRole('tab', { name: /Timeline/ }).click();
     await page.locator('imt-timeline-panel').getByRole('button', { name: 'Open capture orders.speedscope.json' }).click();
     await expect(hotspots(page).getByRole('combobox', { name: 'Active profile' }).locator('option:checked')).toHaveText('orders.speedscope.json');

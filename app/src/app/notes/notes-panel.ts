@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { NoteItem } from '../core/api.types';
 import { formatFull } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
+import { hasEventDrag, readEventDrag } from '../core/event-drag';
 import { MarkdownView } from '../share/report/markdown-view';
 import { anchors, NoteActions } from './note-actions';
 import { anchorSpan, anchorText, kindLabel, NOTE_KINDS, NoteKind, severityColor, severityLabel } from './notes-model';
@@ -16,6 +17,12 @@ import { NotesStore } from './notes.store';
   selector: 'imt-notes-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MarkdownView],
+  host: {
+    '[class.drop-target]': 'dropping()',
+    '(dragover)': 'onDragOver($event)',
+    '(dragleave)': 'dropping.set(false)',
+    '(drop)': 'onDrop($event)',
+  },
   template: `
     <div class="bar" role="toolbar" aria-label="Notes" i18n-aria-label="@@notes.panel.toolbar">
       <input class="input grow" type="search" [value]="store.filter().text" (input)="store.setFilter({ text: value($event) })" placeholder="Filter notes" i18n-placeholder="@@notes.panel.filter" aria-label="Filter notes" i18n-aria-label="@@notes.panel.filterLabel" data-testid="notes-filter" />
@@ -87,6 +94,7 @@ import { NotesStore } from './notes.store';
   `,
   styles: `
     :host { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); font-size: var(--fs-md); }
+    :host(.drop-target) { outline: 2px dashed var(--accent); outline-offset: -3px; }
     .bar { display: flex; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
     .grow { flex: 1; min-width: 120px; }
     .scroll { flex: 1; min-height: 0; overflow: auto; padding: 8px; }
@@ -119,6 +127,25 @@ export class NotesPanel {
   private readonly workspace = inject(WorkspaceStore);
   protected readonly kinds = NOTE_KINDS;
   protected readonly projectAnchor = anchors.project();
+  /** An event is being dragged over the panel. */
+  protected readonly dropping = signal(false);
+  /** Accepts a dragged event (from the events grid). */
+  protected onDragOver(e: DragEvent): void {
+    if (!hasEventDrag(e.dataTransfer)) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    this.dropping.set(true);
+  }
+
+  /** Dropping an event writes a note on it. */
+  protected onDrop(e: DragEvent): void {
+    this.dropping.set(false);
+    const event = readEventDrag(e.dataTransfer);
+    if (!event) return;
+    e.preventDefault();
+    void this.actions.write(anchors.event({ id: event.id, ts: event.ts, sourceName: event.source, message: event.excerpt }));
+  }
+
   private readonly tz = computed(() => this.workspace.timezone());
 
   constructor() {

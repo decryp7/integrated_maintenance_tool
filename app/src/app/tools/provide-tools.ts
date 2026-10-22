@@ -1,3 +1,4 @@
+import { WhatsNewService } from '../whats-new/whats-new';
 import { EnvironmentProviders, inject, makeEnvironmentProviders, provideAppInitializer } from '@angular/core';
 import { DROPPED_FILES_HANDLERS } from '../core/dropped-files';
 import { provideToolsBackend } from '../core/tools-backend';
@@ -45,7 +46,9 @@ export function startTools(): void {
   const requests = inject(OpenRequests);
   // Reads which tools the engine offers (and keeps it current); views and commands follow.
   inject(ToolCatalog);
+  const whatsNew = inject(WhatsNewService);
   void life.init().then(() => {
+    whatsNew.checkOnStart();
     session.start();
     return requests.start();
   });

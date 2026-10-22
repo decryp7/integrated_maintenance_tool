@@ -1,6 +1,6 @@
 import { BrowserContext, expect, Page, test } from '@playwright/test';
 import { openQuery } from './analysis-support';
-import { ensureInspector, gridTotal, initialTotal, openApp, openView, parseCount } from './app';
+import { ensureInspector, openApp, openView } from './app';
 import { expectNoSeriousViolations } from './axe';
 import { runCommand } from './analysis-support';
 import { menuItem, openMenu } from './menu-support';
@@ -47,20 +47,13 @@ test.describe('pop-out windows', () => {
     await expect(popup.locator('imt-inspector')).toContainText(nextMessage.slice(0, 20));
   });
 
-  test('a query changed in the pop-out filters the host grid', async ({ page, context }) => {
-    const before = parseCount(await initialTotal(page));
-    await openQuery(page);
-    const popup = await popOut(page, context, 'Query');
-    const input = popup.getByRole('combobox', { name: 'Query' });
-    await input.click();
-    await input.fill('level >= error');
+  test('a stats query run in the host shows its table in the Query results pop-out', async ({ page, context }) => {
+    const input = await openQuery(page);
+    await input.fill('| stats count() by level');
     await input.press('ControlOrMeta+Enter');
-    await expect(popup.locator('imt-query-view .applied')).toContainText('level >= error');
-    await expect.poll(async () => {
-      const n = parseCount(await gridTotal(page).innerText());
-      return n > 0 && n < before;
-    }).toBe(true);
-    await expect(page.locator('imt-events-grid [role=row].row').filter({ hasText: /INF|WRN|DBG|VRB/ })).toHaveCount(0);
+    await expect(tab(page, 'Query results')).toBeVisible();
+    const popup = await popOut(page, context, 'Query results');
+    await expect(popup.locator('imt-query-results-view')).toBeVisible();
   });
 
   test('Dock back returns the panel to where it was', async ({ page, context }) => {
@@ -69,17 +62,17 @@ test.describe('pop-out windows', () => {
     await popup.getByRole('button', { name: 'Dock back into the main window' }).click();
     await closed;
     await expect(tab(page, 'Inspector')).toBeVisible();
-    // Back on the right of the documents, as before.
+    // Back on the right of the timeline and the document beside it, as before.
     const inspector = (await page.locator('imt-inspector').boundingBox())!;
-    const events = (await page.locator('imt-events-grid').boundingBox())!;
-    expect(inspector.x).toBeGreaterThanOrEqual(events.x + events.width - 2);
+    const documents = (await groupOf(page, 'Registry').boundingBox())!;
+    expect(inspector.x).toBeGreaterThanOrEqual(documents.x + documents.width - 2);
   });
 
   test('closing the pop-out window docks the panel back; it is never lost', async ({ page, context }) => {
     const popup = await popOut(page, context, 'Metrics');
     await popup.close();
     await expect(tab(page, 'Metrics')).toBeVisible();
-    await expect(groupOf(page, 'Metrics')).toContainText('Timeline');
+    await expect(groupOf(page, 'Metrics')).toContainText('Registry');
   });
 
   test('the View menu shows a popped-out panel as open; closing it there closes the window', async ({ page, context }) => {

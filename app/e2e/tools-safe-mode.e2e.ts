@@ -7,8 +7,8 @@ import { nextRender } from './app';
 async function viewMenu(page: Page): Promise<string[]> {
   await chooseMenu(page, 'View', 'Other windows…');
   const picker = page.getByRole('dialog', { name: 'Other windows' });
-  // Plugin health is always offered: once it shows, the list is complete.
-  await expect(picker.getByRole('option', { name: /Plugin health$/ })).toBeVisible();
+  // The Plugins view (with its Health tab) is always offered: once it shows, the list is complete.
+  await expect(picker.getByRole('option', { name: /Plugins$/ })).toBeVisible();
   const items = await picker.locator('[role=option] .title').allInnerTexts();
   await page.keyboard.press('Escape');
   return items.map((t) => t.trim());
@@ -34,11 +34,12 @@ test.describe('tools without the tools plugin', () => {
     await expect.poll(() => viewMenu(page)).not.toContain('Performance Monitor');
     const menu = await viewMenu(page);
     expect(menu).not.toContain('Process Monitor');
-    expect(menu).toContain('Plugin health');
+    expect(menu).toContain('Plugins');
     expect(await paletteOffers(page, 'Collect diagnostics bundle')).toBe(false);
     expect(await paletteOffers(page, 'Open Process Monitor')).toBe(false);
     // Core features still work.
-    await openView(page, 'Plugin health');
+    await openView(page, 'Plugins');
+    await page.getByTestId('plugins-tab-health').click();
     await expect(page.locator('imt-plugin-health-view')).toBeVisible();
     await expect(page.getByRole('alert').filter({ hasText: /safe mode|failed/i })).toHaveCount(0);
   });

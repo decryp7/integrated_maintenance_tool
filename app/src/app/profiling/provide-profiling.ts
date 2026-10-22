@@ -63,6 +63,7 @@ export class ProfilingCommands {
 /** Profiles open on the hotspots, heap snapshots on the memory view; the captures list follows. */
 export function showOpened(ctx: CommandContext, opened: CaptureSummary[]): void {
   if (!opened.length) return;
+  ctx.suggestPerspective?.('profiling');
   ctx.showView(V.captures);
   if (opened.some(isProfile)) ctx.showView(V.hotspots);
   else if (opened.some(isHeap)) ctx.showView(V.heap);

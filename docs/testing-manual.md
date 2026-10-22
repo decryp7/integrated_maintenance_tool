@@ -50,7 +50,7 @@ Write down the platform, build and anything that differs from the expected resul
 | 21 | Tray → *Show IMT* (or a window's name in the list). | That window is shown and focused. |
 | 22 | Tray → *Recent projects* → a project. | It opens per *Open files from other apps in*. A project that no longer exists opens nothing. |
 | 23 | Start live tail and the process monitor (and a PerfMon collector on Windows), then open Tray → *Background work*. | Each item is listed with a Stop entry, and the tooltip says "N background tasks running". Stop ends it, and the status bar's *Background work* popover and the window's Live button update. |
-| 24 | Tray → *Capture diagnostic screenshot*. | The last-focused window comes to the front and an error snapshot is saved (see *Tools → Show error snapshots*). |
+| 24 | Tray → *Capture diagnostic screenshot*. | The last-focused window comes to the front and an error snapshot is saved (see *Tools → Show error snapshots*) with a picture of the window's content (no title bar) as it was on screen, at most 1600 px wide (on a Retina Mac: the window's width in points). The window stays responsive meanwhile. |
 | 25 | Tray → *Quit IMT*. | IMT exits, including hidden windows. The next start does not report a crash. |
 | 26 | Set *Start in the system tray*, then restart. | IMT starts with only the tray icon. Tray → *Show IMT* shows the window. |
 | 27 | macOS: switch the menu bar between light and dark. | The tray icon (a template image) follows. |

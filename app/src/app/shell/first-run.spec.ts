@@ -1,13 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { all, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
 import { Finding, fullCoverage } from '../core/api.types';
-import { LAYOUT_MODE_KEY, LayoutModeStore } from '../core/workspace/layout-mode';
 import { WorkspaceStore } from '../core/workspace.store';
 import { CommandRegistry } from '../extensions/command-registry';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { NotificationsStore } from '../notifications/notifications.store';
-import { headlineOf, OverviewHeadline } from '../overview/overview-headline';
-import { OverviewActions } from '../overview/overview-actions';
+import { headlineOf, HealthHeadline } from '../home/health/health-headline';
+import { HealthActions } from '../home/health/health-actions';
 import { ShareBackend } from '../share/share-backend';
 import { TimelinePanel } from '../timeline/timeline-panel';
 import { LEGEND_COLLAPSED } from '../timeline/timeline-legend';
@@ -16,19 +15,6 @@ import { at } from '../../testing/must';
 const finding = (kind: string, title = kind): Finding => ({ kind, severity: 'critical', title, detail: '', action: { kind: 'zoom', from: 1, to: 2, recordId: 3 } });
 
 describe('focused first run', () => {
-  afterEach(() => localStorage.removeItem(LAYOUT_MODE_KEY));
-
-  it('View › Layout switches between Focused (default) and Full, and remembers it', async () => {
-    TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
-    const layout = TestBed.inject(LayoutModeStore);
-    expect(layout.mode()).toBe('focused');
-    await TestBed.inject(CommandRegistry).run('view.layout.full');
-    expect(layout.full()).toBe(true);
-    expect(localStorage.getItem(LAYOUT_MODE_KEY)).toBe('full');
-    await TestBed.inject(CommandRegistry).run('view.layout.focused');
-    expect(layout.mode()).toBe('focused');
-  });
-
   it('keeps local messages in the bell: unread until read, all read, dismissed', () => {
     TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
     const notices = TestBed.inject(NotificationsStore);
@@ -92,7 +78,7 @@ describe('timeline legend', () => {
   });
 });
 
-describe('OverviewHeadline', () => {
+describe('HealthHeadline', () => {
   it('summarises crashes, errors and silences, and is hidden when nothing is notable', () => {
     expect(headlineOf([], { Error: 0, Fatal: 0 })).toBeNull();
     expect(headlineOf([finding('crash'), finding('silence'), finding('memoryGrowth')], { Error: 3, Fatal: 1 })).toMatchObject({ errors: 4 });
@@ -113,14 +99,14 @@ describe('OverviewHeadline', () => {
       ],
     });
     const actions = { run: vi.fn(async () => undefined) };
-    TestBed.overrideProvider(OverviewActions, { useValue: actions });
+    TestBed.overrideProvider(HealthActions, { useValue: actions });
     TestBed.inject(WorkspaceStore);
-    const fixture = TestBed.createComponent(OverviewHeadline);
+    const fixture = TestBed.createComponent(HealthHeadline);
     await settle(fixture);
     return { fixture, share, views, queries, actions };
   }
 
-  it('shows one toolbar line whose counts act like the Overview, and Review opens it', async () => {
+  it('shows one toolbar line whose counts act like Home, and Review opens it', async () => {
     const { fixture, share, views, queries, actions } = await mount([finding('crash', 'a'), finding('crash', 'b'), finding('silence', 's')]);
     expect(share.overview).toHaveBeenCalledTimes(1);
     const bar = el(fixture, '[role=toolbar]');
@@ -135,7 +121,7 @@ describe('OverviewHeadline', () => {
     el<HTMLButtonElement>(fixture, '[data-testid=headline-errors]').click();
     expect(queries).toEqual([{ levels: ['Error', 'Fatal'] }]);
     el<HTMLButtonElement>(fixture, '[data-testid=headline-review]').click();
-    expect(views).toEqual(['events', 'overview']);
+    expect(views).toEqual(['events', 'home']);
   });
 
   it('uses singular forms for one', async () => {

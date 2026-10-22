@@ -2,14 +2,14 @@ import { expect, Page, test } from '@playwright/test';
 import { expectNoSeriousViolations } from './axe';
 import { openAppWith, runCommand } from './tools-support';
 
-/** The sidebar row of a source, by the end of its path. */
+/** The sidebar row of a source, by the end of its path (the row's tooltip starts with the path; rows show only the name under a folder heading). */
 function sourceRow(page: Page, path: string) {
-  return page.locator('imt-sidebar .src', { hasText: path });
+  return page.locator(`imt-sidebar .src[title*="${path}"]`);
 }
 
 /** Searches the messages and selects the first matching event. */
 async function selectFirst(page: Page, text: string): Promise<void> {
-  await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill(text);
+  await page.getByTestId('query-field').fill(text);
   const first = page.locator('imt-events-grid [role=row].row').first();
   await expect(first).toContainText(text);
   await first.click();

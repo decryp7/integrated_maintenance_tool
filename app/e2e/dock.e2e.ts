@@ -19,18 +19,15 @@ async function box(page: Page, selector: string) {
 }
 
 test.describe('dock layout', () => {
-  // The docking mechanics are checked on the Full layout (timeline, query bar and events in three groups).
+  // The docking mechanics are checked on the default arrangement (timeline and registry beside it, over the events).
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('imt.layout.mode.v1', 'full'));
     await openApp(page);
   });
 
-  test('Full layout: timeline over the query bar over events, the inspector auto-hidden on the right; it slides out on selection and pins', async ({ page }) => {
+  test('default arrangement: timeline and registry over the events, the inspector auto-hidden on the right; it slides out on selection and pins', async ({ page }) => {
     const timeline = await box(page, 'imt-timeline-panel');
-    const query = await box(page, 'imt-query-view');
     const events = await box(page, 'imt-events-grid');
-    expect(timeline.y + timeline.height).toBeLessThanOrEqual(query.y + 1);
-    expect(query.y + query.height).toBeLessThanOrEqual(events.y + 1);
+    expect(timeline.y + timeline.height).toBeLessThanOrEqual(events.y + 1);
     await expect(groups(page)).toHaveCount(3);
     for (const name of ['Timeline', 'Registry']) await expect(tab(page, name)).toBeVisible();
     // Metrics, the profile editor and the analysis and tool windows open on demand.
@@ -129,7 +126,7 @@ test.describe('dock layout', () => {
     await expect(menuItem(await openMenu(page, 'View'), 'Inspector')).toHaveAttribute('aria-checked', 'false');
     await page.keyboard.press('Escape');
     await openView(page, 'metrics');
-    await chooseMenu(page, 'Window', 'Layouts', 'Reset window layout');
+    await chooseMenu(page, 'Window', 'Perspectives', 'Reset perspective');
     await expect(inspectorAhTab(page)).toBeVisible();
     await expect(groups(page)).toHaveCount(3);
     await expect(tab(page, 'Metrics')).toHaveCount(0);
@@ -162,9 +159,7 @@ test.describe('dock layout', () => {
 
   test('tabs are keyboard accessible', async ({ page }) => {
     await openView(page, 'metrics');
-    await tab(page, 'Timeline').focus();
-    await expect(tab(page, 'Timeline')).toBeFocused();
-    await page.keyboard.press('ArrowRight');
+    await tab(page, 'Registry').focus();
     await expect(tab(page, 'Registry')).toBeFocused();
     await page.keyboard.press('ArrowRight');
     await expect(tab(page, 'Metrics')).toBeFocused();

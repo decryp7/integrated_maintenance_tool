@@ -486,7 +486,7 @@ See [ADR 0012](adr/0012-jobs.md).
 ![A floating timeline panel over the events grid](screenshots/floating-panel.png)
 
 Every view is a panel. Drag tabs to split, maximise a panel, and reset the layout from the command
-palette. Layouts are remembered. Floating a panel inside the window is always deliberate: **Float**
+palette. Layouts are remembered per perspective. Floating a panel inside the window is always deliberate: **Float**
 in the tab menu or the group's ⋯ panel menu, or **Window ▸ Float panel**; a drag never floats.
 
 Dragging a tab shows where it goes. On a docking guide (the compass over a group, the guides at
@@ -517,10 +517,10 @@ The first run is focused. With nothing open, the window shows only the welcome p
 or try the demo) and the Explorer; the filter bar and the Fields section appear once data is open. After
 opening data, the default layout is the timeline over the events grid. The inspector waits at the right edge
 and slides out when you select an event (pin it to keep it docked); views for what you just opened (a registry
-export, a profile capture, a diagnostics report) open by themselves. The Overview, the query bar and Metrics
+export, a profile capture, a diagnostics report) open by themselves. Home, the query bar and Metrics
 stay one click away: the timeline header shows the health check's headline on one line ("⚠ 2 crashes · 287
-errors · 1 went silent — Review"; each count jumps to or filters those events, *Review* opens the Overview),
-`Ctrl/⌘+/` opens the query bar, and the **activity bar** on the left offers Explorer, Search, Timeline,
+errors · 1 went silent — Review"; each count jumps to or filters those events, *Review* opens Home),
+`Ctrl/⌘+/` focuses the search field, and the **activity bar** on the left offers Explorer, Search, Timeline,
 *Analysis ▸* (patterns, anomalies, exceptions, Moment, compare, traces, runs, …), Metrics, *Live tail*, *AI*,
 *Tools ▸* and the profile editor. Buttons that need data (Search, Timeline, Analysis, Metrics, Live tail) appear
 once data is open; everything stays reachable from the View menu. Plugins can add their own buttons.
@@ -531,9 +531,14 @@ there are any. The timeline legend lists only the marker kinds in the data, on o
 rest. The Fields section of the sidebar starts collapsed and remembers whether you opened it. After opening a
 folder of several files, *Set up analysis…* is offered as a message in Notifications (the bell), not as a banner.
 
-*View ▸ Layout* switches between **Focused** (the default) and **Full**, where the query bar is part of the
-default layout and the Overview opens after every import, as in earlier versions. The switch applies to new
-layouts (*Reset layout*, a new window); a layout you saved or arranged is never changed by it.
+**Perspectives** ([ADR 0035](adr/0035-view-areas-and-perspectives.md)) are named window arrangements: Investigate
+(the default), Profiling, Live and Diagnostics are built in, and saved window layouts are perspectives too. Switch
+from the activity bar, *Window ▸ Perspectives* or `Mod+1…9`; each remembers how you left it. Every view opens in its
+home area (documents beside the timeline and the grid, analysis views in one group below the grid with at most eight
+tabs, side tools on the right, status tools at the bottom edge), and never over the timeline or the grid. The
+filter bar has one search field for words and queries (the engine tells which), back/forward (`Alt+←/→`, mouse
+buttons 4 and 5) walks through events, ranges and views, zooming is on the undo stack, and narrow windows fold
+the filter bar, close the Explorer and keep the Message column readable.
 
 ## Windows, tray and notifications
 
@@ -591,9 +596,17 @@ Settings ▸ Appearance (or *View ▸ Theme*, or the command palette) chooses ho
   shadows, one cobalt accent, 2 px corners, mono figures, barcode lane density, bracket runs and the tightest rows.
   Themes differ in shape as well as colour (Inter + JetBrains Mono for Calm, Geist + Geist Mono for Console, IBM
   Plex Sans + Plex Mono for Precision; the fonts are bundled).
+- **Follow system** (the default choice) uses Calm, or *High contrast* when the operating system asks for more
+  contrast (`prefers-contrast: more`), and changes live. *High contrast* is pure black or white with text at WCAG
+  AAA (at least 7:1 everywhere), borders, focus rings and markers at 4.5:1 or more, strong outlines instead of
+  shadows, slightly larger type and looser rows, in both colour schemes.
 - **Interface font.** *System* (the default) uses the operating system's font for menus, panels and dialogs (Segoe
   UI on Windows, San Francisco on macOS, the desktop's font on Linux), like other desktop apps; *Theme* uses the
   theme's own face. Log text is always monospaced.
+- **Keyboard shortcuts.** Settings ▸ Keyboard (or *Help ▸ Keyboard shortcuts ▸ Edit shortcuts…*) lists every
+  command with its key; *Change* records a new key, warns when another command or a built-in key already uses
+  it (Replace or Cancel), and the cheat sheet (F1), menus and palette show your keys. Overrides are kept for
+  your user. *Help ▸ What's new* shows the release notes (CHANGELOG.md), once automatically after an update.
 - **Colour scheme.** Light, dark, or *System* (the default), which follows the operating system as it changes.
 - **Density.** *Comfortable* or *Compact* row and lane heights, in every theme.
 - **Colour lanes by source.** Draws each lane's volume in its source colour instead of neutral grey; each theme
@@ -651,11 +664,19 @@ sub-tracks below the lane's markers, so none hides another; the lane grows by on
 ## Easy to start, hard to get wrong
 
 - **Try a demo** on the welcome screen opens the bundled sample incident and offers a short, skippable
-  guided tour of the timeline, grid, query bar, Moment view, markers and overview.
-- **Overview:** a health check lists crashes, error spikes, exceptions, unread lines, files that could not
-  be opened (with the reason) and plugins with problems, each with a button to jump to the time, show the
-  events or fix the cause. Its headline is on the timeline header; in the Full layout the Overview opens after
-  every import (which can be turned off).
+  guided tour of the timeline, grid, query bar, Moment view, markers and Home.
+- **Home:** the dashboard of everything opened (`docs/screenshots/home.png`). Live tiles (events, sources, errors
+  and warnings with their trend, crashes, anomalies, exception groups, time span, store size and memory), the
+  history of events by level with markers and anomalies marked (click a bar or drag across it to set the time
+  range), the health check (crashes, error spikes, exceptions, unread lines, files that could not be opened and
+  plugins with problems, most severe first, each with a button to jump to the time, show the events or fix the
+  cause), recent activity and quick actions (open files or a folder, open the last project). The engine computes
+  every number; the counts and the history appear at once and the slower analyses fill in after. The health check
+  lists at most 100 anomalies (the highest ranked) and says how many it left out. Its headline is on the timeline
+  header; in the Full layout Home opens after every import (which can be turned off).
+- **Timeline minimap:** a thin strip above the timeline's histogram shows the whole data extent by level with a
+  window for the visible range. Drag the window to pan, drag an edge to zoom, click the strip to centre the window,
+  double-click to fit; with the window focused the arrow keys pan and Home/End go to the ends.
 - **Import progress with Cancel:** files, bytes, the current file and the time left; a cancelled import
   says clearly what was not read, and *Re-import all* loads the rest.
 - **Undo and redo** for user edits; changes to the profile are undone by saving the previous version

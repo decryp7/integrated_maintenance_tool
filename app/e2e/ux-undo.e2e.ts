@@ -51,7 +51,7 @@ test.describe('undo and redo', () => {
 
   test('typing in the search box keeps the browser undo; outside it Mod+Z undoes the search as one edit', async ({ page }) => {
     const all = await initialTotal(page);
-    const search = page.getByRole('textbox', { name: 'Search messages and exceptions' });
+    const search = page.getByTestId('query-field');
     await search.pressSequentially('timed out', { delay: 20 });
     await expect(gridTotal(page)).not.toHaveText(all);
     await page.getByRole('toolbar', { name: 'Levels' }).getByRole('button', { name: /^ERR/ }).focus();

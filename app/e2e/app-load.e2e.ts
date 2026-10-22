@@ -13,34 +13,36 @@ test.describe('app load', () => {
     await expect(page.getByRole('tab', { name: 'Timeline', selected: true })).toBeVisible();
   });
 
-  test('default (Focused) layout: the timeline over the events, the registry viewer stacked behind Timeline, the inspector auto-hidden; Ctrl+/ pins the query bar above the grid', async ({ page }) => {
+  test('default (Investigate) perspective: the timeline with the registry viewer beside it over the events, the inspector auto-hidden; Ctrl+/ focuses the search field above them', async ({ page }) => {
     const names = async (selected?: boolean) => (await page.getByRole('tab', selected ? { selected } : {}).locator('.imt-tab-label').allInnerTexts()).map((t) => t.trim()).sort();
-    // Each group shows one tab: Timeline (with the viewer of the opened registry export behind it) and Events.
-    await expect.poll(() => names(true)).toEqual(['Events', 'Timeline']);
+    // Each group shows one tab: Timeline, the viewer of the opened registry export beside it, and Events below.
+    await expect.poll(() => names(true)).toEqual(['Events', 'Registry', 'Timeline']);
     expect(await names()).toEqual(['Events', 'Registry', 'Timeline']);
-    // The inspector waits as an auto-hidden tool window on the right edge; Overview, Query and Metrics open on demand.
+    const timeline = (await page.locator('.dv-groupview', { has: page.getByRole('tab', { name: 'Timeline', exact: true }) }).boundingBox())!;
+    const registry = (await page.locator('.dv-groupview', { has: page.getByRole('tab', { name: 'Registry', exact: true }) }).boundingBox())!;
+    const events = (await page.locator('.dv-groupview', { has: page.getByRole('tab', { name: 'Events', exact: true }) }).boundingBox())!;
+    expect(registry.x).toBeGreaterThanOrEqual(timeline.x + timeline.width - 2);
+    expect(events.y).toBeGreaterThanOrEqual(timeline.y + timeline.height - 2);
+    // The inspector waits as an auto-hidden tool window on the right edge; Overview (off by default) and Metrics open on demand.
     await expect(page.getByRole('navigation', { name: 'Auto-hidden tool windows (right)' }).getByRole('button', { name: 'Inspector' })).toBeVisible();
     await expect(page.locator('imt-inspector')).toHaveCount(0);
-    await expect(page.locator('imt-overview-view')).toHaveCount(0);
-    // Ctrl+/ opens the query bar directly above the events grid, in its own short group.
+    await expect(page.locator('imt-home-view')).toHaveCount(0);
+    // The one search field is part of the filter bar, above the dock, and no Query panel exists.
+    await expect(page.getByRole('tab', { name: 'Query' })).toHaveCount(0);
+    await page.getByRole('grid', { name: 'Events' }).focus();
     await page.keyboard.press('ControlOrMeta+/');
-    await expect(page.getByRole('combobox', { name: 'Query' })).toBeFocused();
-    const query = await page.locator('.dv-groupview', { has: page.getByRole('tab', { name: 'Query' }) }).boundingBox();
-    const events = await page.locator('.dv-groupview', { has: page.getByRole('tab', { name: 'Events' }) }).boundingBox();
-    expect(query && events).toBeTruthy();
-    expect(Math.abs(query!.y + query!.height - events!.y)).toBeLessThanOrEqual(2);
-    expect(query!.height).toBeLessThanOrEqual(90);
-    // Tall enough for the whole query input (no clipping).
-    const input = await page.locator('imt-query-view').getByRole('button', { name: 'Run', exact: true }).boundingBox();
-    expect(input!.y + input!.height).toBeLessThanOrEqual(query!.y + query!.height + 1);
+    await expect(page.getByTestId('query-field')).toBeFocused();
+    const field = (await page.locator('imt-query-field').boundingBox())!;
+    expect(field.y + field.height).toBeLessThanOrEqual(timeline.y + 2);
   });
 
   test('explorer lists the sources', async ({ page }) => {
     const sidebar = page.locator('imt-sidebar');
     await expect(sidebar.getByText('Explorer', { exact: true })).toBeVisible();
-    await expect(sidebar.getByText('web01/orders-20261014.clef')).toBeVisible();
+    await expect(sidebar.locator('.src[title*="web01/orders-20261014.clef"]')).toBeVisible();
     await expect(sidebar.locator('.src:not(.dim)')).toHaveCount(6);
-    await expect(sidebar.locator('.src:not(.dim) .badge')).toHaveText(['json', 'json', 'text', 'json', 'csv', 'registry']);
+    expect(await sidebar.locator('.src:not(.dim) [data-testid=format-badge]').evaluateAll((els) => els.map((e) => e.getAttribute('title')))).toEqual(['json', 'json', 'text', 'json', 'csv', 'registry']);
+    await expect(sidebar.locator('[data-testid=folder-heading]').first()).toBeVisible();
     await expect(sidebar.locator('.src.dim')).toHaveCount(1); // unrecognized files are listed dimmed
     await expect(sidebar.getByText('Fields', { exact: true })).toBeVisible();
   });

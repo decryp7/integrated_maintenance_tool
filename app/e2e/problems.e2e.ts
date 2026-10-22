@@ -17,8 +17,8 @@ test('Problems pane: the status-bar badge opens it, the quick fix is previewed a
   await badge.click();
   const pane = page.locator('imt-problems-panel');
   await expect(pane).toBeVisible();
-  // The tab title counts the problems.
-  await expect(page.getByRole('tab', { name: /^Problems \(\d+\)$/ })).toHaveCount(1);
+  // The side-bar tab it slid out of counts the problems.
+  await expect(page.locator('.imt-ah-tab[data-ah-id="problems"]')).toContainText(/Problems \(\d+\)/);
 
   const tree = pane.getByRole('tree', { name: 'Problems' });
   const untimed = tree.getByRole('treeitem', { name: /Events without a readable timestamp/ });

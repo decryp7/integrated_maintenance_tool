@@ -1,5 +1,4 @@
 import { SettingsStore } from '../../settings/settings.store';
-import { LayoutModeStore } from '../../core/workspace/layout-mode';
 import { SidebarSections } from '../sidebar-sections';
 import { afterNextRender, computed, inject, Injectable, InjectionToken, Injector } from '@angular/core';
 import { isTauri } from '../../core/platform';
@@ -10,9 +9,12 @@ import { CommandRegistry } from '../../extensions/command-registry';
 import { isMac } from '../../extensions/keybinding';
 import { ViewRegistry } from '../../extensions/view-registry';
 import { PaletteService } from '../../palette/palette.service';
+import { Perspectives } from '../../dock/perspectives';
 import { UndoStack } from '../../undo/undo-stack';
 import { WindowingService } from '../../windowing/windowing.service';
+import { RecentService } from '../../core/recent/recent.service';
 import { buildMenus, MENU_IDS, MenuCommand, TopMenu } from './menu-model';
+import { RecentOpener } from './recent-opener';
 
 /** Where the menus are shown: IMT's own menu bar, or the macOS native menu bar (the in-app bar is then hidden). */
 export type MenuMode = 'in-app' | 'native';
@@ -31,13 +33,14 @@ export class AppMenu {
   private readonly dock = inject(DockService);
   private readonly store = inject(WorkspaceStore);
   private readonly undo = inject(UndoStack);
+  private readonly perspectives = inject(Perspectives);
   private readonly windowing = inject(WindowingService);
   private readonly palette = inject(PaletteService);
   private readonly panelWindows = inject(PANEL_WINDOWS, { optional: true });
   private readonly injector = inject(Injector);
   private readonly prefs = inject(SettingsStore);
-  private readonly layout = inject(LayoutModeStore);
   private readonly sections = inject(SidebarSections);
+  private readonly recent = inject(RecentService);
   readonly mode = inject(MENU_MODE);
 
   readonly menus = computed<TopMenu[]>(() => {
@@ -52,13 +55,14 @@ export class AppMenu {
       theme: this.store.theme(),
       scheme: this.store.scheme(),
       sourceColors: this.prefs.sourceColors(),
-      layoutMode: this.layout.mode(),
+      activePerspective: this.perspectives.activeNumber(),
       timezone: this.store.timezone(),
       markedOnly: this.store.markedOnly(),
       undoLabel: this.undo.undoLabel(),
       redoLabel: this.undo.redoLabel(),
       windows: this.windowing.windows().map((w) => ({ label: w.label, title: w.title, current: w.label === label })),
       popouts: [...popped].map((id) => ({ id, title: this.views.find(id)?.title ?? id })),
+      recent: { projects: this.recent.projects(), files: this.recent.files() },
       nativeAppMenu: this.mode === 'native',
     });
   });
@@ -74,6 +78,12 @@ export class AppMenu {
       this.panelWindows?.focus(id.slice(MENU_IDS.popout.length));
     } else if (id === MENU_IDS.otherWindows) {
       this.palette.open('views');
+    } else if (id.startsWith(MENU_IDS.recentFile)) {
+      void this.injector.get(RecentOpener).openFile(id.slice(MENU_IDS.recentFile.length));
+    } else if (id.startsWith(MENU_IDS.recentProject)) {
+      void this.injector.get(RecentOpener).openProject(id.slice(MENU_IDS.recentProject.length));
+    } else if (id === MENU_IDS.recentClear) {
+      void this.injector.get(RecentOpener).clear();
     } else if (id === MENU_IDS.fields) {
       this.showFields();
     } else {

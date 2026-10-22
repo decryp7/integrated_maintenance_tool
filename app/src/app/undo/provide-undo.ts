@@ -3,6 +3,7 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { IMT_COMMANDS, ImtCommand } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS, UiStateContribution } from '../lifecycle/ui-state';
 import { QueryUndo } from './query-undo';
+import { RangeUndo } from './range-undo';
 import { UndoStack } from './undo-stack';
 
 export const UNDO_COMMAND = 'edit.undo';
@@ -42,13 +43,14 @@ export class UndoCommands {
  * Forgets the history whenever saved UI state is applied: a project, a session or a bundle was opened, or a new
  * project started. The edits referred to what was there before. Saves nothing (`capture` is undefined).
  */
-export function undoResetContribution(undo: UndoStack, query: QueryUndo): UiStateContribution {
+export function undoResetContribution(undo: UndoStack, query: QueryUndo, range: RangeUndo): UiStateContribution {
   const reset = () => {
     undo.clear();
     // After the other contributions restored theirs (same task), so the restored query is not an edit.
     queueMicrotask(() => {
       undo.clear();
       query.rebase();
+      range.rebase();
     });
   };
   return { key: 'undoHistory', tracksChanges: false, capture: () => undefined, restore: reset, reset };
@@ -58,7 +60,10 @@ export function undoResetContribution(undo: UndoStack, query: QueryUndo): UiStat
 export function provideUndo(): EnvironmentProviders {
   return makeEnvironmentProviders([
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(UndoCommands).commands },
-    { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => [undoResetContribution(inject(UndoStack), inject(QueryUndo))] },
-    provideEnvironmentInitializer(() => inject(QueryUndo).start()),
+    { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => [undoResetContribution(inject(UndoStack), inject(QueryUndo), inject(RangeUndo))] },
+    provideEnvironmentInitializer(() => {
+      inject(QueryUndo).start();
+      inject(RangeUndo).start();
+    }),
   ]);
 }
