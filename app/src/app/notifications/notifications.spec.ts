@@ -5,7 +5,7 @@ import { FakeContext } from '../analysis/test-setup';
 import { LifecycleBackend } from '../core/tools-backend';
 import { Logger } from '../core/logger';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
-import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, IMT_VIEWS } from '../extensions/tokens';
+import { IMT_COMMANDS, IMT_VIEWS } from '../extensions/tokens';
 import { JobViewer } from '../jobs/job-viewer';
 import { JobsBackend } from '../jobs/jobs-backend';
 import { JobsStore } from '../jobs/jobs.store';

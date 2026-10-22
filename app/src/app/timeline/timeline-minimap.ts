@@ -67,7 +67,7 @@ interface Drag {
   `,
   styles: `
     :host { display: block; }
-    .strip { position: relative; height: var(--minimap-h, 26px); border-bottom: 1px solid var(--border); background: var(--bg-2); cursor: pointer; touch-action: none; user-select: none; }
+    .strip { position: relative; height: 26px; border-bottom: 1px solid var(--border); background: var(--bg-2); cursor: pointer; touch-action: none; user-select: none; }
     .mini { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.85; }
     .dim { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--bg-1) 62%, transparent); pointer-events: none; }
     .dim.l { left: 0; }
@@ -178,7 +178,7 @@ export class TimelineMinimap {
     const ext = this.extent();
     const view = this.zoom().view();
     if (!ext || !view) return;
-    let next: Range | null = null;
+    let next: Range;
     switch (e.key) {
       case 'ArrowLeft':
         next = stepRange(view, ext, -1, e.shiftKey ? 0.5 : 0.1);

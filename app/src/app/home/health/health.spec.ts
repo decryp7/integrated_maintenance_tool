@@ -1,14 +1,14 @@
 import { TestBed } from '@angular/core/testing';
-import { all, buttonByText, FakeDock, pluginInfo, provideFakeDock, provideTinyBackend, settle, text } from '../../../testing/helpers';
+import { pluginInfo, provideFakeDock, provideTinyBackend } from '../../../testing/helpers';
 import { ExceptionGroup, Finding, fullCoverage, WorkspaceSummary } from '../../core/api.types';
 import { AnalysisBackend } from '../../core/analysis-backend';
-import { WorkspaceStore } from '../../core/workspace.store';
+
 import { COMMAND_CONTEXT } from '../../extensions/command-registry';
-import { CommandRegistry } from '../../extensions/command-registry';
+
 import { CommandContext } from '../../extensions/tokens';
-import { ViewRegistry } from '../../extensions/view-registry';
+
 import { FormatWizard } from '../../format/format-wizard';
-import { ShareBackend } from '../../share/share-backend';
+
 import { DialogService } from '../../ui/dialog.service';
 import { HealthActions } from './health-actions';
 import { actionButtons, groupBySeverity, healthStats, panelTarget, pluginProblems, zoomWindow } from './health-model';

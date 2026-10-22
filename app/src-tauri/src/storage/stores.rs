@@ -395,7 +395,8 @@ mod tests {
                 &["w-3-1".into(), "w-3-2".into()],
                 &AtomicBool::new(false),
             );
-            std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o700)).unwrap();
+            // (Root may have deleted the folder already: then there is nothing to unlock.)
+            let _ = std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o700));
             // Root may delete anyway (CI containers): the contract is that nothing panics and the free one goes.
             assert!(r.removed.contains(&"w-3-2".to_string()));
             if locked.exists() {

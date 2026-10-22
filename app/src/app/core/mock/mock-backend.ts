@@ -58,7 +58,7 @@ import { mockLenses } from './mock-lenses';
 import { mockRedactCfg, MockRedactor } from '../../share/mock/mock-redact';
 import { OffsetChange, SetOffsetRequest, SuggestRequest, SuggestResult } from '../api.types';
 import { CmdError } from '../cmd-error';
-import { mockSuggest, recordKey, resolveOffset, shiftSource } from './mock-skew';
+import { mockSuggest, resolveOffset, shiftSource } from './mock-skew';
 import { FileOpened, ImportProgress, OpenFileRequest, ProfileVersionInfo } from '../api.types';
 import { mockFileKind, mockOpenSourceFile } from './mock-files';
 import { mockNotifications } from '../../notifications/mock-notifications';

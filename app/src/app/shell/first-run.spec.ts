@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { all, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
 import { Finding, fullCoverage } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
-import { CommandRegistry } from '../extensions/command-registry';
+
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { NotificationsStore } from '../notifications/notifications.store';
 import { headlineOf, HealthHeadline } from '../home/health/health-headline';

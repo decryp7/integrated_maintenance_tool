@@ -220,7 +220,7 @@ describe('search everything navigation', () => {
   it('goes where each result points', () => {
     const { context } = provide();
     const dialogs = TestBed.inject(DialogService);
-    const open = vi.spyOn(dialogs, 'open').mockImplementation(() => undefined as never);
+    vi.spyOn(dialogs, 'open').mockImplementation(() => undefined as never);
     const nav = TestBed.inject(SearchEverythingNavigator);
     nav.go({ kind: 'event', id: 4 });
     expect(context.jumpTo).toHaveBeenLastCalledWith(4);

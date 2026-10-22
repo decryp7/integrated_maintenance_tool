@@ -65,7 +65,7 @@ import { CoverageNote } from './coverage-note';
       .frame { max-width: 320px; flex: none; font-size: var(--fs-xs); }
       .group { border-bottom: 1px solid var(--border); }
       .head { border-bottom: 0; }
-      .group.selected { background: var(--bg-selected, var(--surface-2)); box-shadow: inset 2px 0 0 var(--accent); }
+      .group.selected { background: var(--bg-sel); box-shadow: inset 2px 0 0 var(--accent); }
       .detail { padding: 0 12px 10px 38px; }
       .inst { display: flex; gap: 12px; padding: 2px 0; max-width: 520px; }
       .inst .ellipsis { flex: 1; }

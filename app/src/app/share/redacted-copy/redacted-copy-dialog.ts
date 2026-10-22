@@ -178,7 +178,7 @@ export const PREVIEW_DEBOUNCE_MS = 200;
     .samples li { display: grid; gap: 2px; }
     code { font-family: var(--font-mono, monospace); font-size: var(--fs-xs); white-space: pre-wrap; overflow-wrap: anywhere; }
     .before { color: var(--muted); }
-    .leftout, .warn { border-left: 3px solid var(--warning, #c90); padding-left: 8px; }
+    .leftout, .warn { border-left: 3px solid var(--lvl-warn); padding-left: 8px; }
     .leftout ul, .notes, .result ul { margin: 2px 0 0; padding-left: 18px; }
     .notes { color: var(--muted); font-size: var(--fs-xs); }
     .hits { list-style: none; padding: 0; }

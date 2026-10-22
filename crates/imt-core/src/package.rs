@@ -490,6 +490,10 @@ mod tests {
         // A file that cannot be read fails the export midway.
         std::fs::write(dir.join("broken.dat"), b"x").unwrap();
         std::fs::set_permissions(dir.join("broken.dat"), std::os::unix::fs::PermissionsExt::from_mode(0o000)).unwrap();
+        if std::fs::File::open(dir.join("broken.dat")).is_ok() {
+            // Running as root (a CI container): permissions are not enforced, so the file cannot be made unreadable.
+            return;
+        }
         let out = root.join("p.imtz");
         let err = p.export(&out).unwrap_err().to_string();
         assert!(err.contains("cannot read broken.dat"), "{err}");
