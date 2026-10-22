@@ -379,6 +379,7 @@ function viewMenu(state: MenuState, cmd: Cmd, sub: Sub): MenuNode[] {
       cmd('view.theme.calm', $localize`:Theme name@@shell.menu.view.theme.calm:Calm`, state.theme === 'calm'),
       cmd('view.theme.console', $localize`:Theme name@@shell.menu.view.theme.console:Console`, state.theme === 'console'),
       cmd('view.theme.precision', $localize`:Theme name@@shell.menu.view.theme.precision:Precision`, state.theme === 'precision'),
+      cmd('view.theme.contrast', $localize`:Theme name@@shell.menu.view.theme.contrast:High contrast`, state.theme === 'contrast'),
       SEP,
       cmd('view.scheme.system', $localize`:Colour scheme option@@shell.menu.view.scheme.system:System`, state.scheme === 'system'),
       cmd('view.scheme.dark', $localize`:Colour scheme option@@shell.menu.view.scheme.dark:Dark`, state.scheme === 'dark'),

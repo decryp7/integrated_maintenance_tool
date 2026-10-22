@@ -149,10 +149,12 @@ export const THEME_NAMES: Record<ThemeId, string> = {
   calm: $localize`:Theme name@@settings.appearance.theme.calm:Calm`,
   console: $localize`:Theme name@@settings.appearance.theme.console:Console`,
   precision: $localize`:Theme name@@settings.appearance.theme.precision:Precision`,
+  contrast: $localize`:Theme name@@settings.appearance.theme.contrast:High contrast`,
 };
 
 const THEME_ABOUT: Record<ThemeId, string> = {
   calm: $localize`:Theme description@@settings.appearance.theme.calm.about:Quiet and neutral; only the data has colour.`,
   console: $localize`:Theme description@@settings.appearance.theme.console.about:Soft cards and richer colour; problems stand out.`,
   precision: $localize`:Theme description@@settings.appearance.theme.precision.about:Paper and ink, hairlines and mono figures; the densest view.`,
+  contrast: $localize`:Theme description@@settings.appearance.theme.contrast.about:Black or white, AAA text contrast, strong outlines and focus rings.`,
 };
