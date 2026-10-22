@@ -1252,4 +1252,15 @@ mod progress_tests {
         assert_eq!(display_name(Path::new("a.log"), &[]), "a.log");
         assert_eq!(display_name(Path::new("/logs/a.log"), &[]), "logs/a.log");
     }
+
+    #[test]
+    fn a_file_that_cannot_be_read_is_one_failed_result_with_its_name() {
+        let ws = Workspace::new(Profile::default_profile()).unwrap();
+        let path = Path::new("/definitely/not/here.log");
+        let results = import_file(&ws.registry.importers, &ws.parsers, path, "here.log", &HashSet::new());
+        assert_eq!(results.len(), 1);
+        let (p, name, result) = &results[0];
+        assert_eq!((p.as_str(), name.as_str()), ("/definitely/not/here.log", "here.log"));
+        assert!(result.is_err());
+    }
 }
