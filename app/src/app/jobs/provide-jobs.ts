@@ -15,6 +15,7 @@ export function jobsViews(): ImtView[] {
       icon: 'jobs',
       category: 'core',
       defaultPosition: 'bottom',
+      area: 'status',
       component: () => import('./jobs-panel').then((m) => m.JobsPanel),
     },
   ];

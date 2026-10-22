@@ -718,6 +718,7 @@ export interface InferredRegex {
  *   run_query        { request: { query } }                 -> { result: QlResult } | { error: QlError }
  *   check_query      { text }                               -> QlError | null
  *   complete_query   { request: { text, cursor } }          -> Completion[]
+ *   classify_search  { text, fields }                       -> SearchInputKind
  *   query_patterns   { request: { query } }                 -> Analyzed<Pattern[]>
  *   query_exceptions { request: { query } }                 -> Analyzed<ExceptionGroup[]>
  *   query_anomalies  { request: { query } }                 -> Analyzed<Anomaly[]>
@@ -753,6 +754,12 @@ export type QlResult =
   | { kind: 'table'; columns: string[]; rows: unknown[][] };
 
 export type QueryOutcome = { result: QlResult } | { error: QlError };
+
+/**
+ * What the filter bar's one search field holds (`ql::InputKind`): words to find in messages, or a query-language
+ * query. The engine decides (`classify_search`); `fields` are the workspace's field names.
+ */
+export type SearchInputKind = 'text' | 'query';
 
 export type CompletionKind = 'field' | 'keyword' | 'operator' | 'function' | 'value';
 

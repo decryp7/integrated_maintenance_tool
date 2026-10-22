@@ -29,6 +29,7 @@ export function notificationsViews(): ImtView[] {
       icon: 'bell',
       category: 'core',
       defaultPosition: 'right',
+      area: 'status',
       component: () => import('./notifications-panel').then((m) => m.NotificationsPanel),
     },
   ];

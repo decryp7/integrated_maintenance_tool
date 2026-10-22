@@ -18,12 +18,12 @@ export class AiCitations {
     return this.ctx.jumpTo(id);
   }
 
-  /** Applies the query through the query bar; returns an error message when the engine refused it. */
+  /** Applies the query through the filter bar's search field; returns an error message when the engine refused it. */
   async query(ql: string): Promise<string | null> {
     this.session.load(ql);
     const result = await this.session.run();
     if (result === null) return this.session.runError() ?? $localize`:@@ai.citations.queryFailed:The query could not be run.`;
-    this.ctx.showView(result === 'table' ? 'query-results' : 'query');
+    if (result === 'table') this.ctx.showView('query-results');
     return null;
   }
 

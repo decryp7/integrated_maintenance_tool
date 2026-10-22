@@ -131,6 +131,8 @@ export class WorkspaceStore {
   readonly dismissError = this.status.dismissError;
   readonly setError = this.status.setError;
   readonly setNotice = this.status.setNotice;
+  readonly noticeAction = this.status.noticeAction;
+  readonly runNoticeAction = this.status.runNoticeAction;
   readonly holdNotice = this.status.holdNotice;
   readonly releaseNotice = this.status.releaseNotice;
 }

@@ -15,7 +15,7 @@ use imt_core::batch::EventId;
 use imt_core::exceptions::ExceptionGroup;
 use imt_core::patterns::Pattern;
 use imt_core::ports::{Analyzed, Coverage, Store, StoreError, StoreResult};
-use imt_core::ql::{Completion, QlError, QlResult};
+use imt_core::ql::{classify_input, Completion, InputKind, QlError, QlResult};
 use serde::Serialize;
 use tauri::{AppHandle, Runtime};
 
@@ -71,6 +71,14 @@ pub async fn run_query(state: CurrentWindow, request: QueryRequest) -> CmdResult
 #[tauri::command]
 pub async fn check_query(state: CurrentWindow, text: String) -> CmdResult<Option<QlError>> {
     with_store(&state, move |s| s.check_query(&text)).await
+}
+
+/// Is the filter bar's search text a message search or a query? Pure (no store): `fields` are the field names the UI
+/// got from the workspace summary, used only to tell `UserId = 42` (a field) from `status=500` (log text). Over-long
+/// input is classified as text, and at most `MAX_CLASSIFY_FIELDS` names are looked at.
+#[tauri::command]
+pub fn classify_search(text: String, fields: Vec<String>) -> InputKind {
+    classify_input(&text, &fields)
 }
 
 #[tauri::command]

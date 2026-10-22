@@ -168,6 +168,7 @@ command_table! {
     Query [WINDOW] => smart_search::search_partial,
     Query [WINDOW] => insights::check_query,
     Query [WINDOW] => insights::complete_query,
+    Query [WINDOW] limit MIB => insights::classify_search,
     Query [WINDOW] => insights::query_patterns,
     Query [WINDOW] => insights::query_exceptions,
     Query [WINDOW] => insights::query_anomalies,

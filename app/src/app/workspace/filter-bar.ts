@@ -1,16 +1,16 @@
-import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, Injector, signal, untracked, viewChild, viewChildren } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, Injector, signal, viewChildren } from '@angular/core';
 import { RovingFocusNavigation } from '../shared/list-navigation';
 import { FilterOp, LEVELS, Level } from '../core/api.types';
 import { formatCompact, formatDateTime, formatDuration, tzLabel } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
-import { SmartSearchStore } from '../core/workspace/smart-search.store';
 import { LevelCountsStore } from '../core/workspace/level-counts.store';
-import { plural } from '../i18n/locale';
 import { ClickOutside } from '../shared/click-outside';
 import { LEVEL_CODES, LEVEL_VARS } from '../shared/colors';
 import { Icon } from '../shared/icon';
 import { Switch } from '../shared/switch';
 import { TimelineZoom } from '../timeline/zoom';
+import { QueryField, QueryStatus } from '../analysis/query-field';
+import { SearchField } from '../analysis/search-field';
 
 const OP_LABELS: Record<FilterOp, string> = {
   eq: '=',
@@ -27,27 +27,10 @@ const OP_LABELS: Record<FilterOp, string> = {
 @Component({
   selector: 'imt-filter-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, ClickOutside, Switch],
+  imports: [Icon, ClickOutside, Switch, QueryField, QueryStatus],
   template: `
     <div class="row">
-      <label class="search" [class.invalid]="regexInvalid()">
-        <imt-icon name="search" [size]="14" class="faint" />
-        <input
-          #search
-          class="mono"
-          aria-label="Search messages and exceptions"
-          i18n-aria-label="@@workspace.filterBar.search"
-          [placeholder]="searchPlaceholder()"
-          [value]="store.textInput()"
-          (input)="store.setTextInput($any($event.target).value)"
-          (keydown.escape)="store.setTextInput('')"
-        />
-        @if (smart.added() > 0) {
-          <span class="partial-note mono" role="status" data-testid="partial-note" [title]="partialNote()">+{{ smart.added() }}</span>
-        }
-        <button class="toggle mono" [class.on]="q().regex" (click)="store.setRegex(!q().regex)" title="Regular expression" i18n-title="@@workspace.filterBar.regex" [attr.aria-pressed]="q().regex">.*</button>
-        <button class="toggle mono" [class.on]="q().caseSensitive" (click)="store.setCaseSensitive(!q().caseSensitive)" title="Match case" i18n-title="@@workspace.filterBar.matchCase" [attr.aria-pressed]="q().caseSensitive">Aa</button>
-      </label>
+      <imt-query-field #qf />
 
       <!-- One tab stop: the arrow keys move between the chips (roving tabindex). -->
       <div class="levels" role="toolbar" aria-label="Levels" i18n-aria-label="@@workspace.filterBar.levels" (keydown)="onLevelsKey($event)">
@@ -134,9 +117,17 @@ const OP_LABELS: Record<FilterOp, string> = {
         }
       </div>
     </div>
+    <imt-query-status (pick)="qf.useSuggestion($event)" />
 
-    @if (q().filters.length || q().groups.length) {
+    @if (q().filters.length || q().groups.length || field.hiddenText()) {
     <div class="row" role="group" aria-label="Filters" i18n-aria-label="@@workspace.filterBar.filters">
+      @if (field.hiddenText(); as text) {
+        <span class="chip" data-testid="hidden-search">
+          <span class="muted" i18n="A message search that applies besides the query|@@workspace.filterBar.alsoSearch">also search</span>
+          <span class="mono">{{ text }}</span>
+          <button class="x" [attr.aria-label]="removeSearchLabel" (click)="field.dropHiddenText()" [attr.title]="removeSearchLabel">×</button>
+        </span>
+      }
       @for (f of q().filters; track $index; let i = $index) {
         <span class="chip">
           <span class="mono field">{{ f.field }}</span>
@@ -160,13 +151,6 @@ const OP_LABELS: Record<FilterOp, string> = {
     :host { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg-1); }
     .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .row:first-child { flex-wrap: nowrap; }
-    .search { flex: 1; min-width: 200px; height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 6px 0 10px; border-radius: 6px; background: var(--bg-3); border: 1px solid var(--border-2); }
-    .search:focus-within { border-color: var(--accent); }
-    .search.invalid { border-color: var(--lvl-error); }
-    .partial-note { flex: none; font-size: var(--fs-xs); color: var(--text-2); padding: 1px 6px; border-radius: 999px; border: 1px dashed var(--border-2); }
-    .search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; font-size: var(--fs-sm); color: var(--text); }
-    .toggle { height: 20px; padding: 0 5px; font-size: var(--fs-2xs); border-radius: 4px; color: var(--muted); border: 1px solid var(--border-3); background: transparent; cursor: pointer; }
-    .toggle.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
     .levels { flex: none; display: flex; height: 30px; border: 1px solid var(--border-2); border-radius: 6px; overflow: hidden; }
     .lvl { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 9px; border: 0; border-right: 1px solid var(--border-2); background: var(--bg-2); color: var(--faint); font-size: var(--fs-sm); cursor: pointer; }
     .lvl:last-child { border-right: 0; }
@@ -204,16 +188,9 @@ const OP_LABELS: Record<FilterOp, string> = {
 })
 export class FilterBar {
   protected readonly store = inject(WorkspaceStore);
-  protected readonly smart = inject(SmartSearchStore);
+  protected readonly field = inject(SearchField);
   private readonly levelCounts = inject(LevelCountsStore);
-  /** What the "+N" in the search box means: the engine added partial matches to the word matches. */
-  protected readonly partialNote = computed(() => {
-    const n = this.smart.added();
-    return plural(n, {
-      one: $localize`:@@workspace.filterBar.partialOne:${n}:count: more partial match added: the text appears inside a word`,
-      other: $localize`:@@workspace.filterBar.partialMany:${n}:count: more partial matches added: the text appears inside words`,
-    });
-  });
+  protected readonly removeSearchLabel = $localize`:@@workspace.filterBar.removeAlsoSearch:Remove the message search`;
   protected readonly zoom = inject(TimelineZoom);
   protected readonly levels = LEVELS;
   protected readonly ops: FilterOp[] = ['eq', 'ne', 'contains', 'notContains', 'matches', 'exists', 'missing', 'gt', 'lt'];
@@ -222,18 +199,12 @@ export class FilterBar {
   protected readonly newField = signal('');
   protected readonly newOp = signal<FilterOp>('eq');
   protected readonly newValue = signal('');
-  private readonly search = viewChild<ElementRef<HTMLInputElement>>('search');
   private readonly levelButtons = viewChildren<ElementRef<HTMLButtonElement>>('lvl');
   /** The chip that holds the levels' one tab stop. */
   protected readonly levelFocus = signal(0);
   private readonly levelNav = new RovingFocusNavigation(signal(LEVELS.length), inject(Injector), (i) => this.levelButtons()[i]?.nativeElement.focus(), { wrap: true, homeAndEnd: true });
 
   protected readonly q = this.store.query;
-  protected readonly searchPlaceholder = computed(() =>
-    this.q().regex
-      ? $localize`:@@workspace.filterBar.regexPlaceholder:Regular expression`
-      : $localize`:@@workspace.filterBar.searchPlaceholderShort:Search…`,
-  );
   protected readonly rangeTitle = computed(() =>
     this.store.hasRange()
       ? $localize`:@@workspace.filterBar.resetRange:Reset to the full range`
@@ -245,19 +216,9 @@ export class FilterBar {
     const chosen = new Set(this.store.effectiveGroupBy());
     return ['@source', ...this.store.fieldNames()].filter((f) => !chosen.has(f));
   });
-  protected readonly regexInvalid = computed(() => {
-    const q = this.q();
-    if (!q.regex || !q.text) return false;
-    try {
-      new RegExp(q.text.replace(/\(\?P</g, '(?<'));
-      return false;
-    } catch {
-      return true;
-    }
-  });
   protected readonly hasAnyFilter = computed(() => {
     const q = this.q();
-    return !!(q.text || q.levels.length || q.filters.length || q.groups.length || q.markers.length || q.from != null || q.to != null);
+    return !!(q.text || q.ql || q.levels.length || q.filters.length || q.groups.length || q.markers.length || q.from != null || q.to != null);
   });
   /** Both ends of the range; each truncates on its own, so a narrow bar still shows where the range starts and ends. */
   protected readonly rangeEnds = computed<[string, string]>(() => {
@@ -273,13 +234,6 @@ export class FilterBar {
     const q = this.q();
     return q.from != null && q.to != null ? formatDuration(q.to - q.from) : '';
   });
-
-  constructor() {
-    effect(() => {
-      if (this.store.focusSearchNonce() === 0) return;
-      untracked(() => setTimeout(() => this.search()?.nativeElement.focus()));
-    });
-  }
 
   protected levelFocused(i: number): void {
     this.levelFocus.set(i);
