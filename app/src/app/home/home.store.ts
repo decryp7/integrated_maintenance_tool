@@ -1,12 +1,12 @@
 import { computed, DestroyRef, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { ActivityLog } from '../core/activity/activity-log';
 import type { Breadcrumb } from '../core/activity/types';
-import { AnalysisResource, AsyncResource } from '../analysis/async-resource';
-import { Finding, HomeSummary, Query, StoreMemory, StoreOverview } from '../core/api.types';
+import { AsyncResource } from '../analysis/async-resource';
+import { HomeSummary, Query, StoreMemory, StoreOverview } from '../core/api.types';
 import { ConsumerGate } from '../core/panel-visibility';
 import { EMPTY_QUERY, QueryStore } from '../core/workspace/query.store';
 import { WorkspaceDataStore } from '../core/workspace/workspace-data.store';
-import { ShareBackend } from '../share/share-backend';
+import { HealthFindingsStore } from './health/health-findings.store';
 import { StorePaneBackend } from '../store-pane/store-pane-backend';
 import { HomeBackend } from './home-backend';
 import { HOME_BUCKETS, HOME_REFRESH_MS } from './home-model';
@@ -55,7 +55,7 @@ export class RefreshLimiter {
 @Injectable({ providedIn: 'root' })
 export class HomeStore {
   private readonly home = inject(HomeBackend);
-  private readonly share = inject(ShareBackend);
+  private readonly findings = inject(HealthFindingsStore);
   private readonly storePane = inject(StorePaneBackend);
   private readonly data = inject(WorkspaceDataStore);
   private readonly query = inject(QueryStore);
@@ -74,7 +74,8 @@ export class HomeStore {
   readonly summaryRetryable = computed(() => this.quick.retryable() && this.full.retryable());
   /** The analyses are running or failed: their tiles show a placeholder. */
   readonly analysing = computed(() => this.full.loading());
-  readonly health = new AnalysisResource<Finding[]>();
+  /** The health check, shared with the timeline's headline. */
+  readonly health = this.findings.findings;
   readonly storeOverview = new AsyncResource<StoreOverview>();
   readonly memory = new AsyncResource<StoreMemory>();
 
@@ -102,7 +103,7 @@ export class HomeStore {
   /** Asks every part again now (the Refresh button). */
   refresh(): void {
     this.limiter.cancel();
-    this.load();
+    this.load(true);
   }
 
   /** Retries a failed summary. */
@@ -115,16 +116,18 @@ export class HomeStore {
     void this.full.load(() => this.home.querySummary({ query, buckets: HOME_BUCKETS, analyses: true }));
   }
 
-  private load(): void {
+  private load(force = false): void {
     this.crumbs.set(this.activity.breadcrumbs(60));
     if (!this.data.summary()?.sources.length) {
-      for (const r of [this.quick, this.full, this.health, this.storeOverview, this.memory]) r.reset();
+      for (const r of [this.quick, this.full, this.storeOverview, this.memory]) r.reset();
+      this.findings.clear();
       return;
     }
     // Everything opened, not the current filters: only the grouping (the lanes' instances) applies.
     const query = { ...EMPTY_QUERY, groupBy: [...this.query.effectiveGroupBy()] };
     this.loadSummary(query);
-    void this.health.load(() => this.share.overview(query));
+    if (force) this.findings.refresh();
+    else this.findings.ensure();
     void this.storeOverview.load(() => this.storePane.overview());
     void this.memory.load(() => this.storePane.describeMemory());
   }

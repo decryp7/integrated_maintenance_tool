@@ -8,8 +8,8 @@ import { DockService } from '../../dock/dock.service';
 import { COMMAND_CONTEXT } from '../../extensions/command-registry';
 import { plural } from '../../i18n/locale';
 import { Icon } from '../../shared/icon';
-import { ShareBackend } from '../../share/share-backend';
 import { HealthActions } from './health-actions';
+import { HealthFindingsStore } from './health-findings.store';
 import { HOME_VIEW } from '../home.plugin';
 
 /** The headline numbers of the health check: what the timeline header points at. */
@@ -28,48 +28,28 @@ export function headlineOf(findings: readonly Finding[], levels: Partial<Record<
 }
 
 /**
- * The health check's findings (the engine's `overview`, the same request as Home) for the headline in
- * the timeline header. Asked only while a headline is mounted and visible, and again when the data or the grouping
+ * The headline of the shared health check findings ({@link HealthFindingsStore}, the same request as Home) for the
+ * timeline header. Asked only while a headline is mounted and visible, and again when the data or the grouping
  * changes; a failure just hides the headline (Home reports it).
  */
 @Injectable({ providedIn: 'root' })
 export class HealthHeadlineStore {
-  /** Absent where the sharing feature is not provided: then there is no headline. */
-  private readonly share = inject(ShareBackend, { optional: true });
   private readonly data = inject(WorkspaceDataStore);
   private readonly query = inject(QueryStore);
+  private readonly findings = inject(HealthFindingsStore);
   readonly gate = new ConsumerGate();
-  private readonly found = signal<readonly Finding[]>([]);
-  private seq = 0;
-  private lastKey = '';
 
-  readonly headline = computed(() => headlineOf(this.found(), this.data.summary()?.levels ?? null));
+  readonly headline = computed(() => headlineOf(this.findings.findings.result() ?? [], this.data.summary()?.levels ?? null));
 
   constructor() {
     effect(() => {
       if (!this.gate.active()) return;
-      const summary = this.data.summary();
-      const version = this.data.dataVersion();
-      const groupBy = this.query.effectiveGroupBy();
-      untracked(() => {
-        if (!summary?.sources.length || !this.share) {
-          this.found.set([]);
-          this.lastKey = '';
-          return;
-        }
-        const key = JSON.stringify([version, groupBy]);
-        if (key === this.lastKey) return;
-        this.lastKey = key;
-        const mine = ++this.seq;
-        this.share
-          .overview({ ...EMPTY_QUERY, groupBy })
-          .then((f) => mine === this.seq && this.found.set(f.result))
-          .catch(() => {
-            if (mine !== this.seq) return;
-            this.found.set([]);
-            this.lastKey = '';
-          });
-      });
+      // The data the findings depend on: a change asks the shared store, which asks the engine only if Home has not.
+      this.data.summary();
+      this.data.dataVersion();
+      this.data.profileVersion();
+      this.query.effectiveGroupBy();
+      untracked(() => this.findings.ensure());
     });
   }
 }

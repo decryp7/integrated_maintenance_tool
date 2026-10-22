@@ -12,6 +12,8 @@ import { COMMAND_CONTEXT, CommandRegistry } from '../extensions/command-registry
 import { CommandContext } from '../extensions/tokens';
 import { ViewRegistry } from '../extensions/view-registry';
 import { ShareBackend } from '../share/share-backend';
+import { HealthFindingsStore } from './health/health-findings.store';
+import { HealthHeadline } from './health/health-headline';
 import { HomeBackend, TauriHomeBackend } from './home-backend';
 import { HOME_AUTO_OPEN_KEY, HomePrefs } from './home-prefs';
 import { HomeAutoOpen, provideHome } from './home.plugin';
@@ -138,6 +140,21 @@ describe('HomeView', () => {
     expect(ctx.calls.at(-1)).toMatch(/^query:\{"from":\d+,"to":\d+\}$/);
     chart.handlers['brushEnd']?.({ areas: [{ coordRange: [10, 20] }] });
     expect(ctx.calls.at(-1)).toBe('query:{"from":10,"to":20}');
+  });
+
+  it('asks the health check once when the timeline headline and Home both show it', async () => {
+    const { fixture, overview } = setup([crash, file]);
+    const headline = TestBed.createComponent(HealthHeadline);
+    await settle(headline, 8);
+    await settle(fixture, 8);
+    expect(overview).toHaveBeenCalledTimes(1);
+    expect(TestBed.inject(HomeStore).health.result()).toHaveLength(2);
+    expect(text(headline)).toContain('crash');
+    // Refresh still asks the engine again (once, for both).
+    buttonByText(fixture, 'Refresh').click();
+    await settle(fixture, 8);
+    expect(overview).toHaveBeenCalledTimes(2);
+    expect(TestBed.inject(HomeStore).health).toBe(TestBed.inject(HealthFindingsStore).findings);
   });
 
   it('renders only the visible findings however many the engine returns', async () => {
