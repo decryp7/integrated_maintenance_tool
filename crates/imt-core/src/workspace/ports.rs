@@ -160,8 +160,16 @@ impl Ingest for WorkspaceStore {
             ws.restore(profile, state).map(|_| ())
         })
     }
-    fn append_tail(&self, changed: &[PathBuf]) -> StoreResult<usize> {
-        self.write().refresh_tail(changed).map(|r| r.appended).map_err(invalid)
+    fn append_tail(&self, changed: &[PathBuf]) -> StoreResult<crate::ports::TailAppend> {
+        let r = self.write().refresh_tail(changed).map_err(invalid)?;
+        Ok(crate::ports::TailAppend {
+            appended: r.appended,
+            sources_changed: r.sources_changed,
+            added: r.added,
+            truncated: r.truncated,
+            reimported: r.reimported,
+            deleted: r.deleted,
+        })
     }
 }
 
@@ -503,6 +511,35 @@ impl crate::ports::Console for WorkspaceStore {}
 impl crate::ports::Redaction for WorkspaceStore {
     fn redaction_summary(&self, req: &crate::redact::RedactionSummaryRequest) -> StoreResult<crate::redact::RedactionSummary> {
         self.read().redaction_summary(req).map_err(invalid)
+    }
+}
+
+/// The workspace's own clock-skew correction (the reference the store is checked against).
+impl crate::ports::Skew for WorkspaceStore {
+    fn clock_offsets(&self) -> StoreResult<crate::skew::ClockOffsets> {
+        Ok(self.read().clock_offsets().clone())
+    }
+    fn set_clock_offsets(&self, offsets: &crate::skew::ClockOffsets) -> StoreResult<()> {
+        let mut ws = self.write();
+        let mut state = ws.state();
+        state.offsets = offsets.clone();
+        let profile = ws.profile().clone();
+        ws.restore(profile, &state).map(|_| ()).map_err(invalid)
+    }
+    fn set_source_offset(&self, req: &crate::skew::SetOffsetRequest) -> StoreResult<crate::skew::OffsetChange> {
+        self.write()
+            .set_source_offset(req)
+            .map_err(|e| StoreError::Invalid(e.to_string()))
+    }
+    fn suggest_offsets(&self, req: &crate::skew::SuggestRequest) -> StoreResult<crate::skew::SuggestResult> {
+        Ok(self.read().suggest_offsets(req))
+    }
+}
+
+/// Opening at the end; the per-file state is the workspace's own (`Workspace::tail_status`).
+impl crate::ports::Tail for WorkspaceStore {
+    fn open_at_end(&self, paths: &[PathBuf]) -> StoreResult<ImportSession> {
+        self.done(|ws| ws.open_with(paths, &crate::workspace::OpenOptions { start_at_end: true }))
     }
 }
 

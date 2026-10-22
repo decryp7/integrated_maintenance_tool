@@ -14,6 +14,7 @@
 mod console;
 mod dto;
 mod inspect;
+mod live;
 mod session;
 
 pub use console::{
@@ -32,6 +33,7 @@ pub use dto::{
     ImportReport, IndexStatus, PageQuery, PageReply, ParserChange, ParserDef, ParserRef, ParserUse, PartialMatches, QuickFix, SearchMatch,
     SearchReply, SearchRequest, SummaryReply, MAX_PAGE_ROWS,
 };
+pub use live::{TailAppend, TailFile, TailRead};
 pub use session::ImportSession;
 
 use crate::analysis::{Anomaly, Comparison, FieldStats, RequestSpan, WaterfallRow};
@@ -129,8 +131,9 @@ pub trait Ingest: Send + Sync {
     fn clear(&self) -> StoreResult<()>;
     /// Replaces everything with a saved state.
     fn restore(&self, state: &WorkspaceState) -> StoreResult<ImportSession>;
-    /// Live tail: reads what was appended to followed files.
-    fn append_tail(&self, changed: &[PathBuf]) -> StoreResult<usize>;
+    /// Live tail: reads what was appended to followed files (with an empty list: only what is due, such as a
+    /// held-back last event of a file that stopped growing).
+    fn append_tail(&self, changed: &[PathBuf]) -> StoreResult<TailAppend>;
 }
 
 /// Reading: pages, aggregates and batch scans over the events matching a [`Filter`].
@@ -303,15 +306,67 @@ pub trait Redaction: Send + Sync {
     }
 }
 
+/// Clock-skew correction (see [`crate::skew`]): per-file time offsets, kept by the store (with the project) and
+/// applied to the events' timestamps, so pages, timelines, facets, analyses and search all see the corrected
+/// times. A refused offset (too large, an unknown source or event) fails with [`StoreError::Invalid`] saying what
+/// to fix.
+pub trait Skew: Send + Sync {
+    /// The offsets by file path.
+    fn clock_offsets(&self) -> StoreResult<crate::skew::ClockOffsets> {
+        Err(StoreError::unsupported("clock-skew correction", "6c"))
+    }
+    /// Replaces the offsets (a project's or a session's; out-of-range ones are dropped): files read later take
+    /// them, and the events of files already read move.
+    fn set_clock_offsets(&self, _offsets: &crate::skew::ClockOffsets) -> StoreResult<()> {
+        Err(StoreError::unsupported("clock-skew correction", "6c"))
+    }
+    /// Sets the offset of a source's file (manually or by aligning two events) and moves its events.
+    fn set_source_offset(&self, _req: &crate::skew::SetOffsetRequest) -> StoreResult<crate::skew::OffsetChange> {
+        Err(StoreError::unsupported("clock-skew correction", "6c"))
+    }
+    /// Offsets that would align each source with a reference, from events sharing a correlation id (at most
+    /// [`crate::skew::MAX_IDS`] ids).
+    fn suggest_offsets(&self, _req: &crate::skew::SuggestRequest) -> StoreResult<crate::skew::SuggestResult> {
+        Err(StoreError::unsupported("clock-skew correction", "6c"))
+    }
+}
+
+/// Live tail: how the store's files were last read (a query) and opening files at their end.
+pub trait Tail: Send + Sync {
+    /// The followed files as the store last read them.
+    fn tail_files(&self) -> StoreResult<Vec<TailFile>> {
+        Err(StoreError::unsupported("the live tail state", "6c"))
+    }
+    /// Opens files and folders for live tail at their current end: text files are followed from there (only lines
+    /// written from now on); files that cannot be read from the middle are read in full (with a note).
+    fn open_at_end(&self, _paths: &[PathBuf]) -> StoreResult<ImportSession> {
+        Err(StoreError::unsupported("opening files at their end", "6c"))
+    }
+}
+
 /// Every port of a store: what one window of the app holds (the DuckDB store in the store worker; in process
 /// in tests).
 pub trait Store:
-    Ingest + Query + Positions + Analysis + Profiles + Diagnostics + Search + Projects + Inspect + Maintain + Console + Redaction
+    Ingest + Query + Positions + Analysis + Profiles + Diagnostics + Search + Projects + Inspect + Maintain + Console + Redaction + Skew + Tail
 {
 }
 
-impl<T: Ingest + Query + Positions + Analysis + Profiles + Diagnostics + Search + Projects + Inspect + Maintain + Console + Redaction> Store
-    for T
+impl<
+        T: Ingest
+            + Query
+            + Positions
+            + Analysis
+            + Profiles
+            + Diagnostics
+            + Search
+            + Projects
+            + Inspect
+            + Maintain
+            + Console
+            + Redaction
+            + Skew
+            + Tail,
+    > Store for T
 {
 }
 
