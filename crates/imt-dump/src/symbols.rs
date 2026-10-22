@@ -1,4 +1,4 @@
-//! The symbol port (ADR 0023, ADR 0032): names for addresses in a module, found **by the module's PDB identity**
+//! The symbol port (ADR 0023, ADR 0036): names for addresses in a module, found **by the module's PDB identity**
 //! (name, GUID and age from its CodeView record, [`PdbKey`]), never by a file name alone. The dumps plugin
 //! implements it with a pure-Rust PDB reader over the user's symbol folders and IMT's symbol cache, which the host
 //! fills from the user's symbol servers. [`symbolise_dump`] names the frames a dump lacks and records each

@@ -168,7 +168,7 @@ pub struct Module {
     pub symbols: SymbolStatus,
 }
 
-/// What symbols a module has (ADR 0032). PDBs are matched by the module's identity (PDB name, GUID and age),
+/// What symbols a module has (ADR 0036). PDBs are matched by the module's identity (PDB name, GUID and age),
 /// never by a file name alone.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SymbolStatus {

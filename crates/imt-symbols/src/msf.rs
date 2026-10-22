@@ -32,7 +32,7 @@ pub fn identity(src: &mut dyn ImageSource) -> Option<([u8; 16], u32)> {
     let blocks = u32_at(&sb, 40)?;
     let dir_bytes = u32_at(&sb, 44)?;
     let map = u32_at(&sb, 52)?;
-    if !block.is_power_of_two() || !(512..=65_536).contains(&block) || dir_bytes < 4 || dir_bytes > MAX_DIRECTORY {
+    if !block.is_power_of_two() || !(512..=65_536).contains(&block) || !(4..=MAX_DIRECTORY).contains(&dir_bytes) {
         return None;
     }
     let at = |index: u32| (index < blocks).then(|| u64::from(index) * u64::from(block));
@@ -45,7 +45,7 @@ pub fn identity(src: &mut dyn ImageSource) -> Option<([u8; 16], u32)> {
         dir.extend(read(src, at(u32_at(&list, i * 4)?)?, want)?);
     }
     let streams = u32_at(&dir, 0)?;
-    if streams < 2 || streams > MAX_STREAMS {
+    if !(2..=MAX_STREAMS).contains(&streams) {
         return None;
     }
     let size = |i: u32| u32_at(&dir, 4 + 4 * i as usize).map(|s| if s == u32::MAX { 0 } else { s });

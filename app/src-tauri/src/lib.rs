@@ -72,6 +72,7 @@ mod smart_search;
 mod snapshots;
 mod storage;
 mod store_pane;
+mod symbols;
 mod sync;
 mod system;
 mod tools;
@@ -562,6 +563,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
 
     // ---- settings ----
     settings::init(app.handle());
+    symbols::init(app.handle());
     plugin_packages::init(app.handle());
     window_prefs::register(app.handle())?;
     updater::init(app.handle());

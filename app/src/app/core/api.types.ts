@@ -2813,6 +2813,8 @@ export type {
   DumpMarker,
   DumpOverview,
   DumpSeverity,
+  DumpSymbolProblems,
+  DumpSymbolStatus,
   DumpSniffKind,
   DumpSniffResult,
   ExceptionCard,

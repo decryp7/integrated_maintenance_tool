@@ -2,7 +2,7 @@
 //! dumps symbolise on every platform. PDBs are found **by the module's identity** (PDB name, GUID and age), never
 //! by a file name alone: folders are searched in the symbol store layout (`<folder>/<name>.pdb/<GUID><age>/<name>.pdb`,
 //! what `symchk`, Visual Studio caches and IMT's own symbol cache write) and flat (`<folder>/<name>.pdb`), and a PDB
-//! whose GUID and age do not match the module is not used (ADR 0032). Procedures (with their length) come from the
+//! whose GUID and age do not match the module is not used (ADR 0036). Procedures (with their length) come from the
 //! module streams, public symbols fill the gaps. Nothing is downloaded here: the host fills IMT's symbol cache from
 //! the user's symbol servers and passes it as a folder.
 

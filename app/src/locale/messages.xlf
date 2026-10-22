@@ -10833,413 +10833,399 @@
         <source>faulted</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">19</context>
+          <context context-type="linenumber">20</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.thread.lockWait" datatype="html">
         <source>waits on a lock</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">20</context>
+          <context context-type="linenumber">21</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.thread.waiting" datatype="html">
         <source>waiting</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">21</context>
+          <context context-type="linenumber">22</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.thread.running" datatype="html">
         <source>running</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">22</context>
+          <context context-type="linenumber">23</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.trust.context" datatype="html">
         <source>context</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">26</context>
+          <context context-type="linenumber">27</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.trust.cfi" datatype="html">
         <source>unwind info</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">27</context>
+          <context context-type="linenumber">28</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.trust.framePointer" datatype="html">
         <source>frame pointer</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">28</context>
+          <context context-type="linenumber">29</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.trust.scan" datatype="html">
         <source>stack scan</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">29</context>
+          <context context-type="linenumber">30</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.trust.recorded" datatype="html">
         <source>recorded</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">30</context>
+          <context context-type="linenumber">31</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.pick" datatype="html">
         <source>Dump</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">45,46</context>
+          <context context-type="linenumber">46,47</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.pickLabel" datatype="html">
         <source>Dump</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">46</context>
+          <context context-type="linenumber">47</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.close" datatype="html">
         <source>Close</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">53,55</context>
+          <context context-type="linenumber">54,56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.uptime" datatype="html">
         <source>up <x id="INTERPOLATION" equiv-text="{{ uptime(o.uptimeS) }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">66,67</context>
+          <context context-type="linenumber">67,68</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.exception" datatype="html">
         <source>Exception</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">70</context>
+          <context context-type="linenumber">71</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.at" datatype="html">
         <source>at</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">75</context>
+          <context context-type="linenumber">76</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.thread" datatype="html">
         <source>thread <x id="INTERPOLATION" equiv-text="{{ x.threadId }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">76,77</context>
+          <context context-type="linenumber">77,78</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.tabs" datatype="html">
         <source>Dump views</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">82</context>
+          <context context-type="linenumber">83</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.threads.filter" datatype="html">
         <source>Filter threads</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">95</context>
+          <context context-type="linenumber">96</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.threads.filterLabel" datatype="html">
         <source>Filter threads</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">95</context>
+          <context context-type="linenumber">96</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.threads.empty" datatype="html">
         <source>No threads.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">96</context>
+          <context context-type="linenumber">97</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.threads.label" datatype="html">
         <source>Threads</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">97</context>
+          <context context-type="linenumber">98</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.stack.region" datatype="html">
         <source>Stack</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">109</context>
+          <context context-type="linenumber">110</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.stack.empty" datatype="html">
         <source>No frames: the thread&apos;s stack could not be read.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">110</context>
+          <context context-type="linenumber">111</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.stack.frame" datatype="html">
         <source>Frame</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">113</context>
+          <context context-type="linenumber">114</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.stack.source" datatype="html">
         <source>Source</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">113</context>
+          <context context-type="linenumber">114</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.stack.how" datatype="html">
         <source>Found by</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">113,114</context>
+          <context context-type="linenumber">114,115</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.stack.culprit" datatype="html">
         <source>likely culprit</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">118,119</context>
+          <context context-type="linenumber">119,120</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.stack.truncated" datatype="html">
         <source>The stack is deeper; only its innermost frames are shown.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">125,127</context>
+          <context context-type="linenumber">126,128</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.filter" datatype="html">
         <source>Filter modules</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">132</context>
+          <context context-type="linenumber">133</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.filterLabel" datatype="html">
         <source>Filter modules</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">132</context>
+          <context context-type="linenumber">133</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.empty" datatype="html">
         <source>No modules.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">133</context>
+          <context context-type="linenumber">134</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.label" datatype="html">
         <source>Modules</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">135</context>
+          <context context-type="linenumber">136</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.name" datatype="html">
         <source>Module</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">136</context>
+          <context context-type="linenumber">137</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.version" datatype="html">
         <source>Version</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">136</context>
+          <context context-type="linenumber">137</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.base" datatype="html">
         <source>Base</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">136</context>
+          <context context-type="linenumber">137</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.size" datatype="html">
         <source>Size</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">136</context>
+          <context context-type="linenumber">137</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.symbols" datatype="html">
         <source>Symbols</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">136</context>
+          <context context-type="linenumber">137</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.path" datatype="html">
         <source>Path</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">136,137</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="dumps.modules.yes" datatype="html">
-        <source>yes</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">144</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="dumps.modules.no" datatype="html">
-        <source>no</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">144,145</context>
+          <context context-type="linenumber">137,138</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.details.symbols" datatype="html">
         <source>Symbols</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">157,158</context>
+          <context context-type="linenumber">158,159</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.details.symbolsText" datatype="html">
         <source><x id="INTERPOLATION" equiv-text="{{ count(o.framesSymbolised) }}"/> of <x id="INTERPOLATION_1" equiv-text="{{ count(o.frames) }}"/> frames named; <x id="INTERPOLATION_2" equiv-text="{{ count(o.modulesWithSymbols) }}"/> of <x id="INTERPOLATION_3" equiv-text="{{ count(o.modules) }}"/> modules with symbols.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">158,159</context>
+          <context context-type="linenumber">159,160</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.details.handles" datatype="html">
         <source>Handles (<x id="INTERPOLATION" equiv-text="{{ count(h.total) }}"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">162,163</context>
+          <context context-type="linenumber">166,167</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.details.memory" datatype="html">
         <source>Memory</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">168,169</context>
+          <context context-type="linenumber">172,173</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.details.committed" datatype="html">
         <source>Committed <x id="INTERPOLATION" equiv-text="{{ bytes(m.committed) }}"/> (private <x id="INTERPOLATION_1" equiv-text="{{ bytes(m.private) }}"/>, image <x id="INTERPOLATION_2" equiv-text="{{ bytes(m.image) }}"/>, mapped <x id="INTERPOLATION_3" equiv-text="{{ bytes(m.mapped) }}"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">170,171</context>
+          <context context-type="linenumber">174,175</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.details.reserved" datatype="html">
         <source>Reserved <x id="INTERPOLATION" equiv-text="{{ bytes(m.reserved) }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">171,172</context>
+          <context context-type="linenumber">175,176</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.details.free" datatype="html">
         <source>Largest free block <x id="INTERPOLATION" equiv-text="{{ bytes(m.largestFree) }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">172,173</context>
+          <context context-type="linenumber">176,177</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.details.unloaded" datatype="html">
         <source>Unloaded modules</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">178,179</context>
+          <context context-type="linenumber">182,183</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.details.notes" datatype="html">
         <source>Notes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">184,185</context>
+          <context context-type="linenumber">188,189</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.none" datatype="html">
         <source>Open a crash or memory dump (.dmp) to see why the process crashed or hung.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">194</context>
+          <context context-type="linenumber">198</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.open" datatype="html">
         <source>Open dump…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">194</context>
+          <context context-type="linenumber">198</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.tab.findings" datatype="html">
         <source>Findings</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">224</context>
+          <context context-type="linenumber">228</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.tab.threads" datatype="html">
         <source>Threads</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">225</context>
+          <context context-type="linenumber">229</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.tab.modules" datatype="html">
         <source>Modules</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">226</context>
+          <context context-type="linenumber">230</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.tab.details" datatype="html">
         <source>Details</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">227</context>
+          <context context-type="linenumber">231</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.kind.full" datatype="html">
         <source>full dump</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">327</context>
+          <context context-type="linenumber">331</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.kind.heap" datatype="html">
         <source>minidump with heap</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">327</context>
+          <context context-type="linenumber">331</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.kind.mini" datatype="html">
         <source>minidump</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">327</context>
+          <context context-type="linenumber">331</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.stack.label" datatype="html">
         <source>Stack of thread <x id="id" equiv-text="id"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">347</context>
+          <context context-type="linenumber">351</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.findings.title" datatype="html">
@@ -11432,6 +11418,167 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/provide-dumps.ts</context>
           <context context-type="linenumber">43</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.loaded" datatype="html">
+        <source>Loaded</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">7</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.notNeeded" datatype="html">
+        <source>Not needed</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">9</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.noIdentity" datatype="html">
+        <source>No PDB identity</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">11</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.missing" datatype="html">
+        <source>Missing</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">13</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.serversDisabled" datatype="html">
+        <source>Missing (downloads off)</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">15</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.notOnServer" datatype="html">
+        <source>Not on the servers</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">17</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.mismatch" datatype="html">
+        <source>Another build</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">19</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.unreadable" datatype="html">
+        <source>Unreadable</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">21</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.downloadFailed" datatype="html">
+        <source>Download failed</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">23</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.noIdentityHint" datatype="html">
+        <source>The dump records no PDB name, GUID and age for this module, so no PDB can be matched to it.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">35</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.missingHint" datatype="html">
+        <source>No PDB with this module&apos;s name, GUID and age is in the symbol folders or the cache. Add its PDB to a symbol folder and open the dump again.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">37</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.serversDisabledHint" datatype="html">
+        <source>No PDB with this module&apos;s identity was found locally. Turn on symbol servers in Settings &gt; Symbols, or add the PDB to a symbol folder, and open the dump again.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">39</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.notOnServerHint" datatype="html">
+        <source>None of the symbol servers has this build&apos;s PDB. Add it to a symbol folder, or add the server that has it in Settings &gt; Symbols.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">41</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.mismatchHint" datatype="html">
+        <source>A PDB of this name was found, but of another build, so it was not used. Get the PDB that was built with this module.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">43</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.unreadableHint" datatype="html">
+        <source>A PDB with this module&apos;s identity was found but could not be read. Replace the file and open the dump again.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">45</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.downloadFailedHint" datatype="html">
+        <source>Downloading the PDB failed. Check the network and the symbol servers in Settings &gt; Symbols, then open the dump again.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">47</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.line.serversDisabled" datatype="html">
+        <source><x id="count" equiv-text="p.serversDisabled"/> without symbols: downloads are off (Settings &gt; Symbols).</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">59</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.line.missing" datatype="html">
+        <source><x id="count" equiv-text="p.missing"/> without symbols: no matching PDB in the symbol folders or the cache.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">60</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.line.notOnServer" datatype="html">
+        <source><x id="count" equiv-text="p.notOnServer"/> not on any symbol server.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">61</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.line.mismatch" datatype="html">
+        <source><x id="count" equiv-text="p.mismatch"/> only found as another build&apos;s PDB.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">62</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.line.unreadable" datatype="html">
+        <source><x id="count" equiv-text="p.unreadable"/> with a PDB that could not be read.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">63</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.line.downloadFailed" datatype="html">
+        <source><x id="count" equiv-text="p.downloadFailed"/> whose download failed.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">64</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.symbols.line.noIdentity" datatype="html">
+        <source><x id="count" equiv-text="p.noIdentity"/> record no PDB identity.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/symbol-status.ts</context>
+          <context context-type="linenumber">65</context>
         </context-group>
       </trans-unit>
       <trans-unit id="umdh.target" datatype="html">

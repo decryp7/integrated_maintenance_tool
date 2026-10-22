@@ -304,7 +304,7 @@ pub struct ModuleRow {
     pub framework: bool,
 }
 
-/// What symbols a module has (ADR 0032): the UI shows each with its next step (enable symbol servers, add a
+/// What symbols a module has (ADR 0036): the UI shows each with its next step (enable symbol servers, add a
 /// folder, check the network).
 #[cfg_attr(feature = "ts", derive(TS), ts(rename = "DumpSymbolStatus"))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

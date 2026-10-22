@@ -48,6 +48,8 @@ fn files() -> Vec<(&'static str, String)> {
                 HandleTypeDto::decl(),
                 HandlesDto::decl(),
                 MemoryDto::decl(),
+                SymbolStatusDto::decl(),
+                SymbolProblems::decl(),
                 DumpOverview::decl(),
                 ThreadState::decl(),
                 ThreadRow::decl(),
