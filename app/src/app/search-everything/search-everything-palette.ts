@@ -83,7 +83,7 @@ let nextId = 0;
     .muted { color: var(--muted); padding: 2px 4px; }
     .err { color: var(--danger-text); padding: 2px 4px; }
     .list { overflow: auto; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
-    .head { display: flex; align-items: baseline; gap: 6px; padding: 6px 10px 2px; color: var(--muted); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.04em; }
+    .head { display: flex; align-items: baseline; gap: 6px; padding: 6px 10px 2px; color: var(--muted); font-size: var(--fs-xs); }
     .count { font-variant-numeric: tabular-nums; }
     .notice { padding: 0 10px 2px; color: var(--muted); font-size: var(--fs-sm); font-style: italic; }
     .opt { display: flex; align-items: center; gap: 8px; min-height: 30px; padding: 2px 10px; border-radius: 6px; color: var(--text-2); cursor: pointer; }

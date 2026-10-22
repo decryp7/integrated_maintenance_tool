@@ -176,7 +176,7 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
     .popup { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; min-width: 260px; max-width: 520px; max-height: 240px; overflow: auto; margin: 0; padding: 4px 0; list-style: none; background: var(--bg-3); border: 1px solid var(--border-3); border-radius: 6px; box-shadow: var(--shadow); }
     .popup li { display: flex; gap: 10px; align-items: baseline; padding: 4px 10px; cursor: pointer; }
     .popup li.active, .popup li:hover { background: var(--bg-sel); }
-    .kind { width: 58px; flex: none; font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+    .kind { width: 58px; flex: none; font-size: var(--fs-2xs); color: var(--muted); }
     .history { top: 28px; right: 0; left: auto; width: 480px; }
     .history li { padding: 0; }
     .history .item { all: unset; box-sizing: border-box; width: 100%; min-height: 24px; padding: 4px 10px; cursor: pointer; font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

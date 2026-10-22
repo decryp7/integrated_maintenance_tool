@@ -42,7 +42,7 @@ import { MeasurementTag } from '../profiling-shared';
   `,
   styles: `
     :host { display: block; }
-    h3.sec { margin: 14px 0 6px; font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    h3.sec { margin: 14px 0 6px; font-size: var(--fs-xs); font-weight: 600; color: var(--muted); }
     .card { border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-2); padding: 8px 10px; margin-bottom: 8px; }
     .head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--text); }
     .spacer { flex: 1; }

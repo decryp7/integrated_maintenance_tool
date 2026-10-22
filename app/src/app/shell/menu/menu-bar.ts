@@ -112,7 +112,7 @@ import { MenuNode, TopMenu } from './menu-model';
     .chevron { flex: none; margin-inline-start: 24px; color: var(--muted); }
     .sep { flex: none; height: 1px; margin: 4px 6px; background: var(--border-2); }
     .group { display: flex; flex-direction: column; }
-    .group-label { padding: 6px 10px 2px 28px; font-size: var(--fs-xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .group-label { padding: 6px 10px 2px 28px; font-size: var(--fs-xs); color: var(--muted); }
   `,
 })
 export class MenuBar {

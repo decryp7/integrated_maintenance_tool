@@ -101,7 +101,7 @@ import { NotesStore } from './notes.store';
     .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
     .item { border: 1px solid var(--border-2); border-left: 3px solid var(--c); border-radius: 6px; background: var(--bg-2); padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; }
     .top { display: flex; align-items: center; gap: 6px; min-width: 0; }
-    .badge { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+    .badge { font-size: var(--fs-xs); color: var(--muted); }
     .sev { font-size: var(--fs-xs); color: var(--c); font-weight: 600; }
     .about { flex: 1; min-width: 0; }
     .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
