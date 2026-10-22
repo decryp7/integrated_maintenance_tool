@@ -130,7 +130,7 @@ export class MockPlaybookBackend implements PlaybookBackend {
     return this.saved.delete(id);
   }
   async importFile(): Promise<Playbook> {
-    return TEMPLATES[0];
+    return structuredClone(TEMPLATES[0]!);
   }
   async exportFile(): Promise<void> {}
 
