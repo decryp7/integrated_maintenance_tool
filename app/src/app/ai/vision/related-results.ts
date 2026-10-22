@@ -4,7 +4,6 @@ import { formatDateTime } from '../../core/format';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { PANEL } from '../../dock/dock-context';
 import { COMMAND_CONTEXT } from '../../extensions/command-registry';
-import { LEVEL_CODES } from '../../shared/colors';
 import { ClockDialogService } from '../../skew/clock-section';
 import { TimelineZoom } from '../../timeline/zoom';
 import { RelatedLink, RelatedNote, RelatedOutcome } from '../ai.types';
@@ -131,7 +130,8 @@ export class AiRelatedResults {
   }
 
   protected level(l: RelatedLink): string {
-    return LEVEL_CODES[l.event.level] ?? l.event.level;
+    // The engine's level name, as the inspector shows it (the grid's three-letter codes are only for its narrow column).
+    return l.event.level;
   }
 
   protected openLabel(l: RelatedLink): string {

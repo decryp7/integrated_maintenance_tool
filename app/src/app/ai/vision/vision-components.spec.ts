@@ -99,7 +99,7 @@ describe('AiRelatedResults', () => {
     const { f, ctx } = render(o);
     const rows = all(f, '[data-testid=ai-related-link]');
     expect(rows.length).toBe(o.result.links.length);
-    expect(rows[0]!.textContent).toContain('FTL');
+    expect(rows[0]!.textContent).toContain('Fatal');
     const chips = [...rows[0]!.querySelectorAll('[data-testid=ai-related-reason]')].map((c) => c.textContent?.trim());
     expect(chips).toContain('time -1.4 s');
     expect(chips).toContain('title matches Application OrderService');

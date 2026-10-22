@@ -20,16 +20,32 @@ pub const RECENT_EVENT: &str = "imt://recent-changed";
 pub const MAX_FILES: usize = 8;
 /// Recent projects kept.
 pub const MAX_PROJECTS: usize = 10;
-const VERSION: u32 = 1;
+/// Version 2 added the time each entry was opened (an older file reads as empty: nothing is released yet).
+const VERSION: u32 = 2;
 const FILE: &str = "recent.json";
 const MAX_NAME: usize = 120;
 
 /// A project in the recent list.
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RecentProject {
     pub path: String,
     pub name: String,
+    /// When it was last opened or saved, in milliseconds since the Unix epoch.
+    #[cfg_attr(test, ts(type = "number"))]
+    pub opened_at: u64,
+}
+
+/// A file or folder in the recent list.
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecentFile {
+    pub path: String,
+    /// When it was last opened, in milliseconds since the Unix epoch.
+    #[cfg_attr(test, ts(type = "number"))]
+    pub opened_at: u64,
 }
 
 /// Both lists, newest first (camelCase on the wire; mirrored as `RecentLists` in api.types.ts).
@@ -37,7 +53,7 @@ pub struct RecentProject {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecentLists {
-    pub files: Vec<String>,
+    pub files: Vec<RecentFile>,
     pub projects: Vec<RecentProject>,
 }
 
@@ -70,7 +86,7 @@ impl Recents {
 
     /// Whether `path` (as the webview sends it) is a recent file or folder.
     pub fn has_file(&self, path: &str) -> bool {
-        self.list().files.iter().any(|f| same(f, path))
+        self.list().files.iter().any(|f| same(&f.path, path))
     }
 
     /// Whether `path` is a recent project.
@@ -80,9 +96,22 @@ impl Recents {
 
     /// Puts opened files and folders at the front (deduplicated, capped); whether the list changed.
     pub fn record_files(&self, paths: &[String]) -> bool {
+        self.record_files_at(paths, now_ms())
+    }
+
+    /// [`Recents::record_files`] with the time given (tests).
+    fn record_files_at(&self, paths: &[String], now: u64) -> bool {
         self.change(|l| {
-            let mut next: Vec<String> = paths.iter().filter(|p| keepable(p)).take(MAX_FILES).cloned().collect();
-            next.extend(l.files.iter().filter(|f| !paths.iter().any(|p| same(p, f))).cloned());
+            let mut next: Vec<RecentFile> = paths
+                .iter()
+                .filter(|p| keepable(p))
+                .take(MAX_FILES)
+                .map(|p| RecentFile {
+                    path: p.clone(),
+                    opened_at: now,
+                })
+                .collect();
+            next.extend(l.files.iter().filter(|f| !paths.iter().any(|p| same(p, &f.path))).cloned());
             next.truncate(MAX_FILES);
             l.files = next;
         })
@@ -90,6 +119,11 @@ impl Recents {
 
     /// Puts a project at the front (deduplicated by path, capped).
     pub fn record_project(&self, path: &str, name: &str) -> bool {
+        self.record_project_at(path, name, now_ms())
+    }
+
+    /// [`Recents::record_project`] with the time given (tests).
+    fn record_project_at(&self, path: &str, name: &str, now: u64) -> bool {
         if !keepable(path) {
             return false;
         }
@@ -102,6 +136,7 @@ impl Recents {
                 RecentProject {
                     path: path.to_string(),
                     name,
+                    opened_at: now,
                 },
             );
             l.projects.truncate(MAX_PROJECTS);
@@ -110,7 +145,7 @@ impl Recents {
 
     pub fn remove(&self, kind: RecentKind, path: &str) -> bool {
         self.change(|l| match kind {
-            RecentKind::Files => l.files.retain(|f| !same(f, path)),
+            RecentKind::Files => l.files.retain(|f| !same(&f.path, path)),
             RecentKind::Projects => l.projects.retain(|p| !same(&p.path, path)),
         })
     }
@@ -145,6 +180,13 @@ fn same(a: &str, b: &str) -> bool {
     }
 }
 
+/// Milliseconds since the Unix epoch (0 if the clock is before it).
+fn now_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| u64::try_from(d.as_millis()).unwrap_or(u64::MAX))
+}
+
 fn keepable(path: &str) -> bool {
     path.len() <= crate::paths::MAX_PATH_LEN && !path.contains('\0') && Path::new(path).is_absolute()
 }
@@ -158,7 +200,7 @@ fn file_stem(path: &str) -> String {
 
 /// The lists as read, bounded and with only absolute paths.
 fn clean(mut lists: RecentLists) -> RecentLists {
-    lists.files.retain(|f| keepable(f));
+    lists.files.retain(|f| keepable(&f.path));
     lists.files.truncate(MAX_FILES);
     lists.projects.retain(|p| keepable(&p.path));
     lists.projects.truncate(MAX_PROJECTS);
@@ -230,10 +272,18 @@ mod tests {
         let t = TempDir::new("recent");
         let r = Recents::load(Some(&t.0));
         assert_eq!(r.list(), RecentLists::default());
-        assert!(r.record_files(&[abs("a"), abs("b")]));
-        assert!(!r.record_files(&[abs("a"), abs("b")]), "unchanged");
-        assert!(r.record_files(&[abs("b")]));
-        assert_eq!(r.list().files, vec![abs("b"), abs("a")]);
+        assert!(r.record_files_at(&[abs("a"), abs("b")], 100));
+        assert!(!r.record_files_at(&[abs("a"), abs("b")], 100), "unchanged");
+        assert!(r.record_files_at(&[abs("b")], 200));
+        let file = |name: &str, opened_at| RecentFile {
+            path: abs(name),
+            opened_at,
+        };
+        assert_eq!(
+            r.list().files,
+            vec![file("b", 200), file("a", 100)],
+            "reopening moves to the front with the new time"
+        );
         assert!(!r.record_files(&["relative".into()]), "only absolute paths are kept");
         let many: Vec<String> = (0..20).map(|i| abs(&format!("f{i}"))).collect();
         r.record_files(&many);
@@ -246,6 +296,10 @@ mod tests {
         assert_eq!(projects[0].name, "P14");
         r.record_project(&abs("p14.imtproj"), "  ");
         assert_eq!(r.list().projects[0].name, "p14", "an empty name is the file's");
+        assert!(r.record_project_at(&abs("p14.imtproj"), "P14", 7));
+        assert_eq!(r.list().projects[0].opened_at, 7);
+        assert!(r.record_project(&abs("p14.imtproj"), "P14"));
+        assert!(r.list().projects[0].opened_at > 1_700_000_000_000, "the real clock is used");
         assert!(r.has_project(&abs("p14.imtproj")) && r.has_file(&abs("f0")));
         assert!(!r.has_project(&abs("other.imtproj")));
         // Kept across loads.
@@ -263,7 +317,14 @@ mod tests {
         let t = TempDir::new("recent-corrupt");
         std::fs::write(t.0.join(FILE), "{ not json").unwrap();
         assert_eq!(Recents::load(Some(&t.0)).list(), RecentLists::default());
-        std::fs::write(t.0.join(FILE), r#"{"version":99,"files":["/x"],"projects":[]}"#).unwrap();
+        std::fs::write(
+            t.0.join(FILE),
+            r#"{"version":99,"files":[{"path":"/x","openedAt":1}],"projects":[]}"#,
+        )
+        .unwrap();
+        assert_eq!(Recents::load(Some(&t.0)).list(), RecentLists::default());
+        // The first version kept bare paths: it reads as empty.
+        std::fs::write(t.0.join(FILE), r#"{"version":1,"files":["/x"],"projects":[]}"#).unwrap();
         assert_eq!(Recents::load(Some(&t.0)).list(), RecentLists::default());
         assert_eq!(Recents::load(None).list(), RecentLists::default());
     }

@@ -29,7 +29,8 @@ fn files() -> Vec<(&'static str, String)> {
         (
             "recent.ts",
             format!(
-                "{header}{}\n{}\n{}",
+                "{header}{}\n{}\n{}\n{}",
+                decl(crate::recent::RecentFile::decl()),
                 decl(crate::recent::RecentProject::decl()),
                 decl(crate::recent::RecentLists::decl()),
                 decl(crate::recent::RecentKind::decl())

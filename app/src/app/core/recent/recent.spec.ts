@@ -10,12 +10,19 @@ describe('MockRecentBackend', () => {
   beforeEach(() => localStorage.clear());
 
   it('keeps newest first, deduplicated and capped, and tells listeners', async () => {
-    const b = new MockRecentBackend();
+    let clock = 1000;
+    const b = new MockRecentBackend(MOCK_RECENT_KEY, () => clock);
     const seen: RecentLists[] = [];
     const off = await b.onChanged((l) => seen.push(l));
     await b.opened(['/a', '/b']);
+    clock = 2000;
     await b.opened(['/b', '/c'], { path: '/p.imtproj', name: 'P' });
-    expect((await b.list()).files).toEqual(['/b', '/c', '/a']);
+    expect((await b.list()).files).toEqual([
+      { path: '/b', openedAt: 2000 },
+      { path: '/c', openedAt: 2000 },
+      { path: '/a', openedAt: 1000 },
+    ]);
+    expect((await b.list()).projects).toEqual([{ path: '/p.imtproj', name: 'P', openedAt: 2000 }]);
     for (let i = 0; i < 20; i++) await b.opened([`/p${i}`]);
     expect((await b.list()).files).toHaveLength(MOCK_RECENT_FILES_MAX);
     await b.remove('projects', '/p.imtproj');
@@ -29,12 +36,12 @@ describe('MockRecentBackend', () => {
 
   it('ignores incompatible, corrupt or malformed data and storage failures', async () => {
     const b = new MockRecentBackend();
-    localStorage.setItem(MOCK_RECENT_KEY, JSON.stringify({ version: 99, files: ['/x'] }));
+    localStorage.setItem(MOCK_RECENT_KEY, JSON.stringify({ version: 99, files: [{ path: '/x', openedAt: 1 }] }));
     expect((await b.list()).files).toEqual([]);
     localStorage.setItem(MOCK_RECENT_KEY, '{nope');
     expect((await b.list()).files).toEqual([]);
-    localStorage.setItem(MOCK_RECENT_KEY, JSON.stringify({ version: 1, files: ['/ok', 5], projects: [{ path: '/p' }, null] }));
-    expect(await b.list()).toEqual({ files: ['/ok'], projects: [] });
+    localStorage.setItem(MOCK_RECENT_KEY, JSON.stringify({ version: 2, files: [{ path: '/ok', openedAt: 5 }, '/bare', { path: '/no-time' }], projects: [{ path: '/p', name: 'P' }, null] }));
+    expect(await b.list()).toEqual({ files: [{ path: '/ok', openedAt: 5 }], projects: [] });
     const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('quota');
     });
@@ -48,7 +55,7 @@ describe('TauriRecentBackend', () => {
     const calls: [string, unknown][] = [];
     const call = (async (cmd: string, args?: unknown) => {
       calls.push([cmd, args]);
-      return cmd === 'recent_list' ? { files: ['/a', 3], projects: [{ path: '/p', name: 'P' }] } : undefined;
+      return cmd === 'recent_list' ? { files: [{ path: '/a', openedAt: 7 }, '/old', 3], projects: [{ path: '/p', name: 'P', openedAt: 8 }, { path: '/q', name: 'Q' }] } : undefined;
     }) as never;
     let handler: ((p: unknown) => void) | undefined;
     const listen = async (event: string, h: (p: unknown) => void) => {
@@ -57,7 +64,7 @@ describe('TauriRecentBackend', () => {
       return () => undefined;
     };
     const b = new TauriRecentBackend(call, listen);
-    expect(await b.list()).toEqual({ files: ['/a'], projects: [{ path: '/p', name: 'P' }] });
+    expect(await b.list()).toEqual({ files: [{ path: '/a', openedAt: 7 }], projects: [{ path: '/p', name: 'P', openedAt: 8 }] });
     await b.remove('files', '/a');
     await b.clear('projects');
     await b.opened();
@@ -68,8 +75,8 @@ describe('TauriRecentBackend', () => {
     ]);
     const got: RecentLists[] = [];
     await b.onChanged((l) => got.push(l));
-    handler?.({ files: ['/b'] });
-    expect(got).toEqual([{ files: ['/b'], projects: [] }]);
+    handler?.({ files: [{ path: '/b', openedAt: 1 }] });
+    expect(got).toEqual([{ files: [{ path: '/b', openedAt: 1 }], projects: [] }]);
     expect(parseRecentLists(null)).toEqual({ files: [], projects: [] });
   });
 });
@@ -88,8 +95,8 @@ describe('RecentService and its adapters', () => {
     expect(projects).toBeInstanceOf(BackendRecentProjects);
     files.add(['/a']);
     projects.add({ path: '/p.imtproj', name: 'P' });
-    await vi.waitFor(() => expect(files.list()).toEqual(['/a']));
-    await vi.waitFor(() => expect(projects.list()).toEqual([{ path: '/p.imtproj', name: 'P' }]));
+    await vi.waitFor(() => expect(files.list().map((f) => f.path)).toEqual(['/a']));
+    await vi.waitFor(() => expect(projects.list()).toEqual([{ path: '/p.imtproj', name: 'P', openedAt: expect.any(Number) }]));
     projects.remove('/p.imtproj');
     await vi.waitFor(() => expect(projects.list()).toEqual([]));
     files.clear();

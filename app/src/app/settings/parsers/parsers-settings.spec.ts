@@ -11,6 +11,7 @@ import { ParserEditor } from './parser-editor';
 import { DEMO_PARSER_IMPORT, ParserFiles } from './parser-files';
 import { ParsersBackend } from './parsers-backend';
 import { ParsersSettings } from './parsers-settings';
+import { ParsersStore } from './parsers.store';
 import { PARSERS_ID } from './parsers.types';
 
 async function setup() {
@@ -143,5 +144,36 @@ describe('ParsersSettings', () => {
     expect(el(screen, '[data-testid=settings-nav-parsers]').getAttribute('aria-current')).toBe('page');
     expect(all(screen, 'imt-parsers-settings')).toHaveLength(0);
     expect(all(screen, '[data-testid=settings-open-parsers-view]')).toHaveLength(1);
+  });
+
+  it('Parse with… (I3): offers "Read it with this" on each parser while a source is being chosen for', async () => {
+    const { fixture, backend } = await setup();
+    const store = TestBed.inject(ParsersStore);
+    const source = TestBed.inject(WorkspaceStore).summary()!.sources[1]!;
+    expect(fixture.nativeElement.querySelector('[data-testid=parsers-target]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid=parser-read-with]')).toBeNull();
+
+    void store.chooseFor(source);
+    await settle(fixture);
+    const banner = el(fixture, '[data-testid=parsers-target]');
+    expect(banner.textContent).toContain(source.name);
+    expect(el(fixture, '[data-testid=parsers-target-auto]').classList).toContain('primary');
+    const assign = vi.spyOn(backend, 'assign');
+    el<HTMLButtonElement>(fixture, 'li[data-parser="nlog"] [data-testid=parser-read-with]').click();
+    await vi.waitFor(() => expect(assign).toHaveBeenCalledWith(source.id, 'nlog'));
+    await vi.waitFor(() => expect(store.busy()).toBeNull());
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-testid=parsers-target]')).toBeNull();
+
+    void store.chooseFor(source);
+    await settle(fixture);
+    el<HTMLButtonElement>(fixture, '[data-testid=parsers-target-cancel]').click();
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-testid=parsers-target]')).toBeNull();
+
+    void store.chooseFor(source);
+    await settle(fixture);
+    el<HTMLButtonElement>(fixture, '[data-testid=parsers-target-auto]').click();
+    await vi.waitFor(() => expect(assign).toHaveBeenLastCalledWith(source.id, null));
   });
 });
