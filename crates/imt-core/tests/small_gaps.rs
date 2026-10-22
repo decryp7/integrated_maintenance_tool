@@ -119,3 +119,19 @@ fn the_playbook_library_refuses_bad_ids_and_reports_what_it_cannot_do() {
     std::fs::write(dir.0.join("no-such-dir"), b"a file, not a folder").unwrap();
     assert!(save_to_library(&missing, &playbook("x")).is_err());
 }
+
+#[test]
+fn known_issue_blocks_may_have_blank_and_continued_lines_and_report_what_is_wrong() {
+    use imt_core::known_issues::parse_known_issues;
+    let md = "# Notes\n\n```known-issue\ntitle: Gateway timeouts\n\npattern: (?i)timed out\nfix: Raise the timeout\n  and check the provider\n```\n\n\
+              ```known-issue\n  orphan continuation\ntitle: Broken\n```\n";
+    let (issues, warnings) = parse_known_issues("orders.md", md);
+    assert_eq!(issues.len(), 1, "{issues:?} {warnings:?}");
+    assert_eq!(issues[0].title, "Gateway timeouts");
+    assert_eq!(
+        issues[0].fix, "Raise the timeout\nand check the provider",
+        "continued lines join the previous key"
+    );
+    assert_eq!(warnings.len(), 1, "{warnings:?}");
+    assert!(warnings[0].contains("continuation line comes before any key"), "{warnings:?}");
+}

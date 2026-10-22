@@ -165,6 +165,8 @@ mod tests {
                 None
             }
         }
+        assert_eq!(a[0].id(), "a", "the guarded annotator keeps its id");
+        assert_eq!(r.importers().binary_importers().count(), 0);
         let e = a[0].annotate(&V, None).unwrap_err().to_string();
         assert!(e.contains("crashed") && e.contains("annotator blew up"), "{e}");
         assert_eq!(r.health().get("t.hosted").failures, 1);
