@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { expectNoSeriousViolations } from './axe';
 import { openAppWith } from './mock-url';
+import { runCommand } from './tools-support';
 
 /**
  * Each opened path stands for six files read a simulated minute apart, on Playwright's clock: the import is still
@@ -47,9 +48,8 @@ test.describe('import progress', () => {
   test('on the welcome page a long import also shows a card with Cancel', async ({ page }, testInfo) => {
     await page.clock.install();
     await openAppWith(page, SLOW_IMPORT);
-    await page.keyboard.press('Control+K');
-    await page.keyboard.type('Close workspace');
-    await page.keyboard.press('Enter');
+    // Typed only once the palette is open and lists the command: keys pressed before that are lost.
+    await runCommand(page, 'Close workspace');
     await expect(page.locator('imt-title-bar')).toContainText('No folder open');
     await page.locator('imt-welcome').getByRole('button', { name: /Open files/ }).click();
     const toast = page.getByTestId('import-toast');
