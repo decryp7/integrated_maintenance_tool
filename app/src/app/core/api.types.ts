@@ -2227,7 +2227,8 @@ export type FindingKind =
   | 'noTimestamps'
   | 'fileNotOpened'
   | 'dropped'
-  | 'pluginQuarantined';
+  | 'pluginQuarantined'
+  | 'notShown';
 
 /** One line of the automatic health check (`overview { request: { query } } -> Finding[]`), most severe first. */
 export interface Finding {
@@ -2245,6 +2246,8 @@ export interface HomeRequest {
   query: Query;
   /** History buckets, clamped by the engine to 10..=240. */
   buckets: number;
+  /** Run the analyses (anomalies, exception groups)? They are the slow part: ask without them first, then with. */
+  analyses?: boolean;
 }
 
 /** Markers of one kind in one history bucket. */
@@ -2290,6 +2293,8 @@ export interface HomeSummary {
   exceptionGroups: number;
   /** Events in all exception groups. */
   exceptionEvents: number;
+  /** Whether the analyses ran; when false the anomaly and exception numbers are zero because they were not asked for. */
+  analysed: boolean;
   /** How much of the data the analyses covered. */
   coverage: Coverage;
 }

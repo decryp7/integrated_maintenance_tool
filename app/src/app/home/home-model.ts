@@ -69,7 +69,7 @@ export function historyOption(summary: HomeSummary, t: ChartTokens, tz: TimeZone
     data: summary.markers.map((m) => ({
       xAxis: m.ts,
       name: labels.marker(m.kind),
-      lineStyle: { color: t.markers[m.kind] ?? t.muted, width: 1, type: 'solid' as const, opacity: 0.8 },
+      lineStyle: { color: t.markers[m.kind] ?? t.muted, width: 1, type: 'solid' as const, opacity: 0.5 },
       tooltip: { formatter: `${labels.marker(m.kind)} · ${formatDateTime(m.ts, tz)}${m.count > 1 ? ` ×${m.count}` : ''}` },
     })),
   };
@@ -95,7 +95,8 @@ export function historyOption(summary: HomeSummary, t: ChartTokens, tz: TimeZone
   return {
     animation: false,
     textStyle: { fontFamily: t.fontSans, color: t.muted },
-    grid: { left: 48, right: 16, top: 30, bottom: 26 },
+    // The legend wraps (never pages): headroom for a row per four entries, so it cannot overlap the plot.
+    grid: { left: 48, right: 16, top: 12 + Math.ceil(present.length / 4) * 20, bottom: 26 },
     legend: { type: 'plain', left: 48, top: 0, right: 16, textStyle: { color: t.text, fontSize: 11 }, icon: 'rect', itemWidth: 12, itemHeight: 8 },
     tooltip: {
       trigger: 'axis',

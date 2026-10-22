@@ -1,6 +1,8 @@
-import { DestroyRef, effect, inject, Injectable, untracked } from '@angular/core';
+import { computed, DestroyRef, effect, inject, Injectable, signal, untracked } from '@angular/core';
+import { ActivityLog } from '../core/activity/activity-log';
+import type { Breadcrumb } from '../core/activity/types';
 import { AnalysisResource, AsyncResource } from '../analysis/async-resource';
-import { Finding, HomeSummary, StoreMemory, StoreOverview } from '../core/api.types';
+import { Finding, HomeSummary, Query, StoreMemory, StoreOverview } from '../core/api.types';
 import { ConsumerGate } from '../core/panel-visibility';
 import { EMPTY_QUERY, QueryStore } from '../core/workspace/query.store';
 import { WorkspaceDataStore } from '../core/workspace/workspace-data.store';
@@ -57,12 +59,27 @@ export class HomeStore {
   private readonly storePane = inject(StorePaneBackend);
   private readonly data = inject(WorkspaceDataStore);
   private readonly query = inject(QueryStore);
+  private readonly activity = inject(ActivityLog);
   readonly gate = new ConsumerGate();
 
-  readonly summary = new AsyncResource<HomeSummary>();
+  /** The summary without the analyses: the counts, the history and the markers, quickly even on a huge store. */
+  private readonly quick = new AsyncResource<HomeSummary>();
+  /** The summary with the anomalies and exception groups, which are slow when cold. */
+  private readonly full = new AsyncResource<HomeSummary>();
+  /** The best summary so far: the full one once it arrives (the previous full one stays while a refresh runs). */
+  readonly summary = computed(() => this.full.data() ?? this.quick.data());
+  /** Nothing to show yet: loading or failed. Once there is a summary, a failure of the analyses only blanks their tiles. */
+  readonly summaryLoading = computed(() => !this.summary() && (this.quick.loading() || this.full.loading()));
+  readonly summaryError = computed(() => (this.summary() ? null : (this.quick.error() ?? this.full.error())));
+  readonly summaryRetryable = computed(() => this.quick.retryable() && this.full.retryable());
+  /** The analyses are running or failed: their tiles show a placeholder. */
+  readonly analysing = computed(() => this.full.loading());
   readonly health = new AnalysisResource<Finding[]>();
   readonly storeOverview = new AsyncResource<StoreOverview>();
   readonly memory = new AsyncResource<StoreMemory>();
+
+  /** The latest activity (the recent activity feed), re-read with every load: the log itself is not reactive. */
+  readonly crumbs = signal<Breadcrumb[]>([]);
 
   private readonly limiter = new RefreshLimiter(() => this.load(), HOME_REFRESH_MS);
   /** What the last load was for: the same data seen again (Home shown again) is not asked again. */
@@ -88,14 +105,25 @@ export class HomeStore {
     this.load();
   }
 
+  /** Retries a failed summary. */
+  retrySummary(): void {
+    this.loadSummary({ ...EMPTY_QUERY, groupBy: [...this.query.effectiveGroupBy()] });
+  }
+
+  private loadSummary(query: Query): void {
+    void this.quick.load(() => this.home.querySummary({ query, buckets: HOME_BUCKETS, analyses: false }));
+    void this.full.load(() => this.home.querySummary({ query, buckets: HOME_BUCKETS, analyses: true }));
+  }
+
   private load(): void {
+    this.crumbs.set(this.activity.breadcrumbs(60));
     if (!this.data.summary()?.sources.length) {
-      for (const r of [this.summary, this.health, this.storeOverview, this.memory]) r.reset();
+      for (const r of [this.quick, this.full, this.health, this.storeOverview, this.memory]) r.reset();
       return;
     }
     // Everything opened, not the current filters: only the grouping (the lanes' instances) applies.
     const query = { ...EMPTY_QUERY, groupBy: [...this.query.effectiveGroupBy()] };
-    void this.summary.load(() => this.home.querySummary({ query, buckets: HOME_BUCKETS }));
+    this.loadSummary(query);
     void this.health.load(() => this.share.overview(query));
     void this.storeOverview.load(() => this.storePane.overview());
     void this.memory.load(() => this.storePane.describeMemory());

@@ -10,7 +10,7 @@ import { plural } from '../../i18n/locale';
 import { Icon } from '../../shared/icon';
 import { ShareBackend } from '../../share/share-backend';
 import { HealthActions } from './health-actions';
-import { OVERVIEW_VIEW } from './overview.plugin';
+import { HOME_VIEW } from '../home.plugin';
 
 /** The headline numbers of the health check: what the timeline header points at. */
 export interface Headline {
@@ -28,9 +28,9 @@ export function headlineOf(findings: readonly Finding[], levels: Partial<Record<
 }
 
 /**
- * The health check's findings (the engine's `overview`, the same request as the Overview view) for the headline in
+ * The health check's findings (the engine's `overview`, the same request as Home) for the headline in
  * the timeline header. Asked only while a headline is mounted and visible, and again when the data or the grouping
- * changes; a failure just hides the headline (the Overview view reports it).
+ * changes; a failure just hides the headline (Home reports it).
  */
 @Injectable({ providedIn: 'root' })
 export class HealthHeadlineStore {
@@ -77,7 +77,7 @@ export class HealthHeadlineStore {
 /**
  * One compact line in the timeline header with the health check's headline, e.g. "⚠ 2 crashes · 287 errors · 1 went
  * silent — Review": each count is a button (jump to the next crash, show the errors, show the next silence) and
- * Review opens the Overview. Hidden when nothing is notable and while the Overview itself is open.
+ * Review opens Home. Hidden when nothing is notable and while Home itself is open.
  */
 @Component({
   selector: 'imt-health-headline',
@@ -86,7 +86,7 @@ export class HealthHeadlineStore {
   host: { style: 'display: contents' },
   template: `
     @if (shown(); as h) {
-      <div class="headline" role="toolbar" aria-label="Health check" i18n-aria-label="@@overview.headline.aria" data-testid="overview-headline">
+      <div class="headline" role="toolbar" aria-label="Health check" i18n-aria-label="@@overview.headline.aria" data-testid="health-headline">
         <imt-icon name="alert" [size]="13" class="warn" />
         @if (h.crashes.length) {
           <button type="button" class="count bad" data-testid="headline-crashes" [title]="crashTitle" (click)="next('crash', h.crashes)">{{ crashesText(h.crashes.length) }}</button>
@@ -123,7 +123,7 @@ export class HealthHeadlineStore {
 export class HealthHeadline {
   private readonly store = inject(HealthHeadlineStore);
   private readonly dock = inject(DockService);
-  /** The Overview's own actions, resolved when used (they need the analysis backend). */
+  /** Home's finding actions, resolved when used (they need the analysis backend). */
   private readonly injector = inject(Injector);
   private readonly ctx = inject(COMMAND_CONTEXT);
   /** Which crash or silence the next click goes to (each click moves on). */
@@ -133,8 +133,8 @@ export class HealthHeadline {
   protected readonly errorsTitle = $localize`:@@overview.headline.errorsTitle:Show the errors and fatal events`;
   protected readonly silentTitle = $localize`:@@overview.headline.silentTitle:Show the next time a source went silent`;
 
-  /** The headline, unless the Overview itself is open. */
-  protected readonly shown = computed(() => (this.dock.isOpen(OVERVIEW_VIEW) ? null : this.store.headline()));
+  /** The headline, unless Home itself is open. */
+  protected readonly shown = computed(() => (this.dock.isOpen(HOME_VIEW) ? null : this.store.headline()));
 
   constructor() {
     this.store.gate.use();
@@ -168,6 +168,6 @@ export class HealthHeadline {
   }
 
   protected review(): void {
-    this.ctx.showView(OVERVIEW_VIEW);
+    this.ctx.showView(HOME_VIEW);
   }
 }

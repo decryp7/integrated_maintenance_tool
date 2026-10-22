@@ -21,7 +21,7 @@ test.describe('app load', () => {
     // The inspector waits as an auto-hidden tool window on the right edge; Overview, Query and Metrics open on demand.
     await expect(page.getByRole('navigation', { name: 'Auto-hidden tool windows (right)' }).getByRole('button', { name: 'Inspector' })).toBeVisible();
     await expect(page.locator('imt-inspector')).toHaveCount(0);
-    await expect(page.locator('imt-overview-view')).toHaveCount(0);
+    await expect(page.locator('imt-home-view')).toHaveCount(0);
     // Ctrl+/ opens the query bar directly above the events grid, in its own short group.
     await page.keyboard.press('ControlOrMeta+/');
     await expect(page.getByRole('combobox', { name: 'Query' })).toBeFocused();

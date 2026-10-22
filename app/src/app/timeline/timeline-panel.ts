@@ -34,6 +34,7 @@ import { HIST_VB, histogramPaths } from './histogram';
 import { LanesEmpty, MarkerHover, MarkerMenu, TimelineLanes } from './timeline-lanes';
 import { TimelineHeader } from './timeline-header';
 import { TimelineLegend } from './timeline-legend';
+import { TimelineMinimap } from './timeline-minimap';
 import { TimelineTooltips } from './timeline-tooltips';
 import { TimelineInteraction } from './timeline-interaction';
 
@@ -50,7 +51,7 @@ function timelineSource(): TimelineSource {
 @Component({
   selector: 'imt-timeline-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TimeCursorLine, AnnotationTrack, ProfileSpanTrack, DumpMarkerTrack, NoteTimelineTrack, TimelineHeader, TimelineLegend, TimelineLanes, TimelineTooltips, TimelineInteraction, ErrorDetails],
+  imports: [TimeCursorLine, AnnotationTrack, ProfileSpanTrack, DumpMarkerTrack, NoteTimelineTrack, TimelineHeader, TimelineLegend, TimelineMinimap, TimelineLanes, TimelineTooltips, TimelineInteraction, ErrorDetails],
   // One store per panel: an additional timeline gets its own `TimelineInstanceStore` (created only when used).
   providers: [TimelineInstanceStore, { provide: TIMELINE_SOURCE, useFactory: timelineSource }],
   host: { '[class.instance]': '!src.main' },
@@ -71,6 +72,10 @@ function timelineSource(): TimelineSource {
     >
       <div class="scroller">
         <div class="sticky">
+          <div class="row mini-row">
+            <div class="label"></div>
+            <div class="plot"><imt-timeline-minimap /></div>
+          </div>
           <div class="row hist-row">
             <div class="label hist-label small">
               <span class="faint" i18n="@@timeline.panel.eventsPerBucket">events / bucket</span>

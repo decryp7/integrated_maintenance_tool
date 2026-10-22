@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
 import { invoke } from '../core/activity/ipc';
 import { HomeRequest, HomeSummary } from '../core/api.types';
 import { AnalysisBackend } from '../core/analysis-backend';
@@ -30,6 +30,7 @@ export class TauriHomeBackend extends HomeBackend {
 }
 
 export function createHomeBackend(): HomeBackend {
-  const backend: HomeBackend = isTauri() ? new TauriHomeBackend() : new (browserMocks().MockHomeBackend)(inject(ImtBackend), inject(AnalysisBackend));
+  const injector = inject(Injector);
+  const backend: HomeBackend = isTauri() ? new TauriHomeBackend() : new (browserMocks().MockHomeBackend)(inject(ImtBackend), () => injector.get(AnalysisBackend));
   return withFailureLogging<HomeBackend>(backend, inject(Logger), { onFailure: reportBackendFailures() });
 }

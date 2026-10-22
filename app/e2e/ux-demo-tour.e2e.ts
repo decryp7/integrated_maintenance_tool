@@ -28,13 +28,13 @@ test.describe('demo and guided tour', () => {
     await expect(tour(page).getByRole('button', { name: 'Next' })).toBeFocused();
     await expectNoSeriousViolations(page, testInfo, 'tour', '[data-testid=tour]');
 
-    const titles = ['Timeline', 'Events', 'Query bar', 'Moment', 'Markers', 'Overview'];
+    const titles = ['Timeline', 'Events', 'Query bar', 'Moment', 'Markers', 'Home'];
     for (const [i, title] of titles.entries()) {
       await page.keyboard.press('ArrowRight');
       await expect(tour(page)).toContainText(`Step ${i + 2} of 7`);
       await expect(tour(page).getByRole('heading', { name: title })).toBeVisible();
     }
-    await expect(page.locator('imt-overview-view')).toBeVisible();
+    await expect(page.locator('imt-home-view')).toBeVisible();
     await page.keyboard.press('ArrowLeft');
     await expect(tour(page)).toContainText('Step 6 of 7');
     await tour(page).getByRole('button', { name: 'Next' }).click();

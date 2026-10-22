@@ -13,7 +13,8 @@ const MAX_MARKS = 200;
 export class MockHomeBackend extends HomeBackend {
   constructor(
     private readonly imt: ImtBackend,
-    private readonly analysis: AnalysisBackend,
+    /** Resolved only when the analyses are asked for, so a quick summary works where no analysis backend is provided. */
+    private readonly analysis: () => AnalysisBackend,
   ) {
     super();
   }
@@ -21,7 +22,9 @@ export class MockHomeBackend extends HomeBackend {
   async querySummary(request: HomeRequest): Promise<HomeSummary> {
     const summary = await this.imt.workspaceSummary();
     const levels = summary.levels;
-    const [anomalies, groups] = await Promise.all([this.analysis.queryAnomalies(request.query), this.analysis.queryExceptions(request.query)]);
+    const analyses = request.analyses ?? true;
+    const none = { result: [], coverage: { matched: 0, analysed: 0, limits: [] } };
+    const [anomalies, groups] = analyses ? await Promise.all([this.analysis().queryAnomalies(request.query), this.analysis().queryExceptions(request.query)]) : [none, none];
     const timed = summary.from !== null && summary.to !== null;
     const timeline = timed ? await this.imt.queryTimeline({ query: request.query, buckets: Math.min(240, Math.max(10, request.buckets)), alwaysShowLifecycle: true }) : null;
     const histogram = timeline?.histogram ?? [];
@@ -51,6 +54,7 @@ export class MockHomeBackend extends HomeBackend {
         .slice(0, MAX_MARKS),
       exceptionGroups: groups.result.length,
       exceptionEvents: groups.result.reduce((n, g) => n + g.count, 0),
+      analysed: analyses,
       coverage: {
         matched: anomalies.coverage.matched + groups.coverage.matched,
         analysed: anomalies.coverage.analysed + groups.coverage.analysed,

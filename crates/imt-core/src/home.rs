@@ -6,7 +6,7 @@
 use crate::analysis::Anomaly;
 use crate::api::{QueryRequest, Timeline, TimelineRequest};
 use crate::model::Level;
-use crate::ports::{Analysis, Coverage, Query as QueryPort, StoreResult};
+use crate::ports::{Analysis, Analyzed, Coverage, Query as QueryPort, StoreResult};
 use crate::query::Query;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -26,6 +26,14 @@ pub struct HomeRequest {
     pub query: Query,
     #[serde(default = "default_buckets")]
     pub buckets: usize,
+    /// Whether to run the analyses (anomalies, exception groups). They are the slow part on a large store (seconds
+    /// when cold); the dashboard asks without them first, so the counts and the history appear at once, then with.
+    #[serde(default = "default_analyses")]
+    pub analyses: bool,
+}
+
+fn default_analyses() -> bool {
+    true
 }
 
 fn default_buckets() -> usize {
@@ -37,6 +45,7 @@ impl Default for HomeRequest {
         HomeRequest {
             query: Query::default(),
             buckets: default_buckets(),
+            analyses: default_analyses(),
         }
     }
 }
@@ -90,8 +99,19 @@ pub struct HomeSummary {
     pub exception_groups: usize,
     /// Events in all exception groups.
     pub exception_events: usize,
+    /// Whether the analyses ran (the request's `analyses`): when false the anomaly and exception numbers are zero
+    /// because they were not asked for, not because none were found.
+    pub analysed: bool,
     /// How much of the data the analyses (anomalies, exceptions) covered.
     pub coverage: Coverage,
+}
+
+/// The result of an analysis that was not asked for: empty, covering nothing.
+fn not_run<T>() -> Analyzed<Vec<T>> {
+    Analyzed {
+        result: Vec::new(),
+        coverage: Coverage::default(),
+    }
 }
 
 /// What the summary needs from the store.
@@ -103,8 +123,11 @@ pub fn home_summary<S: HomeStore + ?Sized>(store: &S, req: &HomeRequest) -> Stor
     let summary = store.summary()?;
     let level = |l: Level| summary.levels.get(&l).copied().unwrap_or(0);
     let analysis = QueryRequest { query: req.query.clone() };
-    let anomalies = store.anomalies(&analysis)?;
-    let groups = store.exception_groups(&analysis)?;
+    let (anomalies, groups) = if req.analyses {
+        (store.anomalies(&analysis)?, store.exception_groups(&analysis)?)
+    } else {
+        (not_run(), not_run())
+    };
     let timed = summary.from.is_some() && summary.to.is_some();
     let timeline = if timed {
         Some(store.timeline(&TimelineRequest {
@@ -141,6 +164,7 @@ pub fn home_summary<S: HomeStore + ?Sized>(store: &S, req: &HomeRequest) -> Stor
         anomalies: marks_of(&anomalies.result),
         exception_groups: groups.result.len(),
         exception_events: groups.result.iter().map(|g| g.count).sum(),
+        analysed: req.analyses,
         coverage: anomalies.coverage.and(groups.coverage),
     })
 }
@@ -168,10 +192,19 @@ fn markers_of(t: &Timeline) -> Vec<HomeMarker> {
     out
 }
 
-/// The anomalies by start time, at most [`MAX_HOME_MARKS`].
+/// The highest-scored anomalies, at most [`MAX_HOME_MARKS`], by start time (so a noisy log keeps its worst ranges, not
+/// merely its earliest).
 fn marks_of(anomalies: &[Anomaly]) -> Vec<HomeAnomaly> {
-    let mut out: Vec<HomeAnomaly> = anomalies
-        .iter()
+    let mut ranked: Vec<&Anomaly> = anomalies.iter().collect();
+    ranked.sort_by(|a, b| {
+        b.score
+            .total_cmp(&a.score)
+            .then_with(|| a.from.cmp(&b.from))
+            .then_with(|| a.to.cmp(&b.to))
+    });
+    ranked.truncate(MAX_HOME_MARKS);
+    let mut out: Vec<HomeAnomaly> = ranked
+        .into_iter()
         .map(|a| HomeAnomaly {
             kind: a.kind,
             from: a.from,
@@ -180,7 +213,6 @@ fn marks_of(anomalies: &[Anomaly]) -> Vec<HomeAnomaly> {
         })
         .collect();
     out.sort_by_key(|a| (a.from, a.to));
-    out.truncate(MAX_HOME_MARKS);
     out
 }
 
@@ -270,13 +302,29 @@ mod tests {
             .collect();
         let marks = marks_of(&anomalies);
         assert_eq!(marks.len(), MAX_HOME_MARKS);
-        assert_eq!(marks[0].from, 0, "sorted by start time before the cap");
+        assert_eq!(marks[0].from, 0, "equal scores keep the earliest, in time order");
+        // A late, high-scored anomaly survives the cap, and the result is in time order.
+        let mut with_worst = anomalies;
+        with_worst.push(Anomaly {
+            kind: AnomalyKind::Crash,
+            instance: None,
+            from: 10_000,
+            to: 10_001,
+            score: 99.0,
+            message: "worst".into(),
+            sample_ids: Vec::new(),
+        });
+        let marks = marks_of(&with_worst);
+        assert_eq!(marks.len(), MAX_HOME_MARKS);
+        assert_eq!(marks.last().map(|m| m.message.as_str()), Some("worst"));
+        assert!(marks.windows(2).all(|w| w[0].from <= w[1].from));
     }
 
     #[test]
     fn requests_default_to_sixty_buckets() {
         let req: HomeRequest = serde_json::from_str("{}").unwrap();
         assert_eq!(req.buckets, 60);
+        assert!(req.analyses, "analyses are on unless the request leaves them out");
         assert_eq!(HomeRequest::default().buckets, 60);
     }
 }

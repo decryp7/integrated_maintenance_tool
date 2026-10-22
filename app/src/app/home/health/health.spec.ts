@@ -13,9 +13,6 @@ import { ShareBackend } from '../../share/share-backend';
 import { DialogService } from '../../ui/dialog.service';
 import { HealthActions } from './health-actions';
 import { actionButtons, groupBySeverity, healthStats, panelTarget, pluginProblems, zoomWindow } from './health-model';
-import { OVERVIEW_AUTO_OPEN_KEY, OverviewPrefs } from './overview-prefs';
-import { OverviewView } from './overview-view';
-import { OverviewAutoOpen, provideOverview } from './overview.plugin';
 import { at } from '../../../testing/must';
 
 const crash: Finding = { kind: 'crash', severity: 'critical', title: 'Crash', detail: 'WEB01 stopped', action: { kind: 'zoom', from: 1000, to: 2000, recordId: 7 } };
@@ -100,31 +97,6 @@ describe('overview model', () => {
   });
 });
 
-describe('OverviewPrefs', () => {
-  afterEach(() => localStorage.removeItem(OVERVIEW_AUTO_OPEN_KEY));
-
-  it('defaults to opening, remembers the choice and survives broken storage', () => {
-    expect(TestBed.inject(OverviewPrefs).autoOpen()).toBe(true);
-    TestBed.inject(OverviewPrefs).setAutoOpen(false);
-    expect(localStorage.getItem(OVERVIEW_AUTO_OPEN_KEY)).toBe('false');
-    TestBed.resetTestingModule();
-    expect(TestBed.inject(OverviewPrefs).autoOpen()).toBe(false);
-    TestBed.resetTestingModule();
-    const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('denied');
-    });
-    const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('denied');
-    });
-    const prefs = TestBed.inject(OverviewPrefs);
-    expect(prefs.autoOpen()).toBe(true);
-    prefs.setAutoOpen(false);
-    expect(prefs.autoOpen()).toBe(false);
-    get.mockRestore();
-    set.mockRestore();
-  });
-});
-
 describe('HealthActions', () => {
   function setup(groups: ExceptionGroup[] | { reject: unknown } = [group()]) {
     const ctx = new FakeCtx();
@@ -192,115 +164,5 @@ describe('HealthActions', () => {
     await actions.run(bare, 'jump');
     expect(ctx.calls).toEqual(['show:profile']);
     expect(TestBed.inject(DialogService).stack()).toHaveLength(1);
-  });
-});
-
-describe('OverviewView', () => {
-  function setup(findings: Finding[] | (() => Promise<Finding[]>)) {
-    const answer = typeof findings === 'function' ? findings : async () => findings;
-    const overview = vi.fn(async () => ({ result: await answer(), coverage: fullCoverage(3) }));
-    const ctx = new FakeCtx();
-    TestBed.configureTestingModule({
-      providers: [provideTinyBackend(), provideFakeDock(), { provide: ShareBackend, useValue: { overview } }, { provide: COMMAND_CONTEXT, useValue: ctx }, { provide: AnalysisBackend, useValue: { queryExceptions: async () => ({ result: [], coverage: fullCoverage(0) }) } }],
-    });
-    const fixture = TestBed.createComponent(OverviewView);
-    return { fixture, overview, ctx };
-  }
-
-  afterEach(() => localStorage.removeItem(OVERVIEW_AUTO_OPEN_KEY));
-
-  it('shows the numbers, the unrecognised files and the findings by severity with their actions', async () => {
-    const { fixture, overview, ctx } = setup([crash, exc, file]);
-    await settle(fixture);
-    expect(overview).toHaveBeenCalledWith(expect.objectContaining({ text: '', filters: [] }));
-    const t = text(fixture);
-    expect(t).toContain('Sources');
-    expect(t).toContain('1 file not opened');
-    expect(t).toContain('export.reg — No importer');
-    expect(t).toContain('→');
-    expect(all(fixture, 'section.group h3').map((h) => h.textContent?.replace(/\s+/g, ' ').trim())).toEqual(['Critical (1)', 'Warning (1)', 'Info (1)']);
-    expect(t).not.toContain('Nothing alarming found');
-    buttonByText(fixture, 'Show these events').click();
-    await settle(fixture);
-    expect(ctx.calls).toContain('show:events');
-  });
-
-  it('says when nothing alarming was found, lists plugin problems and refreshes', async () => {
-    const { fixture, overview } = setup([]);
-    const store = TestBed.inject(WorkspaceStore);
-    await settle(fixture);
-    expect(text(fixture)).toContain('Nothing alarming found');
-    store.applySummary({ ...store.summary()!, plugins: [pluginInfo({ id: 'p', name: 'Bad plugin', status: 'quarantined' })], from: null, to: null });
-    await settle(fixture);
-    expect(text(fixture)).toContain('1 plugin with problems');
-    expect(text(fixture)).toContain('No timestamps');
-    const calls = overview.mock.calls.length;
-    buttonByText(fixture, 'Refresh').click();
-    await settle(fixture);
-    expect(overview.mock.calls.length).toBe(calls + 1);
-  });
-
-  it('shows an inline error with Retry, and a hint before anything is opened', async () => {
-    let fail = true;
-    const { fixture } = setup(async () => (fail ? Promise.reject(new Error('engine busy')) : [bare]));
-    await settle(fixture);
-    expect(text(fixture)).toContain('engine busy');
-    fail = false;
-    buttonByText(fixture, 'Retry').click();
-    await settle(fixture);
-    expect(text(fixture)).toContain('Note');
-    const store = TestBed.inject(WorkspaceStore);
-    store.applySummary({ ...store.summary()!, sources: [], unrecognized: [] });
-    await settle(fixture);
-    expect(text(fixture)).toContain('Open files or a folder to see a health check here.');
-  });
-
-  it('toggles opening after imports', async () => {
-    const { fixture } = setup([]);
-    await settle(fixture);
-    const box = fixture.nativeElement.querySelector('input[type=checkbox]') as HTMLInputElement;
-    expect(box.checked).toBe(true);
-    box.click();
-    expect(TestBed.inject(OverviewPrefs).autoOpen()).toBe(false);
-  });
-});
-
-describe('provideOverview', () => {
-  afterEach(() => localStorage.removeItem(OVERVIEW_AUTO_OPEN_KEY));
-
-  afterEach(() => localStorage.removeItem(LAYOUT_MODE_KEY));
-
-  it('does not open the view after an import in the Focused layout (the default)', async () => {
-    const dock = new FakeDock();
-    TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock), provideOverview()] });
-    TestBed.inject(OverviewAutoOpen);
-    const store = TestBed.inject(WorkspaceStore);
-    await settle();
-    await store.openPaths(['/x.log']);
-    await settle();
-    expect(dock.calls).toEqual([]);
-  });
-
-  it('registers the view and command, and in the Full layout opens the view after each import unless turned off', async () => {
-    const dock = new FakeDock();
-    TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock), provideOverview()] });
-    TestBed.inject(LayoutModeStore).set('full');
-    TestBed.inject(OverviewAutoOpen);
-    const store = TestBed.inject(WorkspaceStore);
-    await settle();
-    expect(TestBed.inject(ViewRegistry).find('overview')?.defaultPosition).toBe('right');
-    expect(await (await import('../../extensions/view-registry')).isViewAvailable(TestBed.inject(ViewRegistry).find('overview')!, store.summary())).toBe(true);
-    const component = await TestBed.inject(ViewRegistry).find('overview')!.component();
-    expect(component).toBe(OverviewView);
-    expect(dock.calls).toEqual([]);
-    await store.openPaths(['/x.log']);
-    await settle();
-    expect(dock.calls).toEqual(['show:overview']);
-    TestBed.inject(OverviewPrefs).setAutoOpen(false);
-    await store.openPaths(['/y.log']);
-    await settle();
-    expect(dock.calls).toEqual(['show:overview']);
-    expect(await TestBed.inject(CommandRegistry).run('view.overview')).toBe(true);
-    expect(dock.calls).toEqual(['show:overview', 'show:overview']);
   });
 });

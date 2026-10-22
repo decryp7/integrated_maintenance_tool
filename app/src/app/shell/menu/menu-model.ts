@@ -115,7 +115,7 @@ export interface MenuState {
 }
 
 /** Order of the core views at the top of the View menu (after Explorer and Fields). */
-export const CORE_VIEW_ORDER = ['inspector', 'timeline', 'events', 'metrics', 'query', 'overview', 'profile'];
+export const CORE_VIEW_ORDER = ['inspector', 'timeline', 'events', 'metrics', 'query', 'home', 'profile'];
 
 /** Order of the View submenus. */
 export const VIEW_SUBMENUS: readonly Exclude<ViewCategory, 'core'>[] = ['Analysis', 'Live', 'Profiling', 'Tools', 'Sharing', 'Diagnostics', 'Plugins', 'AI'];

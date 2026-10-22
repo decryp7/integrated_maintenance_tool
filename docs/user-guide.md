@@ -43,7 +43,7 @@ the inspector sliding out from the right when you select an event.
   and those rows are marked *partial*. `.*` (regex) and `Aa` (match case) search the text as written.
 - **Timeline header**: the health check's headline, e.g. "⚠ 2 crashes · 287 errors · 1 went silent —
   Review". *N crashes* jumps to the next crash, *N errors* shows the errors and fatal events, *N went silent*
-  shows the next silence, *Review* opens the Overview. The line is hidden when nothing is notable.
+  shows the next silence, *Review* opens Home. The line is hidden when nothing is notable.
 - **Legend**: only the marker kinds that occur in the data, on one line; *+N more* shows the rest.
 - **Query bar**: `Ctrl/⌘+/` (or *Analyze ▸ Focus query bar*) opens it above the events grid.
 - **Sidebar**: the Explorer; the **Fields** section starts collapsed (click its header; IMT remembers).

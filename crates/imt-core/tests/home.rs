@@ -69,6 +69,7 @@ fn bucket_counts_are_clamped() {
         &HomeRequest {
             query: Query::default(),
             buckets: 0,
+            analyses: true,
         },
     )
     .unwrap();
@@ -78,6 +79,7 @@ fn bucket_counts_are_clamped() {
         &HomeRequest {
             query: Query::default(),
             buckets: 100_000,
+            analyses: true,
         },
     )
     .unwrap();
@@ -103,6 +105,28 @@ fn an_invalid_query_is_a_typed_error() {
             ..Default::default()
         },
         buckets: 60,
+        analyses: true,
     };
     assert!(home_summary(s, &req).is_err());
+}
+
+#[test]
+fn without_analyses_the_counts_and_history_come_back_and_the_slow_parts_are_skipped() {
+    let s = store();
+    let full = home_summary(s, &HomeRequest::default()).unwrap();
+    let fast = home_summary(
+        s,
+        &HomeRequest {
+            analyses: false,
+            ..HomeRequest::default()
+        },
+    )
+    .unwrap();
+    assert!(full.analysed && !fast.analysed);
+    assert_eq!((fast.events, fast.errors, fast.warnings), (full.events, full.errors, full.warnings));
+    assert_eq!(fast.histogram, full.histogram);
+    assert_eq!(fast.markers, full.markers);
+    assert_eq!((fast.anomaly_count, fast.exception_groups, fast.exception_events), (0, 0, 0));
+    assert!(fast.anomalies.is_empty());
+    assert_eq!(fast.coverage.matched, 0, "no analysis ran, so nothing was covered");
 }

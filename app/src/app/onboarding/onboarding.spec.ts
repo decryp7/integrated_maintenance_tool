@@ -76,7 +76,7 @@ describe('TourService', () => {
 
   it('skips steps whose panel never appears, in either direction', async () => {
     vi.useFakeTimers();
-    const { tour } = setupTour((s) => (s === 'imt-timeline-panel' || s === 'imt-overview-view' ? null : box()));
+    const { tour } = setupTour((s) => (s === 'imt-timeline-panel' || s === 'imt-home-view' ? null : box()));
     tour.start();
     tour.next();
     await vi.advanceTimersByTimeAsync(2000);
