@@ -497,6 +497,8 @@ mod tests {
         }
         let e = unavailable(Minimal.set_source_encoding(SourceId(0), Some("Shift_JIS")));
         assert!(e.contains("text encoding") && e.contains("ADR 0040"), "{e}");
+        let e = unavailable(Minimal.set_import_window(&crate::ingest::ImportWindow::default()));
+        assert!(e.contains("importing a time window") && e.contains("ADR 0047"), "{e}");
         // The required operations are the store's own.
         let busy = StoreError::Busy("x".into());
         assert_eq!(Minimal.open(&[]).err(), Some(busy.clone()));
