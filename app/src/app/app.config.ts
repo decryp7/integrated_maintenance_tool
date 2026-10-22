@@ -37,6 +37,9 @@ import { provideNativeFeel } from './core/native-feel';
 import { provideWorkspace } from './core/workspace/provide-workspace';
 import { provideNotes } from './notes/provide-notes';
 import { provideProblems } from './problems/provide-problems';
+import { provideIncident } from './investigate/incident/provide-incident';
+import { provideKnownIssues } from './investigate/known-issues/provide-known-issues';
+import { providePlaybooks } from './investigate/playbooks/provide-playbooks';
 import { provideStorePane } from './store-pane/provide-store-pane';
 
 export const appConfig: ApplicationConfig = {
@@ -80,6 +83,9 @@ export const appConfig: ApplicationConfig = {
     provideNotifications(),
     provideNotes(),
     provideProblems(),
+    provideKnownIssues(),
+    provideIncident(),
+    providePlaybooks(),
     provideStorePane(),
   ],
 };

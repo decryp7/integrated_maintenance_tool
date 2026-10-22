@@ -52,6 +52,13 @@ export const ReportStore = signalStore(
         edit($localize`:@@share.reportStore.undo.newReport:new report`, () => patchState(store, (s) => ({ reports: [...s.reports, r], activeId: r.id })));
         return r;
       },
+      /** Adds a finished report (the incident summary the engine built) and makes it the active one. */
+      adopt(report: Report): Report {
+        const [r] = parseReports([report]);
+        if (!r) return report;
+        edit($localize`:@@share.reportStore.undo.reportAdoption:incident summary`, () => patchState(store, (s) => ({ reports: [...s.reports, r], activeId: r.id })));
+        return r;
+      },
       setActive: (id: string) => patchState(store, { activeId: id }),
       remove(id: string) {
         edit($localize`:@@share.reportStore.undo.reportDeletion:report deletion`, () =>

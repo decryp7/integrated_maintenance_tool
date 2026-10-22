@@ -146,6 +146,7 @@ import { AnalysisBackend } from '../analysis-backend';
 import { ImtBackend } from '../backend';
 import { CollectBackend, EventLogBackend, LifecycleBackend, PerfmonBackend, PluginPackagesBackend, ProjectBackend, ToolCatalogBackend, ToolsBackend } from '../tools-backend';
 import { ProblemsBackend } from '../../problems/problems-backend';
+import { IncidentBackend, KnownIssuesBackend, PlaybookBackend } from '../../investigate/investigate-backend';
 import { PerformanceBackend } from '../../settings/performance/performance-backend';
 import { StorePaneBackend } from '../../store-pane/store-pane-backend';
 import { ConfigDiffBackend } from '../../config-diff/config-diff-backend';
@@ -191,6 +192,9 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   PerfmonBackend,
   ProjectBackend,
   ProblemsBackend,
+  KnownIssuesBackend,
+  IncidentBackend,
+  PlaybookBackend,
   PerformanceBackend,
   StorePaneBackend,
   ToolCatalogBackend,
