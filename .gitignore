@@ -171,3 +171,6 @@ mutants.out.old/
 
 # The example plugins' samples are source (cargo-imt-plugin embeds them).
 !examples/plugins/*/tests/samples/*.log
+
+# Exported diagram PNGs (2x, for local review); the SVGs are the committed exports
+docs/diagrams/png/
