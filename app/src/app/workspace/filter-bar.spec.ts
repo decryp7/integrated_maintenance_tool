@@ -53,6 +53,28 @@ describe('FilterBar', () => {
     expect(err.getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('shows each level chip as "matching/total" under the other filters, dimmed when none match (D5)', async () => {
+    const { fixture, store } = await render();
+    const chip = (code: string) => all<HTMLButtonElement>(fixture, '.lvl').find((b) => b.textContent?.includes(code))!;
+    expect(el<HTMLInputElement>(fixture, '.search input').placeholder).toBe('Search…');
+    expect(chip('ERR').textContent).not.toContain('/');
+    store.setTextInput('zzqx-nothing-says-this');
+    await new Promise((r) => setTimeout(r, 300));
+    await settle(fixture);
+    expect(chip('ERR').textContent).toMatch(/0\/1\b/);
+    expect(chip('ERR').classList.contains('none')).toBe(true);
+    expect(chip('ERR').title).toContain('0 of 1 match the other filters');
+    // The chips' own selection does not change their counts.
+    store.toggleLevel('Error');
+    await settle(fixture);
+    expect(chip('ERR').textContent).toMatch(/0\/1\b/);
+    store.setTextInput('');
+    await new Promise((r) => setTimeout(r, 300));
+    await settle(fixture);
+    expect(chip('ERR').textContent).not.toContain('/');
+    expect(chip('ERR').classList.contains('none')).toBe(false);
+  });
+
   it('edits the group-by in View options', async () => {
     const { fixture, store } = await render();
     const options = el<HTMLButtonElement>(fixture, '[data-testid=view-options]');

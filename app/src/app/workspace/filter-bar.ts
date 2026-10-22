@@ -3,6 +3,7 @@ import { FilterOp, LEVELS, Level } from '../core/api.types';
 import { formatCompact, formatDateTime, formatDuration, tzLabel } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
 import { SmartSearchStore } from '../core/workspace/smart-search.store';
+import { LevelCountsStore } from '../core/workspace/level-counts.store';
 import { plural } from '../i18n/locale';
 import { ClickOutside } from '../shared/click-outside';
 import { LEVEL_CODES, LEVEL_VARS } from '../shared/colors';
@@ -49,7 +50,7 @@ const OP_LABELS: Record<FilterOp, string> = {
 
       <div class="levels" role="group" aria-label="Levels" i18n-aria-label="@@workspace.filterBar.levels">
         @for (l of levels; track l) {
-          <button class="lvl" [class.on]="levelOn(l)" (click)="store.toggleLevel(l)" [attr.aria-pressed]="levelOn(l)" [title]="l">
+          <button class="lvl" [class.on]="levelOn(l)" [class.none]="levelMatching(l) === 0" (click)="store.toggleLevel(l)" [attr.aria-pressed]="levelOn(l)" [title]="levelTitle(l)">
             <span class="dot" [style.background]="levelVar(l)"></span>
             <span class="mono code">{{ code(l) }}</span>
             <span class="mono faint">{{ levelCount(l) }}</span>
@@ -57,8 +58,8 @@ const OP_LABELS: Record<FilterOp, string> = {
         }
       </div>
 
-      <button class="btn tall range" (click)="store.hasRange() && zoom.fit()" [title]="rangeTitle()">
-        <span class="mono">{{ rangeLabel() }}</span>
+      <button class="btn tall range" (click)="store.hasRange() && zoom.fit()" [title]="rangeLabel() + ' · ' + rangeTitle()">
+        <span class="mono ends"><span class="end">{{ rangeEnds()[0] }}</span>@if (rangeEnds()[1]) {<span> → </span><span class="end">{{ rangeEnds()[1] }}</span>}</span>
         @if (store.hasRange()) {
           <span class="faint">({{ rangeSpan() }})</span>
           <imt-icon name="zoomOut" [size]="13" />
@@ -106,8 +107,8 @@ const OP_LABELS: Record<FilterOp, string> = {
         @if (optionsOpen()) {
           <div class="popover options-pop" id="imt-view-options" role="dialog" aria-label="View options" i18n-aria-label="@@workspace.filterBar.viewOptionsAria">
             <div class="opt-section">
-              <div class="opt-head"><span class="muted" i18n="@@workspace.filterBar.groupBy">Group by</span> <span class="mono">{{ store.effectiveGroupBy().join(' · ') || '—' }}</span></div>
-              <div class="faint small" i18n="@@workspace.filterBar.groupHelp">Instance key — events with equal values form one timeline lane.</div>
+              <div class="opt-head"><span class="muted" i18n="@@workspace.filterBar.groupLanesBy">Group events into timeline lanes by</span> <span class="mono">{{ store.effectiveGroupBy().join(' · ') || '—' }}</span></div>
+              <div class="faint small" i18n="@@workspace.filterBar.groupLanesHelp">Events with equal values in these fields form one lane.</div>
               <div class="chosen">
                 @for (g of store.effectiveGroupBy(); track g; let i = $index) {
                   <span class="chip"><span class="mono">{{ i + 1 }}. {{ g }}</span>
@@ -172,7 +173,9 @@ const OP_LABELS: Record<FilterOp, string> = {
     .tall { height: 30px; flex: none; }
     /* The range shrinks (with an ellipsis) before anything else in the one-row bar. */
     .range { flex: 0 1 auto; min-width: 80px; overflow: hidden; }
-    .range .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .range .ends { display: flex; gap: 4px; min-width: 0; overflow: hidden; white-space: nowrap; font-size: var(--fs-xs); }
+    .range .end { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .lvl.none .code, .lvl.none .faint { opacity: 0.55; }
     .pill { height: 24px; border-radius: 12px; flex: none; }
     .tz { height: 22px; padding: 0 6px; border: 0; border-radius: 4px; background: var(--bg-active); color: var(--muted); font-size: var(--fs-xs); cursor: pointer; }
     .anchor { position: relative; }
@@ -180,15 +183,15 @@ const OP_LABELS: Record<FilterOp, string> = {
     .x { border: 0; background: transparent; color: var(--faint); cursor: pointer; padding: 0 0 0 2px; font-size: var(--fs-lg); line-height: 1; }
     .x:hover { color: var(--text); }
     .spacer { flex: 1; }
-    .opt { color: var(--muted); padding: 2px 4px; white-space: nowrap; }
     .options-pop { top: 34px; right: 0; width: 340px; display: flex; flex-direction: column; gap: 12px; }
     .opt-section { display: flex; flex-direction: column; gap: 8px; }
-    .opt-head { display: flex; gap: 6px; align-items: baseline; font-size: var(--fs-sm); }
+    .opt-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; font-size: var(--fs-sm); }
     .switches { border-top: 1px solid var(--border); padding-top: 10px; }
     .sw { color: var(--muted); }
     .chosen { display: flex; flex-wrap: wrap; gap: 6px; }
     .opts { max-height: 220px; overflow: auto; display: flex; flex-direction: column; }
-    .opt { text-align: left; height: 24px; border: 0; border-radius: 4px; background: transparent; color: var(--text-2); cursor: pointer; font-size: var(--fs-sm); padding: 0 6px; }
+    /* flex: none: in the scrolling column the rows would otherwise shrink below the 24 px target size. */
+    .opt { flex: none; white-space: nowrap; text-align: left; min-height: 24px; border: 0; border-radius: 4px; background: transparent; color: var(--text-2); cursor: pointer; font-size: var(--fs-sm); padding: 0 6px; }
     .opt:hover { background: var(--bg-hover); }
     .pop-actions { display: flex; justify-content: flex-end; gap: 6px; }
     .add-pop { top: 30px; left: 0; width: 300px; display: flex; flex-direction: column; gap: 8px; }
@@ -199,6 +202,7 @@ const OP_LABELS: Record<FilterOp, string> = {
 export class FilterBar {
   protected readonly store = inject(WorkspaceStore);
   protected readonly smart = inject(SmartSearchStore);
+  private readonly levelCounts = inject(LevelCountsStore);
   /** What the "+N" in the search box means: the engine added partial matches to the word matches. */
   protected readonly partialNote = computed(() => {
     const n = this.smart.added();
@@ -221,7 +225,7 @@ export class FilterBar {
   protected readonly searchPlaceholder = computed(() =>
     this.q().regex
       ? $localize`:@@workspace.filterBar.regexPlaceholder:Regular expression`
-      : $localize`:@@workspace.filterBar.searchPlaceholder:Search messages, exceptions, templates`,
+      : $localize`:@@workspace.filterBar.searchPlaceholderShort:Search…`,
   );
   protected readonly rangeTitle = computed(() =>
     this.store.hasRange()
@@ -248,15 +252,16 @@ export class FilterBar {
     const q = this.q();
     return !!(q.text || q.levels.length || q.filters.length || q.groups.length || q.markers.length || q.from != null || q.to != null);
   });
-  protected readonly rangeLabel = computed(() => {
+  /** Both ends of the range; each truncates on its own, so a narrow bar still shows where the range starts and ends. */
+  protected readonly rangeEnds = computed<[string, string]>(() => {
     const tz = this.store.timezone();
     const q = this.q();
     const s = this.store.summary();
-    if (q.from == null && q.to == null) {
-      return s?.from != null ? `${formatDateTime(s.from, tz)} → ${formatDateTime(s.to, tz)}` : $localize`:@@workspace.filterBar.allTime:All time`;
-    }
-    return `${formatDateTime(q.from ?? s?.from ?? null, tz)} → ${formatDateTime(q.to ?? s?.to ?? null, tz)}`;
+    if (q.from == null && q.to == null && s?.from == null) return [$localize`:@@workspace.filterBar.allTime:All time`, ''];
+    return [formatDateTime(q.from ?? s?.from ?? null, tz), formatDateTime(q.to ?? s?.to ?? null, tz)];
   });
+  /** The range as one line, for the button's tooltip. */
+  protected readonly rangeLabel = computed(() => this.rangeEnds().filter(Boolean).join(' → '));
   protected readonly rangeSpan = computed(() => {
     const q = this.q();
     return q.from != null && q.to != null ? formatDuration(q.to - q.from) : '';
@@ -278,8 +283,21 @@ export class FilterBar {
   protected code(l: Level): string {
     return LEVEL_CODES[l];
   }
+  /** Events of level `l` matching the other filters; null while nothing else narrows the result. */
+  protected levelMatching(l: Level): number | null {
+    return this.levelCounts.matching()?.[l] ?? null;
+  }
+  /** "403", or "12/403" when the other filters narrow the result. */
   protected levelCount(l: Level): string {
-    return formatCompact(this.store.summary()?.levels[l] ?? 0);
+    const total = formatCompact(this.store.summary()?.levels[l] ?? 0);
+    const matching = this.levelMatching(l);
+    return matching === null ? total : `${formatCompact(matching)}/${total}`;
+  }
+  protected levelTitle(l: Level): string {
+    const matching = this.levelMatching(l);
+    if (matching === null) return l;
+    const total = this.store.summary()?.levels[l] ?? 0;
+    return $localize`:@@workspace.filterBar.levelMatching:${l}:level:: ${matching}:matching: of ${total}:total: match the other filters`;
   }
   protected opLabel(op: FilterOp): string {
     return OP_LABELS[op];
