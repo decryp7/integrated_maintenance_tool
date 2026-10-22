@@ -8,7 +8,9 @@ test('Plugins panel lists installed plugins and built-ins', async ({ page }, tes
   await chooseMenu(page, 'View', 'Plugins', 'Manage plugins');
   const panel = page.locator('imt-plugins-view');
   await expect(panel).toBeVisible();
-  await expect(panel.getByRole('table', { name: 'Installed plugins' }).locator('tr.plugin')).toHaveCount(4);
+  await expect(panel.getByRole('table', { name: 'Installed plugins' }).locator('tr.plugin')).toHaveCount(5);
+  // The package-installed plugin is a row of the same table, told apart by its Source column.
+  await expect(panel.getByTestId('plugin-source').filter({ hasText: 'Package' })).toHaveCount(1);
   await expect(panel).toContainText('Windows registry importer');
   await expect(panel).toContainText('About plugins');
   await expectNoSeriousViolations(page, testInfo, 'plugins', 'imt-plugins-view');

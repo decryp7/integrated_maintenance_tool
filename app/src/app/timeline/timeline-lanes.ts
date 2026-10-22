@@ -106,7 +106,7 @@ export type LanesEmpty = 'noSources' | 'noMatchMain' | 'noMatchOwn' | null;
                     (pointerenter)="markerHover.emit({ x: $event.clientX, y: $event.clientY, lane: l.lane.key, marker: g.marker })"
                   >
                     <imt-marker-glyph [kind]="g.marker.cluster.kind" [size]="14" />
-                    @if (g.marker.showCount) { <span class="count mono">{{ fmt(g.marker.cluster.count) }}</span> }
+                    @if (g.marker.showCount) { <span class="count mono" aria-hidden="true" [attr.data-count]="fmt(g.marker.cluster.count)"></span> }
                   </span>
                 }
               </button>
@@ -195,6 +195,8 @@ export type LanesEmpty = 'noSources' | 'noMatchMain' | 'noMatchOwn' | null;
     .glyph[data-kind='fatal']::before { content: ''; display: none; position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--mk-fatal) 35%, transparent); pointer-events: none; }
     :host-context([data-crash-band='on']) .glyph[data-kind='fatal']::before { display: block; }
     .count { position: absolute; left: 12px; top: calc(var(--lane-h) / 2 - 14px); font-size: var(--fs-2xs); font-weight: 600; line-height: 12px; padding: 0 3px; border-radius: 3px; color: var(--text-2); background: var(--bg-1); box-shadow: 0 0 0 1px var(--border-2); pointer-events: none; }
+    /* Drawn as generated content: the count is in the marker's accessible name already, and visible text that differs from it would fail WCAG 2.5.3. */
+    .count::before { content: attr(data-count); }
     :host-context([data-surface='cards']) .count { border-radius: 999px; background: var(--bg-3); box-shadow: 0 0 0 1px var(--border-3); }
     .truncated { padding: 6px 14px; font-size: var(--fs-sm); }
   `,

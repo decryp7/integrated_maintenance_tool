@@ -114,6 +114,8 @@ test.describe('timeline markers', () => {
     await expect(dialog).toHaveCount(0);
 
     await page.getByRole('tab', { name: 'Timeline' }).click();
+    // The one-line legend keeps most marker kinds in its popover.
+    await page.locator('imt-timeline-panel').getByTestId('legend-more').click();
     const legend = page.locator('imt-timeline-panel .legend').getByRole('button', { name: /Acme slow/ });
     await expect(legend.locator('imt-marker-glyph[data-glyph=svg] svg path')).toHaveCount(1);
     expect(await page.evaluate(() => (window as unknown as { pwned?: number }).pwned)).toBeUndefined();
