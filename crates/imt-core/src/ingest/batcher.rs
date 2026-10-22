@@ -344,6 +344,22 @@ when = [{ field = "Ms", op = "gt", value = "100" }]
     }
 
     #[test]
+    fn events_outside_the_import_window_or_without_a_time_are_counted_and_left_out() {
+        let p = profile("");
+        let schema = Arc::new(schema_for(&p));
+        let mut sink = Collect::default();
+        let cancel = AtomicBool::new(false);
+        let window = crate::ingest::ImportWindow::new(Some(10), Some(20)).unwrap();
+        let mut b = RecordBatcher::new(&p, schema, SourceId(4), "app.log", &mut sink, &cancel).with_window(window);
+        for (line, ts) in [(1, Some(9)), (2, Some(10)), (3, Some(20)), (4, Some(21)), (5, None)] {
+            b.event(event(line, "plain", ts)).unwrap();
+        }
+        let out = b.finish().unwrap();
+        assert_eq!((out.parsed, out.events, out.outside_window), (2, 2, 3));
+        assert_eq!((out.from, out.to), (Some(10), Some(20)));
+    }
+
+    #[test]
     fn a_full_builder_is_written_at_once_and_the_rest_at_the_end() {
         let p = profile("");
         let schema = Arc::new(schema_for(&p));
