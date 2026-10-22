@@ -1,6 +1,7 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { CmdError } from '../core/cmd-error';
+import { WorkspaceStore } from '../core/workspace.store';
 import { SelectOptions, SkippedVideo, UserAlignment, VideoRuntimeView, VideoView } from '../core/generated/video';
 import { browserMocks } from '../core/mock-registry';
 import { nativePick } from '../core/native-dialog';
@@ -130,6 +131,9 @@ export const VideoStore = signalStore(
     const backend = inject(VideoBackend);
     const picker = inject(VideoPicker);
     const ai = inject(VideoAi);
+    const workspace = inject(WorkspaceStore);
+    /** The engine replaced the video's frames source: the workspace (sources, timeline, counts) shows it. */
+    const workspaceChanged = () => void workspace.refreshSummary().catch(() => undefined);
     const retries = new Map<VideoScope, () => Promise<unknown>>();
     const images = new Map<string, Promise<string>>();
 
@@ -151,6 +155,7 @@ export const VideoStore = signalStore(
         projectFrames: videos.reduce((n, x) => n + x.record.frames.length, 0),
         selectedIndex: s.activeKey() === v.record.key && index !== null ? (frames ? Math.min(index, frames - 1) : null) : s.selectedIndex(),
       });
+      workspaceChanged();
     };
 
     /**
@@ -345,6 +350,7 @@ export const VideoStore = signalStore(
       /** Forgets the video here and in the engine (the caller asked the user first). */
       async remove(key: string): Promise<boolean> {
         const done = await run('storage', 'remove', () => backend.remove(key).then(() => true));
+        if (done) workspaceChanged();
         if (!done) return false;
         for (const id of [...images.keys()]) if (id.startsWith(`${key}/`)) images.delete(id);
         const videos = s.videos().filter((v) => v.record.key !== key);
