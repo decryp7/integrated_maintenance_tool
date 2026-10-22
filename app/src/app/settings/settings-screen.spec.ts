@@ -126,7 +126,9 @@ describe('SettingsScreen', () => {
     await settle(fixture);
     expect(store.query()).toBe('');
     expect(el(fixture, 'nav [aria-current=page]').textContent).toContain('Parsers');
-    expect(el(fixture, 'imt-parsers-settings')).toBeTruthy();
+    // Settings keeps a link: the library itself is the Parsers view (I3).
+    expect(el(fixture, '[data-testid=settings-open-parsers-view]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('imt-parsers-settings')).toBeNull();
   });
 
   it('opens the keyboard shortcut editor from its navigation entry', async () => {

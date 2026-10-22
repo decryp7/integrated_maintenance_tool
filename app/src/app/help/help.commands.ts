@@ -1,7 +1,7 @@
 import { EnvironmentProviders, inject, Injectable, makeEnvironmentProviders } from '@angular/core';
 import { IMT_COMMANDS, ImtCommand } from '../extensions/tokens';
 import { SettingsDialogService } from '../settings/settings-dialog';
-import { MANAGE_PARSERS_COMMAND, PARSERS_ID } from '../settings/parsers/parsers.types';
+import { MANAGE_PARSERS_COMMAND } from '../settings/parsers/parsers.types';
 import { EDIT_SHORTCUTS_COMMAND, KEYBOARD_ID } from '../settings/keyboard/keyboard.types';
 import { DialogService } from '../ui/dialog.service';
 import { WhatsNewService } from '../whats-new/whats-new';
@@ -38,7 +38,7 @@ export class HelpCommands {
       category: $localize`:@@help.command.category:Help`,
       run: () => this.settings.open(KEYBOARD_ID),
     },
-    { id: MANAGE_PARSERS_COMMAND, title: $localize`:@@help.command.manageParsers:Manage parsers…`, category: $localize`:@@help.command.profileCategory:Profile`, run: () => this.settings.open(PARSERS_ID) },
+    { id: MANAGE_PARSERS_COMMAND, title: $localize`:@@help.command.manageParsers:Manage parsers…`, category: $localize`:@@help.command.profileCategory:Profile`, run: (ctx) => ctx.showView('parsers') },
   ];
 }
 

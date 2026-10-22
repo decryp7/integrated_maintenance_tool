@@ -11,8 +11,8 @@ import { GeneralSettings } from './general-settings';
 import { SettingFieldControl } from './setting-field';
 import { SettingsFiles } from './settings-files';
 import { StorageSettings } from './storage/storage-settings';
-import { ParsersSettings } from './parsers/parsers-settings';
-import { PARSERS_ID } from './parsers/parsers.types';
+import { MANAGE_PARSERS_COMMAND, PARSERS_ID } from './parsers/parsers.types';
+import { CommandRegistry } from '../extensions/command-registry';
 import { KeyboardSettings } from './keyboard/keyboard-settings';
 import { KEYBOARD_ID } from './keyboard/keyboard.types';
 import { STORAGE_ID } from './storage/storage.types';
@@ -31,7 +31,7 @@ import { SettingField, SettingsSection } from './settings.types';
 @Component({
   selector: 'imt-settings-screen',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, KnowledgeSettings, StorageSettings, ParsersSettings, PerformanceExtras, LiveTailSettings, UpdatesSettings, KeyboardSettings],
+  imports: [GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, KnowledgeSettings, StorageSettings, PerformanceExtras, LiveTailSettings, UpdatesSettings, KeyboardSettings],
   host: { '(keydown.escape)': 'onEscape($event)' },
   template: `
     <div class="top">
@@ -134,7 +134,9 @@ import { SettingField, SettingsSection } from './settings.types';
         } @else if (isSelected(storage)) {
           <imt-storage-settings />
         } @else if (isSelected(parsers)) {
-          <imt-parsers-settings />
+          <h3 i18n="Settings section|The log formats IMT reads@@settings.parsers.title">Parsers</h3>
+          <p class="desc" i18n="@@settings.parsers.link.desc">A parser describes one log format and is one TOML file you can share. The parser library, with its editor and a live preview against your open files, is a view of its own.</p>
+          <button type="button" class="btn primary" data-testid="settings-open-parsers-view" (click)="openParsersView()" i18n="@@settings.parsers.link.open">Open the Parsers view</button>
         } @else if (isSelected(keyboard)) {
           <h3 i18n="Settings section|Key bindings of the commands@@settings.keyboard.nav">Keyboard shortcuts</h3>
           <imt-keyboard-settings />
@@ -243,6 +245,7 @@ export class SettingsScreen {
   protected readonly updates = UPDATES_ID;
   protected readonly liveTail = LIVE_TAIL_SECTION;
   protected readonly storage = STORAGE_ID;
+  private readonly commands = inject(CommandRegistry);
   protected readonly parsers = PARSERS_ID;
   protected readonly keyboard = KEYBOARD_ID;
   protected readonly appearance = APPEARANCE_ID;
@@ -276,6 +279,12 @@ export class SettingsScreen {
     void this.store.load();
     // The search covers the parser library too, before the Parsers section was ever opened.
     if (!this.parserLibrary.library() && !this.parserLibrary.loading()) void this.parserLibrary.load();
+  }
+
+  /** Opens the Parsers view and closes Settings. */
+  protected openParsersView(): void {
+    void this.commands.run(MANAGE_PARSERS_COMMAND);
+    this.close();
   }
 
   /** Leaves the search for the Parsers section. */

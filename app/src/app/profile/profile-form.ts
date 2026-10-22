@@ -1,3 +1,4 @@
+import { CommandRegistry } from '../extensions/command-registry';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ChartRule, Condition, MarkerRule, ProfileModel } from '../core/profile.model';
@@ -13,7 +14,7 @@ import { PipelineEditor } from './pipeline-editor';
 import { ProfileDraft } from './profile-draft';
 import { StringList } from './string-list';
 import { SettingsDialogService } from '../settings/settings-dialog';
-import { PARSERS_ID } from '../settings/parsers/parsers.types';
+import { MANAGE_PARSERS_COMMAND } from '../settings/parsers/parsers.types';
 
 type Section = 'general' | 'files' | 'instance' | 'extract' | 'pipeline' | 'marker' | 'chart';
 type Obj = Record<string, unknown>;
@@ -213,6 +214,7 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
 export class ProfileForm {
   protected readonly draft = inject(ProfileDraft);
   private readonly store = inject(WorkspaceStore);
+  private readonly commands = inject(CommandRegistry);
   private readonly settings = inject(SettingsDialogService);
   protected readonly m = this.draft.model;
   protected readonly section = signal<Section>('general');
@@ -257,9 +259,9 @@ export class ProfileForm {
     return /\(([^)]*)\)/.exec(c.y)?.[1] ?? '';
   }
 
-  /** Formats are parsers (ADR 0026): Settings ▸ Parsers. */
+  /** Formats are parsers (ADR 0026): the Parsers view. */
   protected openParsers(): void {
-    this.settings.open(PARSERS_ID);
+    void this.commands.run(MANAGE_PARSERS_COMMAND);
   }
 
   /** Sets path.key, creating intermediate tables. */

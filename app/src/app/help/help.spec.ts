@@ -4,6 +4,7 @@ import { CommandRegistry } from '../extensions/command-registry';
 import { KeybindingOverridesStore } from '../extensions/keybinding-overrides.store';
 import { IMT_COMMANDS, ImtCommand } from '../extensions/tokens';
 import { DialogService } from '../ui/dialog.service';
+import { DockService } from '../dock/dock.service';
 import { CheatSheet, PRINT_CLASS } from './cheat-sheet';
 import { HelpCommands, provideHelp, SHORTCUTS_KEY } from './help.commands';
 import { FIXED_KEYS, shortcutGroups } from './shortcuts';
@@ -50,7 +51,7 @@ describe('cheat sheet and help commands', () => {
     return TestBed.inject(CommandRegistry);
   }
 
-  it('opens the sheet with F1 (once), and Settings ▸ Parsers from a command', async () => {
+  it('opens the sheet with F1 (once), and Manage parsers… opens the Parsers view', async () => {
     const registry = setup();
     expect(SHORTCUTS_KEY).toBe('F1');
     expect(registry.runForKey(new KeyboardEvent('keydown', { key: 'F1' }))).toBe(true);
@@ -60,8 +61,11 @@ describe('cheat sheet and help commands', () => {
     await registry.run('help.shortcuts');
     expect(dialogs.stack().length).toBe(1);
     const open = vi.spyOn(TestBed.inject(SettingsDialogService), 'open').mockReturnValue(undefined);
+    // Manage parsers… opens the Parsers view, not the Settings dialog (I3).
     expect(await registry.run('parsers.manage')).toBe(true);
-    expect(open).toHaveBeenCalledWith('@parsers');
+    expect(TestBed.inject(DockService)).toBeDefined();
+    expect((TestBed.inject(DockService) as unknown as { calls: string[] }).calls).toContain('show:parsers');
+    expect(open).not.toHaveBeenCalledWith('@parsers');
     expect(await registry.run('help.editShortcuts')).toBe(true);
     expect(open).toHaveBeenCalledWith('@keyboard');
     expect(TestBed.inject(HelpCommands).commands.map((c) => c.id)).toEqual(['help.shortcuts', 'help.whatsNew', 'help.editShortcuts', 'parsers.manage']);
