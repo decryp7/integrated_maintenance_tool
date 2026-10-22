@@ -1,6 +1,7 @@
 //! Where symbols come from: the user's search path, the cache (symstore layout) and, when the user enables it, a
 //! symbol server. Parsed and checked once, here.
 
+use crate::id::PdbKey;
 use crate::pe::PdbId;
 use crate::SymbolError;
 use std::path::{Path, PathBuf};
@@ -101,24 +102,9 @@ fn is_absolute(p: &Path) -> bool {
         || s.starts_with('/')
 }
 
-/// A PDB file name taken from an image (untrusted): one path component of safe characters ending in `.pdb`.
-pub fn safe_pdb_name(id: &PdbId) -> Option<&str> {
-    let name = id.file_name();
-    let ok = !name.is_empty()
-        && name.len() <= 255
-        && name.to_ascii_lowercase().ends_with(".pdb")
-        && name != ".pdb"
-        && !name.starts_with('.')
-        && name
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '+' | ' ' | '(' | ')'));
-    ok.then_some(name)
-}
-
-/// Where the cache keeps `id`'s PDB: `<cache>/<pdb>/<key>/<pdb>` (`None` for an unsafe name).
+/// Where the cache keeps `id`'s PDB: `<cache>/<pdb>/<key>/<pdb>` (`None` for an unsafe name, see [`PdbKey`]).
 pub fn cache_file(cache: &Path, id: &PdbId) -> Option<PathBuf> {
-    let name = safe_pdb_name(id)?;
-    Some(cache.join(name).join(id.key()).join(name))
+    PdbKey::from_pdb_id(id).ok().map(|k| k.store_file(cache))
 }
 
 impl SymbolConfig {
@@ -207,7 +193,7 @@ mod tests {
             let r = cache_file(cache, &name);
             assert!(r.is_none() || !r.as_ref().unwrap().to_string_lossy().contains(".."), "{bad}: {r:?}");
         }
-        assert!(safe_pdb_name(&id("..")).is_none());
+        assert!(cache_file(cache, &id("..")).is_none());
         assert!(is_absolute(Path::new(r"\\srv\s")) && is_absolute(Path::new("C:/x")));
     }
 }

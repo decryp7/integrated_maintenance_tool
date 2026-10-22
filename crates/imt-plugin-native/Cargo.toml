@@ -11,7 +11,7 @@ description = "IMT plugin: native (C/C++) profiling by ETW (elevated) or suspend
 [dependencies]
 imt-plugin-api = { path = "../imt-plugin-api" }
 imt-etw = { path = "../imt-etw" }
-imt-symbols = { path = "../imt-symbols", default-features = false }
+imt-symbols = { path = "../imt-symbols", default-features = false, features = ["dbghelp"] }
 imt-plugin-profiling = { path = "../imt-plugin-profiling", default-features = false }
 imt-profile = { path = "../imt-profile" }
 anyhow.workspace = true

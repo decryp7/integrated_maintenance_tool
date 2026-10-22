@@ -1,4 +1,5 @@
-//! "Never panics" properties: the PE parser and the search-path parser over arbitrary input.
+//! "Never panics" properties: the PE parser, the search-path parser, PDB identities and the PDB (MSF) identity
+//! reader over arbitrary input.
 
 use proptest::prelude::*;
 
@@ -25,5 +26,22 @@ proptest! {
     #[test]
     fn search_paths_never_panic(text in ".{0,300}") {
         let _ = imt_symbols::parse_search_path(&text);
+    }
+
+    #[test]
+    fn pdb_identities_never_panic(file in ".{0,300}", id in "[0-9a-fA-F{}-]{0,48}|.{0,60}") {
+        if let Ok(k) = imt_symbols::id::PdbKey::parse(&file, &id) {
+            // A parsed key is always one safe component.
+            let path = k.store_path();
+            prop_assert_eq!(path.split('/').count(), 3);
+            prop_assert!(path.split('/').all(|c| !c.is_empty() && c != "." && c != ".." && !c.contains(['\\', ':'])));
+        }
+    }
+
+    #[test]
+    fn mutated_pdbs_never_panic(at in 0usize..(7 * 512), byte in any::<u8>()) {
+        let mut pdb = imt_symbols::msf::synthetic(&[3u8; 16], 2);
+        pdb[at] = byte;
+        let _ = imt_symbols::msf::identity(&mut pdb.as_slice());
     }
 }

@@ -198,11 +198,31 @@ pub fn modules(d: &Dump, req: &ModulesRequest, max_page: u32) -> ModulesPage {
             version: m.version.clone(),
             debug_file: m.debug_file.clone(),
             debug_id: m.debug_id.clone(),
-            symbols: m.symbols,
+            symbols: (&m.symbols).into(),
             framework: is_framework(&m.path),
         })
         .collect();
     ModulesPage { rows, total }
+}
+
+/// Modules without symbols, by reason.
+pub fn symbol_problems(d: &Dump) -> SymbolProblems {
+    use crate::model::SymbolStatus as S;
+    let mut p = SymbolProblems::default();
+    for m in &d.modules {
+        let slot = match m.symbols {
+            S::NotNeeded | S::Loaded => continue,
+            S::NoIdentity => &mut p.no_identity,
+            S::Missing => &mut p.missing,
+            S::ServersDisabled => &mut p.servers_disabled,
+            S::NotOnServer => &mut p.not_on_server,
+            S::Mismatch { .. } => &mut p.mismatch,
+            S::Unreadable { .. } => &mut p.unreadable,
+            S::DownloadFailed { .. } => &mut p.download_failed,
+        };
+        *slot += 1;
+    }
+    p
 }
 
 /// The exception card.
@@ -291,7 +311,8 @@ pub fn overview(d: &Dump, summary: DumpDocSummary) -> DumpOverview {
         exception: exception_card(d),
         threads: d.threads.len() as u32,
         modules: d.modules.len() as u32,
-        modules_with_symbols: d.modules.iter().filter(|m| m.symbols).count() as u32,
+        modules_with_symbols: d.modules.iter().filter(|m| m.symbols.is_loaded()).count() as u32,
+        symbol_problems: symbol_problems(d),
         frames_symbolised: named,
         frames,
         handles: d.handles.as_ref().map(|h| HandlesDto {
@@ -418,5 +439,61 @@ mod tests {
         let mut no_ex = sample_dump();
         no_ex.exception = None;
         assert_eq!(headline(&no_ex), DumpHeadline::NoException { threads: 4 });
+    }
+
+    #[test]
+    fn module_rows_and_the_overview_say_why_symbols_are_missing() {
+        use crate::model::SymbolStatus as S;
+        let mut d = sample_dump();
+        d.modules[0].symbols = S::ServersDisabled;
+        d.modules[1].symbols = S::Mismatch {
+            detail: "another build".into(),
+        };
+        d.modules[2].symbols = S::DownloadFailed {
+            detail: "timed out".into(),
+        };
+        let all = ModulesRequest {
+            id: 1,
+            offset: 0,
+            limit: 10,
+            filter: None,
+        };
+        let rows = modules(&d, &all, 100).rows;
+        let by_name = |n: &str| rows.iter().find(|r| r.name == n).unwrap().symbols.clone();
+        assert_eq!(by_name("OrderService.exe"), SymbolStatusDto::ServersDisabled);
+        assert_eq!(
+            by_name("ntdll.dll"),
+            SymbolStatusDto::Mismatch {
+                detail: "another build".into()
+            }
+        );
+        assert_eq!(by_name("Shop.Orders.dll"), SymbolStatusDto::Loaded);
+        assert_eq!(
+            symbol_problems(&d),
+            SymbolProblems {
+                servers_disabled: 1,
+                mismatch: 1,
+                download_failed: 1,
+                ..SymbolProblems::default()
+            }
+        );
+        for (s, kind) in [
+            (S::NotNeeded, "notNeeded"),
+            (S::NoIdentity, "noIdentity"),
+            (S::Missing, "missing"),
+            (S::NotOnServer, "notOnServer"),
+            (S::Unreadable { detail: "x".into() }, "unreadable"),
+        ] {
+            let json = serde_json::to_value(SymbolStatusDto::from(&s)).unwrap();
+            assert_eq!(json["kind"], kind);
+        }
+        let json = serde_json::to_value(SymbolStatusDto::from(&d.modules[2].symbols)).unwrap();
+        assert_eq!(json, serde_json::json!({ "kind": "downloadFailed", "detail": "timed out" }));
+        d.modules[3].symbols = S::NoIdentity;
+        d.modules[0].symbols = S::Missing;
+        d.modules[1].symbols = S::NotOnServer;
+        d.modules[2].symbols = S::Unreadable { detail: "x".into() };
+        let p = symbol_problems(&d);
+        assert_eq!((p.no_identity, p.missing, p.not_on_server, p.unreadable), (1, 1, 1, 1));
     }
 }

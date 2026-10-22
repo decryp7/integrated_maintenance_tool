@@ -97,8 +97,8 @@ proptest! {
     #[test]
     fn arbitrary_bytes_as_umdh_never_panic(bytes in proptest::collection::vec(any::<u8>(), 0..2048)) {
         let _ = umdh_reader::sniff(&bytes);
-        let opts = ImportOptions { limits: small(), file_time_ms: None };
-        let _ = imt_plugin_dumps::import::import_umdh(&bytes, &opts, &[]);
+        let opts = ImportOptions { limits: small(), ..ImportOptions::default() };
+        let _ = imt_plugin_dumps::import::import_umdh(&bytes, &opts);
     }
 
     #[test]

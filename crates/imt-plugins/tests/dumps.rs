@@ -15,6 +15,7 @@ fn options() -> ImportOptions {
     ImportOptions {
         limits: Limits::default(),
         file_time_ms: Some(1_791_970_000_000),
+        symbol_folders: Vec::new(),
     }
 }
 

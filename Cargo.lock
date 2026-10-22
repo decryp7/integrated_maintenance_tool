@@ -3183,6 +3183,7 @@ dependencies = [
 name = "imt-dump"
 version = "0.1.0"
 dependencies = [
+ "imt-symbols",
  "postcard",
  "proptest",
  "serde",
@@ -3352,6 +3353,7 @@ dependencies = [
  "anyhow",
  "imt-dump",
  "imt-plugin-api",
+ "imt-symbols",
  "minidump",
  "minidump-unwind",
  "pdb",
