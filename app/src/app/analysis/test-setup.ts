@@ -85,8 +85,8 @@ export const FIX = {
     ],
   } as OutlierReport,
   patterns: [
-    { id: 1, template: 'Order {OrderId} placed', count: 120, levels: [0, 0, 100, 15, 5, 0], firstTs: 1000, lastTs: 9000, sampleIds: [1], source: 'Serilog' },
-    { id: 2, template: 'Took <*> ms', count: 30, levels: [0, 0, 30, 0, 0, 0], firstTs: null, lastTs: null, sampleIds: [], source: 'Mined' },
+    { id: 1, template: 'Order {OrderId} placed', count: 120, levels: [0, 0, 100, 15, 5, 0], firstTs: 1000, lastTs: 9000, sampleIds: [1], source: 'Serilog', trend: [0, 5, 20, 40, 30, 15, 10], trendFrom: 1000, trendBucketMs: 1200, placeholders: [] },
+    { id: 2, template: 'Took <*> ms', count: 30, levels: [0, 0, 30, 0, 0, 0], firstTs: null, lastTs: null, sampleIds: [], source: 'Mined', trend: [], trendFrom: null, trendBucketMs: 0, placeholders: [{ index: 0, total: 30, exact: false, values: [{ value: '12', count: 9 }, { value: '15', count: 4 }] }] },
   ] as Pattern[],
   exceptions: [
     { fingerprint: 'fp1', typeName: 'System.TimeoutException', message: 'The operation timed out', topFrame: 'Foo.Bar()', count: 5, instances: [['WEB01', 3], ['WEB02', 2]], firstTs: 1000, lastTs: 4000, sampleIds: [11, 12] },
@@ -146,7 +146,7 @@ export const FIX = {
 };
 
 function FIXED_PATTERN(): Pattern {
-  return { id: 9, template: 'Failed to capture payment', count: 25, levels: [0, 0, 0, 0, 25, 0], firstTs: 1, lastTs: 2, sampleIds: [], source: 'Serilog' };
+  return { id: 9, template: 'Failed to capture payment', count: 25, levels: [0, 0, 0, 0, 25, 0], firstTs: 1, lastTs: 2, sampleIds: [], source: 'Serilog', trend: [], trendFrom: null, trendBucketMs: 0, placeholders: [] };
 }
 
 /** The coverage the stub reports when a test gives none: everything analysed. */

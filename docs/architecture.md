@@ -148,6 +148,7 @@ error snapshots, [ADR 0034](adr/0034-native-window-capture.md)), `video/` and `i
 | [0042](adr/0042-store-port-table.md) | One port table for the store worker protocol: a single declarative list expands into the operation enum, the client and the worker's dispatch; the order is the wire format. |
 | [0044](adr/0044-headless-command-line.md) | A headless command line (`imt`) over the store worker: pure parsing and rendering, exit codes and `--json` as contract, bounded output. |
 | [0045](adr/0045-error-outliers.md) | Error outliers: a pure function over the `Query` port (facets and counts), G-test ranking, bounded, no new store operation. |
+| [0046](adr/0046-pattern-trends-and-placeholder-values.md) | Pattern trends and placeholder values: a growing shared time scale folded to 24 buckets, Space-Saving summaries per placeholder, both inside the miner. |
 
 
 ## Plugin runtime (ADR 0003, ADR 0017)

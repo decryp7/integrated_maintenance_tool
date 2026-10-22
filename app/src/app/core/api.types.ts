@@ -893,6 +893,30 @@ export interface Pattern {
   lastTs: number | null;
   sampleIds: number[];
   source: 'Serilog' | 'Mined';
+  /** Occurrences per time bucket on a scale shared by every pattern of the run (ADR 0046); empty without timestamps. */
+  trend: number[];
+  /** Start of the first trend bucket (epoch ms). */
+  trendFrom: number | null;
+  /** Width of a trend bucket (ms); 0 without a trend. */
+  trendBucketMs: number;
+  /** The values behind the template's `<*>`s, mined templates only. */
+  placeholders: Placeholder[];
+}
+
+/** The most frequent values of one `<*>` of a mined template (Rust `patterns::Placeholder`). */
+export interface Placeholder {
+  /** Which `<*>` of the template text, from 0. */
+  index: number;
+  values: PlaceholderValue[];
+  /** Events that filled it. */
+  total: number;
+  /** Every distinct value is listed with exact counts. */
+  exact: boolean;
+}
+
+export interface PlaceholderValue {
+  value: string;
+  count: number;
 }
 
 export interface ExceptionGroup {

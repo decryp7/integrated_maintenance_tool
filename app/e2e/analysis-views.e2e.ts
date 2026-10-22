@@ -58,6 +58,15 @@ test.describe('analysis views', () => {
     await expectNoSeriousViolations(page, testInfo, 'exceptions', 'imt-exceptions-view');
   });
 
+  test('Patterns: trend sparklines and the values behind placeholders', async ({ page }) => {
+    await runCommand(page, 'Show patterns');
+    const view = page.locator('imt-patterns-view');
+    await expect(view.getByTestId('pattern-trend').first()).toBeVisible();
+    const values = view.getByRole('button', { name: /^Show the values behind the placeholders/ }).first();
+    await values.click();
+    await expect(view.getByTestId('pattern-values').first()).toContainText(/Value 1 · [\d,]+ events/);
+  });
+
   test('Error outliers: values concentrated among errors filter the events', async ({ page }, testInfo) => {
     await runCommand(page, 'Show error outliers');
     const view = page.locator('imt-outliers-view');

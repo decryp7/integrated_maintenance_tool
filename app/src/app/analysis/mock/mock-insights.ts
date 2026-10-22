@@ -57,6 +57,9 @@ export function filterRecords(records: RecordView[], q: QlQuery): RecordView[] {
 }
 
 const NUMBER = /\d+(\.\d+)?/g;
+const NUMBER_GLOBAL = NUMBER;
+/** Buckets per pattern trend (the engine's `TREND_BUCKETS`). */
+const TREND_BUCKETS = 24;
 
 export function mockPatterns(records: RecordView[]): Pattern[] {
   const map = new Map<string, Pattern>();
@@ -64,7 +67,7 @@ export function mockPatterns(records: RecordView[]): Pattern[] {
     const template = r.template ?? r.message.replace(NUMBER, '<*>');
     let p = map.get(template);
     if (!p) {
-      p = { id: map.size, template, count: 0, levels: [0, 0, 0, 0, 0, 0], firstTs: null, lastTs: null, sampleIds: [], source: r.template ? 'Serilog' : 'Mined' };
+      p = { id: map.size, template, count: 0, levels: [0, 0, 0, 0, 0, 0], firstTs: null, lastTs: null, sampleIds: [], source: r.template ? 'Serilog' : 'Mined', trend: [], trendFrom: null, trendBucketMs: 0, placeholders: [] };
       map.set(template, p);
     }
     p.count++;
@@ -76,7 +79,50 @@ export function mockPatterns(records: RecordView[]): Pattern[] {
     }
     if (p.sampleIds.length < 5) p.sampleIds.push(r.id);
   }
+  mockTrendsAndValues(records, map);
   return [...map.values()].sort((a, b) => b.count - a.count);
+}
+
+/** Trend buckets on one scale and the values behind the `<*>`s (mined templates), from the records. */
+function mockTrendsAndValues(records: RecordView[], patterns: Map<string, Pattern>): void {
+  const timed = records.filter((r) => r.ts !== null);
+  if (timed.length === 0) return;
+  const from = Math.min(...timed.map((r) => r.ts as number));
+  const to = Math.max(...timed.map((r) => r.ts as number));
+  const width = Math.max(1, Math.ceil((to - from + 1) / TREND_BUCKETS));
+  const values = new Map<string, Map<number, Map<string, number>>>();
+  for (const r of records) {
+    const template = r.template ?? r.message.replace(NUMBER, '<*>');
+    const p = patterns.get(template);
+    if (!p) continue;
+    if (r.ts !== null) {
+      if (p.trend.length === 0) p.trend = new Array<number>(TREND_BUCKETS).fill(0);
+      const i = Math.min(TREND_BUCKETS - 1, Math.floor((r.ts - from) / width));
+      p.trend[i] = (p.trend[i] ?? 0) + 1;
+      p.trendFrom = from;
+      p.trendBucketMs = width;
+    }
+    if (!r.template) {
+      const found = r.message.match(NUMBER_GLOBAL) ?? [];
+      const perTemplate = values.get(template) ?? new Map<number, Map<string, number>>();
+      values.set(template, perTemplate);
+      found.forEach((v, index) => {
+        const counts = perTemplate.get(index) ?? new Map<string, number>();
+        perTemplate.set(index, counts);
+        counts.set(v, (counts.get(v) ?? 0) + 1);
+      });
+    }
+  }
+  for (const [template, perTemplate] of values) {
+    const p = patterns.get(template);
+    if (!p) continue;
+    p.placeholders = [...perTemplate].map(([index, counts]) => ({
+      index,
+      total: [...counts.values()].reduce((a, b) => a + b, 0),
+      exact: counts.size <= 16,
+      values: [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 8).map(([value, count]) => ({ value, count })),
+    }));
+  }
 }
 
 export function mockExceptions(records: RecordView[]): ExceptionGroup[] {

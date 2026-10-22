@@ -855,3 +855,125 @@ fn the_miner_is_capped_and_counts_the_overflow() {
     miner.add(&rec(10, "alpha alpha alpha alpha"));
     assert_eq!(miner.overflowed(), 4);
 }
+
+// ---------------------------------------------------------------------------
+// Trend sparklines and placeholder values (ADR 0046)
+// ---------------------------------------------------------------------------
+
+fn timed(id: u32, ts: i64, message: &str) -> Record {
+    let mut r = rec(id, message);
+    r.ts = Some(ts);
+    r
+}
+
+#[test]
+fn every_pattern_gets_a_trend_on_one_shared_scale() {
+    let mut recs = Vec::new();
+    // "steady" runs through the hour; "burst" happens only in the last ten minutes.
+    for i in 0..60i64 {
+        recs.push(timed(recs.len() as u32, i * 60_000, "heartbeat ok"));
+    }
+    for i in 0..30i64 {
+        recs.push(timed(recs.len() as u32, 3_000_000 + i * 20_000, "cache miss storm"));
+    }
+    let mined = mine(&recs, &MinerConfig::default());
+    let steady = mined.iter().find(|p| p.template == "heartbeat ok").unwrap();
+    let burst = mined.iter().find(|p| p.template == "cache miss storm").unwrap();
+    assert_eq!(steady.trend.len(), imt_core::patterns::TREND_BUCKETS);
+    assert_eq!(
+        (steady.trend_from, steady.trend_bucket_ms),
+        (burst.trend_from, burst.trend_bucket_ms)
+    );
+    assert_eq!(steady.trend.iter().sum::<u32>(), 60);
+    assert_eq!(burst.trend.iter().sum::<u32>(), 30);
+    assert!(
+        steady.trend.iter().filter(|&&n| n > 0).count() >= 20,
+        "steady covers the range: {:?}",
+        steady.trend
+    );
+    assert!(
+        burst.trend.iter().filter(|&&n| n > 0).count() <= 6,
+        "the burst is local: {:?}",
+        burst.trend
+    );
+    assert!(burst.trend[..16].iter().all(|&n| n == 0));
+}
+
+#[test]
+fn patterns_without_timestamps_have_no_trend() {
+    let recs: Vec<Record> = (0..5).map(|i| rec(i, "no clock here")).collect();
+    let mined = mine(&recs, &MinerConfig::default());
+    assert!(mined[0].trend.is_empty());
+    assert_eq!((mined[0].trend_from, mined[0].trend_bucket_ms), (None, 0));
+}
+
+#[test]
+fn placeholders_list_the_values_behind_each_wildcard() {
+    let mut recs = Vec::new();
+    for i in 0..30u32 {
+        let user = ["alice", "bob", "carol"][(i % 3) as usize];
+        let msg = format!("Handled request {} for user {user} from 10.0.0.{}", 1000 + i, i % 2);
+        recs.push(rec(i, &msg));
+    }
+    let mined = mine(&recs, &MinerConfig::default());
+    assert_eq!(mined.len(), 1, "{:?}", mined.iter().map(|p| &p.template).collect::<Vec<_>>());
+    let p = &mined[0];
+    assert!(p.template.contains("<*>"), "{}", p.template);
+    // The user name started as a literal and became a placeholder: the events before that count too.
+    let user = p
+        .placeholders
+        .iter()
+        .find(|h| h.values.iter().any(|v| v.value == "alice"))
+        .expect("a placeholder for the user");
+    assert!(user.exact && user.total == 30);
+    let counts: Vec<(&str, u64)> = user.values.iter().map(|v| (v.value.as_str(), v.count)).collect();
+    assert_eq!(counts, [("alice", 10), ("bob", 10), ("carol", 10)]);
+    // The request numbers are masked from the start; their placeholder holds the raw values (30 distinct: bounded).
+    let order = &p.placeholders[0];
+    assert_eq!((order.index, order.total, order.exact), (0, 30, false));
+    assert_eq!(user.index, 1, "indexes follow the template text");
+    let ip = p
+        .placeholders
+        .iter()
+        .find(|h| h.values.iter().any(|v| v.value == "10.0.0.1"))
+        .unwrap();
+    assert_eq!(ip.values.iter().map(|v| v.count).sum::<u64>(), 30);
+}
+
+#[test]
+fn a_flood_of_distinct_values_stays_bounded_and_keeps_the_frequent_ones() {
+    let mut recs = Vec::new();
+    for i in 0..3000u32 {
+        let id = if i % 3 == 0 { 7 } else { 100_000 + i };
+        recs.push(rec(i, &format!("session {id} refreshed")));
+    }
+    let mined = mine(&recs, &MinerConfig::default());
+    let p = &mined[0];
+    let h = &p.placeholders[0];
+    assert!(!h.exact);
+    assert!(h.values.len() <= imt_core::patterns::TOP_VALUES);
+    assert_eq!(h.values[0].value, "7");
+    assert!(h.values[0].count >= 1000);
+    assert_eq!(h.total, 3000);
+}
+
+#[test]
+fn serilog_templates_and_long_values_are_handled() {
+    let mut r = rec(0, "Order 5 placed");
+    r.template = Some("Order {OrderId} placed".into());
+    let mined = mine(&[r], &MinerConfig::default());
+    assert!(
+        mined[0].placeholders.is_empty(),
+        "properties of a structured template are fields, not placeholders"
+    );
+    let long = "x".repeat(500);
+    let mined = mine(
+        &[
+            rec(0, &format!("token=\"{long}\" accepted")),
+            rec(1, &format!("token=\"{long}2\" accepted")),
+        ],
+        &MinerConfig::default(),
+    );
+    let v = &mined[0].placeholders[0].values[0].value;
+    assert_eq!(v.chars().count(), imt_core::patterns::MAX_VALUE_CHARS);
+}

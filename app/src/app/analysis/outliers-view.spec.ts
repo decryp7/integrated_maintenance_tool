@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { all, el, settle, text } from '../../testing/helpers';
 import { at } from '../../testing/must';
 import { AnalysisBackend } from '../core/analysis-backend';
-import { formatLift, formatP } from './analysis-format';
+import { formatLift, formatP, peakBucket, sparkBars, templateValueQl } from './analysis-format';
 import { mockOutliers } from './mock/mock-insights';
 import { OutliersView } from './outliers-view';
 import { allRecords, FakeContext, FIX, loadWorkspace, provideAnalysisTesting, stubBackend } from './test-setup';
@@ -92,5 +92,28 @@ describe('outlier formatting and the mock engine', () => {
     expect(only.outliers.every((o) => o.field === '@source')).toBe(true);
     const none = mockOutliers([], []);
     expect(none.outliers).toEqual([]);
+  });
+});
+
+describe('pattern trend and value helpers', () => {
+  it('scales sparkline bars to the busiest bucket and keeps single events visible', () => {
+    expect(sparkBars([], 72, 18)).toEqual([]);
+    expect(sparkBars([0, 0], 72, 18)).toEqual([]);
+    const bars = sparkBars([0, 1, 100, 50], 40, 20);
+    expect(bars.map((b) => b.height)).toEqual([1, 20, 10]);
+    expect(bars.map((b) => b.y)).toEqual([19, 0, 10]);
+    expect(bars[0]?.x).toBe(10);
+    expect(bars.every((b) => b.width >= 1)).toBe(true);
+  });
+
+  it('finds the busiest bucket', () => {
+    expect(peakBucket([])).toBe(-1);
+    expect(peakBucket([0, 0])).toBe(-1);
+    expect(peakBucket([1, 7, 3, 7])).toBe(1);
+  });
+
+  it('builds the filter for a template with one of its values', () => {
+    expect(templateValueQl('Took <*> ms', true, '12')).toBe('(@message ~ "Took .+ ms") and @message contains "12"');
+    expect(templateValueQl('Order {Id}', false, 'a"b')).toBe('(@template = "Order {Id}") and @message contains "a\\"b"');
   });
 });

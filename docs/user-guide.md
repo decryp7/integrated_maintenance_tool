@@ -453,6 +453,16 @@ that occur in the open data, with the number of events, the fix and *Show events
 model which of your notes fit the problems; the engine keeps only suggestions whose fix is quoted from your notes and
 whose query selects events (they are marked *AI suggested, verified*). Without a model the declared issues still work.
 
+## Pattern trends and placeholder values
+
+In the **Patterns** view each template has a small bar chart of when it occurred: the time range of the analysed
+events is split into 24 equal buckets, the same for every pattern, so you can tell a burst from a steady stream. Hover
+it for the busiest time. Patterns with `<*>` placeholders have a **Values** button that lists, for each placeholder,
+the most frequent values and how many events carried them ("which user, which order, which host"). Click a value to
+filter the events by the pattern and that value. With very many distinct values the engine keeps the most frequent ones
+and says the counts are approximate. Patterns from structured templates (Serilog `{Property}`) have no placeholders:
+their properties are fields, so use the facets.
+
 ## Error outliers
 
 *Analyze: Show error outliers* answers "what do the failing events have in common?". It compares the events you select

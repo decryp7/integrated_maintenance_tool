@@ -11,6 +11,12 @@
 //! counts as a match when scoring similarity, so templates do not become harder
 //! to match as they generalise.
 
+mod trend;
+mod values;
+
+pub use trend::{Buckets, Remap, TrendScale, FINE_BUCKETS, TREND_BUCKETS};
+pub use values::{Placeholder, PlaceholderValue, COUNTERS, MAX_VALUE_CHARS, TOP_VALUES};
+
 use crate::row::RowRef;
 use serde::Serialize;
 use std::borrow::Cow;
@@ -51,16 +57,17 @@ impl Default for MinerConfig {
 }
 
 /// Where a pattern's template came from.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, serde::Deserialize)]
 pub enum TemplateSource {
     /// The record carried its own message template.
     Serilog,
     /// Mined with Drain.
+    #[default]
     Mined,
 }
 
 /// A group of records sharing one template.
-#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Pattern {
     pub id: usize,
@@ -72,6 +79,19 @@ pub struct Pattern {
     pub last_ts: Option<i64>,
     pub sample_ids: Vec<u32>,
     pub source: TemplateSource,
+    /// Occurrences per time bucket (ADR 0046): [`TREND_BUCKETS`] counts on a scale shared by every pattern of the run;
+    /// empty when no event had a timestamp.
+    #[serde(default)]
+    pub trend: Vec<u32>,
+    /// Start of the first trend bucket (epoch ms).
+    #[serde(default)]
+    pub trend_from: Option<i64>,
+    /// Width of a trend bucket in ms (0 when there is no trend).
+    #[serde(default)]
+    pub trend_bucket_ms: i64,
+    /// The values behind the template's `<*>` placeholders (mined templates only), most frequent first.
+    #[serde(default)]
+    pub placeholders: Vec<Placeholder>,
 }
 
 struct Cluster {
@@ -84,6 +104,9 @@ struct Cluster {
     first_ts: Option<i64>,
     last_ts: Option<i64>,
     samples: Vec<u32>,
+    trend: Buckets,
+    /// The values of the token positions that are placeholders, by position.
+    values: Vec<(usize, values::Summary)>,
 }
 
 impl Cluster {
@@ -96,7 +119,48 @@ impl Cluster {
             first_ts: None,
             last_ts: None,
             samples: Vec::new(),
+            trend: [0; FINE_BUCKETS],
+            values: Vec::new(),
         }
+    }
+
+    fn summary_at(&mut self, position: usize) -> Option<&mut values::Summary> {
+        self.values.iter_mut().find(|(p, _)| *p == position).map(|(_, s)| s)
+    }
+
+    /// Notes `value` for the placeholder at token `position`; `seed` is the literal the position held before it became
+    /// a placeholder (with the events that had it), taken only the first time.
+    fn record_value(&mut self, position: usize, value: &str, seed: Option<&str>) {
+        if self.summary_at(position).is_none() {
+            let summary = match seed {
+                Some(old) if self.count > 0 => values::Summary::seeded(old, self.count as u64),
+                _ => values::Summary::default(),
+            };
+            self.values.push((position, summary));
+        }
+        if let Some(s) = self.summary_at(position) {
+            s.add(value);
+        }
+    }
+
+    fn tokens_hold_values(&self, position: usize) -> bool {
+        self.values.iter().any(|(p, _)| *p == position)
+    }
+
+    /// The placeholders of the template, in the order of its `<*>`s (those that never saw a value are left out).
+    fn placeholders(&self) -> Vec<Placeholder> {
+        let mut out = Vec::new();
+        let mut index = 0;
+        for (position, token) in self.tokens.iter().enumerate() {
+            let n = token.matches(WILDCARD).count();
+            if n > 0 {
+                if let Some((_, summary)) = self.values.iter().find(|(p, _)| *p == position) {
+                    out.push(summary.finish(index));
+                }
+            }
+            index += n;
+        }
+        out
     }
 
     fn observe(&mut self, r: &dyn RowRef) {
@@ -126,6 +190,7 @@ pub struct PatternMiner {
     serilog: HashMap<String, usize>,
     max_clusters: usize,
     overflow: Option<usize>,
+    scale: TrendScale,
 }
 
 impl PatternMiner {
@@ -137,6 +202,7 @@ impl PatternMiner {
             serilog: HashMap::new(),
             max_clusters: MAX_CLUSTERS,
             overflow: None,
+            scale: TrendScale::default(),
         }
     }
 
@@ -154,6 +220,16 @@ impl PatternMiner {
             Some(t) => self.add_serilog(t),
             None => self.add_mined(record.message()),
         };
+        if let Some(ts) = record.ts() {
+            if let Some(remap) = self.scale.fit(ts) {
+                for c in &mut self.clusters {
+                    c.trend = remap.fold(&c.trend, &self.scale);
+                }
+            }
+            let bucket = self.scale.index(ts);
+            let c = &mut self.clusters[id];
+            c.trend[bucket] = c.trend[bucket].saturating_add(1);
+        }
         self.clusters[id].observe(&record);
         id
     }
@@ -191,7 +267,8 @@ impl PatternMiner {
     }
 
     fn add_mined(&mut self, message: &str) -> usize {
-        let tokens = tokenize(message, MAX_TOKENS);
+        let spans = tokenize_spans(message, MAX_TOKENS);
+        let tokens: Vec<&Cow<str>> = spans.iter().map(|t| &t.0).collect();
         let route_depth = self.config.depth.saturating_sub(2).min(tokens.len());
         let max_children = self.config.max_children.max(1);
         let mut node = self.by_length.entry(tokens.len()).or_default();
@@ -223,9 +300,15 @@ impl PatternMiner {
         }
         if let Some((cid, sim, _)) = best {
             if sim >= self.config.similarity_threshold {
-                for (slot, token) in self.clusters[cid].tokens.iter_mut().zip(tokens.iter()) {
-                    if **slot != **token && &**slot != WILDCARD {
-                        *slot = WILDCARD.into();
+                let cluster = &mut self.clusters[cid];
+                for i in 0..cluster.tokens.len().min(tokens.len()) {
+                    if *cluster.tokens[i] != **tokens[i] && &*cluster.tokens[i] != WILDCARD {
+                        // A literal becomes a placeholder: the events so far all had the old literal.
+                        let old = std::mem::replace(&mut cluster.tokens[i], WILDCARD.into());
+                        let seed = (!cluster.tokens_hold_values(i)).then_some(old);
+                        cluster.record_value(i, value_of(message, &spans[i]), seed.as_deref());
+                    } else if cluster.tokens[i].contains(WILDCARD) {
+                        cluster.record_value(i, value_of(message, &spans[i]), None);
                     }
                 }
                 return cid;
@@ -235,8 +318,13 @@ impl PatternMiner {
             return self.overflow_cluster();
         }
         let cid = self.clusters.len();
-        self.clusters
-            .push(Cluster::new(tokens.iter().map(|t| t.as_ref().into()).collect(), None));
+        let mut cluster = Cluster::new(tokens.iter().map(|t| t.as_ref().into()).collect(), None);
+        for (i, span) in spans.iter().enumerate() {
+            if tokens[i].contains(WILDCARD) {
+                cluster.record_value(i, value_of(message, span), None);
+            }
+        }
+        self.clusters.push(cluster);
         node.clusters.push(cid);
         cid
     }
@@ -263,6 +351,14 @@ impl PatternMiner {
                 } else {
                     TemplateSource::Mined
                 },
+                trend: if self.scale.is_set() && c.trend.iter().any(|&n| n > 0) {
+                    self.scale.display(&c.trend)
+                } else {
+                    Vec::new()
+                },
+                trend_from: self.scale.is_set().then(|| self.scale.display_from()),
+                trend_bucket_ms: if self.scale.is_set() { self.scale.display_width_ms() } else { 0 },
+                placeholders: c.placeholders(),
             })
             .collect();
         out.sort_by(|a, b| b.count.cmp(&a.count).then(a.id.cmp(&b.id)));
@@ -280,7 +376,7 @@ pub fn mine<R: RowRef>(records: impl IntoIterator<Item = R>, config: &MinerConfi
 }
 
 /// Fraction of equal tokens (template wildcards always match) and the template's wildcard count.
-fn similarity(template: &[Box<str>], tokens: &[Cow<str>]) -> (f64, usize) {
+fn similarity(template: &[Box<str>], tokens: &[&Cow<str>]) -> (f64, usize) {
     if tokens.is_empty() {
         return (1.0, 0);
     }
@@ -290,11 +386,19 @@ fn similarity(template: &[Box<str>], tokens: &[Cow<str>]) -> (f64, usize) {
         if &**a == WILDCARD {
             wild += 1;
             same += 1;
-        } else if **a == **b {
+        } else if **a == ***b {
             same += 1;
         }
     }
     (same as f64 / tokens.len() as f64, wild)
+}
+
+/// What one token contributes as a placeholder value: the text its mask replaced, or the literal token itself.
+fn value_of<'a>(message: &'a str, token: &'a Token<'a>) -> &'a str {
+    match token.1 {
+        Some((a, b)) => message.get(a..b).unwrap_or(""),
+        None => &token.0,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -331,8 +435,16 @@ fn find_close(b: &[u8], open: usize) -> Option<usize> {
     None
 }
 
+/// A masked token and, when a mask replaced something, the byte range of that text in the message.
+type Token<'a> = (Cow<'a, str>, Option<(usize, usize)>);
+
 /// Splits a message on whitespace and masks variable tokens (including quoted strings, which may contain spaces).
 pub fn tokenize(s: &str, max_tokens: usize) -> Vec<Cow<'_, str>> {
+    tokenize_spans(s, max_tokens).into_iter().map(|t| t.0).collect()
+}
+
+/// [`tokenize`], with the text each mask replaced (as a byte range of `s`) so placeholder values can be read back.
+fn tokenize_spans(s: &str, max_tokens: usize) -> Vec<Token<'_>> {
     let b = s.as_bytes();
     let mut out = Vec::new();
     let mut i = 0;
@@ -359,37 +471,47 @@ pub fn tokenize(s: &str, max_tokens: usize) -> Vec<Cow<'_, str>> {
             while k < b.len() && is_trailing(b[k]) {
                 k += 1;
             }
-            out.push(Cow::Owned(format!("{}{}{}", &s[start..open], WILDCARD, &s[end..k])));
+            let inner = if end - open >= 2 { (open + 1, end - 1) } else { (open, end) };
+            out.push((Cow::Owned(format!("{}{}{}", &s[start..open], WILDCARD, &s[end..k])), Some(inner)));
             i = k;
         } else {
-            out.push(mask_token(&s[start..j]));
+            let (masked, span) = mask_token(&s[start..j]);
+            out.push((masked, span.map(|(a, z)| (start + a, start + z))));
             i = j;
         }
     }
     out
 }
 
-fn mask_token(tok: &str) -> Cow<'_, str> {
+/// The masked token and the range of the masked text within `tok`.
+fn mask_token(tok: &str) -> (Cow<'_, str>, Option<(usize, usize)>) {
     let is_lead = |c: char| matches!(c, '(' | '[' | '{' | '"' | '\'' | '`');
     let is_trail = |c: char| matches!(c, ')' | ']' | '}' | '"' | '\'' | '`' | ',' | ';' | ':' | '.' | '!' | '?');
     let core = tok.trim_start_matches(is_lead).trim_end_matches(is_trail);
     if core.is_empty() {
-        return Cow::Borrowed(tok);
+        return (Cow::Borrowed(tok), None);
     }
     // `core` is a sub-slice of `tok`, so its offsets are recoverable.
     let lead_len = core.as_ptr() as usize - tok.as_ptr() as usize;
     let trail = &tok[lead_len + core.len()..];
     let lead = &tok[..lead_len];
     if is_variable(core) {
-        return Cow::Owned(format!("{lead}{WILDCARD}{trail}"));
+        return (
+            Cow::Owned(format!("{lead}{WILDCARD}{trail}")),
+            Some((lead_len, lead_len + core.len())),
+        );
     }
     if let Some(p) = core.find('=') {
         let value = core[p + 1..].trim_matches(|c: char| is_lead(c) || is_trail(c));
         if p > 0 && is_variable(value) {
-            return Cow::Owned(format!("{lead}{}{WILDCARD}{trail}", &core[..=p]));
+            let at = value.as_ptr() as usize - tok.as_ptr() as usize;
+            return (
+                Cow::Owned(format!("{lead}{}{WILDCARD}{trail}", &core[..=p])),
+                Some((at, at + value.len())),
+            );
         }
     }
-    Cow::Borrowed(tok)
+    (Cow::Borrowed(tok), None)
 }
 
 fn is_hex(b: u8) -> bool {
