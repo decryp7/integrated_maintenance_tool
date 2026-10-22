@@ -177,6 +177,19 @@ mod tests {
         assert_eq!(import_binary(&Fixed(vec![1]), &ctx, b"x", &mut out).unwrap(), 2);
         assert_eq!(out.1.count(ProblemKind::UnmatchedLine), 1);
         assert_eq!(out.0[0].raw, "");
+        // The fake is an importer of both kinds: it sniffs everything and names itself.
+        assert_eq!(
+            (Importer::id(&Fixed(vec![])), BinaryImporter::id(&Fixed(vec![]))),
+            ("fixed", "fixed-bin")
+        );
+        assert_eq!(Importer::sniff(&Fixed(vec![]), &ctx, "x"), 1);
+        assert_eq!(BinaryImporter::sniff(&Fixed(vec![]), &ctx, b"x"), 1);
+        let mut sink = Events::default();
+        sink.problem(ProblemKind::UnmatchedLine, 1);
+        assert!(
+            sink.0.is_empty() && sink.1.count(ProblemKind::UnmatchedLine) == 0,
+            "single problems are not kept by this sink"
+        );
         assert_eq!(floor_char_boundary("é", 1), 0);
         assert_eq!(line_starts("a\nb\n"), [0, 2]);
     }
