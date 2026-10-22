@@ -140,6 +140,7 @@ command_table! {
     Mutation [WINDOW] => workspace_commands::set_live,
     Quiet [WINDOW] => workspace_commands::import_progress,
     Query [WINDOW] => workspace_commands::overview,
+    Query [WINDOW] => workspace_commands::home_summary,
     Query [WINDOW] => workspace_commands::annotations,
     Query [WINDOW] => workspace_commands::query_runs,
     Query [WINDOW] => workspace_commands::preview_spans,

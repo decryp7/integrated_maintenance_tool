@@ -1,5 +1,5 @@
-import { plural } from '../i18n/locale';
-import { Finding, FindingAction, PluginInfo, Severity, SEVERITIES, UnrecognizedFile, WorkspaceSummary } from '../core/api.types';
+import { plural } from '../../i18n/locale';
+import { Finding, FindingAction, PluginInfo, Severity, SEVERITIES, UnrecognizedFile, WorkspaceSummary } from '../../core/api.types';
 
 /** Findings of one severity, in the engine's order. */
 export interface SeverityGroup {
@@ -57,7 +57,7 @@ export function pluginProblems(plugins: readonly PluginInfo[]): PluginProblem[] 
 }
 
 /** The headline numbers of the overview. */
-export interface OverviewStats {
+export interface HealthStats {
   sources: number;
   events: number;
   instances: number;
@@ -69,7 +69,7 @@ export interface OverviewStats {
   plugins: PluginProblem[];
 }
 
-export function overviewStats(summary: WorkspaceSummary, instances: number, findings: readonly Finding[]): OverviewStats {
+export function healthStats(summary: WorkspaceSummary, instances: number, findings: readonly Finding[]): HealthStats {
   return {
     sources: summary.sources.length,
     events: summary.total,

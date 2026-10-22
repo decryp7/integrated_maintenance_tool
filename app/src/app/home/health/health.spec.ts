@@ -1,22 +1,22 @@
-import { LAYOUT_MODE_KEY, LayoutModeStore } from '../core/workspace/layout-mode';
+import { LAYOUT_MODE_KEY, LayoutModeStore } from '../../core/workspace/layout-mode';
 import { TestBed } from '@angular/core/testing';
-import { all, buttonByText, FakeDock, pluginInfo, provideFakeDock, provideTinyBackend, settle, text } from '../../testing/helpers';
-import { ExceptionGroup, Finding, fullCoverage, WorkspaceSummary } from '../core/api.types';
-import { AnalysisBackend } from '../core/analysis-backend';
-import { WorkspaceStore } from '../core/workspace.store';
-import { COMMAND_CONTEXT } from '../extensions/command-registry';
-import { CommandRegistry } from '../extensions/command-registry';
-import { CommandContext } from '../extensions/tokens';
-import { ViewRegistry } from '../extensions/view-registry';
-import { FormatWizard } from '../format/format-wizard';
-import { ShareBackend } from '../share/share-backend';
-import { DialogService } from '../ui/dialog.service';
-import { OverviewActions } from './overview-actions';
-import { actionButtons, groupBySeverity, overviewStats, panelTarget, pluginProblems, zoomWindow } from './overview-model';
+import { all, buttonByText, FakeDock, pluginInfo, provideFakeDock, provideTinyBackend, settle, text } from '../../../testing/helpers';
+import { ExceptionGroup, Finding, fullCoverage, WorkspaceSummary } from '../../core/api.types';
+import { AnalysisBackend } from '../../core/analysis-backend';
+import { WorkspaceStore } from '../../core/workspace.store';
+import { COMMAND_CONTEXT } from '../../extensions/command-registry';
+import { CommandRegistry } from '../../extensions/command-registry';
+import { CommandContext } from '../../extensions/tokens';
+import { ViewRegistry } from '../../extensions/view-registry';
+import { FormatWizard } from '../../format/format-wizard';
+import { ShareBackend } from '../../share/share-backend';
+import { DialogService } from '../../ui/dialog.service';
+import { HealthActions } from './health-actions';
+import { actionButtons, groupBySeverity, healthStats, panelTarget, pluginProblems, zoomWindow } from './health-model';
 import { OVERVIEW_AUTO_OPEN_KEY, OverviewPrefs } from './overview-prefs';
 import { OverviewView } from './overview-view';
 import { OverviewAutoOpen, provideOverview } from './overview.plugin';
-import { at } from '../../testing/must';
+import { at } from '../../../testing/must';
 
 const crash: Finding = { kind: 'crash', severity: 'critical', title: 'Crash', detail: 'WEB01 stopped', action: { kind: 'zoom', from: 1000, to: 2000, recordId: 7 } };
 const exc: Finding = { kind: 'exception', severity: 'warning', title: 'TimeoutException ×9', detail: 'on 2 instances', action: { kind: 'exception', fingerprint: 'fp1', recordId: null } };
@@ -76,9 +76,9 @@ describe('overview model', () => {
 
   it('computes the headline numbers', () => {
     const summary = { sources: [{}, {}], total: 50, from: 1, to: 9, levels: { Error: 3, Fatal: 1 }, unrecognized: [{ path: 'a', name: 'a', reason: 'r' }], plugins: [] } as unknown as WorkspaceSummary;
-    const s = overviewStats(summary, 4, [crash, crash, exc]);
+    const s = healthStats(summary, 4, [crash, crash, exc]);
     expect(s).toMatchObject({ sources: 2, events: 50, instances: 4, from: 1, to: 9, errors: 4, crashes: 2 });
-    expect(overviewStats({ ...summary, levels: {} } as unknown as WorkspaceSummary, 0, []).errors).toBe(0);
+    expect(healthStats({ ...summary, levels: {} } as unknown as WorkspaceSummary, 0, []).errors).toBe(0);
   });
 
   it('offers buttons per action kind', () => {
@@ -125,14 +125,14 @@ describe('OverviewPrefs', () => {
   });
 });
 
-describe('OverviewActions', () => {
+describe('HealthActions', () => {
   function setup(groups: ExceptionGroup[] | { reject: unknown } = [group()]) {
     const ctx = new FakeCtx();
     const analysis = { queryExceptions: vi.fn(async () => (Array.isArray(groups) ? { result: groups, coverage: fullCoverage(groups.length) } : Promise.reject(groups.reject))) };
     TestBed.configureTestingModule({
       providers: [provideTinyBackend(), provideFakeDock(), { provide: COMMAND_CONTEXT, useValue: ctx }, { provide: AnalysisBackend, useValue: analysis }],
     });
-    return { ctx, actions: TestBed.inject(OverviewActions) };
+    return { ctx, actions: TestBed.inject(HealthActions) };
   }
 
   it('jumps to the time and the event, or shows the range in the grid', async () => {
@@ -289,7 +289,7 @@ describe('provideOverview', () => {
     const store = TestBed.inject(WorkspaceStore);
     await settle();
     expect(TestBed.inject(ViewRegistry).find('overview')?.defaultPosition).toBe('right');
-    expect(await (await import('../extensions/view-registry')).isViewAvailable(TestBed.inject(ViewRegistry).find('overview')!, store.summary())).toBe(true);
+    expect(await (await import('../../extensions/view-registry')).isViewAvailable(TestBed.inject(ViewRegistry).find('overview')!, store.summary())).toBe(true);
     const component = await TestBed.inject(ViewRegistry).find('overview')!.component();
     expect(component).toBe(OverviewView);
     expect(dock.calls).toEqual([]);

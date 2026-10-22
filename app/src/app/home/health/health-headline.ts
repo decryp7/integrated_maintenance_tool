@@ -1,15 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, Injectable, Injector, signal, untracked } from '@angular/core';
-import { Finding } from '../core/api.types';
-import { formatCount } from '../core/format';
-import { ConsumerGate } from '../core/panel-visibility';
-import { EMPTY_QUERY, QueryStore } from '../core/workspace/query.store';
-import { WorkspaceDataStore } from '../core/workspace/workspace-data.store';
-import { DockService } from '../dock/dock.service';
-import { COMMAND_CONTEXT } from '../extensions/command-registry';
-import { plural } from '../i18n/locale';
-import { Icon } from '../shared/icon';
-import { ShareBackend } from '../share/share-backend';
-import { OverviewActions } from './overview-actions';
+import { Finding } from '../../core/api.types';
+import { formatCount } from '../../core/format';
+import { ConsumerGate } from '../../core/panel-visibility';
+import { EMPTY_QUERY, QueryStore } from '../../core/workspace/query.store';
+import { WorkspaceDataStore } from '../../core/workspace/workspace-data.store';
+import { DockService } from '../../dock/dock.service';
+import { COMMAND_CONTEXT } from '../../extensions/command-registry';
+import { plural } from '../../i18n/locale';
+import { Icon } from '../../shared/icon';
+import { ShareBackend } from '../../share/share-backend';
+import { HealthActions } from './health-actions';
 import { OVERVIEW_VIEW } from './overview.plugin';
 
 /** The headline numbers of the health check: what the timeline header points at. */
@@ -33,7 +33,7 @@ export function headlineOf(findings: readonly Finding[], levels: Partial<Record<
  * changes; a failure just hides the headline (the Overview view reports it).
  */
 @Injectable({ providedIn: 'root' })
-export class OverviewHeadlineStore {
+export class HealthHeadlineStore {
   /** Absent where the sharing feature is not provided: then there is no headline. */
   private readonly share = inject(ShareBackend, { optional: true });
   private readonly data = inject(WorkspaceDataStore);
@@ -80,7 +80,7 @@ export class OverviewHeadlineStore {
  * Review opens the Overview. Hidden when nothing is notable and while the Overview itself is open.
  */
 @Component({
-  selector: 'imt-overview-headline',
+  selector: 'imt-health-headline',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   host: { style: 'display: contents' },
@@ -120,8 +120,8 @@ export class OverviewHeadlineStore {
     :host-context([data-findings='chips']) .review { padding: 0 10px; min-height: 22px; border-radius: 999px; text-decoration: none; color: var(--accent-text); background: var(--accent-soft); font-weight: 600; }
   `,
 })
-export class OverviewHeadline {
-  private readonly store = inject(OverviewHeadlineStore);
+export class HealthHeadline {
+  private readonly store = inject(HealthHeadlineStore);
   private readonly dock = inject(DockService);
   /** The Overview's own actions, resolved when used (they need the analysis backend). */
   private readonly injector = inject(Injector);
@@ -159,7 +159,7 @@ export class OverviewHeadline {
     const index = i % findings.length;
     this.cursor.set(kind, index);
     const finding = findings[index];
-    if (finding) void this.injector.get(OverviewActions).run(finding, kind === 'crash' ? 'jump' : 'showRange');
+    if (finding) void this.injector.get(HealthActions).run(finding, kind === 'crash' ? 'jump' : 'showRange');
   }
 
   protected showErrors(): void {
