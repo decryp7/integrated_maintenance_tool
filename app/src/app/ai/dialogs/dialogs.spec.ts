@@ -257,14 +257,14 @@ describe('AiProposeDialog', () => {
   });
 
   it('proposes a profile without a goal, from given text', async () => {
-    const { f, root, backend } = open(AiProposeDialog, { kind: 'profile', source: { sample: 'a\nb\nc' } });
+    const { f, root, backend } = open(AiProposeDialog, { kind: 'parser', source: { sample: 'a\nb\nc' } });
     const spy = vi.spyOn(backend, 'start');
     f.detectChanges();
     expect(root.textContent).toContain('3 lines you provided');
     expect(root.querySelector('textarea')).toBeNull();
     buttonByText(f, 'Propose').click();
     await until(f, () => !!root.querySelector('[data-testid=ai-proposal]'));
-    expect(spy).toHaveBeenCalledWith({ op: 'profile', recordId: null, sample: 'a\nb\nc', fileName: null });
+    expect(spy).toHaveBeenCalledWith({ op: 'parser', recordId: null, sample: 'a\nb\nc', fileName: null });
     buttonByText(f, 'Dismiss').click();
     f.detectChanges();
     expect(root.querySelector('[data-testid=ai-proposal]')).toBeNull();

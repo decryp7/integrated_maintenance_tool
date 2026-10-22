@@ -160,6 +160,13 @@ async fn blocking<T: Send + 'static>(f: impl FnOnce() -> CmdResult<T> + Send + '
         .map_err(|e| CmdError::new(crate::ErrorCode::Internal, format!("the work stopped: {e}")))?
 }
 
+/// Tells the store worker, in the background, which installed plugins read files now and what they are granted
+/// (it runs their importers in processes of its own).
+fn update_store_worker(state: &AppState) {
+    let (stores, plugins) = (state.stores.clone(), state.installed.for_store_worker());
+    tauri::async_runtime::spawn_blocking(move || stores.set_third_party(plugins));
+}
+
 /// Every installed third-party plugin and its state in this run.
 #[tauri::command]
 pub async fn plugin_packages_list(state: State<'_, AppState>) -> CmdResult<InstalledPluginsDto> {
@@ -213,6 +220,7 @@ pub async fn plugin_package_remove(state: State<'_, AppState>, op: crate::activi
     }
     let removed = dir(&state.installed)?.remove(&id).map_err(cmd_error)?;
     if removed {
+        update_store_worker(&state);
         log::info!(Plugin = id.as_str(); "Plugin removed");
         crate::activity::domain_event("plugin.removed", op.as_deref(), &[("Plugin", &id)]);
     }
@@ -252,6 +260,8 @@ pub async fn plugin_package_set_permissions(
     if let Some((_, Ok(p))) = state.installed.loaded.get(&id) {
         p.set_granted(r.granted.clone());
     }
+    // The worker's process of the plugin (its importers) restarts in the new sandbox too.
+    update_store_worker(&state);
     log::info!(Plugin = id.as_str(); "Plugin permissions changed");
     crate::activity::domain_event("plugin.permissions", op.as_deref(), &[("Plugin", &id)]);
     Ok(installed_dto(&r, state.installed.loaded.get(&id), state.installed.safe_mode))

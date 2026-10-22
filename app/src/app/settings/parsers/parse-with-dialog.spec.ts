@@ -7,7 +7,8 @@ import { DIALOG_REF, DialogService } from '../../ui/dialog.service';
 import { at } from '../../../testing/must';
 import { MockParsersBackend } from './mock-parsers-backend';
 import { ParsersBackend } from './parsers-backend';
-import { ParseWithDialog } from './parse-with-dialog';
+import { initialChoice, ParseWithDialog } from './parse-with-dialog';
+import type { ParserLibraryDto } from '../../core/api.types';
 
 async function setup() {
   const imt = tinyBackend();
@@ -20,7 +21,7 @@ async function setup() {
 }
 
 describe('Parse with…', () => {
-  it('lists the library (enabled first, disabled marked) with the current parser selected, and re-reads the source', async () => {
+  it('lists the library (enabled first, disabled marked) with the current parser marked, and re-reads the source', async () => {
     const { backend, ref, workspace } = await setup();
     await backend.setEnabled('nlog', false);
     const fixture = TestBed.createComponent(ParseWithDialog);
@@ -29,7 +30,9 @@ describe('Parse with…', () => {
     await vi.waitFor(() => expect(all(fixture, 'label.choice').length).toBeGreaterThan(5));
     await settle(fixture);
     const current = el(fixture, 'label[data-parser="serilog-text"]');
-    expect(current.querySelector<HTMLInputElement>('input')!.checked).toBe(true);
+    // Matched automatically: "Automatic" stays selected, so confirming without a change does not pin it.
+    expect(current.querySelector<HTMLInputElement>('input')!.checked).toBe(false);
+    expect(el<HTMLInputElement>(fixture, 'label.auto input').checked).toBe(true);
     expect(current.textContent).toContain('read with it now');
     const labels = all(fixture, 'label.choice');
     expect(labels.at(-1)?.getAttribute('data-parser')).toBe('nlog');
@@ -46,6 +49,44 @@ describe('Parse with…', () => {
     el<HTMLInputElement>(fixture, 'label.auto input').click();
     el<HTMLButtonElement>(fixture, '[data-testid=parse-with-apply]').click();
     await vi.waitFor(() => expect(assign).toHaveBeenLastCalledWith(1, null));
+  });
+
+  it('confirming without a change keeps "Automatic"; a parser the user chose is selected again', async () => {
+    const { backend, workspace } = await setup();
+    const assign = vi.spyOn(backend, 'assign');
+    const open = async () => {
+      const fixture = TestBed.createComponent(ParseWithDialog);
+      fixture.componentRef.setInput('source', at(workspace.summary()!.sources, 1));
+      await settle(fixture);
+      await vi.waitFor(() => expect(all(fixture, 'label.choice').length).toBeGreaterThan(5));
+      await settle(fixture);
+      return fixture;
+    };
+    let fixture = await open();
+    el<HTMLButtonElement>(fixture, '[data-testid=parse-with-apply]').click();
+    expect(assign).toHaveBeenLastCalledWith(1, null);
+    await vi.waitFor(() => expect(workspace.summary()?.sources[1]?.parser).toBe('serilog-text'), { timeout: 10_000 });
+
+    fixture = await open();
+    el<HTMLInputElement>(fixture, 'label[data-parser="nlog"] input').click();
+    el<HTMLButtonElement>(fixture, '[data-testid=parse-with-apply]').click();
+    await vi.waitFor(() => expect(workspace.summary()?.sources[1]?.parser).toBe('nlog'), { timeout: 10_000 });
+    fixture = await open();
+    await vi.waitFor(async () => {
+      await settle(fixture);
+      expect(el<HTMLInputElement>(fixture, 'label[data-parser="nlog"] input').checked).toBe(true);
+    });
+    el<HTMLButtonElement>(fixture, '[data-testid=parse-with-apply]').click();
+    expect(assign).toHaveBeenLastCalledWith(1, 'nlog');
+  });
+
+  it('selects at first what the user chose before, else Automatic', () => {
+    const lib = (chosen: boolean) =>
+      ({ parsers: [{ id: 'nlog', sources: [{ id: 3, name: 'a.log', chosen }] }], broken: [], stale: 0 }) as unknown as ParserLibraryDto;
+    expect(initialChoice(null, 3)).toBe('');
+    expect(initialChoice(lib(false), 3)).toBe('');
+    expect(initialChoice(lib(true), 3)).toBe('nlog');
+    expect(initialChoice(lib(true), 4)).toBe('');
   });
 
   it('starts on "Automatic" for a source no parser read', async () => {

@@ -92,6 +92,25 @@ describe('SettingsScreen', () => {
     expect(text(fixture)).not.toContain('Unapplied changes');
   });
 
+  it('searches the Parsers section and the parser library, and opens it from a hit', async () => {
+    const { fixture, store } = await setup();
+    const search = el<HTMLInputElement>(fixture, 'input[type=search]');
+    typeInto(search, 'parsers');
+    await settle(fixture);
+    expect(all(fixture, '.content h3').map((h) => h.textContent)).toContain('Parsers');
+    expect(text(fixture)).not.toContain('No settings match');
+    typeInto(search, 'serilog clef');
+    await vi.waitFor(async () => {
+      await settle(fixture);
+      expect(all(fixture, '[data-testid=settings-search-parser]').map((li) => li.textContent)).toEqual([expect.stringContaining('Serilog CLEF')]);
+    });
+    el<HTMLButtonElement>(fixture, '[data-testid=settings-search-open-parsers]').click();
+    await settle(fixture);
+    expect(store.query()).toBe('');
+    expect(el(fixture, 'nav [aria-current=page]').textContent).toContain('Parsers');
+    expect(el(fixture, 'imt-parsers-settings')).toBeTruthy();
+  });
+
   it('applies through the engine and shows its validation errors inline', async () => {
     const { fixture, store } = await setup();
     nav(fixture, 'Workspace').click();

@@ -47,7 +47,7 @@ pub fn propose_specs() -> Vec<ToolSpec> {
             &["question"],
         ),
         spec(
-            "propose_profile",
+            "propose_parser",
             "Propose how to parse the file an event came from (format, timestamp, regex).",
             json!({"record_id": rid}),
             &[],
@@ -182,15 +182,15 @@ impl<'a, P: LlmProvider> ChatHost<'a, P> {
                     Err(e) => ToolOutcome::err(e.to_string()),
                 }
             }
-            "propose_profile" => {
+            "propose_parser" => {
                 let args = parse!(SampleArgs);
                 let (sample, file) = match self.sample(args.record_id) {
                     Ok(s) => s,
                     Err(e) => return *e,
                 };
-                match a.propose_profile(self.store, &sample, &file) {
+                match a.propose_parser(self.store, &sample, &file) {
                     Ok(p) => Self::proposal(
-                        Proposal::Profile(p.clone()),
+                        Proposal::Parser(p.clone()),
                         format!("It parses {} entries of the sample.", p.parsed),
                     ),
                     Err(e) => ToolOutcome::err(e.to_string()),

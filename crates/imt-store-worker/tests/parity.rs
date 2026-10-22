@@ -215,3 +215,86 @@ fn every_operation_over_the_worker_answers_like_the_store() {
     assert_eq!(remote_store.summary().unwrap().total, total);
     w.shutdown();
 }
+
+/// What a store read from the mixed samples, independent of the ids it gave (sources by path, events by line).
+fn mixed_answers<S: Query>(s: &S) -> Vec<(String, Value)> {
+    let summary = s.summary().unwrap();
+    let path_of: std::collections::HashMap<u32, String> = summary.sources.iter().map(|x| (x.id, x.path.clone())).collect();
+    let mut sources: Vec<Value> = summary
+        .sources
+        .iter()
+        .map(|x| json!([x.path, x.importer, x.records, x.skipped, x.parser, j(&x.problems), x.from, x.to]))
+        .collect();
+    sources.sort_by_key(|v| v.to_string());
+    let mut out = vec![
+        ("total".into(), json!([summary.total, summary.untimed, summary.from, summary.to])),
+        ("instance key".into(), j(&summary.default_group_by)),
+        (
+            "fields".into(),
+            j(summary.fields.iter().map(|f| (&f.name, f.count, f.distinct)).collect::<Vec<_>>()),
+        ),
+        ("sources".into(), Value::Array(sources)),
+    ];
+    let timeline = s
+        .timeline(&req(json!({"query": {}, "buckets": 200, "alwaysShowLifecycle": true})))
+        .unwrap();
+    let lanes: Vec<Value> = timeline.lanes.iter().map(|l| json!([l.key, l.total, l.first, l.last])).collect();
+    out.push(("lanes".into(), json!([timeline.histogram, lanes])));
+    for field in ["@level", "Application", "Logger", "Host", "App", "ProcId", "ProcessId"] {
+        let f = s.facet(&req(json!({"query": {}, "field": field, "limit": 50}))).unwrap();
+        let values: Vec<Value> = f.values.iter().map(|v| json!([v.value, v.count])).collect();
+        out.push((format!("facet {field}"), json!([f.total, f.distinct, values])));
+    }
+    let page = s.page(&req(json!({"query": {}, "offset": 0, "limit": 5000}))).unwrap();
+    let mut rows: Vec<Value> = page
+        .rows
+        .iter()
+        .map(|r| json!([path_of[&r.source.0], r.line, r.ts, j(r.level), r.message, r.group, j(&r.fields)]))
+        .collect();
+    rows.sort_by_key(|v| v.to_string());
+    out.push(("rows".into(), json!([page.total, rows])));
+    out
+}
+
+/// Mixed sources (ADR 0020) imported by the worker read exactly as imported in process: one file of several
+/// products read line by line with their own formats (and lines no format reads), a log server's syslog from
+/// several hosts and apps (the syslog plugin, run by the worker), and the instance key chosen per source.
+#[test]
+fn mixed_sources_imported_by_the_worker_read_like_in_process() {
+    let paths: Vec<PathBuf> = ["linux/logserver01/apps-20261014.log", "linux/logserver01/syslog-20261014.log"]
+        .iter()
+        .map(|p| samples().join(p))
+        .collect();
+    let local_dir = TempDir::new("mixed-local");
+    let plugins = imt_plugin_host::Builtins::load(&imt_plugin_host::builtins::default_binary()).plugins();
+    let registry = imt_store_worker::server::install_plugins(plugins, &[]);
+    let local = DuckStore::create(&local_dir.0, Profile::default_profile(), registry).unwrap();
+    local.open(&paths).unwrap().wait().unwrap();
+    let local_answers = mixed_answers(&local);
+    drop(local);
+
+    let remote_dir = TempDir::new("mixed-remote");
+    let w = StoreWorker::new(WorkerConfig::new(env!("CARGO_BIN_EXE_imt-store-worker"))).unwrap();
+    let remote = w.open_store(&remote_dir.0, Profile::default_profile(), true, None).unwrap();
+    remote.open(&paths).unwrap().wait().unwrap();
+    let remote_answers = mixed_answers(&remote);
+    for ((name, l), (_, r)) in local_answers.iter().zip(&remote_answers) {
+        assert_eq!(l, r, "{name} differs between the worker's import and the import in process");
+    }
+    let summary = remote.summary().unwrap();
+    assert!(
+        summary
+            .sources
+            .iter()
+            .any(|s| s.problems.iter().any(|p| p.kind == imt_core::ingest::ProblemKind::UnmatchedLine)),
+        "the lines no format reads are reported"
+    );
+    assert!(
+        summary
+            .sources
+            .iter()
+            .any(|s| s.path.ends_with("syslog-20261014.log") && s.records > 0),
+        "{summary:?}"
+    );
+    w.shutdown();
+}

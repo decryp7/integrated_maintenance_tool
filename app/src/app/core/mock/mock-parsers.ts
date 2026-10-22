@@ -257,7 +257,7 @@ export class MockParserLibrary {
         origin: this.origin(id),
         enabled: !this.disabled.has(id),
         hash: mockHash(this.toml(id) ?? ''),
-        sources: sources.filter((s) => this.recorded.get(s.id)?.id === id).map((s) => ({ id: s.id, name: s.name })),
+        sources: sources.filter((s) => this.recorded.get(s.id)?.id === id).map((s) => ({ id: s.id, name: s.name, chosen: this.assigned.get(s.id) === id })),
       });
     }
     parsers.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));

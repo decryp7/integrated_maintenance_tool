@@ -5,7 +5,11 @@ export type ParserOrigin = "builtin" | "user" | "override";
 
 export type ParserErrorDto = { message: string, line: number | null, column: number | null, };
 
-export type ParserSourceDto = { id: number, name: string, };
+export type ParserSourceDto = { id: number, name: string, 
+/**
+ * The user chose this parser for it ("Parse with…"); else it was matched automatically.
+ */
+chosen: boolean, };
 
 export type ParserEntryDto = { id: string, name: string, version: string, description: string, category: string, 
 /**

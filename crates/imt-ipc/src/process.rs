@@ -168,6 +168,8 @@ pub struct ChildProcess {
     exit_note: Option<Arc<ExitNote>>,
     /// The memory cap the host stopped the child over, once it did.
     over_memory: Arc<Mutex<Option<u64>>>,
+    /// What the launcher could not enforce of its sandbox.
+    sandbox_notes: Vec<crate::sandbox::Note>,
     _job: Job,
 }
 
@@ -310,10 +312,15 @@ impl ChildProcess {
             cmd.creation_flags(0x0800_0000 | priority);
         }
         #[cfg(target_os = "linux")]
-        if spec.sandbox.contained() {
-            crate::sandbox::contain_before_exec(&mut cmd, &spec.sandbox, &spec.exe).map_err(fail)?;
-        }
+        let report = match spec.sandbox.contained() {
+            true => crate::sandbox::contain_before_exec(&mut cmd, &spec.sandbox, &spec.exe).map_err(fail)?,
+            false => None,
+        };
         let mut child = cmd.spawn().map_err(|e| fail(e.to_string()))?;
+        #[cfg(target_os = "linux")]
+        let sandbox_notes = report.map(|r| r.notes()).unwrap_or_default();
+        #[cfg(not(target_os = "linux"))]
+        let sandbox_notes: Vec<crate::sandbox::Note> = Vec::new();
         // Lowered from here rather than in a `pre_exec` hook: a hook forces fork+exec instead of
         // posix_spawn, and on macOS a concurrent fork can then inherit another spawn's exec-status pipe
         // and keep that spawn waiting forever.
@@ -331,7 +338,14 @@ impl ChildProcess {
         let job = ();
         let stdin = child.stdin.take().map(|s| Box::new(s) as Box<dyn Write + Send>);
         let stderr = child.stderr.take().map(|s| Box::new(s) as Box<dyn Read + Send>);
-        Ok(ChildProcess::assemble(spec, OsChild::Std(child), stdin, stderr, job))
+        let mut process = ChildProcess::assemble(spec, OsChild::Std(child), stdin, stderr, job);
+        if let Some(log) = process.log() {
+            for n in &sandbox_notes {
+                log.record(&child_log::ChildEvent::Note(n.log_line()));
+            }
+        }
+        process.sandbox_notes = sandbox_notes;
+        Ok(process)
     }
 
     /// The bookkeeping of a started child: its log, its exit line and its standard error reader.
@@ -375,6 +389,7 @@ impl ChildProcess {
             label: spec.label.clone(),
             exit_note,
             over_memory,
+            sandbox_notes: Vec::new(),
             _job: job,
         }
     }
@@ -399,6 +414,11 @@ impl ChildProcess {
 
     pub fn pid(&self) -> u32 {
         self.pid
+    }
+
+    /// What the launcher could not enforce of the child's sandbox (Linux: the landlock status the child reported).
+    pub fn sandbox_notes(&self) -> &[crate::sandbox::Note] {
+        &self.sandbox_notes
     }
 
     /// Writes `value` as one JSON line to the child's stdin (its bootstrap).

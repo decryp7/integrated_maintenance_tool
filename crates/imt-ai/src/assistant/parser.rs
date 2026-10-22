@@ -1,8 +1,8 @@
-//! propose_profile: format, timestamp format, identity fields and parse regex for an unknown log file, as a
+//! propose_parser: format, timestamp format, identity fields and parse regex for an unknown log file, as a
 //! parser for the library (formats are parsers, ADR 0026). The engine builds the candidate parser, compiles
 //! it and parses the sample with it.
 
-use super::proposals::ProfileProposal;
+use super::proposals::ParserProposal;
 use super::tools::truncate_chars;
 use super::Assistant;
 use crate::access::StoreRef;
@@ -131,7 +131,7 @@ pub(crate) fn assemble_regex(entries: &[&str]) -> Option<String> {
 }
 
 impl<P: LlmProvider> Assistant<P> {
-    pub fn propose_profile<'s>(&self, store: impl Into<StoreRef<'s>>, sample: &str, file_name: &str) -> Result<ProfileProposal> {
+    pub fn propose_parser<'s>(&self, store: impl Into<StoreRef<'s>>, sample: &str, file_name: &str) -> Result<ParserProposal> {
         let store: StoreRef<'_> = store.into();
         let budget = self.prompt_chars();
         let mut head = String::new();
@@ -193,7 +193,7 @@ impl<P: LlmProvider> Assistant<P> {
             {
                 // Nothing to add to the library: the proposal carries no parser.
                 let _ = toml;
-                return Ok(ProfileProposal {
+                return Ok(ParserProposal {
                     name: "Built-in parsers".into(),
                     toml: String::new(),
                     importer: pv.importer,
@@ -207,7 +207,7 @@ impl<P: LlmProvider> Assistant<P> {
         // The first line of every entry, with its 1-based line number (continuation lines are indented).
         let entry_lines = entry_lines(sample, 400);
         let engine_regex = assemble_regex(&entry_lines.iter().map(|(_, l)| *l).take(60).collect::<Vec<_>>());
-        let (p, _) = self.generate_validated::<Answer, ProfileProposal>(SYSTEM, &user, schema, |a| {
+        let (p, _) = self.generate_validated::<Answer, ParserProposal>(SYSTEM, &user, schema, |a| {
             let base = format!(
                 "schema = 1\nid = \"{}\"\nname = {}\nversion = \"1.0.0\"\ncategory = \"Custom\"\ndescription = \"Proposed by the local AI model from a sample of {}.\"\n",
                 imt_core::parser::draft::id_for(file_name),
@@ -285,7 +285,7 @@ impl<P: LlmProvider> Assistant<P> {
                     preview.records.len()
                 ));
             }
-            Ok(ProfileProposal {
+            Ok(ParserProposal {
                 name: parser.name.clone(),
                 toml,
                 importer: preview.importer,

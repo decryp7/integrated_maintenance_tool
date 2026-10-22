@@ -14,9 +14,16 @@ name = "imt-plugin-e2e-kv"
 path = "src/kv.rs"
 test = false
 
+# IMT's store worker program, built here so the tests can import through it (needs libduckdb, like the worker).
+[[bin]]
+name = "imt-plugin-e2e-store-worker"
+path = "src/store_worker.rs"
+test = false
+
 [dependencies]
 imt-example-importer = { path = "../../examples/plugins/importer-example" }
 imt-plugin-api = { path = "../imt-plugin-api" }
+imt-store-worker = { path = "../imt-store-worker" }
 
 [dev-dependencies]
 cargo-imt-plugin = { path = "../cargo-imt-plugin" }

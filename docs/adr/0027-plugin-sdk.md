@@ -148,6 +148,48 @@ optional `signature` file (key id, public key, Ed25519 signature). Rules (`imt-p
   `x86_64-unknown-linux-gnu` and `x86_64-apple-darwin`; the Linux test (`a_contained_child_is_confined…`) runs on
   the Linux CI runner; macOS has no runner.
 
+## Note: third-party importers in the store worker (2026-10-22)
+
+Since ADR 0014 6c, imports run in the store worker, which started only IMT's built-in plugins, so an installed
+importer was registered in the app's window registry but never read a file. Decision: **the worker starts the
+installed plugins itself**, contained exactly as the app would (the app does not proxy importer calls: events go
+from the plugin to the store without passing through IMT, as for the built-ins).
+
+- The app tells the worker which installed plugins read files (`imt_store_client::protocol::ThirdPartyPlugin`: the
+  install folder, the id, the program's SHA-256 the app loaded at its start, and the grants now). The list is
+  part of every `OpenStore`/`OpenProject` (so a restarted worker has it), and `StoreRequest::SetPlugins` sends it
+  again when grants change or a plugin is removed (changed grants restart the worker's process of the plugin in
+  the new sandbox; a removed plugin's process stops).
+- The worker (`imt_store_worker::plugins::WorkerPlugins`) reads the install record itself and refuses a plugin
+  whose record is gone or turned off, whose program hash differs from the app's (updated after the start: the
+  next start of IMT takes it, as in the app) or whose grants are not a subset of what it asks for; it then builds
+  the process with `PluginsDir::process` (contained by the launcher, program verified before every start) and
+  installs it through `PluginRegistry`'s guarded adapters. One process per plugin serves all stores of the worker;
+  the app may run a second process of the same plugin for its other contributions (tools, annotators).
+- On Windows the worker's environment keeps `USERPROFILE`, `LOCALAPPDATA` and `APPDATA` (folder names, needed to
+  create AppContainer processes).
+- Tested end to end in `imt-plugin-e2e` (`tests/store_worker.rs`, with the worker program built there as
+  `imt-plugin-e2e-store-worker`): install the signed example importer, import its sample through the real worker,
+  events appear with the plugin's importer; a plugin the app did not name, or whose hash changed, reads nothing.
+- Open: a removed or disabled plugin keeps its proxies in the registries of stores already open in the worker (its
+  process starts again on use until the store is reopened), as in the app's window registries.
+
+## Note: the sandbox status line without landlock (2026-10-22)
+
+User decision: when the Linux kernel lacks landlock, a plugin still runs (no extra setting, no refusal), and its
+sandbox status says one line: *"files are not confined on this system (landlock is not enabled in the kernel)"*
+(`imt_ipc::sandbox::FILES_NOT_CONFINED`).
+
+- The host knows it before a start: `sandbox::host_notes(spec)` (landlock probed once per process with a ruleset
+  that requires it) gives the line for every child whose files are restricted.
+- A child contained by the launcher reports what `restrict_self` did from between `fork` and `exec`: one status
+  byte through a non-blocking `O_CLOEXEC` pipe (fully, partly, not enforced), read after `spawn`
+  (`LauncherReport`, `Child::sandbox_notes`, written to the child's log as well). A self-locking child logs the
+  same line from its own lockdown.
+- `PluginProcess::sandbox_status` joins both (the launcher's report wins for files); the plugin proxies add the
+  lines to the plugin's health notes at registration and after each call, so the plugin health view lists them
+  with its warnings.
+
 ## Not done yet
 
 - A host service for collectors to hand files to IMT for writing into a user-chosen folder (third-party plugins

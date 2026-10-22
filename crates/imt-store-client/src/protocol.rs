@@ -160,6 +160,27 @@ pub enum StoreRequest {
     },
     /// An [`OpenProject`] → [`OpenedProject`].
     OpenProject(imt_ipc::Json),
+    /// The installed third-party plugins now (a list of [`ThirdPartyPlugin`]) → (): a plugin whose grants changed
+    /// stops and starts again on next use in the sandbox of the new grants; a plugin no longer listed stops.
+    SetPlugins(imt_ipc::Json),
+}
+
+/// An installed third-party plugin (ADR 0027) whose importers take part in the worker's imports. The worker starts
+/// it itself, contained exactly as the app does, from its install record in `plugins_dir`, and only while the
+/// record is enabled and names the program with the SHA-256 `sha256` (the one the app loaded at its start: an
+/// update or a reinstall takes effect at the next start of IMT, as in the app). `granted` is what the user grants
+/// now; the worker refuses grants the record does not ask for.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThirdPartyPlugin {
+    /// The install folder (`<app data>/plugins`).
+    pub plugins_dir: PathBuf,
+    /// The plugin's id.
+    pub id: String,
+    /// Its program's SHA-256, hex.
+    pub sha256: String,
+    /// What it is granted now.
+    pub granted: Vec<imt_plugin_api::manifest::Permission>,
 }
 
 /// Opens a project folder `<name>.imt` in place, or an exported `.imtz` extracted into a new folder under
@@ -174,6 +195,8 @@ pub struct OpenProject {
     pub disabled_plugins: Vec<String>,
     #[serde(default)]
     pub safe_mode: bool,
+    #[serde(default)]
+    pub third_party: Vec<ThirdPartyPlugin>,
     #[serde(default)]
     pub limits: Option<Limits>,
     /// The parser library (ADR 0026); absent: the built-in parsers.
@@ -207,6 +230,9 @@ pub struct OpenStore {
     /// Safe mode: no plugin is started; only the built-in importers read files.
     #[serde(default)]
     pub safe_mode: bool,
+    /// Installed third-party plugins whose importers are installed in the worker's registry too.
+    #[serde(default)]
+    pub third_party: Vec<ThirdPartyPlugin>,
     /// DuckDB memory limit and threads, parse threads (defaults when absent).
     #[serde(default)]
     pub limits: Option<Limits>,

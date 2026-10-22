@@ -187,9 +187,9 @@ fn the_real_worker_loads_a_model_and_answers() {
         ),
         Err(e) => println!("propose_extractors failed: {e}"),
     }
-    match a.propose_profile(common::store(), &sample, "billing.log") {
-        Ok(p) => println!("propose_profile: {} parsed {} importer {:?}", p.name, p.parsed, p.importer),
-        Err(e) => println!("propose_profile failed: {e}"),
+    match a.propose_parser(common::store(), &sample, "billing.log") {
+        Ok(p) => println!("propose_parser: {} parsed {} importer {:?}", p.name, p.parsed, p.importer),
+        Err(e) => println!("propose_parser failed: {e}"),
     }
     match a.propose_regex(
         &[

@@ -68,6 +68,9 @@ pub struct ParserDef {
 pub struct ParserUse {
     pub parser: ParserRef,
     pub sources: Vec<SourceId>,
+    /// Those of `sources` the user chose this parser for ("Parse with…"); the others were matched automatically.
+    #[serde(default)]
+    pub chosen: Vec<SourceId>,
 }
 
 /// What changing a parser would cost: the class of the change and the sources it touches.
