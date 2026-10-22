@@ -510,8 +510,14 @@ export class DockService {
     this.autoHider.toggleActive();
   }
 
-  autoHideAll(): void {
-    this.autoHider.unpinAll();
+  /** Auto-hides every docked tool window and returns their ids. */
+  autoHideAll(): string[] {
+    return this.autoHider.unpinAll();
+  }
+
+  /** Pins these tool windows back if they are still auto-hidden. */
+  pinIds(ids: readonly string[]): void {
+    this.autoHider.pinIds(ids);
   }
 
   pinAll(): void {
