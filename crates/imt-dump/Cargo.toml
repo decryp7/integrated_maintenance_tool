@@ -9,6 +9,8 @@ publish = false
 description = "IMT dump engine (ADR 0023): the model of crash/memory dumps and UMDH heap logs, its wire form from the dumps plugin's process, and every analysis over it (findings, UMDH diffs, the AI summary). Pure: no I/O."
 
 [dependencies]
+# PDB identities (name, GUID, age) as symbol stores file them; pure (no DbgHelp, no downloads).
+imt-symbols = { path = "../imt-symbols", default-features = false }
 # The document on the wire from the dumps plugin's process (`wire`, ADR 0017).
 postcard.workspace = true
 serde.workspace = true

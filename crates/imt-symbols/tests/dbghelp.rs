@@ -1,6 +1,6 @@
 //! DbgHelp for real (Windows): this test binary's own functions are named with their source file, and the
 //! stack of a suspended thread of this process is walked and symbolised.
-#![cfg(windows)]
+#![cfg(all(windows, feature = "dbghelp"))]
 
 use imt_symbols::walk::{Context, Memory, ProcessMemory, Snapshot, Walker};
 use imt_symbols::{resolve_all, resolver, Module, ModuleSymbols, SymbolConfig};

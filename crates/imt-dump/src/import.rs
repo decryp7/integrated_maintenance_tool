@@ -55,11 +55,15 @@ impl ReadAt for Vec<u8> {
 }
 
 /// What the host tells an importer besides the file.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct ImportOptions {
     pub limits: Limits,
     /// The file's modification time (Unix ms): the time of a UMDH log, which records none.
     pub file_time_ms: Option<i64>,
+    /// Absolute folders with PDBs (symstore layout) the host adds to the reader's own symbol folders: IMT's symbol
+    /// cache, which it fills from the user's symbol servers (ADR 0032).
+    #[serde(default)]
+    pub symbol_folders: Vec<String>,
 }
 
 /// A dump or UMDH format.

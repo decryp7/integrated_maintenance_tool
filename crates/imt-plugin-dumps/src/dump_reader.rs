@@ -135,7 +135,7 @@ pub fn read_dump(src: &dyn Source, limits: &Limits) -> Result<Dump> {
                 version: m.version().map(|v| text(&v)).filter(|v| !v.is_empty()),
                 debug_file: m.debug_file().map(|v| text(&v)).filter(|v| !v.is_empty()),
                 debug_id: m.debug_identifier().map(|d| text(&d.breakpad().to_string())),
-                symbols: false,
+                symbols: imt_dump::model::SymbolStatus::NotNeeded,
             });
         }
     }
