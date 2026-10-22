@@ -742,9 +742,16 @@ fn request_durations_group_by_id() {
 
 #[test]
 fn detect_on_the_generated_samples() {
+    // The real .NET library output lies outside the scenario (its own times and zones).
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../samples");
+    let mut paths: Vec<PathBuf> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| !p.ends_with("real-libraries"))
+        .collect();
+    paths.sort();
     let mut ws = Workspace::new(Profile::default_profile()).unwrap();
-    ws.open(&[dir]).unwrap();
+    ws.open(&paths).unwrap();
     let summary = ws.summary();
     let names: std::collections::HashMap<u32, &str> = summary.sources.iter().map(|s| (s.id, s.name.as_str())).collect();
     let group_by = summary.default_group_by.clone();
@@ -781,7 +788,7 @@ fn detect_on_the_generated_samples() {
         .collect();
     assert!(crashes.iter().any(|i| i.ends_with("logcat-20261014.txt · 4211")), "{crashes:#?}");
     assert!(
-        crashes.iter().filter(|i| !i.starts_with("diagnostics/")).count() <= 3,
+        crashes.iter().filter(|i| !i.starts_with("imt-diagnostics-sample.zip/")).count() <= 3,
         "{crashes:#?}"
     );
 }
