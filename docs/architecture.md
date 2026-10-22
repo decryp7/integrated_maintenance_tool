@@ -120,11 +120,11 @@ view, exports, reports and bundles), `report/` (versioned report model, Markdown
 | [0023](adr/0023-dumps-and-umdh.md) | Crash and memory dumps and UMDH heap logs: a sandboxed reader plugin, an engine crate, problem-first views. |
 | [0024](adr/0024-docked-browser.md) | The internal browser is a docked Browser panel (child webview, multi-webview); the AI drafts the search text. Amends 0011, supersedes 0013. |
 | [0025](adr/0025-vision-one-model.md) | Vision: one model reads text and images; the engine finds the related logs. |
+| [0026](adr/0026-parser-library.md) | Parsers are individual TOML files in a library, matched per file; profiles keep the analysis. |
 | [0027](adr/0027-plugin-sdk.md) | A Rust-only plugin SDK; third-party plugins as signed, contained `.imtplugin` packages. |
 | [0028](adr/0028-native-feel.md) | Native feel: IMT's windows behave like a desktop application, not a web page. |
 | [0029](adr/0029-knowledge-files.md) | Knowledge files: the user's Markdown notes as background for every AI feature. |
 
-ADR 0026 (parsers as individual files) is being written and is not in the folder yet; ADR 0014 describes the groundwork.
 
 ## Plugin runtime (ADR 0003, ADR 0017)
 
