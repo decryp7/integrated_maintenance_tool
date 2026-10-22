@@ -39,7 +39,8 @@
  *   plugin_events          {}                              -> SubscriberMetrics[] (event-bus delivery counters per subscriber)
  *
  * Analysis commands: see the "Analysis" section below. Error snapshot commands: see "Error snapshots". Dump and UMDH
- * commands (`dumps_*`): see "Dumps". Parser library commands (`parsers_*`, `parser_*`): see "Parsers".
+ * commands (`dumps_*`): see "Dumps". Parser library commands (`parsers_*`, `parser_*`): see "Parsers". Store pane and
+ * SQL console commands (`store_*`, `sql_*`): see "The Store pane" at the end.
  *
  * Events (Tauri): "imt://workspace-changed" (payload `TailReport`; listeners must accept none) after live tail changed the workspace
  * (at most about four per second); "imt://live-alert" (`LiveAlert`) for each alert a live refresh raised;
@@ -2893,3 +2894,46 @@ export type {
   NotesList,
   NotesRestore,
 } from './generated/notes';
+
+/*
+ * The Store pane and the read-only SQL console (ADR 0030; types generated from `imt_core::ports::{inspect, console}`):
+ *   store_overview    {}                                   -> StoreOverview
+ *   store_segments    { request: SegmentsRequest }         -> SegmentsPage   (at most 500 rows a page)
+ *   store_fields      {}                                   -> StoreFields
+ *   store_index       {}                                   -> StoreIndex
+ *   store_memory      {}                                   -> StoreMemory    (with the worker process and the window's jobs)
+ *   store_maintenance { action: MaintenanceAction }        -> number         (the job's id; the UI confirms first)
+ *   sql_schema        {}                                   -> SqlSchema      (views, columns and functions to complete)
+ *   sql_run           { sql, explain, onEvent }            -> SqlOutcome     (an analysis job: `onEvent` first carries
+ *                                                                              `{ kind: 'started', jobId }`; cancel with `jobs_cancel`)
+ *   sql_page          { request: SqlPageRequest }          -> SqlPage
+ * Limits: 10,000 rows kept per run, pages of 500, 30 s, 128 MB, 64 KB of SQL. Refusals and invalid SQL come back as
+ * `{ error: QlError }` (offsets in UTF-8 bytes); a limit hit rejects the command with an `invalid` CmdError.
+ */
+export type {
+  FieldStorage,
+  LastImport,
+  MaintenanceAction,
+  MaintenanceReport,
+  RunningJob,
+  SegmentRow,
+  SegmentsPage,
+  SegmentsRequest,
+  SqlColumn,
+  SqlPage,
+  SqlPageRequest,
+  SqlResult,
+  SqlSchema,
+  SqlView,
+  SqlViewColumn,
+  StoreActivity,
+  StoreField,
+  StoreFieldType,
+  StoreFields,
+  StoreIndex,
+  StoreMemory,
+  StoreOverview,
+  WorkerMemory,
+} from './generated/store';
+/** A console run's outcome (`sql_run`). Mirrors `store_pane::SqlOutcome`. */
+export type SqlOutcome = { result: import('./generated/store').SqlResult } | { error: QlError } | { cancelled: true };

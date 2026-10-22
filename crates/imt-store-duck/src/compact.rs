@@ -129,6 +129,27 @@ fn rewrite(conn: &Connection, seg_dir: &Path, schema: &Arc<EventSchema>, group: 
 
 /// Compacts the segments of the store in `dir`. Run while nothing writes (the store's write lock).
 pub(crate) fn compact(conn: &Connection, dir: &Path, schema: &Arc<EventSchema>) -> Result<Compaction> {
+    compact_with(conn, dir, schema, false)
+}
+
+/// The catalog's view of what the next compaction rewrites (by `live` as last counted): segments with rows of
+/// removed sources, and the small ones once there are more than [`MAX_SMALL_SEGMENTS`].
+pub(crate) fn pending(conn: &Connection) -> Result<std::collections::HashSet<String>> {
+    let mut stmt = conn.prepare("SELECT file, rows, live FROM segments")?;
+    let listed = stmt
+        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, u64>(1)?, r.get::<_, u64>(2)?)))?
+        .collect::<duckdb::Result<Vec<_>>>()?;
+    let small = |rows: u64| rows < SEGMENT_ROWS / 2;
+    let merge_small = listed.iter().filter(|l| small(l.1)).count() > MAX_SMALL_SEGMENTS;
+    Ok(listed
+        .into_iter()
+        .filter(|(_, rows, live)| live < rows || (merge_small && small(*rows)))
+        .map(|(f, _, _)| f)
+        .collect())
+}
+
+/// [`compact`]; `force` merges small segments however few there are ("Compact now" in the Store pane).
+pub(crate) fn compact_with(conn: &Connection, dir: &Path, schema: &Arc<EventSchema>, force: bool) -> Result<Compaction> {
     empty_trash(conn)?;
     let live = live_rows(conn, dir)?;
     let listed: Vec<Listed> = {
@@ -160,7 +181,7 @@ pub(crate) fn compact(conn: &Connection, dir: &Path, schema: &Arc<EventSchema>) 
     // Every import leaves up to one partial segment per parse thread: small segments are merged only once
     // there are many of them.
     let smalls = listed.iter().filter(|l| small(l)).count();
-    let merge_small = smalls > MAX_SMALL_SEGMENTS;
+    let merge_small = smalls > MAX_SMALL_SEGMENTS || (force && smalls > 1);
     let candidates: Vec<&Listed> = listed.iter().filter(|l| garbage(l) || (merge_small && small(l))).collect();
     if candidates.is_empty() {
         return Ok(Compaction::default());

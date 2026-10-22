@@ -25920,63 +25920,109 @@
         <source>Saved query name</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/bookmarks/saved-queries.ts</context>
-          <context context-type="linenumber">12</context>
+          <context context-type="linenumber">17</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.savedQueries.namePlaceholder" datatype="html">
         <source>Name for the current query</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/bookmarks/saved-queries.ts</context>
-          <context context-type="linenumber">12</context>
+          <context context-type="linenumber">17</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.savedQueries.save" datatype="html">
         <source>Save current query</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/bookmarks/saved-queries.ts</context>
-          <context context-type="linenumber">13,15</context>
+          <context context-type="linenumber">18,20</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.savedQueries.list" datatype="html">
         <source>Saved queries</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/bookmarks/saved-queries.ts</context>
-          <context context-type="linenumber">16</context>
+          <context context-type="linenumber">21</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="projects.savedQueries.qlBadgeTitle" datatype="html">
+        <source>Query language</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/projects/bookmarks/saved-queries.ts</context>
+          <context context-type="linenumber">24</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="projects.savedQueries.qlBadge" datatype="html">
+        <source>QL</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/projects/bookmarks/saved-queries.ts</context>
+          <context context-type="linenumber">24,25</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.savedQueries.apply" datatype="html">
         <source>Apply</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/bookmarks/saved-queries.ts</context>
-          <context context-type="linenumber">20,21</context>
+          <context context-type="linenumber">26,27</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.savedQueries.delete" datatype="html">
         <source>Delete</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/bookmarks/saved-queries.ts</context>
-          <context context-type="linenumber">21</context>
+          <context context-type="linenumber">27</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/projects/bookmarks/saved-queries.ts</context>
+          <context context-type="linenumber">35</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="projects.savedQueries.sqlBadgeTitle" datatype="html">
+        <source>SQL console</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/projects/bookmarks/saved-queries.ts</context>
+          <context context-type="linenumber">32</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="projects.savedQueries.sqlBadge" datatype="html">
+        <source>SQL</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/projects/bookmarks/saved-queries.ts</context>
+          <context context-type="linenumber">32,33</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="projects.savedQueries.openSql" datatype="html">
+        <source>Open</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/projects/bookmarks/saved-queries.ts</context>
+          <context context-type="linenumber">34,35</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.savedQueries.empty" datatype="html">
         <source>No saved queries.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/bookmarks/saved-queries.ts</context>
-          <context context-type="linenumber">26,30</context>
+          <context context-type="linenumber">40,44</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.savedQueries.applyAria" datatype="html">
         <source>Apply query <x id="name" equiv-text="name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/bookmarks/saved-queries.ts</context>
-          <context context-type="linenumber">43</context>
+          <context context-type="linenumber">63</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="projects.savedQueries.openSqlAria" datatype="html">
+        <source>Open SQL <x id="name" equiv-text="name"/> in the SQL console</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/projects/bookmarks/saved-queries.ts</context>
+          <context context-type="linenumber">66</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.savedQueries.deleteAria" datatype="html">
         <source>Delete query <x id="name" equiv-text="name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/bookmarks/saved-queries.ts</context>
-          <context context-type="linenumber">46</context>
+          <context context-type="linenumber">69</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.savedQueries.defaultName" datatype="html">
@@ -26008,6 +26054,30 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/bookmarks/saved-query.store.ts</context>
           <context context-type="linenumber">35</context>
+        </context-group>
+        <note priority="1" from="meaning">Undo history entry</note>
+      </trans-unit>
+      <trans-unit id="projects.savedSql.defaultName" datatype="html">
+        <source>SQL <x id="number" equiv-text="store.items().length + 1"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/projects/bookmarks/saved-sql.store.ts</context>
+          <context context-type="linenumber">35</context>
+        </context-group>
+        <note priority="1" from="meaning">Default name of a saved SQL text</note>
+      </trans-unit>
+      <trans-unit id="projects.savedSql.undoSave" datatype="html">
+        <source>saved SQL</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/projects/bookmarks/saved-sql.store.ts</context>
+          <context context-type="linenumber">36</context>
+        </context-group>
+        <note priority="1" from="meaning">Undo history entry</note>
+      </trans-unit>
+      <trans-unit id="projects.savedSql.undoRemove" datatype="html">
+        <source>saved SQL removal</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/projects/bookmarks/saved-sql.store.ts</context>
+          <context context-type="linenumber">40</context>
         </context-group>
         <note priority="1" from="meaning">Undo history entry</note>
       </trans-unit>
@@ -30943,6 +31013,13 @@
           <context context-type="linenumber">122</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="core.units.eventsPerSecond" datatype="html">
+        <source><x id="count" equiv-text="n"/> events/s</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/format/units.ts</context>
+          <context context-type="linenumber">129</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="core.units.eta.underMinute" datatype="html">
         <source>less than a minute left</source>
         <context-group purpose="location">
@@ -32643,6 +32720,788 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/sources/source-file-actions.ts</context>
           <context context-type="linenumber">76</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.view.title" datatype="html">
+        <source>Store</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/provide-store-pane.ts</context>
+          <context context-type="linenumber">10</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.category" datatype="html">
+        <source>View</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/provide-store-pane.ts</context>
+          <context context-type="linenumber">20</context>
+        </context-group>
+        <note priority="1" from="description">Command palette category</note>
+      </trans-unit>
+      <trans-unit id="store.cmd.show" datatype="html">
+        <source>Open Store</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/provide-store-pane.ts</context>
+          <context context-type="linenumber">24</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.cmd.sql" datatype="html">
+        <source>Open SQL console</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/provide-store-pane.ts</context>
+          <context context-type="linenumber">33</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.sql.editor" datatype="html">
+        <source>SQL query</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/sql-console.ts</context>
+          <context context-type="linenumber">23,24</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.sql.completions" datatype="html">
+        <source>Completions</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/sql-console.ts</context>
+          <context context-type="linenumber">38</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.sql.stop" datatype="html">
+        <source>Stop</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/sql-console.ts</context>
+          <context context-type="linenumber">49,50</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.sql.running" datatype="html">
+        <source>Running…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/sql-console.ts</context>
+          <context context-type="linenumber">50,52</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.sql.run" datatype="html">
+        <source>Run</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/sql-console.ts</context>
+          <context context-type="linenumber">52,54</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.sql.explain" datatype="html">
+        <source>Explain</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/sql-console.ts</context>
+          <context context-type="linenumber">54,55</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.sql.history" datatype="html">
+        <source>Earlier queries</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/sql-console.ts</context>
+          <context context-type="linenumber">56</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.sql.historyPlaceholder" datatype="html">
+        <source>History…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/sql-console.ts</context>
+          <context context-type="linenumber">57,58</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.sql.saveName" datatype="html">
+        <source>Name for this SQL</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/sql-console.ts</context>
+          <context context-type="linenumber">64</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.sql.saveNamePlaceholder" datatype="html">
+        <source>Name</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/sql-console.ts</context>
+          <context context-type="linenumber">64</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.sql.save" datatype="html">
+        <source>Save SQL</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/sql-console.ts</context>
+          <context context-type="linenumber">65,67</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.sql.stopped" datatype="html">
+        <source>Stopped.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/sql-console.ts</context>
+          <context context-type="linenumber">80,83</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.sql.plan" datatype="html">
+        <source>Query plan</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/sql-console.ts</context>
+          <context context-type="linenumber">85</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.sql.openInEvents" datatype="html">
+        <source>Open in Events</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/sql-console.ts</context>
+          <context context-type="linenumber">92,94</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.sql.copy" datatype="html">
+        <source>Copy</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/sql-console.ts</context>
+          <context context-type="linenumber">94,96</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.sql.results" datatype="html">
+        <source>Results</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/sql-console.ts</context>
+          <context context-type="linenumber">96</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.sql.more" datatype="html">
+        <source>Show more rows</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/sql-console.ts</context>
+          <context context-type="linenumber">117,119</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.sql.countCut" datatype="html">
+        <source><x id="shown" equiv-text="shown"/> of <x id="total" equiv-text="total"/> rows (the query returned more; the console keeps <x id="max" equiv-text="total"/>)</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/sql-console.ts</context>
+          <context context-type="linenumber">178</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.sql.count" datatype="html">
+        <source><x id="shown" equiv-text="shown"/> of <x id="total" equiv-text="total"/> rows</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/sql-console.ts</context>
+          <context context-type="linenumber">179</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.memory.workerImporting" datatype="html">
+        <source>Store worker (importing budget)</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane-model.ts</context>
+          <context context-type="linenumber">28</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.memory.workerQuerying" datatype="html">
+        <source>Store worker (query budget)</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane-model.ts</context>
+          <context context-type="linenumber">29</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.memory.duck" datatype="html">
+        <source>DuckDB</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane-model.ts</context>
+          <context context-type="linenumber">32</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.activity.ready" datatype="html">
+        <source>Ready</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane-model.ts</context>
+          <context context-type="linenumber">39</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.activity.importing" datatype="html">
+        <source>Importing</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane-model.ts</context>
+          <context context-type="linenumber">41</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.activity.indexing" datatype="html">
+        <source>Indexing</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane-model.ts</context>
+          <context context-type="linenumber">43</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.storage.declared" datatype="html">
+        <source>Declared column</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane-model.ts</context>
+          <context context-type="linenumber">50</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.storage.promoted" datatype="html">
+        <source>Own column</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane-model.ts</context>
+          <context context-type="linenumber">52</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.storage.partly" datatype="html">
+        <source>Own column in some segments</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane-model.ts</context>
+          <context context-type="linenumber">54</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.storage.overflow" datatype="html">
+        <source>Overflow map (slower to filter)</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane-model.ts</context>
+          <context context-type="linenumber">56</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.maintain.compactTitle" datatype="html">
+        <source>Compact now</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane-model.ts</context>
+          <context context-type="linenumber">65</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.maintain.compactMessage" datatype="html">
+        <source>Merge small segments and drop the rows of removed sources now? The store rewrites those segments; reading goes on meanwhile.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane-model.ts</context>
+          <context context-type="linenumber">66</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.maintain.compactConfirm" datatype="html">
+        <source>Compact</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane-model.ts</context>
+          <context context-type="linenumber">67</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.maintain.rebuildTitle" datatype="html">
+        <source>Rebuild index</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane-model.ts</context>
+          <context context-type="linenumber">71</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.maintain.rebuildMessage" datatype="html">
+        <source>Throw the full-text index away and index every event again? Word search finds fewer events until it caught up.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane-model.ts</context>
+          <context context-type="linenumber">72</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.maintain.rebuildConfirm" datatype="html">
+        <source>Rebuild</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane-model.ts</context>
+          <context context-type="linenumber">73</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.maintain.clearTitle" datatype="html">
+        <source>Clear cached analyses</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane-model.ts</context>
+          <context context-type="linenumber">77</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.maintain.clearMessage" datatype="html">
+        <source>Forget the cached analyses? They are computed again when you next open them.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane-model.ts</context>
+          <context context-type="linenumber">78</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.maintain.clearConfirm" datatype="html">
+        <source>Clear</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane-model.ts</context>
+          <context context-type="linenumber">79</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.maintain.started" datatype="html">
+        <source>Started. The Jobs pane shows its progress and what it did.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.store.ts</context>
+          <context context-type="linenumber">93</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.tab.overview" datatype="html">
+        <source>Overview</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">12</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.tab.segments" datatype="html">
+        <source>Segments</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">13</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.tab.fields" datatype="html">
+        <source>Fields</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">14</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.tab.index" datatype="html">
+        <source>Index</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">15</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.tab.memory" datatype="html">
+        <source>Memory</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">16</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.tab.sql" datatype="html">
+        <source>SQL</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">17</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.tabs" datatype="html">
+        <source>Store</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">31</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.refresh" datatype="html">
+        <source>Refresh</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">38,40</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.overview.folder" datatype="html">
+        <source>Folder</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">50</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.overview.size" datatype="html">
+        <source>Size on disk</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">51</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.overview.events" datatype="html">
+        <source>Events</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">52</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.overview.sources" datatype="html">
+        <source>Sources</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">53</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.overview.segments" datatype="html">
+        <source>Segments</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">54</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.overview.pending" datatype="html">
+        <source> (<x id="INTERPOLATION" equiv-text="{{ o.pendingCompaction }}"/> to compact)</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">54,55</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.overview.state" datatype="html">
+        <source>State</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">55</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.overview.version" datatype="html">
+        <source>Data version</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">56</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.overview.format" datatype="html">
+        <source>(format <x id="INTERPOLATION" equiv-text="{{ o.formatVersion }}"/>)</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">56,57</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.overview.lastImport" datatype="html">
+        <source>Last import</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">57,59</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.overview.noImport" datatype="html">
+        <source>None yet</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">62,64</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.maintain.title" datatype="html">
+        <source>Maintenance</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">66,67</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">208,209</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.segments.prev" datatype="html">
+        <source>Previous</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">80,81</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.segments.next" datatype="html">
+        <source>Next</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">81,83</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.segments.file" datatype="html">
+        <source>File</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">87,88</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.segments.rows" datatype="html">
+        <source>Rows</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">88,89</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.segments.size" datatype="html">
+        <source>Size</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">89,90</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.segments.time" datatype="html">
+        <source>Time range (UTC)</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">90,91</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.segments.compression" datatype="html">
+        <source>Compression</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">91,92</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.segments.sources" datatype="html">
+        <source>Sources</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">92,93</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.segments.indexed" datatype="html">
+        <source>Indexed</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">93,94</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.segments.promoted" datatype="html">
+        <source>Own columns</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">94,95</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.segments.compaction" datatype="html">
+        <source>Compaction</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">95,97</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.segments.live" datatype="html">
+        <source> (<x id="INTERPOLATION" equiv-text="{{ count(r.live) }}"/> live)</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">102,103</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.fields.rule" datatype="html">
+        <source>A field gets its own column in a segment when at least half of the segment&apos;s first batch has it; filtering on a field in the overflow map is slower.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">124,125</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.fields.key" datatype="html">
+        <source>Field</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">129,130</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.fields.type" datatype="html">
+        <source>Type</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">130,131</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.fields.storage" datatype="html">
+        <source>Stored as</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">131,132</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.fields.fill" datatype="html">
+        <source>Fill rate</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">132,133</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.fields.distinct" datatype="html">
+        <source>Distinct (approx.)</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">133,135</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.fields.truncated" datatype="html">
+        <source>The rarest fields are not listed.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">150,152</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.index.state" datatype="html">
+        <source>State</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">162,163</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.index.catchingUp" datatype="html">
+        <source>Catching up: <x id="INTERPOLATION" equiv-text="{{ i.pendingSegments }}"/> segments to index</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">163</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.index.upToDate" datatype="html">
+        <source>Up to date</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">163,164</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.index.docs" datatype="html">
+        <source>Events indexed</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">164</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.index.size" datatype="html">
+        <source>Size</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">165</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.index.segments" datatype="html">
+        <source>Index segments</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">166</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.index.commit" datatype="html">
+        <source>Last commit</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">167</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.index.writer" datatype="html">
+        <source>Writer</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">168</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.index.writerValue" datatype="html">
+        <source><x id="INTERPOLATION" equiv-text="{{ bytes(i.writerHeapBytes) }}"/> heap, <x id="INTERPOLATION_1" equiv-text="{{ i.writerThreads }}"/> threads</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">168,169</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.memory.budgets" datatype="html">
+        <source>Budgets</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">191</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.memory.budgetsValue" datatype="html">
+        <source><x id="INTERPOLATION" equiv-text="{{ bytes(m.importBudgetBytes) }}"/> importing, <x id="INTERPOLATION_1" equiv-text="{{ bytes(m.queryBudgetBytes) }}"/> querying</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">191,192</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.memory.duckLimit" datatype="html">
+        <source>DuckDB limit</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">192</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.memory.threads" datatype="html">
+        <source><x id="INTERPOLATION" equiv-text="{{ m.duckThreads }}"/> threads</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">192</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.memory.spilled" datatype="html">
+        <source> · <x id="INTERPOLATION" equiv-text="{{ bytes(m.duckSpilledBytes) }}"/> spilled</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">192</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.memory.console" datatype="html">
+        <source>SQL console limit</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">193</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.memory.lowMemory" datatype="html">
+        <source>Low memory mode</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">194</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.memory.pid" datatype="html">
+        <source>Worker process</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">196,197</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.memory.cached" datatype="html">
+        <source>Cached analyses</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">198</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.memory.jobs" datatype="html">
+        <source>Running jobs</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">199,201</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.memory.noJobs" datatype="html">
+        <source>None</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">204,206</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.retry" datatype="html">
+        <source>Retry</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">222,224</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.yes" datatype="html">
+        <source>Yes</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">275</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.no" datatype="html">
+        <source>No</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">276</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.on" datatype="html">
+        <source>On</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">277</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.off" datatype="html">
+        <source>Off</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">278</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.segments.pendingCompaction" datatype="html">
+        <source>Pending</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">279</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.maintain.busy" datatype="html">
+        <source>Maintenance waits until the import is done.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">289</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.segments.none" datatype="html">
+        <source>No segments yet.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">295</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="store.segments.range" datatype="html">
+        <source>Segments <x id="from" equiv-text="p.offset + 1"/>–<x id="to" equiv-text="p.offset + p.rows.length"/> of <x id="total" equiv-text="p.total"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/store-pane/store-pane.ts</context>
+          <context context-type="linenumber">296</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.annotationTrack.aria" datatype="html">
