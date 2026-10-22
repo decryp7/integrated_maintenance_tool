@@ -67,8 +67,9 @@ test.describe('inspector (K1), anomalies (K2)', () => {
     await openView(page, 'Anomalies');
     const head = page.locator('imt-anomalies-view [data-testid=anomaly-head]');
     await expect(head.getByRole('button', { name: 'Sort by score' })).toBeVisible();
-    await head.getByRole('button', { name: 'Sort by kind' }).click();
-    await expect(head.getByRole('button', { name: 'Sort by kind' })).toHaveAttribute('aria-pressed', 'true');
+    // The list is grouped by kind, so the headers sort inside each group.
+    await head.getByRole('button', { name: 'Sort by score' }).click();
+    await expect(head.getByRole('button', { name: 'Sort by score' })).toHaveAttribute('aria-pressed', 'true');
   });
 });
 

@@ -28,10 +28,12 @@ export async function runCommand(page: Page, title: string): Promise<void> {
   await expect(input).toHaveCount(0);
 }
 
-/** The number of sources shown in the status bar. */
+/** The number of sources, from the status bar's Details popover. */
 export async function sourceCount(page: Page): Promise<number> {
-  const text = await page.locator('imt-status-bar').innerText();
-  return Number(/(\d+) sources?/.exec(text)?.[1] ?? 0);
+  await page.getByTestId('status-details').click();
+  const text = await page.getByTestId('status-details-popover').innerText();
+  await page.keyboard.press('Escape');
+  return Number(/Sources\s+(\d+)/.exec(text)?.[1] ?? 0);
 }
 
 /** Opens a panel (View ▸ Other windows…, which lists every view). */

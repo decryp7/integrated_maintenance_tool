@@ -6,7 +6,7 @@ import { chooseMenu } from './menu-support';
 async function setAutoOpen(page: Page, on: boolean): Promise<void> {
   await page.getByRole('button', { name: 'Settings' }).click();
   const dialog = page.getByRole('dialog', { name: 'Settings' });
-  const auto = dialog.getByRole('checkbox', { name: /Home: show when files or a project open/ });
+  const auto = dialog.getByRole('switch', { name: /Home: show when files or a project open/ });
   if (on) await auto.check();
   else await auto.uncheck();
   await page.keyboard.press('Escape');
