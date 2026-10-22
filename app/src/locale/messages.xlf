@@ -6092,7 +6092,7 @@
         <source>Run</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">80,82</context>
+          <context context-type="linenumber">82,84</context>
         </context-group>
         <note priority="1" from="description">Button</note>
         <note priority="1" from="meaning">Run a query</note>
@@ -6101,84 +6101,84 @@
         <source>Cancel the running query (Esc)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">82</context>
+          <context context-type="linenumber">84</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.cancel" datatype="html">
         <source>Cancel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">82,84</context>
+          <context context-type="linenumber">84,86</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.askAi" datatype="html">
         <source>Ask AI</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">84</context>
+          <context context-type="linenumber">86</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.askAiHint" datatype="html">
         <source>Describe what you want in plain words; the local model writes the query</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">84</context>
+          <context context-type="linenumber">86</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.history" datatype="html">
         <source>History</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">86,87</context>
+          <context context-type="linenumber">88,89</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.historyLabel" datatype="html">
         <source>Query history</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">88</context>
+          <context context-type="linenumber">90</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.clearHistory" datatype="html">
         <source>Clear history</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">92,95</context>
+          <context context-type="linenumber">94,97</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.progress" datatype="html">
         <source>Query progress</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">101</context>
+          <context context-type="linenumber">103</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.cancelled" datatype="html">
         <source>Query cancelled.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">109,110</context>
+          <context context-type="linenumber">111,112</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.filtering" datatype="html">
         <source>Filtering with <x id="START_TAG_CODE" ctype="x-code" equiv-text="&lt;code class=&quot;mono&quot;&gt;"/><x id="INTERPOLATION" equiv-text="{{ ql }}"/><x id="CLOSE_TAG_CODE" ctype="x-code" equiv-text="&lt;/code&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">111</context>
+          <context context-type="linenumber">113</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.matched" datatype="html">
         <source> · <x id="INTERPOLATION" equiv-text="{{ session.matched() }}"/> events </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">111</context>
+          <context context-type="linenumber">113</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.clear" datatype="html">
         <source>Clear</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">112,114</context>
+          <context context-type="linenumber">114,116</context>
         </context-group>
         <note priority="1" from="description">Button</note>
         <note priority="1" from="meaning">Remove the applied query</note>
@@ -6187,35 +6187,35 @@
         <source><x id="INTERPOLATION" equiv-text="{{ runKey }}"/> to run. Without <x id="START_TAG_CODE" ctype="x-code" equiv-text="&lt;code class=&quot;mono&quot;&gt;"/>stats<x id="CLOSE_TAG_CODE" ctype="x-code" equiv-text="&lt;/code&gt;"/> the query filters the grid, timeline and charts; with it the table opens in Query results.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">114,116</context>
+          <context context-type="linenumber">116,118</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.runTitle" datatype="html">
         <source>Run (<x id="key" equiv-text="this.runKey"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">169</context>
+          <context context-type="linenumber">172</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.cancelling" datatype="html">
         <source>Cancelling…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">170</context>
+          <context context-type="linenumber">173</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.running" datatype="html">
         <source>Running…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">171</context>
+          <context context-type="linenumber">174</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.errorAt" datatype="html">
         <source><x id="message" equiv-text="message"/> at column <x id="column" equiv-text="column"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">192</context>
+          <context context-type="linenumber">195</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.traces.title" datatype="html">
@@ -9968,11 +9968,18 @@
           <context context-type="linenumber">62</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="diagnostics.snapshot.noScreenshot" datatype="html">
+        <source>No screenshot: <x id="reason" equiv-text="reason"/>.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/diagnostics/snapshot.types.ts</context>
+          <context context-type="linenumber">22</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="diagnostics.snapshot.notice" datatype="html">
         <source>IMT saved a screenshot of this error locally to help diagnose it. Nothing is sent anywhere.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/snapshot.types.ts</context>
-          <context context-type="linenumber">15</context>
+          <context context-type="linenumber">28</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.snapshots.folder" datatype="html">
@@ -30797,42 +30804,42 @@
         <source>Untitled report</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/report/report-view.ts</context>
-          <context context-type="linenumber">114</context>
+          <context context-type="linenumber">115</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.reportView.sectionAria" datatype="html">
         <source>Section <x id="title" equiv-text="title || i + 1"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/report/report-view.ts</context>
-          <context context-type="linenumber">122</context>
+          <context context-type="linenumber">123</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.reportView.sectionTitleAria" datatype="html">
         <source>Section title <x id="number" equiv-text="i + 1"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/report/report-view.ts</context>
-          <context context-type="linenumber">126</context>
+          <context context-type="linenumber">127</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.reportView.sectionUpAria" datatype="html">
         <source>Move section up: <x id="title" equiv-text="title"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/report/report-view.ts</context>
-          <context context-type="linenumber">130</context>
+          <context context-type="linenumber">131</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.reportView.sectionDownAria" datatype="html">
         <source>Move section down: <x id="title" equiv-text="title"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/report/report-view.ts</context>
-          <context context-type="linenumber">134</context>
+          <context context-type="linenumber">135</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.reportView.sectionRemoveAria" datatype="html">
         <source>Remove section <x id="title" equiv-text="title"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/report/report-view.ts</context>
-          <context context-type="linenumber">138</context>
+          <context context-type="linenumber">139</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.reportCommands.show" datatype="html">

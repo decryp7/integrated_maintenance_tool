@@ -3,25 +3,17 @@ import { Logger } from '../core/logger';
 import { WorkspaceStore } from '../core/workspace.store';
 import { ErrorSnapshotService, SNAPSHOT_CLOCK, SNAPSHOT_TEXT_FILTER } from '../diagnostics/error-snapshot.service';
 import { MockSnapshotBackend } from '../diagnostics/mock/mock-snapshot-backend';
-import { ScreenCapture } from '../diagnostics/screen-capture';
 import { SnapshotBackend } from '../diagnostics/snapshot-backend';
 import { MemoryLogger } from '../../testing/helpers';
 import { ShareBackend } from './share-backend';
 import { snapshotRedaction, UNREDACTED_PLACEHOLDER } from './snapshot-redaction';
 import { at } from '../../testing/must';
 
-class Screen extends ScreenCapture {
-  async capture() {
-    return { base64: 'iVBORw0KGgo=', mime: 'image/png' as const, bytes: 8 };
-  }
-}
-
 function setup(redactedView: boolean, preview: () => Promise<{ after: string }>) {
   const backend = new MockSnapshotBackend();
   TestBed.configureTestingModule({
     providers: [
       { provide: SnapshotBackend, useValue: backend },
-      { provide: ScreenCapture, useValue: new Screen() },
       { provide: Logger, useClass: MemoryLogger },
       { provide: SNAPSHOT_CLOCK, useValue: { now: () => 0, nextFrame: async () => undefined } },
       { provide: WorkspaceStore, useValue: { summary: () => ({ redactedView }) } },

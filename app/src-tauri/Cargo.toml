@@ -68,6 +68,11 @@ notify-debouncer-mini = "0.7"
 base64.workspace = true
 sysinfo = { workspace = true, features = ["system"] }
 zip.workspace = true
+# Error snapshots (ADR 0034): bound and re-encode the native webview capture off the UI thread. Already in the
+# tree through tauri (same version and codecs); no new crates.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp"] }
+# Awaits the webview's capture callback with a timeout (`window_capture`), on the runtime tauri already runs.
+tokio = { workspace = true, features = ["sync", "time"] }
 
 [dev-dependencies]
 # The store in process for the shell's tests (the real adapter on a temp folder).
@@ -91,8 +96,18 @@ tauri = { version = "2.12.4", features = ["test", "tray-icon", "image-png", "uns
 tauri-plugin-single-instance = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSEvent"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSEvent", "NSImage", "NSImageRep", "NSBitmapImageRep"] }
+# Native window capture (`window_capture::native`, ADR 0034): the versions wry uses.
+objc2 = "0.6"
+block2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSData", "NSDictionary", "NSError", "NSString"] }
+objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-app-kit", "WKWebView", "WKSnapshotConfiguration"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Native window capture (`window_capture::native`, ADR 0034): the versions wry pins.
+webkit2gtk = { version = "=2.0.2", features = ["v2_38"] }
+cairo-rs = "0.18"
 
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.39"
-windows = { workspace = true, features = ["Win32_System_Console", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+windows = { workspace = true, features = ["Win32_System_Com", "Win32_System_Console", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }

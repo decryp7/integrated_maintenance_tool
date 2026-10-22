@@ -1348,6 +1348,7 @@
     "diagnostics.reportView.unreadable": "⟦Šööɱéé ƒîîļéš ööƒ ţĥéé ŕééþöŕţ çööûûļð ñööţ ƀé ŕééááð:⟧",
     "diagnostics.reportView.yes": "⟦ýééš⟧",
     "diagnostics.reportView.zoomHint": "⟦Žööööɱ ţĥéé ţîɱééļîîñéé ţö ţĥîîš ɱööɱééñţ⟧",
+    "diagnostics.snapshot.noScreenshot": "⟦Ñöö šçŕééééñšĥöţ: {$reason}.⟧",
     "diagnostics.snapshot.notice": "⟦ÎÎṀŢ šááṽééð á šçŕééééñšĥööţ öƒ ţĥîîš ééŕŕööŕ ļöçááļļý ţöö ĥééļþ ðîááĝñööšéé îţ. Ñööţĥîîñĝ îîš šéñţ ááñýŵĥééŕéé.⟧",
     "diagnostics.snapshots.exporting.one": "⟦ÉÉẋþööŕţîîñĝ {$count} šñááþšĥööţ ţöö {$path}; áá ɱééššááĝé ţééļļš ýööûû ŵĥéñ ţĥéé ƒîîļéé îš ŕééááðý.⟧",
     "diagnostics.snapshots.exporting.other": "⟦ÉÉẋþööŕţîîñĝ {$count} šñááþšĥööţš ţöö {$path}; áá ɱééššááĝé ţééļļš ýööûû ŵĥéñ ţĥéé ƒîîļéé îš ŕééááðý.⟧",
