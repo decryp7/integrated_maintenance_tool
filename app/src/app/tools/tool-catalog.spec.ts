@@ -46,7 +46,7 @@ describe('ToolCatalog', () => {
     expect(catalog.entry('nope')).toBeNull();
     expect(catalog.usable('process-monitor')).toBe(true);
     expect(catalog.problem('process-monitor')).toBeNull();
-    expect(viewIds(views)).toEqual(expect.arrayContaining(['perfmon', 'process-monitor', 'plugin-health', 'saved-queries']));
+    expect(viewIds(views)).toEqual(expect.arrayContaining(['perfmon', 'process-monitor', 'saved-queries']));
     expect(commandIds(commands)).toEqual(expect.arrayContaining(['tools.perfmon.show', 'tools.monitor.show', 'tools.collect', 'tools.health.show']));
   });
 
@@ -58,7 +58,7 @@ describe('ToolCatalog', () => {
       expect(catalog.problem('process-monitor')).toEqual({ kind: 'missing' });
       expect(viewIds(views)).not.toContain('perfmon');
       expect(viewIds(views)).not.toContain('process-monitor');
-      expect(viewIds(views)).toContain('plugin-health');
+      expect(viewIds(views)).not.toContain('plugin-health');
       expect(commandIds(commands)).not.toEqual(expect.arrayContaining(['tools.perfmon.show']));
       expect(commandIds(commands)).not.toContain('tools.collect');
       expect(commandIds(commands)).toContain('tools.health.show');
