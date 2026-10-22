@@ -87,8 +87,22 @@ impl DuckStore {
     /// Saves the project and writes it as an `.imtz` to `out` (no caches); returns the bytes written.
     pub fn export_project(&self, manifest: &mut ProjectManifest, out: &Path) -> StoreResult<u64> {
         self.idle()?;
-        // Everything in the database file itself, so the archive needs no write-ahead log.
-        self.inner.conn()?.execute_batch("CHECKPOINT").map_err(engine)?;
+        // Everything in the database file itself, so the archive needs no write-ahead log. A background writer (the
+        // index, positions) may hold a write transaction for a moment, which DuckDB reports instead of waiting: ask
+        // again for a few seconds. The archive holds a copy made by `COPY FROM DATABASE` below either way, so a
+        // checkpoint that never gets through costs only a larger write-ahead log, not a wrong export.
+        for attempt in 0..100 {
+            match self.inner.conn()?.execute_batch("CHECKPOINT") {
+                Ok(()) => break,
+                Err(e) if attempt < 99 && e.to_string().contains("other write transactions") => {
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                }
+                Err(e) => {
+                    log::warn!("checkpoint before the export failed: {e}");
+                    break;
+                }
+            }
+        }
         self.save_project(manifest)?;
         // The open database cannot be read by another handle (Windows): export a copy of it.
         let tmp = self.inner.dir.join("tmp").join(format!("export-{}", std::process::id()));

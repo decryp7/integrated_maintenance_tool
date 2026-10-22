@@ -592,7 +592,8 @@ mod tests {
         assert!([1, 0].contains(&report.appended), "{report:?}");
         emit_report(app.handle(), "main", &report);
         emit_report(app.handle(), "main", &TailReport::default());
-        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        // Generous: a loaded CI runner can stall this test for many seconds.
+        let deadline = std::time::Instant::now() + Duration::from_secs(90);
         while crate::test_support::store_summary(&st()).total < 2 && std::time::Instant::now() < deadline {
             std::thread::sleep(Duration::from_millis(20));
         }
@@ -659,6 +660,7 @@ mod tests {
         };
         // The newest event of a refresh is held back until the file is idle, so each refresh writes the one before.
         grow(&[1, 2]);
+        let started = std::time::Instant::now();
         let first = apply_changes(&win, std::slice::from_ref(&log));
         assert_eq!(first.appended, 1, "{first:?}");
         assert_eq!(runs(), 1, "the first refresh runs the annotators at once");
@@ -668,6 +670,12 @@ mod tests {
         grow(&[3]);
         let second = apply_changes(&win, std::slice::from_ref(&log));
         assert_eq!(second.appended, 1, "{second:?}");
+        if started.elapsed() >= TAIL_EVERY {
+            // The machine stalled for longer than the throttle window between the two refreshes, so the second was
+            // not "right away"; the throttle itself is checked with explicit times in `engine::annotate`.
+            eprintln!("skipped: {:?} passed between two refreshes", started.elapsed());
+            return;
+        }
         assert_eq!(runs(), 1, "throttled");
         assert!(pending(), "what arrived waits for the next run");
         assert!(win.live.flush_wanted.load(Ordering::SeqCst), "the follow-up is wanted");
