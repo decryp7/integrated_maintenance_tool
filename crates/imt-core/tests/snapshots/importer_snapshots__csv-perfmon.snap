@@ -1,5 +1,6 @@
 ---
 source: crates/imt-core/tests/importer_snapshots.rs
+assertion_line: 174
 expression: snap
 ---
 sample: csv/perfmon-export.csv
@@ -16,7 +17,7 @@ fields:
   - Machine
   - Value
 first:
-  - line: 1
+  - line: 2
     timestamp: "2026-10-14T09:00:00.000Z"
     level: Information
     message: "WEB01 · Processor(_Total)\\% Processor Time · 36.17"
@@ -24,7 +25,7 @@ first:
       Counter: "Processor(_Total)\\% Processor Time"
       Machine: WEB01
       Value: 36.17
-  - line: 2
+  - line: 3
     timestamp: "2026-10-14T09:00:00.000Z"
     level: Information
     message: "WEB01 · Memory\\Available MBytes · 6092"
@@ -32,7 +33,7 @@ first:
       Counter: "Memory\\Available MBytes"
       Machine: WEB01
       Value: 6092
-  - line: 3
+  - line: 4
     timestamp: "2026-10-14T09:00:00.000Z"
     level: Information
     message: "WEB02 · Processor(_Total)\\% Processor Time · 30.0"
@@ -40,7 +41,7 @@ first:
       Counter: "Processor(_Total)\\% Processor Time"
       Machine: WEB02
       Value: 30
-  - line: 4
+  - line: 5
     timestamp: "2026-10-14T09:00:00.000Z"
     level: Information
     message: "WEB02 · Memory\\Available MBytes · 6023"
@@ -48,7 +49,7 @@ first:
       Counter: "Memory\\Available MBytes"
       Machine: WEB02
       Value: 6023
-  - line: 5
+  - line: 6
     timestamp: "2026-10-14T09:00:00.000Z"
     level: Information
     message: "WORKER01 · Processor(_Total)\\% Processor Time · 41.76"

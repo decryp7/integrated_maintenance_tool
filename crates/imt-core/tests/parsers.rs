@@ -50,6 +50,35 @@ fn every_text_builtin_parses_its_sample() {
     }
 }
 
+// Regression: NLog's `${message:withexception=true}` writes `message|Exception: …`; the exception stayed in the message.
+#[test]
+fn nlog_exception_after_the_bar_and_bars_inside_a_message() {
+    let ws = Workspace::new(Profile::default_profile()).unwrap();
+    let pv = ws.preview_parse(&ParsePreviewRequest {
+        toml: file("nlog").toml.to_string(),
+        profile: String::new(),
+        sample: "2026-03-01 10:00:00.0000|INFO|Shop.Cart|a | b | c\n\
+            2026-03-01 10:00:01.0000|ERROR|Shop.Cart|Checkout failed|System.ArgumentException: Bad sku | 7\n\
+            \x20  at Cart.Checkout()\n\
+            2026-03-01 10:00:02.0000|ERROR|Shop.Cart|Lookup failed|KeyNotFoundError: sku\n"
+            .into(),
+        file_name: "shop.log".into(),
+        limit: 10,
+    });
+    assert_eq!(pv.parser.as_deref(), Some("nlog"));
+    let r = &pv.records;
+    assert_eq!((r[0].message.as_str(), r[0].exception.as_deref()), ("a | b | c", None));
+    assert_eq!(r[1].message, "Checkout failed");
+    assert_eq!(
+        r[1].exception.as_deref(),
+        Some("System.ArgumentException: Bad sku | 7\n   at Cart.Checkout()")
+    );
+    assert_eq!(
+        (r[2].message.as_str(), r[2].exception.as_deref()),
+        ("Lookup failed", Some("KeyNotFoundError: sku"))
+    );
+}
+
 #[test]
 fn builtins_keep_details_of_their_format() {
     let ws = Workspace::new(Profile::default_profile()).unwrap();
