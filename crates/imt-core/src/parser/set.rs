@@ -587,4 +587,60 @@ mod tests {
         assert!(set.parser("generic").is_some());
         assert_eq!(set.parsers().count(), builtin::FILES.len());
     }
+
+    /// A binary importer that recognises a magic number.
+    struct Magic;
+
+    impl crate::importers::BinaryImporter for Magic {
+        fn id(&self) -> &str {
+            "magic"
+        }
+        fn sniff(&self, _ctx: &ImportCtx, head: &[u8]) -> u8 {
+            if head.starts_with(b"MAGIC") {
+                90
+            } else {
+                0
+            }
+        }
+        fn import(&self, _ctx: &ImportCtx, _bytes: &[u8]) -> anyhow::Result<crate::importers::Imported> {
+            anyhow::bail!("not needed")
+        }
+    }
+
+    fn candidate<'a>(bytes: &'a [u8], text: Option<&'a str>) -> Candidate<'a> {
+        Candidate {
+            source: "x",
+            path: Path::new("x"),
+            rel: "x",
+            file_date: None,
+            bytes,
+            text,
+        }
+    }
+
+    #[test]
+    fn a_parser_forced_to_a_binary_importer_scores_by_that_importers_sniff() {
+        let mut p = CompiledProfile::compile(Profile::default_profile()).unwrap();
+        p.format.kind = "magic".into();
+        let mut importers = Importers::default();
+        importers.register_binary(Box::new(Magic));
+        assert_eq!(format_score(&p, &importers, &candidate(b"MAGIC bytes", None)), 90);
+        assert_eq!(
+            format_score(&p, &importers, &candidate(b"other bytes", None)),
+            0,
+            "no sniff, and no text to try"
+        );
+    }
+
+    #[test]
+    fn text_formats_are_scored_the_same_without_the_compiled_regex_set() {
+        let text = "2026-10-14 10:00:00 INFO one\n2026-10-14 10:00:01 INFO two\n";
+        let with_set = CompiledProfile::compile(Profile::default_profile()).unwrap();
+        let mut without = CompiledProfile::compile(Profile::default_profile()).unwrap();
+        without.text_format_set = None;
+        let score = text_score(&with_set, text);
+        assert!(score > 0);
+        assert_eq!(text_score(&without, text), score);
+        assert_eq!(text_score(&without, "no events here\n"), 0);
+    }
 }
