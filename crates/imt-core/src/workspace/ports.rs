@@ -499,6 +499,13 @@ impl crate::ports::Inspect for WorkspaceStore {}
 impl crate::ports::Maintain for WorkspaceStore {}
 impl crate::ports::Console for WorkspaceStore {}
 
+/// The reference the store's redaction summary is checked against.
+impl crate::ports::Redaction for WorkspaceStore {
+    fn redaction_summary(&self, req: &crate::redact::RedactionSummaryRequest) -> StoreResult<crate::redact::RedactionSummary> {
+        self.read().redaction_summary(req).map_err(invalid)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

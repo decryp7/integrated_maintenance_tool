@@ -11,14 +11,16 @@ mod config;
 mod detectors;
 #[cfg(test)]
 mod tests;
+pub mod view;
 
 pub use config::{FieldScope, Mode, RedactCfg, RedactRuleCfg};
 pub use detectors::{luhn_ok, Detector};
+pub use view::{view_redactor, RedactionPreviewRequest, RedactionSample, RedactionSummary, RedactionSummaryRequest};
 
 use crate::model::Record;
 use anyhow::{Context, Result};
 use regex::{Captures, Regex};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use std::borrow::Cow;
@@ -294,7 +296,7 @@ fn expand(caps: &Captures<'_>, template: &str) -> String {
 }
 
 /// Hits of one rule in a preview.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuleHits {
     pub rule: String,
     pub count: usize,
