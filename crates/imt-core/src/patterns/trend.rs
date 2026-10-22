@@ -160,6 +160,11 @@ mod tests {
     fn the_first_event_sets_a_one_second_scale() {
         let mut s = TrendScale::default();
         assert!(!s.is_set() && s.index(5) == 0);
+        assert_eq!(
+            s.display(&[0u32; FINE_BUCKETS]),
+            vec![0u32; TREND_BUCKETS],
+            "nothing to show before the first event"
+        );
         assert!(s.fit(10_000).is_none());
         assert_eq!((s.from(), s.width_ms()), (10_000, 1_000));
         assert_eq!(s.index(10_999), 0);

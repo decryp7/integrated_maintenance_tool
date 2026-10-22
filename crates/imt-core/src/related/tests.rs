@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::api::{FileKind, SourceInfo};
+use crate::ports::StoreError;
 
 pub(super) fn source(id: u32, name: &str, offset_ms: i64, from: Option<i64>, to: Option<i64>) -> SourceInfo {
     SourceInfo {
@@ -333,4 +334,63 @@ fn ranking_is_deterministic() {
     assert_eq!(a, b);
     // Equal scores without a time: the lower id first.
     assert_eq!(a.links.iter().map(|l| l.event.id).collect::<Vec<_>>(), [2, 3]);
+}
+
+/// A source whose `events` fails from its `n`-th call on (counting from 1); `calls` counts the calls made.
+struct FailsFrom {
+    inner: Fake,
+    n: usize,
+    calls: std::cell::Cell<usize>,
+}
+
+impl RelatedSource for FailsFrom {
+    fn sources(&self) -> StoreResult<Vec<SourceInfo>> {
+        self.inner.sources()
+    }
+    fn events(&self, f: &Filter, limit: usize) -> StoreResult<Vec<RelatedEvent>> {
+        self.calls.set(self.calls.get() + 1);
+        if self.calls.get() >= self.n {
+            return Err(StoreError::Busy("importing".into()));
+        }
+        self.inner.events(f, limit)
+    }
+}
+
+#[test]
+fn a_store_error_in_any_of_the_searches_is_returned_not_swallowed() {
+    let failing = |n: usize| FailsFrom {
+        inner: fake(),
+        n,
+        calls: Default::default(),
+    };
+    let busy = StoreError::Busy("importing".into());
+    // The window around the image's time is the first search.
+    let by_time = RelatedRequest {
+        time: at(&iso(T)),
+        assume_timezone: "UTC".into(),
+        ..RelatedRequest::default()
+    };
+    assert_eq!(find_related(&failing(1), &by_time).unwrap_err(), busy);
+    // Then one search per clue term.
+    let by_text = RelatedRequest {
+        clues: Clues {
+            error_texts: vec!["Failed to capture payment".into()],
+            ..Clues::default()
+        },
+        ..RelatedRequest::default()
+    };
+    assert_eq!(find_related(&failing(1), &by_text).unwrap_err(), busy);
+    // Without a time, the sources the title names are searched last.
+    let by_title = RelatedRequest {
+        clues: Clues {
+            window_title: Some("web01 - Not Responding".into()),
+            ..Clues::default()
+        },
+        ..RelatedRequest::default()
+    };
+    let probe = failing(usize::MAX);
+    find_related(&probe, &by_title).unwrap();
+    let last = probe.calls.get();
+    assert!(last >= 1);
+    assert_eq!(find_related(&failing(last), &by_title).unwrap_err(), busy);
 }

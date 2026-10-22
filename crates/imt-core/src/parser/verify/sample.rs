@@ -194,4 +194,23 @@ mod tests {
         assert!(m.len() <= 1000 && m.lines().all(|l| l.chars().count() <= MODEL_LINE_CHARS));
         assert_eq!(signature("2026-03 x"), "9999-99 ");
     }
+
+    #[test]
+    fn at_most_twelve_odd_lines_are_shown_and_a_section_head_that_does_not_fit_is_left_out() {
+        let mut content = String::new();
+        for i in 0..40 {
+            content.push_str(&format!("2026-03-01 10:00:{:02} INFO step {i}\n", i % 60));
+        }
+        // Twenty lines that each have a shape of their own (another leading symbol), apart by a blank line.
+        for c in "!#$%&*+,-./:;<=>?@^_".chars() {
+            content.push_str(&format!("{c}{c}{c} x\n\n"));
+        }
+        for i in 40..240 {
+            content.push_str(&format!("2026-03-01 10:01:00 INFO step {i}\n"));
+        }
+        let m = model_sample(&content, MAX_MODEL_CHARS);
+        assert_eq!(m.matches("(a line of another shape)").count(), 12, "{m}");
+        // Not even the first section's head fits.
+        assert_eq!(model_sample(&content, 10), "");
+    }
 }

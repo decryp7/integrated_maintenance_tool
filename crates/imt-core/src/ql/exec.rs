@@ -359,5 +359,11 @@ mod tests {
             }
         }
         assert!(Plain.event().is_none());
+        let key = crate::row::FieldKeys::new().key("N");
+        assert!(Plain.text(&key).is_none());
+        assert!(Plain.number(&key).is_none());
+        assert!(Plain.level().is_none());
+        assert!(!Plain.full_text("x"));
+        assert!(Plain.value(&key).is_none());
     }
 }

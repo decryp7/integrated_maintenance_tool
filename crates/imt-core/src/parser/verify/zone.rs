@@ -267,6 +267,8 @@ mod tests {
         }
         assert_eq!(offset_minutes("+0900"), Some(540));
         assert_eq!(offset_minutes("-5"), Some(-300));
+        assert_eq!(offset_minutes("+530"), Some(330));
+        assert_eq!(offset_minutes("+560"), None);
         assert_eq!(offset_minutes(""), Some(0));
         assert_eq!(offset_minutes("local"), None);
         assert_eq!(offset_minutes("+15:00"), None);

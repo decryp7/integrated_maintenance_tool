@@ -1503,3 +1503,26 @@ fn a_constant_message_at_one_instant_is_not_periodic() {
         Some(NoiseReason::Periodic { interval_ms: 1_000 })
     );
 }
+
+#[test]
+fn sampling_more_groups_than_the_limit_keeps_the_largest_and_says_it_was_cut() {
+    let (ws, dir) = store_with(&log_lines());
+    let summary = crate::ports::Query::summary(&ws).unwrap();
+    let limits = SurveyLimits {
+        groups: 0,
+        ..SurveyLimits::from_request(&SurveyRequest::default())
+    };
+    let sampled = sample::collect(&ws, &summary, &limits, &SurveyControl::new(), Instant::now()).unwrap();
+    assert!(sampled.truncated);
+    assert!(sampled.groups.is_empty() && sampled.events.is_empty());
+    let all = sample::collect(
+        &ws,
+        &summary,
+        &SurveyLimits::from_request(&SurveyRequest::default()),
+        &SurveyControl::new(),
+        Instant::now(),
+    )
+    .unwrap();
+    assert!(!all.truncated && !all.groups.is_empty());
+    std::fs::remove_dir_all(dir).ok();
+}

@@ -29,6 +29,8 @@ pub struct Delegating<'a, S> {
     /// Makes `run_query` fail with this error instead of running the query.
     pub run_query_error: Option<StoreError>,
     pages: std::sync::atomic::AtomicUsize,
+    /// Makes `check_query` fail with this error instead of checking anything.
+    pub check_query_error: Option<StoreError>,
 }
 
 impl<'a, S> Delegating<'a, S> {
@@ -40,6 +42,7 @@ impl<'a, S> Delegating<'a, S> {
             page_fails_from: None,
             run_query_error: None,
             pages: Default::default(),
+            check_query_error: None,
         }
     }
 
@@ -132,7 +135,10 @@ impl<S: Query> Query for Delegating<'_, S> {
         self.inner.run_query_with(req, control)
     }
     fn check_query(&self, text: &str) -> StoreResult<Option<QlError>> {
-        self.inner.check_query(text)
+        match &self.check_query_error {
+            Some(e) => Err(e.clone()),
+            None => self.inner.check_query(text),
+        }
     }
     fn complete_query(&self, req: &CompletionRequest) -> StoreResult<Vec<Completion>> {
         self.inner.complete_query(req)

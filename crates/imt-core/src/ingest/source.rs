@@ -682,4 +682,25 @@ mod tests {
         assert!(sink.batches.is_empty() && sink.finished.is_empty());
         std::fs::remove_dir_all(dir).ok();
     }
+
+    #[test]
+    fn a_file_that_stopped_growing_before_the_window_is_skipped_without_a_source() {
+        let dir = temp();
+        let (importers, profile) = env_parts();
+        let cancel = AtomicBool::new(false);
+        let far_future = crate::ingest::ImportWindow::new(Some(i64::MAX / 2), None).unwrap();
+        let env = ImportEnv {
+            encodings: &Default::default(),
+            importers: &importers,
+            parsers: &profile,
+            schema: Arc::new(EventSchema::plain()),
+            cancel: &cancel,
+            window: far_future,
+        };
+        let mut sink = Memory::default();
+        let f = write(&dir, "old.log", b"2026-10-14 10:00:00 INFO a\n");
+        assert!(import_path(&env, &f, "old.log", &HashSet::new(), &mut sink).is_empty());
+        assert!(sink.batches.is_empty() && sink.finished.is_empty() && sink.aborted.is_empty());
+        std::fs::remove_dir_all(dir).ok();
+    }
 }
