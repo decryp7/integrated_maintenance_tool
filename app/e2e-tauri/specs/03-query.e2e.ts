@@ -25,9 +25,15 @@ describe('real app: query language', () => {
       { timeout: 30_000, timeoutMsg: `the total did not drop below ${all}` },
     );
     // The rows are read in one call: a webdriver round trip per row is slow and the rows re-render while it runs.
-    const levels = await browser.execute(() =>
-      Array.from(document.querySelectorAll('imt-events-grid [role=row].row')).map((r) => r.textContent ?? ''),
-    );
+    // The total drops before the first page of the narrowed result is drawn, so wait for rows with text.
+    const readRows = () =>
+      browser.execute(() => Array.from(document.querySelectorAll('imt-events-grid [role=row].row')).map((r) => r.textContent ?? ''));
+    await browser.waitUntil(async () => (await readRows()).some((t) => t.trim().length > 0), {
+      timeout: 30_000,
+      timeoutMsg: 'the narrowed rows were not drawn',
+    });
+    // Placeholder rows of a page still loading are empty; the loaded ones are what the filter must have narrowed.
+    const levels = (await readRows()).filter((t) => t.trim().length > 0);
     expect(levels.length).toBeGreaterThan(0);
     expect(levels[0]).toMatch(/ERR|FTL/);
     for (const text of levels) expect(text).not.toMatch(/\b(INF|WRN|DBG|VRB)\b/);
