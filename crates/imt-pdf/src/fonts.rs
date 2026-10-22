@@ -106,20 +106,20 @@ impl Font {
     /// PostScript name of the bundled font.
     pub fn base(self) -> &'static str {
         match self {
-            Font::Regular => "IMTReportSans-Regular",
-            Font::Bold => "IMTReportSans-Bold",
-            Font::Italic => "IMTReportSans-Italic",
-            Font::Mono => "IMTReportMono-Regular",
+            Font::Regular => "DebriefReportSans-Regular",
+            Font::Bold => "DebriefReportSans-Bold",
+            Font::Italic => "DebriefReportSans-Italic",
+            Font::Mono => "DebriefReportMono-Regular",
         }
     }
 
     /// The bundled TrueType file.
     pub fn data(self) -> &'static [u8] {
         match self {
-            Font::Regular => include_bytes!("../fonts/IMTReportSans-Regular.ttf"),
-            Font::Bold => include_bytes!("../fonts/IMTReportSans-Bold.ttf"),
-            Font::Italic => include_bytes!("../fonts/IMTReportSans-Italic.ttf"),
-            Font::Mono => include_bytes!("../fonts/IMTReportMono-Regular.ttf"),
+            Font::Regular => include_bytes!("../fonts/DebriefReportSans-Regular.ttf"),
+            Font::Bold => include_bytes!("../fonts/DebriefReportSans-Bold.ttf"),
+            Font::Italic => include_bytes!("../fonts/DebriefReportSans-Italic.ttf"),
+            Font::Mono => include_bytes!("../fonts/DebriefReportMono-Regular.ttf"),
         }
     }
 

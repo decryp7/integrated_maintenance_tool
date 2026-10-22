@@ -36,7 +36,7 @@ PDF options considered:
   (self-contained, inline CSS and SVG, no scripts, restrictive CSP meta, every text escaped)
   and **PDF** in the adapter crate **`imt-pdf`** using **pdf-writer + svg2pdf**:
   - text uses embedded subsets of bundled OFL fonts (IBM Plex Sans regular, bold and italic,
-    JetBrains Mono; renamed "IMT Report Sans/Mono" because a modified Plex may not carry the
+    JetBrains Mono; renamed "Debrief Report Sans/Mono" because a modified Plex may not carry the
     reserved name), written as `Type0`/`CIDFontType2` with `Identity-H` and a `ToUnicode` CMap,
     so text is selectable, searchable and extracts correctly. The fonts cover Latin, Greek and
     Cyrillic; other characters (CJK, emoji) print and extract as U+FFFD, one per character, and
