@@ -109,7 +109,7 @@ const OP_LABELS: Record<FilterOp, string> = {
       <div class="anchor" (imtClickOutside)="optionsOpen.set(false)" (keydown.escape)="optionsOpen.set(false)">
         <button class="btn tall" data-testid="view-options" aria-label="View options" i18n-aria-label="@@workspace.filterBar.viewOptionsAria" aria-haspopup="dialog" [attr.aria-expanded]="optionsOpen()" aria-controls="imt-view-options" (click)="optionsOpen.set(!optionsOpen())">
           <imt-icon name="group" [size]="14" />
-          <span [class.fold]="compact()" i18n="@@workspace.filterBar.viewOptions">View options</span>
+          <span class="fold" i18n="@@workspace.filterBar.viewOptions">View options</span>
           <imt-icon name="chevronDown" [size]="12" />
         </button>
         @if (optionsOpen()) {
