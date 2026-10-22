@@ -69,6 +69,40 @@ pub(crate) fn report_source(r: &SourceReport) -> SourceInfo {
     }
 }
 
+/// The import problems of each source (ADR 0020 §2: the Explorer lists them), from the diagnostics table, as the
+/// in-memory store keeps them per source; kinds this build does not know are left out.
+fn source_problems(conn: &Connection, sources: &mut [SourceInfo]) -> StoreResult<()> {
+    use imt_core::ingest::{Problem, ProblemKind};
+    let mut by_source: HashMap<u32, Vec<Problem>> = HashMap::new();
+    let mut stmt = conn
+        .prepare("SELECT source, kind, count, samples FROM diagnostics ORDER BY source, kind")
+        .map_err(engine)?;
+    let rows = stmt
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, u32>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, u64>(2)?,
+                r.get::<_, String>(3)?,
+            ))
+        })
+        .map_err(engine)?;
+    for row in rows {
+        let (source, kind, count, samples) = row.map_err(engine)?;
+        let Some(kind) = ProblemKind::from_id(&kind) else { continue };
+        let mut sample_lines: Vec<u32> = serde_json::from_str(&samples).unwrap_or_default();
+        sample_lines.truncate(imt_core::ingest::MAX_SAMPLES);
+        by_source.entry(source).or_default().push(Problem { kind, count, sample_lines });
+    }
+    for s in sources {
+        if let Some(mut p) = by_source.remove(&s.id) {
+            p.sort_by_key(|p| p.kind);
+            s.problems = p;
+        }
+    }
+    Ok(())
+}
+
 /// What every read needs besides the filter.
 pub(crate) struct Ctx {
     pub(crate) names: HashMap<u32, String>,
@@ -268,19 +302,10 @@ impl Inner {
                 .filter(|(_, e)| !e.4)
                 .filter_map(|(k, _)| text_expr(k, &fields).map(|x| (k, x)))
                 .collect();
-            if !unlisted.is_empty() {
-                let select = unlisted
-                    .iter()
-                    .map(|(_, x)| format!("count(DISTINCT {x})"))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                let mut stmt = conn.prepare(&format!("SELECT {select} FROM {FROM}")).map_err(engine)?;
-                let mut rows = stmt.query([]).map_err(engine)?;
-                if let Some(r) = rows.next().map_err(engine)? {
-                    for (i, (k, _)) in unlisted.iter().enumerate() {
-                        exact.insert((*k).clone(), r.get::<_, u64>(i).map_err(engine)?);
-                    }
-                }
+            // One key per statement: the distinct values of every key at once exceeded DuckDB's memory limit.
+            for (k, x) in unlisted {
+                let n = count(conn, &format!("SELECT count(DISTINCT {x}) FROM {FROM}"))?;
+                exact.insert(k.clone(), n as u64);
             }
         }
         let fields: Vec<(String, (u64, u64, u64))> = acc
@@ -724,6 +749,7 @@ impl Inner {
         for row in rows {
             sources.push(row.map_err(engine)?);
         }
+        source_problems(&conn, &mut sources)?;
         let profile = self.profile();
         Ok(SummaryReply {
             total: total as usize,
@@ -1031,16 +1057,27 @@ impl Inner {
             )
             .map_err(engine)?;
         let (from, to, bucket_ms) = Self::bounds(req, min.or(range.0), max.or(range.1), buckets);
-        if bucket_ms < 60_000.0 {
+        // Each source in one lane: the minute histogram mapped to lanes. Otherwise the per-lane counts (lanes ×
+        // time units, and lanes × sources), materialised once per data version and instance key; they know no
+        // sources per unit, so a source filter needs the events. A bucket counts whole units.
+        let lane_of = self.source_keys(conn, key)?;
+        let materialised = match &lane_of {
+            Some(_) => None,
+            None if sources.is_some() => return Ok(None),
+            None => match self.lane_counts(conn, key)? {
+                Some(m) => Some(m),
+                None => return Ok(None),
+            },
+        };
+        let unit = materialised.as_ref().map_or(60_000, |m| m.unit_ms);
+        if bucket_ms < unit as f64 {
             return Ok(None);
         }
-        let Some(lane_of) = self.source_keys(conn, key)? else {
-            return Ok(None);
-        };
-        let mut conds = vec![
-            "h.minute IS NOT NULL".to_string(),
-            "h.source IN (SELECT id FROM sources WHERE ready)".to_string(),
-        ];
+        let column = if materialised.is_some() { "h.unit" } else { "h.minute" };
+        let mut conds = vec![format!("{column} IS NOT NULL")];
+        if materialised.is_none() {
+            conds.push("h.source IN (SELECT id FROM sources WHERE ready)".to_string());
+        }
         if let Some(s) = &sources {
             conds.push(format!(
                 "h.source IN ({})",
@@ -1048,20 +1085,32 @@ impl Inner {
             ));
         }
         if let Some(f) = range.0 {
-            conds.push(format!("h.minute >= {}", f.div_euclid(60_000)));
+            conds.push(format!("{column} >= {}", f.div_euclid(unit)));
         }
         if let Some(t) = range.1 {
-            conds.push(format!("h.minute <= {}", t.div_euclid(60_000)));
+            conds.push(format!("{column} <= {}", t.div_euclid(unit)));
         }
-        let mut stmt = conn
-            .prepare(&format!(
-                "SELECT h.source, h.minute, h.level, sum(h.n) FROM histogram h WHERE {} GROUP BY ALL",
+        let sql = match &materialised {
+            None => format!(
+                "SELECT NULL::VARCHAR, h.source, h.minute, h.level, sum(h.n) FROM histogram h WHERE {} GROUP BY ALL",
                 conds.join(" AND ")
-            ))
-            .map_err(engine)?;
+            ),
+            Some(m) => format!(
+                "SELECT h.k, NULL::UINTEGER, h.unit, h.level, sum(h.n) FROM lane_units h WHERE {} AND {} GROUP BY ALL",
+                m.condition(),
+                conds.join(" AND ")
+            ),
+        };
+        let mut stmt = conn.prepare(&sql).map_err(engine)?;
         let rows = stmt
             .query_map([], |r| {
-                Ok((r.get::<_, u32>(0)?, r.get::<_, i64>(1)?, r.get::<_, u8>(2)?, r.get::<_, u64>(3)?))
+                Ok((
+                    r.get::<_, Option<String>>(0)?,
+                    r.get::<_, Option<u32>>(1)?,
+                    r.get::<_, i64>(2)?,
+                    r.get::<_, u8>(3)?,
+                    r.get::<_, u64>(4)?,
+                ))
             })
             .map_err(engine)?;
         let mut lanes: Vec<Lane> = Vec::new();
@@ -1069,8 +1118,13 @@ impl Inner {
         let mut histogram = vec![[0u32; 6]; buckets];
         let mut firsts: HashMap<(usize, u32), i64> = HashMap::new();
         for row in rows {
-            let (source, minute, level, n) = row.map_err(engine)?;
-            let Some(k) = lane_of.get(&source) else { continue };
+            let (lane_key, source, minute, level, n) = row.map_err(engine)?;
+            let Some(k) = lane_key
+                .as_ref()
+                .or_else(|| lane_of.as_ref().zip(source).and_then(|(l, s)| l.get(&s)))
+            else {
+                continue;
+            };
             let i = *index.entry(k.clone()).or_insert_with_key(|k| {
                 lanes.push(Lane {
                     key: k.clone(),
@@ -1084,10 +1138,10 @@ impl Inner {
                 });
                 lanes.len() - 1
             });
-            let start = minute * 60_000;
+            let start = minute * unit;
             let lane = &mut lanes[i];
             lane.first = lane.first.min(start.max(from));
-            lane.last = lane.last.max((start + 59_999).min(to));
+            lane.last = lane.last.max((start + unit - 1).min(to));
             lane.total += n as usize;
             let b = ((((start - from) as f64) / bucket_ms).floor().max(0.0) as usize).min(buckets - 1);
             if levels & (1 << level.min(5)) != 0 {
@@ -1095,24 +1149,68 @@ impl Inner {
                 lane.density[b] += n as u32;
                 histogram[b][(level as usize).min(5)] += n as u32;
             }
-            firsts.entry((i, source)).and_modify(|m| *m = (*m).min(start)).or_insert(start);
+            if let Some(source) = source {
+                firsts.entry((i, source)).and_modify(|m| *m = (*m).min(start)).or_insert(start);
+            }
+        }
+        // The materialised lanes' sources: those with events in the time range (by their bounds there).
+        if let Some(m) = &materialised {
+            let mut overlap = Vec::new();
+            if let Some(f) = range.0 {
+                overlap.push(format!("tmax >= {f}"));
+            }
+            if let Some(t) = range.1 {
+                overlap.push(format!("tmin <= {t}"));
+            }
+            overlap.push(m.condition());
+            let mut stmt = conn
+                .prepare(&format!("SELECT k, source, tmin FROM lane_sources WHERE {}", overlap.join(" AND ")))
+                .map_err(engine)?;
+            let rows = stmt
+                .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, u32>(1)?, r.get::<_, i64>(2)?)))
+                .map_err(engine)?;
+            for row in rows {
+                let (k, source, first) = row.map_err(engine)?;
+                if let Some(&i) = index.get(&k) {
+                    firsts.insert((i, source), first);
+                }
+            }
         }
         // Without a time range a lane spans its sources' first and last timed events, which are known exactly.
         if range == (None, None) {
-            let mut bounds: HashMap<u32, (i64, i64)> = HashMap::new();
-            let mut stmt = conn
-                .prepare("SELECT id, ts_from, ts_to FROM sources WHERE ready AND ts_from IS NOT NULL AND ts_to IS NOT NULL")
-                .map_err(engine)?;
+            // Per source, or per lane and source when sources have several lanes.
+            let mut bounds: HashMap<(Option<usize>, u32), (i64, i64)> = HashMap::new();
+            let sql = match &materialised {
+                None => "SELECT NULL::VARCHAR, id, ts_from, ts_to FROM sources WHERE ready AND ts_from IS NOT NULL AND ts_to IS NOT NULL"
+                    .to_string(),
+                Some(m) => format!("SELECT k, source, tmin, tmax FROM lane_sources WHERE {}", m.condition()),
+            };
+            let mut stmt = conn.prepare(&sql).map_err(engine)?;
             let rows = stmt
-                .query_map([], |r| Ok((r.get::<_, u32>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?)))
+                .query_map([], |r| {
+                    Ok((
+                        r.get::<_, Option<String>>(0)?,
+                        r.get::<_, u32>(1)?,
+                        r.get::<_, i64>(2)?,
+                        r.get::<_, i64>(3)?,
+                    ))
+                })
                 .map_err(engine)?;
             for row in rows {
-                let (id, a, b) = row.map_err(engine)?;
-                bounds.insert(id, (a, b));
+                let (k, id, a, b) = row.map_err(engine)?;
+                let lane = match k {
+                    Some(k) => match index.get(&k) {
+                        Some(i) => Some(*i),
+                        None => continue,
+                    },
+                    None => None,
+                };
+                bounds.insert((lane, id), (a, b));
             }
             let mut exact: Vec<Option<(i64, i64)>> = vec![None; lanes.len()];
             for &(i, source) in firsts.keys() {
-                if let Some(&(a, b)) = bounds.get(&source) {
+                let lane = materialised.as_ref().map(|_| i);
+                if let Some(&(a, b)) = bounds.get(&(lane, source)) {
                     let e = exact[i].get_or_insert((a, b));
                     *e = (e.0.min(a), e.1.max(b));
                 }
@@ -1156,14 +1254,22 @@ impl Inner {
                 "least(greatest(CAST(trunc(CAST(e.ts - {from} AS DOUBLE) / CAST('{bucket_ms:?}' AS DOUBLE)) AS BIGINT), 0), {})",
                 buckets - 1
             );
+            // The materialised lanes keep their marked events (with their keys) apart.
+            let (lane_key, events) = match &materialised {
+                Some(m) => {
+                    filter.push(m.condition_of("e"));
+                    ("e.k".to_string(), "lane_marks e")
+                }
+                None => (key.to_string(), FROM),
+            };
             let mut stmt = conn
                 .prepare(&format!(
                     "SELECT k, mask, b, n, struct_extract(f, 'ts'), struct_extract(f, 'source'), struct_extract(f, 'line'), struct_extract(f, 'id'), msg FROM (
                        SELECT k, mask, b, count(*) AS n, min(o) AS f, arg_min(message, o) AS msg FROM (
-                         SELECT {key} AS k, {bucket} AS b, e.message AS message,
+                         SELECT {lane_key} AS k, {bucket} AS b, e.message AS message,
                                 struct_pack(ts := e.ts, source := e.source, line := e.line, id := e.id) AS o,
                                 CASE WHEN ({content}) THEN e.markers & {visible}::UBIGINT ELSE e.markers & {lifecycle}::UBIGINT END AS mask
-                         FROM {FROM} WHERE {})
+                         FROM {events} WHERE {})
                        WHERE mask <> 0 GROUP BY k, mask, b)",
                     filter.join(" AND ")
                 ))

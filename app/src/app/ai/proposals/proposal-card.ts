@@ -7,7 +7,7 @@ import { ProposalApply } from './proposal-apply';
 
 const TITLES: Record<Proposal['kind'], string> = {
   regex: $localize`:@@ai.proposalCard.title.regex:Regular expression`,
-  profile: $localize`:@@ai.proposalCard.title.parser:Parser`,
+  parser: $localize`:@@ai.proposalCard.title.parser:Parser`,
   pipeline: $localize`:@@ai.proposalCard.title.pipeline:Pipeline steps`,
   markers: $localize`:@@ai.proposalCard.title.markers:Markers`,
   extractors: $localize`:@@ai.proposalCard.title.extractors:Extractors`,
@@ -16,7 +16,7 @@ const TITLES: Record<Proposal['kind'], string> = {
 
 const APPLY: Record<Proposal['kind'], string> = {
   regex: $localize`:@@ai.proposalCard.apply.regex:Add as highlight…`,
-  profile: $localize`:@@ai.proposalCard.apply.parser:Add to parsers`,
+  parser: $localize`:@@ai.proposalCard.apply.parser:Add to parsers`,
   pipeline: $localize`:@@ai.proposalCard.apply.addToProfile:Add to profile`,
   markers: $localize`:@@ai.proposalCard.apply.addToProfile:Add to profile`,
   extractors: $localize`:@@ai.proposalCard.apply.addToProfile:Add to profile`,
@@ -53,7 +53,7 @@ const APPLY: Record<Proposal['kind'], string> = {
             }
           }
         }
-        @case ('profile') {
+        @case ('parser') {
           @if (profile(); as r) {
             <p class="facts" i18n="@@ai.proposalCard.profile.facts">{{ r.name }} · {{ r.importer ?? noImporter }} · parses {{ r.parsed }} entries, {{ r.withTimestamp }} with a timestamp</p>
             @if (r.preview.length) {
@@ -169,7 +169,7 @@ export class AiProposalCard {
     return 'rationale' in p ? p.rationale : '';
   });
   protected readonly regex = computed(() => narrow(this.p(), 'regex'));
-  protected readonly profile = computed(() => narrow(this.p(), 'profile'));
+  protected readonly profile = computed(() => narrow(this.p(), 'parser'));
   protected readonly pipeline = computed(() => narrow(this.p(), 'pipeline'));
   protected readonly markers = computed(() => narrow(this.p(), 'markers'));
   protected readonly extractors = computed(() => narrow(this.p(), 'extractors'));

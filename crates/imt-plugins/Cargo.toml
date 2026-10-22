@@ -37,5 +37,9 @@ imt-dump = { path = "../imt-dump" }
 imt-ipc = { path = "../imt-ipc" }
 insta.workspace = true
 proptest.workspace = true
+# The real-world EVTX corpus test (tests/evtx_corpus.rs, nightly): downloads a pinned archive and checks its hash.
+sha2.workspace = true
+ureq = { version = "3", default-features = false, features = ["rustls", "platform-verifier"] }
+zip.workspace = true
 serde_json = { workspace = true, features = ["preserve_order"] }
 tempfile.workspace = true

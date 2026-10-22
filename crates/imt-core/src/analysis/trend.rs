@@ -55,10 +55,30 @@ enum Unit {
     Count,
 }
 
-struct Series {
-    unit: Unit,
-    /// (timestamp ms, value in bytes or count, record id)
-    points: Vec<(i64, f64, u32)>,
+/// One memory-like series of an instance (a growth field) or of a process (a PerfMon counter).
+#[derive(Debug, Clone, PartialEq)]
+pub struct GrowthSeries {
+    /// The instance key (fields) or "machine · process" (counters, see [`counter_place`]).
+    pub place: String,
+    /// The field or counter name.
+    pub name: String,
+    /// A PerfMon counter (values in bytes or counts) rather than a growth field (megabytes or counts).
+    pub counter: bool,
+    /// (timestamp ms, value as logged, record id), sorted by timestamp.
+    pub points: Vec<(i64, f64, u32)>,
+}
+
+impl GrowthSeries {
+    /// The unit, and the factor that turns logged values into it.
+    fn unit(&self) -> (Unit, f64) {
+        if self.counter {
+            (if self.name.ends_with("Count") { Unit::Count } else { Unit::Bytes }, 1.0)
+        } else if self.name.to_ascii_lowercase().ends_with("mb") {
+            (Unit::Bytes, MB)
+        } else {
+            (Unit::Count, 1.0)
+        }
+    }
 }
 
 /// Instances as `(key, events sorted or not)`; see [`super::detect`].
@@ -66,45 +86,67 @@ pub fn memory_growth<'a, R: RowRef + 'a>(
     instances: impl IntoIterator<Item = (&'a str, &'a [(i64, R)])>,
     cfg: &TrendConfig,
 ) -> Vec<Anomaly> {
-    let mut series: BTreeMap<(String, String), Series> = BTreeMap::new();
+    growth_series(instances, cfg)
+        .into_iter()
+        .filter_map(|s| judge_series(s, cfg))
+        .collect()
+}
+
+/// The growth series of the instances' events, ordered by place and name, points sorted by time.
+pub(crate) fn growth_series<'a, R: RowRef + 'a>(
+    instances: impl IntoIterator<Item = (&'a str, &'a [(i64, R)])>,
+    cfg: &TrendConfig,
+) -> Vec<GrowthSeries> {
+    let mut series: BTreeMap<(String, String), GrowthSeries> = BTreeMap::new();
     for (key, events) in instances {
         for (ts, rec) in events {
             collect_fields(&mut series, key, *ts, rec, cfg);
             collect_counter(&mut series, *ts, rec, cfg);
         }
     }
-    let mut out = Vec::new();
-    for ((place, name), mut s) in series {
-        s.points.sort_by_key(|p| p.0);
-        if let Some(a) = judge(&place, &name, &s, cfg) {
-            out.push(a);
-        }
-    }
-    out
+    series
+        .into_values()
+        .map(|mut s| {
+            s.points.sort_by_key(|p| p.0);
+            s
+        })
+        .collect()
 }
 
 fn record_id(rec: &dyn RowRef) -> u32 {
     u32::try_from(rec.id()).unwrap_or(u32::MAX)
 }
 
-fn collect_fields(series: &mut BTreeMap<(String, String), Series>, key: &str, ts: i64, rec: &dyn RowRef, cfg: &TrendConfig) {
+fn push(series: &mut BTreeMap<(String, String), GrowthSeries>, place: String, name: &str, counter: bool, point: (i64, f64, u32)) {
+    series
+        .entry((place, name.to_string()))
+        .or_insert_with_key(|(place, name)| GrowthSeries {
+            place: place.clone(),
+            name: name.clone(),
+            counter,
+            points: Vec::new(),
+        })
+        .points
+        .push(point);
+}
+
+fn collect_fields(series: &mut BTreeMap<(String, String), GrowthSeries>, key: &str, ts: i64, rec: &dyn RowRef, cfg: &TrendConfig) {
     for field in &cfg.fields {
         let Some(v) = rec.number_of(field) else { continue };
-        let lower = field.to_ascii_lowercase();
-        let (unit, value) = if lower.ends_with("mb") {
-            (Unit::Bytes, v * MB)
-        } else {
-            (Unit::Count, v)
-        };
-        series
-            .entry((key.to_string(), field.clone()))
-            .or_insert_with(|| Series { unit, points: Vec::new() })
-            .points
-            .push((ts, value, record_id(rec)));
+        push(series, key.to_string(), field, false, (ts, v, record_id(rec)));
     }
 }
 
-fn collect_counter(series: &mut BTreeMap<(String, String), Series>, ts: i64, rec: &dyn RowRef, cfg: &TrendConfig) {
+/// Where a PerfMon counter series belongs: "machine · process", with "#index" for one of several
+/// processes of the same name.
+pub fn counter_place(machine: &str, instance: &str, index: Option<f64>) -> String {
+    match index {
+        Some(n) => format!("{machine} · {instance}#{n}"),
+        None => format!("{machine} · {instance}"),
+    }
+}
+
+fn collect_counter(series: &mut BTreeMap<(String, String), GrowthSeries>, ts: i64, rec: &dyn RowRef, cfg: &TrendConfig) {
     let text = |name: &str| rec.text_of(name);
     let (Some(counter), Some(value)) = (text("Counter"), rec.number_of("Value")) else {
         return;
@@ -115,16 +157,8 @@ fn collect_counter(series: &mut BTreeMap<(String, String), Series>, ts: i64, rec
     }
     let machine = text("MachineName").unwrap_or_default();
     let instance = text("ProcessName").or_else(|| text("Instance")).unwrap_or_default();
-    let place = match rec.number_of("InstanceIndex") {
-        Some(n) => format!("{machine} · {instance}#{n}"),
-        None => format!("{machine} · {instance}"),
-    };
-    let unit = if counter.ends_with("Count") { Unit::Count } else { Unit::Bytes };
-    series
-        .entry((place, counter.to_string()))
-        .or_insert_with(|| Series { unit, points: Vec::new() })
-        .points
-        .push((ts, value, record_id(rec)));
+    let place = counter_place(&machine, &instance, rec.number_of("InstanceIndex"));
+    push(series, place, counter, true, (ts, value, record_id(rec)));
 }
 
 struct Fit {
@@ -153,7 +187,15 @@ fn fit(points: &[(i64, f64, u32)]) -> Option<Fit> {
     })
 }
 
-fn judge(place: &str, name: &str, s: &Series, cfg: &TrendConfig) -> Option<Anomaly> {
+/// A [`AnomalyKind::MemoryGrowth`] when the series grows steadily.
+pub fn judge_series(mut s: GrowthSeries, cfg: &TrendConfig) -> Option<Anomaly> {
+    let (unit, factor) = s.unit();
+    if factor != 1.0 {
+        for p in &mut s.points {
+            p.1 *= factor;
+        }
+    }
+    let (place, name) = (&s.place, &s.name);
     let pts = &s.points;
     if pts.len() < MIN_POINTS {
         return None;
@@ -165,7 +207,7 @@ fn judge(place: &str, name: &str, s: &Series, cfg: &TrendConfig) -> Option<Anoma
     let f = fit(pts)?;
     let minutes = (to - from) as f64 / 60_000.0;
     let growth = f.slope_per_min * minutes;
-    let floor = if s.unit == Unit::Bytes {
+    let floor = if unit == Unit::Bytes {
         cfg.min_growth_bytes
     } else {
         cfg.min_growth_count
@@ -173,7 +215,7 @@ fn judge(place: &str, name: &str, s: &Series, cfg: &TrendConfig) -> Option<Anoma
     if f.slope_per_min <= 0.0 || f.r2 < cfg.min_r2 || growth < floor || growth < cfg.min_growth_ratio * f.intercept.max(0.0) {
         return None;
     }
-    let amount = |v: f64| match s.unit {
+    let amount = |v: f64| match unit {
         Unit::Bytes => fmt_bytes(v),
         Unit::Count => fmt_num(v),
     };

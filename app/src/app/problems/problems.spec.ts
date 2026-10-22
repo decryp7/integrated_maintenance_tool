@@ -260,13 +260,13 @@ describe('ProblemsStore', () => {
     const propose = vi.spyOn(TestBed.inject(AiLauncher), 'propose').mockResolvedValue();
     const untimed = store.rows().find((r) => r.kind === 'timestampUnparsed')!;
     await store.askAi(problemKey(untimed));
-    expect(propose).toHaveBeenLastCalledWith('profile', { recordId: expect.any(Number), fileName: 'legacy-no-timestamps.csv' });
+    expect(propose).toHaveBeenLastCalledWith('parser', { recordId: expect.any(Number), fileName: 'legacy-no-timestamps.csv' });
 
     const head = vi.spyOn(backend, 'readFileHead').mockResolvedValue('first line\n\nsecond line\n');
     const skipped = store.rows().find((r) => r.kind === 'lineNotParsed')!;
     await store.askAi(problemKey(skipped));
     expect(head).toHaveBeenCalledWith('/logs/web02/app.log', expect.any(Number));
-    expect(propose).toHaveBeenLastCalledWith('profile', { sample: 'first line\nsecond line', fileName: 'app.log' });
+    expect(propose).toHaveBeenLastCalledWith('parser', { sample: 'first line\nsecond line', fileName: 'app.log' });
 
     head.mockRejectedValueOnce('outside the workspace');
     await store.askAi(problemKey(skipped));
@@ -317,8 +317,11 @@ describe('Problems pane', () => {
     await settle(f, 8);
     expect(el(f, '[data-testid=fix-evaluation]').getAttribute('data-tone')).toBe('good');
     el<HTMLButtonElement>(f, '[data-testid=fix-apply]').click();
-    await settle(f, 12);
-    expect(text(f)).toContain('read its files again');
+    // Apply re-reads the files: wait for it rather than a fixed number of change-detection rounds (slow CI).
+    await vi.waitFor(async () => {
+      await settle(f);
+      expect(text(f)).toContain('read its files again');
+    }, { timeout: 10_000 });
     expect(text(f)).not.toContain('without a readable timestamp');
   });
 

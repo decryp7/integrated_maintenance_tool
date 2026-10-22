@@ -196,6 +196,19 @@ fn check_analyses(p: &Pair) {
         p.duck.overview(&r).unwrap().result.len(),
     );
     assert!(found.0 > 0 && found.1 > 0 && found.2 > 0, "{found:?}");
+    // Every detector (computed in SQL by the store) finds something in the samples, as in memory.
+    let kinds: std::collections::BTreeSet<String> = p
+        .duck
+        .anomalies(&r)
+        .unwrap()
+        .result
+        .iter()
+        .map(|a| format!("{:?}", a.kind))
+        .collect();
+    assert_eq!(
+        kinds.into_iter().collect::<Vec<_>>(),
+        ["Crash", "ErrorSpike", "MemoryGrowth", "RateChange", "Silence", "SlowOutlier"]
+    );
     // Runs between lifecycle markers (the default profile's span rules), and a filtered page of them.
     for rr in [json!({}), json!({"from": mid, "sort": "duration", "descending": true, "limit": 5})] {
         let rr: imt_core::spans::RunsRequest = req(rr);

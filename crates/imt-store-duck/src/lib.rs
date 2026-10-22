@@ -6,11 +6,13 @@
 //! Operations not offered yet answer [`StoreError::Unsupported`] naming the phase that adds them.
 
 mod analysis;
+mod anomalies;
 mod compact;
 mod context;
 mod diag;
 mod fts;
 mod hits;
+mod lanes;
 mod parsers;
 mod pos;
 mod profiles;
@@ -26,6 +28,7 @@ pub mod stats;
 mod writer;
 
 pub use compact::Compaction;
+pub use fts::WriterBudget;
 pub use schema::FORMAT_VERSION;
 
 use duckdb::{params, Config, Connection};
@@ -45,6 +48,9 @@ use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuar
 /// DuckDB's memory limit (ADR 0014 memory budget); it spills to the store's `tmp` folder beyond it.
 pub const MEMORY_LIMIT: &str = "192MB";
 
+/// Allocations DuckDB's allocator may keep cached after a task (`allocator_flush_threshold`).
+pub const ALLOCATOR_FLUSH: &str = "32MiB";
+
 /// DuckDB's query threads by default: each holds row groups being read, so more threads need more of
 /// the memory limit (a sort over 24 threads ran out of 256 MB in the bake-off).
 pub const DUCK_THREADS: usize = 4;
@@ -58,6 +64,8 @@ pub struct StoreOptions {
     pub duck_threads: usize,
     /// DuckDB memory limit, e.g. `256MB`.
     pub memory_limit: String,
+    /// The full-text index writer's heap and threads (applies when the store opens).
+    pub index: fts::WriterBudget,
 }
 
 impl Default for StoreOptions {
@@ -66,6 +74,29 @@ impl Default for StoreOptions {
             parse_threads: ingest::default_threads(),
             duck_threads: DUCK_THREADS,
             memory_limit: MEMORY_LIMIT.to_string(),
+            index: fts::WriterBudget::default(),
+        }
+    }
+}
+
+/// Parse threads in low memory mode (each holds a file's chunk and its batches in flight; 2 halved the speed).
+pub const LOW_MEMORY_PARSE_THREADS: usize = 4;
+/// DuckDB's memory limit in low memory mode.
+pub const LOW_MEMORY_LIMIT: &str = "128MB";
+
+impl StoreOptions {
+    /// Low memory mode (a user setting, off by default): fewer parse threads and so fewer batches in flight, a
+    /// smaller DuckDB limit with fewer threads, a smaller index writer. Imports are slower (20-40%); the worker
+    /// also gives freed memory back at once (`imt_alloc::purge_at_once`).
+    pub fn low_memory() -> StoreOptions {
+        StoreOptions {
+            parse_threads: LOW_MEMORY_PARSE_THREADS.min(ingest::default_threads()),
+            duck_threads: 2,
+            memory_limit: LOW_MEMORY_LIMIT.to_string(),
+            index: fts::WriterBudget {
+                heap: 16 << 20,
+                threads: 1,
+            },
         }
     }
 }
@@ -264,6 +295,7 @@ impl Inner {
             .map_err(engine)?;
         conn.execute("DELETE FROM analysis_cache WHERE version < ?", params![next])
             .map_err(engine)?;
+        conn.execute_batch(&lanes::prune_sql(next)).map_err(engine)?;
         Ok(())
     }
 
@@ -382,6 +414,13 @@ fn open_db(dir: &Path, opts: &StoreOptions) -> StoreResult<Connection> {
         .and_then(|c| c.enable_autoload_extension(false))
         // The catalog is small; a checkpoint at the end of each change is enough.
         .and_then(|c| c.with("checkpoint_threshold", "1GB"))
+        // Freed memory goes back to the OS after each task above this (DuckDB's jemalloc on Linux keeps up to
+        // 128 MB by default, which the worker's 300 MB query budget cannot spare).
+        .and_then(|c| c.with("allocator_flush_threshold", ALLOCATOR_FLUSH))
+        // DuckDB's own jemalloc (IMT's Rust code uses mimalloc) returns freed pages through background threads, off by
+        // default: without them a Linux store kept anomaly detection's freed memory (+165 MB over a 64 MB limit in
+        // CI). No effect where DuckDB uses the system allocator.
+        .and_then(|c| c.with("allocator_background_threads", "true"))
         .map_err(engine)?;
     let conn = Connection::open_with_flags(dir.join(DB_FILE), config).map_err(engine)?;
     // Segment footers are parsed once, not per query (a setting of the Parquet reader, so set after opening).
@@ -445,6 +484,7 @@ impl DuckStore {
         conn.execute_batch(&schema::ddl(&schema)).map_err(engine)?;
         conn.execute_batch(&schema::events_view(&schema, &[])).map_err(engine)?;
         conn.execute_batch(schema::CACHE_DDL).map_err(engine)?;
+        conn.execute_batch(lanes::DDL).map_err(engine)?;
         for (k, v) in [
             ("format_version", FORMAT_VERSION.to_string()),
             ("declared", schema::encode_declared(&schema)),
@@ -495,6 +535,7 @@ impl DuckStore {
         })?;
         // Added after the format was first written; created on open so older stores gain it.
         conn.execute_batch(schema::CACHE_DDL).map_err(engine)?;
+        conn.execute_batch(lanes::DDL).map_err(engine)?;
         Ok(Self::with(dir, conn, schema, parsers, registry, opts))
     }
 
@@ -526,7 +567,7 @@ impl DuckStore {
         let started = conn
             .try_clone()
             .map_err(anyhow::Error::from)
-            .and_then(|c| fts::FtsService::start(dir, c, write_lock.clone()));
+            .and_then(|c| fts::FtsService::start(dir, c, write_lock.clone(), opts.index));
         let (fts, fts_error) = match started {
             Ok(f) => (Some(f), None),
             Err(e) => {
@@ -994,5 +1035,20 @@ mod tests {
             MissingSegment("seg-1.parquet".into()).to_string(),
             "the data file seg-1.parquet of this project is missing"
         );
+    }
+
+    #[test]
+    fn the_database_gives_freed_memory_back_and_keeps_its_limit() {
+        let dir = std::env::temp_dir().join(format!("imt-open-db-{}", std::process::id()));
+        let conn = open_db(&dir, &StoreOptions::default()).unwrap();
+        let setting = |name: &str| -> String {
+            conn.query_row(&format!("SELECT CAST(current_setting('{name}') AS VARCHAR)"), [], |r| r.get(0))
+                .unwrap()
+        };
+        assert_eq!(setting("allocator_flush_threshold"), "32.0 MiB");
+        assert_eq!(setting("allocator_background_threads"), "true");
+        assert_eq!(setting("threads"), DUCK_THREADS.to_string());
+        drop(conn);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

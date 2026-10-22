@@ -1,7 +1,7 @@
 //! Compares two sets of events (typically a healthy and a bad time window).
 
 use super::field_stats::ValueCount;
-use super::util::{fmt_num, percentile_sorted, sorted};
+use super::util::fmt_num;
 use crate::model::{auto_value, Level};
 use crate::row::RowRef;
 use serde::{Deserialize, Serialize};
@@ -128,7 +128,34 @@ struct Side {
     /// Fields that had more than `max_distinct` values on this side.
     too_many: BTreeSet<String>,
     /// field -> numeric values.
-    numbers: BTreeMap<String, Vec<f64>>,
+    numbers: BTreeMap<String, Numbers>,
+}
+
+/// The numeric values of a field as distinct values with counts: logged numbers repeat (durations in whole
+/// milliseconds, sizes, counters), so this keeps far fewer entries than values, and the percentiles are exact.
+#[derive(Default)]
+struct Numbers {
+    /// Value bits -> occurrences (equal bits are equal values; the order is `f64::total_cmp`'s).
+    counts: std::collections::HashMap<u64, u64>,
+    len: usize,
+}
+
+impl Numbers {
+    fn push(&mut self, v: f64) {
+        *self.counts.entry(v.to_bits()).or_default() += 1;
+        self.len += 1;
+    }
+
+    fn len(&self) -> usize {
+        self.len
+    }
+
+    /// The values in ascending order, with their counts.
+    fn sorted(&self) -> Vec<(f64, u64)> {
+        let mut v: Vec<(f64, u64)> = self.counts.iter().map(|(b, c)| (f64::from_bits(*b), *c)).collect();
+        v.sort_by(|a, b| a.0.total_cmp(&b.0));
+        v
+    }
 }
 
 impl Side {
@@ -402,11 +429,54 @@ pub fn compare_windows<R: RowRef, S: RowRef>(
     cmp
 }
 
-fn summary(v: &[f64]) -> NumberSummary {
-    let s = sorted(v);
+fn summary(v: &Numbers) -> NumberSummary {
+    let s = v.sorted();
+    // The value at a rank of the sorted values.
+    let at = |rank: usize| {
+        let mut seen = 0u64;
+        s.iter()
+            .find(|(_, c)| {
+                seen += c;
+                seen > rank as u64
+            })
+            .map_or(0.0, |(x, _)| *x)
+    };
+    // As `percentile_sorted` interpolates.
+    let percentile = |p: f64| {
+        if v.len() == 0 {
+            return 0.0;
+        }
+        let rank = p / 100.0 * (v.len() - 1) as f64;
+        let (lo, hi) = (rank.floor() as usize, rank.ceil() as usize);
+        at(lo) + (at(hi) - at(lo)) * (rank - lo as f64)
+    };
     NumberSummary {
-        count: s.len(),
-        median: percentile_sorted(&s, 50.0),
-        p95: percentile_sorted(&s, 95.0),
+        count: v.len(),
+        median: percentile(50.0),
+        p95: percentile(95.0),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::analysis::util::{percentile_sorted, sorted};
+
+    #[test]
+    fn counted_values_summarise_like_the_sorted_values() {
+        for n in [0usize, 1, 2, 5, 37, 1000] {
+            // Repeats, negative zero and fractions.
+            let values: Vec<f64> = (0..n).map(|i| [((i * 7919) % 13) as f64 / 4.0, -0.0, 3.0][i % 3]).collect();
+            let mut counted = Numbers::default();
+            values.iter().for_each(|v| counted.push(*v));
+            let s = sorted(&values);
+            let got = summary(&counted);
+            assert_eq!(
+                (got.count, got.median.to_bits(), got.p95.to_bits()),
+                (n, percentile_sorted(&s, 50.0).to_bits(), percentile_sorted(&s, 95.0).to_bits()),
+                "n = {n}"
+            );
+            assert!(counted.counts.len() <= 15, "distinct values only");
+        }
     }
 }

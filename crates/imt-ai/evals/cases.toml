@@ -111,56 +111,56 @@ intent = "parse the csv row"
 positive = ["14/10/2026 09:00:00;WEB01;Processor(_Total)\\% Processor Time;36.17;", "14/10/2026 09:00:00;WEB02;Processor(_Total)\\% Processor Time;30.0;", "14/10/2026 09:00:00;WORKER01;Processor(_Total)\\% Processor Time;41.76;", "14/10/2026 09:01:00;WEB01;Processor(_Total)\\% Processor Time;32.91;", "14/10/2026 09:01:00;WEB02;Processor(_Total)\\% Processor Time;33.48;"]
 negative = ["14/10/2026 09:00:00;WEB01;Memory\\Available MBytes;6092;", "14/10/2026 09:00:00;WEB02;Memory\\Available MBytes;6023;"]
 
-[[propose_profile]]
+[[propose_parser]]
 id = "clef-web02"
 file = "serilog-clef/web02/orders-20261014.clef"
 from = 0
 lines = 40
 records = 40
 
-[[propose_profile]]
+[[propose_parser]]
 id = "clef-web01"
 file = "serilog-clef/web01/orders-20261014.clef"
 from = 100
 lines = 40
 records = 40
 
-[[propose_profile]]
+[[propose_parser]]
 id = "serilog-json-gateway"
 file = "serilog-json/gateway/gateway-20261014.json"
 from = 0
 lines = 40
 records = 40
 
-[[propose_profile]]
+[[propose_parser]]
 id = "serilog-text-worker"
 file = "serilog-text/worker01/worker-20261014.txt"
 from = 0
 lines = 40
 records = 40
 
-[[propose_profile]]
+[[propose_parser]]
 id = "log4net-billing"
 file = "log4net/legacy-billing/billing.log.2026-10-14"
 from = 0
 lines = 40
 records = 40
 
-[[propose_profile]]
+[[propose_parser]]
 id = "log4net-with-stack"
 file = "log4net/legacy-billing/billing.log.2026-10-14"
 from = 100
 lines = 40
 records = 37
 
-[[propose_profile]]
+[[propose_parser]]
 id = "perfmon-csv"
 file = "csv/perfmon-export.csv"
 from = 0
 lines = 41
 records = 40
 
-[[propose_profile]]
+[[propose_parser]]
 id = "nginx-access"
 text = '''
 192.0.2.10 - - [14/Oct/2026:10:41:24 +0000] "GET /api/orders HTTP/1.1" 200 1532 "-" "curl/8.4"
@@ -174,7 +174,7 @@ text = '''
 '''
 records = 8
 
-[[propose_profile]]
+[[propose_parser]]
 id = "syslog"
 text = '''
 2026-10-14T10:41:24.103512+00:00 web02 sshd[2211]: Accepted publickey for deploy from 192.0.2.50 port 51822 ssh2
@@ -186,7 +186,7 @@ text = '''
 '''
 records = 6
 
-[[propose_profile]]
+[[propose_parser]]
 id = "logfmt"
 text = '''
 time=2026-10-14T10:41:24Z level=info msg="request completed" method=GET path=/api/orders status=200 dur_ms=216
@@ -198,7 +198,7 @@ time=2026-10-14T10:41:29Z level=info msg="request completed" method=GET path=/ap
 '''
 records = 6
 
-[[propose_profile]]
+[[propose_parser]]
 id = "java-log4j-stack"
 text = '''
 2026-10-14 10:41:24,101 INFO  [http-nio-8080-exec-3] c.example.orders.OrderController - Order 91713 created
@@ -212,7 +212,7 @@ java.net.SocketTimeoutException: Read timed out
 '''
 records = 5
 
-[[propose_profile]]
+[[propose_parser]]
 id = "pipe-delimited"
 text = '''
 2026-10-14 09:00:05.249|INFO|15|Billing.Invoices.InvoiceWriter|Invoice INV-236778 written
@@ -224,7 +224,7 @@ text = '''
 '''
 records = 6
 
-[[propose_profile]]
+[[propose_parser]]
 id = "apache-error"
 text = '''
 [Wed Oct 14 10:41:24.103512 2026] [core:error] [pid 2211:tid 140234] [client 192.0.2.50:51822] AH00124: Request exceeded the limit of 10 internal redirects
@@ -236,7 +236,7 @@ text = '''
 '''
 records = 6
 
-[[propose_profile]]
+[[propose_parser]]
 id = "python-logging-traceback"
 text = '''
 2026-10-14 10:41:24,101 - app.orders - INFO - Order 91713 created

@@ -161,6 +161,41 @@ impl Note {
     }
 }
 
+/// A child's sandbox status when the kernel cannot confine its files (Linux without landlock). User decision
+/// (2026-10-22): no setting and no refusal, the plugin runs and its status says this one line.
+pub const FILES_NOT_CONFINED: &str = "files are not confined on this system (landlock is not enabled in the kernel)";
+
+impl SandboxSpec {
+    /// Whether the child's files are restricted (by the child's lockdown or by the launcher).
+    pub fn restricts_files(&self) -> bool {
+        self.fs != FsAccess::Unrestricted || self.contained()
+    }
+}
+
+/// What this system cannot enforce of `spec`, known before the child starts (the host shows it as the child's
+/// sandbox status): on Linux without landlock, [`FILES_NOT_CONFINED`] for a child whose files are restricted.
+pub fn host_notes(spec: &SandboxSpec) -> Vec<Note> {
+    files_note(spec.restricts_files(), files_confinable()).into_iter().collect()
+}
+
+fn files_note(restricts_files: bool, confinable: bool) -> Option<Note> {
+    (restricts_files && !confinable).then(|| Note::new(Gap::Files, FILES_NOT_CONFINED))
+}
+
+/// Whether this system can confine a child's files: on Linux, whether the kernel enforces landlock; elsewhere the
+/// platform's own mechanism does (AppContainer, low integrity, `sandbox-exec`). Asked once per process.
+pub fn files_confinable() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        *ENABLED.get_or_init(platform::landlock_enabled)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        true
+    }
+}
+
 static APPLIED: std::sync::OnceLock<Vec<Note>> = std::sync::OnceLock::new();
 
 /// The notes of this process' lockdown (empty before it, or when nothing was restricted).
@@ -199,10 +234,16 @@ const SYSTEM_READ: &[&str] = &[
 /// (read and execute below `read`, the program's folder and [`SYSTEM_READ`]; writes below `write`) and the network
 /// filter, applied in the forked child before `exec`. Everything is prepared before the fork.
 #[cfg(target_os = "linux")]
-pub(crate) fn contain_before_exec(cmd: &mut std::process::Command, spec: &SandboxSpec, exe: &std::path::Path) -> Result<(), String> {
+pub(crate) fn contain_before_exec(
+    cmd: &mut std::process::Command,
+    spec: &SandboxSpec,
+    exe: &std::path::Path,
+) -> Result<Option<LauncherReport>, String> {
+    use landlock::RulesetStatus;
+    use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
     use std::os::unix::process::CommandExt;
     let Containment::Launcher { read, write, .. } = &spec.containment else {
-        return Ok(());
+        return Ok(None);
     };
     let mut readable: Vec<PathBuf> = read.clone();
     readable.extend(exe.parent().map(PathBuf::from));
@@ -210,9 +251,27 @@ pub(crate) fn contain_before_exec(cmd: &mut std::process::Command, spec: &Sandbo
     let ruleset = std::sync::Mutex::new(Some(platform::launcher_ruleset(&readable, write)?));
     let filter = bpf::filter(!spec.network, false);
     let cpu = spec.cpu_seconds;
+    // The child reports how far landlock confined it through this pipe (closed in the child by exec; neither end
+    // blocks: the one byte is written before exec, and `spawn` returns after it).
+    let mut fds = [0 as libc::c_int; 2];
+    // SAFETY: pipe2 fills two descriptors it opened; each is owned once below.
+    if unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC | libc::O_NONBLOCK) } != 0 {
+        return Err(format!(
+            "cannot create the sandbox status pipe: {}",
+            std::io::Error::last_os_error()
+        ));
+    }
+    // SAFETY: both descriptors were just opened by pipe2 and are owned by nothing else.
+    let report = unsafe {
+        LauncherReport {
+            read: OwnedFd::from_raw_fd(fds[0]),
+            write: Some(OwnedFd::from_raw_fd(fds[1])),
+        }
+    };
+    let status_fd = report.write.as_ref().map_or(-1, |w| w.as_raw_fd());
     // SAFETY: the hook runs in the forked child before exec; it only makes system calls on data prepared above
-    // (the limits, the landlock ruleset's descriptor and the BPF program). The ruleset's mutex is never contended:
-    // only this hook takes it, so no lock held at fork time can block it.
+    // (the limits, the landlock ruleset's descriptor, the BPF program and the status pipe). The ruleset's mutex is
+    // never contended: only this hook takes it, so no lock held at fork time can block it.
     unsafe {
         cmd.pre_exec(move || {
             platform::set_limit(libc::RLIMIT_CPU, cpu).map_err(std::io::Error::other)?;
@@ -220,7 +279,13 @@ pub(crate) fn contain_before_exec(cmd: &mut std::process::Command, spec: &Sandbo
                 return Err(std::io::Error::last_os_error());
             }
             if let Some(r) = ruleset.lock().ok().and_then(|mut g| g.take()) {
-                r.restrict_self().map_err(|e| std::io::Error::other(e.to_string()))?;
+                let status = r.restrict_self().map_err(|e| std::io::Error::other(e.to_string()))?;
+                let code: u8 = match status.ruleset {
+                    RulesetStatus::FullyEnforced => LANDLOCK_FULL,
+                    RulesetStatus::PartiallyEnforced => LANDLOCK_PARTIAL,
+                    RulesetStatus::NotEnforced => LANDLOCK_NONE,
+                };
+                libc::write(status_fd, (&code as *const u8).cast(), 1);
             }
             let fprog = libc::sock_fprog {
                 len: filter.len() as u16,
@@ -232,7 +297,48 @@ pub(crate) fn contain_before_exec(cmd: &mut std::process::Command, spec: &Sandbo
             Ok(())
         });
     }
-    Ok(())
+    Ok(Some(report))
+}
+
+/// Status bytes a contained child writes between `fork` and `exec` (Linux): how far landlock confined it.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+const LANDLOCK_FULL: u8 = 0;
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+const LANDLOCK_PARTIAL: u8 = 1;
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+const LANDLOCK_NONE: u8 = 2;
+
+/// The notes of a contained child from the status it reported (`None`: it reported nothing).
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn launcher_notes(status: Option<u8>) -> Vec<Note> {
+    match status {
+        Some(LANDLOCK_FULL) => Vec::new(),
+        Some(LANDLOCK_PARTIAL) => vec![Note::new(
+            Gap::Files,
+            "landlock is only partly supported by this kernel: some file operations are not restricted",
+        )],
+        _ => vec![Note::new(Gap::Files, FILES_NOT_CONFINED)],
+    }
+}
+
+/// What a contained child reported from between `fork` and `exec` (Linux: how far landlock confined it).
+#[cfg(target_os = "linux")]
+pub(crate) struct LauncherReport {
+    read: std::os::fd::OwnedFd,
+    write: Option<std::os::fd::OwnedFd>,
+}
+
+#[cfg(target_os = "linux")]
+impl LauncherReport {
+    /// The child's notes; call once `spawn` returned (the child wrote its status before it ran the program).
+    pub(crate) fn notes(mut self) -> Vec<Note> {
+        use std::os::fd::AsRawFd;
+        drop(self.write.take());
+        let mut b = [0u8; 1];
+        // SAFETY: reads at most one byte into `b` from a descriptor this report owns.
+        let n = unsafe { libc::read(self.read.as_raw_fd(), b.as_mut_ptr().cast(), 1) };
+        launcher_notes((n == 1).then_some(b[0]))
+    }
 }
 
 /// macOS: the profile `sandbox-exec` starts a contained child with (see [`Containment::Launcher`]): the sandbox's
@@ -375,12 +481,9 @@ mod platform {
         };
         let abi = ABI::V3;
         let fail = |e: landlock::RulesetError| format!("landlock: {e}");
-        let unavailable = |notes: &mut Vec<Note>, why: String| {
-            notes.push(Note::new(
-                Gap::Files,
-                format!("landlock is not available ({why}): file access is not restricted"),
-            ))
-        };
+        // The same status line the host shows (`host_notes`), with the kernel's reason for the child's log.
+        let unavailable =
+            |notes: &mut Vec<Note>, why: String| notes.push(Note::new(Gap::Files, format!("{} ({why})", super::FILES_NOT_CONFINED)));
         let mut ruleset = match Ruleset::default().handle_access(AccessFs::from_all(abi)).and_then(|r| r.create()) {
             Ok(r) => r,
             Err(e) => {
@@ -414,6 +517,16 @@ mod platform {
             Err(e) => unavailable(notes, fail(e)),
         }
         Ok(())
+    }
+
+    /// Whether the kernel enforces landlock (its first ABI at least): a ruleset that requires it can be created.
+    pub(super) fn landlock_enabled() -> bool {
+        use landlock::{Access, AccessFs, CompatLevel, Compatible, Ruleset, RulesetAttr, ABI};
+        Ruleset::default()
+            .set_compatibility(CompatLevel::HardRequirement)
+            .handle_access(AccessFs::from_all(ABI::V1))
+            .and_then(|r| r.create())
+            .is_ok()
     }
 
     /// The landlock ruleset of a contained child (see [`super::contain_before_exec`]), created but not applied.
@@ -791,6 +904,30 @@ mod tests {
             "{}",
             note.message
         );
+    }
+
+    #[test]
+    fn a_kernel_without_landlock_is_one_status_line_for_children_whose_files_are_restricted() {
+        assert_eq!(files_note(true, true), None);
+        assert_eq!(files_note(false, false), None, "nothing to confine");
+        assert_eq!(files_note(true, false), Some(Note::new(Gap::Files, FILES_NOT_CONFINED)));
+        assert!(SandboxSpec::locked().restricts_files() && !SandboxSpec::unrestricted().restricts_files());
+        let contained = SandboxSpec {
+            containment: Containment::Launcher {
+                name: "imt.plugin.x".into(),
+                read: Vec::new(),
+                write: Vec::new(),
+            },
+            ..SandboxSpec::unrestricted()
+        };
+        assert!(contained.restricts_files());
+        assert!(host_notes(&SandboxSpec::unrestricted()).is_empty());
+        assert_eq!(host_notes(&contained).is_empty(), files_confinable());
+        // What a contained child reports from between fork and exec.
+        assert!(launcher_notes(Some(LANDLOCK_FULL)).is_empty());
+        assert!(launcher_notes(Some(LANDLOCK_PARTIAL))[0].message.contains("partly"));
+        assert_eq!(launcher_notes(Some(LANDLOCK_NONE))[0].message, FILES_NOT_CONFINED);
+        assert_eq!(launcher_notes(None)[0].message, FILES_NOT_CONFINED, "no report: not confined");
     }
 
     #[test]

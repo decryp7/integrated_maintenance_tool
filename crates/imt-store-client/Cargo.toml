@@ -11,6 +11,7 @@ description = "IMT's side of the store worker (ADR 0014): the protocol, the supe
 [dependencies]
 imt-core = { path = "../imt-core" }
 imt-ipc = { path = "../imt-ipc" }
+imt-plugin-api = { path = "../imt-plugin-api" }
 arrow-array.workspace = true
 arrow-ipc.workspace = true
 log.workspace = true

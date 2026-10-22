@@ -8,13 +8,15 @@ use imt_core::api::{FacetRequest, TimelineRequest};
 use imt_core::batch::SourceId;
 use imt_core::ports::{Analysis, Ingest, PageQuery, Positions, Projects, Query, Search, SearchRequest, StoreError};
 use imt_core::Profile;
-use imt_store_worker::{StoreWorker, WorkerConfig};
+use imt_store_worker::{MemoryMode, StoreWorker, WorkerConfig};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 const IMPORT_BUDGET_MB: u64 = 768;
+/// The import budget in low memory mode (ADR 0014, user decision).
+const LOW_MEMORY_IMPORT_BUDGET_MB: u64 = 400;
 const QUERY_BUDGET_MB: u64 = 300;
 /// Growth of the app process allowed while it drives an import and queries (it holds no events).
 const CLIENT_GROWTH_MB: u64 = 64;
@@ -50,6 +52,7 @@ fn log_samples() -> Vec<PathBuf> {
         "linux",
         "otel",
         "profiles",
+        "real-libraries",
     ];
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../samples");
     let mut v: Vec<PathBuf> = std::fs::read_dir(root)
@@ -118,11 +121,27 @@ impl Drop for Sampler {
 }
 
 fn worker() -> StoreWorker {
-    StoreWorker::new(WorkerConfig::new(env!("CARGO_BIN_EXE_imt-store-worker"))).unwrap()
+    worker_in(MemoryMode::Normal)
+}
+
+fn worker_in(mode: MemoryMode) -> StoreWorker {
+    let mut cfg = WorkerConfig::new(env!("CARGO_BIN_EXE_imt-store-worker"));
+    cfg.memory_mode = mode;
+    StoreWorker::new(cfg).unwrap()
 }
 
 #[test]
 fn imports_and_queries_within_the_budgets() {
+    imports_and_queries_within(MemoryMode::Normal, IMPORT_BUDGET_MB);
+}
+
+/// Low memory mode (a setting, off by default): the worker starts in it and imports within 400 MB.
+#[test]
+fn low_memory_mode_imports_within_its_budget() {
+    imports_and_queries_within(MemoryMode::Low, LOW_MEMORY_IMPORT_BUDGET_MB);
+}
+
+fn imports_and_queries_within(mode: MemoryMode, import_budget_mb: u64) {
     let copies: usize = std::env::var("IMT_BENCH_COPIES").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
     let data = TempDir::new("data");
     let paths: Vec<PathBuf> = if copies <= 1 {
@@ -140,9 +159,14 @@ fn imports_and_queries_within_the_budgets() {
     };
     let dir = TempDir::new("store");
     let client_before = own_rss() >> 20;
-    let w = worker();
+    let w = worker_in(mode);
     let store = w.open_store(&dir.0, Profile::default_profile(), true, None).unwrap();
     let pid = w.status().pid.unwrap();
+    assert_eq!(
+        w.worker_status().unwrap().memory_mode,
+        mode,
+        "the worker started in the mode asked for"
+    );
     let sampler = Sampler::start(pid);
     let started = Instant::now();
     let session = store.open(&paths).unwrap();
@@ -210,7 +234,7 @@ fn imports_and_queries_within_the_budgets() {
         report.events as f64 / elapsed
     );
     assert!(
-        import_peak.max(index_peak) <= IMPORT_BUDGET_MB,
+        import_peak.max(index_peak) <= import_budget_mb,
         "importing: {import_peak}/{index_peak} MB"
     );
     assert!(idle <= QUERY_BUDGET_MB, "idle: {idle} MB");

@@ -347,8 +347,8 @@ export interface RegexProposal {
   rationale: string;
 }
 
-export interface ProfileProposal {
-  kind: 'profile';
+export interface ParserProposal {
+  kind: 'parser';
   name: string;
   toml: string;
   importer: string | null;
@@ -404,7 +404,7 @@ export interface QueryProposal {
 
 export type Proposal =
   | RegexProposal
-  | ProfileProposal
+  | ParserProposal
   | PipelineProposal
   | MarkersProposal
   | ExtractorsProposal
@@ -518,7 +518,7 @@ export type NarrativeRequest = { op: 'explain'; recordId: number } | { op: 'summ
 export type AiStartRequest =
   | NarrativeRequest
   | { op: 'regex'; lines: string[]; intent: string | null }
-  | { op: 'profile'; recordId: number | null; sample: string | null; fileName: string | null }
+  | { op: 'parser'; recordId: number | null; sample: string | null; fileName: string | null }
   | { op: 'pipeline' | 'markers' | 'extractors'; goal: string; recordId: number | null; sample: string | null }
   | { op: 'query'; question: string }
   | { op: 'folderSetup'; request: unknown }

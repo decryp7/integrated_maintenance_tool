@@ -55,6 +55,7 @@ mod opener;
 mod panel_windows;
 mod parsers;
 mod paths;
+mod performance;
 mod plugin_config;
 mod plugin_packages;
 mod pointer;

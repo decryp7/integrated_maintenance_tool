@@ -779,6 +779,40 @@ jobs:
             npx tauri build --bundles "$bundles" --config src-tauri/tauri.sidecars.conf.json -- --profile dist
           fi
 
+      # The packaged store worker finds libduckdb by run path (crates/imt-store-worker/build/rpath.rs): a signed,
+      # notarized macOS app ignores DYLD_LIBRARY_PATH. Unpack the package and check that one of the worker's run paths
+      # reaches the packaged library, so a change to the bundle layout cannot ship a worker that fails to start.
+      - name: Packaged store worker finds libduckdb by run path (Linux, macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          bundle="${CARGO_TARGET_DIR:-target}/dist/bundle"
+          if [ "$RUNNER_OS" = Linux ]; then
+            deb=$(find "$bundle/deb" -name '*.deb' | head -n 1)
+            tree=$(mktemp -d)
+            dpkg-deb -x "$deb" "$tree"
+            bin="$tree/usr/bin/imt-store-worker"; lib=libduckdb.so; origin='$ORIGIN'
+            readelf -d "$bin" | grep -E 'R(UN)?PATH' || true
+            paths=$(readelf -d "$bin" | sed -n 's/.*(R\(UN\)\{0,1\}PATH).*\[\(.*\)\]/\2/p')
+          else
+            app=$(find "$bundle/macos" -maxdepth 1 -name '*.app' | head -n 1)
+            bin="$app/Contents/MacOS/imt-store-worker"; lib=libduckdb.dylib; origin='@executable_path'
+            otool -L "$bin" | grep duckdb
+            paths=$(otool -l "$bin" | awk '/cmd LC_RPATH/ { getline; getline; print $2 }' | paste -sd: -)
+          fi
+          echo "run paths of $bin: $paths"
+          found=
+          IFS=: read -ra entries <<< "$paths"
+          for p in "${entries[@]}"; do
+            p="${p/"$origin"/$(dirname "$bin")}"
+            if [ -f "$p/$lib" ]; then found="$p/$lib"; break; fi
+          done
+          if [ -z "$found" ]; then
+            echo "::error::none of the packaged store worker's run paths ($paths) holds $lib"
+            exit 1
+          fi
+          echo "the worker loads $found"
+
       - name: Collect installers
         shell: bash
         run: |

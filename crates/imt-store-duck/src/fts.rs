@@ -38,7 +38,24 @@ pub const INDEX_DIR: &str = "index";
 
 /// Heap of the index writer (ADR 0014 memory budget), shared by its threads.
 pub const WRITER_HEAP: usize = 64 << 20;
-const WRITER_THREADS: usize = 2;
+pub const WRITER_THREADS: usize = 2;
+
+/// What the index writer may use while indexing: its heap (bytes, shared by its threads; Tantivy needs at least
+/// 15 MB per thread) and threads.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WriterBudget {
+    pub heap: usize,
+    pub threads: usize,
+}
+
+impl Default for WriterBudget {
+    fn default() -> Self {
+        WriterBudget {
+            heap: WRITER_HEAP,
+            threads: WRITER_THREADS,
+        }
+    }
+}
 
 /// Candidates checked for phrases at most; beyond, the total is the candidate count (not exact).
 pub const MAX_VERIFY: usize = 1_000;
@@ -189,19 +206,20 @@ pub struct Fts {
     index: Index,
     reader: IndexReader,
     f: Fields,
+    budget: WriterBudget,
 }
 
 impl Fts {
     /// Opens the index in `dir` for `epoch`, or recreates it (empty) when it is missing, damaged or of
     /// another epoch; the flag says whether it was recreated.
-    pub fn open_or_create(dir: &Path, epoch: u64) -> Result<(Fts, bool)> {
+    pub fn open_or_create(dir: &Path, epoch: u64, budget: WriterBudget) -> Result<(Fts, bool)> {
         if let Ok(index) = Index::open_in_dir(dir) {
             let current = index.load_metas().ok().and_then(|m| m.payload).is_some_and(|p| p == payload(epoch));
             if current {
                 if let Ok(f) = fields(&index) {
                     index.tokenizers().register(TOKENIZER, WordsTokenizer);
                     let reader = index.reader_builder().reload_policy(ReloadPolicy::Manual).try_into()?;
-                    return Ok((Fts { index, reader, f }, false));
+                    return Ok((Fts { index, reader, f, budget }, false));
                 }
             }
         }
@@ -219,11 +237,14 @@ impl Fts {
             prepared.commit()?;
         }
         let reader = index.reader_builder().reload_policy(ReloadPolicy::Manual).try_into()?;
-        Ok((Fts { index, reader, f }, true))
+        Ok((Fts { index, reader, f, budget }, true))
     }
 
     fn writer(&self) -> Result<IndexWriter> {
-        Ok(self.index.writer_with_num_threads(WRITER_THREADS, WRITER_HEAP)?)
+        let threads = self.budget.threads.max(1);
+        Ok(self
+            .index
+            .writer_with_num_threads(threads, self.budget.heap.max(threads * (15 << 20)))?)
     }
 
     fn commit(&self, w: &mut IndexWriter, epoch: u64) -> Result<()> {
@@ -359,7 +380,7 @@ pub struct FtsService {
 
 impl FtsService {
     /// Opens (or recreates) the index of the store in `dir` and starts indexing what is missing.
-    pub fn start(dir: &Path, conn: Connection, write_lock: Arc<Mutex<()>>) -> Result<FtsService> {
+    pub fn start(dir: &Path, conn: Connection, write_lock: Arc<Mutex<()>>, budget: WriterBudget) -> Result<FtsService> {
         let epoch = match meta_u64(&conn, "fts_epoch") {
             0 => {
                 set_meta(&conn, "fts_epoch", 1)?;
@@ -367,7 +388,7 @@ impl FtsService {
             }
             e => e,
         };
-        let (fts, recreated) = Fts::open_or_create(&dir.join(INDEX_DIR), epoch)?;
+        let (fts, recreated) = Fts::open_or_create(&dir.join(INDEX_DIR), epoch, budget)?;
         if recreated {
             conn.execute_batch("UPDATE segments SET indexed = FALSE")?;
         }

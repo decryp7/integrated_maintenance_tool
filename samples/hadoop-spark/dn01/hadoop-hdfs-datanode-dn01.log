@@ -1,0 +1,108 @@
+261014 090000 1 INFO dfs.DataNode: STARTUP_MSG: Starting DataNode, host = dn01.contoso.example/10.20.0.31
+261014 090126 245 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_408437521555612859 size 5001694
+261014 090507 190 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_503046092136882328 size 4734746
+261014 090512 125 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_111101262724818745 size 52339122
+261014 090755 286 INFO dfs.DataNode: Receiving block blk_512584329518005852 src: /10.20.0.18:59852 dest: /10.20.0.31:50010
+261014 091236 262 ERROR dfs.DataNode: DatanodeRegistration(10.20.0.31:50010):DataXceiver: Got exception while serving blk_546211272316447154 to /10.20.0.17
+java.net.SocketTimeoutException: 480000 millis timeout while waiting for channel to be ready for write.
+	at org.apache.hadoop.net.SocketIOWithTimeout.waitForIO(SocketIOWithTimeout.java:246)
+	at org.apache.hadoop.dfs.DataNode$BlockSender.sendBlock(DataNode.java:1873)
+261014 091241 238 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_656687031845431696 size 35106939
+261014 091443 244 INFO dfs.DataNode: Receiving block blk_606745569930525368 src: /10.20.0.14:40824 dest: /10.20.0.31:50010
+261014 091521 132 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_444879392314716574 size 36336417
+261014 091527 114 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_900902626892367796 size 43406945
+261014 091625 136 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_235503002701487365 size 9574086
+261014 091704 295 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_500329641161851588 size 33600447
+261014 091706 271 INFO dfs.DataNode$PacketResponder: PacketResponder 0 for block blk_703950124112385650 terminating
+261014 091753 277 INFO dfs.DataNode$PacketResponder: PacketResponder 0 for block blk_175586012612999938 terminating
+261014 091756 229 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_265918068909371323 size 43298702
+261014 092326 266 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_608716488128946876 size 4360053
+261014 092522 271 INFO dfs.DataNode$PacketResponder: PacketResponder 2 for block blk_451978636042257560 terminating
+261014 092707 283 INFO dfs.DataNode$PacketResponder: PacketResponder 2 for block blk_805405092963728116 terminating
+261014 092728 167 INFO dfs.DataNode$PacketResponder: PacketResponder 2 for block blk_326420781588252691 terminating
+261014 092756 225 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_805409646178547486 size 57535621
+261014 092824 228 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_612529519135774705 size 8503935
+261014 092956 213 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_273273007927509751 size 50289091
+261014 093014 216 INFO dfs.DataNode$PacketResponder: PacketResponder 1 for block blk_407686423113234842 terminating
+261014 093524 130 INFO dfs.DataNode: Receiving block blk_950528565663541982 src: /10.20.0.17:48992 dest: /10.20.0.31:50010
+261014 093527 186 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_581706596646263549 size 16051550
+261014 093549 104 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_647447629118178286 size 7344057
+261014 093715 228 WARN dfs.DataNode: Slow BlockReceiver write packet to mirror took 928ms
+261014 093757 225 INFO dfs.DataNode$PacketResponder: PacketResponder 0 for block blk_677434865245076054 terminating
+261014 093921 178 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_814116799777465679 size 35855414
+261014 094247 103 INFO dfs.DataNode$PacketResponder: PacketResponder 2 for block blk_502996850199822781 terminating
+261014 094700 239 INFO dfs.DataNode$PacketResponder: PacketResponder 2 for block blk_227486626281925308 terminating
+261014 094713 223 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_715878837854284673 size 6051677
+261014 094748 277 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_804167880420423932 size 37639160
+261014 094759 247 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_744591209794843545 size 48679462
+261014 094857 264 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_168146930416557616 size 2033571
+261014 095055 203 INFO dfs.DataNode$PacketResponder: PacketResponder 2 for block blk_348662956241262693 terminating
+261014 095148 141 INFO dfs.DataNode$PacketResponder: PacketResponder 1 for block blk_333607171105939009 terminating
+261014 095717 289 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_870687395739230719 size 43285464
+261014 095832 226 WARN dfs.DataNode: Slow BlockReceiver write packet to mirror took 1407ms
+261014 100113 118 INFO dfs.DataNode: Receiving block blk_578284938857335821 src: /10.20.0.12:58923 dest: /10.20.0.31:50010
+261014 100145 290 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_937387906975281901 size 27052011
+261014 100247 222 INFO dfs.DataNode$PacketResponder: PacketResponder 2 for block blk_238913395894259008 terminating
+261014 100641 203 INFO dfs.DataNode: Receiving block blk_854518293582788103 src: /10.20.0.13:58640 dest: /10.20.0.31:50010
+261014 100726 220 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_980866297017710387 size 13674372
+261014 100850 146 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_645044488111079029 size 59830003
+261014 100959 281 INFO dfs.DataNode: Receiving block blk_703451964819592763 src: /10.20.0.18:57395 dest: /10.20.0.31:50010
+261014 101020 126 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_199593445550317056 size 13054095
+261014 101155 186 INFO dfs.DataNode$PacketResponder: PacketResponder 0 for block blk_292808146607071224 terminating
+261014 101243 142 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_186142990542521268 size 25287534
+261014 101306 168 INFO dfs.DataNode$PacketResponder: PacketResponder 0 for block blk_434099131238195077 terminating
+261014 101317 121 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_372133516096906857 size 24292866
+261014 101529 151 INFO dfs.DataNode$PacketResponder: PacketResponder 2 for block blk_595819817061259750 terminating
+261014 101826 188 INFO dfs.DataNode$PacketResponder: PacketResponder 1 for block blk_905192171023984476 terminating
+261014 101934 268 WARN dfs.DataNode: Slow BlockReceiver write packet to mirror took 527ms
+261014 102033 227 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_857576935491514912 size 47252898
+261014 102437 120 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_741589574750475391 size 10526869
+261014 102806 206 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_462324594418456492 size 53717802
+261014 102840 109 INFO dfs.DataNode: Receiving block blk_232180595831826157 src: /10.20.0.11:53142 dest: /10.20.0.31:50010
+261014 103622 115 INFO dfs.DataNode: Receiving block blk_656213651756361578 src: /10.20.0.18:45354 dest: /10.20.0.31:50010
+261014 103758 258 INFO dfs.DataNode: Receiving block blk_845278295393911787 src: /10.20.0.18:50750 dest: /10.20.0.31:50010
+261014 103926 208 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_254951755780748523 size 46879053
+261014 104330 163 INFO dfs.DataNode$PacketResponder: PacketResponder 1 for block blk_224730422324644084 terminating
+261014 104424 299 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_382533070909732279 size 51847713
+261014 104641 146 INFO dfs.DataNode$PacketResponder: PacketResponder 0 for block blk_564703966410289232 terminating
+261014 104948 273 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_273669898824005662 size 1615437
+261014 105015 149 INFO dfs.DataNode: Receiving block blk_615985002827532102 src: /10.20.0.15:53335 dest: /10.20.0.31:50010
+261014 105030 190 INFO dfs.DataNode: Receiving block blk_257594844365355823 src: /10.20.0.12:55283 dest: /10.20.0.31:50010
+261014 105348 122 INFO dfs.DataNode$PacketResponder: PacketResponder 0 for block blk_560626516693065506 terminating
+261014 105358 111 INFO dfs.DataNode$PacketResponder: PacketResponder 0 for block blk_201045358767709702 terminating
+261014 105551 201 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_407116495005334089 size 43108142
+261014 105828 193 INFO dfs.DataNode: Receiving block blk_596352142826596369 src: /10.20.0.12:44180 dest: /10.20.0.31:50010
+261014 105856 196 INFO dfs.DataNode: Receiving block blk_773943246391182131 src: /10.20.0.18:47023 dest: /10.20.0.31:50010
+261014 110221 173 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_687702540177036354 size 27421611
+261014 110326 162 INFO dfs.DataNode$PacketResponder: PacketResponder 2 for block blk_816834415511298637 terminating
+261014 110537 176 INFO dfs.DataNode: Receiving block blk_481315750840064016 src: /10.20.0.12:47059 dest: /10.20.0.31:50010
+261014 110613 252 INFO dfs.DataNode: Receiving block blk_595809721146047499 src: /10.20.0.12:42712 dest: /10.20.0.31:50010
+261014 110805 254 WARN dfs.DataNode: Slow BlockReceiver write packet to mirror took 1169ms
+261014 110931 215 WARN dfs.DataNode: Slow BlockReceiver write packet to mirror took 434ms
+261014 111048 293 INFO dfs.DataNode: Receiving block blk_845295536715221741 src: /10.20.0.13:42099 dest: /10.20.0.31:50010
+261014 111323 223 INFO dfs.DataNode$PacketResponder: PacketResponder 0 for block blk_376453482344234822 terminating
+261014 111507 151 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_136730264828675712 size 53903829
+261014 111619 281 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_951927094553405006 size 5396466
+261014 111857 201 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_117568702973695844 size 3829531
+261014 111925 140 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_360392765586912504 size 23524795
+261014 111951 173 INFO dfs.DataNode: Receiving block blk_785436121965534048 src: /10.20.0.11:53803 dest: /10.20.0.31:50010
+261014 112010 177 WARN dfs.DataNode: Slow BlockReceiver write packet to mirror took 1298ms
+261014 112324 115 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_392295551199598454 size 23722674
+261014 112808 193 WARN dfs.DataNode: Slow BlockReceiver write packet to mirror took 1536ms
+261014 112824 240 INFO dfs.DataNode$PacketResponder: PacketResponder 2 for block blk_915250529124420145 terminating
+261014 113007 203 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_789830300819731634 size 3367784
+261014 113156 299 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_925214174319469969 size 1038738
+261014 113540 142 INFO dfs.DataNode$PacketResponder: PacketResponder 1 for block blk_172356023171644749 terminating
+261014 113753 202 INFO dfs.DataNode: Receiving block blk_626252327991684066 src: /10.20.0.14:54192 dest: /10.20.0.31:50010
+261014 114150 295 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_861551628823993192 size 3403915
+261014 114549 223 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_640164257939015368 size 24131074
+261014 114625 284 INFO dfs.DataNode: Receiving block blk_665408513815274219 src: /10.20.0.12:57452 dest: /10.20.0.31:50010
+261014 114846 259 INFO dfs.DataNode$PacketResponder: PacketResponder 1 for block blk_913553890977296819 terminating
+261014 115043 244 WARN dfs.DataNode: Slow BlockReceiver write packet to mirror took 663ms
+261014 115124 121 INFO dfs.DataNode$PacketResponder: PacketResponder 2 for block blk_963411032341551829 terminating
+261014 115308 148 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_710880268570835904 size 6158908
+261014 115327 141 INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to blk_431434076971856621 size 53384728
+261014 115349 153 INFO dfs.DataNode: Receiving block blk_858129830164845420 src: /10.20.0.11:52115 dest: /10.20.0.31:50010
+261014 115528 253 INFO dfs.DataNode: Receiving block blk_316275403244508190 src: /10.20.0.13:45162 dest: /10.20.0.31:50010
+261014 115600 268 INFO dfs.DataNode$PacketResponder: PacketResponder 2 for block blk_766326120026436914 terminating
+261014 115709 186 INFO dfs.DataNode$PacketResponder: PacketResponder 1 for block blk_985275041983405347 terminating

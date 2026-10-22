@@ -155,7 +155,7 @@ describe('MockAiBackend', () => {
     const b = new MockAiBackend({ stepMs: 0 });
     expect((await b.proposeRegex(['2026-10-14 09:00:02 [INF] x'])).matchCount).toBe(1);
     expect(await code(b.proposeRegex([]))).toBe('invalid');
-    expect((await b.proposeProfile({})).kind).toBe('profile');
+    expect((await b.proposeParser({})).kind).toBe('parser');
     expect((await b.proposePipeline('g')).rationale).toContain('"g"');
     expect((await b.proposeMarkers('g')).markers).toHaveLength(1);
     expect((await b.proposeExtractors('g')).extractors).toHaveLength(1);
@@ -179,7 +179,7 @@ describe('MockAiBackend', () => {
       fail: ['propose', 'nlToQuery', 'explain', 'summarize', 'rootCauses'],
     });
     for (const p of [
-      failing.proposeProfile({}),
+      failing.proposeParser({}),
       failing.nlToQuery('q'),
       failing.explainEvent(1),
       failing.summarize(0, 1),

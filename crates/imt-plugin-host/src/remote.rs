@@ -108,7 +108,17 @@ impl Ctx {
     }
 
     fn call<Rep: serde::de::DeserializeOwned>(&self, what: &str, req: &PluginRequest, timeout: Option<Duration>) -> Result<Rep> {
-        self.process.call(req, timeout, false).map_err(|e| self.fail(what, timeout, e))
+        let reply = self.process.call(req, timeout, false).map_err(|e| self.fail(what, timeout, e));
+        // The process may have started for this call: what its launcher reported joins the plugin's status.
+        self.note_sandbox();
+        reply
+    }
+
+    /// The plugin's sandbox status lines, as notes of its health (shown in the plugin's warnings).
+    fn note_sandbox(&self) {
+        for line in self.process.sandbox_status() {
+            self.health.note(self.id(), &line);
+        }
     }
 
     /// What an importer learns about the file: its name, the tail of its path (the full path only with
@@ -154,8 +164,9 @@ impl Ctx {
                     Ok(())
                 },
             )
-            .map_err(|e| self.fail(what, timeout, e))?;
-        Ok((rep, records))
+            .map_err(|e| self.fail(what, timeout, e));
+        self.note_sandbox();
+        Ok((rep?, records))
     }
 }
 
@@ -559,6 +570,7 @@ impl Plugin for RemotePlugin {
             process: self.process.clone(),
             health: registry.health(),
         };
+        ctx.note_sandbox();
         let m = self.process.manifest().clone();
         for cap in &m.importers {
             if cap.binary {

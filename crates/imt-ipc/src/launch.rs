@@ -99,6 +99,15 @@ impl Child {
         }
     }
 
+    /// What the launcher could not enforce of the child's sandbox, as the child reported it before it ran (Linux:
+    /// landlock); empty for children that lock themselves down.
+    pub fn sandbox_notes(&self) -> &[crate::sandbox::Note] {
+        match &self.process {
+            Process::Spawned(p) => p.sandbox_notes(),
+            Process::Elevated(_) => &[],
+        }
+    }
+
     /// How the child ended (for messages after a broken call).
     pub fn exit_text(&self) -> String {
         match &self.process {

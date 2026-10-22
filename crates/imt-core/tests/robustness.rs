@@ -220,7 +220,8 @@ fn crashing_plugins_are_contained_and_quarantined() {
         let bad = reason("bad.txt");
         assert!(
             (bad.contains("test.chaos") && (bad.contains("import exploded") || bad.contains("disabled after repeated crashes")))
-                || (bad == "no importer recognises this format" && chaos_quarantined(&s)),
+                || ((bad == "no importer recognises this format" || bad.starts_with("no enabled parser reads this file"))
+                    && chaos_quarantined(&s)),
             "{bad}"
         );
         // Likewise, if the plugin was quarantined before bin.dat's turn, its crashing binary importer is skipped and

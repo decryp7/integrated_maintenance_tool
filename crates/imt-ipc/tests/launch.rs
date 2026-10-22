@@ -285,6 +285,33 @@ fn a_contained_child_is_confined_even_when_it_skips_its_own_lockdown() {
     assert!(n.starts_with("denied"), "{n}");
 }
 
+/// The launcher reports how far landlock confined a contained child (from between fork and exec): nothing when it
+/// did, the one status line when the kernel lacks landlock (user decision: no refusal, just this line).
+#[cfg(target_os = "linux")]
+#[test]
+fn a_contained_child_reports_whether_its_files_are_confined() {
+    use imt_ipc::sandbox::{Gap, FILES_NOT_CONFINED};
+    let root = tempfile::tempdir().unwrap();
+    let c = launch(&contained(&["--skip-lockdown"], root.path()), Arc::new(NoCalls)).unwrap();
+    assert_eq!(ask(&c, "echo contained").unwrap(), "contained");
+    let files: Vec<String> = c
+        .sandbox_notes()
+        .iter()
+        .filter(|n| n.gap == Gap::Files)
+        .map(|n| n.message.clone())
+        .collect();
+    if imt_ipc::sandbox::files_confinable() {
+        assert!(files.iter().all(|m| m.contains("partly")), "{files:?}");
+        assert!(imt_ipc::sandbox::host_notes(&imt_ipc::SandboxSpec::locked()).is_empty());
+    } else {
+        assert_eq!(files, [FILES_NOT_CONFINED]);
+        assert_eq!(
+            imt_ipc::sandbox::host_notes(&imt_ipc::SandboxSpec::locked())[0].message,
+            FILES_NOT_CONFINED
+        );
+    }
+}
+
 /// What the child's lockdown could not enforce on this system (a CI container may filter landlock or seccomp).
 #[cfg(target_os = "linux")]
 fn notes(c: &imt_ipc::Child) -> Vec<imt_ipc::sandbox::Note> {
@@ -312,7 +339,9 @@ fn a_locked_child_cannot_write_files_or_start_programs() {
     let notes = notes(&locked);
     // Where landlock is enforced, no thread may escape it; without landlock no thread is file-restricted anyway (and
     // that gap is reported on its own), so an early thread changes nothing there.
-    let landlock_missing = notes.iter().any(|n| n.message.contains("landlock is not available"));
+    let landlock_missing = notes
+        .iter()
+        .any(|n| n.message.contains("landlock is not available") || n.message.contains("landlock is not enabled"));
     if landlock_missing {
         eprintln!("skipped the early-thread check: landlock is not available here: {notes:?}");
     } else {

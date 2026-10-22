@@ -40,7 +40,7 @@ import {
   mockExtractorsProposal,
   mockMarkersProposal,
   mockPipelineProposal,
-  mockProfileProposal,
+  mockParserProposal,
   mockRecommendations,
   mockProjectorInfo,
   mockRegexProposal,
@@ -643,8 +643,8 @@ export class MockAiBackend extends AiBackend {
     if (!lines.length) return Promise.reject(new AiError('invalid', 'give 1 to 50 example lines'));
     return this.aiJob('propose', 'Suggest a regex', null, () => mockRegexProposal(lines), proposal);
   }
-  proposeProfile(source: SampleSource) {
-    return this.aiJob('propose', 'Propose a parser', eventLink(source), () => mockProfileProposal(), proposal);
+  proposeParser(source: SampleSource) {
+    return this.aiJob('propose', 'Propose a parser', eventLink(source), () => mockParserProposal(), proposal);
   }
   proposePipeline(goal: string, source?: SampleSource) {
     return this.aiJob('propose', `Propose pipeline steps: ${goal}`, eventLink(source), () => mockPipelineProposal(goal), proposal);
@@ -778,8 +778,8 @@ export class MockAiBackend extends AiBackend {
         return this.rootCauses();
       case 'regex':
         return this.proposeRegex(r.lines);
-      case 'profile':
-        return this.proposeProfile(r);
+      case 'parser':
+        return this.proposeParser(r);
       case 'pipeline':
         return this.proposePipeline(r.goal, r);
       case 'markers':

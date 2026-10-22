@@ -160,6 +160,27 @@ pub enum StoreRequest {
     },
     /// An [`OpenProject`] → [`OpenedProject`].
     OpenProject(imt_ipc::Json),
+    /// The installed third-party plugins now (a list of [`ThirdPartyPlugin`]) → (): a plugin whose grants changed
+    /// stops and starts again on next use in the sandbox of the new grants; a plugin no longer listed stops.
+    SetPlugins(imt_ipc::Json),
+}
+
+/// An installed third-party plugin (ADR 0027) whose importers take part in the worker's imports. The worker starts
+/// it itself, contained exactly as the app does, from its install record in `plugins_dir`, and only while the
+/// record is enabled and names the program with the SHA-256 `sha256` (the one the app loaded at its start: an
+/// update or a reinstall takes effect at the next start of IMT, as in the app). `granted` is what the user grants
+/// now; the worker refuses grants the record does not ask for.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThirdPartyPlugin {
+    /// The install folder (`<app data>/plugins`).
+    pub plugins_dir: PathBuf,
+    /// The plugin's id.
+    pub id: String,
+    /// Its program's SHA-256, hex.
+    pub sha256: String,
+    /// What it is granted now.
+    pub granted: Vec<imt_plugin_api::manifest::Permission>,
 }
 
 /// Opens a project folder `<name>.imt` in place, or an exported `.imtz` extracted into a new folder under
@@ -174,6 +195,8 @@ pub struct OpenProject {
     pub disabled_plugins: Vec<String>,
     #[serde(default)]
     pub safe_mode: bool,
+    #[serde(default)]
+    pub third_party: Vec<ThirdPartyPlugin>,
     #[serde(default)]
     pub limits: Option<Limits>,
     /// The parser library (ADR 0026); absent: the built-in parsers.
@@ -207,12 +230,49 @@ pub struct OpenStore {
     /// Safe mode: no plugin is started; only the built-in importers read files.
     #[serde(default)]
     pub safe_mode: bool,
+    /// Installed third-party plugins whose importers are installed in the worker's registry too.
+    #[serde(default)]
+    pub third_party: Vec<ThirdPartyPlugin>,
     /// DuckDB memory limit and threads, parse threads (defaults when absent).
     #[serde(default)]
     pub limits: Option<Limits>,
     /// The parser library (ADR 0026); absent: the built-in parsers.
     #[serde(default)]
     pub parsers: Option<imt_core::parser::ParserSetup>,
+}
+
+/// How the worker uses memory, chosen when it starts (the user's Low memory mode setting).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum MemoryMode {
+    /// The budgets of ADR 0014 at full speed.
+    #[default]
+    Normal,
+    /// Freed memory goes back to the system at once; fewer parse threads, a smaller database cache and index
+    /// writer (imports 20-40% slower).
+    Low,
+}
+
+/// The worker's command-line argument that selects low memory mode.
+pub const LOW_MEMORY_ARG: &str = "--low-memory";
+
+impl MemoryMode {
+    /// The worker's arguments for this mode.
+    pub fn args(self) -> Vec<String> {
+        match self {
+            MemoryMode::Normal => Vec::new(),
+            MemoryMode::Low => vec![LOW_MEMORY_ARG.to_string()],
+        }
+    }
+
+    /// The mode the worker's arguments select (the others belong to the IPC bootstrap).
+    pub fn from_args(args: impl IntoIterator<Item = String>) -> MemoryMode {
+        if args.into_iter().any(|a| a == LOW_MEMORY_ARG) {
+            MemoryMode::Low
+        } else {
+            MemoryMode::Normal
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -264,6 +324,9 @@ pub struct WorkerStatus {
     pub pid: u32,
     pub rss_bytes: u64,
     pub stores: usize,
+    /// The mode the worker started in.
+    #[serde(default)]
+    pub memory_mode: MemoryMode,
 }
 
 /// A [`StoreError`] on the wire.
@@ -378,6 +441,18 @@ pub fn from_remote(r: RemoteError) -> StoreError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_memory_mode_goes_to_the_worker_as_an_argument() {
+        for mode in [MemoryMode::Normal, MemoryMode::Low] {
+            assert_eq!(MemoryMode::from_args(mode.args()), mode);
+        }
+        assert_eq!(MemoryMode::default(), MemoryMode::Normal, "off by default");
+        let bootstrap = ["imt-store-worker", "--bootstrap", "f", "--low-memory"].map(String::from);
+        assert_eq!(MemoryMode::from_args(bootstrap), MemoryMode::Low);
+        let old: WorkerStatus = serde_json::from_str(r#"{"pid":1,"rssBytes":2,"stores":0}"#).unwrap();
+        assert_eq!(old.memory_mode, MemoryMode::Normal);
+    }
 
     #[test]
     fn store_errors_survive_the_wire() {

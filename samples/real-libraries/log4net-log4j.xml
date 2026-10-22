@@ -1,0 +1,24 @@
+<log4j:event logger="Contoso.Orders.Program" timestamp="1791973800120" level="INFO" thread="1" xmlns:log4j="log4net"><log4j:message>OrderService 3.14.2 starting on TKY-WEB03</log4j:message><log4j:properties><log4j:data name="EventCode" value="1000" /><log4j:data name="ProcessName" value="OrderService" /><log4j:data name="Pid" value="4120" /><log4j:data name="log4japp" value="OrderService.exe" /><log4j:data name="log4net:UserName" value="CONTOSO\svc-orders" /></log4j:properties></log4j:event>
+<log4j:event logger="Contoso.Orders.Cache" timestamp="1791973801005" level="DEBUG" thread="4" xmlns:log4j="log4net"><log4j:message>Tariff cache refreshed CacheStats { Entries = 412, HitRatio = 0.93 }</log4j:message><log4j:properties><log4j:data name="EventCode" value="1001" /><log4j:data name="ProcessName" value="OrderService" /><log4j:data name="Pid" value="4120" /><log4j:data name="log4japp" value="OrderService.exe" /><log4j:data name="log4net:UserName" value="CONTOSO\svc-orders" /></log4j:properties></log4j:event>
+<log4j:event logger="Contoso.Orders.Intake" timestamp="1791973872480" level="INFO" thread="7" xmlns:log4j="log4net"><log4j:message>注文 88412 を受け付けました（顧客 C-20931、合計 12800 円）</log4j:message><log4j:properties><log4j:data name="EventCode" value="1002" /><log4j:data name="ProcessName" value="OrderService" /><log4j:data name="Pid" value="4120" /><log4j:data name="log4japp" value="OrderService.exe" /><log4j:data name="log4net:UserName" value="CONTOSO\svc-orders" /></log4j:properties></log4j:event>
+<log4j:event logger="Contoso.Orders.Payments" timestamp="1791974140002" level="WARN" thread="7" xmlns:log4j="log4net"><log4j:message>Slow response from /v2/captures: 4870 ms</log4j:message><log4j:properties><log4j:data name="EventCode" value="1003" /><log4j:data name="ProcessName" value="OrderService" /><log4j:data name="Pid" value="4120" /><log4j:data name="log4japp" value="OrderService.exe" /><log4j:data name="log4net:UserName" value="CONTOSO\svc-orders" /></log4j:properties></log4j:event>
+<log4j:event logger="Contoso.Orders.Payments" timestamp="1791974484050" level="ERROR" thread="7" xmlns:log4j="log4net"><log4j:message>Payment capture failed for order 88412</log4j:message><log4j:properties><log4j:data name="EventCode" value="1004" /><log4j:data name="ProcessName" value="OrderService" /><log4j:data name="Pid" value="4120" /><log4j:data name="log4japp" value="OrderService.exe" /><log4j:data name="log4net:UserName" value="CONTOSO\svc-orders" /></log4j:properties><log4j:throwable>System.InvalidOperationException: Payment capture failed for order 88412
+ ---&gt; System.TimeoutException: 決済ゲートウェイがタイムアウトしました (order 88412, 30000 ms)
+   at PaymentGateway.Send(Int32 orderNo) in /src/OrderService/Program.cs:line 114
+   at PaymentGateway.Capture(Int32 orderNo) in /src/OrderService/Program.cs:line 106
+   --- End of inner exception stack trace ---
+   at PaymentGateway.Capture(Int32 orderNo) in /src/OrderService/Program.cs:line 110
+   at Failures.Capture() in /src/OrderService/Program.cs:line 70</log4j:throwable></log4j:event>
+<log4j:event logger="Contoso.Orders.Payments" timestamp="1791974484061" level="WARN" thread="7" xmlns:log4j="log4net"><log4j:message>決済を再試行します（2/3）</log4j:message><log4j:properties><log4j:data name="EventCode" value="1005" /><log4j:data name="ProcessName" value="OrderService" /><log4j:data name="Pid" value="4120" /><log4j:data name="log4japp" value="OrderService.exe" /><log4j:data name="log4net:UserName" value="CONTOSO\svc-orders" /></log4j:properties></log4j:event>
+<log4j:event logger="Contoso.Orders.Program" timestamp="1791974520999" level="FATAL" thread="1" xmlns:log4j="log4net"><log4j:message>Unhandled exception, the service stops</log4j:message><log4j:properties><log4j:data name="EventCode" value="1006" /><log4j:data name="ProcessName" value="OrderService" /><log4j:data name="Pid" value="4120" /><log4j:data name="log4japp" value="OrderService.exe" /><log4j:data name="log4net:UserName" value="CONTOSO\svc-orders" /></log4j:properties><log4j:throwable>System.AggregateException: One or more background tasks failed. (Payment capture failed for order 88413) (ディスクに空き容量がありません)
+ ---&gt; System.InvalidOperationException: Payment capture failed for order 88413
+ ---&gt; System.TimeoutException: 決済ゲートウェイがタイムアウトしました (order 88413, 30000 ms)
+   at PaymentGateway.Send(Int32 orderNo) in /src/OrderService/Program.cs:line 114
+   at PaymentGateway.Capture(Int32 orderNo) in /src/OrderService/Program.cs:line 106
+   --- End of inner exception stack trace ---
+   at PaymentGateway.Capture(Int32 orderNo) in /src/OrderService/Program.cs:line 110
+   at Failures.Shutdown() in /src/OrderService/Program.cs:line 85
+   --- End of inner exception stack trace ---
+   at Failures.Shutdown() in /src/OrderService/Program.cs:line 89
+ ---&gt; (Inner Exception #1) System.IO.IOException: ディスクに空き容量がありません&lt;---
+</log4j:throwable></log4j:event>

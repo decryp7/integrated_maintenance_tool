@@ -55,6 +55,8 @@ impl From<&ParserError> for ParserErrorDto {
 pub struct ParserSourceDto {
     pub id: u32,
     pub name: String,
+    /// The user chose this parser for it ("Parse with…"); else it was matched automatically.
+    pub chosen: bool,
 }
 
 /// One parser of the library.

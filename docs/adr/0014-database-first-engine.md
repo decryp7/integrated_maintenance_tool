@@ -750,7 +750,12 @@ up to 3x between runs (one run had `page text` at 45 s, the next at 1.1 s); read
   promoted it) and re-promotion on compaction are open.
 - Slow analyses run as jobs with coverage; results are cached per query and generation in the catalog. Anomalies'
   peak memory and timeline instance lanes at 10M are measured above; see the open points there.
-- Mixed sources on the DuckDB path (ADR 0020) wait for the merge of main.
+- Mixed sources on the DuckDB path (ADR 0020), 2026-10-22: per-line formats and the per-source instance key are
+  on the streaming ingest and the store; differential tests (`differential.rs`, a file of several products: pages,
+  facets, timelines and lanes, instance key, unmatched-line problems) and a worker-vs-in-process parity test on
+  `samples/linux/logserver01` (with the syslog plugin in the worker) check them. The summary now lists each
+  source's import problems (from the diagnostics table, as the in-memory store does). Still open: routes
+  (logical sources, ADR 0020 §5) on the streaming path.
 
 ## Performance notes (perf/rust, 2026-10-21)
 
@@ -806,3 +811,39 @@ below is from interleaved A/B runs, at least two each).
 - The worker benchmark (`IMT_BENCH_COPIES=20 … --test worker`) fails at `summary()` already at 2ba7e00 (DuckDB
   out of memory at its 183 MB limit); it now prints the import line before the queries so the import is still
   measured.
+
+## Performance notes (perf/store-memory, 2026-10-22)
+
+Measured on the shared Windows VM, release builds, a store of 10,137,960 events in 11,160 sources (360 copies of
+`/samples`, so the copies overlap in time: an hour holds 3M events). Before = feature/log-analysis-ide at 8de2315.
+
+| | before | after |
+|---|---|---|
+| anomalies (cold) | 65.7 s, peak 411 MB, 2M of 10.1M events analysed | 27-38 s, peak 257-291 MB, all events analysed |
+| Moment, 1 h (anomalies cached) | 40.4 s, 308 MB | 6.8 s, 295 MB (250k window events read) |
+| compare halves | 19.6 s, 274 MB | 12.6 s, 198 MB |
+| timeline 400 buckets, instance lanes | 5.0 s | 71 ms (first per data version 9.8 s) |
+| timeline errors | 5.3 s | 55 ms |
+| worker query phase after the samples (Windows) | 197-199 MB | 142-148 MB |
+| worker import, 20 copies, low memory mode | (normal: 527-566 MB, 108-124k ev/s) | 189-211 MB, 69-78k ev/s |
+
+- **Anomaly detection in DuckDB** (`imt_core::analysis::anomaly::AnomalyInputs`, `imt-store-duck/src/anomalies.rs`):
+  the detectors read per-instance counts per bucket, gap counts, endings, value ranks, outlier buckets, top-n
+  sample ids and growth series one at a time; the in-memory engine answers from its events, the store with SQL.
+  Only sorts and aggregates that spill: DuckDB's window operator does not spill large partitions (it ran out of
+  memory at 64 MB with few big instances), so gaps come from a sorted stream counted per distinct gap (at most
+  `sqrt(2 * span_ms)` per instance) and sample ids from `arg_min(id, key, n)`. Filters SQL cannot express select
+  their events through an id file (`hits::IdsWriter`). Identical results on `/samples` (differential test).
+- **Moment**: anomalies come from the per-version cache; the window before is two SQL aggregates; the window reads at
+  most `MOMENT_EVENTS` (250k) events in time order (the coverage says so). Open: answer the window's counts in SQL
+  too and mine patterns from a sample, so a dense hour is complete and under the 0.5 s budget.
+- **Timelines with instance lanes** (`lanes.rs`): the first timeline of a data version and instance key materialises
+  `lane_units` (lane × unit × level, the store's span in at most 2,000 units), `lane_sources` and `lane_marks` (the
+  marked events with their lane); later timelines read them. Open: build them when an import ends, and the
+  word-search timeline (6.9 s, not structural).
+- **Worker memory**: `summary()` after an import counted every high-cardinality key's distinct values in one
+  statement (the CI query-budget failure on Linux and the old `summary()` out-of-memory); one key per statement.
+  DuckDB's `allocator_flush_threshold` is 32 MiB (jemalloc on Linux kept up to 128 MB).
+- **Low memory mode** (Settings > Advanced > Performance, off by default, applies when the worker starts:
+  `--low-memory`): mimalloc purges at once, 4 parse threads, DuckDB 128 MB with 2 threads, a 16 MB index writer on
+  one thread. Tested ≤ 400 MB importing (`low_memory_mode_imports_within_its_budget`).

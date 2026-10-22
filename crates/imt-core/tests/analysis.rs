@@ -742,9 +742,16 @@ fn request_durations_group_by_id() {
 
 #[test]
 fn detect_on_the_generated_samples() {
+    // The real .NET library output lies outside the scenario (its own times and zones).
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../samples");
+    let mut paths: Vec<PathBuf> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| !p.ends_with("real-libraries"))
+        .collect();
+    paths.sort();
     let mut ws = Workspace::new(Profile::default_profile()).unwrap();
-    ws.open(&[dir]).unwrap();
+    ws.open(&paths).unwrap();
     let summary = ws.summary();
     let names: std::collections::HashMap<u32, &str> = summary.sources.iter().map(|s| (s.id, s.name.as_str())).collect();
     let group_by = summary.default_group_by.clone();
@@ -771,15 +778,17 @@ fn detect_on_the_generated_samples() {
         .unwrap_or_else(|| panic!("no error spike in {found:#?}"));
     assert!(spike.from < crash.from, "{} !< {}", spike.from, crash.from);
     assert!(spike.message.starts_with("Error rate on OrderService · WEB02 · 4120 rose to "));
-    // Besides WEB02 and the billing log stopping after an error, only the diagnostics sample's child processes
-    // crash (a plugin crashing repeatedly, the AI runtime; one lane per process id, ADR 0020).
+    // Besides WEB02, the billing log stopping after an error and the shop app crashing on the QA phone (logcat,
+    // pid 4211), only the diagnostics sample's child processes crash (a plugin crashing repeatedly, the AI runtime;
+    // one lane per process id, ADR 0020).
     let crashes: Vec<&str> = found
         .iter()
         .filter(|a| a.kind == AnomalyKind::Crash)
         .filter_map(|a| a.instance.as_deref())
         .collect();
+    assert!(crashes.iter().any(|i| i.ends_with("logcat-20261014.txt · 4211")), "{crashes:#?}");
     assert!(
-        crashes.iter().filter(|i| !i.starts_with("diagnostics/")).count() <= 2,
+        crashes.iter().filter(|i| !i.starts_with("imt-diagnostics-sample.zip/")).count() <= 3,
         "{crashes:#?}"
     );
 }

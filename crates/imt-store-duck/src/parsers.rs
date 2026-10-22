@@ -61,34 +61,41 @@ impl Inner {
     /// Which parser each ready source was read with.
     pub(crate) fn parser_uses(&self) -> StoreResult<Vec<ParserUse>> {
         let conn = self.conn()?;
+        // The files the user chose a parser for ("Parse with…"), by path.
+        let chosen_by_path = overrides(&conn);
         let mut stmt = conn
             .prepare(
-                "SELECT parser_id, parser_version, parser_hash, list(id ORDER BY id) FROM sources
+                "SELECT parser_id, parser_version, parser_hash, list(id ORDER BY id), list(path ORDER BY id) FROM sources
                  WHERE ready AND parser_hash IS NOT NULL GROUP BY ALL ORDER BY parser_id, parser_hash",
             )
             .map_err(engine)?;
         let rows = stmt
             .query_map([], |r| {
                 let ids: duckdb::types::Value = r.get(3)?;
-                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?, ids))
+                let paths: duckdb::types::Value = r.get(4)?;
+                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?, ids, paths))
             })
             .map_err(engine)?;
+        let list = |v: duckdb::types::Value| match v {
+            duckdb::types::Value::List(v) => v,
+            _ => Vec::new(),
+        };
         let mut out = Vec::new();
         for row in rows {
-            let (id, version, hash, ids) = row.map_err(engine)?;
-            let sources = match ids {
-                duckdb::types::Value::List(v) => v
-                    .into_iter()
-                    .filter_map(|x| match x {
-                        duckdb::types::Value::UInt(n) => Some(SourceId(n)),
-                        _ => None,
-                    })
-                    .collect(),
-                _ => Vec::new(),
-            };
+            let (id, version, hash, ids, paths) = row.map_err(engine)?;
+            let mut sources = Vec::new();
+            let mut chosen = Vec::new();
+            for (source, path) in list(ids).into_iter().zip(list(paths)) {
+                let duckdb::types::Value::UInt(n) = source else { continue };
+                sources.push(SourceId(n));
+                if matches!(path, duckdb::types::Value::Text(p) if chosen_by_path.get(&p) == Some(&id)) {
+                    chosen.push(SourceId(n));
+                }
+            }
             out.push(ParserUse {
                 parser: ParserRef { id, version, hash },
                 sources,
+                chosen,
             });
         }
         Ok(out)
@@ -337,10 +344,13 @@ mod tests {
         let dir = r.0.join("store");
         let store = DuckStore::create(&dir, Profile::default_profile(), imt_core::PluginRegistry::new()).unwrap();
         store.open(&[r.0.join("logs")]).unwrap().wait().unwrap();
-        let source = store.parsers().unwrap()[0].sources[0];
+        let first = store.parsers().unwrap();
+        assert!(first[0].chosen.is_empty(), "matched automatically");
+        let source = first[0].sources[0];
         store.assign_parser(source, Some("generic")).unwrap().wait().unwrap();
         let uses = store.parsers().unwrap();
         assert_eq!(uses[0].parser.id, "generic");
+        assert_eq!(uses[0].chosen, uses[0].sources, "chosen by the user");
         assert!(matches!(
             store.assign_parser(uses[0].sources[0], Some("nope")),
             Err(StoreError::NotFound(_))
@@ -357,7 +367,9 @@ mod tests {
         assert_eq!(store.inner.parser_set().override_of(&path), Some("generic"));
         // Automatic again.
         store.assign_parser(id, None).unwrap().wait().unwrap();
-        assert_eq!(store.parsers().unwrap()[0].parser.id, "serilog-clef");
+        let auto = store.parsers().unwrap();
+        assert_eq!(auto[0].parser.id, "serilog-clef");
+        assert!(auto[0].chosen.is_empty());
         assert!(overrides(&store.inner.conn().unwrap()).is_empty());
     }
 
