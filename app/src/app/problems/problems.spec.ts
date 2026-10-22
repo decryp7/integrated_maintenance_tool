@@ -260,13 +260,13 @@ describe('ProblemsStore', () => {
     const propose = vi.spyOn(TestBed.inject(AiLauncher), 'propose').mockResolvedValue();
     const untimed = store.rows().find((r) => r.kind === 'timestampUnparsed')!;
     await store.askAi(problemKey(untimed));
-    expect(propose).toHaveBeenLastCalledWith('profile', { recordId: expect.any(Number), fileName: 'legacy-no-timestamps.csv' });
+    expect(propose).toHaveBeenLastCalledWith('parser', { recordId: expect.any(Number), fileName: 'legacy-no-timestamps.csv' });
 
     const head = vi.spyOn(backend, 'readFileHead').mockResolvedValue('first line\n\nsecond line\n');
     const skipped = store.rows().find((r) => r.kind === 'lineNotParsed')!;
     await store.askAi(problemKey(skipped));
     expect(head).toHaveBeenCalledWith('/logs/web02/app.log', expect.any(Number));
-    expect(propose).toHaveBeenLastCalledWith('profile', { sample: 'first line\nsecond line', fileName: 'app.log' });
+    expect(propose).toHaveBeenLastCalledWith('parser', { sample: 'first line\nsecond line', fileName: 'app.log' });
 
     head.mockRejectedValueOnce('outside the workspace');
     await store.askAi(problemKey(skipped));

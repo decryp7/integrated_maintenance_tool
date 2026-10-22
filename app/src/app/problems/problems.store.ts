@@ -170,12 +170,12 @@ export const ProblemsStore = signalStore(
             const line = row.sampleLines[0];
             const recordId = line !== undefined ? await eventAt(row, line) : null;
             if (recordId !== null) {
-              await ai.propose('profile', { recordId, fileName: row.sourceName });
+              await ai.propose('parser', { recordId, fileName: row.sourceName });
               return;
             }
             const head = await imt.readFileHead(row.path, AI_SAMPLE_BYTES);
             const sample = head.split(/\r?\n/).filter((l) => l.length > 0).slice(0, AI_SAMPLE_LINES).join('\n');
-            await ai.propose('profile', { sample, fileName: row.sourceName });
+            await ai.propose('parser', { sample, fileName: row.sourceName });
           } catch (e) {
             patchState(store, { actionError: failureText(e) });
           }
