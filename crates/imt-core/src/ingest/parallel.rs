@@ -344,6 +344,8 @@ mod tests {
         next_source: AtomicU32,
         finished: Mutex<Vec<SourceReport>>,
         aborted: Mutex<Vec<SourceId>>,
+        /// Cancelled as soon as a source begins (for the cancel test).
+        cancel_on_begin: Option<Arc<ImportProgress>>,
     }
 
     impl SharedSink for Shared {
@@ -351,6 +353,9 @@ mod tests {
             Ok(SourceId(self.next_source.fetch_add(n, Ordering::SeqCst)))
         }
         fn begin_source(&self, _s: &NewSource, id: Option<SourceId>) -> Result<SourceId> {
+            if let Some(progress) = &self.cancel_on_begin {
+                progress.cancel();
+            }
             Ok(id.unwrap_or_else(|| SourceId(self.next_source.fetch_add(1, Ordering::SeqCst))))
         }
         fn write(&self, batch: PendingBatch) -> Result<()> {
@@ -569,6 +574,207 @@ mod tests {
         let Outcome::Unrecognized(u) = &out[0] else { panic!("{out:?}") };
         assert!(u.reason.contains("disk on fire"), "{}", u.reason);
         assert_eq!(sink.0.aborted.lock().unwrap().len(), 1);
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    fn env_parts() -> (Importers, ParserSet, AtomicBool) {
+        (
+            Importers::default(),
+            ParserSet::of_compiled(CompiledProfile::compile(Profile::default_profile()).unwrap()),
+            AtomicBool::new(false),
+        )
+    }
+
+    #[test]
+    fn a_shared_sink_stands_in_for_a_batch_sink_and_passes_everything_through() {
+        // A real report to pass through.
+        let dir = temp();
+        let p = dir.join("a.log");
+        std::fs::write(&p, log(3)).unwrap();
+        let (done, _) = run(&[(p, "a.log".to_string())], 1 << 30, 1);
+        let report = done.finished.lock().unwrap()[0].clone();
+        std::fs::remove_dir_all(dir).ok();
+        let shared = Shared::default();
+        let mut sink = SharedRef(&shared);
+        let source = NewSource {
+            path: "a.log".into(),
+            name: "a.log".into(),
+        };
+        let id = sink.begin_source(&source).unwrap();
+        let other = sink.begin_source(&source).unwrap();
+        assert_ne!(id, other, "each source gets the next free id");
+        sink.finish_source(&report).unwrap();
+        sink.abort_source(other).unwrap();
+        assert_eq!(shared.finished.lock().unwrap().len(), 1);
+        assert_eq!(*shared.aborted.lock().unwrap(), vec![other]);
+    }
+
+    #[test]
+    fn zip_archives_reserve_one_source_per_entry_and_anything_else_one() {
+        use std::io::Write;
+        let dir = temp();
+        let zip_path = dir.join("logs.zip");
+        let mut w = zip::ZipWriter::new(std::fs::File::create(&zip_path).unwrap());
+        for n in ["a.log", "b.log", "c.log"] {
+            w.start_file(n, zip::write::SimpleFileOptions::default()).unwrap();
+            w.write_all(b"2026-10-14 10:00:00 INFO x\n").unwrap();
+        }
+        w.finish().unwrap();
+        assert_eq!(source_slots(&zip_path), 3);
+        // A file that starts like a zip but is not one, a short file, a plain log and a missing file: one slot.
+        let fake = dir.join("fake.zip");
+        std::fs::write(&fake, b"PK\x03\x04 and then nothing a zip reader accepts").unwrap();
+        assert_eq!(source_slots(&fake), 1);
+        let short = dir.join("short");
+        std::fs::write(&short, b"PK").unwrap();
+        assert_eq!(source_slots(&short), 1);
+        let plain = dir.join("plain.log");
+        std::fs::write(&plain, b"2026-10-14 10:00:00 INFO x\n").unwrap();
+        assert_eq!(source_slots(&plain), 1);
+        assert_eq!(source_slots(&dir.join("missing")), 1);
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[test]
+    fn after_a_cancel_the_files_not_started_are_listed_as_not_imported() {
+        let dir = temp();
+        // The bigger file is read first (one thread), and cancels; the smaller one is never started.
+        let paths: Vec<(PathBuf, String)> = [("a.log", 50), ("b.log", 5)]
+            .iter()
+            .map(|(n, events)| {
+                let p = dir.join(n);
+                std::fs::write(&p, log(*events)).unwrap();
+                (p, n.to_string())
+            })
+            .collect();
+        let (importers, profile, cancel) = env_parts();
+        let env = ImportEnv {
+            encodings: &Default::default(),
+            importers: &importers,
+            parsers: &profile,
+            schema: Arc::new(EventSchema::plain()),
+            cancel: &cancel,
+        };
+        let progress = Arc::new(ImportProgress::default());
+        let sink = Shared {
+            cancel_on_begin: Some(progress.clone()),
+            ..Shared::default()
+        };
+        let opts = ParallelOptions {
+            threads: 1,
+            chunk_target: 1 << 20,
+        };
+        let out = import_files_parallel(&env, &paths, &HashSet::new(), &progress, &opts, &sink);
+        assert_eq!(out.len(), 2);
+        let Outcome::Unrecognized(u) = &out[1] else {
+            panic!("{:?}", out[1])
+        };
+        assert_eq!((u.reason.as_str(), u.name.as_str()), (NOT_IMPORTED, "b.log"));
+        assert!(progress.snapshot().cancelled);
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[test]
+    fn only_big_splittable_event_text_is_read_in_chunks() {
+        let dir = temp();
+        let p = dir.join("a.log");
+        std::fs::write(&p, log(200)).unwrap();
+        let (importers, _, _) = env_parts();
+        let profile = CompiledProfile::compile(Profile::default_profile()).unwrap();
+        let ctx = ImportCtx {
+            profile: &profile,
+            path: &p,
+            file_date: None,
+        };
+        let head = std::fs::read(&p).unwrap();
+        let mut fp = plan(&importers, &ctx, &head, true).unwrap();
+        let shared = Shared::default();
+        let split = Split {
+            sink: &shared,
+            target: 1000,
+        };
+        let size = head.len() as u64;
+        assert!(split.applies(&fp, size));
+        assert!(!split.applies(&fp, 1999), "a file under two chunks is read whole");
+        fp.splittable = false;
+        assert!(!split.applies(&fp, size));
+        fp.splittable = true;
+        fp.kind = PlanKind::Binary;
+        assert!(!split.applies(&fp, size), "binary files are never chunked");
+        assert!(!begins_event(&fp, &ctx, "2026-10-14 10:00:00 INFO a"));
+        fp.kind = PlanKind::Legacy;
+        assert!(!begins_event(&fp, &ctx, "2026-10-14 10:00:00 INFO a"));
+        // JSON events start at the first column; nested lines are indented.
+        fp.kind = PlanKind::Json(JsonShape::Lines);
+        assert!(begins_event(&fp, &ctx, "{\"@t\":1}") && !begins_event(&fp, &ctx, "  {\"a\":1}"));
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[test]
+    fn a_stretch_without_an_event_start_stays_with_the_chunk_before_and_small_files_are_not_split() {
+        let dir = temp();
+        let p = dir.join("one-event.log");
+        // One event followed by a long continuation: no chunk start after the first can begin an event.
+        let mut text = String::from("2026-10-14 10:00:00.000 +00:00 [ERR] the only event\n");
+        for i in 0..400 {
+            text.push_str(&format!("   at Frame{i}.Method()\n"));
+        }
+        std::fs::write(&p, &text).unwrap();
+        let (importers, profile_set, cancel) = env_parts();
+        let profile = CompiledProfile::compile(Profile::default_profile()).unwrap();
+        let ctx = ImportCtx {
+            profile: &profile,
+            path: &p,
+            file_date: None,
+        };
+        let head = std::fs::read(&p).unwrap();
+        let fp = plan(&importers, &ctx, &head, true).unwrap();
+        let chunks = plan_chunks(&p, &fp, &ctx, head.len() as u64, 500).unwrap();
+        assert_eq!(chunks.len(), 1, "{chunks:?}");
+        assert_eq!(chunks[0].1, head.len() as u64);
+
+        // read_split reports "read it the usual way" when there is a single chunk.
+        let env = ImportEnv {
+            encodings: &Default::default(),
+            importers: &importers,
+            parsers: &profile_set,
+            schema: Arc::new(EventSchema::plain()),
+            cancel: &cancel,
+        };
+        let shared = Shared::default();
+        let split = Split {
+            sink: &shared,
+            target: 500,
+        };
+        assert!(read_split(&env, &ctx, &fp, &p, SourceId(0), "one-event.log", split)
+            .unwrap()
+            .is_none());
+        assert!(shared.batches.lock().unwrap().is_empty());
+        // A plan that cannot be chunked fails the source with the importer's name.
+        let mut binary = fp;
+        binary.kind = PlanKind::Binary;
+        let big = dir.join("big.log");
+        std::fs::write(&big, log(300)).unwrap();
+        let bctx = ImportCtx {
+            profile: &profile,
+            path: &big,
+            file_date: None,
+        };
+        let size = std::fs::metadata(&big).unwrap().len();
+        let chunks = plan_chunks(&big, &binary, &bctx, size, 500).unwrap();
+        let e = read_chunk(
+            &env,
+            &bctx,
+            &binary,
+            &big,
+            (chunks[0].0, chunks[0].1),
+            SourceId(0),
+            "big.log",
+            &shared,
+        )
+        .err()
+        .unwrap();
+        assert!(e.to_string().contains("not read in chunks"), "{e}");
         std::fs::remove_dir_all(dir).ok();
     }
 

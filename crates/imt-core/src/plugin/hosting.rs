@@ -165,9 +165,15 @@ mod tests {
                 None
             }
         }
+        assert_eq!(a[0].id(), "a", "the guarded annotator keeps its id");
+        assert_eq!(r.importers().binary_importers().count(), 0);
         let e = a[0].annotate(&V, None).unwrap_err().to_string();
         assert!(e.contains("crashed") && e.contains("annotator blew up"), "{e}");
         assert_eq!(r.health().get("t.hosted").failures, 1);
+        // The (empty) view the annotator was given answers every question with nothing.
+        use super::super::annotate::AnnotationView;
+        assert!(V.select(&Default::default(), 1).unwrap().is_empty() && V.query(&Default::default(), 1).unwrap().is_empty());
+        assert!(V.instances().is_empty() && V.time_range().is_none());
     }
 
     /// A transform that wants whole batches: drops records containing "drop", marks those containing

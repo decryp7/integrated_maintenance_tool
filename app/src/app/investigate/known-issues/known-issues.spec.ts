@@ -160,6 +160,72 @@ describe('KnownIssues component', () => {
     expect(context.setQuery).toHaveBeenCalledWith({ ql: 'message contains "refused"' });
   });
 
+  it('lets the user accept an AI suggestion for the report, and take it back', async () => {
+    setup();
+    withModel();
+    const f = TestBed.createComponent(KnownIssues);
+    await settle(f);
+    expect(f.nativeElement.querySelector('[data-testid=known-issue-gw] [data-testid=known-issue-accept]')).toBeNull(); // rules need no acceptance
+    await TestBed.inject(KnownIssuesStore).suggest();
+    f.detectChanges();
+    const accept = el<HTMLButtonElement>(f, '[data-testid=known-issue-refused] [data-testid=known-issue-accept]');
+    expect(accept.textContent).toContain('Accept for report');
+    accept.click();
+    f.detectChanges();
+    expect(accept.getAttribute('aria-pressed')).toBe('true');
+    expect(accept.textContent).toContain('Accepted');
+    expect(TestBed.inject(KnownIssuesStore).acceptedSuggestions().map((m) => m.issue.id)).toEqual(['refused']);
+    accept.click();
+    f.detectChanges();
+    expect(TestBed.inject(KnownIssuesStore).acceptedSuggestions()).toEqual([]);
+    accept.click();
+    TestBed.inject(KnownIssuesStore).clearSuggestions();
+    expect(TestBed.inject(KnownIssuesStore).accepted()).toEqual([]);
+  });
+
+  it('selects the evidence: filters to the match query and selects its first sample event', async () => {
+    const { context } = setup();
+    const f = TestBed.createComponent(KnownIssues);
+    await settle(f);
+    el<HTMLButtonElement>(f, '[data-testid=known-issue-gw] [data-testid=known-issue-select]').click();
+    expect(context.setQuery).toHaveBeenCalledWith({ ql: '@message ~ "timed out"' });
+    expect(context.showView).toHaveBeenCalledWith('events');
+    expect(context.jumpTo).toHaveBeenCalledWith(1);
+  });
+
+  it('selects no event when the match has no samples', async () => {
+    const { context } = setup({ match: vi.fn(async () => report({ matches: [match({ sampleIds: [] })] })) });
+    const f = TestBed.createComponent(KnownIssues);
+    await settle(f);
+    el<HTMLButtonElement>(f, '[data-testid=known-issue-select]').click();
+    expect(context.setQuery).toHaveBeenCalled();
+    expect(context.jumpTo).not.toHaveBeenCalled();
+  });
+
+  it('collapses and expands the section; it starts open only when there is something to show', async () => {
+    setup({ match: vi.fn(async () => report({ matches: [] })) });
+    const f = TestBed.createComponent(KnownIssues);
+    await settle(f);
+    const toggle = el<HTMLButtonElement>(f, '[data-testid=known-issues-toggle]');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(el(f, '#known-issues-body').hasAttribute('hidden')).toBe(true);
+    toggle.click();
+    f.detectChanges();
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(el(f, '#known-issues-body').hasAttribute('hidden')).toBe(false);
+  });
+
+  it('is open by default when issues match, and the user can collapse it', async () => {
+    setup();
+    const f = TestBed.createComponent(KnownIssues);
+    await settle(f);
+    const toggle = el<HTMLButtonElement>(f, '[data-testid=known-issues-toggle]');
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    toggle.click();
+    f.detectChanges();
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('disables the AI button with a hint when there is no model', async () => {
     setup();
     const f = TestBed.createComponent(KnownIssues);
@@ -261,18 +327,15 @@ describe('known-issues command', () => {
 });
 
 describe('with the real mock backend', () => {
-  afterEach(() => {
-    MockKnownIssuesBackend.hasModel = true;
-  });
-
   it('finds the sample issue and reports a missing model as the friendly message', async () => {
     TestBed.configureTestingModule({ providers: [...provideTinyBackend(), ...provideFakeDock(), { provide: COMMAND_CONTEXT, useValue: {} }] });
-    TestBed.overrideProvider(KnownIssuesBackend, { useFactory: () => new MockKnownIssuesBackend(TestBed.inject(ImtBackend)) });
+    let hasModel = true;
+    TestBed.overrideProvider(KnownIssuesBackend, { useFactory: () => new MockKnownIssuesBackend(TestBed.inject(ImtBackend), () => hasModel) });
     const store = TestBed.inject(KnownIssuesStore);
     await TestBed.inject(WorkspaceStore).init();
     await store.load();
     expect(store.error()).toBeNull();
-    MockKnownIssuesBackend.hasModel = false;
+    hasModel = false;
     await store.suggest();
     expect(store.suggestError()).toContain('Settings > AI');
   });

@@ -144,6 +144,29 @@ mod tests {
         assert_eq!(copy_path("../../etc/<email>:x", &mut taken), "etc/_email__x");
         assert_eq!(copy_path("", &mut taken), "source.log");
         assert_eq!(copy_path("..", &mut taken), "source (2).log");
+        // A name made only of dots is not a name; a name without an extension gets its number at the end.
+        assert_eq!(copy_path("a/.../b.log", &mut taken), "a/_/b.log");
+        assert_eq!(copy_path("README", &mut taken), "README");
+        assert_eq!(copy_path("readme", &mut taken), "readme (2)");
+        assert_eq!(copy_path("dir/.hidden", &mut taken), "dir/.hidden");
+        assert_eq!(copy_path("dir/.hidden", &mut taken), "dir/.hidden (2)");
+    }
+
+    #[test]
+    fn a_source_is_excluded_by_its_importer_and_file_kind() {
+        let mut ws = crate::Workspace::new(crate::Profile::default_profile()).unwrap();
+        let dir = std::env::temp_dir().join(format!("imt-copy-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("a.log"), "2026-10-14 09:00:00.000 +00:00 [INF] hello\n").unwrap();
+        ws.open(std::slice::from_ref(&dir)).unwrap();
+        let mut info = ws.summary().sources[0].clone();
+        assert_eq!(excluded_reason(&info), None);
+        info.file_kind = FileKind::Binary;
+        assert!(excluded_reason(&info).unwrap().contains("binary"));
+        info.file_kind = FileKind::Text;
+        info.importer = "csv".into();
+        assert!(excluded_reason(&info).unwrap().contains("csv format"));
+        std::fs::remove_dir_all(dir).ok();
     }
 
     #[test]

@@ -580,4 +580,11 @@ mod tests {
         let s = set(&ParserSetup::of(&[p]));
         assert!(s.choose(&c, &Importers::default()).is_err());
     }
+
+    #[test]
+    fn the_builtin_set_compiles_with_the_profile_and_has_the_generic_parser() {
+        let set = ParserSet::builtins(&Profile::default_profile()).unwrap();
+        assert!(set.parser("generic").is_some());
+        assert_eq!(set.parsers().count(), builtin::FILES.len());
+    }
 }

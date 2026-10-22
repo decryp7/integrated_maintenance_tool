@@ -589,6 +589,92 @@ mod tests {
     }
 
     #[test]
+    fn every_kind_of_row_reads_the_pseudo_fields_values_and_each_field_alike() {
+        let mut r = record();
+        r.id = 5;
+        let mut keys = FieldKeys::new();
+        let all: Vec<FieldKey> = [
+            "@level",
+            "@message",
+            "@exception",
+            "@template",
+            "@source",
+            "@line",
+            "@id",
+            "Ms",
+            "Host",
+            "Obj",
+            "missing",
+        ]
+        .iter()
+        .map(|n| keys.key(n))
+        .collect();
+        assert_eq!(keys.key("@id").name(), "@id");
+        let record_row = RecordRow {
+            rec: &r,
+            source: "app.log",
+        };
+        let owned = OwnedRow {
+            id: u64::from(r.id),
+            rec: r.clone(),
+            source: Arc::from("app.log"),
+        };
+        let by_ref = &owned;
+        let batch = batch_of(&r, EventSchema::plain());
+        let slots = BatchSlots::resolve(&keys, batch.schema());
+        let arrow = ArrowRow {
+            row: batch.row(0),
+            source: "app.log",
+            slots: &slots,
+        };
+        // @id is the event's id: a number to compare, text to show.
+        let id = FieldKey::Pseudo(Pseudo::Id);
+        assert_eq!(record_row.number(&id), Some(f64::from(r.id)));
+        assert_eq!(record_row.text(&id).as_deref(), Some("5"));
+        assert_eq!(record_row.value(&id), Some(json!(5)));
+        assert_eq!(RowRef::value(&arrow, &id), Some(json!(9)), "the arrow row carries the store's id");
+        let line = FieldKey::Pseudo(Pseudo::Line);
+        assert_eq!(RowRef::value(&arrow, &line), Some(json!(12)));
+        assert_eq!(RowRef::value(&arrow, &FieldKey::Pseudo(Pseudo::Source)), Some(json!("app.log")));
+        // Rows over the same event answer alike through every wrapper.
+        for k in &all {
+            assert_eq!(owned.text(k), record_row.text(k), "{}", k.name());
+            assert_eq!(by_ref.text(k), record_row.text(k), "{}", k.name());
+            assert_eq!(owned.number(k), record_row.number(k), "{}", k.name());
+            assert_eq!(by_ref.value(k), record_row.value(k), "{}", k.name());
+        }
+        assert_eq!((by_ref.id(), by_ref.source_name(), by_ref.line()), (u64::from(r.id), "app.log", 12));
+        // A reference to a row is a row (through the blanket impl), and a bare record has no source name.
+        assert_eq!(
+            (RowRef::id(&by_ref), RowRef::source_name(&by_ref), RowRef::line(&by_ref)),
+            (u64::from(r.id), "app.log", 12)
+        );
+        assert_eq!(
+            (RowRef::id(&r), RowRef::source_name(&r), RowRef::source(&r)),
+            (u64::from(r.id), "", 3)
+        );
+        assert_eq!(RowRef::text(&r, &FieldKey::Pseudo(Pseudo::Source)).as_deref(), Some(""));
+        // Named values come back from the arrow row; unknown names are None.
+        let ms = keys.key("Ms");
+        assert_eq!(
+            RowRef::value(&arrow, &ms),
+            Some(json!("250.5")),
+            "undeclared fields are kept as text"
+        );
+        assert_eq!(arrow.number(&ms), Some(250.5));
+        assert_eq!(RowRef::value(&arrow, &keys.key("missing")), None);
+        // Every field of the event is visited, with its value.
+        let mut seen: Vec<String> = Vec::new();
+        arrow.for_each_field(&mut |name, v| seen.push(format!("{name}={v}")));
+        seen.sort();
+        assert_eq!(seen.len(), r.fields.len(), "{seen:?}");
+        assert!(seen.iter().any(|s| s.starts_with("Host=")), "{seen:?}");
+        let mut from_record = 0;
+        record_row.for_each_field(&mut |_, _| from_record += 1);
+        assert_eq!(from_record, r.fields.len());
+    }
+
+    #[test]
     fn keys_are_interned_once() {
         let mut keys = FieldKeys::new();
         let a = keys.key("A");

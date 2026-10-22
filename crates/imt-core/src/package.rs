@@ -403,15 +403,19 @@ mod tests {
         assert!(bytes > 100_000);
         assert!(!root.join("incident.imtz.part").exists());
         let opened = open_package(&out, &root.join("open")).unwrap();
-        let Package::Project { dir: opened, manifest } = opened else {
-            panic!("not a project: {opened:?}")
-        };
+        let (opened, manifest) = project(opened);
         assert_eq!(manifest.name, "incident");
         assert_eq!(std::fs::read(opened.dir.join("data.duckdb")).unwrap().len(), 100_000);
         assert!(!opened.dir.join("index").exists() && opened.dir.join("snapshots").is_dir());
         // A folder opens as it is.
         assert!(matches!(open_package(&dir, &root).unwrap(), Package::Project { .. }));
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[rustfmt::skip]
+    fn project(p: Package) -> (ProjectDir, ProjectManifest) {
+        let Package::Project { dir, manifest } = p else { panic!("not a project") };
+        (dir, manifest)
     }
 
     fn zip_with(path: &Path, files: &[(&str, &[u8])]) {
@@ -429,6 +433,19 @@ mod tests {
         let collector = root.join("collected.imtz");
         zip_with(&collector, &[("manifest.json", br#"{"host":"web01"}"#), ("logs/a.log", b"x\n")]);
         assert!(matches!(open_package(&collector, &root.join("o")).unwrap(), Package::Collector(_)));
+        let share = root.join("shared.imtz");
+        let log = b"hello";
+        let manifest = serde_json::json!({
+            "format": crate::bundle::BUNDLE_FORMAT, "schema": 1,
+            "entries": [{"path": "logs/a.log", "kind": "log", "bytes": 5, "sha256": crate::bundle::sha256_hex(log)}]
+        })
+        .to_string();
+        zip_with(&share, &[("logs/a.log", log), ("manifest.json", manifest.as_bytes())]);
+        let shared = open_package(&share, &root.join("o")).unwrap();
+        assert!(
+            matches!(&shared, Package::Share(b) if b.dir.join("logs/a.log").is_file()),
+            "{shared:?}"
+        );
         let odd = root.join("odd.imtz");
         zip_with(&odd, &[("project.toml", b"format = \"something-else\"")]);
         let err = open_package(&odd, &root.join("o")).unwrap_err().to_string();
@@ -439,6 +456,116 @@ mod tests {
         let not_zip = root.join("plain.imtz");
         std::fs::write(&not_zip, b"hello").unwrap();
         assert!(open_package(&not_zip, &root.join("o")).is_err());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn creating_a_project_keeps_an_existing_manifest_and_substitutes_replace_files() {
+        let root = temp("create");
+        let dir = root.join("p.imt");
+        let first = ProjectDir::create(&dir, "first").unwrap();
+        // Creating again never renames or resets what is there.
+        let again = ProjectDir::create(&dir, "second").unwrap();
+        assert_eq!(first, again);
+        assert_eq!(ProjectDir::open(&dir).unwrap().1.name, "first");
+        // A file read from elsewhere (a copy of an open database) goes into the archive in the place of the original.
+        std::fs::write(dir.join("data.duckdb"), b"original").unwrap();
+        let copy = root.join("copy.duckdb");
+        std::fs::write(&copy, b"the copy").unwrap();
+        let out = root.join("p.imtz");
+        let bytes = first.export_with(&out, &[(PathBuf::from("data.duckdb"), copy)]).unwrap();
+        assert!(bytes >= "the copy".len() as u64);
+        let opened = open_package(&out, &root.join("open")).unwrap();
+        let (opened, _) = project(opened);
+        assert_eq!(std::fs::read(opened.dir.join("data.duckdb")).unwrap(), b"the copy");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_failed_export_leaves_no_partial_archive() {
+        let root = temp("failed-export");
+        let dir = root.join("p.imt");
+        let p = ProjectDir::create(&dir, "p").unwrap();
+        // A file that cannot be read fails the export midway.
+        std::fs::write(dir.join("broken.dat"), b"x").unwrap();
+        std::fs::set_permissions(dir.join("broken.dat"), std::os::unix::fs::PermissionsExt::from_mode(0o000)).unwrap();
+        let out = root.join("p.imtz");
+        let err = p.export(&out).unwrap_err().to_string();
+        assert!(err.contains("cannot read broken.dat"), "{err}");
+        assert!(!out.exists() && !root.join("p.imtz.part").exists(), "nothing half-written is left");
+        std::fs::set_permissions(dir.join("broken.dat"), std::os::unix::fs::PermissionsExt::from_mode(0o600)).unwrap();
+        // A project that does not open is not exported at all.
+        let missing = ProjectDir {
+            dir: root.join("missing.imt"),
+        };
+        assert!(missing.export(&root.join("m.imtz")).is_err());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn opening_an_archive_again_replaces_the_earlier_extraction_and_skips_caches() {
+        let root = temp("reopen");
+        let archive = root.join("my project (copy).imtz");
+        zip_with(
+            &archive,
+            &[
+                ("project.toml", b"format = \"imt-project\"\nname = \"mine\""),
+                ("data.duckdb", b"db"),
+                ("index/meta.json", b"{}"),
+                ("tmp/scratch", b"x"),
+            ],
+        );
+        let dest = root.join("open");
+        let (dir, manifest) = project(open_package(&archive, &dest).unwrap());
+        assert_eq!(manifest.name, "mine");
+        // The folder is named after the archive, with unsafe characters replaced.
+        assert_eq!(
+            dir.dir.file_name().unwrap().to_string_lossy(),
+            format!("my_project__copy_.{PROJECT_EXTENSION}")
+        );
+        assert!(
+            !dir.dir.join("index").exists() && !dir.dir.join("tmp").exists(),
+            "caches are not extracted"
+        );
+        // Something added since is gone after the next open: it is the archive's content again.
+        std::fs::write(dir.dir.join("added-later.txt"), b"x").unwrap();
+        let (again, _) = project(open_package(&archive, &dest).unwrap());
+        assert_eq!(again.dir, dir.dir);
+        assert!(!again.dir.join("added-later.txt").exists());
+        assert_eq!(std::fs::read(again.dir.join("data.duckdb")).unwrap(), b"db");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn size_limits_say_how_big_is_too_big() {
+        assert!(cap("a", MAX_PROJECT_ENTRY, MAX_PROJECT_ENTRY).is_ok());
+        let e = cap("data.duckdb", MAX_PROJECT_ENTRY + 1, MAX_PROJECT_ENTRY)
+            .unwrap_err()
+            .to_string();
+        assert_eq!(e, "data.duckdb expands to more than 256 GiB");
+        assert!(cap("the project", MAX_PROJECT_BYTES + 1, MAX_PROJECT_BYTES)
+            .unwrap_err()
+            .to_string()
+            .contains("1024 GiB"));
+    }
+
+    #[test]
+    fn an_archive_with_too_many_files_is_refused_before_anything_is_written() {
+        let root = temp("many");
+        let archive = root.join("many.imtz");
+        let mut z = zip::ZipWriter::new(std::io::BufWriter::new(std::fs::File::create(&archive).unwrap()));
+        let stored = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+        z.start_file("project.toml", stored).unwrap();
+        z.write_all(b"format = \"imt-project\"").unwrap();
+        for i in 0..MAX_PROJECT_ENTRIES {
+            z.start_file(format!("f/{i}"), stored).unwrap();
+        }
+        z.finish().unwrap();
+        let dest = root.join("open");
+        let err = open_package(&archive, &dest).unwrap_err().to_string();
+        assert!(err.contains("more than 100000 files"), "{err}");
+        assert!(!dest.exists(), "nothing was extracted");
         let _ = std::fs::remove_dir_all(&root);
     }
 }

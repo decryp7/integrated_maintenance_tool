@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { AiStatusStore } from '../../ai/ai-status.store';
 import { Report } from '../../core/api.types';
 import { DIALOG_REF, DialogService } from '../../ui/dialog.service';
+import { provideTinyBackend } from '../../../testing/helpers';
 import { IncidentBackend } from '../investigate-backend';
 import { IncidentSummaryDialog, openIncidentSummary } from './incident-summary-dialog';
 
@@ -15,6 +16,7 @@ function setup(hasModel = true) {
   const ref = { close: vi.fn(), closed: Promise.resolve(undefined) };
   TestBed.configureTestingModule({
     providers: [
+      ...provideTinyBackend(),
       { provide: IncidentBackend, useValue: backend },
       { provide: AiStatusStore, useValue: { hasModel: signal(hasModel) } },
       { provide: DIALOG_REF, useValue: ref },

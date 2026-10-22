@@ -387,7 +387,10 @@ fn line_diff_marks_added_and_removed_lines() {
 // ---- validation ----
 
 fn store_with(lines: &str) -> (crate::workspace::WorkspaceStore, std::path::PathBuf) {
-    let dir = std::env::temp_dir().join(format!("imt-survey-{}-{}", std::process::id(), lines.len()));
+    // Unique per call: tests run in parallel and each removes its folder when done.
+    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let dir = std::env::temp_dir().join(format!("imt-survey-{}-{n}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let file = dir.join("app.log");
     std::fs::write(&file, lines).unwrap();
@@ -564,6 +567,50 @@ fn limits_are_clamped_and_progress_is_reported() {
     assert!(c.check().is_ok());
     c.clone().cancel();
     assert_eq!(c.check(), Err(SurveyError::Cancelled));
+    // Every stage reads back as itself, an unknown one as done.
+    for stage in [
+        SurveyStage::Sampling,
+        SurveyStage::Analysing,
+        SurveyStage::Proposing,
+        SurveyStage::Validating,
+        SurveyStage::Done,
+    ] {
+        let c = SurveyControl::new();
+        c.begin(stage, 1);
+        assert_eq!(c.progress().stage, stage);
+    }
+    assert_eq!(SurveyStage::from_u8(200), SurveyStage::Done);
+}
+
+#[test]
+fn a_survey_of_an_empty_store_says_to_open_something() {
+    let ws = crate::workspace::WorkspaceStore::new(Workspace::new(Profile::default_profile()).unwrap());
+    let e = run(&ws, DEFAULT_PROFILE_TOML, &SurveyRequest::default(), &SurveyControl::new()).unwrap_err();
+    assert_eq!(e, SurveyError::NothingOpened);
+    assert!(e.to_string().contains("open a folder"));
+    assert_eq!(
+        store_failed(crate::ports::StoreError::Busy("an import is running".into())),
+        SurveyError::Invalid("busy: an import is running".into())
+    );
+}
+
+#[test]
+fn composing_refuses_too_many_changes_and_badly_named_saved_queries() {
+    let (ws, dir) = store_with(&log_lines());
+    let query = |name: &str, ql: &str| Fragment::SavedQuery {
+        name: name.into(),
+        ql: ql.into(),
+    };
+    let reason = |fragments: Vec<Fragment>| compose(&ws, DEFAULT_PROFILE_TOML, &fragments).unwrap_err().to_string();
+    assert!(reason(vec![]).contains("select at least one proposal"));
+    assert!(reason(vec![marker("m", "Booted"); 201]).contains("at most 200 changes"));
+    assert!(reason(vec![query("  ", "level >= error")]).contains("name of 1 to 120"));
+    assert!(reason(vec![query(&"n".repeat(121), "level >= error")]).contains("name of 1 to 120"));
+    assert!(reason(vec![query("ok", "level >=")]).contains("\"ok\" is not valid"));
+    // A valid saved query alone changes no profile but is accepted.
+    let composed = compose(&ws, DEFAULT_PROFILE_TOML, &[query("errors", "level >= error")]).unwrap();
+    assert_eq!(composed.saved_queries.len(), 1);
+    std::fs::remove_dir_all(dir).ok();
 }
 
 #[test]
@@ -639,4 +686,591 @@ fn run_rules_on_existing_markers_are_previewed_by_the_engine_and_invalid_ones_sk
         "{skipped:?}"
     );
     std::fs::remove_dir_all(dir).ok();
+}
+
+// ---- validation: more previews and failure reasons ----
+
+fn extractor_fragment(name: &str, regex: &str) -> Fragment {
+    Fragment::Extractor {
+        extractor: ExtractCfg {
+            name: name.into(),
+            from: "@message".into(),
+            regex: regex.into(),
+            when: vec![],
+            fields: BTreeMap::new(),
+        },
+    }
+}
+
+fn run_validate(
+    ws: &crate::workspace::WorkspaceStore,
+    cands: Vec<Candidate>,
+    tweak: impl FnOnce(&mut FolderSurvey),
+) -> (Vec<SetupProposal>, Vec<SkippedProposal>) {
+    let (mut survey, sampled) = survey_only(ws, &SurveyRequest::default(), &SurveyControl::new()).unwrap();
+    tweak(&mut survey);
+    validate(ws, DEFAULT_PROFILE_TOML, &survey, &sampled, cands, &SurveyControl::new()).unwrap()
+}
+
+fn skipped_reason(skipped: &[SkippedProposal], id: &str) -> String {
+    skipped
+        .iter()
+        .find(|s| s.id == id)
+        .map(|s| s.reason.clone())
+        .unwrap_or_else(|| panic!("{id} was not skipped: {skipped:?}"))
+}
+
+#[test]
+fn previews_reject_proposals_that_do_nothing_useful() {
+    let (ws, dir) = store_with(&log_lines());
+    let chart = |id: &str, y: &str| {
+        candidate(
+            id,
+            ProposalGroup::Charts,
+            vec![Fragment::Chart {
+                chart: crate::profile::ChartCfg {
+                    id: Some(id.into()),
+                    title: id.into(),
+                    y: y.into(),
+                    bucket: "auto".into(),
+                    split_by: vec!["@level".into()],
+                    kind: "line".into(),
+                    unit: String::new(),
+                    when: vec![],
+                },
+            }],
+            vec![],
+        )
+    };
+    let cands = vec![
+        chart("chart-count", "count()"),
+        chart("chart-no-number", "avg(NoSuchField)"),
+        chart("chart-bad-y", "median(x)"),
+        candidate(
+            "no-extract",
+            ProposalGroup::Extractors,
+            vec![extractor_fragment("none", r"zzz(?P<Z>\d+)")],
+            vec![],
+        ),
+        candidate(
+            "no-conditions",
+            ProposalGroup::Markers,
+            vec![Fragment::Marker {
+                marker: MarkerCfg {
+                    kind: "empty".into(),
+                    label: None,
+                    lifecycle: false,
+                    color: None,
+                    icon: None,
+                    badge: None,
+                    shape: None,
+                    description: None,
+                    when: vec![],
+                },
+            }],
+            vec![],
+        ),
+        candidate(
+            "query-none",
+            ProposalGroup::Queries,
+            vec![Fragment::SavedQuery {
+                name: "q".into(),
+                ql: "level >= fatal".into(),
+            }],
+            vec![],
+        ),
+        candidate(
+            "query-ok",
+            ProposalGroup::Queries,
+            vec![Fragment::SavedQuery {
+                name: "all".into(),
+                ql: "level >= information".into(),
+            }],
+            vec![],
+        ),
+        candidate(
+            "dash",
+            ProposalGroup::Charts,
+            vec![Fragment::Dashboard {
+                dashboard: crate::dashboard::DashboardCfg {
+                    id: "d".into(),
+                    title: "D".into(),
+                    columns: 12,
+                    tile: vec![],
+                },
+            }],
+            vec![],
+        ),
+    ];
+    let (ok, skipped) = run_validate(&ws, cands, |_| {});
+    let by = |id: &str| ok.iter().find(|p| p.id == id).map(|p| &p.preview);
+    match by("chart-count") {
+        Some(ProposalPreview::Chart { points, series }) => {
+            assert_eq!(*points, 41);
+            assert!(!series.is_empty());
+        }
+        p => panic!("{p:?} / {skipped:?}"),
+    }
+    assert!(skipped_reason(&skipped, "chart-no-number").contains("no sampled event has a number in “NoSuchField”"));
+    assert!(skipped_reason(&skipped, "chart-bad-y").contains("unknown aggregate"));
+    assert!(skipped_reason(&skipped, "no-extract").contains("extracts nothing"));
+    assert!(skipped_reason(&skipped, "no-conditions").contains("no conditions"));
+    assert!(skipped_reason(&skipped, "query-none").contains("finds no events"));
+    assert!(
+        matches!(by("query-ok"), Some(ProposalPreview::Query { matches: 41 })),
+        "{skipped:?}"
+    );
+    assert!(matches!(by("dash"), Some(ProposalPreview::Dashboard { tiles: 0 })), "{skipped:?}");
+    std::fs::remove_dir_all(dir).ok();
+}
+
+#[test]
+fn an_instance_key_with_too_many_lanes_is_unreadable() {
+    let mut lines = String::new();
+    for i in 0..(super::fields::MAX_LANES + 6) {
+        lines.push_str(&format!("2026-10-14 09:00:00.{i:03} +00:00 [INF] worker-{i} idle\n"));
+    }
+    let (ws, dir) = store_with(&lines);
+    let key = |name: &str| {
+        candidate(
+            "many",
+            ProposalGroup::Instances,
+            vec![
+                extractor_fragment("w", r"worker-(?P<Worker>\d+)"),
+                Fragment::InstanceKey { key: vec![name.into()] },
+            ],
+            vec![],
+        )
+    };
+    let (ok, skipped) = run_validate(&ws, vec![key("Worker")], |_| {});
+    assert!(ok.is_empty());
+    assert!(skipped_reason(&skipped, "many").contains("unreadable"), "{skipped:?}");
+    std::fs::remove_dir_all(dir).ok();
+}
+
+#[test]
+fn pipeline_steps_show_what_they_change_and_reject_no_ops() {
+    let (ws, dir) = store_with(&log_lines());
+    let step = |id: &str, s: StepCfg| candidate(id, ProposalGroup::Noise, vec![Fragment::Pipeline { step: s }], vec![]);
+    let cands = vec![
+        step(
+            "set-field",
+            StepCfg {
+                step: "set".into(),
+                field: Some("Env".into()),
+                value: Some("prod".into()),
+                ..StepCfg::default()
+            },
+        ),
+        step(
+            "drop-booted",
+            StepCfg {
+                step: "drop".into(),
+                when: vec![ConditionCfg {
+                    field: "@message".into(),
+                    op: "contains".into(),
+                    value: Some(CondValue::Text("Booted".into())),
+                }],
+                ..StepCfg::default()
+            },
+        ),
+        step(
+            "noop",
+            StepCfg {
+                step: "set".into(),
+                field: Some("Never".into()),
+                value: Some("x".into()),
+                when: vec![ConditionCfg {
+                    field: "@message".into(),
+                    op: "contains".into(),
+                    value: Some(CondValue::Text("never written".into())),
+                }],
+                ..StepCfg::default()
+            },
+        ),
+        step(
+            "bad-step",
+            StepCfg {
+                step: "no_such_step".into(),
+                ..StepCfg::default()
+            },
+        ),
+    ];
+    let (ok, skipped) = run_validate(&ws, cands, |_| {});
+    match &ok.iter().find(|p| p.id == "set-field").expect("valid").preview {
+        ProposalPreview::Pipeline {
+            sampled,
+            kept,
+            dropped,
+            changed,
+            examples,
+        } => {
+            assert_eq!((*sampled, *kept, *dropped, *changed), (41, 41, 0, 41));
+            assert_eq!(examples.len(), 3);
+            assert!(examples[0].after.contains("[Env=prod]"), "{:?}", examples[0]);
+        }
+        p => panic!("{p:?}"),
+    }
+    match &ok.iter().find(|p| p.id == "drop-booted").expect("valid").preview {
+        ProposalPreview::Pipeline { dropped, examples, .. } => {
+            assert_eq!(*dropped, 1);
+            assert!(examples[0].before.contains("Booted") && examples[0].after.is_empty());
+        }
+        p => panic!("{p:?}"),
+    }
+    assert!(skipped_reason(&skipped, "noop").contains("changes none"));
+    assert!(!skipped_reason(&skipped, "bad-step").is_empty());
+    std::fs::remove_dir_all(dir).ok();
+}
+
+#[test]
+fn run_rules_per_field_and_without_starts() {
+    let mut lines = String::new();
+    for (i, msg) in [
+        "Application started worker-1",
+        "Application started worker-2",
+        "Application stopped worker-1",
+    ]
+    .iter()
+    .enumerate()
+    {
+        lines.push_str(&format!("2026-10-14 09:00:{i:02}.000 +00:00 [INF] {msg}\n"));
+    }
+    let (ws, dir) = store_with(&lines);
+    let span = |per: &str, start: &str| Fragment::Span {
+        span: crate::spans::SpanCfg {
+            kind: "run".into(),
+            label: None,
+            start: crate::spans::OneOrMany::One(start.into()),
+            stop: crate::spans::OneOrMany::One("stop".into()),
+            per: per.into(),
+            color: None,
+            max_duration: None,
+            restart_on_start: false,
+            enabled: true,
+        },
+    };
+    let with_worker = |s: Fragment| vec![s, extractor_fragment("w", r"(?P<Worker>worker-\d+)")];
+    let cands = vec![
+        candidate(
+            "per-field",
+            ProposalGroup::Markers,
+            with_worker(span("field:Worker", "start")),
+            vec![],
+        ),
+        candidate("no-start", ProposalGroup::Markers, vec![span("instance", "crash")], vec![]),
+    ];
+    let (ok, skipped) = run_validate(&ws, cands, |_| {});
+    let run = ok.iter().find(|p| p.id == "per-field").unwrap_or_else(|| panic!("{skipped:?}"));
+    match &run.preview {
+        ProposalPreview::Runs {
+            runs, closed, open, lanes, ..
+        } => assert_eq!((*runs, *closed, *open, *lanes), (2, 1, 1, 1)),
+        p => panic!("{p:?}"),
+    }
+    assert_eq!(skipped_reason(&skipped, "no-start"), "no run starts in the sampled events");
+    std::fs::remove_dir_all(dir).ok();
+}
+
+#[test]
+fn formats_for_unrecognised_files_keep_the_best_reading_and_explain_the_rest() {
+    let (ws, dir) = store_with(&log_lines());
+    let lines: Vec<String> = (0..10)
+        .map(|i| {
+            let level = if i < 7 { "INFO" } else { "WARN" };
+            format!("2026-10-14 09:00:{i:02} {level} widget {i} ready")
+        })
+        .collect();
+    let group = |ext: &str, lines: Vec<String>| UnrecognisedGroup {
+        extension: ext.into(),
+        file_count: 1,
+        files: vec![format!("x.{ext}")],
+        reason: "no importer recognises this format".into(),
+        sample_file: Some(format!("x.{ext}")),
+        sample_lines: lines,
+    };
+    let format = |id: &str, regex: &str, file: &str, origin: ProposalOrigin| {
+        let mut c = candidate(
+            id,
+            ProposalGroup::Formats,
+            vec![Fragment::ParseRegex {
+                regex: regex.into(),
+                file_name: file.into(),
+            }],
+            vec![],
+        );
+        c.origin = origin;
+        c
+    };
+    let all = r"^(?P<timestamp>\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) (?P<level>\w+) (?P<message>.*)$";
+    let info_only = r"^(?P<timestamp>\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) (?P<level>INFO) (?P<message>.*)$";
+    let few = r"^(?P<timestamp>\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) (?P<level>WARN) (?P<message>widget 7 .*)$";
+    let cands = vec![
+        format("format:thing:1", info_only, "x.thing", ProposalOrigin::Heuristic),
+        format("format:thing:2", all, "x.thing", ProposalOrigin::Heuristic),
+        format("format:thing:3", info_only, "x.thing", ProposalOrigin::Ai),
+        format("format:thing:4", few, "x.thing", ProposalOrigin::Heuristic),
+        format("format:nolines:1", all, "x.nolines", ProposalOrigin::Heuristic),
+        format("format:broken:1", "(", "x.broken", ProposalOrigin::Heuristic),
+    ];
+    let (ok, skipped) = run_validate(&ws, cands, |s| {
+        s.unrecognised = vec![
+            group("thing", lines.clone()),
+            group("nolines", vec![]),
+            group("broken", lines.clone()),
+        ];
+    });
+    let ids: Vec<&str> = ok.iter().map(|p| p.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        ["format:thing:2", "format:thing:3"],
+        "best heuristic format plus the AI one: {skipped:?}"
+    );
+    match &ok[0].preview {
+        ProposalPreview::Parse {
+            parsed,
+            lines,
+            with_timestamp,
+            examples,
+        } => {
+            assert_eq!((*lines, *with_timestamp), (10, 10));
+            assert_eq!(*parsed, 10);
+            assert!(examples.len() <= 3 && examples[0].contains("widget"));
+        }
+        p => panic!("{p:?}"),
+    }
+    assert_eq!(
+        skipped_reason(&skipped, "format:thing:1"),
+        "another format reads more of these files"
+    );
+    assert!(skipped_reason(&skipped, "format:thing:4").contains("sample lines with a timestamp"));
+    assert!(skipped_reason(&skipped, "format:nolines:1").contains("no sample lines"));
+    assert!(skipped_reason(&skipped, "format:broken:1").contains("not valid"), "{skipped:?}");
+    std::fs::remove_dir_all(dir).ok();
+}
+
+// ---- heuristic proposals from a hand-built survey ----
+
+fn lifecycle(role: LifecycleRole, template: &str, covered_by: Option<&str>) -> LifecycleCandidate {
+    LifecycleCandidate {
+        role,
+        template: template.into(),
+        template_kind: TemplateKind::Mined,
+        count: 2,
+        example: template.replace(crate::patterns::WILDCARD, "7"),
+        covered_by: covered_by.map(String::from),
+    }
+}
+
+fn number(name: &str, kind: NumberKind, unit: Option<&str>) -> NumberCandidate {
+    NumberCandidate {
+        name: name.into(),
+        label: name.to_lowercase(),
+        unit: unit.map(String::from),
+        number_kind: kind,
+        count: 10,
+        min: 1.0,
+        max: 9.0,
+        example: format!("{name} 5"),
+        regex: format!(r"{name} (?P<{name}>\d+)"),
+    }
+}
+
+fn candidate_by<'a>(list: &'a [Candidate], id: &str) -> &'a Candidate {
+    list.iter()
+        .find(|c| c.id == id)
+        .unwrap_or_else(|| panic!("no {id} in {:?}", list.iter().map(|c| &c.id).collect::<Vec<_>>()))
+}
+
+#[test]
+fn lifecycle_findings_become_uniquely_named_markers_and_one_new_run_rule() {
+    let mut profile = Profile::default_profile();
+    profile.span.clear();
+    let survey = FolderSurvey {
+        markers: vec![MarkerCoverage {
+            kind: "svc-start".into(),
+            label: "x".into(),
+            lifecycle: true,
+            matches: 1,
+        }],
+        lifecycle: vec![
+            lifecycle(LifecycleRole::Start, "Service booted", None),
+            lifecycle(LifecycleRole::Start, "Service booted again", Some("start")),
+            lifecycle(LifecycleRole::Stop, "Service halted", None),
+            lifecycle(LifecycleRole::Stop, "Service halted gracefully", Some("stop")),
+            lifecycle(LifecycleRole::Crash, "Fatal fault", None),
+            lifecycle(LifecycleRole::Crash, "Fatal fault two", None),
+            lifecycle(LifecycleRole::Crash, "Fatal fault three", Some("crash")),
+        ],
+        ..FolderSurvey::default()
+    };
+    let list = propose::propose(&survey, &profile);
+    // "svc-start" is taken by a marker that exists: the new one gets a suffix; crash names are made unique too.
+    let ids: Vec<&str> = list.iter().map(|c| c.id.as_str()).collect();
+    for want in [
+        "marker:svc-start-2",
+        "marker:svc-stop",
+        "marker:crash",
+        "marker:crash-2",
+        "span:run",
+    ] {
+        assert!(ids.contains(&want), "{want} in {ids:?}");
+    }
+    let run = candidate_by(&list, "span:run");
+    assert_eq!(
+        run.requires,
+        ["marker:svc-start-2", "marker:svc-stop"],
+        "a crash marker is not part of a run"
+    );
+    assert!(run.title.starts_with("Show runs from start to stop"));
+    match &run.fragments[0] {
+        Fragment::Span { span } => {
+            assert_eq!(span.start.list(), ["svc-start-2", "start"]);
+            assert_eq!(span.stop.list(), ["svc-stop", "stop"]);
+        }
+        f => panic!("{f:?}"),
+    }
+}
+
+#[test]
+fn an_existing_run_rule_is_extended_only_when_something_new_was_found() {
+    let mut profile = Profile::default_profile();
+    let existing = crate::spans::SpanCfg {
+        kind: "run".into(),
+        label: Some("Service".into()),
+        start: crate::spans::OneOrMany::One("start".into()),
+        stop: crate::spans::OneOrMany::One("stop".into()),
+        per: "instance".into(),
+        color: None,
+        max_duration: None,
+        restart_on_start: true,
+        enabled: true,
+    };
+    profile.span = vec![existing.clone()];
+    let nothing_new = FolderSurvey {
+        lifecycle: vec![lifecycle(LifecycleRole::Start, "Already covered", Some("start"))],
+        ..FolderSurvey::default()
+    };
+    assert!(propose::propose(&nothing_new, &profile)
+        .iter()
+        .all(|c| c.group != ProposalGroup::Markers));
+
+    let new_start = FolderSurvey {
+        lifecycle: vec![lifecycle(LifecycleRole::Start, "Service booted", None)],
+        ..FolderSurvey::default()
+    };
+    let list = propose::propose(&new_start, &profile);
+    let run = candidate_by(&list, "span:run");
+    assert!(
+        run.title.contains("“Service” runs start and stop on the new markers"),
+        "{}",
+        run.title
+    );
+
+    // A rule without stops stays unusable when only a start was found.
+    profile.span = vec![crate::spans::SpanCfg {
+        stop: crate::spans::OneOrMany::Many(vec![]),
+        ..existing
+    }];
+    assert!(propose::propose(&new_start, &profile).iter().all(|c| c.id != "span:run"));
+
+    // Without any run rule, a start alone is not enough either.
+    profile.span.clear();
+    assert!(propose::propose(&new_start, &profile).iter().all(|c| c.id != "span:run"));
+}
+
+#[test]
+fn numbers_get_typed_extractors_and_the_chart_uses_the_first_metric() {
+    let mut profile = Profile::default_profile();
+    profile.chart.clear();
+    let survey = FolderSurvey {
+        numbers: vec![
+            number("Waited", NumberKind::Duration, Some("sec")),
+            number("Sent", NumberKind::Bytes, Some("bytes")),
+            number("Cache", NumberKind::Bytes, Some("KB")),
+            number("Retries", NumberKind::Number, None),
+        ],
+        ..FolderSurvey::default()
+    };
+    let list = propose::propose(&survey, &profile);
+    let spec = |id: &str| match &candidate_by(&list, id).fragments[0] {
+        Fragment::Extractor { extractor } => extractor.fields.values().next().cloned().unwrap(),
+        f => panic!("{f:?}"),
+    };
+    let waited = spec("extract:Waited");
+    assert_eq!((waited.unit.as_deref(), waited.to.as_deref()), (Some("s"), Some("ms")));
+    let sent = spec("extract:Sent");
+    assert_eq!((sent.unit.as_deref(), sent.to.as_deref()), (Some("B"), Some("MB")));
+    assert_eq!(spec("extract:Cache").unit.as_deref(), Some("KB"));
+    assert_eq!(spec("extract:Retries").to, None);
+    // The chart of the first metric needs its extractor.
+    let chart = list.iter().find(|c| c.id.starts_with("chart:waited")).expect("a metric chart");
+    assert!(chart.requires.contains(&"extract:Waited".to_string()), "{:?}", chart.requires);
+    // Without numbers or measurement-like fields there is only the error chart.
+    let bare = propose::propose(&FolderSurvey::default(), &profile);
+    assert!(
+        bare.iter()
+            .filter(|c| c.id.starts_with("chart:"))
+            .all(|c| c.id == "chart:errors-by-instance"),
+        "{bare:?}"
+    );
+}
+
+#[test]
+fn an_instance_key_the_profile_already_uses_is_not_proposed_again() {
+    let mut profile = Profile::default_profile();
+    profile.instance.key = vec!["MachineName".into()];
+    let cand = |field: &str| InstanceCandidate {
+        field: field.into(),
+        origin: KeyOrigin::Field,
+        lanes: 3,
+        coverage: 0.9,
+        score: 1.0,
+        examples: vec!["A".into()],
+    };
+    let survey = FolderSurvey {
+        instance_candidates: vec![cand("MachineName"), cand("Worker")],
+        ..FolderSurvey::default()
+    };
+    let list = propose::propose(&survey, &profile);
+    assert!(list.iter().all(|c| c.id != "instance:MachineName"));
+    let worker = candidate_by(&list, "instance:Worker");
+    assert!(!worker.recommended, "only the best candidate is recommended");
+    // The error chart splits by the key the profile already has.
+    let chart = candidate_by(&list, "chart:errors-by-instance");
+    assert!(chart.title.contains("MachineName"), "{}", chart.title);
+}
+
+#[test]
+fn error_queries_use_the_longest_literal_run_and_skip_templates_without_one() {
+    let err = |template: &str, kind: TemplateKind| TemplateSummary {
+        template: template.into(),
+        template_kind: kind,
+        count: 3,
+        level: Level::Error,
+        share: 0.1,
+        example: template.into(),
+    };
+    let w = crate::patterns::WILDCARD;
+    let survey = FolderSurvey {
+        errors: vec![
+            err(&format!("failed {w} to write the cache entry {w} twice"), TemplateKind::Mined),
+            err(&format!("{w} ab {w} cd {w}"), TemplateKind::Mined),
+            err("Could not open {Path}", TemplateKind::Serilog),
+        ],
+        ..FolderSurvey::default()
+    };
+    let list = propose::propose(&survey, &Profile::default_profile());
+    let queries: Vec<&Candidate> = list.iter().filter(|c| c.group == ProposalGroup::Queries).collect();
+    assert_eq!(queries.len(), 2, "the template with only short literals is skipped");
+    let ql = |c: &Candidate| match &c.fragments[0] {
+        Fragment::SavedQuery { ql, .. } => ql.clone(),
+        f => panic!("{f:?}"),
+    };
+    assert_eq!(
+        ql(queries[0]),
+        r#"level >= warning and @message contains "to write the cache entry""#
+    );
+    assert_eq!(ql(queries[1]), r#"@template = "Could not open {Path}""#);
+    assert_eq!(propose::ql_quote(r#"a "b" \c"#), r#""a \"b\" \\c""#);
 }

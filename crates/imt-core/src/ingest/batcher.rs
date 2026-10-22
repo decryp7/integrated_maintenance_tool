@@ -327,6 +327,54 @@ when = [{ field = "Ms", op = "gt", value = "100" }]
     }
 
     #[test]
+    fn a_full_builder_is_written_at_once_and_the_rest_at_the_end() {
+        let p = profile("");
+        let schema = Arc::new(schema_for(&p));
+        let mut sink = Collect::default();
+        let cancel = AtomicBool::new(false);
+        let mut b = RecordBatcher::new(&p, schema, SourceId(4), "app.log", &mut sink, &cancel);
+        let total = 2 * BATCH_ROWS + 3;
+        for i in 1..=total as u32 {
+            b.event(event(i, "plain", Some(i as i64))).unwrap();
+        }
+        let out = b.finish().unwrap();
+        assert_eq!((out.parsed, out.events), (total, total));
+        let sizes: Vec<usize> = sink.batches.iter().map(|b| b.num_rows()).collect();
+        assert_eq!(sizes, [BATCH_ROWS, BATCH_ROWS, 3], "two full batches, then what was left");
+        // The sink's other half of the contract: sources begin and end around the batches.
+        assert_eq!(
+            sink.begin_source(&NewSource {
+                path: "p".into(),
+                name: "n".into()
+            })
+            .unwrap(),
+            SourceId(4)
+        );
+        let report = SourceReport {
+            id: SourceId(4),
+            path: "p".into(),
+            name: "n".into(),
+            importer: "text".into(),
+            parser: crate::ports::ParserRef {
+                id: "generic".into(),
+                version: "1.0.0".into(),
+                hash: String::new(),
+            },
+            file_kind: crate::api::FileKind::Text,
+            events: total,
+            skipped: 0,
+            dropped: 0,
+            step_stats: vec![],
+            from: None,
+            to: None,
+            bytes: 0,
+            problems: vec![],
+            encoding: None,
+        };
+        assert!(sink.finish_source(&report).is_ok() && sink.abort_source(SourceId(4)).is_ok());
+    }
+
+    #[test]
     fn cancelling_stops_at_the_next_batch() {
         let p = profile("");
         let mut sink = Collect::default();

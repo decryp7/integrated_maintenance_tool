@@ -472,3 +472,77 @@ impl LiveSession {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_rate_keeps_a_bounded_history_and_counts_only_its_window() {
+        let t0 = Instant::now();
+        let mut rate = Rate::default();
+        for i in 0..(RATE_SAMPLES as u32 + 20) {
+            rate.add(t0, u64::from(i % 2) + 1);
+        }
+        assert_eq!(rate.samples.len(), RATE_SAMPLES, "the oldest samples are dropped");
+        assert!(rate.per_sec(t0) > 0.0);
+        // Everything is outside the window a while later.
+        assert_eq!(rate.per_sec(t0 + RATE_WINDOW + Duration::from_secs(1)), 0.0);
+    }
+
+    #[test]
+    fn a_cooldown_blocks_repeats_until_it_passes_and_a_mute_does_not_start_one() {
+        let mut s = LiveSession::default();
+        assert!(s.cooled("rule", Some("a"), 1_000, 500));
+        assert!(!s.cooled("rule", Some("a"), 1_400, 500), "within the cooldown");
+        assert!(s.cooled("rule", Some("b"), 1_400, 500), "another rule is independent");
+        assert!(s.cooled("rule", Some("a"), 1_500, 500), "after the cooldown");
+        // A clock that went backwards does not block a new alert forever.
+        assert!(s.cooled("rule", Some("a"), 100, 500));
+        s.mute(AlertTarget::Kind(AnomalyKind::Silence), wall_ms() + 60_000).unwrap();
+        assert!(!s.cooled("silence", Some("x"), 5_000, 500));
+        assert!(s.unmute(&AlertTarget::Kind(AnomalyKind::Silence)));
+        assert!(
+            s.cooled("silence", Some("x"), 5_000, 500),
+            "the muted attempt left no cooldown behind"
+        );
+    }
+
+    #[test]
+    fn cooldown_memory_is_bounded() {
+        let mut s = LiveSession::default();
+        let cooldown = 1_000_000;
+        for i in 0..MAX_COOLDOWNS as i64 {
+            assert!(s.cooled("rule", Some(&format!("r{i}")), i, cooldown));
+        }
+        assert_eq!(s.cooldowns.len(), MAX_COOLDOWNS);
+        // Everything is still cooling: the next one prunes the older half instead of growing without bound.
+        assert!(s.cooled("rule", Some("fresh"), MAX_COOLDOWNS as i64, cooldown));
+        assert!(s.cooldowns.len() <= MAX_COOLDOWNS / 2 + 2, "{}", s.cooldowns.len());
+        assert!(s.cooldowns.contains_key(&("rule".to_string(), Some("fresh".to_string()))));
+        // Entries whose cooldown has passed are pruned first.
+        let mut s = LiveSession::default();
+        for i in 0..MAX_COOLDOWNS as i64 {
+            s.cooled("rule", Some(&format!("r{i}")), i, 10);
+        }
+        assert!(s.cooled("rule", Some("fresh"), 1_000_000, 10));
+        assert_eq!(s.cooldowns.len(), 1);
+    }
+
+    #[test]
+    fn severities_follow_the_kind_of_finding() {
+        assert_eq!(kind_severity(AnomalyKind::Crash), Severity::Critical);
+        assert_eq!(kind_severity(AnomalyKind::ErrorSpike), Severity::Critical);
+        assert_eq!(kind_severity(AnomalyKind::Silence), Severity::Warning);
+        assert_eq!(kind_severity(AnomalyKind::SlowOutlier), Severity::Warning);
+        assert_eq!(kind_severity(AnomalyKind::MemoryGrowth), Severity::Warning);
+        assert_eq!(kind_severity(AnomalyKind::RateChange), Severity::Info);
+    }
+
+    #[test]
+    fn the_wall_clock_is_the_current_time() {
+        let before = chrono::Utc::now().timestamp_millis();
+        let now = wall_ms();
+        assert!(now >= before && now - before < 5_000);
+    }
+}

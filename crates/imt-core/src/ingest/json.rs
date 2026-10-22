@@ -265,4 +265,12 @@ mod tests {
         assert_eq!((skipped, out.events.len()), (1, 1));
         assert_eq!(out.problems.count(ProblemKind::LineTooLong), 1);
     }
+
+    #[test]
+    fn blank_lines_between_json_lines_are_not_events_or_problems() {
+        let content = "\n{\"@t\":\"2026-10-14T10:00:00Z\",\"@m\":\"a\"}\n   \n\n{\"@t\":\"2026-10-14T10:00:01Z\",\"@m\":\"b\"}\n";
+        let (out, skipped) = run(content, JsonShape::Lines, 1 << 20);
+        assert_eq!((out.events.len(), skipped), (2, 0));
+        assert_eq!(out.events.iter().map(|e| e.record.line).collect::<Vec<_>>(), [2, 5]);
+    }
 }

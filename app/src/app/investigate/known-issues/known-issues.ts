@@ -1,5 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { AiStatusStore } from '../../ai/ai-status.store';
 import { IssueMatch } from '../../core/api.types';
 import { formatCount } from '../../core/format';
@@ -22,6 +22,9 @@ export const KNOWN_ISSUE_EXAMPLE = '```known-issue\ntitle: Payment gateway timeo
   template: `
     <section class="issues" aria-labelledby="known-issues-title" data-testid="known-issues">
       <div class="head">
+        <button type="button" class="icon-btn" data-testid="known-issues-toggle" [attr.aria-expanded]="expanded()" aria-controls="known-issues-body" aria-label="Show or hide the known issues" i18n-aria-label="@@known.issues.toggle" (click)="toggle()">
+          <imt-icon [name]="expanded() ? 'chevronDown' : 'chevronRight'" [size]="12" />
+        </button>
         <h3 id="known-issues-title" i18n="@@known.issues.title">Known issues ({{ total() }})</h3>
         <span class="spacer"></span>
         <button
@@ -39,6 +42,7 @@ export const KNOWN_ISSUE_EXAMPLE = '```known-issue\ntitle: Payment gateway timeo
           <imt-icon name="refresh" [size]="13" />
         </button>
       </div>
+      <div id="known-issues-body" class="body" [hidden]="!expanded()">
       @if (!ai.hasModel()) {
         <div class="hint faint" data-testid="known-issues-no-model">{{ noModelHint }}</div>
       }
@@ -91,6 +95,7 @@ export const KNOWN_ISSUE_EXAMPLE = '```known-issue\ntitle: Payment gateway timeo
           </details>
         }
       }
+      </div>
     </section>
 
     <ng-template #card let-m>
@@ -104,14 +109,19 @@ export const KNOWN_ISSUE_EXAMPLE = '```known-issue\ntitle: Payment gateway timeo
         <div class="line meta">
           <span class="faint" i18n="@@known.issues.file">From {{ m.issue.file }}</span>
           <span class="spacer"></span>
+          @if (m.origin === 'ai') {
+            <button type="button" class="btn" data-testid="known-issue-accept" [attr.aria-pressed]="isAccepted(m)" (click)="store.toggleAccepted(m.issue.id)">{{ isAccepted(m) ? acceptedLabel : acceptLabel }}</button>
+          }
           <button type="button" class="btn" data-testid="known-issue-show" (click)="show(m)" i18n="@@known.issues.show">Show events</button>
+          <button type="button" class="btn" data-testid="known-issue-select" (click)="selectEvidence(m)" i18n="@@known.issues.selectEvidence">Select evidence</button>
         </div>
       </li>
     </ng-template>
   `,
   styles: `
-    :host { display: block; flex: none; max-height: 55%; overflow: auto; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); color: var(--text-2); }
+    :host { display: block; flex: none; max-height: min(40%, 320px); min-height: 0; overflow: auto; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); color: var(--text-2); }
     .issues { padding: 6px 12px; }
+    .body[hidden] { display: none; }
     .head { display: flex; align-items: center; gap: 8px; }
     h3 { margin: 0; font-size: var(--fs-md); color: var(--text); }
     .sub { margin: 8px 0 4px; font-size: var(--fs-sm); color: var(--text); }
@@ -143,10 +153,16 @@ export class KnownIssues {
   protected readonly example = KNOWN_ISSUE_EXAMPLE;
   protected readonly suggestLabel = $localize`:@@known.issues.suggest:Suggest with AI`;
   protected readonly suggestingLabel = $localize`:@@known.issues.suggestingLabel:Suggesting…`;
+  protected readonly acceptLabel = $localize`:@@known.issues.accept:Accept for report`;
+  protected readonly acceptedLabel = $localize`:@@known.issues.accepted:Accepted`;
   protected readonly noModelHint = $localize`:@@known.issues.needsModel:Needs an AI model: set one up in Settings > AI`;
 
   protected readonly total = computed(() => (this.store.report()?.matches.length ?? 0) + this.store.suggestions().length);
   protected readonly empty = computed(() => this.store.report() !== null && this.total() === 0 && !this.store.error());
+
+  /** The user's choice; until they make one the section is open exactly when it has something to show. */
+  private readonly userExpanded = signal<boolean | null>(null);
+  protected readonly expanded = computed(() => this.userExpanded() ?? this.total() > 0);
 
   constructor() {
     // Matched while the Problems pane shows this section, and again when the workspace changes.
@@ -160,6 +176,21 @@ export class KnownIssues {
   protected countLabel(m: IssueMatch): string {
     const n = formatCount(m.count);
     return $localize`:@@known.issues.count:${n}:n: events`;
+  }
+
+  protected isAccepted(m: IssueMatch): boolean {
+    return this.store.accepted().includes(m.issue.id);
+  }
+
+  protected toggle(): void {
+    this.userExpanded.set(!this.expanded());
+  }
+
+  /** Filters the events to the match's query and selects its first sample event (the evidence) in the grid. */
+  protected selectEvidence(m: IssueMatch): void {
+    this.show(m);
+    const first = m.sampleIds[0];
+    if (first !== undefined) void this.ctx.jumpTo(first);
   }
 
   /** Filters the workspace to the events of the match and shows them in the grid. */

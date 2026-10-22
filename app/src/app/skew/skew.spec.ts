@@ -296,6 +296,7 @@ describe('clock section, commands, sidebar and inspector', () => {
 
   it('shows the original timestamp of a shifted event in the inspector', async () => {
     const { backend, store, skew } = setup();
+    store.setTimezone('utc'); // the expected wall-clock text must not depend on the host's zone
     await settle();
     await skew.apply({ kind: 'manual', source: 1, offsetMs: 2350 });
     const moved = (await rows(backend)).find((r) => r.message === 'Application starting — Worker')!;

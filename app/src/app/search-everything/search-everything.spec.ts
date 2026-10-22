@@ -11,6 +11,7 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { CommandContext, flattenContributions, IMT_COMMANDS, ImtCommand } from '../extensions/tokens';
 import { NOTES_VIEW } from '../notes/note-actions';
+import { ExceptionFocus } from '../analysis/exception-focus';
 import { KnowledgeBackend } from '../ai/knowledge/knowledge-backend';
 import { KnowledgeEditor } from '../ai/knowledge/knowledge-editor';
 import { DialogService } from '../ui/dialog.service';
@@ -59,7 +60,7 @@ class FakeBackend extends SearchEverythingBackend {
   }
 }
 
-const ctx = () => ({ showView: vi.fn(), jumpTo: vi.fn(async (_id: number) => undefined), setQuery: vi.fn(), addFilter: vi.fn() });
+const ctx = () => ({ notifyError: vi.fn(), showView: vi.fn(), jumpTo: vi.fn(async (_id: number) => undefined), setQuery: vi.fn(), addFilter: vi.fn() });
 
 function provide(backend: SearchEverythingBackend = new FakeBackend(), context = ctx()) {
   TestBed.configureTestingModule({ providers: [...provideTinyBackend(), { provide: SearchEverythingBackend, useValue: backend }, { provide: COMMAND_CONTEXT, useValue: context as unknown as CommandContext }] });
@@ -141,7 +142,7 @@ describe('search everything model', () => {
       { kind: 'field', field: 'TimeoutMs', value: null },
       { kind: 'field', field: 'Reason', value: 'timeout' },
       { kind: 'marker', marker: 'timeout' },
-      { kind: 'exception', sample: 9 },
+      { kind: 'exception', fingerprint: 'fp1', sample: 9 },
       { kind: 'note', id: 'n1', event: 4 },
       { kind: 'knowledge', scope: 'global', id: 'k1' },
     ]);
@@ -238,8 +239,15 @@ describe('search everything navigation', () => {
     expect(context.jumpTo).not.toHaveBeenCalled();
     nav.go({ kind: 'note', id: 'n1', event: 9 });
     expect(context.jumpTo).toHaveBeenLastCalledWith(9);
-    nav.go({ kind: 'exception', sample: 9 });
+    context.jumpTo.mockClear();
+    nav.go({ kind: 'exception', fingerprint: 'fp1', sample: 9 });
     expect(context.showView).toHaveBeenLastCalledWith(EXCEPTIONS_VIEW);
+    expect(TestBed.inject(ExceptionFocus).fingerprint()).toBe('fp1');
+    expect(context.jumpTo).toHaveBeenLastCalledWith(9);
+    context.jumpTo.mockClear();
+    nav.go({ kind: 'exception', fingerprint: 'fp2', sample: null });
+    expect(TestBed.inject(ExceptionFocus).fingerprint()).toBe('fp2');
+    expect(context.jumpTo).not.toHaveBeenCalled();
     nav.go({ kind: 'allEvents', text: 'timeout' });
     expect(TestBed.inject(WorkspaceStore).textInput()).toBe('timeout');
   });
@@ -247,7 +255,7 @@ describe('search everything navigation', () => {
 
 describe('search everything knowledge results', () => {
   it('open the file in the knowledge editor, listing the files first when they were not listed yet', async () => {
-    provide();
+    const { context } = provide();
     const backend = TestBed.inject(KnowledgeBackend);
     const made = await backend.createKnowledge('global', 'Glossary', 'ACME-GW');
     const open = vi.spyOn(TestBed.inject(DialogService), 'open').mockImplementation(() => undefined as never);
@@ -259,6 +267,7 @@ describe('search everything knowledge results', () => {
     nav.go({ kind: 'knowledge', scope: 'project', id: 'missing' });
     await new Promise((r) => setTimeout(r));
     expect(open).toHaveBeenCalledTimes(1);
+    expect(context.notifyError).toHaveBeenCalledWith('This knowledge file no longer exists.');
   });
 });
 

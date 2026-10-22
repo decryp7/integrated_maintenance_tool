@@ -545,4 +545,25 @@ mod tests {
         assert!(matches!(lib.save(&parser("x", "1.0.0"), None, false), Err(LibraryError::Io(_))));
         assert!(matches!(lib.set_enabled("generic", false), Err(LibraryError::Io(_))));
     }
+
+    #[test]
+    fn renaming_a_disabled_parser_keeps_it_disabled_and_removes_the_old_file() {
+        let d = Dir::new("rename-disabled");
+        let mut lib = Library::load(&d.0);
+        lib.save(&parser("orders", "1.0.0"), None, false).unwrap();
+        lib.set_enabled("orders", false).unwrap();
+        lib.save(&parser("orders-v2", "1.0.0"), Some("orders"), false).unwrap();
+        assert!(!d.0.join("orders.toml").exists(), "the old file is gone");
+        assert!(lib.get("orders").is_none());
+        assert!(!lib.get("orders-v2").unwrap().enabled, "the rename keeps the disabled state");
+    }
+
+    #[test]
+    fn removing_a_file_reports_what_cannot_be_removed_and_forgives_a_missing_one() {
+        let d = Dir::new("remove-file");
+        std::fs::create_dir_all(&d.0).unwrap();
+        assert!(remove_file(&d.0.join("missing.toml")).is_ok());
+        let err = remove_file(&d.0).unwrap_err();
+        assert!(matches!(&err, LibraryError::Io(m) if m.starts_with("cannot remove ")), "{err:?}");
+    }
 }

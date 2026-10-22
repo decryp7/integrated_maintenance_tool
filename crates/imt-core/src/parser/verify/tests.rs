@@ -182,3 +182,65 @@ fn uptime_events_count_from_the_boot_time() {
     assert_eq!(v.timestamps.last, Some(modified));
     assert!(v.done(), "no level group: levels are not required: {}", v.feedback());
 }
+
+#[test]
+fn lines_before_the_first_event_and_unproductive_identity_and_metric_rules_are_named() {
+    // A banner before the first event belongs to no event.
+    let content = format!("== shop log, started ==\n{}", shop(30));
+    let v = run(&parser(PIPES, "identity = ['NoSuchField']"), &content, &FileFacts::default(), &[]);
+    let banner = v
+        .failures
+        .iter()
+        .find(|f| f.rule == FailedRule::Format)
+        .unwrap_or_else(|| panic!("{:?}", v.failures));
+    assert_eq!(banner.line, 1);
+    assert_eq!(banner.reason, "no line pattern reads this line");
+    assert!(banner.fragment.starts_with("== shop log"));
+
+    // An identity field the parser never produces, and a metric that never matches, are rejected with a reason.
+    assert!(!v.identity[0].accepted && !v.identity[0].reason.is_empty());
+    let never = [MetricRule {
+        name: "Latency".into(),
+        regex: r"latency=(?P<value>\d+)ms".into(),
+        unit: "ms".into(),
+    }];
+    let v = run(
+        &parser(PIPES, "identity = ['NoSuchField']"),
+        &content,
+        &FileFacts::default(),
+        &never,
+    );
+    assert!(!v.metrics[0].accepted);
+    let feedback = v.feedback();
+    assert!(feedback.contains("identity field NoSuchField rejected: "), "{feedback}");
+    assert!(feedback.contains("metric Latency rejected: "), "{feedback}");
+    assert!(feedback.contains("[Format] `== shop log, started ==`"), "{feedback}");
+}
+
+#[test]
+fn a_sample_no_parser_pattern_reads_at_all_reports_the_start_of_the_file() {
+    let content: String = (0..12).map(|i| format!("just words {i}\n")).collect();
+    let v = run(&parser(PIPES, ""), &content, &FileFacts::default(), &[]);
+    assert_eq!((v.events, v.readable), (0, 0));
+    assert_eq!(v.failures.len(), 1, "{:?}", v.failures);
+    assert_eq!(v.failures[0].line, 1);
+    assert!(!v.done());
+    // Blank lines alone are nothing to read: the verdict says no pattern matches the file.
+    let blank = run(&parser(PIPES, ""), "\n\n\n", &FileFacts::default(), &[]);
+    assert_eq!((blank.lines, blank.readable, blank.events), (0, 0, 0));
+    assert_eq!(blank.failures.len(), 1, "{:?}", blank.failures);
+    assert_eq!(
+        blank.failures[0].reason,
+        "no output template or regex in the profile matches this file"
+    );
+    assert!(!blank.done());
+}
+
+#[test]
+fn blank_lines_are_not_counted_or_blamed() {
+    let content = format!("{}\n\n   \n{}", shop(3), shop(2));
+    let v = run(&parser(PIPES, ""), &content, &FileFacts::default(), &[]);
+    assert_eq!(v.events, 5);
+    assert_eq!(v.lines, 5, "blank lines are not lines of the log");
+    assert!(v.failures.is_empty(), "{:?}", v.failures);
+}

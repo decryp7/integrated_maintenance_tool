@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import { ExceptionFocus } from '../analysis/exception-focus';
 import { openKnowledgeEditor } from '../ai/knowledge/knowledge-editor';
 import { KnowledgeStore } from '../ai/knowledge/knowledge.store';
 import { WorkspaceStore } from '../core/workspace.store';
@@ -20,6 +21,7 @@ export class SearchEverythingNavigator {
   private readonly workspace = inject(WorkspaceStore);
   private readonly dialogs = inject(DialogService);
   private readonly knowledge = inject(KnowledgeStore);
+  private readonly exceptions = inject(ExceptionFocus);
 
   go(target: SearchTarget): void {
     const ctx = this.context;
@@ -45,7 +47,9 @@ export class SearchEverythingNavigator {
         ctx.showView(EVENTS_VIEW);
         break;
       case 'exception':
+        this.exceptions.request(target.fingerprint);
         ctx.showView(EXCEPTIONS_VIEW);
+        if (target.sample !== null) void ctx.jumpTo(target.sample);
         break;
       case 'note':
         ctx.showView(NOTES_VIEW);
@@ -62,5 +66,6 @@ export class SearchEverythingNavigator {
     if (!this.knowledge.list()) await this.knowledge.load();
     const file = (scope === 'project' ? this.knowledge.project() : this.knowledge.global()).find((f) => f.id === id);
     if (file) openKnowledgeEditor(this.dialogs, file, scope, this.knowledge.list()?.maxFileBytes ?? 64 * 1024);
+    else this.context.notifyError($localize`:@@search.knowledge.gone:This knowledge file no longer exists.`);
   }
 }

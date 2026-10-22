@@ -478,3 +478,79 @@ pub fn moment_queries(base: &crate::query::Query, from: i64, to: i64) -> [crate:
         },
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::Record;
+    use crate::row::RecordRow;
+
+    fn event(id: u32, level: Level, msg: &str, took: Option<f64>, user: Option<&str>) -> Record {
+        let mut r = Record::new(id);
+        r.id = id;
+        r.ts = Some(1_000 + i64::from(id));
+        r.level = level;
+        r.message = msg.into();
+        if let Some(t) = took {
+            r.fields.insert("Took".into(), serde_json::json!(t));
+        }
+        if let Some(u) = user {
+            r.fields.insert("UserName".into(), u.into());
+        }
+        r
+    }
+
+    fn cfg() -> ActivityCfg {
+        ActivityCfg {
+            user: vec!["UserName".into()],
+            action: vec![],
+            metrics: vec!["Took".into()],
+        }
+    }
+
+    #[test]
+    fn the_moment_counts_levels_errors_users_and_compares_metrics_with_the_window_before() {
+        let cfg = cfg();
+        let mut b = MomentBuilder::new(&cfg, 1_000);
+        let events = [
+            event(1, Level::Information, "login ok", Some(20.0), Some("ann")),
+            event(2, Level::Warning, "slow", Some(20.0), Some("ann")),
+            event(3, Level::Error, "boom", None, None),
+            event(4, Level::Fatal, "worse", None, None),
+        ];
+        for e in &events {
+            b.add(&RecordRow { rec: e, source: "app.log" }, "WEB01");
+        }
+        let mut before = MetricCollector::new(&cfg.metrics);
+        before.add_summary("WEB01".into(), "Took".into(), 4, 40.0);
+        before.add_summary("WEB01".into(), "Took".into(), 0, 999.0); // no samples: ignored
+        let m = b.finish(2_000, before, vec![]);
+        assert_eq!((m.total, m.levels[&Level::Error], m.levels[&Level::Warning]), (4, 1, 1));
+        let inst = &m.instances[0];
+        assert_eq!((inst.key.as_str(), inst.events, inst.warnings, inst.errors), ("WEB01", 4, 1, 2));
+        assert_eq!(inst.first_error, Some(3), "the first error, not the first fatal");
+        assert_eq!((m.users[0].value.as_str(), m.users[0].count), ("ann", 2));
+        assert_eq!(m.activity.len(), 2, "events with a user are activity");
+        // Average 20 against 10 in the window before: +100%.
+        let took = m.metrics.iter().find(|w| w.metric == "Took").unwrap();
+        assert_eq!((took.samples, took.avg, took.previous_avg), (2, 20.0, Some(10.0)));
+        assert_eq!(took.change_pct, Some(100.0));
+    }
+
+    #[test]
+    fn a_metric_whose_window_before_averaged_zero_has_no_percentage() {
+        let cfg = cfg();
+        let mut b = MomentBuilder::new(&cfg, 0);
+        b.add(
+            &RecordRow {
+                rec: &event(1, Level::Information, "x", Some(5.0), None),
+                source: "s",
+            },
+            "i",
+        );
+        let mut before = MetricCollector::new(&cfg.metrics);
+        before.add_summary("i".into(), "Took".into(), 3, 0.0);
+        let m = b.finish(10, before, vec![]);
+        assert_eq!((m.metrics[0].previous_avg, m.metrics[0].change_pct), (Some(0.0), None));
+    }
+}

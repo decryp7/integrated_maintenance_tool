@@ -529,11 +529,10 @@ mod tests {
         f(&env)
     }
 
+    #[rustfmt::skip]
     fn read(env: &ImportEnv, p: &Path, src: &NewSource, start: TailStart, flush: bool, sink: &mut Memory) -> RegionRead {
-        match read_appended(env, p, src, SourceId(7), start, flush, sink).unwrap() {
-            Region::Read(r) => r,
-            Region::Whole(why) => panic!("whole: {why}"),
-        }
+        let Region::Read(r) = read_appended(env, p, src, SourceId(7), start, flush, sink).unwrap() else { panic!("whole") };
+        r
     }
 
     #[test]
@@ -639,6 +638,41 @@ mod tests {
     }
 
     #[test]
+    fn files_no_parser_reads_are_read_whole_with_the_reason() {
+        with_env(|env| {
+            let mut sink = Memory::default();
+            // Lines with a time of day only match no parser of the default library: the reason says so.
+            let (p, src) = temp("tod.log", b"10:00:00 INFO a\n10:00:01 INFO b\n10:00:02 INFO c\n");
+            let start = TailStart { byte: 16, line: 2 };
+            let r = read_appended(env, &p, &src, SourceId(0), start, false, &mut sink).unwrap();
+            assert!(matches!(&r, Region::Whole(why) if why.contains("no enabled parser")), "{r:?}");
+            assert!(begin_at_end(env, &p, &src, &mut sink).unwrap().is_err());
+            // Bytes no importer recognises: the reason comes from choosing the importer or the plan.
+            let (p, src) = temp("blob.bin", &[0u8, 1, 2, 3, 0, 0, 9, 9, 0, 1, 255, 254, 0, 0]);
+            let r = read_appended(env, &p, &src, SourceId(0), TailStart { byte: 0, line: 1 }, false, &mut sink).unwrap();
+            let Region::Whole(why) = r else { panic!("{r:?}") };
+            assert!(!why.is_empty());
+            assert!(
+                sink.finished.is_empty() && sink.batches.is_empty(),
+                "nothing is written for a file read whole"
+            );
+        });
+    }
+
+    #[test]
+    fn lines_that_belong_to_no_event_are_reported_while_the_last_event_is_held() {
+        let (p, src) = temp("p.log", b"2026-10-14 10:00:00 INFO one\n");
+        with_env(|env| {
+            let mut sink = Memory::default();
+            // The appended text starts mid-event: its first line has no timestamp and no event to continue.
+            append(&p, b"orphan continuation\n2026-10-14 10:00:01 INFO two\n");
+            let r = read(env, &p, &src, TailStart { byte: 29, line: 2 }, false, &mut sink);
+            assert!(r.held, "{r:?}");
+            assert!(!r.batched.problems.is_empty(), "the stray line is counted: {r:?}");
+        });
+    }
+
+    #[test]
     fn a_file_begun_at_its_end_has_no_events_and_continues_after_its_lines() {
         let (p, src) = temp("e.log", b"2026-10-14 10:00:00 INFO old\n2026-10-14 10:00:01 INFO old2\npartial");
         with_env(|env| {
@@ -690,5 +724,44 @@ mod tests {
             assert_eq!(sink.messages(), [(2, "two".to_string())]);
             assert_eq!(r.next.byte, (first.len() + more.len()) as u64);
         });
+    }
+
+    #[test]
+    fn a_read_before_the_bom_starts_after_it_and_a_read_at_the_end_is_empty() {
+        let line = "2026-10-14 10:00:00 INFO one\n";
+        let mut bytes = b"\xEF\xBB\xBF".to_vec();
+        bytes.extend_from_slice(line.as_bytes());
+        let (p, src) = temp("bom.log", &bytes);
+        with_env(|env| {
+            let mut sink = Memory::default();
+            let r = read(env, &p, &src, TailStart { byte: 0, line: 1 }, true, &mut sink);
+            assert_eq!(sink.messages(), [(1, "one".to_string())]);
+            assert_eq!(r.next.byte, bytes.len() as u64);
+            // Nothing past the end: an empty read that keeps its place.
+            let size = bytes.len() as u64;
+            let at_end = TailStart { byte: size, line: 2 };
+            let r = read(env, &p, &src, at_end, false, &mut sink);
+            assert_eq!((r.batched.events, r.next, r.held, r.size), (0, at_end, false, size));
+            assert_eq!(sink.messages().len(), 1);
+        });
+    }
+
+    #[test]
+    fn a_last_line_longer_than_a_scan_block_is_found_by_scanning_back() {
+        let head = "2026-10-14 10:00:00 INFO one\n";
+        // Whole line, then a very long unterminated line: the end of the whole line lies blocks before the end.
+        let mut bytes = head.as_bytes().to_vec();
+        bytes.extend(std::iter::repeat_n(b'x', SCAN_BLOCK * 2 + 17));
+        let (p, _) = temp("long.log", &bytes);
+        let mut file = std::fs::File::open(&p).unwrap();
+        let end = last_line_end(&mut file, Encoding::Utf8, 0, bytes.len() as u64).unwrap();
+        assert_eq!(end, head.len() as u64);
+        // No newline anywhere: the scan gives up at the start.
+        let (p, _) = temp("nonl.log", &bytes[head.len()..]);
+        let mut file = std::fs::File::open(&p).unwrap();
+        let len = std::fs::metadata(&p).unwrap().len();
+        assert_eq!(last_line_end(&mut file, Encoding::Utf8, 0, len).unwrap(), 0);
+        // A short region without a newline stops at its first block.
+        assert_eq!(last_line_end(&mut file, Encoding::Utf8, 5, 9).unwrap(), 5);
     }
 }

@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { invoke } from '../core/activity/ipc';
 import { IncidentRequest, IssueReport, IssueMatch, Playbook, PlaybookLibrary, PlaybookRestore, PlaybookRun, PlaybookStepResult, PlaybookStep, Report } from '../core/api.types';
+import { AiStatusStore } from '../ai/ai-status.store';
 import { ImtBackend } from '../core/backend';
 import { reportBackendFailures } from '../core/failure-reporter';
 import { Logger, withFailureLogging } from '../core/logger';
@@ -102,13 +103,19 @@ export class TauriPlaybookBackend extends PlaybookBackend {
   }
 }
 
+/** The mock's "is a model set up" answer is the AI status itself, so `?mockAi=setup` drives it too. */
+function mockHasModel(): () => boolean {
+  const ai = inject(AiStatusStore);
+  return () => ai.hasModel();
+}
+
 export function createKnownIssuesBackend(): KnownIssuesBackend {
-  const backend: KnownIssuesBackend = isTauri() ? new TauriKnownIssuesBackend() : new (browserMocks().MockKnownIssuesBackend)(inject(ImtBackend));
+  const backend: KnownIssuesBackend = isTauri() ? new TauriKnownIssuesBackend() : new (browserMocks().MockKnownIssuesBackend)(inject(ImtBackend), mockHasModel());
   return withFailureLogging<KnownIssuesBackend>(backend, inject(Logger), { onFailure: reportBackendFailures() });
 }
 
 export function createIncidentBackend(): IncidentBackend {
-  const backend: IncidentBackend = isTauri() ? new TauriIncidentBackend() : new (browserMocks().MockIncidentBackend)(inject(ImtBackend));
+  const backend: IncidentBackend = isTauri() ? new TauriIncidentBackend() : new (browserMocks().MockIncidentBackend)(inject(ImtBackend), mockHasModel());
   return withFailureLogging<IncidentBackend>(backend, inject(Logger), { onFailure: reportBackendFailures() });
 }
 

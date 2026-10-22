@@ -360,10 +360,14 @@ mod tests {
         finished: Vec<SourceReport>,
         aborted: Vec<SourceId>,
         fail_finish: bool,
+        fail_begin: bool,
     }
 
     impl BatchSink for Memory {
         fn begin_source(&mut self, _source: &NewSource) -> Result<SourceId> {
+            if self.fail_begin {
+                anyhow::bail!("no space left");
+            }
             self.next_source += 1;
             Ok(SourceId(self.next_source - 1))
         }
@@ -436,14 +440,10 @@ mod tests {
         assert_eq!((r.events, r.importer.as_str(), r.file_kind), (3, "text", FileKind::Text));
         assert_eq!(sink.batches[0].row(1).byte_offset(), 10, "after the BOM and the banner");
         let json = write(&dir, "b.json", b"{\"@t\":\"2026-10-14T10:00:00Z\",\"@m\":\"x\"}\n");
-        let Outcome::Imported(r) = &import_path(&env, &json, "b.json", &none, &mut sink)[0] else {
-            panic!()
-        };
+        let r = &imported(import_path(&env, &json, "b.json", &none, &mut sink));
         assert_eq!((r.events, r.id), (1, SourceId(1)));
         let csv = write(&dir, "c.csv", b"Time,Level,Message\n2026-10-14 10:00:00,Info,first\n");
-        let Outcome::Imported(r) = &import_path(&env, &csv, "c.csv", &none, &mut sink)[0] else {
-            panic!()
-        };
+        let r = &imported(import_path(&env, &csv, "c.csv", &none, &mut sink));
         assert_eq!(r.importer, "csv");
         for (name, bytes, reason) in [
             ("empty.log", &b""[..], "empty file"),
@@ -455,23 +455,17 @@ mod tests {
             ("bin.dat", &[0u8, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 1, 2, 3][..], "binary file"),
         ] {
             let p = write(&dir, name, bytes);
-            let Outcome::Unrecognized(u) = &import_path(&env, &p, name, &none, &mut sink)[0] else {
-                panic!("{name}")
-            };
+            let u = &unrecognised(import_path(&env, &p, name, &none, &mut sink));
             assert_eq!(u.reason, reason);
         }
-        let Outcome::Unrecognized(u) = &import_path(&env, &dir.join("missing.log"), "missing.log", &none, &mut sink)[0] else {
-            panic!()
-        };
+        let u = &unrecognised(import_path(&env, &dir.join("missing.log"), "missing.log", &none, &mut sink));
         assert!(!u.reason.is_empty());
         // A file the importer finds nothing in is removed again.
         let empty_json = write(&dir, "e.json", b"{\"@t\":\"2026-10-14T10:00:00Z\"}\n");
         let p = CompiledProfile::compile(Profile::from_toml("[[pipeline]]\nstep = 'drop'").unwrap()).unwrap();
         let p = ParserSet::of_compiled(p);
         let env2 = ImportEnv { parsers: &p, ..env };
-        let Outcome::Imported(r) = &import_path(&env2, &empty_json, "e.json", &none, &mut sink)[0] else {
-            panic!()
-        };
+        let r = &imported(import_path(&env2, &empty_json, "e.json", &none, &mut sink));
         assert_eq!((r.events, r.dropped), (0, 1));
         std::fs::remove_dir_all(dir).ok();
     }
@@ -506,19 +500,138 @@ mod tests {
             ..Memory::default()
         };
         let text = write(&dir, "x.log", b"2026-10-14 10:00:00 INFO a\n");
-        let Outcome::Unrecognized(u) = &import_path(&env, &text, "x.log", &HashSet::new(), &mut failing)[0] else {
-            panic!()
-        };
+        let u = &unrecognised(import_path(&env, &text, "x.log", &HashSet::new(), &mut failing));
         assert_eq!(u.reason, "disk full");
         assert_eq!(failing.aborted, [SourceId(0)]);
         assert!(failing.batches.is_empty());
         // Cancelled: not imported, removed.
         let cancelled = AtomicBool::new(true);
         let env3 = ImportEnv { cancel: &cancelled, ..env };
-        let Outcome::Unrecognized(u) = &import_path(&env3, &text, "x.log", &HashSet::new(), &mut sink)[0] else {
-            panic!()
-        };
+        let u = &unrecognised(import_path(&env3, &text, "x.log", &HashSet::new(), &mut sink));
         assert_eq!(u.reason, NOT_IMPORTED);
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    /// The report of the only outcome of an import, which must have been imported.
+    #[rustfmt::skip]
+    fn imported(mut outcomes: Vec<Outcome>) -> SourceReport {
+        let Outcome::Imported(r) = outcomes.remove(0) else { panic!("not imported") };
+        r
+    }
+
+    /// The only outcome of an import, which must have been refused.
+    #[rustfmt::skip]
+    fn unrecognised(mut outcomes: Vec<Outcome>) -> UnrecognizedFile {
+        let Outcome::Unrecognized(u) = outcomes.remove(0) else { panic!("not unrecognised") };
+        u
+    }
+
+    /// A binary importer for files starting with `BINX`: `BINX<n>` yields n events; `BINXfail` fails and
+    /// `BINXpanic` crashes.
+    struct Bin;
+
+    impl crate::importers::BinaryImporter for Bin {
+        fn id(&self) -> &str {
+            "test-bin"
+        }
+        fn sniff(&self, _ctx: &ImportCtx, head: &[u8]) -> u8 {
+            if head.starts_with(b"BINX") {
+                90
+            } else {
+                0
+            }
+        }
+        fn import(&self, _ctx: &ImportCtx, bytes: &[u8]) -> Result<crate::importers::Imported> {
+            let rest = String::from_utf8_lossy(&bytes[4..]).into_owned();
+            match rest.as_str() {
+                "fail" => anyhow::bail!("the file is damaged"),
+                "panic" => panic!("importer bug"),
+                n => Ok(crate::importers::Imported {
+                    records: (0..n.parse::<u32>().unwrap_or(0))
+                        .map(|i| {
+                            let mut r = crate::model::Record::new(i + 1);
+                            r.ts = Some(1_000 + i64::from(i));
+                            r.message = format!("event {i}");
+                            r
+                        })
+                        .collect(),
+                    skipped: 0,
+                    problems: Default::default(),
+                }),
+            }
+        }
+    }
+
+    #[test]
+    fn binary_importers_read_whole_files_and_their_failures_are_contained() {
+        let dir = temp();
+        let (mut importers, profile) = env_parts();
+        importers.register_binary(Box::new(Bin));
+        let cancel = AtomicBool::new(false);
+        let env = ImportEnv {
+            encodings: &Default::default(),
+            importers: &importers,
+            parsers: &profile,
+            schema: Arc::new(EventSchema::plain()),
+            cancel: &cancel,
+        };
+        let none = HashSet::new();
+        let mut sink = Memory::default();
+        let ok = write(&dir, "a.bin", b"BINX3");
+        let r = imported(import_path(&env, &ok, "a.bin", &none, &mut sink));
+        assert_eq!(
+            (r.events, r.importer.as_str(), r.file_kind, r.bytes),
+            (3, "test-bin", FileKind::Binary, 5)
+        );
+        // Other files are still sniffed by it and read by their own importer.
+        let text = write(&dir, "t.log", b"2026-10-14 10:00:00 INFO plain\n");
+        assert_eq!(imported(import_path(&env, &text, "t.log", &none, &mut sink)).importer, "text");
+        // An importer that finds nothing, one that fails and one that crashes: each only fails its own file.
+        let empty = write(&dir, "empty.bin", b"BINX0");
+        let u = unrecognised(import_path(&env, &empty, "empty.bin", &none, &mut sink));
+        assert_eq!((u.reason.as_str(), u.crashed), ("test-bin importer found no events", false));
+        let bad = write(&dir, "bad.bin", b"BINXfail");
+        let u = unrecognised(import_path(&env, &bad, "bad.bin", &none, &mut sink));
+        assert!(u.reason.contains("the file is damaged") && !u.crashed, "{}", u.reason);
+        let boom = write(&dir, "boom.bin", b"BINXpanic");
+        let u = unrecognised(import_path(&env, &boom, "boom.bin", &none, &mut sink));
+        assert!(u.crashed && u.reason.contains("please report this file"), "{}", u.reason);
+        // Everything that failed was removed again; the good sources are the only ones left.
+        assert_eq!(sink.finished.len(), 2, "the binary file and the text file");
+        assert_eq!(sink.aborted.len(), 3);
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[test]
+    fn a_sink_that_cannot_begin_a_source_and_unreadable_files_are_reported_not_raised() {
+        let dir = temp();
+        let (importers, profile) = env_parts();
+        let cancel = AtomicBool::new(false);
+        let env = ImportEnv {
+            encodings: &Default::default(),
+            importers: &importers,
+            parsers: &profile,
+            schema: Arc::new(EventSchema::plain()),
+            cancel: &cancel,
+        };
+        let mut no_space = Memory {
+            fail_begin: true,
+            ..Memory::default()
+        };
+        let log = write(&dir, "a.log", b"2026-10-14 10:00:00 INFO a\n");
+        let u = unrecognised(import_path(&env, &log, "a.log", &HashSet::new(), &mut no_space));
+        assert_eq!(u.reason, "no space left");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let locked = write(&dir, "locked.log", b"2026-10-14 10:00:00 INFO a\n");
+            std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).unwrap();
+            let mut sink = Memory::default();
+            let out = import_path(&env, &locked, "locked.log", &HashSet::new(), &mut sink);
+            std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o600)).unwrap();
+            let u = &unrecognised(out);
+            assert!(u.reason.to_lowercase().contains("permission"), "{}", u.reason);
+        }
         std::fs::remove_dir_all(dir).ok();
     }
 
@@ -530,5 +643,24 @@ mod tests {
         assert_eq!((h.as_slice(), whole), (&b"abc"[..], false));
         let (_, whole) = read_head(&mut &b"ab"[..], 3).unwrap();
         assert!(whole);
+    }
+
+    #[test]
+    fn a_directory_given_as_a_file_is_reported_not_read() {
+        let dir = temp();
+        let (importers, profile) = env_parts();
+        let cancel = AtomicBool::new(false);
+        let env = ImportEnv {
+            encodings: &Default::default(),
+            importers: &importers,
+            parsers: &profile,
+            schema: Arc::new(EventSchema::plain()),
+            cancel: &cancel,
+        };
+        let mut sink = Memory::default();
+        let u = unrecognised(import_path(&env, &dir, "dir", &HashSet::new(), &mut sink));
+        assert!(!u.reason.is_empty());
+        assert!(sink.batches.is_empty() && sink.finished.is_empty());
+        std::fs::remove_dir_all(dir).ok();
     }
 }

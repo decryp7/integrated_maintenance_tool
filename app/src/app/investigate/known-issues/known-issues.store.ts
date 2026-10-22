@@ -1,5 +1,5 @@
-import { DestroyRef, effect, inject, untracked } from '@angular/core';
-import { patchState, signalStore, withHooks, withMethods, withProps, withState } from '@ngrx/signals';
+import { computed, DestroyRef, effect, inject, untracked } from '@angular/core';
+import { patchState, signalStore, withComputed, withHooks, withMethods, withProps, withState } from '@ngrx/signals';
 import { toAiError } from '../../ai/ai-backend';
 import { IssueMatch, IssueReport } from '../../core/api.types';
 import { failureText } from '../../core/cmd-error';
@@ -22,9 +22,11 @@ interface KnownIssuesState {
   error: string | null;
   /** Suggesting failed, or needs a model. */
   suggestError: string | null;
+  /** Ids of the suggestions the user accepted (they go into the incident report). */
+  accepted: string[];
 }
 
-const INITIAL: KnownIssuesState = { report: null, suggestions: [], loading: false, suggesting: false, error: null, suggestError: null };
+const INITIAL: KnownIssuesState = { report: null, suggestions: [], loading: false, suggesting: false, error: null, suggestError: null, accepted: [] };
 
 /**
  * The known issues (ADR 0039) found in the open data: the engine matches the ones declared in the knowledge files
@@ -35,6 +37,10 @@ export const KnownIssuesStore = signalStore(
   { providedIn: 'root' },
   withState<KnownIssuesState>(INITIAL),
   withProps(() => ({ gate: new ConsumerGate() })),
+  withComputed((s) => ({
+    /** The suggestions the user accepted, still present among the current suggestions. */
+    acceptedSuggestions: computed(() => s.suggestions().filter((m) => s.accepted().includes(m.issue.id))),
+  })),
   withMethods((store, backend = inject(KnownIssuesBackend)) => {
     let seq = 0;
     return {
@@ -55,20 +61,25 @@ export const KnownIssuesStore = signalStore(
         if (store.suggesting()) return;
         patchState(store, { suggesting: true, suggestError: null });
         try {
-          patchState(store, { suggestions: await backend.suggest() });
+          patchState(store, { suggestions: await backend.suggest(), accepted: [] });
         } catch (e) {
           const err = toAiError(e);
           const message =
             err.code === 'noModel' || err.code === 'unavailable'
               ? $localize`:@@known.issues.suggest.noModel:Suggestions need an AI model: set one up in Settings > AI.`
               : failureText(err);
-          patchState(store, { suggestions: [], suggestError: message });
+          patchState(store, { suggestions: [], accepted: [], suggestError: message });
         } finally {
           patchState(store, { suggesting: false });
         }
       },
 
-      clearSuggestions: () => patchState(store, { suggestions: [], suggestError: null }),
+      clearSuggestions: () => patchState(store, { suggestions: [], accepted: [], suggestError: null }),
+
+      /** Accepts or un-accepts a suggestion (accepted ones are added to the incident report). */
+      toggleAccepted(id: string): void {
+        patchState(store, (s) => ({ accepted: s.accepted.includes(id) ? s.accepted.filter((x) => x !== id) : [...s.accepted, id] }));
+      },
     };
   }),
   withHooks({

@@ -369,6 +369,48 @@ mod tests {
     use super::*;
 
     #[test]
+    fn a_compiled_query_exposes_its_structural_and_content_criteria_and_instance_key() {
+        let q = Query {
+            from: Some(10),
+            to: Some(20),
+            levels: vec![crate::model::Level::Error],
+            text: "boom".into(),
+            sources: vec![3],
+            ..Default::default()
+        };
+        let c = CompiledQuery::new(&q, &["Host".into()], &[]).unwrap();
+        // The time range and the source selection are structural; levels and text are content.
+        assert!(c.structural_exprs().len() >= 2, "{}", c.structural_exprs().len());
+        assert!(c.content_exprs().len() >= 2, "{}", c.content_exprs().len());
+        assert_eq!(c.group_keys().len(), 1);
+        assert_eq!(c.group_keys()[0].name(), "Host");
+        assert!(!c.keys().names().is_empty());
+        let mut r = Record::new(1);
+        r.ts = Some(15);
+        assert!(c.in_range(&r));
+        r.ts = Some(25);
+        assert!(!c.in_range(&r), "after the end");
+        r.ts = None;
+        assert!(!c.in_range(&r), "an event without a time is outside any bound");
+        // Instance keys read through rows: the field value, or the source name when the field is missing.
+        r.fields.insert("Host".into(), "WEB01".into());
+        let row = crate::row::RecordRow {
+            rec: &r,
+            source: "app.log",
+        };
+        assert_eq!(c.group_key_of(&row), "WEB01");
+        assert_eq!(group_key_row(c.group_keys(), &row), "WEB01");
+        r.fields.clear();
+        let row = crate::row::RecordRow {
+            rec: &r,
+            source: "app.log",
+        };
+        assert_eq!(group_key_row(c.group_keys(), &row), "app.log");
+        // No key fields at all: one lane for everything.
+        assert_eq!(group_key_row(&[], &row), "all");
+    }
+
+    #[test]
     fn unknown_marker_kind_matches_nothing() {
         let q = Query {
             markers: vec!["nope".into()],

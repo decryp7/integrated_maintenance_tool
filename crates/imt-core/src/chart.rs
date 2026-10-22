@@ -300,6 +300,38 @@ mod tests {
     use super::*;
 
     #[test]
+    fn aggregates_computed_elsewhere_merge_into_their_bucket_and_out_of_range_ones_are_dropped() {
+        let def = ChartDef {
+            id: "c".into(),
+            title: "t".into(),
+            y: "sum(Took)".into(),
+            bucket: "1s".into(),
+            split_by: vec!["Host".into()],
+            kind: "line".into(),
+            unit: String::new(),
+        };
+        let buckets = Buckets {
+            start: 0,
+            bucket_ms: 1_000,
+            n: 3,
+        };
+        let mut b = SeriesBuilder::new(buckets);
+        let mut acc = Acc::default();
+        acc.add(2.0);
+        acc.add(4.0);
+        b.add_acc(1, "web".into(), &acc);
+        b.add_acc(1, "web".into(), &acc);
+        b.add_acc(3, "web".into(), &acc); // past the last bucket
+        b.add_acc(usize::MAX, "db".into(), &acc);
+        b.add(1_500, 1.0, "web".into());
+        b.add(9_999, 1.0, "web".into()); // outside the buckets: ignored
+        let series = b.finish(&def, Agg::Sum);
+        assert_eq!(series.len(), 1, "series that only had out-of-range values do not exist: {series:?}");
+        assert_eq!(series[0].key, "web");
+        assert_eq!(series[0].points.iter().map(|p| p.1).collect::<Vec<_>>(), [None, Some(13.0), None]);
+    }
+
+    #[test]
     fn level_series_are_ordered_by_level_then_name() {
         let def = ChartDef {
             id: "c".into(),

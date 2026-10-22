@@ -201,3 +201,80 @@ fn file_changes_become_states_and_the_status_lists_rates() {
         TailFileState::Deleted
     );
 }
+
+#[test]
+fn a_silent_instance_raises_one_silence_alert_while_time_moves_on() {
+    let toml = "[live]\nsilence_after = \"20s\"\ncooldown = \"1h\"\n";
+    let dir = Dir::new("silence");
+    let mut base = String::new();
+    for i in 0..31 {
+        base += &line(i, "INF", "WEB01", "tick");
+        if i <= 20 {
+            base += &line(i, "INF", "WEB02", "tick");
+        }
+    }
+    let (store, path) = open_store(toml, &dir, &base);
+    let mut session = LiveSession::default();
+    session.start(&store).unwrap();
+    // The first refresh only learns what time it is; WEB02 has been silent for 11 s, less than the limit.
+    append(&path, &line(31, "INF", "WEB01", "tick"));
+    assert!(refresh(&store, &mut session, &path).alerts.iter().all(|a| a.kind != "silence"));
+    // Time moves on past the limit: WEB02 is reported once, with evidence for its lane.
+    append(&path, &line(45, "INF", "WEB01", "tick"));
+    let r = refresh(&store, &mut session, &path);
+    let silence: Vec<_> = r.alerts.iter().filter(|a| a.kind == "silence").collect();
+    assert_eq!(silence.len(), 1, "{:?}", r.alerts);
+    let a = silence[0];
+    assert_eq!(a.instance.as_deref(), Some("WEB02"));
+    assert_eq!(a.severity, Severity::Warning);
+    assert!(a.message.starts_with("WEB02 has not logged for 25"), "{}", a.message);
+    assert_eq!(a.evidence_query.groups, ["WEB02"]);
+    assert_eq!(a.to - a.from, 25_000);
+    assert!(a.id.starts_with("silence:WEB02:"));
+    // The cooldown keeps it from being raised again on the next refresh; unmuting nothing changes that.
+    append(&path, &line(50, "INF", "WEB01", "tick"));
+    assert!(refresh(&store, &mut session, &path).alerts.iter().all(|a| a.kind != "silence"));
+}
+
+#[test]
+fn an_empty_store_has_no_newest_time_and_rules_without_a_start_count_the_whole_window() {
+    // Nothing loaded: no "now", so no alerts and no newest time.
+    let store = WorkspaceStore::new(Workspace::new(Profile::default_profile()).unwrap());
+    let mut session = LiveSession::default();
+    let r = session.after_refresh(&store, &TailAppend::default(), &TailOptions::default());
+    assert!(r.alerts.is_empty() && r.newest_ts.is_none());
+
+    // A session that was never started has no baseline: a rule counts everything in its window.
+    let toml = "[[live.rule]]\nname = 'errors'\nwhen = 'level = \"Error\"'\nthreshold = 2\nwindow = \"1m\"\nseverity = \"warning\"\n";
+    let dir = Dir::new("nobaseline");
+    let history: String = (0..3).map(|i| line(i, "ERR", "WEB01", "boom")).collect();
+    let (store, path) = open_store(toml, &dir, &history);
+    let mut never_started = LiveSession::default();
+    append(&path, &line(5, "INF", "WEB01", "tick"));
+    let r = refresh(&store, &mut never_started, &path);
+    let alert = r
+        .alerts
+        .iter()
+        .find(|a| a.rule.as_deref() == Some("errors"))
+        .expect("history counts without a baseline");
+    assert_eq!(alert.severity, Severity::Warning);
+    assert!(alert.message.contains("3 matching events"), "{}", alert.message);
+}
+
+#[test]
+fn many_refreshes_keep_a_bounded_rate_history() {
+    let dir = Dir::new("rate");
+    let (store, path) = open_store("", &dir, &line(0, "INF", "A", "x"));
+    let mut session = LiveSession::default();
+    session.start(&store).unwrap();
+    for i in 1..=80 {
+        append(&path, &line(i, "INF", "A", "x"));
+        refresh(&store, &mut session, &path);
+        session.status(&store, |_| WatchMode::Events).unwrap();
+    }
+    let st = session.status(&store, |_| WatchMode::Events).unwrap();
+    assert_eq!(st.totals.records, 81);
+    // 64 samples of one line each within the window: 6.4 lines per second.
+    assert!((st.files[0].lines_per_sec - 6.4).abs() < 0.2, "{}", st.files[0].lines_per_sec);
+    assert_eq!(st.files[0].size.max(1), st.files[0].size);
+}

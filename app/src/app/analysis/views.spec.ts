@@ -8,6 +8,7 @@ import { AnalysisState } from './analysis-state';
 import { AnalysisTargets } from './analysis-targets';
 import { AnomaliesView } from './anomalies-view';
 import { CompareView } from './compare-view';
+import { ExceptionFocus } from './exception-focus';
 import { ExceptionsView } from './exceptions-view';
 import { MomentView } from './moment-view';
 import { PatternsView } from './patterns-view';
@@ -211,6 +212,27 @@ describe('ExceptionsView', () => {
     at(heads, 1).click();
     fixture.detectChanges();
     expect(el(fixture, '.detail').textContent).toContain('—');
+  });
+
+  it('selects, expands and clears a group requested by fingerprint (the search palette); an unknown one is ignored', async () => {
+    TestBed.configureTestingModule({ providers: provideAnalysisTesting({ backend: stubBackend(), context: new FakeContext() }) });
+    await loadWorkspace();
+    const focus = TestBed.inject(ExceptionFocus);
+    focus.request('fp2');
+    const fixture = TestBed.createComponent(ExceptionsView);
+    fixture.detectChanges();
+    await settle(fixture, 6);
+    const groups = all(fixture, '.group');
+    expect(groups[1]?.classList.contains('selected')).toBe(true);
+    expect(groups[0]?.classList.contains('selected')).toBe(false);
+    expect(all(fixture, '.detail')).toHaveLength(1);
+    expect(at(all(fixture, '.head'), 1).getAttribute('aria-current')).toBe('true');
+    expect(focus.fingerprint()).toBeNull();
+
+    focus.request('no-such-group');
+    await settle(fixture, 2);
+    expect(focus.fingerprint()).toBeNull();
+    expect(all(fixture, '.detail')).toHaveLength(1);
   });
 
   it('says so when there are none', async () => {

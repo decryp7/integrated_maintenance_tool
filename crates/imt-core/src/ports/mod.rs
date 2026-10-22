@@ -417,4 +417,88 @@ mod tests {
         assert_eq!(StoreError::Cancelled.to_string(), "cancelled");
         assert_eq!(StoreError::Engine("x".into()).to_string(), "store: x");
     }
+
+    /// A store that implements none of the optional operations: each says it is not available (never panics).
+    struct Bare;
+    impl Console for Bare {}
+    impl Redaction for Bare {}
+    impl Skew for Bare {}
+    impl Tail for Bare {}
+
+    fn unavailable<T>(r: StoreResult<T>) -> String {
+        let e = r.err().expect("an operation the store does not offer fails");
+        assert!(matches!(e, StoreError::Unsupported { .. }), "{e:?}");
+        e.to_string()
+    }
+
+    #[test]
+    fn optional_operations_default_to_unsupported_with_the_name_of_the_feature() {
+        use serde_json::json;
+        let from = |v: serde_json::Value| v;
+        assert!(unavailable(Bare.sql_schema()).starts_with("the SQL console is not available"));
+        let run: SqlRequest = serde_json::from_value(from(json!({"sql": "select 1", "explain": false, "notes": []}))).unwrap();
+        assert!(unavailable(Bare.sql_run(&run)).contains("ADR 0030"));
+        assert!(unavailable(Bare.sql_page(&SqlPageRequest { result: 1, offset: 0 })).contains("the SQL console"));
+        assert!(unavailable(Bare.sql_ids(&SqlIdsRequest { result: 1 })).contains("event ids"));
+        let export: SqlExportRequest =
+            serde_json::from_value(json!({"sql": "select 1", "notes": [], "path": "out.csv", "overwrite": false})).unwrap();
+        assert!(unavailable(Bare.sql_export(&export)).contains("CSV export"));
+
+        let summary: crate::redact::RedactionSummaryRequest = serde_json::from_value(json!({})).unwrap();
+        assert!(unavailable(Bare.redaction_summary(&summary)).contains("redaction summary"));
+        let copy = crate::redact::copy::RedactedExportRequest {
+            cfg: Default::default(),
+            manifest: Default::default(),
+            out: "x.imtz".into(),
+            ui_json: None,
+        };
+        assert!(unavailable(Bare.export_redacted_project(&copy)).contains("redacted project copy"));
+
+        assert!(unavailable(Bare.clock_offsets()).contains("clock-skew"));
+        assert!(unavailable(Bare.set_clock_offsets(&Default::default())).contains("clock-skew"));
+        let set: crate::skew::SetOffsetRequest = serde_json::from_value(json!({"kind": "manual", "source": 0, "offsetMs": 5})).unwrap();
+        assert!(unavailable(Bare.set_source_offset(&set)).contains("clock-skew"));
+        assert!(unavailable(Bare.suggest_offsets(&Default::default())).contains("clock-skew"));
+
+        assert!(unavailable(Bare.tail_files()).contains("live tail"));
+        assert!(unavailable(Bare.open_at_end(&[])).contains("their end"));
+    }
+
+    #[test]
+    fn a_store_without_encodings_refuses_to_choose_one() {
+        struct Minimal;
+        impl Ingest for Minimal {
+            fn open(&self, _: &[PathBuf]) -> StoreResult<ImportSession> {
+                Err(StoreError::Busy("x".into()))
+            }
+            fn reload(&self) -> StoreResult<ImportSession> {
+                Err(StoreError::Busy("x".into()))
+            }
+            fn refresh(&self, _: &[PathBuf]) -> StoreResult<ImportSession> {
+                Err(StoreError::Busy("x".into()))
+            }
+            fn remove_source(&self, _: SourceId) -> StoreResult<()> {
+                Ok(())
+            }
+            fn clear(&self) -> StoreResult<()> {
+                Ok(())
+            }
+            fn restore(&self, _: &WorkspaceState) -> StoreResult<ImportSession> {
+                Err(StoreError::Busy("x".into()))
+            }
+            fn append_tail(&self, _: &[PathBuf]) -> StoreResult<TailAppend> {
+                Err(StoreError::Busy("x".into()))
+            }
+        }
+        let e = unavailable(Minimal.set_source_encoding(SourceId(0), Some("Shift_JIS")));
+        assert!(e.contains("text encoding") && e.contains("ADR 0040"), "{e}");
+        // The required operations are the store's own.
+        let busy = StoreError::Busy("x".into());
+        assert_eq!(Minimal.open(&[]).err(), Some(busy.clone()));
+        assert_eq!(Minimal.reload().err(), Some(busy.clone()));
+        assert_eq!(Minimal.refresh(&[]).err(), Some(busy.clone()));
+        assert_eq!(Minimal.restore(&Default::default()).err(), Some(busy.clone()));
+        assert_eq!(Minimal.append_tail(&[]).err(), Some(busy));
+        assert!(Minimal.remove_source(SourceId(0)).is_ok() && Minimal.clear().is_ok());
+    }
 }

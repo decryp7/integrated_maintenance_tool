@@ -420,6 +420,55 @@ mod tests {
     }
 
     #[test]
+    fn a_slim_event_reads_as_a_row_with_only_what_detectors_keep() {
+        let names = SlimNames::of(&AnomalyConfig::default());
+        let mut r = Record::new(99);
+        r.id = 7;
+        r.level = Level::Error;
+        r.message = "request failed".into();
+        r.exception = Some("boom".into());
+        r.template = Some("request {Verb}".into());
+        r.source = 3;
+        r.markers = 0b11;
+        r.fields.insert("MachineName".into(), "WEB01".into());
+        r.fields.insert("Value".into(), serde_json::json!(4.5));
+        r.fields.insert("Other".into(), serde_json::json!("dropped"));
+        let slim = names.slim(
+            &RecordRow {
+                rec: &r,
+                source: "app.log",
+            },
+            1_234,
+        );
+        assert_eq!((slim.id(), slim.ts(), slim.level()), (7, Some(1_234), Level::Error));
+        assert_eq!(slim.message(), "request failed", "errors keep their message");
+        assert_eq!(slim.exception(), Some(""), "only whether there is an exception is kept");
+        // What no detector reads is gone, not guessed.
+        assert_eq!(
+            (slim.source(), slim.source_name(), slim.line(), slim.markers(), slim.template()),
+            (0, "", 0, 0, None)
+        );
+        let sym = crate::row::Sym(0);
+        assert_eq!(slim.named_number(sym, "Value"), Some(4.5));
+        assert_eq!(slim.named_number(sym, "MachineName"), None, "a text is not a number");
+        assert_eq!(slim.named_text(sym, "MachineName").as_deref(), Some("WEB01"));
+        assert_eq!(slim.named_text(sym, "Value"), None, "a number is not a text");
+        assert_eq!(slim.named_text(sym, "Other"), None);
+        assert_eq!(slim.named_value(sym, "Value"), None);
+        let mut seen = 0;
+        slim.for_each_field(&mut |_, _| seen += 1);
+        assert_eq!(seen, 0, "fields are only reachable by name");
+        let quiet = names.slim(
+            &RecordRow {
+                rec: &Record::new(1),
+                source: "s",
+            },
+            5,
+        );
+        assert_eq!(quiet.exception(), None);
+    }
+
+    #[test]
     fn answers_for_unknown_instances_and_ranks_are_empty() {
         let names = SlimNames::of(&AnomalyConfig::default());
         let mut inputs = EventInputs::new(std::iter::empty::<(RecordRow<'_>, &str)>(), &names);

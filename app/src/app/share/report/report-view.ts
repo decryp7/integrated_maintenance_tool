@@ -3,6 +3,7 @@ import { WorkspaceStore } from '../../core/workspace.store';
 import { NotesStore } from '../../notes/notes.store';
 import { QuerySession } from '../../analysis/query-session';
 import { TimelineAnnotations } from '../../timeline/annotations.store';
+import { CommandRegistry } from '../../extensions/command-registry';
 import { Icon } from '../../shared/icon';
 import { DialogService } from '../../ui/dialog.service';
 import { MarkdownView } from './markdown-view';
@@ -30,6 +31,7 @@ import { ReportStore } from './report.store';
           </label>
         }
         <button type="button" class="btn" (click)="reports.create()" i18n="@@share.reportView.new"><imt-icon name="plus" [size]="13" /> New report</button>
+        <button type="button" class="btn" data-testid="report-incident" (click)="incident()" i18n="@@share.reportView.incident">Incident summary…</button>
         @if (reports.active(); as r) {
           <button type="button" class="btn" (click)="reports.remove(r.id)" i18n="@@share.reportView.delete">Delete report</button>
           <span class="spacer"></span>
@@ -78,6 +80,7 @@ import { ReportStore } from './report.store';
         <div class="empty-next">
           <p class="faint" i18n="@@share.reportView.none">No report yet. Create one, or use “Add to report” on an event, a note, a chart or the timeline.</p>
           <button type="button" class="btn primary" (click)="reports.create()" i18n="@@share.reportView.create"><imt-icon name="plus" [size]="13" /> Create a report</button>
+          <button type="button" class="btn" data-testid="report-incident" (click)="incident()" i18n="@@share.reportView.incident">Incident summary…</button>
         </div>
       }
     </div>
@@ -111,12 +114,18 @@ export class ReportView {
   private readonly dialogs = inject(DialogService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly appRef = inject(ApplicationRef);
+  private readonly commands = inject(CommandRegistry);
 
   protected readonly untitled = $localize`:@@share.reportView.untitled:Untitled report`;
 
   constructor() {
     // "Add annotations" needs the annotations of the visible range, fetched while a view showing them is visible.
     this.annotations.gate.use();
+  }
+
+  /** Builds the engine's incident summary report (the command opens its dialog). */
+  protected incident(): void {
+    void this.commands.run('incident.build', 'button');
   }
 
   protected sectionLabel(title: string, i: number): string {

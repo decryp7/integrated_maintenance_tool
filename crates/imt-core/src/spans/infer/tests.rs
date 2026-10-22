@@ -218,3 +218,61 @@ fn evaluation_is_linear_and_skips_unrelated_events_cheaply() {
     assert_eq!(e.spans + e.dropped, (n / 1000) as usize, "{e:?}");
     assert!(secs < 120.0, "{secs} s");
 }
+
+const JOB_PROFILE: &str = r#"
+[[marker]]
+kind = "job-start"
+when = [{ field = "@message", op = "contains", value = "job begin" }]
+[[marker]]
+kind = "job-stop"
+when = [{ field = "@message", op = "contains", value = "job end" }]
+[[span]]
+kind = "job"
+start = "job-start"
+stop = "job-stop"
+per = "field:Job"
+restart_on_start = true
+[[span]]
+kind = "ghost"
+start = "never-defined"
+stop = "job-stop"
+"#;
+
+#[test]
+fn an_evaluator_pairs_per_key_counts_unmatched_ends_and_open_runs_and_refuses_unknown_markers() {
+    let profile = Profile::default_profile().with_override(JOB_PROFILE).unwrap();
+    let compiled = CompiledProfile::compile(profile).unwrap();
+    // A span naming a marker kind the profile does not define cannot be evaluated, and the error says which.
+    let e = SpanEvaluator::new(&compiled, "ghost")
+        .err()
+        .expect("unknown marker kinds are refused")
+        .to_string();
+    assert!(e.contains("never-defined"), "{e}");
+
+    let mut ev = SpanEvaluator::new(&compiled, "job").unwrap();
+    assert!(!ev.gates().is_empty(), "start and stop each have a gate");
+    let job = |id: u32, minute: i64, msg: &str, key: &str| with(rec(id, minute, msg), "Job", json!(key));
+    let events = [
+        job(0, 0, "job begin", "a"),
+        job(1, 1, "job begin", "a"), // a second start before a stop is the same run
+        job(2, 2, "job end", "a"),
+        job(3, 3, "job end", "b"), // a stop without a start
+        job(4, 4, "job begin", "c"),
+        job(5, 5, "unrelated chatter", "c"),
+    ];
+    for r in &events {
+        ev.add(r, "app.log", "WEB01");
+    }
+    let mut untimed = job(6, 6, "job begin", "d");
+    untimed.ts = None;
+    ev.add(&untimed, "app.log", "WEB01");
+    let e = ev.finish();
+    assert_eq!(e.events, 7, "events without a time are looked at but never paired");
+    assert_eq!((e.spans, e.unmatched_starts, e.unmatched_ends, e.open), (1, 0, 1, 1), "{e:#?}");
+    assert_eq!(
+        (e.longest_ms, e.shortest_ms),
+        (Some(120_000), Some(120_000)),
+        "from the first start to the stop"
+    );
+    assert_eq!(e.distinct_keys, 2, "a and c: {e:#?}");
+}

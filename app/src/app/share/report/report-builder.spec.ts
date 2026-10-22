@@ -23,6 +23,7 @@ import { blocksOf } from './report-model';
 import { ReportCommands } from './report.commands';
 import { REPORT_VIEWS } from './report.views';
 import { ReportStore } from './report.store';
+import { CommandRegistry } from '../../extensions/command-registry';
 import { ReportView } from './report-view';
 import { at } from '../../../testing/must';
 import { mockJobs } from '../../jobs/mock-jobs';
@@ -159,6 +160,15 @@ describe('ReportCommands', () => {
 });
 
 describe('ReportView and ReportBlockView', () => {
+  it('offers the incident summary next to New report', async () => {
+    await setup();
+    const run = vi.spyOn(TestBed.inject(CommandRegistry), 'run').mockResolvedValue(true);
+    const f = TestBed.createComponent(ReportView);
+    await settle(f);
+    buttonByText(f, /Incident summary/).click();
+    expect(run).toHaveBeenCalledWith('incident.build', 'button');
+  });
+
   it('shows an empty state, creates and edits a report, sections and blocks', async () => {
     const { reports } = await setup();
     const f = TestBed.createComponent(ReportView);
