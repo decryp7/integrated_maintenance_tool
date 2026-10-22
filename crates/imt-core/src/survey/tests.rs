@@ -1001,3 +1001,229 @@ fn formats_for_unrecognised_files_keep_the_best_reading_and_explain_the_rest() {
     assert!(skipped_reason(&skipped, "format:broken:1").contains("not valid"), "{skipped:?}");
     std::fs::remove_dir_all(dir).ok();
 }
+
+// ---- heuristic proposals from a hand-built survey ----
+
+fn lifecycle(role: LifecycleRole, template: &str, covered_by: Option<&str>) -> LifecycleCandidate {
+    LifecycleCandidate {
+        role,
+        template: template.into(),
+        template_kind: TemplateKind::Mined,
+        count: 2,
+        example: template.replace(crate::patterns::WILDCARD, "7"),
+        covered_by: covered_by.map(String::from),
+    }
+}
+
+fn number(name: &str, kind: NumberKind, unit: Option<&str>) -> NumberCandidate {
+    NumberCandidate {
+        name: name.into(),
+        label: name.to_lowercase(),
+        unit: unit.map(String::from),
+        number_kind: kind,
+        count: 10,
+        min: 1.0,
+        max: 9.0,
+        example: format!("{name} 5"),
+        regex: format!(r"{name} (?P<{name}>\d+)"),
+    }
+}
+
+fn candidate_by<'a>(list: &'a [Candidate], id: &str) -> &'a Candidate {
+    list.iter()
+        .find(|c| c.id == id)
+        .unwrap_or_else(|| panic!("no {id} in {:?}", list.iter().map(|c| &c.id).collect::<Vec<_>>()))
+}
+
+#[test]
+fn lifecycle_findings_become_uniquely_named_markers_and_one_new_run_rule() {
+    let mut profile = Profile::default_profile();
+    profile.span.clear();
+    let survey = FolderSurvey {
+        markers: vec![MarkerCoverage {
+            kind: "svc-start".into(),
+            label: "x".into(),
+            lifecycle: true,
+            matches: 1,
+        }],
+        lifecycle: vec![
+            lifecycle(LifecycleRole::Start, "Service booted", None),
+            lifecycle(LifecycleRole::Start, "Service booted again", Some("start")),
+            lifecycle(LifecycleRole::Stop, "Service halted", None),
+            lifecycle(LifecycleRole::Stop, "Service halted gracefully", Some("stop")),
+            lifecycle(LifecycleRole::Crash, "Fatal fault", None),
+            lifecycle(LifecycleRole::Crash, "Fatal fault two", None),
+            lifecycle(LifecycleRole::Crash, "Fatal fault three", Some("crash")),
+        ],
+        ..FolderSurvey::default()
+    };
+    let list = propose::propose(&survey, &profile);
+    // "svc-start" is taken by a marker that exists: the new one gets a suffix; crash names are made unique too.
+    let ids: Vec<&str> = list.iter().map(|c| c.id.as_str()).collect();
+    for want in [
+        "marker:svc-start-2",
+        "marker:svc-stop",
+        "marker:crash",
+        "marker:crash-2",
+        "span:run",
+    ] {
+        assert!(ids.contains(&want), "{want} in {ids:?}");
+    }
+    let run = candidate_by(&list, "span:run");
+    assert_eq!(
+        run.requires,
+        ["marker:svc-start-2", "marker:svc-stop"],
+        "a crash marker is not part of a run"
+    );
+    assert!(run.title.starts_with("Show runs from start to stop"));
+    match &run.fragments[0] {
+        Fragment::Span { span } => {
+            assert_eq!(span.start.list(), ["svc-start-2", "start"]);
+            assert_eq!(span.stop.list(), ["svc-stop", "stop"]);
+        }
+        f => panic!("{f:?}"),
+    }
+}
+
+#[test]
+fn an_existing_run_rule_is_extended_only_when_something_new_was_found() {
+    let mut profile = Profile::default_profile();
+    let existing = crate::spans::SpanCfg {
+        kind: "run".into(),
+        label: Some("Service".into()),
+        start: crate::spans::OneOrMany::One("start".into()),
+        stop: crate::spans::OneOrMany::One("stop".into()),
+        per: "instance".into(),
+        color: None,
+        max_duration: None,
+        restart_on_start: true,
+        enabled: true,
+    };
+    profile.span = vec![existing.clone()];
+    let nothing_new = FolderSurvey {
+        lifecycle: vec![lifecycle(LifecycleRole::Start, "Already covered", Some("start"))],
+        ..FolderSurvey::default()
+    };
+    assert!(propose::propose(&nothing_new, &profile)
+        .iter()
+        .all(|c| c.group != ProposalGroup::Markers));
+
+    let new_start = FolderSurvey {
+        lifecycle: vec![lifecycle(LifecycleRole::Start, "Service booted", None)],
+        ..FolderSurvey::default()
+    };
+    let list = propose::propose(&new_start, &profile);
+    let run = candidate_by(&list, "span:run");
+    assert!(
+        run.title.contains("“Service” runs start and stop on the new markers"),
+        "{}",
+        run.title
+    );
+
+    // A rule without stops stays unusable when only a start was found.
+    profile.span = vec![crate::spans::SpanCfg {
+        stop: crate::spans::OneOrMany::Many(vec![]),
+        ..existing
+    }];
+    assert!(propose::propose(&new_start, &profile).iter().all(|c| c.id != "span:run"));
+
+    // Without any run rule, a start alone is not enough either.
+    profile.span.clear();
+    assert!(propose::propose(&new_start, &profile).iter().all(|c| c.id != "span:run"));
+}
+
+#[test]
+fn numbers_get_typed_extractors_and_the_chart_uses_the_first_metric() {
+    let mut profile = Profile::default_profile();
+    profile.chart.clear();
+    let survey = FolderSurvey {
+        numbers: vec![
+            number("Waited", NumberKind::Duration, Some("sec")),
+            number("Sent", NumberKind::Bytes, Some("bytes")),
+            number("Cache", NumberKind::Bytes, Some("KB")),
+            number("Retries", NumberKind::Number, None),
+        ],
+        ..FolderSurvey::default()
+    };
+    let list = propose::propose(&survey, &profile);
+    let spec = |id: &str| match &candidate_by(&list, id).fragments[0] {
+        Fragment::Extractor { extractor } => extractor.fields.values().next().cloned().unwrap(),
+        f => panic!("{f:?}"),
+    };
+    let waited = spec("extract:Waited");
+    assert_eq!((waited.unit.as_deref(), waited.to.as_deref()), (Some("s"), Some("ms")));
+    let sent = spec("extract:Sent");
+    assert_eq!((sent.unit.as_deref(), sent.to.as_deref()), (Some("B"), Some("MB")));
+    assert_eq!(spec("extract:Cache").unit.as_deref(), Some("KB"));
+    assert_eq!(spec("extract:Retries").to, None);
+    // The chart of the first metric needs its extractor.
+    let chart = list.iter().find(|c| c.id.starts_with("chart:waited")).expect("a metric chart");
+    assert!(chart.requires.contains(&"extract:Waited".to_string()), "{:?}", chart.requires);
+    // Without numbers or measurement-like fields there is only the error chart.
+    let bare = propose::propose(&FolderSurvey::default(), &profile);
+    assert!(
+        bare.iter()
+            .filter(|c| c.group == ProposalGroup::Charts)
+            .all(|c| c.id.starts_with("chart:errors")),
+        "{bare:?}"
+    );
+}
+
+#[test]
+fn an_instance_key_the_profile_already_uses_is_not_proposed_again() {
+    let mut profile = Profile::default_profile();
+    profile.instance.key = vec!["MachineName".into()];
+    let cand = |field: &str| InstanceCandidate {
+        field: field.into(),
+        origin: KeyOrigin::Field,
+        lanes: 3,
+        coverage: 0.9,
+        score: 1.0,
+        examples: vec!["A".into()],
+    };
+    let survey = FolderSurvey {
+        instance_candidates: vec![cand("MachineName"), cand("Worker")],
+        ..FolderSurvey::default()
+    };
+    let list = propose::propose(&survey, &profile);
+    assert!(list.iter().all(|c| c.id != "instance:MachineName"));
+    let worker = candidate_by(&list, "instance:Worker");
+    assert!(!worker.recommended, "only the best candidate is recommended");
+    // The error chart splits by the key the profile already has.
+    let chart = candidate_by(&list, "chart:errors-by-instance");
+    assert!(chart.title.contains("MachineName"), "{}", chart.title);
+}
+
+#[test]
+fn error_queries_use_the_longest_literal_run_and_skip_templates_without_one() {
+    let err = |template: &str, kind: TemplateKind| TemplateSummary {
+        template: template.into(),
+        template_kind: kind,
+        count: 3,
+        level: Level::Error,
+        share: 0.1,
+        example: template.into(),
+    };
+    let w = crate::patterns::WILDCARD;
+    let survey = FolderSurvey {
+        errors: vec![
+            err(&format!("failed {w} to write the cache entry {w} twice"), TemplateKind::Mined),
+            err(&format!("{w} ab {w} cd {w}"), TemplateKind::Mined),
+            err("Could not open {Path}", TemplateKind::Serilog),
+        ],
+        ..FolderSurvey::default()
+    };
+    let list = propose::propose(&survey, &Profile::default_profile());
+    let queries: Vec<&Candidate> = list.iter().filter(|c| c.group == ProposalGroup::Queries).collect();
+    assert_eq!(queries.len(), 2, "the template with only short literals is skipped");
+    let ql = |c: &Candidate| match &c.fragments[0] {
+        Fragment::SavedQuery { ql, .. } => ql.clone(),
+        f => panic!("{f:?}"),
+    };
+    assert_eq!(
+        ql(queries[0]),
+        r#"level >= warning and @message contains "to write the cache entry""#
+    );
+    assert_eq!(ql(queries[1]), r#"@template = "Could not open {Path}""#);
+    assert_eq!(propose::ql_quote(r#"a "b" \c"#), r#""a \"b\" \\c""#);
+}
