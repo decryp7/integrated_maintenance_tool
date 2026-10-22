@@ -64,7 +64,7 @@ export const HOST_CHECK_MS = 1000;
 export const SYNC_START_TIMEOUT_MS = 5000;
 
 /**
- * The minimal app a pop-out window boots into: a title bar (panel title, host project, Dock back, Always on top)
+ * The minimal app a pop-out window boots into: a title bar (panel title, host project, Dock back, Keep on top of Debrief)
  * and the one view. It shares the host's interaction state through `UiSync`, queries the engine itself (commands
  * resolve to the host's workspace in Rust), and closes itself when the host goes away.
  */
@@ -74,7 +74,7 @@ export const SYNC_START_TIMEOUT_MS = 5000;
   imports: [CommandPalette, ContextMenuHost, DialogHost, PopoutTitleBar],
   host: { '(document:keydown)': 'onKey($event)' },
   template: `
-    <imt-popout-title-bar [title]="title()" [host]="state.hostTitle()" [onTop]="state.alwaysOnTop()" (dockBack)="dockBack()" (toggleOnTop)="toggleOnTop()" />
+    <imt-popout-title-bar [title]="title()" [host]="state.hostTitle()" [onTop]="state.keepOnTop()" (dockBack)="dockBack()" (toggleOnTop)="toggleOnTop()" />
     <main #viewHost class="view" [attr.aria-label]="title()" [attr.aria-busy]="!mounted()">
       <p class="connecting" i18n="@@popout.shell.connecting">Connecting to the main window…</p>
     </main>
@@ -194,10 +194,10 @@ export class PopoutShell {
   }
 
   protected async toggleOnTop(): Promise<void> {
-    const on = !this.state.alwaysOnTop();
+    const on = !this.state.keepOnTop();
     try {
-      await this.backend.setAlwaysOnTop(on);
-      this.state.alwaysOnTop.set(on);
+      await this.backend.setKeepOnTop(on);
+      this.state.keepOnTop.set(on);
     } catch (e) {
       this.store.setError($localize`:@@popout.shell.onTopFailed:Could not keep the window on top: ${errorMessage(e)}:error:`);
     }

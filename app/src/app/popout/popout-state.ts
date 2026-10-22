@@ -5,5 +5,5 @@ import { Injectable, signal } from '@angular/core';
 export class PopoutState {
   /** The host's project name (synced from the host). */
   readonly hostTitle = signal('');
-  readonly alwaysOnTop = signal(false);
+  readonly keepOnTop = signal(false);
 }

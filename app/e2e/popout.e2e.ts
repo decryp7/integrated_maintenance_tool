@@ -126,10 +126,10 @@ test.describe('pop-out windows', () => {
     expect(inspector.x + inspector.width).toBeLessThanOrEqual(events.x + 2);
   });
 
-  test('the browser pop-out has no "Always on top" (a browser window cannot stay on top)', async ({ page, context }) => {
+  test('the browser pop-out has no "Keep on top of Debrief" (a browser window cannot be owned by another)', async ({ page, context }) => {
     const popup = await popOut(page, context, 'Inspector');
     await expect(popup.getByRole('button', { name: 'Dock back into the main window' })).toBeVisible();
-    await expect(popup.getByRole('button', { name: 'Always on top' })).toHaveCount(0);
+    await expect(popup.getByRole('button', { name: 'Keep on top of Debrief' })).toHaveCount(0);
     await expect(popup).toHaveTitle('Inspector \u2014 Untitled');
   });
 

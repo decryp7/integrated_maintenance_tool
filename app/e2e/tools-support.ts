@@ -8,6 +8,8 @@ import { showView } from './menu-support';
  * mock-tools=quarantined|inactive|disabled (state of the tools plugin).
  */
 export async function openAppWith(page: Page, search = ''): Promise<void> {
+  // These tests are about the tools, not Home (which opens by itself after an import and would take the document tab).
+  await page.addInitScript(() => localStorage.setItem('imt.home.autoOpen.v1', 'false'));
   await page.goto(`/${search}`);
   await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible({ timeout: APP_LOAD_TIMEOUT });
   await expect(page.locator('imt-status-bar')).toContainText('events');

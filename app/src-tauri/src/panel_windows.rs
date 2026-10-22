@@ -112,7 +112,7 @@ pub struct PopoutRequest {
     #[serde(default)]
     pub title: Option<String>,
     #[serde(default)]
-    pub always_on_top: bool,
+    pub keep_on_top: bool,
 }
 
 /// A pop-out as the UI sees it.
@@ -127,7 +127,7 @@ pub struct PopoutInfo {
     pub bounds: Option<Bounds>,
     /// Name of the monitor the window is on, when the platform says.
     pub monitor: Option<String>,
-    pub always_on_top: bool,
+    pub keep_on_top: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -158,7 +158,7 @@ struct Entry {
     view_id: String,
     title: String,
     params: Option<Value>,
-    always_on_top: bool,
+    keep_on_top: bool,
 }
 
 /// Which pop-outs exist, keyed by label. Managed as Tauri state.
@@ -207,10 +207,12 @@ impl Popouts {
         self.lock().get(label).cloned()
     }
 
-    fn set_on_top(&self, label: &str, on: bool) {
-        if let Some(e) = self.lock().get_mut(label) {
-            e.always_on_top = on;
-        }
+    /// A label for the rebuilt window of a pop-out (the old one is still registered, so the cap does not apply).
+    fn reserve_replacing(&self, host: &str, entry: Entry) -> anyhow::Result<String> {
+        let mut map = self.lock();
+        let label = popout_label(host, self.next.fetch_add(1, Ordering::SeqCst) + 1);
+        map.insert(label.clone(), entry);
+        Ok(label)
     }
 }
 
@@ -242,7 +244,7 @@ fn info<R: Runtime>(app: &AppHandle<R>, label: &str, e: &Entry) -> PopoutInfo {
         monitor: window
             .and_then(|w| w.current_monitor().ok().flatten())
             .and_then(|m| m.name().cloned()),
-        always_on_top: e.always_on_top,
+        keep_on_top: e.keep_on_top,
     }
 }
 
@@ -285,28 +287,15 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, host: &str, request: PopoutRequest) 
             view_id: request.view_id.clone(),
             title: title.clone(),
             params: request.params.clone(),
-            always_on_top: request.always_on_top,
+            keep_on_top: request.keep_on_top,
         },
     )?;
-    let window_title = if host_title.is_empty() {
-        title
-    } else {
-        clean_title(&format!("{title} \u{2014} {host_title}"))
-    };
     let (x, y, width, height) = match request.bounds.and_then(Bounds::sanitized) {
         Some(b) => (b.x, b.y, b.width, b.height),
         None => fallback_place(&host_window),
     };
-    let builder = WebviewWindowBuilder::new(app, &label, WebviewUrl::App(popout_url(&request.view_id, host, &label).into()))
-        .title(window_title)
-        .inner_size(width, height)
-        .position(x, y)
-        .min_inner_size(MIN_WIDTH, MIN_HEIGHT)
-        .resizable(true)
-        .always_on_top(request.always_on_top)
-        .focused(true);
-    let built = crate::native_feel::build(frameless(builder));
-    if let Err(e) = built {
+    let place = Bounds { x, y, width, height };
+    if let Err(e) = build_window(app, &label, host, &request.view_id, &title, &host_title, place, request.keep_on_top) {
         popouts.remove(&label);
         anyhow::bail!("could not open a window for the panel: {e}");
     }
@@ -314,6 +303,60 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, host: &str, request: PopoutRequest) 
     notify_changed(app, host);
     let entry = popouts.get(&label).ok_or_else(|| anyhow::anyhow!("the pop-out was closed"))?;
     Ok(info(app, &label, &entry))
+}
+
+/// Builds the pop-out window `label`. With `keep_on_top` it is an owned window of `host`: it stays above its owner
+/// Debrief window, goes behind other apps together with it, and minimises and hides with it (Windows: owner window;
+/// macOS: child window; Linux: transient for). Never a system-wide always-on-top window.
+#[allow(clippy::too_many_arguments)]
+fn build_window<R: Runtime>(
+    app: &AppHandle<R>,
+    label: &str,
+    host: &str,
+    view_id: &str,
+    title: &str,
+    host_title: &str,
+    place: Bounds,
+    keep_on_top: bool,
+) -> anyhow::Result<()> {
+    let window_title = if host_title.is_empty() {
+        title.to_string()
+    } else {
+        clean_title(&format!("{title} \u{2014} {host_title}"))
+    };
+    let mut builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App(popout_url(view_id, host, label).into()))
+        .title(window_title)
+        .inner_size(place.width, place.height)
+        .position(place.x, place.y)
+        .min_inner_size(MIN_WIDTH, MIN_HEIGHT)
+        .resizable(true)
+        .focused(true);
+    if keep_on_top {
+        if let Some(owner) = app.get_webview_window(host) {
+            builder = owned_by(builder, &owner)?;
+        }
+    }
+    crate::native_feel::build(frameless(builder)).map_err(|e| anyhow::anyhow!("{e}"))?;
+    Ok(())
+}
+
+/// Makes the window an owned window of `owner` (see [`build_window`]).
+#[cfg(not(test))]
+fn owned_by<'a, R: Runtime, M: Manager<R>>(
+    b: WebviewWindowBuilder<'a, R, M>,
+    owner: &tauri::WebviewWindow<R>,
+) -> anyhow::Result<WebviewWindowBuilder<'a, R, M>> {
+    b.parent(owner).map_err(|e| anyhow::anyhow!("{e}"))
+}
+
+/// The mock runtime has no native windows to own (on macOS it would dereference a null NSWindow): tests check the
+/// bookkeeping only.
+#[cfg(test)]
+fn owned_by<'a, R: Runtime, M: Manager<R>>(
+    b: WebviewWindowBuilder<'a, R, M>,
+    _owner: &tauri::WebviewWindow<R>,
+) -> anyhow::Result<WebviewWindowBuilder<'a, R, M>> {
+    Ok(b)
 }
 
 /// Pop-outs draw IMT's own compact title bar (like VS / VS Code tool windows). macOS keeps the native traffic
@@ -451,17 +494,47 @@ pub async fn list_popouts<R: Runtime>(app: AppHandle<R>, window: Window<R>) -> V
         .collect()
 }
 
-/// Keeps the calling pop-out above other windows (or not).
+/// Keeps the calling pop-out above its owner Debrief window (or not). An owner cannot be changed on a live window, so
+/// the pop-out is rebuilt in place: a new window at the same place for the same panel, then the old one is dropped
+/// without docking anything back.
 #[tauri::command]
 pub async fn set_popout_on_top<R: Runtime>(app: AppHandle<R>, window: Window<R>, on: bool) -> CmdResult<()> {
-    let label = window.label();
-    if !is_popout(label) {
-        return Err("only a pop-out window can stay on top".into());
+    let label = window.label().to_string();
+    if !is_popout(&label) {
+        return Err("only a pop-out window can stay on top of its window".into());
     }
-    window.set_always_on_top(on).map_err(err)?;
-    if let Some(p) = app.try_state::<Popouts>() {
-        p.set_on_top(label, on);
+    let popouts = app.try_state::<Popouts>().ok_or("IMT is not ready yet")?;
+    let entry = popouts.get(&label).ok_or("the pop-out was closed")?;
+    if entry.keep_on_top == on {
+        return Ok(());
     }
+    let bounds = info(&app, &label, &entry).bounds.unwrap_or(Bounds {
+        x: 0.0,
+        y: 0.0,
+        width: DEFAULT_SIZE.0,
+        height: DEFAULT_SIZE.1,
+    });
+    let host_title = app
+        .try_state::<Windows>()
+        .and_then(|w| w.get(&entry.host))
+        .map(|s| s.title())
+        .unwrap_or_default();
+    let fresh = popouts.reserve_replacing(
+        &entry.host,
+        Entry {
+            keep_on_top: on,
+            ..entry.clone()
+        },
+    );
+    let fresh = fresh.map_err(|e| e.to_string())?;
+    if let Err(e) = build_window(&app, &fresh, &entry.host, &entry.view_id, &entry.title, &host_title, bounds, on) {
+        popouts.remove(&fresh);
+        return Err(format!("could not rebuild the window: {e}").into());
+    }
+    // Forget the old one first: its destruction must not dock the panel back.
+    popouts.remove(&label);
+    let _ = window.destroy();
+    notify_changed(&app, &entry.host);
     Ok(())
 }
 
@@ -486,7 +559,7 @@ mod tests {
                 height: 300.0,
             }),
             title: Some("Inspector".into()),
-            always_on_top: false,
+            keep_on_top: false,
         }
     }
 
@@ -545,7 +618,7 @@ mod tests {
         assert_eq!(b(f64::NAN, 0.0, 500.0, 500.0).sanitized(), None);
         assert_eq!(b(0.0, 0.0, f64::INFINITY, 500.0).sanitized(), None);
         let parsed: PopoutRequest = serde_json::from_value(serde_json::json!({ "viewId": "events" })).unwrap();
-        assert!(parsed.bounds.is_none() && !parsed.always_on_top);
+        assert!(parsed.bounds.is_none() && !parsed.keep_on_top);
         assert!(serde_json::from_value::<PopoutRequest>(serde_json::json!({ "viewId": "events", "evil": 1 })).is_err());
         assert_eq!(
             popout_url("events", "main", "p-main-1"),
@@ -705,8 +778,13 @@ mod tests {
         );
         let listed = invoke("list_popouts", serde_json::json!({})).unwrap();
         assert_eq!(listed[0]["viewId"], "inspector");
-        invoke("set_popout_on_top", serde_json::json!({ "on": true })).unwrap();
-        assert!(list_popouts(h.clone(), window(&app, MAIN).as_ref().window()).now()[0].always_on_top);
+        assert!(!list_popouts(h.clone(), window(&app, MAIN).as_ref().window()).now()[0].keep_on_top);
+        // Already the way it is: nothing is rebuilt.
+        invoke("set_popout_on_top", serde_json::json!({ "on": false })).unwrap();
+        assert_eq!(
+            list_popouts(h.clone(), window(&app, MAIN).as_ref().window()).now()[0].label,
+            "p-main-1"
+        );
         assert!(set_popout_on_top(h.clone(), window(&app, MAIN).as_ref().window(), true)
             .now()
             .is_err());
@@ -800,5 +878,34 @@ mod tests {
         // Focusing a pop-out makes its host the target for files from other apps.
         crate::window_manager::on_window_event(&w.as_ref().window(), &tauri::WindowEvent::Focused(true));
         assert_eq!(crate::window_manager::target(&h).as_deref(), Some(MAIN));
+    }
+
+    /// Owning cannot change on a live window: toggling "keep on top of Debrief" rebuilds the pop-out under a new label
+    /// (the same panel, still popped out, nothing docked back).
+    #[test]
+    fn keeping_on_top_of_the_host_rebuilds_the_popout_without_docking_it_back() {
+        let app = app();
+        let h = app.handle().clone();
+        let host = window(&app, MAIN);
+        let closed = recorder(&host, POPOUT_CLOSED_EVENT);
+        let first = open(&h, MAIN, request("inspector")).unwrap();
+        assert!(!first.keep_on_top);
+        let caller = window(&app, &first.label).as_ref().window();
+        set_popout_on_top(h.clone(), caller, true).now().unwrap();
+        let listed = list_popouts(h.clone(), host.as_ref().window()).now();
+        assert_eq!(listed.len(), 1, "replaced, not duplicated");
+        assert!(listed[0].keep_on_top);
+        assert_eq!(listed[0].view_id, "inspector");
+        assert_ne!(listed[0].label, first.label);
+        assert!(
+            closed.lock().unwrap().is_empty(),
+            "the panel stays popped out: nothing is docked back"
+        );
+        // One opened owned from the start.
+        let mut owned = request("events");
+        owned.keep_on_top = true;
+        assert!(open(&h, MAIN, owned).unwrap().keep_on_top);
+        // Only a pop-out may ask.
+        assert!(set_popout_on_top(h.clone(), host.as_ref().window(), true).now().is_err());
     }
 }

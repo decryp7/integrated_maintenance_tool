@@ -9,6 +9,8 @@ async function closeWorkspace(page: Page): Promise<void> {
 }
 
 async function startDemo(page: Page): Promise<void> {
+  // The tour and the Focused layout's headline are checked without Home opening over them.
+  await page.addInitScript(() => localStorage.setItem('imt.home.autoOpen.v1', 'false'));
   await openApp(page);
   await closeWorkspace(page);
   const welcome = page.locator('imt-welcome');

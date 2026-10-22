@@ -702,4 +702,43 @@ mod tests {
         on_window_event(&ghost, &WindowEvent::Destroyed);
         assert!(!app.state::<DragGhosts>().lock().loaded);
     }
+
+    /// The ghost is always on top on purpose, so its session must end, and the ghost hide, whenever the drag does: when the
+    /// UI ends it, when Debrief loses focus with the button up, and when the dragging window goes away. (A mock window
+    /// reports itself visible whatever happens, so this checks that the session that keeps the ghost on screen is gone;
+    /// `hide` itself runs on each of these paths and the tick loop stops with the session.)
+    #[test]
+    fn the_ghost_session_ends_with_the_drag_so_the_ghost_never_stays() {
+        let app = test_app(None);
+        app.manage(DragGhosts::default());
+        let main = window(&app, MAIN);
+        let w = main.as_ref().window();
+        let ghost = || GhostRequest {
+            title: "Inspector".into(),
+            icon: None,
+            snapshot: None,
+            dark: false,
+            width: 400.0,
+            height: 300.0,
+            grab_x: 100.0,
+            grab_y: 10.0,
+        };
+        let live = || app.state::<DragGhosts>().lock().session.is_some();
+        // Ends with the drag.
+        assert!(start(app.handle(), MAIN, ghost().parse().unwrap(), screens()).unwrap());
+        drag_ghost_show(app.handle().clone(), w.clone(), true).now().unwrap();
+        assert!(live());
+        drag_ghost_end(app.handle().clone(), w.clone()).now();
+        assert!(!live(), "the drag ended");
+        // Ends when the dragging window loses focus (button up).
+        assert!(start(app.handle(), MAIN, ghost().parse().unwrap(), screens()).unwrap());
+        drag_ghost_show(app.handle().clone(), w.clone(), true).now().unwrap();
+        on_window_event(&w, &WindowEvent::Focused(false));
+        assert!(!live(), "Debrief lost focus");
+        // Ends when the dragging window goes away.
+        assert!(start(app.handle(), MAIN, ghost().parse().unwrap(), screens()).unwrap());
+        drag_ghost_show(app.handle().clone(), w.clone(), true).now().unwrap();
+        on_window_event(&w, &WindowEvent::Destroyed);
+        assert!(!live(), "the dragging window was destroyed");
+    }
 }
