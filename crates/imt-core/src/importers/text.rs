@@ -490,6 +490,16 @@ mod tests {
     }
 
     #[test]
+    fn formats_without_a_year_take_the_files_year() {
+        // The file was last written on 2026-10-14 (see `import`): December is the year before, October this year.
+        let profile = "[format]\noutput_templates = []\ntimestamp_formats = ['%b %e %H:%M:%S']\nregexes = ['^(?P<timestamp>\\w{3} [ \\d]\\d \\d{2}:\\d{2}:\\d{2}) (?P<level>\\w+) (?P<message>.*)$']";
+        let out = import(profile, "Dec 31 23:00:00 INFO old\nOct 13 10:00:00 INFO recent\n");
+        let year = |i: usize| chrono::DateTime::from_timestamp_millis(out.records[i].ts.unwrap()).unwrap().year();
+        use chrono::Datelike;
+        assert_eq!((year(0), year(1)), (2025, 2026));
+    }
+
+    #[test]
     fn skips_oversized_lines() {
         let huge = "x".repeat(MAX_LINE_LEN + 1);
         let out = import("", &format!("2026-10-14 10:00:00 INFO a\n2026-10-14 10:00:01 INFO {huge}\n"));
