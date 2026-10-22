@@ -235,3 +235,12 @@ fn a_sample_no_parser_pattern_reads_at_all_reports_the_start_of_the_file() {
     );
     assert!(!blank.done());
 }
+
+#[test]
+fn blank_lines_are_not_counted_or_blamed() {
+    let content = format!("{}\n\n   \n{}", shop(3), shop(2));
+    let v = run(&parser(PIPES, ""), &content, &FileFacts::default(), &[]);
+    assert_eq!(v.events, 5);
+    assert_eq!(v.lines, 5, "blank lines are not lines of the log");
+    assert!(v.failures.is_empty(), "{:?}", v.failures);
+}

@@ -403,9 +403,7 @@ mod tests {
         assert!(bytes > 100_000);
         assert!(!root.join("incident.imtz.part").exists());
         let opened = open_package(&out, &root.join("open")).unwrap();
-        let Package::Project { dir: opened, manifest } = opened else {
-            panic!("not a project: {opened:?}")
-        };
+        let (opened, manifest) = project(opened);
         assert_eq!(manifest.name, "incident");
         assert_eq!(std::fs::read(opened.dir.join("data.duckdb")).unwrap().len(), 100_000);
         assert!(!opened.dir.join("index").exists() && opened.dir.join("snapshots").is_dir());
@@ -436,6 +434,16 @@ mod tests {
         let collector = root.join("collected.imtz");
         zip_with(&collector, &[("manifest.json", br#"{"host":"web01"}"#), ("logs/a.log", b"x\n")]);
         assert!(matches!(open_package(&collector, &root.join("o")).unwrap(), Package::Collector(_)));
+        let share = root.join("shared.imtz");
+        let log = b"hello";
+        let manifest = serde_json::json!({
+            "format": crate::bundle::BUNDLE_FORMAT, "schema": 1,
+            "entries": [{"path": "logs/a.log", "kind": "log", "bytes": 5, "sha256": crate::bundle::sha256_hex(log)}]
+        })
+        .to_string();
+        zip_with(&share, &[("logs/a.log", log), ("manifest.json", manifest.as_bytes())]);
+        let shared = open_package(&share, &root.join("o")).unwrap();
+        assert!(matches!(&shared, Package::Share(b) if b.dir.join("logs/a.log").is_file()), "{shared:?}");
         let odd = root.join("odd.imtz");
         zip_with(&odd, &[("project.toml", b"format = \"something-else\"")]);
         let err = open_package(&odd, &root.join("o")).unwrap_err().to_string();
