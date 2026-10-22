@@ -24,9 +24,10 @@ use imt_core::exceptions::ExceptionGroup;
 use imt_core::package::ProjectManifest;
 use imt_core::patterns::Pattern;
 use imt_core::ports::{
-    Analysis, Analyzed, DiagnosticRow, Diagnostics, EventView, EventsRequest, Filter, FixEvaluation, ImportSession, IndexStatus, Ingest,
-    PageQuery, PageReply, Positions, Profiles, Projects, Query, QuickFix, Search, SearchReply, SearchRequest, StoreError, StoreResult,
-    SummaryReply,
+    Analysis, Analyzed, Console, DiagnosticRow, Diagnostics, EventView, EventsRequest, Filter, FixEvaluation, ImportSession, IndexStatus,
+    Ingest, Inspect, Maintain, MaintenanceAction, MaintenanceReport, PageQuery, PageReply, Positions, Profiles, Projects, Query, QuickFix,
+    Search, SearchReply, SearchRequest, SegmentsPage, SegmentsRequest, SqlPage, SqlPageRequest, SqlRequest, SqlResult, SqlSchema,
+    StoreError, StoreFields, StoreIndex, StoreMemory, StoreOverview, StoreResult, SummaryReply,
 };
 use imt_core::ql::{Completion, QlError, QlResult, QueryControl};
 use imt_core::spans::infer::{SpanEvaluation, SpanProposal, SpanRuleCheck, SpanRuleRequest};
@@ -88,6 +89,10 @@ pub struct WorkerConfig {
     pub library_dirs: Option<Vec<PathBuf>>,
     /// How the worker uses memory (the Low memory mode setting); applies when the worker starts.
     pub memory_mode: protocol::MemoryMode,
+    /// The worker's knobs (Settings ▸ Performance); applies when the worker starts.
+    pub tuning: protocol::StoreTuning,
+    /// Hears what the host's memory watcher sees of the worker (the warning at 80% of the cap, the stop, the peak).
+    pub memory_listener: Option<imt_ipc::memory_watch::MemoryListener>,
 }
 
 impl WorkerConfig {
@@ -103,7 +108,26 @@ impl WorkerConfig {
             third_party: Vec::new(),
             library_dirs: None,
             memory_mode: protocol::MemoryMode::Normal,
+            tuning: protocol::StoreTuning::default(),
+            memory_listener: None,
         }
+    }
+}
+
+/// What the worker is started with that can change while IMT runs (Settings ▸ Performance): read at every start, so
+/// a changed value reaches the worker's next start (after a crash, a cap stop or [`StoreWorker::reset`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorkerLaunch {
+    pub memory_cap: Option<u64>,
+    pub memory_mode: protocol::MemoryMode,
+    pub tuning: protocol::StoreTuning,
+}
+
+impl WorkerLaunch {
+    fn args(&self) -> Vec<String> {
+        let mut args = self.memory_mode.args();
+        args.extend(self.tuning.args());
+        args
     }
 }
 
@@ -197,6 +221,8 @@ struct Inner {
     third_party: Mutex<Vec<ThirdPartyPlugin>>,
     /// Why the worker cannot start (its database library is missing).
     unavailable: Option<String>,
+    /// What the worker's next start uses.
+    launch: Arc<Mutex<WorkerLaunch>>,
 }
 
 /// Variables Windows needs to create a third-party plugin's AppContainer (they name the profile folders, not
@@ -216,7 +242,7 @@ impl StoreWorker {
         spawn.endpoint_prefix = "imt-store".into();
         // Imports and queries run at normal priority: they are what the user waits for.
         spawn.below_normal_priority = false;
-        spawn.args = cfg.memory_mode.args();
+        spawn.memory_listener = cfg.memory_listener.clone();
         if let Some(kv) = library_path_env(cfg.lib_dir.as_deref()) {
             spawn.env.push(kv);
         }
@@ -252,7 +278,17 @@ impl StoreWorker {
             };
             c
         };
+        let launch_now = Arc::new(Mutex::new(WorkerLaunch {
+            memory_cap: cfg.memory_cap,
+            memory_mode: cfg.memory_mode,
+            tuning: cfg.tuning.clone(),
+        }));
+        let now = launch_now.clone();
         let sup = Supervisor::new(sup_cfg, move || {
+            let mut spec = spec.clone();
+            let current = lock(&now).clone();
+            spec.spawn.args = current.args();
+            spec.spawn.sandbox.memory_limit = current.memory_cap;
             Ok(Conn {
                 child: launch(&spec, Arc::new(NoCalls))?,
                 handles: Mutex::new(HashMap::new()),
@@ -265,8 +301,19 @@ impl StoreWorker {
                 safe_mode: cfg.safe_mode,
                 third_party: Mutex::new(cfg.third_party),
                 unavailable,
+                launch: launch_now,
             }),
         })
+    }
+
+    /// What the worker's next start uses (Settings ▸ Performance changed); a running worker keeps its values.
+    pub fn set_launch(&self, launch: WorkerLaunch) {
+        *lock(&self.inner.launch) = launch;
+    }
+
+    /// What the worker's next start uses.
+    pub fn launch_settings(&self) -> WorkerLaunch {
+        lock(&self.inner.launch).clone()
     }
 
     /// The installed third-party plugins now: the next open sends them, and a running worker applies them at
@@ -801,6 +848,45 @@ impl Search for RemoteStore {
     }
     fn partial_matches(&self, filter: &imt_core::ports::Filter) -> StoreResult<imt_core::ports::PartialMatches> {
         self.analysis(StoreOp::PartialMatches, filter)
+    }
+}
+
+impl Inspect for RemoteStore {
+    fn store_overview(&self) -> StoreResult<StoreOverview> {
+        self.call(StoreOp::StoreOverview, &())
+    }
+    fn store_segments(&self, req: &SegmentsRequest) -> StoreResult<SegmentsPage> {
+        self.call(StoreOp::StoreSegments, req)
+    }
+    fn store_fields(&self) -> StoreResult<StoreFields> {
+        self.call(StoreOp::StoreFields, &())
+    }
+    fn store_index(&self) -> StoreResult<StoreIndex> {
+        self.call(StoreOp::StoreIndex, &())
+    }
+    /// The store's memory with the worker process's (resident memory, Low memory mode).
+    fn store_memory(&self) -> StoreResult<StoreMemory> {
+        self.call(StoreOp::StoreMemory, &())
+    }
+}
+
+impl Maintain for RemoteStore {
+    /// Compaction rewrites segments: a long call.
+    fn maintain(&self, action: MaintenanceAction) -> StoreResult<MaintenanceReport> {
+        self.call_with(StoreOp::StoreMaintain, &action, LONG_TIMEOUT)
+    }
+}
+
+impl Console for RemoteStore {
+    fn sql_schema(&self) -> StoreResult<SqlSchema> {
+        self.call(StoreOp::SqlSchema, &())
+    }
+    /// Cancellable through the thread's current control (the worker interrupts the statement).
+    fn sql_run(&self, req: &SqlRequest) -> StoreResult<SqlResult> {
+        self.analysis(StoreOp::SqlRun, req)
+    }
+    fn sql_page(&self, req: &SqlPageRequest) -> StoreResult<SqlPage> {
+        self.call(StoreOp::SqlPage, req)
     }
 }
 

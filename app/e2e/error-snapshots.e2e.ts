@@ -149,7 +149,8 @@ test('the capture command is in the palette', async ({ page }) => {
 test('a panel that fails takes a snapshot of its error card', async ({ page }) => {
   // Rows without `markers` make the events grid throw while rendering.
   await openAppWith(page, '?mockCorrupt=markers', { grid: false });
-  await expect(page.locator('.imt-panel-failed')).toBeVisible();
+  // The card shows and its snapshot is taken at once: the capture holds the page until it is done.
+  await expect(page.locator('.imt-panel-failed')).toBeVisible({ timeout: CAPTURE_TIMEOUT });
   await expect(toast(page)).toContainText('Something went wrong', { timeout: CAPTURE_TIMEOUT });
   await openSnapshotsView(page);
   const view = page.locator('imt-error-snapshots-view');

@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { settle, testLogger } from '../../testing/helpers';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
+import { TEXT_DEBOUNCE_MS } from '../core/workspace/query.store';
 import { DockService } from '../dock/dock.service';
 import { FakeDock } from '../../testing/helpers';
 import { provideToolsTesting } from '../tools/mock/test-support';
@@ -101,6 +102,22 @@ describe('CoreUiState', () => {
     expect(ui.query).toMatchObject({ query: { text: 'boom', levels: ['Error'] }, textInput: 'boom' });
     expect(ui.layout).toEqual({ id: 'imt.layout.v1', openViews: ['events', 'timeline'] });
     expect(ui.selection).toEqual({ recordId: null });
+  });
+
+  it('does not change when the typed search applies or smart search switches how it matches', async () => {
+    const { registry, store } = await setup();
+    vi.useFakeTimers();
+    try {
+      store.setTextInput('timed out'); // typed, debounce pending: a save now writes this
+      const before = registry.trackedSnapshot();
+      vi.advanceTimersByTime(TEXT_DEBOUNCE_MS);
+      expect(store.query().textMode).toBe('words');
+      expect(registry.trackedSnapshot()).toBe(before);
+      store.patchQuery({ textMode: 'wordsOrSubstring' });
+      expect(registry.trackedSnapshot()).toBe(before);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('restores the query, opens saved views and jumps to the selection', async () => {

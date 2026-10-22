@@ -392,6 +392,17 @@ describe('backends', () => {
     expect(seen).toEqual([{ kind: 'import-crash', message: 'm', plugin: null }]);
   });
 
+  it('the mock backend takes automatic snapshots unless the page asks ?mockSnapshots=off', async () => {
+    const url = window.location.href;
+    try {
+      expect(await new MockSnapshotBackend().automaticEnabled()).toBe(true);
+      window.history.replaceState(null, '', '?mockSnapshots=off');
+      expect(await new MockSnapshotBackend().automaticEnabled()).toBe(false);
+    } finally {
+      window.history.replaceState(null, '', url);
+    }
+  });
+
   it('the mock backend stores, lists newest first, serves images and removes', async () => {
     const m = new MockSnapshotBackend();
     const a = await m.save(IMAGE, { reason: 'unhandled-error', message: 'one', manual: false });

@@ -180,7 +180,7 @@ export function severityLabel(s: Severity): string {
     .empty { padding: 12px 14px; }
     .body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(220px, 45%) 1fr; }
     @container (max-width: 560px) { .body { grid-template-columns: 1fr; grid-template-rows: 1fr auto; } .details { border-left: 0; border-top: 1px solid var(--border); } }
-    .tree { min-height: 0; overflow: auto; padding: 2px 0; }
+    .tree { position: relative; min-height: 0; overflow: auto; padding: 2px 0; }
     .item { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; cursor: default; color: var(--text-2); white-space: nowrap; font-size: var(--fs-sm); }
     .item.problem { padding-left: 30px; }
     .item.group { color: var(--text); font-weight: 600; }

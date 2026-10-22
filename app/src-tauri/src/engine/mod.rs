@@ -50,17 +50,22 @@ impl WorkerHost {
     /// The worker next to IMT's executable (`IMT_STORE_WORKER` overrides it), with libduckdb from the installed
     /// resource folder `lib_dir` (installers), next to the worker, or from IMT's own library path (development
     /// builds, `fetch-libduckdb.sh`). The worker starts the built-in plugins and the installed `third_party` ones
-    /// for imports itself (ADR 0027), in `memory_mode` (the Low memory mode setting).
+    /// for imports itself (ADR 0027), with `launch` (its cap and tuning from Settings ▸ Performance, ADR 0031) and
+    /// `memory_listener` hearing its memory watcher.
     pub(crate) fn new(
         disabled_plugins: Vec<String>,
         safe_mode: bool,
         lib_dir: Option<PathBuf>,
         third_party: Vec<imt_store_client::protocol::ThirdPartyPlugin>,
-        memory_mode: imt_store_client::MemoryMode,
+        launch: imt_store_client::WorkerLaunch,
+        memory_listener: Option<imt_ipc::memory_watch::MemoryListener>,
     ) -> StoreResult<WorkerHost> {
         let exe = worker_binary();
         let mut cfg = imt_store_client::WorkerConfig::new(&exe);
-        cfg.memory_mode = memory_mode;
+        cfg.memory_mode = launch.memory_mode;
+        cfg.memory_cap = launch.memory_cap;
+        cfg.tuning = launch.tuning;
+        cfg.memory_listener = memory_listener;
         cfg.lib_dir = lib_dir.filter(|d| d.is_dir()).or_else(|| exe.parent().map(Path::to_path_buf));
         cfg.disabled_plugins = disabled_plugins;
         cfg.safe_mode = safe_mode;
@@ -69,6 +74,11 @@ impl WorkerHost {
         Ok(WorkerHost {
             worker: imt_store_client::StoreWorker::new(cfg)?,
         })
+    }
+
+    /// The supervised worker (Settings ▸ Performance hands it new launch values).
+    pub(crate) fn worker(&self) -> imt_store_client::StoreWorker {
+        self.worker.clone()
     }
 }
 

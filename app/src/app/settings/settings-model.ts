@@ -12,6 +12,7 @@ export const GROUPS: { id: SectionGroup; title: string }[] = [
   { id: 'diagnostics', title: $localize`:Settings group@@settings.group.diagnostics:Diagnostics` },
   { id: 'plugins', title: $localize`:Settings group@@settings.group.plugins:Plugins` },
   { id: 'ai', title: $localize`:Settings group@@settings.group.ai:AI` },
+  { id: 'performance', title: $localize`:Settings group@@settings.group.performance:Performance` },
   { id: 'advanced', title: $localize`:Settings group@@settings.group.advanced:Advanced` },
 ];
 

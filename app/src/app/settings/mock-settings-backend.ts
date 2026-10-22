@@ -87,6 +87,21 @@ export function mockSections(): SettingsSection[] {
       values: { 'net.decryptology.registry': true, 'net.decryptology.windows': true, 'net.decryptology.web': true, 'com.example.demo': false },
     }),
     section({
+      id: 'performance',
+      title: 'Performance',
+      description: "How much memory and processor IMT's background processes may use.",
+      owner: { kind: 'app' },
+      group: 'performance',
+      fields: [
+        f('storeCapMb', 'Database worker memory cap', int(512, 65_536, 'MB'), 2048, { description: 'The most memory the database worker may use.', restartRequired: true }),
+        f('importBudgetMb', 'Memory for imports', int(128, 32_768, 'MB'), 768, { description: 'How much of the worker memory an import plans to use.', restartRequired: true }),
+        f('queryBudgetMb', 'Memory for queries', int(200, 32_768, 'MB'), 300, { description: 'How much of the worker memory queries plan to use.', restartRequired: true }),
+        f('returnMemoryAtOnce', 'Give freed memory back at once', { type: 'bool' }, false, { description: 'Part of the Low memory preset.', restartRequired: true }),
+        f('queryThreads', 'Query threads', int(1, 64), 4, { description: 'How many cores one query may use.', restartRequired: true }),
+        f('maxSpillMb', 'Spill size limit', int(0, 1 << 20, 'MB'), 0, { description: 'The most the database may write to the spill folder.', restartRequired: true, advanced: true }),
+      ],
+    }),
+    section({
       id: 'workspace',
       title: 'Workspace',
       description: 'How IMT follows files that change while they are open.',

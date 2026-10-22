@@ -116,6 +116,47 @@ impl PluginSpec {
     }
 }
 
+/// What Settings ▸ Performance puts on plugin processes (ADR 0031): memory caps over what the manifests ask for, the
+/// CPU share, and who hears the memory watcher. Read at every start of a plugin's process.
+#[derive(Debug, Clone, Default)]
+pub struct PluginLimits {
+    /// The cap of a plugin whose manifest names none (bytes); `None`: [`crate::sandbox::DEFAULT_MEMORY_LIMIT`].
+    pub default_memory: Option<u64>,
+    /// Caps the user set for single plugins (bytes), over what their manifests ask for.
+    pub memory: std::collections::BTreeMap<String, u64>,
+    /// The plugins' CPU share in percent (exact on Windows; on Unix below 100 only lowers the priority).
+    pub cpu_rate_percent: Option<u8>,
+    /// Hears the memory watcher of every plugin process (warning at 80%, stop, peak).
+    pub memory_listener: Option<imt_ipc::memory_watch::MemoryListener>,
+}
+
+impl PluginLimits {
+    /// The memory cap of `manifest`'s plugin: the user's override, else what the manifest asks for, else the default;
+    /// always within the bounds every plugin gets ([`imt_plugin_api::sandbox::MIN_MEMORY_LIMIT`] to
+    /// [`imt_plugin_api::manifest::MAX_MEMORY_LIMIT`]).
+    pub fn memory_cap(&self, manifest: &Manifest) -> u64 {
+        self.memory
+            .get(&*manifest.id)
+            .copied()
+            .or(manifest.memory_limit)
+            .or(self.default_memory)
+            .unwrap_or(crate::sandbox::DEFAULT_MEMORY_LIMIT)
+            .clamp(
+                imt_plugin_api::sandbox::MIN_MEMORY_LIMIT,
+                imt_plugin_api::manifest::MAX_MEMORY_LIMIT,
+            )
+    }
+
+    /// `spec` with these limits (the normal process; an elevated one caps itself by its manifest).
+    fn apply(&self, manifest: &Manifest, spec: &mut SpawnSpec) {
+        spec.sandbox.memory_limit = Some(self.memory_cap(manifest));
+        if let Some(p) = self.cpu_rate_percent.filter(|p| *p < 100) {
+            spec.sandbox.cpu_rate_percent = Some(p.max(1));
+        }
+        spec.memory_listener = self.memory_listener.clone();
+    }
+}
+
 /// Runs one of the plugin's elevated operations for its normal process.
 type ElevatedRunner = Box<dyn Fn(&str, &str, Json, Duration) -> Result<Json, ToolFail> + Send + Sync>;
 
@@ -295,6 +336,8 @@ pub struct PluginProcess {
     settings: Arc<Mutex<Option<serde_json::Value>>>,
     /// What the launcher reported it could not enforce at the last start (Linux: landlock).
     reported: Arc<Mutex<Vec<imt_ipc::sandbox::Note>>>,
+    /// Settings ▸ Performance's limits, read at every start.
+    limits: Arc<Mutex<PluginLimits>>,
 }
 
 impl PluginProcess {
@@ -322,10 +365,12 @@ impl PluginProcess {
         let handler: Arc<dyn Handler> = services.clone();
         let restore_settings = settings.clone();
         let reported: Arc<Mutex<Vec<imt_ipc::sandbox::Note>>> = Arc::default();
-        let (m, s, g, r) = (manifest.clone(), spec.clone(), granted.clone(), reported.clone());
+        let limits: Arc<Mutex<PluginLimits>> = Arc::default();
+        let (m, s, g, r, l) = (manifest.clone(), spec.clone(), granted.clone(), reported.clone(), limits.clone());
         let start = move || {
             verify_program(&m, &s)?;
-            let child_spec = child_spec(&m, &s, &lock(&g), false);
+            let mut child_spec = child_spec(&m, &s, &lock(&g), false);
+            lock(&l).apply(&m, &mut child_spec.spawn);
             let child = launch(&child_spec, handler.clone())?;
             *lock(&r) = child.sandbox_notes().to_vec();
             Ok(child)
@@ -348,7 +393,18 @@ impl PluginProcess {
             services,
             settings,
             reported,
+            limits,
         })
+    }
+
+    /// Settings ▸ Performance's limits; they apply from the process' next start.
+    pub fn set_limits(&self, limits: PluginLimits) {
+        *lock(&self.limits) = limits;
+    }
+
+    /// The memory cap its process gets at its next start (bytes).
+    pub fn memory_cap(&self) -> u64 {
+        lock(&self.limits).memory_cap(&self.manifest)
     }
 
     pub fn manifest(&self) -> &Manifest {
@@ -381,9 +437,11 @@ impl PluginProcess {
         self.shutdown();
     }
 
-    /// The sandbox its process gets with the current grants.
+    /// The sandbox its process gets with the current grants and limits.
     pub fn sandbox(&self) -> imt_ipc::SandboxSpec {
-        child_spec(&self.manifest, &self.spec, &lock(&self.granted), false).spawn.sandbox
+        let mut c = child_spec(&self.manifest, &self.spec, &lock(&self.granted), false);
+        lock(&self.limits).apply(&self.manifest, &mut c.spawn);
+        c.spawn.sandbox
     }
 
     /// Its sandbox status: one line per restriction this system cannot enforce (Linux without landlock:
@@ -648,6 +706,62 @@ mod tests {
             sandbox_status(host, vec![partly.clone(), seccomp.clone()]),
             [partly.message, seccomp.message]
         );
+    }
+
+    fn manifest_of(id: &str, memory: Option<u64>) -> Manifest {
+        let mut m: Manifest = serde_json::from_value(serde_json::json!({
+            "id": id, "name": "X", "version": "1.0.0", "protocol": imt_plugin_api::PROTOCOL,
+            "permissions": [], "importers": [], "configParsers": [], "markerKinds": [], "annotators": [],
+            "transforms": [], "tools": [], "profileImporters": [], "documentImporters": []
+        }))
+        .unwrap();
+        m.memory_limit = memory;
+        m
+    }
+
+    #[test]
+    fn the_users_cap_wins_over_the_manifest_which_wins_over_the_default() {
+        const MB: u64 = 1 << 20;
+        let asks = manifest_of("p.asks", Some(2048 * MB));
+        let quiet = manifest_of("p.quiet", None);
+        let none = PluginLimits::default();
+        assert_eq!(none.memory_cap(&quiet), crate::sandbox::DEFAULT_MEMORY_LIMIT);
+        assert_eq!(none.memory_cap(&asks), 2048 * MB);
+        let mut l = PluginLimits {
+            default_memory: Some(768 * MB),
+            ..PluginLimits::default()
+        };
+        assert_eq!((l.memory_cap(&quiet), l.memory_cap(&asks)), (768 * MB, 2048 * MB));
+        l.memory.insert("p.asks".into(), 512 * MB);
+        l.memory.insert("p.quiet".into(), 1);
+        assert_eq!(l.memory_cap(&asks), 512 * MB, "the user's override wins");
+        assert_eq!(
+            l.memory_cap(&quiet),
+            imt_plugin_api::sandbox::MIN_MEMORY_LIMIT,
+            "within the bounds every plugin gets"
+        );
+        l.memory.insert("p.quiet".into(), u64::MAX);
+        assert_eq!(l.memory_cap(&quiet), imt_plugin_api::manifest::MAX_MEMORY_LIMIT);
+    }
+
+    #[test]
+    fn limits_reach_the_sandbox_of_the_next_start() {
+        let p = PluginProcess::new(manifest_of("p.limits", None), PluginSpec::new("/no/program", "p.limits"));
+        assert_eq!(p.sandbox().memory_limit, Some(crate::sandbox::DEFAULT_MEMORY_LIMIT));
+        assert_eq!(p.sandbox().cpu_rate_percent, None);
+        let mut l = PluginLimits {
+            cpu_rate_percent: Some(25),
+            ..PluginLimits::default()
+        };
+        l.memory.insert("p.limits".into(), 300 << 20);
+        p.set_limits(l.clone());
+        assert_eq!(p.sandbox().memory_limit, Some(300 << 20));
+        assert_eq!(p.memory_cap(), 300 << 20);
+        assert_eq!(p.sandbox().cpu_rate_percent, Some(25));
+        // 100% is no limit at all.
+        l.cpu_rate_percent = Some(100);
+        p.set_limits(l);
+        assert_eq!(p.sandbox().cpu_rate_percent, None);
     }
 
     #[test]

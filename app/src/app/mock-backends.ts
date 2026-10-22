@@ -19,6 +19,7 @@ export { MockParsersBackend } from './settings/parsers/mock-parsers-backend';
 export { MockKnowledgeBackend } from './ai/knowledge/mock-knowledge-backend';
 export { MockNotesBackend } from './notes/mock/mock-notes-backend';
 export { MockProblemsBackend } from './problems/mock/mock-problems-backend';
+export { MockStorePaneBackend } from './store-pane/mock/mock-store-pane-backend';
 export { MockShareBackend } from './share/mock/mock-share-backend';
 export { MockMonitorCharts, mockMonitorChartsOptions } from './tools/monitor/mock/mock-monitor-charts';
 export { MockPluginPackagesBackend } from './plugins-panel/mock/mock-plugin-packages-backend';

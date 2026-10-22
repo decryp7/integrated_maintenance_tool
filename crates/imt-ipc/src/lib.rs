@@ -23,6 +23,7 @@ pub mod frame;
 mod job;
 pub mod launch;
 pub mod link;
+pub mod memory_watch;
 pub mod peer;
 pub mod process;
 pub mod runtime;

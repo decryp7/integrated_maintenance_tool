@@ -8,14 +8,15 @@ use crate::plugins::{NoPlugins, PluginChoice, PluginSource};
 use imt_core::api::WorkspaceState;
 use imt_core::package::ProjectManifest;
 use imt_core::ports::{
-    Analysis, Diagnostics, Filter, ImportSession, Ingest, Positions, Profiles, Projects, Query, Search, StoreError, StoreResult,
+    Analysis, Console, Diagnostics, Filter, ImportSession, Ingest, Inspect, Maintain, Positions, Profiles, Projects, Query, Search,
+    StoreError, StoreResult,
 };
 use imt_core::ql::QueryControl;
 use imt_core::{PluginRegistry, Profile};
 use imt_ipc::CancelProbe;
 use imt_store_client::protocol::{
     self, ExportProject, Handle, IdsAt, Limits, MemoryMode, OpenProject, OpenStore, OpenedProject, Paths, Session, Source, StoreOp,
-    StoreRequest, ThirdPartyPlugin, WorkerStatus,
+    StoreRequest, StoreTuning, ThirdPartyPlugin, WorkerStatus,
 };
 use imt_store_duck::{DuckStore, StoreOptions};
 use serde::de::DeserializeOwned;
@@ -49,6 +50,8 @@ pub struct Worker {
     next: AtomicU64,
     plugins: Arc<dyn PluginSource>,
     mode: MemoryMode,
+    /// The knobs of Settings ▸ Performance (its command line, see [`StoreTuning::from_args`]).
+    tuning: StoreTuning,
 }
 
 impl Default for Worker {
@@ -70,15 +73,23 @@ impl Worker {
             next: AtomicU64::new(0),
             plugins,
             mode,
+            tuning: StoreTuning::default(),
         }
     }
 
-    /// The options of a store opened in this worker: the mode's, with the request's limits.
+    /// The worker with the knobs of Settings ▸ Performance over its mode's values.
+    pub fn with_tuning(mut self, tuning: StoreTuning) -> Worker {
+        self.tuning = tuning;
+        self
+    }
+
+    /// The options of a store opened in this worker: the mode's, with the worker's tuning, with the request's limits.
     pub fn options(&self, limits: Option<Limits>) -> StoreOptions {
-        let defaults = match self.mode {
+        let mode = match self.mode {
             MemoryMode::Normal => StoreOptions::default(),
             MemoryMode::Low => StoreOptions::low_memory(),
         };
+        let defaults = tuned(mode, &self.tuning);
         match limits {
             Some(l) => StoreOptions {
                 parse_threads: l.parse_threads,
@@ -138,7 +149,7 @@ impl Worker {
         if let Some(setup) = &req.parsers {
             imt_core::ports::Profiles::set_parsers(&store, setup)?;
         }
-        if req.limits.is_some() || self.mode != MemoryMode::Normal {
+        if req.limits.is_some() || self.mode != MemoryMode::Normal || self.tuning != StoreTuning::default() {
             store.configure(self.options(req.limits))?;
         }
         let dir = std::fs::canonicalize(store.dir()).map_err(|e| StoreError::Io(format!("{}: {e}", store.dir().display())))?;
@@ -194,6 +205,7 @@ impl Worker {
                 rss_bytes: imt_ipc::process::current_rss_bytes(),
                 stores: lock(&self.stores).len(),
                 memory_mode: self.mode,
+                tuning: self.tuning.clone(),
             }),
             StoreRequest::Scan { store, filter } => {
                 let filter: Filter = body(filter.0)?;
@@ -332,6 +344,23 @@ impl Worker {
                 let session = s.reread_parsers()?;
                 reply(&self.session(session))
             }
+            StoreOp::StoreOverview => reply(&s.store_overview()?),
+            StoreOp::StoreSegments => reply(&s.store_segments(&body(b)?)?),
+            StoreOp::StoreFields => reply(&s.store_fields()?),
+            StoreOp::StoreIndex => reply(&s.store_index()?),
+            StoreOp::StoreMemory => {
+                let mut m = s.store_memory()?;
+                m.worker = Some(imt_core::ports::WorkerMemory {
+                    pid: std::process::id(),
+                    rss_bytes: imt_ipc::process::current_rss_bytes(),
+                    low_memory: self.mode == MemoryMode::Low,
+                });
+                reply(&m)
+            }
+            StoreOp::StoreMaintain => reply(&s.maintain(body(b)?)?),
+            StoreOp::SqlSchema => reply(&s.sql_schema()?),
+            StoreOp::SqlRun => run!(s.sql_run(&body(b)?)),
+            StoreOp::SqlPage => reply(&s.sql_page(&body(b)?)?),
             StoreOp::SaveProject => reply(&Projects::save_project(&s, &body::<ProjectManifest>(b)?)?),
             StoreOp::ExportProject => {
                 let r: ExportProject = body(b)?;
@@ -409,13 +438,36 @@ impl imt_ipc::Handler for StoreHandler {
     }
 }
 
+/// `base` with each knob `tuning` names.
+fn tuned(base: StoreOptions, tuning: &StoreTuning) -> StoreOptions {
+    let mb = |n: u64| format!("{n}MB");
+    StoreOptions {
+        parse_threads: tuning.parse_threads.unwrap_or(base.parse_threads),
+        duck_threads: tuning.duck_threads.unwrap_or(base.duck_threads),
+        memory_limit: tuning.memory_limit_mb.map(mb).unwrap_or(base.memory_limit),
+        index: imt_store_duck::WriterBudget {
+            // Tantivy needs at least 15 MB per writer thread.
+            heap: tuning.index_heap_mb.map_or(base.index.heap, |m| (m as usize) << 20),
+            threads: tuning.index_threads.unwrap_or(base.index.threads),
+        }
+        .floored(),
+        spill_dir: tuning.spill_dir.clone().or(base.spill_dir),
+        max_spill: tuning.max_spill_mb.map(mb).or(base.max_spill),
+        allocator_flush: tuning.allocator_flush_mb.map(|m| format!("{m}MiB")).unwrap_or(base.allocator_flush),
+        allocator_background_threads: tuning.allocator_background_threads.unwrap_or(base.allocator_background_threads),
+    }
+}
+
 /// The worker's `main`: reads its bootstrap, connects to IMT and serves until IMT closes the connection (or
 /// stdin closes: IMT is gone).
 ///
-/// `mode` is how the worker uses memory (its command line, see [`MemoryMode::from_args`]).
-pub fn run(plugins: Arc<dyn PluginSource>, mode: MemoryMode) -> std::io::Result<()> {
+/// `mode` is how the worker uses memory (its command line, see [`MemoryMode::from_args`]) and `tuning` the knobs of
+/// Settings ▸ Performance ([`StoreTuning::from_args`]).
+pub fn run(plugins: Arc<dyn PluginSource>, mode: MemoryMode, tuning: StoreTuning) -> std::io::Result<()> {
     imt_ipc::child::child_main("IMT", move |_| {
-        Arc::new(StoreHandler::new(Arc::new(Worker::with_mode(plugins.clone(), mode))))
+        Arc::new(StoreHandler::new(Arc::new(
+            Worker::with_mode(plugins.clone(), mode).with_tuning(tuning.clone()),
+        )))
     })
 }
 
@@ -446,6 +498,55 @@ mod tests {
         assert_eq!(merged.index, StoreOptions::low_memory().index);
         let status: WorkerStatus = serde_json::from_value(low.handle(StoreRequest::Status, None, &mut none).unwrap()).unwrap();
         assert_eq!(status.memory_mode, MemoryMode::Low);
+    }
+
+    #[test]
+    fn stores_take_the_workers_tuning_over_its_mode_and_requests_win_over_both() {
+        let tuning = StoreTuning {
+            parse_threads: Some(6),
+            duck_threads: Some(3),
+            memory_limit_mb: Some(512),
+            index_heap_mb: Some(10),
+            index_threads: Some(2),
+            spill_dir: Some(std::env::temp_dir().join("spill")),
+            max_spill_mb: Some(4096),
+            allocator_flush_mb: Some(16),
+            allocator_background_threads: Some(false),
+            ..StoreTuning::default()
+        };
+        let w = Worker::with_mode(Arc::new(NoPlugins), MemoryMode::Low).with_tuning(tuning.clone());
+        let o = w.options(None);
+        assert_eq!((o.parse_threads, o.duck_threads, o.memory_limit.as_str()), (6, 3, "512MB"));
+        // 10 MB is below what two writer threads need: raised to 15 MB each.
+        assert_eq!((o.index.heap, o.index.threads), (30 << 20, 2));
+        assert_eq!(o.spill_dir, tuning.spill_dir);
+        assert_eq!(
+            (o.max_spill.as_deref(), o.allocator_flush.as_str(), o.allocator_background_threads),
+            (Some("4096MB"), "16MiB", false)
+        );
+        let req = w.options(Some(Limits {
+            parse_threads: 1,
+            duck_threads: 1,
+            memory_limit: "64MB".into(),
+        }));
+        assert_eq!(
+            (req.parse_threads, req.memory_limit.as_str(), req.max_spill.as_deref()),
+            (1, "64MB", Some("4096MB"))
+        );
+        // Nothing tuned: the mode's options, unchanged.
+        let partial = Worker::default().with_tuning(StoreTuning {
+            duck_threads: Some(7),
+            ..StoreTuning::default()
+        });
+        assert_eq!(
+            partial.options(None),
+            StoreOptions {
+                duck_threads: 7,
+                ..StoreOptions::default()
+            }
+        );
+        let status: WorkerStatus = serde_json::from_value(w.handle(StoreRequest::Status, None, &mut none).unwrap()).unwrap();
+        assert_eq!(status.tuning, tuning);
     }
 
     #[test]

@@ -8,11 +8,12 @@
 //! and exit lines); without it, standard error is discarded.
 
 use crate::child_log::{self, ChildLog, ChildLogSpec, Exit};
+use crate::memory_watch::{MemoryEvent, MemoryListener, MemoryWatch, Verdict};
 use crate::IpcError;
 use std::io::{BufRead, Read, Write};
 use std::path::PathBuf;
 use std::process::{Child, Command, ExitStatus, Stdio};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -68,6 +69,9 @@ pub struct SpawnSpec {
     /// The child's sandbox: the launcher applies its job limits (Windows), the child the rest
     /// ([`crate::sandbox`]).
     pub sandbox: crate::sandbox::SandboxSpec,
+    /// Hears what the memory watcher sees of a capped child (the warning at 80%, the stop, the peak at the end; see
+    /// [`crate::memory_watch`]). Ignored without a memory cap.
+    pub memory_listener: Option<MemoryListener>,
 }
 
 impl SpawnSpec {
@@ -84,6 +88,7 @@ impl SpawnSpec {
             below_normal_priority: true,
             log: None,
             sandbox: crate::sandbox::SandboxSpec::unrestricted(),
+            memory_listener: None,
         }
     }
 }
@@ -168,6 +173,8 @@ pub struct ChildProcess {
     exit_note: Option<Arc<ExitNote>>,
     /// The memory cap the host stopped the child over, once it did.
     over_memory: Arc<Mutex<Option<u64>>>,
+    /// The most memory the watcher saw the child use (bytes; 0 when it is not watched).
+    memory_peak: Arc<AtomicU64>,
     /// What the launcher could not enforce of its sandbox.
     sandbox_notes: Vec<crate::sandbox::Note>,
     _job: Job,
@@ -181,34 +188,59 @@ fn megabytes(bytes: u64) -> String {
     format!("{} MB", bytes.div_ceil(1 << 20))
 }
 
+/// What the memory watcher of one child shares with its [`ChildProcess`].
+struct Watched {
+    pid: u32,
+    child: Arc<Mutex<Option<OsChild>>>,
+    over: Arc<Mutex<Option<u64>>>,
+    peak: Arc<AtomicU64>,
+    log: Option<Arc<ChildLog>>,
+    label: String,
+    listener: Option<MemoryListener>,
+}
+
 /// Watches the resident memory of the child `pid` and stops it once it uses more than `limit` (the memory cap of its
 /// sandbox), the same way on every platform: rlimits and job commit limits count reservations and commitments that
-/// allocators make up front (see `SandboxSpec::memory_limit`). Ends with the child.
-fn watch_memory(pid: u32, limit: u64, child: Arc<Mutex<Option<OsChild>>>, over: Arc<Mutex<Option<u64>>>, log: Option<Arc<ChildLog>>) {
+/// allocators make up front (see `SandboxSpec::memory_limit`). Tells the listener at 80% of the cap, at the stop and
+/// when the child ends ([`crate::memory_watch`]). Ends with the child.
+fn watch_memory(limit: u64, w: Watched) {
     let spawned = std::thread::Builder::new().name("imt-child-memory".into()).spawn(move || {
-        let id = sysinfo::Pid::from_u32(pid);
+        let id = sysinfo::Pid::from_u32(w.pid);
         let mut sys = sysinfo::System::new();
+        let mut watch = MemoryWatch::new(limit);
+        let mut last = 0;
+        let tell = |e: MemoryEvent| {
+            if let Some(l) = &w.listener {
+                l.tell(&w.label, e);
+            }
+        };
         loop {
             std::thread::sleep(MEMORY_LOOK);
-            let ended = lock(&child).as_mut().is_none_or(|c| matches!(c.try_wait(), Ok(Some(_))));
+            let ended = lock(&w.child).as_mut().is_none_or(|c| matches!(c.try_wait(), Ok(Some(_))));
             if ended {
-                return;
+                return tell(MemoryEvent::Ended(watch.ended(last)));
             }
             sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[id]), true);
-            let used = sys.process(id).map(|p| p.memory()).unwrap_or(0);
-            if used > limit {
-                *lock(&over) = Some(limit);
-                if let Some(l) = &log {
-                    l.record(&child_log::ChildEvent::Note(format!(
-                        "Stopped: it used {} of memory, more than its cap of {}",
-                        megabytes(used),
-                        megabytes(limit)
-                    )));
+            last = sys.process(id).map(|p| p.memory()).unwrap_or(0);
+            let verdict = watch.observe(last);
+            w.peak.store(watch.peak(), Ordering::Relaxed);
+            match verdict {
+                Verdict::Fine => {}
+                Verdict::Warn(u) => tell(MemoryEvent::Warning(u)),
+                Verdict::Stop(u) => {
+                    *lock(&w.over) = Some(limit);
+                    if let Some(l) = &w.log {
+                        l.record(&child_log::ChildEvent::Note(format!(
+                            "Stopped: it used {} of memory, more than its cap of {}",
+                            megabytes(u.used),
+                            megabytes(limit)
+                        )));
+                    }
+                    if let Some(c) = lock(&w.child).as_mut() {
+                        let _ = c.kill();
+                    }
+                    return tell(MemoryEvent::Stopped(u));
                 }
-                if let Some(c) = lock(&child).as_mut() {
-                    let _ = c.kill();
-                }
-                return;
             }
         }
     });
@@ -329,7 +361,7 @@ impl ChildProcess {
             // SAFETY: setpriority takes plain integers and has no memory effects; it only lowers the
             // priority of our own child.
             unsafe {
-                libc::setpriority(libc::PRIO_PROCESS, child.id() as libc::id_t, 10);
+                libc::setpriority(libc::PRIO_PROCESS, child.id() as libc::id_t, unix_nice(&spec.sandbox));
             }
         }
         #[cfg(windows)]
@@ -359,6 +391,7 @@ impl ChildProcess {
         let pid = child.id();
         let child = Arc::new(Mutex::new(Some(child)));
         let over_memory = Arc::new(Mutex::new(None));
+        let memory_peak = Arc::new(AtomicU64::new(0));
         let exit_note = spec.log.as_ref().map(|l| {
             let log = child_log::get(l);
             log.started(pid);
@@ -375,11 +408,16 @@ impl ChildProcess {
         });
         if let Some(limit) = spec.sandbox.memory_limit {
             watch_memory(
-                pid,
                 limit,
-                child.clone(),
-                over_memory.clone(),
-                exit_note.as_ref().map(|n| n.log.clone()),
+                Watched {
+                    pid,
+                    child: child.clone(),
+                    over: over_memory.clone(),
+                    peak: memory_peak.clone(),
+                    log: exit_note.as_ref().map(|n| n.log.clone()),
+                    label: spec.label.clone(),
+                    listener: spec.memory_listener.clone(),
+                },
             );
         }
         ChildProcess {
@@ -389,6 +427,7 @@ impl ChildProcess {
             label: spec.label.clone(),
             exit_note,
             over_memory,
+            memory_peak,
             sandbox_notes: Vec::new(),
             _job: job,
         }
@@ -414,6 +453,11 @@ impl ChildProcess {
 
     pub fn pid(&self) -> u32 {
         self.pid
+    }
+
+    /// The most memory the host's watcher saw the child use, in bytes (0 when it has no memory cap).
+    pub fn memory_peak(&self) -> u64 {
+        self.memory_peak.load(Ordering::Relaxed)
     }
 
     /// What the launcher could not enforce of the child's sandbox (Linux: the landlock status the child reported).
@@ -545,6 +589,16 @@ fn launcher_command(spec: &SpawnSpec) -> (PathBuf, Vec<String>) {
     (spec.exe.clone(), spec.args.clone())
 }
 
+/// The nice level of a below-normal child on Unix: 10, or 19 (the lowest) when its sandbox asks for a CPU share below
+/// 100% (Unix has no hard CPU cap for one process, so a share only lowers the priority; ADR 0031 §1).
+#[cfg_attr(not(unix), allow(dead_code))]
+fn unix_nice(sandbox: &crate::sandbox::SandboxSpec) -> i32 {
+    match sandbox.cpu_rate_percent {
+        Some(p) if p < 100 => 19,
+        _ => 10,
+    }
+}
+
 /// Resident memory of this process, in bytes (0 if unknown).
 pub fn current_rss_bytes() -> u64 {
     let Ok(pid) = sysinfo::get_current_pid() else { return 0 };
@@ -558,5 +612,15 @@ mod tests {
     #[test]
     fn rss_is_reported() {
         assert!(super::current_rss_bytes() > 0);
+    }
+
+    #[test]
+    fn a_cpu_share_below_100_lowers_the_unix_priority_further() {
+        let mut s = crate::sandbox::SandboxSpec::unrestricted();
+        assert_eq!(super::unix_nice(&s), 10);
+        s.cpu_rate_percent = Some(100);
+        assert_eq!(super::unix_nice(&s), 10);
+        s.cpu_rate_percent = Some(50);
+        assert_eq!(super::unix_nice(&s), 19);
     }
 }

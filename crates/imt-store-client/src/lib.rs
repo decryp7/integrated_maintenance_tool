@@ -8,5 +8,5 @@ pub mod arrow_wire;
 pub mod client;
 pub mod protocol;
 
-pub use client::{RemoteStore, StoreWorker, WorkerConfig};
-pub use protocol::MemoryMode;
+pub use client::{RemoteStore, StoreWorker, WorkerConfig, WorkerLaunch};
+pub use protocol::{MemoryMode, StoreTuning};

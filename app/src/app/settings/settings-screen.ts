@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { DIALOG_REF } from '../ui/dialog.service';
 import { AiSettingsExtras } from '../ai/settings/ai-settings-extras';
+import { PerformanceExtras } from './performance/performance-extras';
 import { KnowledgeSettings } from '../ai/knowledge/knowledge-settings';
 import { EngineSettingsStore } from './engine-settings.store';
 import { AppearanceSettings } from './appearance-settings';
@@ -24,7 +25,7 @@ import { SettingField, SettingsSection } from './settings.types';
 @Component({
   selector: 'imt-settings-screen',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, KnowledgeSettings, StorageSettings, ParsersSettings],
+  imports: [GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, KnowledgeSettings, StorageSettings, ParsersSettings, PerformanceExtras],
   host: { '(keydown.escape)': 'onEscape($event)' },
   template: `
     <div class="top">
@@ -140,6 +141,9 @@ import { SettingField, SettingsSection } from './settings.types';
           }
           @if (s.note) {
             <p class="note" role="note">{{ s.note }}</p>
+          }
+          @if (s.id === 'performance' && !s.readOnly) {
+            <imt-performance-extras />
           }
           @if (s.id === 'ai') {
             @defer {

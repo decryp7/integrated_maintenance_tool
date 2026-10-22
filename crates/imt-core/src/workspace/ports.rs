@@ -494,9 +494,30 @@ impl Projects for WorkspaceStore {
     }
 }
 
+/// The in-memory engine has no store to inspect, maintain or query in SQL: the ports' defaults (unsupported).
+impl crate::ports::Inspect for WorkspaceStore {}
+impl crate::ports::Maintain for WorkspaceStore {}
+impl crate::ports::Console for WorkspaceStore {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_store_pane_ports_are_unsupported_in_memory() {
+        use crate::ports::{Console, Inspect, Maintain, MaintenanceAction, SegmentsRequest, SqlPageRequest, SqlRequest};
+        let store = WorkspaceStore::new(Workspace::new(Profile::default_profile()).unwrap());
+        let unsupported = |e: StoreError| assert!(matches!(e, StoreError::Unsupported { .. }), "{e}");
+        unsupported(store.store_overview().unwrap_err());
+        unsupported(store.store_segments(&SegmentsRequest::default()).unwrap_err());
+        unsupported(store.store_fields().unwrap_err());
+        unsupported(store.store_index().unwrap_err());
+        unsupported(store.store_memory().unwrap_err());
+        unsupported(store.maintain(MaintenanceAction::Compact).unwrap_err());
+        unsupported(store.sql_schema().unwrap_err());
+        unsupported(store.sql_run(&SqlRequest::default()).unwrap_err());
+        unsupported(store.sql_page(&SqlPageRequest { result: 1, offset: 0 }).unwrap_err());
+    }
 
     fn samples() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../samples")

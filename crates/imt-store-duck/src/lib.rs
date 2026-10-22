@@ -8,10 +8,12 @@
 mod analysis;
 mod anomalies;
 mod compact;
+mod console;
 mod context;
 mod diag;
 mod fts;
 mod hits;
+mod inspect;
 mod lanes;
 mod parsers;
 mod pos;
@@ -66,6 +68,16 @@ pub struct StoreOptions {
     pub memory_limit: String,
     /// The full-text index writer's heap and threads (applies when the store opens).
     pub index: fts::WriterBudget,
+    /// Where DuckDB spills beyond its memory limit: a folder per store below this one (see [`spill_folder`]);
+    /// `None`: the store folder's `tmp` (applies when the store opens).
+    pub spill_dir: Option<PathBuf>,
+    /// The most DuckDB may spill (`max_temp_directory_size`, e.g. `10GB`); `None`: DuckDB's default (90% of the free
+    /// disk space).
+    pub max_spill: Option<String>,
+    /// Freed memory DuckDB's allocator may keep cached (`allocator_flush_threshold`).
+    pub allocator_flush: String,
+    /// DuckDB's allocator background threads (`allocator_background_threads`).
+    pub allocator_background_threads: bool,
 }
 
 impl Default for StoreOptions {
@@ -75,8 +87,24 @@ impl Default for StoreOptions {
             duck_threads: DUCK_THREADS,
             memory_limit: MEMORY_LIMIT.to_string(),
             index: fts::WriterBudget::default(),
+            spill_dir: None,
+            max_spill: None,
+            allocator_flush: ALLOCATOR_FLUSH.to_string(),
+            allocator_background_threads: true,
         }
     }
+}
+
+/// The spill folder of the store in `dir` below the chosen spill folder `base`: one folder per store (stores never
+/// share DuckDB's temporary files), named by a stable hash of the store folder.
+pub fn spill_folder(base: &Path, dir: &Path) -> PathBuf {
+    // FNV-1a, 64 bits: stable across runs, so a store reuses (and cleans) its own folder.
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in dir.to_string_lossy().bytes() {
+        h ^= u64::from(b);
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    base.join(format!("imt-spill-{h:016x}"))
 }
 
 /// Parse threads in low memory mode (each holds a file's chunk and its batches in flight; 2 halved the speed).
@@ -97,6 +125,7 @@ impl StoreOptions {
                 heap: 16 << 20,
                 threads: 1,
             },
+            ..StoreOptions::default()
         }
     }
 }
@@ -174,6 +203,8 @@ pub(crate) struct Inner {
     fts_error: Option<String>,
     /// Word-search hits handed to SQL (smart search).
     pub(crate) hits: hits::HitsCache,
+    /// The SQL console's sandboxed database and its kept results (ADR 0030).
+    pub(crate) console: console::ConsoleState,
     options: RwLock<StoreOptions>,
     pub(crate) progress: Arc<ImportProgress>,
     pub(crate) derived: Mutex<Option<(u64, Arc<read::Derived>)>>,
@@ -393,6 +424,7 @@ impl Inner {
         }
         report.unrecognized = unrecognized;
         report.elapsed_ms = started.elapsed().as_millis() as u64;
+        inspect::record_import(&conn, &report);
         Ok(report)
     }
 }
@@ -405,8 +437,12 @@ pub struct DuckStore {
 }
 
 fn open_db(dir: &Path, opts: &StoreOptions) -> StoreResult<Connection> {
-    let tmp = dir.join("tmp");
+    let tmp = match &opts.spill_dir {
+        Some(base) => spill_folder(base, dir),
+        None => dir.join("tmp"),
+    };
     std::fs::create_dir_all(&tmp)?;
+    let background = if opts.allocator_background_threads { "true" } else { "false" };
     let config = Config::default()
         .max_memory(&opts.memory_limit)
         .and_then(|c| c.threads(opts.duck_threads.max(1) as i64))
@@ -416,11 +452,15 @@ fn open_db(dir: &Path, opts: &StoreOptions) -> StoreResult<Connection> {
         .and_then(|c| c.with("checkpoint_threshold", "1GB"))
         // Freed memory goes back to the OS after each task above this (DuckDB's jemalloc on Linux keeps up to
         // 128 MB by default, which the worker's 300 MB query budget cannot spare).
-        .and_then(|c| c.with("allocator_flush_threshold", ALLOCATOR_FLUSH))
+        .and_then(|c| c.with("allocator_flush_threshold", &opts.allocator_flush))
         // DuckDB's own jemalloc (IMT's Rust code uses mimalloc) returns freed pages through background threads, off by
         // default: without them a Linux store kept anomaly detection's freed memory (+165 MB over a 64 MB limit in
         // CI). No effect where DuckDB uses the system allocator.
-        .and_then(|c| c.with("allocator_background_threads", "true"))
+        .and_then(|c| c.with("allocator_background_threads", background))
+        .and_then(|c| match &opts.max_spill {
+            Some(max) => c.with("max_temp_directory_size", max),
+            None => Ok(c),
+        })
         .map_err(engine)?;
     let conn = Connection::open_with_flags(dir.join(DB_FILE), config).map_err(engine)?;
     // Segment footers are parsed once, not per query (a setting of the Parquet reader, so set after opening).
@@ -595,6 +635,7 @@ impl DuckStore {
                 fts,
                 fts_error,
                 hits: hits::HitsCache::new(&dir.join("tmp").join("hits")),
+                console: console::ConsoleState::default(),
                 options: RwLock::new(opts),
                 progress: Arc::new(ImportProgress::default()),
                 derived: Mutex::new(None),
@@ -1048,7 +1089,44 @@ mod tests {
         assert_eq!(setting("allocator_flush_threshold"), "32.0 MiB");
         assert_eq!(setting("allocator_background_threads"), "true");
         assert_eq!(setting("threads"), DUCK_THREADS.to_string());
+        assert_eq!(setting("temp_directory"), dir.join("tmp").to_string_lossy());
         drop(conn);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_database_takes_the_chosen_spill_folder_and_allocator_settings() {
+        let root = std::env::temp_dir().join(format!("imt-open-db-opts-{}", std::process::id()));
+        let (dir, spill) = (root.join("store"), root.join("spill"));
+        std::fs::create_dir_all(&dir).unwrap();
+        let opts = StoreOptions {
+            duck_threads: 3,
+            memory_limit: "100MB".into(),
+            spill_dir: Some(spill.clone()),
+            max_spill: Some("2GB".into()),
+            allocator_flush: "8MiB".into(),
+            allocator_background_threads: false,
+            ..StoreOptions::default()
+        };
+        let conn = open_db(&dir, &opts).unwrap();
+        let setting = |name: &str| -> String {
+            conn.query_row(&format!("SELECT CAST(current_setting('{name}') AS VARCHAR)"), [], |r| r.get(0))
+                .unwrap()
+        };
+        assert_eq!(setting("threads"), "3");
+        assert_eq!(setting("allocator_flush_threshold"), "8.0 MiB");
+        assert_eq!(setting("allocator_background_threads"), "false");
+        assert!(
+            setting("max_temp_directory_size").starts_with("1.8 GiB"),
+            "{}",
+            setting("max_temp_directory_size")
+        );
+        let own = spill_folder(&spill, &dir);
+        assert_eq!(setting("temp_directory"), own.to_string_lossy());
+        assert!(own.is_dir() && own.starts_with(&spill));
+        assert_ne!(own, spill_folder(&spill, &root.join("other")), "a folder per store");
+        assert_eq!(own, spill_folder(&spill, &dir), "stable");
+        drop(conn);
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

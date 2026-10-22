@@ -70,6 +70,7 @@ mod skew_commands;
 mod smart_search;
 mod snapshots;
 mod storage;
+mod store_pane;
 mod sync;
 mod system;
 mod tools;
@@ -145,6 +146,15 @@ command_table! {
     Query [WINDOW] => workspace_commands::import_problems,
     Query [WINDOW] limit MIB => workspace_commands::evaluate_fix,
     Query [WINDOW] => workspace_commands::index_status,
+    Query [WINDOW] => store_pane::store_overview,
+    Query [WINDOW] => store_pane::store_segments,
+    Query [WINDOW] => store_pane::store_fields,
+    Query [WINDOW] => store_pane::store_index,
+    Query [WINDOW] => store_pane::store_memory,
+    Mutation [WINDOW] => store_pane::store_maintenance,
+    Query [WINDOW] => store_pane::sql_schema,
+    Query [WINDOW] => store_pane::sql_run,
+    Query [WINDOW] => store_pane::sql_page,
     Mutation [WINDOW] limit 16 * MIB => workspace_commands::save_project,
     Mutation [WINDOW] => workspace_commands::open_project,
     Query [WINDOW] => live::tail_status,
@@ -318,6 +328,11 @@ command_table! {
     Mutation [WINDOW] => notification_centre::notifications_dismiss,
     Quiet [WINDOW] => notification_centre::notifications_record,
     Mutation [WINDOW] limit 4 * MIB => notification_centre::notifications_restore,
+    Query [WINDOW] => performance::commands::performance_suggest,
+    Query [WINDOW] => performance::commands::performance_preset,
+    Query [WINDOW] => performance::commands::performance_memory,
+    Mutation [WINDOW] => performance::commands::performance_set_plugin_memory,
+    Mutation [WINDOW] => performance::commands::performance_retry_store_worker,
     Query [WINDOW] => browser::research::ai_research_draft,
     Mutation [WINDOW] => browser::research::ai_research,
     Query [WINDOW] => browser::driving::browser_driving,
@@ -536,6 +551,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     app.manage(tray::TrayState::default());
     jobs::init(app.handle());
     notification_centre::init(app.handle());
+    performance::attach_notifications(app.handle());
 
     // ---- settings ----
     settings::init(app.handle());

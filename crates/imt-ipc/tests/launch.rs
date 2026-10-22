@@ -386,3 +386,62 @@ fn the_memory_cap_stops_a_child_over_it_but_not_a_busy_one() {
     assert!(ask(&c, "alloc 400000000").is_err());
     assert!(c.exit_text().contains("memory cap of 256 MB"), "{}", c.exit_text());
 }
+
+#[test]
+fn the_memory_watcher_tells_the_host_at_80_percent_at_the_stop_and_at_the_end() {
+    use imt_ipc::memory_watch::{MemoryEvent, MemoryListener};
+    let heard: Arc<std::sync::Mutex<Vec<(String, MemoryEvent)>>> = Arc::default();
+    let h = heard.clone();
+    let listener = MemoryListener::new(move |label, e| h.lock().unwrap().push((label.to_string(), e)));
+    let capped = |mb: u64| {
+        let mut s = spec(&[]).sandbox(imt_ipc::sandbox::SandboxSpec {
+            memory_limit: Some(mb << 20),
+            ..imt_ipc::sandbox::SandboxSpec::unrestricted()
+        });
+        s.spawn.memory_listener = Some(listener.clone());
+        s
+    };
+    let events = |heard: &std::sync::Mutex<Vec<(String, MemoryEvent)>>| heard.lock().unwrap().clone();
+    let wait_for = |what: &dyn Fn(&MemoryEvent) -> bool| {
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while std::time::Instant::now() < deadline {
+            if events(&heard).iter().any(|(_, e)| what(e)) {
+                return true;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        false
+    };
+    // 220 MB held for a second in a child capped at 256 MB: past 80%, under the cap.
+    let c = launch(&capped(256), Arc::new(NoCalls)).unwrap();
+    assert!(ask(&c, "hold 220000000 1200").unwrap().starts_with("ok"));
+    assert!(wait_for(&|e| matches!(e, MemoryEvent::Warning(_))), "{:?}", events(&heard));
+    let (label, warning) = events(&heard)
+        .into_iter()
+        .find(|(_, e)| matches!(e, MemoryEvent::Warning(_)))
+        .unwrap();
+    assert_eq!(label, "the fake child");
+    let u = warning.usage();
+    assert!(u.used >= u.limit * 8 / 10 && u.used <= u.limit && u.limit == 256 << 20, "{u:?}");
+    assert!(c.memory_peak() >= 200 << 20, "{}", c.memory_peak());
+    // Ending normally reports the peak.
+    c.stop();
+    assert!(
+        wait_for(&|e| matches!(e, MemoryEvent::Ended(u) if u.peak >= 200 << 20)),
+        "{:?}",
+        events(&heard)
+    );
+    // Over the cap: stopped, with what it used.
+    heard.lock().unwrap().clear();
+    let c = launch(&capped(128), Arc::new(NoCalls)).unwrap();
+    assert!(ask(&c, "hold 400000000 3000").is_err());
+    assert!(
+        wait_for(&|e| matches!(e, MemoryEvent::Stopped(u) if u.used > u.limit && u.peak >= u.used)),
+        "{:?}",
+        events(&heard)
+    );
+    assert!(
+        !events(&heard).iter().any(|(_, e)| matches!(e, MemoryEvent::Ended(_))),
+        "a stop is not also an end"
+    );
+}
