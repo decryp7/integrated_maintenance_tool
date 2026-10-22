@@ -6,7 +6,8 @@ async function runCommand(page: Page, title: string): Promise<void> {
   await page.keyboard.press('ControlOrMeta+k');
   const input = page.getByRole('combobox', { name: 'Type a command' });
   await input.fill(title);
-  await expect(page.getByRole('option').first()).toContainText(title);
+  // Scoped to the palette: an open editor's <select> options are options too.
+  await expect(page.getByRole('listbox').getByRole('option').first()).toContainText(title);
   await page.keyboard.press('Enter');
   await expect(input).toHaveCount(0);
 }

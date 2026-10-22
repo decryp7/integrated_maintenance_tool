@@ -12,7 +12,8 @@ import { VideoStore } from './video.store';
     @if (src(); as s) {
       <img [src]="s" [alt]="alt()" />
     } @else {
-      <span class="ph" role="img" [attr.aria-label]="alt()">{{ failed() ? '!' : '' }}</span>
+      <!-- With no alt the picture is decorative (the strip's option names the frame): nothing for a screen reader. -->
+      <span class="ph" [attr.role]="alt() ? 'img' : null" [attr.aria-label]="alt() || null" [attr.aria-hidden]="alt() ? null : 'true'">{{ failed() ? '!' : '' }}</span>
     }
   `,
   styles: `

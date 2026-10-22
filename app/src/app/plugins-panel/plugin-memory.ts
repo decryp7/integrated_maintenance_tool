@@ -43,7 +43,7 @@ import { MAX_PLUGIN_MB, MIN_PLUGIN_MB } from '../settings/performance/performanc
     .mem { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: var(--fs-sm); }
     .cap { display: inline-flex; gap: 4px; align-items: center; }
     input { width: 80px; }
-    .warn { color: var(--lvl-warn); }
+    .warn { color: var(--warn-text); }
     .err { color: var(--danger-text, var(--lvl-error)); }
   `,
 })

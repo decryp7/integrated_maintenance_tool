@@ -21,8 +21,8 @@ import { DockKeys } from './dock-keys';
 import { DockService } from './dock.service';
 import { DockSwitcher } from './switcher-overlay';
 
-/** What a slid-out panel keeps open when it is pressed or focused: itself, its bar, menus and the overlays it opened (lists, pickers). */
-const KEEP_OPEN = '.imt-ah-flyout, .imt-ah-bar, .menu, .cdk-overlay-container';
+/** What a slid-out panel keeps open when it is pressed or focused: itself, its bar, menus, and the overlays and dialogs it opened (lists, pickers, reviews). */
+const KEEP_OPEN = '.imt-ah-flyout, .imt-ah-bar, .menu, .cdk-overlay-container, imt-dialog-host';
 
 /** How long the pointer may be away from a slid-out (hover-opened) tool window before it hides again. */
 export const HOVER_HIDE_MS = 300;

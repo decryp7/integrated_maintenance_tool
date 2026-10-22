@@ -11,5 +11,5 @@ test('Plugins panel lists installed plugins and built-ins', async ({ page }, tes
   await expect(panel.getByRole('list', { name: 'Installed plugins' }).getByRole('listitem')).toHaveCount(4);
   await expect(panel).toContainText('Windows registry importer');
   await expect(panel).toContainText('About plugins');
-  await expectNoSeriousViolations(page, testInfo, 'plugins');
+  await expectNoSeriousViolations(page, testInfo, 'plugins', 'imt-plugins-view');
 });
