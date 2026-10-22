@@ -7,8 +7,11 @@ import { AiStatusStore } from '../../ai/ai-status.store';
 import { TimeCursor } from '../../analysis/time-cursor';
 import { Report } from '../../core/api.types';
 import { ReportStore } from '../../share/report/report.store';
-import { IncidentBackend } from '../investigate-backend';
-import { AI_MARKER, clampTop, IncidentSummary, narrativeMarkdown } from './incident-summary';
+import { provideTinyBackend } from '../../../testing/helpers';
+import { IncidentBackend, KnownIssuesBackend } from '../investigate-backend';
+import { KnownIssuesStore } from '../known-issues/known-issues.store';
+import { IssueMatch } from '../../core/api.types';
+import { acceptedIssuesSection, AI_ISSUE_MARKER, AI_MARKER, clampTop, IncidentSummary, narrativeMarkdown } from './incident-summary';
 
 const report = (): Report => ({
   version: 1,
@@ -31,11 +34,21 @@ const narrative = (verified = true): Narrative => ({
   usage: { inputTokens: 0, outputTokens: 0 },
 });
 
+const aiIssue = (id: string, sampleIds = [4, 5]): IssueMatch => ({
+  issue: { id, title: `Issue ${id}`, fix: 'Raise the timeout.', matcher: { type: 'pattern', pattern: 'x' }, file: 'Ops' },
+  origin: 'ai',
+  query: 'message contains "x"',
+  count: 7,
+  sampleIds,
+});
+
 function setup(hasModel = true) {
   const backend = { build: vi.fn(async () => report()), narrative: vi.fn(async () => narrative(false)) };
   TestBed.configureTestingModule({
     providers: [
+      ...provideTinyBackend(),
       { provide: IncidentBackend, useValue: backend },
+      { provide: KnownIssuesBackend, useValue: { match: vi.fn(), suggest: vi.fn(async () => [aiIssue('a'), aiIssue('b', [])]) } },
       { provide: AiStatusStore, useValue: { hasModel: signal(hasModel) } },
     ],
   });
@@ -72,6 +85,31 @@ describe('IncidentSummary', () => {
     expect(block?.type === 'text' && block.markdown).toContain('Unverified citations: #12, #15');
     expect(svc.narrativeError()).toBeNull();
     expect(svc.building()).toBe(false);
+  });
+
+  it('appends the accepted AI known-issue suggestions, marked as verified by the engine, and only those', async () => {
+    const { svc, reports } = setup();
+    const issues = TestBed.inject(KnownIssuesStore);
+    await issues.suggest();
+    issues.toggleAccepted('a');
+    issues.toggleAccepted('b');
+    issues.toggleAccepted('b'); // un-accepted again
+    await svc.build();
+    const sections = reports.active()?.sections ?? [];
+    expect(sections.map((s) => s.title)).toEqual(['Narrative (AI-written)', 'Summary', 'Known issues (accepted AI suggestions)']);
+    const blocks = sections.at(2)?.blocks ?? [];
+    expect(blocks.map((b) => b.type)).toEqual(['finding', 'events']);
+    const finding = blocks.at(0);
+    expect(finding?.type === 'finding' && finding.title).toBe('Issue a');
+    expect(finding?.type === 'finding' && finding.detail).toContain(AI_ISSUE_MARKER);
+    expect(blocks.at(1)?.type === 'events' && blocks.at(1)).toMatchObject({ ids: [4, 5], caption: 'message contains "x"' });
+  });
+
+  it('adds no known-issue section when nothing was accepted, and omits events when a match has no samples', async () => {
+    const { svc, reports } = setup();
+    await svc.build();
+    expect(reports.active()?.sections.map((s) => s.title)).not.toContain('Known issues (accepted AI suggestions)');
+    expect(acceptedIssuesSection([aiIssue('c', [])]).blocks.map((b) => b.type)).toEqual(['finding']);
   });
 
   it('covers all data without a selection and leaves the title default when blank', async () => {

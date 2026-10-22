@@ -8,8 +8,8 @@ export type SearchTarget =
   | { kind: 'source'; id: number }
   | { kind: 'field'; field: string; value: string | null }
   | { kind: 'marker'; marker: string }
-  /** The Exceptions view (the group's sample event is revealed too when it has one). */
-  | { kind: 'exception'; sample: number | null }
+  /** The Exceptions view with the group selected (its sample event is revealed too when it has one). */
+  | { kind: 'exception'; fingerprint: string; sample: number | null }
   | { kind: 'note'; id: string; event: number | null }
   | { kind: 'knowledge'; scope: DocScope; id: string };
 
@@ -116,7 +116,7 @@ function rowsOf(kind: ResultKind, reply: SearchAllReply, text: string): ResultRo
         snippet: x.snippet,
         detail: $localize`:@@search.exception.count:${x.count}:count: events`,
         ts: null,
-        target: { kind: 'exception', sample: x.sample },
+        target: { kind: 'exception', fingerprint: x.fingerprint, sample: x.sample },
       }));
     case 'notes':
     case 'knowledge':

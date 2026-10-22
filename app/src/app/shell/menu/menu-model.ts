@@ -321,6 +321,8 @@ export function buildMenus(state: MenuState): TopMenu[] {
         SEP,
         cmd('report.new'),
         sub('analyze.report', $localize`:@@shell.menu.analyze.addToReport:Add to report`, [
+          cmd('incident.build', $localize`:@@shell.menu.report.incident:Incident summary…`),
+          SEP,
           cmd('report.addSelected', $localize`:@@shell.menu.report.selectedEvent:Selected event`),
           cmd('report.addNotes', $localize`:@@shell.menu.report.notes:Notes`),
           cmd('report.addTimeline', $localize`:@@shell.menu.report.timeline:Timeline`),

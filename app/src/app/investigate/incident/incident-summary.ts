@@ -3,10 +3,11 @@ import type { Narrative } from '../../ai/ai.types';
 import { toAiError } from '../../ai/ai-backend';
 import { AiStatusStore } from '../../ai/ai-status.store';
 import { TimeCursor } from '../../analysis/time-cursor';
-import { IncidentRequest, Report, ReportSection } from '../../core/api.types';
+import { IncidentRequest, IssueMatch, Report, ReportSection } from '../../core/api.types';
 import { ReportStore } from '../../share/report/report.store';
 import { newSection, withId } from '../../share/report/report-model';
 import { IncidentBackend } from '../investigate-backend';
+import { KnownIssuesStore } from '../known-issues/known-issues.store';
 
 export const DEFAULT_TOP = 5;
 export const MAX_TOP = 10;
@@ -27,6 +28,20 @@ export function narrativeMarkdown(narrative: Narrative): string {
   return `> ${AI_MARKER}\n\n${narrative.text.trim()}${note}`;
 }
 
+/** The label that marks a known issue the AI suggested and the engine verified on the open data. */
+export const AI_ISSUE_MARKER = 'AI suggested, verified by the engine';
+
+/** The report section for the accepted AI known-issue suggestions: one finding and its evidence per issue. */
+export function acceptedIssuesSection(matches: readonly IssueMatch[]): ReportSection {
+  return {
+    ...newSection($localize`:@@incident.acceptedIssuesTitle:Known issues (accepted AI suggestions)`),
+    blocks: matches.flatMap((m) => [
+      withId({ type: 'finding', severity: 'warning', title: m.issue.title, detail: `${AI_ISSUE_MARKER}. ${m.issue.fix} (${m.count} events, from ${m.issue.file})` }),
+      ...(m.sampleIds.length ? [withId({ type: 'events', caption: m.query, ids: m.sampleIds })] : []),
+    ]),
+  };
+}
+
 /**
  * The incident summary dialog's state: the engine builds the report (adopted as the active one); the optional AI
  * narrative is added afterwards as the first section, and its failure never fails the report.
@@ -37,6 +52,7 @@ export class IncidentSummary {
   private readonly reports = inject(ReportStore);
   private readonly ai = inject(AiStatusStore);
   private readonly cursor = inject(TimeCursor);
+  private readonly issues = inject(KnownIssuesStore);
 
   readonly title = signal($localize`:@@incident.defaultTitle:Incident summary`);
   readonly top = signal(DEFAULT_TOP);
@@ -71,6 +87,8 @@ export class IncidentSummary {
     try {
       const report = this.reports.adopt(await this.backend.build(this.request()));
       this.built.set(report);
+      const accepted = this.issues.acceptedSuggestions();
+      if (accepted.length) this.reports.appendSection(report.id, acceptedIssuesSection(accepted));
       if (this.narrativeWanted() && this.hasModel()) await this.addNarrative();
       return true;
     } catch (e) {

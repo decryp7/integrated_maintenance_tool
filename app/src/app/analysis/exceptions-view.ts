@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, ElementRef, inject, signal, untracked } from '@angular/core';
 import { formatCount } from '../core/format';
 import { ExceptionGroup } from '../core/api.types';
 import { AnalysisBackend } from '../core/analysis-backend';
+import { ExceptionFocus } from './exception-focus';
 import { AnalysisActions } from './analysis-actions';
 import { AnalysisState } from './analysis-state';
 import { ANALYSIS_STYLES } from './analysis-styles';
@@ -26,8 +27,8 @@ import { CoverageNote } from './coverage-note';
     <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="res.result()?.length === 0" emptyText="No exceptions in the current query." i18n-emptyText="@@analysis.exceptions.emptyText" emptyHint="Events that carry an exception (a stack trace) are grouped here by type and top frame." i18n-emptyHint="@@analysis.exceptions.emptyHint" suggest (retry)="res.retry()">
       <ul class="list body" aria-label="Exception groups" i18n-aria-label="@@analysis.exceptions.listLabel">
         @for (g of res.result() ?? []; track g.fingerprint) {
-          <li class="group">
-            <button class="row head" type="button" [attr.aria-expanded]="isOpen(g)" (click)="toggle(g)">
+          <li class="group" [class.selected]="selected() === g.fingerprint" [attr.data-fingerprint]="g.fingerprint">
+            <button class="row head" type="button" [attr.aria-expanded]="isOpen(g)" [attr.aria-current]="selected() === g.fingerprint ? 'true' : null" (click)="toggle(g)">
               <span aria-hidden="true">{{ isOpen(g) ? '▾' : '▸' }}</span>
               <span class="num count">{{ count(g.count) }}</span>
               <span class="type mono">{{ g.typeName }}</span>
@@ -65,6 +66,7 @@ import { CoverageNote } from './coverage-note';
       .frame { max-width: 320px; flex: none; font-size: var(--fs-xs); }
       .group { border-bottom: 1px solid var(--border); }
       .head { border-bottom: 0; }
+      .group.selected { background: var(--bg-selected, var(--surface-2)); box-shadow: inset 2px 0 0 var(--accent); }
       .detail { padding: 0 12px 10px 38px; }
       .inst { display: flex; gap: 12px; padding: 2px 0; max-width: 520px; }
       .inst .ellipsis { flex: 1; }
@@ -80,8 +82,24 @@ export class ExceptionsView {
   private readonly backend = inject(AnalysisBackend);
   protected readonly targets = inject(AnalysisTargets);
   private readonly actions = inject(AnalysisActions);
+  private readonly focus = inject(ExceptionFocus);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  /** The group chosen from elsewhere (the search palette): expanded, highlighted and scrolled into view. */
+  protected readonly selected = signal<string | null>(null);
 
   constructor() {
+    effect(() => {
+      const fingerprint = this.focus.fingerprint();
+      const groups = this.res.result();
+      if (fingerprint === null || !groups) return;
+      untracked(() => {
+        this.focus.clear();
+        if (!groups.some((g) => g.fingerprint === fingerprint)) return;
+        this.selected.set(fingerprint);
+        this.open.set(new Set(this.open()).add(fingerprint));
+        setTimeout(() => this.host.nativeElement.querySelector(`[data-fingerprint="${CSS.escape(fingerprint)}"]`)?.scrollIntoView?.({ block: 'nearest' }));
+      });
+    });
     effect(() => {
       const query = this.targets.query();
       untracked(() => void this.res.load(() => this.backend.queryExceptions(query)));

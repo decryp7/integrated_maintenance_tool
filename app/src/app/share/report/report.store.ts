@@ -64,6 +64,11 @@ export const ReportStore = signalStore(
         const r = store.reports().find((x) => x.id === id);
         if (r) edit($localize`:@@share.reportStore.undo.reportNarrative:report narrative`, () => replaceReport({ ...r, sections: [section, ...r.sections], updatedAt: Date.now() }));
       },
+      /** Puts a section last in the report `id` (the incident summary's accepted known issues). */
+      appendSection(id: string, section: ReportSection) {
+        const r = store.reports().find((x) => x.id === id);
+        if (r) edit($localize`:@@share.reportStore.undo.reportSection:report section`, () => replaceReport({ ...r, sections: [...r.sections, section], updatedAt: Date.now() }));
+      },
       setActive: (id: string) => patchState(store, { activeId: id }),
       remove(id: string) {
         edit($localize`:@@share.reportStore.undo.reportDeletion:report deletion`, () =>

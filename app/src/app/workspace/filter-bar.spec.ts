@@ -176,6 +176,7 @@ describe('FilterBar', () => {
     expect(store.query().groups).toEqual([]);
     buttonByText(fixture, /14 Oct/).click();
     expect(store.hasRange()).toBe(false);
+    store.setTimezone('utc'); // independent of the host's zone
     store.setRange(T0, null);
     await settle(fixture);
     expect(text(fixture)).toContain('14 Oct 09:00:00 →');

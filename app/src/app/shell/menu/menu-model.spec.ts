@@ -55,6 +55,7 @@ const COMMANDS: [string, string, string?][] = [
   ['ai.explain', 'AI: Explain the selected event'],
   ['live.rules', 'Edit live alert rules…'],
   ['report.new', 'New incident report'],
+  ['incident.build', 'Report: Incident summary…'],
   ['report.addTimeline', 'Add timeline to report'],
   ['notes.addSelected', 'Add note to the selected event…', 'Mod+D'],
   ['skew.adjust', "Adjust clock of the selected event's source…"],
@@ -288,6 +289,12 @@ describe('menu model', () => {
     expect(ids.slice(ids.indexOf('analyze.fit'), ids.indexOf('analyze.fit') + 5)).toEqual(['analyze.fit', 'analyze.back', 'analyze.forward', 'nav.back', 'nav.forward']);
     expect(items.find((i) => i.id === 'nav.back')).toMatchObject({ label: 'Go back', keybinding: 'Alt+Left' });
     expect(items.find((i) => i.id === 'nav.forward')).toMatchObject({ label: 'Go forward', keybinding: 'Alt+Right' });
+  });
+
+  it('offers the incident summary where reports are created', () => {
+    const analyze = menu(buildMenus(state()), 'analyze').items;
+    expect(menuItems(analyze).map((i) => i.id)).toContain('report.new');
+    expect(menuItems(sub(analyze, 'Add to report'))[0]).toMatchObject({ id: 'incident.build', label: 'Incident summary…' });
   });
 
   it('leaves Go back / Go forward out when they are unavailable', () => {

@@ -273,7 +273,8 @@ async function setup(mode: MockMonitorChartsMode = 'data') {
 
 describe('MonitorLiveCharts', () => {
   it('is hidden until the monitor records, then charts every metric per process', async () => {
-    const { fixture, backend, start, store } = await setup();
+    const { fixture, backend, start, store, workspace } = await setup();
+    workspace.setTimezone('utc'); // the asserted wall-clock text must not depend on the host's zone
     expect(fixture.nativeElement.querySelector('[data-testid=monitor-live]')).toBeNull();
     expect(backend.requests).toHaveLength(0);
 

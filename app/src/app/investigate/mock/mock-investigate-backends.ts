@@ -17,9 +17,11 @@ async function matching(imt: ImtBackend, text: string): Promise<{ count: number;
  * search of the mock workspace. Plausible, never the reference: the engine is.
  */
 export class MockKnownIssuesBackend implements KnownIssuesBackend {
-  /** Whether the mock has a model (tests and e2e set this to exercise the no-model path). */
-  static hasModel = true;
-  constructor(private readonly imt: ImtBackend) {}
+  /** `hasModel` is the AI status (`?mockAi=setup` and the no-model e2e path agree because both read it). */
+  constructor(
+    private readonly imt: ImtBackend,
+    private readonly hasModel: () => boolean = () => true,
+  ) {}
 
   async match(): Promise<IssueReport> {
     const m = await matching(this.imt, 'timed out');
@@ -39,7 +41,7 @@ export class MockKnownIssuesBackend implements KnownIssuesBackend {
   }
 
   async suggest(): Promise<IssueMatch[]> {
-    if (!MockKnownIssuesBackend.hasModel) throw new AiError('noModel', 'No AI model is installed. Set one up in Settings > AI.');
+    if (!this.hasModel()) throw new AiError('noModel', 'No AI model is installed. Set one up in Settings > AI.');
     const m = await matching(this.imt, 'rolled back');
     return m.count
       ? [
@@ -57,7 +59,10 @@ export class MockKnownIssuesBackend implements KnownIssuesBackend {
 
 /** Browser stand-in for the incident summary: a small report from the mock workspace's summary. */
 export class MockIncidentBackend implements IncidentBackend {
-  constructor(private readonly imt: ImtBackend) {}
+  constructor(
+    private readonly imt: ImtBackend,
+    private readonly hasModel: () => boolean = () => true,
+  ) {}
 
   async build(request: IncidentRequest): Promise<Report> {
     const s = await this.imt.workspaceSummary();
@@ -78,7 +83,7 @@ export class MockIncidentBackend implements IncidentBackend {
   }
 
   async narrative(report: Report): Promise<Narrative> {
-    if (!MockKnownIssuesBackend.hasModel) throw new AiError('noModel', 'No AI model is installed. Set one up in Settings > AI.');
+    if (!this.hasModel()) throw new AiError('noModel', 'No AI model is installed. Set one up in Settings > AI.');
     const id = report.sections.flatMap((s) => s.blocks).flatMap((b) => (b.type === 'events' ? b.ids : []))[0];
     const text = id === undefined ? 'Nothing in the report to narrate.' : `The report shows failures (event ${id}). Check the evidence before relying on this summary.`;
     return {
