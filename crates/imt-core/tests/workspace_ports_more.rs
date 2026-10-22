@@ -146,6 +146,22 @@ fn opening_at_the_end_follows_only_what_is_written_next() {
 }
 
 #[test]
+fn a_file_that_cannot_be_followed_from_the_middle_is_listed_as_read_whole() {
+    let d = Dir::new("tail-whole");
+    // One JSON document is read in full whenever it changes.
+    let path = d.write(
+        "doc.json",
+        "[{\"@t\":\"2026-10-14T10:00:00Z\",\"@m\":\"one\"},{\"@t\":\"2026-10-14T10:00:01Z\",\"@m\":\"two\"}]",
+    );
+    let store = fresh();
+    store.open_at_end(std::slice::from_ref(&path)).unwrap().wait().unwrap();
+    let files = store.tail_files().unwrap();
+    assert_eq!(files.len(), 1, "{files:?}");
+    assert_eq!(files[0].read, TailRead::Whole);
+    assert_eq!(store.summary().unwrap().total, 2, "the file was read in full");
+}
+
+#[test]
 fn partial_matches_count_substring_hits_that_a_word_search_misses() {
     let d = Dir::new("partial");
     let text: String = [("the abc ready", 1), ("abcdef done", 2), ("xabcx noise", 3), ("nothing", 4)]
