@@ -45,12 +45,32 @@ the inspector sliding out from the right when you select an event.
   Review". *N crashes* jumps to the next crash, *N errors* shows the errors and fatal events, *N went silent*
   shows the next silence, *Review* opens the Overview. The line is hidden when nothing is notable.
 - **Legend**: only the marker kinds that occur in the data, on one line; *+N more* shows the rest.
-- **Query bar**: `Ctrl/⌘+/` (or *Analyze ▸ Focus query bar*) opens it above the events grid.
+- **One search field** for words and queries: plain words search the messages as you type; text with query
+  structure (`level >= warning`, `| stats count() by source`, `exists(TraceId)`) is recognised by the engine as a
+  query and run with `Enter`. The field grows to several lines while you type (`Shift+Enter` for a new line);
+  history, *Ask AI* and *Save* sit inside it. `Ctrl/⌘+/` focuses it.
 - **Sidebar**: the Explorer; the **Fields** section starts collapsed (click its header; IMT remembers).
 - **Set up analysis…** for a folder of several files is offered in Notifications (the bell).
 
-*View ▸ Layout ▸ Full* restores the richer default (the query bar in the default layout and the Overview
-opening after every import). The choice applies to new layouts (*Reset layout*); layouts you saved are kept.
+### Perspectives
+
+A perspective is a named window arrangement. **Investigate** (the default) is the timeline over the events;
+**Profiling** opens with the captures list (open a capture or profile a process); **Live** adds tail status and
+alerts below the events; **Diagnostics** adds problems, jobs, error snapshots, the store and plugin health. Switch
+with the activity bar's *Perspectives* button, *Window ▸ Perspectives* or `Ctrl/⌘+1…9`; each perspective
+remembers how you left it, and *Reset perspective* rebuilds it. *Save current as perspective…* adds your own, and
+*Manage perspectives…* renames, reorders and deletes them. Opening a performance capture switches to Profiling
+once (the message offers *Undo*).
+
+Views open in their home area: documents beside the timeline and the grid, analysis views (anomalies, patterns,
+exceptions, Moment, compare, ...) in one group below the grid (the least recently used tab closes beyond eight),
+side tools on the right, and Jobs, Notifications and plugin panels at the bottom edge. Nothing opens over the
+timeline or the grid.
+
+Back and forward (`Alt+←` / `Alt+→`, or the mouse's back and forward buttons) walk through the events you
+selected, the time ranges you zoomed to and the views you brought forward. `Ctrl/⌘+Z` also takes a zoom back.
+Drag an event row onto the Notes panel to write a note on it. In a narrow window the Explorer closes by itself and
+the filter bar folds the time range and time zone into a ⋯ menu.
 
 ## Projects
 
@@ -241,7 +261,7 @@ file is re-read whole when it changes. A worked example is
 
 ## Query language
 
-Press `Ctrl/⌘+/` to focus the query bar and `Ctrl/⌘+Enter` to run. Keywords are case-insensitive.
+Press `Ctrl/⌘+/` to focus the search field and `Ctrl/⌘+Enter` to run. Keywords are case-insensitive.
 A query is an optional filter followed by `|` stages.
 
 | Syntax | Meaning |
@@ -401,8 +421,8 @@ there works as described under [Troubleshooting](#behind-a-corporate-proxy-zscal
 | `Mod+Z` / `Mod+Shift+Z` | Undo / redo the last edit (filters, marker and highlight rules, profile edits, dashboards, reports) |
 | `Mod+O` / `Mod+Shift+O` | Open files / open folder |
 | `Mod+F` | Find: focus the search box (*Edit ▸ Find*) |
-| `Mod+/` | Focus the query bar |
-| `Mod+Enter` | Run the query (in the query bar) |
+| `Mod+/` | Focus the search field |
+| `Mod+Enter` | Run the query (in the search field) |
 | `Mod+Shift+M` | Analyse this moment |
 | `Mod+Shift+N` | New window |
 | `Mod+S` / `Mod+Shift+S` | Save project / save project as |
@@ -412,11 +432,12 @@ there works as described under [Troubleshooting](#behind-a-corporate-proxy-zscal
 | `Mod+B` | Toggle the sidebar |
 | `F6` / `Shift+F6` | Next / previous region: activity bar, side bar, filter bar, each panel group, status bar |
 | `Mod+0` | Focus the side bar |
-| `Mod+1` … `Mod+9` | Focus panel group 1 … 9 (left to right, top to bottom) |
+| `Mod+1` … `Mod+9` | Switch to perspective 1 … 9 |
+| `Ctrl+Alt+1` … `Ctrl+Alt+9` | Focus panel group 1 … 9 (left to right, top to bottom) |
 | `Mod+Shift+G` | Focus the events grid |
 | `←` / `→` (in the level chips) | Move between the chips (the chips are one Tab stop) |
 | `Mod+,` | Settings |
-| `Alt+←` / `Alt+→` | Previous / next time range |
+| `Alt+←` / `Alt+→` | Go back / forward (events, time ranges, views) |
 | `↑` / `↓` | Move through the events grid |
 | `Esc` (while dragging a tab) | Cancel the drag |
 
