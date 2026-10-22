@@ -92,6 +92,16 @@ fn every_sample_format_is_recognised() {
     assert_eq!(importer("batch01/report-service-20261014.txt"), Some("text"));
     assert_eq!(importer("shared/workers-20261014.log"), Some("text"));
     for entry in [
+        "qa-pixel07/logcat-20261014.txt",
+        "analytics01/spark-orders-export.log",
+        "dn01/hadoop-hdfs-datanode-dn01.log",
+        "edge02/error.log",
+        "notify01/notify-scheduler-20261014.log",
+        "payments01/payments-adapter-20261014.log",
+    ] {
+        assert_eq!(importer(entry), Some("text"), "{entry}");
+    }
+    for entry in [
         "notify01-logs-20261014.zip/app.log",
         "notify01-logs-20261014.zip/app.log.1",
         "notify01-logs-20261014.zip/app.log.2",
@@ -109,7 +119,8 @@ fn every_sample_format_is_recognised() {
         assert_eq!(s.skipped, 0, "{} skipped lines", s.name);
         assert!(s.from.is_some(), "{} has no timestamps", s.name);
         // SQL01 writes local time (UTC+2); only the formats plugin's ERRORLOG importer applies its "UTC adjustment".
-        if !s.name.ends_with("SQL01/ERRORLOG") {
+        // logcat writes no year: it comes from the file's date, which is the checkout's.
+        if !s.name.ends_with("SQL01/ERRORLOG") && !s.name.ends_with("logcat-20261014.txt") {
             let (from, to) = (s.from.unwrap(), s.to.unwrap());
             // Responses to the last requests are logged a moment after 12:00.
             assert!(START <= from && to <= END + 60_000, "{}: {from}..{to}", s.name);

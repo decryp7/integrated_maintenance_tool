@@ -1,0 +1,202 @@
+2026-10-14 09:00:00.0000|INFO|Contoso.Notify.Program|Scheduler 2.4.0 started; 3 jobs registered
+2026-10-14 09:01:20.2748|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 11 order confirmations
+2026-10-14 09:02:01.3031|TRACE|Quartz.Core.QuartzSchedulerThread|Batch acquisition of 2 triggers
+2026-10-14 09:02:02.8903|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 14 order confirmations
+2026-10-14 09:04:49.8229|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 15 order confirmations
+2026-10-14 09:05:06.1794|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 21 order confirmations
+2026-10-14 09:05:52.3528|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 24 order confirmations
+2026-10-14 09:06:24.6753|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 7 order confirmations
+2026-10-14 09:07:58.8521|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 11 order confirmations
+2026-10-14 09:08:17.0477|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 22 order confirmations
+2026-10-14 09:08:25.0871|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 30 ms
+2026-10-14 09:09:04.5391|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 16 order confirmations
+2026-10-14 09:09:47.4699|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 10 order confirmations
+2026-10-14 09:10:09.8395|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 9 order confirmations
+2026-10-14 09:10:14.8550|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 4 order confirmations
+2026-10-14 09:11:05.6731|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 23 order confirmations
+2026-10-14 09:12:07.6432|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 24 ms
+2026-10-14 09:13:25.6501|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 15 order confirmations
+2026-10-14 09:13:27.7508|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 7 order confirmations
+2026-10-14 09:21:08.1804|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 4 order confirmations
+2026-10-14 09:21:23.6162|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 12 order confirmations
+2026-10-14 09:21:35.5217|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 6 order confirmations
+2026-10-14 09:22:39.8563|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 3 order confirmations
+2026-10-14 09:24:26.8318|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 24 order confirmations
+2026-10-14 09:25:04.0615|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 1 order confirmations
+2026-10-14 09:25:44.1667|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 15 order confirmations
+2026-10-14 09:26:09.4871|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 8 ms
+2026-10-14 09:27:43.6735|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 5 order confirmations
+2026-10-14 09:28:14.8258|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 33 ms
+2026-10-14 09:29:41.2479|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 29 ms
+2026-10-14 09:30:39.9766|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 11 order confirmations
+2026-10-14 09:33:05.9157|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 23 order confirmations
+2026-10-14 09:33:24.2558|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 6 order confirmations
+2026-10-14 09:33:27.7264|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 10 order confirmations
+2026-10-14 09:35:05.1908|TRACE|Quartz.Core.QuartzSchedulerThread|Batch acquisition of 2 triggers
+2026-10-14 09:36:04.9895|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 10 ms
+2026-10-14 09:40:25.5650|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 22 order confirmations
+2026-10-14 09:41:23.3560|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 21 order confirmations
+2026-10-14 09:42:08.4506|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 18 order confirmations
+2026-10-14 09:42:24.7771|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 2 ms
+2026-10-14 09:42:45.2235|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 29 order confirmations
+2026-10-14 09:43:29.8390|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 20 ms
+2026-10-14 09:44:29.8564|TRACE|Quartz.Core.QuartzSchedulerThread|Batch acquisition of 1 triggers
+2026-10-14 09:44:32.9606|TRACE|Quartz.Core.QuartzSchedulerThread|Batch acquisition of 1 triggers
+2026-10-14 09:48:09.3286|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 13 ms
+2026-10-14 09:48:19.2169|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 27 order confirmations
+2026-10-14 09:48:33.6339|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 8 order confirmations
+2026-10-14 09:49:08.4000|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 33 ms
+2026-10-14 09:49:52.1987|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 9 order confirmations
+2026-10-14 09:50:03.0326|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 9 order confirmations
+2026-10-14 09:50:29.8992|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 27 order confirmations
+2026-10-14 09:50:41.9014|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 28 order confirmations
+2026-10-14 09:51:02.6792|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 32 ms
+2026-10-14 09:51:23.4977|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 37 ms
+2026-10-14 09:52:35.7147|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 12 order confirmations
+2026-10-14 09:52:46.4399|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 22 order confirmations
+2026-10-14 09:53:33.7159|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 3 order confirmations
+2026-10-14 09:54:36.4024|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 15 order confirmations
+2026-10-14 09:55:39.1857|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 22 order confirmations
+2026-10-14 09:56:11.8652|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 11 ms
+2026-10-14 09:56:14.3843|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 22 order confirmations
+2026-10-14 09:57:17.9224|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 24 order confirmations
+2026-10-14 09:57:32.3096|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 12 order confirmations
+2026-10-14 09:58:22.4602|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 14 ms
+2026-10-14 10:00:01.1136|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 7 order confirmations
+DEBUG queue=491
+2026-10-14 10:00:34.5536|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 40 ms
+2026-10-14 10:01:22.8878|TRACE|Quartz.Core.QuartzSchedulerThread|Batch acquisition of 0 triggers
+2026-10-14 10:01:55.2458|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 18 order confirmations
+2026-10-14 10:03:19.7897|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 26 order confirmations
+2026-10-14 10:03:50.2249|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 28 order confirmations
+2026-10-14 10:04:20.2456|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 3 order confirmations
+2026-10-14 10:06:58.5531|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 7 order confirmations
+2026-10-14 10:08:52.7881|WARN|Contoso.Notify.Jobs.SendOrderMails|Mail queue is backing up: 20 messages
+2026-10-14 10:08:59.9625|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 24 order confirmations
+2026-10-14 10:09:03.8436|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 33 ms
+2026-10-14 10:10:07.0811|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 3 order confirmations
+2026-10-14 10:11:25.2959|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 2 order confirmations
+2026-10-14 10:11:27.2294|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 17 order confirmations
+2026-10-14 10:11:27.9112|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 35 ms
+2026-10-14 10:14:47.7847|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 11 order confirmations
+2026-10-14 10:18:07.1736|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 27 ms
+2026-10-14 10:18:46.3211|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 27 order confirmations
+2026-10-14 10:19:07.8934|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 15 order confirmations
+2026-10-14 10:20:04.2148|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 13 order confirmations
+2026-10-14 10:20:41.0593|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 27 order confirmations
+2026-10-14 10:21:21.4646|TRACE|Quartz.Core.QuartzSchedulerThread|Batch acquisition of 0 triggers
+2026-10-14 10:22:14.5212|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 19 order confirmations
+2026-10-14 10:22:50.3436|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 19 ms
+2026-10-14 10:24:19.4927|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 1 order confirmations
+2026-10-14 10:24:27.0449|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 10 order confirmations
+2026-10-14 10:25:27.0271|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 18 order confirmations
+2026-10-14 10:25:29.1052|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 21 ms
+2026-10-14 10:27:19.5426|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 15 order confirmations
+2026-10-14 10:27:23.3362|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 18 order confirmations
+2026-10-14 10:28:37.1149|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 25 order confirmations
+2026-10-14 10:30:10.7586|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 21 order confirmations
+2026-10-14 10:31:40.5910|TRACE|Quartz.Core.QuartzSchedulerThread|Batch acquisition of 2 triggers
+2026-10-14 10:34:07.6265|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 12 order confirmations
+2026-10-14 10:35:20.0162|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 4 order confirmations
+2026-10-14 10:35:46.0564|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 16 order confirmations
+2026-10-14 10:38:08.5693|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 21 order confirmations
+2026-10-14 10:39:16.9988|ERROR|Contoso.Notify.Jobs.SendOrderMails|Could not send the confirmation for order 88033|System.Net.Mail.SmtpException: Failure sending mail.
+ ---> System.IO.IOException: Unable to read data from the transport connection: An existing connection was forcibly closed by the remote host.
+   at System.Net.Mail.SmtpConnection.GetConnection(String host, Int32 port)
+   --- End of inner exception stack trace ---
+   at System.Net.Mail.SmtpClient.Send(MailMessage message)
+   at Contoso.Notify.Jobs.SendOrderMails.Execute(IJobExecutionContext context) in D:\build\Notify\Jobs\SendOrderMails.cs:line 64
+2026-10-14 10:39:40.7052|WARN|Contoso.Notify.Jobs.SendOrderMails|Mail queue is backing up: 699 messages
+2026-10-14 10:40:01.0906|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 30 order confirmations
+2026-10-14 10:40:55.3499|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 12 order confirmations
+2026-10-14 10:41:24.9500|FATAL|Contoso.Notify.Jobs.SendOrderMails|Job SendOrderMails failed 5 times in a row and is paused|System.Net.Mail.SmtpException: Failure sending mail.
+ ---> System.IO.IOException: Unable to read data from the transport connection: An existing connection was forcibly closed by the remote host.
+   at System.Net.Mail.SmtpConnection.GetConnection(String host, Int32 port)
+   --- End of inner exception stack trace ---
+   at System.Net.Mail.SmtpClient.Send(MailMessage message)
+   at Contoso.Notify.Jobs.SendOrderMails.Execute(IJobExecutionContext context) in D:\build\Notify\Jobs\SendOrderMails.cs:line 64
+2026-10-14 10:41:26.7670|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 15 order confirmations
+2026-10-14 10:41:54.6496|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 29 ms
+2026-10-14 10:42:20.0611|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 10 ms
+2026-10-14 10:45:45.6092|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 35 ms
+2026-10-14 10:47:59.6797|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 23 order confirmations
+2026-10-14 10:49:28.9118|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 17 order confirmations
+2026-10-14 10:50:55.4823|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 2 order confirmations
+2026-10-14 10:52:15.5670|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 9 order confirmations
+2026-10-14 10:52:30.2832|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 30 order confirmations
+2026-10-14 10:54:02.7698|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 24 order confirmations
+2026-10-14 10:54:23.4799|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 26 ms
+2026-10-14 10:55:08.0155|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 2 order confirmations
+2026-10-14 10:55:54.8236|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 7 order confirmations
+2026-10-14 10:55:56.6032|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 27 order confirmations
+2026-10-14 10:56:40.8400|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 24 order confirmations
+2026-10-14 10:59:45.8108|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 14 order confirmations
+2026-10-14 11:01:04.5630|TRACE|Quartz.Core.QuartzSchedulerThread|Batch acquisition of 2 triggers
+2026-10-14 11:04:23.8306|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 29 order confirmations
+2026-10-14 11:04:29.6996|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 28 order confirmations
+2026-10-14 11:05:51.6444|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 13 order confirmations
+2026-10-14 11:07:11.2153|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 10 order confirmations
+2026-10-14 11:07:41.3151|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 20 order confirmations
+2026-10-14 11:10:07.4565|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 19 order confirmations
+2026-10-14 11:11:49.1377|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 27 order confirmations
+2026-10-14 11:13:17.4546|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 20 order confirmations
+2026-10-14 11:13:51.8351|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 3 order confirmations
+2026-10-14 11:14:01.0436|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 16 order confirmations
+2026-10-14 11:14:47.6707|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 3 order confirmations
+2026-10-14 11:15:39.9827|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 8 ms
+2026-10-14 11:17:40.5776|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 25 order confirmations
+2026-10-14 11:18:10.3813|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 9 ms
+2026-10-14 11:18:22.9806|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 13 ms
+2026-10-14 11:18:46.9665|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 7 order confirmations
+2026-10-14 11:19:49.9714|TRACE|Quartz.Core.QuartzSchedulerThread|Batch acquisition of 2 triggers
+2026-10-14 11:20:15.5229|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 6 ms
+2026-10-14 11:21:17.5478|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 23 order confirmations
+2026-10-14 11:21:23.9416|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 8 ms
+2026-10-14 11:21:33.9525|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 8 order confirmations
+2026-10-14 11:22:06.6847|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 15 order confirmations
+2026-10-14 11:23:20.6206|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 28 order confirmations
+2026-10-14 11:25:40.7450|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 14 order confirmations
+2026-10-14 11:26:24.5233|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 6 order confirmations
+2026-10-14 11:27:37.0431|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 33 ms
+2026-10-14 11:27:38.8419|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 1 order confirmations
+2026-10-14 11:28:19.0551|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 40 ms
+2026-10-14 11:28:43.1226|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 28 order confirmations
+2026-10-14 11:29:58.2593|ERROR|Contoso.Notify.Jobs.SendOrderMails|Could not send the confirmation for order 88237|System.Net.Mail.SmtpException: Failure sending mail.
+ ---> System.IO.IOException: Unable to read data from the transport connection: An existing connection was forcibly closed by the remote host.
+   at System.Net.Mail.SmtpConnection.GetConnection(String host, Int32 port)
+   --- End of inner exception stack trace ---
+   at System.Net.Mail.SmtpClient.Send(MailMessage message)
+   at Contoso.Notify.Jobs.SendOrderMails.Execute(IJobExecutionContext context) in D:\build\Notify\Jobs\SendOrderMails.cs:line 64
+2026-10-14 11:33:25.0189|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 25 order confirmations
+2026-10-14 11:34:02.4598|TRACE|Quartz.Core.QuartzSchedulerThread|Batch acquisition of 0 triggers
+2026-10-14 11:35:00.5431|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 19 order confirmations
+2026-10-14 11:35:15.7688|TRACE|Quartz.Core.QuartzSchedulerThread|Batch acquisition of 1 triggers
+2026-10-14 11:38:03.3623|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 4 order confirmations
+2026-10-14 11:38:09.6898|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 20 ms
+2026-10-14 11:39:00.6629|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 17 order confirmations
+2026-10-14 11:39:11.3846|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 1 order confirmations
+2026-10-14 11:41:57.1194|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 10 order confirmations
+2026-10-14 11:42:34.3052|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 22 order confirmations
+2026-10-14 11:42:48.4836|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 22 order confirmations
+2026-10-14 11:42:57.5629|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 7 order confirmations
+2026-10-14 11:43:34.1026|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 26 ms
+2026-10-14 11:44:53.0341|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 15 ms
+2026-10-14 11:44:53.8071|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 10 order confirmations
+2026-10-14 11:44:55.9837|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 14 order confirmations
+2026-10-14 11:46:43.6798|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 26 ms
+2026-10-14 11:47:04.1025|ERROR|Contoso.Notify.Jobs.SendOrderMails|Could not send the confirmation for order 88659|System.Net.Mail.SmtpException: Failure sending mail.
+ ---> System.IO.IOException: Unable to read data from the transport connection: An existing connection was forcibly closed by the remote host.
+   at System.Net.Mail.SmtpConnection.GetConnection(String host, Int32 port)
+   --- End of inner exception stack trace ---
+   at System.Net.Mail.SmtpClient.Send(MailMessage message)
+   at Contoso.Notify.Jobs.SendOrderMails.Execute(IJobExecutionContext context) in D:\build\Notify\Jobs\SendOrderMails.cs:line 64
+2026-10-14 11:50:47.8748|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 27 order confirmations
+2026-10-14 11:51:23.2546|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 4 ms
+2026-10-14 11:51:30.4633|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 26 ms
+2026-10-14 11:51:55.0046|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 10 ms
+2026-10-14 11:52:16.4282|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 3 order confirmations
+2026-10-14 11:53:07.5394|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 23 ms
+2026-10-14 11:55:01.2836|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 7 order confirmations
+2026-10-14 11:55:15.2868|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 29 order confirmations
+2026-10-14 11:55:43.8799|INFO|Contoso.Notify.Jobs.SendOrderMails|Sent 10 order confirmations
+2026-10-14 11:58:00.1500|DEBUG|Contoso.Notify.Templates|Rendered template order-confirmation.de-DE in 7 ms

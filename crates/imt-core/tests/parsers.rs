@@ -221,3 +221,199 @@ fn plugin_formats_need_their_plugin() {
     );
     std::fs::remove_dir_all(&dir).ok();
 }
+
+/// The samples of the parsers that had none (`samples/generate.py`): folder, file and the parser that must read it.
+const PARSER_SAMPLES: [(&str, &str, &str); 6] = [
+    ("android-logcat", "qa-pixel07/logcat-20261014.txt", "android-logcat"),
+    ("hadoop-spark", "analytics01/spark-orders-export.log", "hadoop-spark"),
+    ("hadoop-spark", "dn01/hadoop-hdfs-datanode-dn01.log", "hadoop-spark"),
+    ("apache-error", "edge02/error.log", "apache-error"),
+    ("nlog", "notify01/notify-scheduler-20261014.log", "nlog"),
+    ("mel-console", "payments01/payments-adapter-20261014.log", "mel-console"),
+];
+
+/// Opens `paths` with the default profile and returns the workspace and each source's records by file name.
+fn open_sources(paths: &[PathBuf]) -> (Workspace, Vec<(String, Vec<imt_core::model::Record>)>) {
+    let mut ws = Workspace::new(Profile::default_profile()).unwrap();
+    ws.open(paths).unwrap();
+    let s = ws.summary();
+    assert!(s.unrecognized.is_empty(), "{:?}", s.unrecognized);
+    let by_source = s
+        .sources
+        .iter()
+        .map(|src| {
+            let recs = ws.records().iter().filter(|r| r.source == src.id).cloned().collect();
+            (src.path.replace('\\', "/"), recs)
+        })
+        .collect();
+    (ws, by_source)
+}
+
+fn records_of<'a>(sources: &'a [(String, Vec<imt_core::model::Record>)], suffix: &str) -> &'a [imt_core::model::Record] {
+    &sources
+        .iter()
+        .find(|(p, _)| p.ends_with(suffix))
+        .unwrap_or_else(|| panic!("{suffix} not opened"))
+        .1
+}
+
+#[test]
+fn each_parser_sample_is_read_by_its_parser_with_times_levels_and_grouped_lines() {
+    for (folder, file, want) in PARSER_SAMPLES {
+        let path = samples().join(folder).join(file);
+        let lines = std::fs::read_to_string(&path).unwrap().lines().count();
+        let (ws, sources) = open_sources(std::slice::from_ref(&path));
+        let src = &ws.summary().sources[0];
+        assert_eq!(src.parser.as_deref(), Some(want), "{file}");
+        assert_eq!(src.skipped, 0, "{file}");
+        let recs = records_of(&sources, file);
+        assert!(recs.iter().all(|r| r.ts.is_some()), "{file}: an event without a timestamp");
+        assert!(recs.windows(2).all(|w| w[0].ts <= w[1].ts), "{file}: events out of order");
+        let levels: std::collections::BTreeSet<Level> = recs.iter().map(|r| r.level).collect();
+        assert!(levels.len() >= 3 && levels.contains(&Level::Error), "{file}: {levels:?}");
+        // Continuation lines (stack traces, indented messages, the lines no regex matches) join their event.
+        assert!(recs.len() < lines, "{file}: {} events from {lines} lines", recs.len());
+        let multi = recs
+            .iter()
+            .filter(|r| r.exception.as_deref().is_some_and(|x| x.contains('\n')) || r.message.contains('\n'));
+        assert!(multi.count() > 0, "{file}: no multi-line event");
+    }
+}
+
+#[test]
+fn parser_samples_keep_the_details_of_their_format() {
+    let paths: Vec<PathBuf> = PARSER_SAMPLES
+        .iter()
+        .map(|(folder, file, _)| samples().join(folder).join(file))
+        .collect();
+    let (_ws, sources) = open_sources(&paths);
+    let levels = |suffix: &str| -> std::collections::BTreeSet<Level> { records_of(&sources, suffix).iter().map(|r| r.level).collect() };
+    let all = [
+        Level::Verbose,
+        Level::Debug,
+        Level::Information,
+        Level::Warning,
+        Level::Error,
+        Level::Fatal,
+    ];
+
+    // logcat: every frame of the crash is its own line (and event) with the same time, pid and tag; the year comes
+    // from the file date, so only month, day and time are checked.
+    let logcat = records_of(&sources, "logcat-20261014.txt");
+    assert_eq!(levels("logcat-20261014.txt"), all.into());
+    let fatal = logcat.iter().position(|r| r.message == "FATAL EXCEPTION: main").unwrap();
+    let crash = &logcat[fatal..fatal + 9];
+    assert!(crash
+        .iter()
+        .all(|r| r.ts == crash[0].ts && r.fields["Pid"] == 4211 && r.fields["Tag"] == "AndroidRuntime"));
+    assert_eq!(crash[8].message, "\t... 12 more");
+    let when = chrono::DateTime::from_timestamp_millis(crash[0].ts.unwrap()).unwrap();
+    assert_eq!(when.format("%m-%d %H:%M:%S%.3f").to_string(), "10-14 10:41:24.460");
+    // logcat's buffer divider and a line cut short are kept with the event before them, never an event of their own.
+    assert!(
+        logcat[fatal - 1].message.ends_with("\n--------- beginning of crash"),
+        "{:?}",
+        logcat[fatal - 1].message
+    );
+    assert!(logcat.iter().any(|r| r.fields["Pid"] == 4588), "the restarted app");
+
+    // Spark: the logger is a field, the stack trace with its "Caused by" stays with the executor's error, and the
+    // JVM's own stdout line joins the event before it.
+    let spark = records_of(&sources, "spark-orders-export.log");
+    assert_eq!(spark[0].fields["Logger"], "SparkContext");
+    assert_eq!(spark[0].ts, Some(1_791_968_402_000), "26/10/14 09:00:02 UTC");
+    let lost = spark.iter().find(|r| r.level == Level::Error).unwrap();
+    assert_eq!(lost.fields["Logger"], "Executor");
+    let x = lost.exception.as_deref().unwrap();
+    assert!(x.starts_with("java.sql.SQLTransientConnectionException") && x.contains("Caused by: ") && x.ends_with("... 14 more"));
+    assert!(
+        spark[2].message.contains("Picked up JAVA_TOOL_OPTIONS") || spark[2].exception.as_deref().is_some_and(|x| x.contains("Picked up"))
+    );
+    // HDFS's older layout, with the thread number as a field.
+    let dn = records_of(&sources, "hadoop-hdfs-datanode-dn01.log");
+    assert_eq!(dn[0].ts, Some(1_791_968_400_000), "261014 090000 UTC");
+    assert!(dn.iter().all(|r| r.fields["Thread"].is_number()));
+    assert!(dn.iter().any(|r| r
+        .exception
+        .as_deref()
+        .is_some_and(|x| x.starts_with("java.net.SocketTimeoutException"))));
+
+    // Apache: module, process, thread and client are fields; the CGI script's traceback (its stderr, written without
+    // a prefix) is kept with the event before it.
+    let apache = records_of(&sources, "edge02/error.log");
+    assert_eq!(
+        levels("edge02/error.log"),
+        [Level::Debug, Level::Information, Level::Warning, Level::Error].into()
+    );
+    assert_eq!(apache[0].fields["Module"], "mpm_event");
+    assert_eq!(apache[0].ts, Some(1_791_968_400_000));
+    let refused = apache.iter().find(|r| r.message.starts_with("(111)Connection refused")).unwrap();
+    assert_eq!(
+        (refused.level, &refused.fields["Module"]),
+        (Level::Error, &serde_json::json!("proxy"))
+    );
+    assert!(refused.fields["Client"].as_str().is_some_and(|c| c.starts_with("10.0.")));
+    let text = |r: &imt_core::model::Record| format!("{}\n{}", r.message, r.exception.as_deref().unwrap_or_default());
+    assert!(apache
+        .iter()
+        .any(|r| text(r).contains("Traceback (most recent call last):\n  File \"/usr/lib/cgi-bin/order-report.cgi\"")));
+    assert!(apache.iter().any(|r| text(r).contains("\n[Wed Oct 14 11:")), "the line cut short");
+
+    // NLog: the logger is a field, the four fraction digits are read, the exception's lines stay with the event and
+    // a stray Console.WriteLine joins the event before it.
+    let nlog = records_of(&sources, "notify-scheduler-20261014.log");
+    assert_eq!(levels("notify-scheduler-20261014.log"), all.into());
+    assert_eq!(nlog[0].fields["Logger"], "Contoso.Notify.Program");
+    let smtp = nlog.iter().find(|r| r.level == Level::Error).unwrap();
+    assert!(
+        text(smtp).contains("SmtpException: Failure sending mail.") && text(smtp).contains("--- End of inner exception stack trace ---")
+    );
+    assert!(text(smtp).ends_with("SendOrderMails.cs:line 64"), "{:?}", text(smtp));
+    assert!(nlog.iter().any(|r| r.message.contains("\nDEBUG queue=")));
+    let fatal = nlog.iter().find(|r| r.level == Level::Fatal).unwrap();
+    assert_eq!(fatal.ts, Some(1_791_974_484_950), "10:41:24.9500, after the crash");
+
+    // MEL console: category and event id are fields, the indented lines are the message, the exception follows.
+    let mel = records_of(&sources, "payments-adapter-20261014.log");
+    assert_eq!(levels("payments-adapter-20261014.log"), all.into());
+    assert_eq!(
+        (&mel[0].fields["Category"], &mel[0].fields["EventId"]),
+        (&serde_json::json!("Microsoft.Hosting.Lifetime"), &serde_json::json!(14))
+    );
+    assert!(mel[2].message.contains("Hosting environment: Production\n") && mel[2].message.ends_with("Content root path: /app"));
+    let failed = mel.iter().find(|r| r.level == Level::Error).unwrap();
+    assert!(
+        text(failed).contains("TimeoutRejectedException") && text(failed).contains(" ---> System.Threading.Tasks.TaskCanceledException")
+    );
+    assert!(mel.iter().any(|r| r.level == Level::Fatal && r.fields["EventId"] == 9001));
+    assert!(mel.iter().any(|r| text(r).contains("\nPolly retry ")), "the library's own line");
+}
+
+#[test]
+fn a_folder_of_every_parser_sample_splits_by_parser() {
+    let dir = std::env::temp_dir().join(format!("imt-parsers-mixed-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    for (folder, file, _) in PARSER_SAMPLES {
+        let name = file.rsplit('/').next().unwrap();
+        std::fs::copy(samples().join(folder).join(file), dir.join(name)).unwrap();
+    }
+    // A built-in parser's own sample beside them (log4net with a PatternLayout).
+    std::fs::write(dir.join("billing.log"), file("log4net-pattern").sample).unwrap();
+    let (ws, _) = open_sources(std::slice::from_ref(&dir));
+    let mut got: Vec<(String, String)> = ws
+        .sources()
+        .iter()
+        .map(|s| (s.name.clone(), s.parser.clone().unwrap_or_default()))
+        .collect();
+    got.sort();
+    let mut want: Vec<(String, String)> = PARSER_SAMPLES
+        .iter()
+        .map(|(_, file, parser)| (file.rsplit('/').next().unwrap().to_string(), parser.to_string()))
+        .chain([("billing.log".to_string(), "log4net-pattern".to_string())])
+        .collect();
+    want.sort();
+    assert_eq!(got, want);
+    assert!(ws.sources().iter().all(|s| s.skipped == 0 && s.from.is_some()));
+    std::fs::remove_dir_all(&dir).ok();
+}

@@ -1,0 +1,494 @@
+2026-10-14 09:00:00.000 info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://[::]:8080
+2026-10-14 09:00:00.000 info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+2026-10-14 09:00:00.000 info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+      Content root path: /app
+2026-10-14 09:01:02.661 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88820 (270.15 EUR)
+2026-10-14 09:01:44.330 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88802 (119.99 EUR)
+2026-10-14 09:02:47.709 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88513 (181.60 EUR)
+2026-10-14 09:04:50.701 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88310 (317.78 EUR)
+2026-10-14 09:05:13.538 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88286 (331.78 EUR)
+2026-10-14 09:06:49.568 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88340 (71.91 EUR)
+2026-10-14 09:09:57.500 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (7ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 09:13:06.396 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88902 (343.44 EUR)
+2026-10-14 09:13:42.952 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88122 (397.30 EUR)
+2026-10-14 09:14:41.625 warn: Contoso.Payments.Adapter.CaptureClient[1002]
+      Capture for order 88925 took 1500 ms
+2026-10-14 09:15:13.331 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (67ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 09:17:51.913 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88916 (388.21 EUR)
+2026-10-14 09:17:55.920 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88877 (100.09 EUR)
+2026-10-14 09:18:20.671 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88039 (179.52 EUR)
+2026-10-14 09:19:38.775 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88335 (289.72 EUR)
+2026-10-14 09:20:00.519 trce: Contoso.Payments.Adapter.Health[3]
+      Health probe ok
+2026-10-14 09:20:53.344 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88210 (288.77 EUR)
+2026-10-14 09:21:51.991 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88655 (360.19 EUR)
+2026-10-14 09:23:17.140 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88390 (281.00 EUR)
+2026-10-14 09:23:38.847 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88673 (66.39 EUR)
+2026-10-14 09:24:16.926 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88040 (269.44 EUR)
+2026-10-14 09:24:51.656 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88321 (336.59 EUR)
+2026-10-14 09:25:33.986 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88549 (309.82 EUR)
+2026-10-14 09:27:07.383 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88936 (218.42 EUR)
+2026-10-14 09:27:17.970 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88505 (43.58 EUR)
+2026-10-14 09:27:21.864 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88218 (244.96 EUR)
+2026-10-14 09:27:23.742 warn: Contoso.Payments.Adapter.CaptureClient[1002]
+      Capture for order 88560 took 1500 ms
+2026-10-14 09:28:07.268 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (56ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 09:28:22.618 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88644 (223.97 EUR)
+2026-10-14 09:29:36.435 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88157 (276.59 EUR)
+2026-10-14 09:29:51.777 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88658 (154.67 EUR)
+2026-10-14 09:30:37.543 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88234 (279.83 EUR)
+2026-10-14 09:31:22.534 trce: Contoso.Payments.Adapter.Health[3]
+      Health probe ok
+2026-10-14 09:32:10.035 trce: Contoso.Payments.Adapter.Health[3]
+      Health probe ok
+2026-10-14 09:32:17.284 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88670 (305.85 EUR)
+2026-10-14 09:32:30.622 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (61ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 09:32:32.008 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88865 (218.88 EUR)
+2026-10-14 09:33:07.716 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88941 (90.33 EUR)
+2026-10-14 09:33:48.232 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88525 (100.10 EUR)
+2026-10-14 09:35:44.524 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (44ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 09:35:56.076 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88609 (65.73 EUR)
+2026-10-14 09:36:08.694 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88838 (324.27 EUR)
+2026-10-14 09:37:09.357 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88081 (146.88 EUR)
+2026-10-14 09:38:39.746 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88565 (124.69 EUR)
+2026-10-14 09:39:00.621 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88096 (61.07 EUR)
+2026-10-14 09:40:23.727 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88558 (217.87 EUR)
+2026-10-14 09:41:02.479 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88128 (64.98 EUR)
+2026-10-14 09:42:42.073 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88151 (45.96 EUR)
+2026-10-14 09:43:45.063 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88285 (157.31 EUR)
+2026-10-14 09:44:48.807 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88021 (282.89 EUR)
+2026-10-14 09:46:17.626 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (59ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 09:46:19.488 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (46ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 09:46:26.749 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (38ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 09:46:48.776 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (9ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 09:47:08.606 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88128 (166.29 EUR)
+2026-10-14 09:48:06.600 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88089 (38.92 EUR)
+2026-10-14 09:49:06.522 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88821 (392.61 EUR)
+2026-10-14 09:49:18.426 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88283 (265.89 EUR)
+2026-10-14 09:51:57.573 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88853 (322.86 EUR)
+2026-10-14 09:52:18.896 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88308 (25.07 EUR)
+2026-10-14 09:53:55.963 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88224 (286.67 EUR)
+2026-10-14 09:57:59.262 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (60ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 09:59:11.978 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88207 (251.65 EUR)
+2026-10-14 09:59:47.851 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 10:00:19.063 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88710 (343.92 EUR)
+2026-10-14 10:00:25.394 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88657 (91.14 EUR)
+2026-10-14 10:01:40.124 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88238 (364.44 EUR)
+2026-10-14 10:03:01.230 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88962 (16.51 EUR)
+2026-10-14 10:03:32.202 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88242 (343.08 EUR)
+2026-10-14 10:04:20.908 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88300 (22.97 EUR)
+2026-10-14 10:04:35.572 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88038 (11.47 EUR)
+2026-10-14 10:04:38.677 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88809 (126.26 EUR)
+2026-10-14 10:05:26.598 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88272 (154.25 EUR)
+2026-10-14 10:06:43.009 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88960 (199.98 EUR)
+2026-10-14 10:07:14.385 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88644 (316.64 EUR)
+2026-10-14 10:07:32.620 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88735 (287.88 EUR)
+2026-10-14 10:08:28.942 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (31ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 10:09:33.665 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88360 (127.17 EUR)
+2026-10-14 10:10:01.649 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88240 (132.45 EUR)
+2026-10-14 10:10:17.882 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88721 (234.64 EUR)
+2026-10-14 10:10:26.676 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (37ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 10:10:39.568 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88900 (277.59 EUR)
+2026-10-14 10:12:43.030 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (51ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 10:13:28.948 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88940 (343.16 EUR)
+2026-10-14 10:13:48.043 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88924 (383.42 EUR)
+2026-10-14 10:14:51.749 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88953 (87.34 EUR)
+2026-10-14 10:14:59.837 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (46ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 10:15:40.384 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88212 (375.62 EUR)
+2026-10-14 10:17:11.070 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88158 (392.22 EUR)
+2026-10-14 10:18:58.665 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88346 (131.87 EUR)
+2026-10-14 10:19:00.033 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88785 (248.12 EUR)
+2026-10-14 10:19:02.426 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88046 (58.66 EUR)
+2026-10-14 10:19:03.273 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88234 (224.73 EUR)
+2026-10-14 10:20:33.235 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88206 (31.31 EUR)
+2026-10-14 10:20:40.921 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88577 (397.80 EUR)
+2026-10-14 10:20:45.540 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88032 (225.09 EUR)
+2026-10-14 10:21:49.180 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88378 (26.58 EUR)
+2026-10-14 10:21:52.011 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88985 (366.82 EUR)
+2026-10-14 10:21:53.806 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88557 (342.92 EUR)
+2026-10-14 10:21:58.705 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88971 (134.16 EUR)
+2026-10-14 10:22:32.704 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (15ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 10:22:43.711 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88033 (262.85 EUR)
+2026-10-14 10:23:46.429 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88248 (26.68 EUR)
+2026-10-14 10:25:59.278 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88729 (311.29 EUR)
+2026-10-14 10:26:15.546 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88315 (142.69 EUR)
+2026-10-14 10:26:21.084 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88030 (315.72 EUR)
+2026-10-14 10:26:27.438 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88394 (25.02 EUR)
+2026-10-14 10:26:28.134 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88964 (347.41 EUR)
+2026-10-14 10:26:45.436 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (48ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 10:28:50.968 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88465 (152.66 EUR)
+2026-10-14 10:30:56.739 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88486 (311.59 EUR)
+2026-10-14 10:31:01.268 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88404 (287.19 EUR)
+2026-10-14 10:31:20.131 warn: Contoso.Payments.Adapter.CaptureClient[1002]
+      Capture for order 88641 took 4428 ms
+2026-10-14 10:35:26.230 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88374 (7.75 EUR)
+2026-10-14 10:36:57.041 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88508 (29.68 EUR)
+2026-10-14 10:40:15.746 crit: Contoso.Payments.Adapter.CircuitBreaker[9001]
+      Circuit to the payment provider opened after 20 consecutive failures; captures are rejected for 30 s
+2026-10-14 10:40:28.426 fail: Contoso.Payments.Adapter.CaptureClient[1001]
+      Capture for order 88127 failed
+      Polly.Timeout.TimeoutRejectedException: The delegate executed asynchronously through TimeoutPolicy did not complete within the timeout.
+       ---> System.Threading.Tasks.TaskCanceledException: A task was canceled.
+         at System.Net.Http.HttpClient.HandleFailure(Exception e, Boolean telemetryStarted, HttpResponseMessage response)
+         --- End of inner exception stack trace ---
+         at Polly.Timeout.AsyncTimeoutEngine.ImplementationAsync[TResult](Func`3 action, Context context)
+         at Contoso.Payments.Adapter.CaptureClient.CaptureAsync(CaptureRequest request, CancellationToken ct) in /src/Adapter/CaptureClient.cs:line 57
+2026-10-14 10:40:45.746 warn: Contoso.Payments.Adapter.CircuitBreaker[9002]
+      Circuit to the payment provider is half-open; trying one capture
+2026-10-14 10:40:46.950 info: Contoso.Payments.Adapter.CircuitBreaker[9003]
+      Circuit to the payment provider closed
+2026-10-14 10:41:06.257 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88108 (14.97 EUR)
+2026-10-14 10:41:10.240 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88840 (274.09 EUR)
+2026-10-14 10:41:32.604 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (38ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+Polly retry 3/3 for capture 88005
+2026-10-14 10:41:45.895 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88271 (336.32 EUR)
+2026-10-14 10:42:03.912 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88154 (27.26 EUR)
+2026-10-14 10:43:44.445 warn: Contoso.Payments.Adapter.CaptureClient[1002]
+      Capture for order 88001 took 1500 ms
+2026-10-14 10:43:58.916 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88930 (329.81 EUR)
+2026-10-14 10:44:08.068 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88178 (387.16 EUR)
+2026-10-14 10:44:13.127 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88076 (47.87 EUR)
+2026-10-14 10:44:43.661 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88738 (247.44 EUR)
+2026-10-14 10:48:48.416 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88568 (200.80 EUR)
+2026-10-14 10:48:52.802 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88822 (123.69 EUR)
+2026-10-14 10:49:15.357 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88626 (366.98 EUR)
+2026-10-14 10:50:53.340 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88986 (55.92 EUR)
+2026-10-14 10:52:43.347 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88301 (193.78 EUR)
+2026-10-14 10:54:25.824 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (51ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 10:55:12.707 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88846 (211.61 EUR)
+2026-10-14 10:56:14.012 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88471 (266.77 EUR)
+2026-10-14 10:56:27.995 trce: Contoso.Payments.Adapter.Health[3]
+      Health probe ok
+2026-10-14 10:56:44.769 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88947 (170.64 EUR)
+2026-10-14 10:56:45.645 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88222 (192.06 EUR)
+2026-10-14 10:58:11.638 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88939 (377.91 EUR)
+2026-10-14 10:58:26.765 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88638 (131.71 EUR)
+2026-10-14 10:58:52.736 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88401 (160.20 EUR)
+2026-10-14 10:59:30.230 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88446 (375.06 EUR)
+2026-10-14 10:59:59.979 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88441 (246.00 EUR)
+2026-10-14 11:00:09.086 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88121 (141.96 EUR)
+2026-10-14 11:00:13.611 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88642 (153.06 EUR)
+2026-10-14 11:00:55.541 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (20ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 11:01:49.346 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88823 (126.81 EUR)
+2026-10-14 11:02:43.354 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88215 (264.30 EUR)
+2026-10-14 11:03:01.158 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88257 (279.38 EUR)
+2026-10-14 11:05:07.011 trce: Contoso.Payments.Adapter.Health[3]
+      Health probe ok
+2026-10-14 11:05:23.961 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88206 (224.72 EUR)
+2026-10-14 11:06:23.926 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88617 (305.18 EUR)
+2026-10-14 11:09:24.924 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (58ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 11:10:20.648 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88804 (303.90 EUR)
+2026-10-14 11:10:27.685 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (10ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 11:10:32.242 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (58ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 11:11:13.789 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88586 (303.72 EUR)
+2026-10-14 11:11:29.210 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88106 (234.36 EUR)
+2026-10-14 11:12:32.532 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88641 (131.34 EUR)
+2026-10-14 11:12:35.587 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88552 (178.52 EUR)
+2026-10-14 11:12:42.694 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88246 (76.69 EUR)
+2026-10-14 11:12:59.110 warn: Contoso.Payments.Adapter.CaptureClient[1002]
+      Capture for order 88684 took 1500 ms
+2026-10-14 11:14:46.111 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88059 (292.95 EUR)
+2026-10-14 11:14:46.182 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (49ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 11:15:44.127 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88034 (234.09 EUR)
+2026-10-14 11:16:23.199 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88655 (164.85 EUR)
+2026-10-14 11:16:30.080 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88154 (381.56 EUR)
+2026-10-14 11:16:54.867 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 11:17:02.440 trce: Contoso.Payments.Adapter.Health[3]
+      Health probe ok
+2026-10-14 11:18:03.360 warn: Contoso.Payments.Adapter.CaptureClient[1002]
+      Capture for order 88186 took 1500 ms
+2026-10-14 11:18:39.061 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88437 (100.58 EUR)
+2026-10-14 11:19:37.060 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88994 (287.63 EUR)
+2026-10-14 11:20:36.741 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (48ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 11:21:28.890 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88659 (282.32 EUR)
+2026-10-14 11:21:40.697 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88723 (151.48 EUR)
+2026-10-14 11:21:47.089 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (80ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 11:23:18.224 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 11:24:41.919 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88844 (319.23 EUR)
+2026-10-14 11:25:16.356 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88063 (337.14 EUR)
+2026-10-14 11:25:32.314 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88275 (130.16 EUR)
+2026-10-14 11:25:33.343 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88287 (108.73 EUR)
+2026-10-14 11:25:39.497 trce: Contoso.Payments.Adapter.Health[3]
+      Health probe ok
+2026-10-14 11:26:12.428 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88429 (92.70 EUR)
+2026-10-14 11:27:21.188 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88875 (253.56 EUR)
+2026-10-14 11:27:32.511 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88631 (164.46 EUR)
+2026-10-14 11:27:39.675 trce: Contoso.Payments.Adapter.Health[3]
+      Health probe ok
+2026-10-14 11:28:10.216 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88001 (204.54 EUR)
+2026-10-14 11:28:24.361 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (15ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 11:29:26.219 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (38ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 11:29:38.431 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88313 (131.02 EUR)
+2026-10-14 11:30:31.213 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88778 (127.64 EUR)
+2026-10-14 11:32:41.702 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (41ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 11:33:13.832 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88573 (24.04 EUR)
+2026-10-14 11:38:08.567 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88655 (366.86 EUR)
+2026-10-14 11:38:10.232 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88448 (250.22 EUR)
+2026-10-14 11:38:10.363 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88348 (189.54 EUR)
+2026-10-14 11:38:43.501 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88145 (57.63 EUR)
+2026-10-14 11:38:54.738 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (4ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 11:39:27.390 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88258 (229.56 EUR)
+2026-10-14 11:39:38.883 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88161 (370.49 EUR)
+2026-10-14 11:40:25.161 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (22ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 11:41:49.060 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88922 (373.20 EUR)
+2026-10-14 11:42:59.027 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88773 (367.49 EUR)
+2026-10-14 11:43:09.529 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88067 (15.99 EUR)
+2026-10-14 11:43:13.476 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88917 (292.17 EUR)
+2026-10-14 11:43:23.651 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88894 (148.39 EUR)
+2026-10-14 11:43:46.503 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88790 (94.29 EUR)
+2026-10-14 11:43:59.570 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88949 (154.56 EUR)
+2026-10-14 11:44:26.892 dbug: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (50ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0
+2026-10-14 11:46:57.761 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88472 (103.62 EUR)
+2026-10-14 11:47:39.363 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88517 (64.01 EUR)
+2026-10-14 11:49:13.420 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88680 (153.57 EUR)
+2026-10-14 11:49:17.138 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88641 (89.50 EUR)
+2026-10-14 11:50:09.166 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88209 (107.40 EUR)
+2026-10-14 11:52:02.049 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88552 (323.40 EUR)
+2026-10-14 11:52:10.968 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88789 (139.71 EUR)
+2026-10-14 11:54:49.403 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88528 (256.56 EUR)
+2026-10-14 11:57:32.214 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88986 (230.76 EUR)
+2026-10-14 11:58:21.622 trce: Contoso.Payments.Adapter.Health[3]
+      Health probe ok
+2026-10-14 11:58:23.232 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88898 (172.41 EUR)
+2026-10-14 11:59:22.607 info: Contoso.Payments.Adapter.CaptureClient[1000]
+      Captured order 88185 (150.00 EUR)

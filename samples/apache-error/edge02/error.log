@@ -1,0 +1,129 @@
+[Wed Oct 14 09:00:00.000000 2026] [mpm_event:notice] [pid 812:tid 140245] AH00489: Apache/2.4.58 (Ubuntu) OpenSSL/3.0.13 configured -- resuming normal operations
+[Wed Oct 14 09:00:00.000000 2026] [core:notice] [pid 812:tid 140245] AH00094: Command line: '/usr/sbin/apache2'
+[Wed Oct 14 09:00:51.547526 2026] [ssl:info] [pid 9041:tid 140112] [client 10.0.1.146:51673] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 09:00:55.047616 2026] [authz_core:debug] [pid 9042:tid 140118] [client 10.0.4.178:58683] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 09:02:19.433886 2026] [authz_core:debug] [pid 9042:tid 140118] [client 10.0.2.97:51236] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 09:08:15.369484 2026] [ssl:info] [pid 9077:tid 140131] [client 10.0.3.112:55766] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 09:10:01.198856 2026] [core:info] [pid 9042:tid 140118] [client 10.0.3.232:41770] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 09:11:02.492336 2026] [ssl:info] [pid 9041:tid 140112] [client 10.0.3.147:61354] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 09:11:16.089230 2026] [authz_core:debug] [pid 9042:tid 140118] [client 10.0.4.227:43927] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 09:12:46.956515 2026] [authz_core:debug] [pid 9042:tid 140118] [client 10.0.2.72:62682] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 09:18:26.049612 2026] [authz_core:debug] [pid 9042:tid 140118] [client 10.0.4.174:62141] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 09:18:55.656911 2026] [core:info] [pid 9042:tid 140118] [client 10.0.2.161:55122] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 09:19:02.026430 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.2.72:52789] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 09:22:08.097821 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.4.50:62682] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 09:24:21.823940 2026] [core:info] [pid 9077:tid 140131] [client 10.0.3.217:54638] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 09:25:32.414669 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.1.217:50259] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 09:25:40.417091 2026] [ssl:info] [pid 9077:tid 140131] [client 10.0.2.44:49549] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 09:27:45.617638 2026] [authz_core:debug] [pid 9042:tid 140118] [client 10.0.4.33:43271] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 09:27:46.912208 2026] [authz_core:debug] [pid 9041:tid 140112] [client 10.0.2.126:43051] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 09:28:40.131060 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.1.183:40401] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 09:29:03.423473 2026] [authz_core:debug] [pid 9041:tid 140112] [client 10.0.4.164:53319] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 09:33:12.503723 2026] [authz_core:debug] [pid 9041:tid 140112] [client 10.0.4.191:43128] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 09:34:05.065739 2026] [core:info] [pid 9042:tid 140118] [client 10.0.2.105:63310] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 09:37:44.255821 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.1.5:51057] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 09:37:56.451830 2026] [ssl:info] [pid 9077:tid 140131] [client 10.0.1.4:47852] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 09:39:17.891477 2026] [proxy:warn] [pid 9041:tid 140112] [client 10.0.4.39:40441] AH01144: No protocol handler was valid for the URL /favicon.ico (scheme 'h2c'). If you are using a DSO version of mod_proxy, make sure the proxy submodules are included in the configuration using LoadModule.
+[Wed Oct 14 09:40:00.615251 2026] [core:info] [pid 9042:tid 140118] [client 10.0.1.72:53293] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 09:40:11.570175 2026] [core:info] [pid 9041:tid 140112] [client 10.0.2.41:43135] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 09:43:10.169709 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.3.112:43224] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 09:43:51.270524 2026] [ssl:info] [pid 9041:tid 140112] [client 10.0.3.10:54975] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 09:45:19.285722 2026] [core:info] [pid 9042:tid 140118] [client 10.0.2.195:48795] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 09:45:34.866849 2026] [ssl:info] [pid 9077:tid 140131] [client 10.0.2.100:62328] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 09:46:03.532929 2026] [proxy:warn] [pid 9042:tid 140118] [client 10.0.3.40:63876] AH01144: No protocol handler was valid for the URL /favicon.ico (scheme 'h2c'). If you are using a DSO version of mod_proxy, make sure the proxy submodules are included in the configuration using LoadModule.
+[Wed Oct 14 09:48:19.856714 2026] [authz_core:debug] [pid 9042:tid 140118] [client 10.0.2.117:42542] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 09:49:24.228364 2026] [authz_core:debug] [pid 9041:tid 140112] [client 10.0.1.223:50652] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 09:51:17.552835 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.1.48:49775] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 09:53:14.171040 2026] [ssl:info] [pid 9077:tid 140131] [client 10.0.4.173:61783] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 09:53:20.700319 2026] [core:info] [pid 9077:tid 140131] [client 10.0.1.63:51785] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 09:54:26.394746 2026] [authz_core:debug] [pid 9041:tid 140112] [client 10.0.3.247:51551] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 09:57:33.403508 2026] [core:info] [pid 9041:tid 140112] [client 10.0.3.117:55717] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 09:58:28.991653 2026] [authz_core:debug] [pid 9042:tid 140118] [client 10.0.4.53:56960] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 10:00:57.044485 2026] [ssl:info] [pid 9042:tid 140118] [client 10.0.2.198:55366] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 10:03:12.424947 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.3.23:42917] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 10:04:16.975349 2026] [ssl:info] [pid 9042:tid 140118] [client 10.0.4.85:47652] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 10:08:23.888571 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.3.249:61858] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 10:08:33.245888 2026] [core:info] [pid 9042:tid 140118] [client 10.0.1.8:54254] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 10:09:29.337298 2026] [ssl:info] [pid 9041:tid 140112] [client 10.0.2.111:52955] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 10:09:48.119570 2026] [proxy:warn] [pid 9041:tid 140112] [client 10.0.4.153:52672] AH01144: No protocol handler was valid for the URL /favicon.ico (scheme 'h2c'). If you are using a DSO version of mod_proxy, make sure the proxy submodules are included in the configuration using LoadModule.
+[Wed Oct 14 10:10:34.244233 2026] [authz_core:debug] [pid 9041:tid 140112] [client 10.0.2.119:43330] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 10:13:53.555727 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.2.171:49983] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 10:15:27.264295 2026] [ssl:info] [pid 9041:tid 140112] [client 10.0.1.74:44175] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 10:15:42.076516 2026] [ssl:info] [pid 9077:tid 140131] [client 10.0.3.10:45395] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 10:17:55.234866 2026] [ssl:info] [pid 9041:tid 140112] [client 10.0.4.214:52660] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 10:18:23.539637 2026] [proxy:warn] [pid 9042:tid 140118] [client 10.0.4.232:54692] AH01144: No protocol handler was valid for the URL /favicon.ico (scheme 'h2c'). If you are using a DSO version of mod_proxy, make sure the proxy submodules are included in the configuration using LoadModule.
+[Wed Oct 14 10:19:31.369771 2026] [ssl:info] [pid 9041:tid 140112] [client 10.0.3.156:59590] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 10:20:02.138199 2026] [proxy:warn] [pid 9077:tid 140131] [client 10.0.1.137:61351] AH01144: No protocol handler was valid for the URL /favicon.ico (scheme 'h2c'). If you are using a DSO version of mod_proxy, make sure the proxy submodules are included in the configuration using LoadModule.
+[Wed Oct 14 10:20:20.485681 2026] [core:info] [pid 9041:tid 140112] [client 10.0.3.74:48438] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 10:22:36.908818 2026] [proxy:warn] [pid 9042:tid 140118] [client 10.0.2.153:55174] AH01144: No protocol handler was valid for the URL /favicon.ico (scheme 'h2c'). If you are using a DSO version of mod_proxy, make sure the proxy submodules are included in the configuration using LoadModule.
+[Wed Oct 14 10:23:08.056926 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.1.168:50882] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 10:24:02.107209 2026] [core:info] [pid 9041:tid 140112] [client 10.0.3.247:50198] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 10:24:12.653199 2026] [authz_core:debug] [pid 9042:tid 140118] [client 10.0.1.192:59884] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 10:29:12.736686 2026] [authz_core:debug] [pid 9041:tid 140112] [client 10.0.4.15:57819] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 10:29:22.964915 2026] [authz_core:debug] [pid 9041:tid 140112] [client 10.0.2.38:56752] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 10:29:54.182069 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.2.70:54587] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 10:30:56.201406 2026] [proxy_http:error] [pid 9041:tid 140112] [client 10.0.1.44:46395] (70007)The timeout specified has expired: AH01102: error reading status line from remote server web02.contoso.example:8080
+[Wed Oct 14 10:35:00.898384 2026] [proxy_http:error] [pid 9041:tid 140112] [client 10.0.4.185:63287] (70007)The timeout specified has expired: AH01102: error reading status line from remote server web02.contoso.example:8080
+[Wed Oct 14 10:35:16.290190 2026] [proxy_http:error] [pid 9077:tid 140131] [client 10.0.1.213:53425] (70007)The timeout specified has expired: AH01102: error reading status line from remote server web02.contoso.example:8080
+[Wed Oct 14 10:35:58.909987 2026] [proxy_http:error] [pid 9041:tid 140112] [client 10.0.1.87:56477] (70007)The timeout specified has expired: AH01102: error reading status line from remote server web02.contoso.example:8080
+[Wed Oct 14 10:37:17.407806 2026] [proxy_http:error] [pid 9042:tid 140118] [client 10.0.4.103:41985] (70007)The timeout specified has expired: AH01102: error reading status line from remote server web02.contoso.example:8080
+[Wed Oct 14 10:37:36.201857 2026] [proxy_http:error] [pid 9042:tid 140118] [client 10.0.1.180:60104] (70007)The timeout specified has expired: AH01102: error reading status line from remote server web02.contoso.example:8080
+[Wed Oct 14 10:38:20.614769 2026] [proxy_http:error] [pid 9077:tid 140131] [client 10.0.2.96:57218] (70007)The timeout specified has expired: AH01102: error reading status line from remote server web02.contoso.example:8080
+[Wed Oct 14 10:40:05.653640 2026] [proxy_http:error] [pid 9042:tid 140118] [client 10.0.1.200:56897] (70007)The timeout specified has expired: AH01102: error reading status line from remote server web02.contoso.example:8080
+[Wed Oct 14 10:40:26.279160 2026] [proxy_http:error] [pid 9042:tid 140118] [client 10.0.3.19:47249] (70007)The timeout specified has expired: AH01102: error reading status line from remote server web02.contoso.example:8080
+[Wed Oct 14 10:41:02.859584 2026] [proxy_http:error] [pid 9077:tid 140131] [client 10.0.3.127:61009] (70007)The timeout specified has expired: AH01102: error reading status line from remote server web02.contoso.example:8080
+[Wed Oct 14 10:42:09.727847 2026] [proxy:error] [pid 9041:tid 140112] [client 10.0.3.182:52208] (111)Connection refused: AH00957: http: attempt to connect to 10.0.0.12:8080 (web02.contoso.example:8080) failed
+[Wed Oct 14 10:42:09.727847 2026] [proxy_http:error] [pid 9041:tid 140112] [client 10.0.3.182:52208] AH01114: HTTP: failed to make connection to backend: web02.contoso.example
+[Wed Oct 14 10:44:25.152692 2026] [proxy:warn] [pid 9041:tid 140112] [client 10.0.1.62:43690] AH01144: No protocol handler was valid for the URL /favicon.ico (scheme 'h2c'). If you are using a DSO version of mod_proxy, make sure the proxy submodules are included in the configuration using LoadModule.
+Traceback (most recent call last):
+  File "/usr/lib/cgi-bin/order-report.cgi", line 42, in <module>
+    rows = fetch_orders(since)
+ConnectionRefusedError: [Errno 111] Connection refused
+[Wed Oct 14 10:50:17.932417 2026] [cgid:error] [pid 9041:tid 140112] [client 10.0.2.128:48673] End of script output before headers: order-report.cgi
+[Wed Oct 14 10:51:24.898939 2026] [ssl:info] [pid 9041:tid 140112] [client 10.0.4.174:44525] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 10:58:10.474352 2026] [proxy:warn] [pid 9042:tid 140118] [client 10.0.3.66:43271] AH01144: No protocol handler was valid for the URL /favicon.ico (scheme 'h2c'). If you are using a DSO version of mod_proxy, make sure the proxy submodules are included in the configuration using LoadModule.
+[Wed Oct 14 10:59:43.208267 2026] [ssl:info] [pid 9041:tid 140112] [client 10.0.3.152:48967] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 11:01:23.698588 2026] [authz_core:debug] [pid 9041:tid 140112] [client 10.0.2.202:59625] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:02:57.788046 2026] [ssl:info] [pid 9041:tid 140112] [client 10.0.3.67:58257] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 11:04:18.855397 2026] [authz_core:debug] [pid 9041:tid 140112] [client 10.0.2.227:42700] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:06:58.983148 2026] [proxy:warn] [pid 9041:tid 140112] [client 10.0.2.53:51405] AH01144: No protocol handler was valid for the URL /favicon.ico (scheme 'h2c'). If you are using a DSO version of mod_proxy, make sure the proxy submodules are included in the configuration using LoadModule.
+[Wed Oct 14 11:09:30.257859 2026] [authz_core:debug] [pid 9041:tid 140112] [client 10.0.1.239:51698] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:10:31.912017 2026] [core:info] [pid 9042:tid 140118] [client 10.0.1.164:64891] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 11:17:13.940399 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.1.136:40895] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:17:13.940399 2026] [core:
+[Wed Oct 14 11:17:18.165553 2026] [authz_core:debug] [pid 9041:tid 140112] [client 10.0.1.35:53573] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:17:52.646177 2026] [core:info] [pid 9042:tid 140118] [client 10.0.3.230:50605] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 11:20:33.268598 2026] [authz_core:debug] [pid 9041:tid 140112] [client 10.0.4.194:42565] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:25:01.745152 2026] [core:info] [pid 9042:tid 140118] [client 10.0.2.195:44002] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 11:27:43.486038 2026] [ssl:info] [pid 9077:tid 140131] [client 10.0.3.179:59322] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 11:28:44.395665 2026] [ssl:info] [pid 9077:tid 140131] [client 10.0.3.32:61137] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 11:31:32.049644 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.4.101:58429] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:34:22.038171 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.4.224:50582] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:34:32.272342 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.1.179:62691] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:35:10.230245 2026] [authz_core:debug] [pid 9041:tid 140112] [client 10.0.3.163:54116] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:36:42.482361 2026] [authz_core:debug] [pid 9041:tid 140112] [client 10.0.2.223:48363] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:37:31.152240 2026] [ssl:info] [pid 9077:tid 140131] [client 10.0.1.232:63623] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 11:38:29.830712 2026] [ssl:info] [pid 9041:tid 140112] [client 10.0.3.131:57739] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 11:38:48.070624 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.3.28:56497] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:39:49.248725 2026] [core:info] [pid 9042:tid 140118] [client 10.0.2.34:46347] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 11:40:44.104042 2026] [authz_core:debug] [pid 9042:tid 140118] [client 10.0.3.111:63552] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:42:09.498666 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.3.112:51337] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:43:35.797997 2026] [proxy:warn] [pid 9077:tid 140131] [client 10.0.2.85:56327] AH01144: No protocol handler was valid for the URL /favicon.ico (scheme 'h2c'). If you are using a DSO version of mod_proxy, make sure the proxy submodules are included in the configuration using LoadModule.
+[Wed Oct 14 11:44:10.944081 2026] [authz_core:debug] [pid 9041:tid 140112] [client 10.0.3.3:59409] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:45:44.426532 2026] [core:info] [pid 9042:tid 140118] [client 10.0.1.60:64096] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 11:47:36.412887 2026] [proxy:warn] [pid 9042:tid 140118] [client 10.0.3.98:61815] AH01144: No protocol handler was valid for the URL /favicon.ico (scheme 'h2c'). If you are using a DSO version of mod_proxy, make sure the proxy submodules are included in the configuration using LoadModule.
+[Wed Oct 14 11:49:29.376150 2026] [authz_core:debug] [pid 9042:tid 140118] [client 10.0.4.35:63944] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:49:37.142827 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.1.29:47921] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:50:58.236535 2026] [proxy:warn] [pid 9042:tid 140118] [client 10.0.2.178:64131] AH01144: No protocol handler was valid for the URL /favicon.ico (scheme 'h2c'). If you are using a DSO version of mod_proxy, make sure the proxy submodules are included in the configuration using LoadModule.
+[Wed Oct 14 11:51:07.048920 2026] [ssl:info] [pid 9077:tid 140131] [client 10.0.3.173:58421] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 11:51:24.730437 2026] [authz_core:debug] [pid 9041:tid 140112] [client 10.0.4.244:49884] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:53:36.430029 2026] [core:info] [pid 9042:tid 140118] [client 10.0.4.137:40261] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 11:53:55.733823 2026] [authz_core:debug] [pid 9042:tid 140118] [client 10.0.3.181:51998] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:55:12.240974 2026] [proxy:warn] [pid 9041:tid 140112] [client 10.0.3.130:58993] AH01144: No protocol handler was valid for the URL /favicon.ico (scheme 'h2c'). If you are using a DSO version of mod_proxy, make sure the proxy submodules are included in the configuration using LoadModule.
+[Wed Oct 14 11:56:35.484212 2026] [core:info] [pid 9077:tid 140131] [client 10.0.2.5:50106] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 11:57:06.375815 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.4.36:61191] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:57:45.656650 2026] [authz_core:debug] [pid 9042:tid 140118] [client 10.0.3.117:60878] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:58:14.545366 2026] [authz_core:debug] [pid 9077:tid 140131] [client 10.0.2.86:52028] mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted
+[Wed Oct 14 11:58:55.141087 2026] [core:info] [pid 9042:tid 140118] [client 10.0.4.179:51342] AH00128: File does not exist: /var/www/shop/robots.txt
+[Wed Oct 14 11:59:24.188576 2026] [ssl:info] [pid 9042:tid 140118] [client 10.0.1.245:46042] AH01964: Connection to child 3 established (server shop.contoso.example:443)
+[Wed Oct 14 12:00:00.000000 2026] [mpm_event:notice] [pid 812:tid 140245] AH00491: caught SIGTERM, shutting down
