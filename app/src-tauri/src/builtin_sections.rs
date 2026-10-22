@@ -198,7 +198,7 @@ pub struct WorkspaceSection {
 
 impl Configurable for WorkspaceSection {
     fn settings_section(&self) -> SettingsSection {
-        SettingsSection::new(WORKSPACE_SECTION, "Workspace", SectionOwner::App)
+        SettingsSection::new(WORKSPACE_SECTION, "Live tail", SectionOwner::App)
             .describe("How IMT follows files that change while they are open.")
             .field(
                 SettingField::new(

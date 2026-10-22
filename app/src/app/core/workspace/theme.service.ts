@@ -30,8 +30,8 @@ export class ThemeService {
     return mode === 'system' ? this.systemScheme() : mode;
   });
   readonly density = computed<Density>(() => this.settings.density());
-  /** The theme's traits with the user's overrides ("Colour lanes by source"). */
-  readonly traits = computed<ThemeTraits>(() => effectiveTraits(this.theme(), { lanesBySource: this.prefs.lanesBySource() }));
+  /** The theme's traits; "Source colours: Off" also draws the timeline lanes neutral. */
+  readonly traits = computed<ThemeTraits>(() => effectiveTraits(this.theme(), { lanesBySource: this.settings.sourceColors() === 'off' ? false : null }));
   /** The token values in effect, with the interface font the user chose. */
   readonly tokens = computed<TokenSet>(() => withUiFont(resolveTokens(this.theme(), this.scheme(), this.density()), this.prefs.uiFont()));
 

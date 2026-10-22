@@ -1,4 +1,6 @@
 import { unitLabels } from '../core/format';
+import { PARSERS_ID } from './parsers/parsers.types';
+import { STORAGE_ID } from './storage/storage.types';
 import { FieldKind, SectionGroup, SettingField, SettingsSection, SettingValue } from './settings.types';
 
 /** Navigation id of the UI-only preferences (theme, density, ...), which are not engine settings. */
@@ -6,15 +8,66 @@ export const GENERAL_ID = '@general';
 /** Navigation id of Appearance: theme, colour scheme, density (UI preferences, not engine settings). */
 export const APPEARANCE_ID = '@appearance';
 
-/** Navigation order and titles of the groups the engine assigns. */
-export const GROUPS: { id: SectionGroup; title: string }[] = [
-  { id: 'app', title: $localize`:Settings group@@settings.group.app:Application` },
-  { id: 'diagnostics', title: $localize`:Settings group@@settings.group.diagnostics:Diagnostics` },
-  { id: 'plugins', title: $localize`:Settings group@@settings.group.plugins:Plugins` },
-  { id: 'ai', title: $localize`:Settings group@@settings.group.ai:AI` },
-  { id: 'performance', title: $localize`:Settings group@@settings.group.performance:Performance` },
-  { id: 'advanced', title: $localize`:Settings group@@settings.group.advanced:Advanced` },
-];
+/** Navigation id of Updates: app updates, AI runtime and model updates (UI-only; the engine owns the updater). */
+export const UPDATES_ID = '@updates';
+/** The engine section that holds the live tail delay; the Live tail page shows it with the rest of live tail. */
+export const LIVE_TAIL_SECTION = 'workspace';
+
+/** One entry of the navigation: a UI page (`ui`) or an engine section. */
+export interface NavItem {
+  id: string;
+  title: string;
+  /** The engine section behind the entry, when it is one. */
+  section?: SettingsSection;
+}
+
+export interface NavGroup {
+  id: 'application' | 'data' | 'ai' | 'plugins' | 'diagnostics';
+  title: string;
+  items: NavItem[];
+}
+
+/**
+ * The navigation: Application (General, Appearance, window, Updates, Disk usage, performance), Data (Parsers, Live
+ * tail), AI, Plugins (one entry per plugin) and Diagnostics. UI pages and the engine's sections are placed by id and
+ * group; a section the layout does not know falls into Application, so nothing is unreachable.
+ */
+export function navLayout(sections: readonly SettingsSection[]): NavGroup[] {
+  const titles = {
+    general: $localize`:Settings section|Name of the first settings section@@settings.screen.general:General`,
+    appearance: $localize`:Settings section|Theme, colour scheme and density@@settings.screen.appearance:Appearance`,
+    updates: $localize`:Settings section|Application and AI updates@@settings.updates.nav:Updates`,
+    storage: $localize`:Settings section|What IMT keeps on disk@@settings.storage.nav:Disk usage`,
+    parsers: $localize`:Settings section|The log formats IMT reads@@settings.parsers.nav:Parsers`,
+    liveTail: $localize`:Settings section|Live tail options@@settings.liveTail.nav:Live tail`,
+  };
+  const item = (s: SettingsSection): NavItem => ({ id: s.id, title: s.id === LIVE_TAIL_SECTION ? titles.liveTail : s.title, section: s });
+  const by = (pred: (s: SettingsSection) => boolean) => sections.filter(pred).map(item);
+  const inGroup = (...g: SectionGroup[]) => (s: SettingsSection) => g.includes(s.group) && s.id !== LIVE_TAIL_SECTION;
+  const groups: NavGroup[] = [
+    {
+      id: 'application',
+      title: $localize`:Settings group@@settings.group.app:Application`,
+      items: [
+        { id: GENERAL_ID, title: titles.general },
+        { id: APPEARANCE_ID, title: titles.appearance },
+        ...by(inGroup('app')),
+        { id: UPDATES_ID, title: titles.updates },
+        { id: STORAGE_ID, title: titles.storage },
+        ...by(inGroup('performance', 'advanced')),
+      ],
+    },
+    {
+      id: 'data',
+      title: $localize`:Settings group@@settings.group.data:Data`,
+      items: [{ id: PARSERS_ID, title: titles.parsers }, ...by((s) => s.id === LIVE_TAIL_SECTION)],
+    },
+    { id: 'ai', title: $localize`:Settings group@@settings.group.ai:AI`, items: by(inGroup('ai')) },
+    { id: 'plugins', title: $localize`:Settings group@@settings.group.plugins:Plugins`, items: by(inGroup('plugins')) },
+    { id: 'diagnostics', title: $localize`:Settings group@@settings.group.diagnostics:Diagnostics`, items: by(inGroup('diagnostics')) },
+  ];
+  return groups.filter((g) => g.items.length > 0);
+}
 
 const UNITS_MS: [number, string][] = [
   [3_600_000, unitLabels().h],

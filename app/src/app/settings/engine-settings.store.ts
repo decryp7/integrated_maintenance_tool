@@ -28,8 +28,21 @@ interface EngineSettingsState {
   showAdvanced: boolean;
   /** A change applied in this run needs a restart. */
   restartRequired: boolean;
+  /** Labels of the restart-only settings changed in this run (the restart bar counts them). */
+  restartChanges: string[];
+  /** The last automatic change, for the Undo button of its notice. */
+  undo: UndoChange | null;
   /** "Discard unapplied changes?" is showing. */
   confirmDiscard: boolean;
+}
+
+/** How long an edit rests before it is applied by itself (typing a number does not apply every digit). */
+export const AUTO_APPLY_MS = 400;
+
+/** What the last automatic change replaced, so it can be undone. */
+export interface UndoChange {
+  section: string;
+  previous: Record<string, SettingValue>;
 }
 
 const INITIAL: EngineSettingsState = {
@@ -45,6 +58,8 @@ const INITIAL: EngineSettingsState = {
   query: '',
   showAdvanced: false,
   restartRequired: false,
+  restartChanges: [],
+  undo: null,
   confirmDiscard: false,
 };
 
@@ -74,6 +89,8 @@ export const EngineSettingsStore = signalStore(
     sections: computed<SettingsSection[]>(() => store.overview()?.sections ?? []),
     /** Sections with an edit that differs from the applied value. */
     dirtySections: computed(() => Object.keys(store.drafts()).filter((id) => Object.keys(store.drafts()[id] ?? {}).length > 0)),
+    /** Sections whose edit the engine refused: the only edits that stay unapplied. */
+    rejectedSections: computed(() => Object.keys(store.drafts()).filter((id) => (store.errors()[id] ?? []).length > 0)),
     restartPending: computed(() => store.restartRequired() || !!store.overview()?.restartPending),
   })),
   withComputed((store) => ({
@@ -81,6 +98,9 @@ export const EngineSettingsStore = signalStore(
     current: computed(() => store.sections().find((s) => s.id === store.selected()) ?? null),
   })),
   withMethods((store, backend = inject(SettingsBackend), injector = inject(Injector), overwrite = inject(OverwriteGuard)) => {
+    /** Edits waiting for their turn (a timer per section) and applies in flight. */
+    const timers = new Map<string, ReturnType<typeof setTimeout>>();
+    const inflight = new Set<string>();
     const section = (id: string) => store.sections().find((s) => s.id === id);
     const replaceValues = (id: string, values: Record<string, SettingValue>) => {
       const overview = store.overview();
@@ -122,6 +142,41 @@ export const EngineSettingsStore = signalStore(
         return false;
       }
     };
+    /** Applies one section's edits now and offers Undo (the screen's notice) when the engine took them. */
+    const autoApply = async (id: string): Promise<void> => {
+      const s = section(id);
+      const draft = store.drafts()[id];
+      if (!s || !draft || inflight.has(id)) return;
+      const keys = Object.keys(draft);
+      const previous = Object.fromEntries(keys.map((k) => [k, s.values[k]] as const).filter(([, v]) => v !== undefined)) as Record<string, SettingValue>;
+      const restart = keys.map((k) => s.fields.find((f) => f.key === k)).filter((f) => f?.restartRequired).map((f) => f!.label);
+      inflight.add(id);
+      patchState(store, { actionError: null });
+      try {
+        if (await applySection(id)) {
+          const what = keys.length === 1 ? (s.fields.find((f) => f.key === keys[0])?.label ?? s.title) : s.title;
+          patchState(store, (st) => ({
+            notice: $localize`:Notice after a setting was applied by itself@@settings.notice.saved:${what}:what: saved.`,
+            undo: { section: id, previous },
+            restartChanges: [...new Set([...st.restartChanges, ...restart])],
+          }));
+        }
+      } finally {
+        inflight.delete(id);
+      }
+      // Edits made while it was applying wait for their own turn.
+      if (store.drafts()[id] && !(store.errors()[id] ?? []).length) schedule(id);
+    };
+    function schedule(id: string): void {
+      clearTimeout(timers.get(id));
+      timers.set(
+        id,
+        setTimeout(() => {
+          timers.delete(id);
+          void autoApply(id);
+        }, AUTO_APPLY_MS),
+      );
+    }
     return {
       /** (Re)reads the sections. Unapplied edits are kept. */
       async load(): Promise<void> {
@@ -137,7 +192,17 @@ export const EngineSettingsStore = signalStore(
       select: (selected: string) => patchState(store, { selected, query: '' }),
       setQuery: (query: string) => patchState(store, { query }),
       setShowAdvanced: (showAdvanced: boolean) => patchState(store, { showAdvanced }),
-      dismissNotice: () => patchState(store, { notice: null, actionError: null }),
+      dismissNotice: () => patchState(store, { notice: null, actionError: null, undo: null }),
+      /** Puts back what the last automatic change replaced. */
+      async undoLast(): Promise<void> {
+        const u = store.undo();
+        if (!u) return;
+        patchState(store, { undo: null, notice: null });
+        const s = section(u.section);
+        if (!s) return;
+        patchState(store, (st) => ({ drafts: { ...st.drafts, [u.section]: { ...u.previous } } }));
+        if (await applySection(u.section)) patchState(store, { notice: $localize`:Notice after Undo in Settings@@settings.notice.undone:${s.title}:section: restored.` });
+      },
       /** The value shown for a field: the edit if any, else the applied value. */
       valueOf(id: string, key: string): SettingValue | undefined {
         return store.drafts()[id]?.[key] ?? section(id)?.values[key];
@@ -145,7 +210,7 @@ export const EngineSettingsStore = signalStore(
       errorFor(id: string, key: string): string | null {
         return store.errors()[id]?.find((e) => e.key === key)?.message ?? null;
       },
-      /** Records an edit; editing back to the applied value removes it. Clears that field's engine error. */
+      /** Records an edit and applies it after a short rest. Editing back to the applied value removes it. Clears that field's engine error. */
       edit(id: string, key: string, value: SettingValue): void {
         const applied = section(id)?.values[key];
         patchState(store, (st) => {
@@ -158,8 +223,10 @@ export const EngineSettingsStore = signalStore(
             errors: errors.length ? { ...st.errors, [id]: errors } : without(st.errors, id),
           };
         });
+        if (store.drafts()[id]) schedule(id);
+        else clearTimeout(timers.get(id));
       },
-      /** Edits a field back to its default (applied with Apply). */
+      /** Edits a field back to its default (applied like any edit). */
       resetField(id: string, key: string): void {
         const field = section(id)?.fields.find((f) => f.key === key);
         if (field) this.edit(id, key, field.default);
@@ -167,18 +234,23 @@ export const EngineSettingsStore = signalStore(
       /** Resets a whole section in the engine now. */
       resetSection: (id: string) =>
         run(async () => {
+          clearTimeout(timers.get(id));
+          timers.delete(id);
           const r = await backend.reset(id);
           replaceValues(id, r.values);
           patchState(store, (st) => ({
             drafts: without(st.drafts, id),
             errors: without(st.errors, id),
             restartRequired: st.restartRequired || r.restartRequired,
+            undo: null,
             notice: $localize`:@@settings.notice.sectionReset:${section(id)?.title ?? id}:section: reset to defaults.`,
           }));
         }),
-      /** Applies every edited section; on engine errors, shows the first section with errors. */
+      /** Applies every edited section now (edits normally apply by themselves); on engine errors, shows the first section with errors. */
       async apply(): Promise<boolean> {
         let ok = true;
+        for (const t of timers.values()) clearTimeout(t);
+        timers.clear();
         await run(async () => {
           for (const id of store.dirtySections()) ok = (await applySection(id)) && ok;
           if (ok) patchState(store, { notice: $localize`:@@settings.notice.applied:Settings applied.` });
@@ -190,10 +262,14 @@ export const EngineSettingsStore = signalStore(
         return ok;
       },
       /** Drops every unapplied edit and engine error. */
-      discard: () => patchState(store, { drafts: {}, errors: {}, confirmDiscard: false }),
-      /** Whether the screen may close now; with unapplied edits it asks first and says no. */
+      discard: () => {
+        for (const t of timers.values()) clearTimeout(t);
+        timers.clear();
+        patchState(store, { drafts: {}, errors: {}, confirmDiscard: false });
+      },
+      /** Whether the screen may close now; edits the engine refused are asked about first (the rest apply by themselves). */
       canClose(): boolean {
-        if (!store.dirty()) return true;
+        if (!store.rejectedSections().length) return true;
         patchState(store, { confirmDiscard: true });
         return false;
       },
