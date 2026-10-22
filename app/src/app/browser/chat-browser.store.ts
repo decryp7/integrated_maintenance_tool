@@ -21,7 +21,7 @@ function message(e: unknown): string {
 }
 
 /**
- * A chat's hold on the browser as the chat panel and the Browser panel show it: the pages handed to it, read-
+ * A chat's hold on the browser as the chat panel shows it: the pages handed to it, read-
  * along, agent mode, its steps and Stop. The shell decides and enforces everything; this mirrors it.
  */
 export const ChatBrowserStore = signalStore(

@@ -170,6 +170,21 @@ ETW automated tests (elevated shell): `set IMT_ETW_TESTS=1`, then
 | 81 | Move a window to a second monitor, minimise another, then press `Ctrl/⌘+Shift+F12` in each. | The snapshot shows the window as it was on screen; a minimised or covered window on macOS gets the placeholder and "No screenshot: …" instead of a failure. |
 | 82 | File ▸ Share redacted copy…, pick *Hash* and a few detectors, write the copy, then open it and search for an e-mail address from the original. | The preview counted what changes; the copy opens, finds no unredacted value, and says which sources (binary, CSV, XML) were left out. |
 
+## The AI's browser (real Chromium, ADR 0043)
+
+Needs Edge, Chrome or Chromium (or the download in Settings ▸ Web browser) and a local model.
+
+| # | Steps | Expected |
+|---|---|---|
+| 83 | Settings ▸ Web browser on a machine with no Chromium-based browser. | The panel says none was found and offers *Download Chromium* (about 200 MB). Start a research: it fails with a message pointing to Settings. |
+| 84 | Press *Download Chromium*, wait, then *Remove downloaded Chromium*. | Status goes downloading, installed (pinned version) and back to none; a download whose checksum does not match is refused and nothing is installed. |
+| 85 | In a chat set *Browser* to *Agent* and ask it to look something up. | A Chromium window opens next to IMT with Chrome's banner "controlled by automated test software" and a window frame in IMT's accent colour (a browser version that ignores it is fine). IMT shows the status chip with the activity, the site and *Stop*. Nothing is added to the pages themselves. |
+| 86 | Press *Stop* on the chip during a step. | The Chromium window closes at once, the chip clears, the chat says the browser was stopped, and no Chromium process is left (`ps`/Task Manager). |
+| 87 | Research a topic with *Research this* on an event. | The window stays out of sight; the chip shows "Reading n of m results"; the research log lists every page opened or skipped. |
+| 88 | Research when the engine shows a consent page or a CAPTCHA. | The window comes to the front, the chip says it is waiting for you; after you finish the check the research continues and the window goes away. |
+| 89 | *Search the web for this error* and a link card's *Open*. | The pages open in your default browser, not in IMT. |
+| 90 | Quit IMT while a research is running. | No Chromium process remains. |
+
 ## Smoke tests of the real app (WebdriverIO + tauri-driver)
 
 `app/e2e-tauri/` holds a few automated smoke tests of the real app: the Rust engine, the Tauri shell and the

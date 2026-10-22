@@ -1,7 +1,7 @@
 import { Citation } from '../../ai/ai.types';
 import { MockJobCtx, mockJobs, mockSteps, MockJobCancelled } from '../../jobs/mock-jobs';
 import { JobResult } from '../../jobs/jobs.types';
-import { mockWeb } from '../../browser/mock-browser-backend';
+import { mockWeb, MockWeb } from '../../browser/mock-browser-backend';
 
 /** What the mock research found (the engine's `ResearchReport`). */
 export interface MockResearchReport {
@@ -39,25 +39,27 @@ export function mockDraft(question: string): string {
 
 /** Runs a mock research inside a job's work ("page 2 of 3"), honouring Cancel. */
 export async function runMockResearch(ctx: MockJobCtx, question: string, maxResults: number, stepMs: number): Promise<MockResearchReport> {
-  // Research holds the browser while it reads (the shell's "AI is browsing"); finished, failed or cancelled, it lets go.
+  // Research holds the browser while it reads (the shell's status chip); finished, failed or cancelled, it lets go.
   const web = mockWeb();
   web.drive({ kind: 'research' });
   try {
-    return await readPages(ctx, question, maxResults, stepMs);
+    return await readPages(ctx, question, maxResults, stepMs, web);
   } finally {
     if (web.driver?.kind === 'research') web.drive(null);
   }
 }
 
-async function readPages(ctx: MockJobCtx, question: string, maxResults: number, stepMs: number): Promise<MockResearchReport> {
+async function readPages(ctx: MockJobCtx, question: string, maxResults: number, stepMs: number, web: MockWeb): Promise<MockResearchReport> {
   const pages = PAGES.slice(0, Math.max(1, Math.min(10, maxResults)));
   ctx.message('searching');
+  web.report('searching', 'www.google.com', 'Searching');
   await mockSteps(ctx, stepMs, 2);
   const read: { title: string; url: string }[] = [];
   const skipped: string[] = [];
   for (const [i, p] of pages.entries()) {
     if (ctx.cancelled()) throw new MockJobCancelled();
     ctx.message(`Reading result ${i + 1} of ${pages.length}: ${new URL(p.url).hostname}`);
+    web.report('reading', new URL(p.url).hostname, `Reading ${i + 1} of ${pages.length} results`);
     ctx.progress({ fraction: (i + 1) / pages.length, done: i + 1, total: pages.length });
     await mockSteps(ctx, stepMs, 2);
     if (p.ok) read.push({ title: p.title, url: p.url });

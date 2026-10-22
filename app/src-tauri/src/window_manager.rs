@@ -75,10 +75,10 @@ pub fn clean_title(title: &str) -> String {
     }
 }
 
-/// Pop-out panels, the browser's page window (Linux) and the drag ghost belong to an IMT window; they are not
+/// Pop-out panels and the drag ghost belong to an IMT window; they are not
 /// windows of their own.
 pub fn is_auxiliary(label: &str) -> bool {
-    panel_windows::is_popout(label) || crate::browser::is_browser_label(label) || label == crate::drag_ghost::GHOST_LABEL
+    panel_windows::is_popout(label) || label == crate::drag_ghost::GHOST_LABEL
 }
 
 /// The open windows, `main` first.
@@ -292,12 +292,9 @@ pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
         WindowEvent::CloseRequested { api, .. } => {
             if close_requested(app, window) != CloseDecision::Close {
                 api.prevent_close();
-            } else if panel_windows::is_popout(label) {
-                // The browser's page lives on when its panel's pop-out closes (it moves back to the host).
-                crate::browser::host_closing(app, label);
             }
         }
-        WindowEvent::Focused(true) if !crate::browser::is_browser_label(label) && label != crate::drag_ghost::GHOST_LABEL => {
+        WindowEvent::Focused(true) if label != crate::drag_ghost::GHOST_LABEL => {
             if let Some(windows) = app.try_state::<Windows>() {
                 // A pop-out panel stands for its host (files from other apps go there).
                 windows.note_focus(panel_windows::resolve(label));
@@ -362,10 +359,6 @@ pub fn close_requested<R: Runtime>(app: &AppHandle<R>, window: &Window<R>) -> Cl
 pub fn destroyed<R: Runtime>(app: &AppHandle<R>, label: &str) {
     if panel_windows::is_popout(label) {
         panel_windows::on_destroyed(app, label);
-        return;
-    }
-    if crate::browser::is_browser_label(label) {
-        crate::browser::destroyed(app, label);
         return;
     }
     if label == crate::drag_ghost::GHOST_LABEL {

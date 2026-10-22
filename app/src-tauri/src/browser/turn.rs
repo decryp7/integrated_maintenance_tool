@@ -4,7 +4,6 @@
 
 use super::approvals::{Approvals, ChatApprover};
 use super::hub::BrowserHub;
-use super::page::TauriPage;
 use super::ActivityLog;
 use super::{emit, BrowserEvent, BrowserState};
 use imt_ai::browser::{BrowserEnv, ChatBrowser, PageCapture, PageDriver, PageReader, Researcher, SearchSettings};
@@ -64,14 +63,15 @@ impl TurnBrowser {
                 },
             );
         }
-        let page = |c: Option<String>| TauriPage {
-            app: app.clone(),
-            owner: owner.to_string(),
-            chat: c,
-        };
+        // Read along and agent mode show the real browser window next to IMT.
+        let on_screen = control.read_along() || control.may_act();
+        let reader = super::page_for(app, owner, on_screen, None, None)?;
+        let (h2, o2, c2) = (hub.clone(), owner.to_string(), chat.to_string());
+        let may_drive: Option<Box<dyn Fn() -> bool + Send + Sync>> = driving.then(|| Box::new(move || h2.is_driving(&o2, &c2)) as _);
+        let driver = super::page_for(app, owner, on_screen, may_drive, Some(control.clone()))?;
         Some(TurnBrowser {
-            reader: Box::new(page(None)),
-            driver: Box::new(page(driving.then(|| chat.to_string()))),
+            reader: Box::new(reader),
+            driver: Box::new(driver),
             control,
             approver: ChatApprover {
                 approvals,

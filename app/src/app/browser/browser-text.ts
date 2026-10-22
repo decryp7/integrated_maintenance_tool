@@ -1,4 +1,4 @@
-import { HandOff, LeakKind, NoticeKind, SearchEngine, SEARCH_ENGINES } from './browser.types';
+import { HandOff, LeakKind, SearchEngine, SEARCH_ENGINES } from './browser.types';
 
 /** The engines offered in pickers, in order. */
 export const ENGINE_OPTIONS: readonly SearchEngine[] = SEARCH_ENGINES;
@@ -13,20 +13,6 @@ export function engineLabel(e: SearchEngine): string {
       return 'Bing';
     case 'custom':
       return $localize`:Search engine option@@browser.engine.custom:Custom`;
-  }
-}
-
-/** One line for a notice of the browser. */
-export function noticeText(kind: NoticeKind, message: string): string {
-  switch (kind) {
-    case 'blocked':
-      return $localize`:@@browser.notice.blocked:The browser did not open this address: ${message}:reason:`;
-    case 'download':
-      return $localize`:@@browser.notice.download:Downloads are blocked in IMT's browser. Open the page in your browser to download the file.`;
-    case 'popup':
-      return $localize`:@@browser.notice.popup:The page wanted to open a new window. IMT's browser does not open new windows.`;
-    case 'agentBlocked':
-      return $localize`:@@browser.notice.agentBlocked:The AI tried to open ${message}:site:, which this chat may not visit. It was blocked.`;
   }
 }
 

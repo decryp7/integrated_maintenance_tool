@@ -9,7 +9,7 @@
 //! leak guard first; with workspace data in it the user confirms (or edits) it before anything is searched.
 
 use super::hub::BrowserHub;
-use super::page::TauriPage;
+use super::renderer::ChromiumPage;
 use super::ActivityLog;
 use crate::ai::error::{AiCmdError, AiErrorCode, AiResult};
 use crate::jobs::{self, Controls, Done, JobCtx, JobId, JobKind, JobLink, JobProgress, JobResult, JobSpec};
@@ -43,12 +43,12 @@ fn snippet(s: &str) -> String {
 
 /// Research navigates only to the results page and its result links: every other driver action is refused,
 /// and the browser window lets only the address being opened load while research drives it.
-pub(super) struct ReadOnlyDriver<R: Runtime> {
-    pub(super) page: TauriPage<R>,
+pub(super) struct ReadOnlyDriver {
+    pub(super) page: ChromiumPage,
     pub(super) control: Arc<ChatBrowser>,
 }
 
-impl<R: Runtime> PageDriver for ReadOnlyDriver<R> {
+impl PageDriver for ReadOnlyDriver {
     fn navigate(&self, url: &WebUrl) -> Result<(), BrowserError> {
         self.control.allow_site(url.site());
         self.control.expect_load(url);
@@ -120,14 +120,13 @@ fn run_research<R: Runtime>(app: &AppHandle<R>, owner: &str, req: &ResearchReque
         return Err(AiCmdError::busy("a chat is driving the browser now; stop its agent mode first"));
     }
     super::driving::refresh(app, owner);
-    let page = |chat: Option<String>| TauriPage {
-        app: app.clone(),
-        owner: owner.to_string(),
-        chat,
-    };
-    let reader = page(None);
+    let (h2, o2, k2) = (hub.clone(), owner.to_string(), key.clone());
+    let may_drive: Option<Box<dyn Fn() -> bool + Send + Sync>> = Some(Box::new(move || h2.is_driving(&o2, &k2)));
+    // Research keeps the window off screen; a page that needs the user (consent, CAPTCHA) comes to the front.
+    let reader = super::page_for(app, owner, false, None, None).ok_or_else(|| AiCmdError::unavailable("the browser is not available"))?;
     let driver = ReadOnlyDriver {
-        page: page(Some(key.clone())),
+        page: super::page_for(app, owner, false, may_drive, Some(control.clone()))
+            .ok_or_else(|| AiCmdError::unavailable("the browser is not available"))?,
         control: control.clone(),
     };
     let log = ActivityLog { window: owner.to_string() };
@@ -148,6 +147,7 @@ fn run_research<R: Runtime>(app: &AppHandle<R>, owner: &str, req: &ResearchReque
     let model = WithModel(&assistant);
     let r = research::research(&env, &model as &dyn ResearchModel, req, &mut |step| {
         ctx.message(&step.describe());
+        super::emit(app, owner, super::BrowserEvent::Status { text: step.describe() });
         if let ResearchStep::Reading { page, of, .. } = step {
             ctx.progress(JobProgress::counts(*page as u64, *of as u64));
         }

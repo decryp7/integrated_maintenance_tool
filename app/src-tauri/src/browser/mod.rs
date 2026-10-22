@@ -1,68 +1,43 @@
-//! The internal web browser (ADR 0011, docked by ADR 0024): the Browser panel of an IMT window (a dock panel like
-//! Timeline or Events, which may be popped out) with a page webview on the system webview kept over its page area.
-//! The user drives it from the panel; a chat may read it (read-along) or drive it (agent mode, research) only through
-//! `imt_ai::browser`.
+//! The AI's browser (ADR 0043, replacing the docked panel of ADR 0024): research and the chat's Read along and Agent
+//! modes drive a real Chromium-based browser over the DevTools protocol ([`renderer`], built on `chromium_driver`).
+//! There is no browser panel and no child web view in IMT any more; links open in the user's default browser.
+//! A chat reads or drives the page only through `imt_ai::browser`.
 //!
-//! Isolation: the page webview (`browser-<owner>`) matches no Tauri capability (they name IMT's webviews), and
-//! [`guard`] refuses every command from it before anything else runs, so a page has no IPC at all. Page results
-//! reach Rust only as the return values of scripts IMT evaluates (`page::TauriPage`), checked by a one-shot gate
-//! (nonce, origin, size). IMT's own UI and its CSP are untouched; the "AI is browsing" banner is IMT's UI in the
-//! panel header, never anything in the page.
+//! Indicators that the AI drives a page are all outside the page: Chrome's automation banner, the window frame colour,
+//! the status chip in IMT (activity, host, Stop) and the research log. Nothing is injected into a page.
 //!
-//! Commands: `browser_state`, `browser_open`, `browser_event_query`, `browser_nav`, `browser_close`,
-//! `browser_place`, `browser_open_external`, `browser_capture`, `browser_sources`, `browser_discard_sources`,
-//! `browser_chat_status`, `browser_set_read_along`, `browser_set_agent`, `browser_agent_stop`,
-//! `browser_agent_continue`, `browser_agent_respond`, `browser_open_suggested`, `browser_open_and_read`,
-//! `ai_research_draft`, `ai_research`, `browser_driving`.
-//! Events: `imt://browser` (to the owner window and its pop-out panels). Wire contract:
-//! `app/src/app/browser/browser.types.ts`.
+//! Commands: `browser_open`, `browser_event_query`, `browser_capture`, `browser_sources`, `browser_discard_sources`,
+//! `browser_chat_status`, `browser_set_read_along`, `browser_set_agent`, `browser_agent_stop`, `browser_agent_continue`,
+//! `browser_agent_respond`, `browser_open_suggested`, `browser_open_and_read`, `browser_stop`, `browser_runtime_status`,
+//! `browser_runtime_install`, `browser_runtime_remove`, `ai_research_draft`, `ai_research`, `browser_driving`.
+//! Events: `imt://browser` (to the window). Wire contract: `app/src/app/browser/browser.types.ts`.
 
 mod approvals;
 pub(crate) mod commands;
 pub(crate) mod driving;
-pub(crate) mod geometry;
 mod hub;
-mod keys;
-#[cfg(feature = "live-search-probe")]
-mod live_probe;
-mod page;
+#[cfg(test)]
+mod live;
+pub(crate) mod renderer;
 pub(crate) mod research;
+pub(crate) mod runtime;
 mod settings_section;
 #[cfg(test)]
 mod tests;
 mod turn;
-mod view;
 
 pub use approvals::Approvals;
-pub use geometry::Placement;
-pub use hub::{AiDriver, BrowserHub, PageState};
-pub use keys::PageKey;
+pub use hub::{AiDriver, BrowserHub};
 pub use turn::TurnBrowser;
-pub use view::{destroyed, host_closing, is_browser_label, owner_destroyed, WEB_PROFILE_DIR};
 
 use imt_ai::browser::{ActionEntry, ActionLog, ChatBrowserStatus, PageCapture};
 use serde::Serialize;
 use std::sync::Arc;
-use tauri::ipc::Invoke;
 use tauri::{AppHandle, Manager, Runtime};
 
 pub const BROWSER_EVENT: &str = "imt://browser";
 /// Id of the browser's settings section.
 pub const SECTION: &str = "browser";
-
-/// What a notice in the Browser panel is about.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum NoticeKind {
-    /// A navigation to something that is not a web page was blocked (`message` says why).
-    Blocked,
-    /// A download was blocked.
-    Download,
-    /// The page asked for a new window; the user may open `url` in the system browser.
-    Popup,
-    /// Agent mode tried to load a site the chat may not visit (`message` is the site).
-    AgentBlocked,
-}
 
 /// A page handed to a chat, as the UI lists it (never its text).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -105,49 +80,87 @@ pub struct ChatStatusDto {
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum BrowserEvent {
-    State(PageState),
-    Notice {
-        kind: NoticeKind,
-        url: String,
-        message: String,
-    },
     Sources {
         session_id: String,
         sources: Vec<SourceInfo>,
     },
     ChatStatus(ChatStatusDto),
-    /// The AI started or stopped driving the browser (`by`: who; `None`: the browser is the user's again).
+    /// The AI started or stopped driving the browser (`by`: who; `None`: it let go).
     Driving {
         by: Option<AiDriver>,
     },
-    /// The browser opened or loaded a page: the window shows its Browser panel (`activate`: as the active tab; the
-    /// AI's own navigations show it without taking the focus).
-    Reveal {
-        activate: bool,
+    /// A line of what the AI is doing ("Reading 3 of 5 results"), for the status chip.
+    Status {
+        text: String,
     },
-    /// A key IMT took from the page (Ctrl+L, Esc, one of IMT's shortcuts). Only WebView2 reports page keys.
-    #[cfg_attr(not(windows), allow(dead_code))]
-    Key(PageKey),
+    /// What the AI's browser is doing, for the status chip (`title` is the window title it would carry).
+    Activity {
+        /// `reading`, `searching` or `waitingForYou`.
+        activity: &'static str,
+        host: String,
+        title: String,
+    },
 }
 
-/// Sends a browser event to the owner window and its pop-out panels (never to the page).
+/// Sends a browser event to the owner window.
 pub fn emit<R: Runtime>(app: &AppHandle<R>, owner: &str, event: BrowserEvent) {
     crate::windows::emit_to_window(app, owner, BROWSER_EVENT, event);
 }
 
-/// Wraps the invoke handler: a page webview gets no command at all, whatever its origin (also when it shows a page
-/// of IMT's own origin). This is in addition to no capability naming it (Tauri's ACL refuses its plugin calls) and
-/// to the command table knowing no `browser-*` window class.
-pub fn guard<R: Runtime>(inner: impl Fn(Invoke<R>) -> bool + Send + Sync + 'static) -> impl Fn(Invoke<R>) -> bool + Send + Sync + 'static {
-    move |invoke| {
-        let label = invoke.message.webview().label().to_string();
-        if is_browser_label(&label) || is_browser_label(invoke.message.webview().window().label()) {
-            log::warn!(Window = label.as_str(); "A command from the browser page was refused");
-            invoke.resolver.reject("IMT commands are not available to web pages");
-            return true;
-        }
-        inner(invoke)
-    }
+/// The renderers as managed state.
+pub fn renderers<R: Runtime>(app: &AppHandle<R>) -> Option<Arc<renderer::Renderers>> {
+    app.try_state::<Arc<renderer::Renderers>>().map(|s| s.inner().clone())
+}
+
+fn product<R: Runtime>(app: &AppHandle<R>) -> String {
+    app.config().product_name.clone().unwrap_or_else(|| "IMT".into())
+}
+
+/// A page of the window's renderer for the chat ports. `on_screen`: the window shows next to IMT.
+pub(crate) fn page_for<R: Runtime>(
+    app: &AppHandle<R>,
+    owner: &str,
+    on_screen: bool,
+    may_drive: Option<Box<dyn Fn() -> bool + Send + Sync>>,
+    rules: Option<Arc<imt_ai::browser::ChatBrowser>>,
+) -> Option<renderer::ChromiumPage> {
+    let (a, o) = (app.clone(), owner.to_string());
+    Some(renderer::ChromiumPage {
+        renderers: renderers(app)?,
+        owner: owner.to_string(),
+        on_screen,
+        may_drive,
+        rules,
+        product: product(app),
+        notify: Arc::new(move |cue| {
+            use chromium_driver::cue::Activity;
+            let activity = match cue.activity {
+                Activity::Reading => "reading",
+                Activity::Searching => "searching",
+                Activity::WaitingForYou => "waitingForYou",
+            };
+            emit(
+                &a,
+                &o,
+                BrowserEvent::Activity {
+                    activity,
+                    host: cue.host,
+                    title: cue.title,
+                },
+            );
+        }),
+    })
+}
+
+/// The window's running renderer, read only (nothing is started).
+pub(crate) fn reader_page<R: Runtime>(app: &AppHandle<R>, owner: &str) -> Option<renderer::ChromiumPage> {
+    renderers(app)?.current(owner)?;
+    page_for(app, owner, false, None, None)
+}
+
+/// A page that starts the renderer on screen when none runs (the user asked to open something).
+pub(crate) fn visible_page<R: Runtime>(app: &AppHandle<R>, owner: &str) -> Option<renderer::ChromiumPage> {
+    page_for(app, owner, true, Some(Box::new(|| true)), None)
 }
 
 /// Writes every agent action to the activity log (diagnostics reports show what the AI did). Never page
@@ -180,21 +193,42 @@ impl ActionLog for ActivityLog {
 pub fn init<R: Runtime>(app: &AppHandle<R>) {
     let hub = Arc::new(BrowserHub::default());
     manage_state(app, hub.clone());
+    let renderers = renderers(app).unwrap_or_default();
+    runtime::refresh_sources(app, &hub);
     if let Err(e) = crate::settings::register(
         app,
-        Arc::new(settings_section::BrowserSection { hub }),
+        Arc::new(settings_section::BrowserSection {
+            hub,
+            renderers: Some(renderers),
+        }),
         crate::settings::SectionGroup::App,
     ) {
         log::warn!("Web browser settings not registered: {e:#}");
     }
-    #[cfg(feature = "live-search-probe")]
-    live_probe::start(app);
 }
 
 /// The managed state alone (the hub and the approvals), for [`init`] and tests.
 pub fn manage_state<R: Runtime>(app: &AppHandle<R>, hub: Arc<BrowserHub>) {
     app.manage(BrowserState(hub));
+    app.manage(Arc::new(renderer::Renderers::default()));
     app.manage(Arc::new(Approvals::default()));
+}
+
+/// A window is gone: its browser process ends and its holds are dropped.
+pub fn owner_destroyed<R: Runtime>(app: &AppHandle<R>, owner: &str) {
+    if let Some(r) = renderers(app) {
+        r.kill(owner);
+    }
+    if let Some(hub) = app.try_state::<BrowserState>() {
+        hub.forget_owner(owner);
+    }
+}
+
+/// IMT exits: every browser process ends.
+pub fn shutdown<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(r) = renderers(app) {
+        r.kill_all();
+    }
 }
 
 /// The chat is deleted: its browser access, pages, links and waiting approvals end with it.

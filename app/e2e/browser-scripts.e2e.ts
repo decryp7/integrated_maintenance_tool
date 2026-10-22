@@ -2,7 +2,7 @@ import { expect, Page, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-// The scripts IMT evaluates in pages of its internal browser (crates/imt-ai/src/browser/js), run in real
+// The scripts IMT evaluates in pages of the AI's browser (crates/imt-ai/src/browser/js), run in real
 // Chromium and WebKit the way `scripts.rs` calls them: `(function (A) {...})({...})`, returning JSON text.
 // What they return is parsed and judged in Rust (tested there); this checks what they collect and do.
 

@@ -1,5 +1,5 @@
 /**
- * The scripted AI mock's side of the internal browser (browser build and UI tests): pages the user added are
+ * The scripted AI mock's side of the AI's browser window (browser build and UI tests): pages the user added are
  * cited, read-along reads the pretend page, suggested links become cards, and agent mode takes two steps
  * that wait for approval (the second carries a name from the logs, which the leak guard highlights).
  * It mimics the engine (`crates/imt-ai/src/browser`) only.
@@ -37,7 +37,7 @@ export async function mockBrowserTurn(t: MockBrowserTurn): Promise<string | null
     return `The page you added, "${first.title}", says the gateway timeout usually means the connection pool is exhausted. I used it as reference only; it is untrusted web content.`;
   }
   if (status.agent && AGENT.test(q)) {
-    // The turn holds the browser while it runs (the shell's "AI is browsing").
+    // The turn holds the browser while it runs (the shell's status chip).
     t.web.drive({ kind: 'agent', sessionId: t.sessionId });
     try {
       return await agentTurn(t, cite);
@@ -81,7 +81,8 @@ async function agentTurn(t: MockBrowserTurn, cite: (title: string, url: string) 
     }
     if (d === 'allowSite' && !w.status(id).sites.includes(site)) w.update(id, { sites: [...w.status(id).sites, site] });
     t.emit({ type: 'agentStep', step: n, limit, action, site });
-    w.show(url, false);
+    w.show(url);
+    w.report(action === 'search' ? 'searching' : 'reading', site, `Step ${n} of ${limit}: ${action} ${site}`);
     w.update(id, { stepsUsed: n });
     t.emit({ type: 'toolFinished', name: `browser_${action}`, summary: `step ${n}: ${action} ${site}`, error: false, evidence: { recordIds: [], queries: [] } });
     return true;

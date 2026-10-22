@@ -109,7 +109,6 @@ describe('StorageSettings', () => {
     expect(sizeLabel(2048, false)).toBe('2 KB');
     expect(sizeLabel(2048, true)).toBe('≥ 2 KB');
     expect(categoryLabel({ id: 'stores', label: 'x' })).toBe('Persistent stores');
-    expect(categoryLabel({ id: 'web-profile', label: 'x' })).toBe('Internal browser data (cookies, history, cache)');
     expect(categoryLabel({ id: 'future' as never, label: 'Future thing' })).toBe('Future thing');
     const base = { id: 'logs' as const, freedBytes: 1024, removedFiles: 1, skipped: [], skippedCount: 0, error: null };
     expect(resultLine(base, 'IMT logs')).toBe('IMT logs: freed 1 KB.');

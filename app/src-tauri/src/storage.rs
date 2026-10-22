@@ -104,7 +104,6 @@ fn folders<'a, R: Runtime>(app: &AppHandle<R>, ai: Option<&'a dyn AiPort>) -> Fo
         main_instance: app.try_state::<crate::instance::SingleInstance>().is_some_and(|s| s.0),
         // Without the lifecycle (tests) assume the worst: keep the previous run's sessions.
         previous_crash: app.try_state::<crate::lifecycle::Lifecycle>().is_none_or(|l| l.previous_crash),
-        browser_open: app.webviews().keys().any(|l| crate::browser::is_browser_label(l)),
         ai,
     }
 }

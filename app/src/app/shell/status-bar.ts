@@ -8,11 +8,12 @@ import { BackgroundWork } from '../windowing/background-work';
 import { ImportStatus } from '../import/import-ui';
 import { StatusJobs } from '../jobs/status-jobs';
 import { ProblemsBadge } from '../problems/problems-badge';
+import { AiBrowsingChip } from '../browser/ai-browsing-chip';
 
 @Component({
   selector: 'imt-status-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BackgroundWork, ImportStatus, StatusJobs, ProblemsBadge],
+  imports: [BackgroundWork, ImportStatus, StatusJobs, ProblemsBadge, AiBrowsingChip],
   template: `
     @if (store.summary(); as s) {
       @if (s.sources.length) {
@@ -43,6 +44,7 @@ import { ProblemsBadge } from '../problems/problems-badge';
       <span class="busy keep" role="status" data-testid="status-busy"><span class="spinner" aria-hidden="true"></span>{{ busy }}</span>
     }
     <imt-import-status />
+    <imt-ai-browsing-chip />
     <button
       type="button"
       class="live"

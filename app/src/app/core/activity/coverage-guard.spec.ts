@@ -168,6 +168,7 @@ import { FilesBackend } from '../files-backend';
 import { RunsBackend } from '../../timeline/runs-backend';
 import { FolderSetupBackend } from '../../ai/folder-setup/folder-setup-backend';
 import { BrowserBackend, ChatBrowserBackend } from '../../browser/browser-backend';
+import { BrowserRuntimeBackend } from '../../browser/browser-runtime-backend';
 import { SnapshotBackend } from '../../diagnostics/snapshot-backend';
 import { UpdatesBackend } from '../../updates/updates-backend';
 import { UxBackend } from '../ux-backend';
@@ -189,6 +190,7 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   ImtBackend,
   BrowserBackend,
   ChatBrowserBackend,
+  BrowserRuntimeBackend,
   CollectBackend,
   EventLogBackend,
   FolderSetupBackend,

@@ -9,20 +9,17 @@ import { RecordView } from '../core/api.types';
 import { MockAiBackend } from '../core/mock/mock-ai-backend';
 import { WorkspaceStore } from '../core/workspace.store';
 import { DialogService, DIALOG_REF } from '../ui/dialog.service';
-import { all, buttonByText, el, FakeDock, manualFrames, provideFakeDock, settle, typeInto } from '../../testing/helpers';
-import { POPOUT_ROUTE } from '../popout/popout-route';
+import { all, buttonByText, el, FakeDock, provideFakeDock, settle, typeInto } from '../../testing/helpers';
 import { ResearchDialog } from './research-dialog';
 import { BrowserBackend, ChatBrowserBackend } from './browser-backend';
-import { BrowserStore } from './browser.store';
 import { AgentDecision, chatBrowserMode } from './browser.types';
-import { engineLabel, handOffText, leakText, noticeText } from './browser-text';
+import { engineLabel, handOffText, leakText } from './browser-text';
 import { AgentApprovalCard, AgentPaused, LinkCard } from './chat-cards';
 import { ChatBrowserBar } from './chat-browser-bar';
 import { ChatBrowserStore } from './chat-browser.store';
 import { MockBrowserBackend, MockWeb, resetMockWeb } from './mock-browser-backend';
-import { browserCommands, browserRecordMenu, BrowserLauncher, BrowserReveal, browserViews, worthSearching, WEB_INSPECTOR_SECTION } from './provide-browser';
+import { browserCommands, browserRecordMenu, BrowserLauncher, worthSearching, WEB_INSPECTOR_SECTION } from './provide-browser';
 import { SearchWebDialog } from './search-web-dialog';
-import { WebPanel } from './web-panel';
 
 let web: MockWeb;
 let dock: FakeDock;
@@ -51,228 +48,6 @@ async function until(f: { detectChanges(): void }, cond: () => boolean) {
   }
   expect(cond(), String(cond)).toBe(true);
 }
-
-describe('WebPanel', () => {
-  afterEach(() => TestBed.resetTestingModule());
-
-  it('drives the browser, hands the page to the chat and opens it externally after a confirm', { timeout: 30000 }, async () => {
-    configure();
-    const f = TestBed.createComponent(WebPanel);
-    f.detectChanges();
-    const root = f.nativeElement as HTMLElement;
-    expect(root.textContent).toContain('it shows here');
-    const address = el<HTMLInputElement>(f, '[data-testid=web-address]');
-    typeInto(address, 'TimeoutException gateway');
-    f.detectChanges();
-    el<HTMLButtonElement>(f, 'button[type=submit]').click();
-    await until(f, () => !!root.querySelector('[data-testid=web-page]'));
-    expect(root.textContent).toContain('google.com/search');
-    // The engine picker changes the engine of the next search.
-    const engine = el<HTMLSelectElement>(f, '[data-testid=web-engine]');
-    expect(all<HTMLOptionElement>(f, '[data-testid=web-engine] option').map((o) => o.textContent?.trim())).toEqual(['Google', 'DuckDuckGo', 'Bing']);
-    expect(engine.value).toBe('google');
-    typeInto(engine, 'duckDuckGo', 'change');
-    typeInto(engine, 'nonsense', 'change');
-    expect(TestBed.inject(BrowserStore).engine()).toBe('duckDuckGo');
-    // Add page to AI context: a chat is created when there is none, and shown.
-    el<HTMLButtonElement>(f, '[data-testid=web-capture]').click();
-    await until(f, () => root.textContent!.includes('untrusted web content'));
-    const chat = TestBed.inject(ChatStore).activeId()!;
-    expect(TestBed.inject(ChatBrowserStore).sourcesOf(chat)).toHaveLength(1);
-    expect(dock.calls).toContain('show:ai-chat');
-    // Open in your browser asks first.
-    buttonByText(f, 'Open in your browser').click();
-    f.detectChanges();
-    expect(el(f, '[data-testid=web-confirm]').textContent).toContain('google.com');
-    buttonByText(f, 'Cancel').click();
-    f.detectChanges();
-    expect(root.querySelector('[data-testid=web-confirm]')).toBeNull();
-    buttonByText(f, 'Open in your browser').click();
-    f.detectChanges();
-    buttonByText(f, /^Open$/).click();
-    await settle();
-    expect(web.external).toHaveLength(1);
-    // Back, forward, reload and close.
-    el<HTMLButtonElement>(f, '[aria-label=Back]').click();
-    el<HTMLButtonElement>(f, '[aria-label=Forward]').click();
-    el<HTMLButtonElement>(f, '[aria-label=Reload]').click();
-    web.page = { ...web.page, loading: true };
-    web.emit({ type: 'state', ...web.page });
-    f.detectChanges();
-    el<HTMLButtonElement>(f, '[aria-label="Stop loading"]').click();
-    buttonByText(f, 'Close page').click();
-    await until(f, () => !root.querySelector('[data-testid=web-page]'));
-  });
-
-  it('shows notices, the agent driving with Stop, and failures with Retry', async () => {
-    const backend = configure();
-    const f = TestBed.createComponent(WebPanel);
-    f.detectChanges();
-    const root = f.nativeElement as HTMLElement;
-    web.show('https://e.org/a');
-    web.emit({ type: 'notice', kind: 'download', url: 'https://e.org/file.zip', message: '' });
-    web.emit({ type: 'notice', kind: 'popup', url: 'https://e.org/a', message: '' });
-    web.emit({ type: 'notice', kind: 'blocked', url: 'file:///x', message: 'only http and https pages open' });
-    web.emit({ type: 'notice', kind: 'agentBlocked', url: 'https://evil.example/', message: 'evil.example' });
-    f.detectChanges();
-    expect(all(f, '.notice')).toHaveLength(4);
-    expect(root.textContent).toContain('Downloads are blocked');
-    expect(root.textContent).toContain('evil.example, which this chat may not visit');
-    all<HTMLButtonElement>(f, '.notice button').find((b) => b.textContent?.includes('Open in your browser'))!.click();
-    f.detectChanges();
-    buttonByText(f, /^Open$/).click();
-    await settle();
-    f.detectChanges();
-    buttonByText(f, 'Dismiss').click();
-    f.detectChanges();
-    expect(all(f, '.notice').length).toBeLessThan(4);
-    // The AI drives: the panel header says so with the step and Stop, and so does the tab.
-    web.update('chat-9', { agent: true, stepsUsed: 3 });
-    web.drive({ kind: 'agent', sessionId: 'chat-9' });
-    await until(f, () => !!root.querySelector('[data-testid=ai-browsing]'));
-    expect(el(f, '[data-testid=ai-browsing]').textContent).toContain('step 3 of 25');
-    expect(dock.calls).toContain('title:web:Browser · AI is browsing');
-    el<HTMLButtonElement>(f, '[data-testid=ai-browsing-stop]').click();
-    await until(f, () => !root.querySelector('[data-testid=ai-browsing]'));
-    expect(dock.calls.at(-1)).toBe('title:web:Browser');
-    // Research shows its job's progress.
-    web.drive({ kind: 'research' });
-    await until(f, () => !!root.querySelector('[data-testid=ai-browsing]'));
-    expect(el(f, '[data-testid=ai-browsing]').textContent).toContain('Research is reading');
-    web.drive(null);
-    await until(f, () => !root.querySelector('[data-testid=ai-browsing]'));
-    vi.spyOn(backend, 'nav').mockRejectedValueOnce(new Error('the browser is not open'));
-    el<HTMLButtonElement>(f, '[aria-label=Reload]').click();
-    await until(f, () => !!root.querySelector('[data-testid=web-error]'));
-    buttonByText(f, 'Retry').click();
-    await until(f, () => !root.querySelector('[data-testid=web-error]'));
-    vi.spyOn(backend, 'nav').mockRejectedValueOnce(new Error('x'));
-    el<HTMLButtonElement>(f, '[aria-label=Reload]').click();
-    await until(f, () => !!root.querySelector('[data-testid=web-error]'));
-    all<HTMLButtonElement>(f, '[data-testid=web-error] button').at(-1)!.click();
-    f.detectChanges();
-    expect(root.querySelector('[data-testid=web-error]')).toBeNull();
-  });
-
-  it('places the page over its area and hides it while an overlay covers it', async () => {
-    const backend = configure();
-    const place = vi.spyOn(backend, 'place');
-    const frames = manualFrames();
-    try {
-      const f = TestBed.createComponent(WebPanel);
-      f.detectChanges();
-      const root = f.nativeElement as HTMLElement;
-      const area = el<HTMLElement>(f, '[data-testid=web-page-area]');
-      area.getBoundingClientRect = () => ({ left: 10, top: 80, right: 410, bottom: 380, width: 400, height: 300, x: 10, y: 80, toJSON: () => null }) as DOMRect;
-      const step = async () => {
-        for (let i = 0; i < 3; i++) {
-          await settle();
-          f.detectChanges();
-          frames.flush();
-        }
-      };
-      await step();
-      expect(place.mock.calls.at(-1)?.[0]).toMatchObject({ visible: false, rect: { x: 10, y: 80, width: 400, height: 300 } });
-      web.show('https://e.org/a');
-      await step();
-      expect(place.mock.calls.at(-1)?.[0].visible, 'a page is open').toBe(true);
-      expect(area.dataset['shown']).toBe('true');
-      // A dialog over the page: hidden, and the panel says why.
-      const dialog = document.createElement('div');
-      dialog.setAttribute('data-imt-overlay', '');
-      dialog.getBoundingClientRect = () => ({ left: 0, top: 0, right: 2000, bottom: 2000, width: 2000, height: 2000, x: 0, y: 0, toJSON: () => null }) as DOMRect;
-      document.body.appendChild(dialog);
-      await step();
-      expect(place.mock.calls.at(-1)?.[0].visible).toBe(false);
-      expect(root.querySelector('[data-testid=web-page-hidden]')?.textContent).toContain('hidden while a menu');
-      dialog.remove();
-      await step();
-      expect(place.mock.calls.at(-1)?.[0].visible).toBe(true);
-      expect(root.querySelector('[data-testid=web-page-hidden]')).toBeNull();
-      // The panel goes: the page hides.
-      f.destroy();
-      expect(place.mock.calls.at(-1)?.[0]).toMatchObject({ visible: false, rect: null });
-    } finally {
-      frames.restore();
-      document.body.querySelectorAll('[data-imt-overlay]').forEach((e) => e.remove());
-    }
-  });
-
-  it('focuses the address bar on Ctrl+L, takes the keyboard back on Esc and replays IMT shortcuts typed in the page', async () => {
-    configure();
-    const f = TestBed.createComponent(WebPanel);
-    document.body.appendChild(f.nativeElement);
-    f.detectChanges();
-    await settle(f);
-    const address = el<HTMLInputElement>(f, '[data-testid=web-address]');
-    const area = el<HTMLElement>(f, '[data-testid=web-page-area]');
-    // Ctrl+L in the panel itself.
-    area.focus();
-    area.dispatchEvent(new KeyboardEvent('keydown', { key: 'l', ctrlKey: true, bubbles: true }));
-    expect(document.activeElement).toBe(address);
-    // Keys the shell took from the page.
-    web.emit({ type: 'key', action: 'returnFocus' });
-    await settle(f);
-    f.detectChanges();
-    expect(document.activeElement).toBe(area);
-    web.emit({ type: 'key', action: 'focusAddress' });
-    await settle(f);
-    f.detectChanges();
-    expect(document.activeElement).toBe(address);
-    const seen: KeyboardEvent[] = [];
-    const listen = (e: KeyboardEvent) => seen.push(e);
-    document.addEventListener('keydown', listen);
-    try {
-      web.emit({ type: 'key', action: 'shortcut', key: 'p', ctrl: true, shift: true, alt: false, meta: false });
-      await settle(f);
-      f.detectChanges();
-      expect(seen.map((e) => [e.key, e.ctrlKey, e.shiftKey, e.altKey])).toEqual([['p', true, true, false]]);
-    } finally {
-      document.removeEventListener('keydown', listen);
-      f.nativeElement.remove();
-    }
-  });
-
-  it('says where the page is when it is not docked (Linux)', async () => {
-    const backend = configure();
-    vi.spyOn(backend, 'state').mockResolvedValue({ page: { open: true, url: 'https://e.org/', title: 'E', loading: false }, engine: 'google', customEngine: false, docked: false });
-    const f = TestBed.createComponent(WebPanel);
-    f.detectChanges();
-    await until(f, () => (f.nativeElement as HTMLElement).textContent!.includes('a window of its own'));
-  });
-});
-
-describe('BrowserReveal', () => {
-  afterEach(() => TestBed.resetTestingModule());
-
-  it('shows the Browser panel when a page opens: in front for the user, quietly for the AI, never from a pop-out', async () => {
-    configure();
-    const reveal = TestBed.inject(BrowserReveal);
-    const show = vi.spyOn(dock, 'show');
-    reveal.start();
-    reveal.start();
-    await settle();
-    web.show('https://e.org/a');
-    expect(show).toHaveBeenLastCalledWith('web', { inactive: false });
-    expect(show).toHaveBeenCalledTimes(1);
-    web.show('https://e.org/b', false);
-    expect(show).toHaveBeenLastCalledWith('web', { inactive: true });
-    dock.openIds.set(new Set(['web']));
-    web.show('https://e.org/c', false);
-    expect(show, 'already open: the AI does not bring it to the front').toHaveBeenCalledTimes(2);
-    reveal.onEvent({ type: 'state', open: true, url: '', title: '', loading: false });
-    expect(show).toHaveBeenCalledTimes(2);
-  });
-
-  it('leaves it to the IMT window in a pop-out', async () => {
-    configure([{ provide: POPOUT_ROUTE, useValue: { view: 'web', host: 'main', label: 'p-main-1' } }]);
-    const show = vi.spyOn(dock, 'show');
-    TestBed.inject(BrowserReveal).start();
-    await settle();
-    web.show('https://e.org/a');
-    expect(show).not.toHaveBeenCalled();
-  });
-});
 
 describe('ResearchDialog', () => {
   afterEach(() => TestBed.resetTestingModule());
@@ -365,7 +140,7 @@ describe('SearchWebDialog', () => {
     buttonByText(f, 'Search').click();
     await until(f, () => close.mock.calls.length > 0);
     expect(close).toHaveBeenCalledWith(true);
-    expect(web.page.url).toBe('https://www.bing.com/search?q=TimeoutException+pool');
+    expect(web.external).toEqual(['https://www.bing.com/search?q=TimeoutException+pool']);
   });
 
   it('reports a failure with Retry and a refused search', async () => {
@@ -468,10 +243,8 @@ describe('chat cards', () => {
     expect(el(f, '[data-testid=agent-paused]').textContent).toContain('You stopped the AI');
   });
 
-  it('name engines, notices, leaks and hand-offs', () => {
+  it('name engines, leaks and hand-offs', () => {
     expect(['duckDuckGo', 'google', 'bing', 'custom'].map((e) => engineLabel(e as never))).toEqual(['DuckDuckGo', 'Google', 'Bing', 'Custom']);
-    expect(noticeText('popup', '')).toContain('new window');
-    expect(noticeText('blocked', 'why')).toContain('why');
     expect([leakText('logValue'), leakText('logText'), leakText('private')]).toEqual(['from your logs', 'text from your logs', 'looks private']);
     expect(handOffText('login')).toContain('sign in');
     expect(handOffText('payment')).toContain('payment');
@@ -520,6 +293,7 @@ describe('ChatBrowserBar', () => {
     expect(root.textContent).not.toContain('New sites, typing and forms need your approval');
     await TestBed.inject(ChatBrowserStore).setMode('chat-1', 'agent');
     f.detectChanges();
+    expect(root.textContent).toContain('A real browser window will open next to the app');
     expect(root.textContent).toContain('New sites, typing and forms need your approval');
     expect(el(f, '[data-testid=chat-small-model]').textContent).toContain('7B or larger');
     // Pages for the next question.
@@ -540,6 +314,27 @@ describe('ChatBrowserBar', () => {
     expect(load).toHaveBeenCalledWith('chat-1');
   });
 
+  it('adds the open page to the question while a browser mode is on, and shows the engine message when no page is open', async () => {
+    const f = TestBed.createComponent(ChatBrowserBar);
+    f.componentRef.setInput('sessionId', 'chat-1');
+    f.detectChanges();
+    const root = f.nativeElement as HTMLElement;
+    const store = TestBed.inject(ChatBrowserStore);
+    await until(f, () => !!store.statusOf('chat-1'));
+    expect(root.querySelector('[data-testid=chat-capture]'), 'off: no button').toBeNull();
+    await store.setMode('chat-1', 'readAlong');
+    f.detectChanges();
+    expect(el(f, '[data-testid=chat-capture]').textContent).toContain('Add the open page to the question');
+    el<HTMLButtonElement>(f, '[data-testid=chat-capture]').click();
+    await until(f, () => !!root.querySelector('.err'));
+    expect(el(f, '.err').textContent).toContain('No page is open');
+    web.show('https://e.org/a');
+    el<HTMLButtonElement>(f, '[data-testid=chat-capture]').click();
+    await until(f, () => !!root.querySelector('[data-testid=chat-source]'));
+    expect(el(f, '[data-testid=chat-source]').textContent).toContain('untrusted web content');
+    expect(root.querySelector('.err')).toBeNull();
+  });
+
   it('offers a web search for the selected event', async () => {
     const f = TestBed.createComponent(ChatBrowserBar);
     f.componentRef.setInput('sessionId', 'chat-1');
@@ -557,22 +352,17 @@ describe('provideBrowser contributions', () => {
   beforeEach(() => configure());
   afterEach(() => TestBed.resetTestingModule());
 
-  it('offers the Web view in Tools, commands, the record menu and the inspector section', async () => {
-    const [view] = browserViews();
-    expect(view).toMatchObject({ id: 'web', category: 'Tools', icon: 'globe' });
-    expect(await view!.component()).toBe(WebPanel);
+  it('offers commands, the record menu and the inspector section (no panel of its own)', () => {
     const launcher = TestBed.inject(BrowserLauncher);
     const store = TestBed.inject(WorkspaceStore);
     const search = vi.spyOn(launcher, 'searchEvent').mockResolvedValue();
     const cmds = browserCommands(launcher, store);
-    expect(cmds.map((c) => c.id)).toEqual(['browser.show', 'browser.searchSelected']);
+    expect(cmds.map((c) => c.id)).toEqual(['browser.searchSelected']);
     const ctx = {} as never;
-    expect(cmds[1]!.when?.(ctx)).toBe(false);
-    void cmds[0]!.run(ctx);
-    expect(dock.calls).toContain('show:web');
+    expect(cmds[0]!.when?.(ctx)).toBe(false);
     store.select({ id: 5 } as RecordView);
-    expect(cmds[1]!.when?.(ctx)).toBe(true);
-    void cmds[1]!.run(ctx);
+    expect(cmds[0]!.when?.(ctx)).toBe(true);
+    void cmds[0]!.run(ctx);
     expect(search).toHaveBeenCalledWith(5);
     const [entry] = browserRecordMenu(launcher)({ id: 9 } as RecordView, {});
     expect(entry?.label).toBe('Search the web for this error…');
@@ -583,17 +373,12 @@ describe('provideBrowser contributions', () => {
     expect(WEB_INSPECTOR_SECTION.when?.(r('Error'))).toBe(true);
   });
 
-  it('opens the search dialog and the panel after a search', async () => {
+  it('opens the search dialog, which opens the search in the default browser', async () => {
     const dialogs = TestBed.inject(DialogService);
-    const closed = Promise.resolve(true);
-    const open = vi.spyOn(dialogs, 'open').mockReturnValue({ closed, close: () => undefined } as never);
+    const open = vi.spyOn(dialogs, 'open').mockReturnValue({ closed: Promise.resolve(true), close: () => undefined } as never);
     await TestBed.inject(BrowserLauncher).searchEvent(4);
     expect(open.mock.calls[0]?.[0]).toBe(SearchWebDialog);
     expect(open.mock.calls[0]?.[1]).toMatchObject({ inputs: { recordId: 4 } });
-    expect(dock.calls).toContain('show:web');
-    open.mockReturnValue({ closed: Promise.resolve(undefined), close: () => undefined } as never);
-    dock.calls.length = 0;
-    await TestBed.inject(BrowserLauncher).searchEvent(4);
     expect(dock.calls).toEqual([]);
   });
 });

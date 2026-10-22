@@ -277,7 +277,7 @@
               <mxCell id="en1" value="" style="fontFamily=Arial,Helvetica,sans-serif;html=1;fontColor=#1B2130;fontSize=11;edgeStyle=none;strokeWidth=1.5;strokeColor=#5A6375;endArrow=none;" parent="1" edge="1" source="c42" target="n1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-              <mxCell id="n2" value="Research in the docked browser" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;ellipse;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;fontSize=12;spacing=10;" parent="1" vertex="1">
+              <mxCell id="n2" value="Research in a Chromium browser" style="fontFamily=Arial,Helvetica,sans-serif;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;ellipse;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;fontSize=12;spacing=10;" parent="1" vertex="1">
           <mxGeometry x="330" y="1506" width="260" height="58" as="geometry" />
         </mxCell>
               <mxCell id="en2" value="" style="fontFamily=Arial,Helvetica,sans-serif;html=1;fontColor=#1B2130;fontSize=11;edgeStyle=none;strokeWidth=1.5;strokeColor=#5A6375;endArrow=none;" parent="1" edge="1" source="c42" target="n2">

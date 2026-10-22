@@ -12,7 +12,7 @@ first walk-through, see the two-minute tour in the [README](../README.md#quick-s
 - [Profiles](#profiles)
 - [Query language](#query-language)
 - [The Store pane and the SQL console](#the-store-pane-and-the-sql-console)
-- [Internal web browser](#internal-web-browser)
+- [The AI's browser](#the-ais-browser)
 - [Knowledge files](#knowledge-files-teach-the-ai-your-systems), [known issues](#known-issues), the [incident summary](#incident-summary-report) and [playbooks](#investigation-playbooks)
 - [AI runtime and model updates](#ai-runtime-and-model-updates)
 - [Disk usage and project stores](#disk-usage-and-project-stores)
@@ -387,14 +387,19 @@ FROM events WHERE fields['ElapsedMs'] IS NOT NULL GROUP BY path ORDER BY p95 DES
 SELECT n.text, e.message FROM notes n JOIN events e ON e.id = n.event_id;
 ```
 
-## Internal web browser
+## The AI's browser
 
-*Search the web for this error* and the address box of the **Browser** panel (*View ▸ Tools ▸ Browser*) open pages in
-the panel itself. It docks like any other panel: drag its tab next to Timeline or Events, split it, maximise it
-or pop it out into a window of its own. Searches use **Google** unless you pick another engine: Settings ▸ Web
-browser ▸ Search engine sets it for every search (DuckDuckGo, Bing, or *Custom* with your own
-address containing `{q}`), and the picker next to the address box or in the search dialog changes it for one
-search.
+*Search the web for this error* opens the search in your **default browser**, and so do links from events, exceptions and
+research results. Searches use **Google** unless you pick another engine: Settings ▸ Web browser ▸ Search engine sets it
+for every search (DuckDuckGo, Bing, or *Custom* with your own address containing `{q}`), and the picker in the search
+dialog changes it for one search.
+
+Research and the chat's **Browser** menu (*Off*, *Read along*, *Agent*) use a real Chromium-based browser that IMT starts
+for the AI: Edge, Chrome or Chromium from your computer, or a Chromium you download in Settings ▸ Web browser (*Download
+Chromium*, about 200 MB, checksum verified, on request only). *Read along* and *Agent* show its window next to IMT;
+research keeps it out of sight. When a page needs you (a cookie consent or a "verify you are human" check) the window comes
+to the front, you deal with it, and the AI goes on. The browser has a throwaway profile (no cookies of yours, nothing
+kept) and the real user agent. If no browser is found, research and the modes say so and point to Settings.
 
 **The search text.** For *Search the web for this error* and *Research this*, the AI writes the search from your
 question and the event: it keeps the exception type, the decisive words of the message, error codes and the
@@ -404,23 +409,13 @@ what looks private or comes from your logs is taken out; in *Research this*, it 
 or edit it (*Research anyway*). Either way you see the text and can change it before anything is searched;
 *Let the AI write it* drafts it again. Without a model, IMT builds the text itself, as before.
 
-**Keyboard.** Ctrl+L (⌘+L) puts you in the address box, also while you are in the page; Esc in the page gives the
-keyboard back to IMT; IMT's own shortcuts (Ctrl+Shift+…, Alt+…, F1) work while you are in the page. On macOS and
-Linux, keys typed in the page stay with the page: click into IMT first.
-
-**Menus and dialogs.** The page is drawn by the system's web view, above IMT. While a menu, dialog, toast or the
-drag guides of a panel would cover it, the page steps aside and the panel says so; it comes back when they close.
-
-When a chat's **agent mode** or a **research** drives the browser, the Browser panel says so in its header:
-*AI is browsing*, what the AI does (the step, or the result page it reads) and **Stop**; its tab reads
-"Browser · AI is browsing". **Stop** ends agent mode for the chat (a step waiting for your approval is denied) or
-cancels the research, the same as Stop in the chat. It goes away as soon as the AI lets go of the browser: after
-Stop, when the answer or the research is done, cancelled or failed, when you turn agent mode off, or when you
-close the page or its IMT window. The header is part of IMT, not of the web page: a page cannot show, hide or
-press it. When the AI opens a page, the Browser panel opens without taking the focus.
-
-On Linux the page opens in a window of its own (the system's web view cannot be placed inside the panel there);
-the panel keeps the address box, the notices and *AI is browsing* with Stop.
+**How you can tell the AI is driving a page.** Every indicator is outside the page (IMT never puts anything into a web
+page): Chrome's banner "Chrome is being controlled by automated test software", a window frame in IMT's accent colour
+(best effort; some browser versions ignore it), and in IMT a **status chip** with what the AI does ("Reading 3 of 5
+results"), the site and **Stop**. Stop ends the browser process at once, denies a step waiting for your approval and ends
+agent mode or cancels the research, the same as Stop in the chat. The chip goes away as soon as the AI lets go: after Stop,
+when the answer or the research is done, cancelled or failed, or when you turn agent mode off. The research log lists every
+page it opened and skipped.
 
 ## Knowledge files: teach the AI your systems
 
