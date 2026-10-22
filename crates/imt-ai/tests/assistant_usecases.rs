@@ -134,7 +134,14 @@ fn profile_proposal_is_compiled_and_previewed() {
     let a = assistant(&[&profile_reply(PIPE_RE, &["yyyy-MM-dd HH:mm:ss.fff"])]);
     let p = a.propose_parser(store(), &sample, "billing.log").unwrap();
     assert!(p.parsed >= 38 && p.with_timestamp >= 38, "{} {}", p.parsed, p.with_timestamp);
-    assert!(p.toml.contains("Thread") && p.importer.is_some());
+    assert!(
+        p.toml.contains("Thread") && p.importer.is_some(),
+        "{} {:?} {:?} {}",
+        p.name,
+        p.status,
+        p.rounds,
+        p.toml
+    );
     assert_eq!(p.preview.len(), 5);
     let parser = imt_core::parser::Parser::from_toml(&p.toml).unwrap();
     assert_eq!((parser.id.as_str(), parser.format.kind.as_str()), ("custom-billing", "text"));
@@ -182,29 +189,36 @@ fn profile_rejections_feed_back_the_engines_reason() {
             profile_reply(r"^ZZZ (?P<timestamp>x) (?P<message>y)$", &[]),
             "does not match 5 of 5",
         ),
-        (
-            profile_reply(
-                r"^(?P<client>\S+) \S+ \S+ \[(?P<timestamp>[^\]]+)\] (?P<message>.*)$",
-                &["dd/MMM/yyyy"],
-            ),
-            "timestamps were not understood",
-        ),
     ] {
         let a = assistant(&[&bad, &good]);
         let p = a
             .propose_parser(store(), NGINX, "access.log")
             .unwrap_or_else(|e| panic!("{needle}: {e}"));
         assert!(p.parsed > 0);
-        let feedback = a.provider().requests()[1].messages.last().unwrap().content.clone();
-        assert!(feedback.contains(needle), "{needle}: {feedback}");
-        // and twice invalid is an error
-        assert!(matches!(
-            assistant(&[&bad, &bad]).propose_parser(store(), NGINX, "access.log"),
-            Err(AiError::Malformed(_))
-        ));
+        let requests = a.provider().requests();
+        if requests.len() == 1 {
+            // The engine assembled a regex of its own that the engine accepts: no second round was needed.
+            assert!(p.rounds[0].note.contains("engine"), "{needle}: {:?}", p.rounds);
+        } else {
+            let feedback = requests[1].messages.last().unwrap().content.clone();
+            assert!(feedback.contains(needle), "{needle}: {feedback}");
+        }
+        // Twice invalid without a usable rescue is an error; a result is always one the engine verified.
+        match assistant(&[&bad, &bad]).propose_parser(store(), NGINX, "access.log") {
+            Ok(p) => assert!(p.verdict.is_some_and(|v| v.error.is_none() && v.events > 0)),
+            Err(e) => assert!(matches!(e, AiError::Malformed(_)), "{e}"),
+        }
     }
-    let sample = NGINX;
-    let _ = sample;
+    // Timestamps first: a timestamp format the model gets wrong is replaced by one the engine found for the texts.
+    let wrong_format = profile_reply(
+        r"^(?P<client>\S+) \S+ \S+ \[(?P<timestamp>[^\]]+)\] (?P<message>.*)$",
+        &["dd/MMM/yyyy"],
+    );
+    let a = assistant(&[&wrong_format]);
+    let p = a.propose_parser(store(), NGINX, "access.log").unwrap();
+    assert_eq!(a.provider().requests().len(), 1);
+    assert!(p.rounds[0].note.contains("the engine read the timestamps"), "{:?}", p.rounds);
+    assert_eq!(p.with_timestamp, 5);
     assert!(matches!(
         assistant(&[]).propose_parser(store(), "  \n", "x.log"),
         Err(AiError::Invalid(_))

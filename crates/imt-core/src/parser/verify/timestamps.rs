@@ -93,6 +93,12 @@ pub fn uptime_boot(texts: &[String], modified_ms: i64) -> Option<i64> {
     Some(modified_ms - last)
 }
 
+/// [`uptime_boot`] as the RFC 3339 text of `[format] boot_time`.
+pub fn uptime_boot_time(texts: &[String], modified_ms: i64) -> Option<String> {
+    let boot = uptime_boot(texts, modified_ms)?;
+    chrono::DateTime::from_timestamp_millis(boot).map(|t| t.to_rfc3339_opts(chrono::SecondsFormat::Millis, true))
+}
+
 /// A format that reads (nearly) all of `texts` with plausible times, when the parser's own formats do not.
 pub fn suggest_format(parser: &Parser, texts: &[String], modified_ms: Option<i64>) -> Option<String> {
     if texts.is_empty() {
@@ -209,5 +215,9 @@ mod tests {
         // Uptime needs the modification time to anchor its boot.
         assert_eq!(suggest_format(&generic(), &texts(&["[ 1.0]", "[ 2.0]"]), None), None);
         assert_eq!(uptime_boot(&texts(&["[ 1.0]", "[ 2.5]"]), T0), Some(T0 - 2_500));
+        assert_eq!(
+            uptime_boot_time(&texts(&["[ 2.5]"]), T0).as_deref(),
+            Some("2026-10-14T09:59:57.500Z")
+        );
     }
 }

@@ -206,7 +206,10 @@ pub fn verify(parser: &Parser, sample: &VerifySample, preview: &ParsePreview, fa
         return ParserVerdict::failed(e.clone(), zone::detect(&ZoneEvidence::default()));
     }
     let records: &[ParsedPreview] = &preview.records;
-    let text_kind = parser.format.kind == "text" || !parser.format.regexes.is_empty();
+    // The importer that read the sample decides: line patterns for text, columns or keys otherwise.
+    let text_kind = preview.importer.as_deref().map_or(parser.format.kind == "text", |i| i == "text");
+    // JSON and CSV: levels are read when the level column or key gives some event a level of its own.
+    let structured_levels = records.iter().any(|r| r.level != crate::model::Level::Information);
     let caps = Captures::of(parser);
     // Per event: its timestamp text and whether a level was read.
     let read: Vec<(Option<String>, bool)> = records
@@ -221,7 +224,8 @@ pub fn verify(parser: &Parser, sample: &VerifySample, preview: &ParsePreview, fa
             match (text_kind, caps.read(line)) {
                 (true, Some((ts, level))) => (ts, level),
                 // JSON, CSV and templates: the level is read when the event's level is not the default.
-                _ => (None, !caps.has_level_group && r.level != crate::model::Level::Information),
+                (true, None) => (None, false),
+                (false, _) => (None, structured_levels),
             }
         })
         .collect();
