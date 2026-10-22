@@ -14,6 +14,8 @@ description = "IMT's DuckDB store (ADR 0014): events as zstd Parquet segments wi
 [dependencies]
 imt-core = { path = "../imt-core" }
 anyhow.workspace = true
+# CSV export of SQL console results.
+csv.workspace = true
 duckdb = { workspace = true, features = ["appender-arrow"] }
 log.workspace = true
 serde.workspace = true

@@ -118,6 +118,8 @@ fn files() -> Vec<(&'static str, String)> {
                 SqlResult::decl(),
                 SqlPageRequest::decl(),
                 SqlPage::decl(),
+                SqlIdsRequest::decl(),
+                SqlIds::decl(),
                 SqlViewColumn::decl(),
                 SqlView::decl(),
                 SqlSchema::decl(),

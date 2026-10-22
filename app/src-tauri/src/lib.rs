@@ -156,6 +156,8 @@ command_table! {
     Query [WINDOW] => store_pane::sql_schema,
     Query [WINDOW] => store_pane::sql_run,
     Query [WINDOW] => store_pane::sql_page,
+    Query [WINDOW] => store_pane::sql_ids,
+    Mutation [WINDOW] => store_pane::sql_export,
     Mutation [WINDOW] limit 16 * MIB => workspace_commands::save_project,
     Mutation [WINDOW] => workspace_commands::open_project,
     Query [WINDOW] => live::tail_status,

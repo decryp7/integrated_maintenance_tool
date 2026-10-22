@@ -145,6 +145,10 @@ ops! {
     SqlRun,
     /// [`imt_core::ports::SqlPageRequest`] → [`imt_core::ports::SqlPage`]
     SqlPage,
+    /// [`imt_core::ports::SqlIdsRequest`] → [`imt_core::ports::SqlIds`]
+    SqlIds,
+    /// [`imt_core::ports::SqlExportRequest`] → [`imt_core::ports::SqlExportResult`] (cancellable)
+    SqlExport,
 }
 
 /// "Parse with…": reads one source with the library's parser `parser` (`None`: the automatic choice; ADR 0026).

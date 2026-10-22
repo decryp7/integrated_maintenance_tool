@@ -7,6 +7,7 @@
 //! SELECT, allowed table functions, no file names. A run keeps at most 10,000 rows (paged 500 at a time), stops
 //! after 30 s, and stops at once when its control is cancelled.
 
+mod export;
 pub mod guard;
 pub mod views;
 
@@ -14,7 +15,8 @@ use crate::{engine, lock, DuckStore};
 use duckdb::types::Value as Duck;
 use duckdb::{params, Connection};
 use imt_core::ports::{
-    Console, Inspect, SqlColumn, SqlNote, SqlPage, SqlPageRequest, SqlRequest, SqlResult, SqlSchema, StoreError, StoreResult,
+    Console, Inspect, SqlColumn, SqlExportRequest, SqlExportResult, SqlIds, SqlIdsRequest, SqlNote, SqlPage, SqlPageRequest, SqlRequest,
+    SqlResult, SqlSchema, StoreError, StoreResult,
     MAX_CELL_CHARS, MAX_SQL_LEN, SQL_MAX_NOTES, SQL_MAX_RESULT_BYTES, SQL_MAX_ROWS, SQL_MEMORY_LIMIT, SQL_NOTE_CHARS, SQL_PAGE_ROWS,
     SQL_THREADS, SQL_TIME_LIMIT, SQL_VIEWS_VERSION,
 };
@@ -65,6 +67,10 @@ struct Sandbox {
 struct Kept {
     id: u64,
     rows: Vec<Vec<Value>>,
+    /// The column holding event ids, when the result carries them.
+    id_column: Option<usize>,
+    /// The query had more rows than were kept.
+    truncated: bool,
 }
 
 /// The console of one store.
@@ -75,6 +81,8 @@ pub(crate) struct ConsoleState {
     next: AtomicU64,
     /// The time limit in ms when a test shortened it (0: [`SQL_TIME_LIMIT`]).
     time_limit_ms: AtomicU64,
+    /// The CSV export's limits when a test lowered them.
+    export_limits: Mutex<Option<export::Limits>>,
 }
 
 impl ConsoleState {
@@ -93,6 +101,11 @@ impl DuckStore {
             .console
             .time_limit_ms
             .store(limit.as_millis().clamp(1, u128::from(u64::MAX)) as u64, Ordering::Relaxed);
+    }
+
+    /// Lowers the CSV export's row, byte and time limits (tests of the limits; the app keeps the port's).
+    pub fn set_sql_export_limits(&self, rows: u64, bytes: u64, time: Duration) {
+        *lock(&self.inner.console.export_limits) = Some(export::Limits { rows, bytes, time });
     }
 }
 
@@ -386,14 +399,19 @@ impl DuckStore {
         Ok(checked)
     }
 
-    fn keep(&self, rows: Vec<Vec<Value>>) -> u64 {
+    fn keep(&self, rows: Vec<Vec<Value>>, id_column: Option<usize>, truncated: bool) -> u64 {
         let console = &self.inner.console;
         let id = console.next.fetch_add(1, Ordering::SeqCst) + 1;
         let mut kept = lock(&console.results);
         if kept.len() >= KEPT_RESULTS {
             kept.pop_front();
         }
-        kept.push_back(Arc::new(Kept { id, rows }));
+        kept.push_back(Arc::new(Kept {
+            id,
+            rows,
+            id_column,
+            truncated,
+        }));
         id
     }
 
@@ -466,13 +484,14 @@ impl DuckStore {
         })()
         .map_err(|e| stopper.error(e, limit))?;
         drop(stopper);
-        let event_ids = described
+        let id_column = described
             .iter()
-            .any(|(n, t)| n.eq_ignore_ascii_case("id") && INTEGERS.contains(&t.as_str()));
+            .position(|(n, t)| n.eq_ignore_ascii_case("id") && INTEGERS.contains(&t.as_str()));
+        let event_ids = id_column.is_some();
         let columns = described.into_iter().map(|(name, ty)| SqlColumn { name, ty }).collect();
         let total = rows.len() as u64;
         let first: Vec<Vec<Value>> = rows.iter().take(SQL_PAGE_ROWS).cloned().collect();
-        let result = self.keep(rows);
+        let result = self.keep(rows, id_column, truncated);
         Ok(SqlResult {
             result,
             columns,
@@ -538,17 +557,53 @@ impl Console for DuckStore {
     }
 
     fn sql_page(&self, req: &SqlPageRequest) -> StoreResult<SqlPage> {
-        let kept = lock(&self.inner.console.results).iter().find(|k| k.id == req.result).cloned();
-        let kept =
-            kept.ok_or_else(|| StoreError::NotFound("this result is gone (newer queries replaced it); run the query again".into()))?;
+        let kept = self.kept(req.result)?;
         Ok(SqlPage {
             offset: req.offset,
             rows: kept.rows.iter().skip(req.offset).take(SQL_PAGE_ROWS).cloned().collect(),
         })
     }
+
+    fn sql_ids(&self, req: &SqlIdsRequest) -> StoreResult<SqlIds> {
+        let kept = self.kept(req.result)?;
+        let column = kept
+            .id_column
+            .ok_or_else(|| StoreError::Invalid("this result has no event ids: select the id column of the events view".into()))?;
+        let mut seen = std::collections::HashSet::new();
+        let ids = kept
+            .rows
+            .iter()
+            .filter_map(|r| r.get(column).and_then(Value::as_u64))
+            .filter(|id| seen.insert(*id))
+            .collect();
+        Ok(SqlIds {
+            ids,
+            truncated: kept.truncated,
+        })
+    }
+
+    fn sql_export(&self, req: &SqlExportRequest) -> StoreResult<SqlExportResult> {
+        let mut guard = self.sandbox()?;
+        let sandbox = guard
+            .as_mut()
+            .ok_or_else(|| StoreError::Engine("the SQL console is unavailable".into()))?;
+        let checked = Self::check_sql(&sandbox.conn, &req.sql)?;
+        if checked.explain {
+            return Err(StoreError::Invalid("an EXPLAIN has no rows to export; run it without EXPLAIN".into()));
+        }
+        self.fill(sandbox, &req.notes)?;
+        let limits = lock(&self.inner.console.export_limits).unwrap_or_default();
+        export::write_csv(&sandbox.conn, &checked.sql, req, limits)
+    }
 }
 
 impl DuckStore {
+    /// A kept result by its handle.
+    fn kept(&self, result: u64) -> StoreResult<Arc<Kept>> {
+        let kept = lock(&self.inner.console.results).iter().find(|k| k.id == result).cloned();
+        kept.ok_or_else(|| StoreError::NotFound("this result is gone (newer queries replaced it); run the query again".into()))
+    }
+
     /// The sandbox, opened on first use; busy while another run holds it.
     fn sandbox(&self) -> StoreResult<std::sync::MutexGuard<'_, Option<Sandbox>>> {
         let mut guard = match self.inner.console.sandbox.try_lock() {

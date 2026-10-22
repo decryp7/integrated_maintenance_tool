@@ -3620,6 +3620,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "csv",
  "duckdb",
  "getrandom 0.4.3",
  "imt-alloc",
