@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { gridTotal, initialTotal, openApp, parseCount } from './app';
 import { expectNoSeriousViolations } from './axe';
 import { runCommand } from './analysis-support';
+import { chooseMenu } from './menu-support';
 
 test.describe('overview (health check)', () => {
   test('Focused layout (default): the headline is on the timeline header and Review opens the Overview', async ({ page }, testInfo) => {
@@ -52,10 +53,8 @@ test.describe('overview (health check)', () => {
     const overview = page.locator('imt-overview-view');
     await expect(overview).toBeVisible({ timeout: 10_000 });
     await overview.getByRole('checkbox', { name: 'Show the overview after opening files' }).uncheck();
-    // Close the panel, open more files: it stays closed.
-    await page.keyboard.press('ControlOrMeta+k');
-    await page.getByRole('combobox', { name: 'Type a command' }).fill('Toggle Overview panel');
-    await page.keyboard.press('Enter');
+    // Close the panel (View ▸ Overview toggles it), open more files: it stays closed.
+    await chooseMenu(page, 'View', 'Overview');
     await expect(overview).toHaveCount(0);
     await page.locator('imt-sidebar').getByRole('button', { name: 'Open folder' }).click();
     await expect(page.locator('imt-sidebar')).toContainText('extra-folder', { timeout: 10_000 });

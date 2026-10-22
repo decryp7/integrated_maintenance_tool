@@ -16,7 +16,7 @@ export class AnalysisCommands {
   private readonly session = inject(QuerySession);
 
   private show(id: string, title: string, viewId: string): ImtCommand {
-    return { id, title, category: CATEGORY, when: loaded, run: (ctx) => ctx.showView(viewId) };
+    return { id, title, category: CATEGORY, view: viewId, when: loaded, run: (ctx) => ctx.showView(viewId) };
   }
 
   readonly commands: ImtCommand[] = [

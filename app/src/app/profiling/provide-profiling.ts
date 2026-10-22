@@ -36,7 +36,7 @@ export class ProfilingCommands {
   private readonly captures = inject(CapturesStore);
 
   private show(id: string, title: string, view: string): ImtCommand {
-    return { id, title, category: CATEGORY, run: (ctx) => ctx.showView(view) };
+    return { id, title, category: CATEGORY, view, run: (ctx) => ctx.showView(view) };
   }
 
   readonly commands: ImtCommand[] = [

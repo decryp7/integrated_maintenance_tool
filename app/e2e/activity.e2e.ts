@@ -62,9 +62,9 @@ test('a user journey is logged once per operation, in order, with triggers and w
   await expect(tour).toHaveCount(0);
 
   // Filter with words that must never reach the log.
-  await page.getByPlaceholder(/Search messages/).fill('needle-secret-words');
+  await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('needle-secret-words');
   await expect.poll(() => (find(entries, 0, { Operation: 'search.change' }) >= 0 ? 'ok' : entries.map((e) => e.message).join(' | '))).toBe('ok');
-  await page.getByPlaceholder(/Search messages/).fill('');
+  await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('');
   await expect.poll(() => entries.filter((e) => e.props['Operation'] === 'search.change').length).toBe(2);
 
   // Select an event.
