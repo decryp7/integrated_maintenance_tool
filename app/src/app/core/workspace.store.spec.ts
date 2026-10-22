@@ -318,23 +318,23 @@ describe('WorkspaceStore', () => {
 
   it('reads and writes preferences defensively', () => {
     localStorage.setItem('imt.prefs.v1', JSON.stringify({ timezone: 'local', extraColumns: ['x'] }));
-    const defaults = { timezone: 'utc', alwaysShowLifecycle: true, theme: 'calm', scheme: 'system', lanesBySource: null, uiFont: 'system', extraColumns: [] };
+    const defaults = { timezone: 'utc', alwaysShowLifecycle: true, theme: 'calm', scheme: 'system', uiFont: 'system', extraColumns: [] };
     expect(loadPrefs()).toEqual({ ...defaults, timezone: 'local', extraColumns: ['x'] });
     localStorage.setItem('imt.prefs.v1', '{not json');
     expect(loadPrefs()).toEqual(defaults);
     localStorage.removeItem('imt.prefs.v1');
     expect(loadPrefs()).toEqual(defaults);
     // Untrusted values fall back one by one; known ones are kept.
-    localStorage.setItem('imt.prefs.v1', JSON.stringify({ timezone: 'mars', theme: 'neon', scheme: 'dark', lanesBySource: 'yes', uiFont: 'comic', alwaysShowLifecycle: false, extraColumns: ['a', 3] }));
+    localStorage.setItem('imt.prefs.v1', JSON.stringify({ timezone: 'mars', theme: 'neon', scheme: 'dark', uiFont: 'comic', alwaysShowLifecycle: false, extraColumns: ['a', 3] }));
     expect(loadPrefs()).toEqual({ ...defaults, scheme: 'dark', alwaysShowLifecycle: false, extraColumns: ['a'] });
     localStorage.setItem('imt.prefs.v1', JSON.stringify([1]));
     expect(loadPrefs()).toEqual(defaults);
-    localStorage.setItem('imt.prefs.v1', JSON.stringify({ theme: 'precision', lanesBySource: false, uiFont: 'theme', extraColumns: 'x' }));
-    expect(loadPrefs()).toEqual({ ...defaults, theme: 'precision', lanesBySource: false, uiFont: 'theme' });
+    localStorage.setItem('imt.prefs.v1', JSON.stringify({ theme: 'precision', uiFont: 'theme', extraColumns: 'x' }));
+    expect(loadPrefs()).toEqual({ ...defaults, theme: 'precision', uiFont: 'theme' });
     const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('quota');
     });
-    expect(() => savePrefs({ timezone: 'utc', theme: 'calm', scheme: 'dark', lanesBySource: null, uiFont: 'system', extraColumns: [], alwaysShowLifecycle: true })).not.toThrow();
+    expect(() => savePrefs({ timezone: 'utc', theme: 'calm', scheme: 'dark', uiFont: 'system', extraColumns: [], alwaysShowLifecycle: true })).not.toThrow();
     setItem.mockRestore();
   });
 

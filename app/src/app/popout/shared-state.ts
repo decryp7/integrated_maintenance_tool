@@ -63,7 +63,6 @@ export function sharedUiState(injector: Injector): SyncedValue[] {
     { key: 'theme', read: () => store.theme(), apply: (v) => (v === null || isThemeId(v)) && store.setTheme(v) },
     { key: 'scheme', read: () => store.scheme(), apply: (v) => isSchemeMode(v) && store.setScheme(v) },
     { key: 'uiFont', read: () => store.uiFont(), apply: (v) => isUiFont(v) && store.setUiFont(v) },
-    { key: 'lanesBySource', read: () => store.lanesBySource(), apply: (v) => (v === null || typeof v === 'boolean') && store.setLanesBySource(v) },
     { key: 'timezone', read: () => store.timezone(), apply: (v) => ZONES.includes(v as TimeZoneMode) && store.setTimezone(v as TimeZoneMode) },
     { key: 'lifecycle', read: () => store.alwaysShowLifecycle(), apply: (v) => typeof v === 'boolean' && store.setAlwaysShowLifecycle(v) },
     {

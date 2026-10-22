@@ -204,28 +204,36 @@ test.describe('live tail: alerts', () => {
 });
 
 test.describe('live tail: status, sources and opening', () => {
-  test('the tail status panel shows each file and its controls call set_live', async ({ page }, testInfo) => {
+  test('the tail status panel shows each file and links to Settings ▸ Live tail, whose controls call set_live', async ({ page }, testInfo) => {
     await openAppWith(page, LIVE);
     await openView(page, 'Tail status');
     const panel = page.locator('imt-tail-status-view');
     await expect(panel.getByTestId('tail-file').first()).toBeVisible();
     await panel.getByRole('button', { name: 'Live tail off' }).click();
     await expect(panel.getByRole('button', { name: 'Live tail on' })).toHaveAttribute('aria-pressed', 'true');
-    await panel.getByLabel('Watch').selectOption('polling');
+    await expect(panel).toContainText('lines/s');
+    await expectNoSeriousViolations(page, testInfo, 'tail-status', 'imt-tail-status-view');
+
+    // The options live in Settings ▸ Live tail (I2); Settings… opens them.
+    await panel.getByTestId('tail-settings').click();
+    const dialog = page.getByRole('dialog', { name: 'Settings' });
+    const form = dialog.getByRole('form', { name: 'Live tail options' });
+    await expect(form).toBeVisible();
+    await form.getByLabel('Watch').selectOption('polling');
     await expect.poll(async () => (await liveCalls(page)).at(-1)?.options?.['watch']).toBe('polling');
-    await panel.getByLabel('Poll every (ms)').fill('500');
-    await panel.getByLabel('Poll every (ms)').press('Tab');
+    await form.getByLabel('Poll every').fill('500');
+    await form.getByLabel('Poll every').press('Tab');
     await expect.poll(async () => (await liveCalls(page)).at(-1)?.options?.['pollIntervalMs']).toBe(500);
-    await panel.getByLabel('Keep at most (events)').fill('100000');
-    await panel.getByLabel('Keep at most (events)').press('Tab');
+    await form.getByLabel('Keep at most').first().fill('100000');
+    await form.getByLabel('Keep at most').first().press('Tab');
     await expect.poll(async () => ((await liveCalls(page)).at(-1)?.options?.['retention'] as { maxRecords?: number })?.maxRecords).toBe(100000);
-    await panel.getByLabel('Deleted files').selectOption('drop');
+    await form.getByLabel('Deleted files').selectOption('drop');
     await expect.poll(async () => (await liveCalls(page)).at(-1)?.options?.['deletedFiles']).toBe('drop');
-    await panel.getByLabel('Flush partial line after (ms)').fill('750');
-    await panel.getByLabel('Flush partial line after (ms)').press('Tab');
+    await form.getByLabel('Flush a partial line after').fill('750');
+    await form.getByLabel('Flush a partial line after').press('Tab');
     await expect.poll(async () => (await liveCalls(page)).at(-1)?.options?.['carryFlushMs']).toBe(750);
     // Detector interval: applied, and clamped to the engine's range (0 .. 600000 ms).
-    const detect = panel.getByLabel('Run detectors every (ms)');
+    const detect = form.getByTestId('detect-every');
     await expect(detect).toHaveValue('1000');
     await detect.fill('250');
     await detect.press('Tab');
@@ -234,9 +242,9 @@ test.describe('live tail: status, sources and opening', () => {
     await detect.press('Tab');
     await expect.poll(async () => (await liveCalls(page)).at(-1)?.options?.['detectEveryMs']).toBe(600000);
     await expect(detect).toHaveValue('600000');
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
     await expect(panel.getByTestId('tail-file').filter({ hasText: 'Polling' }).first()).toBeVisible({ timeout: 10_000 });
-    await expect(panel).toContainText('lines/s');
-    await expectNoSeriousViolations(page, testInfo, 'tail-status', 'imt-tail-status-view');
   });
 
   test('rolling files of one log collapse into a group that expands, with a rotated badge', async ({ page }, testInfo) => {

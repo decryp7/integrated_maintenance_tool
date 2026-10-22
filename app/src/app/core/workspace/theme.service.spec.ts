@@ -53,14 +53,14 @@ describe('ThemeService', () => {
     expect(root.style.getPropertyValue('--row-h')).toBe('22px');
     expect(theme.tokens()['accent']).toBe('#5b47e8');
 
-    prefs.setLanesBySource(false);
+    TestBed.inject(SettingsStore).setSourceColors('off');
     await settle();
     expect(root.getAttribute('data-lane-fill')).toBe('neutral');
     expect(theme.traits().laneFill).toBe('neutral');
 
     // Precision: barcode lanes and bracket runs; the interface font is the system one unless the user keeps the theme's.
     prefs.setTheme('precision');
-    prefs.setLanesBySource(null);
+    TestBed.inject(SettingsStore).setSourceColors('source');
     await settle();
     expect(root.getAttribute('data-theme')).toBe('precision');
     expect(root.getAttribute('data-runs')).toBe('bracket');

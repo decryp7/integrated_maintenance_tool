@@ -103,7 +103,7 @@ export function mockSections(): SettingsSection[] {
     }),
     section({
       id: 'workspace',
-      title: 'Workspace',
+      title: 'Live tail',
       description: 'How IMT follows files that change while they are open.',
       owner: { kind: 'app' },
       group: 'advanced',
