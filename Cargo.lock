@@ -1176,6 +1176,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "crc"
+version = "3.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5eb8a2a1cd12ab0d987a5d5e825195d372001a4094a0376319d5a0ad71c1ba0d"
+dependencies = [
+ "crc-catalog",
+]
+
+[[package]]
+name = "crc-catalog"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "217698eaf96b4a3f0bc4f3662aaa55bdf913cd54d7204591faa790070c6d0853"
+
+[[package]]
 name = "crc32fast"
 version = "1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3071,8 +3086,11 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "base64 0.23.1",
+ "block2",
+ "cairo-rs",
  "chrono",
  "dirs",
+ "image",
  "imt-agent",
  "imt-ai",
  "imt-alloc",
@@ -3090,9 +3108,14 @@ dependencies = [
  "imt-profile",
  "imt-store-client",
  "imt-store-duck",
+ "imt-symbols",
+ "imt-video",
  "log",
  "notify-debouncer-mini",
+ "objc2",
  "objc2-app-kit",
+ "objc2-foundation",
+ "objc2-web-kit",
  "open",
  "semver",
  "serde",
@@ -3106,11 +3129,14 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
  "tauri-plugin-window-state",
+ "tempfile",
+ "tokio",
  "tracing",
  "tracing-appender",
  "tracing-log",
  "tracing-subscriber",
  "ts-rs",
+ "webkit2gtk",
  "webview2-com",
  "windows",
  "zip",
@@ -3183,6 +3209,7 @@ dependencies = [
 name = "imt-dump"
 version = "0.1.0"
 dependencies = [
+ "imt-symbols",
  "postcard",
  "proptest",
  "serde",
@@ -3325,7 +3352,9 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]
@@ -3352,6 +3381,7 @@ dependencies = [
  "anyhow",
  "imt-dump",
  "imt-plugin-api",
+ "imt-symbols",
  "minidump",
  "minidump-unwind",
  "pdb",
@@ -3620,6 +3650,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "csv",
  "duckdb",
  "getrandom 0.4.3",
  "imt-alloc",
@@ -3664,6 +3695,27 @@ dependencies = [
  "thiserror 2.0.21",
  "ureq",
  "windows",
+]
+
+[[package]]
+name = "imt-video"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "imt-ai",
+ "imt-core",
+ "imt-ipc",
+ "log",
+ "lzma-rs",
+ "proptest",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tar",
+ "tempfile",
+ "thiserror 2.0.21",
+ "ts-rs",
+ "zip",
 ]
 
 [[package]]
@@ -4259,6 +4311,16 @@ name = "lz4_flex"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ecbdfe44b1bd960b68170b417450a628c43f7cf56bb3c5317e61cb230ee7f226"
+
+[[package]]
+name = "lzma-rs"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "297e814c836ae64db86b36cf2a557ba54368d03f6afcd7d947c266692f71115e"
+dependencies = [
+ "byteorder",
+ "crc",
+]
 
 [[package]]
 name = "mac-notification-sys"
@@ -5549,7 +5611,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b570b25f7617e43d59005d0990ccb79e950a423952cea19671b7a876da390adf"
 dependencies = [
  "anyhow",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
@@ -6005,7 +6067,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

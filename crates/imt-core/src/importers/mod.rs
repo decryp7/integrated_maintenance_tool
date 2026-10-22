@@ -6,6 +6,7 @@ mod csv;
 mod json;
 pub mod lines;
 pub mod text;
+pub mod video;
 
 use crate::profile::CompiledProfile;
 use anyhow::Result;
@@ -16,6 +17,7 @@ pub use self::csv::CsvImporter;
 pub(crate) use self::csv::{count_outside_quotes as csv_count_outside_quotes, delimiter as csv_delimiter};
 pub use self::json::JsonImporter;
 pub use self::text::TextImporter;
+pub use self::video::VideoFramesImporter;
 // Shared with the streaming importers (`crate::ingest`).
 pub(crate) use self::json::{to_record as json_to_record, Depth as JsonDepth};
 pub(crate) use self::text::{finish as text_finish, SNIFF_LINES};
@@ -98,10 +100,11 @@ impl Default for Importers {
 }
 
 impl Importers {
-    /// The built-in importers: JSON, CSV and text.
+    /// The built-in importers: video frames (ADR 0032), JSON, CSV and text.
     pub fn new() -> Self {
         let mut importers = Self::empty();
         importers
+            .register(Box::new(VideoFramesImporter))
             .register(Box::new(JsonImporter))
             .register(Box::new(CsvImporter))
             .register(Box::new(TextImporter));

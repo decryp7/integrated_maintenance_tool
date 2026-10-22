@@ -1,25 +1,37 @@
 //! Native symbols for IMT (ADR 0022), shared by the native profiler and dump analysis.
 //!
 //! - [`pe`]: a PE image's machine, size and PDB identity (pure; fuzzed).
+//! - [`id`]: a PDB's identity as symbol stores file it ([`id::PdbKey`]: name, GUID, age), parsed once from untrusted
+//!   text; [`msf`]: the identity a PDB file records. Symbols are matched by identity, never by file name alone.
 //! - [`SymbolConfig`]: where PDBs are looked for (the user's search path, the symstore-layout cache) and whether
 //!   a symbol server may be asked ([`ServerConfig`], off unless the user enables it).
-//! - [`fetch`]: downloading a PDB from a symbol server into the cache (feature `server`).
+//! - [`fetch`]: downloading a PDB from a symbol server into the cache, refusing another build's (feature `server`);
+//!   [`servers`]: the user's symbol servers (off by default) and bounded concurrent downloads of many PDBs.
+//! - [`cache`]: the cache's size bound (least recently used PDBs go first).
 //! - [`Resolver`]: modules in, addresses → [`Symbol`]s out; [`resolver`] gives the DbgHelp one on Windows and
 //!   [`SymbolError::Unavailable`] elsewhere.
-//! - [`walk`] (Windows): DbgHelp `StackWalkEx` over a [`walk::Memory`] (a live process, a snapshot, a dump).
+//! - [`walk`] (Windows, feature `dbghelp`): DbgHelp `StackWalkEx` over a [`walk::Memory`] (a live process, a snapshot, a dump).
 //!
 //! DbgHelp is single-threaded: every call this crate makes runs under one process-wide lock, which other DbgHelp
 //! users in the same process take through [`with_dbghelp`].
 
+pub mod cache;
 pub mod config;
+pub mod id;
+pub mod msf;
 pub mod pe;
 
 #[cfg(feature = "server")]
 pub mod fetch;
+#[cfg(feature = "server")]
+pub mod servers;
+#[cfg(feature = "server")]
+#[doc(hidden)]
+pub mod testing;
 
-#[cfg(windows)]
+#[cfg(all(windows, feature = "dbghelp"))]
 mod dbghelp;
-#[cfg(windows)]
+#[cfg(all(windows, feature = "dbghelp"))]
 pub mod walk;
 
 pub use config::{parse_search_path, ServerConfig, SymbolConfig};
@@ -98,13 +110,13 @@ pub trait Resolver: Send {
     fn resolve(&mut self, address: u64) -> Option<Symbol>;
 }
 
-/// The resolver of this platform: DbgHelp on Windows.
+/// The resolver of this platform: DbgHelp on Windows (feature `dbghelp`).
 pub fn resolver(config: &SymbolConfig) -> Result<Box<dyn Resolver>, SymbolError> {
-    #[cfg(windows)]
+    #[cfg(all(windows, feature = "dbghelp"))]
     {
         Ok(Box::new(dbghelp::DbgHelpResolver::new(config)?))
     }
-    #[cfg(not(windows))]
+    #[cfg(not(all(windows, feature = "dbghelp")))]
     {
         let _ = config;
         Err(SymbolError::Unavailable)
@@ -220,7 +232,7 @@ mod tests {
         assert_eq!(r.unresolved, 2, "one unnamed, one beyond the limit");
         assert!(modules[0].contains(0x1fff) && !modules[0].contains(0x2000));
         assert_eq!(with_dbghelp(|| 7), 7);
-        if !cfg!(windows) {
+        if !cfg!(all(windows, feature = "dbghelp")) {
             assert!(matches!(resolver(&SymbolConfig::default()), Err(SymbolError::Unavailable)));
         }
     }

@@ -28,7 +28,11 @@ imt-pdf = { path = "../../crates/imt-pdf" }
 imt-profile = { path = "../../crates/imt-profile" }
 # Dumps and UMDH logs (ADR 0023): the engine; the readers run in the dumps plugin's process.
 imt-dump = { path = "../../crates/imt-dump" }
+# PDB identities, the symbol cache and (user-enabled) symbol-server downloads for dumps (ADR 0036).
+imt-symbols = { path = "../../crates/imt-symbols", default-features = false, features = ["server"] }
 imt-notes = { path = "../../crates/imt-notes" }
+# Video sources (ADR 0033): the FFmpeg runtime, the sandboxed analysis and the project's video records.
+imt-video = { path = "../../crates/imt-video" }
 imt-agent = { path = "../../crates/imt-agent" }
 # Plugins run out of process (ADR 0017): the host side only; no plugin is linked into the app.
 imt-plugin-host = { path = "../../crates/imt-plugin-host" }
@@ -68,8 +72,14 @@ notify-debouncer-mini = "0.7"
 base64.workspace = true
 sysinfo = { workspace = true, features = ["system"] }
 zip.workspace = true
+# Error snapshots (ADR 0034): bound and re-encode the native webview capture off the UI thread. Already in the
+# tree through tauri (same version and codecs); no new crates.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp"] }
+# Awaits the webview's capture callback with a timeout (`window_capture`), on the runtime tauri already runs.
+tokio = { workspace = true, features = ["sync", "time"] }
 
 [dev-dependencies]
+tempfile.workspace = true
 # The store in process for the shell's tests (the real adapter on a temp folder).
 imt-store-duck = { path = "../../crates/imt-store-duck" }
 # The profile importers as a library, for the profiling store's tests (in IMT they run in the profiling plugin's process).
@@ -79,6 +89,8 @@ imt-plugin-dumps = { path = "../../crates/imt-plugin-dumps", default-features = 
 # The dump DTOs' TypeScript bindings (`generated_types`).
 imt-dump = { path = "../../crates/imt-dump", features = ["ts"] }
 imt-notes = { path = "../../crates/imt-notes", features = ["ts"] }
+# The video DTOs' TypeScript bindings (`generated_types`, ADR 0033).
+imt-video = { path = "../../crates/imt-video", features = ["ts"] }
 # The Store pane's DTOs' TypeScript bindings (`generated_types`, ADR 0030).
 imt-core = { path = "../../crates/imt-core", features = ["ts"] }
 # TypeScript bindings of the wire types (`generated_types` test; ADR 0016).
@@ -91,8 +103,18 @@ tauri = { version = "2.12.4", features = ["test", "tray-icon", "image-png", "uns
 tauri-plugin-single-instance = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSEvent"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "bitflags", "NSEvent", "NSImage", "NSImageRep", "NSBitmapImageRep", "NSResponder", "NSView", "NSWindow"] }
+# Native window capture (`window_capture::native`, ADR 0034): the versions wry uses.
+objc2 = "0.6"
+block2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSData", "NSDictionary", "NSError", "NSGeometry", "NSString"] }
+objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-app-kit", "WKWebView", "WKSnapshotConfiguration"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Native window capture (`window_capture::native`, ADR 0034): the versions wry pins.
+webkit2gtk = { version = "=2.0.2", features = ["v2_38"] }
+cairo-rs = "0.18"
 
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.39"
-windows = { workspace = true, features = ["Win32_System_Console", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+windows = { workspace = true, features = ["Win32_System_Com", "Win32_System_Console", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }

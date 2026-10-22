@@ -1,7 +1,7 @@
 //! The DbgHelp [`Resolver`]: modules are loaded at their address from their image files (no process handle is
 //! needed, so it also serves `.etl` files and dumps), PDBs come from the search path, the cache or the server.
 
-use crate::config::cache_file;
+use crate::id::PdbKey;
 use crate::{dbghelp_lock, pe, Module, ModuleSymbols, Resolver, Symbol, SymbolConfig, SymbolError};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -94,14 +94,15 @@ impl DbgHelpResolver {
     fn cached_pdb_dir(&self, m: &Module, notes: &mut Vec<String>) -> Option<PathBuf> {
         let cache = self.config.cache.as_ref()?;
         let id = pe::parse_file(&m.path).ok()?.pdb?;
-        let file = cache_file(cache, &id)?;
+        let key = PdbKey::from_pdb_id(&id).ok()?;
+        let file = key.store_file(cache);
         if file.is_file() {
             return file.parent().map(PathBuf::from);
         }
         #[cfg(feature = "server")]
         if let Some(f) = &self.fetcher {
             use crate::fetch::Fetcher;
-            match f.fetch(&id, cache) {
+            match f.fetch(&key, cache) {
                 Ok(p) => return p.parent().map(PathBuf::from),
                 Err(e) => notes.push(e.to_string()),
             }

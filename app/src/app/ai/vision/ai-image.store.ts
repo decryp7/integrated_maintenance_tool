@@ -158,6 +158,11 @@ export const AiImageStore = signalStore(
         return open(() => backend.imageOpen(path), show);
       },
 
+      /** Takes an image the engine already opened in this window's image cache (a video frame, ADR 0033). */
+      adopt(img: AiImage, show = true): void {
+        opened(img, show);
+      },
+
       /** Opens pasted or dropped bytes (base64, never decoded here). */
       pasteBytes(bytes: Uint8Array, name: string | null, show = true): Promise<AiImage | null> {
         return open(async () => {

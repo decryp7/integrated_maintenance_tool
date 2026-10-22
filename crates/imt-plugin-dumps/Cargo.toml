@@ -30,6 +30,7 @@ windows = { workspace = true, optional = true, features = [
 ] }
 
 [dev-dependencies]
+imt-symbols = { path = "../imt-symbols", default-features = false }
 proptest.workspace = true
 tempfile.workspace = true
 

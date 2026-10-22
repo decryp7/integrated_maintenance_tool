@@ -338,13 +338,14 @@ mod tests {
         assert_eq!(d.process.as_ref().and_then(|p| p.pid), Some(pid));
         // With the folder of this binary's PDB as a symbol folder, its frames get names.
         let exe_dir = std::env::current_exe().unwrap().parent().unwrap().to_path_buf();
-        let opts = imt_dump::ImportOptions {
-            limits: imt_dump::Limits::default(),
-            file_time_ms: None,
-        };
+        let opts = imt_dump::ImportOptions::default();
         if let imt_dump::Document::Dump(named) = crate::import::import_dump(&bytes, &opts, &[exe_dir]).unwrap() {
             let ours = named.modules.iter().position(|m| m.name().starts_with("imt_plugin_dumps")).unwrap() as u32;
-            assert!(named.modules[ours as usize].symbols, "{:?}", named.notes);
+            assert!(
+                named.modules[ours as usize].symbols.is_loaded(),
+                "{:?}",
+                named.modules[ours as usize].symbols
+            );
             assert!(named
                 .threads
                 .iter()
