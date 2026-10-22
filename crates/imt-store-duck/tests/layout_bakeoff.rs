@@ -80,6 +80,7 @@ fn batches(copies: usize) -> Vec<EventBatch> {
         parsers: &parsers,
         schema,
         cancel: progress.cancel_flag(),
+        window: None,
     };
     let canonical: Vec<PathBuf> = log_samples().iter().map(|p| std::fs::canonicalize(p).unwrap()).collect();
     let files = ingest::files_to_read(&canonical, &canonical, &profile, &Default::default(), &Default::default());

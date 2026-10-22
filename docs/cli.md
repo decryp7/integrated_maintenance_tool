@@ -23,6 +23,7 @@ Every command that reads data takes these.
 | Option | Meaning |
 |---|---|
 | `--open PATH` | A file or folder to import (repeatable). `import` also takes them as plain arguments. Folders are read recursively with the default profile's include and exclude globs. |
+| `--since TIME`, `--until TIME` | Import only events from `TIME` / up to `TIME` (both inclusive; UTC unless an offset is given). Events outside the range are dropped before the pipeline and the store, so one hour of a very large folder costs one hour of memory and disk. Files last modified more than 26 hours before `--since` are not opened at all. Events without a readable time are left out when a range is set. Applies to files read in this run (a kept store keeps what it already holds). |
 | `--store DIR` | Keep the store in `DIR`. A later run with the same `--store` reuses it: files already read are skipped, so `imt import` once and then query as often as you like. Without it a scratch store is made in the temporary folder and removed when the command ends. |
 
 Paths are canonicalised; a path that does not exist is an error naming it. A file no importer can read is skipped with a

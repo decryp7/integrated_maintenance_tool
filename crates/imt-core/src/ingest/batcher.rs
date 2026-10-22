@@ -68,12 +68,15 @@ pub struct BatchedSource {
     /// Events in/out of each pipeline step, summed over the batches.
     pub step_stats: Vec<StepStats>,
     pub problems: Problems,
+    /// Events left out because they are outside the import window (or have no time while a window is set).
+    pub outside_window: usize,
 }
 
 impl BatchedSource {
     /// Adds the totals of another part of the same source (a chunk read in parallel).
     pub fn merge(&mut self, other: BatchedSource) {
         self.parsed += other.parsed;
+        self.outside_window += other.outside_window;
         self.events += other.events;
         self.from = match (self.from, other.from) {
             (Some(a), Some(b)) => Some(a.min(b)),
@@ -99,6 +102,7 @@ pub struct RecordBatcher<'a> {
     metas: Vec<Meta>,
     builder: EventBatchBuilder,
     out: BatchedSource,
+    window: Option<super::ImportWindow>,
 }
 
 impl<'a> RecordBatcher<'a> {
@@ -120,7 +124,14 @@ impl<'a> RecordBatcher<'a> {
             metas: Vec::with_capacity(BATCH_ROWS),
             builder: EventBatchBuilder::new(schema),
             out: BatchedSource::default(),
+            window: None,
         }
+    }
+
+    /// Keeps only events inside `window` (ADR 0047); the others are dropped before the pipeline.
+    pub fn with_window(mut self, window: Option<super::ImportWindow>) -> Self {
+        self.window = window;
+        self
     }
 
     /// Runs the pipeline on the collected events and writes them.
@@ -203,6 +214,12 @@ fn merge_stats(into: &mut Vec<StepStats>, add: &[StepStats]) {
 
 impl EventSink for RecordBatcher<'_> {
     fn event(&mut self, ev: ParsedEvent) -> Result<()> {
+        if let Some(w) = &self.window {
+            if !w.contains(ev.record.ts) {
+                self.out.outside_window += 1;
+                return Ok(());
+            }
+        }
         self.out.parsed += 1;
         self.records.push(ev.record);
         self.metas.push(Meta {

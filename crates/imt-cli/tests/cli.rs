@@ -160,6 +160,26 @@ fn analyses_report_findings_and_set_the_exit_code() {
 }
 
 #[test]
+fn since_and_until_import_only_that_range() {
+    let dir = tempfile::tempdir().unwrap();
+    let log = write_log(dir.path());
+    let log = log.to_str().unwrap();
+    let r = exec(&[
+        "import",
+        log,
+        "--since",
+        "2026-10-14 09:01:00",
+        "--until",
+        "2026-10-14 09:01:59",
+        "--json",
+    ]);
+    assert_eq!(r.exit, Exit::Ok, "{}", r.err);
+    assert_eq!(json(&r)["events"], 60, "one minute of the quiet hour");
+    let r = exec(&["import", log, "--since", "2026-10-14 10:00:00", "--json"]);
+    assert_eq!(json(&r)["events"], 40);
+}
+
+#[test]
 fn outliers_point_at_the_value_only_the_errors_share() {
     let dir = tempfile::tempdir().unwrap();
     let mut text = String::new();

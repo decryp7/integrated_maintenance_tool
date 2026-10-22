@@ -298,6 +298,7 @@ impl Inner {
             schema,
             encodings: &encodings,
             cancel: &cancel,
+            window: None,
         };
         let offsets = writer::clock_offsets(conn).map_err(|e| engine(format!("{e:#}")))?;
         let _writing = lock(&self.write_lock);
@@ -600,6 +601,7 @@ impl Inner {
             schema: self.schema.clone(),
             encodings: &encodings,
             cancel: progress.cancel_flag(),
+            window: None,
         };
         let mut report = ImportReport::default();
         let mut rest: Vec<PathBuf> = Vec::new();

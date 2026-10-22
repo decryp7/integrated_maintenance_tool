@@ -135,6 +135,15 @@ fn prepare(src: &Source, host: &dyn StoreHost, err: &mut dyn Write) -> Result<(P
     if paths.is_empty() {
         return Ok((prepared, None));
     }
+    if src.since.is_some() || src.until.is_some() {
+        prepared
+            .store
+            .set_import_window(&imt_core::ingest::ImportWindow {
+                from: src.since,
+                to: src.until,
+            })
+            .map_err(store_message)?;
+    }
     let report = prepared.store.open(&paths).and_then(|s| s.wait()).map_err(store_message)?;
     for u in &report.unrecognized {
         let _ = writeln!(err, "{BIN_NAME}: skipped {}: {}", u.name, u.reason);

@@ -466,6 +466,7 @@ mod tests {
     fn the_wire_format_is_append_only() {
         const V1: &[&str] = &[
             "Clear",
+            "SetImportWindow",
             "Open",
             "Reload",
             "Refresh",
@@ -474,7 +475,7 @@ mod tests {
             "AppendTail",
             "SetSourceEncoding",
         ];
-        assert_eq!(WIRE_VERSION, 1);
+        assert_eq!(WIRE_VERSION, 2);
         let names = wire_names();
         assert_eq!(&names[..V1.len()], V1, "the operations' order is the wire encoding");
         let unique: std::collections::HashSet<_> = names.iter().collect();

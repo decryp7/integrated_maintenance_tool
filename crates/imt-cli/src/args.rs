@@ -19,6 +19,10 @@ pub struct Source {
     /// Keep the store in this folder (reused by later runs: files already read are skipped). Without it a
     /// scratch store is made and removed at the end.
     pub store: Option<PathBuf>,
+    /// Only events from this time (epoch ms) are imported (ADR 0047).
+    pub since: Option<i64>,
+    /// Only events up to this time (epoch ms) are imported.
+    pub until: Option<i64>,
 }
 
 /// How a query's table is written.
@@ -119,6 +123,8 @@ pub fn usage() -> String {
 SOURCE OPTIONS (every command that reads data):
   --open PATH      a file or folder to import (repeatable)
   --store DIR      keep the store in DIR and reuse it next time (default: a scratch store, removed at the end)
+  --since TIME     import only events from TIME   (2026-10-01, 2026-10-01 14:30, 2026-10-01T14:30:00Z; UTC)
+  --until TIME     import only events up to TIME
 
 Exit codes: 0 done, 1 failed, 2 wrong command line, 3 findings (with --fail-on-findings).
 With --json every command prints one JSON object on standard output, errors included.
@@ -203,6 +209,14 @@ fn collect(cur: &mut Cursor<'_>) -> Result<Options, UsageError> {
                 o.src.store = Some(PathBuf::from(val(cur)?));
                 o.used.push("--store");
             }
+            "--since" => {
+                o.src.since = Some(parse_time(&val(cur)?).map_err(|e| format!("--since: {e}"))?);
+                o.used.push("--since");
+            }
+            "--until" => {
+                o.src.until = Some(parse_time(&val(cur)?).map_err(|e| format!("--until: {e}"))?);
+                o.used.push("--until");
+            }
             "--json" => {
                 o.json = true;
                 o.used.push("--json");
@@ -267,6 +281,11 @@ fn collect(cur: &mut Cursor<'_>) -> Result<Options, UsageError> {
             _ => o.positional.push(a.to_string()),
         }
     }
+    if let (Some(s), Some(u)) = (o.src.since, o.src.until) {
+        if u < s {
+            return Err("--until is before --since".into());
+        }
+    }
     Ok(o)
 }
 
@@ -277,7 +296,7 @@ fn only(o: &Options, command: &str, allowed: &[&str]) -> Result<(), UsageError> 
     }
 }
 
-const SOURCE_FLAGS: [&str; 2] = ["--open", "--store"];
+const SOURCE_FLAGS: [&str; 4] = ["--open", "--store", "--since", "--until"];
 
 fn allowed(extra: &[&'static str]) -> Vec<&'static str> {
     SOURCE_FLAGS.iter().chain(extra.iter()).copied().collect()
@@ -450,6 +469,12 @@ mod tests {
         assert_eq!(src.store, Some(PathBuf::from("s")));
         assert!(json);
         assert!(p("import").unwrap_err().contains("at least one"));
+        let Command::Import { src, .. } = p("import a --since 2026-10-01 --until=2026-10-02").unwrap() else {
+            panic!()
+        };
+        assert!(src.since.unwrap() < src.until.unwrap());
+        assert!(p("import a --since 2026-10-02 --until 2026-10-01").unwrap_err().contains("before"));
+        assert!(p("import a --since soon").unwrap_err().contains("--since"));
     }
 
     #[test]

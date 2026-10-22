@@ -295,6 +295,7 @@ fn the_streaming_import_reads_the_file_the_same_way() {
         parsers: &profile,
         schema: Arc::new(EventSchema::plain()),
         cancel: &cancel,
+        window: None,
     };
     let mut sink = Counting::default();
     let path = apps_log();
