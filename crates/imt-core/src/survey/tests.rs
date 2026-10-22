@@ -1274,3 +1274,71 @@ fn error_queries_use_the_longest_literal_run_and_skip_templates_without_one() {
     assert_eq!(ql(queries[1]), r#"@template = "Could not open {Path}""#);
     assert_eq!(propose::ql_quote(r#"a "b" \c"#), r#""a \"b\" \\c""#);
 }
+
+// ---- validate: previews of odd shapes ----
+
+#[test]
+fn a_non_format_proposal_in_the_formats_group_counts_zero_parsed_lines_and_is_kept() {
+    let (ws, dir) = store_with(&log_lines());
+    let cands = vec![candidate(
+        "format:odd:1",
+        ProposalGroup::Formats,
+        vec![marker("odd", "job")],
+        vec![],
+    )];
+    let (ok, skipped) = run_validate(&ws, cands, |_| {});
+    assert!(skipped.is_empty(), "{skipped:?}");
+    assert_eq!(ok.len(), 1, "a format group of one is always the best one");
+    std::fs::remove_dir_all(dir).ok();
+}
+
+#[test]
+fn events_without_a_timestamp_still_count_toward_their_lane() {
+    let (ws, dir) = store_with(&log_lines());
+    let (survey, mut sampled) = survey_only(&ws, &SurveyRequest::default(), &SurveyControl::new()).unwrap();
+    for e in sampled.events.iter_mut().step_by(2) {
+        e.rec.ts = None;
+    }
+    let cands = vec![candidate(
+        "key",
+        ProposalGroup::Instances,
+        vec![
+            extractor_fragment("w", r"worker-(?P<Worker>\d+)"),
+            Fragment::InstanceKey {
+                key: vec!["Worker".into()],
+            },
+        ],
+        vec![],
+    )];
+    let (ok, skipped) = validate(&ws, DEFAULT_PROFILE_TOML, &survey, &sampled, cands, &SurveyControl::new()).unwrap();
+    assert!(skipped.is_empty(), "{skipped:?}");
+    let ProposalPreview::Lanes { lanes, .. } = &ok[0].preview else {
+        panic!("{:?}", ok[0].preview)
+    };
+    assert!(lanes.iter().map(|l| l.count).sum::<usize>() > 0);
+    std::fs::remove_dir_all(dir).ok();
+}
+
+#[test]
+fn a_step_that_only_changes_the_level_shows_the_message_as_it_is() {
+    let (ws, dir) = store_with(&log_lines());
+    let cands = vec![candidate(
+        "lvl",
+        ProposalGroup::Noise,
+        vec![Fragment::Pipeline {
+            step: StepCfg {
+                step: "set_level".into(),
+                level: Some("error".into()),
+                ..StepCfg::default()
+            },
+        }],
+        vec![],
+    )];
+    let (ok, skipped) = run_validate(&ws, cands, |_| {});
+    assert!(skipped.is_empty(), "{skipped:?}");
+    let ProposalPreview::Pipeline { examples, .. } = &ok[0].preview else {
+        panic!("{:?}", ok[0].preview)
+    };
+    assert!(!examples[0].after.contains(" ["), "no added fields to list: {}", examples[0].after);
+    std::fs::remove_dir_all(dir).ok();
+}

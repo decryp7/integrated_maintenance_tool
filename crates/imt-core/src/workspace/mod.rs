@@ -1238,4 +1238,18 @@ mod progress_tests {
         let s = p.snapshot();
         assert!(!s.running && s.current.is_none() && s.eta_ms.is_none() && s.elapsed_ms >= 5);
     }
+
+    #[test]
+    fn a_missing_file_is_reported_not_retried_forever() {
+        let missing = Path::new("/definitely/not/here.log");
+        let err = read_with_retry(missing).unwrap_err();
+        assert!(!err.contains("locked"), "{err}");
+        assert!(open_with_retry(missing).is_err());
+    }
+
+    #[test]
+    fn a_bare_file_name_has_no_parent_directory_in_its_display_name() {
+        assert_eq!(display_name(Path::new("a.log"), &[]), "a.log");
+        assert_eq!(display_name(Path::new("/logs/a.log"), &[]), "logs/a.log");
+    }
 }
