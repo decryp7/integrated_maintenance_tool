@@ -315,15 +315,14 @@ describe('provideLive', () => {
 
   it('sanitizes saved live options', () => {
     expect(sanitizeLiveOptions(null)).toEqual(DEFAULT_LIVE_OPTIONS);
-    expect(sanitizeLiveOptions({ watch: 'events', pollIntervalMs: -1, deletedFiles: 'drop', retention: { maxRecords: 10.4, maxAgeMs: 'x' }, carryFlushMs: 0 })).toEqual({
+    expect(sanitizeLiveOptions({ watch: 'events', pollIntervalMs: -1, deletedFiles: 'drop', carryFlushMs: 0 })).toEqual({
       watch: 'events',
       pollIntervalMs: 2000,
       deletedFiles: 'drop',
-      retention: { maxRecords: 10, maxAgeMs: null },
       carryFlushMs: 0,
       detectEveryMs: 1000,
     });
-    expect(sanitizeLiveOptions({ watch: 'nope', carryFlushMs: -5, retention: 'x' }).carryFlushMs).toBe(2000);
+    expect(sanitizeLiveOptions({ watch: 'nope', carryFlushMs: -5 }).carryFlushMs).toBe(500);
     // The detector interval is kept within the engine's range.
     expect(sanitizeLiveOptions({ detectEveryMs: 0 }).detectEveryMs).toBe(0);
     expect(sanitizeLiveOptions({ detectEveryMs: 1e12 }).detectEveryMs).toBe(MAX_DETECT_EVERY_MS);

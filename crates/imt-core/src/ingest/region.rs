@@ -197,6 +197,60 @@ impl EventSink for HoldLast<'_> {
     }
 }
 
+/// The first read of a file that was imported in full and then followed: it starts at the last imported event
+/// instead of after it, so continuation lines that arrived since can be seen for what they are.
+#[derive(Debug, Clone, Copy)]
+pub struct Resume {
+    /// Where the last imported event starts (the read starts there).
+    pub last: TailStart,
+    /// Where it ended when the file was imported (after its last whole line).
+    pub old_end: u64,
+}
+
+/// Drops the already imported last event when it is unchanged, and notes when it is not (lines continued it).
+struct Confirm<'a> {
+    inner: &'a mut dyn EventSink,
+    resume: Resume,
+    first: Option<ParsedEvent>,
+    seen_first: bool,
+    /// The imported event no longer matches the file: the source has to be read again in full.
+    changed: bool,
+}
+
+impl Confirm<'_> {
+    /// Called when the file's events ended at `end`: decides about a first event nothing followed.
+    fn finish(&mut self, end: u64) {
+        if self.first.take().is_some() && end != self.resume.old_end {
+            self.changed = true;
+        }
+    }
+}
+
+impl EventSink for Confirm<'_> {
+    fn event(&mut self, ev: ParsedEvent) -> Result<()> {
+        if self.changed {
+            return Ok(());
+        }
+        if !self.seen_first {
+            self.seen_first = true;
+            if ev.byte_offset != self.resume.last.byte {
+                self.changed = true;
+            } else {
+                self.first = Some(ev);
+            }
+            return Ok(());
+        }
+        if self.first.take().is_some() && ev.byte_offset != self.resume.old_end {
+            self.changed = true;
+            return Ok(());
+        }
+        self.inner.event(ev)
+    }
+    fn problem(&mut self, kind: ProblemKind, line: u32) {
+        self.inner.problem(kind, line);
+    }
+}
+
 /// Reads the whole lines of `path` from `start` on as events of the existing source `source` into `sink`. With
 /// `flush`, everything up to the end of the file is read, a last line without its newline and a held-back event
 /// included (the file stopped growing). A start before the data (a new file) reads from the first line.
@@ -207,6 +261,23 @@ pub fn read_appended(
     source: SourceId,
     start: TailStart,
     flush: bool,
+    sink: &mut dyn BatchSink,
+) -> Result<Region> {
+    read_appended_from(env, path, src, source, start, flush, None, sink)
+}
+
+/// [`read_appended`], optionally [`Resume`]d: the read starts at the last imported event; that event is not
+/// written again when the file still ends it where the import saw it, otherwise (lines continued it)
+/// `Region::Whole` asks for the source to be read again in full.
+#[allow(clippy::too_many_arguments)]
+pub fn read_appended_from(
+    env: &ImportEnv,
+    path: &Path,
+    src: &NewSource,
+    source: SourceId,
+    start: TailStart,
+    flush: bool,
+    resume: Option<Resume>,
     sink: &mut dyn BatchSink,
 ) -> Result<Region> {
     let mut p = match planned(env, path, src)? {
@@ -257,23 +328,44 @@ pub fn read_appended(
     let mut batcher = RecordBatcher::new(ctx.profile, env.schema.clone(), source, &src.name, sink, env.cancel);
     let hold = p.plan.multiline && !flush;
     let mut held = None;
+    let mut changed = false;
     let skipped = {
         let mut holder = HoldLast {
             inner: &mut batcher,
             held: None,
         };
-        let events: &mut dyn EventSink = if hold { &mut holder } else { holder.inner };
+        let plain: &mut dyn EventSink = if hold { &mut holder } else { holder.inner };
+        let mut confirm: Option<Confirm> = None;
+        let events: &mut dyn EventSink = match resume {
+            Some(resume) => confirm.insert(Confirm {
+                inner: plain,
+                resume,
+                first: None,
+                seen_first: false,
+                changed: false,
+            }),
+            None => plain,
+        };
         let skipped = match p.plan.kind {
             PlanKind::Text { format, day_first, .. } => text::import_text(&ctx, format, day_first, &mut lines, events)?,
             PlanKind::Json(shape) => json::import_json(&ctx, shape, end - start.byte, &mut lines, events)?,
             PlanKind::Binary | PlanKind::Legacy => return Err(anyhow!("{importer} cannot read from the middle of a file")),
         };
+        if let Some(c) = confirm.as_mut() {
+            c.finish(end);
+            changed = c.changed;
+        }
         if hold {
             held = holder.held.take();
         }
         skipped
     };
     let batched = batcher.finish()?;
+    if changed {
+        return Ok(Region::Whole(
+            "its last event continued on the lines written after it was imported".into(),
+        ));
+    }
     let (next, held) = match held {
         Some(ev) => (
             TailStart {

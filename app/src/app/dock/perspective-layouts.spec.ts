@@ -94,18 +94,18 @@ describe('buildPerspective', () => {
   it('Diagnostics docks problems, jobs, error snapshots, store and plugin health in one group below the events', () => {
     const h = harness(ALL);
     buildPerspective('diagnostics', h.ctx);
-    expect(h.added.map((a) => a.id)).toEqual([V.problems, V.jobs, V.errorSnapshots, V.store, V.pluginHealth]);
+    expect(h.added.map((a) => a.id)).toEqual([V.problems, V.jobs, V.errorSnapshots, V.store, V.plugins]);
     expect(new Set(h.added.map((a) => a.group)).size).toBe(1);
     expect(h.added.slice(1).every((a) => a.inactive)).toBe(true);
     expect(h.sizes['g1']).toEqual({ height: 260 });
   });
 
   it('Diagnostics opens the first registered view when some are missing', () => {
-    const h = harness([V.store, V.pluginHealth]);
+    const h = harness([V.store, V.plugins]);
     buildPerspective('diagnostics', h.ctx);
     expect(h.added.map((a) => [a.id, !!a.inactive])).toEqual([
       [V.store, false],
-      [V.pluginHealth, true],
+      [V.plugins, true],
     ]);
   });
 

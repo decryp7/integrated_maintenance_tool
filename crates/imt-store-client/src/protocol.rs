@@ -4,6 +4,7 @@
 //! [`WireError`], so the client gets the same [`StoreError`] back; anything else (a crash, a hang, garbage, an
 //! oversized frame) is a failure of the worker process.
 
+pub use crate::port_table::{ty, wire_names, WIRE_VERSION};
 use imt_core::batch::SourceId;
 use imt_core::ports::StoreError;
 use imt_core::Profile;
@@ -22,156 +23,9 @@ pub const SCAN_CREDIT: u32 = 4;
 /// items, each a [`imt_core::ql::QueryProgress`] (postcard), sent only when it changed.
 pub const PROGRESS_EVERY: std::time::Duration = std::time::Duration::from_millis(150);
 
-macro_rules! ops {
-    ($($(#[$doc:meta])* $op:ident),* $(,)?) => {
-        /// An operation on one open store; its request and reply are the port method's DTOs (as JSON, see the
-        /// module documentation). The order is the wire encoding: add new operations at the end.
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-        pub enum StoreOp {
-            $($(#[$doc])* $op),*
-        }
+use crate::{store_ops_enum, store_port_table};
 
-        impl StoreOp {
-            /// Every operation (tests: each one is dispatched).
-            pub const ALL: &'static [StoreOp] = &[$(StoreOp::$op),*];
-
-            /// The operation's name (logs).
-            pub fn name(self) -> &'static str {
-                match self {
-                    $(StoreOp::$op => stringify!($op)),*
-                }
-            }
-        }
-    };
-}
-
-ops! {
-    // Ingest
-    /// [`Paths`] → [`Session`]
-    Open,
-    /// → [`Session`]
-    Reload,
-    /// [`Paths`] → [`Session`]
-    Refresh,
-    /// [`Source`] → ()
-    RemoveSource,
-    Clear,
-    /// [`imt_core::api::WorkspaceState`] → [`Session`]
-    Restore,
-    /// [`Paths`] → [`imt_core::ports::TailAppend`]
-    AppendTail,
-    /// [`Session`] → [`imt_core::workspace::ProgressSnapshot`] of the store's running (or last) import
-    SessionProgress,
-    /// [`Session`] → ()
-    SessionCancel,
-    /// [`Session`] → [`imt_core::ports::ImportReport`]
-    SessionWait,
-    // Query
-    Summary,
-    Page,
-    Timeline,
-    Facet,
-    Chart,
-    FieldStats,
-    SourceContext,
-    /// Cancellable (the caller's cancel interrupts the statement).
-    RunQuery,
-    CheckQuery,
-    CompleteQuery,
-    Export,
-    // Positions
-    IdsAt,
-    PositionOf,
-    Positioned,
-    // Analysis (cancellable)
-    Patterns,
-    ExceptionGroups,
-    Anomalies,
-    Compare,
-    Correlate,
-    Traces,
-    Requests,
-    Moment,
-    Overview,
-    Runs,
-    // Profiles
-    ActiveProfile,
-    ValidateProfile,
-    /// [`Profile`] → [`Session`]
-    SetProfile,
-    PreviewParse,
-    PreviewExtractor,
-    ProposeSpanRule,
-    EvaluateSpanRule,
-    // Diagnostics
-    Problems,
-    EvaluateFix,
-    // Search
-    Search,
-    IndexStatus,
-    // Projects
-    /// [`imt_core::package::ProjectManifest`] → the manifest as saved (with the store's roots)
-    SaveProject,
-    /// [`ExportProject`] → bytes written
-    ExportProject,
-    /// [`imt_core::ports::EventsRequest`] → the events
-    Events,
-    /// [`imt_core::spans::SpanPreviewRequest`] → [`imt_core::spans::SpanPreview`]
-    PreviewSpans,
-    /// → [`imt_core::ports::ParserUse`]s
-    Parsers,
-    /// [`imt_core::ports::ParserDef`] → [`imt_core::ports::ParserChange`]
-    ClassifyParser,
-    /// [`AssignParser`] → [`Session`]
-    AssignParser,
-    /// [`imt_core::ports::Filter`] → [`imt_core::ports::PartialMatches`] (cancellable)
-    PartialMatches,
-    /// [`imt_core::parser::ParserSetup`] → the stale [`SourceId`]s (ADR 0026)
-    SetParsers,
-    /// → [`Session`]: re-reads the stale sources and the files no parser read
-    RereadParsers,
-    // The Store pane (ADR 0030)
-    /// → [`imt_core::ports::StoreOverview`]
-    StoreOverview,
-    /// [`imt_core::ports::SegmentsRequest`] → [`imt_core::ports::SegmentsPage`]
-    StoreSegments,
-    /// → [`imt_core::ports::StoreFields`]
-    StoreFields,
-    /// → [`imt_core::ports::StoreIndex`]
-    StoreIndex,
-    /// → [`imt_core::ports::StoreMemory`], with the worker's process filled in
-    StoreMemory,
-    /// [`imt_core::ports::MaintenanceAction`] → [`imt_core::ports::MaintenanceReport`]
-    StoreMaintain,
-    /// → [`imt_core::ports::SqlSchema`]
-    SqlSchema,
-    /// [`imt_core::ports::SqlRequest`] → [`imt_core::ports::SqlResult`] (cancellable)
-    SqlRun,
-    /// [`imt_core::ports::SqlPageRequest`] → [`imt_core::ports::SqlPage`]
-    SqlPage,
-    /// [`imt_core::ports::SqlIdsRequest`] → [`imt_core::ports::SqlIds`]
-    SqlIds,
-    /// [`imt_core::ports::SqlExportRequest`] → [`imt_core::ports::SqlExportResult`] (cancellable)
-    SqlExport,
-    /// [`imt_core::redact::RedactionSummaryRequest`] → [`imt_core::redact::RedactionSummary`] (cancellable)
-    RedactionSummary,
-    /// → [`imt_core::skew::ClockOffsets`]
-    ClockOffsets,
-    /// [`imt_core::skew::ClockOffsets`] → ()
-    SetClockOffsets,
-    /// [`imt_core::skew::SetOffsetRequest`] → [`imt_core::skew::OffsetChange`]
-    SetSourceOffset,
-    /// [`imt_core::skew::SuggestRequest`] → [`imt_core::skew::SuggestResult`] (cancellable)
-    SuggestOffsets,
-    /// → `Vec<`[`imt_core::ports::TailFile`]`>`
-    TailFiles,
-    /// [`Paths`] → [`Session`]: opens files and folders at their end
-    OpenAtEnd,
-    /// [`SetSourceEncoding`] → [`Session`]
-    SetSourceEncoding,
-    /// [`imt_core::redact::copy::RedactedExportRequest`] → [`imt_core::redact::copy::RedactedExport`]
-    ExportRedactedProject,
-}
+store_port_table!(store_ops_enum, [StoreOp]);
 
 /// "Encoding…": reads one source again as `encoding` (`None`: detected again).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -445,6 +299,8 @@ pub struct Limits {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Handle {
     pub store: u64,
+    /// The worker's [`WIRE_VERSION`]; the client refuses a worker that speaks another.
+    pub wire: u32,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -603,6 +459,29 @@ pub fn from_remote(r: RemoteError) -> StoreError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The wire is the port table's row order: a release only ever appends operations. Reordering or removing one
+    /// changes the encoding, so it bumps `WIRE_VERSION` and this snapshot.
+    #[test]
+    fn the_wire_format_is_append_only() {
+        const V1: &[&str] = &[
+            "Clear",
+            "Open",
+            "Reload",
+            "Refresh",
+            "RemoveSource",
+            "Restore",
+            "AppendTail",
+            "SetSourceEncoding",
+        ];
+        assert_eq!(WIRE_VERSION, 1);
+        let names = wire_names();
+        assert_eq!(&names[..V1.len()], V1, "the operations' order is the wire encoding");
+        let unique: std::collections::HashSet<_> = names.iter().collect();
+        assert_eq!(unique.len(), names.len(), "an operation is listed twice");
+        let ping = imt_ipc::wire::encode(&StoreOp::Clear).unwrap();
+        assert_eq!(ping, [0], "the first operation encodes as index 0");
+    }
 
     #[test]
     fn the_memory_mode_goes_to_the_worker_as_an_argument() {

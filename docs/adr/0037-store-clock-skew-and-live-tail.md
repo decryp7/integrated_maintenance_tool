@@ -1,6 +1,8 @@
 # 37. Clock skew and live tail on the log store
 
 - Status: accepted (2026-10-22)
+- Date: 2026-10-22
+- Amends: [ADR 0006](0006-clock-skew-applied-on-load.md) (the mechanism moves from the in-memory workspace to the store)
 - Related: ADR 0014 (DuckDB store, ports, store worker), ADR 0017 (out-of-process workers), ADR 0020 (mixed
   sources), AGENTS.md (engine is the source of truth, parse don't validate, contain failures, bounded resources)
 
@@ -54,7 +56,10 @@ It also re-imported a whole file whenever it changed, which is quadratic for a l
   stable, which bookmarks and selections rely on.
 - A skew change costs the rewrite of the segments holding the file's events (as a compaction would), under the
   store's write lock, and fails with `Busy` while an import runs.
-- Limits and follow-ups: continuation lines that arrive after a file was imported and then followed attach as
-  separate untimed events (the imported last event was not held back); `TailOptions.retention`, `deleted_files` and
-  `carry_flush_ms` are not honoured by the store (events stay; the idle time is fixed); annotators do not re-run after a
-  tail refresh.
+- Resolved afterwards (engine-c): the idle hold is `TailOptions.carry_flush_ms` (default 500 ms), driven by the shell,
+  which asks for the held events with `append_tail(&[])` after that wait (the store has no timer); `deleted_files:
+  drop` removes the sources of vanished files in `LiveSession`; `retention` was deleted (the store is on disk, so there
+  is no memory to bound, and nothing evicted events). The first follow of a file imported in full re-reads its last
+  event: unchanged, it is not written twice; continued by lines written since, the source is read again in full, so a
+  stack trace stays one event (new source, new ids, once).
+- Still open: annotators do not re-run after a tail refresh.

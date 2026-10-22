@@ -1,6 +1,6 @@
 # 26. Parsers are individual TOML files in a library, matched per file
 
-- Status: accepted (2026-10-21)
+- Status: accepted (2026-10-21), amended by [ADR 0032](0032-ai-parser-generation.md) (AI-generated, engine-verified parsers)
 - Date: 2026-10-21
 - Related: [ADR 0014](0014-database-first-engine.md) (sources record their parser, "Prepared for ADR 0026"),
   [ADR 0020](0020-mixed-sources.md) (per-line formats inside one file stay)

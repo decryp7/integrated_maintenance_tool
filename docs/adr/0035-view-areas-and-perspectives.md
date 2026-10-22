@@ -1,6 +1,9 @@
 # 35. View areas and perspectives: where a view opens, and named window arrangements
 
-- Status: accepted (2026-10-22)
+- Status: accepted (2026-10-22), amended on the same day: **Overview became Home** (a document in the centre area, not a side
+  tool; it opens after an import only when its own setting, off by default, says so) and **Plugin health was merged into the
+  Plugins view** (tabs *Installed* and *Health*). Where this text says Overview or Plugin health, read Home or Plugins.
+- Date: 2026-10-22
 - Related: docs/ux-audit/README.md (A2, A3, A4, D2, H1, J2), ADR 0016 (typed commands and the view registry),
   ADR 0018 (themes), AGENTS.md (Angular is presentation; the engine decides what is a query), ADR 0030 (Store pane)
 

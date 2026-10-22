@@ -72,7 +72,6 @@ fn source_id(ws: &Workspace, name: &str) -> u32 {
 fn manual(source: u32, offset_ms: i64) -> SetOffsetRequest {
     SetOffsetRequest {
         spec: OffsetSpec::Manual { source, offset_ms },
-        track: vec![],
     }
 }
 
@@ -106,8 +105,7 @@ fn manual_offset_shifts_every_view_and_keeps_earlier_ids() {
     ws.open(std::slice::from_ref(&d.0)).unwrap();
     let b = source_id(&ws, "b.log");
     let a_ids: Vec<(u32, String)> = ws.records().iter().take(10).map(|r| (r.id, r.message.clone())).collect();
-    let (b25, b25_ts) = find(&ws, "B 25");
-    let (a3, _) = find(&ws, "A 3");
+    let (_, b25_ts) = find(&ws, "B 25");
 
     let change = ws
         .set_source_offset(&SetOffsetRequest {
@@ -115,14 +113,11 @@ fn manual_offset_shifts_every_view_and_keeps_earlier_ids() {
                 source: b,
                 offset_ms: 2_350,
             },
-            track: vec![b25, a3, 9_999],
         })
         .unwrap();
     assert_eq!((change.source, change.offset_ms, change.previous_ms), (b, 2_350, 0));
     assert_eq!(change.ids_changed_from, Some(10));
-    assert_eq!(change.tracked[1], Some(a3));
-    assert_eq!(change.tracked[2], None);
-    let moved = change.tracked[0].unwrap();
+    let moved = ws.records().iter().find(|r| r.message == "B 25").unwrap().id;
     assert_eq!(ws.records()[moved as usize].message, "B 25");
     assert_eq!(ws.records()[moved as usize].ts, Some(b25_ts + 2_350));
     let a_after: Vec<(u32, String)> = ws.records().iter().take(10).map(|r| (r.id, r.message.clone())).collect();
@@ -225,11 +220,10 @@ fn align_on_an_event_sets_ts_a_minus_ts_b() {
     let change = ws
         .set_source_offset(&SetOffsetRequest {
             spec: OffsetSpec::Align { reference: a2, target: b2 },
-            track: vec![b2],
         })
         .unwrap();
     assert_eq!(change.offset_ms, ta - tb);
-    let moved = change.tracked[0].unwrap();
+    let moved = ws.records().iter().find(|r| r.message == "B got 2").unwrap().id;
     assert_eq!(ws.records()[moved as usize].ts, Some(ta));
     assert_eq!(ws.records()[moved as usize].message, "B got 2");
 
@@ -239,7 +233,6 @@ fn align_on_an_event_sets_ts_a_minus_ts_b() {
     let change = ws
         .set_source_offset(&SetOffsetRequest {
             spec: OffsetSpec::Align { reference: a3, target: b3 },
-            track: vec![],
         })
         .unwrap();
     assert_eq!(change.offset_ms, 3_980);
@@ -253,7 +246,6 @@ fn align_on_an_event_sets_ts_a_minus_ts_b() {
     let c = ws
         .set_source_offset(&SetOffsetRequest {
             spec: OffsetSpec::Align { reference: b1, target: a1 },
-            track: vec![],
         })
         .unwrap();
     assert_eq!((c.source, c.previous_ms), (a, 1_000));
@@ -277,7 +269,6 @@ fn invalid_requests_change_nothing() {
     assert_eq!(ws.set_source_offset(&manual(77, 5)).unwrap_err(), SkewError::UnknownSource(77));
     let align = |reference, target| SetOffsetRequest {
         spec: OffsetSpec::Align { reference, target },
-        track: vec![],
     };
     assert_eq!(ws.set_source_offset(&align(0, 9_999)).unwrap_err(), SkewError::UnknownRecord(9_999));
     let (a0, _) = find(&ws, "A got 0");

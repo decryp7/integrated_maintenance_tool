@@ -496,6 +496,13 @@ impl RemoteStore {
             parsers: lock(&self.parsers).clone(),
         };
         let h: Handle = decode(raw(conn, &StoreRequest::OpenStore(encode(&req)?), CALL_TIMEOUT).map_err(ipc_error)?)?;
+        if h.wire != protocol::WIRE_VERSION {
+            return Err(StoreError::Engine(format!(
+                "the store worker speaks protocol {} but the app expects {}; reinstall Debrief so both are the same version",
+                h.wire,
+                protocol::WIRE_VERSION
+            )));
+        }
         lock(&conn.handles).insert(self.dir.clone(), h.store);
         Ok(h.store)
     }
@@ -515,6 +522,11 @@ impl RemoteStore {
 
     fn call<T: DeserializeOwned>(&self, op: StoreOp, body: &impl Serialize) -> StoreResult<T> {
         self.call_with(op, body, CALL_TIMEOUT)
+    }
+
+    /// A long call (compaction, moving events, reading a tail): [`LONG_TIMEOUT`].
+    fn long<T: DeserializeOwned>(&self, op: StoreOp, body: &impl Serialize) -> StoreResult<T> {
+        self.call_with(op, body, LONG_TIMEOUT)
     }
 
     /// A long call that `control` can cancel: it runs as a stream, so a cancel reaches the worker, which interrupts
@@ -614,347 +626,15 @@ impl RemoteStore {
     fn remember_profile(&self, profile: &Profile) {
         *lock(&self.profile) = profile.clone();
     }
-}
 
-impl Projects for RemoteStore {
-    fn store_dir(&self) -> PathBuf {
-        self.dir.clone()
-    }
-    fn save_project(&self, manifest: &ProjectManifest) -> StoreResult<ProjectManifest> {
-        self.call(StoreOp::SaveProject, manifest)
-    }
-    fn export_project(&self, manifest: &ProjectManifest, out: &Path) -> StoreResult<u64> {
-        self.call_with(
-            StoreOp::ExportProject,
-            &ExportProject {
-                manifest: manifest.clone(),
-                out: out.to_path_buf(),
-            },
-            LONG_TIMEOUT,
-        )
-    }
-    /// Closes the store in the worker (the folder stays). Later calls reopen it.
-    fn close(&self) {
-        let Ok(lease) = self.worker.inner.sup.lease() else { return };
-        let handle = lock(&lease.conn.handles).remove(&self.dir);
-        if let Some(store) = handle {
-            let _ = raw(&lease.conn, &StoreRequest::CloseStore { store }, CALL_TIMEOUT);
-        }
-    }
-}
-
-impl Ingest for RemoteStore {
-    fn open(&self, paths: &[PathBuf]) -> StoreResult<ImportSession> {
-        let s = self.call(StoreOp::Open, &Paths { paths: paths.to_vec() })?;
-        self.session(s)
-    }
-    fn reload(&self) -> StoreResult<ImportSession> {
-        let s = self.call(StoreOp::Reload, &())?;
-        self.session(s)
-    }
-    fn refresh(&self, changed: &[PathBuf]) -> StoreResult<ImportSession> {
-        let s = self.call(StoreOp::Refresh, &Paths { paths: changed.to_vec() })?;
-        self.session(s)
-    }
-    fn set_source_encoding(&self, source: SourceId, encoding: Option<&str>) -> StoreResult<ImportSession> {
-        let s = self.call(
-            StoreOp::SetSourceEncoding,
-            &crate::protocol::SetSourceEncoding {
-                source,
-                encoding: encoding.map(str::to_string),
-            },
-        )?;
-        self.session(s)
-    }
-    fn remove_source(&self, id: SourceId) -> StoreResult<()> {
-        self.call(StoreOp::RemoveSource, &Source { id })
-    }
-    fn clear(&self) -> StoreResult<()> {
-        self.call(StoreOp::Clear, &())
-    }
-    fn restore(&self, state: &WorkspaceState) -> StoreResult<ImportSession> {
-        let s = self.call(StoreOp::Restore, state)?;
-        self.session(s)
-    }
-    fn append_tail(&self, changed: &[PathBuf]) -> StoreResult<imt_core::ports::TailAppend> {
-        self.call_with(StoreOp::AppendTail, &Paths { paths: changed.to_vec() }, LONG_TIMEOUT)
-    }
-}
-
-impl Query for RemoteStore {
-    fn summary(&self) -> StoreResult<SummaryReply> {
-        self.call(StoreOp::Summary, &())
-    }
-    fn page(&self, req: &PageQuery) -> StoreResult<PageReply> {
-        self.call(StoreOp::Page, req)
-    }
-    fn events(&self, req: &EventsRequest) -> StoreResult<Vec<EventView>> {
-        self.call(StoreOp::Events, req)
-    }
-    fn timeline(&self, req: &TimelineRequest) -> StoreResult<Timeline> {
-        self.call(StoreOp::Timeline, req)
-    }
-    fn facet(&self, req: &FacetRequest) -> StoreResult<Facet> {
-        self.call(StoreOp::Facet, req)
-    }
-    /// Batches stream from the worker as Arrow IPC with credits ([`crate::arrow_wire`]); `visit` breaking
-    /// cancels the stream.
-    fn scan(&self, filter: &Filter, visit: &mut dyn FnMut(&EventBatch) -> ControlFlow<()>) -> StoreResult<()> {
-        let filter = encode(filter)?;
-        let lease = self.worker.inner.sup.lease().map_err(ipc_error)?;
-        let result = (|| {
-            let store = self.ensure_open(&lease.conn, false)?;
-            let mut stream = lease
-                .conn
-                .child
-                .peer()
-                .stream_request(&StoreRequest::Scan { store, filter }, protocol::SCAN_CREDIT)
-                .map_err(|e| ipc_error(died(&lease.conn, e)))?;
-            loop {
-                match stream.next(Some(LONG_TIMEOUT)).map_err(|e| ipc_error(died(&lease.conn, e)))? {
-                    StreamEvent::Idle => return Err(StoreError::Engine("the store worker stopped sending the scan".into())),
-                    StreamEvent::Item(bytes) => {
-                        let batch = crate::arrow_wire::decode(&bytes).map_err(|e| StoreError::Engine(e.0))?;
-                        if visit(&batch).is_break() {
-                            stream.cancel();
-                            return Ok(());
-                        }
-                    }
-                    StreamEvent::Done(_) => return Ok(()),
-                }
-            }
-        })();
-        if let Err(e) = &result {
-            self.worker.report(&lease, e);
-        }
-        result
-    }
-    fn chart(&self, req: &ChartRequest) -> StoreResult<ChartData> {
-        self.analysis(StoreOp::Chart, req)
-    }
-    fn field_stats(&self, req: &FieldStatsRequest) -> StoreResult<FieldStats> {
-        self.analysis(StoreOp::FieldStats, req)
-    }
-    fn source_context(&self, req: &ContextRequest) -> StoreResult<SourceContext> {
-        self.call(StoreOp::SourceContext, req)
-    }
-    fn run_query_with(&self, req: &QueryRequest, control: &QueryControl) -> StoreResult<QlResult> {
-        self.call_controlled(StoreOp::RunQuery, req, control)
-    }
-    fn check_query(&self, text: &str) -> StoreResult<Option<QlError>> {
-        self.call(StoreOp::CheckQuery, &text)
-    }
-    fn complete_query(&self, req: &CompletionRequest) -> StoreResult<Vec<Completion>> {
-        self.call(StoreOp::CompleteQuery, req)
-    }
-    fn export(&self, req: &ExportRequest) -> StoreResult<ExportResult> {
-        self.analysis(StoreOp::Export, req)
-    }
-}
-
-impl Positions for RemoteStore {
-    fn ids_at(&self, from: u64, len: usize) -> StoreResult<Vec<EventId>> {
-        self.call(StoreOp::IdsAt, &IdsAt { from, len })
-    }
-    fn position_of(&self, id: EventId) -> StoreResult<Option<u64>> {
-        self.call(StoreOp::PositionOf, &id)
-    }
-    fn positioned(&self) -> StoreResult<u64> {
-        self.call(StoreOp::Positioned, &())
-    }
-}
-
-impl Analysis for RemoteStore {
-    fn patterns(&self, req: &QueryRequest) -> StoreResult<Analyzed<Vec<Pattern>>> {
-        self.analysis(StoreOp::Patterns, req)
-    }
-    fn exception_groups(&self, req: &QueryRequest) -> StoreResult<Analyzed<Vec<ExceptionGroup>>> {
-        self.analysis(StoreOp::ExceptionGroups, req)
-    }
-    fn anomalies(&self, req: &QueryRequest) -> StoreResult<Analyzed<Vec<Anomaly>>> {
-        self.analysis(StoreOp::Anomalies, req)
-    }
-    fn compare(&self, req: &CompareRequest) -> StoreResult<Analyzed<Comparison>> {
-        self.analysis(StoreOp::Compare, req)
-    }
-    fn correlate(&self, req: &CorrelateRequest) -> StoreResult<Analyzed<Vec<EventId>>> {
-        self.analysis(StoreOp::Correlate, req)
-    }
-    fn traces(&self, req: &TraceRequest) -> StoreResult<Analyzed<(Vec<TraceSummary>, Vec<WaterfallRow>)>> {
-        self.analysis(StoreOp::Traces, req)
-    }
-    fn requests(&self, req: &RequestsRequest) -> StoreResult<Analyzed<Vec<RequestSpan>>> {
-        self.analysis(StoreOp::Requests, req)
-    }
-    fn moment(&self, req: &MomentRequest) -> StoreResult<Analyzed<MomentSummary>> {
-        self.analysis(StoreOp::Moment, req)
-    }
-    fn overview(&self, req: &QueryRequest) -> StoreResult<Analyzed<Vec<Finding>>> {
-        self.analysis(StoreOp::Overview, req)
-    }
-    fn runs(&self, req: &RunsRequest) -> StoreResult<RunsReply> {
-        self.analysis(StoreOp::Runs, req)
-    }
-}
-
-impl Profiles for RemoteStore {
-    fn active_profile(&self) -> StoreResult<Profile> {
-        self.call(StoreOp::ActiveProfile, &())
-    }
-    fn validate_profile(&self, profile: &Profile) -> StoreResult<()> {
-        self.call(StoreOp::ValidateProfile, profile)
-    }
-    fn set_profile(&self, profile: Profile) -> StoreResult<ImportSession> {
-        let s = self.call(StoreOp::SetProfile, &profile)?;
-        self.remember_profile(&profile);
-        self.session(s)
-    }
-    fn preview_parse(&self, req: &ParsePreviewRequest) -> StoreResult<ParsePreview> {
-        self.analysis(StoreOp::PreviewParse, req)
-    }
-    fn preview_extractor(&self, req: &ExtractPreviewRequest) -> StoreResult<ExtractPreview> {
-        self.analysis(StoreOp::PreviewExtractor, req)
-    }
-    fn parsers(&self) -> StoreResult<Vec<imt_core::ports::ParserUse>> {
-        self.call(StoreOp::Parsers, &())
-    }
-    fn classify_parser(&self, parser: &imt_core::ports::ParserDef) -> StoreResult<imt_core::ports::ParserChange> {
-        self.call(StoreOp::ClassifyParser, parser)
-    }
-    fn set_parsers(&self, setup: &imt_core::parser::ParserSetup) -> StoreResult<Vec<SourceId>> {
-        let stale = self.call(StoreOp::SetParsers, setup)?;
+    /// Remembers the parser library for reopening after a restart.
+    fn remember_parsers(&self, setup: &imt_core::parser::ParserSetup) {
         *lock(&self.parsers) = Some(setup.clone());
-        Ok(stale)
-    }
-    fn reread_parsers(&self) -> StoreResult<ImportSession> {
-        let s = self.call(StoreOp::RereadParsers, &())?;
-        self.session(s)
-    }
-    fn assign_parser(&self, source: SourceId, parser: Option<&str>) -> StoreResult<ImportSession> {
-        let s = self.call(
-            StoreOp::AssignParser,
-            &crate::protocol::AssignParser {
-                source,
-                parser: parser.map(str::to_string),
-            },
-        )?;
-        self.session(s)
-    }
-    fn preview_spans(&self, req: &imt_core::spans::SpanPreviewRequest) -> StoreResult<imt_core::spans::SpanPreview> {
-        self.analysis(StoreOp::PreviewSpans, req)
-    }
-    fn propose_span_rule(&self, req: &SpanRuleRequest) -> StoreResult<SpanProposal> {
-        self.analysis(StoreOp::ProposeSpanRule, req)
-    }
-    fn evaluate_span_rule(&self, req: &SpanRuleCheck) -> StoreResult<Analyzed<SpanEvaluation>> {
-        self.analysis(StoreOp::EvaluateSpanRule, req)
     }
 }
 
-impl Diagnostics for RemoteStore {
-    fn problems(&self) -> StoreResult<Vec<DiagnosticRow>> {
-        self.call(StoreOp::Problems, &())
-    }
-    fn evaluate_fix(&self, fix: &QuickFix) -> StoreResult<FixEvaluation> {
-        self.analysis(StoreOp::EvaluateFix, fix)
-    }
-}
-
-impl Search for RemoteStore {
-    fn search(&self, req: &SearchRequest) -> StoreResult<SearchReply> {
-        self.call(StoreOp::Search, req)
-    }
-    fn index_status(&self) -> StoreResult<IndexStatus> {
-        self.call(StoreOp::IndexStatus, &())
-    }
-    fn partial_matches(&self, filter: &imt_core::ports::Filter) -> StoreResult<imt_core::ports::PartialMatches> {
-        self.analysis(StoreOp::PartialMatches, filter)
-    }
-}
-
-impl Inspect for RemoteStore {
-    fn store_overview(&self) -> StoreResult<StoreOverview> {
-        self.call(StoreOp::StoreOverview, &())
-    }
-    fn store_segments(&self, req: &SegmentsRequest) -> StoreResult<SegmentsPage> {
-        self.call(StoreOp::StoreSegments, req)
-    }
-    fn store_fields(&self) -> StoreResult<StoreFields> {
-        self.call(StoreOp::StoreFields, &())
-    }
-    fn store_index(&self) -> StoreResult<StoreIndex> {
-        self.call(StoreOp::StoreIndex, &())
-    }
-    /// The store's memory with the worker process's (resident memory, Low memory mode).
-    fn store_memory(&self) -> StoreResult<StoreMemory> {
-        self.call(StoreOp::StoreMemory, &())
-    }
-}
-
-impl imt_core::ports::Skew for RemoteStore {
-    fn clock_offsets(&self) -> StoreResult<imt_core::skew::ClockOffsets> {
-        self.call(StoreOp::ClockOffsets, &())
-    }
-    /// Moves the events of every file whose offset changes: a long call.
-    fn set_clock_offsets(&self, offsets: &imt_core::skew::ClockOffsets) -> StoreResult<()> {
-        self.call_with(StoreOp::SetClockOffsets, offsets, LONG_TIMEOUT)
-    }
-    fn set_source_offset(&self, req: &imt_core::skew::SetOffsetRequest) -> StoreResult<imt_core::skew::OffsetChange> {
-        self.call_with(StoreOp::SetSourceOffset, req, LONG_TIMEOUT)
-    }
-    fn suggest_offsets(&self, req: &imt_core::skew::SuggestRequest) -> StoreResult<imt_core::skew::SuggestResult> {
-        self.analysis(StoreOp::SuggestOffsets, req)
-    }
-}
-
-impl imt_core::ports::Tail for RemoteStore {
-    fn tail_files(&self) -> StoreResult<Vec<imt_core::ports::TailFile>> {
-        self.call(StoreOp::TailFiles, &())
-    }
-    fn open_at_end(&self, paths: &[PathBuf]) -> StoreResult<ImportSession> {
-        let s = self.call(StoreOp::OpenAtEnd, &Paths { paths: paths.to_vec() })?;
-        self.session(s)
-    }
-}
-
-impl imt_core::ports::Redaction for RemoteStore {
-    fn redaction_summary(&self, req: &imt_core::redact::RedactionSummaryRequest) -> StoreResult<imt_core::redact::RedactionSummary> {
-        self.analysis(StoreOp::RedactionSummary, req)
-    }
-    fn export_redacted_project(
-        &self,
-        req: &imt_core::redact::copy::RedactedExportRequest,
-    ) -> StoreResult<imt_core::redact::copy::RedactedExport> {
-        self.call_with(StoreOp::ExportRedactedProject, req, LONG_TIMEOUT)
-    }
-}
-
-impl Maintain for RemoteStore {
-    /// Compaction rewrites segments: a long call.
-    fn maintain(&self, action: MaintenanceAction) -> StoreResult<MaintenanceReport> {
-        self.call_with(StoreOp::StoreMaintain, &action, LONG_TIMEOUT)
-    }
-}
-
-impl Console for RemoteStore {
-    fn sql_schema(&self) -> StoreResult<SqlSchema> {
-        self.call(StoreOp::SqlSchema, &())
-    }
-    /// Cancellable through the thread's current control (the worker interrupts the statement).
-    fn sql_run(&self, req: &SqlRequest) -> StoreResult<SqlResult> {
-        self.analysis(StoreOp::SqlRun, req)
-    }
-    fn sql_page(&self, req: &SqlPageRequest) -> StoreResult<SqlPage> {
-        self.call(StoreOp::SqlPage, req)
-    }
-    fn sql_ids(&self, req: &SqlIdsRequest) -> StoreResult<SqlIds> {
-        self.call(StoreOp::SqlIds, req)
-    }
-    /// Cancellable through the thread's current control (the worker interrupts the statement).
-    fn sql_export(&self, req: &SqlExportRequest) -> StoreResult<SqlExportResult> {
-        self.analysis(StoreOp::SqlExport, req)
-    }
-}
+#[path = "remote_ports.rs"]
+mod remote_ports;
 
 #[cfg(test)]
 mod tests {

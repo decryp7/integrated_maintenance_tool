@@ -258,7 +258,7 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
     let default_cache = crate::app_dirs::data(app).ok().map(|d| d.join("symbols"));
     let symbols = Arc::new(Symbols::new(default_cache));
     app.manage(symbols.clone());
-    if let Err(e) = crate::settings::register(app, Arc::new(SymbolsSection { symbols }), crate::settings::SectionGroup::Advanced) {
+    if let Err(e) = crate::settings::register(app, Arc::new(SymbolsSection { symbols }), crate::settings::SectionGroup::Symbols) {
         log::error!("Could not register the symbols settings: {e:#}");
     }
 }

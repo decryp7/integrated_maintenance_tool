@@ -393,7 +393,7 @@ enabled = false
 ```
 
 A transform can also mark a record for logic a condition cannot express, with its own plugin's
-kinds only (others are refused and noted in the Plugins panel):
+kinds only (others are refused and noted in the Plugins view):
 
 ```rust
 fn apply(&self, r: &mut Record, ctx: &TransformCtx) -> Verdict {
@@ -503,9 +503,9 @@ the plugin hung. Because every plugin is a process, a hang or a crash is contain
 | Failure | What happens |
 |---|---|
 | The plugin panics or the process dies (abort, stack overflow, out of memory, killed by the sandbox's limits) | the call fails with an error attributed to the plugin; the supervisor restarts the process on next use with exponential backoff (500 ms, doubling, at most 8 s) and re-applies the plugin's settings |
-| A call overruns its deadline (a hang or an endless loop) | the call fails, the process is killed and replaced; the plugin is marked `hung` in the Plugins panel |
+| A call overruns its deadline (a hang or an endless loop) | the call fails, the process is killed and replaced; the plugin is marked `hung` in the Plugins view |
 | A frame is larger than the connection's limit (16 MiB) or malformed | the frame is refused and the connection is closed; counted as a failure |
-| Repeated failures (three within ten minutes) | the plugin is **quarantined**: no more restarts and its contributions are hidden until the user resets it in the Plugins panel |
+| Repeated failures (three within ten minutes) | the plugin is **quarantined**: no more restarts and its contributions are hidden until the user resets it in the Plugins view |
 
 Failures also go through the engine's `PluginRegistry` guards, so plugin status, quarantine, enabling and
 disabling and safe mode work the same for every plugin.
@@ -562,7 +562,7 @@ points, so whatever a plugin adds behaves like the built-in parts:
 
 | Contribution | Token | What it adds |
 |---|---|---|
-| `ImtView` | `IMT_VIEWS` | a dockable panel, loaded lazily, listed in the View menu under its `category` |
+| `ImtView` | `IMT_VIEWS` | a dockable panel, loaded lazily, listed in the View menu under its `category`; its optional `area` (`document`, `analysis`, `side`, `status`) says where it opens, derived from `defaultPosition` when left out ([ADR 0035](adr/0035-view-areas-and-perspectives.md)) |
 | `ImtCommand` | `IMT_COMMANDS` | a palette / menu action with an optional key binding |
 | `ImtActivityItem` | `IMT_ACTIVITY_ITEMS` | a button in the left activity bar |
 | `ImtInspectorSection` | `IMT_INSPECTOR_SECTIONS` | a block in the event inspector |

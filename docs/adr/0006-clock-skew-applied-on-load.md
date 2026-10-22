@@ -1,6 +1,7 @@
 # 6. Clock-skew offsets are applied when records enter the workspace
 
-- Status: accepted
+- Status: accepted, amended by [ADR 0037](0037-store-clock-skew-and-live-tail.md) (2026-10-22): the offsets are applied to the stored
+  events of the DuckDB store, through the `Skew` port; the in-memory workspace is only the reference implementation
 - Date: 2026-10-17
 
 ## Context

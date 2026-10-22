@@ -19,7 +19,7 @@ export const PERSPECTIVE_VIEWS = {
   jobs: 'jobs',
   errorSnapshots: 'error-snapshots',
   store: 'store',
-  pluginHealth: 'plugin-health',
+  plugins: 'plugins',
 } as const;
 
 /** The view a perspective needs to be offered (absent features hide their perspective). */
@@ -73,7 +73,7 @@ export function buildPerspective(id: BuiltInPerspective, ctx: PerspectiveBuildCo
   if (id === 'live') tabbed(ctx, [PERSPECTIVE_VIEWS.tailStatus, PERSPECTIVE_VIEWS.alerts], below, { height: BOTTOM_HEIGHT });
   if (id === 'diagnostics') {
     const v = PERSPECTIVE_VIEWS;
-    tabbed(ctx, [v.problems, v.jobs, v.errorSnapshots, v.store, v.pluginHealth], below, { height: BOTTOM_HEIGHT });
+    tabbed(ctx, [v.problems, v.jobs, v.errorSnapshots, v.store, v.plugins], below, { height: BOTTOM_HEIGHT });
   }
   return extras;
 }

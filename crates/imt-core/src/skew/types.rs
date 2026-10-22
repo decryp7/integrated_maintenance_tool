@@ -21,14 +21,7 @@ pub enum OffsetSpec {
 pub struct SetOffsetRequest {
     #[serde(flatten)]
     pub spec: OffsetSpec,
-    /// Record ids the caller holds (selection, bookmarks): their ids after
-    /// the change are returned in the same order.
-    #[serde(default)]
-    pub track: Vec<u32>,
 }
-
-/// Most ids a request may track.
-pub const MAX_TRACKED: usize = 10_000;
 
 /// What `set_source_offset` changed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -40,8 +33,6 @@ pub struct OffsetChange {
     /// Ids at and after this one were renumbered (records moved in time). The log store keeps event ids
     /// stable when events move (an id is not a position there): it always answers `None`.
     pub ids_changed_from: Option<u32>,
-    /// New id of each tracked id (none when it did not exist); the log store answers the same ids.
-    pub tracked: Vec<Option<u32>>,
 }
 
 /// How [`suggest`] pairs events.

@@ -10,8 +10,7 @@ export const DEFAULT_LIVE_OPTIONS: LiveOptions = {
   watch: 'auto',
   pollIntervalMs: 2000,
   deletedFiles: 'keep',
-  retention: { maxRecords: null, maxAgeMs: null },
-  carryFlushMs: 2000,
+  carryFlushMs: 500,
   detectEveryMs: 1000,
 };
 

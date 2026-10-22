@@ -233,7 +233,6 @@ export function asTailReport(payload: unknown): TailReport | null {
     truncated: ids(p.truncated),
     deleted: ids(p.deleted),
     reimported: ids(p.reimported),
-    evicted: typeof p.evicted === 'number' ? p.evicted : 0,
     idsChangedFrom: typeof p.idsChangedFrom === 'number' ? p.idsChangedFrom : null,
     newestTs: typeof p.newestTs === 'number' ? p.newestTs : null,
     instancesChanged: Array.isArray(p.instancesChanged) ? p.instancesChanged.filter((x): x is string => typeof x === 'string') : [],
