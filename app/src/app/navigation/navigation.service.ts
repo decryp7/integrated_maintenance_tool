@@ -25,8 +25,11 @@ export class NavigationHistory {
   /** Clock, replaceable in tests. */
   now: () => number = () => Date.now();
 
-  readonly canBack = computed(() => (this.version(), this.history.canBack));
-  readonly canForward = computed(() => (this.version(), this.history.canForward));
+  /** A view that is already in front is not a stop: going there would change nothing, and the key would seem to do nothing. */
+  private readonly noChange = (place: NavPlace): boolean => place.kind === 'view' && place.id === this.dock.activeViewId();
+
+  readonly canBack = computed(() => (this.version(), this.history.canGo(-1, this.noChange)));
+  readonly canForward = computed(() => (this.version(), this.history.canGo(1, this.noChange)));
 
   /** Starts watching (idempotent). */
   start(): void {
@@ -64,11 +67,11 @@ export class NavigationHistory {
   }
 
   back(): boolean {
-    return this.go(this.history.back());
+    return this.go(this.history.back(this.noChange));
   }
 
   forward(): boolean {
-    return this.go(this.history.forward());
+    return this.go(this.history.forward(this.noChange));
   }
 
   /** Forgets every place (another project or workspace replaces what they referred to). */

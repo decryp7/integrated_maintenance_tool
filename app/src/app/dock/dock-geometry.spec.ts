@@ -4,6 +4,7 @@ import {
   compassCells,
   DropPosition,
   edgeCells,
+  fullSpanEdge,
   hitGuide,
   isLayoutTarget,
   nearestSide,
@@ -43,6 +44,32 @@ describe('adjacentNeighbour', () => {
       { rect: r(-100, 10, 100, 80), value: 'long' },
     ];
     expect(adjacentNeighbour(me, others)).toEqual({ value: 'long', direction: 'right' });
+  });
+});
+
+describe('fullSpanEdge', () => {
+  const root = r(0, 0, 1000, 800);
+
+  it('a full-height column on the right (beside a top row and a bottom row) is on the right edge', () => {
+    expect(fullSpanEdge(r(640, 0, 360, 800), root)).toBe('right');
+    // The neighbour with the longest shared edge is only one of the two rows: that is why a column needs its own rule.
+    const rows = [
+      { rect: r(0, 0, 640, 300), value: 'timeline' },
+      { rect: r(0, 300, 640, 500), value: 'events' },
+    ];
+    expect(adjacentNeighbour(r(640, 0, 360, 800), rows)?.value).toBe('events');
+  });
+
+  it('a full-height column on the left and a full-width strip at the bottom', () => {
+    expect(fullSpanEdge(r(0, 0, 270, 800), root)).toBe('left');
+    expect(fullSpanEdge(r(0, 560, 1000, 240), root)).toBe('bottom');
+  });
+
+  it('is null for a group beside only part of the layout, for the whole window and for a strip at the top', () => {
+    expect(fullSpanEdge(r(640, 0, 360, 300), root)).toBeNull();
+    expect(fullSpanEdge(r(300, 0, 360, 800), root)).toBeNull();
+    expect(fullSpanEdge(r(0, 0, 1000, 800), root)).toBeNull();
+    expect(fullSpanEdge(r(0, 0, 1000, 300), root)).toBeNull();
   });
 });
 

@@ -51,8 +51,8 @@ import { SettingsStore } from './settings.store';
     </label>
     <label class="row" i18n="@@settings.general.homeAutoOpen">
       <input type="checkbox" data-testid="home-auto-open" [checked]="home.autoOpen()" (change)="home.setAutoOpen($any($event.target).checked)" />
-      Home: show after every import
-      <imt-help label="Home after import" text="Open the Home panel by itself each time files are opened. The same choice is in the Home panel." i18n-label="@@settings.general.homeAutoOpen.helpLabel" i18n-text="@@settings.general.homeAutoOpen.help" />
+      Home: show when files or a project open
+      <imt-help label="Home after import" text="Open Home as a document tab by itself each time files or a project are opened. The same choice is in Home." i18n-label="@@settings.general.homeAutoOpen.helpLabel" i18n-text="@@settings.general.homeAutoOpen.help" />
     </label>
     <div>
       <button class="btn" type="button" (click)="dock.reset(); layoutReset.emit()" i18n="@@settings.general.resetLayout">Reset layout</button>

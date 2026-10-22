@@ -180,7 +180,7 @@ describe('PopoutService (host side)', () => {
   it('adopts pop-outs the shell already has (the host UI reloaded)', async () => {
     localStorage.clear();
     backend = new FakeBackend();
-    backend.existing = [{ label: 'p-main-7', host: 'main', viewId: 'inspector', title: 'Inspector', bounds: null, monitor: null, alwaysOnTop: false }];
+    backend.existing = [{ label: 'p-main-7', host: 'main', viewId: 'inspector', title: 'Inspector', bounds: null, monitor: null, keepOnTop: false }];
     TestBed.configureTestingModule({
       providers: [provideDockTesting(), ...provideToolsBackend(), { provide: LAYOUT_STORE, useValue: { load: () => null, save: () => undefined, clear: () => undefined } }, { provide: PopoutBackend, useValue: backend }, { provide: PANEL_WINDOWS, useExisting: PopoutService }],
     });

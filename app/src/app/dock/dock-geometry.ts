@@ -27,6 +27,8 @@ export interface DockSlot {
   index?: number;
   /** Size of its group, px (width for left/right, height for above/below). */
   size?: number;
+  /** The group was a full-span column (left/right) or strip (bottom) on a window edge: put it back there, not beside one neighbour. */
+  edge?: Side;
 }
 
 function overlap(a0: number, a1: number, b0: number, b1: number): number {
@@ -56,6 +58,23 @@ export function adjacentNeighbour<T>(rect: Rect, others: readonly { rect: Rect; 
 }
 
 export type Side = 'left' | 'right' | 'bottom';
+
+/**
+ * The window edge a group is a full-span column or strip on: touching the left or right edge and as tall as the window,
+ * or touching the bottom edge and as wide as it. Null for a group beside only part of the layout (it has neighbours
+ * to be put back against instead; `adjacentNeighbour` would pick the one sharing the longest edge, which for a
+ * full-height column is just the top row or the bottom one).
+ */
+export function fullSpanEdge(rect: Rect, root: Rect, tolerance = 2): Side | null {
+  const fullHeight = rect.height >= root.height - tolerance;
+  const fullWidth = rect.width >= root.width - tolerance;
+  if (fullHeight && !fullWidth) {
+    if (root.x + root.width - (rect.x + rect.width) <= tolerance) return 'right';
+    if (rect.x - root.x <= tolerance) return 'left';
+  }
+  if (fullWidth && !fullHeight && root.y + root.height - (rect.y + rect.height) <= tolerance) return 'bottom';
+  return null;
+}
 
 /** The window edge (left, right or bottom) a panel is nearest to: where its auto-hide tab goes. */
 export function nearestSide(rect: Rect, root: Rect): Side {

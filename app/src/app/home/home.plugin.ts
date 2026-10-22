@@ -3,6 +3,7 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { DockService } from '../dock/dock.service';
 import { provideImtPlugin } from '../extensions/provide';
 import { ImtView } from '../extensions/tokens';
+import { ProjectService } from '../projects/project.service';
 import { HomePrefs } from './home-prefs';
 
 export const HOME_VIEW = 'home';
@@ -21,16 +22,27 @@ export const HOME_VIEWS: ImtView[] = [
 ];
 
 /**
- * Opens Home after every successful open of files or folders, unless the user turned it off. The health headline
- * in the timeline header says the same in one line (`HealthHeadline`).
+ * Home is the home screen: it opens as a document tab after every successful open of files, folders or a project,
+ * unless the user turned that off (Settings ▸ General). The health headline in the timeline header says the same in
+ * one line (`HealthHeadline`).
  */
 @Injectable({ providedIn: 'root' })
 export class HomeAutoOpen {
   private readonly store = inject(WorkspaceStore);
   private readonly dock = inject(DockService);
   private readonly prefs = inject(HomePrefs);
+  private readonly projects = inject(ProjectService);
 
   constructor() {
+    let seenProject = this.projects.openedCount();
+    effect(() => {
+      const count = this.projects.openedCount();
+      if (count === seenProject) return;
+      seenProject = count;
+      untracked(() => {
+        if (this.prefs.autoOpen()) this.dock.show(HOME_VIEW);
+      });
+    });
     let seen = this.store.importVersion();
     effect(() => {
       const version = this.store.importVersion();

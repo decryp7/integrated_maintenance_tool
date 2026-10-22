@@ -37,3 +37,29 @@ export async function expectNoSeriousViolations(page: Page, testInfo: TestInfo, 
   }
   expect(blocking, `axe violations (${label})`).toEqual([]);
 }
+
+/**
+ * Waits until the dock layout has settled: every group's box is the same on two animation frames in a row, for several
+ * checks in a row. The split between the Timeline and the Events panels is applied after the first paint (dockview
+ * sizes its groups from the measured container), so a screenshot taken earlier differs from run to run.
+ */
+export async function settleDockLayout(page: Page): Promise<void> {
+  await page.waitForFunction(
+    () => {
+      const w = window as unknown as { __dockBoxes?: string; __dockStable?: number };
+      const boxes = () =>
+        [...document.querySelectorAll('.dv-groupview')]
+          .map((g) => {
+            const r = g.getBoundingClientRect();
+            return `${Math.round(r.x)},${Math.round(r.y)},${Math.round(r.width)},${Math.round(r.height)}`;
+          })
+          .join('|');
+      const now = boxes();
+      w.__dockStable = now && now === w.__dockBoxes ? (w.__dockStable ?? 0) + 1 : 0;
+      w.__dockBoxes = now;
+      return w.__dockStable >= 6;
+    },
+    undefined,
+    { polling: 'raf', timeout: 10_000 },
+  );
+}

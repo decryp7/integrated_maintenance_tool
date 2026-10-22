@@ -22,7 +22,7 @@ describe('TauriPopoutBackend', () => {
     await backend.open(request);
     await backend.dock('p-main-1');
     await backend.list();
-    await backend.setAlwaysOnTop(true);
+    await backend.setKeepOnTop(true);
     expect(call.mock.calls).toEqual([
       ['popout_panel', { request }],
       ['dock_panel', { popoutLabel: 'p-main-1' }],
@@ -123,7 +123,7 @@ describe('BrowserPopoutBackend', () => {
     const info = await backend.open({ viewId: 'v', title: 'T', params: { a: 1 }, bounds: { x: 10.4, y: 20.6, width: 400, height: 300 } });
     const label = `p-${OWN}-1`;
     expect(win.open).toHaveBeenCalledWith(`/app/?x=1#/popout?view=v&host=${OWN}&label=${label}`, label, 'popup,left=10,top=21,width=400,height=300');
-    expect(info).toEqual({ label, host: OWN, viewId: 'v', title: 'T', params: { a: 1 }, bounds: { x: 10.4, y: 20.6, width: 400, height: 300 }, monitor: null, alwaysOnTop: false });
+    expect(info).toEqual({ label, host: OWN, viewId: 'v', title: 'T', params: { a: 1 }, bounds: { x: 10.4, y: 20.6, width: 400, height: 300 }, monitor: null, keepOnTop: false });
   });
 
   it('uses default features and the view id as title without bounds', async () => {
@@ -246,11 +246,11 @@ describe('BrowserPopoutBackend', () => {
     expect(await make().backend.windowBounds()).toEqual({ x: 1, y: 2, width: 1000, height: 700 });
   });
 
-  it('dockSelf closes the window; setAlwaysOnTop is a no-op', async () => {
+  it('dockSelf closes the window; setKeepOnTop is a no-op', async () => {
     const { backend, win } = make();
     await backend.dockSelf();
     expect(win.close).toHaveBeenCalled();
-    await expect(backend.setAlwaysOnTop()).resolves.toBeUndefined();
+    await expect(backend.setKeepOnTop()).resolves.toBeUndefined();
   });
 
   it('hostGone is true without an opener or with a closed one', () => {
@@ -289,7 +289,7 @@ describe('pop-out moves and window drags', () => {
     handler({ label: 'p-main-1', viewId: 'v', x: 3, y: 4 });
     handler({ nope: 1 });
     expect(seen).toEqual([{ label: 'p-main-1', viewId: 'v', x: 3, y: 4 }]);
-    expect(b.supportsAlwaysOnTop).toBe(true);
+    expect(b.supportsKeepOnTop).toBe(true);
   });
 
   it('in a browser: no OS window drag, no always-on-top, and the content origin from the window metrics', async () => {
@@ -297,7 +297,7 @@ describe('pop-out moves and window drags', () => {
     const win = { screenX: 100, screenY: 50, outerWidth: 1010, innerWidth: 1000, outerHeight: 840, innerHeight: 800, location: { hash: '', pathname: '/', search: '' } } as unknown as Window;
     const b = new BrowserPopoutBackend(win, () => 0.5);
     expect(await b.startWindowDrag()).toBe(false);
-    expect(b.supportsAlwaysOnTop).toBe(false);
+    expect(b.supportsKeepOnTop).toBe(false);
     expect(await b.contentOrigin()).toEqual({ x: 105, y: 90 });
     const off = await b.onMoved();
     expect(() => off()).not.toThrow();

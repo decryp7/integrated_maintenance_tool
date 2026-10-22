@@ -16,9 +16,9 @@ export interface ToolListing {
  */
 export function toolsViews(tools: ToolListing): ImtView[] {
   return [
-    { id: 'perfmon', category: 'Tools', title: $localize`:@@tools.view.perfmon:Performance Monitor`, icon: 'chart', defaultPosition: 'center', component: () => import('./perfmon/perfmon-view').then((m) => m.PerfmonView), enabled: () => tools.listed(TOOL_IDS.perfmonTemplates) },
-    { id: 'process-monitor', category: 'Tools', title: $localize`:@@tools.view.processMonitor:Process Monitor`, icon: 'metrics', defaultPosition: 'center', component: () => import('./monitor/monitor-view').then((m) => m.MonitorView), enabled: () => tools.listed(TOOL_IDS.processMonitor) },
-    { id: 'event-log-follower', category: 'Tools', title: $localize`:@@tools.view.eventLog:Event Log Follower`, icon: 'file', defaultPosition: 'center', component: () => import('./eventlog/eventlog-view').then((m) => m.EventLogView), enabled: () => tools.listed(TOOL_IDS.eventLog) },
+    { id: 'perfmon', category: 'Tools', title: $localize`:@@tools.view.perfmon:Performance Monitor`, icon: 'chart', defaultPosition: 'center', area: 'document', component: () => import('./perfmon/perfmon-view').then((m) => m.PerfmonView), enabled: () => tools.listed(TOOL_IDS.perfmonTemplates) },
+    { id: 'process-monitor', category: 'Tools', title: $localize`:@@tools.view.processMonitor:Process Monitor`, icon: 'metrics', defaultPosition: 'center', area: 'document', component: () => import('./monitor/monitor-view').then((m) => m.MonitorView), enabled: () => tools.listed(TOOL_IDS.processMonitor) },
+    { id: 'event-log-follower', category: 'Tools', title: $localize`:@@tools.view.eventLog:Event Log Follower`, icon: 'file', defaultPosition: 'center', area: 'document', component: () => import('./eventlog/eventlog-view').then((m) => m.EventLogView), enabled: () => tools.listed(TOOL_IDS.eventLog) },
     { id: 'saved-queries', category: 'Analysis', title: $localize`:@@tools.view.savedQueries:Saved queries`, icon: 'file', defaultPosition: 'right', component: () => import('../projects/bookmarks/saved-queries-view').then((m) => m.SavedQueriesView) },
   ];
 }

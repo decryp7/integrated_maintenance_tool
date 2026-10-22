@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { expect, Page, test } from '@playwright/test';
 import { openApp } from './app';
-import { expectNoSeriousViolations, settleAnimations } from './axe';
+import { expectNoSeriousViolations, settleAnimations, settleDockLayout } from './axe';
 
 /**
  * Every built-in theme in both colour schemes (ADR 0018): the main window passes axe (WCAG 2.2 AA), and the main
@@ -41,6 +41,7 @@ for (const theme of THEMES) {
         test.skip(!updating && !shots.every((s) => existsSync(testInfo.snapshotPath(s))), `no screenshot baselines for ${process.platform} yet (run with --update-snapshots)`);
         await openThemed(page, theme, scheme);
         await settleAnimations(page);
+        await settleDockLayout(page);
         // The load time (the events count's tooltip) is not drawn; nothing in the chrome differs from run to run.
         const mask: ReturnType<typeof page.locator>[] = [];
         await expect(page).toHaveScreenshot(shots[0]!, { animations: 'disabled', caret: 'hide', mask, maxDiffPixelRatio: 0.01 });
@@ -49,6 +50,7 @@ for (const theme of THEMES) {
         await group.getByRole('button', { name: 'Maximize panel' }).click();
         await expect(page.locator('imt-timeline-panel .lane')).toHaveCount(7);
         await settleAnimations(page);
+        await settleDockLayout(page);
         await expect(page.locator('imt-timeline-panel')).toHaveScreenshot(shots[1]!, { animations: 'disabled', caret: 'hide', maxDiffPixelRatio: 0.01 });
       });
     });

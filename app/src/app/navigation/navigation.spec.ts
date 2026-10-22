@@ -43,9 +43,41 @@ describe('NavigationHistory', () => {
     expect(jump).toHaveBeenCalledWith(5);
     expect(nav.canForward()).toBe(true);
     expect(nav.forward()).toBe(true);
-    expect(nav.forward()).toBe(true);
-    expect(dock.calls).toEqual(['show:events']);
+    expect(nav.forward()).toBe(false);
+    // The events view is in front already: it is no stop of its own.
+    expect(dock.calls).toEqual([]);
     expect(nav.canForward()).toBe(false);
+  });
+
+  it('shows a view that is not in front when going forward to it', async () => {
+    const { dock, nav } = setup();
+    nav.start();
+    await settle();
+    dock.activeViewId.set('events');
+    await settle();
+    dock.activeViewId.set('timeline');
+    await settle();
+    expect(nav.back()).toBe(true);
+    expect(dock.calls).toEqual(['show:events']);
+  });
+
+  it('Back passes the view that is already in front (a view place between two events)', async () => {
+    const { store, dock, nav } = setup();
+    nav.start();
+    await settle();
+    const jump = vi.spyOn(store, 'jumpTo');
+    store.select(row(1));
+    await settle();
+    dock.activeViewId.set('events');
+    await settle();
+    store.select(row(5));
+    await settle();
+    store.select(row(9));
+    await settle();
+    expect(nav.back()).toBe(true);
+    expect(nav.back()).toBe(true);
+    expect(jump.mock.calls).toEqual([[5], [1]]);
+    expect(dock.calls).toEqual([]);
   });
 
   it('re-applying a place does not record it again', async () => {

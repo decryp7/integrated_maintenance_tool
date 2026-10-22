@@ -13685,21 +13685,21 @@
         <source>Home</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home.plugin.ts</context>
-          <context context-type="linenumber">13</context>
+          <context context-type="linenumber">14</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.plugin.show" datatype="html">
         <source>Show Home</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home.plugin.ts</context>
-          <context context-type="linenumber">51</context>
+          <context context-type="linenumber">63</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.plugin.category" datatype="html">
         <source>View</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home.plugin.ts</context>
-          <context context-type="linenumber">51</context>
+          <context context-type="linenumber">63</context>
         </context-group>
       </trans-unit>
       <trans-unit id="i18n.reload.title" datatype="html">
@@ -21013,84 +21013,84 @@
         <source>Drag to dock: drop on a guide in the main window</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/popout/popout-title-bar.ts</context>
-          <context context-type="linenumber">29</context>
+          <context context-type="linenumber">30</context>
         </context-group>
       </trans-unit>
       <trans-unit id="popout.titleBar.dockBack" datatype="html">
         <source>Dock back into the main window</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/popout/popout-title-bar.ts</context>
-          <context context-type="linenumber">34</context>
+          <context context-type="linenumber">35</context>
         </context-group>
       </trans-unit>
       <trans-unit id="popout.titleBar.dockBackTitle" datatype="html">
         <source>Dock back into the main window</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/popout/popout-title-bar.ts</context>
-          <context context-type="linenumber">34</context>
+          <context context-type="linenumber">35</context>
         </context-group>
       </trans-unit>
       <trans-unit id="popout.titleBar.windowControls" datatype="html">
         <source>Window</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/popout/popout-title-bar.ts</context>
-          <context context-type="linenumber">43</context>
+          <context context-type="linenumber">44</context>
         </context-group>
       </trans-unit>
       <trans-unit id="popout.titleBar.minimise" datatype="html">
         <source>Minimise</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/popout/popout-title-bar.ts</context>
-          <context context-type="linenumber">44</context>
+          <context context-type="linenumber">45</context>
         </context-group>
       </trans-unit>
       <trans-unit id="popout.titleBar.minimiseTitle" datatype="html">
         <source>Minimise</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/popout/popout-title-bar.ts</context>
-          <context context-type="linenumber">44</context>
+          <context context-type="linenumber">45</context>
         </context-group>
       </trans-unit>
       <trans-unit id="popout.titleBar.close" datatype="html">
         <source>Close (dock back)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/popout/popout-title-bar.ts</context>
-          <context context-type="linenumber">54</context>
+          <context context-type="linenumber">55</context>
         </context-group>
       </trans-unit>
       <trans-unit id="popout.titleBar.closeTitle" datatype="html">
         <source>Close (the panel docks back)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/popout/popout-title-bar.ts</context>
-          <context context-type="linenumber">54</context>
+          <context context-type="linenumber">55</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="popout.titleBar.alwaysOnTop" datatype="html">
-        <source>Always on top</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/popout/popout-title-bar.ts</context>
-          <context context-type="linenumber">112</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="popout.titleBar.alwaysOnTopOn" datatype="html">
-        <source>Always on top (on): click to stop</source>
+      <trans-unit id="popout.titleBar.keepOnTop" datatype="html">
+        <source>Keep on top of <x id="product" equiv-text="PRODUCT_NAME"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/popout/popout-title-bar.ts</context>
           <context context-type="linenumber">113</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="popout.titleBar.keepOnTopOn" datatype="html">
+        <source>Keep on top of <x id="product" equiv-text="PRODUCT_NAME"/> (on): click to stop</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/popout/popout-title-bar.ts</context>
+          <context context-type="linenumber">114</context>
         </context-group>
       </trans-unit>
       <trans-unit id="popout.titleBar.restore" datatype="html">
         <source>Restore</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/popout/popout-title-bar.ts</context>
-          <context context-type="linenumber">114</context>
+          <context context-type="linenumber">115</context>
         </context-group>
       </trans-unit>
       <trans-unit id="popout.titleBar.maximise" datatype="html">
         <source>Maximise</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/popout/popout-title-bar.ts</context>
-          <context context-type="linenumber">115</context>
+          <context context-type="linenumber">116</context>
         </context-group>
       </trans-unit>
       <trans-unit id="popout.service.limit" datatype="html">
@@ -23977,14 +23977,14 @@
         <source>Open performance capture or heap snapshot</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures.store.ts</context>
-          <context context-type="linenumber">16</context>
+          <context context-type="linenumber">17</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.flame.frameNumber" datatype="html">
         <source>frame #<x id="id" equiv-text="id"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures.store.ts</context>
-          <context context-type="linenumber">55</context>
+          <context context-type="linenumber">56</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
@@ -23999,231 +23999,245 @@
         <source>Opened <x id="count" equiv-text="opened"/> capture.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures.store.ts</context>
-          <context context-type="linenumber">222</context>
+          <context context-type="linenumber">228</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.opened.other" datatype="html">
         <source>Opened <x id="count" equiv-text="opened"/> captures.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures.store.ts</context>
-          <context context-type="linenumber">223</context>
+          <context context-type="linenumber">229</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.missing.one" datatype="html">
         <source><x id="count" equiv-text="n"/> capture was not found: <x id="names" equiv-text="names"/>.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures.store.ts</context>
-          <context context-type="linenumber">232</context>
+          <context context-type="linenumber">238</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.missing.other" datatype="html">
         <source><x id="count" equiv-text="n"/> captures were not found: <x id="names" equiv-text="names"/>.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures.store.ts</context>
-          <context context-type="linenumber">233</context>
+          <context context-type="linenumber">239</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.title" datatype="html">
         <source>Captures</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">18,19</context>
+          <context context-type="linenumber">19,20</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.open" datatype="html">
         <source>Open performance capture…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">20,22</context>
+          <context context-type="linenumber">21,23</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.retry" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">25,26</context>
+          <context context-type="linenumber">26,27</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.dismiss" datatype="html">
         <source>Dismiss</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">26,29</context>
+          <context context-type="linenumber">27,30</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.loading" datatype="html">
         <source>Loading…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">32,33</context>
+          <context context-type="linenumber">33,34</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.empty" datatype="html">
         <source>No profiles or heap snapshots are open. Open a capture (speedscope, folded stacks, .cpuprofile, Chrome trace, pprof, perf script, .nettrace, .heapsnapshot), or drop one on the window.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">35,36</context>
+          <context context-type="linenumber">36,37</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.landing.open" datatype="html">
         <source>Open capture…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">37,38</context>
+          <context context-type="linenumber">38,39</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="profiling.captures.recent" datatype="html">
+        <source>Recent captures</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
+          <context context-type="linenumber">45,47</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="profiling.captures.recent.clear" datatype="html">
+        <source>Clear recent captures</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
+          <context context-type="linenumber">51,54</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.landing.hint" datatype="html">
         <source>The hotspots, call tree and flame graph open once a capture is open.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">42,45</context>
+          <context context-type="linenumber">54,57</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.listLabel" datatype="html">
         <source>Open captures</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">45</context>
+          <context context-type="linenumber">57</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.active" datatype="html">
         <source>active</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">51,52</context>
+          <context context-type="linenumber">63,64</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.close" datatype="html">
         <source>Close</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">53,55</context>
+          <context context-type="linenumber">65,67</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.source" datatype="html">
         <source>Source</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">56</context>
+          <context context-type="linenumber">68</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.duration" datatype="html">
         <source>Duration</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">58</context>
+          <context context-type="linenumber">70</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.threads" datatype="html">
         <source>Threads</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">59,60</context>
+          <context context-type="linenumber">71,72</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.samples" datatype="html">
         <source>Samples</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">60</context>
+          <context context-type="linenumber">72</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.sampleCounts" datatype="html">
         <source><x id="INTERPOLATION" equiv-text="{{ count(p.sampleCount) // i18n(ph: &quot;samples&quot;) }}"/> · <x id="INTERPOLATION_1" equiv-text="{{ count(p.frameCount) // i18n(ph: &quot;frames&quot;) }}"/> frames · <x id="INTERPOLATION_2" equiv-text="{{ count(p.eventCount) // i18n(ph: &quot;events&quot;) }}"/> events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">60,61</context>
+          <context context-type="linenumber">72,73</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.metrics" datatype="html">
         <source>Metrics</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">61,62</context>
+          <context context-type="linenumber">73,74</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.taken" datatype="html">
         <source>Taken</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">64</context>
+          <context context-type="linenumber">76</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.objects" datatype="html">
         <source>Objects</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">65</context>
+          <context context-type="linenumber">77</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.objectCounts" datatype="html">
         <source><x id="INTERPOLATION" equiv-text="{{ count(h.objectCount) // i18n(ph: &quot;objects&quot;) }}"/> · <x id="INTERPOLATION_1" equiv-text="{{ count(h.typeCount) // i18n(ph: &quot;types&quot;) }}"/> types · <x id="INTERPOLATION_2" equiv-text="{{ bytes(h.totalBytes) // i18n(ph: &quot;bytes&quot;) }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">65,66</context>
+          <context context-type="linenumber">77,78</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.graph" datatype="html">
         <source>Graph</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">66</context>
+          <context context-type="linenumber">78</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.notes" datatype="html">
         <source>Import notes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">71,72</context>
+          <context context-type="linenumber">83,84</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.noStart" datatype="html">
         <source> (no wall-clock start)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">125</context>
+          <context context-type="linenumber">158</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.unknown" datatype="html">
         <source>unknown</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">126</context>
+          <context context-type="linenumber">159</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.graphYes" datatype="html">
         <source>yes: retained sizes, dominators and paths to roots</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">127</context>
+          <context context-type="linenumber">160</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.graphNo" datatype="html">
         <source>no: types only</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">128</context>
+          <context context-type="linenumber">161</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.from" datatype="html">
         <source> from <x id="time" equiv-text="when"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">132</context>
+          <context context-type="linenumber">165</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.closeLabel" datatype="html">
         <source>Close <x id="name" equiv-text="c.name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">136</context>
+          <context context-type="linenumber">169</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.captures.notesLabel" datatype="html">
         <source>Import notes for <x id="name" equiv-text="c.name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/captures/captures-view.ts</context>
-          <context context-type="linenumber">140</context>
+          <context context-type="linenumber">173</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.compare.sort.absDeltaSelf" datatype="html">
@@ -28146,35 +28160,35 @@
         <source><x id="count" equiv-text="n"/> path of this project could not be found</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/project.service.ts</context>
-          <context context-type="linenumber">116</context>
+          <context context-type="linenumber">119</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.service.missing.other" datatype="html">
         <source><x id="count" equiv-text="n"/> paths of this project could not be found</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/project.service.ts</context>
-          <context context-type="linenumber">117</context>
+          <context context-type="linenumber">120</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.service.openFailed" datatype="html">
         <source>Could not open the project: <x id="error" equiv-text="errorMessage(e)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/project.service.ts</context>
-          <context context-type="linenumber">123</context>
+          <context context-type="linenumber">126</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.service.saved" datatype="html">
         <source>Saved <x id="name" equiv-text="saved.name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/project.service.ts</context>
-          <context context-type="linenumber">176</context>
+          <context context-type="linenumber">179</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.service.saveFailed" datatype="html">
         <source>Could not save the project: <x id="error" equiv-text="errorMessage(e)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/project.service.ts</context>
-          <context context-type="linenumber">179</context>
+          <context context-type="linenumber">182</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.recent.title" datatype="html">
@@ -29337,7 +29351,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="settings.general.homeAutoOpen" datatype="html">
-        <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; data-testid=&quot;home-auto-open&quot; [checked]=&quot;home.autoOpen()&quot; (change)=&quot;home.setAutoOpen($any($event.target).checked)&quot; /&gt;"/> Home: show after every import <x id="START_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Home after import&quot; text=&quot;Open the Home panel by itself each time files are opened. The same choice is in the Home panel.&quot; i18n-label=&quot;@@settings.general.homeAutoOpen.helpLabel&quot; i18n-text=&quot;@@settings.general.homeAutoOpen.help&quot; /&gt;"/><x id="CLOSE_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Home after import&quot; text=&quot;Open the Home panel by itself each time files are opened. The same choice is in the Home panel.&quot; i18n-label=&quot;@@settings.general.homeAutoOpen.helpLabel&quot; i18n-text=&quot;@@settings.general.homeAutoOpen.help&quot; /&gt;"/></source>
+        <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; data-testid=&quot;home-auto-open&quot; [checked]=&quot;home.autoOpen()&quot; (change)=&quot;home.setAutoOpen($any($event.target).checked)&quot; /&gt;"/> Home: show when files or a project open <x id="START_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Home after import&quot; text=&quot;Open Home as a document tab by itself each time files or a project are opened. The same choice is in Home.&quot; i18n-label=&quot;@@settings.general.homeAutoOpen.helpLabel&quot; i18n-text=&quot;@@settings.general.homeAutoOpen.help&quot; /&gt;"/><x id="CLOSE_TAG_IMT_HELP" ctype="x-imt_help" equiv-text="&lt;imt-help label=&quot;Home after import&quot; text=&quot;Open Home as a document tab by itself each time files or a project are opened. The same choice is in Home.&quot; i18n-label=&quot;@@settings.general.homeAutoOpen.helpLabel&quot; i18n-text=&quot;@@settings.general.homeAutoOpen.help&quot; /&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/general-settings.ts</context>
           <context context-type="linenumber">53,57</context>
@@ -29351,7 +29365,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="settings.general.homeAutoOpen.help" datatype="html">
-        <source>Open the Home panel by itself each time files are opened. The same choice is in the Home panel.</source>
+        <source>Open Home as a document tab by itself each time files or a project are opened. The same choice is in Home.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/general-settings.ts</context>
           <context context-type="linenumber">55</context>
