@@ -487,7 +487,7 @@ See [ADR 0012](adr/0012-jobs.md).
 
 Every view is a panel. Drag tabs to split, maximise a panel, and reset the layout from the command
 palette. Layouts are remembered. Floating a panel inside the window is always deliberate: **Float**
-in the tab menu, the group's `Float panel` button or **Window ▸ Float panel**; a drag never floats.
+in the tab menu or the group's ⋯ panel menu, or **Window ▸ Float panel**; a drag never floats.
 
 Dragging a tab shows where it goes. On a docking guide (the compass over a group, the guides at
 the dock's edges) or a tab strip it docks there. Anywhere else in the window a release cancels the

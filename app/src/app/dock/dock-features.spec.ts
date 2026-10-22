@@ -174,9 +174,12 @@ describe('DockService VS-style features', () => {
     container.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
   });
 
-  it('pops out from the header button and from a tab dragged out of the window (pointer events)', async () => {
+  it('pops out from the group panel menu and from a tab dragged out of the window (pointer events)', async () => {
     const dock = setup();
-    container.querySelector<HTMLButtonElement>('.dv-groupview button[aria-label="Pop out to window"]')!.click();
+    const menus = TestBed.inject(ContextMenuService);
+    container.querySelector<HTMLButtonElement>('.dv-groupview button[aria-label="Panel menu"]')!.click();
+    menus.menu()!.items.find((i) => i.label === 'Pop out to window')!.run();
+    menus.close();
     expect(windows.calls[0]).toMatch(/^popOut:/);
     const pointer = (type: string, target: EventTarget, init: PointerEventInit) => target.dispatchEvent(new PointerEvent(type, { bubbles: true, button: 0, ...init }));
     pointer('pointerdown', tabOf('metrics'), { clientX: 10, clientY: 10, screenX: 10, screenY: 10 });

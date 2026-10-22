@@ -169,14 +169,7 @@ export class DockService {
       defaultTabComponent: TAB_COMPONENT,
       createTabComponent: (o) => (o.name === TAB_COMPONENT ? new PanelTab((id, el) => this.openPanelMenu(id, el)) : undefined),
       createRightHeaderActionComponent: () =>
-        new GroupActions({
-          toggleFloat: (g) => this.toggleFloat(g),
-          popOut: (g) => this.popOut(g.activePanel?.id ?? ''),
-          autoHide: (g) => this.unpin(g.activePanel?.id ?? ''),
-          isTool: (g) => !!g.activePanel && this.kindOf(g.activePanel.id) === 'tool',
-          canPopOut: () => this.ctx.windows()?.canPopOut() ?? false,
-          openMenu: (g, anchor) => g.activePanel && this.openPanelMenu(g.activePanel.id, anchor),
-        }),
+        new GroupActions({ openMenu: (g, anchor) => g.activePanel && this.openPanelMenu(g.activePanel.id, anchor) }),
     });
     this.ctx.api = api;
     const onKey = (e: KeyboardEvent) => {

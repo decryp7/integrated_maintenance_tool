@@ -15,7 +15,8 @@ const groupOf = (page: Page, name: string) => page.locator('.dv-groupview').filt
 async function popOut(page: Page, context: BrowserContext, name: string): Promise<Page> {
   const opened = context.waitForEvent('page');
   await tab(page, name).click();
-  await groupOf(page, name).getByRole('button', { name: 'Pop out to window' }).click();
+  await groupOf(page, name).getByRole('button', { name: 'Panel menu', exact: true }).click();
+  await page.getByRole('menu', { name: 'Actions' }).getByRole('menuitem', { name: 'Pop out to window', exact: true }).click();
   const popup = await opened;
   await expect(popup.locator('imt-popout-shell')).toBeVisible();
   await expect(popup.getByRole('heading', { level: 1, name })).toBeVisible();

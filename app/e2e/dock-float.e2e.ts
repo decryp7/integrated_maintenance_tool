@@ -5,7 +5,7 @@ import { chooseMenu } from './menu-support';
 // Dragging a tab: a release on a drop guide docks it; a release inside the window but off every guide cancels the
 // drag ("Release to cancel" by the pointer; the tab stays, nothing floats); outside the window a translucent ghost labelled "Release to open in a
 // new window" follows the pointer (popout.e2e covers the release there). Floating inside the window is deliberate:
-// the tab menu's "Float", the group's "Float panel" button or Window ▸ Float panel. Tabs are dragged
+// the tab menu's "Float", the group's ⋯ panel menu or Window ▸ Float panel. Tabs are dragged
 // with pointer events.
 
 const tab = (page: Page, name: string) => page.getByRole('tab', { name, exact: true });
@@ -134,8 +134,9 @@ test.describe('floating a panel deliberately', () => {
     await moveFloatingByHeader(page);
   });
 
-  test('from its group button ("Float panel"), then moved by its header', async ({ page }) => {
-    await page.locator('.dv-groupview', { has: tab(page, 'Metrics') }).getByRole('button', { name: 'Float panel' }).click();
+  test('from the group panel menu (⋯ ▸ Float), then moved by its header', async ({ page }) => {
+    await page.locator('.dv-groupview', { has: tab(page, 'Metrics') }).getByRole('button', { name: 'Panel menu', exact: true }).click();
+    await page.getByRole('menu', { name: 'Actions' }).getByRole('menuitem', { name: 'Float', exact: true }).click();
     await expect(floating(page)).toBeVisible();
     await moveFloatingByHeader(page);
   });

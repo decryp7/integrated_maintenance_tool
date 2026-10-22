@@ -95,7 +95,8 @@ test.describe('VS-style docking', () => {
   });
 
   test('auto hide: the inspector collapses to a side bar, slides out on hover, hides on Escape, pins back', async ({ page, browserName }) => {
-    await groupOf(page, 'Inspector').getByRole('button', { name: 'Auto hide' }).click();
+    await groupOf(page, 'Inspector').getByRole('button', { name: 'Panel menu', exact: true }).click();
+    await page.getByRole('menu', { name: 'Actions' }).getByRole('menuitem', { name: 'Auto hide', exact: true }).click();
     await expect(tab(page, 'Inspector')).toHaveCount(0);
     const sideTab = page.getByRole('navigation', { name: 'Auto-hidden tool windows (right)' }).getByRole('button', { name: 'Inspector' });
     await expect(sideTab).toBeVisible();
@@ -200,7 +201,8 @@ test.describe('VS-style docking', () => {
     await expect(name).toHaveCount(0);
     await tab(page, 'Metrics').focus();
     await page.keyboard.press('Delete');
-    await groupOf(page, 'Inspector').getByRole('button', { name: 'Auto hide' }).click();
+    await groupOf(page, 'Inspector').getByRole('button', { name: 'Panel menu', exact: true }).click();
+    await page.getByRole('menu', { name: 'Actions' }).getByRole('menuitem', { name: 'Auto hide', exact: true }).click();
     await expect(tab(page, 'Metrics')).toHaveCount(0);
     await page.keyboard.press('Control+Alt+1');
     await expect(tab(page, 'Metrics')).toBeVisible();
@@ -234,7 +236,8 @@ test.describe('VS-style docking', () => {
   });
 
   test('auto-hidden tool windows and pinned tabs survive a reload', async ({ page }) => {
-    await groupOf(page, 'Inspector').getByRole('button', { name: 'Auto hide' }).click();
+    await groupOf(page, 'Inspector').getByRole('button', { name: 'Panel menu', exact: true }).click();
+    await page.getByRole('menu', { name: 'Actions' }).getByRole('menuitem', { name: 'Auto hide', exact: true }).click();
     await (await panelMenu(page, 'Metrics')).getByRole('menuitem', { name: 'Pin tab' }).click();
     await expect
       .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('imt.layout') ?? 'null')?.extras))

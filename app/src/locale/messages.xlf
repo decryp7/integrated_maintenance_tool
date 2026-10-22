@@ -10200,49 +10200,21 @@
         <source>Panel menu</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/group-actions.ts</context>
-          <context context-type="linenumber">61</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="dock.groupActions.autoHide" datatype="html">
-        <source>Auto hide</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/dock/group-actions.ts</context>
-          <context context-type="linenumber">62</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="dock.groupActions.popOut" datatype="html">
-        <source>Pop out to window</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/dock/group-actions.ts</context>
-          <context context-type="linenumber">63</context>
+          <context context-type="linenumber">47</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.groupActions.restore" datatype="html">
         <source>Restore panel size</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/group-actions.ts</context>
-          <context context-type="linenumber">97</context>
+          <context context-type="linenumber">77</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.groupActions.maximize" datatype="html">
         <source>Maximize panel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/group-actions.ts</context>
-          <context context-type="linenumber">97</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="dock.groupActions.dockBack" datatype="html">
-        <source>Dock panel back into the window</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/dock/group-actions.ts</context>
-          <context context-type="linenumber">99</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="dock.groupActions.float" datatype="html">
-        <source>Float panel</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/dock/group-actions.ts</context>
-          <context context-type="linenumber">99</context>
+          <context context-type="linenumber">77</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.layoutDialog.name" datatype="html">
