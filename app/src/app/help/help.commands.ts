@@ -2,6 +2,7 @@ import { EnvironmentProviders, inject, Injectable, makeEnvironmentProviders } fr
 import { IMT_COMMANDS, ImtCommand } from '../extensions/tokens';
 import { SettingsDialogService } from '../settings/settings-dialog';
 import { MANAGE_PARSERS_COMMAND, PARSERS_ID } from '../settings/parsers/parsers.types';
+import { EDIT_SHORTCUTS_COMMAND, KEYBOARD_ID } from '../settings/keyboard/keyboard.types';
 import { DialogService } from '../ui/dialog.service';
 
 /**
@@ -27,6 +28,12 @@ export class HelpCommands {
         const { CheatSheet } = await import('./cheat-sheet');
         if (!this.dialogs.stack().some((d) => d.component === CheatSheet)) this.dialogs.open(CheatSheet, { title: $localize`:@@help.command.shortcuts:Keyboard shortcuts`, width: 640 });
       },
+    },
+    {
+      id: EDIT_SHORTCUTS_COMMAND,
+      title: $localize`:@@help.command.editShortcuts:Edit keyboard shortcuts…`,
+      category: $localize`:@@help.command.category:Help`,
+      run: () => this.settings.open(KEYBOARD_ID),
     },
     { id: MANAGE_PARSERS_COMMAND, title: $localize`:@@help.command.manageParsers:Manage parsers…`, category: $localize`:@@help.command.profileCategory:Profile`, run: () => this.settings.open(PARSERS_ID) },
   ];

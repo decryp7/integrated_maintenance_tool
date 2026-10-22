@@ -6092,7 +6092,7 @@
         <source>Run</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">80,82</context>
+          <context context-type="linenumber">82,84</context>
         </context-group>
         <note priority="1" from="description">Button</note>
         <note priority="1" from="meaning">Run a query</note>
@@ -6101,84 +6101,84 @@
         <source>Cancel the running query (Esc)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">82</context>
+          <context context-type="linenumber">84</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.cancel" datatype="html">
         <source>Cancel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">82,84</context>
+          <context context-type="linenumber">84,86</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.askAi" datatype="html">
         <source>Ask AI</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">84</context>
+          <context context-type="linenumber">86</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.askAiHint" datatype="html">
         <source>Describe what you want in plain words; the local model writes the query</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">84</context>
+          <context context-type="linenumber">86</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.history" datatype="html">
         <source>History</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">86,87</context>
+          <context context-type="linenumber">88,89</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.historyLabel" datatype="html">
         <source>Query history</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">88</context>
+          <context context-type="linenumber">90</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.clearHistory" datatype="html">
         <source>Clear history</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">92,95</context>
+          <context context-type="linenumber">94,97</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.progress" datatype="html">
         <source>Query progress</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">101</context>
+          <context context-type="linenumber">103</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.cancelled" datatype="html">
         <source>Query cancelled.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">109,110</context>
+          <context context-type="linenumber">111,112</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.filtering" datatype="html">
         <source>Filtering with <x id="START_TAG_CODE" ctype="x-code" equiv-text="&lt;code class=&quot;mono&quot;&gt;"/><x id="INTERPOLATION" equiv-text="{{ ql }}"/><x id="CLOSE_TAG_CODE" ctype="x-code" equiv-text="&lt;/code&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">111</context>
+          <context context-type="linenumber">113</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.matched" datatype="html">
         <source> · <x id="INTERPOLATION" equiv-text="{{ session.matched() }}"/> events </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">111</context>
+          <context context-type="linenumber">113</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.clear" datatype="html">
         <source>Clear</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">112,114</context>
+          <context context-type="linenumber">114,116</context>
         </context-group>
         <note priority="1" from="description">Button</note>
         <note priority="1" from="meaning">Remove the applied query</note>
@@ -6187,35 +6187,35 @@
         <source><x id="INTERPOLATION" equiv-text="{{ runKey }}"/> to run. Without <x id="START_TAG_CODE" ctype="x-code" equiv-text="&lt;code class=&quot;mono&quot;&gt;"/>stats<x id="CLOSE_TAG_CODE" ctype="x-code" equiv-text="&lt;/code&gt;"/> the query filters the grid, timeline and charts; with it the table opens in Query results.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">114,116</context>
+          <context context-type="linenumber">116,118</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.runTitle" datatype="html">
         <source>Run (<x id="key" equiv-text="this.runKey"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">169</context>
+          <context context-type="linenumber">172</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.cancelling" datatype="html">
         <source>Cancelling…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">170</context>
+          <context context-type="linenumber">173</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.running" datatype="html">
         <source>Running…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">171</context>
+          <context context-type="linenumber">174</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.errorAt" datatype="html">
         <source><x id="message" equiv-text="message"/> at column <x id="column" equiv-text="column"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">192</context>
+          <context context-type="linenumber">195</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.traces.title" datatype="html">
@@ -11825,7 +11825,7 @@
         <source><x id="title" equiv-text="command.title"/> failed: <x id="detail" equiv-text="e instanceof Error ? e.message : String(e)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/extensions/command-registry.ts</context>
-          <context context-type="linenumber">58</context>
+          <context context-type="linenumber">78</context>
         </context-group>
       </trans-unit>
       <trans-unit id="format.wizard.part.timestamp" datatype="html">
@@ -12270,67 +12270,85 @@
         <source>Search shortcuts</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/help/cheat-sheet.ts</context>
-          <context context-type="linenumber">19</context>
+          <context context-type="linenumber">22</context>
         </context-group>
       </trans-unit>
       <trans-unit id="help.cheatSheet.search.placeholder" datatype="html">
         <source>Search shortcuts…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/help/cheat-sheet.ts</context>
-          <context context-type="linenumber">19</context>
+          <context context-type="linenumber">22</context>
         </context-group>
       </trans-unit>
       <trans-unit id="help.cheatSheet.print" datatype="html">
         <source>Print…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/help/cheat-sheet.ts</context>
-          <context context-type="linenumber">20,22</context>
+          <context context-type="linenumber">23,24</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="help.cheatSheet.edit" datatype="html">
+        <source>Edit shortcuts…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/help/cheat-sheet.ts</context>
+          <context context-type="linenumber">24,26</context>
         </context-group>
       </trans-unit>
       <trans-unit id="help.cheatSheet.count" datatype="html">
         <source>{VAR_PLURAL, plural, =1 {<x id="INTERPOLATION"/> shortcut} other {<x id="INTERPOLATION"/> shortcuts}}</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/help/cheat-sheet.ts</context>
-          <context context-type="linenumber">22,23</context>
+          <context context-type="linenumber">26,27</context>
         </context-group>
       </trans-unit>
       <trans-unit id="help.cheatSheet.none" datatype="html">
         <source>No shortcut matches “<x id="INTERPOLATION" equiv-text="{{ query() }}"/>”. <x id="START_TAG_BUTTON" ctype="x-button" equiv-text="&lt;button type=&quot;button&quot; class=&quot;btn ghost&quot; (click)=&quot;query.set(&apos;&apos;)&quot;&gt;"/>Clear search<x id="CLOSE_TAG_BUTTON" ctype="x-button" equiv-text="&lt;/button&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/help/cheat-sheet.ts</context>
-          <context context-type="linenumber">33,36</context>
+          <context context-type="linenumber">37,40</context>
         </context-group>
       </trans-unit>
       <trans-unit id="help.command.shortcuts" datatype="html">
         <source>Keyboard shortcuts</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/help/help.commands.ts</context>
-          <context context-type="linenumber">22</context>
+          <context context-type="linenumber">23</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/help/help.commands.ts</context>
-          <context context-type="linenumber">28</context>
+          <context context-type="linenumber">29</context>
         </context-group>
       </trans-unit>
       <trans-unit id="help.command.category" datatype="html">
         <source>Help</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/help/help.commands.ts</context>
-          <context context-type="linenumber">23</context>
+          <context context-type="linenumber">24</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/help/help.commands.ts</context>
+          <context context-type="linenumber">35</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="help.command.editShortcuts" datatype="html">
+        <source>Edit keyboard shortcuts…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/help/help.commands.ts</context>
+          <context context-type="linenumber">34</context>
         </context-group>
       </trans-unit>
       <trans-unit id="help.command.manageParsers" datatype="html">
         <source>Manage parsers…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/help/help.commands.ts</context>
-          <context context-type="linenumber">31</context>
+          <context context-type="linenumber">38</context>
         </context-group>
       </trans-unit>
       <trans-unit id="help.command.profileCategory" datatype="html">
         <source>Profile</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/help/help.commands.ts</context>
-          <context context-type="linenumber">31</context>
+          <context context-type="linenumber">38</context>
         </context-group>
       </trans-unit>
       <trans-unit id="help.group.general" datatype="html">
@@ -27348,6 +27366,238 @@
         </context-group>
         <note priority="1" from="description">Date format option</note>
       </trans-unit>
+      <trans-unit id="settings.keyboard.search.label" datatype="html">
+        <source>Search shortcuts</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">28</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.search.placeholder" datatype="html">
+        <source>Search shortcuts…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">28</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.resetAll" datatype="html">
+        <source>Reset all to defaults</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">29,31</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.help" datatype="html">
+        <source>Choose Change, then press the new keys. Esc cancels; Backspace removes the key. Keys that only work in some situations are marked.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">31,32</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.replace" datatype="html">
+        <source>Replace</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">38,40</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.cancel" datatype="html">
+        <source>Cancel</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">40,44</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.caption" datatype="html">
+        <source>Commands and their keyboard shortcuts</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">45,48</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.col.command" datatype="html">
+        <source>Command</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">48,49</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.col.category" datatype="html">
+        <source>Category</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">49,50</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.col.key" datatype="html">
+        <source>Shortcut</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">50,51</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.col.default" datatype="html">
+        <source>Default</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">51,52</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.col.actions" datatype="html">
+        <source>Actions</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">52,55</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.scoped.title" datatype="html">
+        <source>Only works in some situations</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">61</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.scoped" datatype="html">
+        <source>(when available)</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">61,63</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.pressKeys" datatype="html">
+        <source>Press keys…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">76,77</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.none" datatype="html">
+        <source>None</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">80,82</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">88,90</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.reset" datatype="html">
+        <source>Reset</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">92,94</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.noMatch" datatype="html">
+        <source>No command matches “<x id="INTERPOLATION" equiv-text="{{ query() }}"/>”.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">96,97</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.uncategorised" datatype="html">
+        <source>General</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">129</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.change.withKey" datatype="html">
+        <source>Change the shortcut of <x id="title" equiv-text="title"/>, now <x id="keys" equiv-text="keys"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">160</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.change.noKey" datatype="html">
+        <source>Set a shortcut for <x id="title" equiv-text="title"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">160</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.reset.label" datatype="html">
+        <source>Reset the shortcut of <x id="title" equiv-text="title"/> to its default</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">164</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.recording" datatype="html">
+        <source>Press the new shortcut for <x id="title" equiv-text="title"/>. Esc cancels, Backspace removes the key.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">174</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.cancelled" datatype="html">
+        <source>Cancelled; <x id="title" equiv-text="title"/> keeps its shortcut.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">199</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">246</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.cleared" datatype="html">
+        <source><x id="title" equiv-text="title"/> has no shortcut now.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">204</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.invalid" datatype="html">
+        <source>That key cannot be used on its own. Hold Ctrl, Alt or ⌘ with it, or use a function key.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">207</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.set" datatype="html">
+        <source><x id="title" equiv-text="title"/> is now <x id="keys" equiv-text="formatKeybinding(rec.binding)"/>.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">219</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.conflict" datatype="html">
+        <source><x id="keys" equiv-text="keys"/> is already used by <x id="names" equiv-text="names"/>. Replace it, so that only <x id="title" equiv-text="p.title"/> uses <x id="keys" equiv-text="keys"/>?</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">228</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.conflictFixed" datatype="html">
+        <source><x id="keys" equiv-text="keys"/> is a built-in key (<x id="names" equiv-text="names"/>) and cannot be reassigned. Choose another key.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">229</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.replaced" datatype="html">
+        <source><x id="title" equiv-text="p.title"/> is now <x id="keys" equiv-text="formatKeybinding(p.binding)"/>.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">241</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.resetDone" datatype="html">
+        <source><x id="title" equiv-text="title"/> is back to its default shortcut.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">263</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.resetAllDone" datatype="html">
+        <source>All shortcuts are back to their defaults.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/keyboard/keyboard-settings.ts</context>
+          <context context-type="linenumber">270</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="settings.parsers.parseWith.legend" datatype="html">
         <source>Parser for <x id="INTERPOLATION" equiv-text="{{ source().name }}"/></source>
         <context-group purpose="location">
@@ -28434,92 +28684,92 @@
         <source>Search settings</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">32</context>
+          <context context-type="linenumber">34</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.search.label" datatype="html">
         <source>Search settings</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">32</context>
+          <context context-type="linenumber">34</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.showAdvancedToggle" datatype="html">
         <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;store.showAdvanced()&quot; (change)=&quot;store.setShowAdvanced($any($event.target).checked)&quot; /&gt;"/> Show advanced</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">33,34</context>
+          <context context-type="linenumber">35,36</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.restartBanner" datatype="html">
         <source>Some changes take effect after IMT restarts.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">38,39</context>
+          <context context-type="linenumber">40,41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.restart" datatype="html">
         <source>Restart</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">39,42</context>
+          <context context-type="linenumber">41,44</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.discard.label" datatype="html">
         <source>Unapplied changes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">43</context>
+          <context context-type="linenumber">45</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.discard.text" datatype="html">
         <source>You have changes that were not applied.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">44,45</context>
+          <context context-type="linenumber">46,47</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.discard.discard" datatype="html">
         <source>Discard changes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">45,46</context>
+          <context context-type="linenumber">47,48</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.discard.keepEditing" datatype="html">
         <source>Keep editing</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">46,49</context>
+          <context context-type="linenumber">48,51</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.dismiss" datatype="html">
         <source>Dismiss</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">50,52</context>
+          <context context-type="linenumber">52,54</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">53,56</context>
+          <context context-type="linenumber">55,58</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.nav.label" datatype="html">
         <source>Settings sections</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">57</context>
+          <context context-type="linenumber">59</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.general" datatype="html">
         <source>General</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">58,59</context>
+          <context context-type="linenumber">60,61</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">117,118</context>
+          <context context-type="linenumber">120,121</context>
         </context-group>
         <note priority="1" from="description">Name of the first settings section</note>
         <note priority="1" from="meaning">Settings section</note>
@@ -28528,11 +28778,11 @@
         <source>Appearance</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">59,60</context>
+          <context context-type="linenumber">61,62</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">121,122</context>
+          <context context-type="linenumber">124,125</context>
         </context-group>
         <note priority="1" from="description">Theme, colour scheme and density</note>
         <note priority="1" from="meaning">Settings section</note>
@@ -28541,7 +28791,7 @@
         <source>Disk usage</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">60,61</context>
+          <context context-type="linenumber">62,63</context>
         </context-group>
         <note priority="1" from="description">What IMT keeps on disk</note>
         <note priority="1" from="meaning">Settings section</note>
@@ -28550,164 +28800,177 @@
         <source>Parsers</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">61,63</context>
+          <context context-type="linenumber">63,64</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">89,91</context>
+          <context context-type="linenumber">92,94</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">224</context>
+          <context context-type="linenumber">230</context>
         </context-group>
         <note priority="1" from="description">The log formats IMT reads</note>
+        <note priority="1" from="meaning">Settings section</note>
+      </trans-unit>
+      <trans-unit id="settings.keyboard.nav" datatype="html">
+        <source>Keyboard shortcuts</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
+          <context context-type="linenumber">64,66</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
+          <context context-type="linenumber">132,134</context>
+        </context-group>
+        <note priority="1" from="description">Key bindings of the commands</note>
         <note priority="1" from="meaning">Settings section</note>
       </trans-unit>
       <trans-unit id="settings.screen.dirtyDot.label" datatype="html">
         <source>unapplied changes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">71</context>
+          <context context-type="linenumber">74</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.dirtyDot.title" datatype="html">
         <source>Unapplied changes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">71</context>
+          <context context-type="linenumber">74</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.content.label" datatype="html">
         <source>Settings</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">78</context>
+          <context context-type="linenumber">81</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.loadError" datatype="html">
         <source>Could not load the settings: <x id="INTERPOLATION" equiv-text="{{ e }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">81,82</context>
+          <context context-type="linenumber">84,85</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.retry" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">82,84</context>
+          <context context-type="linenumber">85,87</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.loading" datatype="html">
         <source>Loading settings…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">85,87</context>
+          <context context-type="linenumber">88,90</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.search.parserHits" datatype="html">
         <source>Matching parsers</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">91</context>
+          <context context-type="linenumber">94</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.search.openParsers" datatype="html">
         <source>Open Parsers</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">97,99</context>
+          <context context-type="linenumber">100,102</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.noMatch" datatype="html">
         <source>No settings match “<x id="INTERPOLATION" equiv-text="{{ store.query() }}"/>”.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">113,114</context>
+          <context context-type="linenumber">116,117</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.general.desc" datatype="html">
         <source>Display preferences of this window. They apply immediately.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">118,119</context>
+          <context context-type="linenumber">121,122</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.appearance.desc" datatype="html">
         <source>Theme, colour scheme and density of every window. They apply immediately.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">122,124</context>
+          <context context-type="linenumber">125,127</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.resetSection" datatype="html">
         <source>Reset section</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">136,138</context>
+          <context context-type="linenumber">142,145</context>
         </context-group>
       </trans-unit>
       <trans-unit id="3868108601110605590" datatype="html">
         <source>{VAR_PLURAL, plural, =1 {<x id="INTERPOLATION"/> advanced setting hidden.} other {<x id="INTERPOLATION"/> advanced settings hidden.}}</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">168</context>
+          <context context-type="linenumber">174</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.hiddenAdvanced" datatype="html">
         <source><x id="ICU" equiv-text="{n, plural, =1 {{{ n }} advanced setting hidden.} other {{{ n }} advanced settings hidden.}}" xid="2266298815211162863"/> <x id="START_TAG_BUTTON" ctype="x-button" equiv-text="&lt;button class=&quot;link&quot; type=&quot;button&quot; (click)=&quot;store.setShowAdvanced(true)&quot;&gt;"/>Show advanced<x id="CLOSE_TAG_BUTTON" ctype="x-button" equiv-text="&lt;/button&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">168,170</context>
+          <context context-type="linenumber">174,176</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.emptySection" datatype="html">
         <source>This section has no settings.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">171,174</context>
+          <context context-type="linenumber">177,180</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.export" datatype="html">
         <source>Export…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">178,179</context>
+          <context context-type="linenumber">184,185</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.import" datatype="html">
         <source>Import…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">179,180</context>
+          <context context-type="linenumber">185,186</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.unappliedIn" datatype="html">
         <source>{VAR_PLURAL, plural, =1 {Unapplied changes in <x id="INTERPOLATION"/> section} other {Unapplied changes in <x id="INTERPOLATION"/> sections}}</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">182</context>
+          <context context-type="linenumber">188</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.apply" datatype="html">
         <source>Apply</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">185,188</context>
+          <context context-type="linenumber">191,194</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.cancel" datatype="html">
         <source>Cancel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">231</context>
+          <context context-type="linenumber">238</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.close" datatype="html">
         <source>Close</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">232</context>
+          <context context-type="linenumber">239</context>
         </context-group>
         <note priority="1" from="description">Button that closes the settings dialog</note>
       </trans-unit>
@@ -30797,42 +31060,42 @@
         <source>Untitled report</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/report/report-view.ts</context>
-          <context context-type="linenumber">114</context>
+          <context context-type="linenumber">115</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.reportView.sectionAria" datatype="html">
         <source>Section <x id="title" equiv-text="title || i + 1"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/report/report-view.ts</context>
-          <context context-type="linenumber">122</context>
+          <context context-type="linenumber">123</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.reportView.sectionTitleAria" datatype="html">
         <source>Section title <x id="number" equiv-text="i + 1"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/report/report-view.ts</context>
-          <context context-type="linenumber">126</context>
+          <context context-type="linenumber">127</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.reportView.sectionUpAria" datatype="html">
         <source>Move section up: <x id="title" equiv-text="title"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/report/report-view.ts</context>
-          <context context-type="linenumber">130</context>
+          <context context-type="linenumber">131</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.reportView.sectionDownAria" datatype="html">
         <source>Move section down: <x id="title" equiv-text="title"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/report/report-view.ts</context>
-          <context context-type="linenumber">134</context>
+          <context context-type="linenumber">135</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.reportView.sectionRemoveAria" datatype="html">
         <source>Remove section <x id="title" equiv-text="title"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/report/report-view.ts</context>
-          <context context-type="linenumber">138</context>
+          <context context-type="linenumber">139</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.reportCommands.show" datatype="html">

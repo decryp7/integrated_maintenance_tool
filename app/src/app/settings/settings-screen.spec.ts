@@ -42,7 +42,7 @@ describe('SettingsScreen', () => {
     const groups = all(fixture, 'nav .group').map((g) => g.textContent?.trim());
     expect(groups).toEqual(['Application', 'Diagnostics', 'Plugins', 'AI', 'Performance', 'Advanced']);
     const items = all(fixture, 'nav .nav').map((b) => [...b.querySelectorAll('.name, .badge')].map((x) => x.textContent?.trim()).join(' ') || b.textContent?.trim());
-    expect(items).toEqual(['General', 'Appearance', 'Disk usage', 'Parsers', 'Window & tray', 'Diagnostics', 'Plugins', 'Windows diagnostics', 'Example plugin disabled', 'AI assistant not installed', 'Performance', 'Workspace']);
+    expect(items).toEqual(['General', 'Appearance', 'Disk usage', 'Parsers', 'Keyboard shortcuts', 'Window & tray', 'Diagnostics', 'Plugins', 'Windows diagnostics', 'Example plugin disabled', 'AI assistant not installed', 'Performance', 'Workspace']);
     expect(el(fixture, 'nav [aria-current=page]').textContent).toContain('General');
     expect(text(fixture)).toContain('Time zone');
     nav(fixture, 'Appearance').click();
@@ -109,6 +109,14 @@ describe('SettingsScreen', () => {
     expect(store.query()).toBe('');
     expect(el(fixture, 'nav [aria-current=page]').textContent).toContain('Parsers');
     expect(el(fixture, 'imt-parsers-settings')).toBeTruthy();
+  });
+
+  it('opens the keyboard shortcut editor from its navigation entry', async () => {
+    const { fixture } = await setup();
+    nav(fixture, 'Keyboard shortcuts').click();
+    await settle(fixture);
+    expect(el(fixture, 'nav [aria-current=page]').textContent).toContain('Keyboard shortcuts');
+    expect(el(fixture, 'imt-keyboard-settings')).toBeTruthy();
   });
 
   it('applies through the engine and shows its validation errors inline', async () => {
