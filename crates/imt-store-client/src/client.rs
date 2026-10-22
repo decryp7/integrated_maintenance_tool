@@ -514,8 +514,9 @@ impl RemoteStore {
         self.call_with(op, body, CALL_TIMEOUT)
     }
 
-    /// A long call that `control` can cancel: it runs as a stream (no items), so a cancel reaches the worker,
-    /// which interrupts the statement; the call then fails with [`StoreError::Cancelled`].
+    /// A long call that `control` can cancel: it runs as a stream, so a cancel reaches the worker, which interrupts
+    /// the statement; the call then fails with [`StoreError::Cancelled`]. The stream's items are the worker's
+    /// progress ([`protocol::PROGRESS_EVERY`]), taken over by `control`.
     fn call_controlled<T: DeserializeOwned>(&self, op: StoreOp, body: &impl Serialize, control: &QueryControl) -> StoreResult<T> {
         control.check().map_err(|_| StoreError::Cancelled)?;
         let body = encode(body)?;
@@ -551,9 +552,16 @@ impl RemoteStore {
                 }
                 match stream.next(Some(POLL)).map_err(|e| ipc_error(died(&lease.conn, e)))? {
                     StreamEvent::Idle => continue,
-                    StreamEvent::Item(_) => {
-                        return Err(StoreError::Engine(format!("the store worker streamed items for {}", op.name())));
-                    }
+                    // The worker's progress, relayed to the control (the app samples it for the UI).
+                    StreamEvent::Item(bytes) => match imt_ipc::wire::decode::<imt_core::ql::QueryProgress>(&bytes) {
+                        Ok(p) => control.report(p),
+                        Err(e) => {
+                            return Err(StoreError::Engine(format!(
+                                "the store worker sent an invalid progress for {}: {e}",
+                                op.name()
+                            )));
+                        }
+                    },
                     StreamEvent::Done(bytes) => {
                         let json: Json = imt_ipc::wire::decode(&bytes)
                             .map_err(|e| StoreError::Engine(format!("the store worker sent an invalid reply: {e}")))?;
@@ -867,6 +875,12 @@ impl Inspect for RemoteStore {
     /// The store's memory with the worker process's (resident memory, Low memory mode).
     fn store_memory(&self) -> StoreResult<StoreMemory> {
         self.call(StoreOp::StoreMemory, &())
+    }
+}
+
+impl imt_core::ports::Redaction for RemoteStore {
+    fn redaction_summary(&self, req: &imt_core::redact::RedactionSummaryRequest) -> StoreResult<imt_core::redact::RedactionSummary> {
+        self.analysis(StoreOp::RedactionSummary, req)
     }
 }
 

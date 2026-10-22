@@ -22,6 +22,7 @@ mod project;
 pub mod promote;
 mod qlang;
 mod read;
+mod redaction;
 mod schema;
 pub mod segments;
 mod spans;

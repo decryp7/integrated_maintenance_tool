@@ -176,7 +176,9 @@ pub fn run_with<'a>(
 /// `stats` stream (nothing is kept per event); `sort`, `head` and `fields` keep the events they need.
 pub fn run_rows<R: RowRef>(program: &Program, rows: &mut dyn Iterator<Item = R>, control: &QueryControl) -> Result<QlResult, RunError> {
     control.check()?;
-    control.begin(QueryStage::Evaluating, rows.size_hint().0);
+    // The upper bound when there is one: a filtering iterator (a store's stream) knows at most how many it yields.
+    let (low, high) = rows.size_hint();
+    control.begin(QueryStage::Evaluating, high.unwrap_or(low));
     let leading = program.stages.iter().take_while(|s| matches!(s, Stage::Where(_))).count();
     let wheres: Vec<&super::Filter> = program.stages[..leading]
         .iter()

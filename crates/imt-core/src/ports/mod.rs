@@ -294,11 +294,26 @@ pub trait Console: Send + Sync {
     }
 }
 
+/// What redaction would change in the events of a query (shown before an export), with the profile's `[redact]`
+/// rules. The redacted view itself is applied to replies by their caller ([`crate::redact::view`]). Cancellable through
+/// the thread's [`QueryControl`].
+pub trait Redaction: Send + Sync {
+    fn redaction_summary(&self, _req: &crate::redact::RedactionSummaryRequest) -> StoreResult<crate::redact::RedactionSummary> {
+        Err(StoreError::unsupported("the redaction summary", "ADR 0014 6c"))
+    }
+}
+
 /// Every port of a store: what one window of the app holds (the DuckDB store in the store worker; in process
 /// in tests).
-pub trait Store: Ingest + Query + Positions + Analysis + Profiles + Diagnostics + Search + Projects + Inspect + Maintain + Console {}
+pub trait Store:
+    Ingest + Query + Positions + Analysis + Profiles + Diagnostics + Search + Projects + Inspect + Maintain + Console + Redaction
+{
+}
 
-impl<T: Ingest + Query + Positions + Analysis + Profiles + Diagnostics + Search + Projects + Inspect + Maintain + Console> Store for T {}
+impl<T: Ingest + Query + Positions + Analysis + Profiles + Diagnostics + Search + Projects + Inspect + Maintain + Console + Redaction> Store
+    for T
+{
+}
 
 #[cfg(test)]
 mod tests {

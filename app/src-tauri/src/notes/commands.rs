@@ -97,7 +97,7 @@ fn fill(win: &WindowState, anchor: &Anchor) -> CmdResult<Anchor> {
     Ok(match anchor {
         Anchor::Event { event_id, .. } => {
             let store = win.engine.store()?;
-            let ev = store
+            let mut ev = store
                 .events(&EventsRequest {
                     ids: vec![EventId(*event_id)],
                     group_by: Vec::new(),
@@ -105,6 +105,10 @@ fn fill(win: &WindowState, anchor: &Anchor) -> CmdResult<Anchor> {
                 .into_iter()
                 .next()
                 .ok_or_else(|| CmdError::not_found("the event is no longer in the workspace"))?;
+            // The excerpt shows what the window shows.
+            if let Some(r) = win.host.redacted_view() {
+                r.view_event(&mut ev);
+            }
             Anchor::Event {
                 event_id: *event_id,
                 ts: ev.ts,

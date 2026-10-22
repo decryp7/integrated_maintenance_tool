@@ -15,7 +15,7 @@ use imt_core::overwrite::check_overwrite;
 use imt_core::redact::RedactionPreview;
 use imt_core::report::html::HtmlRenderer;
 use imt_core::report::{Report, ReportRenderer, Theme};
-use imt_core::workspace::{RedactionPreviewRequest, RedactionSummary, RedactionSummaryRequest};
+use imt_core::redact::{RedactionPreviewRequest, RedactionSummary, RedactionSummaryRequest};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -56,20 +56,16 @@ fn parse_report(value: Value) -> CmdResult<Report> {
     crate::error::lift(Report::parse(value).map_err(err))
 }
 
-/// Switches the window's redacted view on or off; returns the new summary. The store does not redact its
-/// pages yet (ADR 0014 6c follow-up): switching it on is refused with a message; exports, reports and the AI
-/// still redact.
+/// Switches the window's redacted view on or off; returns the new summary. While it is on, every reply that shows
+/// event text (pages, facets, source context, query tables, dashboard tiles) is redacted with the profile's rules
+/// (in the engine, [`imt_core::redact::view`]); a profile without rules refuses it with what to add.
 #[tauri::command]
 pub(crate) async fn set_redacted_view(state: CurrentWindow, op: OpId, enabled: bool) -> CmdResult<imt_core::api::WorkspaceSummary> {
-    if enabled {
-        return Err(CmdError::new(
-            ErrorCode::Unsupported,
-            "the redacted view is not available with the new log store yet",
-        )
-        .hint("Exports, reports and shared projects can still be redacted."));
-    }
+    state.host.set_redacted_view(enabled).map_err(|e| {
+        CmdError::invalid(e.to_string()).hint("Edit the profile: add detectors or [[redact.rule]] entries to its [redact] section.")
+    })?;
     log::info!(Enabled = enabled; "Redacted view switched");
-    domain_event("redaction.toggled", op.as_deref(), &[("Enabled", "false")]);
+    domain_event("redaction.toggled", op.as_deref(), &[("Enabled", if enabled { "true" } else { "false" })]);
     crate::workspace_commands::summary_of(&state).await
 }
 
@@ -93,22 +89,24 @@ pub(crate) async fn preview_redaction(state: CurrentWindow, request: RedactionPr
     Ok(imt_core::redact::preview(&cfg, &request.sample))
 }
 
-/// What redaction would change in the events of a query (shown before exporting). Not over the store yet.
+/// What redaction would change in the events of a query (shown before exporting): hits per rule over at most
+/// 200,000 of them, with a few before/after samples (in the store, with the profile's rules).
 #[tauri::command]
 pub(crate) async fn redaction_summary(state: CurrentWindow, request: RedactionSummaryRequest) -> CmdResult<RedactionSummary> {
-    let _ = (state, request);
-    Err(CmdError::new(
-        ErrorCode::Unsupported,
-        "the redaction summary is not available with the new log store yet",
-    ))
+    crate::engine::with_store(&state, move |s| s.redaction_summary(&request)).await
 }
 
 /// One dashboard tile evaluated over the window's query (in the store; annotation tiles from the plugins).
 #[tauri::command]
 pub(crate) async fn dashboard_tile(state: CurrentWindow, request: TileRequest) -> CmdResult<TileData> {
     let registry = state.host.registry.clone();
+    let view = state.host.redacted_view();
     crate::engine::with_store(&state, move |s| {
-        imt_core::tiles::evaluate(s, &|r| registry.annotations(r), &request)
+        let mut tile = imt_core::tiles::evaluate(s, &|r| registry.annotations(r), &request)?;
+        if let Some(r) = &view {
+            r.view_tile(&mut tile);
+        }
+        Ok(tile)
     })
     .await
 }

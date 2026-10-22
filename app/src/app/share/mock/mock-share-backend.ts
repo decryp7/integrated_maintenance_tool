@@ -27,7 +27,7 @@ import { MockAnalysisBackend, recordsFrom } from '../../analysis/mock/mock-analy
 import { MockFiles } from '../../core/mock/mock-import';
 import { mockRedactCfg, mockRedactionPreview, MockRedactor } from './mock-redact';
 import { mockJobs, mockSteps } from '../../jobs/mock-jobs';
-import { mockUnsupported } from '../../core/mock/mock-unsupported';
+import { CmdError } from '../../core/cmd-error';
 
 /** How long a mock export takes (`?mockExportMs=`, default instant), to see it as a job in the Jobs pane. */
 export function mockExportMs(search = typeof window === 'undefined' ? '' : window.location.search): number {
@@ -92,11 +92,13 @@ export class MockShareBackend extends ShareBackend {
     return parse((await this.imt.getProfile()).toml) as Record<string, unknown>;
   }
 
-  /** Like the engine with the current log store: the redacted view cannot be switched on (yet), unless the mock offers
-   * the old store's features. */
+  /** Like the engine: a profile without `[redact]` rules refuses the view with what to add (`invalid`). */
   async setRedactedView(enabled: boolean): Promise<WorkspaceSummary> {
-    if (enabled && !this.mock()?.memoryStoreFeatures) throw mockUnsupported('the redacted view is not available with the new log store yet', 'Exports, reports and shared projects can still be redacted.');
-    this.mock()?.setMockRedaction(enabled);
+    try {
+      this.mock()?.setMockRedaction(enabled);
+    } catch (e) {
+      throw new CmdError({ code: 'invalid', message: e instanceof Error ? e.message : String(e), retryable: false, hint: 'Edit the profile: add detectors or [[redact.rule]] entries to its [redact] section.' });
+    }
     return this.imt.workspaceSummary();
   }
 
@@ -104,9 +106,8 @@ export class MockShareBackend extends ShareBackend {
     return mockRedactionPreview(request.toml ?? (await this.profileModel()), request.sample);
   }
 
-  /** Like the engine with the current log store: not available (yet), unless the mock offers the old store's features. */
+  /** What the profile's rules would change in the first page of matching events (the engine scans up to 200,000). */
   async redactionSummary(request: RedactionSummaryRequest): Promise<RedactionSummary> {
-    if (!this.mock()?.memoryStoreFeatures) throw mockUnsupported('the redaction summary is not available with the new log store yet');
     const r = new MockRedactor(mockRedactCfg(await this.profileModel()), 'summary');
     const page = await this.imt.queryPage({ query: request.query, offset: 0, limit: 5000, descending: false, anchor: null });
     const counts: Record<string, number> = {};

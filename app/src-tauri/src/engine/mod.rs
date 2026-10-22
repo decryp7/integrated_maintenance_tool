@@ -12,6 +12,7 @@
 //! - [`summary`]: the `WorkspaceSummary` the UI shows, from the store's summary and the host's profile.
 //! - [`import`]: imports as jobs with progress, Cancel and the import report.
 
+pub(crate) mod annotate;
 pub(crate) mod import;
 pub(crate) mod summary;
 
@@ -20,6 +21,7 @@ use crate::ErrorCode;
 use imt_core::package::ProjectManifest;
 use imt_core::ports::{Store, StoreError, StoreResult};
 use imt_core::profile::CompiledProfile;
+use imt_core::redact::Redactor;
 use imt_core::{PluginRegistry, Profile};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -402,10 +404,13 @@ impl From<StoreError> for CmdError {
 }
 
 /// The window's host side: its plugin registry (tools, configuration parsers, marker kinds, plugin status;
-/// importers run in the store worker) and its profile compiled with it.
+/// importers run in the store worker), its profile compiled with it, and the redacted view while it is on.
 pub(crate) struct Host {
     pub(crate) registry: Arc<PluginRegistry>,
     compiled: RwLock<Arc<CompiledProfile>>,
+    /// The redacted view's redactor (the profile's rules) while the user has it on; the store's replies that show
+    /// event text pass through it ([`imt_core::redact::view`]).
+    view: RwLock<Option<Arc<Redactor>>>,
 }
 
 impl Host {
@@ -414,7 +419,25 @@ impl Host {
         Ok(Host {
             registry: Arc::new(registry),
             compiled: RwLock::new(Arc::new(compiled)),
+            view: RwLock::default(),
         })
+    }
+
+    /// Switches the redacted view on (with the profile's rules) or off. Fails, saying what to add, when the profile
+    /// has no rules.
+    pub(crate) fn set_redacted_view(&self, on: bool) -> anyhow::Result<()> {
+        let view = if on {
+            Some(Arc::new(imt_core::redact::view_redactor(&self.compiled().profile.redact)?))
+        } else {
+            None
+        };
+        *crate::sync::write(&self.view) = view;
+        Ok(())
+    }
+
+    /// The redacted view's redactor, when it is on.
+    pub(crate) fn redacted_view(&self) -> Option<Arc<Redactor>> {
+        crate::sync::read(&self.view).clone()
     }
 
     pub(crate) fn compiled(&self) -> Arc<CompiledProfile> {
@@ -426,7 +449,19 @@ impl Host {
         self.registry.compile_profile(profile)
     }
 
+    /// The window's profile changed: a redacted view that is on takes the new rules (and goes off when the new
+    /// profile has none).
     pub(crate) fn set_compiled(&self, compiled: CompiledProfile) {
+        let mut view = crate::sync::write(&self.view);
+        if view.is_some() {
+            *view = match imt_core::redact::view_redactor(&compiled.profile.redact) {
+                Ok(r) => Some(Arc::new(r)),
+                Err(e) => {
+                    log::info!("The redacted view is off: {e}");
+                    None
+                }
+            };
+        }
         *crate::sync::write(&self.compiled) = Arc::new(compiled);
     }
 }

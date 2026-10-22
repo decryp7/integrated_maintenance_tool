@@ -182,6 +182,10 @@ pub(crate) struct EventStream<'c> {
     cq: &'c CompiledQuery,
     exact: bool,
     control: Option<&'c QueryControl>,
+    /// The thread's control that counts the candidates read (a time-ordered stream of an analysis), and how
+    /// many rows the stream yields at most.
+    progress: Option<QueryControl>,
+    bound: Option<u64>,
     chunk: Option<RecordBatch>,
     offset: usize,
     batch: Option<(EventBatch, BatchSlots)>,
@@ -226,6 +230,8 @@ impl<'c> EventStream<'c> {
             cq,
             exact,
             control: None,
+            progress: None,
+            bound: None,
             chunk: None,
             offset: 0,
             batch: None,
@@ -310,11 +316,19 @@ impl<'c> EventStream<'c> {
         };
         let mut stream = EventStream::from_statement(first, schema, ctx, cq, exact, limit);
         stream.chunks = Some(chunks);
+        stream.bound = Some(total.min(limit as u64));
+        stream.progress = QueryControl::current();
+        if let Some(c) = &stream.progress {
+            c.begin(imt_core::ql::QueryStage::Matching, usize::try_from(total).unwrap_or(usize::MAX));
+        }
         Ok(stream)
     }
 
+    /// Cancelled through `control`, whose holder counts the progress (the query language counts what it
+    /// evaluates).
     pub(crate) fn controlled(mut self, control: &'c QueryControl) -> EventStream<'c> {
         self.control = Some(control);
+        self.progress = None;
         self
     }
 
@@ -326,6 +340,9 @@ impl<'c> EventStream<'c> {
                     let len = (rb.num_rows() - self.offset).min(BATCH_ROWS);
                     let slice = rb.slice(self.offset, len);
                     self.offset += len;
+                    if let Some(c) = &self.progress {
+                        c.advance(len);
+                    }
                     return match EventBatch::try_new(self.schema.clone(), slice) {
                         Ok(b) => Some(b),
                         Err(e) => {
@@ -397,6 +414,13 @@ impl<'c> EventStream<'c> {
 
 impl Iterator for EventStream<'_> {
     type Item = OwnedRow;
+
+    /// At most the candidates of a time-ordered stream (within its limit), so the query language's progress has
+    /// a total.
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let left = self.bound.map(|b| usize::try_from(b.saturating_sub(self.yielded)).unwrap_or(usize::MAX));
+        (0, if self.done { Some(0) } else { left })
+    }
 
     fn next(&mut self) -> Option<OwnedRow> {
         if self.done {

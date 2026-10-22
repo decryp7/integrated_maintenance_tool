@@ -235,16 +235,23 @@ impl Worker {
                     None => reply(&()),
                 }
             }
-            StoreRequest::Call { store, op, body: b } => self.call(store, op, b.0, probe),
+            StoreRequest::Call { store, op, body: b } => self.call(store, op, b.0, probe, items),
         }
     }
 
-    fn call(&self, h: u64, op: StoreOp, b: serde_json::Value, probe: Option<CancelProbe>) -> StoreResult<serde_json::Value> {
+    fn call(
+        &self,
+        h: u64,
+        op: StoreOp,
+        b: serde_json::Value,
+        probe: Option<CancelProbe>,
+        items: &mut dyn FnMut(Vec<u8>) -> bool,
+    ) -> StoreResult<serde_json::Value> {
         let s = self.store(h)?;
-        // A cancellable operation: the caller's cancel interrupts its statements.
+        // A cancellable operation: the caller's cancel interrupts its statements; its progress streams meanwhile.
         macro_rules! run {
             ($e:expr) => {
-                reply(&controlled(probe, || $e)?)
+                reply(&controlled(probe, items, || $e)?)
             };
         }
         match op {
@@ -295,7 +302,7 @@ impl Worker {
                 let req = body(b)?;
                 let control = QueryControl::new();
                 let _watch = probe.map(|p| Watch::start(p, control.clone()));
-                reply(&s.run_query_with(&req, &control)?)
+                reply(&with_progress(&control, items, || s.run_query_with(&req, &control))?)
             }
             StoreOp::CheckQuery => reply(&s.check_query(&body::<String>(b)?)?),
             StoreOp::CompleteQuery => reply(&s.complete_query(&body(b)?)?),
@@ -361,6 +368,7 @@ impl Worker {
             StoreOp::SqlSchema => reply(&s.sql_schema()?),
             StoreOp::SqlRun => run!(s.sql_run(&body(b)?)),
             StoreOp::SqlPage => reply(&s.sql_page(&body(b)?)?),
+            StoreOp::RedactionSummary => run!(imt_core::ports::Redaction::redaction_summary(&s, &body(b)?)),
             StoreOp::SaveProject => reply(&Projects::save_project(&s, &body::<ProjectManifest>(b)?)?),
             StoreOp::ExportProject => {
                 let r: ExportProject = body(b)?;
@@ -370,16 +378,63 @@ impl Worker {
     }
 }
 
-/// Runs `f` under a control that the caller's cancel triggers (when there is a probe).
-fn controlled<R>(probe: Option<CancelProbe>, f: impl FnOnce() -> StoreResult<R>) -> StoreResult<R> {
+/// Runs `f` under a control that the caller's cancel triggers (when there is a probe), sending its progress to
+/// `items` meanwhile.
+fn controlled<R: Send>(
+    probe: Option<CancelProbe>,
+    items: &mut dyn FnMut(Vec<u8>) -> bool,
+    f: impl FnOnce() -> StoreResult<R> + Send,
+) -> StoreResult<R> {
     match probe {
         None => f(),
         Some(p) => {
             let control = QueryControl::new();
             let _watch = Watch::start(p, control.clone());
-            DuckStore::with_control(&control, f)
+            with_progress(&control, items, || DuckStore::with_control(&control, f))
         }
     }
+}
+
+/// Runs `f` on its own thread while this one sends `control`'s progress to `items` every
+/// [`protocol::PROGRESS_EVERY`] when it changed (the caller's stream; a refused item ends the sending, not the
+/// run). A panic in `f` is an engine error of the call.
+fn with_progress<R: Send>(
+    control: &QueryControl,
+    items: &mut dyn FnMut(Vec<u8>) -> bool,
+    f: impl FnOnce() -> StoreResult<R> + Send,
+) -> StoreResult<R> {
+    std::thread::scope(|scope| {
+        let (done, finished) = std::sync::mpsc::channel::<()>();
+        let run = std::thread::Builder::new()
+            .name("imt-store-call".into())
+            .spawn_scoped(scope, move || {
+                let out = f();
+                let _ = done.send(());
+                out
+            })
+            .map_err(|e| StoreError::Engine(format!("cannot start the call: {e}")))?;
+        let mut last = None;
+        let mut sending = true;
+        while let Err(std::sync::mpsc::RecvTimeoutError::Timeout) = finished.recv_timeout(protocol::PROGRESS_EVERY) {
+            let now = control.progress();
+            if sending && last != Some(now) {
+                last = Some(now);
+                sending = match imt_ipc::wire::encode(&now) {
+                    Ok(bytes) => items(bytes),
+                    Err(e) => {
+                        log::warn!("cannot encode the progress: {e}");
+                        false
+                    }
+                };
+            }
+        }
+        run.join().unwrap_or_else(|p| {
+            Err(StoreError::Engine(format!(
+                "the store worker hit an internal error: {}",
+                imt_core::guard::panic_message(p.as_ref())
+            )))
+        })
+    })
 }
 
 /// Cancels a control when the caller cancels the call; stops when dropped.
