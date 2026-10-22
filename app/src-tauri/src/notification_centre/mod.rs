@@ -267,18 +267,21 @@ fn labels<R: Runtime>(app: &AppHandle<R>) -> Vec<String> {
 /// Never fails: without the centre nothing happens.
 pub fn post<R: Runtime>(app: &AppHandle<R>, window: Option<&str>, new: NewNotice, os: Option<NotificationKind>) -> Option<Notice> {
     let centre = app.try_state::<NotificationCentre>()?;
+    let quiet = new.quiet;
     let posted = centre.post(window, new);
     let notice = posted.notice;
     if posted.unchanged {
         return Some(notice);
     }
+    // A quiet message updates the list without a toast.
+    let toast = (!quiet).then_some(&notice);
     match notice.scope {
         NoticeScope::App => {
             for label in labels(app) {
-                emit_snapshot(app, &centre, &label, Some(&notice));
+                emit_snapshot(app, &centre, &label, toast);
             }
         }
-        NoticeScope::Project => emit_snapshot(app, &centre, window.unwrap_or_default(), Some(&notice)),
+        NoticeScope::Project => emit_snapshot(app, &centre, window.unwrap_or_default(), toast),
     }
     if let Some(kind) = os {
         // Focus is a window getter, which waits for the main thread: decided there, never here.

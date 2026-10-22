@@ -108,6 +108,15 @@ impl Child {
         }
     }
 
+    /// The most memory the host's watcher saw the child use, in bytes (0 when it is not watched: no memory cap, or
+    /// an elevated child, which caps itself).
+    pub fn memory_peak(&self) -> u64 {
+        match &self.process {
+            Process::Spawned(p) => p.memory_peak(),
+            Process::Elevated(_) => 0,
+        }
+    }
+
     /// How the child ended (for messages after a broken call).
     pub fn exit_text(&self) -> String {
         match &self.process {

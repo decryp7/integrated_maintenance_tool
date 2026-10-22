@@ -58,6 +58,12 @@ fn running_jobs<R: Runtime>(app: &AppHandle<R>, window: &str) -> Vec<RunningJob>
 pub(crate) async fn store_memory<R: Runtime>(app: AppHandle<R>, state: CurrentWindow) -> CmdResult<StoreMemory> {
     let mut m = with_store(&state, |s| s.store_memory()).await?;
     m.running_jobs = running_jobs(&app, state.label());
+    // The budgets the user chose in Settings ▸ Performance (ADR 0031), not the defaults the store knows.
+    if let Some(app_state) = app.try_state::<crate::app_state::AppState>() {
+        let s = app_state.performance.settings();
+        m.import_budget_bytes = u64::from(s.import_budget_mb) << 20;
+        m.query_budget_bytes = u64::from(s.query_budget_mb) << 20;
+    }
     Ok(m)
 }
 

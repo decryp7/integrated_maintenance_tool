@@ -3,7 +3,8 @@
 //!
 //! - `echo <text>` → `<text>`; `env <NAME>` → the variable or `<unset>`; `exit <code>` → exits at once (a crash);
 //!   `hang` → never answers; `panic` → panics in the handler; `big <n>` → n bytes; `stream <n>` → n items;
-//!   `alloc <n>` → allocates and touches n bytes, `ok …` or `denied: …`;
+//!   `alloc <n>` → allocates and touches n bytes, `ok …` or `denied: …`; `hold <n> <ms>` → the same, kept for ms
+//!   before answering (so the host's memory watcher sees it);
 //!   `write <path>` → tries to create the file, answers `ok` or the error; `spawn` → tries to start a program;
 //!   `ask <text>` → calls the host back with `<text>` and answers with the host's reply; `gaps` → the notes of its
 //!   lockdown (JSON), so tests know what this system enforces; `read <path>` → `ok <bytes>` or the error;
@@ -49,6 +50,13 @@ fn handle(ctx: &CallCtx, body: &[u8]) -> Result<Vec<u8>, RemoteError> {
                 }
                 Err(e) => format!("denied: {e}").into_bytes(),
             })
+        }
+        "hold" => {
+            let (n, ms) = arg.split_once(' ').unwrap_or((arg, "0"));
+            let n: usize = n.parse().unwrap_or(0);
+            let v = vec![1u8; n];
+            std::thread::sleep(Duration::from_millis(ms.parse().unwrap_or(0)));
+            Ok(format!("ok {}", v.iter().step_by(4096).map(|b| *b as usize).sum::<usize>()).into_bytes())
         }
         "stream" => {
             for i in 0..arg.parse::<u32>().unwrap_or(0) {

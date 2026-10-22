@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { PluginMemory } from './plugin-memory';
+import { PluginMemoryStore } from '../settings/performance/plugin-memory.store';
 import { ExporterInfo, PluginInfo } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { InstalledPackages } from './installed-packages';
@@ -19,7 +21,7 @@ export function contributionLabel(contribution: string): string {
 @Component({
   selector: 'imt-plugins-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [InstalledPackages],
+  imports: [InstalledPackages, PluginMemory],
   template: `
     <div class="scroll" tabindex="0" role="region" aria-label="Plugins overview" i18n-aria-label="@@pluginsPanel.region">
       <h2 class="section-title" i18n="@@pluginsPanel.installed">Installed plugins</h2>
@@ -31,6 +33,7 @@ export function contributionLabel(contribution: string): string {
               <div class="badges">
                 @for (c of p.contributes; track c) { <span class="badge" [title]="c">{{ label(c) }}</span> }
               </div>
+              <imt-plugin-memory [pluginId]="p.id" [pluginName]="p.name" />
             </li>
           }
         </ul>
@@ -75,6 +78,12 @@ export function contributionLabel(contribution: string): string {
 })
 export class PluginsView {
   private readonly store = inject(WorkspaceStore);
+  private readonly memory = inject(PluginMemoryStore);
+
+  constructor() {
+    void this.memory.load();
+  }
+
   protected readonly importers = BUILTIN_IMPORTERS;
   protected readonly label = contributionLabel;
   protected readonly plugins = computed<PluginInfo[]>(() => this.store.summary()?.plugins ?? []);

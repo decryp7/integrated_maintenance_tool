@@ -90,7 +90,15 @@ pub fn init<R: Runtime>(app: &AppHandle<R>, safe_mode: bool) {
     let dir = crate::app_dirs::config(app).ok().map(|d| d.join("ai"));
     let data = crate::app_dirs::data(app).unwrap_or_else(|_| std::env::temp_dir().join("imt-data"));
     let models = data.join("models");
-    let deps = AiDeps::system(imt_ai::worker::default_worker_path(), &data);
+    let deps = match app.try_state::<crate::app_state::AppState>().map(|s| s.performance.clone()) {
+        Some(perf) => {
+            let listener = Some(perf.hub.listener());
+            let weak = Arc::downgrade(&perf);
+            let cap: imt_ai::worker::WorkerMemoryCap = Arc::new(move || weak.upgrade().and_then(|p| p.ai_cap()));
+            AiDeps::system_capped(imt_ai::worker::default_worker_path(), &data, cap, listener)
+        }
+        None => AiDeps::system(imt_ai::worker::default_worker_path(), &data),
+    };
     let core = Arc::new(AiCore::new(dir, models, safe_mode, deps));
     manage(app, core.clone());
     update_commands::init(app, core.clone());

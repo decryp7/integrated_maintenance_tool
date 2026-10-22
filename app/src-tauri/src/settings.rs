@@ -52,6 +52,8 @@ pub enum SectionGroup {
     Diagnostics,
     Plugins,
     Ai,
+    /// Memory and processor use of IMT's processes (ADR 0031).
+    Performance,
     Advanced,
 }
 
@@ -190,6 +192,10 @@ pub fn write_atomic(path: &Path, file: &SettingsFile) -> anyhow::Result<()> {
 /// Values that live outside `settings.json` (their owner's file).
 pub trait ExternalValues: Send + Sync {
     fn load(&self) -> Value;
+    /// Problems with `values` as a whole (relations between fields; the ranges are the schema's), one per field.
+    fn check(&self, _values: &ValidValues) -> Vec<FieldError> {
+        Vec::new()
+    }
 }
 
 /// A section provided by the app (not by an engine plugin).
@@ -391,7 +397,18 @@ impl SettingsService {
         }
         let section = section_of(&source);
         let before = self.current(&source, &section);
-        let valid = match validate(&section, values) {
+        let checked = validate(&section, values).and_then(|v| {
+            let errors = source_builtin(&source)
+                .and_then(|b| b.external.as_ref())
+                .map(|e| e.check(&v))
+                .unwrap_or_default();
+            if errors.is_empty() {
+                Ok(v)
+            } else {
+                Err(errors)
+            }
+        });
+        let valid = match checked {
             Ok(v) => v,
             Err(errors) => {
                 return Ok(SetResult {
@@ -605,8 +622,9 @@ fn build<R: Runtime>(app: &AppHandle<R>) -> SettingsService {
         last.clone()
     });
     let debounce = Arc::new(AtomicU64::new(DEFAULT_LIVE_TAIL_DEBOUNCE.as_millis() as u64));
+    let performance = app.try_state::<AppState>().map(|s| s.performance.clone());
     let config = SettingsConfig {
-        builtins: builtins(dir.clone(), installed, set_enabled, debounce.clone()),
+        builtins: builtins(dir.clone(), installed, set_enabled, debounce.clone(), performance),
         dir,
         safe_mode,
         plugins,
@@ -614,15 +632,19 @@ fn build<R: Runtime>(app: &AppHandle<R>) -> SettingsService {
     SettingsService::new(config, debounce)
 }
 
-/// The app's own sections, in navigation order.
+/// The app's own sections, in navigation order; `performance` gets the changes of Settings ▸ Performance.
 pub fn builtins(
     dir: Option<PathBuf>,
     plugins: Vec<(String, String, String)>,
     set_enabled: SetEnabled,
     debounce: Arc<AtomicU64>,
+    performance: Option<Arc<crate::performance::live::Live>>,
 ) -> Vec<Builtin> {
     let diagnostics = Arc::new(DiagnosticsSection { dir: dir.clone() });
-    let performance = Arc::new(crate::performance::PerformanceSection { dir: dir.clone() });
+    let performance = Arc::new(crate::performance::section::PerformanceSection {
+        dir: dir.clone(),
+        live: performance,
+    });
     let plugins = Arc::new(PluginsSection { dir, plugins, set_enabled });
     vec![
         Builtin {
@@ -642,7 +664,7 @@ pub fn builtins(
         },
         Builtin {
             configurable: performance.clone(),
-            group: SectionGroup::Advanced,
+            group: SectionGroup::Performance,
             external: Some(performance),
         },
     ]
@@ -903,7 +925,7 @@ pub(crate) mod tests {
         let config = SettingsConfig {
             dir: dir.map(Path::to_path_buf),
             safe_mode,
-            builtins: builtins(dir.map(Path::to_path_buf), installed, set_enabled, debounce.clone()),
+            builtins: builtins(dir.map(Path::to_path_buf), installed, set_enabled, debounce.clone(), None),
             plugins: Box::new(move || ws.plugin_settings()),
         };
         Fixture {
@@ -1381,7 +1403,7 @@ pub(crate) mod tests {
             SettingsConfig {
                 dir: None,
                 safe_mode: false,
-                builtins: builtins(None, vec![], Box::new(|_, _| Ok(())), debounce.clone()),
+                builtins: builtins(None, vec![], Box::new(|_, _| Ok(())), debounce.clone(), None),
                 plugins: Box::new(move || clash.plugin_settings()),
             },
             debounce,

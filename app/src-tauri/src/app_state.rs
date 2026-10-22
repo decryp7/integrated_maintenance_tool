@@ -28,6 +28,8 @@ pub(crate) struct AppState {
     pub(crate) store_root: PathBuf,
     /// The parser library (ADR 0026), shared by every window.
     pub(crate) parsers: Arc<crate::parsers::ParserLibrary>,
+    /// Settings ▸ Performance as the processes get it, and what their memory watchers report (ADR 0031).
+    pub(crate) performance: Arc<crate::performance::live::Live>,
 }
 
 /// The folder of scratch stores under IMT's data folder (the temp folder when there is none).
@@ -56,16 +58,21 @@ impl AppState {
         let installed = crate::plugin_packages::Installed::load(plugins_dir, safe_mode, &mut plugins);
         let config_dir = profile_dir.as_ref().and_then(|d| d.parent()).map(PathBuf::from);
         let disabled = crate::plugin_config::load_plugin_settings(config_dir.as_deref()).disabled;
-        let memory_mode = crate::performance::load(config_dir.as_deref()).memory_mode();
-        let stores = crate::engine::WorkerHost::new(disabled, safe_mode, lib_dir, installed.for_store_worker(), memory_mode)?;
-        let mut state = AppState::with(
-            profile_dir,
+        let performance = crate::performance::live::Live::start(config_dir.clone(), data_dir.as_deref());
+        let stores = crate::engine::WorkerHost::new(
+            disabled,
             safe_mode,
-            Arc::new(plugins),
-            Arc::new(stores),
-            store_root(data_dir.as_deref()),
-        );
+            lib_dir,
+            installed.for_store_worker(),
+            performance.worker_launch(),
+            Some(performance.hub.listener()),
+        )?;
+        performance.attach_worker(stores.worker());
+        let plugins = Arc::new(plugins);
+        performance.attach_plugins(plugins.clone());
+        let mut state = AppState::with(profile_dir, safe_mode, plugins, Arc::new(stores), store_root(data_dir.as_deref()));
         state.installed = Arc::new(installed);
+        state.performance = performance;
         Ok(state)
     }
 
@@ -80,6 +87,12 @@ impl AppState {
         let config_dir = profile_dir.as_ref().and_then(|d| d.parent()).map(PathBuf::from);
         let disabled = crate::plugin_config::load_plugin_settings(config_dir.as_deref()).disabled;
         let parsers = crate::parsers::ParserLibrary::load(crate::parsers::parser_dir(config_dir.as_deref()).as_deref());
+        // Tests' states: the saved settings, no first-run suggestion.
+        let performance = crate::performance::live::Live::with(
+            config_dir.clone(),
+            crate::performance::load(config_dir.as_deref()),
+            crate::performance::section::cores(),
+        );
         AppState {
             profile_dir,
             config_dir,
@@ -90,6 +103,7 @@ impl AppState {
             stores,
             store_root,
             parsers: Arc::new(parsers),
+            performance,
         }
     }
 

@@ -17419,32 +17419,46 @@
           <context context-type="linenumber">44</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="notifications.action.raiseMemoryCap" datatype="html">
+        <source>Raise the cap…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/notifications/notice-actions.ts</context>
+          <context context-type="linenumber">46</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="notifications.action.retryProcess" datatype="html">
+        <source>Retry</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/notifications/notice-actions.ts</context>
+          <context context-type="linenumber">48</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="notifications.action.jobCleared" datatype="html">
         <source>This job was cleared from Jobs; the outcome above is all that is kept.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notice-actions.ts</context>
-          <context context-type="linenumber">78</context>
+          <context context-type="linenumber">82</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.action.failed" datatype="html">
         <source>That did not work.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notice-actions.ts</context>
-          <context context-type="linenumber">104</context>
+          <context context-type="linenumber">108</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.action.setUpFormatTitle" datatype="html">
         <source>Set up format</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notice-actions.ts</context>
-          <context context-type="linenumber">133</context>
+          <context context-type="linenumber">137</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.action.fixTimestampsTitle" datatype="html">
         <source>Fix timestamps</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notice-actions.ts</context>
-          <context context-type="linenumber">142</context>
+          <context context-type="linenumber">146</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.toasts.region" datatype="html">
@@ -17594,11 +17608,18 @@
           <context context-type="linenumber">18</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="notifications.source.performance" datatype="html">
+        <source>Performance</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/notifications/notifications-text.ts</context>
+          <context context-type="linenumber">20</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="notifications.titleCount" datatype="html">
         <source><x id="title" equiv-text="n.title"/> (×<x id="count" equiv-text="n.count"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notifications-text.ts</context>
-          <context context-type="linenumber">24</context>
+          <context context-type="linenumber">26</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.store.failed" datatype="html">
@@ -18691,6 +18712,62 @@
           <context context-type="linenumber">143</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="pluginsPanel.memory.peak" datatype="html">
+        <source>Memory: peak <x id="INTERPOLATION" equiv-text="{{ r.peakMb }}"/> MB of a <x id="INTERPOLATION_1" equiv-text="{{ r.capMb }}"/> MB cap</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/plugins-panel/plugin-memory.ts</context>
+          <context context-type="linenumber">17,18</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="pluginsPanel.memory.cap" datatype="html">
+        <source>Memory cap: <x id="INTERPOLATION" equiv-text="{{ r.capMb }}"/> MB</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/plugins-panel/plugin-memory.ts</context>
+          <context context-type="linenumber">19,20</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="pluginsPanel.memory.stopped" datatype="html">
+        <source>· stopped over its cap</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/plugins-panel/plugin-memory.ts</context>
+          <context context-type="linenumber">22,23</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="pluginsPanel.memory.warned" datatype="html">
+        <source>· near its cap</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/plugins-panel/plugin-memory.ts</context>
+          <context context-type="linenumber">24,27</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="pluginsPanel.memory.own" datatype="html">
+        <source>Own cap</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/plugins-panel/plugin-memory.ts</context>
+          <context context-type="linenumber">28,29</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="pluginsPanel.memory.set" datatype="html">
+        <source>Set</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/plugins-panel/plugin-memory.ts</context>
+          <context context-type="linenumber">32,33</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="pluginsPanel.memory.clear" datatype="html">
+        <source>Use the default</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/plugins-panel/plugin-memory.ts</context>
+          <context context-type="linenumber">34,36</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="pluginsPanel.memory.aria" datatype="html">
+        <source>Memory cap of <x id="name" equiv-text="this.pluginName() || this.pluginId()"/> in MB</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/plugins-panel/plugin-memory.ts</context>
+          <context context-type="linenumber">59</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="pluginsPanel.packages.busy.reading" datatype="html">
         <source>Checking the package…</source>
         <context-group purpose="location">
@@ -18814,105 +18891,105 @@
         <source>JSON lines / CLEF (Serilog)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/plugins-view.ts</context>
-          <context context-type="linenumber">8</context>
+          <context context-type="linenumber">10</context>
         </context-group>
       </trans-unit>
       <trans-unit id="pluginsPanel.importer.text" datatype="html">
         <source>Plain text logs (output templates and regexes)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/plugins-view.ts</context>
-          <context context-type="linenumber">9</context>
+          <context context-type="linenumber">11</context>
         </context-group>
       </trans-unit>
       <trans-unit id="pluginsPanel.contribution.transform" datatype="html">
         <source>transform</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/plugins-view.ts</context>
-          <context context-type="linenumber">15</context>
+          <context context-type="linenumber">17</context>
         </context-group>
       </trans-unit>
       <trans-unit id="pluginsPanel.region" datatype="html">
         <source>Plugins overview</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/plugins-view.ts</context>
-          <context context-type="linenumber">24</context>
+          <context context-type="linenumber">26</context>
         </context-group>
       </trans-unit>
       <trans-unit id="pluginsPanel.installed" datatype="html">
         <source>Installed plugins</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/plugins-view.ts</context>
-          <context context-type="linenumber">25,26</context>
+          <context context-type="linenumber">27,28</context>
         </context-group>
       </trans-unit>
       <trans-unit id="pluginsPanel.installed.aria" datatype="html">
         <source>Installed plugins</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/plugins-view.ts</context>
-          <context context-type="linenumber">27</context>
+          <context context-type="linenumber">29</context>
         </context-group>
       </trans-unit>
       <trans-unit id="pluginsPanel.none" datatype="html">
         <source>No plugins are installed. IMT works with its built-in importers and exporters.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/plugins-view.ts</context>
-          <context context-type="linenumber">38,41</context>
+          <context context-type="linenumber">41,44</context>
         </context-group>
       </trans-unit>
       <trans-unit id="pluginsPanel.builtIn" datatype="html">
         <source>Built in</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/plugins-view.ts</context>
-          <context context-type="linenumber">43,44</context>
+          <context context-type="linenumber">46,47</context>
         </context-group>
       </trans-unit>
       <trans-unit id="pluginsPanel.importers" datatype="html">
         <source>Importers</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/plugins-view.ts</context>
-          <context context-type="linenumber">45,46</context>
+          <context context-type="linenumber">48,49</context>
         </context-group>
       </trans-unit>
       <trans-unit id="pluginsPanel.exporters" datatype="html">
         <source>Exporters</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/plugins-view.ts</context>
-          <context context-type="linenumber">48,49</context>
+          <context context-type="linenumber">51,52</context>
         </context-group>
       </trans-unit>
       <trans-unit id="pluginsPanel.noExporters" datatype="html">
         <source>none</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/plugins-view.ts</context>
-          <context context-type="linenumber">49,51</context>
+          <context context-type="linenumber">52,54</context>
         </context-group>
       </trans-unit>
       <trans-unit id="pluginsPanel.about" datatype="html">
         <source>About plugins</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/plugins-view.ts</context>
-          <context context-type="linenumber">53,55</context>
+          <context context-type="linenumber">56,58</context>
         </context-group>
       </trans-unit>
       <trans-unit id="pluginsPanel.about.p1" datatype="html">
         <source>A plugin extends IMT without changing the app. Backend plugins can add <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/>importers<x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> (read a new file format), <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/>transforms<x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> (a step you can use in the profile pipeline), <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/>exporters<x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> (write events to a new format) and <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/>hooks<x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> (react to events such as a finished import).</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/plugins-view.ts</context>
-          <context context-type="linenumber">55,56</context>
+          <context context-type="linenumber">58,59</context>
         </context-group>
       </trans-unit>
       <trans-unit id="pluginsPanel.about.p2" datatype="html">
         <source>Plugins are loaded by the engine when it starts; what it found is listed above. A plugin&apos;s importer shows up in the Explorer as the format badge of its files, and a transform can be added from the Pipeline section of the profile.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/plugins-view.ts</context>
-          <context context-type="linenumber">56,57</context>
+          <context context-type="linenumber">59,60</context>
         </context-group>
       </trans-unit>
       <trans-unit id="pluginsPanel.about.p3" datatype="html">
         <source>UI plugins add panels (like the Registry viewer), commands, inspector sections and field formatters, and are registered when the app is built.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins-panel/plugins-view.ts</context>
-          <context context-type="linenumber">57,60</context>
+          <context context-type="linenumber">60,63</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.title" datatype="html">
@@ -27929,6 +28006,118 @@
           <context context-type="linenumber">190</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="performance.suggest" datatype="html">
+        <source>Suggest settings</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/performance/performance-extras.ts</context>
+          <context context-type="linenumber">17,18</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="performance.presets" datatype="html">
+        <source>Presets:</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/performance/performance-extras.ts</context>
+          <context context-type="linenumber">18,19</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="performance.preset.standard" datatype="html">
+        <source>Standard</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/performance/performance-extras.ts</context>
+          <context context-type="linenumber">19,20</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="performance.preset.lowMemory" datatype="html">
+        <source>Low memory</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/performance/performance-extras.ts</context>
+          <context context-type="linenumber">20,22</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="performance.table.setting" datatype="html">
+        <source>Setting</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/performance/performance-extras.ts</context>
+          <context context-type="linenumber">34,35</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="performance.table.now" datatype="html">
+        <source>Now</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/performance/performance-extras.ts</context>
+          <context context-type="linenumber">36</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="performance.table.suggested" datatype="html">
+        <source>Suggested</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/performance/performance-extras.ts</context>
+          <context context-type="linenumber">36,38</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="performance.apply" datatype="html">
+        <source>Apply these values</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/performance/performance-extras.ts</context>
+          <context context-type="linenumber">50,51</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="performance.dismiss" datatype="html">
+        <source>Keep the current values</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/performance/performance-extras.ts</context>
+          <context context-type="linenumber">51,53</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="performance.nothing" datatype="html">
+        <source>The current values are already these.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/performance/performance-extras.ts</context>
+          <context context-type="linenumber">54,58</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="performance.environment" datatype="html">
+        <source>For this computer: <x id="total" equiv-text="this.gb(env.totalMemoryMb)"/> GB of memory (<x id="free" equiv-text="this.gb(env.freeMemoryMb)"/> GB free), <x id="cores" equiv-text="env.cores"/> cores</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/performance/performance-extras.ts</context>
+          <context context-type="linenumber">82</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="performance.environmentAi" datatype="html">
+        <source><x id="base" equiv-text="base"/>, minus an AI model of <x id="model" equiv-text="this.gb(env.aiModelMb)"/> GB</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/performance/performance-extras.ts</context>
+          <context context-type="linenumber">83</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="performance.on" datatype="html">
+        <source>On</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/performance/performance-extras.ts</context>
+          <context context-type="linenumber">87</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="performance.off" datatype="html">
+        <source>Off</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/performance/performance-extras.ts</context>
+          <context context-type="linenumber">87</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="performance.empty" datatype="html">
+        <source>(none)</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/performance/performance-extras.ts</context>
+          <context context-type="linenumber">88</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="performance.memory.failed" datatype="html">
+        <source>The memory caps could not be read.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/performance/plugin-memory.store.ts</context>
+          <context context-type="linenumber">15</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="settings.field.restart.title" datatype="html">
         <source>Takes effect after a restart</source>
         <context-group purpose="location">
@@ -28063,11 +28252,19 @@
         </context-group>
         <note priority="1" from="description">Settings group</note>
       </trans-unit>
+      <trans-unit id="settings.group.performance" datatype="html">
+        <source>Performance</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
+          <context context-type="linenumber">15</context>
+        </context-group>
+        <note priority="1" from="description">Settings group</note>
+      </trans-unit>
       <trans-unit id="settings.group.advanced" datatype="html">
         <source>Advanced</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">15</context>
+          <context context-type="linenumber">16</context>
         </context-group>
         <note priority="1" from="description">Settings group</note>
       </trans-unit>
@@ -28075,7 +28272,7 @@
         <source>GB</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">24</context>
+          <context context-type="linenumber">25</context>
         </context-group>
         <note priority="1" from="description">Gigabytes (binary)</note>
       </trans-unit>
@@ -28083,7 +28280,7 @@
         <source>MB</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">25</context>
+          <context context-type="linenumber">26</context>
         </context-group>
         <note priority="1" from="description">Megabytes (binary)</note>
       </trans-unit>
@@ -28091,7 +28288,7 @@
         <source>KB</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">26</context>
+          <context context-type="linenumber">27</context>
         </context-group>
         <note priority="1" from="description">Kilobytes (binary)</note>
       </trans-unit>
@@ -28099,7 +28296,7 @@
         <source>bytes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">28</context>
+          <context context-type="linenumber">29</context>
         </context-group>
         <note priority="1" from="description">Unit after a byte count</note>
       </trans-unit>
@@ -28107,21 +28304,21 @@
         <source>up to <x id="max" equiv-text="kind.maxLen"/> characters</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">73</context>
+          <context context-type="linenumber">74</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.hint.maxItems" datatype="html">
         <source>up to <x id="max" equiv-text="kind.maxItems"/> items, one per line</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">75</context>
+          <context context-type="linenumber">76</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.hint.folder" datatype="html">
         <source>folder</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">77</context>
+          <context context-type="linenumber">78</context>
         </context-group>
         <note priority="1" from="description">Hint next to a path setting</note>
       </trans-unit>
@@ -28129,7 +28326,7 @@
         <source>file</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">77</context>
+          <context context-type="linenumber">78</context>
         </context-group>
         <note priority="1" from="description">Hint next to a path setting</note>
       </trans-unit>
@@ -28137,7 +28334,7 @@
         <source>on</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">86</context>
+          <context context-type="linenumber">87</context>
         </context-group>
         <note priority="1" from="description">Value of a switched-on setting</note>
       </trans-unit>
@@ -28145,7 +28342,7 @@
         <source>off</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">86</context>
+          <context context-type="linenumber">87</context>
         </context-group>
         <note priority="1" from="description">Value of a switched-off setting</note>
       </trans-unit>
@@ -28153,7 +28350,7 @@
         <source>none</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">90</context>
+          <context context-type="linenumber">91</context>
         </context-group>
         <note priority="1" from="description">Value of an empty list setting</note>
       </trans-unit>
@@ -28161,23 +28358,12 @@
         <source>not set</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">92</context>
+          <context context-type="linenumber">93</context>
         </context-group>
         <note priority="1" from="description">Value of an empty setting</note>
       </trans-unit>
       <trans-unit id="settings.check.number" datatype="html">
         <source>Enter a number.</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">116</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">121</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="settings.check.between" datatype="html">
-        <source>Between <x id="range" equiv-text="rangeHint(k)"/>.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
           <context context-type="linenumber">117</context>
@@ -28187,25 +28373,36 @@
           <context context-type="linenumber">122</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="settings.check.between" datatype="html">
+        <source>Between <x id="range" equiv-text="rangeHint(k)"/>.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
+          <context context-type="linenumber">118</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
+          <context context-type="linenumber">123</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="settings.check.maxLen" datatype="html">
         <source>At most <x id="max" equiv-text="k.maxLen"/> characters.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">125</context>
+          <context context-type="linenumber">126</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.check.maxItems" datatype="html">
         <source>At most <x id="max" equiv-text="k.maxItems"/> items.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">127</context>
+          <context context-type="linenumber">128</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.status.disabled" datatype="html">
         <source>disabled</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">153</context>
+          <context context-type="linenumber">154</context>
         </context-group>
         <note priority="1" from="description">Settings section status</note>
       </trans-unit>
@@ -28213,7 +28410,7 @@
         <source>stopped</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">155</context>
+          <context context-type="linenumber">156</context>
         </context-group>
         <note priority="1" from="description">Settings section status (plugin quarantined)</note>
       </trans-unit>
@@ -28221,7 +28418,7 @@
         <source>not installed</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">157</context>
+          <context context-type="linenumber">158</context>
         </context-group>
         <note priority="1" from="description">Settings section status</note>
       </trans-unit>
@@ -28229,7 +28426,7 @@
         <source>safe mode</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-model.ts</context>
-          <context context-type="linenumber">159</context>
+          <context context-type="linenumber">160</context>
         </context-group>
         <note priority="1" from="description">Settings section status</note>
       </trans-unit>
@@ -28237,92 +28434,92 @@
         <source>Search settings</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">31</context>
+          <context context-type="linenumber">32</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.search.label" datatype="html">
         <source>Search settings</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">31</context>
+          <context context-type="linenumber">32</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.showAdvancedToggle" datatype="html">
         <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;store.showAdvanced()&quot; (change)=&quot;store.setShowAdvanced($any($event.target).checked)&quot; /&gt;"/> Show advanced</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">32,33</context>
+          <context context-type="linenumber">33,34</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.restartBanner" datatype="html">
         <source>Some changes take effect after IMT restarts.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">37,38</context>
+          <context context-type="linenumber">38,39</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.restart" datatype="html">
         <source>Restart</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">38,41</context>
+          <context context-type="linenumber">39,42</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.discard.label" datatype="html">
         <source>Unapplied changes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">42</context>
+          <context context-type="linenumber">43</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.discard.text" datatype="html">
         <source>You have changes that were not applied.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">43,44</context>
+          <context context-type="linenumber">44,45</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.discard.discard" datatype="html">
         <source>Discard changes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">44,45</context>
+          <context context-type="linenumber">45,46</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.discard.keepEditing" datatype="html">
         <source>Keep editing</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">45,48</context>
+          <context context-type="linenumber">46,49</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.dismiss" datatype="html">
         <source>Dismiss</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">49,51</context>
+          <context context-type="linenumber">50,52</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">52,55</context>
+          <context context-type="linenumber">53,56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.nav.label" datatype="html">
         <source>Settings sections</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">56</context>
+          <context context-type="linenumber">57</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.general" datatype="html">
         <source>General</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">57,58</context>
+          <context context-type="linenumber">58,59</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">116,117</context>
+          <context context-type="linenumber">117,118</context>
         </context-group>
         <note priority="1" from="description">Name of the first settings section</note>
         <note priority="1" from="meaning">Settings section</note>
@@ -28331,11 +28528,11 @@
         <source>Appearance</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">58,59</context>
+          <context context-type="linenumber">59,60</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">120,121</context>
+          <context context-type="linenumber">121,122</context>
         </context-group>
         <note priority="1" from="description">Theme, colour scheme and density</note>
         <note priority="1" from="meaning">Settings section</note>
@@ -28344,7 +28541,7 @@
         <source>Disk usage</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">59,60</context>
+          <context context-type="linenumber">60,61</context>
         </context-group>
         <note priority="1" from="description">What IMT keeps on disk</note>
         <note priority="1" from="meaning">Settings section</note>
@@ -28353,15 +28550,15 @@
         <source>Parsers</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">60,62</context>
+          <context context-type="linenumber">61,63</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">88,90</context>
+          <context context-type="linenumber">89,91</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">220</context>
+          <context context-type="linenumber">224</context>
         </context-group>
         <note priority="1" from="description">The log formats IMT reads</note>
         <note priority="1" from="meaning">Settings section</note>
@@ -28370,147 +28567,147 @@
         <source>unapplied changes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">70</context>
+          <context context-type="linenumber">71</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.dirtyDot.title" datatype="html">
         <source>Unapplied changes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">70</context>
+          <context context-type="linenumber">71</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.content.label" datatype="html">
         <source>Settings</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">77</context>
+          <context context-type="linenumber">78</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.loadError" datatype="html">
         <source>Could not load the settings: <x id="INTERPOLATION" equiv-text="{{ e }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">80,81</context>
+          <context context-type="linenumber">81,82</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.retry" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">81,83</context>
+          <context context-type="linenumber">82,84</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.loading" datatype="html">
         <source>Loading settings…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">84,86</context>
+          <context context-type="linenumber">85,87</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.search.parserHits" datatype="html">
         <source>Matching parsers</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">90</context>
+          <context context-type="linenumber">91</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.search.openParsers" datatype="html">
         <source>Open Parsers</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">96,98</context>
+          <context context-type="linenumber">97,99</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.noMatch" datatype="html">
         <source>No settings match “<x id="INTERPOLATION" equiv-text="{{ store.query() }}"/>”.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">112,113</context>
+          <context context-type="linenumber">113,114</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.general.desc" datatype="html">
         <source>Display preferences of this window. They apply immediately.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">117,118</context>
+          <context context-type="linenumber">118,119</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.appearance.desc" datatype="html">
         <source>Theme, colour scheme and density of every window. They apply immediately.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">121,123</context>
+          <context context-type="linenumber">122,124</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.resetSection" datatype="html">
         <source>Reset section</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">135,137</context>
+          <context context-type="linenumber">136,138</context>
         </context-group>
       </trans-unit>
       <trans-unit id="3868108601110605590" datatype="html">
         <source>{VAR_PLURAL, plural, =1 {<x id="INTERPOLATION"/> advanced setting hidden.} other {<x id="INTERPOLATION"/> advanced settings hidden.}}</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">164</context>
+          <context context-type="linenumber">168</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.hiddenAdvanced" datatype="html">
         <source><x id="ICU" equiv-text="{n, plural, =1 {{{ n }} advanced setting hidden.} other {{{ n }} advanced settings hidden.}}" xid="2266298815211162863"/> <x id="START_TAG_BUTTON" ctype="x-button" equiv-text="&lt;button class=&quot;link&quot; type=&quot;button&quot; (click)=&quot;store.setShowAdvanced(true)&quot;&gt;"/>Show advanced<x id="CLOSE_TAG_BUTTON" ctype="x-button" equiv-text="&lt;/button&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">164,166</context>
+          <context context-type="linenumber">168,170</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.emptySection" datatype="html">
         <source>This section has no settings.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">167,170</context>
+          <context context-type="linenumber">171,174</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.export" datatype="html">
         <source>Export…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">174,175</context>
+          <context context-type="linenumber">178,179</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.import" datatype="html">
         <source>Import…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">175,176</context>
+          <context context-type="linenumber">179,180</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.unappliedIn" datatype="html">
         <source>{VAR_PLURAL, plural, =1 {Unapplied changes in <x id="INTERPOLATION"/> section} other {Unapplied changes in <x id="INTERPOLATION"/> sections}}</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">178</context>
+          <context context-type="linenumber">182</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.apply" datatype="html">
         <source>Apply</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">181,184</context>
+          <context context-type="linenumber">185,188</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.cancel" datatype="html">
         <source>Cancel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">227</context>
+          <context context-type="linenumber">231</context>
         </context-group>
       </trans-unit>
       <trans-unit id="settings.screen.close" datatype="html">
         <source>Close</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/settings/settings-screen.ts</context>
-          <context context-type="linenumber">228</context>
+          <context context-type="linenumber">232</context>
         </context-group>
         <note priority="1" from="description">Button that closes the settings dialog</note>
       </trans-unit>

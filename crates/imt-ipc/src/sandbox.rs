@@ -71,7 +71,8 @@ pub struct SandboxSpec {
     /// their first allocations and closed the connection. An elevated child, which the host cannot watch, caps itself
     /// with a job object (Windows).
     pub memory_limit: Option<u64>,
-    /// CPU share cap in percent of the machine (Windows job object; not enforced on Unix).
+    /// CPU share cap in percent of the machine: exact on Windows (job object hard cap); on Unix a share below 100 only
+    /// lowers the child's priority to the lowest (nice 19), as there is no per-process cap.
     pub cpu_rate_percent: Option<u8>,
     /// Total CPU seconds (`RLIMIT_CPU` on Unix; job per-process user time on Windows).
     pub cpu_seconds: Option<u64>,
