@@ -9,7 +9,7 @@ import { CoreUiState } from '../lifecycle/core-ui-state';
 import { UI_STATE_CONTRIBUTIONS, UiStateRegistry } from '../lifecycle/ui-state';
 import { mockTools, FakePicker, MemoryRecentProjects, provideToolsTesting } from '../tools/mock/test-support';
 import { DIALOG_REF, DialogService } from '../ui/dialog.service';
-import { BookmarkStore } from './bookmarks/bookmark.store';
+import { SavedQueryStore } from './bookmarks/saved-query.store';
 import { OpenRequests, SESSION_FILE_NAME } from './open-requests';
 import { ProjectCommands } from './project-commands';
 import { ProjectPicker } from './project-picker';
@@ -18,7 +18,7 @@ import { ProjectUiState } from './project-ui-state';
 import { RecentProjectsDialog, RecentProjectsDialogService } from './recent-dialog';
 import { UnsavedChangesDialog, UnsavedChangesGuard } from './unsaved-changes';
 import { RECENT_PROJECTS } from './recent-projects';
-import { BookmarkCommands } from './bookmark-commands';
+import { SavedQueryCommands } from './saved-query-commands';
 import { at } from '../../testing/must';
 
 async function setup() {
@@ -28,7 +28,7 @@ async function setup() {
       { provide: DIALOG_REF, useValue: { close: () => undefined, closed: Promise.resolve(undefined) } },
       { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => TestBed.inject(CoreUiState).contributions },
       { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => TestBed.inject(ProjectUiState).contributions },
-      { provide: IMT_COMMANDS, multi: true, useFactory: () => [...TestBed.inject(ProjectCommands).commands, ...TestBed.inject(BookmarkCommands).commands] },
+      { provide: IMT_COMMANDS, multi: true, useFactory: () => [...TestBed.inject(ProjectCommands).commands, ...TestBed.inject(SavedQueryCommands).commands] },
     ],
   });
   const projects = TestBed.inject(ProjectService);
@@ -153,18 +153,18 @@ describe('ProjectService', () => {
     const { projects, store, registry, picker } = await setup();
     store.patchQuery({ text: 'needle', levels: ['Error'] }); store.setTextInput('needle');
     store.setTextInput('needle');
-    TestBed.inject(BookmarkStore).replace([{ id: 'b1', kind: 'range', from: 1, to: 2, label: 'Time range', note: 'n', createdAt: 5 }]);
+    TestBed.inject(SavedQueryStore).replace([{ id: 'q1', name: 'Timeouts', query: { text: 'timeout' } }]);
     await projects.saveAs();
     store.clearQuery();
-    TestBed.inject(BookmarkStore).replace([]);
+    TestBed.inject(SavedQueryStore).replace([]);
     expect(projects.dirty()).toBe(true);
     picker.open = '/p/saved.imtz';
     await projects.openFromDialog();
     expect(store.query()).toMatchObject({ text: 'needle', levels: ['Error'] });
-    expect(TestBed.inject(BookmarkStore).items()).toHaveLength(1);
+    expect(TestBed.inject(SavedQueryStore).items()).toHaveLength(1);
     expect(projects.name()).toBe('saved');
     expect(projects.dirty()).toBe(false);
-    expect(registry.serialize()['bookmarks']).toHaveLength(1);
+    expect(registry.serialize()['savedQueries']).toHaveLength(1);
   });
 
   it('does nothing when the open dialog is cancelled; reports unknown files', async () => {
@@ -217,13 +217,13 @@ describe('ProjectService', () => {
     await projects.saveAs();
     expect(picker.save).toBe('/p/saved.imtz');
     store.patchQuery({ text: 'z' }); store.setTextInput('z');
-    TestBed.inject(BookmarkStore).replace([{ id: 'b', kind: 'range', from: 1, to: 2, label: '', note: '', createdAt: 1 }]);
+    TestBed.inject(SavedQueryStore).replace([{ id: 'q', name: 'n', query: {} }]);
     await projects.newProject();
     expect(projects.name()).toBe('Untitled');
     expect(projects.path()).toBeNull();
     expect(store.summary()?.sources).toEqual([]);
     expect(store.textInput()).toBe('');
-    expect(TestBed.inject(BookmarkStore).items()).toEqual([]);
+    expect(TestBed.inject(SavedQueryStore).items()).toEqual([]);
     expect(projects.dirty()).toBe(false);
   });
 
@@ -236,7 +236,7 @@ describe('ProjectService', () => {
   });
 });
 
-describe('ProjectCommands, BookmarkCommands and the recent dialog', () => {
+describe('ProjectCommands, SavedQueryCommands and the recent dialog', () => {
   it('runs New / Open / Save / Save As / Recent through the command registry', async () => {
     const { commands, picker, tools, projects } = await setup();
     expect(await commands.run('project.save')).toBe(true);
@@ -255,16 +255,9 @@ describe('ProjectCommands, BookmarkCommands and the recent dialog', () => {
     expect(commands.find('project.save')?.keybinding).toBe('Mod+S');
   });
 
-  it('bookmark commands appear only when there is something to bookmark', async () => {
-    const { commands, store } = await setup();
-    expect(commands.available().some((c) => c.id === 'bookmarks.addSelected')).toBe(false);
-    expect(commands.available().some((c) => c.id === 'bookmarks.addRange')).toBe(false);
-    store.select({ id: 7, ts: 1, tsState: 'parsed', level: 'Error', message: 'm', template: null, exception: null, fields: {}, source: 0, sourceName: 's', line: 1, byteOffset: 0, group: '', markers: [] });
-    store.setRange(1, 2);
-    expect(await commands.run('bookmarks.addSelected')).toBe(true);
-    expect(await commands.run('bookmarks.addRange')).toBe(true);
-    expect(TestBed.inject(BookmarkStore).items().map((b) => b.kind)).toEqual(['record', 'range']);
-    expect(await commands.run('bookmarks.show')).toBe(true);
+  it('the saved queries command shows the view', async () => {
+    const { commands } = await setup();
+    expect(await commands.run('savedQueries.show')).toBe(true);
   });
 
   it('the recent dialog lists projects, opens one and clears the list', async () => {

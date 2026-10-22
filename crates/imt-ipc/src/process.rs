@@ -166,7 +166,51 @@ pub struct ChildProcess {
     pid: u32,
     label: String,
     exit_note: Option<Arc<ExitNote>>,
+    /// The memory cap the host stopped the child over, once it did.
+    over_memory: Arc<Mutex<Option<u64>>>,
     _job: Job,
+}
+
+/// How often the host looks at the memory of a capped child.
+pub const MEMORY_LOOK: Duration = Duration::from_millis(200);
+
+/// "512 MB": a memory cap for messages.
+fn megabytes(bytes: u64) -> String {
+    format!("{} MB", bytes.div_ceil(1 << 20))
+}
+
+/// Watches the resident memory of the child `pid` and stops it once it uses more than `limit` (the memory cap of its
+/// sandbox), the same way on every platform: rlimits and job commit limits count reservations and commitments that
+/// allocators make up front (see `SandboxSpec::memory_limit`). Ends with the child.
+fn watch_memory(pid: u32, limit: u64, child: Arc<Mutex<Option<OsChild>>>, over: Arc<Mutex<Option<u64>>>, log: Option<Arc<ChildLog>>) {
+    let spawned = std::thread::Builder::new().name("imt-child-memory".into()).spawn(move || {
+        let id = sysinfo::Pid::from_u32(pid);
+        let mut sys = sysinfo::System::new();
+        loop {
+            std::thread::sleep(MEMORY_LOOK);
+            let ended = lock(&child).as_mut().is_none_or(|c| matches!(c.try_wait(), Ok(Some(_))));
+            if ended {
+                return;
+            }
+            sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[id]), true);
+            let used = sys.process(id).map(|p| p.memory()).unwrap_or(0);
+            if used > limit {
+                *lock(&over) = Some(limit);
+                if let Some(l) = &log {
+                    l.record(&child_log::ChildEvent::Note(format!(
+                        "Stopped: it used {} of memory, more than its cap of {}",
+                        megabytes(used),
+                        megabytes(limit)
+                    )));
+                }
+                if let Some(c) = lock(&child).as_mut() {
+                    let _ = c.kill();
+                }
+                return;
+            }
+        }
+    });
+    drop(spawned);
 }
 
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
@@ -300,6 +344,7 @@ impl ChildProcess {
     ) -> ChildProcess {
         let pid = child.id();
         let child = Arc::new(Mutex::new(Some(child)));
+        let over_memory = Arc::new(Mutex::new(None));
         let exit_note = spec.log.as_ref().map(|l| {
             let log = child_log::get(l);
             log.started(pid);
@@ -314,12 +359,22 @@ impl ChildProcess {
             }
             note
         });
+        if let Some(limit) = spec.sandbox.memory_limit {
+            watch_memory(
+                pid,
+                limit,
+                child.clone(),
+                over_memory.clone(),
+                exit_note.as_ref().map(|n| n.log.clone()),
+            );
+        }
         ChildProcess {
             child,
             stdin: Mutex::new(stdin),
             pid,
             label: spec.label.clone(),
             exit_note,
+            over_memory,
             _job: job,
         }
     }
@@ -375,6 +430,13 @@ impl ChildProcess {
 
     /// Describes how the child ended, waiting briefly for the OS to publish its exit status.
     pub fn exit_text(&self) -> String {
+        if let Some(limit) = *lock(&self.over_memory) {
+            return format!(
+                "{} used more than its memory cap of {} and was stopped",
+                self.label,
+                megabytes(limit)
+            );
+        }
         match self.exit_soon() {
             Some(s) => format!("{} exited ({s})", self.label),
             None => format!("{} closed the connection", self.label),

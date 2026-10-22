@@ -16,7 +16,7 @@ pub mod manifest;
 pub mod open;
 mod recovery;
 #[cfg(test)]
-mod sample;
+pub(crate) mod sample;
 
 use super::breadcrumbs::Breadcrumb;
 use super::privacy::is_secret_key;

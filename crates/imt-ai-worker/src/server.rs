@@ -4,7 +4,9 @@
 //! server that died, and maps everything to the worker protocol's typed errors.
 
 use crate::child::{run_briefly, ServerChild, StartError};
-use crate::completion::{completion_body, parse_stream_line, server_error, token_count, tokenize_body, Event};
+use crate::completion::{
+    completion_body, media_marker, parse_stream_line, server_error, token_count, tokenize_body, with_media_marker, Event,
+};
 use crate::devices::{best_gpu, parse_list_devices, Device};
 use crate::http::{Call, HttpError};
 use crate::locate::LlamaConfig;
@@ -92,6 +94,8 @@ struct Running {
     n_ctx: usize,
     /// Pixels per image token along one side, when the model's projector is loaded (images accepted).
     image_token_px: Option<u32>,
+    /// The server's media marker (`/props`), when it is not llama.cpp's default.
+    media_marker: Option<String>,
 }
 
 /// Tokens an image of `w`×`h` takes, estimated from the projector's token size (llama-server's `/tokenize`
@@ -155,7 +159,8 @@ impl ServerBackend {
             .clone()
     }
 
-    fn props_ctx(&self, child: &ServerChild) -> Option<usize> {
+    /// The server's `/props`.
+    fn props(&self, child: &ServerChild) -> Option<Value> {
         let call = Call {
             method: "GET",
             path: "/props",
@@ -164,11 +169,7 @@ impl ServerBackend {
             cancelled: &|| false,
         };
         let r = child.client().send(&call, 4 * 1024 * 1024).ok().filter(|r| r.status == 200)?;
-        let v = r.json()?;
-        v.pointer("/default_generation_settings/n_ctx")
-            .or_else(|| v.get("n_ctx"))
-            .and_then(Value::as_u64)
-            .map(|n| n as usize)
+        r.json()
     }
 
     /// Starts llama-server again after it died, with the arguments of the last load.
@@ -182,7 +183,13 @@ impl ServerBackend {
         let died = r.child.describe_exit(None);
         match ServerChild::start(&r.launch.exe, &r.launch.args, self.timeouts.ready, &|| false) {
             Ok(child) => {
+                // A new server may choose another media marker.
+                let marker = self.props(&child).as_ref().and_then(media_marker);
+                let Some(r) = self.running.as_mut() else {
+                    return Err(RpcError::new(code::NOT_LOADED, "no model is loaded"));
+                };
                 r.child = child;
+                r.media_marker = marker;
                 Ok(())
             }
             Err(e) => {
@@ -305,7 +312,15 @@ impl WorkerBackend for ServerBackend {
             let args = server_args(model, projector.as_ref().map(|(p, _)| *p), context, layers, moe_to_cpu, threads);
             match ServerChild::start(&build.exe, &args, self.timeouts.ready, &|| false) {
                 Ok(child) => {
-                    let n_ctx = self.props_ctx(&child).filter(|n| *n > 0).unwrap_or(context);
+                    let props = self.props(&child);
+                    let n_ctx = props
+                        .as_ref()
+                        .and_then(|v| v.pointer("/default_generation_settings/n_ctx").or_else(|| v.get("n_ctx")))
+                        .and_then(Value::as_u64)
+                        .map(|n| n as usize)
+                        .filter(|n| *n > 0)
+                        .unwrap_or(context);
+                    let media_marker = props.as_ref().and_then(media_marker);
                     let mut backend = match (&gpu, layers) {
                         (Some(g), n) if n > 0 => g.backend(),
                         _ => "CPU".to_string(),
@@ -327,6 +342,7 @@ impl WorkerBackend for ServerBackend {
                         },
                         n_ctx,
                         image_token_px,
+                        media_marker,
                     });
                     return Ok(LoadResult {
                         backend,
@@ -380,6 +396,18 @@ impl WorkerBackend for ServerBackend {
             }
         };
         let n_ctx = r.n_ctx;
+        // With images, the prompt carries the server's own media marker (one per image).
+        let marked;
+        let p = match (&r.media_marker, p.images.is_empty()) {
+            (Some(m), false) => {
+                marked = ChatParams {
+                    prompt: with_media_marker(&p.prompt, m),
+                    ..p.clone()
+                };
+                &marked
+            }
+            _ => p,
+        };
         let body = tokenize_body(&p.prompt).to_string();
         let call = Call {
             method: "POST",

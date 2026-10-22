@@ -32,9 +32,9 @@ import { Segments } from './chat-cards';
     <label for="research-results" i18n="@@browser.researchDialog.results">Results to read</label>
     <select id="research-results" class="select" [value]="results()" (change)="results.set(asValue($event))" data-testid="research-results">
       <option value="" i18n="@@browser.researchDialog.resultsDefault">Default (Settings ▸ Web browser)</option>
-      <option value="3" i18n="@@browser.researchDialog.results3">3</option>
-      <option value="5" i18n="@@browser.researchDialog.results5">5</option>
       <option value="10" i18n="@@browser.researchDialog.results10">10</option>
+      <option value="20" i18n="@@browser.researchDialog.results20">20</option>
+      <option value="30" i18n="@@browser.researchDialog.results30">30</option>
     </select>
     <p class="muted small" i18n="@@browser.researchDialog.note">The AI searches with your search engine in IMT's browser and reads the result pages only (no logins, forms or typing). It runs as a job; the answer arrives in the chat with its sources.</p>
     @if (error(); as e) {

@@ -25,7 +25,7 @@ contributors are in [AGENTS.md](../AGENTS.md); the design is in [architecture.md
   RAM). Every cargo build of the workspace needs it; in each shell, before cargo:
 
   ```sh
-  eval "$(crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+  eval "$(bash crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
   ```
 
   It sets `DUCKDB_LIB_DIR`/`DUCKDB_INCLUDE_DIR` and puts the library on `PATH` / `LD_LIBRARY_PATH` /

@@ -10,13 +10,12 @@ import { RunsEditor } from './runs-editor';
 async function applied(fixture?: Parameters<typeof settle>[0]): Promise<void> {
   // The import's progress is polled on a timer: advance the fake clock instead of waiting for wall time,
   // which a loaded CI machine stretches past any fixed limit.
-  await vi.waitFor(
-    async () => {
-      await vi.advanceTimersByTimeAsync(250);
-      expect(TestBed.inject(WorkspaceStore).busy()).toBeNull();
-    },
-    { timeout: 20_000, interval: 20 },
-  );
+  // The limit counts fake-clock steps (two simulated minutes), never wall time.
+  const store = TestBed.inject(WorkspaceStore);
+  for (let step = 0; store.busy() !== null; step++) {
+    if (step >= 480) throw new Error('the re-import did not finish within two simulated minutes');
+    await vi.advanceTimersByTimeAsync(250);
+  }
   await settle(fixture);
 }
 
@@ -37,7 +36,8 @@ async function previewed(fixture: Parameters<typeof settle>[0]) {
 
 const model = async (b: MockBackend) => parseProfile((await b.getProfile()).toml);
 
-describe('RunsEditor', () => {
+// Saves re-import as a job; a loaded CI machine needs more than the default 20 s of wall time for that.
+describe('RunsEditor', { timeout: 60_000 }, () => {
   afterEach(() => vi.useRealTimers());
 
   it('lists the run rules with their counts', async () => {

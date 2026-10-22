@@ -666,7 +666,9 @@ fn the_model_reads_images_with_its_projector_in_the_same_server() {
     assert!(r.unwrap().text.starts_with("I see 1 image(s)."));
     let sent = lab.requests("/completion");
     assert_eq!(sent[0]["prompt"]["multimodal_data"], json!(["iVBORw0KGgo="]));
-    assert_eq!(sent[0]["prompt"]["prompt_string"], "<__media__>\nwhat is on the screen?");
+    // Regression (macOS, real llama-server): the server looks only for its own media marker (from its /props); a
+    // prompt with llama.cpp's default counted no markers and failed "Failed to tokenize prompt".
+    assert_eq!(sent[0]["prompt"]["prompt_string"], "<__media_fake_7f3a__>\nwhat is on the screen?");
     // Markers and images that disagree, and images over the limits, are refused (never a crash).
     assert_eq!(
         chat(&mut b, &image_params("no marker", 1)).0.unwrap_err().code,

@@ -598,12 +598,20 @@ describe('EventsGrid at scale', { timeout: 30_000 }, () => {
     const backend = synthetic();
     const { fixture, vp } = await render(backend);
     const query = vi.spyOn(backend, 'queryPage');
-    for (let i = 1; i <= 20; i++) {
-      vp.scrollTop = i * 150_000;
-      vp.dispatchEvent(new Event('scroll'));
-      await fixture.whenStable();
+    // A fake clock: on a loaded machine the wall time between two scroll events can pass the pause by itself.
+    vi.useFakeTimers();
+    try {
+      for (let i = 1; i <= 20; i++) {
+        vp.scrollTop = i * 150_000;
+        vp.dispatchEvent(new Event('scroll'));
+        fixture.detectChanges();
+        await vi.advanceTimersByTimeAsync(10);
+      }
+      expect(query).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(2_000);
+    } finally {
+      vi.useRealTimers();
     }
-    expect(query).not.toHaveBeenCalled();
     await flush(fixture);
     // Before: every position passed asked for the pages it showed.
     expect(query.mock.calls.length).toBeGreaterThan(0);

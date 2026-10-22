@@ -388,9 +388,13 @@ pub(crate) fn draft_search<R: Runtime>(
     // Without an event, the search text used to be the question itself: it still is when the model cannot draft.
     let fallback = engine.or_else(|| record_id.is_none().then(|| question.clone()));
     let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let assistant = crate::ai::commands::core(app)
-        .ok()
-        .and_then(|c| c.assistant(&win.ai.knowledge.snapshot(), cancel.clone()).ok());
+    let assistant = crate::ai::commands::core(app).ok().and_then(|c| {
+        let focus = imt_notes::context::Focus {
+            events: record_id.map(u64::from).into_iter().collect(),
+            ..Default::default()
+        };
+        c.assistant(&crate::ai::knowledge::for_window(win, &focus), cancel.clone()).ok()
+    });
     let model = assistant.as_ref().map(WithModel);
     let timer = cancel.clone();
     std::thread::spawn(move || {

@@ -197,18 +197,6 @@ fn a_locked_child_cannot_write_the_users_files_or_start_programs() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-#[cfg(windows)]
-#[test]
-fn the_job_memory_cap_fails_a_large_allocation() {
-    let capped = imt_ipc::sandbox::SandboxSpec {
-        memory_limit: Some(64 << 20),
-        ..imt_ipc::sandbox::SandboxSpec::unrestricted()
-    };
-    let c = launch(&spec(&[]).sandbox(capped), Arc::new(NoCalls)).unwrap();
-    // 200 MB cannot be committed under a 64 MiB cap: the child dies (allocation failure aborts) or errors.
-    assert!(ask(&c, "big 200000000").is_err());
-}
-
 /// A copy of the fake child in its own folder (a contained child can only run from folders granted to it; granting
 /// cargo's target folder would rewrite the permissions of everything in it), contained by the launcher.
 #[cfg(any(windows, target_os = "linux"))]
@@ -276,6 +264,11 @@ fn a_contained_child_is_confined_even_when_it_skips_its_own_lockdown() {
 #[cfg(target_os = "linux")]
 #[test]
 fn a_contained_child_is_confined_even_when_it_skips_its_own_lockdown() {
+    // Containment by the launcher is landlock: a kernel (or container) without it cannot confine files.
+    if !std::fs::read_to_string("/sys/kernel/security/lsm").is_ok_and(|l| l.split(',').any(|m| m.trim() == "landlock")) {
+        eprintln!("skipped: landlock is not enabled in this kernel or container");
+        return;
+    }
     let root = tempfile::tempdir().unwrap();
     let user = tempfile::tempdir().unwrap();
     let secret = user.path().join("secret.txt");
@@ -341,9 +334,8 @@ fn a_locked_child_cannot_write_files_or_start_programs() {
     let _ = std::fs::remove_file(&target);
 }
 
-#[cfg(target_os = "linux")]
 #[test]
-fn the_memory_cap_fails_a_large_allocation_but_not_a_busy_child() {
+fn the_memory_cap_stops_a_child_over_it_but_not_a_busy_one() {
     let capped = imt_ipc::sandbox::SandboxSpec {
         memory_limit: Some(256 << 20),
         ..imt_ipc::sandbox::SandboxSpec::unrestricted()
@@ -352,7 +344,7 @@ fn the_memory_cap_fails_a_large_allocation_but_not_a_busy_child() {
     assert!(ask(&open, "alloc 400000000").unwrap().starts_with("ok"));
     let c = launch(&spec(&[]).sandbox(capped), Arc::new(NoCalls)).unwrap();
     // Many calls at once (handler threads, each a malloc arena that reserves address space) stay well within a
-    // 256 MiB cap of the memory used, which an address-space cap did not.
+    // 256 MiB cap of the memory used, which an address-space or data rlimit did not.
     let answers: Vec<_> = std::thread::scope(|s| {
         let calls: Vec<_> = (0..32).map(|_| s.spawn(|| ask(&c, "alloc 2000000"))).collect();
         calls.into_iter().map(|h| h.join().unwrap()).collect()
@@ -361,6 +353,7 @@ fn the_memory_cap_fails_a_large_allocation_but_not_a_busy_child() {
         answers.iter().all(|a| a.as_deref().is_ok_and(|a| a.starts_with("ok"))),
         "{answers:?}"
     );
-    let big = ask(&c, "alloc 400000000").unwrap();
-    assert!(big.starts_with("denied"), "{big}");
+    // Over the cap, the host stops the child (it watches the memory used; an rlimit counted reservations).
+    assert!(ask(&c, "alloc 400000000").is_err());
+    assert!(c.exit_text().contains("memory cap of 256 MB"), "{}", c.exit_text());
 }

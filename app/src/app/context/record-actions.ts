@@ -143,7 +143,7 @@ export class RecordActions {
 
   /**
    * "Infer pattern from selected lines…" (command palette): the grid's multi-selection, else the record selected
-   * elsewhere (timeline, bookmark). Returns false, without opening anything, when nothing is selected.
+   * elsewhere (timeline, notes). Returns false, without opening anything, when nothing is selected.
    */
   inferSelected(): boolean {
     const records = this.gridSelection.recordsOr(this.store.selected());

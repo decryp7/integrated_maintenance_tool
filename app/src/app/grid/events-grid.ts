@@ -21,6 +21,8 @@ import { RecordActions } from '../context/record-actions';
 import { FieldFormatters } from '../extensions/field-formatters';
 import { MarkerIcon } from '../shared/marker-icon';
 import { HighlightRules } from '../projects/bookmarks/highlight';
+import { NotesStore } from '../notes/notes.store';
+import { firstLine } from '../notes/notes-model';
 import { GridSelection } from './grid-selection';
 import { contains, EMPTY_SELECTION, extendTo, indices, RowSelection, shift, single, toggle, withFocus } from './row-selection';
 import { makeGeometry, navigate, rowAtTop, rowY, scrollToTop, topForRow, topToScroll, visibleWindow, wheelToPixels, clamp } from './scroll-map';
@@ -30,6 +32,14 @@ import { stripeBackground } from '../sources/source-colors';
 import { LiveArrival, liveMode, PagedRowsStore } from './paged-rows.store';
 
 export { SCROLL_IDLE_MS } from './paged-rows.store';
+
+/** What a row's note glyph says: the first note's first line, and how many more there are. */
+export function noteLabel(notes: readonly { text: string }[] | undefined): string | null {
+  const [first] = notes ?? [];
+  if (!first) return null;
+  const line = firstLine(first.text, 80) || $localize`:@@grid.note:Note`;
+  return notes!.length > 1 ? $localize`:@@grid.notesMore:${line}:note: (+${notes!.length - 1}:more: more)` : line;
+}
 
 /** Row heights for the two grid densities (px). */
 /** Row height when the theme gives none (the theme's `--row-h` per density wins). */
@@ -59,6 +69,8 @@ export interface RowVm {
   mark: SourceMark | null;
   stripe: string | null;
   marker: { kind: string; color: string | null; label: string } | null;
+  /** The event has notes: what the glyph says (the first note's first line), else null. */
+  note: string | null;
   time: string;
   /** The event has no timestamp: it is in the grid but not on the timeline (the time cell says so). */
   untimed: boolean;
@@ -175,7 +187,7 @@ export type GridRowVm = RowVm | PlaceholderVm;
               @for (c of v.cells; track c.column) {
                 <span class="mono extra ellipsis" role="gridcell" [title]="c.text">{{ c.text }}</span>
               }
-              <span class="msg ellipsis" role="gridcell">@if (v.row.searchMatch === 'partial') {<span class="partial" data-testid="partial-match" title="Partial match: the search text appears inside a word" i18n-title="@@grid.partialMatchTitle" i18n="@@grid.partialMatch">partial</span>}{{ v.row.message }}</span>
+              <span class="msg ellipsis" role="gridcell">@if (v.note; as n) {<span class="note-glyph" role="img" data-testid="note-glyph" [attr.aria-label]="n" [title]="n"><imt-icon name="note" [size]="12" /></span>}@if (v.row.searchMatch === 'partial') {<span class="partial" data-testid="partial-match" title="Partial match: the search text appears inside a word" i18n-title="@@grid.partialMatchTitle" i18n="@@grid.partialMatch">partial</span>}{{ v.row.message }}</span>
             </div>
           } @else {
             <div class="row placeholder" role="row" [attr.aria-rowindex]="v.index + 2" [style.top.px]="v.y"><span role="gridcell" class="skeleton" aria-label="Loading" i18n-aria-label="@@grid.loading"></span></div>
@@ -232,6 +244,7 @@ export type GridRowVm = RowVm | PlaceholderVm;
     .row.marked.sel { box-shadow: inset 6px 0 0 var(--accent); }
     .row.marked.hl.sel { box-shadow: inset 10px 0 0 var(--accent); }
     .mk { display: flex; justify-content: center; }
+    .note-glyph { display: inline-flex; vertical-align: -2px; margin-right: 4px; color: var(--accent-text); }
     .time { font-size: var(--fs-sm); color: var(--muted); white-space: nowrap; }
     .time.untimed { font-style: italic; color: var(--faint); }
     .partial { font-size: var(--fs-xs); color: var(--faint); border: 1px dashed var(--border-2); border-radius: 4px; padding: 0 4px; margin-right: 6px; }
@@ -257,6 +270,7 @@ export class EventsGrid {
   /** Live refreshes: whether to reload the rows in view (following) or keep them ("N new events"). */
   private readonly feed = inject(LiveFeed);
   private readonly highlight = inject(HighlightRules);
+  private readonly notes = inject(NotesStore);
   /** Source / instance colour of each row (View › Source colours). */
   protected readonly colors = inject(SourceColors);
   /** Where the grid publishes its multi-selection for palette commands and other panels. */
@@ -352,6 +366,7 @@ export class EventsGrid {
     const dateFormat = this.settings.dateFormat();
     const columns = this.prefs.extraColumns();
     const kinds = this.data.markerKindMap();
+    const notes = this.notes.byEvent();
     return this.visible().map(({ index, y, row }): GridRowVm => {
       if (!row) return { kind: 'placeholder', index, y };
       const mark = this.colors.forRecord(row);
@@ -369,6 +384,7 @@ export class EventsGrid {
         mark,
         stripe: mark ? stripeBackground(mark.swatch) : null,
         marker: first === undefined ? null : { kind: first, color: kind?.color ?? null, label: kind?.label ?? first },
+        note: noteLabel(notes.get(row.id)),
         time: formatDateTime(row.ts, tz, true, dateFormat),
         untimed: row.tsState === 'untimed' || row.ts === null,
         levelVar: LEVEL_VARS[row.level],

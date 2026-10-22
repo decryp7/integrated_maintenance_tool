@@ -1,16 +1,14 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { BookmarkList } from './bookmark-list';
 import { HighlightEditor } from './highlight-editor';
 import { SavedQueries } from './saved-queries';
 
-/** The "Bookmarks" panel: bookmarks with notes, saved queries and highlight rules. All are saved with the project. */
+/** The "Saved queries" panel: saved queries and highlight rules. Both are saved with the project. */
 @Component({
-  selector: 'imt-bookmarks-view',
+  selector: 'imt-saved-queries-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BookmarkList, SavedQueries, HighlightEditor],
+  imports: [SavedQueries, HighlightEditor],
   template: `
-    <div class="scroll" role="region" aria-label="Bookmarks" i18n-aria-label="@@projects.view.region" tabindex="0">
-      <section aria-labelledby="bm-h"><h2 id="bm-h" class="section-title" i18n="@@projects.view.bookmarks">Bookmarks and notes</h2><imt-bookmark-list /></section>
+    <div class="scroll" role="region" aria-label="Saved queries" i18n-aria-label="@@projects.view.region" tabindex="0">
       <section aria-labelledby="sq-h"><h2 id="sq-h" class="section-title" i18n="@@projects.view.queries">Saved queries</h2><imt-saved-queries /></section>
       <section aria-labelledby="hl-h"><h2 id="hl-h" class="section-title" i18n="@@projects.view.highlights">Highlight rules</h2><imt-highlight-editor /></section>
     </div>
@@ -23,4 +21,4 @@ import { SavedQueries } from './saved-queries';
     h2 { margin: 0; }
   `,
 })
-export class BookmarksView {}
+export class SavedQueriesView {}
