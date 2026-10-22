@@ -1,0 +1,7 @@
+format = "imt-project"
+version = 1
+name = "demo"
+
+[[clock_offsets]]
+path = "a.log"
+offset_ms = 5
