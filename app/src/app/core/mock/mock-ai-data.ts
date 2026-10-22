@@ -189,6 +189,31 @@ export function mockParserProposal(): ParserProposal {
       { line: 2, ts: Date.UTC(2026, 9, 14, 9, 0, 3), level: 'Warning', message: 'Queue depth 812 above 500', exception: null, fields: {}, markers: ['warning'] },
     ],
     rationale: 'The sample is plain text with an ISO timestamp and a bracketed level.',
+    // The engine's verdict and the rounds (ADR 0032): plausible invented numbers; Rust computes the real ones.
+    status: 'done',
+    verdict: {
+      score: 0.995,
+      lines: 64,
+      readable: 63,
+      events: 58,
+      withTimestamp: 58,
+      withLevel: 58,
+      readsLevels: true,
+      failures: [{ line: 41, fragment: '-- worker paused --', rule: 'format', reason: 'no line pattern reads this line' }],
+      timestamps: { accepted: true, timed: 58, events: 58, backwards: 0, first: Date.UTC(2026, 9, 14, 9, 0, 2), last: Date.UTC(2026, 9, 14, 9, 14, 40), plausible: true, reason: null, suggestedFormat: null },
+      zone: { offset: '+02:00', source: 'modification-time', confidence: 0.6, detail: "the last event's clock is +02:00 against the file's modification time (within 1 min)" },
+      identity: [
+        { field: 'Worker', coverage: 1, distinct: 3, accepted: true, reason: '3 value(s) on 100% of the events' },
+        { field: 'RequestId', coverage: 1, distinct: 58, accepted: false, reason: '58 values in 58 events: too many to tell processes apart' },
+      ],
+      metrics: [{ name: 'QueueDepth', unit: 'count', matches: 12, plausible: 1, min: 40, max: 812, accepted: true, reason: '12 events, 40..812 ' }],
+      error: null,
+    },
+    rounds: [
+      { round: 1, score: 0.62, timestampsAccepted: false, failures: 8, note: '' },
+      { round: 2, score: 0.995, timestampsAccepted: true, failures: 1, note: '' },
+    ],
+    chartsToml: '[[chart]]\nid = "metric-queuedepth"\ntitle = "QueueDepth per instance"\ny = "avg(QueueDepth)"\nbucket = "auto"\nsplit_by = ["@group"]\ntype = "line"\nunit = ""\n',
   };
 }
 

@@ -1,5 +1,6 @@
 import { EnvironmentProviders, inject, Injectable, makeEnvironmentProviders, provideEnvironmentInitializer } from '@angular/core';
 import { FolderSetupNotice } from './folder-setup-notice';
+import { ParserSuggestNotice } from '../parser-suggest-notice';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, ImtActivityItem, ImtCommand } from '../../extensions/tokens';
 import { DialogService } from '../../ui/dialog.service';
@@ -57,6 +58,8 @@ export function provideFolderSetup(): EnvironmentProviders {
     { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: () => folderSetupActivityItems(inject(WorkspaceStore)) },
     // After a folder is opened: a message in the notification centre offers the set-up.
     provideEnvironmentInitializer(() => inject(FolderSetupNotice)),
+    // After an import: a file only the generic parser read, with problems, gets a "Generate a parser with AI…" message.
+    provideEnvironmentInitializer(() => inject(ParserSuggestNotice)),
   ]);
 }
 

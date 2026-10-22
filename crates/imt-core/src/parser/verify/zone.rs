@@ -156,6 +156,22 @@ fn most_common(values: impl IntoIterator<Item = i32>) -> Option<(i32, usize, usi
         .map(|(v, n)| (v, n, total))
 }
 
+fn written_offset_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        user_regex::compile(r"\d{1,2}:\d{2}:\d{2}(?:[.,]\d{1,9})?\s?(?P<z>Z|[+-]\d{2}:?\d{2})(?:\D|$)", false).expect("valid regex")
+    })
+}
+
+/// The offsets (minutes east of UTC) written after the times of the first lines of 	ext (another file of the same
+/// machine, for [`ZoneEvidence::machine_offsets`]).
+pub fn offsets_in(text: &str) -> Vec<i32> {
+    text.lines()
+        .take(200)
+        .filter_map(|l| written_offset_re().captures(l).and_then(|c| offset_minutes(&c["z"])))
+        .collect()
+}
+
 /// Decides the zone (see the module documentation).
 pub fn detect(ev: &ZoneEvidence) -> ZoneGuess {
     let texts = ev.timestamp_texts;
@@ -234,6 +250,13 @@ mod tests {
 
     fn texts(t: &[&str]) -> Vec<String> {
         t.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn offsets_written_in_another_file() {
+        let text = "2026-10-14 10:00:00.000+09:00 [INF] a\n2026-10-14T10:00:01Z b\nno time\n10:00:02 -0500 c\n2026-10-14 10:00:03 d\n";
+        assert_eq!(offsets_in(text), [540, 0, -300]);
+        assert!(offsets_in("").is_empty());
     }
 
     #[test]

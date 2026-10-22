@@ -374,6 +374,92 @@ export interface ParserProposal {
   withTimestamp: number;
   preview: ParsedPreview[];
   rationale: string;
+  /** ADR 0032: the engine's target reached, the best it got to, or the library reads the file already. */
+  status: ParserStatus;
+  /** The engine's verdict on the final parser; null from older results. */
+  verdict: ParserVerdict | null;
+  /** Each round of drafting (by the model) and verification (by the engine). */
+  rounds: ParserRound[];
+  /** Profile [[chart]] sections for the accepted metrics; empty without metrics. */
+  chartsToml: string;
+}
+
+export type ParserStatus = 'done' | 'bestEffort' | 'builtin';
+
+/** Which rule a line failed (imt_core::parser::verify::FailedRule). */
+export type FailedRule = 'format' | 'missedEntry' | 'timestamp' | 'level';
+
+export interface LineFailure {
+  /** 1-based line in the file. */
+  line: number;
+  fragment: string;
+  rule: FailedRule;
+  reason: string;
+}
+
+export interface TimestampCheck {
+  accepted: boolean;
+  timed: number;
+  events: number;
+  backwards: number;
+  first: number | null;
+  last: number | null;
+  plausible: boolean;
+  reason: string | null;
+  suggestedFormat: string | null;
+}
+
+export type ZoneSource = 'timestamps' | 'same-machine' | 'modification-time' | 'text-hint' | 'asked' | 'user';
+
+export interface ZoneGuess {
+  offset: string;
+  source: ZoneSource;
+  confidence: number;
+  detail: string;
+}
+
+export interface FieldCheck {
+  field: string;
+  coverage: number;
+  distinct: number;
+  accepted: boolean;
+  reason: string;
+}
+
+export interface MetricCheck {
+  name: string;
+  unit: 'bytes' | 'kb' | 'mb' | 'gb' | 'percent' | 'ms' | 's' | 'count';
+  matches: number;
+  plausible: number;
+  min: number | null;
+  max: number | null;
+  accepted: boolean;
+  reason: string;
+}
+
+/** The engine's verdict on a parser (imt_core::parser::verify::ParserVerdict). */
+export interface ParserVerdict {
+  score: number;
+  lines: number;
+  readable: number;
+  events: number;
+  withTimestamp: number;
+  withLevel: number;
+  readsLevels: boolean;
+  failures: LineFailure[];
+  timestamps: TimestampCheck;
+  zone: ZoneGuess;
+  identity: FieldCheck[];
+  metrics: MetricCheck[];
+  error: string | null;
+}
+
+export interface ParserRound {
+  round: number;
+  score: number;
+  timestampsAccepted: boolean;
+  failures: number;
+  note: string;
 }
 
 export interface PipelineProposal {
@@ -522,11 +608,13 @@ export interface RestoreResult {
   warning: string | null;
 }
 
-/** Where a proposal's sample comes from: text the user gave, or the lines around an event. */
+/** Where a proposal's sample comes from: text the user gave, the lines around an event, or (parsers) an open source's file. */
 export interface SampleSource {
   recordId?: number | null;
   sample?: string | null;
   fileName?: string | null;
+  /** A parser is generated from this open source's file (read by Rust, ADR 0032). */
+  sourceId?: number | null;
 }
 
 /** Explain, summarise, root causes: an answer that runs in the background ("Explanation ready · View"). */
@@ -536,7 +624,7 @@ export type NarrativeRequest = { op: 'explain'; recordId: number } | { op: 'summ
 export type AiStartRequest =
   | NarrativeRequest
   | { op: 'regex'; lines: string[]; intent: string | null }
-  | { op: 'parser'; recordId: number | null; sample: string | null; fileName: string | null }
+  | { op: 'parser'; recordId: number | null; sample: string | null; fileName: string | null; sourceId?: number | null }
   | { op: 'pipeline' | 'markers' | 'extractors'; goal: string; recordId: number | null; sample: string | null }
   | { op: 'query'; question: string }
   | { op: 'folderSetup'; request: unknown }
