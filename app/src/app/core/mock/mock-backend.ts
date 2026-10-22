@@ -37,7 +37,7 @@ import {
 } from '../api.types';
 import type { ImtBackend } from '../backend';
 import { ProfileModel } from '../profile.model';
-import { generateDemo, generateExtraSource, MockDataset, MockRecord } from './mock-data';
+import { DEMO_START, generateDemo, generateExtraSource, MockDataset, MockRecord } from './mock-data';
 import { mockAnnotations } from './mock-annotations';
 import { mockPreviewSpans, mockQueryRuns, mockRunAnnotations, RunContext, spanRules } from './mock-runs';
 import { RunsReply, RunsRequest, SpanPreview, SpanPreviewRequest } from '../api.types';
@@ -196,6 +196,47 @@ export class MockBackend implements ImtBackend {
     return this.engine.sources.map((s) => ({ id: s.id, path: s.path, name: s.name, importer: s.importer }));
   }
 
+  /**
+   * `set_source_encoding`: the source is read again with that label (origin `manual`, confidence 100); `null` detects
+   * it again (a guess like the demo's). Returns the source's name.
+   */
+  setSourceEncoding(sourceId: number, label: string | null): string {
+    const source = this.dataset.sources.find((s) => s.id === sourceId);
+    if (!source) throw new CmdError({ code: 'notFound', message: 'that file is no longer open in this window', retryable: false });
+    if (!source.encoding) throw new CmdError({ code: 'invalid', message: `${source.name} is not a text file; it has no encoding`, retryable: false });
+    source.encoding = label === null || label === 'auto' ? { label: 'UTF-8', confidence: 90, origin: 'detected' } : { label, confidence: 100, origin: 'manual' };
+    return source.name;
+  }
+
+  /**
+   * `paste_log`: adds a source named `name` with one event per non-empty line of `text` (at most 200), like a pasted
+   * log the engine saved and imported; returns the new summary.
+   */
+  addPastedSource(name: string, text: string): Promise<WorkspaceSummary> {
+    return this.delay(() => {
+      const id = this.nextSourceId++;
+      const levelOf = (line: string): Level => (/\b(error|fatal|exception)\b/i.test(line) ? 'Error' : /\bwarn(ing)?\b/i.test(line) ? 'Warning' : 'Information');
+      const lines = text.split(/\r?\n/).filter((l) => l.trim());
+      const base = DEMO_START + 30 * 60_000;
+      const records = lines.slice(0, 200).map((message, i) => ({
+        id: 0,
+        ts: base + i * 1000,
+        level: levelOf(message),
+        message,
+        template: null,
+        exception: null,
+        fields: {},
+        source: id,
+        line: i + 1,
+        markers: [],
+      }));
+      this.dataset.sources.push({ id, path: `pasted/${name}`, name: `pasted/${name}`, importer: 'text', skipped: 0, encoding: { label: 'UTF-8', confidence: 100, origin: 'detected' } });
+      this.dataset.records.push(...records);
+      this.apply();
+      return this.summary();
+    }, 120);
+  }
+
   private summary(): WorkspaceSummary {
     const e = this.engine;
     const levels = Object.fromEntries(LEVELS.map((l) => [l, 0])) as Record<Level, number>;
@@ -234,6 +275,7 @@ export class MockBackend implements ImtBackend {
         routedFrom: s.routedFrom ?? null,
         problems: s.problems ?? [],
         parser: this.parsers.recordedId(s),
+        encoding: s.encoding ?? null,
       })),
       unrecognized: this.dataset.unrecognized,
       total: synthetic ?? e.records.length,

@@ -125,6 +125,8 @@ view, exports, reports and bundles), `report/` (versioned report model, Markdown
 | [0028](adr/0028-native-feel.md) | Native feel: IMT's windows behave like a desktop application, not a web page. |
 | [0029](adr/0029-knowledge-files.md) | Knowledge files: the user's Markdown notes as background for every AI feature. |
 | [0039](adr/0039-known-issues-incident-summary-playbooks.md) | Known issues in knowledge files, the incident summary report and investigation playbooks. |
+| [0041](adr/0041-redacted-project-copy.md) | Redacted project copy: rebuilt from redacted text so nothing derived can leak; text sources only. |
+| [0040](adr/0040-text-encodings.md) | Text encodings: detection with confidence (chardetng, encoding_rs), per-source override, profile default. |
 
 
 ## Plugin runtime (ADR 0003, ADR 0017)

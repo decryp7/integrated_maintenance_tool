@@ -93,6 +93,16 @@ impl RemoteStore {
     fn remote_remove_source(&self, id: SourceId) -> StoreResult<()> {
         self.call(StoreOp::RemoveSource, &Source { id })
     }
+    fn remote_set_source_encoding(&self, source: SourceId, encoding: Option<&str>) -> StoreResult<ImportSession> {
+        let s = self.call(
+            StoreOp::SetSourceEncoding,
+            &crate::protocol::SetSourceEncoding {
+                source,
+                encoding: encoding.map(str::to_string),
+            },
+        )?;
+        self.session(s)
+    }
     fn remote_restore(&self, state: &WorkspaceState) -> StoreResult<ImportSession> {
         let s = self.call(StoreOp::Restore, state)?;
         self.session(s)

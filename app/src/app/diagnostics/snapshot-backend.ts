@@ -11,9 +11,10 @@ export type Unlisten = () => void;
 export abstract class SnapshotBackend {
   /**
    * A picture of this window, taken natively by the shell (ADR 0034): resolves when the webview delivers it, without
-   * rasterising the DOM in the page. `unavailable` (with the reason) when the platform can't capture.
+   * rasterising the DOM in the page. `unavailable` (with the reason) when the platform can't capture. `userRequested`
+   * lets the shell raise the window and retry once when the webview refuses (never for automatic snapshots).
    */
-  abstract captureWindow(): Promise<WindowCapture>;
+  abstract captureWindow(userRequested?: boolean): Promise<WindowCapture>;
   abstract save(image: CapturedImage, context: SnapshotContext): Promise<SnapshotSaveResult>;
   /** Newest first. */
   abstract list(): Promise<SnapshotInfo[]>;
@@ -56,8 +57,8 @@ export class TauriSnapshotBackend extends SnapshotBackend {
   ) {
     super();
   }
-  captureWindow() {
-    return this.call<WindowCapture>('capture_window_image');
+  captureWindow(userRequested = false) {
+    return this.call<WindowCapture>('capture_window_image', { userRequested });
   }
   save(image: CapturedImage, context: SnapshotContext) {
     return this.call<SnapshotSaveResult>('save_error_snapshot', { image: image.base64, mime: image.mime, context });

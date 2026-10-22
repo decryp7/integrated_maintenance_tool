@@ -8,6 +8,8 @@ export type SearchTarget =
   | { kind: 'source'; id: number }
   | { kind: 'field'; field: string; value: string | null }
   | { kind: 'marker'; marker: string }
+  /** The Exceptions view (the group's sample event is revealed too when it has one). */
+  | { kind: 'exception'; sample: number | null }
   | { kind: 'note'; id: string; event: number | null }
   | { kind: 'knowledge'; scope: DocScope; id: string };
 
@@ -36,7 +38,7 @@ export interface ResultGroup {
 }
 
 /** The kinds in the order they are listed. */
-export const KIND_ORDER: readonly ResultKind[] = ['events', 'sources', 'fields', 'markers', 'notes', 'knowledge'];
+export const KIND_ORDER: readonly ResultKind[] = ['events', 'sources', 'fields', 'markers', 'exceptions', 'notes', 'knowledge'];
 
 function kindTitle(kind: ResultKind): string {
   switch (kind) {
@@ -48,6 +50,8 @@ function kindTitle(kind: ResultKind): string {
       return $localize`:@@search.kind.fields:Fields`;
     case 'markers':
       return $localize`:@@search.kind.markers:Markers`;
+    case 'exceptions':
+      return $localize`:@@search.kind.exceptions:Exceptions`;
     case 'notes':
       return $localize`:@@search.kind.notes:Notes`;
     case 'knowledge':
@@ -106,6 +110,14 @@ function rowsOf(kind: ResultKind, reply: SearchAllReply, text: string): ResultRo
       }));
     case 'markers':
       return reply.markers.items.map((m) => ({ key: `marker:${m.kind}`, snippet: m.snippet, detail: '', ts: null, target: { kind: 'marker', marker: m.kind } }));
+    case 'exceptions':
+      return reply.exceptions.items.map((x) => ({
+        key: `exception:${x.fingerprint}`,
+        snippet: x.snippet,
+        detail: $localize`:@@search.exception.count:${x.count}:count: events`,
+        ts: null,
+        target: { kind: 'exception', sample: x.sample },
+      }));
     case 'notes':
     case 'knowledge':
       return docRows(kind, reply[kind]);

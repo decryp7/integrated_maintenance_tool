@@ -17,6 +17,7 @@
 
 mod model;
 mod plan;
+mod stores;
 mod walk;
 
 use crate::activity::{domain_event, OpId};
@@ -291,3 +292,132 @@ fn open_in_file_manager(dir: &std::path::Path) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests;
+
+// ---- store folders (housekeeping) ----
+
+const POLICY_FILE: &str = "storage-policy.json";
+const POLICY_VERSION: u32 = 1;
+
+/// Whether an IMT process with this id runs (the owner of a scratch store folder).
+fn process_alive(pid: u32) -> bool {
+    if pid == std::process::id() {
+        return true;
+    }
+    let p = sysinfo::Pid::from_u32(pid);
+    let mut sys = sysinfo::System::new();
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[p]), true);
+    sys.process(p).is_some()
+}
+
+/// Store folders the windows have open.
+fn open_stores<R: Runtime>(app: &AppHandle<R>) -> Vec<PathBuf> {
+    app.try_state::<crate::windows::Windows>()
+        .map(|w| {
+            w.all()
+                .iter()
+                .filter_map(|win| win.engine.opened())
+                .map(|s| s.store_dir())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Store folders autosaved sessions reopen.
+fn kept_stores<R: Runtime>(app: &AppHandle<R>) -> Vec<PathBuf> {
+    app.try_state::<crate::lifecycle::Lifecycle>()
+        .map(|l| l.session_stores())
+        .unwrap_or_default()
+}
+
+fn store_root_of<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
+    app.try_state::<crate::AppState>().map(|s| s.store_root.clone())
+}
+
+/// The store folders: size, last use and why each is kept or may go.
+#[tauri::command]
+pub async fn storage_stores<R: Runtime>(app: AppHandle<R>) -> CmdResult<stores::StoreFolders> {
+    let Some(root) = store_root_of(&app) else {
+        return Ok(stores::StoreFolders::default());
+    };
+    let (open, kept) = (open_stores(&app), kept_stores(&app));
+    crate::sync::blocking("listing the stores", move || {
+        let needs = stores::Needs {
+            root: &root,
+            open: &open,
+            kept: &kept,
+            alive: &process_alive,
+        };
+        Ok::<_, crate::CmdError>(stores::list(&needs, &mut Budget::standard()))
+    })
+    .await
+}
+
+/// Removes the orphaned store folders `ids` (folder names from `storage_stores`); anything still needed stays, with why.
+#[tauri::command]
+pub async fn storage_stores_clear<R: Runtime>(app: AppHandle<R>, op: OpId, ids: Vec<String>) -> CmdResult<stores::StoreClearResult> {
+    let job = Job::begin(&app)?;
+    let Some(root) = store_root_of(&app) else {
+        return Ok(stores::StoreClearResult::default());
+    };
+    let (open, kept) = (open_stores(&app), kept_stores(&app));
+    let result = crate::sync::blocking("removing the stores", move || {
+        let needs = stores::Needs {
+            root: &root,
+            open: &open,
+            kept: &kept,
+            alive: &process_alive,
+        };
+        let r = stores::clear(&needs, &ids, &job.cancel);
+        drop(job);
+        Ok::<_, crate::CmdError>(r)
+    })
+    .await?;
+    domain_event(
+        "storage.stores-cleared",
+        op.as_deref(),
+        &[
+            ("Removed", &result.removed.len().to_string()),
+            ("FreedBytes", &result.freed_bytes.to_string()),
+        ],
+    );
+    Ok(result)
+}
+
+fn policy_store<R: Runtime>(app: &AppHandle<R>) -> crate::config_store::ConfigStore {
+    crate::config_store::ConfigStore::new(crate::app_dirs::config(app).ok())
+}
+
+/// The automatic clean-up policy (off by default).
+#[tauri::command]
+pub async fn storage_policy<R: Runtime>(app: AppHandle<R>) -> CmdResult<stores::StoragePolicy> {
+    Ok(policy_store(&app).load(POLICY_FILE, POLICY_VERSION))
+}
+
+/// Sets the automatic clean-up policy; refused with what to enter when out of range.
+#[tauri::command]
+pub async fn storage_set_policy<R: Runtime>(app: AppHandle<R>, policy: stores::StoragePolicy) -> CmdResult<stores::StoragePolicy> {
+    let policy = policy.checked().map_err(crate::CmdError::invalid)?;
+    policy_store(&app)
+        .save(POLICY_FILE, POLICY_VERSION, &policy)
+        .map_err(|e| crate::CmdError::new(crate::ErrorCode::Io, format!("cannot save the setting: {e}")))?;
+    Ok(policy)
+}
+
+/// At start-up, after the sweep: removes orphaned store folders unused for the policy's number of days.
+pub(crate) fn auto_clean_stores(config: Option<PathBuf>, root: &std::path::Path, kept: &[PathBuf]) {
+    let policy: stores::StoragePolicy = crate::config_store::ConfigStore::new(config).load(POLICY_FILE, POLICY_VERSION);
+    if policy.auto_clean_days == 0 {
+        return;
+    }
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as i64);
+    let needs = stores::Needs {
+        root,
+        open: &[],
+        kept,
+        alive: &process_alive,
+    };
+    let r = stores::clear_unused_for(&needs, policy.auto_clean_days, now, &AtomicBool::new(false));
+    if !r.removed.is_empty() || !r.skipped.is_empty() {
+        log::info!(Removed = r.removed.len() as u64, FreedBytes = r.freed_bytes, Kept = r.skipped.len() as u64; "Unused stores cleaned up");
+    }
+}

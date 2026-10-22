@@ -27,6 +27,14 @@ use crate::{store_ops_enum, store_port_table};
 
 store_port_table!(store_ops_enum, [StoreOp]);
 
+/// "Encoding…": reads one source again as `encoding` (`None`: detected again).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetSourceEncoding {
+    pub source: SourceId,
+    pub encoding: Option<String>,
+}
+
 /// "Parse with…": reads one source with the library's parser `parser` (`None`: the automatic choice; ADR 0026).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

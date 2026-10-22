@@ -18,13 +18,51 @@ pub enum Encoding {
     Utf8,
     Utf16Le,
     Utf16Be,
+    /// An ASCII-compatible legacy encoding (Shift-JIS, GBK, EUC-KR, Big5, Windows-125x...): a newline is the
+    /// lone byte `0x0A`, so lines split on bytes exactly as in UTF-8.
+    Legacy(&'static encoding_rs::Encoding),
 }
 
 impl Encoding {
+    /// The encoding for an `encoding_rs` label (`Shift_JIS`, `sjis`, `windows-1252`, `utf-16le`...). Encodings that
+    /// are not ASCII-compatible byte streams (ISO-2022-JP, HZ, the replacement encoding) are not offered.
+    pub fn from_label(label: &str) -> Option<Encoding> {
+        encoding_rs::Encoding::for_label(label.trim().as_bytes()).and_then(Self::from_rs_checked)
+    }
+
+    /// `from_label` for an encoding a detector returned (always ASCII-compatible there).
+    pub(crate) fn from_rs(e: &'static encoding_rs::Encoding) -> Encoding {
+        Self::from_rs_checked(e).unwrap_or(Encoding::Utf8)
+    }
+
+    fn from_rs_checked(e: &'static encoding_rs::Encoding) -> Option<Encoding> {
+        if e == encoding_rs::UTF_8 {
+            Some(Encoding::Utf8)
+        } else if e == encoding_rs::UTF_16LE {
+            Some(Encoding::Utf16Le)
+        } else if e == encoding_rs::UTF_16BE {
+            Some(Encoding::Utf16Be)
+        } else if e.is_ascii_compatible() {
+            Some(Encoding::Legacy(e))
+        } else {
+            None
+        }
+    }
+
+    /// The canonical name, accepted back by [`Encoding::from_label`].
+    pub fn label(self) -> &'static str {
+        match self {
+            Encoding::Utf8 => "UTF-8",
+            Encoding::Utf16Le => "UTF-16LE",
+            Encoding::Utf16Be => "UTF-16BE",
+            Encoding::Legacy(e) => e.name(),
+        }
+    }
+
     /// Bytes per code unit.
     pub fn unit(self) -> usize {
         match self {
-            Encoding::Utf8 => 1,
+            Encoding::Utf8 | Encoding::Legacy(_) => 1,
             Encoding::Utf16Le | Encoding::Utf16Be => 2,
         }
     }
@@ -32,7 +70,7 @@ impl Encoding {
     /// Offset of the first newline unit in `bytes` (unit-aligned).
     pub fn find_newline(self, bytes: &[u8]) -> Option<usize> {
         match self {
-            Encoding::Utf8 => bytes.iter().position(|b| *b == b'\n'),
+            Encoding::Utf8 | Encoding::Legacy(_) => bytes.iter().position(|b| *b == b'\n'),
             Encoding::Utf16Le => bytes.as_chunks::<2>().0.iter().position(|u| *u == [b'\n', 0]).map(|i| i * 2),
             Encoding::Utf16Be => bytes.as_chunks::<2>().0.iter().position(|u| *u == [0, b'\n']).map(|i| i * 2),
         }
@@ -41,7 +79,7 @@ impl Encoding {
     /// Newlines in `bytes` (unit-aligned).
     pub fn count_newlines(self, bytes: &[u8]) -> usize {
         match self {
-            Encoding::Utf8 => bytes.iter().filter(|b| **b == b'\n').count(),
+            Encoding::Utf8 | Encoding::Legacy(_) => bytes.iter().filter(|b| **b == b'\n').count(),
             Encoding::Utf16Le => bytes.as_chunks::<2>().0.iter().filter(|u| **u == [b'\n', 0]).count(),
             Encoding::Utf16Be => bytes.as_chunks::<2>().0.iter().filter(|u| **u == [0, b'\n']).count(),
         }
@@ -54,6 +92,7 @@ impl Encoding {
                 Ok(s) => out.push_str(s),
                 Err(_) => out.push_str(&String::from_utf8_lossy(bytes)),
             },
+            Encoding::Legacy(e) => out.push_str(&e.decode_without_bom_handling(bytes).0),
             Encoding::Utf16Le => out.push_str(&crate::importers::utf16(bytes, u16::from_le_bytes)),
             Encoding::Utf16Be => out.push_str(&crate::importers::utf16(bytes, u16::from_be_bytes)),
         }

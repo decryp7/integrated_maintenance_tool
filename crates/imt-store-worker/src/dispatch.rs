@@ -61,6 +61,10 @@ impl Worker {
     fn serve_remove_source(&self, s: &DuckStore, b: serde_json::Value, _: Call<'_>) -> StoreResult<serde_json::Value> {
         reply(&Ingest::remove_source(s, body::<Source>(b)?.id)?)
     }
+    fn serve_set_source_encoding(&self, s: &DuckStore, b: serde_json::Value, _: Call<'_>) -> StoreResult<serde_json::Value> {
+        let r: protocol::SetSourceEncoding = body(b)?;
+        reply(&self.session(Ingest::set_source_encoding(s, r.source, r.encoding.as_deref())?))
+    }
     fn serve_restore(&self, s: &DuckStore, b: serde_json::Value, _: Call<'_>) -> StoreResult<serde_json::Value> {
         let state: WorkspaceState = body(b)?;
         reply(&self.session(Ingest::restore(s, &state)?))

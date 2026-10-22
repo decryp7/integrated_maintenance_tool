@@ -727,6 +727,7 @@ impl Workspace {
             file_kind: FileKind::Text,
             timestamp_issue: None,
             routed_from: None,
+            encoding: None,
             problems: Vec::new(),
             identity: Vec::new(),
             parser: None,

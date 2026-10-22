@@ -5,6 +5,11 @@ import {
   BundleOpened,
   Finding,
   Query,
+  RedactedCopyChoices,
+  RedactedCopyOptions,
+  RedactedCopyPreview,
+  RedactedCopyRequest,
+  RedactedExport,
   RedactionPreview,
   RedactionPreviewRequest,
   RedactionSummary,
@@ -25,7 +30,7 @@ import { ShareBackend } from '../share-backend';
 import { mockTileError } from './mock-dashboards';
 import { MockAnalysisBackend, recordsFrom } from '../../analysis/mock/mock-analysis-backend';
 import { MockFiles } from '../../core/mock/mock-import';
-import { mockRedactCfg, mockRedactionPreview, MockRedactor } from './mock-redact';
+import { MOCK_DETECTORS, mockRedactCfg, mockRedactionPreview, MockRedactor } from './mock-redact';
 import { mockJobs, mockSteps } from '../../jobs/mock-jobs';
 import { CmdError } from '../../core/cmd-error';
 
@@ -241,6 +246,71 @@ export class MockShareBackend extends ShareBackend {
       found.push({ kind: 'pluginQuarantined', severity: 'warning', title: 'Plugin disabled after crashes', detail: `${p.name}: ${p.lastError ?? ''}`, action: { kind: 'openPanel', panel: 'plugins' } });
     }
     return { result: found.sort((x, y) => rank[x.severity] - rank[y.severity]), coverage };
+  }
+
+  async redactedCopyChoices(): Promise<RedactedCopyChoices> {
+    const cfg = mockRedactCfg(await this.profileModel());
+    return {
+      detectors: [...MOCK_DETECTORS],
+      rules: cfg.rules.map((r) => r.name),
+      selected: { detectors: cfg.detectors, mode: cfg.mode, fields: cfg.fields, onExport: cfg.onExport, rule: cfg.rules.map((r) => ({ ...r, replace: r.replace ?? null })) },
+    };
+  }
+
+  /** The profile's rules narrowed to what the options pick; refused like the engine when nothing is picked. */
+  private async copyRedactor(options: RedactedCopyOptions, salt: string): Promise<MockRedactor> {
+    const base = mockRedactCfg(await this.profileModel());
+    const detectors = options.detectors ?? base.detectors;
+    const rules = options.rules ?? base.rules.map((r) => r.name);
+    if (!detectors.length && !rules.length) {
+      throw new CmdError({ code: 'invalid', field: 'options', message: 'Pick at least one detector or rule to redact.', retryable: false });
+    }
+    const known = new Set<string>(MOCK_DETECTORS);
+    const unknown = detectors.find((d) => !known.has(d));
+    if (unknown) throw new CmdError({ code: 'invalid', field: 'options', message: `"${unknown}" is not a redaction detector.`, retryable: false });
+    return new MockRedactor({ ...base, detectors: MOCK_DETECTORS.filter((d) => detectors.includes(d)), mode: options.mode ?? base.mode, rules: base.rules.filter((r) => rules.includes(r.name)) }, salt);
+  }
+
+  /** Sources of a format that cannot be redacted (only JSON and text logs can) and the reason. */
+  private async copyScope(): Promise<{ included: number; excluded: { name: string; reason: string }[]; textIds: Set<number> }> {
+    const sources = (await this.imt.workspaceSummary()).sources;
+    const text = sources.filter((s) => s.importer === 'json' || s.importer === 'text');
+    return {
+      included: text.length,
+      excluded: sources.filter((s) => !text.includes(s)).map((s) => ({ name: s.name, reason: `${s.importer} sources cannot be redacted` })),
+      textIds: new Set(text.map((s) => s.id)),
+    };
+  }
+
+  async redactedCopyPreview(options: RedactedCopyOptions): Promise<RedactedCopyPreview> {
+    const r = await this.copyRedactor(options, 'copy-preview');
+    const scope = await this.copyScope();
+    const page = await this.imt.queryPage({ query: { ...EMPTY_QUERY }, offset: 0, limit: 5000, descending: false, anchor: null });
+    const rows = page.rows.filter((row) => scope.textIds.has(row.source));
+    const counts: Record<string, number> = {};
+    const samples = [];
+    let changed = 0;
+    for (const row of rows) {
+      const after = r.apply(row.message, counts);
+      if (after !== row.message) {
+        changed++;
+        if (samples.length < 5) samples.push({ recordId: row.id, before: row.message, after });
+      }
+    }
+    return {
+      summary: { scanned: rows.length, changed, truncated: page.total > page.rows.length, hits: r.hits(counts), samples },
+      excluded: scope.excluded,
+      included: scope.included,
+    };
+  }
+
+  async exportRedactedCopy(request: RedactedCopyRequest): Promise<RedactedExport> {
+    if (!request.path.toLowerCase().endsWith('.imtz')) throw new Error('the file must end in .imtz');
+    const preview = await this.redactedCopyPreview(request.options);
+    this.files.write(request.path, request.overwrite);
+    const bytes = JSON.stringify({ ui: request.ui, reports: request.reports ?? [], samples: preview.summary.samples }).length + preview.summary.scanned * 120;
+    this.written.push({ path: request.path, kind: 'imtz', bytes });
+    return { bytes, sources: preview.included, events: preview.summary.scanned, excluded: preview.excluded, hits: preview.summary.hits };
   }
 
   /** Makes `path` an old share bundle that `openBundle` knows (tests). */

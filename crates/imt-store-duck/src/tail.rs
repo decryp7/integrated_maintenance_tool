@@ -291,10 +291,12 @@ impl Inner {
             (s.parsers.clone(), self.schema.clone())
         };
         let cancel = AtomicBool::new(false);
+        let encodings = self.encoding_policy(conn);
         let env = ImportEnv {
             importers: self.registry().importers(),
             parsers: &parser_set,
             schema,
+            encodings: &encodings,
             cancel: &cancel,
         };
         let offsets = writer::clock_offsets(conn).map_err(|e| engine(format!("{e:#}")))?;
@@ -591,10 +593,12 @@ impl Inner {
         let mut known: HashSet<String> = followed(&conn)?.iter().map(|f| file_of(&f.path).to_string()).collect();
         known.extend(self.unrecognized().into_iter().map(|u| u.path));
         let files = ingest::files_to_read(paths, &roots, &profile, &removed, &known);
+        let encodings = self.encoding_policy(&conn);
         let env = ImportEnv {
             importers: self.registry().importers(),
             parsers: &parser_set,
             schema: self.schema.clone(),
+            encodings: &encodings,
             cancel: progress.cancel_flag(),
         };
         let mut report = ImportReport::default();

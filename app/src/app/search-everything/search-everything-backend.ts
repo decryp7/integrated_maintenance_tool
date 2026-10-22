@@ -1,11 +1,14 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
+import { KnowledgeBackend } from '../ai/knowledge/knowledge-backend';
 import { invoke } from '../core/activity/ipc';
 import { SearchAllReply, SearchAllRequest } from '../core/api.types';
+import { AnalysisBackend } from '../core/analysis-backend';
 import { ImtBackend } from '../core/backend';
 import { reportBackendFailures } from '../core/failure-reporter';
 import { Logger, withFailureLogging } from '../core/logger';
 import { browserMocks } from '../core/mock-registry';
 import { isTauri } from '../core/platform';
+import { NotesBackend } from '../notes/notes-backend';
 
 /**
  * Search everything as the UI sees it: the engine searches the window's events, sources, fields, marker kinds, notes and
@@ -31,6 +34,13 @@ export class TauriSearchEverythingBackend extends SearchEverythingBackend {
 }
 
 export function createSearchEverythingBackend(): SearchEverythingBackend {
-  const backend: SearchEverythingBackend = isTauri() ? new TauriSearchEverythingBackend() : new (browserMocks().MockSearchEverythingBackend)(inject(ImtBackend));
+  const injector = inject(Injector);
+  const mock = () =>
+    new (browserMocks().MockSearchEverythingBackend)(inject(ImtBackend), {
+      notes: () => injector.get(NotesBackend),
+      knowledge: () => injector.get(KnowledgeBackend),
+      analysis: () => injector.get(AnalysisBackend),
+    });
+  const backend: SearchEverythingBackend = isTauri() ? new TauriSearchEverythingBackend() : mock();
   return withFailureLogging<SearchEverythingBackend>(backend, inject(Logger), { category: 'ui.search', onFailure: reportBackendFailures() });
 }

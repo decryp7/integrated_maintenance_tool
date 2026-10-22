@@ -4,7 +4,7 @@ import { isTauri } from '../platform';
 import { browserMocks } from '../mock-registry';
 import { Logger, withFailureLogging } from '../logger';
 import { listenHere, PayloadListenFn, Unlisten } from '../../windowing/window-events';
-import { RecentKind, RecentLists, RecentProject } from '../api.types';
+import { RecentFile, RecentKind, RecentLists, RecentProject } from '../api.types';
 
 /** Emitted to every window when a recent list changed (payload: `RecentLists`). */
 export const RECENT_EVENT = 'imt://recent-changed';
@@ -28,17 +28,25 @@ export abstract class RecentBackend {
    * The UI opened or saved these. Rust has recorded them already (nothing to do there); the browser
    * mock, which has no engine behind it, records them here.
    */
-  abstract opened(files: string[], project?: RecentProject): Promise<void>;
+  abstract opened(files: string[], project?: Omit<RecentProject, 'openedAt'>): Promise<void>;
   abstract onChanged(handler: (lists: RecentLists) => void): Promise<Unlisten>;
+}
+
+export function isRecentFile(v: unknown): v is RecentFile {
+  const f = v as RecentFile | null;
+  return !!f && typeof f.path === 'string' && typeof f.openedAt === 'number';
+}
+
+export function isRecentProject(v: unknown): v is RecentProject {
+  const p = v as RecentProject | null;
+  return !!p && typeof p.path === 'string' && typeof p.name === 'string' && typeof p.openedAt === 'number';
 }
 
 /** Parses the lists from the wire (anything malformed reads as empty). */
 export function parseRecentLists(value: unknown): RecentLists {
   const v = (value ?? {}) as { files?: unknown; projects?: unknown };
-  const files = Array.isArray(v.files) ? v.files.filter((p): p is string => typeof p === 'string') : [];
-  const projects = Array.isArray(v.projects)
-    ? v.projects.filter((p): p is RecentProject => !!p && typeof (p as RecentProject).path === 'string' && typeof (p as RecentProject).name === 'string')
-    : [];
+  const files = Array.isArray(v.files) ? v.files.filter(isRecentFile) : [];
+  const projects = Array.isArray(v.projects) ? v.projects.filter(isRecentProject) : [];
   return { files, projects };
 }
 

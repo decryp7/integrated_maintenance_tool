@@ -103,6 +103,10 @@ pub fn install<R: Runtime>(app: &AppHandle<R>) {
     );
     register(
         app,
+        Scope::on_destroyed("search everything", crate::search_everything::forget_window),
+    );
+    register(
+        app,
         Scope::on_destroyed("path grants", |app, label| crate::paths::grants(app).forget(label)),
     );
 }
@@ -127,7 +131,14 @@ mod tests {
         assert_eq!(*seen.lock().unwrap(), ["created w-5", "destroyed w-5"]);
         // The shell's own scopes are registered with the app (test_support installs them).
         let names: Vec<&str> = scopes(app.handle()).list().iter().map(|s| s.name).collect();
-        for n in ["background tasks", "jobs", "notifications", "opened reports", "path grants"] {
+        for n in [
+            "background tasks",
+            "jobs",
+            "notifications",
+            "opened reports",
+            "path grants",
+            "search everything",
+        ] {
             assert!(names.contains(&n), "{n} not registered: {names:?}");
         }
     }

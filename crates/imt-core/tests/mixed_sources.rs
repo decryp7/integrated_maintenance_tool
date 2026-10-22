@@ -290,6 +290,7 @@ fn the_streaming_import_reads_the_file_the_same_way() {
     let profile = imt_core::parser::ParserSet::of_compiled(CompiledProfile::compile(Profile::default_profile()).unwrap());
     let cancel = AtomicBool::new(false);
     let env = ImportEnv {
+        encodings: &Default::default(),
         importers: &importers,
         parsers: &profile,
         schema: Arc::new(EventSchema::plain()),

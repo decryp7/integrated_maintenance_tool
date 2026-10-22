@@ -20,7 +20,7 @@ const row = (fixture: Parameters<typeof el>[0], id: string) => el(fixture, `tr[d
 describe('StorageSettings', () => {
   it('lists every category with its kind, size, files and location', async () => {
     const { fixture } = await setup();
-    expect(all(fixture, 'tbody tr')).toHaveLength(8);
+    expect(all(fixture, "table[aria-label=\"IMT's storage\"] tbody tr")).toHaveLength(8);
     const logs = row(fixture, 'logs');
     expect(logs.textContent).toContain('IMT logs');
     expect(logs.textContent).toContain('data');
@@ -47,8 +47,9 @@ describe('StorageSettings', () => {
     expect(String(dlg?.options.inputs?.['detail'])).toContain('Web view cache — 45 MB');
     expect(String(dlg?.options.inputs?.['detail'])).not.toContain('logs');
     dlg?.ref.close(true);
+    await vi.waitFor(() => expect(clear).toHaveBeenCalledWith(['bundle-extracts', 'webview-cache', 'ai-runtimes-outdated']));
+    await vi.waitFor(() => expect(fixture.nativeElement.querySelector('[data-testid=storage-result]')).toBeTruthy());
     await settle(fixture);
-    expect(clear).toHaveBeenCalledWith(['bundle-extracts', 'webview-cache', 'ai-runtimes-outdated']);
     const result = el(fixture, '[data-testid=storage-result]').textContent ?? '';
     expect(result).toContain('Freed 267 MB.');
     expect(result).toContain('Web view cache: freed 45 MB, kept 1 (in use by a running program).');
@@ -83,10 +84,10 @@ describe('StorageSettings', () => {
   it('shows a failed measurement with Retry', async () => {
     const { fixture } = await setup(new MockStorageBackend('?mockStorageFail=1'));
     expect(el(fixture, '[role=alert]').textContent).toContain("Could not measure IMT's storage");
-    expect(all(fixture, 'tbody tr')).toHaveLength(0);
+    expect(all(fixture, "table[aria-label=\"IMT's storage\"] tbody tr")).toHaveLength(0);
     buttonByText(fixture, 'Retry').click();
     await settle(fixture);
-    expect(all(fixture, 'tbody tr')).toHaveLength(8);
+    expect(all(fixture, "table[aria-label=\"IMT's storage\"] tbody tr")).toHaveLength(8);
   });
 
   it('opens a folder and shows a failure inline with Retry', async () => {

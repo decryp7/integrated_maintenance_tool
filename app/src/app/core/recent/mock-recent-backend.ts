@@ -1,4 +1,5 @@
 import { RecentKind, RecentLists, RecentProject } from '../api.types';
+import { isRecentFile, isRecentProject } from './recent-backend';
 import { RecentBackend } from './recent-backend';
 import { Unlisten } from '../../windowing/window-events';
 
@@ -17,7 +18,10 @@ export class MockRecentBackend extends RecentBackend {
   readonly calls: string[] = [];
   private readonly handlers = new Set<(lists: RecentLists) => void>();
 
-  constructor(private readonly key = MOCK_RECENT_KEY) {
+  constructor(
+    private readonly key = MOCK_RECENT_KEY,
+    private readonly now: () => number = Date.now,
+  ) {
     super();
   }
 
@@ -28,7 +32,7 @@ export class MockRecentBackend extends RecentBackend {
   async remove(kind: RecentKind, path: string): Promise<void> {
     this.calls.push(`remove:${kind}`);
     const l = this.read();
-    if (kind === 'files') l.files = l.files.filter((f) => f !== path);
+    if (kind === 'files') l.files = l.files.filter((f) => f.path !== path);
     else l.projects = l.projects.filter((p) => p.path !== path);
     this.write(l);
   }
@@ -41,10 +45,11 @@ export class MockRecentBackend extends RecentBackend {
     this.write(l);
   }
 
-  async opened(files: string[], project?: RecentProject): Promise<void> {
+  async opened(files: string[], project?: Omit<RecentProject, 'openedAt'>): Promise<void> {
     const l = this.read();
-    if (files.length) l.files = [...files, ...l.files.filter((f) => !files.includes(f))].slice(0, MOCK_RECENT_FILES_MAX);
-    if (project) l.projects = [project, ...l.projects.filter((p) => p.path !== project.path)].slice(0, MOCK_RECENT_PROJECTS_MAX);
+    const openedAt = this.now();
+    if (files.length) l.files = [...files.map((path) => ({ path, openedAt })), ...l.files.filter((f) => !files.includes(f.path))].slice(0, MOCK_RECENT_FILES_MAX);
+    if (project) l.projects = [{ ...project, openedAt }, ...l.projects.filter((p) => p.path !== project.path)].slice(0, MOCK_RECENT_PROJECTS_MAX);
     this.write(l);
   }
 
@@ -56,10 +61,10 @@ export class MockRecentBackend extends RecentBackend {
   private read(): RecentLists {
     try {
       const parsed = JSON.parse(localStorage.getItem(this.key) ?? 'null') as { version?: number } & Partial<RecentLists> | null;
-      if (!parsed || parsed.version !== 1) return { files: [], projects: [] };
+      if (!parsed || parsed.version !== 2) return { files: [], projects: [] };
       return {
-        files: Array.isArray(parsed.files) ? parsed.files.filter((f): f is string => typeof f === 'string') : [],
-        projects: Array.isArray(parsed.projects) ? parsed.projects.filter((p): p is RecentProject => !!p && typeof p.path === 'string' && typeof p.name === 'string') : [],
+        files: Array.isArray(parsed.files) ? parsed.files.filter(isRecentFile) : [],
+        projects: Array.isArray(parsed.projects) ? parsed.projects.filter(isRecentProject) : [],
       };
     } catch {
       return { files: [], projects: [] };
@@ -68,7 +73,7 @@ export class MockRecentBackend extends RecentBackend {
 
   private write(lists: RecentLists): void {
     try {
-      localStorage.setItem(this.key, JSON.stringify({ version: 1, ...lists }));
+      localStorage.setItem(this.key, JSON.stringify({ version: 2, ...lists }));
     } catch {
       /* storage unavailable */
     }

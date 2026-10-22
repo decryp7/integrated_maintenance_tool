@@ -46,6 +46,7 @@ pub mod ty {
         TailFile,
     };
     pub use imt_core::ql::{Completion, QlError, QlResult, QueryControl};
+    pub use imt_core::redact::copy::{RedactedExport, RedactedExportRequest};
     pub use imt_core::redact::{RedactionSummary, RedactionSummaryRequest};
     pub use imt_core::skew::{ClockOffsets, OffsetChange, SetOffsetRequest, SuggestRequest, SuggestResult};
     pub use imt_core::spans::infer::{SpanEvaluation, SpanProposal, SpanRuleCheck, SpanRuleRequest};
@@ -70,6 +71,8 @@ macro_rules! store_port_table {
                     RemoveSource: fn remove_source(id: SourceId) -> () = client remote_remove_source, server serve_remove_source;
                     Restore: fn restore(state: &WorkspaceState) -> ImportSession = client remote_restore, server serve_restore;
                     AppendTail: fn append_tail(changed: &[PathBuf]) -> TailAppend = client remote_append_tail, server serve_append_tail;
+                    SetSourceEncoding: fn set_source_encoding(source: SourceId, encoding: Option<&str>) -> ImportSession
+                        = client remote_set_source_encoding, server serve_set_source_encoding;
                 }
             }
             Query {
@@ -190,6 +193,7 @@ macro_rules! store_port_table {
             Redaction {
                 plain {
                     analysis RedactionSummary: fn redaction_summary(req: &RedactionSummaryRequest) -> RedactionSummary;
+                    long ExportRedactedProject: fn export_redacted_project(req: &RedactedExportRequest) -> RedactedExport;
                 }
                 custom {}
             }

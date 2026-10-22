@@ -29,6 +29,7 @@ pub mod live;
 pub mod overwrite;
 pub mod package;
 pub mod parser;
+pub mod paste;
 pub mod patterns;
 pub mod pipeline;
 pub mod playbook;

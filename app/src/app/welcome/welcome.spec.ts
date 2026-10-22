@@ -3,6 +3,7 @@ import { all, buttonByText, el, provideTinyBackend, settle, text } from '../../t
 import { Platform } from '../core/platform';
 import { WorkspaceStore } from '../core/workspace.store';
 import { RECENT_STORE, RecentStore } from './recent-store';
+import { RecentFile } from '../core/api.types';
 import { CommandRegistry } from '../extensions/command-registry';
 import { RecentService } from '../core/recent/recent.service';
 import { RecentOpener } from '../shell/menu/recent-opener';
@@ -15,9 +16,9 @@ const fakePlatform = {
 };
 
 class MemoryRecent implements RecentStore {
-  items: string[] = [];
+  items: RecentFile[] = [];
   list = () => this.items;
-  add = (paths: string[]) => void (this.items = [...paths, ...this.items.filter((p) => !paths.includes(p))]);
+  add = (paths: string[]) => void (this.items = [...paths.map((path) => ({ path, openedAt: 1_700_000_000_000 })), ...this.items.filter((f) => !paths.includes(f.path))]);
   clear = () => void (this.items = []);
 }
 
@@ -25,7 +26,10 @@ describe('Welcome', () => {
   const recent = new MemoryRecent();
 
   function setup() {
-    recent.items = ['/logs/web01/a.log', '/logs/web02'];
+    recent.items = [
+      { path: '/logs/web01/a.log', openedAt: new Date(2026, 9, 14, 9, 30).getTime() },
+      { path: '/logs/web02', openedAt: 0 },
+    ];
     TestBed.configureTestingModule({ providers: [provideTinyBackend(), { provide: Platform, useValue: fakePlatform }, { provide: RECENT_STORE, useValue: recent }] });
     const fixture = TestBed.createComponent(Welcome);
     return { fixture, store: TestBed.inject(WorkspaceStore), welcome: TestBed.inject(WelcomeService) };
@@ -70,15 +74,19 @@ describe('Welcome', () => {
     await settle(fixture);
     expect(text(fixture)).toContain('How IMT works');
     expect(all(fixture, '.steps li')).toHaveLength(4);
-    expect(all(fixture, '.recent .link').map((b) => b.textContent)).toEqual(['web01/a.log', 'logs/web02']);
+    expect(all(fixture, '.recent .link .mono').map((b) => b.textContent)).toEqual(['web01/a.log', 'logs/web02']);
+    // J1: each recent item says when it was opened (nothing when the time is unknown).
+    const whens = all(fixture, '[data-testid=recent-when]').map((b) => b.textContent?.trim());
+    expect(whens[0]).toMatch(/2026/);
+    expect(whens[1]).toBe('');
     expect(fixture.nativeElement.querySelector('.welcome > button')).not.toBeNull(); // back button: workspace has sources
     buttonByText(fixture, 'Open folder…').click();
     await settle(fixture);
     expect(store.summary()?.sources.some((s) => s.path === '/picked/dir')).toBe(true);
-    expect(recent.items[0]).toBe('/picked/dir');
+    expect(recent.items[0]?.path).toBe('/picked/dir');
     buttonByText(fixture, 'Open files…').click();
     await settle(fixture);
-    expect(recent.items[0]).toBe('/picked/file.log');
+    expect(recent.items[0]?.path).toBe('/picked/file.log');
     welcome.show();
     el<HTMLButtonElement>(fixture, '.recent .link').click();
     await settle(fixture);
@@ -91,12 +99,16 @@ describe('Welcome', () => {
     const { fixture, welcome } = setup();
     const run = vi.spyOn(TestBed.inject(CommandRegistry), 'run').mockResolvedValue(undefined as never);
     await settle(fixture);
-    TestBed.inject(RecentService).projects.set([{ path: '/p/incident/case.imtproj', name: 'Case 12' }]);
+    TestBed.inject(RecentService).projects.set([{ path: '/p/incident/case.imtproj', name: 'Case 12', openedAt: Date.now() }]);
     await settle(fixture);
     buttonByText(fixture, 'Open project…').click();
     expect(run).toHaveBeenCalledWith('project.open');
     const links = all(fixture, '.recent .link').map((b) => b.textContent?.replace(/\s+/g, ' ').trim());
-    expect(links).toEqual(['Case 12incident/case.imtproj', 'web01/a.log', 'logs/web02']);
+    expect(links).toHaveLength(3);
+    expect(links[0]).toContain('Case 12');
+    expect(links[0]).toContain('incident/case.imtproj');
+    expect(links[1]).toContain('web01/a.log');
+    expect(links[2]).toContain('logs/web02');
     const openProject = vi.spyOn(TestBed.inject(RecentOpener), 'openProject').mockResolvedValue();
     welcome.show();
     el<HTMLButtonElement>(fixture, '[data-testid=welcome-recent-project]').click();

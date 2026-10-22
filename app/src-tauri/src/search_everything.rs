@@ -48,6 +48,11 @@ fn end(label: &str, id: u64) {
     });
 }
 
+/// A window is gone: forgets its search (a search still running for it stops at its next step).
+pub fn forget_window<R: Runtime>(_: &AppHandle<R>, label: &str) {
+    with_newest(|m| m.remove(label));
+}
+
 /// A note's title: its first line, shortened.
 fn note_title(text: &str) -> String {
     let line = text.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or_default();
@@ -178,6 +183,27 @@ mod tests {
         end("w-search", second);
         end("w-other", other);
         assert!(!is_newest("w-search", second));
+    }
+
+    #[test]
+    fn a_closed_window_forgets_its_search() {
+        let app = test_app(None);
+        let running = begin("w-closing");
+        let other = begin("w-staying");
+        forget_window(app.handle(), "w-closing");
+        assert!(
+            !is_newest("w-closing", running),
+            "the running search of a closed window is cancelled"
+        );
+        assert!(with_newest(|m| !m.contains_key("w-closing")), "and its entry is gone");
+        assert!(is_newest("w-staying", other), "other windows keep theirs");
+        // Closing through the window teardown reaches it too (the scope is registered with the app).
+        crate::window_scoped::destroyed(app.handle(), "w-staying");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while is_newest("w-staying", other) && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(!is_newest("w-staying", other));
     }
 
     #[test]

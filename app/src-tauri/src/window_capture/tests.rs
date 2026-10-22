@@ -222,7 +222,7 @@ fn without_a_platform_webview_the_command_answers_unavailable_at_once() {
         .unwrap();
     let webview = app.get_webview("w-capture").unwrap();
     let started = std::time::Instant::now();
-    let reply = capture_window_image(webview).now().unwrap();
+    let reply = capture_window_image(webview, None).now().unwrap();
     assert_eq!(
         reply,
         WindowCapture::Unavailable {
@@ -230,4 +230,27 @@ fn without_a_platform_webview_the_command_answers_unavailable_at_once() {
         }
     );
     assert!(started.elapsed() < CAPTURE_TIMEOUT, "no waiting for the timeout");
+}
+
+#[test]
+fn a_refused_capture_is_retried_once_only_for_a_user_request_of_the_apps_own_window() {
+    let refused = CaptureError::Webview("An unknown error occurred".into());
+    assert!(should_raise_and_retry(&refused, true, true, false));
+    assert!(
+        !should_raise_and_retry(&refused, false, true, false),
+        "automatic snapshots never move windows"
+    );
+    assert!(!should_raise_and_retry(&refused, true, false, false), "not a docked browser's page");
+    assert!(!should_raise_and_retry(&refused, true, true, true), "only once");
+    for other in [
+        CaptureError::NotVisible,
+        CaptureError::NoAnswer,
+        CaptureError::TimedOut,
+        CaptureError::Unsupported,
+        CaptureError::Decode("x".into()),
+        CaptureError::Encode("x".into()),
+        CaptureError::TooLarge,
+    ] {
+        assert!(!should_raise_and_retry(&other, true, true, false), "{other:?} is not a refusal");
+    }
 }

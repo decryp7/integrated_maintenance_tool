@@ -21,6 +21,8 @@ test.describe('Open recent and the welcome page (F5, J1)', () => {
     await chooseMenu(page, 'File', 'Close workspace');
     const welcome = page.locator('imt-welcome');
     await expect(welcome.getByTestId('welcome-recent')).toContainText('extra-folder');
+    // J1: and when it was opened.
+    await expect(welcome.getByTestId('recent-when').first()).not.toHaveText('');
     await expect(welcome.getByRole('button', { name: 'Open project…' })).toBeVisible();
     // The empty Explorer is not drawn next to the welcome page.
     await expect(page.locator('imt-sidebar')).toHaveCount(0);
@@ -79,9 +81,14 @@ test.describe('Jobs filters (K5) and Plugins tabs (I4)', () => {
     await jobs.getByTestId('jobs-view-failed').click();
     await expect(jobs.getByTestId('jobs-view-failed')).toHaveAttribute('aria-pressed', 'true');
     await jobs.getByTestId('kind-filter').click();
-    await expect(jobs.getByTestId('kind-filter-list')).toContainText('AI');
+    // A CDK listbox in an overlay: options by role, toggled with the keyboard, closed with Escape.
+    const list = page.getByTestId('kind-filter-list');
+    await expect(list).toContainText('AI');
+    await expect(list.getByRole('listbox')).toHaveAttribute('aria-multiselectable', 'true');
+    await list.getByRole('option').first().click();
+    await expect(jobs.getByTestId('kind-filter')).toContainText('Kind: 1');
     await page.keyboard.press('Escape');
-    await expect(jobs.getByTestId('kind-filter-list')).toHaveCount(0);
+    await expect(list).toHaveCount(0);
   });
 
   test('Plugins is one view with Installed and Health tabs', async ({ page }) => {

@@ -117,6 +117,9 @@ fn write_ready(conn: &Connection, r: &SourceReport) -> Result<()> {
             r.parser.hash,
         ],
     )?;
+    if let Some(e) = &r.encoding {
+        crate::encodings::record(conn, &r.path, e)?;
+    }
     let mut app = conn.appender("diagnostics")?;
     for p in &r.problems {
         let samples = serde_json::to_string(&p.sample_lines)?;
@@ -486,6 +489,7 @@ mod tests {
 
     fn report(id: SourceId, events: usize) -> SourceReport {
         SourceReport {
+            encoding: None,
             id,
             path: "p".into(),
             name: "n".into(),

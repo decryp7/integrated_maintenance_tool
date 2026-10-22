@@ -1260,6 +1260,7 @@ mod tests {
             file_kind: Default::default(),
             timestamp_issue: None,
             routed_from: None,
+            encoding: None,
             problems: Vec::new(),
             identity: Vec::new(),
             parser: None,
@@ -1421,7 +1422,12 @@ mod tests {
         )
         .unwrap();
         block(open_paths(app.handle().clone(), st(), vec![s(&log)])).unwrap().json();
-        let recent = crate::recent::recents(app.handle()).list().files;
+        let recent: Vec<String> = crate::recent::recents(app.handle())
+            .list()
+            .files
+            .into_iter()
+            .map(|f| f.path)
+            .collect();
         assert_eq!(recent.len(), 1);
         // Another window may reopen it from the recent list (granted again there); a file that is not
         // listed stays refused.

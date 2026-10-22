@@ -110,6 +110,7 @@ mod tests {
             file_kind: kind,
             timestamp_issue: None,
             routed_from: None,
+            encoding: None,
             problems: Vec::new(),
             identity: Vec::new(),
             parser: None,

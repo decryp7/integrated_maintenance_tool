@@ -372,6 +372,7 @@ mod tests {
         let recents = [RecentProject {
             path: "/p/a.imtproj".into(),
             name: "Incident".into(),
+            opened_at: 0,
         }];
         let many = menu_model(
             &[win("main", "A"), win("w-2", &"long".repeat(40))],
