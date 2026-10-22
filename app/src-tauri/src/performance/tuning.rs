@@ -56,6 +56,8 @@ pub fn store_tuning(s: &PerformanceSettings, cores: u32) -> StoreTuning {
         max_spill_mb: (s.max_spill_mb > 0).then_some(u64::from(s.max_spill_mb)),
         allocator_flush_mb: Some(u64::from(s.allocator_flush_mb)),
         allocator_background_threads: Some(s.allocator_background_threads),
+        // DuckDB's jemalloc arenas on Linux: the worker's default (imt_store_client::allocator::ARENAS).
+        allocator_arenas: None,
         plugin_memory_mb: Some(u64::from(s.plugin_memory_mb)),
         plugin_memory_overrides_mb: s.plugin_memory.iter().map(|(id, mb)| (id.clone(), u64::from(*mb))).collect(),
         plugin_cpu_percent: (s.plugin_cpu_percent < 100).then_some(s.plugin_cpu_percent as u8),
