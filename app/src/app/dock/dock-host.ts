@@ -21,6 +21,9 @@ import { DockKeys } from './dock-keys';
 import { DockService } from './dock.service';
 import { DockSwitcher } from './switcher-overlay';
 
+/** What a slid-out panel keeps open when it is pressed or focused: itself, its bar, menus and the overlays it opened (lists, pickers). */
+const KEEP_OPEN = '.imt-ah-flyout, .imt-ah-bar, .menu, .cdk-overlay-container';
+
 /** How long the pointer may be away from a slid-out (hover-opened) tool window before it hides again. */
 export const HOVER_HIDE_MS = 300;
 
@@ -286,7 +289,7 @@ export class DockHost implements OnDestroy {
     });
     const onPointerDown = (e: PointerEvent) => {
       const t = e.target as Element | null;
-      if (this.open() && !t?.closest?.('.imt-ah-flyout, .imt-ah-bar, .menu')) this.dock.autoHideEvent({ type: 'blur' });
+      if (this.open() && !t?.closest?.(KEEP_OPEN)) this.dock.autoHideEvent({ type: 'blur' });
     };
     document.addEventListener('pointerdown', onPointerDown, true);
     this.cleanup.push(() => document.removeEventListener('pointerdown', onPointerDown, true));
@@ -332,7 +335,7 @@ export class DockHost implements OnDestroy {
 
   protected focusOut(e: FocusEvent): void {
     const next = e.relatedTarget as Element | null;
-    if (next && !next.closest('.imt-ah-flyout, .imt-ah-bar, .menu')) this.dock.autoHideEvent({ type: 'blur' });
+    if (next && !next.closest(KEEP_OPEN)) this.dock.autoHideEvent({ type: 'blur' });
   }
 
   protected retry(): void {

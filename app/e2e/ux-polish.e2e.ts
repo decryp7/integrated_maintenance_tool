@@ -75,7 +75,7 @@ test.describe('inspector (K1), anomalies (K2)', () => {
 test.describe('Jobs filters (K5) and Plugins tabs (I4)', () => {
   test('Jobs offers All, Running and Failed and a Kind filter with counts', async ({ page }) => {
     await openAppWith(page);
-    await page.locator('[data-activity-id="jobs"]').click();
+    await openView(page, 'Jobs');
     const jobs = page.locator('imt-jobs-panel');
     await expect(jobs.getByTestId('jobs-view')).toBeVisible();
     await expect(jobs.locator('.chip')).toHaveCount(0);

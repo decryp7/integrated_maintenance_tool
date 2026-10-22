@@ -128,6 +128,7 @@ test.describe('notifications', () => {
     await pane.getByTestId('notices-mark-all').dispatchEvent('click');
     await expect(pane.locator('li.unread')).toHaveCount(0);
     await expect(bell).not.toContainText(/\d/);
+    await openNotifications(page);
     await expectNoSeriousViolations(page, testInfo, 'notifications-read', 'imt-notifications-panel');
   });
 });
