@@ -103,7 +103,10 @@ Use the platform capture (B). The page no longer rasterises anything; html-to-im
   first checks the window's `occlusionState`: without `NSWindowOcclusionStateVisible` it answers `unavailable` ("the
   window was not on screen ...") immediately. WebKit can still refuse a visible window for a moment after it was
   hidden (observed right after un-minimising); that is the ordinary `Webview` error path. The tray's *Capture
-  diagnostic screenshot* brings the window to the front first.
+  diagnostic screenshot* brings the window to the front first. When the user asked for the snapshot
+  (`capture_window_image { userRequested: true }`, the manual capture) and the refusal came from the app's own window's
+  webview, the command raises the window, waits `RAISE_SETTLE` (250 ms) and tries once more before answering
+  `unavailable` (`should_raise_and_retry`, unit-tested). Automatic snapshots never move windows.
 - Measured on an M-series Mac mini (1x displays, a 1440 x 900 pt window with ~59 000 events loaded): the completion
   block takes about 5 ms on the main thread (a 5.2 MB BMP), and the whole command 0.2 to 0.9 s; the stored PNG was
   1440 x 900 and 460 to 495 KB. A Retina display was not available, so the 2:1 reduction is covered by unit tests only.

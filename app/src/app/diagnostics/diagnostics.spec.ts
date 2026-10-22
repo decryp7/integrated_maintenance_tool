@@ -27,9 +27,12 @@ class FakeScreen {
   calls = 0;
   fail: Error | null = null;
   capture: () => Promise<WindowCapture> = async () => CAPTURED;
+  /** The `userRequested` argument of each call. */
+  asked: (boolean | undefined)[] = [];
   install(backend: SnapshotBackend): this {
-    backend.captureWindow = async () => {
+    backend.captureWindow = async (userRequested) => {
       this.calls++;
+      this.asked.push(userRequested);
       if (this.fail) throw this.fail;
       return this.capture();
     };
@@ -352,6 +355,7 @@ describe('backends', () => {
     const b = new TauriSnapshotBackend(invoke as never, listen);
     const ctx: SnapshotContext = { reason: 'manual', message: 'm', manual: true };
     await b.captureWindow();
+    await b.captureWindow(true);
     await b.save(IMAGE, ctx);
     await b.list();
     await b.image('a');
@@ -360,7 +364,8 @@ describe('backends', () => {
     await b.exportDiagnostics('/x.zip', ['a']);
     expect(await b.automaticEnabled()).toBe(false);
     expect(invoke.mock.calls).toEqual([
-      ['capture_window_image'],
+      ['capture_window_image', { userRequested: false }],
+      ['capture_window_image', { userRequested: true }],
       ['save_error_snapshot', { image: IMAGE.base64, mime: 'image/png', context: ctx }],
       ['list_error_snapshots'],
       ['read_error_snapshot', { id: 'a' }],
