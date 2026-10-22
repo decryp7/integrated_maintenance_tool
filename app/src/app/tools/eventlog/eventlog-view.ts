@@ -192,8 +192,8 @@ const STATE_LABEL: Record<EventLogChannelState, string> = {
     .row { display: flex; gap: 12px; flex-wrap: wrap; }
     .row .lbl { flex: 1; min-width: 180px; }
     .lbl { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); color: var(--muted); }
-    .check { display: inline-flex; gap: 6px; align-items: center; color: var(--text-2); min-width: 0; }
-    .picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 12px; max-height: 220px; overflow: auto; padding: 6px 8px; border: 1px solid var(--border-3); border-radius: 6px; background: var(--bg-2); }
+    .check { display: inline-flex; gap: 6px; align-items: center; color: var(--text-2); min-width: 0; min-height: 24px; }
+    .picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0 12px; max-height: 220px; overflow: auto; padding: 6px 8px; border: 1px solid var(--border-3); border-radius: 6px; background: var(--bg-2); }
     .badge { flex: none; font-size: var(--fs-2xs); padding: 0 5px; border-radius: 8px; border: 1px solid var(--chip-border); background: var(--chip-bg); color: var(--chip-text); }
     .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .problem { color: var(--danger-text); font-size: var(--fs-sm); }

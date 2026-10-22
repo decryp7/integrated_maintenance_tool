@@ -124,8 +124,11 @@ test.describe('notifications', () => {
     await openNotifications(page);
     await expect(pane.locator('li').filter({ hasText: /\(×\d+\)/ }).first()).toBeVisible();
     await page.locator('imt-status-bar').getByRole('button', { name: 'Live tail', exact: true }).click();
-    await openNotifications(page);
-    await pane.getByTestId('notices-mark-all').dispatchEvent('click');
+    // The slid-out list is still closing from the click in the status bar: open it again until it stays.
+    await expect(async () => {
+      await openNotifications(page);
+      await pane.getByTestId('notices-mark-all').dispatchEvent('click', undefined, { timeout: 2000 });
+    }).toPass({ timeout: 20_000 });
     await expect(pane.locator('li.unread')).toHaveCount(0);
     await expect(bell).not.toContainText(/\d/);
     await openNotifications(page);
