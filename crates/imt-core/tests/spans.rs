@@ -127,6 +127,49 @@ fn shared_file_runs_per_instance_lane() {
 }
 
 #[test]
+fn the_runs_table_sorts_by_status_from_runs_without_a_start_to_closed_runs() {
+    let dir = Dir::new("status");
+    // 3000: a stop with no start, a start that is followed by another before any stop (a crash), a closed run, an open one.
+    let text = [
+        line(0, 3000, "Application stopping"),
+        line(5, 3000, "Application started"),
+        line(6, 3000, "processing batch"),
+        line(10, 3000, "Application started"),
+        line(15, 3000, "Application stopping"),
+        line(20, 3000, "Application started"),
+    ]
+    .concat();
+    dir.write("worker.txt", &text);
+    let ws = open(&dir);
+    let statuses = |descending: bool| -> Vec<RunStatus> {
+        ws.runs(&RunsRequest {
+            sort: RunSort::Status,
+            descending,
+            ..Default::default()
+        })
+        .runs
+        .iter()
+        .map(|a| a.run.as_ref().unwrap().status)
+        .collect()
+    };
+    let up = statuses(false);
+    assert!(
+        up.contains(&RunStatus::NoStop) && up.contains(&RunStatus::Open) && up.contains(&RunStatus::Closed),
+        "{up:?}"
+    );
+    let rank = |s: &RunStatus| match s {
+        RunStatus::NoStart => 0,
+        RunStatus::NoStop => 1,
+        RunStatus::Open => 2,
+        RunStatus::Closed => 3,
+    };
+    assert!(up.windows(2).all(|w| rank(&w[0]) <= rank(&w[1])), "worst first: {up:?}");
+    let mut down = statuses(true);
+    down.reverse();
+    assert_eq!(down.iter().map(rank).collect::<Vec<_>>(), up.iter().map(rank).collect::<Vec<_>>());
+}
+
+#[test]
 fn the_runs_table_sorts_filters_and_pages() {
     let dir = Dir::new("table");
     dir.write("worker.txt", &shared_file());
