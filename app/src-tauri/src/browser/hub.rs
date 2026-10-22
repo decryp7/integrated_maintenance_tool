@@ -146,6 +146,14 @@ impl BrowserHub {
         });
     }
 
+    /// The driving chat's hold, if a chat drives the browser.
+    #[cfg(test)]
+    pub fn driver(&self, owner: &str) -> Option<Arc<ChatBrowser>> {
+        self.lock()
+            .get(owner)
+            .and_then(|o| o.driving.as_ref().and_then(|id| o.chats.get(id)).cloned())
+    }
+
     pub fn is_driving(&self, owner: &str, chat: &str) -> bool {
         self.lock().get(owner).is_some_and(|o| o.driving.as_deref() == Some(chat))
     }
