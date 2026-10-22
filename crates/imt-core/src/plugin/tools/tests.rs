@@ -490,3 +490,54 @@ fn failures_keep_the_reason_a_tool_or_the_os_gave() {
     assert_eq!(ToolError::Missing("m".into()).to_string(), "m");
     assert_eq!(ToolFailure::denied("d").to_string(), "d");
 }
+
+/// A tool with one path argument.
+struct Opener;
+
+impl Tool for Opener {
+    fn id(&self) -> &str {
+        "opener"
+    }
+
+    fn describe(&self) -> ToolInfo {
+        ToolInfo::new("opener", "Opener")
+            .describe("Opens a file.")
+            .op(OpSpec::new("open", "Open").args(Schema::object().field("file", Schema::path(PathKind::File, PathAccess::Read))))
+    }
+
+    fn invoke(&self, _: &str, args: Value, _: &ToolCtx) -> Result<Value> {
+        Ok(args)
+    }
+}
+
+/// Grants one path and canonicalises it to another.
+struct Grant;
+
+impl PathPolicy for Grant {
+    fn check(&self, path: &str, _: PathKind, _: PathAccess) -> std::result::Result<PathBuf, String> {
+        if path == "/chosen.log" {
+            Ok(PathBuf::from("/canonical/chosen.log"))
+        } else {
+            Err(format!("{path} was not chosen"))
+        }
+    }
+}
+
+#[test]
+fn path_arguments_must_be_granted_and_arrive_canonical() {
+    let (_r, host) = host_with(Arc::new(Opener));
+    let args = json!({ "file": "/chosen.log" });
+    // Without grants every path is refused, and the error names the tool and the operation.
+    let e = host.invoke("opener", "open", args.clone(), &ctx()).unwrap_err();
+    assert!(matches!(e, ToolError::PathRefused { .. }), "{e:?}");
+    assert!(e.to_string().starts_with("opener open: "), "{e}");
+    let granted = ctx().with_paths(Arc::new(Grant));
+    assert_eq!(
+        host.invoke("opener", "open", args, &granted).unwrap(),
+        json!({ "file": "/canonical/chosen.log" })
+    );
+    let e = host
+        .invoke("opener", "open", json!({ "file": "/other.log" }), &granted)
+        .unwrap_err();
+    assert!(e.to_string().contains("/other.log was not chosen"), "{e}");
+}

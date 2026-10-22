@@ -68,6 +68,19 @@ fn workspace_answers_context_progress_and_tail_options_through_the_trait() {
     assert!(!progress.running);
 
     assert!(store.plugin_settings().is_empty());
+
+    // The tail settings go to the workspace and come back in its status.
+    let before = store.tail_status();
+    store.set_tail_options(TailOptions::default());
+    assert_eq!(store.tail_status().files.len(), before.files.len());
+}
+
+#[test]
+fn a_store_that_does_not_override_it_offers_the_builtin_config_parsers() {
+    let store: Box<dyn LogStore> = Box::new(Minimal(Workspace::new(Profile::default_profile()).unwrap()));
+    let parsers = store.config_parsers();
+    let builtin = imt_core::config::ConfigParsers::builtin();
+    assert_eq!(format!("{parsers:?}"), format!("{builtin:?}"));
 }
 
 #[test]

@@ -568,4 +568,21 @@ mod tests {
         assert!(!dest.exists(), "nothing was extracted");
         let _ = std::fs::remove_dir_all(&root);
     }
+
+    #[test]
+    fn directory_entries_in_a_project_archive_are_skipped_and_files_extract() {
+        let root = temp("diren");
+        let archive = root.join("dirs.imtz");
+        let mut z = zip::ZipWriter::new(std::fs::File::create(&archive).unwrap());
+        z.add_directory("notes/", zip::write::SimpleFileOptions::default()).unwrap();
+        z.start_file("project.toml", zip::write::SimpleFileOptions::default()).unwrap();
+        z.write_all(b"format = \"imt-project\"\nname = \"withdirs\"").unwrap();
+        z.start_file("notes/a.txt", zip::write::SimpleFileOptions::default()).unwrap();
+        z.write_all(b"hi").unwrap();
+        z.finish().unwrap();
+        let (dir, manifest) = project(open_package(&archive, &root.join("o")).unwrap());
+        assert_eq!(manifest.name, "withdirs");
+        assert_eq!(std::fs::read(dir.dir.join("notes/a.txt")).unwrap(), b"hi");
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }
