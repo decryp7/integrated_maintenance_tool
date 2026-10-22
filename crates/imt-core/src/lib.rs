@@ -41,6 +41,7 @@ pub mod report;
 pub mod route;
 pub mod row;
 pub mod script;
+pub mod search_all;
 pub mod settings;
 pub mod skew;
 pub mod spans;

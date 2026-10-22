@@ -27143,6 +27143,161 @@
           <context context-type="linenumber">91</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="search.cmd.open" datatype="html">
+        <source>Search everything…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/provide-search-everything.ts</context>
+          <context context-type="linenumber">13</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.category" datatype="html">
+        <source>Search</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/provide-search-everything.ts</context>
+          <context context-type="linenumber">14</context>
+        </context-group>
+        <note priority="1" from="meaning">Command palette category</note>
+      </trans-unit>
+      <trans-unit id="search.dialog.label" datatype="html">
+        <source>Search everything</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-launcher.ts</context>
+          <context context-type="linenumber">25</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.input.label" datatype="html">
+        <source>Search everything</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">26,28</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.input.placeholder" datatype="html">
+        <source>Search events, sources, fields, markers, notes…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">32,34</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.status.searching" datatype="html">
+        <source>Searching…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">41,42</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.status.retry" datatype="html">
+        <source>Retry</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">44,45</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.status.none" datatype="html">
+        <source>Nothing matches “<x id="TEXT" equiv-text="{{ store.searched() //i18n(ph=&quot;text&quot;) }}"/>”.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">46,47</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.list.label" datatype="html">
+        <source>Results</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">49,50</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.kind.events" datatype="html">
+        <source>Events</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">44</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.kind.sources" datatype="html">
+        <source>Sources</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">46</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.kind.fields" datatype="html">
+        <source>Fields</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">48</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.kind.markers" datatype="html">
+        <source>Markers</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">50</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.kind.notes" datatype="html">
+        <source>Notes</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">52</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.kind.knowledge" datatype="html">
+        <source>Knowledge</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">54</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.outcome.timedOut" datatype="html">
+        <source>Search time ran out; there may be more matches.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">64</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.outcome.failed" datatype="html">
+        <source>Could not search: <x id="message" equiv-text="outcome.message"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">66</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.scope.global" datatype="html">
+        <source>Global</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">76</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.scope.project" datatype="html">
+        <source>Project</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">76</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.events.all" datatype="html">
+        <source>Show all <x id="count" equiv-text="reply.events.total"/> matching events in the grid</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">90</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.source.records" datatype="html">
+        <source><x id="count" equiv-text="s.records"/> events</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">98</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.field.count" datatype="html">
+        <source><x id="count" equiv-text="f.count"/> events</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything.model.ts</context>
+          <context context-type="linenumber">103</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="settings.appearance.theme" datatype="html">
         <source>Theme</source>
         <context-group purpose="location">

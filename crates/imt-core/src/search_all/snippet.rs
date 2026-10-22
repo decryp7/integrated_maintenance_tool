@@ -7,7 +7,7 @@ use crate::words::WordQuery;
 /// Characters of a text looked at for matches (the rest of a huge message is not shown anyway).
 pub const MAX_SCAN_CHARS: usize = 64 * 1024;
 /// Characters of a snippet (without the ellipses).
-pub const SNIPPET_CHARS: usize = 160;
+pub const SNIPPET_CHARS: usize = 200;
 /// Characters shown before the first match.
 const LEAD_CHARS: usize = SNIPPET_CHARS / 4;
 const ELLIPSIS: &str = "…";
@@ -15,8 +15,15 @@ const ELLIPSIS: &str = "…";
 /// The strings to mark for a search: its words, word prefixes and phrases (lower-cased, longest first so a longer
 /// match wins where two overlap).
 pub fn needles(q: &WordQuery) -> Vec<String> {
-    let mut all: Vec<String> = q.terms.iter().chain(&q.prefixes).chain(&q.phrases).filter(|n| !n.is_empty()).cloned().collect();
-    all.sort_by_key(|n| std::cmp::Reverse(n.chars().count()));
+    let mut all: Vec<String> = q
+        .terms
+        .iter()
+        .chain(&q.prefixes)
+        .chain(&q.phrases)
+        .filter(|n| !n.is_empty())
+        .cloned()
+        .collect();
+    all.sort_by(|a, b| b.chars().count().cmp(&a.chars().count()).then_with(|| a.cmp(b)));
     all.dedup();
     all
 }

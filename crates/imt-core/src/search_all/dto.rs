@@ -48,6 +48,27 @@ pub struct FieldHit {
     pub snippet: Vec<SnippetPart>,
 }
 
+/// A source whose name or path holds the words.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceHit {
+    /// The source's id (`SourceInfo::id`), to filter the grid on.
+    pub id: u32,
+    pub name: String,
+    pub path: String,
+    pub records: u64,
+    /// The path with the matched words marked.
+    pub snippet: Vec<SnippetPart>,
+}
+
+/// A marker kind whose name holds the words.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MarkerHit {
+    pub kind: String,
+    pub snippet: Vec<SnippetPart>,
+}
+
 /// Whose a note or knowledge file is: the project's (notes, project knowledge) or every project's (global knowledge).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -63,6 +84,8 @@ pub struct DocHit {
     pub id: String,
     pub scope: DocScope,
     pub title: String,
+    /// The event a note is about (none for other notes and for knowledge files).
+    pub event: Option<EventId>,
     pub snippet: Vec<SnippetPart>,
 }
 
@@ -104,7 +127,9 @@ impl<T> Default for KindHits<T> {
 #[serde(rename_all = "camelCase")]
 pub struct SearchAllReply {
     pub events: KindHits<EventHit>,
+    pub sources: KindHits<SourceHit>,
     pub fields: KindHits<FieldHit>,
+    pub markers: KindHits<MarkerHit>,
     pub notes: KindHits<DocHit>,
     pub knowledge: KindHits<DocHit>,
 }
@@ -116,6 +141,8 @@ pub struct SearchDoc {
     pub id: String,
     pub scope: DocScope,
     pub title: String,
+    /// The event a note is about.
+    pub event: Option<EventId>,
     pub text: String,
 }
 
