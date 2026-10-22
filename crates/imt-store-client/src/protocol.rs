@@ -18,6 +18,10 @@ pub const MAX_MESSAGE_BYTES: usize = 64 << 20;
 /// Initial credit of a streamed scan (batches of at most 8,192 rows in flight).
 pub const SCAN_CREDIT: u32 = 4;
 
+/// How often a cancellable call (the query language, the analyses) sends its progress while it runs: as stream
+/// items, each a [`imt_core::ql::QueryProgress`] (postcard), sent only when it changed.
+pub const PROGRESS_EVERY: std::time::Duration = std::time::Duration::from_millis(150);
+
 macro_rules! ops {
     ($($(#[$doc:meta])* $op:ident),* $(,)?) => {
         /// An operation on one open store; its request and reply are the port method's DTOs (as JSON, see the
@@ -54,7 +58,7 @@ ops! {
     Clear,
     /// [`imt_core::api::WorkspaceState`] → [`Session`]
     Restore,
-    /// [`Paths`] → events appended
+    /// [`Paths`] → [`imt_core::ports::TailAppend`]
     AppendTail,
     /// [`Session`] → [`imt_core::workspace::ProgressSnapshot`] of the store's running (or last) import
     SessionProgress,
@@ -149,6 +153,20 @@ ops! {
     SqlIds,
     /// [`imt_core::ports::SqlExportRequest`] → [`imt_core::ports::SqlExportResult`] (cancellable)
     SqlExport,
+    /// [`imt_core::redact::RedactionSummaryRequest`] → [`imt_core::redact::RedactionSummary`] (cancellable)
+    RedactionSummary,
+    /// → [`imt_core::skew::ClockOffsets`]
+    ClockOffsets,
+    /// [`imt_core::skew::ClockOffsets`] → ()
+    SetClockOffsets,
+    /// [`imt_core::skew::SetOffsetRequest`] → [`imt_core::skew::OffsetChange`]
+    SetSourceOffset,
+    /// [`imt_core::skew::SuggestRequest`] → [`imt_core::skew::SuggestResult`] (cancellable)
+    SuggestOffsets,
+    /// → `Vec<`[`imt_core::ports::TailFile`]`>`
+    TailFiles,
+    /// [`Paths`] → [`Session`]: opens files and folders at their end
+    OpenAtEnd,
 }
 
 /// "Parse with…": reads one source with the library's parser `parser` (`None`: the automatic choice; ADR 0026).

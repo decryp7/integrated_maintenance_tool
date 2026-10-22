@@ -5,7 +5,7 @@
 //! one relaxed atomic load per batch and a cancelled query stops within one batch per worker.
 
 use super::error::QlError;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
@@ -14,7 +14,7 @@ use std::sync::Arc;
 pub const BATCH: usize = 4096;
 
 /// What a running query is doing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum QueryStage {
     /// Evaluating the workspace filter (levels, window, search) over every record.
@@ -24,7 +24,7 @@ pub enum QueryStage {
 }
 
 /// A snapshot of a query's progress: `done` of `total` records in the current `stage`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryProgress {
     pub stage: QueryStage,
@@ -155,6 +155,13 @@ impl QueryControl {
         self.0.done.store(0, Ordering::Relaxed);
         self.0.total.store(total as u64, Ordering::Relaxed);
         self.0.stage.store(u8::from(stage == QueryStage::Evaluating), Ordering::Relaxed);
+    }
+
+    /// Takes over `p` as the progress of the run (a store worker's progress, relayed by its client).
+    pub fn report(&self, p: QueryProgress) {
+        self.0.stage.store(u8::from(p.stage == QueryStage::Evaluating), Ordering::Relaxed);
+        self.0.total.store(p.total, Ordering::Relaxed);
+        self.0.done.store(p.done, Ordering::Relaxed);
     }
 
     /// Records `n` more processed records of the current stage.
@@ -293,6 +300,22 @@ mod tests {
             nested.scope(|| assert!(QueryControl::current().is_some()));
             assert!(QueryControl::current().is_some(), "the outer control is back");
         });
+    }
+
+    #[test]
+    fn a_relayed_progress_replaces_the_counters_and_survives_json() {
+        let c = QueryControl::new();
+        c.begin(QueryStage::Matching, 5);
+        c.advance(3);
+        let p = QueryProgress {
+            stage: QueryStage::Evaluating,
+            done: 40,
+            total: 100,
+        };
+        c.report(p);
+        assert_eq!(c.progress(), p);
+        let back: QueryProgress = serde_json::from_value(serde_json::to_value(p).unwrap()).unwrap();
+        assert_eq!(back, p);
     }
 
     #[test]

@@ -153,7 +153,7 @@ describe('MockShareBackend', () => {
   let imt: MockBackend;
   let share: MockShareBackend;
   beforeEach(() => {
-    imt = new MockBackend({ latency: false, memoryStoreFeatures: true });
+    imt = new MockBackend({ latency: false });
     share = new MockShareBackend(imt, new MockAnalysisBackend(recordsFrom(imt)));
   });
 
@@ -279,12 +279,16 @@ describe('MockShareBackend', () => {
     expect('estimateBundle' in share || 'createBundle' in share).toBe(false);
   });
 
-  it('answers like the log store by default: no redacted view or redaction summary yet', async () => {
-    const plain = new MockShareBackend(new MockBackend({ latency: false }), new MockAnalysisBackend(recordsFrom(imt)));
-    const refused = { code: 'unsupported', retryable: false };
-    await expect(plain.setRedactedView(true)).rejects.toMatchObject({ ...refused, message: 'the redacted view is not available with the new log store yet', hint: expect.stringContaining('Exports') });
+  it('answers like the log store: the redacted view and the summary work, and a profile without rules refuses the view', async () => {
+    const backend = new MockBackend({ latency: false });
+    const plain = new MockShareBackend(backend, new MockAnalysisBackend(recordsFrom(imt)));
+    expect((await plain.setRedactedView(true)).redactedView).toBe(true);
     expect((await plain.setRedactedView(false)).redactedView).toBe(false);
-    await expect(plain.redactionSummary({ query: q })).rejects.toMatchObject({ ...refused, message: expect.stringContaining('redaction summary') });
+    expect((await plain.redactionSummary({ query: q })).scanned).toBeGreaterThan(0);
+    vi.spyOn(backend, 'setMockRedaction').mockImplementationOnce(() => {
+      throw new Error('the profile has no redaction rules: add detectors or [[redact.rule]] to its [redact] section');
+    });
+    await expect(plain.setRedactedView(true)).rejects.toMatchObject({ code: 'invalid', retryable: false, message: expect.stringContaining('no redaction rules'), hint: expect.stringContaining('[redact]') });
   });
 
   it('returns the health check with the coverage of its analysis', async () => {
@@ -302,9 +306,9 @@ describe('MockShareBackend', () => {
     expect((await imt.validateProfile('[redact]\ndetectors = ["email"]')).ok).toBe(true);
   });
 
-  it('works over a non-mock workspace backend (no redacted view to switch)', async () => {
+  it('works over a non-mock workspace backend (the engine owns the redacted view; the mock leaves the summary as it is)', async () => {
     const other = new MockShareBackend({ workspaceSummary: () => imt.workspaceSummary(), getProfile: () => imt.getProfile() } as unknown as ImtBackend, new MockAnalysisBackend(recordsFrom(imt)));
-    await expect(other.setRedactedView(true)).rejects.toMatchObject({ code: 'unsupported' });
+    expect((await other.setRedactedView(true)).redactedView).toBe(false);
     expect((await other.setRedactedView(false)).redactedView).toBe(false);
   });
 });

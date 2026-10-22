@@ -23,6 +23,7 @@ pub mod icons;
 pub mod importers;
 pub mod ingest;
 pub mod instance;
+pub mod live;
 pub mod overwrite;
 pub mod package;
 pub mod parser;

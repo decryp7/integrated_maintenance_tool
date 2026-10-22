@@ -17,6 +17,7 @@ mod legacy;
 mod parallel;
 mod plan;
 mod problems;
+mod region;
 mod sink;
 mod source;
 mod text;
@@ -26,6 +27,7 @@ pub use chunk::{Chunk, ChunkSource, Encoding, Line, LineReader, LineSpan, OwnedL
 pub use parallel::{default_threads, import_files_parallel, ParallelOptions, SharedRef, SharedSink, MAX_DEFAULT_THREADS};
 pub use plan::{detect_encoding, plan, scan_chunk_starts, score_text, ChunkStart, FilePlan, JsonShape, PlanKind, CHUNK_TARGET, HEAD_BYTES};
 pub use problems::{Problem, ProblemKind, Problems, MAX_SAMPLES};
+pub use region::{begin_at_end, read_appended, resume_after, AtEnd, Region, RegionRead, TailStart};
 pub use sink::{BatchSink, EventSink, ImportCancelled, NewSource, ParsedEvent, SourceReport};
 pub use source::{import_path, ImportEnv, Outcome};
 

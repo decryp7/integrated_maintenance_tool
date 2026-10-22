@@ -1,6 +1,6 @@
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
-import { ParserEntryDto, ParserLibraryDto } from '../../core/api.types';
+import { ParserDocDto, ParserEntryDto, ParserLibraryDto } from '../../core/api.types';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { errorMessage } from '../../tools/tool-errors';
 import { OverwriteGuard } from '../../ui/overwrite-guard';
@@ -35,9 +35,11 @@ interface ParsersState {
   notice: string | null;
   /** The last action failed. */
   actionError: string | null;
+  /** The parser open in the Parsers view's detail pane (`doc.id` is empty for a new one). */
+  editing: { doc: ParserDocDto; isNew: boolean; readSources: number[] } | null;
 }
 
-const INITIAL: ParsersState = { library: null, loading: false, loadError: null, busy: null, notice: null, actionError: null };
+const INITIAL: ParsersState = { library: null, loading: false, loadError: null, busy: null, notice: null, actionError: null, editing: null };
 
 /** Parsers of one category, for the grouped list. */
 export interface ParserGroup {
@@ -134,6 +136,24 @@ export const ParsersStore = signalStore(
           const doc = await backend.get(id);
           return edited(await dialogs.edit(doc, { readSources: entry(id)?.sources.map((s) => s.id) ?? [] }), id);
         }),
+
+      /** Shows the parser in the Parsers view's detail pane (instead of a dialog). */
+      openEditor: (id: string) =>
+        act(id, async () => {
+          const doc = await backend.get(id);
+          patchState(store, { editing: { doc, isNew: false, readSources: entry(id)?.sources.map((s) => s.id) ?? [] } });
+          return null;
+        }),
+
+      /** Shows a blank new parser in the detail pane. */
+      openNewEditor(): void {
+        patchState(store, { editing: { doc: { id: '', origin: 'user', toml: BLANK_PARSER }, isNew: true, readSources: [] } });
+      },
+
+      /** The detail pane ended: a saved library replaces the list. */
+      closeEditor(library?: ParserLibraryDto): void {
+        patchState(store, library ? { library, editing: null, notice: $localize`:@@settings.parsers.notice.savedInView:Saved the parser.` } : { editing: null });
+      },
 
       /** "New blank": the editor with a minimal parser. */
       newBlank: () =>

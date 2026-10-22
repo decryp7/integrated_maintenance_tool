@@ -2292,9 +2292,11 @@ export interface HeapPaths {
 // Explain and share: redaction, dashboards, reports, images, bundles
 // (crates/imt-core/src/{redact,dashboard,report,bundle}, app/src-tauri/src/share.rs)
 //   overview           { request: { query } }    -> Analyzed<Finding[]>   (the health check)
-//   set_redacted_view  { enabled }               -> WorkspaceSummary   (enabled: true is `unsupported` with the current store)
+//   set_redacted_view  { enabled }               -> WorkspaceSummary   (while on, pages, facets, source context, query
+//                                                  tables and dashboard tiles come back redacted; `invalid` when the
+//                                                  profile has no [redact] rules)
 //   preview_redaction  { request }               -> RedactionPreview
-//   redaction_summary  { request }               -> RedactionSummary   (`unsupported` with the current store)
+//   redaction_summary  { request }               -> RedactionSummary
 //   dashboard_tile     { request: TileRequest }  -> TileData
 //   export_report      { request }               -> number (the export job)
 //   save_visual        { request }               -> VisualSaved

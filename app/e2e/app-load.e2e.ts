@@ -38,9 +38,11 @@ test.describe('app load', () => {
   test('explorer lists the sources', async ({ page }) => {
     const sidebar = page.locator('imt-sidebar');
     await expect(sidebar.getByText('Explorer', { exact: true })).toBeVisible();
-    await expect(sidebar.getByText('web01/orders-20261014.clef')).toBeVisible();
+    await expect(sidebar.locator('.src[title*="web01/orders-20261014.clef"]')).toBeVisible();
     await expect(sidebar.locator('.src:not(.dim)')).toHaveCount(6);
-    await expect(sidebar.locator('.src:not(.dim) .badge')).toHaveText(['json', 'json', 'text', 'json', 'csv', 'registry']);
+    // The format is a small icon with the importer's name as its tooltip and accessible name.
+    expect(await sidebar.locator('.src:not(.dim) [data-testid=format-badge]').evaluateAll((els) => els.map((e) => e.getAttribute('title')))).toEqual(['json', 'json', 'text', 'json', 'csv', 'registry']);
+    await expect(sidebar.locator('[data-testid=folder-heading]').first()).toBeVisible();
     await expect(sidebar.locator('.src.dim')).toHaveCount(1); // unrecognized files are listed dimmed
     await expect(sidebar.getByText('Fields', { exact: true })).toBeVisible();
   });

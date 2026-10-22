@@ -1,18 +1,24 @@
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { JobsBackend } from './jobs-backend';
-import { EMPTY_JOBS, JobInfo, JobKind, JobsSnapshot } from './jobs.types';
+import { EMPTY_JOBS, JOB_KINDS, JobInfo, JobKind, JobsSnapshot } from './jobs.types';
+
+/** The jobs the pane lists: everything, what is running or waiting, or what failed. */
+export type JobsView = 'all' | 'running' | 'failed';
+
 
 interface JobsState {
   snapshot: JobsSnapshot;
   /** The kinds the pane shows (empty: all). */
   kinds: JobKind[];
+  /** All, running (and queued), or failed jobs. */
+  view: JobsView;
   /** The last request that failed (shown inline with Retry). */
   error: string | null;
   loaded: boolean;
 }
 
-const initial: JobsState = { snapshot: EMPTY_JOBS, kinds: [], error: null, loaded: false };
+const initial: JobsState = { snapshot: EMPTY_JOBS, kinds: [], view: 'all', error: null, loaded: false };
 
 function message(e: unknown): string {
   if (typeof e === 'string') return e;
@@ -31,11 +37,26 @@ export const JobsStore = signalStore(
   { providedIn: 'root' },
   withState<JobsState>(initial),
   withComputed((store) => {
+    const inView = (j: JobInfo, view: JobsView) => view === 'all' || (view === 'running' ? isActive(j) : j.state === 'failed');
     const filtered = computed(() => {
       const kinds = store.kinds();
-      return kinds.length ? store.snapshot().jobs.filter((j) => kinds.includes(j.kind)) : store.snapshot().jobs;
+      const view = store.view();
+      return store.snapshot().jobs.filter((j) => (!kinds.length || kinds.includes(j.kind)) && inView(j, view));
     });
     return {
+      /** How many jobs each view would show (under the kind filter). */
+      viewCounts: computed(() => {
+        const kinds = store.kinds();
+        const jobs = store.snapshot().jobs.filter((j) => !kinds.length || kinds.includes(j.kind));
+        return { all: jobs.length, running: jobs.filter(isActive).length, failed: jobs.filter((j) => j.state === 'failed').length } satisfies Record<JobsView, number>;
+      }),
+      /** How many jobs each kind has (under the view), for the Kind filter. */
+      kindCounts: computed(() => {
+        const view = store.view();
+        const counts = new Map<JobKind, number>(JOB_KINDS.map((k) => [k, 0]));
+        for (const j of store.snapshot().jobs) if (inView(j, view)) counts.set(j.kind, (counts.get(j.kind) ?? 0) + 1);
+        return counts;
+      }),
       jobs: filtered,
       running: computed(() => filtered().filter((j) => j.state === 'running')),
       queued: computed(() => filtered().filter((j) => j.state === 'queued')),
@@ -76,6 +97,10 @@ export const JobsStore = signalStore(
       move: (id: number, up: boolean) => run(() => backend.move(id, up)),
       clearFinished: () => run(() => backend.clearFinished()),
       markSeen: (id: number) => run(() => backend.markSeen(id)),
+
+      setView(view: JobsView): void {
+        patchState(store, { view });
+      },
 
       /** Shows only these kinds (none: all). */
       setKinds(kinds: JobKind[]): void {

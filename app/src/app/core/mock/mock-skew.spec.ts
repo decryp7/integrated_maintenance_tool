@@ -84,21 +84,14 @@ describe('mock clock skew', () => {
     expect(mockSuggest(clean.records, clean.sources, { maxDeltaMs: 10 }).insufficient).toEqual([1]);
   });
 
-  it('is not offered by the log store: the default mock rejects like the engine', async () => {
+  it('applies offsets through the mock backend keeping tracked records and showing skew', async () => {
     const b = new MockBackend({ latency: false, dataset: tinyDataset, pluginMarkerKinds: [] });
-    const refused = { code: 'unsupported', retryable: false, message: 'clock-skew correction is not available with the new log store yet' };
-    await expect(b.setSourceOffset({ kind: 'manual', source: 1, offsetMs: 1 })).rejects.toMatchObject(refused);
-    await expect(b.suggestOffsets()).rejects.toMatchObject({ ...refused, hint: expect.stringContaining('shift_time') });
-  });
-
-  it('applies offsets through the mock backend (old store features), keeping tracked records and showing skew', async () => {
-    const b = new MockBackend({ latency: false, dataset: tinyDataset, pluginMarkerKinds: [], memoryStoreFeatures: true });
     const page = async () => (await b.queryPage({ query: { from: null, to: null, levels: [], text: '', regex: false, caseSensitive: false, filters: [], groupBy: [], groups: [], markers: [] }, offset: 0, limit: 100, descending: false })).rows;
     const rows = await page();
     const worker = rows.find((x) => x.message === 'Application starting — Worker')!;
     const change = await b.setSourceOffset({ kind: 'manual', source: 1, offsetMs: 100_000, track: [worker.id, 999] });
     expect(change).toMatchObject({ source: 1, offsetMs: 100_000, previousMs: 0 });
-    expect(change.idsChangedFrom).not.toBeNull();
+    expect(change.idsChangedFrom).toBeNull();
     expect(change.tracked[1]).toBeNull();
     const moved = at(await page(), must(at(change.tracked, 0)));
     expect(moved.message).toBe('Application starting — Worker');
@@ -106,7 +99,7 @@ describe('mock clock skew', () => {
     expect((await b.workspaceSummary()).sources.find((s) => s.id === 1)?.offsetMs).toBe(100_000);
     const same = await b.setSourceOffset({ kind: 'manual', source: 1, offsetMs: 100_000 });
     expect(same.idsChangedFrom).toBeNull();
-    await expect(b.setSourceOffset({ kind: 'manual', source: 1, offsetMs: 1e15 })).rejects.toMatch(/too large/);
+    await expect(b.setSourceOffset({ kind: 'manual', source: 1, offsetMs: 1e15 })).rejects.toMatchObject({ code: 'invalid', retryable: false, message: expect.stringMatching(/too large/) });
     expect((await b.suggestOffsets()).suggestions).toEqual([]);
   });
 });

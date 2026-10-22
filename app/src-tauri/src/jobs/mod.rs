@@ -327,6 +327,19 @@ fn cancelling(mut controls: Controls, control: &imt_core::ql::QueryControl) -> C
     controls
 }
 
+/// `controls` with a probe of `control`'s progress (the events the store has read of those it will read, as its
+/// worker reports them) unless they have their own.
+fn with_query_progress(controls: Controls, control: &imt_core::ql::QueryControl) -> Controls {
+    if controls.probe.is_some() {
+        return controls;
+    }
+    let c = control.clone();
+    controls.with_probe(move || {
+        let p = c.progress();
+        (p.total > 0).then(|| JobProgress::counts(p.done.min(p.total), p.total))
+    })
+}
+
 /// A read-only analysis of the window's logs as an analysis job (limited to the cores, minus one). Its
 /// View opens `view` with the query applied.
 pub(crate) async fn analysis<R: Runtime, T: Send + 'static>(
@@ -364,7 +377,7 @@ pub(crate) async fn analysis_announced<R: Runtime, T: Send + 'static>(
     };
     let w = win.arc().clone();
     let control = imt_core::ql::QueryControl::new();
-    let controls = cancelling(controls, &control);
+    let controls = with_query_progress(cancelling(controls, &control), &control);
     run_announced(app, spec, controls, announce, move |ctx| {
         with_store(&w, &control, |store| f(store, ctx)).map(|v| Done::new(v).with_result(result))
     })

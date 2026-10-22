@@ -64,6 +64,18 @@ impl DuckStore {
     /// Writes `project.toml` with `manifest` and the store's opened roots.
     pub fn save_project(&self, manifest: &mut ProjectManifest) -> StoreResult<()> {
         manifest.parsers = self.parser_refs()?;
+        // The store holds the offsets (already applied to its events); the manifest repeats them.
+        manifest.clock_offsets = {
+            let conn = self.inner.conn()?;
+            let mut rows: Vec<_> = crate::writer::clock_offsets(&conn)
+                .map_err(|e| engine(format!("{e:#}")))?
+                .into_iter()
+                .collect();
+            rows.sort();
+            rows.into_iter()
+                .map(|(path, offset_ms)| imt_core::package::SourceOffset { path, offset_ms })
+                .collect()
+        };
         manifest.roots = read_lock(&self.inner.state)
             .roots
             .iter()

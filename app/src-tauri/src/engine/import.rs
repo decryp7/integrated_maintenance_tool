@@ -1,7 +1,7 @@
 //! Imports as jobs (ADR 0012, 0014): opening files, reloading, refreshing and re-deriving after a profile change
 //! run in the store (the worker) as an [`ImportSession`]; the window's import job follows it: its progress (files,
 //! bytes, the current file) is the job's, Cancel cancels the session, and its report is the result. Readers keep
-//! working meanwhile (the store never blocks them).
+//! working meanwhile (the store never blocks them). The annotators run over the new data before the job ends.
 
 use crate::jobs::{Controls, Done, JobCtx, JobProgress, JobResult, JobSpec};
 use crate::windows::{CurrentWindow, WindowState};
@@ -97,6 +97,7 @@ pub(crate) async fn run<R: Runtime>(app: &AppHandle<R>, state: &CurrentWindow, s
             let store = win.engine.store()?;
             let session = start_when_free(store.as_ref(), &start, ctx, &flag)?;
             let report = follow(&win, ctx, &flag, session)?;
+            super::annotate::run(&win, store.as_ref(), &|m| ctx.message(m));
             Ok(Done::new(report).with_result(JobResult::Workspace))
         },
     )
@@ -123,6 +124,7 @@ pub(crate) fn start<R: Runtime>(
                 let store = win.engine.store()?;
                 let session = start_when_free(store.as_ref(), &start, ctx, &flag)?;
                 let report = follow(&win, ctx, &flag, session)?;
+                super::annotate::run(&win, store.as_ref(), &|m| ctx.message(m));
                 then(report)?;
                 Ok(Done::new(()).with_result(JobResult::Workspace))
             },

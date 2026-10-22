@@ -9,17 +9,12 @@ export interface TourStep {
   target?: string;
 }
 
-/** The tour of the demo incident: what each part of the screen is for. */
+/** The tour of the demo incident: what each part of the screen is for. Every step, the first included, points at its control. */
 export const TOUR_STEPS: readonly TourStep[] = [
-  {
-    id: 'welcome',
-    title: $localize`:@@onboarding.tour.welcome.title:A short tour`,
-    text: $localize`:@@onboarding.tour.welcome.text:This demo is a real-looking incident: an order service crashed on one machine while others kept running. Six quick stops show where to look. Use the arrow keys, or press Escape to leave at any time.`,
-  },
   {
     id: 'timeline',
     title: $localize`:@@onboarding.tour.timeline.title:Timeline`,
-    text: $localize`:@@onboarding.tour.timeline.text:Each lane is one running instance (machine and process). Coloured marks are errors, crashes and restarts. Drag across the timeline to zoom into a moment.`,
+    text: $localize`:@@onboarding.tour.timeline.text:This demo is a real-looking incident: an order service crashed on one machine while others kept running. Each lane is one running instance (machine and process); coloured marks are errors, crashes and restarts. Drag across the timeline to zoom into a moment. Six quick stops show where to look: use the arrow keys, or press Escape to leave at any time.`,
     view: 'timeline',
     target: 'imt-timeline-panel',
   },

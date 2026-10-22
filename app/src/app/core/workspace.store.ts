@@ -103,7 +103,6 @@ export class WorkspaceStore {
   readonly alwaysShowLifecycle = this.prefs.alwaysShowLifecycle;
   readonly theme = this.prefs.theme;
   readonly scheme = this.prefs.scheme;
-  readonly lanesBySource = this.prefs.lanesBySource;
   readonly uiFont = this.prefs.uiFont;
   readonly descending = this.prefs.descending;
   readonly extraColumns = this.prefs.extraColumns;
@@ -111,7 +110,6 @@ export class WorkspaceStore {
   readonly setAlwaysShowLifecycle = this.prefs.setAlwaysShowLifecycle;
   readonly setTheme = this.prefs.setTheme;
   readonly setScheme = this.prefs.setScheme;
-  readonly setLanesBySource = this.prefs.setLanesBySource;
   readonly setUiFont = this.prefs.setUiFont;
   readonly toggleSort = this.prefs.toggleSort;
   readonly addColumn = this.prefs.addColumn;

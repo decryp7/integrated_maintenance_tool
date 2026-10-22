@@ -14,7 +14,7 @@ import { ProfileEditor } from './profile-editor';
 import { ProfileForm } from './profile-form';
 import { StringList } from './string-list';
 import { TomlEditor } from './toml-editor';
-import { SettingsDialogService } from '../settings/settings-dialog';
+import { CommandRegistry } from '../extensions/command-registry';
 import { at } from '../../testing/must';
 
 /** A profile save re-imports as a job: waits for it to finish and for the view to follow. */
@@ -301,9 +301,9 @@ describe('ProfileForm', () => {
     buttonByText(fixture, '+ Add glob').click();
     expect(m().files?.include?.at(-1)).toBe('');
     expect(el(fixture, '[data-testid=profile-parsers-hint]').textContent).toContain('Formats are parsers');
-    const open = vi.spyOn(TestBed.inject(SettingsDialogService), 'open').mockReturnValue(undefined);
+    const run = vi.spyOn(TestBed.inject(CommandRegistry), 'run').mockResolvedValue(true);
     buttonByText(fixture, 'Settings ▸ Parsers').click();
-    expect(open).toHaveBeenCalledWith('@parsers');
+    expect(run).toHaveBeenCalledWith('parsers.manage');
     expect(all(fixture, '.nav-item').map((b) => b.textContent?.trim())).not.toContain('Parsing');
 
 

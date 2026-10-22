@@ -54,9 +54,15 @@ pub(crate) struct QueryReply {
 /// `{ result }` or `{ error: { message, offset, len } }` so the editor can underline the error.
 #[tauri::command]
 pub async fn run_query(state: CurrentWindow, request: QueryRequest) -> CmdResult<QueryReply> {
+    let view = state.host.redacted_view();
     with_store(&state, move |s| match s.run_query(&request) {
-        Ok(result) => Ok(QueryReply {
-            result: Some(result),
+        Ok(mut result) => Ok(QueryReply {
+            result: Some({
+                if let Some(r) = &view {
+                    r.view_ql(&mut result);
+                }
+                result
+            }),
             error: None,
         }),
         Err(StoreError::Query(error)) => Ok(QueryReply {

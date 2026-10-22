@@ -11,6 +11,7 @@ import { provideMockShare } from '../share/redaction/share-testing';
 import { ShareBackend } from '../share/share-backend';
 import { at } from '../../testing/must';
 import { mockJobs } from '../jobs/mock-jobs';
+import { mockUnsupported } from '../core/mock/mock-unsupported';
 import { NotificationsStore } from '../notifications/notifications.store';
 
 const exporters: ExporterInfo[] = [
@@ -135,14 +136,16 @@ describe('ExportDialog', () => {
 });
 
 describe('ExportDialog redaction', () => {
-  async function setup(onExport: boolean, memoryStoreFeatures = true) {
-    const backend = tinyBackend({ memoryStoreFeatures });
+  async function setup(onExport: boolean, summaryUnsupported = false) {
+    const backend = tinyBackend();
     if (onExport) await mockJobs().wait(await backend.saveProfile((await backend.getProfile()).toml.replace('on_export = false', 'on_export = true')));
     const pick = vi.fn(async () => '/out/events.csv');
     TestBed.configureTestingModule({
       providers: [provideTinyBackend(backend), provideMockShare(), { provide: Platform, useValue: { isTauri: () => false, pickPaths: async () => [], onFilesDropped: async () => () => undefined, pickExportPath: pick } }, { provide: DIALOG_REF, useValue: { close: () => undefined, closed: Promise.resolve(undefined) } }],
     });
     const store = TestBed.inject(WorkspaceStore);
+    // An engine that cannot summarise the redaction (older stores).
+    if (summaryUnsupported) vi.spyOn(TestBed.inject(ShareBackend), 'redactionSummary').mockRejectedValue(mockUnsupported('the redaction summary is not available yet'));
     await settle();
     const fixture = TestBed.createComponent(ExportDialog);
     await settle(fixture);
@@ -152,7 +155,7 @@ describe('ExportDialog redaction', () => {
   const redactBox = (fixture: { nativeElement: HTMLElement }) => fixture.nativeElement.querySelector<HTMLInputElement>('input[type=checkbox]')!;
 
   it('says the preview is not available yet when the log store cannot summarise the redaction', async () => {
-    const { fixture } = await setup(true, false);
+    const { fixture } = await setup(true, true);
     await settle(fixture);
     expect(text(fixture)).toContain('A preview of what will be redacted is not available yet');
     expect(fixture.nativeElement.querySelector('[role=alert]')).toBeNull();

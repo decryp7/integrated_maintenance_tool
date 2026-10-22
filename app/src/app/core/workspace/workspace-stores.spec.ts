@@ -51,7 +51,7 @@ describe('workspace stores', () => {
     await settle();
     expect(document.documentElement.getAttribute('data-scheme')).toBe('light');
     expect(document.documentElement.getAttribute('data-theme')).toBe('calm');
-    expect(JSON.parse(localStorage.getItem('imt.prefs.v1')!)).toMatchObject({ scheme: 'light', theme: 'calm' });
+    expect(JSON.parse(localStorage.getItem('imt.prefs.v1')!)).toMatchObject({ scheme: 'light', theme: null });
     // Starting the theme again adds no second effect.
     TestBed.inject(ThemeService).start();
     prefs.setScheme('system');

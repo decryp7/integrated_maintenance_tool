@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { DIALOG_REF } from '../ui/dialog.service';
 import { AiSettingsExtras } from '../ai/settings/ai-settings-extras';
 import { PerformanceExtras } from './performance/performance-extras';
+import { LiveTailSettings } from '../live/live-tail-settings';
+import { UpdatesSettings } from '../updates/updates-settings';
 import { KnowledgeSettings } from '../ai/knowledge/knowledge-settings';
 import { EngineSettingsStore } from './engine-settings.store';
 import { AppearanceSettings } from './appearance-settings';
@@ -9,25 +11,29 @@ import { GeneralSettings } from './general-settings';
 import { SettingFieldControl } from './setting-field';
 import { SettingsFiles } from './settings-files';
 import { StorageSettings } from './storage/storage-settings';
+import { MANAGE_PARSERS_COMMAND, PARSERS_ID } from './parsers/parsers.types';
+import { CommandRegistry } from '../extensions/command-registry';
+import { KeyboardSettings } from './keyboard/keyboard-settings';
+import { KEYBOARD_ID } from './keyboard/keyboard.types';
 import { STORAGE_ID } from './storage/storage.types';
-import { ParsersSettings } from './parsers/parsers-settings';
-import { PARSERS_ID } from './parsers/parsers.types';
 import { ParsersStore } from './parsers/parsers.store';
 import { VideoSettings } from '../video/video-settings';
 import { VIDEO_SETTINGS_ID } from '../video/video-settings.types';
 import { searchParsers } from './parsers/parser-search';
-import { APPEARANCE_ID, fieldMatches, GENERAL_ID, GROUPS, statusLabel } from './settings-model';
+import { APPEARANCE_ID, fieldMatches, GENERAL_ID, LIVE_TAIL_SECTION, navLayout, statusLabel, UPDATES_ID } from './settings-model';
+import { plural } from '../i18n/locale';
 import { SettingField, SettingsSection } from './settings.types';
 
 /**
- * The Settings screen: navigation (General, then the engine's sections by group), search across
- * every field, a form generated from each section's schema, Apply/Cancel with an unsaved-changes
- * guard, a restart banner, and export/import. Opened in a dialog by `SettingsDialogService`.
+ * The Settings screen: grouped navigation (Application, Data, AI, Plugins, Diagnostics), search across
+ * every field and a form generated from each section's schema. Changes apply by themselves (with Undo);
+ * only edits the engine refuses stay unsaved and are asked about on close. Settings that need a restart
+ * are marked inline and collected in one bar. Opened in a dialog by `SettingsDialogService`.
  */
 @Component({
   selector: 'imt-settings-screen',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, KnowledgeSettings, StorageSettings, ParsersSettings, PerformanceExtras, VideoSettings],
+  imports: [GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, KnowledgeSettings, StorageSettings, PerformanceExtras, LiveTailSettings, UpdatesSettings, KeyboardSettings, VideoSettings],
   host: { '(keydown.escape)': 'onEscape($event)' },
   template: `
     <div class="top">
@@ -36,20 +42,26 @@ import { SettingField, SettingsSection } from './settings.types';
     </div>
 
     @if (store.restartPending()) {
-      <div class="banner restart" role="status">
-        <span i18n="@@settings.screen.restartBanner">Some changes take effect after IMT restarts.</span>
-        <button class="btn primary" type="button" (click)="store.restart()" i18n="@@settings.screen.restart">Restart</button>
+      <div class="banner restart" role="status" data-testid="settings-restart-bar">
+        <span>{{ restartText() }}</span>
+        <button class="btn primary" type="button" (click)="store.restart()" i18n="@@settings.screen.restartNow">Restart now</button>
       </div>
     }
     @if (store.confirmDiscard()) {
-      <div class="banner warn" role="alertdialog" aria-label="Unapplied changes" i18n-aria-label="@@settings.screen.discard.label" aria-describedby="imt-settings-discard-text">
-        <span id="imt-settings-discard-text" i18n="@@settings.screen.discard.text">You have changes that were not applied.</span>
+      <div class="banner warn" role="alertdialog" aria-label="Unsaved changes" i18n-aria-label="@@settings.screen.discard.label" aria-describedby="imt-settings-discard-text">
+        <span id="imt-settings-discard-text" i18n="@@settings.screen.discard.text">Some changes were refused and are not saved.</span>
         <button class="btn" type="button" (click)="discardAndClose()" i18n="@@settings.screen.discard.discard">Discard changes</button>
         <button class="btn primary" type="button" (click)="store.keepEditing()" i18n="@@settings.screen.discard.keepEditing">Keep editing</button>
       </div>
     }
     @if (store.notice(); as n) {
-      <div class="banner ok" role="status"><span>{{ n }}</span><button class="btn ghost" type="button" (click)="store.dismissNotice()" i18n="@@settings.screen.dismiss">Dismiss</button></div>
+      <div class="banner ok" role="status" data-testid="settings-notice">
+        <span>{{ n }}</span>
+        @if (store.undo()) {
+          <button class="btn" type="button" data-testid="settings-undo" (click)="store.undoLast()" i18n="@@settings.screen.undo">Undo</button>
+        }
+        <button class="btn ghost" type="button" (click)="store.dismissNotice()" i18n="@@settings.screen.dismiss">Dismiss</button>
+      </div>
     }
     @if (store.actionError(); as e) {
       <div class="banner err" role="alert"><span>{{ e }}</span><button class="btn ghost" type="button" (click)="store.dismissNotice()" i18n="@@settings.screen.dismiss">Dismiss</button></div>
@@ -57,21 +69,16 @@ import { SettingField, SettingsSection } from './settings.types';
 
     <div class="main">
       <nav aria-label="Settings sections" i18n-aria-label="@@settings.screen.nav.label">
-        <button class="nav" type="button" [attr.aria-current]="isSelected(general) ? 'page' : null" (click)="store.select(general)" i18n="Settings section|Name of the first settings section@@settings.screen.general">General</button>
-        <button class="nav" type="button" [attr.aria-current]="isSelected(appearance) ? 'page' : null" (click)="store.select(appearance)" data-testid="settings-nav-appearance" i18n="Settings section|Theme, colour scheme and density@@settings.screen.appearance">Appearance</button>
-        <button class="nav" type="button" [attr.aria-current]="isSelected(storage) ? 'page' : null" (click)="store.select(storage)" i18n="Settings section|What IMT keeps on disk@@settings.storage.nav">Disk usage</button>
-        <button class="nav" type="button" [attr.aria-current]="isSelected(parsers) ? 'page' : null" (click)="store.select(parsers)" data-testid="settings-nav-parsers" i18n="Settings section|The log formats IMT reads@@settings.parsers.nav">Parsers</button>
-        <button class="nav" type="button" [attr.aria-current]="isSelected(video) ? 'page' : null" (click)="store.select(video)" data-testid="settings-nav-video" i18n="Settings section|Videos and the FFmpeg runtime@@video.settings.nav">Video</button>
         @for (g of navGroups(); track g.id) {
           <div class="group" role="presentation">{{ g.title }}</div>
-          @for (s of g.sections; track s.id) {
-            <button class="nav sub" type="button" [attr.aria-current]="isSelected(s.id) ? 'page' : null" (click)="store.select(s.id)">
-              <span class="name">{{ s.title }}</span>
-              @if (status(s); as st) {
+          @for (i of g.items; track i.id) {
+            <button class="nav sub" type="button" [attr.aria-current]="isSelected(i.id) ? 'page' : null" [attr.data-testid]="'settings-nav-' + navKey(i.id)" (click)="store.select(i.id)">
+              <span class="name">{{ i.title }}</span>
+              @if (i.section && status(i.section); as st) {
                 <span class="badge">{{ st }}</span>
               }
-              @if (isDirty(s.id)) {
-                <span class="dot" role="img" aria-label="unapplied changes" title="Unapplied changes" i18n-aria-label="@@settings.screen.dirtyDot.label" i18n-title="@@settings.screen.dirtyDot.title"></span>
+              @if (isDirty(i.id)) {
+                <span class="dot" role="img" aria-label="unsaved changes" title="Unsaved changes" i18n-aria-label="@@settings.screen.dirtyDot.label" i18n-title="@@settings.screen.dirtyDot.title"></span>
               }
             </button>
           }
@@ -100,7 +107,7 @@ import { SettingField, SettingsSection } from './settings.types';
             <button class="btn" type="button" data-testid="settings-search-open-parsers" (click)="openParsers()" i18n="@@settings.screen.search.openParsers">Open Parsers</button>
           }
           @for (r of results(); track r.section.id) {
-            <h3>{{ r.section.title }}</h3>
+            <h3>{{ titleOf(r.section) }}</h3>
             @for (f of r.fields; track f.key) {
               <imt-setting-field
                 [field]="f"
@@ -124,15 +131,22 @@ import { SettingField, SettingsSection } from './settings.types';
           <h3 i18n="Settings section|Theme, colour scheme and density@@settings.screen.appearance">Appearance</h3>
           <p class="desc" i18n="@@settings.screen.appearance.desc">Theme, colour scheme and density of every window. They apply immediately.</p>
           <imt-appearance-settings />
+        } @else if (isSelected(updates)) {
+          <imt-updates-settings />
         } @else if (isSelected(storage)) {
           <imt-storage-settings />
         } @else if (isSelected(parsers)) {
-          <imt-parsers-settings />
+          <h3 i18n="Settings section|The log formats IMT reads@@settings.parsers.title">Parsers</h3>
+          <p class="desc" i18n="@@settings.parsers.link.desc">A parser describes one log format and is one TOML file you can share. The parser library, with its editor and a live preview against your open files, is a view of its own.</p>
+          <button type="button" class="btn primary" data-testid="settings-open-parsers-view" (click)="openParsersView()" i18n="@@settings.parsers.link.open">Open the Parsers view</button>
+        } @else if (isSelected(keyboard)) {
+          <h3 i18n="Settings section|Key bindings of the commands@@settings.keyboard.nav">Keyboard shortcuts</h3>
+          <imt-keyboard-settings />
         } @else if (isSelected(video)) {
           <imt-video-settings />
         } @else if (store.current(); as s) {
           <div class="section-head">
-            <h3>{{ s.title }}</h3>
+            <h3>{{ titleOf(s) }}</h3>
             @if (status(s); as st) {
               <span class="badge">{{ st }}</span>
             }
@@ -169,6 +183,9 @@ import { SettingField, SettingsSection } from './settings.types';
               (resetToDefault)="store.resetField(s.id, f.key)"
             />
           }
+          @if (s.id === liveTail) {
+            <imt-live-tail-settings />
+          }
           @if (hiddenAdvanced(s); as n) {
             <p class="muted" i18n="@@settings.screen.hiddenAdvanced">{n, plural, =1 {{{ n }} advanced setting hidden.} other {{{ n }} advanced settings hidden.}} <button class="link" type="button" (click)="store.setShowAdvanced(true)">Show advanced</button></p>
           }
@@ -180,14 +197,13 @@ import { SettingField, SettingsSection } from './settings.types';
     </div>
 
     <div class="footer">
-      <button class="btn" type="button" [disabled]="store.busy()" (click)="exportSettings()" i18n="@@settings.screen.export">Export…</button>
-      <button class="btn" type="button" [disabled]="store.busy()" (click)="importSettings()" i18n="@@settings.screen.import">Import…</button>
+      <button class="btn" type="button" [disabled]="store.busy()" (click)="exportSettings()" i18n="@@settings.screen.exportSettings">Export settings…</button>
+      <button class="btn" type="button" [disabled]="store.busy()" (click)="importSettings()" i18n="@@settings.screen.importSettings">Import settings…</button>
       <span class="spacer"></span>
-      @if (store.dirty()) {
-        <span class="muted" role="status" i18n="@@settings.screen.unappliedIn">{store.dirtySections().length, plural, =1 {Unapplied changes in {{ store.dirtySections().length }} section} other {Unapplied changes in {{ store.dirtySections().length }} sections}}</span>
+      @if (store.rejectedSections().length) {
+        <span class="muted" role="status" i18n="@@settings.screen.unsavedIn">{store.rejectedSections().length, plural, =1 {Not saved in {{ store.rejectedSections().length }} section} other {Not saved in {{ store.rejectedSections().length }} sections}}</span>
       }
-      <button class="btn" type="button" (click)="cancel()">{{ store.dirty() ? cancelLabel : closeLabel }}</button>
-      <button class="btn primary" type="button" [disabled]="!store.dirty() || store.busy()" (click)="store.apply()" i18n="@@settings.screen.apply">Apply</button>
+      <button class="btn" type="button" (click)="cancel()" i18n="Button that closes the settings dialog@@settings.screen.close">Close</button>
     </div>
   `,
   styles: `
@@ -230,16 +246,27 @@ export class SettingsScreen {
   private readonly files = inject(SettingsFiles);
   private readonly ref = inject(DIALOG_REF, { optional: true });
   protected readonly general = GENERAL_ID;
+  protected readonly updates = UPDATES_ID;
+  protected readonly liveTail = LIVE_TAIL_SECTION;
   protected readonly storage = STORAGE_ID;
+  private readonly commands = inject(CommandRegistry);
   protected readonly parsers = PARSERS_ID;
+  protected readonly keyboard = KEYBOARD_ID;
   protected readonly video = VIDEO_SETTINGS_ID;
   protected readonly appearance = APPEARANCE_ID;
-  protected readonly cancelLabel = $localize`:@@settings.screen.cancel:Cancel`;
-  protected readonly closeLabel = $localize`:Button that closes the settings dialog@@settings.screen.close:Close`;
 
-  protected readonly navGroups = computed(() =>
-    GROUPS.map((g) => ({ ...g, sections: this.store.sections().filter((s) => s.group === g.id) })).filter((g) => g.sections.length > 0),
-  );
+  protected readonly navGroups = computed(() => navLayout(this.store.sections()));
+
+  /** The restart bar: how many restart-only settings were changed, or the general reminder. */
+  protected readonly restartText = computed(() => {
+    const n = this.store.restartChanges().length;
+    return n
+      ? plural(n, {
+          one: $localize`:Restart bar in Settings@@settings.screen.restartBar.one:${n}:count: change takes effect after IMT restarts.`,
+          other: $localize`:Restart bar in Settings@@settings.screen.restartBar.other:${n}:count: changes take effect after IMT restarts.`,
+        })
+      : $localize`:@@settings.screen.restartBanner:Some changes take effect after IMT restarts.`;
+  });
 
   /** Search hits across every section (advanced settings included). */
   protected readonly results = computed(() => {
@@ -259,6 +286,12 @@ export class SettingsScreen {
     if (!this.parserLibrary.library() && !this.parserLibrary.loading()) void this.parserLibrary.load();
   }
 
+  /** Opens the Parsers view and closes Settings. */
+  protected openParsersView(): void {
+    void this.commands.run(MANAGE_PARSERS_COMMAND);
+    this.close();
+  }
+
   /** Leaves the search for the Parsers section. */
   protected openParsers(): void {
     this.store.setQuery('');
@@ -269,8 +302,19 @@ export class SettingsScreen {
     return this.store.selected() === id;
   }
 
+  /** A section with edits the engine refused. */
   protected isDirty(id: string): boolean {
-    return this.store.dirtySections().includes(id);
+    return this.store.rejectedSections().includes(id);
+  }
+
+  /** The id used in test ids: engine ids as they are, UI pages without the leading `@`. */
+  protected navKey(id: string): string {
+    return id.replace(/^@/, '');
+  }
+
+  /** The section's title; the live tail delay's section is the Live tail page. */
+  protected titleOf(s: SettingsSection): string {
+    return this.navGroups().flatMap((g) => g.items).find((i) => i.id === s.id)?.title ?? s.title;
   }
 
   protected status(s: SettingsSection): string | null {

@@ -55,12 +55,12 @@ import { BUILTIN_ICONS } from '../../markers/builtin-icons';
 import { mockDashboards, mockDashboardsError } from '../../share/mock/mock-dashboards';
 import { mockRedactCfg, MockRedactor } from '../../share/mock/mock-redact';
 import { OffsetChange, SetOffsetRequest, SuggestRequest, SuggestResult } from '../api.types';
-import { firstChanged, mockSuggest, recordKey, resolveOffset, shiftSource } from './mock-skew';
+import { CmdError } from '../cmd-error';
+import { mockSuggest, recordKey, resolveOffset, shiftSource } from './mock-skew';
 import { FileOpened, ImportProgress, OpenFileRequest, ProfileVersionInfo } from '../api.types';
 import { mockFileKind, mockOpenSourceFile } from './mock-files';
 import { mockNotifications } from '../../notifications/mock-notifications';
 import { timestampNotice, withTimestampIssue } from './mock-timestamps';
-import { mockUnsupported } from './mock-unsupported';
 import { MockParserLibrary, MockParserSource } from './mock-parsers';
 import { isImagePath } from '../../ai/vision/image-files';
 import { IDLE_PROGRESS, isMockDemoPath, MockFiles, MockImportSim, MockProfileHistory, NOT_IMPORTED_REASON, slowImportFiles } from './mock-import';
@@ -96,17 +96,9 @@ export interface MockBackendOptions {
   pluginMarkerKinds?: readonly MockPluginKind[];
   /** Opening paths is slow and cancellable: each path stands for a folder of files read this many ms apart. */
   slowImportMs?: number;
-  /**
-   * Also offer what only the old in-memory store did: clock-skew correction, alert mutes, per-file tail state and the
-   * redacted view. By default the mock answers like the log store does for now (`unsupported`, an empty tail status).
-   */
-  memoryStoreFeatures?: boolean;
   /** The clock of every simulated delay, live tick and import step (default: the page's timers). */
   clock?: MockClock;
 }
-
-/** The log store's empty tail status (it keeps no per-file tail state yet). */
-const EMPTY_TAIL_STATUS: TailStatus = { files: [], totals: { files: 0, tailing: 0, errors: 0, bytes: 0, linesPerSec: 0, evicted: 0, records: 0 } };
 
 /** One recorded `setLive` call. */
 export interface MockLiveCall {
@@ -169,13 +161,13 @@ export class MockBackend implements ImtBackend {
     this.apply();
   }
 
-  /** Rejections carry a plain message string, like Tauri command errors. */
+  /** Rejections carry a plain message string, like Tauri command errors, or a `CmdError` where the engine sends a coded one. */
   private delay<T>(value: () => T, ms = 60): Promise<T> {
-    const run = (resolve: (v: T) => void, reject: (e: string) => void) => {
+    const run = (resolve: (v: T) => void, reject: (e: string | CmdError) => void) => {
       try {
         resolve(value());
       } catch (e) {
-        reject(e instanceof Error ? e.message : String(e));
+        reject(e instanceof CmdError ? e : e instanceof Error ? e.message : String(e));
       }
     };
     return new Promise((resolve, reject) => (this.latency ? this.clock.setTimeout(() => run(resolve, reject), ms) : run(resolve, reject)));
@@ -638,18 +630,7 @@ export class MockBackend implements ImtBackend {
     return Promise.resolve(() => void this.alertHandlers.delete(handler));
   }
 
-  /** Whether the features only the old in-memory store had are on (see `MockBackendOptions.memoryStoreFeatures`). */
-  get memoryStoreFeatures(): boolean {
-    return this.options.memoryStoreFeatures === true;
-  }
-
-  /** The log store's rejection of an operation it does not offer yet, or null when the mock offers it. */
-  private notYet(message: string, hint?: string): Promise<never> | null {
-    return this.memoryStoreFeatures ? null : Promise.reject(mockUnsupported(message, hint));
-  }
-
   tailStatus(): Promise<TailStatus> {
-    if (!this.memoryStoreFeatures) return this.delay(() => structuredClone(EMPTY_TAIL_STATUS), 15);
     return this.delay(() => {
       const counts = new Map<number, number>();
       for (const r of this.engine.records) counts.set(r.source, (counts.get(r.source) ?? 0) + 1);
@@ -662,11 +643,11 @@ export class MockBackend implements ImtBackend {
   }
 
   muteAlerts(target: AlertTarget, untilMs: number): Promise<void> {
-    return this.notYet(NO_ALERTS) ?? this.delay(() => this.mutes.mute(target, untilMs), 5);
+    return this.delay(() => this.mutes.mute(target, untilMs), 5);
   }
 
   unmuteAlerts(target: AlertTarget): Promise<void> {
-    return this.notYet(NO_ALERTS) ?? this.delay(() => this.mutes.unmute(target), 5);
+    return this.delay(() => this.mutes.unmute(target), 5);
   }
 
   openPathsLive(paths: string[], startAtEnd: boolean): Promise<WorkspaceSummary> {
@@ -805,8 +786,6 @@ export class MockBackend implements ImtBackend {
 
   /** Clock-skew correction (`set_source_offset`); see mock-skew.ts. */
   setSourceOffset(request: SetOffsetRequest): Promise<OffsetChange> {
-    const refused = this.notYet(NO_SKEW, NO_SKEW_HINT);
-    if (refused) return refused;
     return this.delay(() => {
       const before = this.engine.records;
       const { source, offsetMs } = resolveOffset(request, before, this.dataset.sources);
@@ -818,7 +797,8 @@ export class MockBackend implements ImtBackend {
         source,
         offsetMs,
         previousMs,
-        idsChangedFrom: previousMs === offsetMs ? null : firstChanged(before, this.engine.records),
+        // The log store keeps event ids stable when events move.
+        idsChangedFrom: null,
         tracked: keys.map((k) => (k === null ? null : (after.get(k) ?? null))),
       };
     });
@@ -826,7 +806,7 @@ export class MockBackend implements ImtBackend {
 
   /** Offset suggestions from shared correlation ids (`suggest_offsets`). */
   suggestOffsets(request: SuggestRequest = {}): Promise<SuggestResult> {
-    return this.notYet(NO_SKEW, NO_SKEW_HINT) ?? this.delay(() => mockSuggest(this.engine.records, this.dataset.sources, request));
+    return this.delay(() => mockSuggest(this.engine.records, this.dataset.sources, request));
   }
 
   pluginEvents(): Promise<SubscriberMetrics[]> {
@@ -845,11 +825,6 @@ export class MockBackend implements ImtBackend {
     });
   }
 }
-
-// What the log store says for the operations it does not offer yet (app/src-tauri/src/{live,skew_commands}.rs).
-const NO_ALERTS = 'live alerts are not available with the new log store yet';
-const NO_SKEW = 'clock-skew correction is not available with the new log store yet';
-const NO_SKEW_HINT = "Shift a source's times with a shift_time step in the profile's [[pipeline]] meanwhile.";
 
 /** The simulation settings for the backend options (legacy: one event per tick). */
 function liveConfig(options: MockBackendOptions): MockLiveConfig {

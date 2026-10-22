@@ -1,3 +1,4 @@
+import { CommandRegistry } from '../extensions/command-registry';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
 import { AiButton } from '../ai/ai-button';
@@ -9,7 +10,7 @@ import { ProfileForm } from './profile-form';
 import { TomlEditor } from './toml-editor';
 import { ProfileHistory } from './history/profile-history';
 import { SettingsDialogService } from '../settings/settings-dialog';
-import { PARSERS_ID } from '../settings/parsers/parsers.types';
+import { MANAGE_PARSERS_COMMAND } from '../settings/parsers/parsers.types';
 
 @Component({
   selector: 'imt-profile-editor',
@@ -84,6 +85,7 @@ export class ProfileEditor {
   protected readonly draft = inject(ProfileDraft);
   protected readonly saveTitle = $localize`:@@profile.editor.saveTitleKey:Apply and re-import (${formatKeybinding('Mod+S')}:key:)`;
   protected readonly mode = signal<'form' | 'toml' | 'history'>('form');
+  private readonly commands = inject(CommandRegistry);
   private readonly settings = inject(SettingsDialogService);
   private readonly ai = inject(AiLauncher);
   private readonly workspace = inject(WorkspaceStore);
@@ -108,9 +110,9 @@ export class ProfileEditor {
     void this.ai.propose('pipeline', { recordId: this.workspace.selected()?.id ?? null }, '', { chooseKind: true });
   }
 
-  /** How files are read is the parsers' business (ADR 0026): Settings ▸ Parsers. */
+  /** How files are read is the parsers' business (ADR 0026): the Parsers view. */
   protected openParsers(): void {
-    this.settings.open(PARSERS_ID);
+    void this.commands.run(MANAGE_PARSERS_COMMAND);
   }
 
   protected onKey(e: KeyboardEvent): void {

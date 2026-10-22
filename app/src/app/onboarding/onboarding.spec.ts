@@ -36,7 +36,10 @@ describe('TourService', () => {
     expect(tour.done()).toBe(false);
     tour.start();
     expect(tour.index()).toBe(0);
-    expect(tour.spot()).toBeNull();
+    // The first step is anchored to the timeline like the rest (J3), not a centred modal.
+    expect(TOUR_STEPS[0]?.target).toBe('imt-timeline-panel');
+    await settle();
+    expect(tour.spot()).toEqual({ top: 100, left: 50, width: 400, height: 200 });
     expect(tour.isFirst()).toBe(true);
     for (let i = 1; i < TOUR_STEPS.length; i++) {
       tour.next();
@@ -76,17 +79,19 @@ describe('TourService', () => {
 
   it('skips steps whose panel never appears, in either direction', async () => {
     vi.useFakeTimers();
-    const { tour } = setupTour((s) => (s === 'imt-timeline-panel' || s === 'imt-home-view' ? null : box()));
+    const { tour } = setupTour((s) => (s === 'imt-events-grid' || s === 'imt-home-view' ? null : box()));
     tour.start();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(tour.step()?.id).toBe('timeline');
     tour.next();
     await vi.advanceTimersByTimeAsync(2000);
-    expect(tour.step()?.id).toBe('events');
+    expect(tour.step()?.id).toBe('query');
     tour.back();
     await vi.advanceTimersByTimeAsync(2000);
     expect(tour.index()).toBe(0);
-    // The last step is missing: moving past it finishes the tour.
+    // The last step is missing: moving past the one before it finishes the tour.
     tour.start();
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 3; i++) {
       tour.next();
       await vi.advanceTimersByTimeAsync(2000);
     }
@@ -138,7 +143,7 @@ describe('TourOverlay', () => {
     before.focus();
     tour.start();
     await settle(fixture);
-    expect(text(fixture)).toContain('Step 1 of 7');
+    expect(text(fixture)).toContain('Step 1 of 6');
     expect((fixture.nativeElement.querySelector('[role=dialog]') as HTMLElement).getAttribute('aria-labelledby')).toBe('imt-tour-title');
     expect(document.activeElement?.textContent).toBe('Next');
     const key = (k: string, target: EventTarget = document.body) => {

@@ -5,7 +5,7 @@ import { openAppWith } from './mock-url';
 import { chooseMenu } from './menu-support';
 
 /** Realistic live simulation: 40 events/s, no rotations or alerts unless a test asks for them. */
-const LIVE = '?mockMemoryFeatures=1&mockLive=1&mockLiveRate=40&mockLiveRotateMs=0&mockLiveAlertMs=0';
+const LIVE = '?mockLive=1&mockLiveRate=40&mockLiveRotateMs=0&mockLiveAlertMs=0';
 
 const liveButton = (page: Page) => page.locator('imt-status-bar').getByRole('button', { name: 'Live tail', exact: true });
 const timelineTo = async (page: Page) => Number(await page.locator('imt-timeline-panel .wrap').getAttribute('data-to'));
@@ -22,7 +22,7 @@ function liveCalls(page: Page) {
 }
 
 /** Live alerts on Playwright's clock: one live tick every 500 ms (few ticks to run), the alert interval added per test. */
-const ALERTS = '?mockMemoryFeatures=1&mockLive=1&mockLiveRate=20&mockLiveMs=500&mockLiveRotateMs=0';
+const ALERTS = '?mockLive=1&mockLiveRate=20&mockLiveMs=500&mockLiveRotateMs=0';
 
 async function openView(page: Page, name: 'Alerts' | 'Tail status'): Promise<void> {
   await chooseMenu(page, 'View', 'Live', name);
@@ -204,28 +204,36 @@ test.describe('live tail: alerts', () => {
 });
 
 test.describe('live tail: status, sources and opening', () => {
-  test('the tail status panel shows each file and its controls call set_live', async ({ page }, testInfo) => {
+  test('the tail status panel shows each file and links to Settings ▸ Live tail, whose controls call set_live', async ({ page }, testInfo) => {
     await openAppWith(page, LIVE);
     await openView(page, 'Tail status');
     const panel = page.locator('imt-tail-status-view');
     await expect(panel.getByTestId('tail-file').first()).toBeVisible();
     await panel.getByRole('button', { name: 'Live tail off' }).click();
     await expect(panel.getByRole('button', { name: 'Live tail on' })).toHaveAttribute('aria-pressed', 'true');
-    await panel.getByLabel('Watch').selectOption('polling');
+    await expect(panel).toContainText('lines/s');
+    await expectNoSeriousViolations(page, testInfo, 'tail-status', 'imt-tail-status-view');
+
+    // The options live in Settings ▸ Live tail (I2); Settings… opens them.
+    await panel.getByTestId('tail-settings').click();
+    const dialog = page.getByRole('dialog', { name: 'Settings' });
+    const form = dialog.getByRole('form', { name: 'Live tail options' });
+    await expect(form).toBeVisible();
+    await form.getByLabel('Watch').selectOption('polling');
     await expect.poll(async () => (await liveCalls(page)).at(-1)?.options?.['watch']).toBe('polling');
-    await panel.getByLabel('Poll every (ms)').fill('500');
-    await panel.getByLabel('Poll every (ms)').press('Tab');
+    await form.getByLabel('Poll every').fill('500');
+    await form.getByLabel('Poll every').press('Tab');
     await expect.poll(async () => (await liveCalls(page)).at(-1)?.options?.['pollIntervalMs']).toBe(500);
-    await panel.getByLabel('Keep at most (events)').fill('100000');
-    await panel.getByLabel('Keep at most (events)').press('Tab');
+    await form.getByLabel('Keep at most').first().fill('100000');
+    await form.getByLabel('Keep at most').first().press('Tab');
     await expect.poll(async () => ((await liveCalls(page)).at(-1)?.options?.['retention'] as { maxRecords?: number })?.maxRecords).toBe(100000);
-    await panel.getByLabel('Deleted files').selectOption('drop');
+    await form.getByLabel('Deleted files').selectOption('drop');
     await expect.poll(async () => (await liveCalls(page)).at(-1)?.options?.['deletedFiles']).toBe('drop');
-    await panel.getByLabel('Flush partial line after (ms)').fill('750');
-    await panel.getByLabel('Flush partial line after (ms)').press('Tab');
+    await form.getByLabel('Flush a partial line after').fill('750');
+    await form.getByLabel('Flush a partial line after').press('Tab');
     await expect.poll(async () => (await liveCalls(page)).at(-1)?.options?.['carryFlushMs']).toBe(750);
     // Detector interval: applied, and clamped to the engine's range (0 .. 600000 ms).
-    const detect = panel.getByLabel('Run detectors every (ms)');
+    const detect = form.getByTestId('detect-every');
     await expect(detect).toHaveValue('1000');
     await detect.fill('250');
     await detect.press('Tab');
@@ -234,13 +242,13 @@ test.describe('live tail: status, sources and opening', () => {
     await detect.press('Tab');
     await expect.poll(async () => (await liveCalls(page)).at(-1)?.options?.['detectEveryMs']).toBe(600000);
     await expect(detect).toHaveValue('600000');
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
     await expect(panel.getByTestId('tail-file').filter({ hasText: 'Polling' }).first()).toBeVisible({ timeout: 10_000 });
-    await expect(panel).toContainText('lines/s');
-    await expectNoSeriousViolations(page, testInfo, 'tail-status', 'imt-tail-status-view');
   });
 
   test('rolling files of one log collapse into a group that expands, with a rotated badge', async ({ page }, testInfo) => {
-    await openOnClock(page, '?mockMemoryFeatures=1&mockLive=1&mockLiveRate=20&mockLiveRotateMs=1000&mockLiveAlertMs=0');
+    await openOnClock(page, '?mockLive=1&mockLiveRate=20&mockLiveRotateMs=1000&mockLiveAlertMs=0');
     await liveOn(page);
     // Two rotations are due within 2 s of live ticks.
     await page.clock.runFor(2_500);

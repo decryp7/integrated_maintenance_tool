@@ -200,10 +200,10 @@ describe('saved query views', () => {
     expect(highlights.items()).toHaveLength(1);
   });
 
-  it('composes the two sections', async () => {
+  it('lists only saved queries: highlight rules moved to the Markers view (K6)', async () => {
     await setup();
     const f = TestBed.createComponent(SavedQueriesView);
     await settle(f);
-    expect(all(f, 'h2').map((h) => h.textContent)).toEqual(['Saved queries', 'Highlight rules']);
+    expect(all(f, 'h2').map((h) => h.textContent)).toEqual(['Saved queries']);
   });
 });

@@ -11,6 +11,10 @@ use duckdb::{params, Connection};
 use imt_core::batch::{EventBatch, EventId, BATCH_ROWS};
 use imt_core::ports::{Positions, StoreResult, MAX_PAGE_ROWS};
 
+/// The sort key of the last positioned event, kept in `meta` so a later append can tell whether new events sort
+/// after it (`ts,source,line`; untimed events sort last).
+const LAST_KEY: &str = "ord_last";
+
 /// Renumbers the visible events.
 pub(crate) fn rebuild(conn: &Connection) -> duckdb::Result<()> {
     conn.execute_batch(
@@ -21,7 +25,66 @@ COMMIT;",
     )
     .inspect_err(|_| {
         let _ = conn.execute_batch("ROLLBACK");
-    })
+    })?;
+    remember_last(conn)
+}
+
+/// Records the sort key of the last positioned event (or forgets it when nothing is positioned).
+fn remember_last(conn: &Connection) -> duckdb::Result<()> {
+    let key = conn
+        .query_row(
+            "SELECT coalesce(e.ts, 9223372036854775807), e.source, e.line FROM events e WHERE e.id = (SELECT id FROM ord ORDER BY pos DESC LIMIT 1)",
+            [],
+            |r| Ok((r.get::<_, i64>(0)?, r.get::<_, u32>(1)?, r.get::<_, u32>(2)?)),
+        )
+        .ok();
+    match key {
+        Some((ts, source, line)) => conn.execute(
+            "INSERT OR REPLACE INTO meta VALUES (?, ?)",
+            params![LAST_KEY, format!("{ts},{source},{line}")],
+        ),
+        None => conn.execute("DELETE FROM meta WHERE key = ?", params![LAST_KEY]),
+    }
+    .map(drop)
+}
+
+fn last_key(conn: &Connection) -> Option<(i64, u32, u32)> {
+    let text: String = conn
+        .query_row("SELECT value FROM meta WHERE key = ?", params![LAST_KEY], |r| r.get(0))
+        .ok()?;
+    let mut parts = text.split(',');
+    Some((
+        parts.next()?.parse().ok()?,
+        parts.next()?.parse().ok()?,
+        parts.next()?.parse().ok()?,
+    ))
+}
+
+/// Positions the events with ids from `first_new` on after the ones already positioned, when they all sort after
+/// them (the usual case when files grow); otherwise renumbers everything. `before` is the number of events that
+/// were visible before the new ones: positions are only extended when exactly that many are positioned.
+pub(crate) fn append(conn: &Connection, first_new: u64, before: u64) -> duckdb::Result<()> {
+    let positioned = conn.query_row("SELECT count(*) FROM ord", [], |r| r.get::<_, u64>(0))?;
+    let smallest = conn.query_row(
+        "SELECT coalesce(ts, 9223372036854775807), source, line FROM events WHERE id >= ? ORDER BY 1, 2, 3 LIMIT 1",
+        params![first_new],
+        |r| Ok((r.get::<_, i64>(0)?, r.get::<_, u32>(1)?, r.get::<_, u32>(2)?)),
+    );
+    let smallest = match smallest {
+        Ok(k) => k,
+        // The new ids hold no visible events.
+        Err(duckdb::Error::QueryReturnedNoRows) => return Ok(()),
+        Err(e) => return Err(e),
+    };
+    match last_key(conn) {
+        Some(last) if positioned == before && smallest > last => {}
+        _ => return rebuild(conn),
+    }
+    conn.execute(
+        "INSERT INTO ord SELECT (? + row_number() OVER (ORDER BY coalesce(ts, 9223372036854775807), source, line, id) - 1)::UBIGINT, id FROM events WHERE id >= ? ORDER BY 1",
+        params![positioned, first_new],
+    )?;
+    remember_last(conn)
 }
 
 impl Positions for DuckStore {

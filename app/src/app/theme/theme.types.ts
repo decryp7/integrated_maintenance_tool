@@ -5,7 +5,7 @@
  */
 
 /** The built-in themes, in menu order. */
-export const THEME_IDS = ['calm', 'console', 'precision'] as const;
+export const THEME_IDS = ['calm', 'console', 'precision', 'contrast'] as const;
 export type ThemeId = (typeof THEME_IDS)[number];
 
 /** A resolved colour scheme. */

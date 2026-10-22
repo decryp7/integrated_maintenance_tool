@@ -117,12 +117,17 @@ pub async fn run_controlled<R: Runtime>(
         Some(JobProgress::counts(p.done, p.total))
     });
     let ql = request.query.ql.clone();
+    let view = state.host.redacted_view();
     let started = on_progress.clone();
     let announce = move |id: crate::jobs::JobId| {
         let _ = started.send(QueryStreamEvent::Started { job_id: id.0 });
     };
     let out = crate::jobs::analysis_announced(app, state, "Run a query", "query", Some(ql), controls, announce, move |store, _| {
-        Ok(store.run_query_with(&request, &watched))
+        let mut out = store.run_query_with(&request, &watched);
+        if let (Ok(result), Some(r)) = (&mut out, &view) {
+            r.view_ql(result);
+        }
+        Ok(out)
     })
     .await?;
     if matches!(out, Err(StoreError::Cancelled)) {

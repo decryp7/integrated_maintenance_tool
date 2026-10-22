@@ -27,7 +27,7 @@ let nextId = 0;
         <label class="label" [for]="id">{{ f.label }}</label>
       }
       @if (f.restartRequired) {
-        <span class="badge" title="Takes effect after a restart" i18n-title="@@settings.field.restart.title" i18n="Badge on a setting that needs a restart@@settings.field.restart">restart</span>
+        <span class="badge" title="Takes effect after a restart" i18n-title="@@settings.field.restart.title" i18n="Badge on a setting that needs a restart@@settings.field.restart">Needs restart</span>
       }
       @if (f.advanced) {
         <span class="badge" i18n="Badge on an advanced setting@@settings.field.advanced">advanced</span>

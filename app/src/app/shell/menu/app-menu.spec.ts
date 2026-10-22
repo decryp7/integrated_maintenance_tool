@@ -7,6 +7,7 @@ import { PANEL_WINDOWS, PanelWindows } from '../../dock/panel-windows';
 import { PaletteService } from '../../palette/palette.service';
 import { WindowingService } from '../../windowing/windowing.service';
 import { AppMenu, MENU_MODE } from './app-menu.service';
+import { RecentOpener } from './recent-opener';
 import { TopMenu } from './menu-model';
 import { NATIVE_MENU_PORT, NativeMenuBridge, NativeMenuPort, toNativeModel } from './native-menu';
 import { NativeMenuModel } from './native-menu.types';
@@ -48,6 +49,20 @@ describe('AppMenu', () => {
     // Pop-outs are listed in the Window menu.
     const window = app.menus().find((m) => m.id === 'window');
     expect(JSON.stringify(window)).toContain('popout:inspector');
+  });
+
+  it('runs the Open recent items through the opener', () => {
+    const { app } = setup();
+    const opener = TestBed.inject(RecentOpener);
+    const file = vi.spyOn(opener, 'openFile').mockResolvedValue(undefined);
+    const project = vi.spyOn(opener, 'openProject').mockResolvedValue();
+    const clear = vi.spyOn(opener, 'clear').mockResolvedValue();
+    app.run('recent:file:/logs/a.log');
+    app.run('recent:project:/p/x.imtproj');
+    app.run('menu.recentClear');
+    expect(file).toHaveBeenCalledWith('/logs/a.log');
+    expect(project).toHaveBeenCalledWith('/p/x.imtproj');
+    expect(clear).toHaveBeenCalledOnce();
   });
 
   it('Fields shows the sidebar and focuses the fields filter', async () => {
