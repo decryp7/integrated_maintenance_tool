@@ -13,6 +13,8 @@ description = "IMT's DuckDB store (ADR 0014): events as zstd Parquet segments wi
 
 [dependencies]
 imt-core = { path = "../imt-core" }
+# Gives freed memory back to the OS when an import or an index build ends (`imt_alloc::release`).
+imt-alloc = { path = "../imt-alloc" }
 anyhow.workspace = true
 # CSV export of SQL console results.
 csv.workspace = true
@@ -28,8 +30,6 @@ rayon.workspace = true
 tantivy = { workspace = true, features = ["mmap", "lz4-compression"] }
 
 [dev-dependencies]
-# The store worker's allocator, so the benchmarks measure what ships (tests/bench.rs, tests/bench_reads.rs).
-imt-alloc = { path = "../imt-alloc" }
 # The worker's allocator environment (`allocator::worker_env`), so the memory budget test measures what ships.
 imt-store-client = { path = "../imt-store-client" }
 # Current resident set size on Windows, macOS and Linux (MIT OR Apache-2.0), for the memory budget test.
