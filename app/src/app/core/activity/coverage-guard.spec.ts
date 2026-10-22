@@ -173,6 +173,7 @@ import { JobsBackend } from '../../jobs/jobs-backend';
 import { NotificationsBackend } from '../../notifications/notifications-backend';
 import { KnowledgeBackend } from '../../ai/knowledge/knowledge-backend';
 import { NotesBackend } from '../../notes/notes-backend';
+import { SearchEverythingBackend } from '../../search-everything/search-everything-backend';
 import { DragGhostBackend } from '../../popout/drag-ghost-backend';
 import { HomeBackend } from '../../home/home-backend';
 import { at, must } from '../../../testing/must';
@@ -219,5 +220,6 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   NotificationsBackend,
   KnowledgeBackend,
   NotesBackend,
+  SearchEverythingBackend,
   DragGhostBackend,
 };

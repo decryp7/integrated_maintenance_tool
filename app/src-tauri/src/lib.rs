@@ -64,6 +64,7 @@ mod profile;
 mod profiling;
 mod query_cancel;
 mod recent;
+mod search_everything;
 mod services;
 mod settings;
 mod share;
@@ -167,6 +168,7 @@ command_table! {
     Query [WINDOW] => insights::run_query,
     Query [WINDOW] => query_cancel::run_query_stream,
     Query [WINDOW] => smart_search::search_partial,
+    Query [WINDOW] => search_everything::search_everything,
     Query [WINDOW] => insights::check_query,
     Query [WINDOW] => insights::complete_query,
     Query [WINDOW] => insights::query_patterns,

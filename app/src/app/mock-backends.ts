@@ -18,6 +18,7 @@ export { MockStorageBackend } from './settings/storage/mock-storage-backend';
 export { MockParsersBackend } from './settings/parsers/mock-parsers-backend';
 export { MockKnowledgeBackend } from './ai/knowledge/mock-knowledge-backend';
 export { MockNotesBackend } from './notes/mock/mock-notes-backend';
+export { MockSearchEverythingBackend } from './search-everything/mock/mock-search-everything-backend';
 export { MockProblemsBackend } from './problems/mock/mock-problems-backend';
 export { MockStorePaneBackend } from './store-pane/mock/mock-store-pane-backend';
 export { MockShareBackend } from './share/mock/mock-share-backend';

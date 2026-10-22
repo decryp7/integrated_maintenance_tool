@@ -444,6 +444,86 @@ export interface PartialMatches {
   complete: boolean;
 }
 
+// ---- Search everything (Rust `imt_core::search_all`; `search_everything({ request })` → `SearchAllReply | null`) ----
+
+/** What the search everything palette asks: its text (words like smart search) and results per kind (0/absent = 8, at most 50). */
+export interface SearchAllRequest {
+  text: string;
+  limit?: number;
+}
+
+/** A run of a snippet: a matched word (`mark`) or the text around it. */
+export interface SnippetPart {
+  text: string;
+  mark: boolean;
+}
+
+/** An event holding every word; the snippet is of its message (or exception or template, when the words are there). */
+export interface EventHit {
+  id: number;
+  ts: number | null;
+  level: Level;
+  /** The source's name. */
+  source: string;
+  snippet: SnippetPart[];
+}
+
+/** A source whose name or path holds the words (`id` is `SourceInfo.id`). */
+export interface SourceHit {
+  id: number;
+  name: string;
+  path: string;
+  records: number;
+  snippet: SnippetPart[];
+}
+
+/** A field whose name holds the words (`value` null), or a value of a field with few distinct values that does. */
+export interface FieldHit {
+  field: string;
+  value: string | null;
+  /** Events with the field (with the value). */
+  count: number;
+  snippet: SnippetPart[];
+}
+
+/** A marker kind whose name holds the words. */
+export interface MarkerHit {
+  kind: string;
+  snippet: SnippetPart[];
+}
+
+/** Whose a note or knowledge file is. */
+export type DocScope = 'project' | 'global';
+
+/** A note or knowledge file holding the words; `event` is the event a note is about. */
+export interface DocHit {
+  id: string;
+  scope: DocScope;
+  title: string;
+  event: number | null;
+  snippet: SnippetPart[];
+}
+
+/** How far the search of one kind got: all of it, until the time budget ran out, or not at all (the store failed). */
+export type KindOutcome = { kind: 'complete' } | { kind: 'timedOut' } | { kind: 'failed'; message: string };
+
+/** The first `items` of `total` matches of a kind. */
+export interface KindHits<T> {
+  total: number;
+  items: T[];
+  outcome: KindOutcome;
+}
+
+/** Every kind's results, in the order the palette shows them. */
+export interface SearchAllReply {
+  events: KindHits<EventHit>;
+  sources: KindHits<SourceHit>;
+  fields: KindHits<FieldHit>;
+  markers: KindHits<MarkerHit>;
+  notes: KindHits<DocHit>;
+  knowledge: KindHits<DocHit>;
+}
+
 /**
  * A time window relative to "now": the newest record (default) or the wall clock (`[live] clock = "wall"`).
  * The engine resolves it, so the UI never computes "now" itself.
