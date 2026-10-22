@@ -408,3 +408,20 @@ fn a_failing_problem_list_leaves_the_section_out_and_the_rest_of_the_summary_sta
     assert!(r.sections.iter().all(|s| s.title != "Import problems"));
     assert!(r.sections.iter().any(|s| s.title == "Summary"));
 }
+
+#[test]
+fn a_store_failure_in_a_query_step_is_an_error_not_a_failed_step() {
+    let mut wrapped = Delegating::new(store());
+    wrapped.run_query_error = Some(imt_core::ports::StoreError::Busy("importing".into()));
+    let e = run_step(
+        &wrapped,
+        &step(
+            "q",
+            Action::Query {
+                ql: "level >= error".into(),
+            },
+        ),
+    )
+    .unwrap_err();
+    assert_eq!(e, imt_core::ports::StoreError::Busy("importing".into()));
+}

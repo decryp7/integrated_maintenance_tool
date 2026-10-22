@@ -26,6 +26,8 @@ pub struct Delegating<'a, S> {
     pub remove_source_error: Option<StoreError>,
     /// Makes every `page` call from this call number on (0-based) fail with `Busy`.
     pub page_fails_from: Option<usize>,
+    /// Makes `run_query` fail with this error instead of running the query.
+    pub run_query_error: Option<StoreError>,
     pages: std::sync::atomic::AtomicUsize,
 }
 
@@ -36,6 +38,7 @@ impl<'a, S> Delegating<'a, S> {
             problems: None,
             remove_source_error: None,
             page_fails_from: None,
+            run_query_error: None,
             pages: Default::default(),
         }
     }
@@ -120,6 +123,9 @@ impl<S: Query> Query for Delegating<'_, S> {
         self.inner.source_context(req)
     }
     fn run_query(&self, req: &QueryRequest) -> StoreResult<QlResult> {
+        if let Some(e) = &self.run_query_error {
+            return Err(e.clone());
+        }
         self.inner.run_query(req)
     }
     fn run_query_with(&self, req: &QueryRequest, control: &QueryControl) -> StoreResult<QlResult> {

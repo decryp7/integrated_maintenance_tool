@@ -377,4 +377,14 @@ mod tests {
         assert_eq!(starts16.iter().map(|s| s.line).collect::<Vec<_>>(), [1, 3, 5]);
         assert_eq!(starts16[1].byte_offset, 2 + 20);
     }
+
+    #[test]
+    fn a_start_at_the_very_end_of_the_data_begins_no_chunk() {
+        // The second line ends exactly where the data does: that offset would start an empty chunk.
+        let starts = scan_chunk_starts("aaaa\nbbbb\n".as_bytes(), Encoding::Utf8, 0, 5).unwrap();
+        assert_eq!(
+            starts,
+            [ChunkStart { byte_offset: 0, line: 1 }, ChunkStart { byte_offset: 5, line: 2 }]
+        );
+    }
 }

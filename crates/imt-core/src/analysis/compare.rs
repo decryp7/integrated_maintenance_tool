@@ -463,6 +463,19 @@ mod tests {
     use crate::analysis::util::{percentile_sorted, sorted};
 
     #[test]
+    fn a_side_compares_at_most_a_thousand_fields() {
+        let mut side = Side::default();
+        for i in 0..MAX_COMPARE_FIELDS + 5 {
+            side.count(&format!("F{i}"), "v".into(), 10);
+        }
+        assert_eq!(side.values.len(), MAX_COMPARE_FIELDS);
+        // A field already compared keeps counting once the cap is reached.
+        side.count("F0", "v".into(), 10);
+        assert_eq!(side.values["F0"]["v"], 2);
+        assert!(!side.values.contains_key(&format!("F{}", MAX_COMPARE_FIELDS)));
+    }
+
+    #[test]
     fn counted_values_summarise_like_the_sorted_values() {
         for n in [0usize, 1, 2, 5, 37, 1000] {
             // Repeats, negative zero and fractions.
