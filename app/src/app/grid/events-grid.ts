@@ -56,6 +56,12 @@ let gridSeq = 0;
 /** Anchor requests survive the grid being destroyed (tab switch); only act on new ones (per store). */
 const handledAnchorNonce = new WeakMap<object, number>();
 
+/** "OrderService · WEB01 · 3312" as the name and the muted rest (host, process id). */
+export function splitInstance(group: string): { instName: string; instRest: string } {
+  const i = group.indexOf(' · ');
+  return i < 0 ? { instName: group, instRest: '' } : { instName: group.slice(0, i), instRest: group.slice(i + 3) };
+}
+
 /** What one rendered row shows: everything the template needs, computed once per change instead of per binding. */
 export interface RowVm {
   kind: 'row';
@@ -78,6 +84,11 @@ export interface RowVm {
   untimed: boolean;
   levelVar: string;
   levelCode: string;
+  /** Information, debug and verbose rows show the dot only: the code appears where a level is notable. */
+  quietLevel: boolean;
+  /** The instance's name, then its host and process id, muted. */
+  instName: string;
+  instRest: string;
   /** The extra columns' texts, in column order. */
   cells: { column: string; text: string }[];
 }
@@ -99,7 +110,7 @@ export type GridRowVm = RowVm | PlaceholderVm;
   template: `
     <div class="bar">
       <span class="section-title" i18n="@@grid.title">Events</span>
-      <span class="mono total">{{ fmt(total()) }}</span>
+      <span class="total">{{ fmt(total()) }}</span>
       <span class="faint" i18n="@@grid.subtitle">of {{ fmt(data.summary()?.total ?? 0) //i18n(ph="total") }} · sorted by time {{ prefs.descending() ? '↓' : '↑' //i18n(ph="direction") }}</span>
       @if (sel.anchorMissed()) {
         <span class="warn" i18n="@@grid.anchorMissed">That event is hidden by the current filters.</span>
@@ -186,8 +197,8 @@ export type GridRowVm = RowVm | PlaceholderVm;
               } @else {
                 <span class="mono time" role="gridcell">{{ v.time }}</span>
               }
-              <span class="lvl" role="gridcell"><span class="dot" [style.background]="v.levelVar"></span><span class="mono">{{ v.levelCode }}</span></span>
-              <span class="mono inst ellipsis" role="gridcell" [title]="v.row.group">{{ v.row.group }}</span>
+              <span class="lvl" role="gridcell" [title]="v.levelCode"><span class="dot" [style.background]="v.levelVar"></span><span [class]="v.quietLevel ? 'sr' : 'code'">{{ v.levelCode }}</span></span>
+              <span class="inst ellipsis" role="gridcell" [title]="v.row.group"><span class="inst-name">{{ v.instName }}</span>@if (v.instRest) { <span class="inst-rest"> · {{ v.instRest }}</span> }</span>
               @for (c of v.cells; track c.column) {
                 <span class="mono extra ellipsis" role="gridcell" [title]="c.text">{{ c.text }}</span>
               }
@@ -251,7 +262,11 @@ export type GridRowVm = RowVm | PlaceholderVm;
     .time.untimed { font-style: italic; color: var(--faint); }
     .partial { font-size: var(--fs-xs); color: var(--faint); border: 1px dashed var(--border-2); border-radius: 4px; padding: 0 4px; margin-right: 6px; }
     .lvl { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--text-2); }
-    .inst, .extra { font-size: var(--fs-sm); color: var(--text-2); }
+    .extra { font-size: var(--fs-sm); color: var(--text-2); }
+    .inst { font-size: var(--fs-sm); color: var(--text-2); font-variant-numeric: tabular-nums; }
+    .inst-rest { color: var(--muted); }
+    .lvl .code { font-weight: 500; font-variant-numeric: tabular-nums; }
+    .lvl .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
     .extra { color: var(--muted); }
     .msg { color: var(--text); }
     .placeholder { display: flex; }
@@ -392,6 +407,8 @@ export class EventsGrid {
         untimed: row.tsState === 'untimed' || row.ts === null,
         levelVar: LEVEL_VARS[row.level],
         levelCode: LEVEL_CODES[row.level],
+        quietLevel: row.level === 'Information' || row.level === 'Debug' || row.level === 'Verbose',
+        ...splitInstance(row.group),
         cells: columns.map((column) => ({ column, text: this.cell(row, column) })),
       };
     });
