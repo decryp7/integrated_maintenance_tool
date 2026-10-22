@@ -166,4 +166,17 @@ mod tests {
         assert!(save_to_library(&d, &bad).is_err());
         let _ = std::fs::remove_dir_all(&d);
     }
+
+    #[test]
+    fn a_playbook_that_cannot_replace_what_is_in_its_place_is_reported_and_leaves_no_temporary_file() {
+        let d = dir("blocked");
+        let p = templates().remove(0);
+        // A non-empty folder where the playbook's file belongs cannot be renamed over.
+        let target = d.join(format!("{}.json", p.id));
+        std::fs::create_dir_all(target.join("inner")).unwrap();
+        let e = save_to_library(&d, &p).unwrap_err();
+        assert!(e.to_string().contains("cannot be saved"), "{e:#}");
+        assert!(!d.join(format!(".{}.tmp", p.id)).exists());
+        std::fs::remove_dir_all(&d).ok();
+    }
 }

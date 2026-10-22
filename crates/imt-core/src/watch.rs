@@ -467,4 +467,18 @@ mod tests {
         );
         let _ = std::fs::remove_dir_all(&dir);
     }
+
+    #[test]
+    fn a_scan_stops_at_the_entry_limit_and_says_so() {
+        let root = std::env::temp_dir().join(format!("imt-scan-limit-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        for i in 0..=MAX_SCAN_ENTRIES {
+            std::fs::write(root.join(format!("{i}.log")), b"").unwrap();
+        }
+        let (found, cut) = scan_folder(&root, &|_| true);
+        assert!(cut);
+        assert!(found.len() <= MAX_SCAN_ENTRIES);
+        std::fs::remove_dir_all(&root).ok();
+    }
 }
