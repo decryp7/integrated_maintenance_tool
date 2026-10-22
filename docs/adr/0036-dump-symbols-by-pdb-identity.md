@@ -1,6 +1,8 @@
 # 36. Dump symbols by PDB identity: matching, servers, cache and status
 
 - Status: accepted (2026-10-22)
+- Date: 2026-10-22
+- Amends: [ADR 0023](0023-dumps-and-umdh.md) (symbols come from PDBs matched by identity, not by file name; UMDH is no longer symbolised from folders)
 - Related: ADR 0017 (out-of-process plugins), ADR 0022 (native symbols), ADR 0023 (dumps and UMDH), ADR 0031
   (settings schemas in Rust), AGENTS.md (parse, don't validate; bounded resources; degrade, don't fail)
 

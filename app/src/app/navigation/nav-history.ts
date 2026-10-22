@@ -53,16 +53,36 @@ export class NavHistory {
     return true;
   }
 
-  /** Moves one place back and returns it (null at the start). */
-  back(): NavPlace | null {
-    if (!this.canBack) return null;
-    this.index--;
-    return this.current;
+  /** The index of the nearest place in direction `dir` that `skip` does not reject, or -1 when there is none. */
+  private target(dir: -1 | 1, skip?: (place: NavPlace) => boolean): number {
+    for (let i = this.index + dir; i >= 0 && i < this.places.length; i += dir) {
+      const place = this.places[i];
+      if (place && !skip?.(place)) return i;
+    }
+    return -1;
   }
 
-  forward(): NavPlace | null {
-    if (!this.canForward) return null;
-    this.index++;
+  /** Whether `back(skip)` / `forward(skip)` would move: false when every place that way is rejected. */
+  canGo(dir: -1 | 1, skip?: (place: NavPlace) => boolean): boolean {
+    return this.target(dir, skip) >= 0;
+  }
+
+  /**
+   * Moves back to the nearest place `skip` does not reject and returns it (null when there is none and nothing moves).
+   * `skip` lets the caller pass places that would change nothing visible, such as the view that is already in front.
+   */
+  back(skip?: (place: NavPlace) => boolean): NavPlace | null {
+    return this.step(-1, skip);
+  }
+
+  forward(skip?: (place: NavPlace) => boolean): NavPlace | null {
+    return this.step(1, skip);
+  }
+
+  private step(dir: -1 | 1, skip?: (place: NavPlace) => boolean): NavPlace | null {
+    const i = this.target(dir, skip);
+    if (i < 0) return null;
+    this.index = i;
     return this.current;
   }
 

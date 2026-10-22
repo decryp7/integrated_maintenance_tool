@@ -3,6 +3,7 @@ import { CaptureSummary } from '../../core/api.types';
 import { formatCount, formatDateTime } from '../../core/format';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { CommandRegistry } from '../../extensions/command-registry';
+import { RecentService } from '../../core/recent/recent.service';
 import { CapturesStore } from '../captures.store';
 import { ProfileViewState } from '../profile-view-state';
 import { captureKindLabel, formatBytes, formatNs, isHeap, isProfile } from '../profiling-format';
@@ -39,6 +40,17 @@ import { PROFILING_STYLES } from '../profiling-styles';
               <button class="btn" type="button" (click)="run(a.id)">{{ a.title }}</button>
             }
           </div>
+          @if (recentCaptures().length) {
+            <section class="recent" aria-labelledby="recent-captures-title" data-testid="recent-captures">
+              <h3 id="recent-captures-title" class="section-title" i18n="@@profiling.captures.recent">Recent captures</h3>
+              <ul>
+                @for (c of recentCaptures(); track c.path) {
+                  <li><button class="link" type="button" [title]="c.path" [disabled]="store.loading()" (click)="openRecent(c.path)">{{ fileName(c.path) }}</button></li>
+                }
+              </ul>
+              <button class="mini" type="button" (click)="clearRecent()" i18n="@@profiling.captures.recent.clear">Clear recent captures</button>
+            </section>
+          }
           <p class="hint" i18n="@@profiling.captures.landing.hint">The hotspots, call tree and flame graph open once a capture is open.</p>
         </div>
       } @else {
@@ -85,6 +97,11 @@ import { PROFILING_STYLES } from '../profiling-styles';
       .err .msg { color: var(--danger-text); white-space: pre-line; flex: 1; }
       .state { padding: 24px 12px; color: var(--muted); text-align: center; }
       .landing { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
+      .recent { margin-top: 16px; }
+      .recent .link, .recent .mini { display: inline-flex; align-items: center; min-height: 24px; min-width: 24px; }
+      .recent .mini { padding: 0 8px; }
+      .recent ul { list-style: none; margin: 4px 0; padding: 0; }
+      .recent li { margin: 2px 0; }
       .hint { font-size: var(--fs-xs); margin: 12px 0 0; }
       .cap { border: 1px solid var(--border-2); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; background: var(--bg-2); }
       .cap.active { border-color: var(--accent); }
@@ -104,6 +121,22 @@ export class CapturesView {
   private readonly nav = inject(ProfilingNavigator);
   private readonly workspace = inject(WorkspaceStore);
   private readonly commands = inject(CommandRegistry);
+  private readonly recent = inject(RecentService);
+
+  /** Captures opened before (the engine keeps the list): the landing offers them again. */
+  protected readonly recentCaptures = this.recent.captures;
+
+  protected fileName(path: string): string {
+    return path.split(/[\\/]/).pop() || path;
+  }
+
+  protected async openRecent(path: string): Promise<void> {
+    await this.show(await this.store.openPaths([path]));
+  }
+
+  protected clearRecent(): Promise<void> {
+    return this.recent.clear('captures');
+  }
 
   /** The commands that start a capture (profile a running process), when this build has them. */
   protected readonly landingActions = computed(() => {
@@ -161,7 +194,10 @@ export class CapturesView {
   }
 
   protected async open(): Promise<void> {
-    const opened = await this.store.pickAndOpen();
+    await this.show(await this.store.pickAndOpen());
+  }
+
+  private async show(opened: CaptureSummary[]): Promise<void> {
     if (opened.some(isProfile)) this.nav.show(PROFILING_VIEW_IDS.hotspots);
     else if (opened.some(isHeap)) this.nav.show(PROFILING_VIEW_IDS.heap);
   }

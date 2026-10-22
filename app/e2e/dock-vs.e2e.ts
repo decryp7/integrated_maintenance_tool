@@ -136,6 +136,12 @@ test.describe('VS-style docking', () => {
         return inspector.x - (timeline.x + timeline.width);
       })
       .toBeGreaterThanOrEqual(-2);
+    // A full-height column again (as tall as the timeline over the events), not a split beside the top row only.
+    const column = await box(page, 'imt-inspector');
+    const top = await box(page, 'imt-timeline-panel');
+    const grid = await box(page, 'imt-events-grid');
+    expect(column.y).toBeLessThanOrEqual(top.y + 2);
+    expect(column.y + column.height).toBeGreaterThanOrEqual(grid.y + grid.height - 2);
   });
 
   test('the auto-hide command toggles the active tool window', async ({ page }) => {

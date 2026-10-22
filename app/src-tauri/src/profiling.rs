@@ -247,17 +247,27 @@ pub async fn profiling_sniff(state: CurrentWindow, grants: WindowGrants, paths: 
 /// Opens a profile or heap snapshot the user chose (any supported format, recognised by content). A
 /// missing file is `notFound`; one nobody chose is `invalid`.
 #[tauri::command]
-pub async fn profiling_open(state: CurrentWindow, grants: WindowGrants, path: String) -> ProfResult<CaptureSummary> {
+pub async fn profiling_open<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    state: CurrentWindow,
+    grants: WindowGrants,
+    path: String,
+) -> ProfResult<CaptureSummary> {
+    // An entry of the recent captures was chosen before: it is granted again now.
+    let listed = crate::recent::recents(&app).has_capture(&path);
+    let recorded = path.clone();
     let (name, canonical, bytes) = tauri::async_runtime::spawn_blocking(move || {
         canonical_file(&path)?;
         grants
-            .read_file(&path, &[])
+            .read_or_listed(&path, &[], |_| listed)
             .map_err(|e| ProfilingErrorDto::new(ErrorCode::Invalid, e.message))?;
         read_capture(&path)
     })
     .await
     .map_err(join_error)??;
-    write(&state, move |s| s.open(&name, Some(&canonical), &bytes)).await
+    let summary = write(&state, move |s| s.open(&name, Some(&canonical), &bytes)).await?;
+    crate::recent::opened_capture(&app, &recorded);
+    Ok(summary)
 }
 
 #[tauri::command]
@@ -600,6 +610,38 @@ mod tests {
         let e = invoke(&w, "profiling_open", json!({ "path": junk.to_string_lossy() })).unwrap_err();
         assert!(e["message"].as_str().unwrap().contains("not a recognised profile"), "{e}");
         assert_eq!(e["code"], "notACapture");
+    }
+
+    #[test]
+    fn an_opened_capture_is_recent_and_can_be_reopened_by_another_window() {
+        let app = test_app_with_commands(None);
+        let main = window(&app, "main");
+        let other = window(&app, "w-2");
+        let dir = TempDir::new("profiling-recent");
+        let capture = dir.0.join("orders.folded");
+        std::fs::copy(sample("orders.folded"), &capture).unwrap();
+        let path = capture.to_string_lossy().into_owned();
+        let app_handle = app.handle();
+        // Nobody chose it: refused, and not recent.
+        assert!(invoke(&other, "profiling_open", json!({ "path": path })).is_err());
+        assert!(crate::recent::recents(app_handle).list().captures.is_empty());
+        // Chosen in one window: opens and is listed (apart from the log files).
+        crate::paths::allow_under(&main, "main", &dir.0);
+        invoke(&main, "profiling_open", json!({ "path": path })).unwrap();
+        let lists = crate::recent::recents(app_handle).list();
+        assert_eq!(
+            lists.captures.iter().map(|f| f.path.clone()).collect::<Vec<_>>(),
+            vec![path.clone()]
+        );
+        assert!(lists.files.is_empty());
+        // The list grants it again to a window that was never given it.
+        let reopened = invoke(&other, "profiling_open", json!({ "path": path })).unwrap();
+        assert_eq!(reopened["format"], "folded");
+        // A failed open is not recorded.
+        let junk = dir.0.join("junk.bin");
+        std::fs::write(&junk, b"definitely not a profile").unwrap();
+        assert!(invoke(&main, "profiling_open", json!({ "path": junk.to_string_lossy() })).is_err());
+        assert_eq!(crate::recent::recents(app_handle).list().captures.len(), 1);
     }
 
     #[test]

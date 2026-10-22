@@ -1,6 +1,8 @@
 # 37. Clock skew and live tail on the log store
 
 - Status: accepted (2026-10-22)
+- Date: 2026-10-22
+- Amends: [ADR 0006](0006-clock-skew-applied-on-load.md) (the mechanism moves from the in-memory workspace to the store)
 - Related: ADR 0014 (DuckDB store, ports, store worker), ADR 0017 (out-of-process workers), ADR 0020 (mixed
   sources), AGENTS.md (engine is the source of truth, parse don't validate, contain failures, bounded resources)
 

@@ -1,6 +1,7 @@
 # 40. Text encodings of source files
 
 - Status: accepted (2026-10-22)
+- Date: 2026-10-22
 - Related: ADR 0014 (streaming import, file plan), ADR 0026 (parsers), AGENTS.md (parse don't validate, bounded
   resources, parsers never panic)
 

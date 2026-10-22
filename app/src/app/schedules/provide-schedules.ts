@@ -3,7 +3,7 @@ import { IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/toke
 
 /** The scheduled-collection views. Same extension point as plugin views. */
 export const SCHEDULES_VIEWS: ImtView[] = [
-  { id: 'collection-schedules', category: 'Tools', title: $localize`:@@schedules.view.schedules:Collection schedules`, icon: 'timeline', defaultPosition: 'center', component: () => import('./schedules-view').then((m) => m.SchedulesView) },
+  { id: 'collection-schedules', category: 'Tools', title: $localize`:@@schedules.view.schedules:Collection schedules`, icon: 'timeline', defaultPosition: 'center', area: 'document', component: () => import('./schedules-view').then((m) => m.SchedulesView) },
   { id: 'collection-runs', category: 'Tools', title: $localize`:@@schedules.view.runs:Collection runs`, icon: 'folder', defaultPosition: 'center', component: () => import('./runs-view').then((m) => m.RunsView) },
 ];
 

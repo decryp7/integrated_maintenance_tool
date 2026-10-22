@@ -13,8 +13,8 @@ multiple windows, live tail and annotations in text.
 ## Overview
 
 The Rust engine is the single source of truth for data and behaviour; Angular only presents what the
-engine returns. The Tauri shell depends on the store ports (`imt_core::ports`: `Ingest`, `Query`, `Analysis`,
-`Profiles`, `Search`, `Projects` and others, combined as `Store`) and importers on the `Importer` trait (ports and
+engine returns. The Tauri shell depends on the store ports (`imt_core::ports`: `Ingest`, `Query`, `Positions`, `Analysis`,
+`Profiles`, `Diagnostics`, `Search`, `Projects`, `Inspect`, `Maintain`, `Console`, `Redaction`, `Skew` and `Tail`, combined as `Store`) and importers on the `Importer` trait (ports and
 adapters). The store behind the ports is DuckDB, hosted in a separate worker process
 ([ADR 0014](adr/0014-database-first-engine.md)): events are imported once into Parquet segments with a DuckDB catalog
 and a Tantivy full-text index, so the app process holds only the page on screen, never the records. The in-memory
@@ -64,7 +64,7 @@ flowchart LR
 
 | Crate | Kind | Responsibility |
 |---|---|---|
-| `imt-core` | library (the core) | Records, importers, profiles and pipelines, the query language, analysis, exports, projects, the plugin runtime, live tail, redaction, reports, dashboards, bundles, clock skew, configuration diff, templates. Ports: `LogStore`, `Importer`, `ReportRenderer`, `ConfigParser`, tools. |
+| `imt-core` | library (the core) | Records, importers, profiles and pipelines, the query language, analysis, exports, projects, the plugin runtime, live tail, redaction, reports, dashboards, bundles, clock skew, configuration diff, templates. Ports: `Store` (fourteen traits), `Importer`, `ReportRenderer`, `ConfigParser`, tools. Also Home's summary, search everything, live alerts, known issues, the incident report, playbooks, text encodings and the redacted copy. |
 | `imt-profile` | library, pure (no I/O, no `imt-core`) | The profiling engine: profile and heap-snapshot model, builders with limits, the `CaptureImporter` and `ProfileStore` ports with the in-memory `Captures` store, and every profiling view (hotspots, trees, butterfly, flame, diff, threads, findings, moment, heap analysis). See [profiling.md](profiling.md). |
 | `imt-plugin-profiling` | plugin | Capture importers (nettrace, perf script, folded, pprof, Chrome trace / cpuprofile, speedscope, heapsnapshot) served as profile importers (the profiling plugin's process is the profile worker). |
 | `imt-plugin-tools` | plugin (shared by every window) | The system tools as `Tool`s: Performance Monitor templates and collector sets (`logman`), process monitor, Event Log follower, diagnostics collector, elevation. |
@@ -75,9 +75,10 @@ flowchart LR
 | `imt-plugin-registry`, `-windows`, `-web`, `-formats`, `-otel`, `-syslog` | plugins | Format importers, marker kinds, annotators and configuration parsers. `-windows` also has the Process Monitor CSV and minidump importers and the Event Log follower; `-formats` has log4j/log4net/NLog XML, SQL Server ERRORLOG, Docker json-file and Kubernetes CRI. |
 | `imt-plugin-api`, `imt-plugin-host`, `imt-plugins`, `imt-ipc` | contract, host adapter, plugins binary, transport | Every plugin runs in its own sandboxed process ([ADR 0017](adr/0017-one-ipc-out-of-process-plugins.md)): `imt-plugin-api` is the contract plugins depend on (no `imt-core`), `imt-plugin-host` the adapter that starts them and registers proxy contributions into the `PluginRegistry`, `imt-plugins` the binary that serves every built-in (`--plugin <id>`, `--manifests`), and `imt-ipc` the frames, supervisor, launcher and sandbox shared with the AI and store workers. |
 | `imt-ai`, `imt-ai-worker` | library, worker process | The local AI layer (including the internal browser's rules, [ADR 0011](adr/0011-internal-browser.md)) and the worker that runs a downloaded `llama-server` ([ADR 0009](adr/0009-prebuilt-llama-server-runtimes.md)). |
-| `imt-store-duck`, `imt-store-client`, `imt-store-worker`, `imt-batch` | the store ([ADR 0014](adr/0014-database-first-engine.md)) | `imt-store-duck` is the DuckDB store: events as Parquet segments with a DuckDB catalog, queries compiled to SQL, a Tantivy full-text index (word and prefix matches first, then partial matches; the query language's `contains` stays a substring test), projects as the store folder (`.imtz`, which opens without the original logs). `imt-store-worker` hosts every window's store in a supervised child process (2 GiB hard cap); `imt-store-client` is IMT's side (`RemoteStore` over `imt-ipc`, no DuckDB linked); `imt-batch` is the event batch (stable ids, the fixed Arrow schema) importers, store and plugins share. |
-| `imt-alloc` | library | The global allocator of the binaries that parse and analyse (the app, the store worker, the plugins process): mimalloc v3 with v2's purge timing set at start-up. |
-| `imt-notes`, `imt-dump`, `imt-etw`, `imt-symbols` | libraries | Notes anchored to events, times, sources and image regions ([ADR 0021](adr/0021-notes.md)); the crash dump and UMDH engine ([ADR 0023](adr/0023-dumps-and-umdh.md)); ETW decoders and the NetTrace writer, and native symbols ([ADR 0022](adr/0022-native-profiling.md)). |
+| `imt-store-duck`, `imt-store-client`, `imt-store-worker`, `imt-batch` | the store ([ADR 0014](adr/0014-database-first-engine.md)) | `imt-store-duck` is the DuckDB store: events as Parquet segments with a DuckDB catalog, queries compiled to SQL, a Tantivy full-text index (word and prefix matches first, then partial matches; the query language's `contains` stays a substring test), projects as the store folder (`.imtz`, which opens without the original logs). `imt-store-worker` hosts every window's store in a supervised child process (2 GiB hard cap); `imt-store-client` is IMT's side (`RemoteStore` over `imt-ipc`, no DuckDB linked); the port methods that cross to the worker are listed once, in `store_port_table!` (`port_table.rs`), which expands into the `StoreOp` enum, the client's `impl Port for RemoteStore` and the worker's `dispatch.rs` ([ADR 0042](adr/0042-store-port-table.md); the operation order is the wire format, `WIRE_VERSION`); `imt-batch` is the event batch (stable ids, the fixed Arrow schema) importers, store and plugins share. |
+| `imt-alloc` | library | The global allocator of the binaries that parse and analyse (the app, the store worker, the plugins process): mimalloc v3 with v2's purge timing set at start-up; `release()` gives freed memory back after an import, the index build and each analysis. |
+| `imt-notes`, `imt-dump`, `imt-etw`, `imt-symbols` | libraries | Notes anchored to events, times, sources and image regions ([ADR 0021](adr/0021-notes.md)); the crash dump and UMDH engine ([ADR 0023](adr/0023-dumps-and-umdh.md)); ETW decoders and the NetTrace writer ([ADR 0022](adr/0022-native-profiling.md)); `imt-symbols` matches PDBs by identity (name, GUID, age) and fetches them from opt-in symbol servers into a bounded cache ([ADR 0036](adr/0036-dump-symbols-by-pdb-identity.md)). |
+| `imt-video` | library | Video sources: the pinned LGPL FFmpeg runtime (download, self-test, rollback), sandboxed `ffmpeg`/`ffprobe` runs, pure frame selection and alignment to the logs, and the `.frames` record that `imt-core`'s `VideoFramesImporter` reads ([ADR 0033](adr/0033-video-sources-ffmpeg-runtime.md)). |
 | `imt-plugin-dotnet`, `imt-plugin-native`, `imt-plugin-dumps` | plugins | .NET profiling by ETW and EventPipe ([ADR 0019](adr/0019-dotnet-profiling.md)), native profiling ([ADR 0022](adr/0022-native-profiling.md)), dump and UMDH readers and the dump capture tool ([ADR 0023](adr/0023-dumps-and-umdh.md)). |
 | `imt-plugin-package`, `imt-plugin-test`, `imt-plugin-e2e`, `cargo-imt-plugin` | plugin SDK ([ADR 0027](adr/0027-plugin-sdk.md)) | The signed `.imtplugin` package format, the test harness for plugin authors, end-to-end tests of a third-party plugin, and the `cargo imt-plugin` tool. See [plugin-sdk.md](plugin-sdk.md). |
 | `app/src-tauri` (`imt-app`) | shell | Tauri commands, windows, tray, sessions; depends on ports only. |
@@ -85,11 +86,16 @@ flowchart LR
 The engine modules added for sharing and analysis are `redact/` (one redactor for the redacted
 view, exports, reports and bundles), `report/` (versioned report model, Markdown and HTML),
 `dashboard.rs`, `bundle.rs` (`.imtz` read and write with archive limits and hashes), `svg.rs`
-(SVG sanitiser), `skew/` ([ADR 0006](adr/0006-clock-skew-applied-on-load.md)), `config/`
+(SVG sanitiser), `skew/` ([ADR 0006](adr/0006-clock-skew-applied-on-load.md), [0037](adr/0037-store-clock-skew-and-live-tail.md)), `config/`
 (configuration trees, parsers and diff), `templates.rs`, `ql/suggest.rs` ("did you mean") and
-`overwrite.rs` (no silent overwrite). The workspace exposes them through `workspace/*.rs` and the
-`LogStore` trait; the shell adds `share.rs`, `skew_commands.rs`, `config_diff.rs`,
-`agent_commands.rs`, `profiling.rs` and `demo.rs`.
+`overwrite.rs` (no silent overwrite). Newer engine modules, all pure over the store ports: `home.rs` (the Home dashboard's summary), `search_all/`
+(search everything), `live.rs` (`LiveSession`: alerts and tail status), `known_issues.rs`, `incident.rs` and
+`playbook/` ([ADR 0039](adr/0039-known-issues-incident-summary-playbooks.md)), `ingest/encoding.rs`
+([ADR 0040](adr/0040-text-encodings.md)), `paste.rs`, `redact/copy.rs` ([ADR 0041](adr/0041-redacted-project-copy.md)) and
+`importers/video.rs`. The in-memory `Workspace` (`workspace/*.rs`, `LogStore`) stays as the reference implementation; the shell
+adds `share.rs`, `redacted_copy.rs`, `skew_commands.rs`, `config_diff.rs`, `agent_commands.rs`, `profiling.rs`, `demo.rs`, `encodings.rs`,
+`paste.rs`, `search_everything.rs`, `store_pane.rs`, `symbols.rs`, `dumps.rs`, `snapshots.rs`, `window_capture/` (the native window picture of
+error snapshots, [ADR 0034](adr/0034-native-window-capture.md)), `video/` and `investigate/`.
 
 ## Architecture decisions
 
@@ -122,11 +128,21 @@ view, exports, reports and bundles), `report/` (versioned report model, Markdown
 | [0025](adr/0025-vision-one-model.md) | Vision: one model reads text and images; the engine finds the related logs. |
 | [0026](adr/0026-parser-library.md) | Parsers are individual TOML files in a library, matched per file; profiles keep the analysis. |
 | [0027](adr/0027-plugin-sdk.md) | A Rust-only plugin SDK; third-party plugins as signed, contained `.imtplugin` packages. |
-| [0028](adr/0028-native-feel.md) | Native feel: IMT's windows behave like a desktop application, not a web page. |
+| [0028](adr/0028-native-feel.md) | Native feel: IMT's windows behave like a desktop application, not a web page. Amended by 0034 and 0035. |
 | [0029](adr/0029-knowledge-files.md) | Knowledge files: the user's Markdown notes as background for every AI feature. |
+| [0030](adr/0030-store-pane-and-sql-console.md) | The Store pane and a sandboxed read-only SQL console (the `Inspect`, `Maintain` and `Console` ports). Amends 0014. |
+| [0031](adr/0031-performance-settings.md) | Performance settings: memory caps, CPU, DuckDB, warnings and suggested values. |
+| [0032](adr/0032-ai-parser-generation.md) | AI-assisted parser generation, verified by the engine. Amends 0026. |
+| [0033](adr/0033-video-sources-ffmpeg-runtime.md) | Video sources with a downloadable, sandboxed FFmpeg runtime; frames become events in a source of their own. |
+| [0034](adr/0034-native-window-capture.md) | Error snapshots: the platform captures the webview instead of rasterising the DOM (html-to-image is gone). Amends 0028. |
+| [0035](adr/0035-view-areas-and-perspectives.md) | View areas and perspectives: where a view opens, named window arrangements, one search field. Overview became Home; Plugin health merged into Plugins. |
+| [0036](adr/0036-dump-symbols-by-pdb-identity.md) | Dump symbols by PDB identity: matching, opt-in symbol servers, a bounded cache and a status per module. Amends 0023. |
+| [0037](adr/0037-store-clock-skew-and-live-tail.md) | Clock skew and live tail on the log store: the `Skew` and `Tail` ports, offsets applied to stored events, appended segments, a held last event, alerts over the ports. Amends 0006. |
+| 0038 | Not used: the number was set aside for the second half of the clock-skew and live-tail work, which shipped as the single ADR 0037. There is no ADR 0038. |
 | [0039](adr/0039-known-issues-incident-summary-playbooks.md) | Known issues in knowledge files, the incident summary report and investigation playbooks. |
+| [0040](adr/0040-text-encodings.md) | Text encodings: detection with confidence (`chardetng`, `encoding_rs`), per-source override, profile default. |
 | [0041](adr/0041-redacted-project-copy.md) | Redacted project copy: rebuilt from redacted text so nothing derived can leak; text sources only. |
-| [0040](adr/0040-text-encodings.md) | Text encodings: detection with confidence (chardetng, encoding_rs), per-source override, profile default. |
+| [0042](adr/0042-store-port-table.md) | One port table for the store worker protocol: a single declarative list expands into the operation enum, the client and the worker's dispatch; the order is the wire format. |
 
 
 ## Plugin runtime (ADR 0003, ADR 0017)
@@ -158,8 +174,8 @@ closes and every window's plugins on app exit (`shutdown_plugins` in `app/src-ta
 called from `RunEvent::Exit` in `lib.rs`); it compares plugin health before and after workspace commands and
 emits new failures as `imt://error` engine errors of kind `plugin-crash`, `plugin-quarantined` or
 `plugin-inactive` (`app/src-tauri/src/engine_errors.rs`); and it serves `plugin_events` (event-bus
-counters) and `annotations` (`workspace_commands.rs`). The UI shows them in the plugin health view
-(`app/src/app/tools/health/`), the markers manager (plugin kinds, read-only rules, overrides) and the
+counters) and `annotations` (`workspace_commands.rs`). The UI shows them in the *Health* tab of the Plugins view
+(`app/src/app/plugins-panel/`, `app/src/app/tools/health/`), the markers manager (plugin kinds, read-only rules, overrides) and the
 timeline.
 
 The first real user is the Windows plugin: `crates/imt-plugin-windows/src/markers.rs` (marker kinds
@@ -178,7 +194,8 @@ state go.
 | `window_scoped.rs` | Features that keep state per window register a `Scope` (`on_created`, `on_destroyed`); a closed window's teardown is one loop over them, each hook off the main thread and bounded (background tasks, jobs, notification-centre messages, opened diagnostics reports, path grants). |
 | `windows.rs` | Per-window state (`WindowState`: store, profile, open queue, live tail, import progress, project) and the `CurrentWindow` extractor that commands use; `emit_to_window` for window-specific events. A window's state is dropped (plugins deactivated, live tail stopped) when the window is destroyed. |
 | `window_manager.rs` | `new_window`, `close_window`, `list_windows`, `focus_window`, `set_window_title`, `resolve_close`, `resolve_open`; what closing the last window does (quit, tray, ask); the "open in this window / new window" question (`imt://open-ask`; `resolve_open` with `cancel` drops the queued paths). Events `imt://windows-changed`, `imt://close-requested`. |
-| `drag_ghost/` | The drag ghost: a hidden, undecorated, always-on-top, click-through, never-focused window (`drag-ghost`, a static page with no commands or capabilities) that follows the global cursor at ~60 Hz while a tab is dragged outside its window. `drag_ghost_start` / `drag_ghost_show` / `drag_ghost_end` (MAIN windows only, request validated in `request.rs`); placement is pure geometry in physical pixels per monitor (`geometry.rs`); the end answers where the ghost was so the pop-out opens there. Off on Wayland (no window positioning). |
+| `panel_windows.rs` | Pop-out windows. "Keep on top of Debrief" makes a pop-out an owned window of its host (`WebviewWindowBuilder::parent`: owner window on Windows, child window on macOS, transient-for on Linux): it stays above its host, goes behind other apps together with it and minimises/hides with it. It is never a system-wide always-on-top window; an owner cannot change on a live window, so toggling rebuilds the pop-out in place. |
+| `drag_ghost/` | The drag ghost: a hidden, undecorated, always-on-top (only while a drag lasts: it hides when the drag ends, on blur and when its window goes), click-through, never-focused window (`drag-ghost`, a static page with no commands or capabilities) that follows the global cursor at ~60 Hz while a tab is dragged outside its window. `drag_ghost_start` / `drag_ghost_show` / `drag_ghost_end` (MAIN windows only, request validated in `request.rs`); placement is pure geometry in physical pixels per monitor (`geometry.rs`); the end answers where the ghost was so the pop-out opens there. Off on Wayland (no window positioning). |
 | `instance.rs` | Single instance (`tauri-plugin-single-instance`): a second launch hands its paths to the running process, planned by the pure `plan` function from `openFilesIn`, `--new-window` and whether the target window is empty. `--new-instance` and safe mode run a separate process. |
 | `tray.rs` | Tray menu as a pure model: windows, new window, recent projects (from `recent.rs`), background tasks with Stop, diagnostic capture, quit. Without a tray, closing the last window quits. |
 | `background.rs` | Registry of what runs until stopped (live tail per window, process monitor, PerfMon collection) with optional stop actions, plus the running jobs mirrored from `jobs`; `background_tasks`, `stop_background_task`, event `imt://background-tasks`. |
@@ -222,22 +239,26 @@ browser while it reads result pages.
 
 ## Live tail
 
-The engine owns live tail (`crates/imt-core/src/workspace/tail/`): file identity and fingerprints
-(`identity.rs`), rolling-file families (`rolling.rs`), incremental reading (`reader.rs`), watching with
-a polling fallback and burst coalescing (`watch.rs`), applying a refresh with stable ids (`apply.rs`,
-`index.rs`), detectors and alert rules (`alerts.rs`) and engine-side mutes (`mutes.rs`). The shell
-(`app/src-tauri/src/live.rs`) only adapts `notify` to the engine's `WatcherFactory`, runs each window's
-session and registers it as a background task. Stopping a session never waits: it sets the session's
-`StopToken` (checked before and after taking the workspace lock), and a reaper thread ends the worker
-and the watchers. Commands: `set_live`, `tail_status`, `live_state`
-(restores the UI after a webview reload), `mute_alerts` / `unmute_alerts`, `open_paths_live`; events
-`imt://workspace-changed` (with a `TailReport`, including changed `fileStates`), `imt://live-alert` and
+Live tail runs over the store ports ([ADR 0037](adr/0037-store-clock-skew-and-live-tail.md)). The store reads only what a
+followed file gained (`Ingest::append_tail`: appended lines become a new segment of the same source, the full-text index
+follows) and keeps where it stopped (`Tail`: `tail_offsets`, `open_at_end`). The last event of a plain-text read is held back
+in case it continues on the next lines, and written when another event follows or after `carry_flush_ms` (500 ms by default);
+the shell asks for it with an empty `append_tail`. Files that cannot be read from the middle (shrunk, archives, binary formats)
+are read again in full as a new source; a deleted file keeps its events unless `deleted_files = "drop"`. Annotators re-run
+after a refresh, from a cursor and throttled. Clock offsets (`Skew`) are applied to the stored events, so every view follows them.
+
+`imt_core::live::LiveSession` (one per window) evaluates alert rules, silence and the anomaly detectors over `Query`/`Analysis`
+after each refresh, keeps cooldowns and mutes, and builds the per-file status with lines per second. The shell
+(`app/src-tauri/src/live.rs`) adapts `notify` to the engine's `WatcherFactory` (`workspace/tail/` holds the watching, rolling-file
+and identity code, and the in-memory reference implementation), runs each window's session and registers it as a background
+task. Stopping a session never waits: it sets the session's `StopToken` and a reaper thread ends the worker and the watchers.
+Commands: `set_live`, `tail_status`, `live_state` (restores the UI after a webview reload), `mute_alerts` / `unmute_alerts`,
+`open_paths_live`; events `imt://workspace-changed` (with a `TailReport`, including changed `fileStates`), `imt://live-alert` and
 `imt://live-stopped`.
 
-In the UI (`app/src/app/live/`, `app/src/app/workspace/live-tail.ts`) a `RefreshCoalescer` turns
-reports into at most one refresh per 250 ms that never overlap; `TailStatusStore` applies `fileStates`
-directly (sidebar badges, tail status panel) and keeps polling `tail_status` as a fallback; the alerts
-store deduplicates by the engine's stable alert id.
+In the UI (`app/src/app/live/`, `app/src/app/workspace/live-tail.ts`) a `RefreshCoalescer` turns reports into at most one refresh
+per 250 ms that never overlap; `TailStatusStore` applies `fileStates` directly (sidebar badges, tail status panel) and keeps
+polling `tail_status` as a fallback; the alerts store deduplicates by the engine's stable alert id.
 
 ## Annotations on the timeline
 
@@ -254,9 +275,9 @@ and fill pattern, not colour alone); clicking one applies its evidence query.
 | Diagram | What it shows |
 |---|---|
 | [c4-1-context](diagrams/c4-1-context.drawio) | IMT, its users (support engineer, developer, administrator, plugin author) and the external systems it reads from or talks to: the file system, the OS webview, Windows Event Log and performance counters, third-party plugins (Rust programs in signed `.imtplugin` packages, sandboxed, over `imt-ipc`), the web sites the user opens in the docked browser, and the only network hosts used when the user starts an update or a download: Gitea releases, Hugging Face (models) and GitHub releases (llama-server). IMT runs offline otherwise. |
-| [c4-2-containers](diagrams/c4-2-containers.drawio) | The runnable units, the processes they run in and how they talk: the app process with the libraries linked into it (`imt-core`, `imt-store-client`, `imt-plugin-host`, `imt-ai`, `imt-pdf`, `imt-profile`, `imt-notes`, `imt-dump`) and the sandboxed child processes (`imt-plugins`, third-party plugins, `imt-store-worker` with DuckDB and Tantivy, `imt-ai-worker` and `llama-server`), all over `imt-ipc` (ADR 0017). |
-| [c4-3-components-engine](diagrams/c4-3-components-engine.drawio) | Modules of `imt-core`: the store ports (`ports`: `Ingest`, `Query`, `Positions`, `Analysis`, `Profiles`, `Diagnostics`, `Search`, `Projects`), `api`, `row` and `batch`, `importers`, `ingest`, `archive`, `profile`, `pipeline`, `query` and `ql`, `analysis`, `patterns`, `exceptions`, `chart`, `export`, `project` and `package`, the plugin registry with guarded adapters and the plugin runtime, the parser library (`parser`), `survey`, `spans` and `related`, the sharing and analysis modules (`report`, `redact`, `dashboard`, `bundle`, `skew`, `config`) and the in-memory `Workspace` that stays as the test oracle and the headless agent's store. Around the core: the Store adapters (`imt-store-client`, `imt-store-worker` with `imt-store-duck`), `imt-plugin-host` and `imt-ipc`, the plugin crates, `imt-pdf`, `imt-ai` and the CLIs. The engine is the single source of truth; the shell reaches it only through the `Store` ports. |
-| [c4-3-components-ui](diagrams/c4-3-components-ui.drawio) | Folders under `app/src/app`: shell, `WorkspaceStore`, the `ImtBackend` token with `TauriBackend` / `MockBackend`, views (including jobs, notifications, notes, the docked browser and dumps), extension tokens, docking, logger. Angular presents what the engine returns; state lives in SignalStores. |
+| [c4-2-containers](diagrams/c4-2-containers.drawio) | The runnable units, the processes they run in and how they talk: the app process with the libraries linked into it (`imt-core`, `imt-store-client`, `imt-plugin-host`, `imt-ai`, `imt-pdf`, `imt-profile`, `imt-notes`, `imt-dump`, `imt-symbols`, `imt-video`) and the sandboxed child processes (`imt-plugins`, third-party plugins, `imt-store-worker` with DuckDB and Tantivy, `imt-ai-worker` and `llama-server`, the downloaded `ffmpeg`), all over `imt-ipc` (ADR 0017). |
+| [c4-3-components-engine](diagrams/c4-3-components-engine.drawio) | Modules of `imt-core`: the store ports (`ports`: fourteen traits, `Ingest` to `Tail`), the live, Home, search, investigate, encoding, paste and redacted-copy modules, the video frames importer, `api`, `row` and `batch`, `importers`, `ingest`, `archive`, `profile`, `pipeline`, `query` and `ql`, `analysis`, `patterns`, `exceptions`, `chart`, `export`, `project` and `package`, the plugin registry with guarded adapters and the plugin runtime, the parser library (`parser`), `survey`, `spans` and `related`, the sharing and analysis modules (`report`, `redact`, `dashboard`, `bundle`, `skew`, `config`) and the in-memory `Workspace` that stays as the test oracle and the headless agent's store. Around the core: the Store adapters (`imt-store-client`, `imt-store-worker` with `imt-store-duck`), `imt-plugin-host` and `imt-ipc`, the plugin crates, `imt-pdf`, `imt-ai` and the CLIs. The engine is the single source of truth; the shell reaches it only through the `Store` ports. |
+| [c4-3-components-ui](diagrams/c4-3-components-ui.drawio) | Folders under `app/src/app`: shell, `WorkspaceStore`, the `ImtBackend` token with `TauriBackend` / `MockBackend`, views (including Home, investigate, search everything, video, the Store pane, jobs, notifications, notes, the docked browser and dumps), extension tokens, docking, logger. Angular presents what the engine returns; state lives in SignalStores. |
 
 ## UML
 
@@ -266,12 +287,14 @@ and fill pattern, not colour alone); clicking one applies its evidence query.
 | [uml-class-domain](diagrams/uml-class-domain.drawio) | The `Store` ports, `Record`, `Level`, `Query`, `CompiledQuery`, `Profile` and its sections, the parser's `FormatCfg`, `CompiledProfile`, `Pipeline`, `Condition`, the in-memory `Workspace` (test oracle), `ProjectFile`, `SourceInfo`, `WorkspaceSummary`. |
 | [uml-class-plugin-api](diagrams/uml-class-plugin-api.drawio) | The traits plugins implement (`Plugin`, `Importer`, `BinaryImporter`, `RecordTransform`, `Exporter`, `Collector`, `Annotator`, `Tool`), `PluginRegistry` with its `Guarded*` adapters, the out-of-process side (`Builtins`, `RemotePlugin`, `PluginProcess`, the supervisor, installed packages) and the plugin crates `imt-plugins` serves, one sandboxed process each. |
 | [uml-seq-open-folder](diagrams/uml-seq-open-folder.drawio) | `open_paths`: an import job in the store worker reads files in parallel (archive, parser and importer choice, ingest into event batches), writes Parquet segments and indexes them; the UI follows the job and can cancel. |
-| [uml-seq-query-timeline](diagrams/uml-seq-query-timeline.drawio) | A filter change (queries against the DuckDB store) fanning out to the grid, timeline and chart queries (side-effect free; stale replies are dropped), a marker click with an anchored page and `source_context`, and the query panel, which streams progress and can be cancelled. |
+| [uml-seq-query-timeline](diagrams/uml-seq-query-timeline.drawio) | A filter change (queries against the DuckDB store) fanning out to the grid, timeline and chart queries (side-effect free; stale replies are dropped), a marker click with an anchored page and `source_context`, and the search field's query run, which streams progress and can be cancelled. |
 | [uml-seq-moment](diagrams/uml-seq-moment.drawio) | What happened around a moment: `MomentView` asks `query_moment` for the selected range; `Analysis::moment` in the store summarises it against the window before it. |
 | [uml-seq-plugin-registration](diagrams/uml-seq-plugin-registration.drawio) | Each window builds a `PluginRegistry`: `Builtins` (the plugin processes, built-in and installed) are wrapped as `RemotePlugin`s, every built-in plugin runs in its own sandboxed process over `imt-ipc` frames, and every contribution is wrapped in a `Guarded*` adapter before the window's `Host` compiles the profile. |
+| [uml-component-store-protocol](diagrams/uml-component-store-protocol.drawio) | The store port table: the `Store` ports, `store_port_table!`, its three expansions (`StoreOp`, `RemoteStore`, the worker's dispatch) and the wire version ([ADR 0042](adr/0042-store-port-table.md)). |
+| [uml-activity-video](diagrams/uml-activity-video.drawio) | A video source from file to events: runtime check and install, sandboxed `ffprobe` and frame passes, pure selection, alignment, vision descriptions and the `.frames` source ([ADR 0033](adr/0033-video-sources-ffmpeg-runtime.md)). |
 | [uml-activity-ingest](diagrams/uml-activity-ingest.drawio) | Ingest of one file (`ingest::import_path`, the file plan, `RecordBatcher`, `CompiledProfile::ingest`: extractors, pipeline, markers). Every failure lists the file as unrecognised with its reason; the rest of the import continues. |
 | [uml-state-perfmon](diagrams/uml-state-perfmon.drawio) | A Data Collector Set as IMT drives it: `PerfmonController` (`imt-plugin-tools`) runs `logman`; the Performance Monitor view installs, starts, stops, queries, deletes and imports its output. |
-| [uml-state-live-tail](diagrams/uml-state-live-tail.drawio) | `set_live` drives a live-tail worker per window; the store reads what was appended (`Ingest::append_tail`); live alerts are not computed over the store yet. |
+| [uml-state-live-tail](diagrams/uml-state-live-tail.drawio) | `set_live` drives a live-tail worker per window; the store reads what was appended (`Ingest::append_tail`, the last event held for `carry_flush_ms`); `LiveSession` evaluates alerts and the tail status over the ports. |
 | [uml-state-project](diagrams/uml-state-project.drawio) | Left: the open project as `ProjectService` tracks it (`save_project` / `open_project`; a project is the store folder saved as `.imtz`). Right: one app run with crash detection, recovery offer and session autosave (lifecycle). |
 | [uml-deployment](diagrams/uml-deployment.drawio) | Where IMT's parts run: the analyst workstation (the app, the sandboxed child processes, the data folder), monitored servers, the Gitea build farm that produces the installers, and the download and web hosts. |
 
@@ -297,6 +320,6 @@ When saving from draw.io, keep *File > Properties > Compressed* turned off so th
 - Treat a diagram that disagrees with the code as a bug in the diagram; fix the diagram, not the code.
 - Follow [diagrams/STYLE.md](diagrams/STYLE.md) for notation, palette and layout. Planned work is drawn with a dashed
   outline and "(planned)"; remove the marker when the code lands, and update the date in the diagram footer.
-- The SVGs under `docs/diagrams/svg/` are exported from the `.drawio` sources with `scripts/export-diagrams.sh` (draw.io desktop); until they are re-exported they may lag behind the sources.
+- The SVGs under `docs/diagrams/svg/` are exported from the `.drawio` sources with `scripts/export-diagrams.sh` (draw.io desktop); re-export in the same change as the edit.
 - Contracts remain defined in code: `app/src/app/core/api.types.ts` and `crates/imt-core/src/api.rs` for
   the wire format, `crates/imt-core/src/default_profile.toml` for the profile schema.

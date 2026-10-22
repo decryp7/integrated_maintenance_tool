@@ -63,7 +63,7 @@ describe('PopoutShell', () => {
     el.querySelector<HTMLButtonElement>('button[aria-label="Dock back into the main window"]')!.click();
     await settle(fixture);
     expect(backend.docked).toEqual(['self']);
-    const onTop = el.querySelector<HTMLButtonElement>('button[aria-label="Always on top"]')!;
+    const onTop = el.querySelector<HTMLButtonElement>('button[aria-label="Keep on top of Debrief"]')!;
     onTop.click();
     await settle(fixture);
     expect(backend.onTop).toEqual([true]);
@@ -107,9 +107,9 @@ describe('PopoutShell', () => {
     await vi.waitFor(() => expect(document.title).toBe('Inspector \u2014 Incident 42'));
   });
 
-  it('hides "Always on top" where windows cannot stay on top (a browser)', async () => {
-    const { el } = await shell((b) => (b.supportsAlwaysOnTop = false));
-    expect(el.querySelector('button[aria-label="Always on top"]')).toBeNull();
+  it('hides "Keep on top of Debrief" where windows cannot stay on top (a browser)', async () => {
+    const { el } = await shell((b) => (b.supportsKeepOnTop = false));
+    expect(el.querySelector('button[aria-label="Keep on top of Debrief"]')).toBeNull();
   });
 
   it('dragging the title bar lets the OS move the window, then tells the host the drag ended', async () => {

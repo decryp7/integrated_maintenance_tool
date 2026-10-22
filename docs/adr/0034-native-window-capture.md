@@ -1,6 +1,8 @@
 # 34. Error snapshots: native webview capture instead of rasterising the DOM
 
 - Status: accepted (2026-10-22)
+- Date: 2026-10-22
+- Amends: the error-snapshot capture of earlier builds (the DOM was rasterised with html-to-image; that dependency is gone)
 - Related: ADR 0028 (native feel), ADR 0024 (docked browser), AGENTS.md (long-running work off the UI thread, Rust
   is the source of truth, bounded resources), `app/src-tauri/src/window_capture/`, `app/src-tauri/src/snapshots.rs`,
   `app/src/app/diagnostics/error-snapshot.service.ts`

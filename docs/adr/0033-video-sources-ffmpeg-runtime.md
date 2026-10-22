@@ -1,6 +1,7 @@
-# 32. Video sources with a downloadable FFmpeg runtime
+# 33. Video sources with a downloadable FFmpeg runtime
 
 - Status: accepted (2026-10-22)
+- Date: 2026-10-22
 - Related: ADR 0009 (prebuilt runtimes downloaded on demand), ADR 0012 (jobs), ADR 0014 (store ports, projects),
   ADR 0017 (child processes and their sandbox), ADR 0006 (clock skew), ADR 0025 (vision on the one model),
   ADR 0021 (notes), AGENTS.md (pure core / thin edges, bounded resources, degrade don't fail)

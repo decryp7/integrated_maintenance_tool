@@ -7,6 +7,8 @@
 - Related: ADR 0002 (worker processes), ADR 0004 (plugins), ADR 0012 (jobs)
 - Amended by [ADR 0030](0030-store-pane-and-sql-console.md) (the `Inspect`, `Maintain` and `Console` ports, their
   worker operations, and the sandboxed console database with its stable views)
+- Amended by [ADR 0037](0037-store-clock-skew-and-live-tail.md) (the `Skew` and `Tail` ports: clock offsets applied to stored events,
+  live tail appends segments) and [ADR 0040](0040-text-encodings.md) (text encodings in the file plan)
 - Extended by the 2026-10 redesign plan, phase R2 (stable ids, one row
   interface, one predicate language, file plans for chunking, classified profile changes)
 

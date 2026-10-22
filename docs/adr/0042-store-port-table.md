@@ -1,6 +1,8 @@
-# 0042. One port table for the store worker protocol
+# 42. One port table for the store worker protocol
 
-Status: accepted (2026-10-22)
+- Status: accepted (2026-10-22)
+- Date: 2026-10-22
+- Related: ADR 0014 (store worker), ADR 0030 (Inspect, Maintain, Console ports), ADR 0037 (Skew and Tail ports)
 
 ## Context
 
