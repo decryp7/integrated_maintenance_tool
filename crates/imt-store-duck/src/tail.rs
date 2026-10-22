@@ -27,7 +27,7 @@ use duckdb::{params, Connection};
 use imt_core::api::UnrecognizedFile;
 use imt_core::batch::SourceId;
 use imt_core::ingest::{self, begin_at_end, read_appended_from, resume_after, ImportEnv, NewSource, Region, Resume, SharedRef, TailStart};
-use imt_core::ports::{ImportReport, ImportSession, StoreError, StoreResult, Tail, TailAppend, TailFile, TailRead};
+use imt_core::ports::{ImportReport, ImportSession, NewEvents, StoreError, StoreResult, Tail, TailAppend, TailFile, TailRead};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -422,6 +422,10 @@ impl Inner {
         let events: usize = done.iter().map(|a| a.events).sum();
         if events > 0 {
             out.appended += events;
+            out.first_new = Some(NewEvents {
+                id: first_new,
+                ts: done.iter().filter(|a| a.events > 0).filter_map(|a| a.from).min(),
+            });
             out.sources_changed.extend(done.iter().filter(|a| a.events > 0).map(|a| a.id));
             if let Err(e) = pos::append(conn, first_new, before) {
                 log::warn!("time-order positions could not be extended: {e}");
@@ -480,6 +484,7 @@ impl DuckStore {
             }
         }
         out.deleted = gone;
+        let mark = self.inner.id_mark(&conn)?.0;
         for (f, why) in self.inner.append_regions(&conn, appends, hint.is_empty(), &mut out)? {
             reread.push((f, false, why));
         }
@@ -516,6 +521,9 @@ impl DuckStore {
             .collect();
         let report = self.inner.import(&paths, &self.inner.progress)?;
         out.appended += report.events;
+        if report.events > 0 && out.first_new.is_none() {
+            out.first_new = Some(NewEvents { id: mark, ts: None });
+        }
         for s in &report.sources {
             match notes.get(&s.path) {
                 Some((true, _)) => out.truncated.push(s.id),

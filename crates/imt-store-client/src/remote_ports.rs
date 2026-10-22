@@ -197,6 +197,7 @@ mod tests {
     trait Pinger {
         fn ping(&self) -> StoreResult<u8>;
         fn add(&self, n: &u8) -> StoreResult<u8>;
+        fn slow(&self, n: &u8) -> StoreResult<u8>;
     }
 
     struct Toy(Mutex<Vec<&'static str>>);
@@ -222,6 +223,7 @@ mod tests {
                     plain {
                         call Ping: fn ping() -> u8;
                         long Add: fn add(n: &u8) -> u8;
+                        analysis Slow: fn slow(n: &u8) -> u8;
                     }
                     custom {}
                 }
@@ -236,10 +238,11 @@ mod tests {
 
     #[test]
     fn a_new_port_is_one_table_row() {
-        assert_eq!(ToyOp::ALL, &[ToyOp::Ping, ToyOp::Add]);
+        assert_eq!(ToyOp::ALL, &[ToyOp::Ping, ToyOp::Add, ToyOp::Slow]);
         let toy = Toy(Mutex::new(Vec::new()));
         assert_eq!(toy.ping().unwrap(), 7);
         assert_eq!(toy.add(&3).unwrap(), 10);
-        assert_eq!(*toy.0.lock().unwrap(), ["Ping", "Add"]);
+        assert_eq!(toy.slow(&1).unwrap(), 8);
+        assert_eq!(*toy.0.lock().unwrap(), ["Ping", "Add", "Slow"]);
     }
 }

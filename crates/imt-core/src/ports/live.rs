@@ -56,6 +56,19 @@ pub struct TailAppend {
     /// Sources holding back their last event until the file stops growing (plain text events may continue on the
     /// lines that follow): ask again with no paths once the file has stopped growing (`TailOptions::carry_flush_ms`) and the held event is written.
     pub held: Vec<u32>,
+    /// The id of the first event this refresh added, and the earliest time among them: where incremental readers
+    /// (annotators) pick up. `None` when no event was added.
+    #[serde(default)]
+    pub first_new: Option<NewEvents>,
+}
+
+/// Where the events a refresh added start (ids only grow, so they are all at and after `id`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewEvents {
+    pub id: u64,
+    /// The earliest time among the new events (they may be older than events already stored).
+    pub ts: Option<i64>,
 }
 
 impl TailAppend {

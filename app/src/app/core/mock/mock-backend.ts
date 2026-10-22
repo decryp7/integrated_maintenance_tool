@@ -185,9 +185,9 @@ export class MockBackend implements ImtBackend {
     return (this.options.syntheticTotal ?? 0) + this.liveAdded;
   }
 
-  private apply(): void {
+  private apply(keepIds = false): void {
     const t0 = this.clock.elapsed();
-    this.engine.rebuild(this.dataset.records, this.dataset.sources, this.profile);
+    this.engine.rebuild(this.dataset.records, this.dataset.sources, this.profile, keepIds);
     this.loadMs = Math.round(this.clock.elapsed() - t0);
   }
 
@@ -551,7 +551,7 @@ export class MockBackend implements ImtBackend {
     return (
       this.failing('sourceContext') ??
       this.delay(() => {
-        const rec = this.engine.records[request.recordId];
+        const rec = this.engine.records[this.engine.indexOf(request.recordId) ?? -1];
         if (!rec) throw new Error('That event is no longer in the workspace.');
         const before = Math.max(0, Math.min(500, Math.floor(request.before)));
         const after = Math.max(0, Math.min(500, Math.floor(request.after)));
@@ -764,17 +764,14 @@ export class MockBackend implements ImtBackend {
     return this.delay(() => {
       const before = this.engine.records;
       const { source, offsetMs } = resolveOffset(request, before, this.dataset.sources);
-      const keys = (request.track ?? []).map((id) => (before[id] ? recordKey(before[id]) : null));
       const previousMs = shiftSource(this.dataset.records, this.dataset.sources, source, offsetMs);
-      this.apply();
-      const after = new Map(this.engine.records.map((r) => [recordKey(r), r.id]));
+      this.apply(true);
       return {
         source,
         offsetMs,
         previousMs,
         // The log store keeps event ids stable when events move.
         idsChangedFrom: null,
-        tracked: keys.map((k) => (k === null ? null : (after.get(k) ?? null))),
       };
     });
   }

@@ -1539,7 +1539,7 @@ export type OffsetSpec =
   | { kind: 'align'; reference: number; target: number };
 
 /** `set_source_offset` request: the spec plus record ids whose new ids the UI needs (selection, bookmarks; at most 10 000). */
-export type SetOffsetRequest = OffsetSpec & { track?: number[] };
+export type SetOffsetRequest = OffsetSpec;
 
 /** What `set_source_offset` changed. */
 export interface OffsetChange {
@@ -1548,8 +1548,6 @@ export interface OffsetChange {
   previousMs: number;
   /** Ids at and after this one were renumbered (records moved in time); null = none. */
   idsChangedFrom: number | null;
-  /** New id of each tracked id, in request order (null: it no longer exists). */
-  tracked: (number | null)[];
 }
 
 /** `suggest_offsets` request; every key is optional. */

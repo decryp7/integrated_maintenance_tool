@@ -49,9 +49,21 @@ export class MockEngine {
   defaultGroupBy: string[] = [];
   private sourceById = new Map<number, MockSource>();
   private cache: { key: string; ids: number[] } | null = null;
+  /** Event ids by identity (source:line#n), kept across a clock-skew rebuild like the engine keeps ids stable. */
+  private stableIds = new Map<string, number>();
+  private nextId = 0;
+  private indexById = new Map<number, number>();
 
-  /** Re-runs the profile pipeline (extractors + markers) over raw records. */
-  rebuild(raw: MockRecord[], sources: MockSource[], profile: ProfileModel): void {
+  /** The position (in time order) of event `id`, or undefined when it does not exist. */
+  indexOf(id: number): number | undefined {
+    return this.indexById.get(id);
+  }
+
+  /**
+   * Re-runs the profile pipeline (extractors + markers) over raw records. With `keepIds` (a clock-skew change) the
+   * events keep their ids although their order changes; otherwise ids are numbered from the new order.
+   */
+  rebuild(raw: MockRecord[], sources: MockSource[], profile: ProfileModel, keepIds = false): void {
     this.sources = sources;
     this.sourceById = new Map(sources.map((s) => [s.id, s]));
     this.cache = null;
@@ -62,7 +74,24 @@ export class MockEngine {
     this.pipelineStats = piped.stats;
     const records = piped.records.map((r) => ({ ...r, markers: [] as string[] }));
     records.sort((a, b) => (a.ts ?? Number.MAX_SAFE_INTEGER) - (b.ts ?? Number.MAX_SAFE_INTEGER) || a.source - b.source || a.line - b.line);
-    records.forEach((r, i) => (r.id = i));
+    if (!keepIds) {
+      this.stableIds.clear();
+      this.nextId = 0;
+    }
+    const seen = new Map<string, number>();
+    for (const r of records) {
+      const base = `${r.source}:${r.line}`;
+      const n = seen.get(base) ?? 0;
+      seen.set(base, n + 1);
+      const key = `${base}#${n}`;
+      let id = this.stableIds.get(key);
+      if (id === undefined) {
+        id = this.nextId++;
+        this.stableIds.set(key, id);
+      }
+      r.id = id;
+    }
+    this.indexById = new Map(records.map((r, i) => [r.id, i]));
 
     this.decorate(records, profile);
 
@@ -96,7 +125,10 @@ export class MockEngine {
     const records = piped.records.map((r) => ({ ...r, fields: { ...r.fields }, markers: [] as string[] }));
     this.decorate(records, profile);
     const base = this.records.length;
-    records.forEach((r, i) => (r.id = base + i));
+    records.forEach((r, i) => {
+      r.id = this.nextId++;
+      this.indexById.set(r.id, base + i);
+    });
     this.records.push(...records);
     this.cache = null;
     return records;
@@ -254,7 +286,9 @@ export class MockEngine {
     if (this.cache?.key === key) return this.cache.ids;
     const c = this.compile(q);
     const ids: number[] = [];
-    for (const r of this.records) if (c.structural(r) && c.content(r)) ids.push(r.id);
+    this.records.forEach((r, i) => {
+      if (c.structural(r) && c.content(r)) ids.push(i);
+    });
     this.cache = { key, ids };
     return ids;
   }
@@ -294,7 +328,7 @@ export class MockEngine {
     let offset = req.offset;
     let anchorIndex: number | null = null;
     if (req.anchor !== null && req.anchor !== undefined) {
-      const idx = binarySearch(ids, req.anchor);
+      const idx = binarySearch(ids, this.indexOf(req.anchor) ?? -1);
       if (idx >= 0) {
         anchorIndex = req.descending ? total - 1 - idx : idx;
         offset = Math.max(0, anchorIndex - Math.floor(req.limit / 2));

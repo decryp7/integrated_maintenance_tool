@@ -170,6 +170,7 @@ impl Ingest for WorkspaceStore {
             reimported: r.reimported,
             deleted: r.deleted,
             held: Vec::new(),
+            first_new: None,
         })
     }
 }

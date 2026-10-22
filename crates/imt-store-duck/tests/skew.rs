@@ -14,7 +14,6 @@ use std::io::Write;
 fn manual(source: u32, offset_ms: i64) -> SetOffsetRequest {
     SetOffsetRequest {
         spec: OffsetSpec::Manual { source, offset_ms },
-        track: Vec::new(),
     }
 }
 
@@ -57,18 +56,25 @@ fn an_offset_moves_a_files_events_and_is_kept_with_the_store() {
         .collect();
     let b = source_of(&store, "b.log");
 
-    let (first, last) = (ids_before[0].1 .0 as u32, ids_before[3].1 .0 as u32);
-    let change = store
-        .set_source_offset(&SetOffsetRequest {
-            track: vec![first, last, 9_999_999],
-            ..manual(b, 20_000)
-        })
-        .unwrap();
+    let change = store.set_source_offset(&manual(b, 20_000)).unwrap();
     assert_eq!(
         (change.source, change.offset_ms, change.previous_ms, change.ids_changed_from),
         (b, 20_000, 0, None)
     );
-    assert_eq!(change.tracked, [Some(first), Some(last), None], "ids stay; unknown ones are None");
+    // Events keep their ids when they move in time.
+    let ids_after: std::collections::HashMap<_, _> = store
+        .page(&PageQuery {
+            limit: 10,
+            ..PageQuery::default()
+        })
+        .unwrap()
+        .rows
+        .iter()
+        .map(|r| (r.message.clone(), r.id))
+        .collect();
+    for (m, id) in &ids_before {
+        assert_eq!(ids_after[m], *id, "{m} kept its id");
+    }
     let after = times(&store);
     let order: Vec<&str> = after.iter().map(|(m, _)| m.as_str()).collect();
     assert_eq!(order, ["a1", "a2", "b1", "b2"], "b's events moved after a's");
@@ -248,7 +254,6 @@ fn aligning_two_events_and_suggesting_offsets_match_the_reference_store() {
                 reference: ws_ref,
                 target: ws_tgt,
             },
-            track: vec![],
         })
         .unwrap();
     let dc = p
@@ -258,7 +263,6 @@ fn aligning_two_events_and_suggesting_offsets_match_the_reference_store() {
                 reference: duck_first("web01"),
                 target: duck_first("web02"),
             },
-            track: vec![],
         })
         .unwrap();
     assert_eq!(dc.offset_ms, wc.offset_ms);
@@ -271,7 +275,6 @@ fn aligning_two_events_and_suggesting_offsets_match_the_reference_store() {
                 reference: duck_first("web01"),
                 target: duck_first("web01"),
             },
-            track: vec![],
         })
         .unwrap_err()
         .to_string();

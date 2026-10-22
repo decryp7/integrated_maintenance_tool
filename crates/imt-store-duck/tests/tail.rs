@@ -344,3 +344,24 @@ fn the_last_imported_event_is_not_written_twice_when_nothing_continued_it() {
     store.append_tail(&[]).unwrap();
     assert_eq!(messages(&store), ["first", "second", "third", "fourth"]);
 }
+
+/// A refresh says where the events it added start, so incremental readers (annotators) can pick up from there.
+#[test]
+fn a_refresh_reports_where_its_new_events_start() {
+    let logs = TempDir::new("tail-new-logs");
+    let a = logs.0.join("a.log");
+    std::fs::write(&a, "2026-10-14 10:00:00 INFO first\n2026-10-14 10:00:01 INFO second\n").unwrap();
+    let dir = TempDir::new("tail-new-store");
+    let (store, _) = store_with(&dir, Profile::default_profile(), std::slice::from_ref(&logs.0)).unwrap();
+    assert_eq!(store.append_tail(&[]).unwrap().first_new, None);
+    append(
+        &a,
+        "2026-10-14 10:00:02 INFO third\n2026-10-14 10:00:03 INFO fourth\n2026-10-14 10:00:04 INFO fifth\n",
+    );
+    let r = store.append_tail(std::slice::from_ref(&a)).unwrap();
+    let new = r.first_new.expect("events were added");
+    let held = store.append_tail(&[]).unwrap();
+    assert!(new.id >= 2, "ids continue after the imported events: {r:?}");
+    assert!(new.ts.is_some_and(|t| t > 0));
+    assert!(held.first_new.is_some_and(|n| n.id > new.id), "the held event follows: {held:?}");
+}

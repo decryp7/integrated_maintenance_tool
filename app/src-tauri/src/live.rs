@@ -83,6 +83,8 @@ pub(crate) struct LiveSlot {
     flush_wanted: AtomicBool,
     /// A follow-up refresh is waiting for the idle time.
     flush_scheduled: AtomicBool,
+    /// The annotators' pending cursor (first new event since they last ran) and when they last ran.
+    annotating: Mutex<(Option<imt_core::plugin::annotate::RecordCursor>, Option<std::time::Instant>)>,
 }
 
 impl LiveSlot {
@@ -395,8 +397,18 @@ pub(crate) fn apply_changes(state: &WindowState, paths: &[PathBuf]) -> TailRepor
     let options = tail_options(state);
     let done = state.engine.store().map_err(|e| e.message).and_then(|store| {
         let appended = store.append_tail(paths).map_err(|e| e.to_string())?;
-        state.live.flush_wanted.store(!appended.held.is_empty(), Ordering::SeqCst);
-        Ok(state.live.session().after_refresh(&*store, &appended, &options))
+        let report = state.live.session().after_refresh(&*store, &appended, &options);
+        let annotating_later = {
+            let mut a = crate::sync::lock(&state.live.annotating);
+            let (pending, last) = &mut *a;
+            crate::engine::annotate::after_tail(state, &*store, pending, last, appended.first_new, std::time::Instant::now())
+        };
+        // Held events and throttled annotators are both picked up by asking again after the wait.
+        state
+            .live
+            .flush_wanted
+            .store(!appended.held.is_empty() || annotating_later, Ordering::SeqCst);
+        Ok(report)
     });
     match done {
         Ok(report) => report,
@@ -613,7 +625,9 @@ mod tests {
         let report = apply_changes(&st(), std::slice::from_ref(&b));
         assert_eq!(report.appended, 0, "the last line is held back until the file is idle: {report:?}");
         assert!(st().live.flush_wanted.load(Ordering::SeqCst));
-        std::thread::sleep(Duration::from_millis(imt_core::workspace::TailOptions::default().carry_flush_ms + 200));
+        std::thread::sleep(Duration::from_millis(
+            imt_core::workspace::TailOptions::default().carry_flush_ms + 200,
+        ));
         let report = apply_changes(&st(), &[]);
         assert_eq!(report.appended, 1, "{report:?}");
         assert!(!st().live.flush_wanted.load(Ordering::SeqCst));
