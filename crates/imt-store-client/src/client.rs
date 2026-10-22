@@ -24,9 +24,10 @@ use imt_core::exceptions::ExceptionGroup;
 use imt_core::package::ProjectManifest;
 use imt_core::patterns::Pattern;
 use imt_core::ports::{
-    Analysis, Analyzed, DiagnosticRow, Diagnostics, EventView, EventsRequest, Filter, FixEvaluation, ImportSession, IndexStatus, Ingest,
-    PageQuery, PageReply, Positions, Profiles, Projects, Query, QuickFix, Search, SearchReply, SearchRequest, StoreError, StoreResult,
-    SummaryReply,
+    Analysis, Analyzed, Console, DiagnosticRow, Diagnostics, EventView, EventsRequest, Filter, FixEvaluation, ImportSession, IndexStatus,
+    Ingest, Inspect, Maintain, MaintenanceAction, MaintenanceReport, PageQuery, PageReply, Positions, Profiles, Projects, Query, QuickFix,
+    Search, SearchReply, SearchRequest, SegmentsPage, SegmentsRequest, SqlPage, SqlPageRequest, SqlRequest, SqlResult, SqlSchema,
+    StoreError, StoreFields, StoreIndex, StoreMemory, StoreOverview, StoreResult, SummaryReply,
 };
 use imt_core::ql::{Completion, QlError, QlResult, QueryControl};
 use imt_core::spans::infer::{SpanEvaluation, SpanProposal, SpanRuleCheck, SpanRuleRequest};
@@ -847,6 +848,45 @@ impl Search for RemoteStore {
     }
     fn partial_matches(&self, filter: &imt_core::ports::Filter) -> StoreResult<imt_core::ports::PartialMatches> {
         self.analysis(StoreOp::PartialMatches, filter)
+    }
+}
+
+impl Inspect for RemoteStore {
+    fn store_overview(&self) -> StoreResult<StoreOverview> {
+        self.call(StoreOp::StoreOverview, &())
+    }
+    fn store_segments(&self, req: &SegmentsRequest) -> StoreResult<SegmentsPage> {
+        self.call(StoreOp::StoreSegments, req)
+    }
+    fn store_fields(&self) -> StoreResult<StoreFields> {
+        self.call(StoreOp::StoreFields, &())
+    }
+    fn store_index(&self) -> StoreResult<StoreIndex> {
+        self.call(StoreOp::StoreIndex, &())
+    }
+    /// The store's memory with the worker process's (resident memory, Low memory mode).
+    fn store_memory(&self) -> StoreResult<StoreMemory> {
+        self.call(StoreOp::StoreMemory, &())
+    }
+}
+
+impl Maintain for RemoteStore {
+    /// Compaction rewrites segments: a long call.
+    fn maintain(&self, action: MaintenanceAction) -> StoreResult<MaintenanceReport> {
+        self.call_with(StoreOp::StoreMaintain, &action, LONG_TIMEOUT)
+    }
+}
+
+impl Console for RemoteStore {
+    fn sql_schema(&self) -> StoreResult<SqlSchema> {
+        self.call(StoreOp::SqlSchema, &())
+    }
+    /// Cancellable through the thread's current control (the worker interrupts the statement).
+    fn sql_run(&self, req: &SqlRequest) -> StoreResult<SqlResult> {
+        self.analysis(StoreOp::SqlRun, req)
+    }
+    fn sql_page(&self, req: &SqlPageRequest) -> StoreResult<SqlPage> {
+        self.call(StoreOp::SqlPage, req)
     }
 }
 

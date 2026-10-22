@@ -1,5 +1,5 @@
 import { EnvironmentProviders, ErrorHandler, inject, Injector, makeEnvironmentProviders, provideAppInitializer } from '@angular/core';
-import { ApplicationRef, createComponent, EnvironmentInjector } from '@angular/core';
+import { ApplicationRef, EnvironmentInjector } from '@angular/core';
 import { FailureReporter } from '../core/failure-reporter';
 import { Logger, LoggingErrorHandler, withFailureLogging } from '../core/logger';
 import { isTauri } from '../core/platform';
@@ -9,6 +9,7 @@ import { ErrorSnapshotService } from './error-snapshot.service';
 import { SnapshotErrorHandler } from './snapshot-error-handler';
 import { SnapshotBackend, TauriSnapshotBackend } from './snapshot-backend';
 import { SnapshotToast } from './snapshot-toast';
+import { mountInToastStack } from '../ui/toast-stack';
 import { DiagnosticsReportService } from './diagnostics-report.service';
 import { ImtEvents } from '../extensions/events';
 import { browserMocks } from '../core/mock-registry';
@@ -23,10 +24,7 @@ export function createSnapshotBackend(): SnapshotBackend {
 
 /** Mounts the toast once over the app and starts listening. Not awaited: it must not delay the first paint. */
 export function startDiagnostics(): void {
-  const host = document.createElement('imt-snapshot-toast');
-  document.body.append(host);
-  const ref = createComponent(SnapshotToast, { environmentInjector: inject(EnvironmentInjector), hostElement: host });
-  inject(ApplicationRef).attachView(ref.hostView);
+  mountInToastStack(SnapshotToast, 'imt-snapshot-toast', inject(EnvironmentInjector), inject(ApplicationRef));
   void inject(ErrorSnapshotService).start();
   inject(DiagnosticsReportService).start();
 }

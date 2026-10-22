@@ -38,7 +38,7 @@ test.describe('profiling navigation', () => {
     await expect(page.getByRole('status').filter({ hasText: 'Saved Untitled' })).toBeVisible();
 
     await runCommand(page, 'New project');
-    await runCommand(page, 'Profiling: show profiles');
+    await runCommand(page, 'Profiling: show captures');
     const list = page.getByRole('list', { name: 'Open captures' });
     await expect(list).toHaveCount(0);
 

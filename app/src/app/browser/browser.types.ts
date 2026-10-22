@@ -83,6 +83,18 @@ export interface ChatBrowserStatus {
   researchAuto: boolean;
 }
 
+/**
+ * How a chat uses IMT's browser (the composer's "Browser" menu): not at all, read-along (the AI may read the page you
+ * have open, never browsing by itself) or agent mode (the AI drives the browser step by step). Exclusive.
+ */
+export type ChatBrowserMode = 'off' | 'readAlong' | 'agent';
+
+/** The mode a chat's status is in (agent mode wins over read-along). */
+export function chatBrowserMode(s: Pick<ChatBrowserStatus, 'readAlong' | 'agent'> | null): ChatBrowserMode {
+  if (s?.agent) return 'agent';
+  return s?.readAlong ? 'readAlong' : 'off';
+}
+
 export type NoticeKind = 'blocked' | 'download' | 'popup' | 'agentBlocked';
 
 /** Who drives the window's browser now (`browser_driving` and the `driving` event): a chat's agent mode, or research. */

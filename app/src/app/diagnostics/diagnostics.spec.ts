@@ -209,8 +209,9 @@ describe('ErrorSnapshotService', () => {
     }
     expect((await backend.list()).length).toBe(20);
     expect(screen.calls).toBe(20);
-    // The manual command still works.
+    // The manual command still works, and its toast says it was asked for.
     expect(await service.manual()).not.toBeNull();
+    expect(service.toast()).toMatchObject({ kind: 'captured', manual: true });
   });
 
   it('never captures twice at once, so an error raised while capturing cannot recurse', async () => {
@@ -262,6 +263,9 @@ describe('ErrorSnapshotService', () => {
   it('captures panel failures and engine events', async () => {
     service.panelFailed('Timeline', new Error('render broke'));
     await vi.waitFor(async () => expect((await backend.list()).length).toBe(1));
+    // The toast names the panel ("Something went wrong in Timeline.").
+    expect(service.toast()).toMatchObject({ kind: 'captured', where: 'Timeline' });
+    expect(service.toast()?.manual).toBeUndefined();
     now += 20_000;
     await service.start();
     await service.start();

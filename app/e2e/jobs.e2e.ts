@@ -95,6 +95,10 @@ test.describe('jobs', () => {
 
 test.describe('notifications', () => {
   test('a finished job is an unread message; View reads it; live alerts merge; Mark all read', async ({ page }, testInfo) => {
+    // On Playwright's clock: the mock's live alerts are moved on below instead of waited for in real time (rendering
+    // every simulated frame still takes a while on a loaded runner, hence slow).
+    test.slow();
+    await page.clock.install();
     await openAiApp(page, 'mockAiStepMs=200&mockJobsVisibleMs=0&mockJobsAttentionMs=0&mockLive=1&mockLiveRate=20&mockLiveRotateMs=0&mockLiveAlertMs=300');
     const bell = page.getByTestId('status-notifications');
     await explainInBackground(page);
@@ -111,7 +115,9 @@ test.describe('notifications', () => {
 
     // Live alerts: the same kind on the same instance merges into one message with a count.
     await page.locator('imt-status-bar').getByRole('button', { name: 'Live tail', exact: true }).click();
-    await expect(pane.locator('li').filter({ hasText: /\(×\d+\)/ }).first()).toBeVisible({ timeout: 20_000 });
+    // An alert every 300 ms of live ticks, the kinds in turn: within 3 s each kind came more than once.
+    await page.clock.runFor(3_000);
+    await expect(pane.locator('li').filter({ hasText: /\(×\d+\)/ }).first()).toBeVisible();
     await page.locator('imt-status-bar').getByRole('button', { name: 'Live tail', exact: true }).click();
     await pane.getByTestId('notices-mark-all').click();
     await expect(pane.locator('li.unread')).toHaveCount(0);
@@ -124,7 +130,8 @@ test.describe('research', () => {
   test('a question that needs the web is researched by itself and answered with citations', async ({ page }, testInfo) => {
     await openAiApp(page, 'mockJobsVisibleMs=0');
     const chat = await openChat(page);
-    await expect(chat.getByTestId('chat-mode')).toHaveText('Research');
+    // One Research entry; with automatic research on, its tooltip says the AI also researches by itself.
+    await expect(chat.getByTestId('chat-research')).toHaveAttribute('title', /by itself/);
     await ask(chat, 'what does HRESULT 0x80070005 mean for IIS?');
     await waitAnswered(chat);
     const answer = chat.getByTestId('ai-answer-0');
@@ -132,8 +139,7 @@ test.describe('research', () => {
     await expect(answer).toContainText('Likely causes and fixes');
     await expect(answer.locator('.sources')).toContainText('Microsoft Learn');
     await expect(answer).toContainText('skipped: a login');
-    await expect(chat.getByTestId('chat-agent')).not.toBeChecked();
-    await expect(chat.getByTestId('chat-read-along')).not.toBeChecked();
+    await expect(chat.getByTestId('ai-browser-menu')).toContainText('Browser: Off');
     // The research ran as a job: "Research finished" with View.
     await expect(page.getByTestId('notice-toast').filter({ hasText: 'Research finished' })).toBeVisible();
     await openJobs(page);
@@ -147,7 +153,8 @@ test.describe('research', () => {
     await chat.getByTestId('chat-research').click();
     const dialog = page.getByRole('dialog', { name: 'Research the web' });
     await dialog.getByLabel('What should the AI find out?').fill('why does WEB02 deny access?');
-    await dialog.getByTestId('research-run').click();
+    await expect(dialog.getByRole('button', { name: 'Start research' })).toBeDisabled();
+    await dialog.getByRole('button', { name: 'Suggest search text' }).click();
     await expect(dialog.getByTestId('research-flagged')).toContainText('WEB02');
     // Nothing was searched: the AI wrote the search text and the dialog shows it, with who wrote it.
     await expect(dialog.getByLabel('Search text', { exact: true })).toHaveValue('WEB02 deny access');
@@ -171,7 +178,6 @@ test.describe('research', () => {
     const offer = chat.getByTestId('research-offer');
     await expect(offer).toBeVisible();
     await offer.getByTestId('research-offer-agent').click();
-    await expect(chat.getByTestId('chat-agent')).toBeChecked();
-    await expect(chat.getByTestId('chat-mode')).toHaveText('Agent');
+    await expect(chat.getByTestId('ai-browser-menu')).toContainText('Browser: Agent');
   });
 });

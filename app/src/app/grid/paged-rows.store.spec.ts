@@ -48,7 +48,7 @@ describe('liveMode', () => {
 describe('PagedRowsStore', () => {
   it('fetches the first page on reset and serves rows from the cache', async () => {
     const engine = fakeEngine(1200);
-    const totals: number[] = [];
+    const totals: (number | null)[] = [];
     const store = new PagedRowsStore({ fetch: engine.fetch, pageSize: 100, onTotal: (t) => totals.push(t) });
     store.reset(q(), false);
     expect(engine.offsets()).toEqual([0]);
@@ -59,7 +59,11 @@ describe('PagedRowsStore', () => {
     expect(store.total()).toBe(1200);
     expect(store.rowAt(5)?.id).toBe(5);
     expect(store.rowAt(150)).toBeNull();
-    expect(totals).toEqual([1200]);
+    // A new query first clears the old total, so nothing shows a count for the wrong query.
+    expect(totals).toEqual([null, 1200]);
+    store.setTotal(1190);
+    expect(totals).toEqual([null, 1200, 1190]);
+    store.setTotal(1200);
     store.ensureRows([150, 160, 5]);
     expect(engine.offsets()).toEqual([100]);
     // In flight: not asked for twice.

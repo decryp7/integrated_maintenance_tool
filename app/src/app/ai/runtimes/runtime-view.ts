@@ -29,6 +29,8 @@ export function runtimeStageLabel(e: RuntimeRunning, label: string): string {
       return $localize`:@@ai.runtime.stage.unpacking:Unpacking ${label}:label:…`;
     case 'finishing':
       return $localize`:@@ai.runtime.stage.finishing:Finishing ${label}:label:…`;
+    case 'testing':
+      return $localize`:@@ai.runtime.stage.testing:Testing ${label}:label: with your model…`;
   }
 }
 

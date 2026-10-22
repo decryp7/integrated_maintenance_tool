@@ -57,7 +57,7 @@ import { SettingField, SettingsSection } from './settings.types';
       <nav aria-label="Settings sections" i18n-aria-label="@@settings.screen.nav.label">
         <button class="nav" type="button" [attr.aria-current]="isSelected(general) ? 'page' : null" (click)="store.select(general)" i18n="Settings section|Name of the first settings section@@settings.screen.general">General</button>
         <button class="nav" type="button" [attr.aria-current]="isSelected(appearance) ? 'page' : null" (click)="store.select(appearance)" data-testid="settings-nav-appearance" i18n="Settings section|Theme, colour scheme and density@@settings.screen.appearance">Appearance</button>
-        <button class="nav" type="button" [attr.aria-current]="isSelected(storage) ? 'page' : null" (click)="store.select(storage)" i18n="Settings section|What IMT keeps on disk@@settings.storage.nav">Storage</button>
+        <button class="nav" type="button" [attr.aria-current]="isSelected(storage) ? 'page' : null" (click)="store.select(storage)" i18n="Settings section|What IMT keeps on disk@@settings.storage.nav">Disk usage</button>
         <button class="nav" type="button" [attr.aria-current]="isSelected(parsers) ? 'page' : null" (click)="store.select(parsers)" data-testid="settings-nav-parsers" i18n="Settings section|The log formats IMT reads@@settings.parsers.nav">Parsers</button>
         @for (g of navGroups(); track g.id) {
           <div class="group" role="presentation">{{ g.title }}</div>

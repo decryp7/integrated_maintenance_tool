@@ -67,6 +67,8 @@ pub struct SetupOutcome {
     pub provider: Arc<dyn LlmProvider>,
     pub settings: AiSettings,
     pub backend: String,
+    /// What the inference server reported about itself.
+    pub server: Option<crate::worker::protocol::ServerInfo>,
     pub notes: Vec<String>,
 }
 
@@ -276,6 +278,7 @@ impl Setup<'_> {
             provider: loaded.provider,
             settings,
             backend: loaded.backend,
+            server: loaded.server,
             notes,
         })
     }

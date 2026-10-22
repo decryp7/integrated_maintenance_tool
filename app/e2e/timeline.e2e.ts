@@ -101,9 +101,9 @@ test.describe('timeline and analysis', () => {
     // The panel asks again when its width is measured, so more than one request fails before Retry succeeds.
     await openAppWith(page, '?mockFail=queryTimeline:3');
     const card = page.locator('imt-timeline-panel .err-card');
-    await expect(card).toContainText('Could not load the timeline');
+    await expect(card).toContainText("Couldn't load the timeline.");
     await expect(card).toContainText('Simulated queryTimeline failure');
-    await expect(page.locator('imt-root > .toast[role=alert]')).toHaveCount(0);
+    await expect(page.locator('.imt-toast-stack .toast[role=alert]')).toHaveCount(0);
     await expect(async () => {
       if (await card.count()) await card.getByRole('button', { name: 'Retry' }).click();
       await expect(card).toHaveCount(0, { timeout: 1500 });

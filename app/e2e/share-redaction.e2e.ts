@@ -13,7 +13,7 @@ async function runCommand(page: Page, title: string): Promise<void> {
 
 test('the redacted view masks the grid until it is turned off', async ({ page }, testInfo) => {
   await openAppWith(page, '?mockMemoryFeatures=1');
-  await page.getByPlaceholder(/Search messages/).fill('listening');
+  await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('listening');
   const row = page.locator('imt-events-grid [role=row].row').first();
   await expect(row).toContainText('0.0.0.0');
 

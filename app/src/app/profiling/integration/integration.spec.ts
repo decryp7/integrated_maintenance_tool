@@ -63,7 +63,7 @@ describe('ProfileSpanTrack', () => {
     expect(chips(fixture)).toHaveLength(spans.length);
     const orders = chips(fixture).find((c) => c.textContent?.includes('orders.speedscope.json'))!;
     expect(orders.textContent).toContain('▶ ');
-    expect(orders.getAttribute('aria-label')).toBe('Open profile orders.speedscope.json');
+    expect(orders.getAttribute('aria-label')).toBe('Open capture orders.speedscope.json');
     expect(orders.title).toContain('Click to open.');
     const heap = chips(fixture).find((c) => c.textContent?.includes('heap-1'))!;
     expect(heap.textContent).toContain('◆ ');
@@ -185,7 +185,7 @@ describe('ProfileMomentSection', () => {
 
   it('opens the profile on the moment range', async () => {
     const { fixture, ctx, state } = await mountMoment();
-    buttonByText(fixture, 'Open profile on this range').click();
+    buttonByText(fixture, 'Open capture on this range').click();
     expect(ctx.last('showView')).toEqual(['profiling-hotspots']);
     expect(state.profileId()).toBe(1);
     expect(state.range()).not.toBeNull();

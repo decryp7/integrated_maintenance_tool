@@ -5,7 +5,7 @@ test.describe('filters', () => {
   test.beforeEach(async ({ page }) => openApp(page));
 
   test('level chips change the grid total', async ({ page }) => {
-    const levels = page.getByRole('group', { name: 'Levels' });
+    const levels = page.getByRole('toolbar', { name: 'Levels' });
     const total = gridTotal(page);
     const all = await initialTotal(page);
     const chipCount = async (code: string) => parseCount(await levels.getByRole('button', { name: new RegExp(`^${code}`) }).locator('.faint').innerText());
@@ -23,6 +23,19 @@ test.describe('filters', () => {
     await levels.getByRole('button', { name: /^ERR/ }).click();
     await levels.getByRole('button', { name: /^FTL/ }).click();
     await expect(total).toHaveText(all);
+  });
+
+  test('the status bar and the grid agree on the match count, also when nothing matches', async ({ page }) => {
+    const total = gridTotal(page);
+    const all = await initialTotal(page);
+    const status = page.locator('imt-status-bar span', { hasText: 'matching' });
+    await expect(status).toHaveText(`${all} matching`);
+    await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('zzqx-nothing-says-this');
+    await expect(total).toHaveText('0');
+    await expect(status).toHaveText('0 matching');
+    await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('');
+    await expect(total).toHaveText(all);
+    await expect(status).toHaveText(`${all} matching`);
   });
 
   test('text search narrows results and clearing restores them', async ({ page }) => {

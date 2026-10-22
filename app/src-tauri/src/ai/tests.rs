@@ -75,6 +75,11 @@ impl ModelRuntime for FakeRuntime {
         Ok(Loaded {
             provider: Arc::new(ScriptedProvider::new(replies).with_context(req.context)),
             backend: "Fake GPU".into(),
+            server: Some(imt_ai::worker::protocol::ServerInfo {
+                n_ctx: Some(req.context),
+                build: Some("b1-fake".into()),
+                ..Default::default()
+            }),
         })
     }
 }
@@ -150,6 +155,7 @@ struct Fixture {
     host_delay: Duration,
     worker: Option<PathBuf>,
     safe_mode: bool,
+    build_tests: Arc<BuildTests>,
 }
 
 impl Fixture {
@@ -160,6 +166,7 @@ impl Fixture {
             host_delay: Duration::ZERO,
             worker: None,
             safe_mode: false,
+            build_tests: Arc::default(),
         }
     }
 
@@ -188,7 +195,7 @@ impl Fixture {
             disk: Arc::new(BigDisk),
             worker_path: self.worker.clone(),
             download_backoff: Duration::from_millis(1),
-            runtimes: test_runtimes(&self.tmp, self.host_delay),
+            runtimes: test_runtimes_with(&self.tmp, self.host_delay, self.build_tests.clone()),
             settings: Arc::default(),
         }
     }
@@ -1044,9 +1051,34 @@ impl ModelSource for FakeReleases {
     }
 }
 
+/// What the self-test of a new build sees: the servers it was started with and the replies its model gives (each
+/// test run takes the next script; none left: it answers "OK" and "Red.").
+#[derive(Default)]
+struct BuildTests {
+    servers: Mutex<Vec<PathBuf>>,
+    scripts: Mutex<Vec<Vec<Reply>>>,
+}
+
+struct BuildUnderTest(Mutex<Vec<Reply>>);
+
+impl ModelRuntime for BuildUnderTest {
+    fn load(&self, req: &LoadRequest) -> imt_ai::Result<Loaded> {
+        let replies = std::mem::take(&mut *self.0.lock().unwrap());
+        Ok(Loaded {
+            provider: Arc::new(ScriptedProvider::new(replies).with_context(req.context)),
+            backend: "CPU".into(),
+            server: None,
+        })
+    }
+}
+
 /// The runtime manager's adapters for tests: builds in `<tmp>/runtimes`, the fake releases, and a build
 /// report that lists every installed build as usable except Vulkan (no real GPU), like the worker would.
 fn test_runtimes(tmp: &TempDir, delay: Duration) -> super::runtimes::RuntimeDeps {
+    test_runtimes_with(tmp, delay, Arc::new(BuildTests::default()))
+}
+
+fn test_runtimes_with(tmp: &TempDir, delay: Duration, tests: Arc<BuildTests>) -> super::runtimes::RuntimeDeps {
     let assets = runtime_assets();
     let catalog = runtime_catalog(&assets, &tmp.0);
     let c = catalog.clone();
@@ -1093,6 +1125,16 @@ fn test_runtimes(tmp: &TempDir, delay: Duration) -> super::runtimes::RuntimeDeps
                 builds,
                 problem: None,
             })
+        }),
+        build_runtime: Arc::new(move |server: &Path| {
+            tests.servers.lock().unwrap().push(server.to_path_buf());
+            let mut scripts = tests.scripts.lock().unwrap();
+            let replies = if scripts.is_empty() {
+                vec![text("OK"), text("Red.")]
+            } else {
+                scripts.remove(0)
+            };
+            Arc::new(BuildUnderTest(Mutex::new(replies))) as Arc<dyn ModelRuntime>
         }),
     }
 }
@@ -1299,6 +1341,80 @@ fn changing_the_build_restarts_a_loaded_engine_and_deleting_stops_it() {
         (Some("idle"), Some(TEST_FILE))
     );
     assert!(!f.tmp.0.join("runtimes").join(RT_TAG).join("cpu").exists());
+}
+
+#[test]
+fn a_new_runtime_is_switched_to_only_after_it_passes_its_self_test() {
+    let f = Fixture::new("rt-selftest");
+    let core = f.core();
+    let app = f.app(core.clone());
+    let events = setup_events(&app);
+    let rt_events = runtime_events(&app);
+    let main = window(&app, "main");
+    // Without an active model there is nothing to test with: the build installs as before.
+    ipc(&main, "ai_runtime_install", json!({"id": "cpu"})).unwrap();
+    assert_eq!(install_end(&rt_events, "cpu")["stage"], "ready");
+    assert!(f.build_tests.servers.lock().unwrap().is_empty());
+    assert!(!rt_events.lock().unwrap().iter().any(|e| e["stage"] == "testing"));
+    ipc(&main, "ai_setup_run", json!({"modelId": TEST_MODEL})).unwrap();
+    wait_until("ready", || stages(&events).last().is_some_and(|s| s == "ready"));
+    wait_until("loaded", || ipc(&main, "ai_status", json!({})).unwrap()["state"] == "ready");
+    let build_dir = f.tmp.0.join("runtimes").join(RT_TAG).join("cpu");
+    let marker = std::fs::read_to_string(build_dir.join("runtime.json")).unwrap();
+    std::fs::write(build_dir.join("previous.txt"), "the build in use").unwrap();
+
+    // An update whose model cannot answer: refused with a typed error, the build in use stays.
+    *f.build_tests.scripts.lock().unwrap() = vec![vec![Reply::Fail(AiError::Engine("llama-server crashed".into()))]];
+    rt_events.lock().unwrap().clear();
+    ipc(&main, "ai_runtime_install", json!({"id": "cpu"})).unwrap();
+    let end = install_end(&rt_events, "cpu");
+    assert_eq!(
+        (end["stage"].as_str(), end["code"].as_str()),
+        (Some("failed"), Some("selfTestFailed")),
+        "{end}"
+    );
+    let msg = end["message"].as_str().unwrap();
+    assert!(
+        msg.contains("llama-server crashed") && msg.contains("keeps using the previous runtime"),
+        "{msg}"
+    );
+    assert!(rt_events.lock().unwrap().iter().any(|e| e["stage"] == "testing"));
+    assert_eq!(std::fs::read_to_string(build_dir.join("previous.txt")).unwrap(), "the build in use");
+    assert_eq!(std::fs::read_to_string(build_dir.join("runtime.json")).unwrap(), marker);
+    let tested = f.build_tests.servers.lock().unwrap()[0].clone();
+    assert!(
+        tested.parent().unwrap().ends_with(".staging-cpu"),
+        "the unpacked copy is tested: {tested:?}"
+    );
+    // The engine was stopped for the test and loads again on next use.
+    assert_eq!(ipc(&main, "ai_status", json!({})).unwrap()["state"], "idle");
+
+    // One that answers is installed.
+    rt_events.lock().unwrap().clear();
+    ipc(&main, "ai_runtime_install", json!({"id": "cpu"})).unwrap();
+    assert_eq!(install_end(&rt_events, "cpu")["stage"], "ready");
+    assert!(!build_dir.join("previous.txt").exists(), "replaced by the tested build");
+    assert_eq!(f.build_tests.servers.lock().unwrap().len(), 2);
+}
+
+#[test]
+fn the_status_reports_what_the_inference_server_said() {
+    let f = Fixture::new("rt-server-info");
+    let core = f.core();
+    let app = f.app(core.clone());
+    let events = setup_events(&app);
+    let main = window(&app, "main");
+    assert_eq!(ipc(&main, "ai_status", json!({})).unwrap()["server"], Value::Null);
+    ipc(&main, "ai_setup_run", json!({"modelId": TEST_MODEL})).unwrap();
+    wait_until("ready", || stages(&events).last().is_some_and(|s| s == "ready"));
+    wait_until("loaded", || ipc(&main, "ai_status", json!({})).unwrap()["state"] == "ready");
+    let server = ipc(&main, "ai_status", json!({})).unwrap()["server"].clone();
+    assert_eq!(server["build"], "b1-fake");
+    assert!(server["context"].as_u64().unwrap() > 0);
+    assert_eq!(
+        (server["mediaMarker"].clone(), server["chatTemplate"].clone()),
+        (Value::Null, json!(false))
+    );
 }
 
 #[test]

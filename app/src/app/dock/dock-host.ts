@@ -168,16 +168,24 @@ export const HOVER_HIDE_MS = 300;
     /* The cue of a tab dragged off the drop zones: a ghost of the floating panel (or new window) and the hint. */
     .imt-float-cue {
       position: fixed; z-index: 1001; pointer-events: none; display: flex; align-items: flex-start; justify-content: center;
-      padding-top: 10px; border: 2px dashed var(--accent); border-radius: 6px; background: var(--accent-soft);
-      box-shadow: var(--shadow); animation: imt-float-cue-in 120ms ease-out;
+      padding-top: 10px; border: 2px solid var(--accent); border-radius: 6px; background: var(--accent-soft);
+      box-shadow: var(--shadow); opacity: 0.6; animation: imt-float-cue-in 120ms ease-out;
     }
     .imt-float-cue[hidden] { display: none; }
-    .imt-float-cue[data-outcome='window'] { border-style: solid; }
+    /* Off every guide inside the window: only a small hint by the pointer, and the dragged tab chip dims. */
+    .imt-float-cue[data-outcome='cancel'] {
+      border: 0; background: none; box-shadow: none; padding: 0; opacity: 1; overflow: visible; justify-content: flex-start;
+    }
+    .imt-float-cue[data-outcome='cancel'] .imt-float-cue-hint { background: var(--bg-2); color: var(--text); border: 1px solid var(--border-3); }
+    body.imt-drag-cancel .dv-tab-ghost-drag { opacity: 0.5 !important; }
+    /* dockview holds the dragged tab chip just below the pointer, over the guide being aimed at: move it right of and
+       below the pointer so the guide stays visible. */
+    .dv-tab-ghost-drag { margin: 2px 0 0 42px !important; }
     .imt-float-cue-hint {
       padding: 4px 10px; border-radius: 4px; font-size: var(--fs-sm); font-weight: 500; white-space: nowrap;
       background: var(--accent); color: var(--accent-ink); box-shadow: var(--shadow-pop);
     }
-    @keyframes imt-float-cue-in { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes imt-float-cue-in { from { opacity: 0; } }
     @media (prefers-reduced-motion: reduce) { .imt-float-cue { animation: none; } }
     .imt-dockview .dv-drop-target-anchor, .imt-dockview .dv-drop-target-selection {
       border: 2px dashed var(--accent) !important; background-color: var(--accent-soft) !important; border-radius: 2px;

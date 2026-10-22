@@ -9,7 +9,7 @@ test.describe('did you mean', () => {
     const input = await openQuery(page);
     await input.click();
     await input.pressSequentially('MachinName = "WEB01"');
-    await expect(page.locator('#ql-error')).toContainText('unknown field "MachinName"');
+    await expect(page.locator('#ql-error')).toContainText('Unknown field "MachinName"');
     const fix = page.getByTestId('did-you-mean').getByRole('button', { name: 'Replace with MachineName' });
     await expect(fix).toBeVisible();
     await expectNoSeriousViolations(page, testInfo, 'did-you-mean', 'imt-query-view');

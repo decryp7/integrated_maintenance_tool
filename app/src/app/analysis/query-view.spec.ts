@@ -63,15 +63,29 @@ describe('QueryView', () => {
     expect(el(fixture, '.err').textContent).toBe('frob');
     expect(input.getAttribute('aria-invalid')).toBe('true');
     expect(input.getAttribute('aria-describedby')).toBe('ql-error');
-    expect(el(fixture, '#ql-error').textContent).toContain("unknown stage 'frob'");
+    expect(el(fixture, '#ql-error').textContent).toContain("Unknown stage 'frob'");
     expect(el(fixture, '#ql-error').textContent).toContain('column 20');
     expect(el(fixture, '.editor').classList.contains('invalid')).toBe(true);
+    // On the bar's own line (the dock gives the bar one line), and the editor's tooltip carries the same text.
+    expect(el(fixture, '.qbar #ql-error').getAttribute('role')).toBe('alert');
+    expect(el(fixture, '.editor').getAttribute('title')).toBe("Unknown stage 'frob' at column 20");
+  });
+
+  it('marks the previous stats table as stale while the text has an error', async () => {
+    session.table.set({ kind: 'table', columns: ['n'], rows: [[1]] });
+    session.tableText.set('| stats count()');
+    await type('| stats count()');
+    expect(session.tableStale()).toBeNull();
+    await type('| stats count( by');
+    expect(session.tableStale()).toBe('error');
+    await type('| stats count() by level');
+    expect(session.tableStale()).toBe('edited');
   });
 
   it('marks a zero-length error position with a caret', async () => {
     await type('level =');
     expect(el(fixture, '.err-caret')).toBeTruthy();
-    expect(el(fixture, '#ql-error').textContent).toContain('expected a value');
+    expect(el(fixture, '#ql-error').textContent).toContain('Expected a value');
   });
 
   it('suggests completions and accepts one with the keyboard', async () => {

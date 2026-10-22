@@ -8,7 +8,8 @@ use crate::plugins::{NoPlugins, PluginChoice, PluginSource};
 use imt_core::api::WorkspaceState;
 use imt_core::package::ProjectManifest;
 use imt_core::ports::{
-    Analysis, Diagnostics, Filter, ImportSession, Ingest, Positions, Profiles, Projects, Query, Search, StoreError, StoreResult,
+    Analysis, Console, Diagnostics, Filter, ImportSession, Ingest, Inspect, Maintain, Positions, Profiles, Projects, Query, Search,
+    StoreError, StoreResult,
 };
 use imt_core::ql::QueryControl;
 use imt_core::{PluginRegistry, Profile};
@@ -343,6 +344,23 @@ impl Worker {
                 let session = s.reread_parsers()?;
                 reply(&self.session(session))
             }
+            StoreOp::StoreOverview => reply(&s.store_overview()?),
+            StoreOp::StoreSegments => reply(&s.store_segments(&body(b)?)?),
+            StoreOp::StoreFields => reply(&s.store_fields()?),
+            StoreOp::StoreIndex => reply(&s.store_index()?),
+            StoreOp::StoreMemory => {
+                let mut m = s.store_memory()?;
+                m.worker = Some(imt_core::ports::WorkerMemory {
+                    pid: std::process::id(),
+                    rss_bytes: imt_ipc::process::current_rss_bytes(),
+                    low_memory: self.mode == MemoryMode::Low,
+                });
+                reply(&m)
+            }
+            StoreOp::StoreMaintain => reply(&s.maintain(body(b)?)?),
+            StoreOp::SqlSchema => reply(&s.sql_schema()?),
+            StoreOp::SqlRun => run!(s.sql_run(&body(b)?)),
+            StoreOp::SqlPage => reply(&s.sql_page(&body(b)?)?),
             StoreOp::SaveProject => reply(&Projects::save_project(&s, &body::<ProjectManifest>(b)?)?),
             StoreOp::ExportProject => {
                 let r: ExportProject = body(b)?;

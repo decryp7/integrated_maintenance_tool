@@ -67,7 +67,7 @@ import { PROFILING_STYLES } from '../profiling-styles';
         }
       </imt-analysis-state>
     } @else {
-      <imt-no-capture text="Open a profile to see callers and callees." i18n-text="@@profiling.butterfly.noCapture" />
+      <imt-no-capture text="Open a performance capture to see callers and callees." i18n-text="@@profiling.butterfly.noCapture" />
     }
   `,
   styles: [

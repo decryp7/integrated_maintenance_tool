@@ -4,6 +4,7 @@
  * downloads. Mimics `imt_ai::runtimes::overview` closely enough for the UI; the engine is the reference.
  */
 import { AiError } from '../../ai/ai-backend';
+import { MockClock, systemMockClock } from './mock-clock';
 import {
   AiErrorCode,
   AiInstalledRuntime,
@@ -131,7 +132,6 @@ interface Installed {
   problem: string | null;
 }
 
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 function assetNames(b: (typeof BUILDS)[number]): string[] {
   return Array.from({ length: b.assets }, (_, i) =>
@@ -150,6 +150,7 @@ export class MockRuntimes {
     private readonly stepMs: number,
     /** Downloads fail half-way with this error (none when null); archives added by hand still install. */
     private readonly failure: AiError | null = null,
+    private readonly clock: MockClock = systemMockClock,
   ) {
     this.installed =
       mode === 'none'
@@ -274,7 +275,7 @@ export class MockRuntimes {
     const step = async (e: AiRuntimeEvent) => {
       if (job.cancel) throw new AiError('cancelled', 'cancelled');
       this.emit(e);
-      await sleep(this.stepMs * 2);
+      await this.clock.sleep(this.stepMs * 2);
     };
     try {
       const per = Math.round(b.downloadBytes / b.assets);

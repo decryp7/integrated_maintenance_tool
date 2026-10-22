@@ -54,7 +54,7 @@ describe('AiChatPanel', () => {
     const query = vi.spyOn(TestBed.inject(AiCitations), 'query').mockResolvedValueOnce(null).mockResolvedValueOnce('bad');
     at(all<HTMLButtonElement>(f, '.starter'), 0).click();
     await until(f, () => !store.running() && !!root.querySelector('[data-testid=ai-tool-chip]'));
-    expect(el(f, '[data-testid=ai-tool-chip]').textContent).toContain('Query: 1 events');
+    expect(el(f, '[data-testid=ai-tool-chip]').textContent).toContain('Query · 1 event');
     expect(el(f, '.user').textContent).toContain('What happened around');
     // The conversation can be selected and copied (ADR 0028).
     expect(el(f, '.user').classList).toContain('imt-selectable');
@@ -119,20 +119,27 @@ describe('AiChatPanel', () => {
     expect(store.activeTurns()[0]?.proposals[0]?.state).toBe('dismissed');
   });
 
-  it('shows what is sent as context and lets the user leave parts out', async () => {
+  it('chooses what is sent as context from the Context menu', async () => {
     const { f, store } = setup();
     f.detectChanges();
     await until(f, () => !!store.activeId());
-    const chip = el<HTMLButtonElement>(f, '[data-testid=ai-context-chip]');
-    expect(chip.textContent).toContain('view');
-    chip.click();
+    const button = el<HTMLButtonElement>(f, '[data-testid=ai-context-menu]');
+    expect(button.textContent).toContain('Context: Current view');
+    button.click();
     f.detectChanges();
-    const boxes = all<HTMLInputElement>(f, '#ai-chat-context input[type=checkbox]');
-    expect(boxes).toHaveLength(5);
-    at(boxes, 4).dispatchEvent(new Event('change'));
+    const items = [...document.querySelectorAll<HTMLButtonElement>('[data-testid=ai-context-list] [role=menuitemradio]')];
+    expect(items.map((i) => i.querySelector('.mi-label')?.textContent)).toEqual(['Selected events (0)', 'Current view', 'None']);
+    // Nothing is selected: "Selected events" says why it is off.
+    expect(at(items, 0).getAttribute('aria-disabled')).toBe('true');
+    expect(at(items, 0).title).toBe('Select events in the grid first');
+    expect(at(items, 1).getAttribute('aria-checked')).toBe('true');
+    expect(document.querySelector('[data-testid=ai-context-list]')?.textContent).toContain('Nothing leaves this computer.');
+    at(items, 2).click();
     f.detectChanges();
+    expect(store.contextMode()).toBe('none');
     expect(store.toggles().view).toBe(false);
-    expect(chip.textContent).toContain('nothing selected');
+    expect(button.textContent).toContain('Context: None');
+    expect(document.querySelector('[data-testid=ai-context-list]')).toBeNull();
     // The engine's notes about the context show under the answer.
     vi.spyOn(TestBed.inject(AiBackend), 'chatSend').mockResolvedValue(1);
     await store.send('q');
@@ -145,28 +152,49 @@ describe('AiChatPanel', () => {
     const { f, store, platform, backend } = setup();
     f.detectChanges();
     await until(f, () => !!store.activeId() && !el<HTMLTextAreaElement>(f, 'textarea').disabled);
-    expect(buttonByText(f, 'Export…').disabled).toBe(true);
+    const menuItem = (name: string) => [...document.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find((b) => b.textContent?.trim() === name)!;
+    const choose = (name: string) => {
+      el<HTMLButtonElement>(f, '[data-testid=ai-chat-actions]').click();
+      f.detectChanges();
+      menuItem(name).click();
+    };
+    // The header: the chat, New chat and one menu; the model's state on a line below.
+    expect(el(f, 'button[aria-label="New chat"]')).not.toBeNull();
+    el<HTMLButtonElement>(f, '[data-testid=ai-chat-actions]').click();
+    f.detectChanges();
+    expect(menuItem('Export…').getAttribute('aria-disabled')).toBe('true');
+    el<HTMLButtonElement>(f, '[data-testid=ai-chat-actions]').click();
+    f.detectChanges();
     await ask(f, 'q');
     await until(f, () => !store.running());
-    buttonByText(f, 'Export…').click();
+    choose('Export…');
     await until(f, () => !!(f.nativeElement as HTMLElement).querySelector('.ok.banner'));
     expect(platform.pickSavePath).toHaveBeenCalledWith('Export chat', 'q.md', [{ name: 'Markdown', extensions: ['md'] }]);
     expect(el(f, '.ok.banner').textContent).toContain('Exported to /tmp/chat.md');
     // Exporting to the same file again asks before replacing it.
-    buttonByText(f, 'Export…').click();
+    choose('Export…');
     const dialogs = TestBed.inject(DialogService);
     await until(f, () => dialogs.stack().length === 1);
     at(dialogs.stack(), 0).ref.close(true);
     await settle();
     vi.spyOn(backend, 'chatExportMarkdown').mockRejectedValueOnce(new AiError('io', 'disk full'));
-    buttonByText(f, 'Export…').click();
+    choose('Export…');
     await until(f, () => el(f, '.ok.banner').textContent!.includes('Not exported: disk full'));
-    buttonByText(f, 'New chat').click();
+    el<HTMLButtonElement>(f, 'button[aria-label="New chat"]').click();
     await until(f, () => store.sessions().length === 2);
     const select = el<HTMLSelectElement>(f, 'select');
     typeInto(select, at(store.sessions(), 0).id, 'change');
     await until(f, () => store.activeId() === at(store.sessions(), 0).id);
-    el<HTMLButtonElement>(f, 'button[aria-label="Delete this chat"]').click();
+    // Delete chat… asks first: cancelled, nothing is deleted.
+    choose('Delete chat…');
+    await until(f, () => dialogs.stack().length === 1);
+    expect(at(dialogs.stack(), 0).options.title).toBe('Delete this chat?');
+    at(dialogs.stack(), 0).ref.close();
+    await settle();
+    expect(store.sessions()).toHaveLength(2);
+    choose('Delete chat…');
+    await until(f, () => dialogs.stack().length === 1);
+    at(dialogs.stack(), 0).ref.close(true);
     await until(f, () => store.sessions().length === 1);
   });
 
@@ -225,9 +253,10 @@ describe('AiChatPanel and the browser', () => {
     expect(root.textContent).toContain('untrusted web content');
     expect(store.activeTurns()[0]?.citations).toContainEqual({ kind: 'web', title: 'Timeouts', url: 'https://learn.example.com/timeouts' });
     // Agent mode: the search asks for a new site, the next page carries a name from the logs.
-    await until(f, () => !!root.querySelector('[data-testid=chat-agent]'));
-    el<HTMLInputElement>(f, '[data-testid=chat-agent]').click();
-    await until(f, () => !!root.querySelector('[data-testid=chat-agent-stop]'));
+    el<HTMLButtonElement>(f, '[data-testid=ai-browser-menu]').click();
+    f.detectChanges();
+    document.querySelector<HTMLButtonElement>('[data-testid=ai-browser-agent]')!.click();
+    await until(f, () => web.status(id).agent && !!el(f, '[data-testid=ai-browser-menu]').textContent?.includes('Browser: Agent'));
     await ask(f, 'find out on the web why the gateway times out');
     await until(f, () => all(f, '[data-testid=agent-approval]').length === 1);
     buttonByText(f, 'Allow this site for this chat').click();
@@ -241,10 +270,13 @@ describe('AiChatPanel and the browser', () => {
     // Stop while a step waits: the card is denied and agent mode ends.
     await ask(f, 'look up the error again');
     await until(f, () => all(f, '[data-testid=agent-approval]').length === 3);
-    el<HTMLButtonElement>(f, '[data-testid=chat-agent-stop]').click();
+    // Send became Stop while the AI answers.
+    expect(root.querySelector('[data-testid=ai-send]')).toBeNull();
+    el<HTMLButtonElement>(f, '[data-testid=ai-stop]').click();
     await until(f, () => !store.running());
     expect(el(f, '[data-testid=agent-paused]').textContent).toContain('You stopped the AI');
     expect(web.status(id).agent).toBe(false);
+    await until(f, () => !!el(f, '[data-testid=ai-browser-menu]').textContent?.includes('Browser: Off'));
   });
 
   it('shows suggested links as cards that open only on click, and continues after the step cap', { timeout: 30000 }, async () => {

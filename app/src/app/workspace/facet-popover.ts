@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
+import { ErrorDetails } from '../ui/error-details';
 import { Facet } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { formatCount } from '../core/format';
@@ -25,7 +26,7 @@ export interface FacetFilterEvent {
 @Component({
   selector: 'imt-facet-popover',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, VirtualList],
+  imports: [Icon, VirtualList, ErrorDetails],
   // `closed` fires on a click outside or Escape.
   hostDirectives: [{ directive: ClickOutside, outputs: ['imtClickOutside: closed'] }],
   host: { class: 'popover facet', '[style.top.px]': 'top()', '[style.left.px]': 'left()' },
@@ -44,8 +45,7 @@ export interface FacetFilterEvent {
     </div>
     @if (error(); as e) {
       <div class="err" role="alert">
-        <span i18n="@@workspace.facet.loadFailed">Could not load the values: {{ e }}</span>
-        <button class="btn" (click)="load()" i18n="@@workspace.facet.retry">Retry</button>
+        <imt-error-details summary="Couldn't load the values." i18n-summary="@@workspace.facet.loadFailedSummary" [detail]="e" (retry)="load()" />
       </div>
     } @else if (!facet()) {
       <div class="faint" role="status" i18n="@@workspace.facet.loading">Loading…</div>

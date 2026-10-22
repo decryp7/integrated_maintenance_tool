@@ -32,7 +32,8 @@ const groupOf = (page: Page, name: string) => page.locator('.dv-groupview').filt
 async function popOut(page: Page, context: BrowserContext, name: string): Promise<Page> {
   const opened = context.waitForEvent('page');
   await tab(page, name).click();
-  await groupOf(page, name).getByRole('button', { name: 'Pop out to window' }).click();
+  await groupOf(page, name).getByRole('button', { name: 'Panel menu', exact: true }).click();
+  await page.getByRole('menu', { name: 'Actions' }).getByRole('menuitem', { name: 'Pop out to window', exact: true }).click();
   const popup = await opened;
   await expect(popup.locator('imt-popout-shell')).toBeVisible();
   return popup;
@@ -62,9 +63,9 @@ test('a user journey is logged once per operation, in order, with triggers and w
   await expect(tour).toHaveCount(0);
 
   // Filter with words that must never reach the log.
-  await page.getByPlaceholder(/Search messages/).fill('needle-secret-words');
+  await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('needle-secret-words');
   await expect.poll(() => (find(entries, 0, { Operation: 'search.change' }) >= 0 ? 'ok' : entries.map((e) => e.message).join(' | '))).toBe('ok');
-  await page.getByPlaceholder(/Search messages/).fill('');
+  await page.getByRole('textbox', { name: 'Search messages and exceptions' }).fill('');
   await expect.poll(() => entries.filter((e) => e.props['Operation'] === 'search.change').length).toBe(2);
 
   // Select an event.
@@ -99,7 +100,7 @@ test('a user journey is logged once per operation, in order, with triggers and w
     { Operation: 'file.open', Trigger: 'button' },
     { Operation: 'search.change', Trigger: 'keyboard' },
     { Operation: 'selection.change', Trigger: 'pointer' },
-    { Operation: 'dock.popout', Panel: 'inspector', Trigger: 'button' },
+    { Operation: 'dock.popout', Panel: 'inspector', Trigger: 'context-menu' },
     { Operation: 'settings.change', Section: 'diagnostics', Fields: /logLevel/, Trigger: 'dialog' },
     // The command runs until its dialog is done, so the export it makes is part of it (one entry).
     { Operation: 'file.export', Title: /^Export events/, Trigger: 'menu', Outcome: 'ok' },

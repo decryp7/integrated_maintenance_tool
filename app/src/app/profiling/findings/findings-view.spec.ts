@@ -33,7 +33,7 @@ describe('evidenceSummary', () => {
 describe('FindingsView', () => {
   it('shows the no-capture state', async () => {
     const { fixture } = await mount({}, false);
-    expect(text(fixture)).toContain('Open a profile to see automatic findings.');
+    expect(text(fixture)).toContain('Open a performance capture to see automatic findings.');
   });
 
   it('lists findings with severity label, title, detail, value and evidence summary', async () => {

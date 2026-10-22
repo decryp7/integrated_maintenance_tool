@@ -15,6 +15,7 @@ import { PANEL_VISIBLE } from '../core/panel-visibility';
 import { DockHost } from './dock-host';
 import { DockService, keepGroupsUnscrolled, PANEL, QUERY_HEIGHT, QUERY_VIEW } from './dock.service';
 import { GroupActions } from './group-actions';
+import { ContextMenuService } from '../ui/context-menu.service';
 import { EMPTY_EXTRAS, LAYOUT_KEY, LAYOUT_STORE, ENVELOPE_VERSION, LayoutStore, LocalStorageLayoutStore } from './layout-store';
 import { PanelTab, tabPanelId } from './panel-tab';
 import { loadDockview } from './dockview-loader';
@@ -715,16 +716,34 @@ describe('DockService with dockview', () => {
     expect(container.querySelector('button[aria-label="Restore panel size"]')).toBeNull();
   });
 
-  it('floats a group and docks it back', () => {
+  /** Chooses an item of the panel menu opened from the first group's ⋯ button. */
+  function fromGroupMenu(label: string): void {
+    const menus = TestBed.inject(ContextMenuService);
+    container.querySelector<HTMLButtonElement>('button[aria-label="Panel menu"]')!.click();
+    menus.menu()!.items.find((i) => i.label === label)!.run();
+    menus.close();
+  }
+
+  it('has only the panel menu and Maximize on a group header', () => {
     const { dock } = setup();
     dock.attach(container);
     withPanels(dock);
-    container.querySelector<HTMLButtonElement>('button[aria-label="Float panel"]')!.click();
+    const header = container.querySelector('.imt-dock-actions')!;
+    expect([...header.querySelectorAll('button')].map((b) => b.getAttribute('aria-label'))).toEqual(['Panel menu', 'Maximize panel']);
+    expect(header.querySelector('button')!.getAttribute('aria-haspopup')).toBe('menu');
+  });
+
+  it('floats a group from its panel menu and docks it back', () => {
+    const { dock } = setup();
+    dock.attach(container);
+    withPanels(dock);
+    fromGroupMenu('Float');
     expect(container.querySelector('.dv-resize-container')).not.toBeNull();
-    const dockBack = container.querySelector<HTMLButtonElement>('button[aria-label="Dock panel back into the window"]')!;
-    expect(dockBack).not.toBeNull();
-    dockBack.click();
-    expect(container.querySelector('button[aria-label="Dock panel back into the window"]')).toBeNull();
+    const menus = TestBed.inject(ContextMenuService);
+    container.querySelector<HTMLButtonElement>('.dv-resize-container button[aria-label="Panel menu"]')!.click();
+    menus.menu()!.items.find((i) => i.label === 'Dock')!.run();
+    menus.close();
+    expect(container.querySelector('.dv-resize-container')).toBeNull();
     expect(ids(dock)).toHaveLength(4);
   });
 
@@ -746,8 +765,10 @@ describe('DockService with dockview', () => {
     const { dock } = setup();
     dock.attach(container);
     for (const id of ['events', 'inspector', 'metrics', 'profile']) dock.close(id);
-    container.querySelector<HTMLButtonElement>('button[aria-label="Float panel"]')!.click();
-    container.querySelector<HTMLButtonElement>('button[aria-label="Dock panel back into the window"]')!.click();
+    const api = dock['api']!;
+    dock.toggleFloat(api.getPanel('timeline')!.group);
+    expect(api.getPanel('timeline')!.group.api.location.type).toBe('floating');
+    dock.toggleFloat(api.getPanel('timeline')!.group);
     expect(ids(dock)).toEqual(['timeline']);
   });
 
@@ -963,9 +984,9 @@ describe('DockHost', () => {
 
 describe('GroupActions', () => {
   it('only wires up once initialised and disposes its subscriptions', () => {
-    const a = new GroupActions({ toggleFloat: () => undefined, popOut: () => undefined, autoHide: () => undefined, isTool: () => false, canPopOut: () => true, openMenu: () => undefined });
+    const a = new GroupActions({ openMenu: () => undefined });
     a.dispose();
-    expect(a.element.querySelectorAll('button')).toHaveLength(5);
+    expect(a.element.querySelectorAll('button')).toHaveLength(2);
   });
 });
 

@@ -28,7 +28,7 @@ import { MeasurementTag } from '../profiling-shared';
               <span class="mono muted" i18n="@@profiling.moment.samples">{{ count(m.samples) // i18n(ph: "samples") }} samples · {{ ns(m.value) // i18n(ph: "value") }}</span>
               <imt-measurement [m]="m.measurement" />
               <span class="spacer"></span>
-              <button class="btn" type="button" (click)="open(m)" i18n="@@profiling.moment.open">Open profile on this range</button>
+              <button class="btn" type="button" (click)="open(m)" i18n="@@profiling.moment.open">Open capture on this range</button>
             </div>
             <ol class="top">
               @for (r of m.top; track r.key) {

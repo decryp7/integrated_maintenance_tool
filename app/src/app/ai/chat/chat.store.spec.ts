@@ -52,24 +52,31 @@ describe('ChatStore', () => {
       images: [],
     });
     const t = at(store.activeTurns(), 0);
-    expect(t.tools[0]).toMatchObject({ name: 'run_query', running: false, summary: '1 events' });
+    expect(t.tools[0]).toMatchObject({ name: 'run_query', running: false, summary: '1 event' });
     expect(t.text).toContain('OutOfMemoryException');
     expect(t.citations.length).toBe(2);
     await vi.waitFor(() => expect(store.sessions()[0]?.title).toBe('what crashed?'));
-    // Grid multi-selection wins; toggles leave things out.
+    // Grid multi-selection wins; "Current view" leaves the selection out, "None" sends nothing.
     TestBed.inject(GridSelection).publish([{ id: 4 } as RecordView, { id: 5 } as RecordView]);
-    store.toggle('filter');
-    store.toggle('range');
+    expect(store.contextMode()).toBe('selection');
     await store.send('more');
     await done(store);
-    expect(backend.sent[1]?.context).toMatchObject({ query: null, timeRange: null, selectedIds: [4, 5] });
-    // A query range when nothing is brushed.
+    expect(backend.sent[1]?.context).toMatchObject({ query: 'level >= error', selectedIds: [4, 5] });
+    store.setContextMode('view');
+    await store.send('view only');
+    await done(store);
+    expect(backend.sent[2]?.context).toMatchObject({ query: 'level >= error', timeRange: [1, 9], selectedIds: [] });
+    store.setContextMode('none');
+    await store.send('nothing');
+    await done(store);
+    expect(backend.sent[3]?.context).toEqual({ query: null, timeRange: null, selectedIds: [], focusedInstance: null, openView: null });
+    // Automatic again: a query range when nothing is brushed.
+    store.setContextMode(null);
     TestBed.inject(TimeCursor).select(null);
-    store.toggle('range');
     ws.setRange(100, 200);
     await store.send('range');
     await done(store);
-    expect(backend.sent[2]?.context.timeRange).toEqual([100, 200]);
+    expect(backend.sent[4]?.context.timeRange).toEqual([100, 200]);
     expect(await store.send('   ')).toBe(false);
   });
 

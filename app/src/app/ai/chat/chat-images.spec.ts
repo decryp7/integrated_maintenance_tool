@@ -97,7 +97,7 @@ describe('AiChatPanel images', () => {
     expect(ev.defaultPrevented).toBe(true);
     await until(f, () => all(f, '[data-testid=ai-attachment]').length === 1);
     expect(paste).toHaveBeenCalledWith('iVBORw0KGgoAAAAN', 'clip.png');
-    const form = el<HTMLFormElement>(f, 'form.composer');
+    const form = el<HTMLFormElement>(f, 'form.card');
     const over = withFiles('dragover', []);
     form.dispatchEvent(over);
     f.detectChanges();
@@ -226,7 +226,7 @@ describe('AiChatPanel images', () => {
     const { f, root, store } = env;
     await ready(env);
     const targets = TestBed.inject(DropTargets);
-    const composer = el(f, 'form.composer');
+    const composer = el(f, 'form.card');
     const target = targets.at({ x: 0, y: 0 }, { elementFromPoint: () => composer });
     expect(target?.kind).toBe('aiImages');
     // The engine decides what an image is: a text file is not claimed and opens as a log.
@@ -243,7 +243,7 @@ describe('AiChatPanel images', () => {
   it('claims a desktop drop for a text-only model and shows the offer instead', async () => {
     const env = setup({ vision: 'missing' });
     await ready(env);
-    const composer = el(env.f, 'form.composer');
+    const composer = el(env.f, 'form.card');
     const target = TestBed.inject(DropTargets).at({ x: 0, y: 0 }, { elementFromPoint: () => composer });
     await until(env.f, () => TestBed.inject(AiStatusStore).status()?.vision === false);
     expect(await target!.accept(['/shots/a.png'])).toEqual(['/shots/a.png']);

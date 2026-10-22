@@ -7,6 +7,7 @@
 //! - [`store`]: `<data>/ai/runtimes/`, install (download, verify, unpack) and delete;
 //! - [`builds`]: build ids, labels and the automatic order, shared with the worker;
 //! - [`report`]: which installed builds work here (`imt-ai-worker --list-builds`);
+//! - [`selftest`]: the check a new build passes with the active model before IMT switches to it;
 //! - [`overview`]: what the runtime manager shows.
 
 pub mod builds;
@@ -15,6 +16,7 @@ pub mod github;
 pub mod macos;
 pub mod overview;
 pub mod report;
+pub mod selftest;
 pub mod store;
 pub mod unpack;
 

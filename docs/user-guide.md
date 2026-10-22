@@ -4,6 +4,7 @@ Reference for everyday use: which files IMT reads, how to write a profile, the q
 internal web browser, the keyboard shortcuts and the command line. For what IMT can do, see [features.md](features.md); for a
 first walk-through, see the two-minute tour in the [README](../README.md#quick-start).
 
+- [Glossary](#glossary)
 - [First run and layout](#first-run-and-layout)
 - [Supported inputs](#supported-inputs)
 - [Profiles](#profiles)
@@ -12,6 +13,20 @@ first walk-through, see the two-minute tour in the [README](../README.md#quick-s
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [Command line](#command-line)
 - [Troubleshooting](#troubleshooting)
+
+## Glossary
+
+One word, one meaning: menus, the palette, Settings and these docs use these terms.
+
+| Term | Means | Not to be confused with |
+|---|---|---|
+| **Profile** | The parsing profile: how IMT reads a set of logs (parsers, fields, timestamps, markers, pipeline). *Profile editor*, Settings ▸ Parsers. | A performance capture. |
+| **Performance capture** | A profiler recording (`.nettrace`, `.speedscope.json`, heap snapshot…) opened with *File ▸ Open performance capture…*; listed in *Profiling ▸ Captures*. | A profile. "Profile .NET process" (a verb) records one. |
+| **Project** | One `.imtz` file holding the opened events, the profile, filters, notes and reports (*File ▸ Save project*). | The folder the logs came from. |
+| **Store** | The engine's event database (segments, fields, index) behind a window. | Disk usage. |
+| **Disk usage** | What IMT keeps on disk besides projects: bundle copies, web data, caches (Settings ▸ Disk usage). | The store. |
+| **Compare time ranges** | Two time ranges of the same events side by side (*Analyze ▸ Compare time ranges*). | *Compare configuration files* (two config files) and comparing two performance captures. |
+| **Region** | A part of the window `F6` moves between: activity bar, side bar, filter bar, a panel group, status bar. | A panel (one tab in a group). |
 
 ## First run and layout
 
@@ -258,6 +273,49 @@ Plain filters narrow the grid, timeline and charts; `stats` queries show a resul
 export as CSV. The full grammar is in
 [`crates/imt-core/src/ql/mod.rs`](../crates/imt-core/src/ql/mod.rs).
 
+## The Store pane and the SQL console
+
+*View ▸ Store* (palette: *Open Store*) shows what the store of the window holds and how it is doing, read-only:
+
+- **Overview**: the store folder, its size on disk, events, sources, segments, the data version, what it is doing
+  (ready, importing, indexing) and the last import with its speed.
+- **Segments**: the Parquet files the events are in: rows, size, time range, compression, sources, whether the
+  full-text index has them, the fields they store in their own column, and whether the next compaction rewrites
+  them.
+- **Fields**: each field's type, how it is stored (*declared* by the profile, *promoted* to its own column,
+  *partly* promoted, or in the *overflow* map, which is slower to filter on), how many events have it and roughly
+  how many distinct values it has.
+- **Index**: how many events the full-text index (word search) covers, its size and whether it is catching up.
+- **Memory**: the store worker's memory against its budgets (768 MB importing, 300 MB querying), DuckDB's memory
+  limit and use, whether Low memory mode is on, running jobs and cached analyses.
+- **Maintenance**: *Compact now*, *Rebuild index* and *Clear cached analyses* run as jobs after you confirm; they
+  wait while an import runs.
+
+The **SQL** tab (palette: *Open SQL console*) runs read-only DuckDB SQL. `Ctrl/⌘+Enter` runs, `Esc` stops, the
+editor completes view, column and function names, and *Explain* shows the query plan instead of rows. A query runs
+as a job (stop it in the Jobs pane too), keeps at most 10,000 rows (shown 500 at a time), stops after 30 seconds and
+has 128 MB of memory. Only one `SELECT` (or `WITH`, `FROM`, `VALUES`, `DESCRIBE`...) runs at a time; statements
+that change anything, settings, extensions, other databases, files and URLs are refused (the error names what and
+underlines it). Rows that carry an event `id` can be opened in the Events grid. Save a query with *Save SQL*: it is
+listed under Saved queries with an *SQL* badge and saved in the project.
+
+The console sees four views (version 1; columns are only ever added):
+
+| View | Columns |
+|---|---|
+| `events` | `id`, `ts` (UTC timestamp, NULL when untimed), `level` (`Verbose` … `Fatal`), `source` (a `sources.id`), `line`, `byte_offset`, `message`, `template`, `exception`, `fields` (a map of every other field as text: `fields['RequestId']`) |
+| `sources` | `id`, `name`, `path`, `importer`, `parser`, `events`, `skipped`, `first_ts`, `last_ts`, `bytes` |
+| `fields` | `key`, `type` (`text`, `integer`, `number`, `boolean`), `storage` (`declared`, `promoted`, `partly`, `overflow`), `events`, `fill_rate` (0–1), `approx_distinct` |
+| `notes` | `id`, `anchor` (`event`, `range`, `instant`, `source`, `marker`, `chartPoint`, `project`, `image`), `event_id`, `source_id`, `from_ts`, `to_ts`, `severity`, `tags`, `text`, `author`, `created`, `updated` |
+
+```sql
+SELECT s.name, level, count(*) AS n FROM events e JOIN sources s ON s.id = e.source
+WHERE ts >= TIMESTAMP '2026-10-14 10:00' GROUP BY ALL ORDER BY n DESC;
+SELECT fields['RequestPath'] AS path, quantile_cont(TRY_CAST(fields['ElapsedMs'] AS DOUBLE), 0.95) AS p95
+FROM events WHERE fields['ElapsedMs'] IS NOT NULL GROUP BY path ORDER BY p95 DESC LIMIT 20;
+SELECT n.text, e.message FROM notes n JOIN events e ON e.id = n.event_id;
+```
+
 ## Internal web browser
 
 *Search the web for this error* and the address box of the **Browser** panel (Tools ▸ Browser) open pages in
@@ -342,6 +400,7 @@ there works as described under [Troubleshooting](#behind-a-corporate-proxy-zscal
 | `F1` | Keyboard shortcuts (searchable, printable; generated from the commands) |
 | `Mod+Z` / `Mod+Shift+Z` | Undo / redo the last edit (filters, marker and highlight rules, profile edits, dashboards, reports) |
 | `Mod+O` / `Mod+Shift+O` | Open files / open folder |
+| `Mod+F` | Find: focus the search box (*Edit ▸ Find*) |
 | `Mod+/` | Focus the query bar |
 | `Mod+Enter` | Run the query (in the query bar) |
 | `Mod+Shift+M` | Analyse this moment |
@@ -351,18 +410,25 @@ there works as described under [Troubleshooting](#behind-a-corporate-proxy-zscal
 | `Mod+Shift+E` | Export events |
 | `Mod+Shift+X` | Toggle the redacted view |
 | `Mod+B` | Toggle the sidebar |
+| `F6` / `Shift+F6` | Next / previous region: activity bar, side bar, filter bar, each panel group, status bar |
+| `Mod+0` | Focus the side bar |
+| `Mod+1` … `Mod+9` | Focus panel group 1 … 9 (left to right, top to bottom) |
+| `Mod+Shift+G` | Focus the events grid |
+| `←` / `→` (in the level chips) | Move between the chips (the chips are one Tab stop) |
 | `Mod+,` | Settings |
 | `Alt+←` / `Alt+→` | Previous / next time range |
 | `↑` / `↓` | Move through the events grid |
 | `Esc` (while dragging a tab) | Cancel the drag |
 
-Browser keys such as `F5`/`Mod+R` (reload), `Mod+F` (find, unless IMT binds it), `Mod+P` (print),
+Browser keys such as `F5`/`Mod+R` (reload), `Mod+P` (print),
 `Mod` `+`/`-`/`0` (page zoom) and `Alt+←`/`Alt+→` as browser back/forward do nothing in IMT's windows
 (IMT's own bindings, such as the time-range history above, still work). Release builds also turn off
 the developer tools (`F12`, `Mod+Shift+I`).
 
-To float a panel, drag its tab off the docking guides and release it where the **Release to float**
-ghost shows; release it outside the window (**Release to open in a new window**) to pop it out.
+To float a panel inside the window, choose **Float** in its tab menu or **Window ▸ Float panel**. A
+tab dragged off the docking guides and released inside the window goes back where it was
+(**Release to cancel**); release it outside the window (**Release to open in a new window**) to pop
+it out.
 
 ## Command line
 

@@ -7,7 +7,7 @@ const COMMANDS: [string, string, string?][] = [
   ['file.openFiles', 'Open files…', 'Mod+O'],
   ['file.openFolder', 'Open folder…', 'Mod+Shift+O'],
   ['live.open', 'Open for live tail…'],
-  ['profiling.open', 'Open profile…'],
+  ['profiling.open', 'Open performance capture…'],
   ['project.open', 'Open project…'],
   ['project.recent', 'Open recent project…'],
   ['project.save', 'Save project', 'Mod+S'],
@@ -19,6 +19,9 @@ const COMMANDS: [string, string, string?][] = [
   ['window.close', 'Close window'],
   ['edit.undo', 'Undo', 'Mod+Z'],
   ['edit.redo', 'Redo', 'Mod+Shift+Z'],
+  ['edit.copy', 'Copy'],
+  ['edit.copyJson', 'Copy as JSON'],
+  ['edit.find', 'Find', 'Mod+F'],
   ['palette.open', 'Show all commands', 'Mod+K'],
   ['view.toggleSidebar', 'Toggle sidebar', 'Mod+B'],
   ['view.resetLayout', 'Reset layout'],
@@ -64,6 +67,7 @@ const COMMANDS: [string, string, string?][] = [
   ['window.autoHideAll', 'Auto hide all tool windows'],
   ['window.pinAll', 'Pin all tool windows'],
   ['window.closeAllDocuments', 'Close all documents'],
+  ['window.float', 'Float panel'],
   ['window.popOut', 'Pop out to window', 'Ctrl+Alt+O'],
   ['window.fullScreen', 'Full screen', 'Shift+Alt+Enter'],
   ['window.panelMenu', 'Panel menu (window position)', 'Alt+-'],
@@ -102,7 +106,7 @@ const VIEWS: MenuView[] = [
   ).map(([id, t]) => view(id, t, 'Analysis')),
   view('live-alerts', 'Alerts', 'Live'),
   view('tail-status', 'Tail status', 'Live'),
-  view('profiling.captures', 'Profiles', 'Profiling'),
+  view('profiling.captures', 'Captures', 'Profiling'),
   view('profiling.hotspots', 'Hotspots', 'Profiling'),
   view('profiling.inverted', 'Inverted tree', 'Profiling', { menu: 'palette' }),
   view('profiling.butterfly', 'Callers and callees', 'Profiling', { menu: 'palette' }),
@@ -176,9 +180,9 @@ describe('menu model', () => {
     ]);
     // The analyses in a fixed order; other analysis views (markers, notes, plugins') after them.
     expect(labels(sub(v, 'Analysis'))).toEqual(['Query results', 'Moment', 'Anomalies', 'Patterns', 'Exceptions', 'Compare', 'Field statistics', 'Traces', '—', 'Markers']);
-    expect(labels(sub(v, 'Live'))).toEqual(['Alerts', 'Tail status']);
+    expect(labels(sub(v, 'Live'))).toEqual(['Toggle live tail', '—', 'Alerts', 'Tail status']);
     // Granular profiling views are reached from inside the profiling views (and the palette), not the menu.
-    expect(labels(sub(v, 'Profiling'))).toEqual(['Profiles', 'Hotspots']);
+    expect(labels(sub(v, 'Profiling'))).toEqual(['Captures', 'Hotspots']);
     expect(labels(sub(v, 'AI'))).toEqual(['Chat', 'Set up…', 'Models…']);
     // Check marks: open views and the sidebar; the theme as a choice.
     const items = menuItems(v);
@@ -220,12 +224,14 @@ describe('menu model', () => {
 
   it('labels Undo and Redo with what they would take back', () => {
     const edit = menu(buildMenus(state()), 'edit').items;
-    expect(labels(edit)).toEqual(['Undo level filter change', 'Redo (nothing to redo)']);
+    // Then Copy, Copy as JSON and Find (F4).
+    expect(labels(edit)).toEqual(['Undo level filter change', 'Redo (nothing to redo)', '—', 'Copy', 'Copy as JSON', '—', 'Find']);
+    expect(edit.find((n) => n.kind === 'item' && n.id === 'edit.find')).toMatchObject({ keybinding: 'Mod+F' });
   });
 
   it('groups Window: layouts submenu, tool window actions, then the windows and pop-outs when there are several', () => {
     const w = menu(buildMenus(state()), 'window').items;
-    expect(labels(w)).toEqual(['Layouts', '—', 'Auto hide all tool windows', 'Pin all tool windows', 'Close all documents', '—', 'Pop out to window', 'Full screen']);
+    expect(labels(w)).toEqual(['Layouts', '—', 'Auto hide all tool windows', 'Pin all tool windows', 'Close all documents', '—', 'Float panel', 'Pop out to window', 'Full screen']);
     expect(labels(sub(w, 'Layouts'))).toEqual(['Save window layout…', '—', 'Apply window layout 1', 'Apply window layout 3', '—', 'Manage window layouts…', 'Reset window layout']);
     const two = menu(
       buildMenus(

@@ -1,5 +1,6 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, effect, ElementRef, inject, Injector, untracked, viewChild } from '@angular/core';
 import { ContextMenuService, MenuEntry } from './context-menu.service';
+import { formatKeybinding, isMac } from '../extensions/keybinding';
 
 /** Accessible context menu: `role=menu`, arrow keys, Home/End, Escape (focus returns), click outside closes. */
 @Component({
@@ -9,9 +10,12 @@ import { ContextMenuService, MenuEntry } from './context-menu.service';
     @if (service.menu(); as m) {
       <div class="backdrop" data-imt-overlay (mousedown)="service.close()" (contextmenu)="$event.preventDefault(); service.close()"></div>
       <div #box class="menu popover" role="menu" aria-label="Actions" i18n-aria-label="@@ui.contextMenu.actions" [style.left.px]="m.x" [style.top.px]="m.y" (keydown)="onKey($event)">
-        @for (item of m.items; track item.label) {
-          <button type="button" role="menuitem" class="item" [class.hinted]="!!item.hint" tabindex="-1" [disabled]="item.disabled" (click)="run(item)">
-            <span>{{ item.label }}</span>
+        @for (item of m.items; track item.label; let i = $index) {
+          @if (i > 0 && item.group !== m.items[i - 1]?.group) {
+            <div class="sep" role="separator"></div>
+          }
+          <button type="button" role="menuitem" class="item" [class.hinted]="!!item.hint" tabindex="-1" [disabled]="item.disabled" [attr.aria-keyshortcuts]="item.shortcut ? ariaKeys(item.shortcut) : null" (click)="run(item)">
+            <span class="row"><span>{{ item.label }}</span>@if (item.shortcut) {<kbd class="kbd">{{ keys(item.shortcut) }}</kbd>}</span>
             @if (item.hint) {
               <span class="hint">{{ item.hint }}</span>
             }
@@ -29,6 +33,10 @@ import { ContextMenuService, MenuEntry } from './context-menu.service';
     .item:disabled { color: var(--faint); cursor: default; }
     .item.hinted { height: auto; min-height: 28px; padding: 4px 10px; flex-direction: column; align-items: flex-start; justify-content: center; white-space: normal; max-width: 360px; }
     .hint { font-size: var(--fs-xs); color: var(--faint); }
+    .row { display: flex; align-items: center; gap: 24px; width: 100%; }
+    .row > :first-child { flex: 1; }
+    .kbd { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--muted); }
+    .sep { height: 1px; margin: 4px 6px; background: var(--border); }
   `,
 })
 export class ContextMenuHost {
@@ -59,6 +67,15 @@ export class ContextMenuHost {
 
   private items(): HTMLButtonElement[] {
     return [...(this.box()?.nativeElement.querySelectorAll<HTMLButtonElement>('[role=menuitem]:not(:disabled)') ?? [])];
+  }
+
+  protected keys(binding: string): string {
+    return formatKeybinding(binding);
+  }
+
+  /** The binding in `aria-keyshortcuts` syntax ("Control+C"). */
+  protected ariaKeys(binding: string): string {
+    return binding.split('+').map((p) => ({ mod: isMac() ? 'Meta' : 'Control', ctrl: 'Control', shift: 'Shift', alt: 'Alt' })[p.toLowerCase()] ?? p.toUpperCase()).join('+');
   }
 
   protected run(item: MenuEntry): void {

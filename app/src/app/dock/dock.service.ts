@@ -169,14 +169,7 @@ export class DockService {
       defaultTabComponent: TAB_COMPONENT,
       createTabComponent: (o) => (o.name === TAB_COMPONENT ? new PanelTab((id, el) => this.openPanelMenu(id, el)) : undefined),
       createRightHeaderActionComponent: () =>
-        new GroupActions({
-          toggleFloat: (g) => this.toggleFloat(g),
-          popOut: (g) => this.popOut(g.activePanel?.id ?? ''),
-          autoHide: (g) => this.unpin(g.activePanel?.id ?? ''),
-          isTool: (g) => !!g.activePanel && this.kindOf(g.activePanel.id) === 'tool',
-          canPopOut: () => this.ctx.windows()?.canPopOut() ?? false,
-          openMenu: (g, anchor) => g.activePanel && this.openPanelMenu(g.activePanel.id, anchor),
-        }),
+        new GroupActions({ openMenu: (g, anchor) => g.activePanel && this.openPanelMenu(g.activePanel.id, anchor) }),
     });
     this.ctx.api = api;
     const onKey = (e: KeyboardEvent) => {
@@ -196,18 +189,16 @@ export class DockService {
       e.preventDefault();
       this.openPanelMenu(id, e.target as HTMLElement, { x: e.clientX, y: e.clientY });
     };
-    // A tab dragged off the drop zones floats where it is released, or pops out when released outside the window
-    // (pointer events: see `dndStrategy`); a cue shows which while dragging.
+    // A tab dragged outside the window pops out where it is released; released inside but off the drop zones the
+    // drag is cancelled. A cue says which while dragging (pointer events: see `dndStrategy`).
     const cue = new FloatCue();
     const floatingMove = new FloatingMove(container);
     const tabDrag = new TabDragOut(container, {
       outcome: (id, p) => this.tabDropOutcome(id, p),
       popOut: (id, at) => void this.popOut(id, at),
-      // After dockview has finished its own (target-less) end of the drag.
-      float: (id, p) => void setTimeout(() => this.floatAt(id, p)),
       cue: (id, p, outcome) => {
         const rect = this.placement.cueRect(id, p, outcome);
-        if (rect) cue.show(outcome, rect);
+        if (rect && outcome) cue.show(outcome, rect);
         else cue.hide();
       },
     });
@@ -418,16 +409,24 @@ export class DockService {
     return this.popOut(this.api?.activePanel?.id ?? '');
   }
 
-  /* ------------------------------------------- tabs dragged out, drops from outside */
-
-  /** What releasing a dragged tab at a client point does: dockview docks it on a drop zone, else it floats or pops out. */
-  tabDropOutcome(id: string, p: Point): TabDropOutcome {
-    return this.placement.tabDropOutcome(id, p);
+  /** Can the active panel float inside the window (it is docked)? */
+  canFloatActive(): boolean {
+    return this.api?.activePanel?.group.api.location.type === 'grid';
   }
 
-  /** Floats a panel where a dragged tab was released (the ghost's place). */
-  floatAt(id: string, p: Point): boolean {
-    return this.placement.floatAt(id, p);
+  /** Floats the active panel inside the window (Window ▸ Float panel): the deliberate way to float, never a drag. */
+  floatActive(): boolean {
+    const panel = this.api?.activePanel;
+    if (!panel || !this.canFloatActive()) return false;
+    this.placement.floatPanel(panel);
+    return true;
+  }
+
+  /* ------------------------------------------- tabs dragged out, drops from outside */
+
+  /** What releasing a dragged tab at a client point does: dockview docks it on a drop zone, outside it pops out, else nothing. */
+  tabDropOutcome(id: string, p: Point): TabDropOutcome {
+    return this.placement.tabDropOutcome(id, p);
   }
 
   /** The guide under a point (client coordinates): where a pop-out dropped there would dock. */

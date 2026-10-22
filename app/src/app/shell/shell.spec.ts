@@ -11,7 +11,7 @@ import { LifecycleService } from '../lifecycle/lifecycle.service';
 import { LiveTail } from '../workspace/live-tail';
 import { Sidebar } from './sidebar';
 import { StatusBar } from './status-bar';
-import { TitleBar } from './title-bar';
+import { openedFolderName, TitleBar } from './title-bar';
 import { IMT_COMMANDS } from '../extensions/tokens';
 import { memoryHost, MockWindowingBackend } from '../windowing/mock-windowing-backend';
 import { WindowCommands } from '../windowing/window-commands';
@@ -59,7 +59,9 @@ describe('TitleBar', () => {
   it('runs menu commands', async () => {
     const { fixture, store, dock } = setup(TitleBar);
     await settle(fixture);
-    expect(text(fixture)).toMatch(/Indexed · \d+(\.\d)? (ms|s|min)/);
+    // The command centre names what is open (here the folder of the opened files), not the parsing profile or progress.
+    expect(el(fixture, '[data-testid=command-centre-name]').textContent).toMatch(/— type a command/);
+    expect(text(fixture)).not.toContain('Indexed');
     await choose(fixture, 'View', 'Explorer');
     expect(store.sidebarOpen()).toBe(false);
     await choose(fixture, 'View', 'Metrics');
@@ -194,10 +196,21 @@ describe('TitleBar', () => {
     expect(TestBed.inject(PaletteService).isOpen()).toBe(true);
   });
 
-  it('shows busy state', async () => {
+  it('shows no progress: busy work is in the status bar (E1)', async () => {
     const { fixture } = setup(TitleBar);
     fixture.detectChanges();
-    expect(text(fixture)).toContain('Loading workspace');
+    expect(text(fixture)).not.toContain('Loading workspace');
+  });
+
+  it('names the saved project, else the folder of the opened files, else "No folder open" (E2)', async () => {
+    const { fixture, store } = setup(TitleBar);
+    await settle(fixture);
+    const name = () => el(fixture, '[data-testid=command-centre-name] .where').textContent;
+    expect(name()).not.toBe('No folder open');
+    await store.clearWorkspace();
+    await settle(fixture);
+    expect(name()).toBe('No folder open');
+    expect(el<HTMLButtonElement>(fixture, '.palette').title).toMatch(/^Command palette \((Ctrl\+K|⌘K)\)$/);
   });
 
   it('embeds the project name, unsaved dot and Administrator badge at its end', async () => {
@@ -214,7 +227,24 @@ describe('TitleBar', () => {
   });
 });
 
+describe('openedFolderName', () => {
+  it('names the deepest folder holding every path', () => {
+    expect(openedFolderName(['/data/logs/a.log', '/data/logs/web/b.log'])).toBe('logs');
+    expect(openedFolderName(['C:\\logs\\web01\\a.log'])).toBe('web01');
+    expect(openedFolderName(['a.log'])).toBe('a.log');
+    expect(openedFolderName(['/a/x.log', '/b/y.log'])).toBe('/');
+  });
+});
+
 describe('StatusBar', () => {
+  it('shows busy work other than imports with a spinner (E1)', async () => {
+    const { fixture } = setup(StatusBar);
+    fixture.detectChanges();
+    expect(el(fixture, '[data-testid=status-busy]').textContent).toContain('Loading workspace');
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-testid=status-busy]')).toBeNull();
+  });
+
   it('summarises the workspace', async () => {
     const { fixture, store } = setup(StatusBar);
     fixture.detectChanges();
@@ -228,12 +258,18 @@ describe('StatusBar', () => {
     expect(text(fixture)).toMatch(/\d+ instances/);
     expect(text(fixture)).toContain('3 matching');
     expect(text(fixture)).toContain('Importers: json · text');
+    expect(el(fixture, '[data-testid=status-profile]').textContent).toContain('Profile: ');
+    expect(all(fixture, 'span').find((s) => /\d+ events/.test(s.textContent ?? ''))?.title).toMatch(/^Indexed in \d/);
     el<HTMLButtonElement>(fixture, '.tz').click();
     expect(store.timezone()).toBe('local');
     await store.clearWorkspace();
     await settle(fixture);
     expect(text(fixture)).toContain('Importers: —');
-    expect(text(fixture)).toContain('0 sources');
+    // Nothing open: no counts, group or profile that describe nothing.
+    expect(text(fixture)).toContain('No files open');
+    expect(text(fixture)).not.toContain('0 sources');
+    expect(text(fixture)).not.toContain('Group:');
+    expect(fixture.nativeElement.querySelector('[data-testid=status-profile]')).toBeNull();
     expect(fixture.nativeElement.querySelector('[data-testid=status-untimed]')).toBeNull();
   });
 

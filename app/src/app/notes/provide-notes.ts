@@ -35,7 +35,7 @@ export function notesCommands(actions: NoteActions, workspace: WorkspaceStore): 
 
 /** "Add note…" in the record context menu (the grid's rows, the inspector's "More actions…"). */
 export function notesRecordMenu(actions: NoteActions): RecordMenuContribution {
-  return (record) => [{ label: $localize`:@@notes.menu.add:Add note…`, run: () => void actions.write(anchors.event(record)) }];
+  return (record) => [{ group: 'mark', shortcut: 'Mod+D', label: $localize`:@@notes.menu.add:Add note…`, run: () => void actions.write(anchors.event(record)) }];
 }
 
 const INSPECTOR_SECTION: ImtInspectorSection = { id: 'notes', title: $localize`:@@notes.inspector.title:Notes`, order: 250, component: NotesInspectorSection };

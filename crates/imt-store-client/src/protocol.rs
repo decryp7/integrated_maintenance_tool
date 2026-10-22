@@ -126,6 +126,25 @@ ops! {
     SetParsers,
     /// → [`Session`]: re-reads the stale sources and the files no parser read
     RereadParsers,
+    // The Store pane (ADR 0030)
+    /// → [`imt_core::ports::StoreOverview`]
+    StoreOverview,
+    /// [`imt_core::ports::SegmentsRequest`] → [`imt_core::ports::SegmentsPage`]
+    StoreSegments,
+    /// → [`imt_core::ports::StoreFields`]
+    StoreFields,
+    /// → [`imt_core::ports::StoreIndex`]
+    StoreIndex,
+    /// → [`imt_core::ports::StoreMemory`], with the worker's process filled in
+    StoreMemory,
+    /// [`imt_core::ports::MaintenanceAction`] → [`imt_core::ports::MaintenanceReport`]
+    StoreMaintain,
+    /// → [`imt_core::ports::SqlSchema`]
+    SqlSchema,
+    /// [`imt_core::ports::SqlRequest`] → [`imt_core::ports::SqlResult`] (cancellable)
+    SqlRun,
+    /// [`imt_core::ports::SqlPageRequest`] → [`imt_core::ports::SqlPage`]
+    SqlPage,
 }
 
 /// "Parse with…": reads one source with the library's parser `parser` (`None`: the automatic choice; ADR 0026).

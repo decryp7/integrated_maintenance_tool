@@ -20,7 +20,7 @@ export function problemsViews(): ImtView[] {
 export function problemsCommands(store: InstanceType<typeof ProblemsStore>): ImtCommand[] {
   const category = $localize`:Command palette category@@problems.category:View`;
   return [
-    { id: 'problems.show', title: $localize`:@@problems.cmd.show:View: Problems`, category, run: (ctx) => ctx.showView(PROBLEMS_VIEW) },
+    { id: 'problems.show', title: $localize`:@@problems.cmd.show:View: Problems`, category, view: PROBLEMS_VIEW, run: (ctx) => ctx.showView(PROBLEMS_VIEW) },
     { id: 'problems.refresh', title: $localize`:@@problems.cmd.refresh:Problems: Refresh`, category, run: () => void store.load() },
   ];
 }

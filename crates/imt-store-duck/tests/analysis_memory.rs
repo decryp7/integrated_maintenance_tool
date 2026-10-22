@@ -32,6 +32,49 @@ const DUCK_LIMIT_MB: u64 = 64;
 /// up to that): the aggregates and the result.
 const GROWTH_OVER_DUCK_MB: u64 = 50;
 
+/// Who holds the memory, printed with each measurement on Linux (diagnosis of the Linux CI peak): the process's
+/// resident memory by kind, its largest mappings, and mimalloc's statistics (IMT's Rust side; the rest of the anonymous
+/// memory is DuckDB's own allocator, jemalloc in its Linux build).
+fn memory_report(stage: &str) {
+    if !cfg!(target_os = "linux") {
+        return;
+    }
+    let status = std::fs::read_to_string("/proc/self/status").unwrap_or_default();
+    let kinds: Vec<&str> = status
+        .lines()
+        .filter(|l| ["VmRSS", "RssAnon", "RssFile", "VmData", "VmSize"].iter().any(|k| l.starts_with(k)))
+        .collect();
+    eprintln!(
+        "[memory] {stage}: {}",
+        kinds.join("; ").split_whitespace().collect::<Vec<_>>().join(" ")
+    );
+    let smaps = std::fs::read_to_string("/proc/self/smaps").unwrap_or_default();
+    let mut maps: Vec<(u64, String)> = Vec::new();
+    let mut name = String::new();
+    for line in smaps.lines() {
+        if line
+            .split_whitespace()
+            .next()
+            .is_some_and(|f| f.contains('-') && f.chars().all(|c| c.is_ascii_hexdigit() || c == '-'))
+        {
+            name = line.split_whitespace().nth(5).unwrap_or("[anon]").to_string();
+        } else if let Some(kb) = line.strip_prefix("Rss:") {
+            let kb: u64 = kb.trim().trim_end_matches("kB").trim().parse().unwrap_or(0);
+            maps.push((kb, name.clone()));
+        }
+    }
+    maps.sort_by_key(|m| std::cmp::Reverse(m.0));
+    let top: Vec<String> = maps.iter().take(8).map(|(kb, n)| format!("{} MB {n}", kb >> 10)).collect();
+    eprintln!("[memory] {stage}: largest mappings: {}", top.join(", "));
+    let mi = imt_alloc::stats_text();
+    let lines: Vec<&str> = mi
+        .lines()
+        .filter(|l| l.contains("reserved") || l.contains("committed") || l.contains("heap stats"))
+        .take(6)
+        .collect();
+    eprintln!("[memory] {stage}: mimalloc: {}", lines.join(" | "));
+}
+
 fn req<T: serde::de::DeserializeOwned>(v: serde_json::Value) -> T {
     serde_json::from_value(v).unwrap()
 }
@@ -80,8 +123,10 @@ fn analyses_stay_within_the_query_budget() {
         let before = rss() >> 20;
         sampler.take_peak_mb();
         let started = Instant::now();
+        memory_report(&format!("{name} before"));
         let found = op();
         let peak = sampler.take_peak_mb();
+        memory_report(&format!("{name} after"));
         eprintln!(
             "{name}: {found} found in {:.2} s; RSS before {before} MB, peak {peak} MB (+{} MB)",
             started.elapsed().as_secs_f64(),

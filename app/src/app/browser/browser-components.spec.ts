@@ -14,7 +14,7 @@ import { POPOUT_ROUTE } from '../popout/popout-route';
 import { ResearchDialog } from './research-dialog';
 import { BrowserBackend, ChatBrowserBackend } from './browser-backend';
 import { BrowserStore } from './browser.store';
-import { AgentDecision } from './browser.types';
+import { AgentDecision, chatBrowserMode } from './browser.types';
 import { engineLabel, handOffText, leakText, noticeText } from './browser-text';
 import { AgentApprovalCard, AgentPaused, LinkCard } from './chat-cards';
 import { ChatBrowserBar } from './chat-browser-bar';
@@ -299,11 +299,15 @@ describe('ResearchDialog', () => {
     expect(research.mock.calls[0]?.[0]).toMatchObject({ question: 'why does it fail?', query: 'UnauthorizedAccessException IIS', recordId: null, confirmed: false });
   });
 
-  it('lets the AI write the text first and never runs without one; data from the logs needs "Research anyway"', async () => {
+  it('lets the AI suggest the text first and never runs without one; data from the logs needs "Research anyway"', async () => {
     const { f, close, ai, root } = open({ question: 'why is WEB01 slow?' });
     const research = vi.spyOn(ai, 'research');
-    expect(el(f, '[data-testid=research-run]').textContent).toContain('Write the search text');
-    el<HTMLButtonElement>(f, '[data-testid=research-run]').click();
+    const start = el<HTMLButtonElement>(f, '[data-testid=research-run]');
+    expect(start.textContent).toContain('Start research');
+    expect(start.disabled).toBe(true);
+    expect(start.title).toBe('Write a search text, or let the AI suggest one');
+    expect(el(f, '[data-testid=research-draft]').textContent).toContain('Suggest search text');
+    el<HTMLButtonElement>(f, '[data-testid=research-draft]').click();
     await until(f, () => !!el<HTMLInputElement>(f, '[data-testid=research-query]').value);
     expect(research).not.toHaveBeenCalled();
     expect(el<HTMLInputElement>(f, '[data-testid=research-query]').value).toBe('WEB01 slow');
@@ -312,6 +316,19 @@ describe('ResearchDialog', () => {
     el<HTMLButtonElement>(f, '[data-testid=research-run]').click();
     await until(f, () => close.mock.calls.length > 0);
     expect(research.mock.calls[0]?.[0]).toMatchObject({ query: 'WEB01 slow', confirmed: true });
+  });
+
+  it('needs a question before anything can be suggested or started', () => {
+    const { f } = open({});
+    const suggest = el<HTMLButtonElement>(f, '[data-testid=research-draft]');
+    expect(suggest.disabled).toBe(true);
+    expect(suggest.title).toBe('Say what the AI should find out first');
+    expect(el<HTMLButtonElement>(f, '[data-testid=research-run]').title).toBe('Say what the AI should find out first');
+    typeInto(el<HTMLTextAreaElement>(f, '[data-testid=research-question]'), 'why?');
+    typeInto(el<HTMLInputElement>(f, '[data-testid=research-query]'), 'why');
+    f.detectChanges();
+    expect(suggest.disabled).toBe(false);
+    expect(el<HTMLButtonElement>(f, '[data-testid=research-run]').title).toContain('the answer arrives in the chat');
   });
 
   it('shows a failed draft and the engine fallback', async () => {
@@ -466,21 +483,45 @@ describe('ChatBrowserBar', () => {
   beforeEach(() => configure());
   afterEach(() => TestBed.resetTestingModule());
 
-  it('switches read-along and agent mode, shows the small-model hint, Stop and the pages', async () => {
+  it('puts a chat in one browser mode at a time: off, read-along or agent', async () => {
+    const store = TestBed.inject(ChatBrowserStore);
+    await store.load('chat-1');
+    expect(chatBrowserMode(store.statusOf('chat-1'))).toBe('off');
+    expect(chatBrowserMode(null)).toBe('off');
+    await store.setMode('chat-1', 'readAlong');
+    expect(web.status('chat-1')).toMatchObject({ readAlong: true, agent: false });
+    await store.setMode('chat-1', 'agent');
+    expect(chatBrowserMode(store.statusOf('chat-1'))).toBe('agent');
+    // The same mode again changes nothing.
+    const setAgent = vi.spyOn(TestBed.inject(ChatBrowserBackend), 'setAgent');
+    await store.setMode('chat-1', 'agent');
+    expect(setAgent).not.toHaveBeenCalled();
+    // Read-along again: agent mode ends, read-along stays.
+    await store.setMode('chat-1', 'readAlong');
+    expect(web.status('chat-1')).toMatchObject({ readAlong: true, agent: false });
+    await store.setMode('chat-1', 'agent');
+    await store.setMode('chat-1', 'off');
+    expect(web.status('chat-1')).toMatchObject({ readAlong: false, agent: false });
+    // A failed step stops there, with the error shown.
+    await store.setMode('chat-1', 'agent');
+    setAgent.mockRejectedValueOnce(new Error('engine busy'));
+    expect(await store.setMode('chat-1', 'off')).toBeNull();
+    expect(store.error()).toBe('engine busy');
+    expect(web.status('chat-1').agent).toBe(true);
+  });
+
+  it('shows what agent mode may do, the small-model hint and the pages', async () => {
     web.smallModel = true;
     const f = TestBed.createComponent(ChatBrowserBar);
     f.componentRef.setInput('sessionId', 'chat-1');
     f.detectChanges();
     await until(f, () => !!TestBed.inject(ChatBrowserStore).statusOf('chat-1'));
     const root = f.nativeElement as HTMLElement;
-    el<HTMLInputElement>(f, '[data-testid=chat-read-along]').click();
-    el<HTMLInputElement>(f, '[data-testid=chat-agent]').click();
-    await until(f, () => !!root.querySelector('[data-testid=chat-agent-stop]'));
+    expect(root.textContent).not.toContain('New sites, typing and forms need your approval');
+    await TestBed.inject(ChatBrowserStore).setMode('chat-1', 'agent');
+    f.detectChanges();
     expect(root.textContent).toContain('New sites, typing and forms need your approval');
     expect(el(f, '[data-testid=chat-small-model]').textContent).toContain('7B or larger');
-    el<HTMLButtonElement>(f, '[data-testid=chat-agent-stop]').click();
-    await until(f, () => !root.querySelector('[data-testid=chat-agent-stop]'));
-    expect(web.status('chat-1')).toMatchObject({ readAlong: true, agent: false });
     // Pages for the next question.
     web.show('https://e.org/a');
     await TestBed.inject(ChatBrowserStore).capture('chat-1');
@@ -488,12 +529,15 @@ describe('ChatBrowserBar', () => {
     expect(el(f, '[data-testid=chat-source]').textContent).toContain('untrusted web content');
     buttonByText(f, 'Remove pages').click();
     await until(f, () => !root.querySelector('[data-testid=chat-source]'));
-    // A failure is shown with Retry.
+    // A failure is shown with Retry, which reads the chat's status again.
     vi.spyOn(TestBed.inject(ChatBrowserBackend), 'setAgent').mockRejectedValueOnce(new Error('engine busy'));
-    el<HTMLInputElement>(f, '[data-testid=chat-agent]').click();
-    await until(f, () => !!root.querySelector('.err'));
+    await TestBed.inject(ChatBrowserStore).setMode('chat-1', 'off');
+    f.detectChanges();
+    expect(el(f, '.err').textContent).toContain('engine busy');
+    const load = vi.spyOn(TestBed.inject(ChatBrowserStore), 'load');
     buttonByText(f, 'Retry').click();
-    await until(f, () => !!root.querySelector('[data-testid=chat-agent-stop]'));
+    await until(f, () => !root.querySelector('.err'));
+    expect(load).toHaveBeenCalledWith('chat-1');
   });
 
   it('offers a web search for the selected event', async () => {

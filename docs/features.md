@@ -62,7 +62,7 @@ covers inputs, profiles, the query language and shortcuts, and [development](dev
 ## Live tail and alerts
 
 - **Open for live tail…** picks files or a folder and follows them, optionally skipping their
-  history (start at end); **Toggle live tail** follows what is already open. Rolled, dated and rotated
+  history (start at end); **View ▸ Live ▸ Toggle live tail** follows what is already open. Rolled, dated and rotated
   files (Serilog, log4net, NLog, logrotate) are followed as one log, across renames, truncation and
   copy-truncate.
 - **Follow** keeps the timeline on the newest events, optionally in a sliding window (last 1, 5, 15
@@ -221,7 +221,7 @@ exports to CSV or HTML.
 
 ## Profiling
 
-Profiler captures open next to the logs (drag them onto the window or use *Open profile…*); IMT tells
+Profiler captures open next to the logs (drag them onto the window or use *Open performance capture…*); IMT tells
 captures from logs by content, so a mixed drop goes to the right place. Formats: `.nettrace`
 (dotnet-trace / EventPipe), `perf script` text, collapsed ("folded") stacks, pprof (`.pb.gz`),
 Chrome trace and `.cpuprofile`, speedscope JSON, and V8/Chromium `.heapsnapshot` files. All analysis
@@ -352,6 +352,13 @@ files…* checks what you downloaded against that SHA-256 before using it, as a 
 progress. A model added with *Add local GGUF…* that is named like a catalog model, or has its exact size,
 is checked the same way.
 
+**The chat's composer** is one card: attached images as thumbnail chips (with *Find related logs* and remove), the
+question box (it grows to eight lines, then scrolls; `Enter` sends, `Shift+Enter` starts a new line) and a toolbar:
+*Attach an image*, **Context ▾** (*Selected events*, *Current view* with its filter and time range, or *None*;
+automatic until you choose: the selected events when there are some), **Browser ▾** (*Off*, *Read along* or *Agent*
+for this chat), one **Research…** (the research dialog, prefilled with what you typed) and **Send**, which becomes
+**Stop** while the AI answers (`Esc` stops too; in agent mode Stop ends agent mode). A disabled button says why.
+
 **Images (text + images, one model).** A model marked *Text + images* reads screenshots too: its multimodal
 projector (the `mmproj` file of the same repository, made for that model) is downloaded and verified with it and
 loaded into the same engine, so there is never a second model in memory ([ADR 0025](adr/0025-vision-one-model.md)).
@@ -379,8 +386,8 @@ forward, the address box (Ctrl+L) with your search engine (Google by default; Du
 or your own URL template with `{q}`, chosen in Settings ▸ Web browser and per search), *Add page
 to AI context* and *Open in your browser*. While a menu, dialog or message is open over the page, the page
 steps aside for that moment. The AI never searches the web by itself. It sees a page only when you add it
-to a chat (as cited, untrusted web content it must not take instructions from), when you turn on *Let AI
-read the browser* for a chat, or in **agent mode**: then it drives the visible browser one step at a time,
+to a chat (as cited, untrusted web content it must not take instructions from), when you set the chat's
+*Browser* menu to *Read along*, or to **Agent**: then it drives the visible browser one step at a time,
 asks before new sites, typing and forms, highlights data from your logs headed into an address or a field,
 stops for logins, payments and CAPTCHAs, and logs every step; *Stop* takes the browser back at once. It
 can also suggest a search or a page as a card that opens only when you click it; *Open and let AI read
@@ -423,7 +430,7 @@ waiting and finished jobs with progress, time left, Cancel, Retry, View and, for
 up and down; a job shows only once it has run about two seconds. When a job of ten seconds or more
 finishes, and always for an answer, a proposal or a written file you asked for, a toast says so with
 **View** ("Explanation ready · View": the answer and its citations, the proposals to review, the analysis
-with its query, the folder set-up with its proposals, Settings ▸ Storage with what was freed, the
+with its query, the folder set-up with its proposals, Settings ▸ Disk usage with what was freed, the
 workspace, the model manager) or **Show in folder** for an exported file, and a desktop notification when
 IMT is not in front. Finished jobs are saved with the project; jobs cut off by a crash come back as
 interrupted, with Retry. **Notifications** (the bell) collects what may need you: finished and failed jobs,
@@ -478,15 +485,17 @@ See [ADR 0012](adr/0012-jobs.md).
 
 ![A floating timeline panel over the events grid](screenshots/floating-panel.png)
 
-Every view is a panel. Drag tabs to split, float a panel (`Float panel` button), maximise it, and
-reset the layout from the command palette. Layouts are remembered.
+Every view is a panel. Drag tabs to split, maximise a panel, and reset the layout from the command
+palette. Layouts are remembered. Floating a panel inside the window is always deliberate: **Float**
+in the tab menu or the group's ⋯ panel menu, or **Window ▸ Float panel**; a drag never floats.
 
 Dragging a tab shows where it goes. On a docking guide (the compass over a group, the guides at
-the dock's edges) or a tab strip it docks there. Anywhere else in the window a dashed ghost of the
-panel, sized as it will float, follows the pointer with **Release to float**; outside the window
-the ghost waits at the window's edge with **Release to open in a new window**. Releasing does
-what the hint says; `Esc` cancels the drag. The hint is also announced to screen readers, and the
-ghost does not animate when reduced motion is on.
+the dock's edges) or a tab strip it docks there. Anywhere else in the window a release cancels the
+drag: the dragged tab dims, a small **Release to cancel** shows by the pointer, and the tab stays
+where it was. Outside the window a translucent preview of the panel follows the pointer along the
+window's edge with **Release to open in a new window**, and releasing there pops the panel out into
+its own window. `Esc` cancels the drag. The hint is also announced to screen readers, and the
+preview does not animate when reduced motion is on.
 
 IMT behaves like a desktop app, not a web page: right-clicking toolbars, tabs and other chrome
 shows IMT's own menus or nothing (text fields and selected text keep the system Copy/Paste menu),
@@ -551,7 +560,7 @@ their pure logic but have not been checked on every desktop environment.
   updates…* or turn on *Check for updates automatically* in Settings ▸ Updates (off by default). The
   check is one HTTPS request for `latest.json` that carries no identifier; every update is verified
   with the key built into the app before it is installed. See [docs/releasing.md](releasing.md).
-- **Storage.** Settings ▸ Storage lists what IMT keeps on disk (opened-bundle copies, the web view
+- **Disk usage.** Settings ▸ Disk usage lists what IMT keeps on disk (opened-bundle copies, the web view
   cache, AI runtimes and models, logs, error snapshots, session backups) with sizes. *Clear cache…*
   says what goes and how much, then removes it.
 - **Language.** All UI text is marked for translation and extracted to an XLF file; a generated
