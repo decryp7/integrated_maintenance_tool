@@ -961,7 +961,15 @@ pub(crate) mod tests {
         let ids: Vec<&str> = o.sections.iter().map(|s| s.section.id.as_str()).collect();
         assert_eq!(
             ids,
-            ["diagnostics", "plugins", "workspace", "performance", "net.decryptology.windows", "t.fragile", "ai"]
+            [
+                "diagnostics",
+                "plugins",
+                "workspace",
+                "performance",
+                "net.decryptology.windows",
+                "t.fragile",
+                "ai"
+            ]
         );
         assert!(!o.restart_pending && !o.safe_mode);
         let diag = view(&o, "diagnostics");

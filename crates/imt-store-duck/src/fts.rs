@@ -242,7 +242,9 @@ impl Fts {
 
     fn writer(&self) -> Result<IndexWriter> {
         let threads = self.budget.threads.max(1);
-        Ok(self.index.writer_with_num_threads(threads, self.budget.heap.max(threads * (15 << 20)))?)
+        Ok(self
+            .index
+            .writer_with_num_threads(threads, self.budget.heap.max(threads * (15 << 20)))?)
     }
 
     fn commit(&self, w: &mut IndexWriter, epoch: u64) -> Result<()> {
