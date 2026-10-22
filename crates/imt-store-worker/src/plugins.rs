@@ -6,7 +6,7 @@
 
 use imt_core::PluginRegistry;
 use imt_plugin_host::installed::PluginsDir;
-use imt_plugin_host::{Builtins, PluginProcess, RemotePlugin};
+use imt_plugin_host::{Builtins, PluginLimits, PluginProcess, RemotePlugin};
 use imt_store_client::protocol::ThirdPartyPlugin;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -70,6 +70,8 @@ pub struct WorkerPlugins {
     builtins_exe: PathBuf,
     builtins: OnceLock<Builtins>,
     third_party: Mutex<HashMap<String, Started>>,
+    /// Settings ▸ Performance's limits of the plugin processes (ADR 0030).
+    limits: PluginLimits,
 }
 
 impl WorkerPlugins {
@@ -79,11 +81,22 @@ impl WorkerPlugins {
             builtins_exe,
             builtins: OnceLock::new(),
             third_party: Mutex::default(),
+            limits: PluginLimits::default(),
         }
     }
 
+    /// The plugin processes with these limits (memory caps, CPU share).
+    pub fn with_limits(mut self, limits: PluginLimits) -> WorkerPlugins {
+        self.limits = limits;
+        self
+    }
+
     fn builtins(&self) -> &Builtins {
-        self.builtins.get_or_init(|| Builtins::load(&self.builtins_exe))
+        self.builtins.get_or_init(|| {
+            let b = Builtins::load(&self.builtins_exe);
+            b.set_limits(&self.limits);
+            b
+        })
     }
 
     /// The process of `spec`: the one already started for the same program, else a new one from its install
@@ -101,6 +114,7 @@ impl WorkerPlugins {
             }
         }
         let process = start_third_party(spec)?;
+        process.set_limits(self.limits.clone());
         let old = started.insert(
             spec.id.clone(),
             Started {

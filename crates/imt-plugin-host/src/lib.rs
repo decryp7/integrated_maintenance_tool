@@ -22,5 +22,5 @@ pub mod remote;
 pub mod sandbox;
 
 pub use builtins::Builtins;
-pub use process::{PluginProcess, PluginSpec};
+pub use process::{PluginLimits, PluginProcess, PluginSpec};
 pub use remote::{deadline_for, RemotePlugin};

@@ -8,7 +8,7 @@ use imt_core::api::{FacetRequest, TimelineRequest};
 use imt_core::batch::SourceId;
 use imt_core::ports::{Analysis, Ingest, PageQuery, Positions, Projects, Query, Search, SearchRequest, StoreError};
 use imt_core::Profile;
-use imt_store_worker::{MemoryMode, StoreWorker, WorkerConfig};
+use imt_store_worker::{MemoryMode, StoreTuning, StoreWorker, WorkerConfig};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -419,4 +419,45 @@ fn a_store_open_in_another_worker_is_locked_with_a_typed_error() {
     assert!(failure.is_retryable());
     second.shutdown();
     first.shutdown();
+}
+
+/// Settings ▸ Performance (ADR 0030): the worker starts with the tuning it is given, and a change reaches its next
+/// start (here after a crash) without a new client.
+#[test]
+fn the_worker_starts_with_its_tuning_and_the_next_start_takes_a_changed_one() {
+    let mut cfg = WorkerConfig::new(env!("CARGO_BIN_EXE_imt-store-worker"));
+    let first = StoreTuning {
+        parse_threads: Some(2),
+        duck_threads: Some(3),
+        memory_limit_mb: Some(160),
+        ..StoreTuning::default()
+    };
+    cfg.tuning = first.clone();
+    let w = StoreWorker::new(cfg).unwrap();
+    let dir = TempDir::new("tuning");
+    let store = w.open_store(&dir.0, Profile::default_profile(), true, None).unwrap();
+    assert_eq!(w.worker_status().unwrap().tuning, first);
+    let second = StoreTuning {
+        duck_threads: Some(1),
+        allocator_background_threads: Some(false),
+        ..StoreTuning::default()
+    };
+    let mut launch = w.launch_settings();
+    assert_eq!(launch.tuning, first);
+    launch.tuning = second.clone();
+    launch.memory_mode = MemoryMode::Low;
+    w.set_launch(launch);
+    assert_eq!(w.worker_status().unwrap().tuning, first, "a running worker keeps its values");
+    kill(&w);
+    // The next call starts the worker again, with the new values; the store reopens.
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let status = loop {
+        match w.worker_status() {
+            Ok(s) => break s,
+            Err(_) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(100)),
+            Err(e) => panic!("the worker did not start again: {e}"),
+        }
+    };
+    assert_eq!((status.tuning, status.memory_mode), (second, MemoryMode::Low));
+    assert_eq!(store.summary().unwrap().total, 0);
 }

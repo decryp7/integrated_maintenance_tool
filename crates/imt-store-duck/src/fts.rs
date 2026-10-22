@@ -48,6 +48,20 @@ pub struct WriterBudget {
     pub threads: usize,
 }
 
+/// The least heap Tantivy's index writer accepts per thread.
+pub const MIN_HEAP_PER_THREAD: usize = 15 << 20;
+
+impl WriterBudget {
+    /// At least one thread and at least [`MIN_HEAP_PER_THREAD`] for each.
+    pub fn floored(self) -> WriterBudget {
+        let threads = self.threads.max(1);
+        WriterBudget {
+            heap: self.heap.max(MIN_HEAP_PER_THREAD * threads),
+            threads,
+        }
+    }
+}
+
 impl Default for WriterBudget {
     fn default() -> Self {
         WriterBudget {

@@ -275,6 +275,108 @@ impl MemoryMode {
     }
 }
 
+/// The worker's command-line argument that carries its [`StoreTuning`] (`--tuning=<json>`).
+pub const TUNING_ARG: &str = "--tuning=";
+
+/// Longest `--tuning` argument the worker reads (a spill folder path and a few numbers).
+const MAX_TUNING_ARG: usize = 8 * 1024;
+
+/// The store worker's knobs from Settings ▸ Performance (ADR 0030), sent on its command line and applied to every
+/// store it opens; each one left out keeps the memory mode's value. Parsed once at the worker's edge
+/// ([`StoreTuning::from_args`]) and bounded there ([`StoreTuning::bounded`]).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct StoreTuning {
+    /// Parse threads of an import.
+    pub parse_threads: Option<usize>,
+    /// DuckDB query threads.
+    pub duck_threads: Option<usize>,
+    /// DuckDB's memory limit, MB.
+    pub memory_limit_mb: Option<u64>,
+    /// The full-text index writer's heap, MB (shared by its threads).
+    pub index_heap_mb: Option<u64>,
+    /// The full-text index writer's threads.
+    pub index_threads: Option<usize>,
+    /// Where DuckDB spills what does not fit in its memory limit (a folder per store below it); absent: the store
+    /// folder's `tmp`.
+    pub spill_dir: Option<PathBuf>,
+    /// The most DuckDB may spill, MB (`max_temp_directory_size`); absent: DuckDB's default.
+    pub max_spill_mb: Option<u64>,
+    /// Freed memory DuckDB's allocator may keep cached, MB (`allocator_flush_threshold`).
+    pub allocator_flush_mb: Option<u64>,
+    /// DuckDB's allocator background threads (`allocator_background_threads`).
+    pub allocator_background_threads: Option<bool>,
+    /// The memory cap of the worker's plugin processes whose manifests name none, MB.
+    pub plugin_memory_mb: Option<u64>,
+    /// Memory caps the user set for single plugins, MB, by plugin id.
+    pub plugin_memory_overrides_mb: std::collections::BTreeMap<String, u64>,
+    /// The CPU share of the worker's plugin processes, percent.
+    pub plugin_cpu_percent: Option<u8>,
+}
+
+/// Bounds of [`StoreTuning`]'s numbers (a hand-edited or hostile command line cannot ask for absurd values).
+pub const MAX_TUNING_THREADS: usize = 256;
+/// The most memory or spill any one tuning value names, MB (1 TiB).
+pub const MAX_TUNING_MB: u64 = 1 << 20;
+/// The most per-plugin memory caps a tuning carries.
+pub const MAX_PLUGIN_OVERRIDES: usize = 256;
+
+impl StoreTuning {
+    /// The worker's arguments for this tuning (none when nothing is set).
+    pub fn args(&self) -> Vec<String> {
+        if *self == StoreTuning::default() {
+            return Vec::new();
+        }
+        serde_json::to_string(self)
+            .map(|json| vec![format!("{TUNING_ARG}{json}")])
+            .unwrap_or_default()
+    }
+
+    /// The tuning the worker's arguments carry: none when absent; an unreadable one is ignored with a message on
+    /// standard error (the worker's log), never a failed start.
+    pub fn from_args(args: impl IntoIterator<Item = String>) -> StoreTuning {
+        let Some(json) = args.into_iter().find_map(|a| a.strip_prefix(TUNING_ARG).map(str::to_string)) else {
+            return StoreTuning::default();
+        };
+        if json.len() > MAX_TUNING_ARG {
+            eprintln!("imt-store-worker: the tuning argument is too long and is ignored");
+            return StoreTuning::default();
+        }
+        match serde_json::from_str::<StoreTuning>(&json) {
+            Ok(t) => t.bounded(),
+            Err(e) => {
+                eprintln!("imt-store-worker: the tuning argument is ignored ({e})");
+                StoreTuning::default()
+            }
+        }
+    }
+
+    /// Every number within its bounds (threads 1..=256, sizes 1 MB..=1 TiB) and a relative spill folder dropped.
+    pub fn bounded(self) -> StoreTuning {
+        let threads = |n: Option<usize>| n.map(|n| n.clamp(1, MAX_TUNING_THREADS));
+        let mb = |n: Option<u64>| n.map(|n| n.clamp(1, MAX_TUNING_MB));
+        StoreTuning {
+            parse_threads: threads(self.parse_threads),
+            duck_threads: threads(self.duck_threads),
+            memory_limit_mb: mb(self.memory_limit_mb),
+            index_heap_mb: mb(self.index_heap_mb),
+            index_threads: threads(self.index_threads),
+            spill_dir: self.spill_dir.filter(|d| d.is_absolute()),
+            max_spill_mb: mb(self.max_spill_mb),
+            allocator_flush_mb: mb(self.allocator_flush_mb),
+            allocator_background_threads: self.allocator_background_threads,
+            plugin_memory_mb: mb(self.plugin_memory_mb),
+            plugin_memory_overrides_mb: self
+                .plugin_memory_overrides_mb
+                .into_iter()
+                .take(MAX_PLUGIN_OVERRIDES)
+                .map(|(id, m)| (id, m.clamp(1, MAX_TUNING_MB)))
+                .collect(),
+            plugin_cpu_percent: self.plugin_cpu_percent.map(|p| p.clamp(1, 100)),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Limits {
@@ -327,6 +429,9 @@ pub struct WorkerStatus {
     /// The mode the worker started in.
     #[serde(default)]
     pub memory_mode: MemoryMode,
+    /// The tuning the worker started with.
+    #[serde(default)]
+    pub tuning: StoreTuning,
 }
 
 /// A [`StoreError`] on the wire.
@@ -452,6 +557,43 @@ mod tests {
         assert_eq!(MemoryMode::from_args(bootstrap), MemoryMode::Low);
         let old: WorkerStatus = serde_json::from_str(r#"{"pid":1,"rssBytes":2,"stores":0}"#).unwrap();
         assert_eq!(old.memory_mode, MemoryMode::Normal);
+    }
+
+    #[test]
+    fn the_tuning_goes_to_the_worker_as_one_bounded_argument() {
+        assert!(StoreTuning::default().args().is_empty(), "nothing set: no argument");
+        let t = StoreTuning {
+            parse_threads: Some(6),
+            memory_limit_mb: Some(256),
+            spill_dir: Some(std::env::temp_dir().join("spill")),
+            allocator_background_threads: Some(false),
+            ..StoreTuning::default()
+        };
+        let mut args = vec!["imt-store-worker".to_string(), "--low-memory".into()];
+        args.extend(t.args());
+        assert_eq!(StoreTuning::from_args(args), t);
+        assert_eq!(StoreTuning::from_args(["x".to_string()]), StoreTuning::default());
+        // Unreadable or oversized: ignored, never a failed start.
+        assert_eq!(StoreTuning::from_args([format!("{TUNING_ARG}{{nope")]), StoreTuning::default());
+        let long = format!("{TUNING_ARG}{{\"spillDir\":\"{}\"}}", "a".repeat(MAX_TUNING_ARG));
+        assert_eq!(StoreTuning::from_args([long]), StoreTuning::default());
+        // Out-of-range numbers are bounded; a relative spill folder is dropped.
+        let wild = StoreTuning::from_args([format!(
+            r#"{TUNING_ARG}{{"parseThreads":0,"duckThreads":100000,"memoryLimitMb":0,"maxSpillMb":99999999999,"spillDir":"rel","pluginCpuPercent":250,"pluginMemoryOverridesMb":{{"a":0}}}}"#
+        )]);
+        assert_eq!(
+            (
+                wild.parse_threads,
+                wild.duck_threads,
+                wild.memory_limit_mb,
+                wild.max_spill_mb,
+                wild.spill_dir
+            ),
+            (Some(1), Some(MAX_TUNING_THREADS), Some(1), Some(MAX_TUNING_MB), None)
+        );
+        assert_eq!((wild.plugin_cpu_percent, wild.plugin_memory_overrides_mb["a"]), (Some(100), 1));
+        let old: WorkerStatus = serde_json::from_str(r#"{"pid":1,"rssBytes":2,"stores":0}"#).unwrap();
+        assert_eq!(old.tuning, StoreTuning::default());
     }
 
     #[test]

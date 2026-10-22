@@ -148,6 +148,13 @@ impl Builtins {
         Ok(())
     }
 
+    /// Settings ▸ Performance's limits for every plugin process here (from each one's next start).
+    pub fn set_limits(&self, limits: &crate::PluginLimits) {
+        for p in &self.processes {
+            p.set_limits(limits.clone());
+        }
+    }
+
     /// No plugins (safe mode).
     pub fn none() -> Builtins {
         Builtins {
