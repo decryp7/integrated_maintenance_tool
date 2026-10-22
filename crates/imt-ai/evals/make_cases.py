@@ -121,18 +121,18 @@ case("propose_regex", id="gateway-timeout", intent="capture timeout, attempt and
 case("propose_regex", id="proxy-completed", intent="capture upstream, path and time", positive=proxy, negative=[])
 case("propose_regex", id="perfmon-row", intent="parse the csv row", positive=perf, negative=perf_neg)
 
-# ---- propose_profile ---------------------------------------------------------
+# ---- propose_parser ---------------------------------------------------------
 def records_text(f, start, n):
     ls = window(f, start, n)
     return sum(1 for l in ls if l and not l[0].isspace() and re.match(r"^(\d{4}-\d\d-\d\d|\{)", l))
 
-case("propose_profile", id="clef-web02", file=A, **{"from": 0}, lines=40, records=40)
-case("propose_profile", id="clef-web01", file=B, **{"from": 100}, lines=40, records=40)
-case("propose_profile", id="serilog-json-gateway", file=C, **{"from": 0}, lines=40, records=40)
-case("propose_profile", id="serilog-text-worker", file=D, **{"from": 0}, lines=40, records=records_text(D, 0, 40))
-case("propose_profile", id="log4net-billing", file=E, **{"from": 0}, lines=40, records=40)
-case("propose_profile", id="log4net-with-stack", file=E, **{"from": 100}, lines=40, records=records_text(E, 100, 40))
-case("propose_profile", id="perfmon-csv", file=F, **{"from": 0}, lines=41, records=40)
+case("propose_parser", id="clef-web02", file=A, **{"from": 0}, lines=40, records=40)
+case("propose_parser", id="clef-web01", file=B, **{"from": 100}, lines=40, records=40)
+case("propose_parser", id="serilog-json-gateway", file=C, **{"from": 0}, lines=40, records=40)
+case("propose_parser", id="serilog-text-worker", file=D, **{"from": 0}, lines=40, records=records_text(D, 0, 40))
+case("propose_parser", id="log4net-billing", file=E, **{"from": 0}, lines=40, records=40)
+case("propose_parser", id="log4net-with-stack", file=E, **{"from": 100}, lines=40, records=records_text(E, 100, 40))
+case("propose_parser", id="perfmon-csv", file=F, **{"from": 0}, lines=41, records=40)
 nginx = """192.0.2.10 - - [14/Oct/2026:10:41:24 +0000] "GET /api/orders HTTP/1.1" 200 1532 "-" "curl/8.4"
 192.0.2.11 - - [14/Oct/2026:10:41:25 +0000] "POST /api/cart HTTP/1.1" 201 88 "-" "Mozilla/5.0"
 192.0.2.10 - - [14/Oct/2026:10:41:26 +0000] "GET /api/orders/91713 HTTP/1.1" 404 12 "-" "curl/8.4"
@@ -141,21 +141,21 @@ nginx = """192.0.2.10 - - [14/Oct/2026:10:41:24 +0000] "GET /api/orders HTTP/1.1
 192.0.2.10 - - [14/Oct/2026:10:41:31 +0000] "GET /api/orders HTTP/1.1" 200 1544 "-" "curl/8.4"
 192.0.2.14 - - [14/Oct/2026:10:41:33 +0000] "DELETE /api/cart/7 HTTP/1.1" 204 0 "-" "Mozilla/5.0"
 192.0.2.10 - - [14/Oct/2026:10:41:35 +0000] "GET /api/orders HTTP/1.1" 200 1520 "-" "curl/8.4\""""
-case("propose_profile", id="nginx-access", text=(nginx,), records=8)
+case("propose_parser", id="nginx-access", text=(nginx,), records=8)
 syslog = """2026-10-14T10:41:24.103512+00:00 web02 sshd[2211]: Accepted publickey for deploy from 192.0.2.50 port 51822 ssh2
 2026-10-14T10:41:30.220871+00:00 web02 kernel: [12345.678] Out of memory: Killed process 4120 (OrderService)
 2026-10-14T10:41:31.004100+00:00 web02 systemd[1]: orderservice.service: Main process exited, code=killed, status=9/KILL
 2026-10-14T10:41:32.500002+00:00 web02 systemd[1]: orderservice.service: Scheduled restart job, restart counter is at 1.
 2026-10-14T10:41:40.118300+00:00 web02 systemd[1]: Started OrderService.
 2026-10-14T10:41:55.001204+00:00 web02 CRON[3021]: (root) CMD (/usr/local/bin/backup.sh)"""
-case("propose_profile", id="syslog", text=(syslog,), records=6)
+case("propose_parser", id="syslog", text=(syslog,), records=6)
 logfmt = """time=2026-10-14T10:41:24Z level=info msg="request completed" method=GET path=/api/orders status=200 dur_ms=216
 time=2026-10-14T10:41:25Z level=warn msg="slow request" method=GET path=/api/cart status=200 dur_ms=2171
 time=2026-10-14T10:41:26Z level=error msg="payment capture failed" order=91713 err="request timed out"
 time=2026-10-14T10:41:27Z level=info msg="request completed" method=POST path=/api/cart status=201 dur_ms=88
 time=2026-10-14T10:41:28Z level=debug msg="cache miss" key=tariff:12
 time=2026-10-14T10:41:29Z level=info msg="request completed" method=GET path=/api/orders status=200 dur_ms=231"""
-case("propose_profile", id="logfmt", text=(logfmt,), records=6)
+case("propose_parser", id="logfmt", text=(logfmt,), records=6)
 java = """2026-10-14 10:41:24,101 INFO  [http-nio-8080-exec-3] c.example.orders.OrderController - Order 91713 created
 2026-10-14 10:41:25,230 WARN  [http-nio-8080-exec-5] c.example.orders.PaymentClient - Gateway slow: 2171 ms
 2026-10-14 10:41:26,415 ERROR [http-nio-8080-exec-5] c.example.orders.PaymentClient - Capture failed for order 91713
@@ -164,21 +164,21 @@ java.net.SocketTimeoutException: Read timed out
 \tat com.example.orders.PaymentClient.capture(PaymentClient.java:88)
 2026-10-14 10:41:27,002 INFO  [http-nio-8080-exec-1] c.example.orders.OrderController - Order 91714 created
 2026-10-14 10:41:28,114 DEBUG [scheduler-1] c.example.orders.Cache - Refreshed tariff cache (148 entries)"""
-case("propose_profile", id="java-log4j-stack", text=(java,), records=5)
+case("propose_parser", id="java-log4j-stack", text=(java,), records=5)
 pipe = """2026-10-14 09:00:05.249|INFO|15|Billing.Invoices.InvoiceWriter|Invoice INV-236778 written
 2026-10-14 09:00:06.945|INFO|6|Billing.Invoices.InvoiceWriter|Invoice INV-741653 written
 2026-10-14 09:00:22.765|WARN|6|Billing.Invoices.InvoiceWriter|Waiting for payment confirmation of order 91713 (31 s)
 2026-10-14 09:00:31.002|ERROR|19|Billing.Invoices.InvoiceWriter|Could not post invoice to ERP
 2026-10-14 09:00:32.125|DEBUG|16|Billing.Cache|Refreshed tariff cache (148 entries)
 2026-10-14 09:00:40.331|INFO|15|Billing.Invoices.InvoiceWriter|Invoice INV-577127 written"""
-case("propose_profile", id="pipe-delimited", text=(pipe,), records=6)
+case("propose_parser", id="pipe-delimited", text=(pipe,), records=6)
 apache = """[Wed Oct 14 10:41:24.103512 2026] [core:error] [pid 2211:tid 140234] [client 192.0.2.50:51822] AH00124: Request exceeded the limit of 10 internal redirects
 [Wed Oct 14 10:41:25.220871 2026] [proxy_http:error] [pid 2211:tid 140235] (70007)The timeout specified has expired: [client 192.0.2.51:40012] AH01102: error reading status line from remote server
 [Wed Oct 14 10:41:26.004100 2026] [php:notice] [pid 2212:tid 140236] [client 192.0.2.52:38800] PHP Notice: Undefined index: cart
 [Wed Oct 14 10:41:27.500002 2026] [mpm_event:warn] [pid 2200:tid 140200] AH00485: scoreboard is full, not at MaxRequestWorkers
 [Wed Oct 14 10:41:28.118300 2026] [ssl:error] [pid 2213:tid 140237] AH02032: Hostname provided via SNI not found in certificate
 [Wed Oct 14 10:41:29.001204 2026] [core:notice] [pid 2200:tid 140200] AH00094: Command line: '/usr/sbin/apache2'"""
-case("propose_profile", id="apache-error", text=(apache,), records=6)
+case("propose_parser", id="apache-error", text=(apache,), records=6)
 python = """2026-10-14 10:41:24,101 - app.orders - INFO - Order 91713 created
 2026-10-14 10:41:25,230 - app.payments - WARNING - Gateway slow: 2171 ms
 2026-10-14 10:41:26,415 - app.payments - ERROR - Capture failed for order 91713
@@ -188,7 +188,7 @@ Traceback (most recent call last):
 TimeoutError: request timed out
 2026-10-14 10:41:27,002 - app.orders - INFO - Order 91714 created
 2026-10-14 10:41:28,114 - app.cache - DEBUG - Refreshed tariff cache (148 entries)"""
-case("propose_profile", id="python-logging-traceback", text=(python,), records=5)
+case("propose_parser", id="python-logging-traceback", text=(python,), records=5)
 
 # ---- propose_pipeline ---------------------------------------------------------
 def goal_case(section, id, goal, f, start, n, **kw):

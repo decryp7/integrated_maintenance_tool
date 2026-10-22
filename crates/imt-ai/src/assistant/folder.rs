@@ -3,7 +3,7 @@
 //! are written from the survey's facts only, and every answer becomes a candidate that the engine validates
 //! and previews exactly like a heuristic one. Invalid answers end up in the skipped list, never applied.
 
-use super::proposals::{ExtractorsProposal, MarkersProposal, PipelineProposal, ProfileProposal};
+use super::proposals::{ExtractorsProposal, MarkersProposal, ParserProposal, PipelineProposal};
 use super::tools::truncate_chars;
 use super::Assistant;
 use crate::access::StoreRef;
@@ -169,7 +169,7 @@ impl<P: LlmProvider> Assistant<P> {
             .take(MAX_FORMAT_GROUPS)
         {
             let file = g.sample_file.clone().unwrap_or_else(|| format!("sample.{}", g.extension));
-            let r = self.propose_profile(store, &g.sample_lines.join("\n"), &file);
+            let r = self.propose_parser(store, &g.sample_lines.join("\n"), &file);
             let Some(p) = c.step(&format!("Format of .{} files", g.extension), r)? else {
                 continue;
             };
@@ -376,7 +376,7 @@ fn pipeline_summary(p: &PipelineProposal) -> String {
 }
 
 /// Text formats of a proposed parser that the generic parser does not have, as regexes.
-fn new_formats(p: &ProfileProposal) -> Vec<String> {
+fn new_formats(p: &ParserProposal) -> Vec<String> {
     let Ok(proposed) = imt_core::parser::Parser::from_toml(&p.toml) else {
         return vec![];
     };

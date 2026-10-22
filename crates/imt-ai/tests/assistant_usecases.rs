@@ -99,7 +99,7 @@ fn regex_needs_examples_and_survives_cancellation() {
     assert!(matches!(a.propose_regex(&invoice_lines(), None), Err(AiError::Cancelled)));
 }
 
-// ---- propose_profile ----
+// ---- propose_parser ----
 
 fn profile_reply(regex: &str, formats: &[&str]) -> String {
     json!({"name": "Billing", "format": "text", "regex": regex, "timestamp_formats": formats, "instance_key": [], "rationale": "log4net layout"}).to_string()
@@ -132,7 +132,7 @@ const PIPE_RE: &str =
 fn profile_proposal_is_compiled_and_previewed() {
     let sample = pipe_sample();
     let a = assistant(&[&profile_reply(PIPE_RE, &["yyyy-MM-dd HH:mm:ss.fff"])]);
-    let p = a.propose_profile(store(), &sample, "billing.log").unwrap();
+    let p = a.propose_parser(store(), &sample, "billing.log").unwrap();
     assert!(p.parsed >= 38 && p.with_timestamp >= 38, "{} {}", p.parsed, p.with_timestamp);
     assert!(p.toml.contains("Thread") && p.importer.is_some());
     assert_eq!(p.preview.len(), 5);
@@ -146,7 +146,7 @@ fn a_regex_that_does_not_fit_is_replaced_by_the_one_the_engine_assembled() {
     let sample = pipe_sample();
     // The engine can assemble a regex for this layout, so the model's wrong answer needs no second round.
     let a = assistant(&[&profile_reply(r"^ZZZ (?P<timestamp>x) (?P<message>y)$", &[])]);
-    match a.propose_profile(store(), &sample, "billing.log") {
+    match a.propose_parser(store(), &sample, "billing.log") {
         Ok(p) => assert!(p.parsed >= 38 && a.provider().requests().len() == 1),
         // If the engine could not assemble one for this shape, the model is asked again.
         Err(e) => assert!(matches!(e, AiError::Malformed(_)) || matches!(e, AiError::Engine(_)), "{e}"),
@@ -156,7 +156,7 @@ fn a_regex_that_does_not_fit_is_replaced_by_the_one_the_engine_assembled() {
 #[test]
 fn files_the_built_in_settings_already_read_need_no_model() {
     let a = assistant(&[]);
-    let p = a.propose_profile(store(), &billing_sample(40), "billing.log").unwrap();
+    let p = a.propose_parser(store(), &billing_sample(40), "billing.log").unwrap();
     assert_eq!(p.name, "Built-in parsers");
     assert!(p.toml.is_empty(), "nothing to add to the library");
     assert!(p.parsed >= 38 && p.rationale.contains("already read"));
@@ -170,7 +170,7 @@ const NGINX_RE: &str = r#"^(?P<client>\S+) \S+ \S+ \[(?P<timestamp>[^\]]+)\] (?P
 fn profile_rejections_feed_back_the_engines_reason() {
     let good = profile_reply(NGINX_RE, &["dd/MMM/yyyy:HH:mm:ss zzz"]);
     assert!(
-        assistant(&[&good]).propose_profile(store(), NGINX, "access.log").is_ok(),
+        assistant(&[&good]).propose_parser(store(), NGINX, "access.log").is_ok(),
         "the good answer works"
     );
     for (bad, needle) in [
@@ -192,21 +192,21 @@ fn profile_rejections_feed_back_the_engines_reason() {
     ] {
         let a = assistant(&[&bad, &good]);
         let p = a
-            .propose_profile(store(), NGINX, "access.log")
+            .propose_parser(store(), NGINX, "access.log")
             .unwrap_or_else(|e| panic!("{needle}: {e}"));
         assert!(p.parsed > 0);
         let feedback = a.provider().requests()[1].messages.last().unwrap().content.clone();
         assert!(feedback.contains(needle), "{needle}: {feedback}");
         // and twice invalid is an error
         assert!(matches!(
-            assistant(&[&bad, &bad]).propose_profile(store(), NGINX, "access.log"),
+            assistant(&[&bad, &bad]).propose_parser(store(), NGINX, "access.log"),
             Err(AiError::Malformed(_))
         ));
     }
     let sample = NGINX;
     let _ = sample;
     assert!(matches!(
-        assistant(&[]).propose_profile(store(), "  \n", "x.log"),
+        assistant(&[]).propose_parser(store(), "  \n", "x.log"),
         Err(AiError::Invalid(_))
     ));
 }

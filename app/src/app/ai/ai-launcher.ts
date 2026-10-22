@@ -13,13 +13,13 @@ export const AI_IMAGE_VIEW = 'ai-image';
 import type { QuerySource, Segment } from '../browser/browser.types';
 
 /** What a "Propose …" entry point asks for. */
-export type ProposeKind = ProfileChangeKind | 'profile';
+export type ProposeKind = ProfileChangeKind | 'parser';
 
 const TITLES: Record<ProposeKind, string> = {
   pipeline: $localize`:@@ai.launcher.title.proposePipeline:Propose pipeline steps`,
   markers: $localize`:@@ai.launcher.title.proposeMarkers:Propose markers`,
   extractors: $localize`:@@ai.launcher.title.proposeExtractors:Propose extractors`,
-  profile: $localize`:@@ai.launcher.title.proposeParser:Propose a parser`,
+  parser: $localize`:@@ai.launcher.title.proposeParser:Propose a parser`,
 };
 
 /**

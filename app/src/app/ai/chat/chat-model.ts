@@ -234,7 +234,7 @@ export function toolLabel(name: string): string {
     browser_back: $localize`:@@ai.chatModel.tool.browserBack:Go back`,
     propose_regex: $localize`:@@ai.chatModel.tool.proposeRegex:Propose regex`,
     propose_query: $localize`:@@ai.chatModel.tool.proposeQuery:Propose query`,
-    propose_profile: $localize`:@@ai.chatModel.tool.proposeProfile:Propose profile`,
+    propose_parser: $localize`:@@ai.chatModel.tool.proposeParser:Propose parser`,
     propose_pipeline: $localize`:@@ai.chatModel.tool.proposePipeline:Propose pipeline`,
     propose_markers: $localize`:@@ai.chatModel.tool.proposeMarkers:Propose markers`,
     propose_extractors: $localize`:@@ai.chatModel.tool.proposeExtractors:Propose extractors`,

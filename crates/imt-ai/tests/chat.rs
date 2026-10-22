@@ -231,7 +231,7 @@ fn every_propose_tool_is_reachable_from_chat() {
             vec![
                 ("propose_markers".into(), json!({"goal": "mark invoices"})),
                 ("propose_extractors".into(), json!({"goal": "invoice numbers"})),
-                ("propose_profile".into(), json!({})),
+                ("propose_parser".into(), json!({})),
                 (
                     "propose_regex".into(),
                     json!({"example_lines": ["Invoice INV-1 written", "Invoice INV-22 written", "Invoice INV-333 written"], "intent": "the number"}),
@@ -258,7 +258,7 @@ fn every_propose_tool_is_reachable_from_chat() {
             }
         })
         .collect();
-    assert_eq!(kinds_seen, ["markers", "extractors", "profile", "regex"]);
+    assert_eq!(kinds_seen, ["markers", "extractors", "parser", "regex"]);
     assert_eq!(
         ev.iter()
             .filter(|e| matches!(&e.event, ChatEvent::ToolFinished { error: true, .. }))

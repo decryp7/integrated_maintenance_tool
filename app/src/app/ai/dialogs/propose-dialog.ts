@@ -20,11 +20,11 @@ const PROMPTS: Record<ProposeKind, { label: string; placeholder: string }> = {
     label: $localize`:@@ai.propose.extractors.label:Which values should be extracted?`,
     placeholder: $localize`:@@ai.propose.extractors.placeholder:e.g. the order id and the duration in ms`,
   },
-  profile: { label: $localize`:@@ai.propose.profile.label:Anything special about this file? (optional)`, placeholder: '' },
+  parser: { label: $localize`:@@ai.propose.parser.label:Anything special about this file? (optional)`, placeholder: '' },
 };
 
 /**
- * "Propose pipeline/markers/extractors/profile": the model proposes, the engine validates it on a sample of
+ * "Propose pipeline/markers/extractors/parser": the model proposes, the engine validates it on a sample of
  * the file and previews the effect; Apply saves through the profile's normal (validated, undoable) save.
  */
 @Component({
@@ -41,12 +41,12 @@ const PROMPTS: Record<ProposeKind, { label: string; placeholder: string }> = {
         <option value="extractors" i18n="@@ai.propose.kind.extractors">Extractors</option>
       </select>
     }
-    @if (current() !== 'profile') {
+    @if (current() !== 'parser') {
       <label for="ai-propose-goal">{{ prompt().label }}</label>
       <textarea id="ai-propose-goal" class="input" rows="2" maxlength="2000" [attr.placeholder]="prompt().placeholder" [value]="goal()" (input)="goal.set(asValue($event))"></textarea>
     }
     <div class="row">
-      <button type="button" class="btn primary" [disabled]="(current() !== 'profile' && !goal().trim()) || busy()" (click)="propose()">{{ proposeLabel() }}</button>
+      <button type="button" class="btn primary" [disabled]="(current() !== 'parser' && !goal().trim()) || busy()" (click)="propose()">{{ proposeLabel() }}</button>
     </div>
     @if (jobId(); as id) {
       <imt-job-wait [jobId]="id" [busyText]="busyText" />
@@ -122,7 +122,7 @@ export class AiProposeDialog implements OnInit {
     const recordId = src.recordId ?? null;
     const sample = src.sample ?? null;
     const op = this.current();
-    return op === 'profile' ? { op, recordId, sample, fileName: src.fileName ?? null } : { op, goal, recordId, sample };
+    return op === 'parser' ? { op, recordId, sample, fileName: src.fileName ?? null } : { op, goal, recordId, sample };
   }
 
   /** Starts the proposal as an AI job and shows it here when it is done (if the dialog is still open). */

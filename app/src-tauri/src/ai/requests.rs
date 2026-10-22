@@ -63,7 +63,7 @@ pub enum AiRequest {
         intent: Option<String>,
     },
     #[serde(rename_all = "camelCase")]
-    Profile {
+    Parser {
         record_id: Option<u32>,
         sample: Option<String>,
         file_name: Option<String>,
@@ -202,14 +202,14 @@ impl AiRequest {
                 let intent = intent.map(|i| i.chars().take(MAX_TEXT_CHARS).collect());
                 Regex { lines, intent }
             }
-            Profile {
+            Parser {
                 record_id,
                 sample,
                 file_name,
             } => {
                 check_sample(&sample)?;
                 needs_source(record_id, &sample)?;
-                Profile {
+                Parser {
                     record_id,
                     sample,
                     file_name,
@@ -272,7 +272,7 @@ impl AiRequest {
             Summarize { .. } => "Summarize a time range".into(),
             RootCauses => "Find likely root causes".into(),
             Regex { .. } => "Suggest a regex".into(),
-            Profile { .. } => "Propose a parsing profile".into(),
+            Parser { .. } => "Propose a parser".into(),
             Pipeline { goal, .. } => format!("Propose pipeline steps: {}", snippet(goal)),
             Markers { goal, .. } => format!("Propose markers: {}", snippet(goal)),
             Extractors { goal, .. } => format!("Propose extractors: {}", snippet(goal)),
@@ -289,7 +289,7 @@ impl AiRequest {
         match self {
             Explain { record_id } => Some(JobLink::Event { record_id: *record_id }),
             Summarize { from, to } => Some(JobLink::Range { from: *from, to: *to }),
-            Profile { record_id: Some(id), .. }
+            Parser { record_id: Some(id), .. }
             | Pipeline { record_id: Some(id), .. }
             | Markers { record_id: Some(id), .. }
             | Extractors { record_id: Some(id), .. } => Some(JobLink::Event { record_id: *id }),
@@ -319,13 +319,13 @@ impl AiRequest {
             Summarize { from, to } => AiOutcome::Narrative(a.summarize(store, from, to)?),
             RootCauses => AiOutcome::Narrative(a.root_causes(store)?),
             Regex { lines, intent } => AiOutcome::Proposal(Proposal::Regex(a.propose_regex(&lines, intent.as_deref())?)),
-            Profile {
+            Parser {
                 record_id,
                 sample,
                 file_name,
             } => {
                 let (sample, file) = sample_of(store, record_id, sample, file_name)?;
-                AiOutcome::Proposal(Proposal::Profile(a.propose_profile(store, &sample, &file)?))
+                AiOutcome::Proposal(Proposal::Parser(a.propose_parser(store, &sample, &file)?))
             }
             Pipeline { goal, record_id, sample } => {
                 let (sample, _) = sample_of(store, record_id, sample, None)?;
@@ -625,7 +625,7 @@ mod tests {
                 lines: vec!["a".into()],
                 intent: Some("i".into()),
             },
-            AiRequest::Profile {
+            AiRequest::Parser {
                 record_id: Some(1),
                 sample: None,
                 file_name: None,
