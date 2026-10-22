@@ -6,7 +6,7 @@ import { expandFields } from './app';
 test.describe('panel error boundaries', () => {
   test('a panel that throws shows an error card and leaves the rest of the app working', async ({ page }, testInfo) => {
     // Rows without `markers` make the events grid throw while rendering.
-    await openAppWith(page, '?mockCorrupt=markers', { grid: false });
+    await openAppWith(page, '?mockCorrupt=markers&mockSnapshots=off', { grid: false });
     const card = page.locator('.imt-panel-failed');
     await expect(card).toBeVisible();
     await expect(card).toContainText('This panel failed:');
@@ -20,7 +20,7 @@ test.describe('panel error boundaries', () => {
   });
 
   test('Reload panel tries again, and Copy details reports the outcome', async ({ page }) => {
-    await openAppWith(page, '?mockCorrupt=markers', { grid: false });
+    await openAppWith(page, '?mockCorrupt=markers&mockSnapshots=off', { grid: false });
     const card = page.locator('.imt-panel-failed');
     await expect(card).toBeVisible();
     await card.getByRole('button', { name: 'Reload panel' }).click();
