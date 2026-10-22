@@ -33,6 +33,7 @@ mod config_store;
 mod demo;
 mod dev_overrides;
 mod diagnostics;
+mod drag_ghost;
 mod dumps;
 mod engine;
 mod engine_errors;
@@ -291,6 +292,9 @@ command_table! {
     Mutation [MAIN] => window_manager::resolve_open,
     Mutation [MAIN] => panel_windows::popout_panel,
     Quiet [WINDOW] => pointer::pointer_button_down,
+    Quiet [MAIN] limit 3 * MIB => drag_ghost::drag_ghost_start,
+    Quiet [MAIN] => drag_ghost::drag_ghost_show,
+    Quiet [MAIN] => drag_ghost::drag_ghost_end,
     Mutation [WINDOW] => panel_windows::dock_panel,
     Query [WINDOW] => panel_windows::list_popouts,
     Mutation [WINDOW] => panel_windows::set_popout_on_top,
@@ -529,6 +533,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     app.manage(shared);
     app.manage(windows);
     app.manage(panel_windows::Popouts::default());
+    app.manage(drag_ghost::DragGhosts::default());
     app.manage(life);
     app.manage(background::BackgroundTasks::default());
     app.manage(window_prefs::SharedPrefs::default());

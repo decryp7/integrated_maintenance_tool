@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>IMT drag preview</title>
+    <link rel="stylesheet" href="drag-ghost.css" />
+    <script src="drag-ghost.js" defer></script>
+  </head>
+  <!-- The drag ghost (`app/src-tauri/src/drag_ghost`): where a panel dragged out of its window will open. Static,
+       no IMT commands, no capabilities; the shell hands it what to show through `window.imtGhost`. -->
+  <body>
+    <div class="ghost" aria-hidden="true">
+      <div class="bar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path /></svg>
+        <span class="title"></span>
+      </div>
+      <div class="body"><img class="snapshot" alt="" hidden /></div>
+    </div>
+  </body>
+</html>
