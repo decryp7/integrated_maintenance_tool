@@ -634,4 +634,43 @@ mod tests {
             assert_eq!(r.next.byte, (first.len() + more.len()) as u64);
         });
     }
+
+    #[test]
+    fn a_read_before_the_bom_starts_after_it_and_a_read_at_the_end_is_empty() {
+        let line = "2026-10-14 10:00:00 INFO one\n";
+        let mut bytes = b"\xEF\xBB\xBF".to_vec();
+        bytes.extend_from_slice(line.as_bytes());
+        let (p, src) = temp("bom.log", &bytes);
+        with_env(|env| {
+            let mut sink = Memory::default();
+            let r = read(env, &p, &src, TailStart { byte: 0, line: 1 }, true, &mut sink);
+            assert_eq!(sink.messages(), [(1, "one".to_string())]);
+            assert_eq!(r.next.byte, bytes.len() as u64);
+            // Nothing past the end: an empty read that keeps its place.
+            let size = bytes.len() as u64;
+            let at_end = TailStart { byte: size, line: 2 };
+            let r = read(env, &p, &src, at_end, false, &mut sink);
+            assert_eq!((r.batched.events, r.next, r.held, r.size), (0, at_end, false, size));
+            assert_eq!(sink.messages().len(), 1);
+        });
+    }
+
+    #[test]
+    fn a_last_line_longer_than_a_scan_block_is_found_by_scanning_back() {
+        let head = "2026-10-14 10:00:00 INFO one\n";
+        // Whole line, then a very long unterminated line: the end of the whole line lies blocks before the end.
+        let mut bytes = head.as_bytes().to_vec();
+        bytes.extend(std::iter::repeat_n(b'x', SCAN_BLOCK * 2 + 17));
+        let (p, _) = temp("long.log", &bytes);
+        let mut file = std::fs::File::open(&p).unwrap();
+        let end = last_line_end(&mut file, Encoding::Utf8, 0, bytes.len() as u64).unwrap();
+        assert_eq!(end, head.len() as u64);
+        // No newline anywhere: the scan gives up at the start.
+        let (p, _) = temp("nonl.log", &bytes[head.len()..]);
+        let mut file = std::fs::File::open(&p).unwrap();
+        let len = std::fs::metadata(&p).unwrap().len();
+        assert_eq!(last_line_end(&mut file, Encoding::Utf8, 0, len).unwrap(), 0);
+        // A short region without a newline stops at its first block.
+        assert_eq!(last_line_end(&mut file, Encoding::Utf8, 5, 9).unwrap(), 5);
+    }
 }

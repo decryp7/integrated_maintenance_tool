@@ -440,14 +440,10 @@ mod tests {
         assert_eq!((r.events, r.importer.as_str(), r.file_kind), (3, "text", FileKind::Text));
         assert_eq!(sink.batches[0].row(1).byte_offset(), 10, "after the BOM and the banner");
         let json = write(&dir, "b.json", b"{\"@t\":\"2026-10-14T10:00:00Z\",\"@m\":\"x\"}\n");
-        let Outcome::Imported(r) = &import_path(&env, &json, "b.json", &none, &mut sink)[0] else {
-            panic!()
-        };
+        let r = &imported(import_path(&env, &json, "b.json", &none, &mut sink));
         assert_eq!((r.events, r.id), (1, SourceId(1)));
         let csv = write(&dir, "c.csv", b"Time,Level,Message\n2026-10-14 10:00:00,Info,first\n");
-        let Outcome::Imported(r) = &import_path(&env, &csv, "c.csv", &none, &mut sink)[0] else {
-            panic!()
-        };
+        let r = &imported(import_path(&env, &csv, "c.csv", &none, &mut sink));
         assert_eq!(r.importer, "csv");
         for (name, bytes, reason) in [
             ("empty.log", &b""[..], "empty file"),
@@ -459,23 +455,17 @@ mod tests {
             ("bin.dat", &[0u8, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 1, 2, 3][..], "binary file"),
         ] {
             let p = write(&dir, name, bytes);
-            let Outcome::Unrecognized(u) = &import_path(&env, &p, name, &none, &mut sink)[0] else {
-                panic!("{name}")
-            };
+            let u = &unrecognised(import_path(&env, &p, name, &none, &mut sink));
             assert_eq!(u.reason, reason);
         }
-        let Outcome::Unrecognized(u) = &import_path(&env, &dir.join("missing.log"), "missing.log", &none, &mut sink)[0] else {
-            panic!()
-        };
+        let u = &unrecognised(import_path(&env, &dir.join("missing.log"), "missing.log", &none, &mut sink));
         assert!(!u.reason.is_empty());
         // A file the importer finds nothing in is removed again.
         let empty_json = write(&dir, "e.json", b"{\"@t\":\"2026-10-14T10:00:00Z\"}\n");
         let p = CompiledProfile::compile(Profile::from_toml("[[pipeline]]\nstep = 'drop'").unwrap()).unwrap();
         let p = ParserSet::of_compiled(p);
         let env2 = ImportEnv { parsers: &p, ..env };
-        let Outcome::Imported(r) = &import_path(&env2, &empty_json, "e.json", &none, &mut sink)[0] else {
-            panic!()
-        };
+        let r = &imported(import_path(&env2, &empty_json, "e.json", &none, &mut sink));
         assert_eq!((r.events, r.dropped), (0, 1));
         std::fs::remove_dir_all(dir).ok();
     }
@@ -510,18 +500,14 @@ mod tests {
             ..Memory::default()
         };
         let text = write(&dir, "x.log", b"2026-10-14 10:00:00 INFO a\n");
-        let Outcome::Unrecognized(u) = &import_path(&env, &text, "x.log", &HashSet::new(), &mut failing)[0] else {
-            panic!()
-        };
+        let u = &unrecognised(import_path(&env, &text, "x.log", &HashSet::new(), &mut failing));
         assert_eq!(u.reason, "disk full");
         assert_eq!(failing.aborted, [SourceId(0)]);
         assert!(failing.batches.is_empty());
         // Cancelled: not imported, removed.
         let cancelled = AtomicBool::new(true);
         let env3 = ImportEnv { cancel: &cancelled, ..env };
-        let Outcome::Unrecognized(u) = &import_path(&env3, &text, "x.log", &HashSet::new(), &mut sink)[0] else {
-            panic!()
-        };
+        let u = &unrecognised(import_path(&env3, &text, "x.log", &HashSet::new(), &mut sink));
         assert_eq!(u.reason, NOT_IMPORTED);
         std::fs::remove_dir_all(dir).ok();
     }
@@ -645,9 +631,7 @@ mod tests {
             let mut sink = Memory::default();
             let out = import_path(&env, &locked, "locked.log", &HashSet::new(), &mut sink);
             std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o600)).unwrap();
-            let Outcome::Unrecognized(u) = &out[0] else {
-                panic!("unrecognised")
-            };
+            let u = &unrecognised(out);
             assert!(u.reason.to_lowercase().contains("permission"), "{}", u.reason);
         }
         std::fs::remove_dir_all(dir).ok();
@@ -661,5 +645,24 @@ mod tests {
         assert_eq!((h.as_slice(), whole), (&b"abc"[..], false));
         let (_, whole) = read_head(&mut &b"ab"[..], 3).unwrap();
         assert!(whole);
+    }
+
+    #[test]
+    fn a_directory_given_as_a_file_is_reported_not_read() {
+        let dir = temp();
+        let (importers, profile) = env_parts();
+        let cancel = AtomicBool::new(false);
+        let env = ImportEnv {
+            encodings: &Default::default(),
+            importers: &importers,
+            parsers: &profile,
+            schema: Arc::new(EventSchema::plain()),
+            cancel: &cancel,
+        };
+        let mut sink = Memory::default();
+        let u = unrecognised(import_path(&env, &dir, "dir", &HashSet::new(), &mut sink));
+        assert!(!u.reason.is_empty());
+        assert!(sink.batches.is_empty() && sink.finished.is_empty());
+        std::fs::remove_dir_all(dir).ok();
     }
 }
