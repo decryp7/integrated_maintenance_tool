@@ -228,7 +228,6 @@ export function buildMenus(state: MenuState): TopMenu[] {
         SEP,
         cmd('file.reimport'),
         cmd('folder.setupAnalysis'),
-        cmd('live.toggle'),
         SEP,
         cmd('file.export'),
         cmd('report.export'),
@@ -355,6 +354,8 @@ function viewMenu(state: MenuState, cmd: Cmd, sub: Sub): MenuNode[] {
     const id = `view.${c.toLowerCase()}`;
     const label = CATEGORY_LABELS[c];
     if (c === 'Plugins') return sub(id, label, pluginItems(inCategory(c)));
+    // Following files live is a view of the data, so its switch is here (F5), next to the live views.
+    if (c === 'Live') return sub(id, label, [cmd('live.toggle'), SEP, ...ordered(c, inCategory(c))]);
     if (c === 'AI') {
       return sub(id, label, [
         ...inCategory(c).map(viewItem),

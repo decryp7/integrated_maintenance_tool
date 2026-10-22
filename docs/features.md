@@ -62,7 +62,7 @@ covers inputs, profiles, the query language and shortcuts, and [development](dev
 ## Live tail and alerts
 
 - **Open for live tail…** picks files or a folder and follows them, optionally skipping their
-  history (start at end); **Toggle live tail** follows what is already open. Rolled, dated and rotated
+  history (start at end); **View ▸ Live ▸ Toggle live tail** follows what is already open. Rolled, dated and rotated
   files (Serilog, log4net, NLog, logrotate) are followed as one log, across renames, truncation and
   copy-truncate.
 - **Follow** keeps the timeline on the newest events, optionally in a sliding window (last 1, 5, 15

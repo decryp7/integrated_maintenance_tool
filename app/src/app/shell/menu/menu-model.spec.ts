@@ -179,7 +179,7 @@ describe('menu model', () => {
     ]);
     // The analyses in a fixed order; other analysis views (markers, notes, plugins') after them.
     expect(labels(sub(v, 'Analysis'))).toEqual(['Query results', 'Moment', 'Anomalies', 'Patterns', 'Exceptions', 'Compare', 'Field statistics', 'Traces', '—', 'Markers']);
-    expect(labels(sub(v, 'Live'))).toEqual(['Alerts', 'Tail status']);
+    expect(labels(sub(v, 'Live'))).toEqual(['Toggle live tail', '—', 'Alerts', 'Tail status']);
     // Granular profiling views are reached from inside the profiling views (and the palette), not the menu.
     expect(labels(sub(v, 'Profiling'))).toEqual(['Captures', 'Hotspots']);
     expect(labels(sub(v, 'AI'))).toEqual(['Chat', 'Set up…', 'Models…']);
