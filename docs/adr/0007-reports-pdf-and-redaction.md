@@ -1,6 +1,7 @@
 # 7. Incident reports: engine-side model, HTML and pure-Rust PDF; one redactor
 
-- Status: accepted
+- Status: accepted, extended by [ADR 0039](0039-known-issues-incident-summary-playbooks.md) (the incident summary is an ordinary report) and
+  [ADR 0041](0041-redacted-project-copy.md) (a redacted copy of a whole project)
 - Date: 2026-10-17
 
 ## Context
