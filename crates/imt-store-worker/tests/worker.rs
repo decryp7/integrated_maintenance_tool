@@ -161,7 +161,11 @@ fn imports_and_queries_within(mode: MemoryMode, import_budget_mb: u64) {
     let w = worker_in(mode);
     let store = w.open_store(&dir.0, Profile::default_profile(), true, None).unwrap();
     let pid = w.status().pid.unwrap();
-    assert_eq!(w.worker_status().unwrap().memory_mode, mode, "the worker started in the mode asked for");
+    assert_eq!(
+        w.worker_status().unwrap().memory_mode,
+        mode,
+        "the worker started in the mode asked for"
+    );
     let sampler = Sampler::start(pid);
     let started = Instant::now();
     let session = store.open(&paths).unwrap();
