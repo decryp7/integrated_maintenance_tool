@@ -179,6 +179,16 @@ describe('EventsGrid', () => {
       expect(down({ metaKey: true })).toBe(true);
     });
 
+    it('a row is draggable except from its message cell, which stays selectable text (WebKit)', async () => {
+      const { fixture } = await render();
+      const row = at(rows(fixture), 2);
+      const press = (el: Element) => el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+      press(row.querySelector('.msg')!);
+      expect(row.draggable).toBe(false);
+      press(row.querySelector('.time')!);
+      expect(row.draggable).toBe(true);
+    });
+
     it('rows are drag sources: dragging one selects it and carries the event (for the Notes panel)', async () => {
       const { fixture } = await render();
       const row = at(rows(fixture), 3);

@@ -57,6 +57,8 @@ test('imports a parser file, re-reads the file it now reads, disables and export
 test('edits a built-in parser beside the list, with validation and a live preview', async ({ page }) => {
   await openApp(page);
   await openParsers(page);
+  // The Parsers panel opens in a narrow dock group; the list and editor side by side need the whole window (WebKit clips the Save button otherwise).
+  await page.locator('.dv-groupview', { has: page.getByRole('tab', { name: 'Parsers' }) }).getByRole('button', { name: 'Maximize panel' }).click();
   await row(page, 'serilog-text').getByRole('button', { name: 'Edit Serilog text' }).click();
   // The editor is the view's detail pane, not a dialog: the list stays in view.
   const editor = view(page).locator('imt-parser-editor');

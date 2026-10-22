@@ -599,6 +599,9 @@ export class EventsGrid {
 
   /** Keeps shift/ctrl-click from also selecting text across rows. */
   protected onRowMouseDown(e: MouseEvent): void {
+    // A draggable row cannot start a text selection in WebKit: the message cell is for selecting, the rest of the row for dragging.
+    const row = e.currentTarget as HTMLElement | null;
+    if (row && e.target instanceof Element) row.draggable = !e.target.closest('.msg');
     if (e.shiftKey || e.ctrlKey || e.metaKey) e.preventDefault();
   }
 
