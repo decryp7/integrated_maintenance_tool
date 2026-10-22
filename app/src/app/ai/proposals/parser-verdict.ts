@@ -86,13 +86,13 @@ const ZONES: Record<ZoneSource, string> = {
   styles: `
     .verdict { display: grid; gap: 6px; margin: 6px 0; }
     .score { margin: 0; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-    .score strong { font-size: 1.2em; color: var(--warn, #b26a00); }
-    .score.ok strong { color: var(--ok, #2e7d32); }
+    .score strong { font-size: 1.2em; color: var(--warn-text); }
+    .score.ok strong { color: var(--ok); }
     .status { margin-left: auto; color: var(--muted); }
-    .warn { margin: 0; color: var(--warn, #b26a00); }
+    .warn { margin: 0; color: var(--warn-text); }
     .facts { margin: 0; }
     .muted { color: var(--muted); }
-    .mono { font-family: var(--mono, monospace); }
+    .mono { font-family: var(--font-mono); }
     table.failures { width: 100%; border-collapse: collapse; font-size: 0.9em; }
     table.failures td, table.failures th { text-align: left; padding: 2px 6px; vertical-align: top; }
     table.failures td.mono { word-break: break-all; }
