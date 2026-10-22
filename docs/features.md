@@ -92,7 +92,7 @@ disabled one says why, e.g. the file is inside an archive).
 
 ## Filters, facets and the query language
 
-![Query bar with a stats query](screenshots/query.png)
+![Search field with a stats query](screenshots/query.png)
 
 - Full-text search (with regex and case toggles), level chips, time range, field filters, "marked
   only", and a **facets sidebar** listing every field with its coverage and number of distinct values.
@@ -102,6 +102,13 @@ disabled one says why, e.g. the file is inside an archive).
   query is dropped instead of overwriting a newer result.
 
 ![Query results table](screenshots/query-results.png)
+
+- **One search field.** The filter bar's field takes plain words (message search as you type) or a query; the engine tells
+  which. History, completions, *Ask AI* and *Save* sit inside it, and `Ctrl/⌘+/` focuses it.
+- **Search everything** (`Ctrl/⌘+Shift+F`, or *Search everything…* in the palette) looks for the text in every kind of
+  thing the window holds: events, sources, fields and their values, marker kinds, exception groups, notes and knowledge
+  files, a few matches of each kind with the matched words marked, and opens the one you choose. It is bounded and
+  time-limited (a kind it could not finish says so), and a newer search cancels the older one.
 
 ## Many formats, extensible by plugins
 
@@ -115,7 +122,7 @@ A folder can mix formats: the format is decided per line, a file can hold severa
 key is per source ([ADR 0020](adr/0020-mixed-sources.md)).
 
 Third-party plugins are Rust programs written against the `imt-plugin-api` SDK and shipped as signed `.imtplugin`
-packages. The **Plugins panel** installs one from a file (or a drop), shows its publisher, signature and requested
+packages. The **Plugins view** installs one from a file (or a drop), shows its publisher, signature and requested
 permissions before it is installed, revokes permissions, and enables, disables or removes it. Each runs contained from
 its first instruction (files, network, programs and memory limited; see [plugin-sdk.md](plugin-sdk.md)). Settings ▸
 Plugin trust lists the publisher keys you trust; developer mode accepts unsigned packages after a warning
@@ -130,6 +137,17 @@ Notifications message; IMT proposes a timestamp format it checked against those 
 timestamps** previews and saves it. See [Supported inputs](user-guide.md#supported-inputs).
 
 ![Windows registry exports shown as a tree](screenshots/registry.png)
+
+## Parsers
+
+Each file is read by a **parser**: an individual TOML file in a library (built-in ones, your own, imported ones), matched
+per file from its content ([ADR 0026](adr/0026-parser-library.md)). *Tools ▸ Manage parsers…* opens the **Parsers** view: the
+library on the left and, beside it, the selected parser's TOML, checked by the engine as you type and previewed against your
+open files. A file that no parser reads well can get one from the local model: **Generate a parser with AI** cuts a small
+sample, asks the model for a pattern, timestamp formats, identity fields and metrics, and lets the engine verify the result
+against the file in up to five rounds, feeding back only the failing lines; nothing is added to the library until you review
+and save it ([ADR 0032](adr/0032-ai-parser-generation.md)). Timestamps in more shapes are read, including Japanese dates, epoch
+and .NET ticks, Windows FILETIME and uptime counters.
 
 ## Profiles, extractors, pipelines, markers and badges
 
@@ -206,8 +224,9 @@ source (*Use selected event as clock reference*), or by the engine's suggestion:
 events that share a `CorrelationId`, `TraceId` or `RequestId`, shown with the number of pairs, their
 spread and a confidence. The engine applies the offset when records are loaded, so every view,
 filter and analysis follows it; offsets are kept per source path (they survive reloads, rotation and
-projects), bounded to ±7 days, and shown in the inspector's *Clock* section. See
-[ADR 0006](adr/0006-clock-skew-applied-on-load.md).
+projects), bounded to ±7 days, and shown in the inspector's *Clock* section. The offset is applied to the stored events, so it works
+on large projects and with live tail too. See [ADR 0006](adr/0006-clock-skew-applied-on-load.md) and
+[ADR 0037](adr/0037-store-clock-skew-and-live-tail.md).
 
 ## Text encodings
 
@@ -250,14 +269,14 @@ runs in the `imt-profile` engine:
 - **Automatic findings** linking to the evidence, and **heap snapshots**: top types, snapshot diff,
   growth over three or more snapshots, dominator tree with retained sizes and paths to GC roots.
 
-**Record a .NET process** with *Tools ▸ Profile .NET process…* ([ADR 0019](adr/0019-dotnet-profiling.md)): pick the
+**Record a .NET process** with *Profile .NET process…* (command palette) ([ADR 0019](adr/0019-dotnet-profiling.md)): pick the
 process and a kind (*CPU and waits*, *Allocations*, *Heap snapshot*). Nothing is loaded into the target. IMT records
 it with ETW (needs administrator rights; the ETW recorder runs in an elevated plugin process, and a missing right is
 reported with the *Restart as administrator* hint) or with EventPipe (no elevation), and converts the trace to the same NetTrace
 captures that every view reads. A heap snapshot opens as a heap snapshot. `.etl` traces open after you pick the
 process in them (Windows only).
 
-**Record a native (C/C++) process** with *Tools ▸ Profile native process…*: without administrator rights
+**Record a native (C/C++) process** with *Profile native process…* (command palette): without administrator rights
 IMT samples it from outside (it pauses one thread at a time for microseconds and copies its stack), with them it
 records it with ETW (every CPU sample, waits with the thread that ended them, heap allocations by call stack).
 Nothing is loaded into the process. Frames are named from PDBs (your symbol path; downloads from the Microsoft
@@ -281,8 +300,9 @@ content. The files are parsed in a sandboxed reader plugin (no network, no write
 - **Dump view:** the crash cause (exception code with its name and meaning, access kind and address, null-pointer and
   fast-fail hints), the likely culprit frame, threads with their state and stacks, loaded and unloaded modules,
   recursion in a stack overflow, heap corruption, threads blocked on locks grouped by the frame that takes them
-  (a deadlock hint), hang dumps, the .NET runtime found in the process, and missing symbols. Symbols come from the
-  local symbol folders you configure in the plugin's settings; nothing is downloaded. Managed frames show without names
+  (a deadlock hint), hang dumps, the .NET runtime found in the process, and missing symbols. Symbols come from PDBs matched by identity (name, GUID and age, never by file name alone) in the symbol folders you configure (Settings ▸ Dumps)
+  and, only when you turn symbol servers on in Settings ▸ Symbols, from HTTPS symbol servers into a bounded cache; each module
+  says why it has no names (not on the server, a different build, a download that failed) ([ADR 0036](adr/0036-dump-symbols-by-pdb-identity.md)). Managed frames show without names
   (the data access component is not loaded).
 - **UMDH heap growth:** two or more snapshots are diffed in the engine by stack, module and culprit function; growth
   that continues across three or more snapshots and single large allocations are findings.
@@ -390,7 +410,7 @@ and title only; when the clocks disagree it says by how much and offers the cloc
 ## Internal web browser
 
 *Search the web for this error* (the event's context menu, the inspector, the chat, the palette) opens the
-page in IMT's **Browser** panel (Tools ▸ Browser), which docks like Timeline or Events: tabs, splits,
+page in IMT's **Browser** panel (*View ▸ Tools ▸ Browser*), which docks like Timeline or Events: tabs, splits,
 maximise, pop-out. The AI writes the search from the event (the exception type, the decisive words of the
 message, error codes, the framework and its version, without ids, names, paths, ports or timestamps);
 whatever looks private or comes from your logs is taken out, and you can edit it before anything opens
@@ -438,7 +458,7 @@ diagnostics collections. The engine runs them in queues per kind with limits (on
 because there is one model; one import per window; two exports and two downloads; analyses on all but one
 core), so starting one never blocks the UI: *Explain this event*, an export, a bundle, a problem report or
 applying a profile returns at once ("Explaining event #7 — running in Jobs · Show in Jobs"), and the
-proposal, query and regex dialogs may be closed while the model works. The **Jobs** pane (activity bar, *View ▸ Jobs*) lists running,
+proposal, query and regex dialogs may be closed while the model works. The **Jobs** pane (status bar, *View ▸ Jobs*) lists running,
 waiting and finished jobs with progress, time left, Cancel, Retry, View and, for waiting AI requests, move
 up and down; a job shows only once it has run about two seconds. When a job of ten seconds or more
 finishes, and always for an answer, a proposal or a written file you asked for, a toast says so with
@@ -531,12 +551,16 @@ release builds. IMT's own shortcuts and `Ctrl`+wheel zoom on the timeline still 
 menus and bars do not select like text; log messages, inspector values and fields do. Images and
 links cannot be dragged out of the window.
 
+**Error snapshots** (*Capture diagnostic screenshot*, `Ctrl/⌘+Shift+F12`, or automatically when something fails) save the
+window's picture with the error's context. The picture comes from the system's web view itself, off the UI thread and with a
+timeout; where a picture cannot be taken the snapshot is still saved with a note ([ADR 0034](adr/0034-native-window-capture.md)).
+
 The first run is focused. With nothing open, the window shows only the welcome page (open a folder or files,
 or try the demo) and the Explorer; the filter bar and the Fields section appear once data is open. After
 opening data, the default layout is the timeline over the events grid. The inspector waits at the right edge
 and slides out when you select an event (pin it to keep it docked); views for what you just opened (a registry
-export, a profile capture, a diagnostics report) open by themselves. Home, the query bar and Metrics
-stay one click away: the timeline header shows the health check's headline on one line ("⚠ 2 crashes · 287
+export, a profile capture, a diagnostics report) open by themselves. Home and Metrics
+stay one click away (Home is off by default after an import; a checkbox on Home turns that on): the timeline header shows the health check's headline on one line ("⚠ 2 crashes · 287
 errors · 1 went silent — Review"; each count jumps to or filters those events, *Review* opens Home),
 `Ctrl/⌘+/` focuses the search field, and the **activity bar** on the left offers Explorer, Search, Timeline,
 *Analysis ▸* (patterns, anomalies, exceptions, Moment, compare, traces, runs, …), Metrics, *Live tail*, *AI*,
@@ -557,6 +581,50 @@ tabs, side tools on the right, status tools at the bottom edge), and never over 
 filter bar has one search field for words and queries (the engine tells which), back/forward (`Alt+←/→`, mouse
 buttons 4 and 5) walks through events, ranges and views, zooming is on the undo stack, and narrow windows fold
 the filter bar, close the Explorer and keep the Message column readable.
+
+## Known issues, the incident summary and playbooks
+
+Three features turn what the engine knows into a workflow, and all three work with no AI model
+([ADR 0039](adr/0039-known-issues-incident-summary-playbooks.md)):
+
+- **Known issues.** An error you have already diagnosed is declared in a knowledge file as a `known-issue` block (title,
+  fix and a pattern or a query). The Problems pane lists the declared issues that occur in the open data with their counts,
+  the fix and *Show events*. *Suggest with AI* may propose more, and the engine keeps only suggestions whose fix is quoted
+  from your notes and whose query selects events.
+- **Incident summary.** *Report: Incident summary…* builds a report in one step: period and levels, key moments, top
+  anomalies, exceptions and error messages with the events that show them, the noisiest sources and hosts, import problems,
+  matched known issues and your notes. Every number is computed by the engine; an optional AI narrative is added as its own,
+  marked section with citations the engine checked. HTML and PDF export, with redaction, as for any report.
+- **Playbooks.** *View: Playbooks* lists your playbooks and four templates (service crashed, errors after a change, slow
+  requests, sign-in failures). A run steps through queries, filters, views to open and checks that pass or fail, each with the
+  engine's result and a note; runs are saved with the project. Playbooks are versioned JSON files you can share
+  ([playbooks.md](playbooks.md)).
+
+## Video sources
+
+*File ▸ Open video…* (or a dropped recording) turns a screen recording into evidence next to the logs
+([ADR 0033](adr/0033-video-sources-ffmpeg-runtime.md)). IMT does not bundle FFmpeg: Settings ▸ Video downloads a pinned LGPL
+build once (checked by SHA-256 and a self-test, with rollback), or uses an `ffmpeg` you point it at (on macOS today). Every
+FFmpeg run is sandboxed: no network, only the video readable, memory and time limited, cancellable as a job.
+
+- **Frames that matter.** Two passes drop the frames that only a cursor or a clock changed and keep scene changes (30 by
+  default, at most 120, or one per interval); you see the frame strip before anything goes to the model, can drop frames,
+  add the one at the player position and analyse again.
+- **Aligned to the logs.** The moment of video time 0 comes from, in order of trust, a start you set, a clock read from a
+  frame, a date in the file name, the container's creation time and the file time, each with a confidence and its evidence.
+- **Described locally.** The loaded vision model describes each kept frame (screen text is data, never instructions); a model
+  without vision is never sent images.
+- **A source of its own.** Each video becomes a source with one event per kept frame and its own lane, so the timeline,
+  search, Moment, notes, exports and the SQL console work unchanged. The video is referenced by SHA-256 or, per video,
+  included in the project. Limits: 120 frames per video, 600 per project, 6 hours of video.
+
+## Store pane and SQL console
+
+*View ▸ Store* shows what a window's store holds and how it is doing, read-only: overview, segments, fields (and how each is
+stored), the full-text index, memory against its budgets, and maintenance (*Compact now*, *Rebuild index*, *Clear cached
+analyses*, each a job). The **SQL** tab runs sandboxed, read-only DuckDB SQL over four stable views (`events`, `sources`,
+`fields`, `notes`), keeps event ids so rows open in the grid, and exports results to CSV
+([ADR 0030](adr/0030-store-pane-and-sql-console.md); details in the [user guide](user-guide.md#the-store-pane-and-the-sql-console)).
 
 ## Windows, tray and notifications
 
@@ -662,7 +730,7 @@ sub-tracks below the lane's markers, so none hides another; the lane grows by on
   to the plugin, and repeat offenders are quarantined. Every call has a time budget; a watchdog marks
   a plugin that overruns it as *hung* and its further calls fail fast. A plugin whose required
   dependency is missing, incompatible, disabled or quarantined becomes *inactive* with the reason,
-  and so do its dependents. The *Plugin health* panel shows each plugin's status (active, disabled,
+  and so do its dependents. The *Health* tab of the Plugins view shows each plugin's status (active, disabled,
   quarantined, inactive), what it requires and provides, the reason it is inactive, its dependents,
   warnings, whether it is hung, and per-subscriber event counters (delivered, dropped, failures,
   skipped); a plugin can be reset or disabled there. A plugin that crashes, is quarantined or becomes
@@ -686,8 +754,8 @@ sub-tracks below the lane's markers, so none hides another; the lane grows by on
 ## Easy to start, hard to get wrong
 
 - **Try a demo** on the welcome screen opens the bundled sample incident and offers a short, skippable
-  guided tour of the timeline, grid, query bar, Moment view, markers and Home.
-- **Home:** the dashboard of everything opened (`docs/screenshots/home.png`). Live tiles (events, sources, errors
+  guided tour of the timeline, grid, search field, Moment view, markers and Home.
+- **Home** (*View ▸ Home*): the dashboard of everything opened (`docs/screenshots/home.png`). Live tiles (events, sources, errors
   and warnings with their trend, crashes, anomalies, exception groups, time span, store size and memory), the
   history of events by level with markers and anomalies marked (click a bar or drag across it to set the time
   range), the health check (crashes, error spikes, exceptions, unread lines, files that could not be opened and
@@ -695,7 +763,7 @@ sub-tracks below the lane's markers, so none hides another; the lane grows by on
   cause), recent activity and quick actions (open files or a folder, open the last project). The engine computes
   every number; the counts and the history appear at once and the slower analyses fill in after. The health check
   lists at most 100 anomalies (the highest ranked) and says how many it left out. Its headline is on the timeline
-  header; in the Full layout Home opens after every import (which can be turned off).
+  header; Home is a document in the main area and opens by itself after an import only when you tick the checkbox on Home itself.
 - **Timeline minimap:** a thin strip above the timeline's histogram shows the whole data extent by level with a
   window for the visible range. Drag the window to pan, drag an edge to zoom, click the strip to centre the window,
   double-click to fit; with the window focused the arrow keys pan and Home/End go to the ends.

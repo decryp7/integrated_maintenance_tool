@@ -1,6 +1,7 @@
 # 41. Redacted project copy
 
 - Status: accepted (2026-10-22)
+- Date: 2026-10-22
 - Related: ADR 0007 (reports, PDF and redaction), ADR 0014 (DuckDB store, projects), ADR 0017 (workers), AGENTS.md
   (engine is the source of truth, bounded resources, contain failures)
 

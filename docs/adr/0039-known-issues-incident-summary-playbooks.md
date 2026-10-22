@@ -1,6 +1,7 @@
 # 39. Known issues, the incident summary and investigation playbooks
 
 - Status: accepted (2026-10-22)
+- Date: 2026-10-22
 - Related: ADR 0007 (reports, PDF and redaction), ADR 0029 (knowledge files), ADR 0024 (the AI drafts search text),
   AGENTS.md (the engine is the source of truth; AI is optional and never trusted blindly)
 
