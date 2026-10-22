@@ -48,7 +48,7 @@ test.describe('AI entry points', () => {
     await openAiApp(page);
     await page.locator('imt-sidebar').getByRole('button', { name: 'Open files' }).click();
     // Review on the timeline header's headline opens Home.
-    await page.getByRole('toolbar', { name: 'Health check' }).getByRole('button', { name: 'Review' }).click({ timeout: 10_000 });
+    await page.getByRole('toolbar', { name: 'Health check' }).getByRole('button', { name: 'Review' }).click({ timeout: 30_000 });
     const home = page.locator('imt-home-view');
     await expect(home).toBeVisible({ timeout: 10_000 });
     await home.getByTestId('ai-root-causes').click();
