@@ -7,17 +7,31 @@
 use imt_notes::context::{self, Focus};
 use imt_notes::{NoteRecord, NoteSet};
 use proptest::prelude::*;
+use proptest::strategy::BoxedStrategy;
 use serde_json::{json, Value};
 
-fn small_text() -> impl Strategy<Value = Value> {
-    prop_oneof![Just(json!("")), Just(json!(" ")), ".{0,30}".prop_map(Value::from), Just(json!("x".repeat(70_000)))]
+fn small_text() -> BoxedStrategy<Value> {
+    prop_oneof![
+        Just(json!("")),
+        Just(json!(" ")),
+        ".{0,30}".prop_map(Value::from),
+        Just(json!("x".repeat(70_000)))
+    ]
+    .boxed()
 }
 
-fn number() -> impl Strategy<Value = Value> {
-    prop_oneof![any::<i64>().prop_map(Value::from), any::<u32>().prop_map(Value::from), Just(json!(-1)), Just(json!(1.5)), Just(json!("7"))]
+fn number() -> BoxedStrategy<Value> {
+    prop_oneof![
+        any::<i64>().prop_map(Value::from),
+        any::<u32>().prop_map(Value::from),
+        Just(json!(-1)),
+        Just(json!(1.5)),
+        Just(json!("7"))
+    ]
+    .boxed()
 }
 
-fn anchor() -> impl Strategy<Value = Value> {
+fn anchor() -> BoxedStrategy<Value> {
     prop_oneof![
         Just(json!({"kind": "project"})),
         (number(), prop::option::of(number()), small_text(), small_text())
@@ -34,9 +48,10 @@ fn anchor() -> impl Strategy<Value = Value> {
         ),
         small_text().prop_map(|k| json!({"kind": k})),
     ]
+    .boxed()
 }
 
-fn note() -> impl Strategy<Value = Value> {
+fn note() -> BoxedStrategy<Value> {
     prop_oneof![
         4 => (small_text(), anchor(), small_text(), prop::collection::vec(small_text(), 0..4), prop::sample::select(vec!["info", "warning", "critical", "bogus"]), number(), number())
             .prop_map(|(id, anchor, text, tags, severity, c, u)| json!({"id": id, "anchor": anchor, "text": text, "tags": tags,
@@ -45,9 +60,10 @@ fn note() -> impl Strategy<Value = Value> {
         1 => Just(json!(null)),
         1 => Just(json!({"id": "n"})),
     ]
+    .boxed()
 }
 
-fn record() -> impl Strategy<Value = Value> {
+fn record() -> BoxedStrategy<Value> {
     prop_oneof![
         5 => (prop_oneof![Just(json!(1)), Just(json!(0)), Just(json!(2)), Just(json!("1"))], prop::collection::vec(note(), 0..8))
             .prop_map(|(v, notes)| json!({"version": v, "notes": notes})),
@@ -56,6 +72,7 @@ fn record() -> impl Strategy<Value = Value> {
         1 => ".{0,20}".prop_map(Value::from),
         1 => Just(json!({"notes": []})),
     ]
+    .boxed()
 }
 
 proptest! {

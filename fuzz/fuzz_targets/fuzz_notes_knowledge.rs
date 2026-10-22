@@ -9,7 +9,9 @@ use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
     let Some((&pick, rest)) = data.split_first() else { return };
-    let Ok(v) = serde_json::from_slice::<serde_json::Value>(rest) else { return };
+    let Ok(v) = serde_json::from_slice::<serde_json::Value>(rest) else {
+        return;
+    };
     if pick % 2 == 0 {
         let (set, _) = NoteRecord::read(Some(&v));
         let back = serde_json::to_value(NoteRecord::of(&set)).expect("notes serialise");
@@ -17,7 +19,10 @@ fuzz_target!(|data: &[u8]| {
         let _ = context::render(set.notes(), &Focus::default(), (pick as usize) << 6);
     } else {
         let (set, _) = KnowledgeRecord::read(Some(&v));
-        assert_eq!(KnowledgeRecord::read(Some(&KnowledgeRecord::of(&set).to_value())), (set.clone(), None));
+        assert_eq!(
+            KnowledgeRecord::read(Some(&KnowledgeRecord::of(&set).to_value())),
+            (set.clone(), None)
+        );
         if let Some(block) = assemble(set.files(), &[], (pick as usize) << 8) {
             assert_eq!(block.text.matches(BLOCK_OPEN).count(), 1);
             assert_eq!(block.text.matches(BLOCK_CLOSE).count(), 1);

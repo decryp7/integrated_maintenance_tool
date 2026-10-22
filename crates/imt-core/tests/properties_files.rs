@@ -92,8 +92,25 @@ impl Drop for TempDir {
 /// TOML-shaped text built from parser keys, so cases reach past the TOML syntax checks.
 fn parser_like() -> impl Strategy<Value = String> {
     let key = prop::sample::select(vec![
-        "schema", "id", "name", "version", "description", "kind", "enabled", "timestamp_formats", "regexes",
-        "output_templates", "delimiter", "level", "message", "field", "pattern", "op", "value", "sniff", "extensions",
+        "schema",
+        "id",
+        "name",
+        "version",
+        "description",
+        "kind",
+        "enabled",
+        "timestamp_formats",
+        "regexes",
+        "output_templates",
+        "delimiter",
+        "level",
+        "message",
+        "field",
+        "pattern",
+        "op",
+        "value",
+        "sniff",
+        "extensions",
     ]);
     let value = prop_oneof![
         Just("1".to_string()),
@@ -105,7 +122,15 @@ fn parser_like() -> impl Strategy<Value = String> {
         Just("true".to_string()),
         Just("{ a = 1 }".to_string()),
     ];
-    let section = prop::sample::select(vec!["", "[format]", "[match]", "[[extract]]", "[[pipeline]]", "[format.json]", "[format.csv]"]);
+    let section = prop::sample::select(vec![
+        "",
+        "[format]",
+        "[match]",
+        "[[extract]]",
+        "[[pipeline]]",
+        "[format.json]",
+        "[format.csv]",
+    ]);
     prop::collection::vec((section, prop::collection::vec((key, value), 0..5)), 0..5).prop_map(|sections| {
         let mut s = String::from("schema = 1\nid = \"prop\"\nname = \"Prop\"\nversion = \"1.0.0\"\n");
         for (header, kvs) in sections {
@@ -131,9 +156,14 @@ fn parser_text() -> impl Strategy<Value = String> {
 fn check_parser(text: &str) {
     if let Ok(p) = Parser::from_toml(text) {
         let canonical = p.canonical_toml();
-        let again = Parser::from_toml(&canonical).unwrap_or_else(|e| panic!("canonical TOML of an accepted parser is refused: {e}\n{canonical}"));
+        let again =
+            Parser::from_toml(&canonical).unwrap_or_else(|e| panic!("canonical TOML of an accepted parser is refused: {e}\n{canonical}"));
         assert_eq!(again.canonical_toml(), canonical, "canonical TOML is not stable");
-        assert_eq!(again.reference(), p.reference(), "the content hash changed through the canonical TOML");
+        assert_eq!(
+            again.reference(),
+            p.reference(),
+            "the content hash changed through the canonical TOML"
+        );
     }
 }
 
@@ -198,7 +228,8 @@ fn every_builtin_parser_round_trips() {
 
 const PROJECT_SEED: &str = r#"{"version":2,"name":"p","sources":["a.log","b/c.log","x.zip!/y.log"],"removed":["d.log"],"profile":"name = \"x\"\n","ui":{"notes":{"version":1,"notes":[]}},"clock":{"a.log":120},"store":"store","reports":[{"bad":1}]}"#;
 
-const MANIFEST_SEED: &str = "format = \"imt-project\"\nversion = 1\nname = \"demo\"\n\n[[clock_offsets]]\npath = \"a.log\"\noffset_ms = 5\n";
+const MANIFEST_SEED: &str =
+    "format = \"imt-project\"\nversion = 1\nname = \"demo\"\n\n[[clock_offsets]]\npath = \"a.log\"\noffset_ms = 5\n";
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(CASES))]

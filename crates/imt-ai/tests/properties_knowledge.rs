@@ -5,14 +5,15 @@
 //! Run more cases with `PROPTEST_CASES=5000 cargo test -p imt-ai --test properties_knowledge`.
 
 use imt_ai::knowledge::{
-    assemble, check_id, check_name, check_text, KnowledgeFile, KnowledgeRecord, KnowledgeSet, BLOCK_CLOSE, BLOCK_OPEN, FILE_CLOSE, FILE_OPEN,
-    MAX_FILES, MAX_FILE_BYTES,
+    assemble, check_id, check_name, check_text, KnowledgeFile, KnowledgeRecord, KnowledgeSet, BLOCK_CLOSE, BLOCK_OPEN, FILE_CLOSE,
+    FILE_OPEN, MAX_FILES, MAX_FILE_BYTES,
 };
 use proptest::prelude::*;
+use proptest::strategy::BoxedStrategy;
 use serde_json::{json, Value};
 
 /// Text that likes to contain the block's own markers.
-fn hostile_text() -> impl Strategy<Value = String> {
+fn hostile_text() -> BoxedStrategy<String> {
     let piece = prop_oneof![
         Just(BLOCK_OPEN.to_string()),
         Just(BLOCK_CLOSE.to_string()),
@@ -23,19 +24,20 @@ fn hostile_text() -> impl Strategy<Value = String> {
         Just("\n".to_string()),
         ".{0,40}",
     ];
-    prop::collection::vec(piece, 0..8).prop_map(|v| v.concat())
+    prop::collection::vec(piece, 0..8).prop_map(|v| v.concat()).boxed()
 }
 
-fn raw_file() -> impl Strategy<Value = Value> {
+fn raw_file() -> BoxedStrategy<Value> {
     prop_oneof![
         5 => (prop_oneof!["k[0-9a-f]{1,6}", ".{0,12}", Just("../x".to_string())], prop_oneof![".{0,20}", Just(String::new()), Just("n".repeat(200))], prop::option::of(any::<bool>()), prop_oneof![hostile_text(), Just("x".repeat(MAX_FILE_BYTES + 1))])
             .prop_map(|(id, name, enabled, text)| json!({"id": id, "name": name, "enabled": enabled, "text": text})),
         1 => Just(json!(7)),
         1 => Just(json!({"id": "k1"})),
     ]
+    .boxed()
 }
 
-fn record() -> impl Strategy<Value = Value> {
+fn record() -> BoxedStrategy<Value> {
     prop_oneof![
         5 => (prop_oneof![Just(json!(1)), Just(json!(0)), Just(json!(2)), Just(json!(-1)), Just(json!("1"))], prop::collection::vec(raw_file(), 0..(MAX_FILES + 4)))
             .prop_map(|(v, files)| json!({"version": v, "files": files})),
@@ -43,6 +45,7 @@ fn record() -> impl Strategy<Value = Value> {
         1 => Just(json!("knowledge")),
         1 => Just(json!({"files": 3, "version": 1})),
     ]
+    .boxed()
 }
 
 proptest! {

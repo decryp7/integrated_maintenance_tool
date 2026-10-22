@@ -18,13 +18,31 @@ fn body() -> impl Strategy<Value = Vec<u8>> {
 }
 
 fn remote_error() -> impl Strategy<Value = RemoteError> {
-    (any::<i32>(), ".{0,40}", prop::option::of(prop_oneof![Just(json!(null)), Just(json!({"reason": "no_runtime"})), ".{0,20}".prop_map(|s| json!(s)), any::<i64>().prop_map(|n| json!(n))]))
-        .prop_map(|(code, message, data)| RemoteError { code, message, data: data.map(Json) })
+    (
+        any::<i32>(),
+        ".{0,40}",
+        prop::option::of(prop_oneof![
+            Just(json!(null)),
+            Just(json!({"reason": "no_runtime"})),
+            ".{0,20}".prop_map(|s| json!(s)),
+            any::<i64>().prop_map(|n| json!(n))
+        ]),
+    )
+        .prop_map(|(code, message, data)| RemoteError {
+            code,
+            message,
+            data: data.map(Json),
+        })
 }
 
 fn any_frame() -> impl Strategy<Value = Frame> {
     prop_oneof![
-        (any::<u16>(), protocol(), any::<[u8; TOKEN_BYTES]>(), any::<u32>()).prop_map(|(version, protocol, token, pid)| Frame::Hello { version, protocol, token, pid }),
+        (any::<u16>(), protocol(), any::<[u8; TOKEN_BYTES]>(), any::<u32>()).prop_map(|(version, protocol, token, pid)| Frame::Hello {
+            version,
+            protocol,
+            token,
+            pid
+        }),
         (any::<u16>(), protocol()).prop_map(|(version, protocol)| Frame::Welcome { version, protocol }),
         (any::<u64>(), any::<u32>(), body()).prop_map(|(id, credit, body)| Frame::Call { id, credit, body }),
         (any::<u64>(), body()).prop_map(|(id, body)| Frame::Reply { id, body }),
@@ -130,6 +148,9 @@ fn clamp_max_bounds() {
 
 #[test]
 fn encode_refuses_frames_over_the_limit() {
-    let f = Frame::Reply { id: 1, body: vec![0; 4096] };
+    let f = Frame::Reply {
+        id: 1,
+        body: vec![0; 4096],
+    };
     assert!(matches!(frame::encode(&f, 1024), Err(FrameError::TooLarge { max: 1024, .. })));
 }
