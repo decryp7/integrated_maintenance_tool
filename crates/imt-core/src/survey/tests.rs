@@ -1163,8 +1163,8 @@ fn numbers_get_typed_extractors_and_the_chart_uses_the_first_metric() {
     let bare = propose::propose(&FolderSurvey::default(), &profile);
     assert!(
         bare.iter()
-            .filter(|c| c.group == ProposalGroup::Charts)
-            .all(|c| c.id.starts_with("chart:errors")),
+            .filter(|c| c.id.starts_with("chart:"))
+            .all(|c| c.id == "chart:errors-by-instance"),
         "{bare:?}"
     );
 }
