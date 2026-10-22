@@ -156,7 +156,43 @@ impl<'c> MomentBuilder<'c> {
 /// record, `Counter`/`Value`).
 pub struct MetricCollector<'f> {
     fields: &'f [String],
-    series: BTreeMap<(String, String), Vec<f64>>,
+    series: BTreeMap<(String, String), MetricAcc>,
+}
+
+/// What a window keeps of one series: no value per event.
+#[derive(Debug, Clone, Copy)]
+struct MetricAcc {
+    samples: usize,
+    sum: f64,
+    min: f64,
+    max: f64,
+    last: f64,
+}
+
+impl Default for MetricAcc {
+    fn default() -> Self {
+        MetricAcc {
+            samples: 0,
+            sum: 0.0,
+            min: f64::INFINITY,
+            max: f64::NEG_INFINITY,
+            last: 0.0,
+        }
+    }
+}
+
+impl MetricAcc {
+    fn push(&mut self, v: f64) {
+        self.samples += 1;
+        self.sum += v;
+        self.min = self.min.min(v);
+        self.max = self.max.max(v);
+        self.last = v;
+    }
+
+    fn avg(&self) -> f64 {
+        self.sum / self.samples as f64
+    }
 }
 
 impl<'f> MetricCollector<'f> {
@@ -184,23 +220,32 @@ impl<'f> MetricCollector<'f> {
         }
     }
 
+    /// Adds `samples` values summing to `sum` to a series (a store that aggregated a window itself; the
+    /// minimum, maximum and last value are not known, so this suits the window before, of which only the
+    /// average is shown).
+    pub fn add_summary(&mut self, series: String, metric: String, samples: usize, sum: f64) {
+        if samples == 0 {
+            return;
+        }
+        let acc = self.series.entry((series, metric)).or_default();
+        acc.samples += samples;
+        acc.sum += sum;
+    }
+
     fn windows(self, before: &MetricCollector<'_>) -> Vec<MetricWindow> {
         let mut result: Vec<MetricWindow> = self
             .series
             .into_iter()
-            .filter(|(_, values)| !values.is_empty())
-            .map(|((series, metric), values)| {
-                let avg = values.iter().sum::<f64>() / values.len() as f64;
-                let previous_avg = before
-                    .series
-                    .get(&(series.clone(), metric.clone()))
-                    .map(|p| p.iter().sum::<f64>() / p.len() as f64);
+            .filter(|(_, acc)| acc.samples > 0)
+            .map(|((series, metric), acc)| {
+                let avg = acc.avg();
+                let previous_avg = before.series.get(&(series.clone(), metric.clone())).map(MetricAcc::avg);
                 let change_pct = previous_avg.filter(|p| *p != 0.0).map(|p| (avg - p) / p.abs() * 100.0);
                 MetricWindow {
-                    samples: values.len(),
-                    min: values.iter().copied().fold(f64::INFINITY, f64::min),
-                    max: values.iter().copied().fold(f64::NEG_INFINITY, f64::max),
-                    last: values[values.len() - 1],
+                    samples: acc.samples,
+                    min: acc.min,
+                    max: acc.max,
+                    last: acc.last,
                     avg,
                     previous_avg,
                     change_pct,

@@ -25,12 +25,12 @@ use std::time::Instant;
 const QUERY_BUDGET_MB: u64 = 300;
 
 /// DuckDB's memory limit while analysing, below the shipped one so that memory held per event on the Rust side
-/// would stand out (at 1M events the in-memory anomaly detection added 250 MB).
+/// would stand out (at 1M events the in-memory anomaly detection added 250 MB); `IMT_BENCH_DUCK_MB` overrides it.
 const DUCK_LIMIT_MB: u64 = 64;
 
-/// Most an analysis may add to the RSS before it: DuckDB's sorts and windows within its memory limit, then the
-/// aggregates and the result.
-const GROWTH_MB: u64 = DUCK_LIMIT_MB + 50;
+/// Most an analysis may add to the RSS before it beyond DuckDB's memory limit (DuckDB's sorts and aggregates use
+/// up to that): the aggregates and the result.
+const GROWTH_OVER_DUCK_MB: u64 = 50;
 
 fn req<T: serde::de::DeserializeOwned>(v: serde_json::Value) -> T {
     serde_json::from_value(v).unwrap()
@@ -61,9 +61,13 @@ fn analyses_stay_within_the_query_budget() {
         }
     };
     let summary = store.summary().unwrap();
+    let duck_mb: u64 = std::env::var("IMT_BENCH_DUCK_MB")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(DUCK_LIMIT_MB);
     store
         .configure(imt_store_duck::StoreOptions {
-            memory_limit: format!("{DUCK_LIMIT_MB}MB"),
+            memory_limit: format!("{duck_mb}MB"),
             ..imt_store_duck::StoreOptions::default()
         })
         .unwrap();
@@ -83,7 +87,7 @@ fn analyses_stay_within_the_query_budget() {
             started.elapsed().as_secs_f64(),
             peak.saturating_sub(before)
         );
-        if peak > QUERY_BUDGET_MB || peak.saturating_sub(before) > GROWTH_MB {
+        if peak > QUERY_BUDGET_MB || peak.saturating_sub(before) > duck_mb + GROWTH_OVER_DUCK_MB {
             over.push(format!("{name}: peak {peak} MB, +{} MB", peak.saturating_sub(before)));
         }
     };
