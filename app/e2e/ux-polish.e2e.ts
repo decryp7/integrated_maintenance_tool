@@ -39,9 +39,8 @@ test.describe('timeline legend (F7) and explorer (H2)', () => {
     const row = page.locator('imt-timeline-panel .legend-row');
     await expect(row).toBeVisible();
     const heights = await row.evaluate((el) => ({ row: el.getBoundingClientRect().height, line: el.querySelector('.lg')!.getBoundingClientRect().height }));
-    // Each group is one line of 24 px hit areas; the groups (markers, runs, annotations) wrap onto further lines only when
-    // the panel is narrow, as it is with a document open beside the timeline. Never the old stack of wrapped rows per group.
-    expect(heights.row).toBeLessThan(heights.line * 3.5);
+    // One line of 24 px hit areas, whatever the panel width: the full legend opens as a popover over the lanes.
+    expect(heights.row).toBeLessThan(heights.line * 1.8);
     const headings = page.locator('imt-sidebar [data-testid=folder-heading]');
     await expect(headings.first()).toBeVisible();
     await expect(page.locator('imt-sidebar .src:not(.dim)').first()).toHaveAttribute('title', /Format: /);

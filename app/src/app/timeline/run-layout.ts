@@ -21,6 +21,8 @@ export const MAX_RUN_ROWS = 6;
 const POINT_PX = 24;
 /** A band shows its label from this width (px); narrower ones have it in the tooltip only. */
 export const RUN_LABEL_MIN_PX = 44;
+/** An open band shows "still running" at its end from this width (px); narrower ones leave it to the tooltip. */
+export const RUN_STILL_MIN_PX = 140;
 
 /** Why a run carries a warning glyph. */
 export type RunAnomaly = 'noStart' | 'noStop' | 'tooLong';
@@ -48,6 +50,8 @@ export interface RunBandVm {
   label: string;
   /** The band is wide enough to show its label. */
   labelFits: boolean;
+  /** The band is wide enough for its label and "still running" at its open end. */
+  stillFits: boolean;
 }
 
 export interface RunLayoutOptions {
@@ -94,6 +98,7 @@ function band(ann: AnnotationDto, run: RunInfo, view: { from: number; to: number
     row: 0,
     label: runLabel(ann, run),
     labelFits: false,
+    stillFits: false,
   };
 }
 
@@ -108,6 +113,7 @@ function stack(list: RunBandVm[], plotWidth: number): void {
   list.forEach((v, i) => {
     v.row = rows[i] ?? 0;
     v.labelFits = !v.point && v.width * px >= RUN_LABEL_MIN_PX;
+    v.stillFits = !v.point && v.width * px >= RUN_STILL_MIN_PX;
   });
 }
 

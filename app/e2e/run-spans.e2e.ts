@@ -18,6 +18,8 @@ test.describe('runs between lifecycle markers', () => {
   test('the default rule draws runs per lane, with anomalies, a tooltip and click-to-filter', async ({ page }, testInfo) => {
     const timeline = page.locator('imt-timeline-panel');
     const legend = timeline.getByRole('group', { name: 'Runs' });
+    // The one-line legend keeps the run kinds in its popover.
+    await timeline.getByTestId('legend-more').click();
     await expect(legend).toContainText('Running');
     const runs = timeline.locator('.lane .run[data-kind="run"]');
     await expect(runs.first()).toBeVisible();
@@ -26,7 +28,6 @@ test.describe('runs between lifecycle markers', () => {
     // The shared worker file: 2208 restarted without a stop; WEB01's log starts with a stop without start.
     await expect(timeline.locator('.lane .run[data-status="noStop"]')).toHaveCount(1);
     await expect(timeline.locator('.lane .run[data-status="noStart"]')).toHaveCount(1);
-    await expect(timeline.locator('.lane imt-run-track .still').first()).toHaveText('still running');
     await expect(runs.first()).toHaveAttribute('tabindex', '-1');
     await expectNoSeriousViolations(page, testInfo, 'timeline-runs');
 
@@ -81,6 +82,7 @@ test.describe('runs between lifecycle markers', () => {
 
     // The timeline draws the new kind, with its own legend entry.
     const timeline = page.locator('imt-timeline-panel');
+    await timeline.getByTestId('legend-more').click();
     await expect(timeline.getByRole('group', { name: 'Runs' }).locator('[data-run-kind="process"]')).toBeVisible();
     await expect(timeline.locator('.lane .run[data-kind="process"]').first()).toBeAttached();
 

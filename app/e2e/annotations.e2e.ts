@@ -28,12 +28,15 @@ test.describe('plugin annotations on the timeline', () => {
     await expectNoSeriousViolations(page, testInfo, 'timeline-annotations');
 
     // Hiding a kind from the legend removes its bands; showing it again brings them back.
+    // The kinds live in the legend popover (the strip itself is one line).
+    await timeline.getByTestId('legend-more').click();
     const toggle = legend.locator(`[data-kind="${DOWNTIME}"]`);
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-pressed', 'false');
     await expect(downtime).toHaveCount(0);
     await toggle.click();
     await expect(downtime).toHaveCount(2);
+    await timeline.getByTestId('legend-more').click();
 
     // Tooltip: label, owner and time (also on keyboard focus; markers may sit on top of the band).
     await downtime.first().focus();

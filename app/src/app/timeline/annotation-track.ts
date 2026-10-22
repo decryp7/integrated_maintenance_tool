@@ -55,7 +55,7 @@ export interface AnnotationHover {
   `,
   styles: `
     :host { position: absolute; inset: 0; pointer-events: none; }
-    .ann { position: absolute; top: 2px; bottom: 2px; padding: 0 0 0 2px; margin: 0; display: flex; align-items: flex-start; justify-content: flex-start; border: 1px solid var(--ann-border); border-radius: 3px; background-color: var(--ann-fill); color: var(--text-2); cursor: pointer; pointer-events: auto; overflow: hidden; z-index: 0; }
+    .ann { position: absolute; top: 2px; bottom: 2px; padding: 0 0 0 2px; margin: 0; display: flex; align-items: flex-start; justify-content: flex-start; border: 1px solid color-mix(in srgb, var(--ann-border) 50%, transparent); border-radius: 3px; background-color: var(--ann-fill); color: var(--text-2); cursor: pointer; pointer-events: auto; overflow: hidden; z-index: 0; }
     /* Event markers (z-index 1) stay on top of annotations, so a crash glyph never hides the crash marker. */
     .ann:hover { border-color: var(--accent); }
     .ann:focus-visible { border-color: var(--accent); z-index: 2; }

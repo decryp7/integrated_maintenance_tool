@@ -1,4 +1,4 @@
-import { badgeWidth, defaultMaxShapes, LaidMarker, layoutLane, layoutTargets, MarkerTarget, MarkerVm, placeBadges, TARGET_PX } from './marker-layout';
+import { badgeWidth, CROWD_MIN, mergeCrowds, defaultMaxShapes, LaidMarker, layoutLane, layoutTargets, MarkerTarget, MarkerVm, placeBadges, TARGET_PX } from './marker-layout';
 import { at } from '../../testing/must';
 
 const mk = (kind: string, left: number, count = 1, id = Math.round(left * 100)): MarkerVm => ({
@@ -142,5 +142,33 @@ describe('marker hit targets (WCAG 2.5.8)', () => {
     const layout = layoutLane([mk('fatal', 50), mk('error', 90)], { plotWidth: 1000, priority: PRIORITY, compactKinds: COMPACT });
     expect(layout.targets.map((t) => t.primary.cluster.kind)).toEqual(['fatal', 'error']);
     expect(layoutTargets([], 1000)).toEqual([]);
+  });
+
+  it('folds a crowd of mixed kinds into one glyph of the most important kind with the total count', () => {
+    const crowd = [mk('error', 10, 2, 1), mk('warning', 10.5, 3, 2), mk('exception', 11, 1, 3), mk('error', 40, 1, 4)];
+    const rank = (k: string) => PRIORITY.indexOf(k);
+    const out = mergeCrowds(crowd, 1.4, rank);
+    expect(out).toHaveLength(2);
+    const folded = at(out, 0);
+    expect(folded.cluster).toMatchObject({ kind: 'exception', count: 6, id: 3 });
+    expect(at(out, 1).cluster.id).toBe(4);
+  });
+
+  it('leaves pairs, far markers and kept kinds alone', () => {
+    expect(CROWD_MIN).toBe(3);
+    const rank = (k: string) => PRIORITY.indexOf(k);
+    const pair = [mk('error', 10), mk('warning', 10.5)];
+    expect(mergeCrowds(pair, 1.4, rank)).toHaveLength(2);
+    const withFatal = [mk('fatal', 10), mk('error', 10.2), mk('warning', 10.4), mk('error', 10.6)];
+    const out = mergeCrowds(withFatal, 1.4, rank, new Set(['fatal']));
+    expect(out.map((m) => m.cluster.kind).sort()).toEqual(['error', 'fatal']);
+  });
+
+  it('layoutLane crowds only when asked', () => {
+    const lane = [mk('error', 10), mk('warning', 10.2), mk('start', 10.4), mk('error', 60)];
+    expect(layoutLane(lane, { plotWidth: 1000, priority: PRIORITY, compactKinds: COMPACT }).shapes).toHaveLength(4);
+    const crowded = layoutLane(lane, { plotWidth: 1000, priority: PRIORITY, compactKinds: COMPACT, crowdPx: 14 });
+    expect(crowded.shapes).toHaveLength(2);
+    expect(crowded.shapes.some((m) => m.cluster.kind === 'start' && m.cluster.count === 3)).toBe(true);
   });
 });

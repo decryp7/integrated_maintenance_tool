@@ -42,7 +42,7 @@ export type LanesEmpty = 'noSources' | 'noMatchMain' | 'noMatchOwn' | null;
       @let runs = runLayout().get(l.lane.key);
       <!-- A lane: the band (volume, annotations, markers), then its runs on stacked sub-tracks. -->
       <div class="row lane" [class.odd]="odd" [class.colored]="!!l.color" [class.sparse]="l.sparse" [style.--run-rows]="rowsOf(runs)" [style.--lane-c]="l.color">
-        <button class="label lane-label" [class.filtered]="l.filtered" (click)="toggleGroup.emit(l.lane.key)" [title]="l.title">
+        <button class="label lane-label" [class.filtered]="l.filtered" (click)="toggleGroup.emit(l.lane.key)" [title]="l.title + (l.meta ? '\n' + l.meta : '')">
           <span class="label-body">
             <span class="key-row">
               @for (m of l.marks; track m.swatch.slot) {
@@ -51,7 +51,8 @@ export type LanesEmpty = 'noSources' | 'noMatchMain' | 'noMatchOwn' | null;
               @if (l.moreSources > 0) {
                 <span class="faint more-src">+{{ l.moreSources }}</span>
               }
-              <span class="key ellipsis">{{ l.lane.key }}</span>
+              @let parts = keyParts(l.lane.key);
+              <span class="key"><span class="key-name ellipsis">{{ parts[0] }}</span>@if (parts[1]) {<span class="key-tail">{{ parts[1] }}</span>}</span>
             </span>
             <span class="meta ellipsis">{{ l.meta }}</span>
           </span>
@@ -147,7 +148,7 @@ export type LanesEmpty = 'noSources' | 'noMatchMain' | 'noMatchOwn' | null;
     .label { width: var(--tl-label-w); flex: none; }
     .plot { flex: 1; min-width: 0; position: relative; margin-right: var(--s-5); }
     /* A lane is its band plus one sub-track per row of runs (--run-rows, set per lane). */
-    .lane { --run-rows: 0; height: calc(var(--lane-h) + var(--run-rows) * var(--run-row-h)); transition: background-color var(--dur-fast) var(--ease); }
+    .lane { --run-rows: 0; height: calc(var(--lane-h) + min(var(--run-rows), 1) * 3px + var(--run-rows) * var(--run-row-h)); transition: background-color var(--dur-fast) var(--ease); }
     .lane:hover { background: var(--bg-hover); }
     .lane-label { position: relative; display: block; padding: 0 var(--s-2) 0 var(--s-4); border: 0; background: transparent; cursor: pointer; text-align: left; min-width: 0; color: inherit; }
     /* The source stripe: the lane's source colour (none when source colours are off). */
@@ -155,7 +156,10 @@ export type LanesEmpty = 'noSources' | 'noMatchMain' | 'noMatchOwn' | null;
     .label-body { height: var(--lane-h); display: flex; flex-direction: column; justify-content: center; gap: 1px; min-width: 0; }
     .lane-label.filtered { background: var(--bg-sel); }
     .lane-label.filtered .key { color: var(--accent-text); }
-    .key { font-size: var(--fs-sm); font-weight: 600; color: var(--text); max-width: 100%; min-width: 0; }
+    /* "Name · host · pid": the name gives way with an ellipsis, the host and pid (what tells instances apart) stay readable. */
+    .key { display: flex; min-width: 0; max-width: 100%; font-size: var(--fs-sm); font-weight: 600; color: var(--text); }
+    .key-name { flex: 0 1 auto; min-width: 3ch; }
+    .key-tail { flex: none; white-space: pre; }
     .key-row { display: flex; align-items: center; gap: 4px; max-width: 100%; min-width: 0; }
     .more-src { font-size: var(--fs-2xs); }
     .meta { font-size: var(--fs-2xs); color: var(--muted); max-width: 100%; }
@@ -268,6 +272,12 @@ export class TimelineLanes {
   /** Sub-tracks of a lane's runs (0 without runs). */
   protected rowsOf(runs: readonly RunBandVm[] | undefined): number {
     return runRowCount(runs);
+  }
+
+  /** A lane key as [name, " · rest"]: the name may be cut for room, the rest is what distinguishes the instance. */
+  protected keyParts(key: string): [string, string] {
+    const i = key.indexOf(' · ');
+    return i > 0 ? [key.slice(0, i), key.slice(i)] : [key, ''];
   }
 
   protected tickAria(n: number): string {
