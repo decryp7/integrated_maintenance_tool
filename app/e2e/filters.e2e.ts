@@ -5,7 +5,7 @@ test.describe('filters', () => {
   test.beforeEach(async ({ page }) => openApp(page));
 
   test('level chips change the grid total', async ({ page }) => {
-    const levels = page.getByRole('group', { name: 'Levels' });
+    const levels = page.getByRole('toolbar', { name: 'Levels' });
     const total = gridTotal(page);
     const all = await initialTotal(page);
     const chipCount = async (code: string) => parseCount(await levels.getByRole('button', { name: new RegExp(`^${code}`) }).locator('.faint').innerText());

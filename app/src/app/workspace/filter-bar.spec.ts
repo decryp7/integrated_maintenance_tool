@@ -75,6 +75,30 @@ describe('FilterBar', () => {
     expect(chip('ERR').classList.contains('none')).toBe(false);
   });
 
+  it('makes the level chips one tab stop; the arrow keys move between them (G1)', async () => {
+    const { fixture } = await render();
+    const chips = all<HTMLButtonElement>(fixture, '.lvl');
+    const toolbar = el(fixture, '[role=toolbar][aria-label=Levels]');
+    expect(chips.map((c) => c.tabIndex)).toEqual([0, -1, -1, -1, -1, -1]);
+    const press = (key: string) => toolbar.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+    at(chips, 0).focus();
+    press('ArrowRight');
+    await settle(fixture);
+    expect(document.activeElement).toBe(at(chips, 1));
+    expect(chips.map((c) => c.tabIndex)).toEqual([-1, 0, -1, -1, -1, -1]);
+    press('ArrowLeft');
+    press('ArrowLeft');
+    await settle(fixture);
+    expect(document.activeElement).toBe(at(chips, 5));
+    press('Home');
+    await settle(fixture);
+    expect(document.activeElement).toBe(at(chips, 0));
+    press('End');
+    await settle(fixture);
+    expect(document.activeElement).toBe(at(chips, 5));
+    expect(press('x')).toBe(true);
+  });
+
   it('edits the group-by in View options', async () => {
     const { fixture, store } = await render();
     const options = el<HTMLButtonElement>(fixture, '[data-testid=view-options]');

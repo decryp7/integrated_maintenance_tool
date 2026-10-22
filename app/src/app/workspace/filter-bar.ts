@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, signal, untracked, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, Injector, signal, untracked, viewChild, viewChildren } from '@angular/core';
+import { RovingFocusNavigation } from '../shared/list-navigation';
 import { FilterOp, LEVELS, Level } from '../core/api.types';
 import { formatCompact, formatDateTime, formatDuration, tzLabel } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
@@ -48,9 +49,10 @@ const OP_LABELS: Record<FilterOp, string> = {
         <button class="toggle mono" [class.on]="q().caseSensitive" (click)="store.setCaseSensitive(!q().caseSensitive)" title="Match case" i18n-title="@@workspace.filterBar.matchCase" [attr.aria-pressed]="q().caseSensitive">Aa</button>
       </label>
 
-      <div class="levels" role="group" aria-label="Levels" i18n-aria-label="@@workspace.filterBar.levels">
-        @for (l of levels; track l) {
-          <button class="lvl" [attr.data-level]="l" [class.on]="levelOn(l)" [class.none]="levelMatching(l) === 0" (click)="store.toggleLevel(l)" [attr.aria-pressed]="levelOn(l)" [title]="levelTitle(l)">
+      <!-- One tab stop: the arrow keys move between the chips (roving tabindex). -->
+      <div class="levels" role="toolbar" aria-label="Levels" i18n-aria-label="@@workspace.filterBar.levels" (keydown)="onLevelsKey($event)">
+        @for (l of levels; track l; let i = $index) {
+          <button #lvl class="lvl" [attr.data-level]="l" [attr.tabindex]="i === levelFocus() ? 0 : -1" (focus)="levelFocused(i)" [class.on]="levelOn(l)" [class.none]="levelMatching(l) === 0" (click)="store.toggleLevel(l)" [attr.aria-pressed]="levelOn(l)" [title]="levelTitle(l)">
             <span class="dot" [style.background]="levelVar(l)"></span>
             <span class="mono code">{{ code(l) }}</span>
             <span class="mono faint">{{ levelCount(l) }}</span>
@@ -220,6 +222,10 @@ export class FilterBar {
   protected readonly newOp = signal<FilterOp>('eq');
   protected readonly newValue = signal('');
   private readonly search = viewChild<ElementRef<HTMLInputElement>>('search');
+  private readonly levelButtons = viewChildren<ElementRef<HTMLButtonElement>>('lvl');
+  /** The chip that holds the levels' one tab stop. */
+  protected readonly levelFocus = signal(0);
+  private readonly levelNav = new RovingFocusNavigation(signal(LEVELS.length), inject(Injector), (i) => this.levelButtons()[i]?.nativeElement.focus(), { wrap: true, homeAndEnd: true });
 
   protected readonly q = this.store.query;
   protected readonly searchPlaceholder = computed(() =>
@@ -272,6 +278,18 @@ export class FilterBar {
       if (this.store.focusSearchNonce() === 0) return;
       untracked(() => setTimeout(() => this.search()?.nativeElement.focus()));
     });
+  }
+
+  protected levelFocused(i: number): void {
+    this.levelFocus.set(i);
+    this.levelNav.sync(i);
+  }
+
+  /** Left/Right (and Home/End) move between the level chips; the toolbar is horizontal. */
+  protected onLevelsKey(e: KeyboardEvent): void {
+    const key = e.key === 'ArrowRight' ? 'ArrowDown' : e.key === 'ArrowLeft' ? 'ArrowUp' : e.key === 'Home' || e.key === 'End' ? e.key : null;
+    if (!key) return;
+    if (this.levelNav.handle(new KeyboardEvent('keydown', { key }))) e.preventDefault();
   }
 
   protected levelOn(l: Level): boolean {

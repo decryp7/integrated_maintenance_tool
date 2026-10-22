@@ -535,3 +535,6 @@ textarea.input {
 .imt-toast-stack > * { pointer-events: auto; }
 .imt-toast-stack:empty { display: none; }
 .imt-toast-overflow { display: none !important; }
+
+/* A region focused with F6 (shell/regions.ts) shows where the keyboard is. */
+[data-imt-region]:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }

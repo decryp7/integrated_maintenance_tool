@@ -25,14 +25,15 @@ import { TourOverlay } from './onboarding/tour-overlay';
     <imt-lifecycle-banners />
     <imt-partial-import-banner />
     <div class="body">
-      <imt-activity-bar />
+      <!-- The regions F6 cycles through (shell/regions.ts): each a named landmark that takes focus. -->
+      <imt-activity-bar data-imt-region="activity" role="navigation" aria-label="Activity bar" i18n-aria-label="@@app.region.activity" tabindex="-1" />
       @if (store.sidebarOpen()) {
-        <imt-sidebar />
+        <imt-sidebar data-imt-region="sidebar" role="complementary" aria-label="Side bar" i18n-aria-label="@@app.region.sidebar" tabindex="-1" />
       }
       <main class="center">
         <!-- Nothing to filter until data is open: the welcome page is the whole first screen. -->
         @if (hasData()) {
-          <imt-filter-bar />
+          <imt-filter-bar data-imt-region="filters" role="search" aria-label="Filters" i18n-aria-label="@@app.region.filters" tabindex="-1" />
         }
         <div class="stage">
           <imt-dock-host />
@@ -42,7 +43,7 @@ import { TourOverlay } from './onboarding/tour-overlay';
         </div>
       </main>
     </div>
-    <imt-status-bar />
+    <imt-status-bar data-imt-region="status" role="region" aria-label="Status bar" i18n-aria-label="@@app.region.status" tabindex="-1" />
     <imt-command-palette />
     <imt-dialog-host />
     <imt-context-menu-host />

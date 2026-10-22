@@ -351,6 +351,11 @@ there works as described under [Troubleshooting](#behind-a-corporate-proxy-zscal
 | `Mod+Shift+E` | Export events |
 | `Mod+Shift+X` | Toggle the redacted view |
 | `Mod+B` | Toggle the sidebar |
+| `F6` / `Shift+F6` | Next / previous region: activity bar, side bar, filter bar, each panel group, status bar |
+| `Mod+0` | Focus the side bar |
+| `Mod+1` … `Mod+9` | Focus panel group 1 … 9 (left to right, top to bottom) |
+| `Mod+Shift+G` | Focus the events grid |
+| `←` / `→` (in the level chips) | Move between the chips (the chips are one Tab stop) |
 | `Mod+,` | Settings |
 | `Alt+←` / `Alt+→` | Previous / next time range |
 | `↑` / `↓` | Move through the events grid |

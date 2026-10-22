@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { formatKeybinding } from '../extensions/keybinding';
 import { ProjectService } from '../projects/project.service';
+import { RegionNavigator } from './regions';
 import { WorkspaceStore } from '../core/workspace.store';
 import { AppLogo } from '../shared/app-logo';
 import { Icon } from '../shared/icon';
@@ -60,6 +61,7 @@ export class TitleBar {
   });
   private readonly registry = inject(CommandRegistry);
   private readonly palette = inject(PaletteService);
+  private readonly regions = inject(RegionNavigator);
   /** On macOS the menus are in the native menu bar and the in-app bar is hidden. */
   protected readonly mode = inject(MENU_MODE);
 
@@ -82,6 +84,7 @@ export class TitleBar {
     }
     // Inside a text field, Mod+Z / Mod+Shift+Z undo the typing (the browser's own undo), not the last edit.
     if (isTextEntry(target) && (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'z') return;
+    if (this.regions.handleKey(e)) return;
     this.registry.runForKey(e);
   }
 }
