@@ -7,6 +7,7 @@
 pub mod allocator;
 pub mod arrow_wire;
 pub mod client;
+pub mod port_table;
 pub mod protocol;
 
 pub use client::{RemoteStore, StoreWorker, WorkerConfig, WorkerLaunch};

@@ -11,8 +11,8 @@ describe('SkewBackend', () => {
   it('maps the methods to their Tauri commands', async () => {
     const invoke = vi.fn(async () => 'ok');
     const b = new TauriSkewBackend(invoke as never);
-    await b.setSourceOffset({ kind: 'manual', source: 1, offsetMs: 5, track: [3] });
-    expect(invoke).toHaveBeenLastCalledWith('set_source_offset', { request: { kind: 'manual', source: 1, offsetMs: 5, track: [3] } });
+    await b.setSourceOffset({ kind: 'manual', source: 1, offsetMs: 5 });
+    expect(invoke).toHaveBeenLastCalledWith('set_source_offset', { request: { kind: 'manual', source: 1, offsetMs: 5 } });
     await b.suggestOffsets({ reference: 2 });
     expect(invoke).toHaveBeenLastCalledWith('suggest_offsets', { request: { reference: 2 } });
     await b.suggestOffsets();

@@ -107,7 +107,7 @@ export function mockSections(): SettingsSection[] {
       description:
         'Where IMT finds the symbols (PDB files) that name the functions in a crash dump. A PDB is used only when it matches the module identity (name, GUID and age). Downloads are off until you turn them on.',
       owner: { kind: 'app' },
-      group: 'advanced',
+      group: 'symbols',
       fields: [
         f('serversEnabled', 'Download symbols from symbol servers', { type: 'bool' }, false, { description: 'Off by default: nothing is requested from the network while it is off.' }),
         f('serverUrls', 'Symbol servers', { type: 'stringList', maxItems: 8 }, ['https://msdl.microsoft.com/download/symbols'], { description: 'HTTPS addresses, asked in order.' }),

@@ -182,7 +182,6 @@ fn routes_split_the_file_into_logical_sources() {
             source: payments,
             offset_ms: 1_500,
         },
-        track: Vec::new(),
     };
     ws.set_source_offset(&request).unwrap();
     assert!(ws.sources().iter().all(|s| s.offset_ms == 1_500));

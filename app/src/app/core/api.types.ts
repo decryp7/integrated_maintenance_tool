@@ -291,8 +291,6 @@ export interface WorkspaceSummary {
   loadMs: number;
   /** Events removed by the profile pipeline, over all sources. */
   dropped: number;
-  /** Records evicted by the live retention limit so far. */
-  evicted: number;
   /** Backend plugins (importers, transforms, exporters, hooks) that are loaded. */
   plugins: PluginInfo[];
   /** Formats `export_events` can write. */
@@ -1240,22 +1238,13 @@ export type WatchPreference = 'auto' | 'events' | 'polling';
 /** How one file is actually watched. */
 export type WatchMode = 'events' | 'polling' | 'off';
 
-/** Bounded memory for long live sessions; both limits are off when null/absent. */
-export interface Retention {
-  /** Keep at most this many records (the newest). */
-  maxRecords?: number | null;
-  /** Keep only records at most this old, relative to the newest record. */
-  maxAgeMs?: number | null;
-}
-
 /** Options of `set_live`; every key is optional (engine defaults apply). */
 export interface LiveOptions {
   watch?: WatchPreference;
   /** Polling interval (clamped by the shell to 100 ms .. 10 min; default 2000). */
   pollIntervalMs?: number | null;
   deletedFiles?: DeletedFiles;
-  retention?: Retention;
-  /** An unterminated last line is parsed anyway after this long without a newline (default 2000). */
+  /** The newest event of a multi-line file is written once its file has not grown for this long (default 500). */
   carryFlushMs?: number;
   /** The live anomaly detectors run at most this often (default 1000; 0 .. MAX_DETECT_EVERY_MS, clamped by the engine). */
   detectEveryMs?: number;
@@ -1294,8 +1283,6 @@ export interface TailReport {
   deleted: number[];
   /** Sources read again in full (binary formats, archives, inconsistencies). */
   reimported: number[];
-  /** Records removed by the retention limit. */
-  evicted: number;
   /** Record ids at and after this one changed; null when every existing id is stable. */
   idsChangedFrom: number | null;
   /** Timestamp of the newest record. */
@@ -1350,8 +1337,6 @@ export interface TailTotals {
   errors: number;
   bytes: number;
   linesPerSec: number;
-  /** Records evicted by retention since the workspace was opened. */
-  evicted: number;
   records: number;
 }
 
@@ -1595,7 +1580,7 @@ export type OffsetSpec =
   | { kind: 'align'; reference: number; target: number };
 
 /** `set_source_offset` request: the spec plus record ids whose new ids the UI needs (selection, bookmarks; at most 10 000). */
-export type SetOffsetRequest = OffsetSpec & { track?: number[] };
+export type SetOffsetRequest = OffsetSpec;
 
 /** What `set_source_offset` changed. */
 export interface OffsetChange {
@@ -1604,8 +1589,6 @@ export interface OffsetChange {
   previousMs: number;
   /** Ids at and after this one were renumbered (records moved in time); null = none. */
   idsChangedFrom: number | null;
-  /** New id of each tracked id, in request order (null: it no longer exists). */
-  tracked: (number | null)[];
 }
 
 /** `suggest_offsets` request; every key is optional. */

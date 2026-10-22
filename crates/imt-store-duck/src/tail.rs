@@ -14,16 +14,20 @@
 //! disappeared keeps its events.
 //!
 //! Plain text events may continue on the lines that follow, so the last event of a read is held back (nothing is
-//! written for it, the next read starts at it) until another event follows or the file has not grown for
-//! [`HOLD_IDLE`]; [`TailAppend::held`] tells the caller to ask again after that.
+//! written for it, the next read starts at it) until another event follows or the caller asks for the held events (`append_tail` with no paths, after waiting for the
+//! file to stop growing); [`TailAppend::held`] tells the caller to ask again.
+//!
+//! A file imported in full has no held event, so its first follow reads again from its last imported event: when
+//! the file still ends it where the import saw it, that event is not written twice; when lines continued it, the
+//! source is read again in full (new source, new ids) instead of attaching the lines as separate untimed events.
 
 use crate::writer::{self, SegmentSink};
 use crate::{compact, engine, lock, pos, read_lock, write_lock, DuckStore, Importing, Inner};
 use duckdb::{params, Connection};
 use imt_core::api::UnrecognizedFile;
 use imt_core::batch::SourceId;
-use imt_core::ingest::{self, begin_at_end, read_appended, resume_after, ImportEnv, NewSource, Region, SharedRef, TailStart};
-use imt_core::ports::{ImportReport, ImportSession, StoreError, StoreResult, Tail, TailAppend, TailFile, TailRead, HOLD_IDLE};
+use imt_core::ingest::{self, begin_at_end, read_appended_from, resume_after, ImportEnv, NewSource, Region, Resume, SharedRef, TailStart};
+use imt_core::ports::{ImportReport, ImportSession, NewEvents, StoreError, StoreResult, Tail, TailAppend, TailFile, TailRead};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -152,10 +156,10 @@ struct Appended {
 
 impl Inner {
     /// The last event's position of a source imported in full, and from it where a read of the appended bytes
-    /// starts; `Err(reason)` when the file has to be read in full instead.
-    fn derive_start(&self, conn: &Connection, f: &Followed, file: &Path) -> Result<TailStart, String> {
+    /// starts (with the last event's start, to read it again first: see [`Resume`]); `Err(reason)` when the file has to be read in full instead.
+    fn derive_start(&self, conn: &Connection, f: &Followed, file: &Path) -> Result<(TailStart, Option<TailStart>), String> {
         if f.events == 0 {
-            return Ok(TailStart { byte: 0, line: 1 });
+            return Ok((TailStart { byte: 0, line: 1 }, None));
         }
         let last = conn.query_row(
             "SELECT byte_offset, line FROM events WHERE source = ? ORDER BY byte_offset DESC, line DESC LIMIT 1",
@@ -169,7 +173,7 @@ impl Inner {
         );
         let last = last.map_err(|e| format!("its last event could not be found ({e})"))?;
         match resume_after(file, last, f.bytes) {
-            Some(next) if next.byte >= f.bytes => Ok(next),
+            Some(next) if next.byte >= f.bytes => Ok((next, Some(last))),
             Some(_) => Err(UNFINISHED_LINE.into()),
             None => Err("it could not be read".into()),
         }
@@ -265,7 +269,13 @@ impl Inner {
 
     /// Reads the appended bytes of the files `actions` name; returns what was appended and the files that turned out
     /// to need a full read.
-    fn append_regions(&self, conn: &Connection, actions: Vec<Action>, out: &mut TailAppend) -> StoreResult<Vec<(Followed, String)>> {
+    fn append_regions(
+        &self,
+        conn: &Connection,
+        actions: Vec<Action>,
+        flush_held: bool,
+        out: &mut TailAppend,
+    ) -> StoreResult<Vec<(Followed, String)>> {
         let appends: Vec<(Followed, Option<Tracked>)> = actions
             .into_iter()
             .filter_map(|a| match a {
@@ -306,24 +316,28 @@ impl Inner {
         for (f, t) in appends {
             let file = PathBuf::from(file_of(&f.path));
             let size = std::fs::metadata(&file).map_or(0, |m| m.len());
+            let mut resume = None;
             let t = match t {
                 Some(t) => t,
                 None => match self.derive_start(conn, &f, &file) {
-                    Ok(start) => Tracked {
-                        byte: start.byte,
-                        lines: u64::from(start.line.saturating_sub(1)),
-                        size: f.bytes,
-                        ..Tracked::default()
-                    },
+                    Ok((start, last)) => {
+                        resume = last.map(|last| Resume { last, old_end: start.byte });
+                        Tracked {
+                            byte: start.byte,
+                            lines: u64::from(start.line.saturating_sub(1)),
+                            size: f.bytes,
+                            ..Tracked::default()
+                        }
+                    }
                     Err(why) => {
                         whole.push((f, why));
                         continue;
                     }
                 },
             };
-            // The held event is written once the file has not grown for a while.
-            let idle = lock(&self.tail_read_at).get(&f.id).is_none_or(|at| at.elapsed() >= HOLD_IDLE);
-            let flush = t.held && size == t.size && idle;
+            // The held event is written when the caller asks for the held events (it waited for the file to stop
+            // growing, see `TailOptions::carry_flush_ms`) and the file has not grown since.
+            let flush = t.held && size == t.size && flush_held;
             if t.held && size == t.size && !flush {
                 out.held.push(f.id);
                 continue;
@@ -334,12 +348,16 @@ impl Inner {
                 path: f.path.clone(),
                 name: f.name.clone(),
             };
-            let start = TailStart {
-                byte: t.byte,
-                line: u32::try_from(t.lines + 1).unwrap_or(u32::MAX),
+            // A file imported in full is read again from its last event, which may have been continued since.
+            let start = match resume {
+                Some(r) => r.last,
+                None => TailStart {
+                    byte: t.byte,
+                    line: u32::try_from(t.lines + 1).unwrap_or(u32::MAX),
+                },
             };
             let read = imt_core::guard::catch("reading the appended lines", || {
-                read_appended(&env, &file, &src, SourceId(f.id), start, flush, &mut SharedRef(&sink))
+                read_appended_from(&env, &file, &src, SourceId(f.id), start, flush, resume, &mut SharedRef(&sink))
             });
             match read {
                 Ok(Region::Whole(why)) => whole.push((f, why)),
@@ -357,7 +375,6 @@ impl Inner {
                     if r.held {
                         out.held.push(f.id);
                     }
-                    lock(&self.tail_read_at).insert(f.id, Instant::now());
                     done.push(Appended {
                         id: f.id,
                         events: r.batched.events,
@@ -407,6 +424,10 @@ impl Inner {
         let events: usize = done.iter().map(|a| a.events).sum();
         if events > 0 {
             out.appended += events;
+            out.first_new = Some(NewEvents {
+                id: first_new,
+                ts: done.iter().filter(|a| a.events > 0).filter_map(|a| a.from).min(),
+            });
             out.sources_changed.extend(done.iter().filter(|a| a.events > 0).map(|a| a.id));
             if let Err(e) = pos::append(conn, first_new, before) {
                 log::warn!("time-order positions could not be extended: {e}");
@@ -465,7 +486,8 @@ impl DuckStore {
             }
         }
         out.deleted = gone;
-        for (f, why) in self.inner.append_regions(&conn, appends, &mut out)? {
+        let mark = self.inner.id_mark(&conn)?.0;
+        for (f, why) in self.inner.append_regions(&conn, appends, hint.is_empty(), &mut out)? {
             reread.push((f, false, why));
         }
         // Files to read in full: the ones above, and files that appeared under an opened folder.
@@ -501,6 +523,9 @@ impl DuckStore {
             .collect();
         let report = self.inner.import(&paths, &self.inner.progress)?;
         out.appended += report.events;
+        if report.events > 0 && out.first_new.is_none() {
+            out.first_new = Some(NewEvents { id: mark, ts: None });
+        }
         for s in &report.sources {
             match notes.get(&s.path) {
                 Some((true, _)) => out.truncated.push(s.id),

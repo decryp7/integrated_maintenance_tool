@@ -48,24 +48,21 @@ export const ClockSkewStore = signalStore(
 
     /**
      * Applies an offset. The engine moves the source's records; the summary is fetched again (every
-     * view reloads) and the selection and the reference follow their records. Resolves with the change, or
+     * view reloads) and the selection and the reference keep their records. Resolves with the change, or
      * null after a failure (shown as `error`).
      */
     async apply(spec: OffsetSpec): Promise<OffsetChange | null> {
       patchState(store, { busy: true, error: null });
       const selected = workspace.selected();
       const reference = store.reference();
-      const track = [...new Set([...(selected ? [selected.id] : []), ...(reference ? [reference.id] : [])])];
       try {
-        const change = await backend.setSourceOffset({ ...spec, track });
-        const moved = new Map<number, number | null>(track.map((id, i) => [id, change.tracked[i] ?? null]));
+        const change = await backend.setSourceOffset(spec);
+        // Event ids are stable when events move in time: the selection and the reference keep theirs.
         if (reference) {
-          const id = moved.get(reference.id);
-          patchState(store, { reference: id == null ? null : { ...reference, id, ts: reference.source === change.source ? reference.ts + change.offsetMs - change.previousMs : reference.ts } });
+          patchState(store, { reference: { ...reference, ts: reference.source === change.source ? reference.ts + change.offsetMs - change.previousMs : reference.ts } });
         }
         await workspace.refreshSummary();
-        const next = selected ? moved.get(selected.id) : null;
-        if (next != null) workspace.jumpTo(next);
+        if (selected) workspace.jumpTo(selected.id);
         const source = sourceLabel(workspace, change.source);
         const offset = formatOffset(change.offsetMs);
         workspace.setNotice($localize`:@@skew.store.shifted:Clock of ${source}:source: shifted by ${offset}:offset:`);

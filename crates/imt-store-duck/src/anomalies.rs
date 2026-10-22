@@ -15,7 +15,7 @@ use crate::sql::{double, lit, number_expr, text_expr, Fields, FROM};
 use duckdb::arrow::array::{Array, Float64Array, Int32Array, Int64Array, RecordBatch, StringArray, StructArray, UInt64Array};
 use duckdb::Connection;
 use imt_core::analysis::anomaly::{
-    sample_id, says_stopped, BucketCount, CountedMedian, Ending, Gaps, Instance, InstanceRange, Layout, OutlierBucket, Trigger,
+    sample_id, says_stopped, BucketCount, CountedMedian, Ending, Gaps, Instance, InstanceRange, Latency, Layout, OutlierBucket, Trigger,
 };
 use imt_core::analysis::trend::counter_place;
 use imt_core::analysis::{AnomalyInputs, GrowthSeries, TrendConfig};
@@ -51,6 +51,8 @@ pub(crate) struct SqlInputs<'c> {
     /// Each instance's key and events (by index).
     names: Vec<String>,
     events: Vec<u64>,
+    /// The keys the segments' field statistics list (`None`: not read yet, or not reliable: every key may exist).
+    keys: Option<Option<std::collections::HashSet<String>>>,
 }
 
 impl Drop for SqlInputs<'_> {
@@ -146,6 +148,7 @@ impl<'c> SqlInputs<'c> {
             of: format!("anomaly_instance_of_{n}"),
             names: Vec::new(),
             events: Vec::new(),
+            keys: None,
         }
     }
 
@@ -181,6 +184,35 @@ impl<'c> SqlInputs<'c> {
 
     fn text(&self, field: &str) -> StoreResult<String> {
         text_expr(field, self.fields).ok_or_else(|| StoreError::Invalid(format!("the field name {field:?} cannot be read")))
+    }
+
+    /// Whether some event may have `field`: false only when the segments' field statistics, which list every key
+    /// of every segment, do not know it (a scan over a field nobody has is skipped). A segment with as many keys as
+    /// the statistics track may have more, so then every field may exist.
+    fn may_have(&mut self, field: &str) -> bool {
+        if field.starts_with('@') {
+            return true;
+        }
+        if self.keys.is_none() {
+            let read = || -> duckdb::Result<Option<std::collections::HashSet<String>>> {
+                let widest: i64 = self.conn.query_row(
+                    "SELECT coalesce(max(c), 0) FROM (SELECT count(*) AS c FROM segment_fields GROUP BY file)",
+                    [],
+                    |r| r.get(0),
+                )?;
+                if widest >= crate::stats::MAX_FIELDS as i64 {
+                    return Ok(None);
+                }
+                let mut stmt = self.conn.prepare("SELECT DISTINCT key FROM segment_fields")?;
+                let keys = stmt.query_map([], |r| r.get::<_, String>(0))?.collect::<duckdb::Result<_>>()?;
+                Ok(Some(keys))
+            };
+            self.keys = Some(read().unwrap_or(None));
+        }
+        match &self.keys {
+            Some(Some(keys)) => keys.contains(field) || self.fields.schema.declared_index(field).is_some(),
+            _ => true,
+        }
     }
 
     /// Rows of `sql`, each mapped by `f`.
@@ -409,6 +441,29 @@ impl AnomalyInputs for SqlInputs<'_> {
         self.first_ids(instances.len(), &events, &["ts", "source", "line", "id"], true, n)
     }
 
+    fn latency(&mut self, field: &str) -> StoreResult<Latency> {
+        if !self.may_have(field) {
+            return Ok(Latency::default());
+        }
+        // One pass: the count and the exact (interpolated) median and 99th percentile.
+        let sql = format!(
+            "SELECT count(v), quantile_cont(v, 0.5), quantile_cont(v, 0.99) FROM (SELECT {} AS v FROM {FROM} WHERE {})",
+            self.number(field)?,
+            self.filter
+        );
+        let row = self.rows(&sql, |r| {
+            Ok((r.get::<_, u64>(0)?, r.get::<_, Option<f64>>(1)?, r.get::<_, Option<f64>>(2)?))
+        })?;
+        Ok(match row.first() {
+            Some((n, Some(median), Some(p99))) => Latency {
+                count: *n as usize,
+                median: *median,
+                p99: *p99,
+            },
+            _ => Latency::default(),
+        })
+    }
+
     fn value_count(&mut self, field: &str) -> StoreResult<usize> {
         let sql = format!("SELECT count({}) FROM {FROM} WHERE {}", self.number(field)?, self.filter);
         Ok(self.rows(&sql, |r| r.get::<_, u64>(0))?.first().copied().unwrap_or(0) as usize)
@@ -494,6 +549,9 @@ impl AnomalyInputs for SqlInputs<'_> {
     fn growth_series(&mut self, cfg: &TrendConfig, f: &mut dyn FnMut(GrowthSeries)) -> StoreResult<()> {
         // The instances' growth fields, one field at a time, in instance then time order.
         for field in &cfg.fields {
+            if !self.may_have(field) {
+                continue;
+            }
             let sql = format!(
                 "SELECT i, ts, v, CAST(id AS UBIGINT) FROM (
                    SELECT t.i AS i, e.ts AS ts, {} AS v, e.id AS id, e.source AS source, e.line AS line FROM {})
@@ -543,7 +601,7 @@ impl AnomalyInputs for SqlInputs<'_> {
         }
         // PerfMon counters, one series per machine, process and counter, in time then instance order.
         let counters: Vec<String> = cfg.counters.iter().filter_map(|c| lit(c)).collect();
-        if counters.is_empty() {
+        if counters.is_empty() || !self.may_have("Counter") || !self.may_have("Value") {
             return Ok(());
         }
         let sql = format!(

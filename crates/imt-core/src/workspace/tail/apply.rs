@@ -195,44 +195,6 @@ impl Workspace {
         }
     }
 
-    /// Applies the retention limit, evicting the oldest records in bulk (once
-    /// the limit is exceeded by a tenth, down to the limit).
-    pub(super) fn evict(&mut self, report: &mut TailReport) {
-        let retention = self.tail.options.retention;
-        let n = self.records.len();
-        let mut k = 0;
-        if let Some(max) = retention.max_records {
-            if n > max + (max / 10).max(1) {
-                k = n - max;
-            }
-        }
-        if let (Some(age), Some(newest)) = (retention.max_age_ms, self.newest_ts()) {
-            let cutoff = newest - age;
-            let oldest = self.records.first().and_then(|r| r.ts);
-            if oldest.is_some_and(|t| t < cutoff - (age / 10).max(1)) {
-                k = k.max(self.records.partition_point(|r| r.ts.is_some_and(|t| t < cutoff)));
-            }
-        }
-        if k == 0 {
-            return;
-        }
-        let touched: BTreeSet<u32> = self.records[..k].iter().map(|r| r.source).collect();
-        for r in &self.records[..k] {
-            self.field_index.remove(r);
-        }
-        self.records.drain(..k);
-        self.records.par_iter_mut().enumerate().for_each(|(i, r)| r.id = i as u32);
-        self.cache.lock().unwrap_or_else(|p| p.into_inner()).evict(k);
-        *self.anomaly_cache.lock().unwrap_or_else(|p| p.into_inner()) = None;
-        self.generation += 1;
-        self.refresh_field_infos();
-        (self.default_group_by, self.key_scopes) = self.pick_group_by();
-        self.recount(&touched);
-        self.tail.evicted += k;
-        report.evicted += k;
-        report.ids_changed_from = Some(0);
-    }
-
     /// Timestamp of the newest record (records are kept in time order, untimed last).
     pub fn newest_ts(&self) -> Option<i64> {
         let end = self.records.partition_point(|r| r.ts.is_some());
@@ -375,7 +337,6 @@ impl Workspace {
                 .count(),
             bytes: files.iter().map(|f| f.offset).sum(),
             lines_per_sec: files.iter().map(|f| f.lines_per_sec).sum(),
-            evicted: self.tail.evicted,
             records: self.records.len(),
         };
         TailStatus { files, totals }

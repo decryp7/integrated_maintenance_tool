@@ -247,17 +247,6 @@ impl MatchCache {
             true
         });
     }
-
-    /// Drops the first `n` records (retention) from every cached result.
-    pub fn evict(&mut self, n: usize) {
-        for e in &mut self.entries {
-            let ids = Arc::make_mut(&mut e.ids);
-            ids.retain(|&id| id as usize >= n);
-            for id in ids.iter_mut() {
-                *id -= n as u32;
-            }
-        }
-    }
 }
 
 /// The pattern miner of the last patterns query, fed only new matching records.
@@ -415,8 +404,6 @@ mod tests {
             &name,
         );
         assert_eq!(*cache.get(k("k"), &q, &records).unwrap(), vec![0, 1, 3, 5]);
-        cache.evict(1);
-        assert_eq!(*cache.get(k("k"), &q, &records).unwrap(), vec![0, 2, 4]);
         // A different `to` misses; a live window that slid forward drops old ids.
         let moved = Query { to: Some(1), ..q.clone() };
         assert!(cache.get(k("k"), &moved, &records).is_none());

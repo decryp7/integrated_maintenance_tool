@@ -48,7 +48,6 @@ pub(crate) fn compose(reply: SummaryReply, host: &Host, last: Option<&ImportRepo
         charts: imt_core::chart::chart_defs(&compiled.profile),
         profile_name: reply.profile_name,
         load_ms: last.map_or(0, |r| r.elapsed_ms),
-        evicted: 0,
         icons: compiled.icons.clone(),
         pipeline: Vec::new(),
         plugins: registry.plugins(),

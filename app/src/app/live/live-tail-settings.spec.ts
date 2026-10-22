@@ -30,15 +30,13 @@ describe('live tail settings (Settings > Live tail)', () => {
     await settle(fixture);
     await live.set(true);
     await settle(fixture);
-    expect(all(fixture, '.unit').map((u) => u.textContent)).toEqual(['ms', 'events', 'minutes', 'ms', 'ms']);
+    expect(all(fixture, '.unit').map((u) => u.textContent)).toEqual(['ms', 'ms', 'ms']);
     const selects = all<HTMLSelectElement>(fixture, 'select');
     const watch = at(selects, 0);
     const deleted = at(selects, 1);
     const inputs = all<HTMLInputElement>(fixture, 'input');
     const poll = at(inputs, 0);
-    const maxRecords = at(inputs, 1);
-    const maxAge = at(inputs, 2);
-    const carry = at(inputs, 3);
+    const carry = at(inputs, 1);
     typeInto(watch, 'polling', 'change');
     await settle(fixture);
     expect(setLive).toHaveBeenLastCalledWith(true, expect.objectContaining({ watch: 'polling' }));
@@ -48,16 +46,6 @@ describe('live tail settings (Settings > Live tail)', () => {
     typeInto(poll, '', 'change');
     await settle(fixture);
     expect(setLive).toHaveBeenLastCalledWith(true, expect.objectContaining({ pollIntervalMs: null }));
-    typeInto(maxRecords, '100000', 'change');
-    await settle(fixture);
-    expect(setLive).toHaveBeenLastCalledWith(true, expect.objectContaining({ retention: { maxRecords: 100000, maxAgeMs: null } }));
-    typeInto(maxAge, '30', 'change');
-    await settle(fixture);
-    expect(setLive).toHaveBeenLastCalledWith(true, expect.objectContaining({ retention: { maxRecords: 100000, maxAgeMs: 1_800_000 } }));
-    expect(el<HTMLInputElement>(fixture, 'input[placeholder="no limit"]:nth-of-type(1)')).toBeTruthy();
-    typeInto(maxAge, '', 'change');
-    await settle(fixture);
-    expect(live.options().retention?.maxAgeMs).toBeNull();
     typeInto(deleted, 'drop', 'change');
     await settle(fixture);
     expect(setLive).toHaveBeenLastCalledWith(true, expect.objectContaining({ deletedFiles: 'drop' }));
@@ -66,7 +54,7 @@ describe('live tail settings (Settings > Live tail)', () => {
     expect(setLive).toHaveBeenLastCalledWith(true, expect.objectContaining({ carryFlushMs: 500 }));
     typeInto(carry, 'abc', 'change');
     await settle(fixture);
-    expect(live.options().carryFlushMs).toBe(2000);
+    expect(live.options().carryFlushMs).toBe(500);
     // Detector interval: labelled, applied, clamped to the engine's range; invalid text shows the value again.
     const detect = el<HTMLInputElement>(fixture, '[data-testid=detect-every]');
     expect(detect.closest('label')!.textContent).toContain('Run detectors every');
