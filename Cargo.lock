@@ -3105,6 +3105,7 @@ dependencies = [
  "imt-profile",
  "imt-store-client",
  "imt-store-duck",
+ "imt-video",
  "log",
  "notify-debouncer-mini",
  "objc2-app-kit",

@@ -436,7 +436,9 @@ impl FfmpegStore {
         let report = check(&tools)?;
         let _busy = self.begin()?;
         let mut s = self.state();
-        s.custom = Some(path.canonicalize()?.to_string_lossy().into_owned());
+        // As the user gave it (made absolute), not with links resolved: Homebrew's `bin/ffmpeg` is a link into `Cellar/`
+        // and its libraries are found from the prefix above `bin/`.
+        s.custom = Some(std::path::absolute(path)?.to_string_lossy().into_owned());
         s.use_custom = true;
         match &report.version {
             Some(v) => s.versions.insert("custom".into(), v.clone()),
@@ -740,5 +742,25 @@ mod tests {
         store.clear_custom().unwrap();
         assert_eq!(store.status(&c, "test-x64").mode, RuntimeMode::None);
         assert!(custom_tools(&dir.path().join("missing")).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_linked_install_may_read_its_whole_prefix() {
+        // Homebrew: prefix/bin/ffmpeg -> prefix/Cellar/ffmpeg/9/bin/ffmpeg; the libraries are elsewhere under the prefix.
+        let dir = tempfile::tempdir().unwrap();
+        let prefix = std::fs::canonicalize(dir.path()).unwrap().join("brew");
+        let cellar = prefix.join("Cellar").join("ffmpeg").join("9").join("bin");
+        std::fs::create_dir_all(&cellar).unwrap();
+        std::fs::create_dir_all(prefix.join("bin")).unwrap();
+        for n in ["ffmpeg", "ffprobe"] {
+            std::fs::write(cellar.join(n), b"x").unwrap();
+            std::os::unix::fs::symlink(cellar.join(n), prefix.join("bin").join(n)).unwrap();
+        }
+        let tools = custom_tools(&prefix.join("bin").join("ffmpeg")).unwrap();
+        assert!(tools.read.contains(&prefix), "{:?}", tools.read);
+        let store = FfmpegStore::new(dir.path().join("rt"));
+        store.set_custom(&prefix.join("bin").join("ffmpeg"), &passes).unwrap();
+        assert!(store.tools().unwrap().read.contains(&prefix), "the saved path keeps its prefix");
     }
 }

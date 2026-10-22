@@ -26,6 +26,13 @@ pub fn video_time(ms: u64) -> String {
     }
 }
 
+/// A moment (epoch ms) as the `YYYY-MM-DD HH:MM:SS` + `+00:00` pair an image's time evidence takes, so "find related
+/// logs" for a frame searches around the frame's aligned moment. `None` for a moment chrono cannot show.
+pub fn utc_stamp(epoch_ms: i64) -> Option<(String, String)> {
+    let t = chrono::DateTime::from_timestamp_millis(epoch_ms)?;
+    Some((t.format("%Y-%m-%d %H:%M:%S").to_string(), "+00:00".to_string()))
+}
+
 /// The question for one frame.
 pub fn describe_question(video: &str, frame: usize, total: usize, ms: u64) -> String {
     format!(
@@ -105,6 +112,7 @@ pub fn explain_range<P: LlmProvider>(a: &Assistant<P>, images: &[ImageInput], vi
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::AiUnavailable;
     use imt_ai::assistant::AssistantConfig;
     use imt_ai::llm::{Reply, ScriptedProvider};
     use imt_ai::vision::image::testing::screenshot_png;
@@ -132,6 +140,12 @@ mod tests {
     }
 
     #[test]
+    fn a_frames_moment_is_a_utc_stamp() {
+        assert_eq!(utc_stamp(1_760_438_474_000), Some(("2025-10-14 10:41:14".into(), "+00:00".into())));
+        assert_eq!(utc_stamp(i64::MAX), None);
+    }
+
+    #[test]
     fn a_description_is_one_clamped_line() {
         assert_eq!(tidy("  Login\n\n dialog\t shown. ").as_deref(), Some("Login dialog shown."));
         assert_eq!(tidy("   "), None);
@@ -152,7 +166,13 @@ mod tests {
             Err(VideoError::Ai(_))
         ));
         let blind = Assistant::new(ScriptedProvider::text(&["x"]), AssistantConfig::default());
-        assert!(matches!(describe_frame(&blind, &image(), "r", 1, 1, 0), Err(VideoError::Ai(_))));
+        assert!(matches!(
+            describe_frame(&blind, &image(), "r", 1, 1, 0),
+            Err(VideoError::AiUnavailable {
+                kind: AiUnavailable::NoVision,
+                ..
+            })
+        ));
         assert_eq!(blind.provider().requests().len(), 0);
         assert_eq!(VideoError::from(AiError::Cancelled), VideoError::Cancelled);
     }

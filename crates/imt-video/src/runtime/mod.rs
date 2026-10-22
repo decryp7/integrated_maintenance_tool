@@ -7,11 +7,13 @@
 //! - [`store`]: `<data>/video/ffmpeg/`, install, update with rollback, delete and the user's own ffmpeg.
 
 pub mod catalog;
+pub mod detect;
 pub mod selftest;
 pub mod store;
 pub mod testclip;
 pub mod unpack;
 
 pub use catalog::{current_platform, FfmpegAsset, FfmpegCatalog};
+pub use detect::detect;
 pub use selftest::{self_test, SelfTestReport};
 pub use store::{custom_tools, FfmpegStore, InstallStage, InstalledRelease, RuntimeMode, RuntimeStatus};

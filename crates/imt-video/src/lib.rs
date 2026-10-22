@@ -8,10 +8,12 @@ pub mod analyze;
 pub mod api;
 pub mod describe;
 pub mod error;
+pub mod ingest;
+pub mod media;
 pub mod parse;
 pub mod record;
 pub mod run;
 pub mod runtime;
 pub mod select;
 
-pub use error::{Result, VideoError};
+pub use error::{AiUnavailable, Result, VideoError};

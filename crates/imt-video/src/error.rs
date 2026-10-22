@@ -2,6 +2,14 @@
 
 use thiserror::Error;
 
+/// Why the AI cannot be used.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AiUnavailable {
+    NoModel,
+    NoRuntime,
+    NoVision,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum VideoError {
     /// An argument from the webview or a file IMT wrote is not acceptable.
@@ -34,6 +42,9 @@ pub enum VideoError {
     Cancelled,
     #[error("{0}")]
     Io(String),
+    /// The AI cannot do this now: no model is loaded, no inference runtime is installed, or the model cannot read images.
+    #[error("{message}")]
+    AiUnavailable { kind: AiUnavailable, message: String },
     /// Something in the AI part failed (its own message).
     #[error("{0}")]
     Ai(String),
@@ -54,6 +65,14 @@ impl From<imt_ai::AiError> for VideoError {
         match e {
             imt_ai::AiError::Cancelled => VideoError::Cancelled,
             imt_ai::AiError::Integrity(m) => VideoError::Integrity(m),
+            e @ (imt_ai::AiError::NoModel | imt_ai::AiError::NoRuntime | imt_ai::AiError::NoVision) => VideoError::AiUnavailable {
+                kind: match e {
+                    imt_ai::AiError::NoModel => AiUnavailable::NoModel,
+                    imt_ai::AiError::NoRuntime => AiUnavailable::NoRuntime,
+                    _ => AiUnavailable::NoVision,
+                },
+                message: e.to_string(),
+            },
             other => VideoError::Ai(other.to_string()),
         }
     }
