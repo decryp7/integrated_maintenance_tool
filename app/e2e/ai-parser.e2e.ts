@@ -2,14 +2,15 @@ import { expect, test } from '@playwright/test';
 import { expectNoSeriousViolations } from './axe';
 import { openAiApp } from './ai-support';
 
-/** Settings ▸ Parsers ▸ Generate with AI… (ADR 0032), with the scripted AI mock: the engine's verdict is shown. */
+/** Parsers view ▸ Generate with AI… (ADR 0032), with the scripted AI mock: the engine's verdict is shown. */
 test.describe('AI parser generation', () => {
   test('generates a parser for a file of the window and shows the score, the lines not read and the rounds', async ({ page }, testInfo) => {
     await openAiApp(page);
-    await page.keyboard.press('ControlOrMeta+Comma');
-    const settings = page.getByRole('dialog', { name: 'Settings' });
-    await settings.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Parsers' }).click();
-    await settings.getByRole('button', { name: 'Generate with AI…' }).click();
+    await page.keyboard.press('ControlOrMeta+k');
+    await page.getByRole('combobox', { name: 'Type a command' }).fill('Manage parsers');
+    await page.keyboard.press('Enter');
+    const parsers = page.locator('imt-parsers-view');
+    await parsers.getByRole('button', { name: 'Generate with AI…' }).click();
     await page.getByRole('menu', { name: 'Generate a parser for a file of this window' }).getByRole('menuitem').first().click();
 
     const propose = page.getByRole('dialog', { name: 'Propose a parser' });
