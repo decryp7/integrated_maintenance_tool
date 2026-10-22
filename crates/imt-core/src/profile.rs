@@ -901,6 +901,25 @@ mod tests {
     use super::*;
 
     #[test]
+    fn the_files_encoding_defaults_to_auto_and_unknown_labels_fall_back() {
+        use crate::ingest::EncodingChoice;
+        let cfg: FilesCfg = toml::from_str("include = ['*.log']\nexclude = []").unwrap();
+        assert_eq!(cfg.encoding, "auto");
+        assert_eq!(cfg.encoding_choice(), EncodingChoice::Auto);
+        let sjis = FilesCfg {
+            encoding: "Shift_JIS".into(),
+            ..cfg.clone()
+        };
+        assert!(matches!(sjis.encoding_choice(), EncodingChoice::Fixed(_)));
+        // A label the profile compile would have refused reads as automatic detection, never a failure.
+        let odd = FilesCfg {
+            encoding: "no-such-encoding".into(),
+            ..cfg
+        };
+        assert_eq!(odd.encoding_choice(), EncodingChoice::Auto);
+    }
+
+    #[test]
     fn default_profile_compiles() {
         let c = CompiledProfile::compile(Profile::default_profile()).unwrap();
         assert_eq!(c.markers.len(), 6);
