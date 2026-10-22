@@ -55,6 +55,29 @@ test('settings dialog changes the theme, colour scheme, date format and density,
   expect(csp).toEqual([]);
 });
 
+test('the selected segment of a segmented control is filled with the accent, not only outlined (G3)', async ({ page }) => {
+  await openApp(page);
+  await openWithShortcut(page);
+  const dialog = settingsDialog(page);
+  await sectionNav(page).getByRole('button', { name: 'Appearance' }).click();
+  const scheme = dialog.getByTestId('scheme-setting');
+  await scheme.getByRole('button', { name: 'dark' }).click();
+  const selected = scheme.getByRole('button', { name: 'dark' });
+  await expect(selected).toHaveAttribute('aria-pressed', 'true');
+  const accent = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
+  const bg = (b: typeof selected) => b.evaluate((el) => getComputedStyle(el).backgroundColor);
+  const probe = await page.evaluate((c) => {
+    const d = document.createElement('div');
+    d.style.color = c;
+    document.body.append(d);
+    const rgb = getComputedStyle(d).color;
+    d.remove();
+    return rgb;
+  }, accent);
+  expect(await bg(selected)).toBe(probe);
+  expect(await bg(scheme.getByRole('button', { name: 'light' }))).not.toBe(probe);
+});
+
 test('settings can reset the layout', async ({ page }) => {
   await openApp(page);
   await page.getByRole('button', { name: 'Settings' }).click();
@@ -90,7 +113,7 @@ test('engine settings: shortcut, validation error, apply, reset and restart bann
   await expect(dialog.getByRole('button', { name: 'Apply' })).toBeDisabled();
 
   // Reset one field to its default (an edit to apply), then the whole section.
-  await dialog.getByRole('button', { name: 'Reset Log file size to default' }).click();
+  await dialog.getByRole('button', { name: 'Reset to default: Log file size' }).click();
   await expect(size).toHaveValue('10');
   await expect(dialog.getByText('Unapplied changes in 1 section')).toBeVisible();
   await dialog.getByLabel('Log level', { exact: true }).selectOption('debug');

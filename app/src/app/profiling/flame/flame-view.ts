@@ -82,7 +82,7 @@ import { measuredWidth } from './measured-width';
         />
       </imt-analysis-state>
     } @else {
-      <imt-no-capture text="Open a profile to see its flame graph." i18n-text="@@profiling.flameView.noCapture" />
+      <imt-no-capture text="Open a performance capture to see its flame graph." i18n-text="@@profiling.flameView.noCapture" />
     }
   `,
   styles: [

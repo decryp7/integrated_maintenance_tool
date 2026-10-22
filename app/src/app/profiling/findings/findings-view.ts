@@ -75,7 +75,7 @@ export function evidenceSummary(e: Evidence): string {
         </ul>
       </imt-analysis-state>
     } @else {
-      <imt-no-capture text="Open a profile to see automatic findings." i18n-text="@@profiling.findings.noCapture" />
+      <imt-no-capture text="Open a performance capture to see automatic findings." i18n-text="@@profiling.findings.noCapture" />
     }
   `,
   styles: [

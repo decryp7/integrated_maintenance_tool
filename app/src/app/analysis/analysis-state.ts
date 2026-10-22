@@ -1,5 +1,6 @@
 import { booleanAttribute, ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { NextSteps } from '../ui/next-steps';
+import { ErrorDetails } from '../ui/error-details';
 
 /**
  * Error boundary and loading/empty states for one analysis request: a failed request shows an
@@ -8,16 +9,16 @@ import { NextSteps } from '../ui/next-steps';
 @Component({
   selector: 'imt-analysis-state',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NextSteps],
+  imports: [NextSteps, ErrorDetails],
   template: `
     @if (error(); as message) {
       <div class="state" role="alert">
-        <span class="msg">{{ message }}</span>
-        <span class="row">
-          @if (retryable()) {
-            <button class="btn" type="button" (click)="retry.emit()" i18n="@@analysis.state.retry">Retry</button>
-          }
-        </span>
+        @if (retryable()) {
+          <!-- A failure (not something to fix in the query): a sentence, Retry, and the message as technical details. -->
+          <imt-error-details summary="Couldn't finish this analysis." i18n-summary="@@analysis.state.failedSummary" [detail]="message" (retry)="retry.emit()" />
+        } @else {
+          <span class="msg">{{ message }}</span>
+        }
         @if (suggest()) {
           <imt-next-steps />
         }
@@ -43,7 +44,6 @@ import { NextSteps } from '../ui/next-steps';
     .state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 28px 16px; color: var(--muted); text-align: center; }
     [role='alert'] .msg { color: var(--danger-text); }
     .hint { max-width: 420px; font-size: var(--fs-sm); color: var(--faint); }
-    .row { display: flex; gap: 8px; }
   `,
 })
 export class AnalysisState {

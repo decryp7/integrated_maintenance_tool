@@ -37,6 +37,15 @@ const CONTEXT_MS = 2 * 60 * 1000;
     </div>
 
     @if (rec(); as r) {
+      @if (store.selectedHidden()) {
+        <div class="hidden-note" role="status" data-testid="selected-hidden">
+          <span i18n="@@inspector.hidden">This event is hidden by the current filters.</span>
+          <span class="hidden-actions">
+            <button class="btn" type="button" (click)="store.clearQuery()" i18n="@@inspector.hidden.clearFilters">Clear filters</button>
+            <button class="btn" type="button" (click)="store.select(null)" i18n="@@inspector.hidden.clearSelection">Clear selection</button>
+          </span>
+        </div>
+      }
       <div class="scroll">
         <div class="top">
           <div class="badges">
@@ -143,6 +152,8 @@ const CONTEXT_MS = 2 * 60 * 1000;
     :host { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg-2); min-height: 0; }
     .head { height: 34px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 8px 0 14px; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
     .spacer { flex: 1; }
+    .hidden-note { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 14px; border-bottom: 1px solid var(--ann-warning-border); background: var(--ann-warning); color: var(--text); font-size: var(--fs-sm); }
+    .hidden-actions { display: flex; gap: 6px; }
     .scroll { flex: 1; min-height: 0; overflow: auto; }
     .top { padding: 14px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--border); }
     .badges { display: flex; gap: 6px; flex-wrap: wrap; }

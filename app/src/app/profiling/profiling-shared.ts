@@ -70,14 +70,14 @@ export class CaptureNotes {
   protected readonly notesLabel = computed(() => $localize`:@@profiling.captureNotes.label:Import notes for ${this.name()}:name:`);
 }
 
-/** "Open a profile" empty state with the open action. */
+/** "Open a performance capture" empty state with the open action. */
 @Component({
   selector: 'imt-no-capture',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="state" role="status">
       <span>{{ text() }}</span>
-      <button class="btn" type="button" [disabled]="captures.loading()" (click)="captures.pickAndOpen()" i18n="@@profiling.noCapture.open">Open profile…</button>
+      <button class="btn" type="button" [disabled]="captures.loading()" (click)="captures.pickAndOpen()" i18n="@@profiling.noCapture.open">Open performance capture…</button>
       @if (captures.error(); as e) { <span class="err" role="alert">{{ e }}</span> }
     </div>
   `,
@@ -87,7 +87,7 @@ export class CaptureNotes {
   `,
 })
 export class NoCapture {
-  readonly text = input($localize`:@@profiling.noCapture.default:Open a profile to see this view.`);
+  readonly text = input($localize`:@@profiling.noCapture.default:Open a performance capture to see this view.`);
   protected readonly captures = inject(CapturesStore);
 }
 

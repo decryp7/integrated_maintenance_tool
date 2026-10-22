@@ -1,19 +1,26 @@
 import { formatCount } from '../shared/format/units';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Icon } from '../shared/icon';
-import { fileName, percent, progressLine } from './import-format';
+import { fileName, importStatusText, percent, progressLine } from './import-format';
 import { ImportProgressService } from './import-progress.service';
+import { COMMAND_CONTEXT } from '../extensions/command-registry';
+import { JOBS_VIEW } from '../jobs/job-viewer';
+import { WelcomeService } from '../welcome/welcome';
 
 /** Shared view model of the progress widgets. */
 function view(svc: ImportProgressService) {
   return computed(() => {
     const p = svc.progress();
     if (!p) return null;
-    return { percent: percent(p), line: progressLine(p), file: fileName(p.current), path: p.current ?? '', counted: p.total > 0 };
+    const counted = p.total > 0;
+    return { percent: percent(p), line: counted ? progressLine(p) : importStatusText(p), status: importStatusText(p), file: fileName(p.current), path: p.current ?? '', counted };
   });
 }
 
-/** Import progress in the status bar: bar, files, bytes, ETA, current file, Cancel. */
+/**
+ * The import's one progress surface (over a workspace): bar, "Scanning for files…" until the engine counted them, then
+ * files, bytes, ETA and the current file, and Cancel. The text opens the import's job in Jobs.
+ */
 @Component({
   selector: 'imt-import-status',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -30,8 +37,10 @@ function view(svc: ImportProgressService) {
           [attr.aria-valuenow]="v.counted ? v.percent : null"
           [attr.aria-valuetext]="v.line"
         ><span class="fill" [style.width.%]="v.percent"></span></span>
-        <span i18n="@@import.ui.importing">Importing {{ v.line }}</span>
-        @if (v.file) { <span class="file" [title]="v.path">{{ v.file }}</span> }
+        <button type="button" class="open-job" data-testid="import-status-open" [title]="openJobTitle" (click)="ctx.showView(jobsView)">
+          <span>{{ v.status }}</span>
+          @if (v.file) { <span class="file" [title]="v.path">{{ v.file }}</span> }
+        </button>
         <button type="button" class="cancel" [disabled]="svc.cancelling()" (click)="svc.cancel()">{{ svc.cancelling() ? cancellingLabel : cancelLabel }}</button>
       </span>
     }
@@ -42,6 +51,9 @@ function view(svc: ImportProgressService) {
     .wrap { display: inline-flex; align-items: center; gap: 8px; flex: none; }
     .bar { width: 80px; height: 6px; border-radius: 3px; background: var(--border-2); overflow: hidden; flex: none; }
     .fill { display: block; height: 100%; background: var(--accent); transition: width 0.2s; }
+    .open-job { all: unset; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+    .open-job:hover { text-decoration: underline; }
+    .open-job:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     .file { max-width: 180px; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-mono); font-size: var(--fs-xs); }
     .cancel { height: 18px; padding: 0 8px; border-radius: 9px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; font-size: var(--fs-xs); font-weight: 600; }
     .cancel:hover:not(:disabled) { background: var(--bg-hover); }
@@ -50,18 +62,24 @@ function view(svc: ImportProgressService) {
 })
 export class ImportStatus {
   protected readonly svc = inject(ImportProgressService);
+  protected readonly ctx = inject(COMMAND_CONTEXT);
+  protected readonly jobsView = JOBS_VIEW;
   protected readonly vm = view(this.svc);
+  protected readonly openJobTitle = $localize`:@@import.ui.openJob:Show the import in Jobs`;
   protected readonly cancellingLabel = $localize`:@@import.ui.cancelling:Cancelling…`;
   protected readonly cancelLabel = $localize`:Cancel the import|Button@@import.ui.cancel:Cancel`;
 }
 
-/** A non-blocking toast for long imports, with the same progress and Cancel. */
+/**
+ * A card for long imports on the welcome page, where there is nothing else to look at; over a workspace the status
+ * bar is the only progress surface (the card would cover the Explorer and the grid).
+ */
 @Component({
   selector: 'imt-import-toast',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   template: `
-    @if (svc.long()) {
+    @if (svc.long() && welcome.visible()) {
       @if (vm(); as v) {
         <div class="toast" data-imt-overlay role="status" aria-label="Import in progress" i18n-aria-label="@@import.ui.inProgress" data-testid="import-toast">
           <div class="head">
@@ -93,6 +111,7 @@ export class ImportStatus {
 })
 export class ImportToast {
   protected readonly svc = inject(ImportProgressService);
+  protected readonly welcome = inject(WelcomeService);
   protected readonly vm = view(this.svc);
   protected readonly cancellingLabel = $localize`:@@import.ui.cancelling:Cancelling…`;
   protected readonly cancelImportLabel = $localize`:@@import.ui.cancelImport:Cancel import`;

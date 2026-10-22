@@ -136,7 +136,8 @@ export class SettingFieldControl {
   protected readonly hint = computed(() => rangeHint(this.field().kind));
   protected readonly isDefault = computed(() => sameValue(this.value(), this.field().default));
   protected readonly defaultText = computed(() => displayValue(this.field(), this.field().default));
-  protected readonly resetLabel = computed(() => $localize`:@@settings.field.reset.label:Reset ${this.field().label}:setting: to default`);
+  // Starts with the visible text ("Reset to default"), so speech users can say what they see (WCAG 2.5.3).
+  protected readonly resetLabel = computed(() => $localize`:@@settings.field.reset.labelInName:Reset to default: ${this.field().label}:setting:`);
   protected readonly defaultTitle = computed(() => $localize`:@@settings.field.default.title:Default: ${this.defaultText()}:value:`);
   protected readonly browseLabel = computed(() => $localize`:@@settings.field.browse.label:Browse for ${this.field().label}:setting:`);
   protected readonly folderPlaceholder = $localize`:@@settings.field.folder.placeholder:Folder (empty = default)`;

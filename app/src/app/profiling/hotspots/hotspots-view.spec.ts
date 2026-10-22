@@ -37,9 +37,9 @@ describe('HotspotsView', () => {
 
   it('shows the no-capture state with an Open button', async () => {
     const { fixture } = await mount({}, false);
-    expect(text(fixture)).toContain('Open a profile to see its hotspots.');
+    expect(text(fixture)).toContain('Open a performance capture to see its hotspots.');
     const open = vi.spyOn(TestBed.inject(ProfilingBackend), 'open');
-    buttonByText(fixture, 'Open profile…').click();
+    buttonByText(fixture, 'Open performance capture…').click();
     await settle(fixture, 6);
     expect(open).toHaveBeenCalled();
     expect(el(fixture, 'table')).toBeTruthy();

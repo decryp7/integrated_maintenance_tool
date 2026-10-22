@@ -1,5 +1,7 @@
-import { formatDuration } from '../shared/format/units';
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { formatKeybinding } from '../extensions/keybinding';
+import { ProjectService } from '../projects/project.service';
+import { RegionNavigator } from './regions';
 import { WorkspaceStore } from '../core/workspace.store';
 import { AppLogo } from '../shared/app-logo';
 import { Icon } from '../shared/icon';
@@ -23,19 +25,11 @@ import { NativeMenuBridge } from './menu/native-menu';
       <imt-menu-bar class="menus" />
     }
     <div class="palette-wrap">
-      <button class="palette" (click)="openPalette()" title="Command palette (Ctrl/⌘+K)" i18n-title="@@shell.titleBar.paletteTitle">
+      <button class="palette" (click)="openPalette()" [title]="paletteTitle">
         <imt-icon name="search" [size]="13" />
-        <span class="ellipsis" i18n="@@shell.titleBar.palettePrompt">{{ store.summary()?.profileName ?? 'IMT' }} — type a command or press Ctrl/⌘+K</span>
-        <span class="mono faint kbd">⌘K</span>
+        <span class="ellipsis" data-testid="command-centre-name"><span class="where">{{ where() }}</span> <ng-container i18n="@@shell.titleBar.palettePromptShort">— type a command</ng-container></span>
+        <span class="mono faint kbd">{{ paletteKey }}</span>
       </button>
-    </div>
-    <div class="state">
-      @if (store.busyLabel(); as busy) {
-        <span class="spinner" aria-hidden="true"></span><span>{{ busy }}</span>
-      } @else if (store.summary(); as s) {
-        <span class="dot" style="background: var(--mk-start)"></span>
-        <span i18n="@@shell.titleBar.indexed">Indexed · {{ loadTime(s.loadMs) }}</span>
-      }
     </div>
     <imt-title-extras />
   `,
@@ -48,18 +42,26 @@ import { NativeMenuBridge } from './menu/native-menu';
     .palette { width: 440px; max-width: 100%; height: 24px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 6px; background: var(--bg-3); border: 1px solid var(--border-2); color: var(--faint); font-size: var(--fs-sm); cursor: text; }
     .palette span:nth-child(2) { flex: 1; text-align: start; }
     .kbd { font-size: var(--fs-xs); }
-    .state { display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: var(--fs-sm); white-space: nowrap; }
-    .spinner { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--border-3); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .where { color: var(--text-2); }
   `,
 })
 export class TitleBar {
-  /** How long the load took, humanized ("850 ms", "4.2 s", "1 min 5 s"). */
-  protected readonly loadTime = formatDuration;
-
   protected readonly store = inject(WorkspaceStore);
+  private readonly projects = inject(ProjectService);
+  protected readonly paletteKey = formatKeybinding('Mod+K');
+  protected readonly paletteTitle = $localize`:@@shell.titleBar.paletteTitleKey:Command palette (${this.paletteKey}:key:)`;
+  /**
+   * What is open, for the command centre: the saved project's name, else the folder of the opened files, else
+   * "No folder open". Progress and the parsing profile are in the status bar, not here.
+   */
+  protected readonly where = computed(() => {
+    if (this.projects.path()) return this.projects.name();
+    const sources = this.store.summary()?.sources ?? [];
+    return sources.length ? openedFolderName(sources.map((s) => s.path)) : $localize`:@@shell.titleBar.noFolder:No folder open`;
+  });
   private readonly registry = inject(CommandRegistry);
   private readonly palette = inject(PaletteService);
+  private readonly regions = inject(RegionNavigator);
   /** On macOS the menus are in the native menu bar and the in-app bar is hidden. */
   protected readonly mode = inject(MENU_MODE);
 
@@ -82,6 +84,7 @@ export class TitleBar {
     }
     // Inside a text field, Mod+Z / Mod+Shift+Z undo the typing (the browser's own undo), not the last edit.
     if (isTextEntry(target) && (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'z') return;
+    if (this.regions.handleKey(e)) return;
     this.registry.runForKey(e);
   }
 }
@@ -93,4 +96,17 @@ export function isTextEntry(el: HTMLElement | null): boolean {
   if (!el) return false;
   if (el.tagName === 'TEXTAREA' || el.isContentEditable) return true;
   return el.tagName === 'INPUT' && TEXT_INPUTS.has((el.getAttribute('type') ?? '').toLowerCase());
+}
+
+/** The name of the deepest folder holding every path ("logs" for /data/logs/a.log and /data/logs/web/b.log). */
+export function openedFolderName(paths: string[]): string {
+  const split = (p: string) => p.split(/[\\/]/).filter(Boolean);
+  const dirs = paths.map((p) => split(p).slice(0, -1));
+  let common = dirs[0] ?? [];
+  for (const d of dirs.slice(1)) {
+    let i = 0;
+    while (i < common.length && i < d.length && common[i] === d[i]) i++;
+    common = common.slice(0, i);
+  }
+  return common.at(-1) ?? (paths.length === 1 ? (split(paths[0] ?? '').at(-1) ?? '') : '/');
 }

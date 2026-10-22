@@ -71,7 +71,7 @@ describe('ThreadTimelineView', () => {
 
   it('asks to open a profile', async () => {
     const { fixture, threads } = await mount({ open: false });
-    expect(text(fixture)).toContain('Open a profile with timestamps to see its threads over time.');
+    expect(text(fixture)).toContain('Open a performance capture with timestamps to see its threads over time.');
     expect(threads).not.toHaveBeenCalled();
   });
 

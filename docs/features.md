@@ -62,7 +62,7 @@ covers inputs, profiles, the query language and shortcuts, and [development](dev
 ## Live tail and alerts
 
 - **Open for live tail…** picks files or a folder and follows them, optionally skipping their
-  history (start at end); **Toggle live tail** follows what is already open. Rolled, dated and rotated
+  history (start at end); **View ▸ Live ▸ Toggle live tail** follows what is already open. Rolled, dated and rotated
   files (Serilog, log4net, NLog, logrotate) are followed as one log, across renames, truncation and
   copy-truncate.
 - **Follow** keeps the timeline on the newest events, optionally in a sliding window (last 1, 5, 15
@@ -221,7 +221,7 @@ exports to CSV or HTML.
 
 ## Profiling
 
-Profiler captures open next to the logs (drag them onto the window or use *Open profile…*); IMT tells
+Profiler captures open next to the logs (drag them onto the window or use *Open performance capture…*); IMT tells
 captures from logs by content, so a mixed drop goes to the right place. Formats: `.nettrace`
 (dotnet-trace / EventPipe), `perf script` text, collapsed ("folded") stacks, pprof (`.pb.gz`),
 Chrome trace and `.cpuprofile`, speedscope JSON, and V8/Chromium `.heapsnapshot` files. All analysis
@@ -430,7 +430,7 @@ waiting and finished jobs with progress, time left, Cancel, Retry, View and, for
 up and down; a job shows only once it has run about two seconds. When a job of ten seconds or more
 finishes, and always for an answer, a proposal or a written file you asked for, a toast says so with
 **View** ("Explanation ready · View": the answer and its citations, the proposals to review, the analysis
-with its query, the folder set-up with its proposals, Settings ▸ Storage with what was freed, the
+with its query, the folder set-up with its proposals, Settings ▸ Disk usage with what was freed, the
 workspace, the model manager) or **Show in folder** for an exported file, and a desktop notification when
 IMT is not in front. Finished jobs are saved with the project; jobs cut off by a crash come back as
 interrupted, with Retry. **Notifications** (the bell) collects what may need you: finished and failed jobs,
@@ -560,7 +560,7 @@ their pure logic but have not been checked on every desktop environment.
   updates…* or turn on *Check for updates automatically* in Settings ▸ Updates (off by default). The
   check is one HTTPS request for `latest.json` that carries no identifier; every update is verified
   with the key built into the app before it is installed. See [docs/releasing.md](releasing.md).
-- **Storage.** Settings ▸ Storage lists what IMT keeps on disk (opened-bundle copies, the web view
+- **Disk usage.** Settings ▸ Disk usage lists what IMT keeps on disk (opened-bundle copies, the web view
   cache, AI runtimes and models, logs, error snapshots, session backups) with sizes. *Clear cache…*
   says what goes and how much, then removes it.
 - **Language.** All UI text is marked for translation and extracted to an XLF file; a generated

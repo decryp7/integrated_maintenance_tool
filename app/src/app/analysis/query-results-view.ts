@@ -15,8 +15,17 @@ import { QuerySession } from './query-session';
       <span class="spacer"></span>
       <button class="btn" type="button" [disabled]="!table()" (click)="exportCsv()" i18n="@@analysis.queryResults.exportCsv">Export CSV</button>
     </div>
+    @if (stale(); as why) {
+      <div class="stale-banner" role="status" data-testid="query-results-stale">
+        @if (why === 'error') {
+          <ng-container i18n="@@analysis.queryResults.staleError">Results of the previous query — fix the error and run again.</ng-container>
+        } @else {
+          <ng-container i18n="@@analysis.queryResults.staleEdited">Results of the previous query — run the query again to update them.</ng-container>
+        }
+      </div>
+    }
     @if (table(); as t) {
-      <div class="body" tabindex="0" role="region" aria-label="Query result table" i18n-aria-label="@@analysis.queryResults.region">
+      <div class="body" [class.stale]="!!stale()" tabindex="0" role="region" aria-label="Query result table" i18n-aria-label="@@analysis.queryResults.region">
         <table class="grid">
           <caption class="sr" i18n="@@analysis.queryResults.caption">Result of the last stats query</caption>
           <thead>
@@ -49,6 +58,8 @@ import { QuerySession } from './query-session';
       .bar { flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--border); }
       .spacer { flex: 1; }
       .body { flex: 1; min-height: 0; overflow: auto; }
+      .stale-banner { flex: none; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--ann-warning); color: var(--warn-text); }
+      .body.stale { opacity: 0.55; }
       .empty { padding: 28px 16px; color: var(--muted); text-align: center; }
       .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
       table.grid { border-collapse: collapse; width: 100%; }
@@ -63,6 +74,7 @@ import { QuerySession } from './query-session';
 export class QueryResultsView {
   private readonly session = inject(QuerySession);
   protected readonly table = this.session.table;
+  protected readonly stale = this.session.tableStale;
   protected readonly sort = signal<{ col: number; dir: SortDir } | null>(null);
   protected readonly rows = computed(() => {
     const t = this.table();

@@ -4,7 +4,9 @@ import { ImportProgress, WorkspaceSummary } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { WorkspaceStore } from '../core/workspace.store';
 import { UxBackend } from '../core/ux-backend';
-import { fileName, percent, progressLine } from './import-format';
+import { fileName, importStatusText, percent, progressLine } from './import-format';
+import { WelcomeService } from '../welcome/welcome';
+import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { ImportProgressService, jobImportProgress, LONG_IMPORT_MS } from './import-progress.service';
 import { JobsStore } from '../jobs/jobs.store';
 import { JobInfo } from '../jobs/jobs.types';
@@ -34,6 +36,9 @@ describe('import formatting', () => {
     expect(percent(p({ bytesTotal: 0, total: 0 }))).toBe(0);
     expect(progressLine(p())).toBe('3 of 12 files · 23 MB of 76 MB · less than a minute left');
     expect(progressLine(p({ total: 1, done: 0, bytesTotal: 0, etaMs: null }))).toBe('0 of 1 file');
+    // Before the engine counted the files there is no "0 of 0 files" (E1).
+    expect(importStatusText(p({ total: 0, done: 0 }))).toBe('Scanning for files…');
+    expect(importStatusText(p({ bytesTotal: 0, etaMs: null }))).toBe('Importing 3 of 12 files');
   });
 
   it('recognises import work by the kind of the busy state, not its label', () => {
@@ -125,6 +130,9 @@ describe('ImportProgressService and its widgets', () => {
     TestBed.tick();
     expect(svc.active()).toBe(true);
     expect(svc.progress()?.total).toBe(0);
+    status.detectChanges();
+    expect(text(status)).toContain('Scanning for files…');
+    expect(text(status)).not.toContain('0 of 0');
     // The job's progress (imt://jobs) drives the widgets: no import_progress polling while it runs.
     jobs.apply({ jobs: [importJob(5, { done: 1 }, { kind: 'export', title: 'Export' }), importJob(7)], paused: [] });
     status.detectChanges();
@@ -133,9 +141,17 @@ describe('ImportProgressService and its widgets', () => {
     const bar = status.nativeElement.querySelector('[role=progressbar]') as HTMLElement;
     expect(bar.getAttribute('aria-valuenow')).toBe('30');
     expect(ux.importProgress).not.toHaveBeenCalled();
+    // The status-bar text opens the import's job in Jobs.
+    const show = vi.spyOn(TestBed.inject(COMMAND_CONTEXT), 'showView');
+    (status.nativeElement.querySelector('[data-testid=import-status-open]') as HTMLButtonElement).click();
+    expect(show).toHaveBeenCalledWith('jobs');
     toast.detectChanges();
     expect(text(toast)).toBe('');
     await vi.advanceTimersByTimeAsync(LONG_IMPORT_MS);
+    toast.detectChanges();
+    // Over a workspace the status bar is the one progress surface: no card over the Explorer and the grid.
+    expect(text(toast)).toBe('');
+    TestBed.inject(WelcomeService).show();
     toast.detectChanges();
     expect(text(toast)).toContain('Reading app.log');
     buttonByText(toast, 'Cancel import').click();

@@ -111,7 +111,7 @@ describe('ActivityItems', () => {
   it('reads the key binding from the item, its command, or its view toggle command', () => {
     const { registry } = setup([item('own', { keybinding: '/' }), item('cmd'), item('v', { run: { view: 'v1' } }), item('menu', { run: { menu: () => [] } })], {
       views: [view('v1')],
-      commands: [{ id: 'view.toggle.v1', title: 'Toggle', keybinding: 'Mod+1', run: () => undefined }],
+      commands: [{ id: 'view.open.v1', title: 'Open v1', keybinding: 'Mod+1', run: () => undefined }],
     });
     expect(registry.all.map((i) => registry.keybinding(i))).toEqual(['/', 'Mod+J', 'Mod+1', null]);
   });

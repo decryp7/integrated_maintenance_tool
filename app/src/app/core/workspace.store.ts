@@ -92,6 +92,7 @@ export class WorkspaceStore {
   readonly anchor = this.sel.anchor;
   readonly anchorMissed = this.sel.anchorMissed;
   readonly matchTotal = this.sel.matchTotal;
+  readonly selectedHidden = this.sel.selectedHidden;
   readonly select = this.sel.select;
   readonly jumpTo = this.sel.jumpTo;
   readonly anchorResolved = this.sel.anchorResolved;

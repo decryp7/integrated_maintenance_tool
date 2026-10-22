@@ -50,7 +50,11 @@ export class ProjectService {
   private readonly key = computed(() => `${(this.store.summary()?.sources ?? []).map((s) => s.path).join('|')}\n${this.registry.trackedSnapshot()}\n${this.reports.json()}`);
   private readonly baseline = signal<string | null>(null);
 
-  readonly dirty = computed(() => this.baseline() !== null && this.baseline() !== this.key());
+  /**
+   * Unsaved changes: what a project would save differs from the last save or open, and there is something to save
+   * (an untitled project with nothing open has nothing to lose, e.g. after Close workspace).
+   */
+  readonly dirty = computed(() => this.baseline() !== null && this.baseline() !== this.key() && (this.path() !== null || !!this.store.summary()?.sources.length));
   /** Window/tab title: "● name — IMT" while unsaved. */
   readonly title = computed(() => `${this.dirty() ? '● ' : ''}${this.name()} — IMT`);
 

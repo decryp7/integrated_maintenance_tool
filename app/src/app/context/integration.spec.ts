@@ -68,8 +68,8 @@ describe('Inspector context actions', () => {
     menu.close();
     const prop = el(fixture, '.prop');
     prop.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 }));
-    expect(menu.menu()?.items[0]?.label).toMatch(/^Filter: only this /);
-    at(menu.menu()!.items, 0).run();
+    expect(menu.menu()?.items[1]?.label).toMatch(/^Only this /);
+    at(menu.menu()!.items, 1).run();
     expect(store.query().filters).toHaveLength(1);
     menu.close();
     prop.dispatchEvent(new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true }));

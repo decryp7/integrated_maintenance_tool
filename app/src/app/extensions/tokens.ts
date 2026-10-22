@@ -82,8 +82,16 @@ export interface ImtCommand {
   keybinding?: string;
   /** The command is listed and runnable only while this returns true. */
   when?: (ctx: CommandContext) => boolean;
+  /**
+   * The view this command only shows. The palette lists one command per view: this one, and not the generated
+   * "Open <view>" (`view.open.<id>`) as well.
+   */
+  view?: string;
   run: (ctx: CommandContext) => void | Promise<void>;
 }
+
+/** Id prefix of the generated "Open <view>" commands, one per registered view. */
+export const VIEW_OPEN_PREFIX = 'view.open.';
 
 /** A block rendered in the inspector below the properties. */
 export interface ImtInspectorSection {

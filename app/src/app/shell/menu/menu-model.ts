@@ -228,7 +228,6 @@ export function buildMenus(state: MenuState): TopMenu[] {
         SEP,
         cmd('file.reimport'),
         cmd('folder.setupAnalysis'),
-        cmd('live.toggle'),
         SEP,
         cmd('file.export'),
         cmd('report.export'),
@@ -243,7 +242,7 @@ export function buildMenus(state: MenuState): TopMenu[] {
     {
       id: 'edit',
       label: $localize`:Top-level menu@@shell.menu.top.edit:Edit`,
-      items: tidy([undo(state.undoLabel), redo(state.redoLabel)]),
+      items: tidy([undo(state.undoLabel), redo(state.redoLabel), SEP, cmd('edit.copy'), cmd('edit.copyJson'), SEP, cmd('edit.find')]),
     },
     { id: 'view', label: $localize`:Top-level menu@@shell.menu.top.view:View`, items: viewMenu(state, cmd, sub) },
     {
@@ -266,7 +265,7 @@ export function buildMenus(state: MenuState): TopMenu[] {
         SEP,
         cmd('moment.analyse'),
         cmd('moment.selected', $localize`:@@shell.menu.analyze.analyseSelectedRange:Analyse the selected range`),
-        sub('analyze.compare', $localize`:Menu@@shell.menu.analyze.compare:Compare`, [
+        sub('analyze.compare', $localize`:Menu@@shell.menu.analyze.compare:Compare time ranges`, [
           cmd('compare.previous', $localize`:@@shell.menu.analyze.compare.previous:Current range vs previous`),
           cmd('compare.beforeAfter', $localize`:@@shell.menu.analyze.compare.beforeAfter:Before / after selected time`),
         ]),
@@ -355,6 +354,8 @@ function viewMenu(state: MenuState, cmd: Cmd, sub: Sub): MenuNode[] {
     const id = `view.${c.toLowerCase()}`;
     const label = CATEGORY_LABELS[c];
     if (c === 'Plugins') return sub(id, label, pluginItems(inCategory(c)));
+    // Following files live is a view of the data, so its switch is here (F5), next to the live views.
+    if (c === 'Live') return sub(id, label, [cmd('live.toggle'), SEP, ...ordered(c, inCategory(c))]);
     if (c === 'AI') {
       return sub(id, label, [
         ...inCategory(c).map(viewItem),

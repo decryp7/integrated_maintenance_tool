@@ -23,7 +23,7 @@ export function jobsViews(): ImtView[] {
 export function jobsCommands(store: InstanceType<typeof JobsStore>): ImtCommand[] {
   const category = $localize`:Command palette category@@jobs.category:View`;
   return [
-    { id: 'jobs.show', title: $localize`:@@jobs.cmd.show:View: Jobs`, category, run: (ctx) => ctx.showView(JOBS_VIEW) },
+    { id: 'jobs.show', title: $localize`:@@jobs.cmd.show:View: Jobs`, category, view: JOBS_VIEW, run: (ctx) => ctx.showView(JOBS_VIEW) },
     {
       id: 'jobs.clearFinished',
       title: $localize`:@@jobs.cmd.clear:Jobs: Clear finished`,

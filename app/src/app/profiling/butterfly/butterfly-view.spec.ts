@@ -35,7 +35,7 @@ async function pickFrames(doubles: { backend: Pick<ProfilingBackend, 'hotspots' 
 describe('ButterflyView', () => {
   it('shows the no-capture state', async () => {
     const { fixture } = await mount({}, false);
-    expect(text(fixture)).toContain('Open a profile to see callers and callees.');
+    expect(text(fixture)).toContain('Open a performance capture to see callers and callees.');
   });
 
   it('is empty until a frame is selected', async () => {

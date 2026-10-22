@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ApplicationRef, ChangeDetectionStrategy, Component, computed, DestroyRef, EnvironmentInjector, inject } from '@angular/core';
+import { mountInToastStack } from './ui/toast-stack';
+import { WorkspaceToasts } from './shell/workspace-toasts';
 import { WorkspaceStore } from './core/workspace.store';
 import { ActivityBar } from './shell/activity-bar';
 import { Sidebar } from './shell/sidebar';
@@ -7,7 +9,6 @@ import { TitleBar } from './shell/title-bar';
 import { DockHost } from './dock/dock-host';
 import { CommandPalette } from './palette/command-palette';
 import { FilterBar } from './workspace/filter-bar';
-import { Icon } from './shared/icon';
 import { ContextMenuHost } from './ui/context-menu-host';
 import { DialogHost } from './ui/dialog-host';
 import { Welcome, WelcomeService } from './welcome/welcome';
@@ -18,20 +19,21 @@ import { TourOverlay } from './onboarding/tour-overlay';
 @Component({
   selector: 'imt-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TitleBar, LifecycleBanners, ActivityBar, Sidebar, StatusBar, DockHost, FilterBar, CommandPalette, DialogHost, ContextMenuHost, Welcome, Icon, ImportToast, PartialImportBanner, TourOverlay],
+  imports: [TitleBar, LifecycleBanners, ActivityBar, Sidebar, StatusBar, DockHost, FilterBar, CommandPalette, DialogHost, ContextMenuHost, Welcome, ImportToast, PartialImportBanner, TourOverlay],
   template: `
     <imt-title-bar />
     <imt-lifecycle-banners />
     <imt-partial-import-banner />
     <div class="body">
-      <imt-activity-bar />
+      <!-- The regions F6 cycles through (shell/regions.ts): each a named landmark that takes focus. -->
+      <imt-activity-bar data-imt-region="activity" role="navigation" aria-label="Activity bar" i18n-aria-label="@@app.region.activity" tabindex="-1" />
       @if (store.sidebarOpen()) {
-        <imt-sidebar />
+        <imt-sidebar data-imt-region="sidebar" role="complementary" aria-label="Side bar" i18n-aria-label="@@app.region.sidebar" tabindex="-1" />
       }
       <main class="center">
         <!-- Nothing to filter until data is open: the welcome page is the whole first screen. -->
         @if (hasData()) {
-          <imt-filter-bar />
+          <imt-filter-bar data-imt-region="filters" role="search" aria-label="Filters" i18n-aria-label="@@app.region.filters" tabindex="-1" />
         }
         <div class="stage">
           <imt-dock-host />
@@ -41,27 +43,13 @@ import { TourOverlay } from './onboarding/tour-overlay';
         </div>
       </main>
     </div>
-    <imt-status-bar />
+    <imt-status-bar data-imt-region="status" role="region" aria-label="Status bar" i18n-aria-label="@@app.region.status" tabindex="-1" />
     <imt-command-palette />
     <imt-dialog-host />
     <imt-context-menu-host />
     <imt-import-toast />
     <imt-tour-overlay />
 
-    @if (store.error(); as error) {
-      <div class="toast" data-imt-overlay role="alert">
-        <imt-icon name="alert" [size]="15" />
-        <span class="ellipsis">{{ error }}</span>
-        <button class="icon-btn" aria-label="Dismiss" title="Dismiss" i18n-aria-label="@@app.toast.dismissError" i18n-title="@@app.toast.dismissErrorTitle" (click)="store.dismissError()"><imt-icon name="close" [size]="14" /></button>
-      </div>
-    }
-    @if (store.notice(); as notice) {
-      <div class="toast info" data-imt-overlay role="status" (mouseenter)="store.holdNotice()" (focusin)="store.holdNotice()" (mouseleave)="store.releaseNotice()" (focusout)="store.releaseNotice()">
-        <imt-icon name="check" [size]="15" />
-        <span class="ellipsis">{{ notice }}</span>
-        <button class="icon-btn" aria-label="Dismiss" title="Dismiss" i18n-aria-label="@@app.toast.dismissNotice" i18n-title="@@app.toast.dismissNoticeTitle" (click)="store.setNotice(null)"><imt-icon name="close" [size]="14" /></button>
-      </div>
-    }
     @if (store.dropHover()) {
       <div class="drop" data-imt-overlay i18n="@@app.drop">Drop files or folders to add them to the workspace</div>
     }
@@ -74,14 +62,6 @@ import { TourOverlay } from './onboarding/tour-overlay';
     /* dockview gives its sashes and floating groups high z-indexes; keep them inside the dock so the
        welcome screen (and anything else stacked over the dock) covers them. */
     .stage > imt-dock-host { isolation: isolate; }
-    .toast {
-      position: fixed; right: 16px; bottom: 36px; max-width: 520px; z-index: 100;
-      display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 12px; border-radius: 8px;
-      background: var(--tooltip-bg); border: 1px solid var(--lvl-error); color: var(--text); box-shadow: var(--shadow);
-    }
-    .toast imt-icon { color: var(--lvl-error); }
-    .toast.info { border-color: var(--ok); bottom: 76px; }
-    .toast.info imt-icon { color: var(--ok); }
     .drop {
       position: fixed; inset: 12px; z-index: 90; border: 2px dashed var(--accent); border-radius: 12px;
       background: var(--accent-soft); display: flex; align-items: center; justify-content: center;
@@ -93,4 +73,9 @@ export class App {
   protected readonly store = inject(WorkspaceStore);
   protected readonly welcome = inject(WelcomeService);
   protected readonly hasData = computed(() => (this.store.summary()?.sources.length ?? 0) > 0);
+
+  constructor() {
+    const toasts = mountInToastStack(WorkspaceToasts, 'imt-workspace-toasts', inject(EnvironmentInjector), inject(ApplicationRef));
+    inject(DestroyRef).onDestroy(() => toasts.destroy());
+  }
 }

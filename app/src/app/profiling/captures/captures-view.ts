@@ -14,9 +14,9 @@ import { PROFILING_STYLES } from '../profiling-styles';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="bar">
-      <span class="section-title" i18n="@@profiling.captures.title">Profiles</span>
+      <span class="section-title" i18n="@@profiling.captures.title">Captures</span>
       <span class="spacer"></span>
-      <button class="btn" type="button" [disabled]="store.loading()" (click)="open()" i18n="@@profiling.captures.open">Open profile…</button>
+      <button class="btn" type="button" [disabled]="store.loading()" (click)="open()" i18n="@@profiling.captures.open">Open performance capture…</button>
     </div>
     @if (store.error(); as e) {
       <div class="err" role="alert">
