@@ -36,6 +36,7 @@
 //! - [`manifest`]: what a plugin is and contributes, sent to IMT on start;
 //! - [`protocol`]: the requests IMT sends and the host services a plugin calls back, carried by `imt-ipc`'s
 //!   frames;
+//! - [`output`]: output files a tool writes without a path (streamed to the host from the elevated process);
 //! - [`serve()`]: a plugin process' `main` (`imt_plugin_api::serve(Arc::new(MyPlugin))`);
 //! - [`sandbox`]: the sandbox IMT runs a plugin in, from its permissions;
 //! - [`prelude`]: the names most plugins need.
@@ -48,12 +49,14 @@ pub mod annotate;
 pub mod clef;
 pub mod condition;
 pub mod config;
+mod forward;
 pub mod host_file;
 pub mod importer;
 pub mod manifest;
 pub mod markers;
 /// Records: what importers and transforms produce.
 pub mod model;
+pub mod output;
 pub mod plugin;
 pub mod problems;
 pub mod process;

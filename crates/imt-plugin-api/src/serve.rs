@@ -27,9 +27,17 @@ pub const MAX_IMPORT_BYTES: u64 = 2 << 30;
 /// Serves `plugin` in this process (its `main`): connects to IMT, locks down and answers until IMT closes the
 /// connection.
 pub fn serve(plugin: Arc<dyn Plugin>) -> std::io::Result<()> {
-    imt_ipc::child::child_main_speaking("IMT", PROTOCOL, move |boot| {
-        Arc::new(PluginHandler::new(plugin, boot.role == ELEVATED_ROLE))
-    })
+    imt_ipc::child::child_main_then(
+        "IMT",
+        PROTOCOL,
+        move |boot| Arc::new(PluginHandler::new(plugin, boot.role == ELEVATED_ROLE)),
+        |boot, peer| {
+            // The elevated process has no standard error the host reads: it forwards its own.
+            if boot.role == ELEVATED_ROLE {
+                crate::forward::forward_stderr(peer);
+            }
+        },
+    )
 }
 
 /// Answers the host's requests for one plugin.
@@ -83,6 +91,8 @@ impl PluginHandler {
         let manifest = self.registered.as_ref().map_err(|e| RemoteError::new(code::INTERNAL, e.clone()))?;
         match req {
             PluginRequest::Manifest => encode_reply(&imt_ipc::Json(serde_json::to_value(manifest).map_err(|e| failed(e.into()))?)),
+            // Any process may be asked for the streams it opened (only the elevated one opens any).
+            PluginRequest::PullOutput { stream } => crate::output::serve_pull(ctx, stream),
             _ if self.elevated && !matches!(req, PluginRequest::InvokeTool { .. } | PluginRequest::StopTask { .. }) => {
                 Err(invalid("the elevated process only runs elevated tool operations"))
             }
@@ -334,9 +344,13 @@ impl PluginHandler {
 
     fn tool_ctx(&self, peer: &Peer, tool: &str, data_dir: Option<String>) -> ToolCtx {
         let ctx = ToolCtx::new(data_dir.map(PathBuf::from), Arc::new(HostTasks(peer.clone()))).with_paths(Arc::new(CheckedByHost));
-        // The elevated process runs elevated operations itself; it never asks for another one.
+        // The elevated process runs elevated operations itself; it never asks for another one. It never writes at
+        // a path either: its output files are streamed to the host.
         let ctx = if self.elevated {
-            ctx
+            ctx.with_outputs(Arc::new(crate::output::HostOutputs {
+                peer: peer.clone(),
+                tool: tool.to_string(),
+            }))
         } else {
             ctx.with_elevated(Arc::new(HostElevated(peer.clone())))
         };
