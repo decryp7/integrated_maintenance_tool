@@ -95,6 +95,35 @@ fn files() -> Vec<(&'static str, String)> {
         ),
         ("plugins.ts", crate::plugin_packages::dto::generated(header)),
         ("parsers.ts", crate::parsers::dto::generated(header)),
+        ("store.ts", {
+            use imt_core::ports::*;
+            let decls = [
+                StoreActivity::decl(),
+                LastImport::decl(),
+                StoreOverview::decl(),
+                SegmentsRequest::decl(),
+                SegmentRow::decl(),
+                SegmentsPage::decl(),
+                FieldStorage::decl(),
+                FieldType::decl(),
+                StoreField::decl(),
+                StoreFields::decl(),
+                StoreIndex::decl(),
+                RunningJob::decl(),
+                WorkerMemory::decl(),
+                StoreMemory::decl(),
+                MaintenanceAction::decl(),
+                MaintenanceReport::decl(),
+                SqlColumn::decl(),
+                SqlResult::decl(),
+                SqlPageRequest::decl(),
+                SqlPage::decl(),
+                SqlViewColumn::decl(),
+                SqlView::decl(),
+                SqlSchema::decl(),
+            ];
+            format!("{header}{}", decls.into_iter().map(decl).collect::<Vec<_>>().join("\n"))
+        }),
         ("notes.ts", {
             use imt_notes::*;
             let decls = [

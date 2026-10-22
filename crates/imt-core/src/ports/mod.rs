@@ -1,5 +1,6 @@
 //! The store's ports (ADR 0014 §1), split by responsibility so a consumer depends only on what it
-//! uses: [`Ingest`], [`Query`], [`Positions`], [`Analysis`], [`Profiles`], [`Diagnostics`] and [`Search`].
+//! uses: [`Ingest`], [`Query`], [`Positions`], [`Analysis`], [`Profiles`], [`Diagnostics`], [`Search`], and for the
+//! Store pane [`Inspect`], [`Maintain`] and [`Console`] (ADR 0030).
 //!
 //! Contract of every port:
 //! - methods take `&self`; implementations are `Send + Sync` and synchronise internally (readers run
@@ -10,8 +11,21 @@
 //!
 //! [`Store`] is all of them together (plus [`Projects`]): what one window of the app holds.
 
+mod console;
 mod dto;
+mod inspect;
 mod session;
+
+pub use console::{
+    SqlColumn, SqlNote, SqlPage, SqlPageRequest, SqlRequest, SqlResult, SqlSchema, SqlView, SqlViewColumn, MAX_CELL_CHARS, MAX_SQL_LEN,
+    SQL_MAX_NOTES, SQL_MAX_RESULT_BYTES, SQL_MAX_ROWS, SQL_MEMORY_LIMIT, SQL_NOTE_CHARS, SQL_PAGE_ROWS, SQL_THREADS, SQL_TIME_LIMIT,
+    SQL_VIEWS_VERSION,
+};
+pub use inspect::{
+    parse_size, FieldStorage, FieldType, LastImport, MaintenanceAction, MaintenanceReport, RunningJob, SegmentRow, SegmentsPage,
+    SegmentsRequest, StoreActivity, StoreField, StoreFields, StoreIndex, StoreMemory, StoreOverview, WorkerMemory, IMPORT_BUDGET_BYTES,
+    MAX_FIELD_ROWS, MAX_SEGMENT_ROWS, QUERY_BUDGET_BYTES, SEGMENT_SOURCES,
+};
 
 pub use dto::{
     content_hash, mark_search_matches, Analyzed, Coverage, DiagnosticFix, DiagnosticRow, EventView, EventsRequest, FixEvaluation,
@@ -235,11 +249,56 @@ pub trait Projects: Send + Sync {
     fn close(&self) {}
 }
 
+/// Read-only reports about the store itself (the Store pane). Queries: no side effects. A store that cannot
+/// report them answers [`StoreError::Unsupported`].
+pub trait Inspect: Send + Sync {
+    fn store_overview(&self) -> StoreResult<StoreOverview> {
+        Err(StoreError::unsupported("the store overview", "ADR 0030"))
+    }
+    fn store_segments(&self, _req: &SegmentsRequest) -> StoreResult<SegmentsPage> {
+        Err(StoreError::unsupported("the segment list", "ADR 0030"))
+    }
+    fn store_fields(&self) -> StoreResult<StoreFields> {
+        Err(StoreError::unsupported("the field list", "ADR 0030"))
+    }
+    fn store_index(&self) -> StoreResult<StoreIndex> {
+        Err(StoreError::unsupported("the full-text index report", "ADR 0030"))
+    }
+    /// The store's memory; [`StoreMemory::worker`] and [`StoreMemory::running_jobs`] are left for the worker and
+    /// the app to fill.
+    fn store_memory(&self) -> StoreResult<StoreMemory> {
+        Err(StoreError::unsupported("the memory report", "ADR 0030"))
+    }
+}
+
+/// Maintenance of the store (Store pane actions, run as jobs). Fails with [`StoreError::Busy`] while an import
+/// runs.
+pub trait Maintain: Send + Sync {
+    fn maintain(&self, _action: MaintenanceAction) -> StoreResult<MaintenanceReport> {
+        Err(StoreError::unsupported("store maintenance", "ADR 0030"))
+    }
+}
+
+/// The read-only SQL console. A refused or invalid SQL text fails with [`StoreError::Query`] (the span to
+/// underline); a run over its time or memory limit with [`StoreError::Invalid`] saying which; a cancelled run
+/// (the thread's [`QueryControl`]) with [`StoreError::Cancelled`].
+pub trait Console: Send + Sync {
+    fn sql_schema(&self) -> StoreResult<SqlSchema> {
+        Err(StoreError::unsupported("the SQL console", "ADR 0030"))
+    }
+    fn sql_run(&self, _req: &SqlRequest) -> StoreResult<SqlResult> {
+        Err(StoreError::unsupported("the SQL console", "ADR 0030"))
+    }
+    fn sql_page(&self, _req: &SqlPageRequest) -> StoreResult<SqlPage> {
+        Err(StoreError::unsupported("the SQL console", "ADR 0030"))
+    }
+}
+
 /// Every port of a store: what one window of the app holds (the DuckDB store in the store worker; in process
 /// in tests).
-pub trait Store: Ingest + Query + Positions + Analysis + Profiles + Diagnostics + Search + Projects {}
+pub trait Store: Ingest + Query + Positions + Analysis + Profiles + Diagnostics + Search + Projects + Inspect + Maintain + Console {}
 
-impl<T: Ingest + Query + Positions + Analysis + Profiles + Diagnostics + Search + Projects> Store for T {}
+impl<T: Ingest + Query + Positions + Analysis + Profiles + Diagnostics + Search + Projects + Inspect + Maintain + Console> Store for T {}
 
 #[cfg(test)]
 mod tests {

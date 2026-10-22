@@ -420,3 +420,60 @@ fn a_store_open_in_another_worker_is_locked_with_a_typed_error() {
     second.shutdown();
     first.shutdown();
 }
+
+/// The Store pane over the worker (ADR 0030): reports, memory with the worker's process, maintenance, and SQL
+/// console runs that are refused, answered and cancelled across the process boundary.
+#[test]
+fn the_store_pane_reaches_the_worker() {
+    use imt_core::ports::{Console, Inspect, Maintain, MaintenanceAction, SegmentsRequest, SqlPageRequest, SqlRequest};
+    let dir = TempDir::new("pane");
+    let w = worker();
+    let store = w.open_store(&dir.0, Profile::default_profile(), true, None).unwrap();
+    let samples = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../samples/serilog-clef");
+    let report = store.open(&[samples]).unwrap().wait().unwrap();
+    let overview = store.store_overview().unwrap();
+    assert_eq!(overview.events, report.events as u64);
+    assert_eq!(store.store_segments(&SegmentsRequest::default()).unwrap().total, overview.segments);
+    assert!(!store.store_fields().unwrap().fields.is_empty());
+    assert_eq!(store.store_index().unwrap().events, overview.events);
+    let memory = store.store_memory().unwrap();
+    let worker = memory.worker.expect("the worker fills in its process");
+    assert_eq!(Some(worker.pid), w.status().pid);
+    assert!(worker.rss_bytes > 0 && !worker.low_memory);
+    assert!(store
+        .maintain(MaintenanceAction::ClearCachedAnalyses)
+        .unwrap()
+        .message
+        .starts_with("Cleared"));
+    let sql = |text: &str| SqlRequest {
+        sql: text.into(),
+        ..SqlRequest::default()
+    };
+    let n = store.sql_run(&sql("SELECT count(*) FROM events")).unwrap();
+    assert_eq!(n.rows[0][0], report.events as u64);
+    assert!(matches!(store.sql_run(&sql("ATTACH 'x' AS y")), Err(StoreError::Query(_))));
+    let many = store.sql_run(&sql("SELECT * FROM range(2000)")).unwrap();
+    let page = store
+        .sql_page(&SqlPageRequest {
+            result: many.result,
+            offset: 1500,
+        })
+        .unwrap();
+    assert_eq!(page.rows.len(), 500);
+    let control = imt_core::ql::QueryControl::new();
+    let c = control.clone();
+    let cancel = std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(300));
+        c.cancel();
+    });
+    let started = Instant::now();
+    let out = control.scope(|| store.sql_run(&sql("SELECT count(*) FROM range(1000000000000) a WHERE a.range % 7 = 3")));
+    cancel.join().unwrap();
+    assert!(matches!(out, Err(StoreError::Cancelled)), "{out:?}");
+    assert!(started.elapsed() < Duration::from_secs(20));
+    assert_eq!(
+        store.sql_run(&sql("SELECT 7")).unwrap().rows[0][0],
+        7,
+        "the console works after a cancel"
+    );
+}

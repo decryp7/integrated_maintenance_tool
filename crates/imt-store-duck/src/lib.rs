@@ -8,10 +8,12 @@
 mod analysis;
 mod anomalies;
 mod compact;
+mod console;
 mod context;
 mod diag;
 mod fts;
 mod hits;
+mod inspect;
 mod lanes;
 mod parsers;
 mod pos;
@@ -174,6 +176,8 @@ pub(crate) struct Inner {
     fts_error: Option<String>,
     /// Word-search hits handed to SQL (smart search).
     pub(crate) hits: hits::HitsCache,
+    /// The SQL console's sandboxed database and its kept results (ADR 0030).
+    pub(crate) console: console::ConsoleState,
     options: RwLock<StoreOptions>,
     pub(crate) progress: Arc<ImportProgress>,
     pub(crate) derived: Mutex<Option<(u64, Arc<read::Derived>)>>,
@@ -393,6 +397,7 @@ impl Inner {
         }
         report.unrecognized = unrecognized;
         report.elapsed_ms = started.elapsed().as_millis() as u64;
+        inspect::record_import(&conn, &report);
         Ok(report)
     }
 }
@@ -595,6 +600,7 @@ impl DuckStore {
                 fts,
                 fts_error,
                 hits: hits::HitsCache::new(&dir.join("tmp").join("hits")),
+                console: console::ConsoleState::default(),
                 options: RwLock::new(opts),
                 progress: Arc::new(ImportProgress::default()),
                 derived: Mutex::new(None),
