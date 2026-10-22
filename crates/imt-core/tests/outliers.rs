@@ -103,7 +103,8 @@ fn a_chosen_subset_fields_and_limit_are_honoured() {
 #[test]
 fn bad_requests_fail_with_a_message_and_empty_sets_are_not_an_error() {
     let (ws, dir) = store();
-    for store in [&ws as &dyn Query] {
+    {
+        let store: &dyn Query = &ws;
         let e = error_outliers(
             store,
             &OutlierRequest {

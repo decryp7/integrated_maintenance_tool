@@ -100,7 +100,11 @@ impl LensCfg {
         if self.text.len() > MAX_LENS_TEXT || self.ql.len() > MAX_LENS_TEXT {
             bail!("text and ql are limited to {MAX_LENS_TEXT} bytes");
         }
-        for (what, n) in [("filters", self.filter.len()), ("columns", self.columns.len()), ("highlights", self.highlight.len())] {
+        for (what, n) in [
+            ("filters", self.filter.len()),
+            ("columns", self.columns.len()),
+            ("highlights", self.highlight.len()),
+        ] {
             if n > MAX_LENS_ITEMS {
                 bail!("at most {MAX_LENS_ITEMS} {what}");
             }
@@ -209,7 +213,10 @@ color = "#f2545b"
         let l = &p.lens[0];
         l.validate(&["chart-1".to_string()]).unwrap();
         let q = l.query();
-        assert_eq!((q.levels.len(), q.text.as_str(), q.regex, q.ql.as_str()), (2, "timeout", true, "level >= error"));
+        assert_eq!(
+            (q.levels.len(), q.text.as_str(), q.regex, q.ql.as_str()),
+            (2, "timeout", true, "level >= error")
+        );
         assert_eq!((q.filters.len(), q.markers.clone()), (1, vec!["restart".to_string()]));
         let json = serde_json::to_value(l).unwrap();
         assert_eq!(json["columns"][0], "SourceContext");
@@ -244,10 +251,19 @@ color = "#f2545b"
         bad.ql = "| | |".into();
         assert!(l.validate(none).is_ok() && bad.validate(none).is_err());
         bad = l.clone();
-        bad.filter = vec![FieldFilter { field: "f".into(), op: "nope".into(), value: None }];
+        bad.filter = vec![FieldFilter {
+            field: "f".into(),
+            op: "nope".into(),
+            value: None,
+        }];
         assert!(bad.validate(none).is_err());
 
-        let hl = |field: &str, op: &str, color: &str| LensHighlight { field: field.into(), op: op.into(), value: String::new(), color: color.into() };
+        let hl = |field: &str, op: &str, color: &str| LensHighlight {
+            field: field.into(),
+            op: op.into(),
+            value: String::new(),
+            color: color.into(),
+        };
         bad = l.clone();
         bad.highlight = vec![hl(" ", "eq", "#112233")];
         assert!(err(&bad, none).contains("needs a field"));
@@ -267,7 +283,10 @@ color = "#f2545b"
     #[test]
     fn a_profile_may_hold_a_bounded_number_of_distinct_lenses() {
         validate_all(&[lens("a"), lens("b")], &[]).unwrap();
-        assert!(validate_all(&[lens("a"), lens("a")], &[]).unwrap_err().to_string().contains("used twice"));
+        assert!(validate_all(&[lens("a"), lens("a")], &[])
+            .unwrap_err()
+            .to_string()
+            .contains("used twice"));
         let many: Vec<LensCfg> = (0..=MAX_LENSES).map(|i| lens(&i.to_string())).collect();
         assert!(validate_all(&many, &[]).unwrap_err().to_string().contains("at most"));
     }
@@ -275,17 +294,26 @@ color = "#f2545b"
     #[test]
     fn the_default_profile_ships_lenses_and_a_bad_lens_fails_the_profile() {
         let defaults = crate::profile::Profile::default_profile();
-        assert!(defaults.lens.iter().any(|l| l.id == "errors" && l.levels == vec![Level::Error, Level::Fatal]));
+        assert!(defaults
+            .lens
+            .iter()
+            .any(|l| l.id == "errors" && l.levels == vec![Level::Error, Level::Fatal]));
         crate::profile::CompiledProfile::compile(defaults).unwrap();
 
         let mut p = crate::profile::Profile::default_profile();
-        p.lens.push(LensCfg { chart: Some("missing".into()), ..lens("broken") });
+        p.lens.push(LensCfg {
+            chart: Some("missing".into()),
+            ..lens("broken")
+        });
         let e = format!("{:#}", crate::profile::CompiledProfile::compile(p).err().unwrap());
         assert!(e.contains("[[lens]]") && e.contains("broken") && e.contains("missing"), "{e}");
 
         let mut p = crate::profile::Profile::default_profile();
         p.chart[0].id = None;
-        p.lens = vec![LensCfg { chart: Some("chart-1".into()), ..lens("c") }];
+        p.lens = vec![LensCfg {
+            chart: Some("chart-1".into()),
+            ..lens("c")
+        }];
         crate::profile::CompiledProfile::compile(p).unwrap();
     }
 }

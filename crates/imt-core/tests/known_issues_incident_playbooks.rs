@@ -494,7 +494,10 @@ fn a_summary_of_events_without_timestamps_says_so() {
     )
     .unwrap();
     let s = WorkspaceStore::new(Workspace::new(Profile::default_profile()).unwrap());
-    imt_core::ports::Ingest::open(&s, &[dir.clone()]).unwrap().wait().unwrap();
+    imt_core::ports::Ingest::open(&s, std::slice::from_ref(&dir))
+        .unwrap()
+        .wait()
+        .unwrap();
     let r = build_incident_report(
         &s,
         &IncidentOptions {

@@ -568,7 +568,12 @@ impl CompiledProfile {
         let pipeline = crate::pipeline::Pipeline::compile(&profile.pipeline, transforms)?;
         crate::redact::Redactor::from_config(&profile.redact, crate::redact::Salt::fixed([0; 16])).context("[redact]")?;
         crate::dashboard::validate_all(&profile.dashboard).context("[[dashboard]]")?;
-        let chart_ids: Vec<String> = profile.chart.iter().enumerate().map(|(i, c)| c.id.clone().unwrap_or_else(|| format!("chart-{}", i + 1))).collect();
+        let chart_ids: Vec<String> = profile
+            .chart
+            .iter()
+            .enumerate()
+            .map(|(i, c)| c.id.clone().unwrap_or_else(|| format!("chart-{}", i + 1)))
+            .collect();
         crate::lens::validate_all(&profile.lens, &chart_ids).context("[[lens]]")?;
         let mut spans = crate::spans::config::compile(&profile.span)?;
         crate::spans::config::resolve(&mut spans, &markers);
