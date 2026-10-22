@@ -302,3 +302,51 @@ fn a_key_field_that_the_examples_lack_proposes_nothing_and_repeated_values_are_n
         .to_string();
     assert!(e.contains("name the field that pairs them"), "{e}");
 }
+
+const PHASE_PROFILE: &str = r#"
+[[extract]]
+name = "phase"
+from = "@message"
+regex = 'phase=(?P<Phase>\w+)'
+[extract.fields]
+Phase = { type = "string" }
+[[marker]]
+kind = "run-start"
+when = [{ field = "@message", op = "contains", value = "run" }, { field = "Phase", op = "eq", value = "begin" }]
+[[marker]]
+kind = "run-stop"
+when = [{ field = "@message", op = "contains", value = "run" }, { field = "Phase", op = "eq", value = "end" }]
+[[span]]
+kind = "run"
+start = "run-start"
+stop = "run-stop"
+"#;
+
+#[test]
+fn events_that_pass_the_cheap_gate_but_are_neither_start_nor_stop_are_skipped_and_instance_rules_pair_per_lane() {
+    let profile = Profile::default_profile().with_override(PHASE_PROFILE).unwrap();
+    let compiled = CompiledProfile::compile(profile).unwrap();
+    let mut ev = SpanEvaluator::new(&compiled, "run").unwrap();
+    // The gate only sees the message ("run"); the phase is extracted afterwards, so "run phase=idle" passes the
+    // gate and is then found to be neither a start nor a stop.
+    for (i, (minute, msg)) in [
+        (0, "run phase=begin"),
+        (1, "run phase=idle"),
+        (2, "run without phase"),
+        (3, "run phase=end"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        ev.add(&rec(i as u32, minute, msg), "app.log", "WEB01");
+    }
+    let e = ev.finish();
+    assert_eq!(e.events, 4);
+    assert_eq!((e.spans, e.open, e.unmatched_starts, e.unmatched_ends), (1, 0, 0, 0), "{e:#?}");
+    assert_eq!(
+        e.longest_ms,
+        Some(180_000),
+        "the skipped events neither end nor extend the run: {e:#?}"
+    );
+    assert_eq!(e.distinct_keys, 1, "an instance rule has the one (empty) key: {e:#?}");
+}
