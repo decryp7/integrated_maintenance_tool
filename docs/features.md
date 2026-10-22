@@ -352,6 +352,13 @@ files…* checks what you downloaded against that SHA-256 before using it, as a 
 progress. A model added with *Add local GGUF…* that is named like a catalog model, or has its exact size,
 is checked the same way.
 
+**The chat's composer** is one card: attached images as thumbnail chips (with *Find related logs* and remove), the
+question box (it grows to eight lines, then scrolls; `Enter` sends, `Shift+Enter` starts a new line) and a toolbar:
+*Attach an image*, **Context ▾** (*Selected events*, *Current view* with its filter and time range, or *None*;
+automatic until you choose: the selected events when there are some), **Browser ▾** (*Off*, *Read along* or *Agent*
+for this chat), one **Research…** (the research dialog, prefilled with what you typed) and **Send**, which becomes
+**Stop** while the AI answers (`Esc` stops too; in agent mode Stop ends agent mode). A disabled button says why.
+
 **Images (text + images, one model).** A model marked *Text + images* reads screenshots too: its multimodal
 projector (the `mmproj` file of the same repository, made for that model) is downloaded and verified with it and
 loaded into the same engine, so there is never a second model in memory ([ADR 0025](adr/0025-vision-one-model.md)).
@@ -379,8 +386,8 @@ forward, the address box (Ctrl+L) with your search engine (Google by default; Du
 or your own URL template with `{q}`, chosen in Settings ▸ Web browser and per search), *Add page
 to AI context* and *Open in your browser*. While a menu, dialog or message is open over the page, the page
 steps aside for that moment. The AI never searches the web by itself. It sees a page only when you add it
-to a chat (as cited, untrusted web content it must not take instructions from), when you turn on *Let AI
-read the browser* for a chat, or in **agent mode**: then it drives the visible browser one step at a time,
+to a chat (as cited, untrusted web content it must not take instructions from), when you set the chat's
+*Browser* menu to *Read along*, or to **Agent**: then it drives the visible browser one step at a time,
 asks before new sites, typing and forms, highlights data from your logs headed into an address or a field,
 stops for logins, payments and CAPTCHAs, and logs every step; *Stop* takes the browser back at once. It
 can also suggest a search or a page as a card that opens only when you click it; *Open and let AI read

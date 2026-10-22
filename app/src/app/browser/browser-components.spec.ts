@@ -14,7 +14,7 @@ import { POPOUT_ROUTE } from '../popout/popout-route';
 import { ResearchDialog } from './research-dialog';
 import { BrowserBackend, ChatBrowserBackend } from './browser-backend';
 import { BrowserStore } from './browser.store';
-import { AgentDecision } from './browser.types';
+import { AgentDecision, chatBrowserMode } from './browser.types';
 import { engineLabel, handOffText, leakText, noticeText } from './browser-text';
 import { AgentApprovalCard, AgentPaused, LinkCard } from './chat-cards';
 import { ChatBrowserBar } from './chat-browser-bar';
@@ -466,21 +466,45 @@ describe('ChatBrowserBar', () => {
   beforeEach(() => configure());
   afterEach(() => TestBed.resetTestingModule());
 
-  it('switches read-along and agent mode, shows the small-model hint, Stop and the pages', async () => {
+  it('puts a chat in one browser mode at a time: off, read-along or agent', async () => {
+    const store = TestBed.inject(ChatBrowserStore);
+    await store.load('chat-1');
+    expect(chatBrowserMode(store.statusOf('chat-1'))).toBe('off');
+    expect(chatBrowserMode(null)).toBe('off');
+    await store.setMode('chat-1', 'readAlong');
+    expect(web.status('chat-1')).toMatchObject({ readAlong: true, agent: false });
+    await store.setMode('chat-1', 'agent');
+    expect(chatBrowserMode(store.statusOf('chat-1'))).toBe('agent');
+    // The same mode again changes nothing.
+    const setAgent = vi.spyOn(TestBed.inject(ChatBrowserBackend), 'setAgent');
+    await store.setMode('chat-1', 'agent');
+    expect(setAgent).not.toHaveBeenCalled();
+    // Read-along again: agent mode ends, read-along stays.
+    await store.setMode('chat-1', 'readAlong');
+    expect(web.status('chat-1')).toMatchObject({ readAlong: true, agent: false });
+    await store.setMode('chat-1', 'agent');
+    await store.setMode('chat-1', 'off');
+    expect(web.status('chat-1')).toMatchObject({ readAlong: false, agent: false });
+    // A failed step stops there, with the error shown.
+    await store.setMode('chat-1', 'agent');
+    setAgent.mockRejectedValueOnce(new Error('engine busy'));
+    expect(await store.setMode('chat-1', 'off')).toBeNull();
+    expect(store.error()).toBe('engine busy');
+    expect(web.status('chat-1').agent).toBe(true);
+  });
+
+  it('shows what agent mode may do, the small-model hint and the pages', async () => {
     web.smallModel = true;
     const f = TestBed.createComponent(ChatBrowserBar);
     f.componentRef.setInput('sessionId', 'chat-1');
     f.detectChanges();
     await until(f, () => !!TestBed.inject(ChatBrowserStore).statusOf('chat-1'));
     const root = f.nativeElement as HTMLElement;
-    el<HTMLInputElement>(f, '[data-testid=chat-read-along]').click();
-    el<HTMLInputElement>(f, '[data-testid=chat-agent]').click();
-    await until(f, () => !!root.querySelector('[data-testid=chat-agent-stop]'));
+    expect(root.textContent).not.toContain('New sites, typing and forms need your approval');
+    await TestBed.inject(ChatBrowserStore).setMode('chat-1', 'agent');
+    f.detectChanges();
     expect(root.textContent).toContain('New sites, typing and forms need your approval');
     expect(el(f, '[data-testid=chat-small-model]').textContent).toContain('7B or larger');
-    el<HTMLButtonElement>(f, '[data-testid=chat-agent-stop]').click();
-    await until(f, () => !root.querySelector('[data-testid=chat-agent-stop]'));
-    expect(web.status('chat-1')).toMatchObject({ readAlong: true, agent: false });
     // Pages for the next question.
     web.show('https://e.org/a');
     await TestBed.inject(ChatBrowserStore).capture('chat-1');
@@ -488,12 +512,15 @@ describe('ChatBrowserBar', () => {
     expect(el(f, '[data-testid=chat-source]').textContent).toContain('untrusted web content');
     buttonByText(f, 'Remove pages').click();
     await until(f, () => !root.querySelector('[data-testid=chat-source]'));
-    // A failure is shown with Retry.
+    // A failure is shown with Retry, which reads the chat's status again.
     vi.spyOn(TestBed.inject(ChatBrowserBackend), 'setAgent').mockRejectedValueOnce(new Error('engine busy'));
-    el<HTMLInputElement>(f, '[data-testid=chat-agent]').click();
-    await until(f, () => !!root.querySelector('.err'));
+    await TestBed.inject(ChatBrowserStore).setMode('chat-1', 'off');
+    f.detectChanges();
+    expect(el(f, '.err').textContent).toContain('engine busy');
+    const load = vi.spyOn(TestBed.inject(ChatBrowserStore), 'load');
     buttonByText(f, 'Retry').click();
-    await until(f, () => !!root.querySelector('[data-testid=chat-agent-stop]'));
+    await until(f, () => !root.querySelector('.err'));
+    expect(load).toHaveBeenCalledWith('chat-1');
   });
 
   it('offers a web search for the selected event', async () => {

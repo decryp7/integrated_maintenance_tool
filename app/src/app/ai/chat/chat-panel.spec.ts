@@ -119,20 +119,27 @@ describe('AiChatPanel', () => {
     expect(store.activeTurns()[0]?.proposals[0]?.state).toBe('dismissed');
   });
 
-  it('shows what is sent as context and lets the user leave parts out', async () => {
+  it('chooses what is sent as context from the Context menu', async () => {
     const { f, store } = setup();
     f.detectChanges();
     await until(f, () => !!store.activeId());
-    const chip = el<HTMLButtonElement>(f, '[data-testid=ai-context-chip]');
-    expect(chip.textContent).toContain('view');
-    chip.click();
+    const button = el<HTMLButtonElement>(f, '[data-testid=ai-context-menu]');
+    expect(button.textContent).toContain('Context: Current view');
+    button.click();
     f.detectChanges();
-    const boxes = all<HTMLInputElement>(f, '#ai-chat-context input[type=checkbox]');
-    expect(boxes).toHaveLength(5);
-    at(boxes, 4).dispatchEvent(new Event('change'));
+    const items = [...document.querySelectorAll<HTMLButtonElement>('[data-testid=ai-context-list] [role=menuitemradio]')];
+    expect(items.map((i) => i.querySelector('.mi-label')?.textContent)).toEqual(['Selected events (0)', 'Current view', 'None']);
+    // Nothing is selected: "Selected events" says why it is off.
+    expect(at(items, 0).getAttribute('aria-disabled')).toBe('true');
+    expect(at(items, 0).title).toBe('Select events in the grid first');
+    expect(at(items, 1).getAttribute('aria-checked')).toBe('true');
+    expect(document.querySelector('[data-testid=ai-context-list]')?.textContent).toContain('Nothing leaves this computer.');
+    at(items, 2).click();
     f.detectChanges();
+    expect(store.contextMode()).toBe('none');
     expect(store.toggles().view).toBe(false);
-    expect(chip.textContent).toContain('nothing selected');
+    expect(button.textContent).toContain('Context: None');
+    expect(document.querySelector('[data-testid=ai-context-list]')).toBeNull();
     // The engine's notes about the context show under the answer.
     vi.spyOn(TestBed.inject(AiBackend), 'chatSend').mockResolvedValue(1);
     await store.send('q');
@@ -225,9 +232,10 @@ describe('AiChatPanel and the browser', () => {
     expect(root.textContent).toContain('untrusted web content');
     expect(store.activeTurns()[0]?.citations).toContainEqual({ kind: 'web', title: 'Timeouts', url: 'https://learn.example.com/timeouts' });
     // Agent mode: the search asks for a new site, the next page carries a name from the logs.
-    await until(f, () => !!root.querySelector('[data-testid=chat-agent]'));
-    el<HTMLInputElement>(f, '[data-testid=chat-agent]').click();
-    await until(f, () => !!root.querySelector('[data-testid=chat-agent-stop]'));
+    el<HTMLButtonElement>(f, '[data-testid=ai-browser-menu]').click();
+    f.detectChanges();
+    document.querySelector<HTMLButtonElement>('[data-testid=ai-browser-agent]')!.click();
+    await until(f, () => web.status(id).agent && !!el(f, '[data-testid=ai-browser-menu]').textContent?.includes('Browser: Agent'));
     await ask(f, 'find out on the web why the gateway times out');
     await until(f, () => all(f, '[data-testid=agent-approval]').length === 1);
     buttonByText(f, 'Allow this site for this chat').click();
@@ -241,10 +249,13 @@ describe('AiChatPanel and the browser', () => {
     // Stop while a step waits: the card is denied and agent mode ends.
     await ask(f, 'look up the error again');
     await until(f, () => all(f, '[data-testid=agent-approval]').length === 3);
-    el<HTMLButtonElement>(f, '[data-testid=chat-agent-stop]').click();
+    // Send became Stop while the AI answers.
+    expect(root.querySelector('[data-testid=ai-send]')).toBeNull();
+    el<HTMLButtonElement>(f, '[data-testid=ai-stop]').click();
     await until(f, () => !store.running());
     expect(el(f, '[data-testid=agent-paused]').textContent).toContain('You stopped the AI');
     expect(web.status(id).agent).toBe(false);
+    await until(f, () => !!el(f, '[data-testid=ai-browser-menu]').textContent?.includes('Browser: Off'));
   });
 
   it('shows suggested links as cards that open only on click, and continues after the step cap', { timeout: 30000 }, async () => {

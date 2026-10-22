@@ -124,7 +124,8 @@ test.describe('research', () => {
   test('a question that needs the web is researched by itself and answered with citations', async ({ page }, testInfo) => {
     await openAiApp(page, 'mockJobsVisibleMs=0');
     const chat = await openChat(page);
-    await expect(chat.getByTestId('chat-mode')).toHaveText('Research');
+    // One Research entry; with automatic research on, its tooltip says the AI also researches by itself.
+    await expect(chat.getByTestId('chat-research')).toHaveAttribute('title', /by itself/);
     await ask(chat, 'what does HRESULT 0x80070005 mean for IIS?');
     await waitAnswered(chat);
     const answer = chat.getByTestId('ai-answer-0');
@@ -132,8 +133,7 @@ test.describe('research', () => {
     await expect(answer).toContainText('Likely causes and fixes');
     await expect(answer.locator('.sources')).toContainText('Microsoft Learn');
     await expect(answer).toContainText('skipped: a login');
-    await expect(chat.getByTestId('chat-agent')).not.toBeChecked();
-    await expect(chat.getByTestId('chat-read-along')).not.toBeChecked();
+    await expect(chat.getByTestId('ai-browser-menu')).toContainText('Browser: Off');
     // The research ran as a job: "Research finished" with View.
     await expect(page.getByTestId('notice-toast').filter({ hasText: 'Research finished' })).toBeVisible();
     await openJobs(page);
@@ -171,7 +171,6 @@ test.describe('research', () => {
     const offer = chat.getByTestId('research-offer');
     await expect(offer).toBeVisible();
     await offer.getByTestId('research-offer-agent').click();
-    await expect(chat.getByTestId('chat-agent')).toBeChecked();
-    await expect(chat.getByTestId('chat-mode')).toHaveText('Agent');
+    await expect(chat.getByTestId('ai-browser-menu')).toContainText('Browser: Agent');
   });
 });

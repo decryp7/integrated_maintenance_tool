@@ -10,7 +10,7 @@ import { AiStatusStore } from '../ai-status.store';
 import { AiImageStore } from '../vision/ai-image.store';
 import { MAX_IMAGES_PER_QUESTION } from '../vision/image-files';
 import { FrameThrottle } from '../../shared/throttle';
-import { AgentApprovalState, ALL_CONTEXT, buildContext, ContextSources, ContextToggles, reduceTurn, startTurn, turnFromRecord, TurnView } from './chat-model';
+import { AgentApprovalState, buildContext, ContextMode, ContextSources, contextToggles, effectiveContextMode, reduceTurn, startTurn, turnFromRecord, TurnView } from './chat-model';
 
 interface ChatState {
   sessions: SessionInfo[];
@@ -20,7 +20,8 @@ interface ChatState {
   /** Last streamed event per chat (to resume after a reload). */
   lastSeq: Record<string, number>;
   prompts: string[];
-  toggles: ContextToggles;
+  /** The context the user chose in the composer; null: automatic (the selected events if any, else the view). */
+  contextChoice: ContextMode | null;
   error: string | null;
   notice: string | null;
   loading: boolean;
@@ -33,7 +34,7 @@ interface ChatState {
 /** A small picture of an attached image: its clean copy only. */
 export type ImageThumb = Pick<AiImage, 'id' | 'name' | 'dataUrl'>;
 
-const initial: ChatState = { sessions: [], activeId: null, turns: {}, lastSeq: {}, prompts: [], toggles: ALL_CONTEXT, error: null, notice: null, loading: false, attachments: [], turnImages: {} };
+const initial: ChatState = { sessions: [], activeId: null, turns: {}, lastSeq: {}, prompts: [], contextChoice: null, error: null, notice: null, loading: false, attachments: [], turnImages: {} };
 
 /**
  * The chat panel's state for this window. The engine runs the turns and owns the history; this store
@@ -59,6 +60,13 @@ export const ChatStore = signalStore(
       const selectedIds = picked.length ? picked : one != null ? [one] : [];
       return { ql: q.ql ?? null, range, selectedIds, instance: q.groups.length === 1 ? (q.groups[0] ?? null) : null, view: 'events grid' };
     }),
+  })),
+  withComputed((s) => ({
+    /** The context sent with the next question (the composer's "Context" menu). */
+    contextMode: computed(() => effectiveContextMode(s.contextChoice(), s.sources())),
+  })),
+  withComputed((s) => ({
+    toggles: computed(() => contextToggles(s.contextMode())),
   })),
   withMethods((store, backend = inject(AiBackend), persistence = inject(AiChatPersistence), status = inject(AiStatusStore), images = inject(AiImageStore)) => {
     const setTurns = (id: string, f: (t: TurnView[]) => TurnView[]) => patchState(store, (s) => ({ turns: { ...s.turns, [id]: f(s.turns[id] ?? []) } }));
@@ -274,8 +282,9 @@ export const ChatStore = signalStore(
         );
       },
 
-      toggle(key: keyof ContextToggles): void {
-        patchState(store, (s) => ({ toggles: { ...s.toggles, [key]: !s.toggles[key] } }));
+      /** Chooses what goes with the next questions (null: automatic again). */
+      setContextMode(mode: ContextMode | null): void {
+        patchState(store, { contextChoice: mode });
       },
 
       setNotice(notice: string | null): void {

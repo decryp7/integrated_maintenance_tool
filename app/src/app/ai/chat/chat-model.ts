@@ -156,6 +156,41 @@ export interface ContextToggles {
 
 export const ALL_CONTEXT: ContextToggles = { filter: true, range: true, selection: true, instance: true, view: true };
 
+/**
+ * What goes with a question (the composer's "Context" menu): the selected events and the current view, the current
+ * view only (filter, time range, instance, open view), or nothing.
+ */
+export type ContextMode = 'selection' | 'view' | 'none';
+
+/** The parts of the context a mode sends. */
+export function contextToggles(mode: ContextMode): ContextToggles {
+  switch (mode) {
+    case 'selection':
+      return ALL_CONTEXT;
+    case 'view':
+      return { ...ALL_CONTEXT, selection: false };
+    case 'none':
+      return { filter: false, range: false, selection: false, instance: false, view: false };
+  }
+}
+
+/** The mode in effect: the user's choice, else the selected events when there are some, else the current view. */
+export function effectiveContextMode(chosen: ContextMode | null, src: ContextSources): ContextMode {
+  return chosen ?? (src.selectedIds.length ? 'selection' : 'view');
+}
+
+/** The label of a context mode ("Selected events (2)", "Current view", "None"). */
+export function contextModeLabel(mode: ContextMode, selected: number): string {
+  switch (mode) {
+    case 'selection':
+      return $localize`:@@ai.chatModel.contextMode.selection:Selected events (${selected}:count:)`;
+    case 'view':
+      return $localize`:@@ai.chatModel.contextMode.view:Current view`;
+    case 'none':
+      return $localize`:Context mode that sends only the question@@ai.chatModel.contextMode.none:None`;
+  }
+}
+
 /** What the UI could send, before the toggles. */
 export interface ContextSources {
   ql: string | null;
