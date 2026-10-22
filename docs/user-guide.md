@@ -258,6 +258,49 @@ Plain filters narrow the grid, timeline and charts; `stats` queries show a resul
 export as CSV. The full grammar is in
 [`crates/imt-core/src/ql/mod.rs`](../crates/imt-core/src/ql/mod.rs).
 
+## The Store pane and the SQL console
+
+*View ▸ Store* (palette: *Open Store*) shows what the store of the window holds and how it is doing, read-only:
+
+- **Overview**: the store folder, its size on disk, events, sources, segments, the data version, what it is doing
+  (ready, importing, indexing) and the last import with its speed.
+- **Segments**: the Parquet files the events are in: rows, size, time range, compression, sources, whether the
+  full-text index has them, the fields they store in their own column, and whether the next compaction rewrites
+  them.
+- **Fields**: each field's type, how it is stored (*declared* by the profile, *promoted* to its own column,
+  *partly* promoted, or in the *overflow* map, which is slower to filter on), how many events have it and roughly
+  how many distinct values it has.
+- **Index**: how many events the full-text index (word search) covers, its size and whether it is catching up.
+- **Memory**: the store worker's memory against its budgets (768 MB importing, 300 MB querying), DuckDB's memory
+  limit and use, whether Low memory mode is on, running jobs and cached analyses.
+- **Maintenance**: *Compact now*, *Rebuild index* and *Clear cached analyses* run as jobs after you confirm; they
+  wait while an import runs.
+
+The **SQL** tab (palette: *Open SQL console*) runs read-only DuckDB SQL. `Ctrl/⌘+Enter` runs, `Esc` stops, the
+editor completes view, column and function names, and *Explain* shows the query plan instead of rows. A query runs
+as a job (stop it in the Jobs pane too), keeps at most 10,000 rows (shown 500 at a time), stops after 30 seconds and
+has 128 MB of memory. Only one `SELECT` (or `WITH`, `FROM`, `VALUES`, `DESCRIBE`...) runs at a time; statements
+that change anything, settings, extensions, other databases, files and URLs are refused (the error names what and
+underlines it). Rows that carry an event `id` can be opened in the Events grid. Save a query with *Save SQL*: it is
+listed under Saved queries with an *SQL* badge and saved in the project.
+
+The console sees four views (version 1; columns are only ever added):
+
+| View | Columns |
+|---|---|
+| `events` | `id`, `ts` (UTC timestamp, NULL when untimed), `level` (`Verbose` … `Fatal`), `source` (a `sources.id`), `line`, `byte_offset`, `message`, `template`, `exception`, `fields` (a map of every other field as text: `fields['RequestId']`) |
+| `sources` | `id`, `name`, `path`, `importer`, `parser`, `events`, `skipped`, `first_ts`, `last_ts`, `bytes` |
+| `fields` | `key`, `type` (`text`, `integer`, `number`, `boolean`), `storage` (`declared`, `promoted`, `partly`, `overflow`), `events`, `fill_rate` (0–1), `approx_distinct` |
+| `notes` | `id`, `anchor` (`event`, `range`, `instant`, `source`, `marker`, `chartPoint`, `project`, `image`), `event_id`, `source_id`, `from_ts`, `to_ts`, `severity`, `tags`, `text`, `author`, `created`, `updated` |
+
+```sql
+SELECT s.name, level, count(*) AS n FROM events e JOIN sources s ON s.id = e.source
+WHERE ts >= TIMESTAMP '2026-10-14 10:00' GROUP BY ALL ORDER BY n DESC;
+SELECT fields['RequestPath'] AS path, quantile_cont(TRY_CAST(fields['ElapsedMs'] AS DOUBLE), 0.95) AS p95
+FROM events WHERE fields['ElapsedMs'] IS NOT NULL GROUP BY path ORDER BY p95 DESC LIMIT 20;
+SELECT n.text, e.message FROM notes n JOIN events e ON e.id = n.event_id;
+```
+
 ## Internal web browser
 
 *Search the web for this error* and the address box of the **Browser** panel (Tools ▸ Browser) open pages in

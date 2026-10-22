@@ -242,7 +242,9 @@ impl Fts {
 
     fn writer(&self) -> Result<IndexWriter> {
         let threads = self.budget.threads.max(1);
-        Ok(self.index.writer_with_num_threads(threads, self.budget.heap.max(threads * (15 << 20)))?)
+        Ok(self
+            .index
+            .writer_with_num_threads(threads, self.budget.heap.max(threads * (15 << 20)))?)
     }
 
     fn commit(&self, w: &mut IndexWriter, epoch: u64) -> Result<()> {
@@ -256,6 +258,16 @@ impl Fts {
     /// Documents in the index.
     pub fn docs(&self) -> u64 {
         self.reader.searcher().num_docs()
+    }
+
+    /// Tantivy's segments in the index (the Store pane).
+    pub fn segments(&self) -> usize {
+        self.reader.searcher().segment_readers().len()
+    }
+
+    /// The writer's heap and threads.
+    pub fn budget(&self) -> WriterBudget {
+        self.budget
     }
 
     /// The index query of a word search: every term, and every prefix as the start of a word.
@@ -443,6 +455,17 @@ impl FtsService {
             w.delete_all_documents()?;
             Ok(())
         })
+    }
+
+    /// Indexes every segment again ("Rebuild index"): empties the index, marks the segments unindexed and wakes
+    /// the indexing thread. Run under the store's write lock. Returns the segments to index.
+    pub fn rebuild(&self, conn: &Connection) -> Result<u64> {
+        self.clear()?;
+        *crate::lock(&self.shared.failure) = None;
+        let n = conn.execute("UPDATE segments SET indexed = FALSE", [])?;
+        self.shared.pending.store(n as u64, Ordering::SeqCst);
+        self.wake();
+        Ok(n as u64)
     }
 }
 
