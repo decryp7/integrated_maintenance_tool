@@ -53,8 +53,14 @@ contributors are in [AGENTS.md](../AGENTS.md); the design is in [architecture.md
   library folder added to `PATH`) or `export` lines for sh. `npm run tauri build` and
   `node app/scripts/build-sidecars.mjs` fetch the library themselves when `DUCKDB_LIB_DIR` is not set. The sidecar
   build copies the library into the installer's `lib/` resource folder and also next to the built store worker, so an
-  app run straight from the target folder (development, the end-to-end builds) finds it. The worker finds it on
-  `PATH` / `LD_LIBRARY_PATH` / `DYLD_LIBRARY_PATH` otherwise.
+  app run straight from the target folder (development, the end-to-end builds) finds it. On macOS and Linux the
+  worker finds it by run path (`crates/imt-store-worker/build/rpath.rs`), because a signed, notarized app ignores
+  `DYLD_LIBRARY_PATH`: next to itself (`@executable_path`, `$ORIGIN`) and in the installed resource folder
+  (`@executable_path/../Resources/lib` in `IMT.app`, `$ORIGIN/../lib/IMT/lib` from `/usr/bin` in the deb and rpm).
+  The official `libduckdb.dylib` is installed as `@rpath/libduckdb.dylib` and `libduckdb.so` has the SONAME
+  `libduckdb.so`, so no `install_name_tool` / `patchelf` step is needed; the bundle job checks the packaged worker's
+  run paths. IMT also passes the library folder in `PATH` / `LD_LIBRARY_PATH` / `DYLD_LIBRARY_PATH` as a fallback
+  (the only way on Windows).
 
 ### Develop
 
