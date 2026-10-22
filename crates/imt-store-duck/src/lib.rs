@@ -46,6 +46,9 @@ use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuar
 /// DuckDB's memory limit (ADR 0014 memory budget); it spills to the store's `tmp` folder beyond it.
 pub const MEMORY_LIMIT: &str = "192MB";
 
+/// Allocations DuckDB's allocator may keep cached after a task (`allocator_flush_threshold`).
+pub const ALLOCATOR_FLUSH: &str = "32MiB";
+
 /// DuckDB's query threads by default: each holds row groups being read, so more threads need more of
 /// the memory limit (a sort over 24 threads ran out of 256 MB in the bake-off).
 pub const DUCK_THREADS: usize = 4;
@@ -383,6 +386,9 @@ fn open_db(dir: &Path, opts: &StoreOptions) -> StoreResult<Connection> {
         .and_then(|c| c.enable_autoload_extension(false))
         // The catalog is small; a checkpoint at the end of each change is enough.
         .and_then(|c| c.with("checkpoint_threshold", "1GB"))
+        // Freed memory goes back to the OS after each task above this (DuckDB's jemalloc on Linux keeps up to
+        // 128 MB by default, which the worker's 300 MB query budget cannot spare).
+        .and_then(|c| c.with("allocator_flush_threshold", ALLOCATOR_FLUSH))
         .map_err(engine)?;
     let conn = Connection::open_with_flags(dir.join(DB_FILE), config).map_err(engine)?;
     // Segment footers are parsed once, not per query (a setting of the Parquet reader, so set after opening).
@@ -995,5 +1001,19 @@ mod tests {
             MissingSegment("seg-1.parquet".into()).to_string(),
             "the data file seg-1.parquet of this project is missing"
         );
+    }
+
+    #[test]
+    fn the_database_gives_freed_memory_back_and_keeps_its_limit() {
+        let dir = std::env::temp_dir().join(format!("imt-open-db-{}", std::process::id()));
+        let conn = open_db(&dir, &StoreOptions::default()).unwrap();
+        let setting = |name: &str| -> String {
+            conn.query_row(&format!("SELECT CAST(current_setting('{name}') AS VARCHAR)"), [], |r| r.get(0))
+                .unwrap()
+        };
+        assert_eq!(setting("allocator_flush_threshold"), "32.0 MiB");
+        assert_eq!(setting("threads"), DUCK_THREADS.to_string());
+        drop(conn);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
