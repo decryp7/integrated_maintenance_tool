@@ -122,6 +122,44 @@ describe('ActivityBar', () => {
     expect(button(fixture, 'Timeline').hasAttribute('aria-keyshortcuts')).toBe(false);
   });
 
+  it('marks a view that is open but not in front with a dot instead of lighting the button', async () => {
+    const { fixture, dock } = setup();
+    dock.openIds.set(new Set(['timeline', 'metrics']));
+    await settle(fixture);
+    const dot = (label: string) => button(fixture, label).querySelector('[data-testid=open-elsewhere]');
+    expect(button(fixture, 'Metrics').classList).toContain('on');
+    expect(dot('Metrics')).toBeNull();
+    dock.hidden.add('metrics');
+    dock.openIds.set(new Set(['timeline', 'metrics']));
+    await settle(fixture);
+    expect(button(fixture, 'Metrics').classList).not.toContain('on');
+    expect(dot('Metrics')).not.toBeNull();
+    expect(dot('Timeline')).toBeNull();
+    // Closed altogether: neither lit nor dotted.
+    dock.openIds.set(new Set(['timeline']));
+    await settle(fixture);
+    expect(dot('Metrics')).toBeNull();
+  });
+
+  it('dots a fly-out button while one of its views is open only behind others', async () => {
+    const { fixture, dock } = setup();
+    dock.openIds.set(new Set(['patterns']));
+    await settle(fixture);
+    expect(button(fixture, 'Analysis').classList).toContain('on');
+    expect(button(fixture, 'Analysis').querySelector('[data-testid=open-elsewhere]')).toBeNull();
+    dock.hidden.add('patterns');
+    dock.openIds.set(new Set(['patterns']));
+    await settle(fixture);
+    expect(button(fixture, 'Analysis').querySelector('[data-testid=open-elsewhere]')).not.toBeNull();
+  });
+
+  it('has no Jobs or Notifications buttons: the status bar keeps them', async () => {
+    const { fixture } = setup();
+    await settle(fixture);
+    expect(labels(fixture)).not.toContain('Jobs');
+    expect(labels(fixture)).not.toContain('Notifications');
+  });
+
   it('lists the analysis views from the registry, checks the open ones and shows the chosen one', async () => {
     const { fixture, dock } = setup();
     dock.openIds.set(new Set(['patterns']));

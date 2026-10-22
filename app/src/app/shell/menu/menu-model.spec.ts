@@ -39,6 +39,8 @@ const COMMANDS: [string, string, string?][] = [
   ['analyze.fit', 'Fit time range'],
   ['analyze.back', 'Previous time range'],
   ['analyze.forward', 'Next time range'],
+  ['nav.back', 'Go back', 'Alt+Left'],
+  ['nav.forward', 'Go forward', 'Alt+Right'],
   ['analyze.utc', 'Time in UTC'],
   ['analyze.local', 'Time in local zone'],
   ['analyze.toggleUtc', 'Toggle UTC / local time'],
@@ -232,7 +234,8 @@ describe('menu model', () => {
   it('groups Window: perspectives submenu, tool window actions, then the windows and pop-outs when there are several', () => {
     const w = menu(buildMenus(state()), 'window').items;
     expect(labels(w)).toEqual(['Perspectives', '—', 'Auto hide all tool windows', 'Pin all tool windows', 'Close all documents', '—', 'Float panel', 'Pop out to window', 'Full screen']);
-    expect(labels(sub(w, 'Perspectives'))).toEqual(['Perspective: Investigate', 'Perspective: Live', '—', 'Save current as perspective…', 'Manage perspectives…', 'Reset perspective']);
+    expect(labels(sub(w, 'Perspectives'))).toEqual(['Perspective: Investigate', 'Perspective: Live', '—', 'Save current as perspective…', '—', 'Manage perspectives…', 'Reset perspective']);
+    expect(menuItems(sub(w, 'Perspectives')).some((i) => i.checked)).toBe(false);
     const two = menu(
       buildMenus(
         state({
@@ -253,6 +256,34 @@ describe('menu model', () => {
       ],
       [['popout:inspector', 'Inspector', undefined]],
     ]);
+  });
+
+  it('puts Go back / Go forward in Analyze beside the time range steps, with their keys', () => {
+    const items = menuItems(menu(buildMenus(state()), 'analyze').items);
+    const ids = items.map((i) => i.id);
+    expect(ids.slice(ids.indexOf('analyze.fit'), ids.indexOf('analyze.fit') + 5)).toEqual(['analyze.fit', 'analyze.back', 'analyze.forward', 'nav.back', 'nav.forward']);
+    expect(items.find((i) => i.id === 'nav.back')).toMatchObject({ label: 'Go back', keybinding: 'Alt+Left' });
+    expect(items.find((i) => i.id === 'nav.forward')).toMatchObject({ label: 'Go forward', keybinding: 'Alt+Right' });
+  });
+
+  it('leaves Go back / Go forward out when they are unavailable', () => {
+    const without = new Map([...state().commands].filter(([id]) => !id.startsWith('nav.')));
+    const ids = menuItems(menu(buildMenus(state({ commands: without })), 'analyze').items).map((i) => i.id);
+    expect(ids).not.toContain('nav.back');
+    expect(ids).not.toContain('nav.forward');
+  });
+
+  it('checks the active perspective in Window > Perspectives', () => {
+    const checked = (active?: number) =>
+      menuItems(sub(menu(buildMenus(state({ activePerspective: active })), 'window').items, 'Perspectives'))
+        .filter((i) => i.checked)
+        .map((i) => i.id);
+    expect(checked()).toEqual([]);
+    expect(checked(1)).toEqual(['window.perspective.1']);
+    expect(checked(3)).toEqual(['window.perspective.3']);
+    // A perspective without a command (hidden, or beyond nine) checks nothing.
+    expect(checked(2)).toEqual([]);
+    expect(checked(0)).toEqual([]);
   });
 
   it('builds Help, with About and Check for updates in the app menu on macOS', () => {

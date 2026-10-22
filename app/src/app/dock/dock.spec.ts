@@ -8,11 +8,12 @@ import { MockBackend } from '../core/mock/mock-backend';
 import { MockDataset } from '../core/mock/mock-data';
 import { WorkspaceStore } from '../core/workspace.store';
 import { REGISTRY_PLUGIN } from '../plugins/registry/registry.plugin';
-import { ImtPlugin, provideImtPlugin } from '../extensions';
+import { ImtPlugin, ImtView, provideImtPlugin } from '../extensions';
 import { AngularContentRenderer, MissingViewRenderer } from './angular-panel';
 import { PANEL_VISIBLE } from '../core/panel-visibility';
 import { DockHost } from './dock-host';
 import { DockService, keepGroupsUnscrolled, PANEL } from './dock.service';
+import { ANALYSIS_TAB_CAP } from './view-area';
 import { GroupActions } from './group-actions';
 import { ContextMenuService } from '../ui/context-menu.service';
 import { EMPTY_EXTRAS, LAYOUT_KEY, LAYOUT_STORE, ENVELOPE_VERSION, LayoutStore, LocalStorageLayoutStore } from './layout-store';
@@ -32,6 +33,16 @@ const BOTTOM_PLUGIN: ImtPlugin = {
   views: [
     { id: 'test-bottom', title: 'Bottom', icon: 'search', defaultPosition: 'bottom', component: async () => ToolStub, when: (s) => s.total > 0, autoOpen: true },
     { id: 'test-tool', title: 'Tool', icon: 'panel', defaultPosition: 'right', component: async () => ToolStub },
+  ],
+};
+
+/** One view of every home area, to test where `DockPlacement.addView` puts a view: documents, analysis, side and status tools. */
+const AREA_PLUGIN: ImtPlugin = {
+  views: [
+    ...['test-doc-1', 'test-doc-2'].map((id): ImtView => ({ id, title: id, icon: 'panel', defaultPosition: 'center', area: 'document', component: async () => ToolStub })),
+    ...Array.from({ length: 10 }, (_, i): ImtView => ({ id: `test-an-${i + 1}`, title: `an${i + 1}`, icon: 'panel', defaultPosition: 'center', area: 'analysis', component: async () => ToolStub })),
+    ...['test-side-1', 'test-side-2'].map((id): ImtView => ({ id, title: id, icon: 'panel', defaultPosition: 'right', area: 'side', component: async () => ToolStub })),
+    ...['test-status-1', 'test-status-2'].map((id): ImtView => ({ id, title: id, icon: 'panel', defaultPosition: 'bottom', area: 'status', component: async () => ToolStub })),
   ],
 };
 
@@ -543,7 +554,7 @@ describe('DockService with dockview', () => {
   let saved: SerializedDockview | null;
   let layoutStore: LayoutStore & { saves: number; cleared: number };
 
-  function setup(opts: { plugin?: boolean; bottom?: boolean; stored?: SerializedDockview | null; backend?: MockBackend } = {}) {
+  function setup(opts: { plugin?: boolean; bottom?: boolean; areas?: boolean; stored?: SerializedDockview | null; backend?: MockBackend } = {}) {
     saved = opts.stored ?? null;
     layoutStore = {
       saves: 0,
@@ -559,7 +570,7 @@ describe('DockService with dockview', () => {
       },
     };
     TestBed.configureTestingModule({
-      providers: [provideDockTesting(opts.backend), { provide: LAYOUT_STORE, useValue: layoutStore }, ...(opts.plugin ? [provideImtPlugin(REGISTRY_PLUGIN)] : []), ...(opts.bottom ? [provideImtPlugin(BOTTOM_PLUGIN)] : [])],
+      providers: [provideDockTesting(opts.backend), { provide: LAYOUT_STORE, useValue: layoutStore }, ...(opts.plugin ? [provideImtPlugin(REGISTRY_PLUGIN)] : []), ...(opts.bottom ? [provideImtPlugin(BOTTOM_PLUGIN)] : []), ...(opts.areas ? [provideImtPlugin(AREA_PLUGIN)] : [])],
     });
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -574,7 +585,7 @@ describe('DockService with dockview', () => {
   const ids = (d: DockService) => [...d.openIds()].sort();
   const persisted = () => new Promise((r) => setTimeout(r, 300));
 
-  /** The fuller arrangement most feature tests exercise: the inspector docked on the right, metrics tabbed with the timeline. */
+  /** The fuller arrangement most feature tests exercise: the inspector docked on the right, metrics opened beside the timeline. */
   const withPanels = (d: DockService) => {
     d.pin(PANEL.inspector);
     d.show(PANEL.metrics, { inactive: true });
@@ -751,7 +762,8 @@ describe('DockService with dockview', () => {
       expect(api.getPanel(id)!.group.api.location.type).toBe('floating');
       dock.toggleFloat(api.getPanel(id)!.group);
       expect(api.getPanel(id)!.group.api.location.type).toBe('grid');
-      expect(container.querySelectorAll('.dv-groupview')).toHaveLength(3);
+      // Timeline, events, inspector and metrics (a document, opened beside the timeline) each have a group.
+      expect(container.querySelectorAll('.dv-groupview')).toHaveLength(4);
     }
   });
 
@@ -897,6 +909,98 @@ describe('DockService with dockview', () => {
     second.dock.attach(container);
     await settle();
     expect(second.dock.isOpen('registry')).toBe(false);
+  });
+
+  describe('placing a view by its home area', () => {
+    const grid = (dock: DockService) => groupsInOrder(must(dock['api']).toJSON());
+    const groupOf = (dock: DockService, id: string) => must(must(dock['api']).getPanel(id)).group;
+    const attached = async () => {
+      const { dock } = setup({ areas: true });
+      dock.attach(container);
+      await settle();
+      return dock;
+    };
+
+    it('opens documents beside the timeline and the events, never tabbed over them', async () => {
+      const dock = await attached();
+      dock.show('test-doc-1');
+      expect(groupOf(dock, 'test-doc-1')).not.toBe(groupOf(dock, 'timeline'));
+      expect(groupOf(dock, 'test-doc-1')).not.toBe(groupOf(dock, 'events'));
+      expect(grid(dock)).toEqual([['timeline'], ['test-doc-1'], ['events']]);
+      // The next document joins the first one's group.
+      dock.show('test-doc-2');
+      expect(groupOf(dock, 'test-doc-2')).toBe(groupOf(dock, 'test-doc-1'));
+      expect(groupOf(dock, 'timeline').panels.map((p) => p.id)).toEqual(['timeline']);
+      expect(groupOf(dock, 'events').panels.map((p) => p.id)).toEqual(['events']);
+    });
+
+    it('opens analysis views as tabs of one group below the events', async () => {
+      const dock = await attached();
+      dock.show('test-an-1');
+      dock.show('test-an-2');
+      expect(groupOf(dock, 'test-an-2')).toBe(groupOf(dock, 'test-an-1'));
+      expect(groupOf(dock, 'test-an-1')).not.toBe(groupOf(dock, 'events'));
+      expect(grid(dock)).toEqual([['timeline'], ['events'], ['test-an-1', 'test-an-2']]);
+    });
+
+    it('closes the least recently used inactive analysis tab for the ninth', async () => {
+      const dock = await attached();
+      for (let i = 1; i <= ANALYSIS_TAB_CAP; i++) dock.show(`test-an-${i}`);
+      expect(groupOf(dock, 'test-an-1').panels).toHaveLength(ANALYSIS_TAB_CAP);
+      // Using the oldest tab again makes the next oldest the victim.
+      dock.show('test-an-1');
+      dock.show('test-an-9');
+      const open = groupOf(dock, 'test-an-9').panels.map((p) => p.id);
+      expect(open).toHaveLength(ANALYSIS_TAB_CAP);
+      expect(open).not.toContain('test-an-2');
+      expect(open).toContain('test-an-1');
+      expect(dock.isOpen('test-an-2')).toBe(false);
+      expect(dock.isOpen('test-an-9')).toBe(true);
+    });
+
+    it('keeps pinned and active analysis tabs when the panel is full', async () => {
+      const dock = await attached();
+      for (let i = 1; i <= ANALYSIS_TAB_CAP; i++) dock.show(`test-an-${i}`);
+      dock.setPinned('test-an-1', true);
+      dock.show('test-an-9');
+      expect(dock.isOpen('test-an-9')).toBe(true);
+      expect(dock.isOpen('test-an-8')).toBe(true);
+      expect(groupOf(dock, 'test-an-9').panels).toHaveLength(ANALYSIS_TAB_CAP);
+    });
+
+    it('tabs side tools together in the right-hand group', async () => {
+      const dock = await attached();
+      dock.show('test-side-1');
+      dock.show('test-side-2');
+      expect(groupOf(dock, 'test-side-2')).toBe(groupOf(dock, 'test-side-1'));
+      expect(groupOf(dock, 'test-side-1')).not.toBe(groupOf(dock, 'timeline'));
+      expect(groupOf(dock, 'test-side-1')).not.toBe(groupOf(dock, 'events'));
+    });
+
+    it('sends status tools to the bottom side bar, auto-hidden, and shows them on request', async () => {
+      const dock = await attached();
+      dock.show('test-status-1', { inactive: true });
+      expect(dock['api']!.getPanel('test-status-1')).toBeUndefined();
+      expect(dock.autoHide().items.find((i) => i.id === 'test-status-1')).toMatchObject({ side: 'bottom' });
+      expect(dock.autoHide().open).not.toBe('test-status-1');
+      expect(dock.isOpen('test-status-1')).toBe(true);
+      dock.show('test-status-2');
+      expect(dock.autoHide().items.find((i) => i.id === 'test-status-2')).toMatchObject({ side: 'bottom' });
+      expect(dock.autoHide().open).toBe('test-status-2');
+    });
+
+    it('activates a view that is already open instead of adding it again', async () => {
+      const dock = await attached();
+      dock.show('test-doc-1');
+      dock.show('test-doc-2');
+      const group = groupOf(dock, 'test-doc-1');
+      group.panels.find((p) => p.id === 'test-doc-1')!.api.setActive();
+      expect(group.activePanel?.id).toBe('test-doc-1');
+      const before = dock['api']!.panels.length;
+      dock.show('test-doc-2');
+      expect(dock['api']!.panels).toHaveLength(before);
+      expect(group.activePanel?.id).toBe('test-doc-2');
+    });
   });
 });
 
