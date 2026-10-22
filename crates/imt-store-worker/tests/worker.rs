@@ -52,6 +52,7 @@ fn log_samples() -> Vec<PathBuf> {
         "linux",
         "otel",
         "profiles",
+        "real-libraries",
     ];
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../samples");
     let mut v: Vec<PathBuf> = std::fs::read_dir(root)

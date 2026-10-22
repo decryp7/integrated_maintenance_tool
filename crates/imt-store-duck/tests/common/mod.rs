@@ -16,8 +16,19 @@ pub fn samples() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../samples")
 }
 
-/// Folders of `/samples` that are not logs, or that only plugins read (as in imt-core's tests).
-const SKIP: &[&str] = &["profiling", "configs", "share", "live", "windows", "web", "linux", "otel"];
+/// Folders of `/samples` that are not logs, that only plugins read, or that lie outside the scenario (the real
+/// .NET library output), as in imt-core's tests.
+const SKIP: &[&str] = &[
+    "profiling",
+    "configs",
+    "share",
+    "live",
+    "windows",
+    "web",
+    "linux",
+    "otel",
+    "real-libraries",
+];
 
 /// Every entry of `/samples` the built-in importers open.
 pub fn log_samples() -> Vec<PathBuf> {

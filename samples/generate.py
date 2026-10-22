@@ -1871,4 +1871,289 @@ for i, hhmm in enumerate(UMDH_TIMES):
     write_text(umdh_snapshot(i), "dumps", "umdh", f"OrderService-4120-snap-{hhmm}.txt", newline="\r\n", encoding="ascii")
 write_text(umdh_diff(0, 2), "dumps", "umdh", "OrderService-4120-diff-1030-1040.txt", newline="\r\n", encoding="ascii")
 
+# --------------------------------------------------------------------------
+# Built-in parsers without a sample of their own (ADR 0026): Android logcat,
+# Spark/HDFS log4j layouts, the Apache httpd error log, NLog's default layout and
+# the Microsoft.Extensions.Logging simple console formatter. Each tells its part
+# of the incident, has several levels, multi-line stack traces and a few lines
+# the parser's regexes do not match (kept with the event before them). Own random
+# generators, so the files above do not change when this section does.
+
+# Android logcat (threadtime) from the shop app on a QA phone: requests to the
+# API slow down from 10:30, the app crashes on the failed payment at 10:41:24
+# (pid 4211, every stack frame its own line as logcat writes them) and is
+# started again as pid 4588. "--------- beginning of crash" is logcat's buffer
+# divider, not an event. logcat writes no year: IMT takes it from the file date.
+grnd = random.Random(3001)
+
+
+def logcat(t, pid, tid, lvl, tag, msg):
+    return f"{t.strftime('%m-%d %H:%M:%S')}.{t.microsecond // 1000:03d} {pid:5d} {tid:5d} {lvl} {tag:<8}: {msg}"
+
+
+lc = [logcat(START, 1702, 1702, "I", "ActivityManager", "Start proc 4211:com.contoso.shop/u0a77 for activity {com.contoso.shop/.MainActivity}")]
+lc.append(logcat(START + timedelta(milliseconds=180), 4211, 4211, "V", "ShopApp", "onCreate: theme=Light, locale=en-GB"))
+APP_CRASH = CRASH + timedelta(milliseconds=410)
+crashed, cut_lc = False, False
+for t in rtimes(grnd, START + timedelta(seconds=1), END, 40.0):
+    if not crashed and t >= APP_CRASH:
+        crashed = True
+        c = APP_CRASH
+        lc.append("--------- beginning of crash")
+        lc.append(logcat(c, 4211, 4211, "E", "AndroidRuntime", "FATAL EXCEPTION: main"))
+        lc.append(logcat(c, 4211, 4211, "E", "AndroidRuntime", "Process: com.contoso.shop, PID: 4211"))
+        for frame in ["java.lang.IllegalStateException: Payment capture failed for order 88412",
+                      "\tat com.contoso.shop.checkout.PayViewModel.capture(PayViewModel.kt:88)",
+                      "\tat com.contoso.shop.checkout.PayFragment.onPayClicked(PayFragment.kt:51)",
+                      "\tat android.view.View.performClick(View.java:7659)",
+                      "Caused by: java.net.SocketTimeoutException: timeout",
+                      "\tat okhttp3.internal.http2.Http2Stream.takeHeaders(Http2Stream.kt:149)",
+                      "\t... 12 more"]:
+            lc.append(logcat(c, 4211, 4211, "E", "AndroidRuntime", frame))
+        lc.append(logcat(c + timedelta(milliseconds=6), 4211, 4211, "I", "Process", "Sending signal. PID: 4211 SIG: 9"))
+        lc.append(logcat(c + timedelta(milliseconds=90), 1702, 1735, "W", "ActivityManager", "Process com.contoso.shop has crashed too many times: killing!"))
+        lc.append(logcat(c + timedelta(milliseconds=95), 4211, 4249, "F", "libc", "Fatal signal 9 (SIGKILL), code 0 in tid 4249 (OkHttp Dispatch)"))
+        lc.append(logcat(RESTART, 1702, 1702, "I", "ActivityManager", "Start proc 4588:com.contoso.shop/u0a77 for activity {com.contoso.shop/.MainActivity}"))
+    pid, tid = (4211, 4230) if t < APP_CRASH else (4588, 4602)
+    if APP_CRASH <= t < RESTART + timedelta(seconds=30):
+        continue
+    s = stress(t) if t < CRASH else 0.0
+    r = grnd.random()
+    if r < 0.02 + s * 0.15:
+        lc.append(logcat(t, pid, tid, "E", "OkHttp", "<-- HTTP FAILED: java.net.SocketTimeoutException: timeout"))
+        lc.append(logcat(t, pid, tid, "W", "System.err", "java.net.SocketTimeoutException: timeout"))
+        lc.append(logcat(t, pid, tid, "W", "System.err", "\tat okhttp3.internal.http2.Http2Stream$StreamTimeout.newTimeoutException(Http2Stream.kt:675)"))
+        lc.append(logcat(t, pid, tid, "W", "System.err", "\tat com.contoso.shop.api.OrdersApi.list(OrdersApi.kt:42)"))
+    elif r < 0.05 + s * 0.4:
+        lc.append(logcat(t, pid, tid, "W", "OkHttp", f"Slow response from /api/orders ({int(900 + s * 4000 + grnd.uniform(0, 400))} ms)"))
+    elif r < 0.25:
+        lc.append(logcat(t, pid, pid, "D", "ShopApp", f"Cart updated: {grnd.randint(1, 6)} items"))
+    elif r < 0.3:
+        lc.append(logcat(t, 1702, 1720, "D", "WindowManager", "Changing focus to Window{com.contoso.shop/.CartActivity}"))
+    else:
+        lc.append(logcat(t, pid, tid, "I", "OkHttp", f"<-- 200 https://api.contoso.example/api/orders ({grnd.randint(80, 400)}ms, {grnd.randint(1, 9)}.{grnd.randint(0, 9)}kB body)"))
+    if not cut_lc and t > datetime(2026, 10, 14, 11, 15, tzinfo=timezone.utc):
+        cut_lc = True
+        # A line cut short when the log buffer was read while being written.
+        lc.append(logcat(t, pid, tid, "I", "OkHttp", "<-- 200 https://api.contoso.example/api/ord")[:31])
+write_text("\n".join(lc) + "\n", "android-logcat", "qa-pixel07", "logcat-20261014.txt")
+
+# Spark driver log of the nightly order export (default log4j layout
+# "yy/MM/dd HH:mm:ss LEVEL Logger: message"): an executor loses its connection
+# to the order database during the incident, the task is retried and the stage
+# finishes. The JVM's stdout ("Picked up JAVA_TOOL_OPTIONS") is not log4j.
+hrnd2 = random.Random(3002)
+
+
+def spark(t, lvl, logger, msg):
+    return f"{t.strftime('%y/%m/%d %H:%M:%S')} {lvl} {logger}: {msg}"
+
+
+sp = [spark(START + timedelta(seconds=2), "INFO", "SparkContext", "Running Spark version 3.5.1"),
+      spark(START + timedelta(seconds=2), "INFO", "SparkContext", "Submitted application: orders-export"),
+      spark(START + timedelta(seconds=4), "WARN", "NativeCodeLoader", "Unable to load native-hadoop library for your platform... using builtin-java classes where applicable"),
+      "Picked up JAVA_TOOL_OPTIONS: -Dfile.encoding=UTF-8"]
+stage, tid = 0, 0
+for t in rtimes(hrnd2, START + timedelta(seconds=10), END, 60.0):
+    s = stress(t) if t < CRASH else 0.0
+    r = hrnd2.random()
+    if r < 0.08:
+        stage += 1
+        sp.append(spark(t, "INFO", "DAGScheduler", f"Submitting {hrnd2.randint(4, 16)} missing tasks from ResultStage {stage} (MapPartitionsRDD[{stage * 3}] at save at OrdersExport.scala:57)"))
+    elif r < 0.02 + s * 0.5:
+        tid += 1
+        sp.append(spark(t, "ERROR", "Executor", f"Exception in task 0.0 in stage {stage}.0 (TID {tid})"))
+        sp += ["java.sql.SQLTransientConnectionException: HikariPool-1 - Connection is not available, request timed out after 30000ms.",
+               "\tat com.zaxxer.hikari.pool.HikariPool.createTimeoutException(HikariPool.java:696)",
+               "\tat com.contoso.export.OrdersReader.next(OrdersReader.scala:88)",
+               "\tat org.apache.spark.scheduler.ResultTask.runTask(ResultTask.scala:93)",
+               "Caused by: com.microsoft.sqlserver.jdbc.SQLServerException: Transaction (Process ID 61) was deadlocked on lock resources with another process and has been chosen as the deadlock victim.",
+               "\tat com.microsoft.sqlserver.jdbc.SQLServerException.makeFromDatabaseError(SQLServerException.java:265)",
+               "\t... 14 more"]
+        sp.append(spark(t + timedelta(seconds=1), "WARN", "TaskSetManager", f"Lost task 0.0 in stage {stage}.0 (TID {tid}) (10.20.0.17 executor 2): java.sql.SQLTransientConnectionException"))
+    elif r < 0.25:
+        sp.append(spark(t, "INFO", "Executor", f"Running task {hrnd2.randint(0, 15)}.0 in stage {stage}.0 (TID {tid + 1})"))
+    elif r < 0.4:
+        tid += 1
+        sp.append(spark(t, "INFO", "TaskSetManager", f"Finished task {hrnd2.randint(0, 15)}.0 in stage {stage}.0 (TID {tid}) in {hrnd2.randint(800, 9000)} ms on 10.20.0.{hrnd2.randint(11, 19)} (executor {hrnd2.randint(1, 4)})"))
+    elif r < 0.5:
+        sp.append(spark(t, "DEBUG", "BlockManager", f"Putting block rdd_{stage * 3}_{hrnd2.randint(0, 15)} with replication 1"))
+    else:
+        sp.append(spark(t, "INFO", "MemoryStore", f"Block broadcast_{stage} stored as values in memory (estimated size {hrnd2.randint(20, 400)}.{hrnd2.randint(0, 9)} KiB, free 2.1 GiB)"))
+sp.append(spark(END - timedelta(seconds=5), "INFO", "SparkContext", "Successfully stopped SparkContext"))
+write_text("\n".join(sp) + "\n", "hadoop-spark", "analytics01", "spark-orders-export.log")
+
+# HDFS DataNode in the older layout "yyMMdd HHmmss <thread> LEVEL Logger: message".
+drnd = random.Random(3003)
+
+
+def hdfs(t, thread, lvl, logger, msg):
+    return f"{t.strftime('%y%m%d %H%M%S')} {thread} {lvl} {logger}: {msg}"
+
+
+dn = [hdfs(START, 1, "INFO", "dfs.DataNode", "STARTUP_MSG: Starting DataNode, host = dn01.contoso.example/10.20.0.31")]
+for t in rtimes(drnd, START + timedelta(seconds=5), END, 100.0):
+    r = drnd.random()
+    blk = f"blk_{drnd.randint(10**17, 10**18)}"
+    if r < 0.04:
+        dn.append(hdfs(t, drnd.randint(100, 300), "ERROR", "dfs.DataNode", f"DatanodeRegistration(10.20.0.31:50010):DataXceiver: Got exception while serving {blk} to /10.20.0.17"))
+        dn += ["java.net.SocketTimeoutException: 480000 millis timeout while waiting for channel to be ready for write.",
+               "\tat org.apache.hadoop.net.SocketIOWithTimeout.waitForIO(SocketIOWithTimeout.java:246)",
+               "\tat org.apache.hadoop.dfs.DataNode$BlockSender.sendBlock(DataNode.java:1873)"]
+    elif r < 0.12:
+        dn.append(hdfs(t, drnd.randint(100, 300), "WARN", "dfs.DataNode", f"Slow BlockReceiver write packet to mirror took {drnd.randint(300, 2000)}ms"))
+    elif r < 0.35:
+        dn.append(hdfs(t, drnd.randint(100, 300), "INFO", "dfs.DataNode", f"Receiving block {blk} src: /10.20.0.{drnd.randint(11, 19)}:{drnd.randint(40000, 60000)} dest: /10.20.0.31:50010"))
+    elif r < 0.6:
+        dn.append(hdfs(t, drnd.randint(100, 300), "INFO", "dfs.DataNode$PacketResponder", f"PacketResponder {drnd.randint(0, 2)} for block {blk} terminating"))
+    else:
+        dn.append(hdfs(t, drnd.randint(100, 300), "INFO", "dfs.FSNamesystem", f"BLOCK* NameSystem.addStoredBlock: blockMap updated: 10.20.0.31:50010 is added to {blk} size {drnd.randint(10**6, 6 * 10**7)}"))
+write_text("\n".join(dn) + "\n", "hadoop-spark", "dn01", "hadoop-hdfs-datanode-dn01.log")
+
+# Apache httpd 2.4 error log of a second edge in front of the web farm: proxy
+# timeouts to WEB02 from 10:30, refused connections while it is down (10:41:24
+# to 10:42:10), a CGI report script whose Python traceback reaches the log
+# without a prefix (stderr of the script), and one line cut off by a full disk.
+erand = random.Random(3004)
+
+
+def apache(t, module, lvl, pid, tid, msg, client=None):
+    c = f" [client {client}]" if client else ""
+    return f"[{t.strftime('%a %b %d %H:%M:%S')}.{t.microsecond:06d} {t.year}] [{module}:{lvl}] [pid {pid}:tid {tid}]{c} {msg}"
+
+
+ap = [apache(START, "mpm_event", "notice", 812, 140245, "AH00489: Apache/2.4.58 (Ubuntu) OpenSSL/3.0.13 configured -- resuming normal operations"),
+      apache(START, "core", "notice", 812, 140245, "AH00094: Command line: '/usr/sbin/apache2'")]
+cgi_done, cut = False, False
+for t in rtimes(erand, START + timedelta(seconds=3), END, 25.0):
+    pid, tid = erand.choice([(9041, 140112), (9042, 140118), (9077, 140131)])
+    client = f"10.0.{erand.randint(1, 4)}.{erand.randint(2, 250)}:{erand.randint(40000, 65000)}"
+    s = stress(t) if t < CRASH else 0.0
+    down = CRASH <= t < RESTART
+    r = erand.random()
+    if down:
+        ap.append(apache(t, "proxy", "error", pid, tid, "(111)Connection refused: AH00957: http: attempt to connect to 10.0.0.12:8080 (web02.contoso.example:8080) failed", client))
+        ap.append(apache(t, "proxy_http", "error", pid, tid, "AH01114: HTTP: failed to make connection to backend: web02.contoso.example", client))
+    elif r < s * 0.6:
+        ap.append(apache(t, "proxy_http", "error", pid, tid, "(70007)The timeout specified has expired: AH01102: error reading status line from remote server web02.contoso.example:8080", client))
+    elif r < 0.03 + s * 0.3:
+        ap.append(apache(t, "proxy", "warn", pid, tid, "AH01144: No protocol handler was valid for the URL /favicon.ico (scheme 'h2c'). If you are using a DSO version of mod_proxy, make sure the proxy submodules are included in the configuration using LoadModule.", client))
+    elif r < 0.1:
+        ap.append(apache(t, "ssl", "info", pid, tid, "AH01964: Connection to child 3 established (server shop.contoso.example:443)", client))
+    elif r < 0.13 and not cgi_done and t > INCIDENT:
+        cgi_done = True
+        ap += ["Traceback (most recent call last):",
+               '  File "/usr/lib/cgi-bin/order-report.cgi", line 42, in <module>',
+               "    rows = fetch_orders(since)",
+               "ConnectionRefusedError: [Errno 111] Connection refused"]
+        ap.append(apache(t, "cgid", "error", pid, tid, "End of script output before headers: order-report.cgi", client))
+    elif r < 0.2:
+        ap.append(apache(t, "authz_core", "debug", pid, tid, "mod_authz_core.c(815): AH01626: authorization result of Require all granted: granted", client))
+    elif r < 0.25:
+        ap.append(apache(t, "core", "info", pid, tid, "AH00128: File does not exist: /var/www/shop/robots.txt", client))
+    else:
+        continue
+    if not cut and t > datetime(2026, 10, 14, 11, 15, tzinfo=timezone.utc):
+        cut = True
+        ap.append(apache(t, "core", "warn", pid, tid, "AH00045: child process 9077 still did not exit, sending a SIGTERM")[:40])
+ap.append(apache(END, "mpm_event", "notice", 812, 140245, "AH00491: caught SIGTERM, shutting down"))
+write_text("\n".join(ap) + "\n", "apache-error", "edge02", "error.log")
+
+# NLog's default file layout "${longdate}|${level:uppercase=true}|${logger}|
+# ${message:withexception=true}" from the notification scheduler: the exception
+# follows the message after a "|" and continues on the next lines, as NLog 6
+# writes it (see samples/real-libraries). One line was written by a
+# Console.WriteLine left in a job.
+nrnd2 = random.Random(3005)
+
+
+def nlog(t, lvl, logger, msg):
+    return f"{t.strftime('%Y-%m-%d %H:%M:%S')}.{t.microsecond // 100:04d}|{lvl}|{logger}|{msg}"
+
+
+NLOG_SMTP = ("|System.Net.Mail.SmtpException: Failure sending mail.\n"
+             " ---> System.IO.IOException: Unable to read data from the transport connection: An existing connection was forcibly closed by the remote host.\n"
+             "   at System.Net.Mail.SmtpConnection.GetConnection(String host, Int32 port)\n"
+             "   --- End of inner exception stack trace ---\n"
+             "   at System.Net.Mail.SmtpClient.Send(MailMessage message)\n"
+             "   at Contoso.Notify.Jobs.SendOrderMails.Execute(IJobExecutionContext context) in D:\\build\\Notify\\Jobs\\SendOrderMails.cs:line 64")
+nl = [nlog(START, "INFO", "Contoso.Notify.Program", "Scheduler 2.4.0 started; 3 jobs registered")]
+paused = stray = False
+for t in rtimes(nrnd2, START + timedelta(seconds=2), END, 60.0):
+    if not paused and t > CRASH:
+        paused = True
+        nl.append(nlog(CRASH + timedelta(milliseconds=900), "FATAL", "Contoso.Notify.Jobs.SendOrderMails", "Job SendOrderMails failed 5 times in a row and is paused" + NLOG_SMTP))
+    s = stress(t) if t < CRASH else 0.0
+    r = nrnd2.random()
+    if r < 0.01 + s * 0.2:
+        nl.append(nlog(t, "ERROR", "Contoso.Notify.Jobs.SendOrderMails", f"Could not send the confirmation for order {nrnd2.randint(88000, 89000)}" + NLOG_SMTP))
+    elif r < 0.04 + s * 0.3:
+        nl.append(nlog(t, "WARN", "Contoso.Notify.Jobs.SendOrderMails", f"Mail queue is backing up: {int(20 + s * 800)} messages"))
+    elif r < 0.1:
+        nl.append(nlog(t, "TRACE", "Quartz.Core.QuartzSchedulerThread", f"Batch acquisition of {nrnd2.randint(0, 2)} triggers"))
+    elif r < 0.3:
+        nl.append(nlog(t, "DEBUG", "Contoso.Notify.Templates", f"Rendered template order-confirmation.de-DE in {nrnd2.randint(2, 40)} ms"))
+    else:
+        nl.append(nlog(t, "INFO", "Contoso.Notify.Jobs.SendOrderMails", f"Sent {nrnd2.randint(1, 30)} order confirmations"))
+    if not stray and t > datetime(2026, 10, 14, 10, 0, tzinfo=timezone.utc):
+        stray = True
+        nl.append(f"DEBUG queue={nrnd2.randint(0, 900)}")
+write_text("\n".join(nl) + "\n", "nlog", "notify01", "notify-scheduler-20261014.log", newline="\r\n")
+
+# Microsoft.Extensions.Logging simple console output (TimestampFormat
+# "yyyy-MM-dd HH:mm:ss.fff ") of the payments adapter container: "level:
+# Category[EventId]" with the message indented below and the exception after
+# it, as .NET 10 writes it (see samples/real-libraries). Capture timeouts from
+# 10:30, a critical circuit-breaker event, and one line a library wrote with
+# Console.WriteLine.
+prnd2 = random.Random(3006)
+MEL_INDENT = "      "
+
+
+def mel(t, lvl, category, event_id, msg, exc=None):
+    lines = [f"{t.strftime('%Y-%m-%d %H:%M:%S')}.{t.microsecond // 1000:03d} {lvl}: {category}[{event_id}]"]
+    lines += [MEL_INDENT + m for m in msg.split("\n")]
+    if exc:
+        lines += [MEL_INDENT + x for x in exc.split("\n")]
+    return "\n".join(lines)
+
+
+MEL_CAPTURE = ("Polly.Timeout.TimeoutRejectedException: The delegate executed asynchronously through TimeoutPolicy did not complete within the timeout.\n"
+               " ---> System.Threading.Tasks.TaskCanceledException: A task was canceled.\n"
+               "   at System.Net.Http.HttpClient.HandleFailure(Exception e, Boolean telemetryStarted, HttpResponseMessage response)\n"
+               "   --- End of inner exception stack trace ---\n"
+               "   at Polly.Timeout.AsyncTimeoutEngine.ImplementationAsync[TResult](Func`3 action, Context context)\n"
+               "   at Contoso.Payments.Adapter.CaptureClient.CaptureAsync(CaptureRequest request, CancellationToken ct) in /src/Adapter/CaptureClient.cs:line 57")
+mp = [mel(START, "info", "Microsoft.Hosting.Lifetime", 14, "Now listening on: http://[::]:8080"),
+      mel(START, "info", "Microsoft.Hosting.Lifetime", 0, "Application started. Press Ctrl+C to shut down."),
+      mel(START, "info", "Microsoft.Hosting.Lifetime", 0, "Hosting environment: Production\nContent root path: /app")]
+breaker = stray = False
+later = []  # the circuit breaker's own follow-ups, written when their time comes
+for t in rtimes(prnd2, START + timedelta(seconds=1), END, 50.0):
+    while later and later[0][0] <= t:
+        at, lvl, eid, msg = later.pop(0)
+        mp.append(mel(at, lvl, "Contoso.Payments.Adapter.CircuitBreaker", eid, msg))
+    s = stress(t) if t < CRASH else 0.0
+    r = prnd2.random()
+    order = prnd2.randint(88000, 89000)
+    if not breaker and s > 0.9:
+        breaker = True
+        mp.append(mel(t, "crit", "Contoso.Payments.Adapter.CircuitBreaker", 9001, "Circuit to the payment provider opened after 20 consecutive failures; captures are rejected for 30 s"))
+        later += [(t + timedelta(seconds=30), "warn", 9002, "Circuit to the payment provider is half-open; trying one capture"),
+                  (t + timedelta(seconds=31, milliseconds=204), "info", 9003, "Circuit to the payment provider closed")]
+    elif r < 0.005 + s * 0.25:
+        mp.append(mel(t, "fail", "Contoso.Payments.Adapter.CaptureClient", 1001, f"Capture for order {order} failed", MEL_CAPTURE))
+    elif r < 0.03 + s * 0.4:
+        mp.append(mel(t, "warn", "Contoso.Payments.Adapter.CaptureClient", 1002, f"Capture for order {order} took {int(1500 + s * 25000)} ms"))
+    elif r < 0.15:
+        mp.append(mel(t, "dbug", "Microsoft.EntityFrameworkCore.Database.Command", 20101, f"Executed DbCommand ({prnd2.randint(1, 80)}ms) [Parameters=[@p0='?'], CommandType='Text', CommandTimeout='30']\nSELECT TOP(1) [c].[Id] FROM [Captures] AS [c] WHERE [c].[OrderNo] = @p0"))
+    elif r < 0.2:
+        mp.append(mel(t, "trce", "Contoso.Payments.Adapter.Health", 3, "Health probe ok"))
+    else:
+        mp.append(mel(t, "info", "Contoso.Payments.Adapter.CaptureClient", 1000, f"Captured order {order} ({prnd2.randint(5, 400)}.{prnd2.randint(0, 99):02d} EUR)"))
+    if not stray and t > CRASH:
+        stray = True
+        mp.append(f"Polly retry {prnd2.randint(1, 3)}/3 for capture {order}")
+write_text("\n".join(mp) + "\n", "mel-console", "payments01", "payments-adapter-20261014.log")
+
 print("samples written to", ROOT)

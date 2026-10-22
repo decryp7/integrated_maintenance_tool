@@ -3578,7 +3578,10 @@ dependencies = [
  "insta",
  "proptest",
  "serde_json",
+ "sha2 0.11.1",
  "tempfile",
+ "ureq",
+ "zip",
 ]
 
 [[package]]

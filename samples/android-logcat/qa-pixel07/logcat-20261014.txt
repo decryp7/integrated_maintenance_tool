@@ -1,0 +1,290 @@
+10-14 09:00:00.000  1702  1702 I ActivityManager: Start proc 4211:com.contoso.shop/u0a77 for activity {com.contoso.shop/.MainActivity}
+10-14 09:00:00.180  4211  4211 V ShopApp : onCreate: theme=Light, locale=en-GB
+10-14 09:00:14.777  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (260ms, 4.4kB body)
+10-14 09:00:32.520  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (250ms, 8.4kB body)
+10-14 09:02:31.807  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (388ms, 6.3kB body)
+10-14 09:03:51.006  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (94ms, 9.0kB body)
+10-14 09:04:14.084  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (171ms, 5.6kB body)
+10-14 09:05:48.157  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (297ms, 1.5kB body)
+10-14 09:07:20.288  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (251ms, 5.5kB body)
+10-14 09:08:36.618  4211  4211 D ShopApp : Cart updated: 4 items
+10-14 09:09:13.727  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (373ms, 5.6kB body)
+10-14 09:10:06.301  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (145ms, 7.9kB body)
+10-14 09:10:18.816  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (154ms, 5.2kB body)
+10-14 09:12:32.749  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (100ms, 9.2kB body)
+10-14 09:12:48.786  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (155ms, 6.9kB body)
+10-14 09:12:59.983  4211  4211 D ShopApp : Cart updated: 3 items
+10-14 09:13:10.429  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (201ms, 5.6kB body)
+10-14 09:13:36.293  4211  4211 D ShopApp : Cart updated: 3 items
+10-14 09:13:51.269  4211  4211 D ShopApp : Cart updated: 3 items
+10-14 09:16:38.744  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (185ms, 5.7kB body)
+10-14 09:17:11.607  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (171ms, 7.6kB body)
+10-14 09:17:34.192  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (126ms, 9.3kB body)
+10-14 09:18:28.993  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (304ms, 6.2kB body)
+10-14 09:18:29.157  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (244ms, 5.7kB body)
+10-14 09:19:28.402  4211  4230 W OkHttp  : Slow response from /api/orders (1169 ms)
+10-14 09:20:46.996  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (129ms, 2.0kB body)
+10-14 09:20:56.954  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (338ms, 1.3kB body)
+10-14 09:21:33.309  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (137ms, 1.6kB body)
+10-14 09:21:39.017  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (351ms, 3.3kB body)
+10-14 09:21:50.571  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (179ms, 2.2kB body)
+10-14 09:22:50.496  1702  1720 D WindowManager: Changing focus to Window{com.contoso.shop/.CartActivity}
+10-14 09:24:17.525  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (109ms, 6.3kB body)
+10-14 09:24:23.272  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (143ms, 8.6kB body)
+10-14 09:26:45.338  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (173ms, 2.4kB body)
+10-14 09:26:45.862  4211  4211 D ShopApp : Cart updated: 5 items
+10-14 09:27:29.602  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (131ms, 4.3kB body)
+10-14 09:27:32.862  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (99ms, 1.1kB body)
+10-14 09:28:29.639  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (289ms, 9.6kB body)
+10-14 09:29:16.888  4211  4211 D ShopApp : Cart updated: 4 items
+10-14 09:29:46.592  4211  4211 D ShopApp : Cart updated: 6 items
+10-14 09:29:52.939  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (163ms, 7.7kB body)
+10-14 09:30:22.311  4211  4230 E OkHttp  : <-- HTTP FAILED: java.net.SocketTimeoutException: timeout
+10-14 09:30:22.311  4211  4230 W System.err: java.net.SocketTimeoutException: timeout
+10-14 09:30:22.311  4211  4230 W System.err: 	at okhttp3.internal.http2.Http2Stream$StreamTimeout.newTimeoutException(Http2Stream.kt:675)
+10-14 09:30:22.311  4211  4230 W System.err: 	at com.contoso.shop.api.OrdersApi.list(OrdersApi.kt:42)
+10-14 09:31:48.177  4211  4211 D ShopApp : Cart updated: 6 items
+10-14 09:32:18.121  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (237ms, 2.1kB body)
+10-14 09:32:44.367  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (154ms, 5.2kB body)
+10-14 09:32:44.926  4211  4211 D ShopApp : Cart updated: 5 items
+10-14 09:33:15.513  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (367ms, 2.1kB body)
+10-14 09:35:45.200  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (83ms, 9.9kB body)
+10-14 09:36:23.286  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (333ms, 8.4kB body)
+10-14 09:36:23.464  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (254ms, 8.9kB body)
+10-14 09:36:43.249  4211  4211 D ShopApp : Cart updated: 4 items
+10-14 09:37:07.527  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (339ms, 6.9kB body)
+10-14 09:37:38.483  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (363ms, 4.0kB body)
+10-14 09:38:17.273  4211  4211 D ShopApp : Cart updated: 2 items
+10-14 09:39:03.468  4211  4211 D ShopApp : Cart updated: 3 items
+10-14 09:39:09.337  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (85ms, 7.0kB body)
+10-14 09:39:42.122  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (194ms, 2.8kB body)
+10-14 09:40:48.126  4211  4211 D ShopApp : Cart updated: 4 items
+10-14 09:41:03.102  4211  4211 D ShopApp : Cart updated: 3 items
+10-14 09:41:11.917  4211  4211 D ShopApp : Cart updated: 3 items
+10-14 09:44:15.799  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (94ms, 3.8kB body)
+10-14 09:44:26.383  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (141ms, 2.4kB body)
+10-14 09:44:28.980  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (239ms, 4.3kB body)
+10-14 09:45:16.481  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (240ms, 4.9kB body)
+10-14 09:45:45.268  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (385ms, 4.8kB body)
+10-14 09:45:59.030  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (296ms, 5.3kB body)
+10-14 09:45:59.075  4211  4211 D ShopApp : Cart updated: 3 items
+10-14 09:46:27.167  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (122ms, 5.2kB body)
+10-14 09:47:55.783  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (365ms, 5.9kB body)
+10-14 09:48:30.247  4211  4230 E OkHttp  : <-- HTTP FAILED: java.net.SocketTimeoutException: timeout
+10-14 09:48:30.247  4211  4230 W System.err: java.net.SocketTimeoutException: timeout
+10-14 09:48:30.247  4211  4230 W System.err: 	at okhttp3.internal.http2.Http2Stream$StreamTimeout.newTimeoutException(Http2Stream.kt:675)
+10-14 09:48:30.247  4211  4230 W System.err: 	at com.contoso.shop.api.OrdersApi.list(OrdersApi.kt:42)
+10-14 09:48:47.174  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (353ms, 2.4kB body)
+10-14 09:49:00.612  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (84ms, 4.4kB body)
+10-14 09:50:12.760  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (272ms, 7.8kB body)
+10-14 09:50:33.646  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (110ms, 9.4kB body)
+10-14 09:51:05.513  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (335ms, 8.7kB body)
+10-14 09:54:05.537  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (377ms, 3.9kB body)
+10-14 09:54:10.576  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (298ms, 1.9kB body)
+10-14 09:54:13.901  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (88ms, 1.4kB body)
+10-14 09:56:10.015  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (349ms, 5.9kB body)
+10-14 09:57:27.871  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (182ms, 5.4kB body)
+10-14 09:57:41.555  1702  1720 D WindowManager: Changing focus to Window{com.contoso.shop/.CartActivity}
+10-14 09:58:46.410  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (182ms, 8.8kB body)
+10-14 10:00:13.847  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (334ms, 2.9kB body)
+10-14 10:01:27.386  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (291ms, 8.3kB body)
+10-14 10:05:52.579  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (161ms, 3.4kB body)
+10-14 10:05:59.756  4211  4211 D ShopApp : Cart updated: 1 items
+10-14 10:06:05.626  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (370ms, 2.0kB body)
+10-14 10:06:11.250  4211  4211 D ShopApp : Cart updated: 3 items
+10-14 10:07:06.058  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (316ms, 8.4kB body)
+10-14 10:07:22.360  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (355ms, 6.8kB body)
+10-14 10:08:00.801  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (214ms, 7.5kB body)
+10-14 10:08:32.825  4211  4230 W OkHttp  : Slow response from /api/orders (1172 ms)
+10-14 10:09:07.431  1702  1720 D WindowManager: Changing focus to Window{com.contoso.shop/.CartActivity}
+10-14 10:09:26.683  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (174ms, 1.1kB body)
+10-14 10:11:19.216  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (241ms, 1.0kB body)
+10-14 10:11:47.440  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (318ms, 4.9kB body)
+10-14 10:12:28.932  4211  4211 D ShopApp : Cart updated: 6 items
+10-14 10:13:10.167  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (239ms, 2.1kB body)
+10-14 10:13:20.098  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (325ms, 2.9kB body)
+10-14 10:13:20.308  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (293ms, 3.7kB body)
+10-14 10:13:28.676  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (224ms, 6.2kB body)
+10-14 10:13:33.571  1702  1720 D WindowManager: Changing focus to Window{com.contoso.shop/.CartActivity}
+10-14 10:15:35.876  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (197ms, 3.9kB body)
+10-14 10:15:39.604  4211  4211 D ShopApp : Cart updated: 6 items
+10-14 10:16:40.373  1702  1720 D WindowManager: Changing focus to Window{com.contoso.shop/.CartActivity}
+10-14 10:16:51.262  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (101ms, 7.3kB body)
+10-14 10:17:40.374  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (340ms, 2.6kB body)
+10-14 10:18:57.007  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (351ms, 7.9kB body)
+10-14 10:19:12.525  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (299ms, 3.2kB body)
+10-14 10:21:06.484  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (212ms, 7.1kB body)
+10-14 10:21:29.485  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (275ms, 7.8kB body)
+10-14 10:21:34.486  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (221ms, 9.6kB body)
+10-14 10:21:45.954  4211  4230 W OkHttp  : Slow response from /api/orders (989 ms)
+10-14 10:23:11.174  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (239ms, 3.2kB body)
+10-14 10:23:31.268  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (84ms, 6.0kB body)
+10-14 10:23:53.907  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (282ms, 6.1kB body)
+10-14 10:23:57.294  4211  4211 D ShopApp : Cart updated: 2 items
+10-14 10:23:58.986  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (182ms, 9.4kB body)
+10-14 10:24:35.602  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (273ms, 4.9kB body)
+10-14 10:25:29.655  1702  1720 D WindowManager: Changing focus to Window{com.contoso.shop/.CartActivity}
+10-14 10:26:00.084  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (179ms, 6.0kB body)
+10-14 10:26:09.169  4211  4211 D ShopApp : Cart updated: 5 items
+10-14 10:27:26.931  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (127ms, 3.2kB body)
+10-14 10:27:40.119  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (370ms, 9.6kB body)
+10-14 10:27:51.262  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (270ms, 7.1kB body)
+10-14 10:28:40.347  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (375ms, 2.3kB body)
+10-14 10:29:11.223  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (270ms, 5.5kB body)
+10-14 10:29:25.493  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (400ms, 8.2kB body)
+10-14 10:29:26.434  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (95ms, 3.9kB body)
+10-14 10:29:48.142  4211  4211 D ShopApp : Cart updated: 2 items
+10-14 10:30:08.709  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (389ms, 8.2kB body)
+10-14 10:30:55.385  4211  4211 D ShopApp : Cart updated: 2 items
+10-14 10:31:12.160  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (313ms, 4.8kB body)
+10-14 10:31:33.960  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (323ms, 5.7kB body)
+10-14 10:31:38.261  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (211ms, 9.5kB body)
+10-14 10:31:51.607  4211  4211 D ShopApp : Cart updated: 1 items
+10-14 10:31:53.806  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (151ms, 6.9kB body)
+10-14 10:32:15.841  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (314ms, 9.8kB body)
+10-14 10:32:54.289  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (163ms, 5.5kB body)
+10-14 10:33:31.975  4211  4230 E OkHttp  : <-- HTTP FAILED: java.net.SocketTimeoutException: timeout
+10-14 10:33:31.975  4211  4230 W System.err: java.net.SocketTimeoutException: timeout
+10-14 10:33:31.975  4211  4230 W System.err: 	at okhttp3.internal.http2.Http2Stream$StreamTimeout.newTimeoutException(Http2Stream.kt:675)
+10-14 10:33:31.975  4211  4230 W System.err: 	at com.contoso.shop.api.OrdersApi.list(OrdersApi.kt:42)
+10-14 10:34:03.807  1702  1720 D WindowManager: Changing focus to Window{com.contoso.shop/.CartActivity}
+10-14 10:34:51.933  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (151ms, 2.2kB body)
+10-14 10:35:48.395  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (355ms, 1.8kB body)
+10-14 10:36:14.391  1702  1720 D WindowManager: Changing focus to Window{com.contoso.shop/.CartActivity}
+10-14 10:36:33.100  4211  4230 W OkHttp  : Slow response from /api/orders (3371 ms)
+10-14 10:37:28.365  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (345ms, 9.5kB body)
+10-14 10:38:20.523  4211  4230 E OkHttp  : <-- HTTP FAILED: java.net.SocketTimeoutException: timeout
+10-14 10:38:20.523  4211  4230 W System.err: java.net.SocketTimeoutException: timeout
+10-14 10:38:20.523  4211  4230 W System.err: 	at okhttp3.internal.http2.Http2Stream$StreamTimeout.newTimeoutException(Http2Stream.kt:675)
+10-14 10:38:20.523  4211  4230 W System.err: 	at com.contoso.shop.api.OrdersApi.list(OrdersApi.kt:42)
+10-14 10:39:10.142  4211  4230 W OkHttp  : Slow response from /api/orders (4501 ms)
+10-14 10:39:31.120  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (225ms, 6.9kB body)
+10-14 10:41:05.249  4211  4230 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (92ms, 2.0kB body)
+--------- beginning of crash
+10-14 10:41:24.460  4211  4211 E AndroidRuntime: FATAL EXCEPTION: main
+10-14 10:41:24.460  4211  4211 E AndroidRuntime: Process: com.contoso.shop, PID: 4211
+10-14 10:41:24.460  4211  4211 E AndroidRuntime: java.lang.IllegalStateException: Payment capture failed for order 88412
+10-14 10:41:24.460  4211  4211 E AndroidRuntime: 	at com.contoso.shop.checkout.PayViewModel.capture(PayViewModel.kt:88)
+10-14 10:41:24.460  4211  4211 E AndroidRuntime: 	at com.contoso.shop.checkout.PayFragment.onPayClicked(PayFragment.kt:51)
+10-14 10:41:24.460  4211  4211 E AndroidRuntime: 	at android.view.View.performClick(View.java:7659)
+10-14 10:41:24.460  4211  4211 E AndroidRuntime: Caused by: java.net.SocketTimeoutException: timeout
+10-14 10:41:24.460  4211  4211 E AndroidRuntime: 	at okhttp3.internal.http2.Http2Stream.takeHeaders(Http2Stream.kt:149)
+10-14 10:41:24.460  4211  4211 E AndroidRuntime: 	... 12 more
+10-14 10:41:24.466  4211  4211 I Process : Sending signal. PID: 4211 SIG: 9
+10-14 10:41:24.550  1702  1735 W ActivityManager: Process com.contoso.shop has crashed too many times: killing!
+10-14 10:41:24.555  4211  4249 F libc    : Fatal signal 9 (SIGKILL), code 0 in tid 4249 (OkHttp Dispatch)
+10-14 10:42:10.412  1702  1702 I ActivityManager: Start proc 4588:com.contoso.shop/u0a77 for activity {com.contoso.shop/.MainActivity}
+10-14 10:43:15.542  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (184ms, 9.8kB body)
+10-14 10:44:37.128  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (292ms, 3.0kB body)
+10-14 10:45:11.599  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (188ms, 6.1kB body)
+10-14 10:45:45.685  4588  4602 W OkHttp  : Slow response from /api/orders (939 ms)
+10-14 10:45:52.799  4588  4588 D ShopApp : Cart updated: 1 items
+10-14 10:46:46.270  4588  4588 D ShopApp : Cart updated: 2 items
+10-14 10:47:05.403  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (349ms, 7.0kB body)
+10-14 10:47:22.649  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (95ms, 8.8kB body)
+10-14 10:48:03.754  1702  1720 D WindowManager: Changing focus to Window{com.contoso.shop/.CartActivity}
+10-14 10:53:35.034  4588  4588 D ShopApp : Cart updated: 1 items
+10-14 10:54:11.541  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (280ms, 1.1kB body)
+10-14 10:54:55.726  4588  4588 D ShopApp : Cart updated: 5 items
+10-14 10:55:42.090  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (320ms, 9.1kB body)
+10-14 10:56:59.303  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (384ms, 2.3kB body)
+10-14 10:57:36.639  4588  4588 D ShopApp : Cart updated: 2 items
+10-14 10:58:52.986  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (180ms, 5.1kB body)
+10-14 11:00:07.913  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (252ms, 1.5kB body)
+10-14 11:00:50.861  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (169ms, 3.8kB body)
+10-14 11:01:27.408  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (270ms, 5.9kB body)
+10-14 11:02:17.049  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (256ms, 6.4kB body)
+10-14 11:02:27.573  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (118ms, 3.9kB body)
+10-14 11:03:04.141  4588  4588 D ShopApp : Cart updated: 1 items
+10-14 11:05:07.016  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (349ms, 8.5kB body)
+10-14 11:05:22.703  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (240ms, 6.1kB body)
+10-14 11:06:17.114  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (168ms, 5.9kB body)
+10-14 11:06:17.356  1702  1720 D WindowManager: Changing focus to Window{com.contoso.shop/.CartActivity}
+10-14 11:07:24.979  1702  1720 D WindowManager: Changing focus to Window{com.contoso.shop/.CartActivity}
+10-14 11:07:53.837  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (82ms, 3.6kB body)
+10-14 11:08:16.542  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (102ms, 4.1kB body)
+10-14 11:08:25.232  1702  1720 D WindowManager: Changing focus to Window{com.contoso.shop/.CartActivity}
+10-14 11:08:48.604  4588  4602 W OkHttp  : Slow response from /api/orders (1261 ms)
+10-14 11:09:52.186  4588  4602 E OkHttp  : <-- HTTP FAILED: java.net.SocketTimeoutException: timeout
+10-14 11:09:52.186  4588  4602 W System.err: java.net.SocketTimeoutException: timeout
+10-14 11:09:52.186  4588  4602 W System.err: 	at okhttp3.internal.http2.Http2Stream$StreamTimeout.newTimeoutException(Http2Stream.kt:675)
+10-14 11:09:52.186  4588  4602 W System.err: 	at com.contoso.shop.api.OrdersApi.list(OrdersApi.kt:42)
+10-14 11:10:30.245  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (287ms, 1.3kB body)
+10-14 11:10:46.480  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (396ms, 5.5kB body)
+10-14 11:11:01.051  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (325ms, 1.2kB body)
+10-14 11:12:37.831  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (105ms, 9.0kB body)
+10-14 11:13:58.638  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (316ms, 9.2kB body)
+10-14 11:14:16.341  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (190ms, 4.8kB body)
+10-14 11:14:59.097  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (205ms, 8.0kB body)
+10-14 11:15:17.408  4588  4588 D ShopApp : Cart updated: 5 items
+10-14 11:15:17.408  4588  4602 
+10-14 11:16:16.965  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (203ms, 9.9kB body)
+10-14 11:16:50.162  4588  4588 D ShopApp : Cart updated: 3 items
+10-14 11:17:05.586  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (260ms, 2.1kB body)
+10-14 11:17:19.714  4588  4588 D ShopApp : Cart updated: 3 items
+10-14 11:18:44.378  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (375ms, 5.7kB body)
+10-14 11:19:40.694  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (131ms, 1.0kB body)
+10-14 11:19:51.695  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (209ms, 4.4kB body)
+10-14 11:20:04.925  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (329ms, 5.9kB body)
+10-14 11:21:27.273  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (330ms, 7.0kB body)
+10-14 11:22:41.984  4588  4588 D ShopApp : Cart updated: 4 items
+10-14 11:22:48.833  4588  4588 D ShopApp : Cart updated: 2 items
+10-14 11:23:40.090  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (106ms, 5.9kB body)
+10-14 11:24:03.485  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (364ms, 3.0kB body)
+10-14 11:24:35.599  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (394ms, 3.1kB body)
+10-14 11:24:39.363  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (242ms, 9.7kB body)
+10-14 11:24:42.090  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (146ms, 3.7kB body)
+10-14 11:24:42.726  4588  4588 D ShopApp : Cart updated: 5 items
+10-14 11:24:58.648  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (88ms, 3.4kB body)
+10-14 11:26:52.344  4588  4588 D ShopApp : Cart updated: 3 items
+10-14 11:27:53.277  4588  4588 D ShopApp : Cart updated: 3 items
+10-14 11:28:31.256  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (166ms, 7.8kB body)
+10-14 11:28:37.952  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (200ms, 2.5kB body)
+10-14 11:29:05.835  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (88ms, 3.5kB body)
+10-14 11:30:54.071  4588  4588 D ShopApp : Cart updated: 1 items
+10-14 11:32:05.881  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (350ms, 5.1kB body)
+10-14 11:34:10.204  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (163ms, 2.2kB body)
+10-14 11:34:36.497  1702  1720 D WindowManager: Changing focus to Window{com.contoso.shop/.CartActivity}
+10-14 11:34:43.494  4588  4588 D ShopApp : Cart updated: 3 items
+10-14 11:36:01.814  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (163ms, 4.4kB body)
+10-14 11:37:10.760  4588  4588 D ShopApp : Cart updated: 6 items
+10-14 11:37:16.735  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (213ms, 7.5kB body)
+10-14 11:38:22.184  4588  4588 D ShopApp : Cart updated: 3 items
+10-14 11:38:31.273  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (340ms, 3.0kB body)
+10-14 11:39:12.951  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (304ms, 1.3kB body)
+10-14 11:39:14.509  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (129ms, 8.7kB body)
+10-14 11:39:20.421  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (180ms, 7.2kB body)
+10-14 11:39:49.473  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (167ms, 2.9kB body)
+10-14 11:40:56.851  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (370ms, 5.7kB body)
+10-14 11:42:13.959  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (137ms, 1.6kB body)
+10-14 11:43:02.716  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (241ms, 3.3kB body)
+10-14 11:43:26.837  4588  4588 D ShopApp : Cart updated: 3 items
+10-14 11:43:28.828  4588  4602 W OkHttp  : Slow response from /api/orders (1079 ms)
+10-14 11:44:00.546  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (242ms, 7.8kB body)
+10-14 11:44:06.624  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (115ms, 9.6kB body)
+10-14 11:44:11.579  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (136ms, 3.3kB body)
+10-14 11:45:10.763  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (342ms, 8.7kB body)
+10-14 11:45:51.970  1702  1720 D WindowManager: Changing focus to Window{com.contoso.shop/.CartActivity}
+10-14 11:47:30.403  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (298ms, 1.9kB body)
+10-14 11:47:46.161  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (162ms, 2.0kB body)
+10-14 11:48:28.391  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (120ms, 6.1kB body)
+10-14 11:48:32.201  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (236ms, 7.2kB body)
+10-14 11:48:56.423  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (370ms, 6.4kB body)
+10-14 11:49:15.493  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (180ms, 9.3kB body)
+10-14 11:49:23.780  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (130ms, 4.3kB body)
+10-14 11:49:37.361  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (326ms, 1.6kB body)
+10-14 11:50:00.319  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (276ms, 8.1kB body)
+10-14 11:50:38.252  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (384ms, 7.1kB body)
+10-14 11:50:47.038  1702  1720 D WindowManager: Changing focus to Window{com.contoso.shop/.CartActivity}
+10-14 11:51:16.773  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (356ms, 9.9kB body)
+10-14 11:52:14.147  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (186ms, 2.4kB body)
+10-14 11:52:53.000  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (370ms, 5.7kB body)
+10-14 11:53:06.540  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (279ms, 2.5kB body)
+10-14 11:54:23.526  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (329ms, 2.0kB body)
+10-14 11:55:34.445  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (95ms, 3.2kB body)
+10-14 11:55:49.743  4588  4588 D ShopApp : Cart updated: 3 items
+10-14 11:56:04.478  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (339ms, 5.0kB body)
+10-14 11:57:22.723  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (310ms, 1.6kB body)
+10-14 11:57:29.538  4588  4588 D ShopApp : Cart updated: 5 items
+10-14 11:57:48.634  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (129ms, 3.4kB body)
+10-14 11:58:10.652  4588  4602 I OkHttp  : <-- 200 https://api.contoso.example/api/orders (137ms, 8.7kB body)

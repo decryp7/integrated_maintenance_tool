@@ -50,6 +50,7 @@ fn every_new_sample_is_read_by_its_importer_and_nothing_else_is() {
     let expect = [
         ("log4j-xml/billing-api/billing-api.xml", "log4j-xml"),
         ("log4j-xml/scheduler/scheduler-20261014.nlog.xml", "log4j-xml"),
+        ("real-libraries/log4net-log4j.xml", "log4j-xml"),
         ("sqlserver/SQL01/ERRORLOG", "sql-errorlog"),
         ("sqlserver/sqlrpt01/errorlog", "sql-errorlog"),
         ("-json.log", "docker-json"),

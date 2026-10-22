@@ -1,0 +1,40 @@
+2026-10-22 09:29:03.960+08:00 info: Contoso.Orders.Program[1000]
+      => OrderNo:88412
+      OrderService 3.14.2 starting on TKY-WEB03
+2026-10-22 09:29:03.965+08:00 dbug: Contoso.Orders.Cache[1001]
+      => OrderNo:88412
+      Tariff cache refreshed CacheStats { Entries = 412, HitRatio = 0.93 }
+2026-10-22 09:29:03.965+08:00 info: Contoso.Orders.Intake[1002]
+      => OrderNo:88412
+      注文 88412 を受け付けました（顧客 C-20931、合計 12800 円）
+2026-10-22 09:29:03.965+08:00 warn: Contoso.Orders.Payments[1003]
+      => OrderNo:88412
+      Slow response from /v2/captures: 4870 ms
+2026-10-22 09:29:03.966+08:00 fail: Contoso.Orders.Payments[1004]
+      => OrderNo:88412
+      Payment capture failed for order 88412
+      System.InvalidOperationException: Payment capture failed for order 88412
+       ---> System.TimeoutException: 決済ゲートウェイがタイムアウトしました (order 88412, 30000 ms)
+         at PaymentGateway.Send(Int32 orderNo) in /src/OrderService/Program.cs:line 114
+         at PaymentGateway.Capture(Int32 orderNo) in /src/OrderService/Program.cs:line 106
+         --- End of inner exception stack trace ---
+         at PaymentGateway.Capture(Int32 orderNo) in /src/OrderService/Program.cs:line 110
+         at Failures.Capture() in /src/OrderService/Program.cs:line 70
+2026-10-22 09:29:03.966+08:00 warn: Contoso.Orders.Payments[1005]
+      => OrderNo:88412
+      決済を再試行します（2/3）
+2026-10-22 09:29:03.966+08:00 crit: Contoso.Orders.Program[1006]
+      => OrderNo:88412
+      Unhandled exception, the service stops
+      System.AggregateException: One or more background tasks failed. (Payment capture failed for order 88413) (ディスクに空き容量がありません)
+       ---> System.InvalidOperationException: Payment capture failed for order 88413
+       ---> System.TimeoutException: 決済ゲートウェイがタイムアウトしました (order 88413, 30000 ms)
+         at PaymentGateway.Send(Int32 orderNo) in /src/OrderService/Program.cs:line 114
+         at PaymentGateway.Capture(Int32 orderNo) in /src/OrderService/Program.cs:line 106
+         --- End of inner exception stack trace ---
+         at PaymentGateway.Capture(Int32 orderNo) in /src/OrderService/Program.cs:line 110
+         at Failures.Shutdown() in /src/OrderService/Program.cs:line 85
+         --- End of inner exception stack trace ---
+         at Failures.Shutdown() in /src/OrderService/Program.cs:line 89
+       ---> (Inner Exception #1) System.IO.IOException: ディスクに空き容量がありません<---
+      

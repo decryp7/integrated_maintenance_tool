@@ -53,7 +53,7 @@ impl Level {
     pub fn parse(s: &str) -> Option<Level> {
         let s = s.trim().trim_matches(|c| c == '[' || c == ']');
         let level = match s.to_ascii_lowercase().as_str() {
-            "vrb" | "verbose" | "trace" | "trc" | "finest" | "finer" | "all" | "v" => Level::Verbose,
+            "vrb" | "verbose" | "trace" | "trc" | "trce" | "finest" | "finer" | "all" | "v" => Level::Verbose,
             "dbg" | "debug" | "dbug" | "fine" | "config" | "d" => Level::Debug,
             "inf" | "info" | "information" | "informational" | "notice" | "note" | "i" => Level::Information,
             "wrn" | "warn" | "warning" | "w" => Level::Warning,
@@ -207,6 +207,10 @@ mod tests {
             ("finer", Level::Verbose),
             ("D", Level::Debug),
             ("F", Level::Fatal),
+            // Microsoft.Extensions.Logging console abbreviations.
+            ("trce", Level::Verbose),
+            ("dbug", Level::Debug),
+            ("fail", Level::Error),
         ] {
             assert_eq!(Level::parse(s), Some(l), "{s}");
         }
