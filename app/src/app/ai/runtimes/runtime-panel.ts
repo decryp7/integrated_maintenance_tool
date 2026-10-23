@@ -3,11 +3,9 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  effect,
   inject,
+  linkedSignal,
   OnInit,
-  signal,
-  untracked,
 } from '@angular/core';
 import { ConfirmDialog } from '../../ui/confirm-dialog';
 import { DialogService } from '../../ui/dialog.service';
@@ -24,6 +22,7 @@ import {
   runtimePercent,
   runtimeProgressText,
   runtimeStageLabel,
+  RuntimeTerminal,
 } from './runtime-view';
 
 /**
@@ -396,7 +395,14 @@ export class AiRuntimePanel implements OnInit {
   protected readonly busy = computed(() => this.store.busy());
   /** The build whose download failed in a way a manual download works around; kept while the user tries
    * the files they downloaded (a rejected archive keeps the instructions), cleared once it is installed. */
-  protected readonly manual = signal<{ id: string; code: AiErrorCode } | null>(null);
+  protected readonly manual = linkedSignal<RuntimeTerminal | null, { id: string; code: AiErrorCode } | null>({
+    source: () => this.store.outcome(),
+    computation: (out, previous) => {
+      if (out?.stage === 'failed' && offersManualDownload(out.code)) return { id: out.id, code: out.code };
+      if (out?.stage === 'ready' && previous?.value?.id === out.id) return null;
+      return previous?.value ?? null;
+    },
+  });
   protected readonly pct = computed(() => runtimePercent(this.store.job()?.stage ?? null));
   private readonly speed = transferSpeed(() => {
     const e = this.store.job()?.stage;
@@ -426,16 +432,6 @@ export class AiRuntimePanel implements OnInit {
   protected readonly state = entryState;
   protected readonly stateLabel = entryStateLabel;
   protected readonly device = deviceLine;
-
-  constructor() {
-    effect(() => {
-      const out = this.store.outcome();
-      untracked(() => {
-        if (out?.stage === 'failed' && offersManualDownload(out.code)) this.manual.set({ id: out.id, code: out.code });
-        else if (out?.stage === 'ready' && this.manual()?.id === out.id) this.manual.set(null);
-      });
-    });
-  }
 
   ngOnInit(): void {
     void this.store.load();
