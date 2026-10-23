@@ -142,17 +142,19 @@ pub async fn ai_setup_plan<R: Runtime>(app: AppHandle<R>, model_id: Option<Strin
 }
 
 /// The job a set-up or activation runs as (Cancel stops it; a download can be retried).
-struct SetupJob {
-    title: String,
-    model_id: Option<String>,
-    file_name: String,
+pub(super) struct SetupJob {
+    pub(super) title: String,
+    pub(super) model_id: Option<String>,
+    pub(super) file_name: String,
+    /// The first-start "set up the assistant" flow: it tells the user itself when it is ready or failed (see [`super::assistant_setup`]).
+    pub(super) assistant: Option<super::assistant_setup::Assistant>,
 }
 
-type SetupWork = Box<dyn FnOnce(&AiCore, &debrief_ai::models::Progress, &mut dyn FnMut(SetupStage)) -> Ai<()> + Send>;
+pub(super) type SetupWork = Box<dyn FnOnce(&AiCore, &debrief_ai::models::Progress, &mut dyn FnMut(SetupStage)) -> Ai<()> + Send>;
 
 /// Runs a set-up or activation as a download job (Jobs are the one cancel authority: `jobs_cancel` with
 /// the returned id stops it), streaming `debrief://ai-setup`. Returns the job.
-fn spawn_setup<R: Runtime>(app: AppHandle<R>, core: Arc<AiCore>, job: SetupJob, work: SetupWork) -> Ai<u64> {
+pub(super) fn spawn_setup<R: Runtime>(app: AppHandle<R>, core: Arc<AiCore>, job: SetupJob, work: SetupWork) -> Ai<u64> {
     let progress = core.begin_setup()?;
     let run = {
         let (app, core) = (app.clone(), core.clone());
@@ -164,6 +166,9 @@ fn spawn_setup<R: Runtime>(app: AppHandle<R>, core: Arc<AiCore>, job: SetupJob, 
                         on_progress(super::runtime_commands::phase_progress(false, *bytes, *total))
                     }
                     SetupStage::Verifying { bytes, total } => on_progress(super::runtime_commands::phase_progress(true, *bytes, *total)),
+                    SetupStage::Validating | SetupStage::Loading { .. } | SetupStage::WarmingUp => {
+                        on_progress(JobProgress::in_phase("Testing", jobs::PhaseScale::Indeterminate, 0, 0))
+                    }
                     _ => {}
                 }
                 let _ = a.emit(SETUP_EVENT, SetupEvent::Stage(st));
@@ -182,7 +187,13 @@ fn spawn_setup<R: Runtime>(app: AppHandle<R>, core: Arc<AiCore>, job: SetupJob, 
         }
     };
     let mut spec = JobSpec::new(JobKind::Download, job.title);
-    if let Some(id) = &job.model_id {
+    if let Some(a) = &job.assistant {
+        // Announced by the flow itself (one "ready" or one "failed" message), retried from either as the whole set-up.
+        spec = spec
+            .quiet()
+            .link(JobLink::Model { id: a.model_id.clone() })
+            .retry_with(json!({"op": "assistant", "modelId": a.model_id}));
+    } else if let Some(id) = &job.model_id {
         spec = spec
             .link(JobLink::Model { id: id.clone() })
             .retry_with(json!({"op": "model", "modelId": id}));
@@ -192,8 +203,14 @@ fn spawn_setup<R: Runtime>(app: AppHandle<R>, core: Arc<AiCore>, job: SetupJob, 
         c.cancel_setup();
     });
     let file_name = job.file_name;
+    let assistant = job.assistant;
+    let notify_app = app.clone();
     let queued = jobs::spawn(&app, spec, controls, move |ctx: &jobs::JobCtx| -> Ai<Done<()>> {
-        run(&|p| ctx.progress(p))?;
+        let r = run(&|p| ctx.progress(p));
+        if let Some(a) = &assistant {
+            a.finished(&notify_app, &r);
+        }
+        r?;
         Ok(Done::new(()).with_result(JobResult::Model {
             detail: None,
             file_name: Some(file_name.clone()),
@@ -213,6 +230,7 @@ pub(crate) fn retry_download<R: Runtime>(app: &AppHandle<R>, job: &jobs::model::
     let req = job.request.clone().unwrap_or_default();
     let r = match (req["op"].as_str(), req["modelId"].as_str(), req["runtimeId"].as_str()) {
         (Some("model"), Some(id), _) => setup_run(app.clone(), id.to_string()),
+        (Some("assistant"), Some(id), _) => super::assistant_setup::start(app.clone(), id.to_string()),
         (Some("runtime"), _, Some(id)) => super::runtime_commands::install(app.clone(), id.to_string(), vec![]),
         _ => return Err("this download cannot be run again".into()),
     };
@@ -225,6 +243,14 @@ pub(crate) fn retry_download<R: Runtime>(app: &AppHandle<R>, job: &jobs::model::
 #[tauri::command]
 pub async fn ai_setup_run<R: Runtime>(app: AppHandle<R>, model_id: String) -> Ai<u64> {
     setup_run(app, model_id)
+}
+
+/// The first-start flow: installs the inference runtime when none is installed, then downloads, checks, loads and tests
+/// the model, all as background Download jobs the Jobs pane shows (and `jobs_cancel` stops). The dialog that asked
+/// closes at once; a message says when the assistant is ready or why not. Returns the first job.
+#[tauri::command]
+pub async fn ai_setup_background<R: Runtime>(app: AppHandle<R>, model_id: String) -> Ai<u64> {
+    super::assistant_setup::start(app, model_id)
 }
 
 /// Starts a set-up job (what `ai_setup_run` does).
@@ -244,6 +270,7 @@ pub(crate) fn setup_run<R: Runtime>(app: AppHandle<R>, model_id: String) -> Ai<u
         },
         model_id: (!installed).then(|| model_id.clone()),
         file_name: entry.1,
+        assistant: None,
     };
     spawn_setup(app, core, job, Box::new(move |c, p, on| c.run_setup(&model_id, p, on)))
 }
@@ -265,6 +292,7 @@ pub async fn ai_model_activate<R: Runtime>(app: AppHandle<R>, file_name: String)
         title: format!("Loading AI model {file_name}"),
         model_id: None,
         file_name: file_name.clone(),
+        assistant: None,
     };
     spawn_setup(app, core, job, Box::new(move |c, p, on| c.activate(&file_name, p, on)))
 }

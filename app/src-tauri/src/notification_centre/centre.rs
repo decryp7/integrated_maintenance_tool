@@ -86,6 +86,13 @@ pub enum NoticeAction {
         format: Option<String>,
     },
     ResetAi,
+    /// Opens the assistant (its chat view).
+    OpenAssistant,
+    /// Sets the assistant up again with this model (after a failed background set-up).
+    SetUpAssistant {
+        #[serde(rename = "modelId")]
+        model_id: String,
+    },
     InstallUpdate,
     /// Shows a live alert's evidence (its time range in the grid).
     ShowAlert {

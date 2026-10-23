@@ -16,7 +16,7 @@ import { AiStatusStore } from '../ai-status.store';
 import { InstalledModel, Recommendation, SetupEvent } from '../ai.types';
 import { AiRuntimePanel } from '../runtimes/runtime-panel';
 import { AiSetupWizard } from '../setup/setup-wizard';
-import { stageLabel, RunningStage } from '../setup/wizard';
+import { stageLabel, RunningStage } from '../setup/setup-stage';
 import { JobFollow } from '../../jobs/job-follow';
 
 const ENGINE_STATE: Record<string, string> = {

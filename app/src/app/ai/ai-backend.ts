@@ -73,6 +73,11 @@ export abstract class AiBackend {
   abstract setupPlan(modelId?: string | null): Promise<SetupPlan>;
   /** Starts a set-up; progress arrives through `onSetup`. */
   abstract setupRun(modelId: string): Promise<void>;
+  /**
+   * The first-start set-up as a background job: the inference runtime when none is installed, then the model. Resolves
+   * once it is queued; progress is in the Jobs pane, the status bar and `onSetup`, and a message says how it ended.
+   */
+  abstract setupBackground(modelId: string): Promise<void>;
   abstract setupCancel(): Promise<boolean>;
   abstract models(): Promise<InstalledModel[]>;
   /** Loads an installed model and makes it active; progress arrives through `onSetup`. */

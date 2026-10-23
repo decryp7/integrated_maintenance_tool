@@ -10,6 +10,7 @@
 //! changed, all windows), `debrief://ai-chat` (chat stream, to the window of the chat), `debrief://ai-runtime`
 //! (inference runtime downloads, all windows), `debrief://ai-updates` (runtime and model update checks, all windows).
 
+pub(crate) mod assistant_setup;
 mod chats;
 pub(crate) mod commands;
 mod core;

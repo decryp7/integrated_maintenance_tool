@@ -85,6 +85,9 @@ export class TauriAiBackend extends AiBackend {
   async setupRun(modelId: string) {
     this.setupJob = await this.run<number>('ai_setup_run', { modelId });
   }
+  async setupBackground(modelId: string) {
+    await this.run<number>('ai_setup_background', { modelId });
+  }
   /** Cancels the set-up (or activation) this window started, through its job. */
   async setupCancel() {
     const id = this.setupJob;

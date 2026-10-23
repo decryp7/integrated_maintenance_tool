@@ -222,6 +222,17 @@ describe('AiChatPanel', () => {
     await until(f, () => reload.mock.calls.length === 1);
   });
 
+  it('shows the background set-up in the pane ("Setting up — 1.2 of 5.6 GB") instead of the set-up button', async () => {
+    const { f, root, backend } = setup({ mode: 'setup', stepMs: 5 });
+    f.detectChanges();
+    await until(f, () => !!root.querySelector('.setup'));
+    expect(root.querySelector('[data-testid=ai-setting-up]')).toBeNull();
+    await backend.setupBackground('qwen3.5-9b-q4km');
+    await until(f, () => /Setting up — [\d.]+ (MB|GB) of 5\.6 GB/.test(root.querySelector('[data-testid=ai-setting-up]')?.textContent ?? ''));
+    expect(root.textContent).not.toContain('Set up AI assistant…');
+    await until(f, () => !root.querySelector('[data-testid=ai-setting-up]'));
+  });
+
   it('shows the engine as unavailable and the store error banner', async () => {
     const { f, store } = setup({ mode: 'off' });
     f.detectChanges();

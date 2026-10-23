@@ -50,6 +50,7 @@ import { mockAsksForRelated, mockExplainImage, mockFormatOf, mockFormatOfPath, m
 import { FILE_EXISTS_SUFFIX } from '../api.types';
 import { MOCK_NET_FAILURES, MockNetFailure, mockNetError, MockRuntimeMode, MockRuntimes } from './mock-ai-runtimes';
 import { MockClock, systemMockClock } from './mock-clock';
+import { mockNotifications } from '../../notifications/mock-notifications';
 import { mockWeb } from '../../browser/mock-browser-backend';
 import { MockAiUpdates, MockUpdatesMode } from './mock-ai-updates';
 import { mockBrowserTurn } from './mock-ai-browser';
@@ -335,12 +336,54 @@ export class MockAiBackend extends AiBackend {
       throw new AiError('busy', 'A model is already being set up; wait for it or cancel it first.');
     this.setupRunning = true;
     this.setupCancelled = false;
-    void this.runSetup(m.file, !this.installed.some((i) => i.fileName === m.file), m.sizeBytes);
+    void this.runSetup(m.file, !this.installed.some((i) => i.fileName === m.file), m.sizeBytes, modelId);
   }
 
-  private async runSetup(file: string, download: boolean, size: number): Promise<void> {
+  /** Like the engine: the runtime first when none is installed, then the model, and one message at the end. */
+  async setupBackground(modelId: string): Promise<void> {
+    this.check();
+    const m = MOCK_CATALOG.find((c) => c.id === modelId);
+    if (!m) throw new AiError('notFound', `'${modelId}' is not in the model list`);
+    if (this.setupRunning) throw new AiError('busy', 'A model is already being set up; wait for it or cancel it first.');
+    const overview = this.rt.overview();
+    if (!overview.needsDownload || !overview.suggested) {
+      this.background = true;
+      return this.setupRun(modelId);
+    }
+    // The runtime step, then the model step (this method returns once the first is queued).
+    this.setupRunning = true;
+    const off = this.rt.subscribe((e) => {
+      if (e.stage !== 'ready' && e.stage !== 'failed' && e.stage !== 'cancelled') return;
+      off();
+      this.setupRunning = false;
+      if (e.stage === 'ready') {
+        this.background = true;
+        void this.setupRun(modelId);
+      } else if (e.stage === 'failed') {
+        this.announceSetup(modelId, e.message);
+      }
+    });
+    this.rt.install(overview.suggested);
+  }
+
+  private background = false;
+
+  /** The one message that ends a background set-up: ready (Open the assistant) or failed (Retry). */
+  private announceSetup(modelId: string, failure?: string): void {
+    mockNotifications().post(
+      failure === undefined
+        ? { source: 'ai', severity: 'success', scope: 'app', title: 'AI assistant ready', body: 'The model is set up and runs on this computer.', primary: { type: 'openAssistant' }, dedupeKey: 'ai-setup' }
+        : { source: 'ai', severity: 'error', scope: 'app', title: 'The AI assistant could not be set up', body: failure, primary: { type: 'setUpAssistant', modelId }, dedupeKey: 'ai-setup' },
+    );
+  }
+
+  private async runSetup(file: string, download: boolean, size: number, modelId = ''): Promise<void> {
+    const background = this.background;
+    this.background = false;
     const end = (e: SetupEvent) => {
       this.setupRunning = false;
+      if (background && e.stage === 'ready') this.announceSetup(modelId);
+      else if (background && e.stage === 'failed') this.announceSetup(modelId, e.message);
       this.emitSetup(e);
       this.emitStatus();
     };

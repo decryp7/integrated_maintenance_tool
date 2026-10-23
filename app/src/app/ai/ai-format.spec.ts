@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Assessment } from './ai.types';
-import { adviceLabel, fitAdvice, fitFacts, fitNumbers, fitLabel, formatBytes, formatEta, formatRate, gpuLabel, hardwareLines, percent, speedLabel } from './ai-format';
+import { adviceLabel, fitAdvice, fitFacts, fitNumbers, fitLabel, formatBytes, formatEta, formatRate, assistantSetupLine, gpuLabel, hardwareLines, percent, speedLabel } from './ai-format';
 
 describe('ai-format', () => {
   it('shares the common unit formatters', () => {
@@ -62,5 +62,18 @@ describe('ai-format', () => {
       expect(fitAdvice({ ...base, advice: [] })).toEqual([]);
       expect(adviceLabel({ kind: 'smallerQuant' })).toContain('smaller');
     });
+  });
+
+  it('says how the background set-up is going, for the assistant pane', () => {
+    const GB = 1024 ** 3;
+    expect(assistantSetupLine(false, null, false)).toBeNull();
+    expect(assistantSetupLine(true, { stage: 'downloading', bytes: 1.2 * GB, total: 5.6 * GB, bytesPerSec: 1, etaSecs: 1, connections: 4 }, false)).toBe('Setting up — 1.2 GB of 5.6 GB');
+    expect(assistantSetupLine(true, { stage: 'verifying', bytes: 1, total: 2 }, false)).toContain('checking');
+    expect(assistantSetupLine(true, { stage: 'loading', gpu: true }, false)).toContain('testing');
+    expect(assistantSetupLine(true, { stage: 'warmingUp' }, false)).toContain('testing');
+    expect(assistantSetupLine(false, null, true)).toContain('inference runtime');
+    expect(assistantSetupLine(true, { stage: 'probing' }, false)).toBe('Setting up…');
+    // A finished set-up event does not keep the line.
+    expect(assistantSetupLine(false, { stage: 'ready', model: 'm', backend: 'b' }, false)).toBeNull();
   });
 });

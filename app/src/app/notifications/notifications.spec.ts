@@ -515,7 +515,7 @@ describe('NoticeActions', () => {
     const notices = new FakeNotices();
     const lifecycle = { pluginReset: vi.fn(async () => undefined) };
     const dialogs = { open: vi.fn() };
-    const ai = { reset: vi.fn(async () => ({})) };
+    const ai = { reset: vi.fn(async () => ({})), setupBackground: vi.fn(async () => undefined) };
     const updates = { download: vi.fn(async () => undefined) };
     const aiUpdates = {
       apply: vi.fn(async (_key: string) => true),
@@ -616,6 +616,15 @@ describe('NoticeActions', () => {
     expect(updates.download).toHaveBeenCalled();
   });
 
+  it('opens the assistant after a background set-up and sets it up again from the failure message', async () => {
+    const { run, ai, ctx } = setup();
+    expect(await run({ type: 'openAssistant' })).toBeNull();
+    expect(ctx.last('showView')).toEqual(['ai-chat']);
+    expect(await run({ type: 'setUpAssistant', modelId: 'qwen3.5-9b-q4km' })).toBeNull();
+    expect(ai.setupBackground).toHaveBeenCalledWith('qwen3.5-9b-q4km');
+    expect(ctx.last('showView')).toEqual(['jobs']);
+  });
+
   it('answers an AI update question and dismisses the message', async () => {
     const { run, aiUpdates, notices, ctx } = setup();
     const key = 'runtime:vulkan@b11700';
@@ -688,6 +697,8 @@ describe('NoticeActions', () => {
       [{ type: 'setUpFormat', path: 'p' }, 'Set up format'],
       [{ type: 'fixTimestamps', path: 'p', format: null }, 'Fix timestamps'],
       [{ type: 'resetAi' }, 'Reset AI'],
+      [{ type: 'openAssistant' }, 'Open the assistant'],
+      [{ type: 'setUpAssistant', modelId: 'm' }, 'Retry'],
       [{ type: 'installUpdate' }, 'Install update'],
       [{ type: 'showAlert', alertId: 'a' }, 'Show'],
       [{ type: 'showJobs' }, 'Show in Jobs'],

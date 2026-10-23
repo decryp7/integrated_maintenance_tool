@@ -394,6 +394,7 @@ fn a_missing_worker_safe_mode_or_no_runtime_are_typed_errors() {
         ("ai_recommend", json!({})),
         ("ai_setup_plan", json!({})),
         ("ai_setup_run", json!({"modelId": TEST_MODEL})),
+        ("ai_setup_background", json!({"modelId": TEST_MODEL})),
         ("ai_suggested_prompts", json!({})),
         ("ai_chat_send", json!({"sessionId": "chat-1", "text": "hi"})),
     ] {
@@ -509,6 +510,81 @@ fn set_up_downloads_as_a_job_and_becomes_ready() {
     // The choice is remembered in ai.json.
     let saved: Value = serde_json::from_str(&std::fs::read_to_string(f.tmp.0.join("ai/ai.json")).unwrap()).unwrap();
     assert_eq!(saved["active_model"], TEST_FILE);
+}
+
+fn notices_titled(main: &tauri::WebviewWindow<MockRuntime>, title: &str) -> Vec<Value> {
+    let all = ipc(main, "notifications_list", json!({})).unwrap();
+    all["notices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|n| n["title"] == title)
+        .cloned()
+        .collect()
+}
+
+#[test]
+fn the_assistant_sets_itself_up_in_the_background_and_says_so_once() {
+    let f = Fixture::new("assistant-bg");
+    let core = f.core();
+    let app = f.app(core.clone());
+    let main = window(&app, "main");
+    // Nothing is installed: the runtime comes first (a quiet job), then the model (a quiet job); no dialog is involved.
+    let first = ipc(&main, "ai_setup_background", json!({"modelId": TEST_MODEL})).unwrap();
+    assert!(first.as_u64().is_some(), "the first job is returned at once: {first}");
+    wait_until("the assistant to be ready", || {
+        !notices_titled(&main, "AI assistant ready").is_empty()
+    });
+    wait_until("the engine", || ipc(&main, "ai_status", json!({})).unwrap()["state"] == "ready");
+    let ready = notices_titled(&main, "AI assistant ready");
+    assert_eq!(ready.len(), 1, "one message: {ready:?}");
+    assert_eq!(ready[0]["primary"], json!({"type": "openAssistant"}));
+    assert_eq!(ready[0]["severity"], "success");
+    assert!(notices_titled(&main, "The AI assistant could not be set up").is_empty());
+    let o = ipc(&main, "ai_runtimes", json!({})).unwrap();
+    assert_eq!(o["needsDownload"], false, "the runtime was installed first");
+    // The jobs say what they are, and Retry runs the whole set-up again.
+    let jobs = ipc(&main, "jobs_list", json!({})).unwrap()["jobs"].clone();
+    let titles: Vec<String> = jobs
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|j| j["title"].as_str().map(str::to_string))
+        .collect();
+    assert!(titles.iter().all(|t| t.starts_with("Setting up the AI assistant")), "{titles:?}");
+    assert!(
+        jobs.as_array()
+            .unwrap()
+            .iter()
+            .all(|j| j["request"] == json!({"op": "assistant", "modelId": TEST_MODEL})),
+        "{jobs}"
+    );
+}
+
+#[test]
+fn a_failed_background_set_up_is_one_plain_message_with_retry_and_a_cancel_is_silent() {
+    let f = Fixture::new("assistant-fail");
+    let core = f.core();
+    let app = f.app(core.clone());
+    let main = window(&app, "main");
+    // Another set-up holds the single slot: the model step cannot start once the runtime is in.
+    let held = core.begin_setup().unwrap();
+    ipc(&main, "ai_setup_background", json!({"modelId": TEST_MODEL})).unwrap();
+    wait_until("the failure message", || {
+        !notices_titled(&main, "The AI assistant could not be set up").is_empty()
+    });
+    let failed = notices_titled(&main, "The AI assistant could not be set up");
+    assert_eq!(failed.len(), 1);
+    assert_eq!(failed[0]["primary"], json!({"type": "setUpAssistant", "modelId": TEST_MODEL}));
+    assert_eq!(failed[0]["severity"], "error");
+    assert!(notices_titled(&main, "AI assistant ready").is_empty());
+    drop(held);
+    core.end_setup();
+    // Unknown models are refused before anything is queued.
+    assert_eq!(
+        code(ipc(&main, "ai_setup_background", json!({"modelId": "nope"})).unwrap_err()),
+        "notFound"
+    );
 }
 
 #[test]

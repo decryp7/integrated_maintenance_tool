@@ -28,6 +28,10 @@ export function actionLabel(a: NoticeAction): string {
       return $localize`:@@notifications.action.fixTimestamps:Fix timestamps`;
     case 'resetAi':
       return $localize`:@@notifications.action.resetAi:Reset AI`;
+    case 'openAssistant':
+      return $localize`:@@notifications.action.openAssistant:Open the assistant`;
+    case 'setUpAssistant':
+      return $localize`:@@notifications.action.setUpAssistant:Retry`;
     case 'installUpdate':
       return $localize`:@@notifications.action.installUpdate:Install update`;
     case 'showAlert':
@@ -151,6 +155,13 @@ export class NoticeActions {
       }
       case 'resetAi':
         await this.injector.get(AiBackend).reset();
+        return null;
+      case 'openAssistant':
+        ctx.showView('ai-chat');
+        return null;
+      case 'setUpAssistant':
+        await this.injector.get(AiBackend).setupBackground(a.modelId);
+        ctx.showView(JOBS_VIEW);
         return null;
       case 'installUpdate': {
         const { UpdatesStore } = await import('../updates/updates.store');

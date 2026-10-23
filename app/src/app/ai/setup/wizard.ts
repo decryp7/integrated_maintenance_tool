@@ -1,43 +1,22 @@
 /**
- * The set-up wizard as a pure state machine: loading the plan → (downloading an inference runtime when
- * none is installed) → choosing a model → running (download,
- * verify, validate, load, warm up) → ready | failed | cancelled. The engine decides everything (fit,
- * speed, stages); this only tracks where the user is.
+ * The set-up dialog as a pure state machine: loading the plan → choosing a model, or failed. It is a modal choice
+ * only: "Download and set up" hands the choice to the engine (a background job) and the dialog closes, so no
+ * download, verification or load is tracked here. The engine decides everything (fit, speed); this only tracks
+ * where the user is.
  */
-import { AiErrorCode, Recommendation, Recommendations, SetupEvent, SetupPlan } from '../ai.types';
-
-export type RunningStage = Exclude<
-  SetupEvent,
-  { stage: 'ready' } | { stage: 'failed' } | { stage: 'cancelled' } | { stage: 'fellBackToCpu' }
->;
+import { AiErrorCode, Recommendation, Recommendations, SetupPlan } from '../ai.types';
 
 export type WizardState =
   | { kind: 'loading' }
-  /** No inference runtime (llama-server build) is installed: download one before choosing a model. */
-  | { kind: 'runtime'; plan: SetupPlan; preferred: string | null }
   | { kind: 'plan'; plan: SetupPlan; selectedId: string | null }
-  | {
-      kind: 'running';
-      modelId: string;
-      stage: RunningStage;
-      note: string | null;
-      cancelling: boolean;
-    }
-  | { kind: 'ready'; model: string; backend: string; note: string | null }
-  | { kind: 'failed'; code: AiErrorCode; message: string; modelId: string | null }
-  | { kind: 'cancelled' };
+  | { kind: 'failed'; code: AiErrorCode; message: string };
 
 export type WizardEvent =
-  | { type: 'planLoaded'; plan: SetupPlan; preferred?: string | null; needsRuntime?: boolean }
-  /** A runtime is installed now: go on to the model. */
-  | { type: 'runtimeReady' }
+  | { type: 'planLoaded'; plan: SetupPlan; preferred?: string | null }
   /** The engine read the model headers: the same models with exact memory figures (the selection stays). */
   | { type: 'fitRefined'; recommendations: Recommendations }
   | { type: 'failed'; code: AiErrorCode; message: string }
   | { type: 'select'; modelId: string }
-  | { type: 'start' }
-  | { type: 'setup'; event: SetupEvent }
-  | { type: 'cancelRequested' }
   | { type: 'retry' };
 
 export const INITIAL: WizardState = { kind: 'loading' };
@@ -60,8 +39,7 @@ export function canStart(state: WizardState): boolean {
 
 function toPlan(plan: SetupPlan, preferredId: string | null): WizardState {
   const ranked = choices(plan);
-  const preferred =
-    preferredId && ranked.some((r) => r.model.id === preferredId) ? preferredId : null;
+  const preferred = preferredId && ranked.some((r) => r.model.id === preferredId) ? preferredId : null;
   return {
     kind: 'plan',
     plan,
@@ -72,112 +50,14 @@ function toPlan(plan: SetupPlan, preferredId: string | null): WizardState {
 export function next(state: WizardState, e: WizardEvent): WizardState {
   switch (e.type) {
     case 'planLoaded':
-      return e.needsRuntime
-        ? { kind: 'runtime', plan: e.plan, preferred: e.preferred ?? null }
-        : toPlan(e.plan, e.preferred ?? null);
+      return toPlan(e.plan, e.preferred ?? null);
     case 'fitRefined':
-      if (state.kind !== 'plan' && state.kind !== 'runtime') return state;
-      return { ...state, plan: { ...state.plan, recommendations: e.recommendations } };
-    case 'runtimeReady':
-      return state.kind === 'runtime' ? toPlan(state.plan, state.preferred) : state;
+      return state.kind === 'plan' ? { ...state, plan: { ...state.plan, recommendations: e.recommendations } } : state;
     case 'select':
-      return state.kind === 'plan' && choices(state.plan).some((r) => r.model.id === e.modelId)
-        ? { ...state, selectedId: e.modelId }
-        : state;
-    case 'start':
-      return state.kind === 'plan' && canStart(state)
-        ? {
-            kind: 'running',
-            modelId: state.selectedId!,
-            stage: { stage: 'probing' },
-            note: null,
-            cancelling: false,
-          }
-        : state;
+      return state.kind === 'plan' && choices(state.plan).some((r) => r.model.id === e.modelId) ? { ...state, selectedId: e.modelId } : state;
     case 'failed':
-      return {
-        kind: 'failed',
-        code: e.code,
-        message: e.message,
-        modelId: state.kind === 'running' ? state.modelId : null,
-      };
-    case 'cancelRequested':
-      return state.kind === 'running' ? { ...state, cancelling: true } : state;
+      return { kind: 'failed', code: e.code, message: e.message };
     case 'retry':
-      return state.kind === 'failed' || state.kind === 'cancelled' ? INITIAL : state;
-    case 'setup':
-      return onSetup(state, e.event);
-  }
-}
-
-function onSetup(state: WizardState, ev: SetupEvent): WizardState {
-  // Terminal events are accepted from any state (the set-up may have been started elsewhere).
-  switch (ev.stage) {
-    case 'ready':
-      return {
-        kind: 'ready',
-        model: ev.model,
-        backend: ev.backend,
-        note: state.kind === 'running' ? state.note : null,
-      };
-    case 'failed':
-      return {
-        kind: 'failed',
-        code: ev.code,
-        message: ev.message,
-        modelId: state.kind === 'running' ? state.modelId : null,
-      };
-    case 'cancelled':
-      return state.kind === 'running' ||
-        state.kind === 'plan' ||
-        state.kind === 'loading' ||
-        state.kind === 'runtime'
-        ? { kind: 'cancelled' }
-        : state;
-    case 'fellBackToCpu':
-      return state.kind === 'running' ? { ...state, note: ev.reason } : state;
-    default:
-      return state.kind === 'running' ? { ...state, stage: ev } : state;
-  }
-}
-
-/** Plain words for the running stage. */
-export function stageLabel(stage: RunningStage): string {
-  switch (stage.stage) {
-    case 'probing':
-      return $localize`:@@ai.setup.stage.probing:Checking this computer…`;
-    case 'recommending':
-      return $localize`:@@ai.setup.stage.recommending:Choosing settings…`;
-    case 'downloading':
-      return $localize`:@@ai.setup.stage.downloading:Downloading the model…`;
-    case 'verifying':
-      return $localize`:@@ai.setup.stage.verifying:Verifying the download…`;
-    case 'validating':
-      return $localize`:@@ai.setup.stage.validating:Checking the model file…`;
-    case 'loading':
-      return stage.gpu
-        ? $localize`:@@ai.setup.stage.loadingGpu:Loading the model on the GPU…`
-        : $localize`:@@ai.setup.stage.loadingCpu:Loading the model on the CPU…`;
-    case 'warmingUp':
-      return $localize`:@@ai.setup.stage.warmingUp:Warming up…`;
-
-  }
-}
-
-/** Step number (1..5) of the running stage, for "Step n of 5". */
-export function stageStep(stage: RunningStage): number {
-  switch (stage.stage) {
-    case 'probing':
-    case 'recommending':
-      return 1;
-    case 'downloading':
-      return 2;
-    case 'verifying':
-    case 'validating':
-      return 3;
-    case 'loading':
-      return 4;
-    case 'warmingUp':
-      return 5;
+      return state.kind === 'failed' ? INITIAL : state;
   }
 }

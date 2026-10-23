@@ -87,6 +87,34 @@ pub(crate) fn install<R: Runtime>(app: AppHandle<R>, id: String, archives: Vec<P
     start_install_with(app, id, archives, None, None)
 }
 
+/// The runtime step of the background assistant set-up: a quiet job (the flow announces its own end) whose success
+/// starts the model step and whose failure is the one failure message. Retry runs the whole set-up again.
+pub(crate) fn start_install_chained<R: Runtime>(
+    app: AppHandle<R>,
+    id: String,
+    assistant: super::assistant_setup::Assistant,
+) -> AiResult<u64> {
+    let (next, notify) = (app.clone(), app.clone());
+    let a = assistant.clone();
+    let after: AfterInstall = Box::new(move |r| match r {
+        Ok(_) => {
+            if let Err(e) = super::assistant_setup::start_model(next, a.clone()) {
+                super::assistant_setup::failed(&notify, &a.model_id, &e.message);
+            }
+        }
+        Err(e) if e.code == AiErrorCode::Cancelled => {}
+        Err(e) => super::assistant_setup::failed(&notify, &a.model_id, &e.message),
+    });
+    install_job(
+        app,
+        id,
+        vec![],
+        Some(format!("Setting up the AI assistant: inference runtime for {}", assistant.name)),
+        Some(after),
+        Some(assistant.model_id),
+    )
+}
+
 /// [`install`] with the job's title and a hook that runs when the install ended.
 pub(crate) fn start_install_with<R: Runtime>(
     app: AppHandle<R>,
@@ -95,14 +123,29 @@ pub(crate) fn start_install_with<R: Runtime>(
     title: Option<String>,
     after: Option<AfterInstall>,
 ) -> AiResult<u64> {
+    install_job(app, id, archives, title, after, None)
+}
+
+/// Starts the install job. `assistant_model`: the install is the first step of the assistant set-up for that model.
+fn install_job<R: Runtime>(
+    app: AppHandle<R>,
+    id: String,
+    archives: Vec<PathBuf>,
+    title: Option<String>,
+    after: Option<AfterInstall>,
+    assistant_model: Option<String>,
+) -> AiResult<u64> {
     let core = core(&app)?;
     let id = short("an inference build", &id)?;
     let progress = core.begin_runtime_install(&id)?;
     let verb = if archives.is_empty() { "Downloading" } else { "Installing" };
     let title = title.unwrap_or_else(|| format!("{verb} the {} inference runtime", label(&id)));
-    let spec = JobSpec::new(JobKind::Download, title)
+    let mut spec = JobSpec::new(JobKind::Download, title)
         .link(JobLink::Model { id: id.clone() })
         .retry_with(serde_json::json!({"op": "runtime", "runtimeId": id}));
+    if let Some(model) = &assistant_model {
+        spec = spec.quiet().retry_with(serde_json::json!({"op": "assistant", "modelId": model}));
+    }
     let c = core.clone();
     let controls = Controls::cancel(move || {
         c.cancel_runtime_install();

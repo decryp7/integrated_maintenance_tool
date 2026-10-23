@@ -1,5 +1,6 @@
 /** Pure display formatters for the AI views (sizes, rates, times, fit and speed labels, hardware). */
-import { Assessment, Fit, FitAdvice, Gpu, Hardware, Speed } from './ai.types';
+import { Assessment, Fit, FitAdvice, Gpu, Hardware, SetupEvent, Speed } from './ai.types';
+import { formatBytes } from '../shared/format/units';
 export { formatBytes, formatConnections, formatEta, formatRate, percent } from '../shared/format/units';
 
 /** "Text + images" or "Text only": whether a model reads images (ADR 0025). */
@@ -74,4 +75,27 @@ export function adviceLabel(x: FitAdvice): string {
 /** Advice for a model that does not fit comfortably (empty when it does). */
 export function fitAdvice(a: Assessment): string[] {
   return a.advice.map(adviceLabel);
+}
+
+/**
+ * What the assistant pane says while the first-start set-up runs in the background ("Setting up — 1.2 of 5.6 GB"), or
+ * null when nothing is being set up. `setup` is the latest set-up event, `runtimeInstalling` whether the inference
+ * runtime is downloading (the step before the model).
+ */
+export function assistantSetupLine(running: boolean, setup: SetupEvent | null, runtimeInstalling: boolean): string | null {
+  if (!running && !runtimeInstalling) return null;
+  switch (running ? setup?.stage : undefined) {
+    case 'downloading':
+      return $localize`:@@ai.setup.pane.downloading:Setting up — ${formatBytes((setup as { bytes: number }).bytes)}:done: of ${formatBytes((setup as { total: number }).total)}:total:`;
+    case 'verifying':
+      return $localize`:@@ai.setup.pane.verifying:Setting up — checking the download`;
+    case 'validating':
+    case 'loading':
+    case 'warmingUp':
+      return $localize`:@@ai.setup.pane.testing:Setting up — testing the model`;
+    default:
+      return runtimeInstalling
+        ? $localize`:@@ai.setup.pane.runtime:Setting up — downloading the inference runtime`
+        : $localize`:@@ai.setup.pane.starting:Setting up…`;
+  }
 }

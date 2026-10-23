@@ -1,56 +1,20 @@
-import { transferSpeed } from '../../shared/format/transfer-speed';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  DestroyRef,
-  inject,
-  input,
-  OnInit,
-  signal,
-} from '@angular/core';
-import { COMMAND_CONTEXT } from '../../extensions/command-registry';
+import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, signal } from '@angular/core';
 import { DIALOG_REF } from '../../ui/dialog.service';
 import { AiBackend, toAiError } from '../ai-backend';
-import {
-  fitAdvice,
-  fitFacts,
-  fitLabel,
-  fitNumbers,
-  formatBytes,
-  formatConnections,
-  formatEta,
-  formatRate,
-  hardwareLines,
-  percent,
-  speedLabel,
-  visionLabel,
-} from '../ai-format';
+import { fitAdvice, fitFacts, fitLabel, fitNumbers, formatBytes, hardwareLines, speedLabel, visionLabel } from '../ai-format';
 import { AiStatusStore } from '../ai-status.store';
-import { Recommendation, SetupEvent } from '../ai.types';
+import { Recommendation } from '../ai.types';
 import { AiRuntimeStore } from '../runtimes/ai-runtime.store';
-import { AiManualDownload } from '../manual/manual-download';
-import { offersManualDownload } from '../manual/manual-download-view';
-import { AiRuntimePanel } from '../runtimes/runtime-panel';
-import {
-  canStart,
-  choices,
-  INITIAL,
-  next,
-  selected,
-  stageLabel,
-  stageStep,
-  WizardEvent,
-  WizardState,
-} from './wizard';
+import { canStart, choices, INITIAL, next, selected, WizardEvent, WizardState } from './wizard';
 
 /**
- * "Set up AI assistant": downloads an inference runtime when none is installed, shows this computer's
- * hardware and the models that fit it, downloads and verifies the chosen one, loads it (GPU first, CPU fallback) and warms it up. Opened in a dialog.
+ * "Set up AI assistant": a modal choice. It shows this computer's hardware and the models that fit it; "Download and
+ * set up" closes the dialog at once and the engine does the rest as a background job (the inference runtime when none
+ * is installed, then the model: download, check, load, test), shown in Jobs, the status bar and the assistant pane,
+ * with a message when it is ready or has failed. Opened in a dialog.
  */
 @Component({
   selector: 'debrief-ai-setup-wizard',
-  imports: [AiManualDownload, AiRuntimePanel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p class="local" data-testid="ai-local-note" i18n="@@ai.setup.localNote">
@@ -58,33 +22,9 @@ import {
       only the model file is downloaded, once, from Hugging Face (and, if none is installed yet, the
       inference runtime from llama.cpp's GitHub releases).
     </p>
-    <div class="sr-only" aria-live="polite" data-testid="ai-setup-live">{{ liveText() }}</div>
     @switch (state().kind) {
       @case ('loading') {
         <p class="muted" role="status" i18n="@@ai.setup.checking">Checking this computer…</p>
-      }
-      @case ('runtime') {
-        <section aria-labelledby="ai-runtime-title" data-testid="ai-setup-runtime">
-          <h3 id="ai-runtime-title" i18n="@@ai.models.runtime">Inference runtime</h3>
-          <p class="muted" i18n="@@ai.setup.runtime.intro">
-            First, download the engine that runs the model on this computer. The suggested build
-            suits its hardware; you can switch later in the model manager.
-          </p>
-          <debrief-ai-runtime-panel />
-        </section>
-        <div class="foot">
-          <button type="button" class="btn ghost" (click)="close()" i18n="@@ai.setup.notNow">Not now</button>
-          <button
-            type="button"
-            class="btn primary"
-            data-testid="ai-runtime-continue"
-            [disabled]="runtimes.needsDownload() || runtimes.installing()"
-            (click)="dispatch({ type: 'runtimeReady' })"
-            i18n="@@ai.setup.continue"
-          >
-            Continue
-          </button>
-        </div>
       }
       @case ('plan') {
         @if (plan(); as p) {
@@ -153,8 +93,14 @@ import {
               }
             </p>
           }
+          @if (runtimeNote(); as n) {
+            <p class="note" role="note" data-testid="ai-setup-runtime-note">{{ n }}</p>
+          }
           @if (p.note) {
             <p class="note" role="note">{{ p.note }}</p>
+          }
+          @if (startError(); as e) {
+            <p class="err" role="alert" data-testid="ai-setup-start-error">{{ e }}</p>
           }
           <div class="foot">
             <button type="button" class="btn ghost" (click)="close()" i18n="@@ai.setup.notNow">Not now</button>
@@ -162,7 +108,7 @@ import {
               type="button"
               class="btn primary"
               data-testid="ai-setup-start"
-              [disabled]="!startable()"
+              [disabled]="!startable() || starting()"
               (click)="start()"
             >
               {{ startLabel() }}
@@ -170,86 +116,14 @@ import {
           </div>
         }
       }
-      @case ('running') {
-        @if (running(); as r) {
-          <p class="step" data-testid="ai-setup-stage" i18n="@@ai.setup.step">Step {{ step() }} of 5 · {{ label() }}</p>
-          @if (r.stage.stage === 'downloading' || r.stage.stage === 'verifying') {
-            <div
-              class="bar"
-              role="progressbar"
-              [attr.aria-label]="progressAria()"
-              aria-valuemin="0"
-              aria-valuemax="100"
-              [attr.aria-valuenow]="pct()"
-            >
-              <span class="fill" [style.width.%]="pct()"></span>
-            </div>
-            <p class="muted" data-testid="ai-setup-bytes">{{ progressText() }}</p>
-          }
-          @if (r.note) {
-            <p class="note" role="note" data-testid="ai-setup-fallback">{{ r.note }}</p>
-          }
-          <div class="foot">
-            <button
-              type="button"
-              class="btn"
-              data-testid="ai-setup-cancel"
-              [disabled]="r.cancelling"
-              (click)="cancel()"
-            >
-              {{ cancelLabel(r.cancelling) }}
-            </button>
-          </div>
-        }
-      }
-      @case ('ready') {
-        @if (ready(); as r) {
-          <p class="ok" role="status" data-testid="ai-setup-ready">
-            <ng-container i18n="@@ai.setup.ready">Ready: {{ r.model }} runs on {{ r.backend }}.</ng-container>
-          </p>
-          @if (r.note) {
-            <p class="note" role="note">{{ r.note }}</p>
-          }
-          <div class="foot">
-            <button type="button" class="btn ghost" (click)="close()" i18n="@@ai.setup.close">Close</button>
-            <button
-              type="button"
-              class="btn primary"
-              data-testid="ai-open-chat"
-              (click)="openChat()"
-              i18n="@@ai.setup.openChat"
-            >
-              Open the assistant
-            </button>
-          </div>
-        }
-      }
       @case ('failed') {
         @if (failed(); as f) {
           <p class="err" role="alert" data-testid="ai-setup-error">{{ f.message }}</p>
-          @if (manualModel(); as id) {
-            <debrief-ai-manual-download kind="model" [id]="id" [code]="f.code" (added)="retry()" />
-          }
-          @if (f.code === 'noRuntime') {
-            <section aria-labelledby="ai-runtime-fix-title" data-testid="ai-setup-runtime">
-              <h3 id="ai-runtime-fix-title" i18n="@@ai.models.runtime">Inference runtime</h3>
-              <debrief-ai-runtime-panel />
-            </section>
-          }
           <div class="foot">
             <button type="button" class="btn ghost" (click)="close()" i18n="@@ai.setup.close">Close</button>
             <button type="button" class="btn primary" (click)="retry()" i18n="@@ai.setup.retry">Retry</button>
           </div>
         }
-      }
-      @case ('cancelled') {
-        <p role="status" data-testid="ai-setup-cancelled" i18n="@@ai.setup.cancelled">
-          The set-up was cancelled. Nothing was changed.
-        </p>
-        <div class="foot">
-          <button type="button" class="btn ghost" (click)="close()" i18n="@@ai.setup.close">Close</button>
-          <button type="button" class="btn primary" (click)="retry()" i18n="@@ai.setup.startAgain">Start again</button>
-        </div>
       }
     }
   `,
@@ -354,21 +228,6 @@ import {
       color: var(--muted);
       font-size: var(--fs-sm);
     }
-    .bar {
-      height: 8px;
-      border-radius: 4px;
-      background: var(--bg-2);
-      overflow: hidden;
-    }
-    .fill {
-      display: block;
-      height: 100%;
-      background: var(--accent);
-      transition: width 0.2s;
-    }
-    .ok {
-      color: var(--ok);
-    }
     .err {
       color: var(--danger-text, var(--lvl-error));
     }
@@ -391,18 +250,14 @@ export class AiSetupWizard implements OnInit {
   private readonly backend = inject(AiBackend);
   private readonly status = inject(AiStatusStore);
   protected readonly runtimes = inject(AiRuntimeStore);
-  private readonly ctx = inject(COMMAND_CONTEXT);
   private readonly ref = inject(DIALOG_REF, { optional: true });
-  private readonly destroyRef = inject(DestroyRef);
   /** Preselect this catalog model (from the model manager's "Download another model"). */
   readonly modelId = input<string | null>(null);
 
   readonly state = signal<WizardState>(INITIAL);
-  protected readonly plan = computed(() =>
-    this.state().kind === 'plan'
-      ? (this.state() as Extract<WizardState, { kind: 'plan' }>).plan
-      : null,
-  );
+  protected readonly starting = signal(false);
+  protected readonly startError = signal<string | null>(null);
+  protected readonly plan = computed(() => (this.state().kind === 'plan' ? (this.state() as Extract<WizardState, { kind: 'plan' }>).plan : null));
   protected readonly ranked = computed(() => {
     const p = this.plan();
     return p ? choices(p) : [];
@@ -417,70 +272,16 @@ export class AiSetupWizard implements OnInit {
     const p = this.plan();
     return p ? hardwareLines(p.hardware) : [];
   });
-  protected readonly running = computed(() => {
-    const s = this.state();
-    return s.kind === 'running' ? s : null;
-  });
-  protected readonly ready = computed(() => {
-    const s = this.state();
-    return s.kind === 'ready' ? s : null;
-  });
   protected readonly failed = computed(() => {
     const s = this.state();
     return s.kind === 'failed' ? s : null;
   });
-  /** The model whose download failed in a way a manual download works around (a proxy, no network). */
-  protected readonly manualModel = computed(() => {
-    const f = this.failed();
-    return f?.modelId && offersManualDownload(f.code) ? f.modelId : null;
-  });
-  protected readonly step = computed(() => {
-    const r = this.running();
-    return r ? stageStep(r.stage) : 0;
-  });
-  protected readonly label = computed(() => {
-    const r = this.running();
-    return r ? stageLabel(r.stage) : '';
-  });
-  protected readonly pct = computed(() => {
-    const st = this.running()?.stage;
-    return st && (st.stage === 'downloading' || st.stage === 'verifying')
-      ? percent(st.bytes, st.total)
-      : 0;
-  });
-  private readonly transfer = transferSpeed(() => {
-    const st = this.running()?.stage;
-    return st?.stage === 'downloading' ? st : null;
-  });
-  protected readonly progressText = computed(() => {
-    const st = this.running()?.stage;
-    if (!st || (st.stage !== 'downloading' && st.stage !== 'verifying')) return '';
-    const base = $localize`:@@ai.runtime.progress.of:${formatBytes(st.bytes)}:done: of ${formatBytes(st.total)}:total:`;
-    if (st.stage === 'verifying') return $localize`:@@ai.runtime.progress.checking:Checking the download: ${base}:progress:`;
-    return [
-      base,
-      formatRate(this.transfer().rate),
-      formatEta(this.transfer().etaSecs),
-      formatConnections(st.connections),
-    ]
-      .filter(Boolean)
-      .join(' · ');
-  });
-  /** Announced to screen readers when the stage changes. */
-  protected readonly liveText = computed(() => {
-    const s = this.state();
-    switch (s.kind) {
-      case 'running':
-        return stageLabel(s.stage);
-      case 'ready':
-        return $localize`:@@ai.setup.live.ready:The AI assistant is ready.`;
-      case 'failed':
-        return $localize`:@@ai.setup.live.failed:The set-up failed: ${s.message}:message:`;
-      case 'cancelled':
-        return $localize`:@@ai.setup.live.cancelled:The set-up was cancelled.`;
-      default:
-        return '';
-    }
+  /** Says that the inference runtime comes first when none is installed (it is part of the same background job). */
+  protected readonly runtimeNote = computed(() => {
+    const r = this.runtimes.suggested();
+    return this.runtimes.needsDownload() && r
+      ? $localize`:@@ai.setup.runtimeNote:The inference runtime (${r.label}:build:, ${formatBytes(r.downloadBytes)}:size:) is downloaded first.`
+      : null;
   });
 
   protected readonly fit = (r: Recommendation) => fitLabel(r.assessment.fit);
@@ -498,11 +299,6 @@ export class AiSetupWizard implements OnInit {
   protected readonly startLabel = computed(() =>
     this.picked()?.installed ? $localize`:@@ai.setup.start.installed:Set up` : $localize`:@@ai.setup.start.download:Download and set up`,
   );
-  protected readonly progressAria = computed(() =>
-    this.running()?.stage.stage === 'downloading'
-      ? $localize`:@@ai.setup.progress.download:Download progress`
-      : $localize`:@@ai.setup.progress.verify:Verification progress`,
-  );
 
   protected readonly vision = visionLabel;
 
@@ -510,21 +306,7 @@ export class AiSetupWizard implements OnInit {
     return r.model.toolCalling ? $localize`:@@ai.setup.toolCalling:Tool calling` : $localize`:@@ai.setup.noToolCalling:No tool calling`;
   }
 
-  protected cancelLabel(cancelling: boolean): string {
-    return cancelling ? $localize`:@@ai.runtime.cancelling:Cancelling…` : $localize`:@@ai.setup.cancel:Cancel`;
-  }
-
   ngOnInit(): void {
-    let off: (() => void) | null = null;
-    let destroyed = false;
-    this.destroyRef.onDestroy(() => {
-      destroyed = true;
-      off?.();
-    });
-    void this.backend
-      .onSetup((e) => this.onSetup(e))
-      .then((u) => (destroyed ? u() : (off = u)))
-      .catch(() => undefined);
     void this.load();
   }
 
@@ -532,23 +314,10 @@ export class AiSetupWizard implements OnInit {
     this.state.update((s) => next(s, e));
   }
 
-  private onSetup(e: SetupEvent): void {
-    this.dispatch({ type: 'setup', event: e });
-    if (e.stage === 'ready') void this.status.refresh();
-  }
-
   async load(): Promise<void> {
     try {
-      const [plan, runtimes] = await Promise.all([
-        this.backend.setupPlan(this.modelId()),
-        this.runtimes.load(),
-      ]);
-      this.dispatch({
-        type: 'planLoaded',
-        plan,
-        preferred: this.modelId(),
-        needsRuntime: !!runtimes?.needsDownload,
-      });
+      const [plan] = await Promise.all([this.backend.setupPlan(this.modelId()), this.runtimes.load()]);
+      this.dispatch({ type: 'planLoaded', plan, preferred: this.modelId() });
       void this.refineFit();
     } catch (e) {
       const err = toAiError(e);
@@ -565,35 +334,25 @@ export class AiSetupWizard implements OnInit {
     }
   }
 
+  /** Hands the choice to the engine and closes: the rest is a background job (Jobs, status bar, a message at the end). */
   async start(): Promise<void> {
     const id = this.selectedId();
-    if (!id || !this.startable()) return;
-    this.dispatch({ type: 'start' });
+    if (!id || !this.startable() || this.starting()) return;
+    this.starting.set(true);
+    this.startError.set(null);
     try {
-      await this.backend.setupRun(id);
+      await this.backend.setupBackground(id);
+      void this.status.refresh();
+      this.close();
     } catch (e) {
-      const err = toAiError(e);
-      this.dispatch({ type: 'failed', code: err.code, message: err.message });
-    }
-  }
-
-  async cancel(): Promise<void> {
-    this.dispatch({ type: 'cancelRequested' });
-    try {
-      await this.backend.setupCancel();
-    } catch {
-      /* the stage event still ends the set-up */
+      this.startError.set(toAiError(e).message);
+      this.starting.set(false);
     }
   }
 
   retry(): void {
     this.dispatch({ type: 'retry' });
     void this.load();
-  }
-
-  openChat(): void {
-    this.ctx.showView('ai-chat');
-    this.close();
   }
 
   close(): void {

@@ -22,6 +22,10 @@ export type NoticeAction =
   | { type: 'setUpFormat'; path: string }
   | { type: 'fixTimestamps'; path: string; format: string | null }
   | { type: 'resetAi' }
+  /** Opens the assistant (a finished background set-up). */
+  | { type: 'openAssistant' }
+  /** Sets the assistant up again with this model (a failed background set-up). */
+  | { type: 'setUpAssistant'; modelId: string }
   | { type: 'installUpdate' }
   | { type: 'showAlert'; alertId: string }
   | { type: 'showJobs' }

@@ -14,7 +14,7 @@ async function runCommand(page: Page, text: string): Promise<void> {
 
 const wizard = (page: Page) => page.getByRole('dialog', { name: 'Set up the AI assistant' });
 
-test('the setup wizard shows the hardware and models, downloads and reaches Ready', async ({ page }, testInfo) => {
+test('the set-up is a quick modal choice: Download and set up closes it and the rest runs in the background', async ({ page }, testInfo) => {
   await openAppWith(page, '?mockAi=setup&mockAiStepMs=5');
   await runCommand(page, 'Set up AI assistant');
   const dialog = wizard(page);
@@ -27,25 +27,23 @@ test('the setup wizard shows the hardware and models, downloads and reaches Read
   await expect(best).toContainText('Tool calling');
   await expect(dialog.getByTestId('ai-model-qwen3.5-4b-q4km')).toContainText('Fastest');
   await expect(dialog.getByTestId('ai-model-qwen3.5-32b-q4km')).toContainText('Too large');
+  await expect(dialog).toHaveAttribute('data-modality', 'modal');
   await expectNoSeriousViolations(page, testInfo, 'ai-setup-plan', '[role=dialog]');
 
   await dialog.getByTestId('ai-setup-start').click();
-  await expect(dialog.getByRole('progressbar', { name: 'Download progress' })).toBeVisible();
-  await expect(dialog.getByTestId('ai-setup-bytes')).toContainText('of 5.6 GB');
-  await expect(dialog.getByTestId('ai-setup-ready')).toContainText('Vulkan');
-  await expectNoSeriousViolations(page, testInfo, 'ai-setup-ready', '[role=dialog]');
-  await dialog.getByRole('button', { name: 'Close' }).first().click();
+  // The window is gone at once; there is no progress, step or cancel in it.
   await expect(dialog).toHaveCount(0);
+  // The assistant pane says how far it is, and a message announces the end.
+  await expect(page.getByTestId('notice-toast').filter({ hasText: 'AI assistant ready' })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('notice-toast').filter({ hasText: 'AI assistant ready' }).getByRole('button', { name: 'Open the assistant' })).toBeVisible();
 });
 
-test('a running set-up can be cancelled', async ({ page }) => {
+test('the assistant pane shows "Setting up — 1.2 of 5.6 GB" while the background set-up runs', async ({ page }) => {
   await openAppWith(page, '?mockAi=setup&mockAiStepMs=60');
   await runCommand(page, 'Set up AI assistant');
-  const dialog = wizard(page);
-  await dialog.getByTestId('ai-setup-start').click();
-  await expect(dialog.getByTestId('ai-setup-stage')).toBeVisible();
-  await dialog.getByTestId('ai-setup-cancel').click();
-  await expect(dialog.getByTestId('ai-setup-cancelled')).toBeVisible();
+  await wizard(page).getByTestId('ai-setup-start').click();
+  await runCommand(page, 'AI: Open the assistant chat');
+  await expect(page.getByTestId('ai-setting-up')).toContainText(/Setting up — .* of 5\.6 GB/, { timeout: 20_000 });
 });
 
 test('Settings → AI offers set-up', async ({ page }) => {
@@ -72,33 +70,4 @@ test('AI is hidden when it is unavailable', async ({ page }) => {
   await settings.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: /AI assistant/ }).click();
   await expect(settings.getByTestId('ai-settings-unavailable')).toContainText('not available');
   await expect(settings.getByTestId('ai-settings-setup')).toHaveCount(0);
-});
-
-test('the set-up shows one progress entry per download, labelled by phase, never restarting under the same label', async ({ page }) => {
-  await openAppWith(page, '?mockAi=setup&mockAiStepMs=15');
-  await runCommand(page, 'Set up AI assistant');
-  const dialog = wizard(page);
-  await dialog.getByTestId('ai-setup-start').click();
-  const bar = dialog.getByRole('progressbar');
-  let label = '';
-  let last = -1;
-  const deadline = Date.now() + 20_000;
-  while (Date.now() < deadline && (await dialog.getByTestId('ai-setup-ready').count()) === 0) {
-    // The bar can vanish between the two reads when the phase changes; skip that sample.
-    const sample = await bar
-      .evaluate((el) => ({ now: Number(el.getAttribute('aria-valuenow')), name: el.getAttribute('aria-label') ?? '' }), undefined, { timeout: 200 })
-      .catch(() => null);
-    if (sample) {
-      const { now, name } = sample;
-      if (name !== label) {
-        label = name;
-        last = -1;
-      }
-      expect(now).toBeGreaterThanOrEqual(last);
-      last = now;
-    }
-    await page.waitForTimeout(10);
-  }
-  await expect(dialog.getByTestId('ai-setup-ready')).toBeVisible();
-  expect(label).toBe('Verification progress');
 });
