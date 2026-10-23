@@ -10,7 +10,7 @@ use debrief_ai::models::source::{ModelSource, Progress};
 use debrief_ai::models::DownloadOptions;
 use debrief_ai::runtime::ModelRuntime;
 use debrief_ai::runtimes::builds::{is_build_id, label};
-use debrief_ai::runtimes::selftest::self_test;
+use debrief_ai::runtimes::selftest::{self_test, smoke_check, SMOKE_TIMEOUT};
 use debrief_ai::runtimes::store::{server_file_name, RuntimeCheck};
 use debrief_ai::runtimes::{
     current_platform, list_builds, overview, suggest, usable_tag, BuildChoice, BuildsReport, GithubReleases, InstalledRuntime,
@@ -21,6 +21,7 @@ use debrief_ai::worker::{fixed_env, FramesLauncher, WorkerConfig, WorkerEnv, Wor
 use debrief_ai::AiError;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
@@ -30,6 +31,10 @@ pub type RuntimeSourceFactory = Arc<dyn Fn(&AiSettings, &RuntimeCatalog) -> debr
 pub type BuildsReporter = Arc<dyn Fn(&[(String, String)]) -> debrief_ai::Result<BuildsReport> + Send + Sync>;
 /// A model runtime that runs exactly the llama-server at the given path (the self-test of a new build).
 pub type BuildRuntime = Arc<dyn Fn(&Path) -> Arc<dyn ModelRuntime> + Send + Sync>;
+
+/// Starts an unpacked build's server and checks it runs on this computer (`llama-server --version`): the server
+/// path, the build's label and the cancel flag.
+pub type SmokeCheck = Arc<dyn Fn(&Path, &str, &Arc<AtomicBool>) -> debrief_ai::Result<()> + Send + Sync>;
 
 /// Longest the worker may take to check every installed build (each runs `llama-server --list-devices`).
 const REPORT_TIMEOUT: Duration = Duration::from_secs(90);
@@ -46,6 +51,8 @@ pub struct RuntimeDeps {
     pub report: BuildsReporter,
     /// Runs one unpacked build for its self-test, in its own worker (never the active engine).
     pub build_runtime: BuildRuntime,
+    /// Checks that a new build starts here, before (and without) a model.
+    pub smoke: SmokeCheck,
 }
 
 impl RuntimeDeps {
@@ -66,6 +73,7 @@ impl RuntimeDeps {
                 let worker = worker.clone();
                 Arc::new(move |env: &[(String, String)]| list_builds(&worker, env, REPORT_TIMEOUT))
             },
+            smoke: Arc::new(|server: &Path, build: &str, cancel: &Arc<AtomicBool>| smoke_check(server, build, SMOKE_TIMEOUT, cancel)),
             build_runtime: Arc::new(move |server: &Path| {
                 let cfg = WorkerConfig::new(Arc::new(FramesLauncher {
                     exe: worker.clone(),
@@ -131,15 +139,18 @@ pub enum RuntimeEvent {
         connections: u32,
         verifying: bool,
     },
+    /// Unpacking `asset`: `done` of `total` bytes of all the build's archives.
     Unpacking {
         id: String,
         asset: String,
+        done: u64,
+        total: u64,
     },
     Finishing {
         id: String,
     },
-    /// The unpacked build answers a short text and, with a projector, an image with the active model before it is
-    /// switched to.
+    /// The unpacked build is checked before it is switched to: it starts and, with an active model, answers a short
+    /// text and (with a projector) an image.
     Testing {
         id: String,
     },
@@ -162,7 +173,7 @@ impl RuntimeEvent {
         let id = id.to_string();
         match st {
             RuntimeStage::Downloading { asset, index, count } => RuntimeEvent::Downloading { id, asset, index, count },
-            RuntimeStage::Unpacking { asset } => RuntimeEvent::Unpacking { id, asset },
+            RuntimeStage::Unpacking { asset, done, total } => RuntimeEvent::Unpacking { id, asset, done, total },
             RuntimeStage::Finishing => RuntimeEvent::Finishing { id },
             RuntimeStage::Testing => RuntimeEvent::Testing { id },
         }
@@ -332,12 +343,8 @@ impl AiCore {
             connections: s.download_connections as usize,
             ..DownloadOptions::default()
         };
-        // A new build is switched to only after it answered with the user's active model (ADR 0009).
+        // A new build is switched to only after it runs here and, with an active model, answered with it (ADR 0009).
         let check = |staging: &Path| self.self_test_build(id, staging, &s, progress);
-        let active = s
-            .active_model
-            .as_deref()
-            .is_some_and(|f| self.store().path_of(f).is_ok_and(|p| p.is_file()));
         let installed = rt.store.install(
             &rt.catalog,
             &build,
@@ -346,7 +353,7 @@ impl AiCore {
             opts,
             progress,
             on_stage,
-            active.then_some(&check as RuntimeCheck<'_>),
+            Some(&check as RuntimeCheck<'_>),
         )?;
         // A load that failed for want of a runtime can now succeed: let the next use try again.
         if !self.engine_running() {
@@ -359,6 +366,8 @@ impl AiCore {
     /// engine is stopped first (the model must fit twice otherwise, and Windows keeps a running build's files locked);
     /// the next use starts it again. A model file that cannot be read is not the build's fault: the test is skipped.
     fn self_test_build(&self, id: &str, staging: &Path, s: &AiSettings, progress: &Progress) -> debrief_ai::Result<()> {
+        let server = staging.join(server_file_name());
+        (self.deps.runtimes.smoke)(&server, &label(id), &progress.cancel_flag())?;
         let Some(file) = s.active_model.as_deref() else {
             return Ok(());
         };

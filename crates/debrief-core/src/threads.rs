@@ -39,12 +39,39 @@ pub struct Hardware {
     pub ram_mb: u64,
 }
 
+/// Where the installed RAM comes from; a port so sizing is testable without the real machine.
+pub trait MemoryProbe {
+    /// Installed physical memory in MiB, or `None` when the OS will not say.
+    fn total_ram_mb(&self) -> Option<u64>;
+}
+
+/// The operating system's answer (sysinfo: `hw.memsize` on macOS, `/proc/meminfo` on Linux, `GlobalMemoryStatusEx` on Windows).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SystemMemory;
+
+impl MemoryProbe for SystemMemory {
+    fn total_ram_mb(&self) -> Option<u64> {
+        let mut sys = sysinfo::System::new();
+        sys.refresh_memory();
+        let bytes = sys.total_memory();
+        (bytes > 0).then_some(bytes / (1024 * 1024))
+    }
+}
+
+/// RAM assumed when the OS does not report it.
+pub const FALLBACK_RAM_MB: u64 = 8 * 1024;
+
 impl Hardware {
-    /// The machine this runs on (RAM is unknown here and taken as 8 GiB; callers that know it build their own).
+    /// The machine this runs on.
     pub fn detect() -> Self {
+        Self::detect_with(&SystemMemory)
+    }
+
+    /// Like [`Hardware::detect`] with the RAM read from `memory` (8 GiB when it cannot say).
+    pub fn detect_with(memory: &dyn MemoryProbe) -> Self {
         Hardware {
             cores: std::thread::available_parallelism().map_or(1, |n| n.get()),
-            ram_mb: 8 * 1024,
+            ram_mb: memory.total_ram_mb().unwrap_or(FALLBACK_RAM_MB),
         }
     }
 }
@@ -143,6 +170,40 @@ mod tests {
         assert_eq!(threads_for(WorkKind::Memory, hw(2, 1 << 20), None), 2);
         assert_eq!(threads_for(WorkKind::Cpu, hw(0, 0), None), 1);
         assert!(threads(WorkKind::Cpu, None) >= 1);
+    }
+
+    struct Fake(Option<u64>);
+    impl MemoryProbe for Fake {
+        fn total_ram_mb(&self) -> Option<u64> {
+            self.0
+        }
+    }
+
+    #[test]
+    fn detect_uses_the_probed_ram_and_falls_back_when_unknown() {
+        assert_eq!(Hardware::detect_with(&Fake(Some(32768))).ram_mb, 32768);
+        assert_eq!(Hardware::detect_with(&Fake(None)).ram_mb, FALLBACK_RAM_MB);
+        assert!(Hardware::detect_with(&Fake(Some(1))).cores >= 1);
+    }
+
+    #[test]
+    fn the_memory_kind_follows_the_probed_ram() {
+        let small = Hardware {
+            cores: 32,
+            ..Hardware::detect_with(&Fake(Some(2048)))
+        };
+        let big = Hardware {
+            cores: 32,
+            ..Hardware::detect_with(&Fake(Some(16384)))
+        };
+        assert_eq!(threads_for(WorkKind::Memory, small, None), 1);
+        assert_eq!(threads_for(WorkKind::Memory, big, None), 8);
+    }
+
+    #[test]
+    fn the_real_machine_reports_some_ram() {
+        let mb = SystemMemory.total_ram_mb().expect("this host reports its RAM");
+        assert!(mb >= 256, "{mb}");
     }
 
     #[test]

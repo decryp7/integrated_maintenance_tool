@@ -4,8 +4,27 @@
 //! links may only point at a sibling, and the number of files and their sizes are capped.
 
 use crate::error::{AiError, Result};
+use std::cell::Cell;
 use std::io::{Read, Write};
 use std::path::Path;
+use std::rc::Rc;
+
+/// Receives `(done, total)` while an archive is unpacked; both count the same unit (bytes), `done <= total`.
+pub type OnUnpack<'a> = &'a mut dyn FnMut(u64, u64);
+
+/// A reader that counts the bytes pulled through it (the compressed position in a `.tar.gz`).
+struct Counting<R> {
+    inner: R,
+    pos: Rc<Cell<u64>>,
+}
+
+impl<R: Read> Read for Counting<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let n = self.inner.read(buf)?;
+        self.pos.set(self.pos.get() + n as u64);
+        Ok(n)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct UnpackLimits {
@@ -81,9 +100,21 @@ struct Writer<'a> {
     out: Unpacked,
     links: Vec<(String, String)>,
     entries: usize,
+    on_progress: OnUnpack<'a>,
+    total: u64,
+    /// The compressed position, when that is what progress measures (otherwise the bytes written).
+    pos: Option<Rc<Cell<u64>>>,
 }
 
 impl Writer<'_> {
+    fn report(&mut self, written: u64) {
+        let done = match &self.pos {
+            Some(p) => p.get(),
+            None => self.out.bytes + written,
+        };
+        (self.on_progress)(done.min(self.total), self.total);
+    }
+
     fn count(&mut self) -> Result<()> {
         self.entries += 1;
         if self.entries > self.limits.max_entries {
@@ -102,7 +133,18 @@ impl Writer<'_> {
             .create_new(true)
             .open(&path)
             .map_err(|e| AiError::Io(format!("cannot write {}: {e}", path.display())))?;
-        let n = std::io::copy(&mut r.take(self.limits.max_file_bytes + 1), &mut f).map_err(|e| bad(e.to_string()))?;
+        let mut r = r.take(self.limits.max_file_bytes + 1);
+        let mut buf = vec![0u8; 256 * 1024];
+        let mut n = 0u64;
+        loop {
+            let got = r.read(&mut buf).map_err(|e| bad(e.to_string()))?;
+            if got == 0 {
+                break;
+            }
+            f.write_all(&buf[..got])?;
+            n += got as u64;
+            self.report(n);
+        }
         f.flush()?;
         if n > self.limits.max_file_bytes {
             return Err(bad(format!("{name} is too large")));
@@ -151,17 +193,36 @@ impl Writer<'_> {
 
 /// Unpacks `archive` into the existing, empty folder `dest`.
 pub fn unpack(archive: &Path, dest: &Path, limits: &UnpackLimits) -> Result<Unpacked> {
+    unpack_with(archive, dest, limits, &mut |_, _| {})
+}
+
+/// [`unpack`] that reports `(done, total)` as it goes: the compressed position for a `.tar.gz`, the bytes of the
+/// wanted files written for a `.zip`. Always ends with `done == total` when it succeeds.
+pub fn unpack_with(archive: &Path, dest: &Path, limits: &UnpackLimits, on_progress: OnUnpack<'_>) -> Result<Unpacked> {
     let name = archive.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+    let file = std::fs::File::open(archive)?;
+    let file_len = file.metadata().map(|m| m.len()).unwrap_or(0);
     let mut w = Writer {
         dest,
         limits,
         out: Unpacked::default(),
         links: vec![],
         entries: 0,
+        on_progress,
+        total: file_len,
+        pos: None,
     };
-    let file = std::fs::File::open(archive)?;
     if name.ends_with(".zip") {
         let mut zip = zip::ZipArchive::new(std::io::BufReader::new(file)).map_err(|e| bad(e.to_string()))?;
+        let mut wanted = 0u64;
+        for i in 0..zip.len() {
+            if let Ok(e) = zip.by_index_raw(i) {
+                if !e.is_dir() && !e.is_symlink() && e.name().ok().and_then(|n| flat_name(&n).map(is_expected)) == Some(true) {
+                    wanted = wanted.saturating_add(e.size());
+                }
+            }
+        }
+        w.total = wanted;
         for i in 0..zip.len() {
             w.count()?;
             let mut entry = zip.by_index(i).map_err(|e| bad(e.to_string()))?;
@@ -175,7 +236,10 @@ pub fn unpack(archive: &Path, dest: &Path, limits: &UnpackLimits) -> Result<Unpa
             w.file(&n, &mut entry)?;
         }
     } else if name.ends_with(".tar.gz") || name.ends_with(".tgz") {
-        let mut tar = tar::Archive::new(flate2::read::GzDecoder::new(std::io::BufReader::new(file)));
+        let pos = Rc::new(Cell::new(0));
+        w.pos = Some(pos.clone());
+        let counted = Counting { inner: file, pos };
+        let mut tar = tar::Archive::new(flate2::read::GzDecoder::new(std::io::BufReader::new(counted)));
         for entry in tar.entries().map_err(|e| bad(e.to_string()))? {
             w.count()?;
             let mut entry = entry.map_err(|e| bad(e.to_string()))?;
@@ -207,6 +271,8 @@ pub fn unpack(archive: &Path, dest: &Path, limits: &UnpackLimits) -> Result<Unpa
         return Err(bad(format!("{name} is not a .zip or .tar.gz file")));
     }
     w.finish_links()?;
+    let total = w.total;
+    (w.on_progress)(total, total);
     Ok(w.out)
 }
 

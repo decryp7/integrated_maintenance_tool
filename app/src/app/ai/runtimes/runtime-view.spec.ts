@@ -55,11 +55,22 @@ describe('runtime view helpers', () => {
     };
     expect(runtimeStageLabel(tick, 'CPU')).toBe('Downloading CPU…');
     expect(runtimeStageLabel({ ...tick, verifying: true }, 'CPU')).toBe('Verifying CPU…');
-    expect(runtimeStageLabel({ stage: 'unpacking', id: 'cpu', asset: 'a.zip' }, 'CPU')).toBe(
-      'Unpacking CPU…',
-    );
+    const unpacking = {
+      stage: 'unpacking' as const,
+      id: 'cpu',
+      asset: 'a.zip',
+      done: 5 * 1024 * 1024,
+      total: 20 * 1024 * 1024,
+    };
+    expect(runtimeStageLabel(unpacking, 'CPU')).toBe('Unpacking CPU…');
+    expect(runtimePercent(unpacking)).toBe(25);
+    expect(runtimeProgressText(unpacking)).toBe('5 MB of 20 MB');
+    expect(runtimePercent({ ...unpacking, total: 0 })).toBeNull();
+    expect(runtimeProgressText({ ...unpacking, total: 0 })).toBe('');
     expect(runtimeStageLabel({ stage: 'finishing', id: 'cpu' }, 'CPU')).toBe('Finishing CPU…');
-    expect(runtimeStageLabel({ stage: 'testing', id: 'cpu' }, 'CPU')).toBe('Testing CPU with your model…');
+    expect(runtimeStageLabel({ stage: 'testing', id: 'cpu' }, 'CPU')).toBe(
+      'Checking that llama.cpp runs on this Mac…',
+    );
     expect(runtimePercent(tick)).toBe(50);
     expect(runtimePercent({ stage: 'finishing', id: 'cpu' })).toBeNull();
     expect(runtimePercent(null)).toBeNull();

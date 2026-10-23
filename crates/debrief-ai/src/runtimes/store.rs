@@ -13,7 +13,7 @@
 //! worker (pointed at `<tag>/` with `DEBRIEF_LLAMA_DIR`) never sees half an install.
 
 use super::catalog::{RuntimeBuild, RuntimeCatalog};
-use super::unpack::{unpack, UnpackLimits};
+use super::unpack::{unpack_with, UnpackLimits};
 use crate::error::{AiError, Result};
 use crate::models::{DiskSpace, DownloadOptions, Downloader, ModelSource, Phase, Progress};
 use serde::Serialize;
@@ -58,10 +58,13 @@ pub enum RuntimeStage {
         index: usize,
         count: usize,
     },
+    /// Unpacking `asset`; `done` of `total` bytes of all the build's archives (0 when an archive starts).
     Unpacking {
         asset: String,
+        done: u64,
+        total: u64,
     },
-    /// The unpacked build runs its self-test with the active model before it is installed.
+    /// The unpacked build is checked (it runs, and with an active model it answers) before it is installed.
     Testing,
     Finishing,
 }
@@ -357,14 +360,42 @@ impl RuntimeStore {
         }
         std::fs::create_dir_all(&staging)?;
         let result = (|| -> Result<()> {
-            for archive in &archives {
+            let sizes: Vec<u64> = archives
+                .iter()
+                .map(|a| std::fs::metadata(a).map(|m| m.len()).unwrap_or(0))
+                .collect();
+            let all: u64 = sizes.iter().sum();
+            let mut base = 0u64;
+            for (archive, size) in archives.iter().zip(&sizes) {
                 if progress.is_cancelled() {
                     return Err(AiError::Cancelled);
                 }
+                let asset = archive.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
                 on_stage(RuntimeStage::Unpacking {
-                    asset: archive.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+                    asset: asset.clone(),
+                    done: base,
+                    total: all,
                 });
-                unpack(archive, &staging, &UnpackLimits::default())?;
+                // One event per percent of the whole build, not one per chunk.
+                let mut last = base;
+                let step = (all / 100).max(1);
+                unpack_with(archive, &staging, &UnpackLimits::default(), &mut |d, t| {
+                    let done = base
+                        + if t == 0 {
+                            *size
+                        } else {
+                            (u128::from(d) * u128::from(*size) / u128::from(t)) as u64
+                        };
+                    if done >= last + step || (d == t && done > last) {
+                        last = done;
+                        on_stage(RuntimeStage::Unpacking {
+                            asset: asset.clone(),
+                            done,
+                            total: all,
+                        });
+                    }
+                })?;
+                base += size;
             }
             on_stage(RuntimeStage::Finishing);
             if !staging.join(server_file_name()).is_file() {

@@ -30,6 +30,22 @@ describe('AiRuntimeStore', () => {
     expect(store.loading()).toBe(false);
   });
 
+  it('goes through downloading, unpacking with byte progress and the runtime check before ready', async () => {
+    const { store, backend } = setup({ runtime: 'none' });
+    await store.load();
+    const stages: string[] = [];
+    const unpacked: number[] = [];
+    await backend.onRuntime((e) => {
+      if (stages[stages.length - 1] !== e.stage) stages.push(e.stage);
+      if (e.stage === 'unpacking') unpacked.push(e.done);
+    });
+    await store.install('cpu');
+    await until(() => store.outcome()?.stage === 'ready');
+    expect(stages).toEqual(['downloading', 'progress', 'unpacking', 'finishing', 'testing', 'ready']);
+    expect(unpacked.length).toBeGreaterThan(2);
+    expect(unpacked).toEqual([...unpacked].sort((a, b) => a - b));
+  });
+
   it('installs a build with streamed progress, then reloads', async () => {
     const { store } = setup({ runtime: 'none' });
     await store.load();
@@ -122,6 +138,7 @@ describe('AiRuntimeStore', () => {
     expect(store.outcome()).toMatchObject({ stage: 'failed', id: 'cpu', code: 'invalid' });
     await store.installFromArchives('cpu', ['/d/llama-b11669-bin-win-cpu-x64.zip']);
     await until(() => store.outcome()?.stage === 'ready');
-    expect(store.overview()?.builds.find((b) => b.id === 'cpu')?.installed).toBe(true);
+    // The overview is reloaded after the install ended.
+    await until(() => store.overview()?.builds.find((b) => b.id === 'cpu')?.installed === true);
   });
 });

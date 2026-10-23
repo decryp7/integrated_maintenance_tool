@@ -307,12 +307,18 @@ export class MockRuntimes {
           verifying: true,
         });
       }
-      await step({
-        stage: 'unpacking',
-        id: b.id,
-        asset: `llama-${MOCK_RUNTIME_TAG}-bin-win-${b.id}-x64.zip`,
-      });
+      const unpackAsset = `llama-${MOCK_RUNTIME_TAG}-bin-win-${b.id}-x64.zip`;
+      for (let i = 0; i <= 4; i++) {
+        await step({
+          stage: 'unpacking',
+          id: b.id,
+          asset: unpackAsset,
+          done: Math.round((b.downloadBytes * i) / 4),
+          total: b.downloadBytes,
+        });
+      }
       await step({ stage: 'finishing', id: b.id });
+      await step({ stage: 'testing', id: b.id });
       // Like the worker's check: CUDA works with the laptop's NVIDIA GPU; the AMD and Intel builds find no GPU.
       const usable = !['rocm', 'sycl', 'openvino'].includes(b.id);
       this.installed = [

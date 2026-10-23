@@ -293,13 +293,8 @@ fn collectors_and_hooks_crash_safely() {
         registry.install(&Chaos(Arc::new(BadTransform(AtomicUsize::new(0))))).unwrap();
         let c = registry.collector("bad-collector").unwrap().clone();
         assert_eq!((c.id(), c.name()), ("bad-collector", "Bad"));
-        let sink = debrief_core::export::ClefFileSink::new(
-            std::env::temp_dir().join(format!("debrief-robust-sink-{}", std::process::id())),
-            "x",
-            1024,
-            1,
-        )
-        .unwrap();
+        let scratch = tempfile::Builder::new().prefix("debrief-robust-sink-").tempdir().unwrap();
+        let sink = debrief_core::export::ClefFileSink::new(scratch.path().to_path_buf(), "x", 1024, 1).unwrap();
         let e = c.run(&serde_json::Value::Null, &sink, &AtomicBool::new(false)).unwrap_err();
         assert!(e.to_string().contains("collector exploded"));
         let mut ws = Workspace::with_registry(Profile::default_profile(), registry).unwrap();
