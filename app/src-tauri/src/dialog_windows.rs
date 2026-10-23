@@ -9,8 +9,12 @@
 //! answer goes to the window that opened it.
 //!
 //! * **Modal** dialogs disable their parent while they are open (owner window on Windows, child window on macOS,
-//!   transient window on Linux; the UI also puts a scrim over the parent) and stay above it.
+//!   transient window on Linux; the UI also puts a scrim over the parent) and stay above it. On macOS the parent is
+//!   NOT disabled natively: tao implements that as a sheet on the parent, and a child window of a parent that carries a
+//!   sheet is never key, so the dialog showed greyed out and the app froze. There the UI scrim blocks the parent.
 //! * **Modeless** dialogs are owned too (they stay above the parent and minimise with it) but the parent stays usable.
+//!   Except on macOS, where a child window is confined to its parent's screen and vanishes when dragged to another
+//!   display: modeless dialogs are independent windows there (see [`Parenting`]).
 //!
 //! Data never travels through window globals: the input is validated and parked here at open
 //! (`dialog_take_input` hands it to the dialog's own webview) and the result goes back through `dialog_close`
@@ -49,6 +53,31 @@ const MAX_SIZE: f64 = 4096.0;
 const DEFAULT_SIZE: (f64, f64) = (640.0, 520.0);
 /// A dialog that did not answer a close request this long is closed anyway (a hung webview must not trap the user).
 const CLOSE_GRACE: Duration = Duration::from_millis(1500);
+
+/// How a dialog window is attached to its parent natively.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Parenting {
+    /// Owned / child / transient window: above the parent, minimised with it.
+    Owned,
+    /// An independent window (it can be dragged to any display).
+    Independent,
+}
+
+impl Parenting {
+    /// The parenting of a dialog of `modality` on the OS `os` (`std::env::consts::OS`).
+    pub fn of(modality: Modality, os: &str) -> Parenting {
+        match (os, modality) {
+            ("macos", Modality::Modeless) => Parenting::Independent,
+            _ => Parenting::Owned,
+        }
+    }
+}
+
+/// Whether opening a modal dialog disables its parent window natively (`set_enabled(false)`). Not on macOS, where that
+/// begins a sheet on the parent and blocks the dialog's own window from becoming key.
+pub fn disables_parent_natively(os: &str) -> bool {
+    os != "macos"
+}
 
 /// Whether the dialog blocks its parent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -313,12 +342,13 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, caller: &str, request: DialogRequest
         (x, y, w, h),
         (min_w, min_h),
         &parent_window,
+        request.modality,
     );
     if let Err(e) = built {
         dialogs.remove(&label);
         anyhow::bail!("could not open the dialog window: {e}");
     }
-    if request.modality == Modality::Modal {
+    if request.modality == Modality::Modal && disables_parent_natively(std::env::consts::OS) {
         let _ = parent_window.set_enabled(false);
     }
     log::info!(Dialog = request.dialog_id.as_str(), Host = host.as_str(); "Dialog window opened");
@@ -363,6 +393,7 @@ fn build_window<R: Runtime>(
     place: (f64, f64, f64, f64),
     min: (f64, f64),
     parent: &tauri::WebviewWindow<R>,
+    modality: Modality,
 ) -> anyhow::Result<()> {
     let c = window_config(label, host, dialog_id, title, place, min);
     // A native title bar with the dialog's title: dialogs are ordinary OS windows.
@@ -374,7 +405,11 @@ fn build_window<R: Runtime>(
         .resizable(c.resizable)
         .minimizable(false)
         .focused(true);
-    let builder = owned_by(builder, parent)?;
+    let builder = if Parenting::of(modality, std::env::consts::OS) == Parenting::Owned {
+        owned_by(builder, parent)?
+    } else {
+        builder
+    };
     crate::native_feel::build(builder).map_err(|e| anyhow::anyhow!("{e}"))?;
     Ok(())
 }
@@ -433,7 +468,10 @@ pub fn on_destroyed<R: Runtime>(app: &AppHandle<R>, label: &str) {
     }
     let dialogs = app.state::<Dialogs>();
     if let Some(parent) = app.get_webview_window(&entry.parent) {
-        if entry.modality == Modality::Modal && dialogs.modal_children_of(&entry.parent) == 0 {
+        if entry.modality == Modality::Modal
+            && disables_parent_natively(std::env::consts::OS)
+            && dialogs.modal_children_of(&entry.parent) == 0
+        {
             let _ = parent.set_enabled(true);
         }
         let _ = parent.set_focus();
@@ -520,6 +558,37 @@ pub async fn dialog_close<R: Runtime>(app: AppHandle<R>, window: Window<R>, resu
     crate::error::lift(window.destroy().map_err(err))
 }
 
+/// The window height (logical px) that fits `content` px of dialog content: within the minimum and `max` (the work
+/// area's height less a margin), `None` for a value that is not a number.
+pub fn fitted_height(content: f64, max: f64) -> Option<f64> {
+    if !content.is_finite() || !max.is_finite() {
+        return None;
+    }
+    Some(content.ceil().clamp(MIN_SIZE.1, max.clamp(MIN_SIZE.1, MAX_SIZE)))
+}
+
+/// Sizes the calling dialog window to its content: the dialog measured `content` px and asks for that height (the
+/// width stays). Dialogs that need more room name a height in the registry and do not call this.
+#[tauri::command]
+pub async fn dialog_fit_height<R: Runtime>(app: AppHandle<R>, window: Window<R>, content: f64) -> CmdResult<()> {
+    let known = app.try_state::<Dialogs>().is_some_and(|d| d.get(window.label()).is_some());
+    if !known {
+        return Err("this is not a dialog window".to_string().into());
+    }
+    let scale = window.scale_factor().unwrap_or(1.0);
+    let max = window
+        .current_monitor()
+        .ok()
+        .flatten()
+        .map_or(MAX_SIZE, |m| m.size().to_logical::<f64>(m.scale_factor()).height * 0.9);
+    // The title bar is not part of the measured content: the inner size is what the content fills.
+    let Some(height) = fitted_height(content, max) else {
+        return Err("the content height is not a number".to_string().into());
+    };
+    let width = window.inner_size().map_err(err)?.to_logical::<f64>(scale).width;
+    crate::error::lift(window.set_size(tauri::LogicalSize::new(width, height)).map_err(err))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -556,6 +625,27 @@ mod tests {
         let s = seen.clone();
         w.listen(event, move |e| s.lock().unwrap().push(e.payload().to_string()));
         seen
+    }
+
+    #[test]
+    fn a_dialog_window_is_fitted_to_its_content_within_bounds() {
+        assert_eq!(fitted_height(180.2, 900.0), Some(MIN_SIZE.1.max(181.0)));
+        assert_eq!(fitted_height(50.0, 900.0), Some(MIN_SIZE.1));
+        assert_eq!(fitted_height(5000.0, 700.0), Some(700.0));
+        assert_eq!(fitted_height(f64::NAN, 700.0), None);
+        assert_eq!(fitted_height(300.0, f64::INFINITY), None);
+    }
+
+    #[test]
+    fn macos_modeless_dialogs_are_independent_and_macos_never_disables_the_parent_natively() {
+        use Modality::*;
+        assert_eq!(Parenting::of(Modeless, "macos"), Parenting::Independent);
+        assert_eq!(Parenting::of(Modal, "macos"), Parenting::Owned);
+        for os in ["windows", "linux"] {
+            assert_eq!(Parenting::of(Modeless, os), Parenting::Owned);
+            assert!(disables_parent_natively(os));
+        }
+        assert!(!disables_parent_natively("macos"));
     }
 
     #[test]

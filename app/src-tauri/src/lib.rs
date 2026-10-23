@@ -369,6 +369,7 @@ command_table! {
     Mutation [MAIN | DIALOG] limit 9 * MIB => dialog_windows::dialog_open,
     Query [DIALOG] => dialog_windows::dialog_take_input,
     Mutation [DIALOG] => dialog_windows::dialog_close,
+    Mutation [DIALOG] => dialog_windows::dialog_fit_height,
     Query [WINDOW] => recent::recent_list,
     Mutation [WINDOW] => recent::recent_remove,
     Mutation [WINDOW] => recent::recent_clear,

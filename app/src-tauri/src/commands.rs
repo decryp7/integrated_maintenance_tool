@@ -208,6 +208,7 @@ mod tests {
         // A dialog cannot move the session, quit or open another window's panels.
         assert_eq!(check("save_session", "d-main-1", 10).unwrap_err().code, ErrorCode::Denied);
         assert!(check("dialog_close", "main", 10).is_err() && check("dialog_close", "d-main-1", 10).is_ok());
+        assert!(check("dialog_fit_height", "main", 10).is_err() && check("dialog_fit_height", "d-main-1", 10).is_ok());
         assert_eq!(class_of("bw-main"), None);
         assert!(check("query_page", "p-main-1", 10).is_ok());
         // A pop-out panel cannot restart Debrief or answer its host's prompts.
