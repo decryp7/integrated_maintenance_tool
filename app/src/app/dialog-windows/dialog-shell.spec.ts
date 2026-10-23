@@ -1,5 +1,7 @@
 import { Component, inject, input, Injector } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { Logger } from '../core/logger';
+import { UiSync } from '../popout/ui-sync';
 import { el, settle } from '../../testing/helpers';
 import { provideTinyBackend } from '../../testing/helpers';
 import { DIALOG_REF } from '../ui/dialog.service';
@@ -27,7 +29,7 @@ class Content {
 
 const def: DialogDef = { id: 'shell-test', modality: 'modal', width: 400, load: async () => Content };
 
-async function setup(over: { lookup?: (id: string) => DialogDef | undefined; failTake?: boolean } = {}) {
+async function setup(over: { lookup?: (id: string) => DialogDef | undefined; failTake?: boolean; onLog?: (m: string, p: unknown) => void } = {}) {
   allow = true;
   const io = new FakeDialogIo();
   io.start = { dialogId: 'shell-test', title: 'Shell test', modality: 'modal', input: { name: 'Ada' } };
@@ -36,6 +38,7 @@ async function setup(over: { lookup?: (id: string) => DialogDef | undefined; fai
     providers: [
       ...provideTinyBackend(),
       { provide: DIALOG_IO, useValue: io },
+      ...(over.onLog ? [{ provide: Logger, useValue: { debug: () => undefined, info: () => undefined, warn: () => undefined, error: (_c: string, m: string, p: unknown) => over.onLog!(m, p) } }] : []),
       { provide: DIALOG_ROUTE, useValue: { id: 'shell-test', host: 'main', label: 'd-main-1' } },
       { provide: DIALOG_LOOKUP, useValue: over.lookup ?? ((id: string) => (id === 'shell-test' ? def : undefined)) },
     ],
@@ -139,5 +142,40 @@ describe('DialogShell', () => {
     el<HTMLButtonElement>(failed.fixture, '.btn.primary').click();
     await settle(failed.fixture);
     expect(failed.io.closedWith).toHaveLength(1);
+  });
+
+  it('shows a visible error state, not a blank window, when the content throws while it is constructed or rendered', async () => {
+    @Component({ selector: 'debrief-ctor-throws', template: 'never' })
+    class Ctor {
+      constructor() {
+        throw new Error('NG0201: No provider found for `Thing`');
+      }
+    }
+    @Component({ selector: 'debrief-render-throws', template: '{{ boom() }}' })
+    class Render {
+      readonly name = input('');
+      boom(): string {
+        throw new Error('render failed');
+      }
+    }
+    for (const [component, reason] of [[Ctor, 'No provider found'], [Render, 'render failed']] as const) {
+      const logged: unknown[][] = [];
+      const { fixture, io } = await setup({ lookup: () => ({ ...def, load: async () => component }), onLog: (m, p) => logged.push([m, p]) });
+      expect(el(fixture, '.failed-title').textContent).toContain("This window couldn't open");
+      expect(el(fixture, '[data-testid=dialog-error-reason]').textContent).toContain(reason);
+      expect(fixture.nativeElement.querySelector('[data-testid=dialog-loading]')).toBeNull();
+      expect(logged[0]).toEqual(['Dialog window failed to start', expect.objectContaining({ Dialog: 'shell-test' })]);
+      el<HTMLButtonElement>(fixture, '[data-testid=dialog-error-close]').click();
+      await settle(fixture);
+      expect(io.closedWith).toHaveLength(1);
+      TestBed.resetTestingModule();
+    }
+  });
+
+  it('offers Report a problem from the error state, handing the command to the main window', async () => {
+    const { fixture } = await setup({ failTake: true });
+    const run = vi.spyOn(TestBed.inject(UiSync), 'runInHost').mockReturnValue(true);
+    el<HTMLButtonElement>(fixture, '[data-testid=dialog-error-report]').click();
+    expect(run).toHaveBeenCalledWith('dialogRun', 'help.reportProblem');
   });
 });

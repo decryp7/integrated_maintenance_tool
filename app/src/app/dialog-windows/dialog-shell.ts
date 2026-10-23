@@ -1,4 +1,3 @@
-import { NgComponentOutlet } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -12,8 +11,10 @@ import {
   Type,
   untracked,
   viewChild,
+  ViewContainerRef,
 } from '@angular/core';
 import { Logger } from '../core/logger';
+import { REPORT_PROBLEM_COMMAND } from '../diagnostics/snapshot.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { PopoutBackend } from '../popout/popout-backend';
 
@@ -40,28 +41,34 @@ const BODY_PADDING_PX = 16;
 @Component({
   selector: 'debrief-dialog-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgComponentOutlet],
   host: { '(document:keydown)': 'onKey($event)', '[attr.data-modality]': 'modality()' },
   template: `
     <main #body class="body" [attr.aria-label]="title()" [attr.aria-busy]="!component() && !error()">
       @if (error(); as e) {
-        <p class="error" role="alert" data-testid="dialog-error">{{ e }}</p>
-        <div class="foot"><button type="button" class="btn primary" (click)="close()" i18n="@@dialogWindow.close">Close</button></div>
-      } @else if (component(); as c) {
-        <ng-container *ngComponentOutlet="c; inputs: inputs(); injector: contentInjector" />
-      } @else {
+        <div class="failed" role="alert" data-testid="dialog-error">
+          <h1 class="failed-title" i18n="@@dialogWindow.failedTitle">This window couldn't open</h1>
+          <p class="failed-reason" data-testid="dialog-error-reason">{{ e }}</p>
+        </div>
+        <div class="foot">
+          <button type="button" class="btn" (click)="report()" data-testid="dialog-error-report" i18n="@@dialogWindow.report">Report a problem…</button>
+          <button type="button" class="btn primary" (click)="close()" data-testid="dialog-error-close" i18n="@@dialogWindow.close">Close</button>
+        </div>
+      } @else if (!component()) {
         <p class="loading" data-testid="dialog-loading" i18n="@@dialogWindow.loading">Loading…</p>
       }
+      <ng-container #host />
     </main>
   `,
   styles: `
     /* A dialog window is a full-height column: the content fills it and scrolls inside (no sizes of the in-page overlay). */
     :host { --dialog-window-height: 100%; --dialog-window-max-height: none; display: block; height: 100vh; background: var(--bg-2); color: var(--text); }
     .body { box-sizing: border-box; height: 100%; min-height: 0; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-    .body > :not(.loading):not(.error):not(.foot) { flex: 1 1 auto; min-height: 0; }
+    .body > :not(.loading):not(.failed):not(.foot) { flex: 1 1 auto; min-height: 0; }
     .loading { margin: auto; color: var(--muted); font-size: var(--fs-md); }
-    .error { color: var(--lvl-error); margin: 0; }
-    .foot { display: flex; justify-content: flex-end; }
+    .failed { margin: auto 0; }
+    .failed-title { margin: 0 0 8px; font-size: var(--fs-lg); font-weight: 600; }
+    .failed-reason { margin: 0; color: var(--lvl-error); overflow-wrap: anywhere; }
+    .foot { display: flex; justify-content: flex-end; gap: 8px; }
   `,
 })
 export class DialogShell {
@@ -74,7 +81,9 @@ export class DialogShell {
   private readonly store = inject(WorkspaceStore);
   private readonly backend = inject(PopoutBackend);
   private readonly body = viewChild.required<ElementRef<HTMLElement>>('body');
+  private readonly host = viewChild.required('host', { read: ViewContainerRef });
   private closing = false;
+  private mounted = false;
 
   protected readonly title = signal('');
   protected readonly modality = signal<DialogModality>('modeless');
@@ -94,6 +103,35 @@ export class DialogShell {
     destroy.onDestroy(() => off?.());
     afterNextRender(() => this.body().nativeElement.focus());
     this.startSyncWhenLoaded(destroy);
+    // The content is created here, not by an outlet, so a throw while it is constructed or first rendered becomes the error state instead of a blank window.
+    effect(() => {
+      const c = this.component();
+      const host = this.host();
+      if (c && !this.mounted) untracked(() => this.mount(host, c));
+    });
+  }
+
+  private mount(host: ViewContainerRef, component: Type<unknown>): void {
+    this.mounted = true;
+    try {
+      const ref = host.createComponent(component, { injector: this.contentInjector });
+      for (const [name, value] of Object.entries(this.inputs())) ref.setInput(name, value);
+      ref.changeDetectorRef.detectChanges();
+    } catch (e) {
+      host.clear();
+      this.fail(e);
+    }
+  }
+
+  private fail(e: unknown): void {
+    this.logger.error('ui.dialog', 'Dialog window failed to start', { Dialog: this.route.id, Error: errorMessage(e) });
+    this.component.set(null);
+    this.error.set(errorMessage(e));
+  }
+
+  /** Asks the opener's window to open "Report a problem…" (the diagnostics belong to the main window). */
+  protected report(): void {
+    if (!this.sync.runInHost('dialogRun', REPORT_PROBLEM_COMMAND)) this.logger.warn('ui.dialog', 'Could not reach the main window to report', { Dialog: this.route.id });
   }
 
   private async init(): Promise<void> {
@@ -108,8 +146,7 @@ export class DialogShell {
       this.component.set(component);
       if (def.height === undefined) this.fitToContent();
     } catch (e) {
-      this.logger.error('ui.dialog', 'Dialog window failed to start', { Dialog: this.route.id, Error: errorMessage(e) });
-      this.error.set(errorMessage(e));
+      this.fail(e);
     }
   }
 
