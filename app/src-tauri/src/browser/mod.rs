@@ -8,7 +8,7 @@
 //!
 //! Commands: `browser_open`, `browser_event_query`, `browser_capture`, `browser_sources`, `browser_discard_sources`,
 //! `browser_chat_status`, `browser_set_read_along`, `browser_set_agent`, `browser_agent_stop`, `browser_agent_continue`,
-//! `browser_agent_respond`, `browser_open_suggested`, `browser_open_and_read`, `browser_stop`, `browser_runtime_status`,
+//! `browser_agent_respond`, `browser_open_suggested`, `browser_open_and_read`, `browser_stop`, `research_browser_close`, `browser_runtime_status`,
 //! `browser_runtime_install`, `browser_runtime_remove`, `ai_research_draft`, `ai_research`, `browser_driving`.
 //! Events: `debrief://browser` (to the window). Wire contract: `app/src/app/browser/browser.types.ts`.
 
@@ -89,6 +89,9 @@ pub enum BrowserEvent {
     Driving {
         by: Option<AiDriver>,
     },
+    /// Research ended but its browser window stays open because the user took part in it; the window offers to close it
+    /// (`research_browser_close`).
+    ResearchBrowserKept,
     /// A line of what the AI is doing ("Reading 3 of 5 results"), for the status chip.
     Status {
         text: String,
@@ -116,11 +119,10 @@ fn product<R: Runtime>(app: &AppHandle<R>) -> String {
     app.config().product_name.clone().unwrap_or_else(|| "Debrief".into())
 }
 
-/// A page of the window's renderer for the chat ports. `on_screen`: the window shows next to Debrief.
+/// A page of the window's renderer for the chat ports (the browser window is always a normal one on screen).
 pub(crate) fn page_for<R: Runtime>(
     app: &AppHandle<R>,
     owner: &str,
-    on_screen: bool,
     may_drive: Option<Box<dyn Fn() -> bool + Send + Sync>>,
     rules: Option<Arc<debrief_ai::browser::ChatBrowser>>,
 ) -> Option<renderer::ChromiumPage> {
@@ -128,7 +130,6 @@ pub(crate) fn page_for<R: Runtime>(
     Some(renderer::ChromiumPage {
         renderers: renderers(app)?,
         owner: owner.to_string(),
-        on_screen,
         may_drive,
         rules,
         product: product(app),
@@ -155,12 +156,12 @@ pub(crate) fn page_for<R: Runtime>(
 /// The window's running renderer, read only (nothing is started).
 pub(crate) fn reader_page<R: Runtime>(app: &AppHandle<R>, owner: &str) -> Option<renderer::ChromiumPage> {
     renderers(app)?.current(owner)?;
-    page_for(app, owner, false, None, None)
+    page_for(app, owner, None, None)
 }
 
 /// A page that starts the renderer on screen when none runs (the user asked to open something).
 pub(crate) fn visible_page<R: Runtime>(app: &AppHandle<R>, owner: &str) -> Option<renderer::ChromiumPage> {
-    page_for(app, owner, true, Some(Box::new(|| true)), None)
+    page_for(app, owner, Some(Box::new(|| true)), None)
 }
 
 /// Writes every agent action to the activity log (diagnostics reports show what the AI did). Never page
@@ -224,10 +225,10 @@ pub fn owner_destroyed<R: Runtime>(app: &AppHandle<R>, owner: &str) {
     }
 }
 
-/// Debrief exits: every browser process ends.
+/// Debrief exits: every browser is closed (gracefully, then by force) and its profile removed, even one kept open for the user.
 pub fn shutdown<R: Runtime>(app: &AppHandle<R>) {
     if let Some(r) = renderers(app) {
-        r.kill_all();
+        r.close_all(renderer::QUIT_GRACE);
     }
 }
 

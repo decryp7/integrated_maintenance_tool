@@ -17,6 +17,8 @@ pub mod cdp;
 pub mod challenge;
 pub mod cue;
 pub mod discover;
+#[cfg(any(test, feature = "test-support"))]
+pub mod fake;
 pub mod install;
 pub mod launch;
 pub mod page;
@@ -25,7 +27,7 @@ pub mod ready;
 
 pub use challenge::{detect as detect_challenge, Challenge};
 pub use discover::{find, find_for_tests, Browser as BrowserExe, Flavor};
-pub use launch::{Chromium, LaunchOptions, Profile, Visibility};
+pub use launch::{Chromium, LaunchOptions, Profile};
 pub use page::Page;
 
 /// Everything that can go wrong; messages tell the user what to do.

@@ -282,6 +282,9 @@ export class MockBrowserBackend implements BrowserBackend, ChatBrowserBackend {
   driving() {
     return later(() => this.w.driver);
   }
+  closeResearchBrowser() {
+    return later(() => false);
+  }
   stopAll() {
     return later(() => {
       const was = this.w.driver !== null;

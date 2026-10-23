@@ -63,12 +63,10 @@ impl TurnBrowser {
                 },
             );
         }
-        // Read along and agent mode show the real browser window next to Debrief.
-        let on_screen = control.read_along() || control.may_act();
-        let reader = super::page_for(app, owner, on_screen, None, None)?;
+        let reader = super::page_for(app, owner, None, None)?;
         let (h2, o2, c2) = (hub.clone(), owner.to_string(), chat.to_string());
         let may_drive: Option<Box<dyn Fn() -> bool + Send + Sync>> = driving.then(|| Box::new(move || h2.is_driving(&o2, &c2)) as _);
-        let driver = super::page_for(app, owner, on_screen, may_drive, Some(control.clone()))?;
+        let driver = super::page_for(app, owner, may_drive, Some(control.clone()))?;
         Some(TurnBrowser {
             reader: Box::new(reader),
             driver: Box::new(driver),

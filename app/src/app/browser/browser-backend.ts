@@ -34,6 +34,8 @@ export abstract class BrowserBackend {
   abstract driving(): Promise<AiDriver | null>;
   /** Ends every AI hold on this window's browser and closes the Chromium at once; resolves with whether one was running. */
   abstract stopAll(): Promise<boolean>;
+  /** Closes the research browser left open after research (gracefully, then by force); resolves with whether one was open. */
+  abstract closeResearchBrowser(): Promise<boolean>;
   abstract onEvent(handler: (e: BrowserEvent) => void): Promise<Unlisten>;
 }
 
@@ -56,6 +58,8 @@ export abstract class ChatBrowserBackend {
   abstract openSuggested(sessionId: string, url: string): Promise<void>;
   /** "Open and let AI read it": opens a suggested link, adds the page to the chat and lets the chat go on (a new turn; its job). */
   abstract openAndRead(sessionId: string, url: string): Promise<number>;
+  /** Closes the research browser window left open after research; resolves with whether one was open. */
+  abstract closeResearchBrowser(): Promise<boolean>;
   abstract onEvent(handler: (e: BrowserEvent) => void): Promise<Unlisten>;
 }
 
@@ -83,6 +87,9 @@ export class TauriBrowserBackend implements BrowserBackend, ChatBrowserBackend {
   }
   stopAll() {
     return this.call<boolean>('browser_stop');
+  }
+  closeResearchBrowser() {
+    return this.call<boolean>('research_browser_close');
   }
   capture(sessionId: string) {
     return this.call<SourceInfo[]>('browser_capture', { sessionId });

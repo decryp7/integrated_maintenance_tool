@@ -39,6 +39,13 @@ import { BrowserLauncher } from './provide-browser';
           <p class="hint small" role="note" data-testid="chat-small-model" i18n="@@browser.chatBar.smallModel">Agent mode works best with a 7B or larger model; yours may lose track on long tasks.</p>
         }
       }
+      @if (store.researchBrowserKept()) {
+        <p class="note small row" role="status" data-testid="research-browser-kept">
+          <span i18n="@@browser.chatBar.kept">The research browser window was left open because you used it.</span>
+          <button type="button" class="btn ghost" (click)="store.closeResearchBrowser()" data-testid="research-browser-close" i18n="@@browser.chatBar.keptClose">Close it</button>
+          <button type="button" class="btn ghost" (click)="store.keepResearchBrowser()" data-testid="research-browser-keep" i18n="@@browser.chatBar.keptKeep">Keep it</button>
+        </p>
+      }
       @if (store.error(); as e) {
         <p class="err small" role="alert">{{ e }} <button type="button" class="link" (click)="retry()" i18n="@@browser.chatBar.retry">Retry</button></p>
       }

@@ -77,6 +77,8 @@ export type BrowserEvent =
   | ({ type: 'chatStatus' } & ChatBrowserStatus)
   /** The AI started (`by`) or stopped (`null`) driving the browser. */
   | { type: 'driving'; by: AiDriver | null }
+  /** Research ended but its browser window stays open because the user took part in it; offer `closeResearchBrowser()`. */
+  | { type: 'researchBrowserKept' }
   /** A line like "Reading 3 of 5 results". */
   | { type: 'status'; text: string }
   | { type: 'activity'; activity: BrowserActivityKind; host: string; title: string };

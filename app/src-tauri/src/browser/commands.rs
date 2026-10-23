@@ -349,3 +349,14 @@ pub async fn browser_stop<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> 
     crate::activity::domain_event("browser.stop", None, &[("Killed", if killed { "true" } else { "false" })]);
     Ok(killed)
 }
+
+/// Closes the window's research browser (the user's Close after research left it open): gracefully, then by force, and
+/// its throwaway profile is removed. Returns whether a browser was open.
+#[tauri::command]
+pub async fn research_browser_close<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<bool> {
+    let owner = win.label().to_string();
+    let renderers = super::renderers(&app);
+    let closed = blocking(move || Ok(renderers.is_some_and(|r| r.close(&owner)))).await?;
+    crate::activity::domain_event("browser.researchClose", None, &[("Closed", if closed { "true" } else { "false" })]);
+    Ok(closed)
+}

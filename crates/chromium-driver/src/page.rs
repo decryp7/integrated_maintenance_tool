@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 const CALL: Duration = Duration::from_secs(10);
-/// URL patterns blocked while the window is not on screen.
+/// URL patterns blocked by [`Page::block_heavy`].
 const HEAVY: &[&str] = &[
     "*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp", "*.avif", "*.svg", "*.ico", "*.woff", "*.woff2", "*.ttf", "*.otf", "*.mp4", "*.webm",
     "*.mp3", "*.ogg",
@@ -17,7 +17,6 @@ pub struct Page {
     pub(crate) conn: Arc<Connection>,
     pub(crate) session: String,
     pub(crate) target: String,
-    pub(crate) window: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -32,14 +31,7 @@ impl Page {
         let target = str_of(&t, "targetId")?;
         let s = conn.call(None, "Target.attachToTarget", json!({"targetId": target, "flatten": true}), CALL)?;
         let session = str_of(&s, "sessionId")?;
-        let w = conn.call(None, "Browser.getWindowForTarget", json!({"targetId": target}), CALL)?;
-        let window = w.get("windowId").and_then(Value::as_i64).unwrap_or(0);
-        let p = Page {
-            conn,
-            session,
-            target,
-            window,
-        };
+        let p = Page { conn, session, target };
         p.call("Page.enable", json!({}))?;
         p.call("Network.enable", json!({}))?;
         // Downloads are never wanted from a page that is only read.
@@ -132,25 +124,6 @@ impl Page {
     pub fn challenge(&self) -> Result<Option<crate::Challenge>> {
         let i = self.info()?;
         Ok(crate::detect_challenge(&i.url, &i.title, &self.text_excerpt().unwrap_or_default()))
-    }
-
-    /// Moves the window on screen and to the front, or off screen. Best effort for window managers that refuse.
-    pub fn set_visible(&self, visible: bool) -> Result<()> {
-        let bounds = if visible {
-            json!({"left": 80, "top": 60, "width": 1100, "height": 800, "windowState": "normal"})
-        } else {
-            json!({"left": -32000, "top": -32000, "width": 1100, "height": 800, "windowState": "normal"})
-        };
-        self.conn.call(
-            None,
-            "Browser.setWindowBounds",
-            json!({"windowId": self.window, "bounds": bounds}),
-            CALL,
-        )?;
-        if visible {
-            self.call("Page.bringToFront", json!({}))?;
-        }
-        self.block_heavy(!visible)
     }
 
     /// A PNG of the page, base64-encoded (diagnostics of the live test).

@@ -53,6 +53,7 @@ describe('TauriBrowserBackend', () => {
       [() => b.eventQuery(4), 'browser_event_query', { recordId: 4 }],
       [() => b.driving(), 'browser_driving', undefined],
       [() => b.stopAll(), 'browser_stop', undefined],
+      [() => b.closeResearchBrowser(), 'research_browser_close', undefined],
       [() => b.capture('c'), 'browser_capture', { sessionId: 'c' }],
       [() => b.sources('c'), 'browser_sources', { sessionId: 'c' }],
       [() => b.discardSources('c'), 'browser_discard_sources', { sessionId: 'c' }],

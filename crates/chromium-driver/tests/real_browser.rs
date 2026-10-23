@@ -1,7 +1,7 @@
 //! Launches a real Chromium-based browser when one is installed (skipped otherwise) against a local server that
 //! serves a page rendered by script.
 
-use chromium_driver::{find_for_tests as find, Chromium, LaunchOptions, Visibility};
+use chromium_driver::{find_for_tests as find, Chromium, LaunchOptions};
 use serde_json::json;
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -37,7 +37,6 @@ fn renders_a_scripted_page_and_leaves_nothing_behind() {
     let port = serve();
     let opts = LaunchOptions {
         accent: Some(0x2a7de1),
-        visibility: Visibility::OffScreen,
         ..LaunchOptions::default()
     };
     let mut b = Chromium::launch(&exe, &opts).expect("launch");
@@ -79,9 +78,7 @@ fn renders_a_scripted_page_and_leaves_nothing_behind() {
     assert_eq!(page.evaluate("document.querySelectorAll('script').length").unwrap(), json!(1));
     assert_eq!(page.text_excerpt().unwrap().trim(), "item 1\nitem 2\nitem 3");
     assert!(page.challenge().unwrap().is_none());
-    // On and off screen both work.
-    page.set_visible(true).unwrap();
-    page.set_visible(false).unwrap();
+    // The browser closes the way a user would close it, and its throwaway profile goes with it.
 
     // Stop ends the process at once; the throwaway profile is removed on drop.
     b.kill();

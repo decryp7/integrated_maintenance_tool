@@ -9,7 +9,7 @@
 //! leak guard first; with workspace data in it the user confirms (or edits) it before anything is searched.
 
 use super::hub::BrowserHub;
-use super::renderer::ChromiumPage;
+use super::renderer::{ChromiumPage, Finish};
 use super::ActivityLog;
 use crate::ai::error::{AiCmdError, AiErrorCode, AiResult};
 use crate::jobs::{self, Controls, Done, JobCtx, JobId, JobKind, JobLink, JobProgress, JobResult, JobSpec};
@@ -104,7 +104,11 @@ fn spec(owner: &str, req: &ResearchRequest, session: Option<&str>) -> JobSpec {
 }
 
 /// One research on the job's thread: holds the window's browser for the run (no chat may drive it meanwhile).
-fn run_research<R: Runtime>(app: &AppHandle<R>, owner: &str, req: &ResearchRequest, ctx: &JobCtx) -> AiResult<ResearchReport> {
+///
+/// When it ends (done, cancelled or failed) the browser window is closed, unless the user took part in it (a page
+/// needed them, or they used the window): then it stays open, the window is told (`researchBrowserKept`) and the
+/// returned [`Finish`] says so, so the chat can tell the user and offer to close it.
+fn run_research<R: Runtime>(app: &AppHandle<R>, owner: &str, req: &ResearchRequest, ctx: &JobCtx) -> AiResult<(ResearchReport, Finish)> {
     let core = crate::ai::commands::core(app)?;
     let assistant = core.assistant(&crate::ai::knowledge::project_of(app, owner), ctx.cancel_flag())?;
     let hub: Arc<BrowserHub> = app
@@ -122,10 +126,10 @@ fn run_research<R: Runtime>(app: &AppHandle<R>, owner: &str, req: &ResearchReque
     super::driving::refresh(app, owner);
     let (h2, o2, k2) = (hub.clone(), owner.to_string(), key.clone());
     let may_drive: Option<Box<dyn Fn() -> bool + Send + Sync>> = Some(Box::new(move || h2.is_driving(&o2, &k2)));
-    // Research keeps the window off screen; a page that needs the user (consent, CAPTCHA) comes to the front.
-    let reader = super::page_for(app, owner, false, None, None).ok_or_else(|| AiCmdError::unavailable("the browser is not available"))?;
+    // Research opens a normal browser window on screen; a page that needs the user (consent, CAPTCHA) waits in it.
+    let reader = super::page_for(app, owner, None, None).ok_or_else(|| AiCmdError::unavailable("the browser is not available"))?;
     let driver = ReadOnlyDriver {
-        page: super::page_for(app, owner, false, may_drive, Some(control.clone()))
+        page: super::page_for(app, owner, may_drive, Some(control.clone()))
             .ok_or_else(|| AiCmdError::unavailable("the browser is not available"))?,
         control: control.clone(),
     };
@@ -156,8 +160,16 @@ fn run_research<R: Runtime>(app: &AppHandle<R>, owner: &str, req: &ResearchReque
     hub.forget_chat(owner, &key);
     // Finished, failed or cancelled: the browser is the user's again.
     super::driving::refresh(app, owner);
-    r.map_err(AiCmdError::from)
+    let finish = super::renderers(app).map_or(Finish::NotRunning, |r| r.finish(owner));
+    if finish == Finish::KeptOpen {
+        super::emit(app, owner, super::BrowserEvent::ResearchBrowserKept);
+    }
+    r.map(|report| (report, finish)).map_err(AiCmdError::from)
 }
+
+/// What the chat says when the browser window was left open because the user took part in it.
+pub(super) const KEPT_OPEN_NOTE: &str =
+    "The research browser window was left open because you used it (a sign-in, a check or your own browsing). Close it when you are done.";
 
 /// A chat turn's `web_research`: runs the research as a job and waits for it (the turn shows the tool running;
 /// the Jobs pane shows the research with its pages).
@@ -189,7 +201,7 @@ impl<R: Runtime> Researcher for TurnResearcher<R> {
                 spec(&self.owner, &req, Some(&self.chat)),
                 Controls::default(),
                 move |ctx: &JobCtx| -> AiResult<Done<ResearchReport>> {
-                    let report = run_research(&app, &owner, &r2, ctx)?;
+                    let (report, _) = run_research(&app, &owner, &r2, ctx)?;
                     Ok(Done::new(report))
                 },
             )
@@ -269,7 +281,10 @@ pub(crate) fn start<R: Runtime>(
         super::driving::refresh(&h, &owner);
     });
     jobs::spawn(app, spec, controls, move |ctx: &JobCtx| -> AiResult<Done<()>> {
-        let report = run_research(&a, w.label(), &req, ctx)?;
+        let (mut report, finish) = run_research(&a, w.label(), &req, ctx)?;
+        if finish == Finish::KeptOpen {
+            report.answer = format!("{}\n\n{KEPT_OPEN_NOTE}", report.answer);
+        }
         let sid = record_in_chat(&a, &w, &emit, session.as_deref(), &req.question, &report)?;
         Ok(Done::new(()).with_result(JobResult::Chat { session_id: sid }))
     })

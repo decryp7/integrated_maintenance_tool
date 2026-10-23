@@ -18,6 +18,10 @@ zip = { workspace = true }
 # A small synchronous WebSocket client for the DevTools endpoint on 127.0.0.1 (MIT OR Apache-2.0).
 tungstenite = { version = "0.30", default-features = false, features = ["handshake"] }
 
+[features]
+# A fake DevTools browser for tests of this crate and of the apps that drive it.
+test-support = []
+
 [dev-dependencies]
 tempfile = { workspace = true }
 

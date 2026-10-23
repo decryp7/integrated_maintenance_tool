@@ -76,6 +76,8 @@ tokio = { workspace = true, features = ["sync", "time"] }
 
 [dev-dependencies]
 tempfile.workspace = true
+# The fake DevTools browser for the research browser's tests (never a real browser).
+chromium-driver = { path = "../../crates/chromium-driver", features = ["test-support"] }
 # The store in process for the shell's tests (the real adapter on a temp folder).
 debrief-store-duck = { path = "../../crates/debrief-store-duck" }
 # The profile importers as a library, for the profiling store's tests (in Debrief they run in the profiling plugin's process).

@@ -10,9 +10,11 @@ interface ChatBrowserState {
   sources: Record<string, SourceInfo[]>;
   error: string | null;
   busy: boolean;
+  /** Research ended but its browser window was left open because the user used it: offer Close or Keep. */
+  researchBrowserKept: boolean;
 }
 
-const initial: ChatBrowserState = { statuses: {}, sources: {}, error: null, busy: false };
+const initial: ChatBrowserState = { statuses: {}, sources: {}, error: null, busy: false, researchBrowserKept: false };
 
 function message(e: unknown): string {
   if (typeof e === 'string') return e;
@@ -53,7 +55,20 @@ export const ChatBrowserStore = signalStore(
           setStatus(s);
         } else if (e.type === 'sources') {
           setSources(e.sessionId, e.sources);
+        } else if (e.type === 'researchBrowserKept') {
+          patchState(store, { researchBrowserKept: true });
         }
+      },
+
+      /** "Close it": the engine closes the research browser (gracefully, then by force) and removes its profile. */
+      async closeResearchBrowser(): Promise<void> {
+        patchState(store, { researchBrowserKept: false });
+        await run(() => backend.closeResearchBrowser());
+      },
+
+      /** "Keep it": leaves the window open and stops asking. */
+      keepResearchBrowser(): void {
+        patchState(store, { researchBrowserKept: false });
       },
 
       statusOf(id: string | null): ChatBrowserStatus | null {

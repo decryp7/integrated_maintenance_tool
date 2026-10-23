@@ -7,7 +7,7 @@
 //! research log. Nothing is ever injected into a page.
 
 use chromium_driver::cue::{window_title, Activity};
-use chromium_driver::launch::{LaunchOptions, Profile, Visibility};
+use chromium_driver::launch::{LaunchOptions, Profile};
 use chromium_driver::{Chromium, Error as DriverError, Page};
 use debrief_ai::browser::policy::ScrollDirection;
 use debrief_ai::browser::{
@@ -17,6 +17,7 @@ use debrief_ai::browser::{
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
@@ -25,6 +26,13 @@ pub const ACCENT: u32 = 0x2F6FE0;
 const LOAD_TIMEOUT: Duration = Duration::from_secs(30);
 const SETTLE: Duration = Duration::from_millis(400);
 const ACT_LOAD_TIMEOUT: Duration = Duration::from_secs(15);
+/// How long a closing browser may take to exit by itself before it is ended by force.
+#[cfg(not(test))]
+const CLOSE_GRACE: Duration = Duration::from_secs(3);
+#[cfg(test)]
+const CLOSE_GRACE: Duration = Duration::from_millis(600);
+/// The shorter grace when Debrief itself is quitting (the teardown step has a limit).
+pub const QUIT_GRACE: Duration = Duration::from_millis(1200);
 /// How long a challenge page may wait for the user.
 #[cfg(not(test))]
 const CHALLENGE_WAIT: Duration = Duration::from_secs(10 * 60);
@@ -54,26 +62,20 @@ impl Sources {
     }
 }
 
-/// One window's running browser and its page.
+/// One window's running browser and its page. The window is a normal one on screen; Debrief never moves or hides it.
 pub struct Session {
     chromium: Mutex<Chromium>,
     page: Page,
-    visible: std::sync::atomic::AtomicBool,
+    /// A page needed the user (a check, consent, a sign-in): they used the window, so it is not closed behind their back.
+    handed_off: AtomicBool,
+    /// The address the AI last navigated to (after redirects); a different one later means the user navigated.
+    last_url: Mutex<Option<String>>,
 }
 
 impl Session {
     #[cfg(test)]
     pub fn page(&self) -> &Page {
         &self.page
-    }
-
-    fn show(&self, on: bool) {
-        use std::sync::atomic::Ordering::SeqCst;
-        if self.visible.swap(on, SeqCst) != on {
-            if let Err(e) = self.page.set_visible(on) {
-                log::warn!("The browser window could not be moved: {e}");
-            }
-        }
     }
 
     fn running(&self) -> bool {
@@ -84,10 +86,44 @@ impl Session {
         crate::sync::lock(&self.chromium).kill();
     }
 
+    /// Closes the browser (gracefully, then by force) and removes its throwaway profile.
+    fn close(&self, grace: Duration) {
+        crate::sync::lock(&self.chromium).close_gracefully(grace);
+    }
+
+    fn remember_url(&self) {
+        if let Ok(i) = self.page.info() {
+            *crate::sync::lock(&self.last_url) = Some(i.url);
+        }
+    }
+
+    /// The user took part in this browser: a page needed them, they navigated the page, or they opened another one.
+    fn user_took_part(&self) -> bool {
+        if self.handed_off.load(Ordering::SeqCst) {
+            return true;
+        }
+        let moved = match (crate::sync::lock(&self.last_url).as_ref(), self.page.info()) {
+            (Some(last), Ok(now)) => *last != now.url,
+            _ => false,
+        };
+        moved || crate::sync::lock(&self.chromium).page_count().is_ok_and(|n| n > 1)
+    }
+
     #[cfg(test)]
     pub fn pid(&self) -> Option<u32> {
         crate::sync::lock(&self.chromium).pid()
     }
+}
+
+/// What happened to a window's browser when its work ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Finish {
+    /// There was no browser.
+    NotRunning,
+    /// The browser was closed and its profile removed.
+    Closed,
+    /// The user took part (a page needed them, or they used the window): it stays open until they close it.
+    KeptOpen,
 }
 
 /// The renderers of the open windows.
@@ -111,13 +147,10 @@ impl Renderers {
         crate::sync::write(&self.sources).installed = p;
     }
 
-    /// The window's session, started when needed. `visible` brings the window on screen (never hides one that is).
-    pub fn session(&self, owner: &str, visible: bool) -> Result<Arc<Session>, BrowserError> {
+    /// The window's session, started on screen when needed.
+    pub fn session(&self, owner: &str) -> Result<Arc<Session>, BrowserError> {
         let mut map = crate::sync::lock(&self.sessions);
         if let Some(s) = map.get(owner).filter(|s| s.running()).cloned() {
-            if visible {
-                s.show(true);
-            }
             return Ok(s);
         }
         map.remove(owner);
@@ -128,19 +161,16 @@ impl Renderers {
         })?;
         let opts = LaunchOptions {
             profile: Profile::Throwaway,
-            visibility: if visible { Visibility::OnScreen } else { Visibility::OffScreen },
             accent: Some(ACCENT),
             ..LaunchOptions::default()
         };
         let chromium = Chromium::launch(&exe, &opts).map_err(failed)?;
         let page = chromium.new_page().map_err(failed)?;
-        if !visible {
-            let _ = page.block_heavy(true);
-        }
         let s = Arc::new(Session {
             chromium: Mutex::new(chromium),
             page,
-            visible: std::sync::atomic::AtomicBool::new(visible),
+            handed_off: AtomicBool::new(false),
+            last_url: Mutex::new(None),
         });
         map.insert(owner.to_string(), s.clone());
         Ok(s)
@@ -154,6 +184,32 @@ impl Renderers {
     pub fn kill(&self, owner: &str) -> bool {
         let s = crate::sync::lock(&self.sessions).remove(owner);
         s.map(|s| s.kill()).is_some()
+    }
+
+    /// Research ended: closes the window's browser unless the user took part in it.
+    pub fn finish(&self, owner: &str) -> Finish {
+        let Some(s) = self.current(owner) else { return Finish::NotRunning };
+        if s.user_took_part() {
+            return Finish::KeptOpen;
+        }
+        crate::sync::lock(&self.sessions).remove(owner);
+        s.close(CLOSE_GRACE);
+        Finish::Closed
+    }
+
+    /// Closes the window's browser whatever happened in it (the user asked); true when one was running.
+    pub fn close(&self, owner: &str) -> bool {
+        let s = crate::sync::lock(&self.sessions).remove(owner);
+        s.map(|s| s.close(CLOSE_GRACE)).is_some()
+    }
+
+    /// Debrief quits: every browser is closed (gracefully for `grace`, then by force).
+    pub fn close_all(&self, grace: Duration) {
+        let all: Vec<_> = crate::sync::lock(&self.sessions).drain().map(|(_, s)| s).collect();
+        let handles: Vec<_> = all.into_iter().map(|s| std::thread::spawn(move || s.close(grace))).collect();
+        for h in handles {
+            let _ = h.join();
+        }
     }
 
     pub fn kill_all(&self) {
@@ -191,8 +247,6 @@ pub struct Cue {
 pub struct ChromiumPage {
     pub renderers: Arc<Renderers>,
     pub owner: String,
-    /// Show the window on screen (read-along, agent); research keeps it off screen until a page needs the user.
-    pub on_screen: bool,
     pub may_drive: Option<Box<dyn Fn() -> bool + Send + Sync>>,
     /// Site rules of the driving chat, checked after every navigation.
     pub rules: Option<Arc<ChatBrowser>>,
@@ -202,7 +256,7 @@ pub struct ChromiumPage {
 
 impl ChromiumPage {
     fn session(&self) -> Result<Arc<Session>, BrowserError> {
-        self.renderers.session(&self.owner, self.on_screen)
+        self.renderers.session(&self.owner)
     }
 
     fn cue(&self, activity: Activity, url: &str) {
@@ -237,14 +291,13 @@ impl ChromiumPage {
         }
     }
 
-    /// A challenge page (consent, CAPTCHA) comes to the front for the user; once it is gone the page goes back to
-    /// where it was and the work continues.
+    /// A challenge page (consent, CAPTCHA) waits for the user in the browser window, which is already on screen; once
+    /// it is gone the work continues. The user took part, so the window is not closed when the work ends.
     fn hand_off_challenges(&self, s: &Session) -> Result<(), BrowserError> {
         if s.page.challenge().ok().flatten().is_none() {
             return Ok(());
         }
-        let was_visible = s.visible.load(std::sync::atomic::Ordering::SeqCst);
-        s.show(true);
+        s.handed_off.store(true, Ordering::SeqCst);
         let url = s.page.info().map(|i| i.url).unwrap_or_default();
         self.cue(Activity::WaitingForYou, &url);
         let end = Instant::now() + CHALLENGE_WAIT;
@@ -263,9 +316,6 @@ impl ChromiumPage {
                 }
                 Ok(Some(_)) => {}
             }
-        }
-        if !was_visible && !self.on_screen {
-            s.show(false);
         }
         Ok(())
     }
@@ -288,6 +338,7 @@ impl ChromiumPage {
                 )));
             }
         }
+        s.remember_url();
         self.cue(activity, &url);
         Ok(())
     }
@@ -376,7 +427,7 @@ mod tests {
             installed: None,
         });
         if chromium_driver::find_for_tests().is_none() {
-            let e = r.session("main", false).err().unwrap();
+            let e = r.session("main").err().unwrap();
             assert!(e.to_string().contains("Settings"));
         }
         assert!(!r.kill("main"));
@@ -398,6 +449,148 @@ mod tests {
             installed: Some(b.clone()),
         };
         assert_eq!(s.resolve().unwrap().path, b);
+    }
+
+    // ---- a fake browser (never a real one): the whole open/close life cycle ----
+
+    /// Not a test: the fake browser process re-runs this binary on this function.
+    #[test]
+    fn fake_browser_process() {
+        chromium_driver::fake::serve_if_requested();
+    }
+
+    #[cfg(unix)]
+    mod fake {
+        use super::*;
+        use chromium_driver::fake::{FakeBrowser, Mode};
+
+        struct Rig {
+            _dir: tempfile::TempDir,
+            fake: FakeBrowser,
+            renderers: Arc<Renderers>,
+            page: ChromiumPage,
+        }
+
+        fn rig(mode: Mode, tabs: usize) -> Rig {
+            let dir = tempfile::tempdir().unwrap();
+            let fake = FakeBrowser::install(dir.path(), "browser::renderer::tests::fake_browser_process", mode, tabs).unwrap();
+            let renderers = Arc::new(Renderers::default());
+            renderers.set_sources(Sources {
+                configured: Some(fake.exe.clone()),
+                installed: None,
+            });
+            let page = ChromiumPage {
+                renderers: renderers.clone(),
+                owner: "main".into(),
+                may_drive: Some(Box::new(|| true)),
+                rules: None,
+                product: "Debrief".into(),
+                notify: Arc::new(|_| {}),
+            };
+            Rig {
+                _dir: dir,
+                fake,
+                renderers,
+                page,
+            }
+        }
+
+        fn research_step(r: &Rig) -> (std::path::PathBuf, u32) {
+            r.page
+                .navigate(&WebUrl::parse("http://127.0.0.1:9/results").unwrap())
+                .expect("navigates");
+            let s = r.renderers.current("main").expect("running");
+            let dir = crate::sync::lock(&s.chromium).profile_dir().to_path_buf();
+            (dir, s.pid().unwrap())
+        }
+
+        fn gone(pid: u32) -> bool {
+            (0..40).any(|_| {
+                std::thread::sleep(Duration::from_millis(50));
+                !chromium_driver::process::process_exists(pid)
+            })
+        }
+
+        #[test]
+        fn the_browser_opens_on_screen_with_no_offscreen_or_headless_arguments() {
+            let r = rig(Mode::Obey, 1);
+            research_step(&r);
+            let args = r.fake.args();
+            assert!(args.iter().any(|a| a.starts_with("--user-data-dir=")), "{args:?}");
+            assert!(
+                !args
+                    .iter()
+                    .any(|a| a.contains("window-position") || a.contains("headless") || a.contains("-32000")),
+                "{args:?}"
+            );
+            r.renderers.kill_all();
+        }
+
+        #[test]
+        fn finished_research_closes_the_browser_and_removes_its_profile() {
+            let r = rig(Mode::Obey, 1);
+            let (dir, pid) = research_step(&r);
+            assert!(dir.exists());
+            assert_eq!(r.renderers.finish("main"), Finish::Closed);
+            assert!(gone(pid), "the browser process ended");
+            assert!(!dir.exists(), "the throwaway profile is gone");
+            assert!(r.renderers.current("main").is_none());
+            assert_eq!(r.renderers.finish("main"), Finish::NotRunning);
+        }
+
+        #[test]
+        fn a_browser_that_ignores_close_is_killed_after_the_timeout() {
+            let r = rig(Mode::IgnoreClose, 1);
+            let (dir, pid) = research_step(&r);
+            let start = Instant::now();
+            assert_eq!(r.renderers.finish("main"), Finish::Closed);
+            assert!(start.elapsed() < Duration::from_secs(10), "bounded");
+            assert!(gone(pid), "killed");
+            assert!(!dir.exists());
+        }
+
+        #[test]
+        fn a_page_that_needed_the_user_keeps_the_browser_open_until_they_close_it() {
+            let r = rig(Mode::Obey, 1);
+            let (dir, pid) = research_step(&r);
+            r.renderers.current("main").unwrap().handed_off.store(true, Ordering::SeqCst);
+            assert_eq!(r.renderers.finish("main"), Finish::KeptOpen);
+            assert!(chromium_driver::process::process_exists(pid) && dir.exists());
+            assert!(r.renderers.close("main"), "the user's Close");
+            assert!(gone(pid));
+            assert!(!dir.exists());
+            assert!(!r.renderers.close("main"), "closing twice is harmless");
+        }
+
+        #[test]
+        fn the_user_navigating_the_page_keeps_the_browser_open() {
+            let r = rig(Mode::Obey, 1);
+            let (dir, _) = research_step(&r);
+            std::fs::write(&r.fake.url_file, "https://example.org/the-user-went-here").unwrap();
+            assert_eq!(r.renderers.finish("main"), Finish::KeptOpen);
+            assert!(dir.exists());
+            r.renderers.kill_all();
+        }
+
+        #[test]
+        fn a_page_the_user_opened_keeps_the_browser_open() {
+            let r = rig(Mode::Obey, 2);
+            research_step(&r);
+            assert_eq!(r.renderers.finish("main"), Finish::KeptOpen);
+            r.renderers.kill_all();
+        }
+
+        #[test]
+        fn quitting_closes_every_browser_even_one_the_user_kept() {
+            let r = rig(Mode::Obey, 1);
+            let (dir, pid) = research_step(&r);
+            r.renderers.current("main").unwrap().handed_off.store(true, Ordering::SeqCst);
+            assert_eq!(r.renderers.finish("main"), Finish::KeptOpen);
+            r.renderers.close_all(QUIT_GRACE);
+            assert!(gone(pid));
+            assert!(!dir.exists());
+            assert!(r.renderers.current("main").is_none());
+        }
     }
 
     // ---- a real browser, when the machine has one (skipped otherwise) ----
@@ -429,7 +622,7 @@ mod tests {
 
     type Live = (Arc<Renderers>, ChromiumPage, Arc<Mutex<Vec<Cue>>>);
 
-    fn live_page(on_screen: bool) -> Option<Live> {
+    fn live_page() -> Option<Live> {
         chromium_driver::find_for_tests()?;
         let renderers = Arc::new(Renderers::default());
         let seen = Arc::new(Mutex::new(Vec::new()));
@@ -437,7 +630,6 @@ mod tests {
         let page = ChromiumPage {
             renderers: renderers.clone(),
             owner: "main".into(),
-            on_screen,
             may_drive: Some(Box::new(|| true)),
             rules: None,
             product: "Debrief".into(),
@@ -448,7 +640,7 @@ mod tests {
 
     #[test]
     fn reads_a_scripted_page_through_the_ports_with_nothing_of_ours_in_it() {
-        let Some((renderers, page, seen)) = live_page(false) else { return };
+        let Some((renderers, page, seen)) = live_page() else { return };
         let port = serve();
         let url = WebUrl::parse(&format!("http://127.0.0.1:{port}/")).unwrap();
         page.navigate(&url).expect("navigate");
@@ -494,7 +686,7 @@ mod tests {
 
     #[test]
     fn a_challenge_page_comes_to_the_front_and_the_work_continues_when_it_is_solved() {
-        let Some((renderers, page, seen)) = live_page(false) else { return };
+        let Some((renderers, page, seen)) = live_page() else { return };
         let port = serve();
         let url = WebUrl::parse(&format!("http://127.0.0.1:{port}/check")).unwrap();
         page.navigate(&url).expect("navigates once the check is gone");

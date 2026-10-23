@@ -142,7 +142,6 @@ fn read(
     let page = |drive: bool| ChromiumPage {
         renderers: renderers.clone(),
         owner: "live".into(),
-        on_screen: false,
         may_drive: drive.then(|| Box::new(|| true) as Box<dyn Fn() -> bool + Send + Sync>),
         rules: Some(control.clone()),
         product: "Debrief".into(),

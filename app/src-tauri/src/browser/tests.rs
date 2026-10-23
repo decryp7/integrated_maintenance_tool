@@ -288,3 +288,14 @@ fn stop_ends_every_hold_and_reports_whether_a_browser_ran() {
     );
     assert!(!hub.chat("main", &chat).may_act(), "the hold was stopped");
 }
+
+#[test]
+fn closing_the_research_browser_reports_whether_one_was_open() {
+    let app = test_app_with_commands(None);
+    let main = window(&app, "main");
+    assert_eq!(
+        ipc(&main, "research_browser_close", json!({})).unwrap(),
+        json!(false),
+        "no research browser was open"
+    );
+}

@@ -12,13 +12,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Visibility {
-    /// Headful but moved off screen.
-    OffScreen,
-    OnScreen,
-}
-
 #[derive(Debug, Clone)]
 pub enum Profile {
     /// A fresh directory, deleted when the browser ends.
@@ -30,7 +23,6 @@ pub enum Profile {
 #[derive(Debug, Clone)]
 pub struct LaunchOptions {
     pub profile: Profile,
-    pub visibility: Visibility,
     /// Window frame colour as `0xRRGGBB` (best effort; see [`theme_preferences`]).
     pub accent: Option<u32>,
     /// The browser is ended after this long, whatever it does.
@@ -41,7 +33,6 @@ impl Default for LaunchOptions {
     fn default() -> Self {
         LaunchOptions {
             profile: Profile::Throwaway,
-            visibility: Visibility::OffScreen,
             accent: None,
             max_lifetime: Duration::from_secs(30 * 60),
         }
@@ -49,8 +40,9 @@ impl Default for LaunchOptions {
 }
 
 /// The command-line arguments. `--enable-automation` keeps Chrome's "controlled by automated test software"
-/// banner and `navigator.webdriver = true`; nothing hides either.
-pub fn args(data_dir: &Path, visibility: Visibility) -> Vec<String> {
+/// banner and `navigator.webdriver = true`; nothing hides either. The window opens on screen like any other:
+/// no off-screen position and no headless mode.
+pub fn args(data_dir: &Path) -> Vec<String> {
     let mut a = vec![
         "--remote-debugging-port=0".to_string(),
         format!("--user-data-dir={}", data_dir.display()),
@@ -63,9 +55,6 @@ pub fn args(data_dir: &Path, visibility: Visibility) -> Vec<String> {
         "--use-mock-keychain".into(),
         "--window-size=1100,800".into(),
     ];
-    if visibility == Visibility::OffScreen {
-        a.push("--window-position=-32000,-32000".into());
-    }
     a.push("about:blank".into());
     a
 }
@@ -141,7 +130,7 @@ impl Chromium {
             }
         }
         let mut cmd = std::process::Command::new(&exe.path);
-        cmd.args(args(&dir, opts.visibility))
+        cmd.args(args(&dir))
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null());
@@ -208,6 +197,31 @@ impl Chromium {
         Page::attach(self.conn.clone())
     }
 
+    /// The number of open pages (tabs and windows) of the browser; a page the user opened shows up here.
+    pub fn page_count(&self) -> Result<usize> {
+        let r = self.conn.call(None, "Target.getTargets", json!({}), Duration::from_secs(5))?;
+        Ok(r.get("targetInfos").and_then(Value::as_array).map_or(0, |t| {
+            t.iter().filter(|i| i.get("type").and_then(Value::as_str) == Some("page")).count()
+        }))
+    }
+
+    /// Closes the browser the way a user would (`Browser.close`), waits up to `grace` for it to exit, ends it by force
+    /// when it does not, and removes a throwaway profile. Returns true when it exited by itself.
+    pub fn close_gracefully(&mut self, grace: Duration) -> bool {
+        self.alive.store(false, Ordering::Release);
+        let _ = self.conn.call(None, "Browser.close", json!({}), grace.min(Duration::from_secs(2)));
+        let end = Instant::now() + grace;
+        let mut exited = !self.process.is_running();
+        while !exited && Instant::now() < end {
+            std::thread::sleep(Duration::from_millis(25));
+            exited = !self.process.is_running();
+        }
+        // Whatever is left of the process tree (helpers, or the browser itself when it ignored the request) ends now.
+        self.process.kill();
+        cleanup(&self.dir, self.throwaway);
+        exited
+    }
+
     /// Ends the browser at once.
     pub fn kill(&mut self) {
         self.alive.store(false, Ordering::Release);
@@ -270,20 +284,19 @@ mod tests {
 
     #[test]
     fn keeps_the_automation_banner_and_hides_nothing() {
-        let a = args(Path::new("/tmp/p"), Visibility::OffScreen);
+        let a = args(Path::new("/tmp/p"));
         assert!(a.contains(&"--enable-automation".to_string()));
         assert!(a
             .iter()
             .all(|x| !x.contains("AutomationControlled") && !x.contains("user-agent") && !x.contains("headless")));
-        assert!(a.contains(&"--window-position=-32000,-32000".to_string()));
         assert!(a.contains(&"--user-data-dir=/tmp/p".to_string()));
     }
 
     #[test]
-    fn on_screen_has_no_offscreen_position() {
-        assert!(!args(Path::new("/p"), Visibility::OnScreen)
+    fn the_window_opens_on_screen() {
+        assert!(!args(Path::new("/p"))
             .iter()
-            .any(|x| x.starts_with("--window-position")));
+            .any(|x| x.starts_with("--window-position") || x.contains("headless") || x.contains("offscreen")));
     }
 
     #[test]
@@ -297,6 +310,67 @@ mod tests {
         assert_eq!(v["x"], 2);
         assert_eq!(v["browser"]["theme"]["user_color2"], 0xFF336699u32 as i32);
         assert_eq!(v["browser"]["theme"]["user_color"], v["browser"]["theme"]["user_color2"]);
+    }
+
+    /// Not a test: the fake browser process re-runs this binary on this function (see [`crate::fake`]).
+    #[test]
+    fn fake_browser_process() {
+        crate::fake::serve_if_requested();
+    }
+
+    #[cfg(unix)]
+    fn launch_fake(mode: crate::fake::Mode, tabs: usize) -> (tempfile::TempDir, crate::fake::FakeBrowser, Chromium) {
+        let d = tempfile::tempdir().unwrap();
+        let fake = crate::fake::FakeBrowser::install(d.path(), "launch::tests::fake_browser_process", mode, tabs).unwrap();
+        let exe = Browser {
+            flavor: crate::Flavor::Chromium,
+            path: fake.exe.clone(),
+        };
+        let b = Chromium::launch(&exe, &LaunchOptions::default()).expect("the fake starts");
+        (d, fake, b)
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_launch_command_line_has_no_offscreen_or_headless_argument() {
+        let (_d, fake, b) = launch_fake(crate::fake::Mode::Obey, 1);
+        let args = fake.args();
+        assert!(args.iter().any(|a| a.starts_with("--user-data-dir=")));
+        assert!(args.iter().any(|a| a == "--enable-automation"));
+        assert!(!args
+            .iter()
+            .any(|a| a.contains("window-position") || a.contains("headless") || a.contains("-32000")));
+        drop(b);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn close_gracefully_lets_the_browser_exit_and_removes_the_profile() {
+        let (_d, _fake, mut b) = launch_fake(crate::fake::Mode::Obey, 1);
+        let (dir, pid) = (b.profile_dir().to_path_buf(), b.pid().unwrap());
+        assert!(dir.exists());
+        assert!(b.close_gracefully(Duration::from_secs(5)), "it exited by itself");
+        assert!(!dir.exists(), "the throwaway profile is gone");
+        assert!(!crate::process::process_exists(pid) || !b.is_running());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_browser_that_ignores_close_is_killed_after_the_timeout() {
+        let (_d, _fake, mut b) = launch_fake(crate::fake::Mode::IgnoreClose, 1);
+        let dir = b.profile_dir().to_path_buf();
+        let start = Instant::now();
+        assert!(!b.close_gracefully(Duration::from_millis(400)), "it had to be ended by force");
+        assert!(start.elapsed() < Duration::from_secs(5), "bounded");
+        assert!(!b.is_running());
+        assert!(!dir.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn page_count_sees_the_pages_the_browser_has() {
+        let (_d, _fake, b) = launch_fake(crate::fake::Mode::Obey, 3);
+        assert_eq!(b.page_count().unwrap(), 3);
     }
 
     #[test]
