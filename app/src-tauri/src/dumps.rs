@@ -109,6 +109,10 @@ impl DumpImporter for GuardedImporter {
 struct FileAt {
     file: std::fs::File,
     len: u64,
+    /// Set by the open job's Cancel: the next read fails and the import stops.
+    cancel: Arc<std::sync::atomic::AtomicBool>,
+    /// The furthest byte read so far (the open job's byte progress).
+    reached: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl ReadAt for FileAt {
@@ -117,6 +121,9 @@ impl ReadAt for FileAt {
     }
 
     fn read_at(&self, offset: u64, len: usize) -> std::io::Result<Vec<u8>> {
+        if self.cancel.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "cancelled"));
+        }
         let want = usize::try_from(self.len.saturating_sub(offset)).unwrap_or(usize::MAX).min(len);
         let mut buf = vec![0u8; want];
         let mut done = 0;
@@ -131,6 +138,9 @@ impl ReadAt for FileAt {
             done += n;
         }
         buf.truncate(done);
+        if done > 0 {
+            self.reached.fetch_max(offset + done as u64, std::sync::atomic::Ordering::Relaxed);
+        }
         Ok(buf)
     }
 }
@@ -222,13 +232,44 @@ pub async fn dumps_open<R: tauri::Runtime>(
     let docs = state.dumps.docs.clone();
     let label = state.label().to_string();
     let symbols = crate::symbols::of(&app);
-    tauri::async_runtime::spawn_blocking(move || {
-        let granted = grants.read_file(&path, &[])?;
-        let canonical = granted.path().to_path_buf();
+    // Opening is a job (a big dump or UMDH log takes a while): Jobs shows the phase and the bytes read, and Cancel
+    // stops the reader at its next read. The grant is checked first, so a refused path never becomes a job.
+    let granted = grants.read_file(&path, &[])?;
+    let canonical = granted.path().to_path_buf();
+    let title = canonical.file_name().map_or_else(|| path.clone(), |n| n.to_string_lossy().into_owned());
+    let spec = crate::jobs::JobSpec::new(crate::jobs::JobKind::Import, format!("Open {title}"))
+        .window(state.label())
+        .link(crate::jobs::JobLink::Path { path: canonical.display().to_string() });
+    let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let reached = Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let total_len = std::fs::metadata(&canonical).map_or(0, |m| m.len());
+    let controls = crate::jobs::Controls::cancel({
+        let c = cancel.clone();
+        move || c.store(true, std::sync::atomic::Ordering::Relaxed)
+    })
+    .with_probe({
+        let r = reached.clone();
+        move || {
+            Some(crate::jobs::JobProgress::in_phase(
+                "Reading the file",
+                crate::jobs::PhaseScale::Bytes,
+                r.load(std::sync::atomic::Ordering::Relaxed),
+                total_len,
+            ))
+        }
+    });
+    let app2 = app.clone();
+    crate::jobs::run(&app2, spec, controls, move |ctx: &crate::jobs::JobCtx| -> CmdResult<crate::jobs::Done<DumpDocSummary>> {
+        ctx.phase("Opening the file", crate::jobs::PhaseScale::Indeterminate, 0, 0);
         let file = std::fs::File::open(&canonical).map_err(|e| io_error("open", &canonical, &e))?;
         let meta = file.metadata().map_err(|e| io_error("read", &canonical, &e))?;
         let name = canonical.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-        let source = Arc::new(FileAt { file, len: meta.len() });
+        let source = Arc::new(FileAt {
+            file,
+            len: meta.len(),
+            cancel: cancel.clone(),
+            reached,
+        });
         let head = source.read_at(0, SNIFF_BYTES).map_err(|e| io_error("read", &canonical, &e))?;
         let (importer, limits) = {
             let d = crate::sync::read(&docs);
@@ -259,7 +300,13 @@ pub async fn dumps_open<R: tauri::Runtime>(
                 .map(|d| vec![d.to_string_lossy().into_owned()])
                 .unwrap_or_default(),
         };
-        let doc = importer.import(&name, source.clone(), &options).map_err(cmd_error)?;
+        let doc = match importer.import(&name, source.clone(), &options) {
+            Ok(d) => d,
+            Err(_) if cancel.load(std::sync::atomic::Ordering::Relaxed) => {
+                return Err(CmdError::new(ErrorCode::Cancelled, "cancelled"));
+            }
+            Err(e) => return Err(cmd_error(e)),
+        };
         // The dump opens now with what is there. Its missing PDBs are asked of the user's symbol servers (when they
         // turned them on) by a job after it is open, which reads the dump again when they arrive.
         let (doc, download) = match symbols.begin(doc, limits.max_text) {
@@ -280,10 +327,9 @@ pub async fn dumps_open<R: tauri::Runtime>(
             };
             let _ = start_symbols_job(&app, target, download, reimport);
         }
-        Ok(summary)
+        Ok(crate::jobs::Done::new(summary))
     })
     .await
-    .map_err(join_error)?
 }
 
 /// Event to the window when the symbols of one of its dumps changed (the PDBs arrived, or the download ended).
@@ -493,10 +539,15 @@ mod tests {
         let f = FileAt {
             file: std::fs::File::open(&p).unwrap(),
             len: 10,
+            cancel: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            reached: Arc::new(std::sync::atomic::AtomicU64::new(0)),
         };
         assert_eq!(f.read_at(8, 100).unwrap(), b"89");
         assert!(f.read_at(20, 4).unwrap().is_empty());
         assert_eq!(ReadAt::len(&f), 10);
+        assert_eq!(f.reached.load(std::sync::atomic::Ordering::Relaxed), 10, "the job's byte progress follows the reads");
+        f.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        assert_eq!(f.read_at(0, 2).unwrap_err().kind(), std::io::ErrorKind::Interrupted, "Cancel stops the reader");
         let _ = std::fs::remove_dir_all(dir);
     }
 
