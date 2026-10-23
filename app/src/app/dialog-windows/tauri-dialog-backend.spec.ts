@@ -44,7 +44,7 @@ describe('TauriDialogBackend', () => {
     const s = backend.show(request());
     await tick();
     expect(io.opened).toHaveLength(1);
-    expect(io.opened[0]).toMatchObject({ dialogId: 'settings', title: 'Settings', modality: 'modeless', input: { section: 'x' }, width: 900, bounds: undefined });
+    expect(io.opened[0]).toMatchObject({ dialogId: 'settings', title: 'Settings', input: { section: 'x' }, width: 900, bounds: undefined });
     expect(labels.labels()).toEqual(['d-main-1']);
     io.result('d-main-1', 'settings', { ok: 1 });
     io.closed('d-main-1', 'settings');
@@ -52,11 +52,22 @@ describe('TauriDialogBackend', () => {
     expect(labels.labels()).toEqual([]);
   });
 
-  it('tells the engine which modal has no Cancel, so a close request cannot drop it', async () => {
+  it('leaves modality and the required choice to the engine, which reads them from the dialog contract', async () => {
     const { io, backend } = setup();
     backend.show(request('close-prompt'));
     await tick();
-    expect(io.opened[0]).toMatchObject({ modality: 'modal', requiredChoice: true });
+    expect(io.opened[0]).toMatchObject({ dialogId: 'close-prompt' });
+    expect(Object.keys(io.opened[0]!)).not.toContain('modality');
+    expect(Object.keys(io.opened[0]!)).not.toContain('requiredChoice');
+  });
+
+  it('raises a remembered viewer size below 680x560 to the floor of its kind', async () => {
+    const { io, backend } = setup();
+    rememberDialogBounds('ai-narrative', { x: 10, y: 10, width: 400, height: 300 });
+    io.areas = [{ name: 'A', primary: true, x: 0, y: 0, width: 1920, height: 1080 }];
+    backend.show(request('ai-narrative'));
+    await tick();
+    expect(io.opened[0]!.bounds).toMatchObject({ width: 680, height: 560 });
   });
 
   it('resolves undefined when the window closed without a result, and ignores events of other windows and malformed ones', async () => {
@@ -69,8 +80,9 @@ describe('TauriDialogBackend', () => {
     io.closed('d-main-9', 'ai-setup');
     io.closed('d-main-1', 'ai-setup');
     expect(await s.closed).toBeUndefined();
-    expect(io.opened[0]!.modality).toBe('modal');
-    expect(io.opened[0]!.requiredChoice).toBeUndefined();
+    // Rust takes the modality and the required choice from the dialog's contract, not from the webview's request.
+    expect(Object.keys(io.opened[0]!)).not.toContain('modality');
+    expect(Object.keys(io.opened[0]!)).not.toContain('requiredChoice');
   });
 
   it('remembers where the window was and reopens there, kept on a visible monitor', async () => {

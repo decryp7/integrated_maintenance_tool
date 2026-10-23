@@ -13,7 +13,7 @@ import { describeWhen, moveRow, pruneIcons, uniqueKind, writeRows } from './mark
 import { MarkerProfile } from './marker-profile';
 import { MarkerRuleX, RuleRow } from './markers.types';
 import { MarkerOverrideDialog } from './marker-override-dialog';
-import { OverrideStyle, PluginKindRow, pluginRows, readOverrides, resetStyle, setOverride } from './marker-overrides';
+import { PluginKindRow, pluginRows, readOverrides, resetStyle, setOverride } from './marker-overrides';
 import { ProfileModel } from '../core/profile.model';
 import { RunsEditor } from './runs-editor';
 import { HighlightEditor } from '../projects/bookmarks/highlight-editor';
@@ -286,7 +286,7 @@ export class MarkersManager {
 
   protected async restyle(p: PluginKindRow): Promise<void> {
     const current = readOverrides(this.model()).find((o) => o.kind === p.kind) ?? { kind: p.kind };
-    const ref = this.dialogs.open<OverrideStyle>(MarkerOverrideDialog, {
+    const ref = this.dialogs.open(MarkerOverrideDialog, {
       title: $localize`:@@markers.manager.restyleTitle:Restyle "${p.label}:label:"`,
       inputs: { row: p, current },
       width: 560,

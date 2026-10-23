@@ -10477,7 +10477,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dialog-windows/dialog-shell.ts</context>
-          <context context-type="linenumber">69,72</context>
+          <context context-type="linenumber">73,75</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dialogWindow.loading" datatype="html">
@@ -10487,11 +10487,18 @@
           <context context-type="linenumber">61,63</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="dialogWindow.cancel" datatype="html">
+        <source>Cancel</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dialog-windows/dialog-shell.ts</context>
+          <context context-type="linenumber">71,72</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="dialogWindow.unknown" datatype="html">
         <source>This dialog is not known to this version of Debrief: <x id="id" equiv-text="this.route.id"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dialog-windows/dialog-shell.ts</context>
-          <context context-type="linenumber">195</context>
+          <context context-type="linenumber">201</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.panel.failed" datatype="html">
@@ -13499,273 +13506,273 @@
         <source>Everything you opened, at a glance</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">49,50</context>
+          <context context-type="linenumber">48,49</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.refresh" datatype="html">
         <source>Refresh</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">51</context>
+          <context context-type="linenumber">50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.refreshTitle" datatype="html">
         <source>Refresh</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">51</context>
+          <context context-type="linenumber">50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.rootCauses" datatype="html">
         <source>Root causes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">52</context>
+          <context context-type="linenumber">51</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.rootCausesHint" datatype="html">
         <source>The local model reads the findings and exceptions and lists the likely root causes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">52</context>
+          <context context-type="linenumber">51</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.region" datatype="html">
         <source>Home dashboard</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">54</context>
+          <context context-type="linenumber">53</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.quickActions" datatype="html">
         <source>Quick actions</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">55</context>
+          <context context-type="linenumber">54</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.openFiles" datatype="html">
         <source>Open files…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">56,57</context>
+          <context context-type="linenumber">55,56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.openFolder" datatype="html">
         <source>Open folder…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">57,58</context>
+          <context context-type="linenumber">56,57</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.openLast" datatype="html">
         <source>Open last project</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">59,61</context>
+          <context context-type="linenumber">58,60</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.openRecent" datatype="html">
         <source>Recent projects…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">61,64</context>
+          <context context-type="linenumber">60,63</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.empty" datatype="html">
         <source>Open files or a folder to see the dashboard here.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">65,67</context>
+          <context context-type="linenumber">64,66</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.summary" datatype="html">
         <source>Summary</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">69</context>
+          <context context-type="linenumber">68</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.events" datatype="html">
         <source>Events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">70</context>
+          <context context-type="linenumber">69</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.errors" datatype="html">
         <source>Errors</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">72</context>
+          <context context-type="linenumber">71</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.showErrors" datatype="html">
         <source>Show the errors and fatal events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">72</context>
+          <context context-type="linenumber">71</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.warnings" datatype="html">
         <source>Warnings</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">76</context>
+          <context context-type="linenumber">75</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.showWarnings" datatype="html">
         <source>Show the warning events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">76</context>
+          <context context-type="linenumber">75</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.anomalies" datatype="html">
         <source>Anomalies</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">79</context>
+          <context context-type="linenumber">78</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.showAnomalies" datatype="html">
         <source>Open the Anomalies view</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">79</context>
+          <context context-type="linenumber">78</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.sources" datatype="html">
         <source>Sources</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">80</context>
+          <context context-type="linenumber">79</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.crashes" datatype="html">
         <source>Crashes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">81</context>
+          <context context-type="linenumber">80</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.exceptions" datatype="html">
         <source>Exception groups</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">82</context>
+          <context context-type="linenumber">81</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.showExceptions" datatype="html">
         <source>Open the Exceptions view</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">82</context>
+          <context context-type="linenumber">81</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.storeSize" datatype="html">
         <source>Store</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">84</context>
+          <context context-type="linenumber">83</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.memory" datatype="html">
         <source>Memory</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">87</context>
+          <context context-type="linenumber">86</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.history" datatype="html">
         <source>Events over time</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">94</context>
+          <context context-type="linenumber">93</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.historyHint" datatype="html">
         <source>Click a bar to show that period, or drag across the chart to select a range.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">94,95</context>
+          <context context-type="linenumber">93,94</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.attention" datatype="html">
         <source>Needs attention</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">105</context>
+          <context context-type="linenumber">104</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.health" datatype="html">
         <source>Health check</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">123,124</context>
+          <context context-type="linenumber">122,123</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.none" datatype="html">
         <source>Nothing alarming found</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">131,132</context>
+          <context context-type="linenumber">130,131</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.noneDetail" datatype="html">
         <source>No crashes, error spikes or unreadable files. Explore the timeline, or search the events for what you are after.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">132,134</context>
+          <context context-type="linenumber">131,133</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.findings" datatype="html">
         <source>Findings</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">137</context>
+          <context context-type="linenumber">136</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.showFewer" datatype="html">
         <source>Show fewer</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">152</context>
+          <context context-type="linenumber">151</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.showAll" datatype="html">
         <source>Show all <x id="INTERPOLATION" equiv-text="{{ list.length }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">152,153</context>
+          <context context-type="linenumber">151,152</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.activity" datatype="html">
         <source>Recent activity</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">162,163</context>
+          <context context-type="linenumber">161,162</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.failed" datatype="html">
         <source>failed</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">166,167</context>
+          <context context-type="linenumber">165,166</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.noActivity" datatype="html">
         <source>Nothing yet.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">170,172</context>
+          <context context-type="linenumber">169,171</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.autoOpen" datatype="html">
         <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;prefs.autoOpen()&quot; (change)=&quot;prefs.setAutoOpen($any($event.target).checked)&quot; /&gt;"/> Show Home after opening files </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/home/home-view.ts</context>
-          <context context-type="linenumber">176,178</context>
+          <context context-type="linenumber">175,177</context>
         </context-group>
       </trans-unit>
       <trans-unit id="home.view.noTimestamps" datatype="html">
@@ -16087,72 +16094,83 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle-commands.ts</context>
-          <context context-type="linenumber">12</context>
+          <context context-type="linenumber">13</context>
         </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lifecycle/lifecycle-commands.ts</context>
+          <context context-type="linenumber">14</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lifecycle/lifecycle-commands.ts</context>
+          <context context-type="linenumber">15</context>
+        </context-group>
+        <note priority="1" from="description">Command category</note>
+      </trans-unit>
+      <trans-unit id="lifecycle.commands.restartKeepingSession" datatype="html">
+        <source>Restart and reopen this session</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle-commands.ts</context>
           <context context-type="linenumber">13</context>
         </context-group>
-        <note priority="1" from="description">Command category</note>
       </trans-unit>
       <trans-unit id="lifecycle.commands.restartSafeMode" datatype="html">
         <source>Restart in safe mode</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle-commands.ts</context>
-          <context context-type="linenumber">12</context>
+          <context context-type="linenumber">14</context>
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.commands.restartNormally" datatype="html">
         <source>Restart normally</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle-commands.ts</context>
-          <context context-type="linenumber">13</context>
+          <context context-type="linenumber">15</context>
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.service.noSession" datatype="html">
         <source>There is no saved session to restore</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle.service.ts</context>
-          <context context-type="linenumber">58</context>
+          <context context-type="linenumber">61</context>
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.service.restoreFailed" datatype="html">
         <source>Could not restore the last session: <x id="error" equiv-text="errorMessage(e)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle.service.ts</context>
-          <context context-type="linenumber">66</context>
+          <context context-type="linenumber">69</context>
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.service.reopenFailed" datatype="html">
         <source>Could not reopen the other windows: <x id="error" equiv-text="errorMessage(e)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle.service.ts</context>
-          <context context-type="linenumber">69</context>
+          <context context-type="linenumber">72</context>
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.service.safeModeFailed" datatype="html">
         <source>Could not restart in safe mode: <x id="error" equiv-text="error"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle.service.ts</context>
-          <context context-type="linenumber">74</context>
+          <context context-type="linenumber">77</context>
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.service.restartFailed" datatype="html">
         <source>Could not restart: <x id="error" equiv-text="error"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle.service.ts</context>
-          <context context-type="linenumber">78</context>
+          <context context-type="linenumber">81</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle.service.ts</context>
-          <context context-type="linenumber">83</context>
+          <context context-type="linenumber">87</context>
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.service.elevatedFailed" datatype="html">
         <source>Could not restart as administrator: <x id="error" equiv-text="error"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle.service.ts</context>
-          <context context-type="linenumber">88</context>
+          <context context-type="linenumber">93</context>
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.titleExtras.unsaved" datatype="html">
@@ -18317,147 +18335,147 @@
         <source>Disable <x id="name" equiv-text="name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">187</context>
+          <context context-type="linenumber">194</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.enableAria" datatype="html">
         <source>Enable <x id="name" equiv-text="name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">187</context>
+          <context context-type="linenumber">194</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.moveUpAria" datatype="html">
         <source>Move up <x id="name" equiv-text="name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">190</context>
+          <context context-type="linenumber">197</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.moveDownAria" datatype="html">
         <source>Move down <x id="name" equiv-text="name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">190</context>
+          <context context-type="linenumber">197</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.editAria" datatype="html">
         <source>Edit <x id="name" equiv-text="name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">193</context>
+          <context context-type="linenumber">200</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.duplicateAria" datatype="html">
         <source>Duplicate <x id="name" equiv-text="name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">196</context>
+          <context context-type="linenumber">203</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.deleteAria" datatype="html">
         <source>Delete <x id="name" equiv-text="name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">199</context>
+          <context context-type="linenumber">206</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.restyleAria" datatype="html">
         <source>Restyle <x id="name" equiv-text="name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">202</context>
+          <context context-type="linenumber">209</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.resetAria" datatype="html">
         <source>Reset style of <x id="name" equiv-text="name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">205</context>
+          <context context-type="linenumber">212</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.ownerTitle" datatype="html">
         <source>Owned by the plugin <x id="owner" equiv-text="owner"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">208</context>
+          <context context-type="linenumber">215</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.markedByPlugin" datatype="html">
         <source>marked by the plugin</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">212</context>
+          <context context-type="linenumber">219</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.loadFailed" datatype="html">
         <source>Could not load the markers: <x id="error" equiv-text="e instanceof Error ? e.message : String(e)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">230</context>
+          <context context-type="linenumber">237</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.restyleTitle" datatype="html">
         <source>Restyle &quot;<x id="label" equiv-text="p.label"/>&quot;</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">283</context>
+          <context context-type="linenumber">290</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.copyLabel" datatype="html">
         <source><x id="name" equiv-text="src.rule.label ?? src.rule.kind"/> (copy)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">314</context>
+          <context context-type="linenumber">321</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.editTitle" datatype="html">
         <source>Edit marker &quot;<x id="name" equiv-text="r.rule.label || r.rule.kind"/>&quot;</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">329</context>
+          <context context-type="linenumber">336</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.editSubmit" datatype="html">
         <source>Save marker</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">330</context>
+          <context context-type="linenumber">337</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.editHint" datatype="html">
         <source>Change how this marker looks, what it means and which events it marks.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">331</context>
+          <context context-type="linenumber">338</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.newTitle" datatype="html">
         <source>New marker</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">339</context>
+          <context context-type="linenumber">346</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.newLabel" datatype="html">
         <source>New marker</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">342</context>
+          <context context-type="linenumber">349</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.newSubmit" datatype="html">
         <source>Add marker</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">343</context>
+          <context context-type="linenumber">350</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.newHint" datatype="html">
         <source>Describe the lines to highlight with a regex or other conditions.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">344</context>
+          <context context-type="linenumber">351</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.cmd.manage.title" datatype="html">
@@ -33059,33 +33077,33 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/dashboard/dashboard.commands.ts</context>
-          <context context-type="linenumber">33</context>
+          <context context-type="linenumber">32</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.dashboardCommands.show" datatype="html">
         <source>Show dashboards</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/dashboard/dashboard.commands.ts</context>
-          <context context-type="linenumber">15</context>
+          <context context-type="linenumber">14</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.commands.categoryView" datatype="html">
         <source>View</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/dashboard/dashboard.commands.ts</context>
-          <context context-type="linenumber">15</context>
+          <context context-type="linenumber">14</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/dashboard/dashboard.commands.ts</context>
-          <context context-type="linenumber">19</context>
+          <context context-type="linenumber">18</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/dashboard/dashboard.commands.ts</context>
-          <context context-type="linenumber">30</context>
+          <context context-type="linenumber">29</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/dashboard/dashboard.commands.ts</context>
-          <context context-type="linenumber">40</context>
+          <context context-type="linenumber">39</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/redaction/redaction.commands.ts</context>
@@ -33100,21 +33118,21 @@
         <source>Dashboard: toggle edit mode</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/dashboard/dashboard.commands.ts</context>
-          <context context-type="linenumber">18</context>
+          <context context-type="linenumber">17</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.dashboardCommands.addTile" datatype="html">
         <source>Dashboard: add tile…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/dashboard/dashboard.commands.ts</context>
-          <context context-type="linenumber">29</context>
+          <context context-type="linenumber">28</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.dashboardCommands.wall" datatype="html">
         <source>Dashboard: wall mode</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/dashboard/dashboard.commands.ts</context>
-          <context context-type="linenumber">39</context>
+          <context context-type="linenumber">38</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.dashboardStore.newTitle" datatype="html">
@@ -43374,28 +43392,28 @@
         <source>There are no release notes for this version.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/whats-new/whats-new.ts</context>
-          <context context-type="linenumber">37,39</context>
+          <context context-type="linenumber">38,40</context>
         </context-group>
       </trans-unit>
       <trans-unit id="whatsNew.earlier" datatype="html">
         <source>Earlier releases</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/whats-new/whats-new.ts</context>
-          <context context-type="linenumber">41,42</context>
+          <context context-type="linenumber">42,43</context>
         </context-group>
       </trans-unit>
       <trans-unit id="whatsNew.close" datatype="html">
         <source>Got it</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/whats-new/whats-new.ts</context>
-          <context context-type="linenumber">50,53</context>
+          <context context-type="linenumber">52,55</context>
         </context-group>
       </trans-unit>
       <trans-unit id="whatsNew.title" datatype="html">
         <source>What&apos;s new</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/whats-new/whats-new.ts</context>
-          <context context-type="linenumber">87</context>
+          <context context-type="linenumber">91</context>
         </context-group>
       </trans-unit>
       <trans-unit id="windowing.backgroundWork.trigger" datatype="html">

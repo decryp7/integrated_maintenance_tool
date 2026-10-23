@@ -39,7 +39,11 @@ export function findDefaultAction(root: ParentNode): HTMLElement | null {
 /** The labels of a button that closes a dialog without an answer. */
 const CLOSE_ACTION = /^(close|cancel|not now|dismiss|done|later|got it)\b/i;
 
-/** Whether `root` has a visible button that closes the dialog (Close, Cancel, Not now, ...). */
+/**
+ * Whether `root` has a visible control that closes the dialog without an answer: one marked `data-dialog-close` (the
+ * explicit contract of a dialog kind, ADR 0054), or a button labelled Close, Cancel, Not now, ...
+ */
 export function hasCloseAction(root: ParentNode, except?: Element | null): boolean {
+  if ([...root.querySelectorAll('[data-dialog-close]')].some((b) => !except?.contains(b))) return true;
   return [...root.querySelectorAll('button')].some((b) => !except?.contains(b) && CLOSE_ACTION.test((b.textContent ?? '').trim()));
 }

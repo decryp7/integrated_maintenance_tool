@@ -50,12 +50,12 @@ export class NoteActions {
 
   /** Opens the editor for a new note on `anchor`; resolves with the new note's id (null when cancelled). */
   async write(anchor: NoteAnchor): Promise<string | null> {
-    const ref = this.dialogs.open<string>(NoteEditor, { title: $localize`:@@notes.actions.newTitle:Add a note`, width: 620, inputs: { anchor } });
+    const ref = this.dialogs.open(NoteEditor, { title: $localize`:@@notes.actions.newTitle:Add a note`, width: 620, inputs: { anchor } });
     return (await ref.closed) ?? null;
   }
 
   async edit(note: NoteItem): Promise<string | null> {
-    const ref = this.dialogs.open<string>(NoteEditor, { title: $localize`:@@notes.actions.editTitle:Edit note`, width: 620, inputs: { note } });
+    const ref = this.dialogs.open(NoteEditor, { title: $localize`:@@notes.actions.editTitle:Edit note`, width: 620, inputs: { note } });
     return (await ref.closed) ?? null;
   }
 

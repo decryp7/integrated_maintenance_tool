@@ -174,7 +174,7 @@ export class DashboardView {
   }
 
   protected async addTile(): Promise<void> {
-    const tile = await this.dialogs.open<TileCfg>(AddTileDialog, { title: $localize`:@@share.addTile.dialogTitle:Add tile`, width: 520 }).closed;
+    const tile = await this.dialogs.open(AddTileDialog, { title: $localize`:@@share.addTile.dialogTitle:Add tile`, width: 520 }).closed;
     if (tile) this.ds.add(tile);
   }
 

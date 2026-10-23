@@ -21,5 +21,6 @@ export const DIALOG_TEST_INPUTS: Record<string, Record<string, unknown>> = {
   'ai-regex': { lines: ['2024-01-01 ERROR boom'], intent: 'level' },
   'ai-propose': { kind: 'pipeline', source: { path: '/logs/app.log' }, initialGoal: 'drop noise' },
   'profile-etl': { path: '/dumps/trace.etl' },
+  'unsaved-changes': { name: 'Untitled', action: 'quit' },
   'open-ask': { ask: { count: 2, names: ['a.log', 'b.log'] } },
 };

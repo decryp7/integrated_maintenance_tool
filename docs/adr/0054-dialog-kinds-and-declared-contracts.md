@@ -1,6 +1,6 @@
 # 54. Dialog kinds and declared contracts
 
-- Status: Accepted (2026-10-24; user: per-dialog command lists, everything in 1.1; incident-summary becomes a modeless viewer; a saved layout that does not fit is fitted with one Undo notification; shared crates `paddock-dialogs` and `paddock-health`)
+- Status: Accepted and implemented in 1.1 (2026-10-24; user: per-dialog command lists, everything in 1.1; incident-summary becomes a modeless viewer; a saved layout that does not fit is fitted with one Undo notification; shared crates `paddock-dialogs` and `paddock-health`)
 - Date: 2026-10-24
 - Amends: ADR 0050 (dialogs are real OS windows). Related: ADR 0016 (command table), Paddock rules 17 and 40
 - Extraction: the kind model, the contract and the checks are written to move into `paddock-ui` and the Paddock Rust
@@ -157,6 +157,56 @@ adopter.
    `commands::guard`; remove the `DIALOG` class from the table as commands get declared.
 5. *After 1.1.* Convert modal dialogs that start long work to job-plus-notification (parser editor test-parse,
    `format-wizard`, `knowledge-editor`, `redaction` preview) and lift the helpers to `paddock-ui`.
+
+## Implementation notes (1.1)
+
+Everything in the migration plan shipped together in 1.1, including the steps marked "after 1.1". Where the code differs
+from the text above:
+
+- **Where it lives.** The kind model, `defineDialog`, the contract types and the policy helpers are in
+  `app/src/app/dialog-windows/kit/` (Angular only, no app imports: the folder moves to `paddock-ui` as it is). The Rust half is
+  `dialog_contracts.rs` (parse and validate the contract file, `allows(dialog, command)`; no Debrief dependency, ready to be the
+  `paddock-dialogs` crate) plus the window creation and the guard hook in `dialog_windows.rs` and `commands.rs`. The 51
+  registry entries, `DIALOG_BASE_COMMANDS`, `DIALOG_SYNC_COMMANDS`, the host-only service list and the command table stay in
+  Debrief. The shared packages are not created yet.
+- **The `DIALOG` bit stays, its meaning changed.** The table's `DIALOG` flag no longer says "any dialog may call this"; it says
+  "a dialog contract may name this". A command without it (`resolve_close`, `save_session`, window management) cannot be
+  reached from any dialog whatever a contract says, and a Rust test fails when a contract names one. The guard allows a call from a
+  dialog window only when the table opens the command to dialogs **and** that window's own contract (or the base set) names it.
+  The dialog id comes from the `Dialogs` state by window label, never from the webview.
+- **Rust owns kind and modality.** `dialog_open` takes no modality or required choice any more (the request type rejects them);
+  it reads kind, modality, required choice, instancing and the minimum size from the contract, refuses an id with no contract,
+  and refuses an instance key for a dialog that is not instanced. `dialog_fit_height` never goes below the contract's floor and
+  never shrinks a viewer.
+- **`resolve_close` stays MAIN-only.** The close prompt (and the open-ask dialog) already return their answer to the opener,
+  which runs the command, so `close-prompt` needs no exception; the table above that said otherwise is superseded.
+- **The contract file** is `app/src-tauri/dialog-contracts.json`, written by `DEBRIEF_WRITE_CONTRACTS=1 npx ng test
+  --include=src/app/dialog-windows/dialog-contracts.spec.ts` and compared by the same spec on every run (the TS and Rust sides
+  cannot drift). `commands` lists are not typed by hand: `scripts/check-dialog-commands.mjs` walks the type-checked TypeScript
+  call graph from each dialog component (members, template references, imported components, injected classes, abstract
+  backends to their implementations, store methods by use) and fails in both directions: a command a dialog reaches and does not
+  declare, and a declared command nothing reaches. It also fails a command that is not in the table or that the table does not open to
+  dialogs. Three things the walk does not enter are listed by hand with their reason: the synced UI state
+  (`DIALOG_SYNC_COMMANDS`), host-only services (`HOST_ONLY_SERVICES`: the dock, the pop-out service, the session, and the two
+  restarts that a dialog window hands to its host). The lint runs in `npm run lint`, as `pretest` and in CI.
+- **Commands found mis-classed.** Settings' and the plugin windows' "Restart to apply", and "Restart as administrator" in the
+  profiling and diagnostics windows, saved the session from a dialog window (`save_session` is MAIN-only and the session is the
+  host's): the restart failed or reopened the dialog's empty session. A dialog window now hands both restarts to its host
+  (`app.restartKeepingSession`, `app.restartElevated`) through `HOST_COMMAND_FORWARD`.
+- **Typed results.** `DialogService.open(Component, options)` is typed from the registry: the answer is the entry's `result`, the
+  inputs are the component's `input()` signals (an unknown input or a wrong answer type is a compile error). Only components that
+  are not registered (`ConfirmDialog`, the in-page palette) use the untyped overload.
+- **Long work in modals.** Parser editor, format wizard, knowledge editor, note editor, Search the web and Report export were made
+  modeless in 1.0.2 on purpose (tools beside the grid) and stay `form` modeless, not `form` modal as the table above proposed. Their
+  "test parse" reads a bounded head of one file (`read_file_head`, `preview_parse`), which is a quick preview, not a job. The
+  redaction dialog is a modal form whose preview is one sample string and whose save is one profile write: short, so it stays
+  modal. `ai-setup` is a modeless form as the table says (the choice closes the window and the download is a job).
+- **Sizes.** `form` with no declared height is fitted to its content (grow-only) as before; it is not forced to a fixed height.
+  The shell now measures the bottom of the last child, so its own Close footer is part of the fitted height (a decision that got the
+  shell footer used to open with a scroll bar). A viewer's content scrolls inside while its Close stays pinned (What's new did not).
+- **Not done.** The mock backend does not enforce the contract's command list (the mock backends are plain classes, not an
+  `invoke` seam), so "a denied command" is caught by the lint and the Rust guard test, not by the boot spec. `dialog_resize` /
+  `dialog_grow` as separate commands were not added; `dialog_fit_height` does both jobs per kind.
 
 ## Alternatives considered
 

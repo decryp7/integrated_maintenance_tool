@@ -91,5 +91,5 @@ export class IncidentSummaryDialog {
 
 /** Opens the dialog; resolves 'show' when a report was built and should be shown. */
 export function openIncidentSummary(dialogs: DialogService): Promise<IncidentDialogResult | undefined> {
-  return (dialogs.open<IncidentDialogResult>(IncidentSummaryDialog, { title: $localize`:@@incident.dialog.heading:Incident summary`, width: 520 }).closed);
+  return (dialogs.open(IncidentSummaryDialog, { title: $localize`:@@incident.dialog.heading:Incident summary`, width: 520 }).closed);
 }

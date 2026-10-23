@@ -17,7 +17,7 @@ export class UnsavedChangesGuard {
   /** Resolves true when the caller may go on. A clean project never asks. */
   async confirm(action: string): Promise<boolean> {
     if (!this.projects.dirty()) return true;
-    const ref = this.dialogs.open<UnsavedChoice>(UnsavedChangesDialog, { title: $localize`:@@projects.unsaved.title:Unsaved changes`, width: 440, inputs: { name: this.projects.name(), action } });
+    const ref = this.dialogs.open(UnsavedChangesDialog, { title: $localize`:@@projects.unsaved.title:Unsaved changes`, width: 440, inputs: { name: this.projects.name(), action } });
     const choice = (await ref.closed) ?? 'cancel';
     if (choice === 'discard') return true;
     // Save As may be cancelled or fail; then the action must not go on and lose the changes.

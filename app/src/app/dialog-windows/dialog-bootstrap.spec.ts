@@ -17,15 +17,15 @@ describe('dialog window bootstrap', () => {
     expect((await dialogAppConfig('no-such-dialog')).providers.length).toBe(none.providers.length);
   });
 
-  it('keeps the workspace queries off unless the dialog names the workspace feature', async () => {
+  it('keeps the workspace queries off unless the dialog names the workspace backend', async () => {
     const flag = (c: { providers: unknown[] }) =>
       c.providers.filter((p) => (p as { provide?: unknown }).provide === WORKSPACE_QUERIES).map((p) => (p as { useValue: boolean }).useValue).at(-1);
     expect(flag(await dialogAppConfig('cheat-sheet'))).toBe(false);
     expect(flag(await dialogAppConfig('no-such-dialog'))).toBe(false);
-    for (const d of DIALOG_DEFS) expect(flag(await dialogAppConfig(d.id))).toBe(d.features?.includes('workspace') ? true : false);
+    for (const d of DIALOG_DEFS) expect(flag(await dialogAppConfig(d.id))).toBe(d.backends?.includes('workspace') ? true : false);
   });
 
-  it('only names features that exist', async () => {
+  it('only names backends that exist', async () => {
     for (const d of DIALOG_DEFS) await expect(dialogAppConfig(d.id)).resolves.toBeTruthy();
   });
 
@@ -47,7 +47,7 @@ describe('browser dialog io', () => {
     expect(await io.take()).toEqual({ dialogId: 'about', title: 'About', modality: 'modeless', input: { a: 1 } });
     expect(await io.windowLabel()).toBe('d-main-1');
     expect(await io.workAreas()).toEqual([]);
-    await expect(io.open({ dialogId: 'x', title: 't', modality: 'modal' })).rejects.toThrow();
+    await expect(io.open({ dialogId: 'x', title: 't' })).rejects.toThrow();
     const close = vi.spyOn(window, 'close').mockImplementation(() => undefined);
     await io.close({ ok: 1 });
     expect(JSON.parse(localStorage.getItem(BROWSER_DIALOG_RESULT_KEY)!)).toEqual({ result: { ok: 1 } });

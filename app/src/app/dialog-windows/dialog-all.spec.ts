@@ -23,6 +23,8 @@ describe('every dialog window', () => {
       try {
         const io = new FakeDialogIo();
         io.start = { dialogId: def.id, title: def.id, modality: def.modality, input: DIALOG_TEST_INPUTS[def.id] ?? {} };
+        const kinds = new Set(['decision', 'form', 'viewer', 'tool']);
+        expect(kinds.has(def.kind), `${def.id} has no kind`).toBe(true);
         const config = await dialogAppConfig(def.id);
         TestBed.configureTestingModule({
           providers: [
@@ -46,13 +48,17 @@ describe('every dialog window', () => {
         // The mock engine refuses to preview files outside the (empty) workspace; that is the mock's rule, not a missing provider.
         expect(errors.filter((e) => !/readFileHead/.test(e))).toEqual([]);
         const store = TestBed.inject(WorkspaceStore);
-        const wants = !!(def.features?.includes('workspace') || def.features?.includes('summary'));
+        const wants = !!(def.backends?.includes('workspace') || def.backends?.includes('summary'));
         for (let i = 0; i < 100 && wants && !store.summary(); i++) await settle(fixture, 1);
-        // A dialog loads the workspace only when it names the `summary` or `workspace` feature.
+        // A dialog loads the workspace only when it names the `summary` or `workspace` backend.
         expect(store.summary() !== null).toBe(wants);
         // No dialog window has title-bar buttons: each one has a visible way to close from its content or, failing that, the
         // shell's own Close (a required-choice modal closes with its answer).
         if (!def.requiredChoice) expect(hasCloseAction(root), `${def.id} has no Close/Cancel button`).toBe(true);
+        // Escape closes every kind of dialog as its Cancel/Close, except a required choice, which has no Cancel to press.
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        await settle(fixture, 2);
+        expect(io.closedWith, `${def.id}: Escape ${def.requiredChoice ? 'must not close a required choice' : 'must close the dialog'}`).toEqual(def.requiredChoice ? [] : [undefined]);
         fixture.destroy();
       } finally {
         spy.mockRestore();

@@ -1,22 +1,41 @@
 #!/usr/bin/env node
-// A dialog window is its own webview of the DIALOG window class, which may call only the commands the table marks for
-// it (`src-tauri/src/lib.rs`, `command_table!`). A dialog whose component (or a service, store or backend it injects)
-// calls a command outside that set fails at runtime with "not available in this window" and does nothing. This reads
-// the table, follows each registered dialog's `inject(...)` edges through relative imports, collects the commands the
-// reached files call, and reports every denied one. The fix is to return the dialog's result to its opener (which
-// runs the command) or to mark the command for DIALOG deliberately; a known and reviewed exception is listed in
-// `EXCEPTIONS` with the reason.
+// The dialog command contract (ADR 0054). Every dialog declares, in `dialog-registry.ts`, the IPC commands its
+// component may call (`commands`). Rust's guard allows a dialog window exactly those (plus the base commands), so a
+// list that is too short is a dialog that silently does nothing, and one that is too long is a hole. This derives the
+// real set by a type-checked call-graph walk (`dialog-commands-analysis.mjs`) and fails when
+//   1. a dialog reaches a command it does not declare,
+//   2. a dialog declares a command nothing reaches,
+//   3. a command is not in the Rust command table, or the table does not let dialogs call it,
+//   4. the shell's own base providers reach a command the base lists do not name.
+// A reviewed exception (a command reached statically but never called from the dialog's window, or the reverse) is
+// listed in `EXCEPTIONS` with the reason.
 //
-// Usage: node scripts/check-dialog-commands.mjs
-import { existsSync, readFileSync } from 'node:fs';
+// Usage: node scripts/check-dialog-commands.mjs [--json]   (--json prints the derived lists, for regenerating the registry)
+import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
+import { createAnalysis, readRegistry, readStringArray } from './dialog-commands-analysis.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const APP = join(root, 'src/app');
 
-/** Reviewed: `dialog id` -> commands it reaches by injection but never calls from its window (the reason). */
-export const EXCEPTIONS = {};
+/** Services whose methods are never called from a dialog window: the walk does not enter them (their commands are MAIN-only). */
+export const HOST_ONLY_SERVICES = [
+  // The dock and the pop-out service exist in a dialog's injector graph but have nothing to dock or pop out there.
+  ['dock/dock.service.ts', 'DockService'],
+  ['popout/popout.service.ts', 'PopoutService'],
+  // The session belongs to the host window; nothing starts or saves it in a dialog window.
+  ['lifecycle/session.service.ts', 'SessionService'],
+  // A dialog window hands these two restarts to its host (`HOST_COMMAND_FORWARD`), because the session is saved there.
+  ['lifecycle/lifecycle.service.ts', 'LifecycleService', 'restartElevated'],
+  ['lifecycle/lifecycle.service.ts', 'LifecycleService', 'restartKeepingSession'],
+];
+
+/** Reviewed: `dialog id` -> { reached: commands reached statically but never called from the window, declared: declared on purpose without being reached } (the reason is the comment). */
+export const EXCEPTIONS = {
+  // Settings embeds every section's panels; some of their commands are only used when the panel is opened from its own pane.
+};
 
 /** command name -> the window classes (`MAIN`, `POPOUT`, `DIALOG`, `WINDOW`) that may call it. */
 export function parseTable(rs) {
@@ -29,105 +48,101 @@ export function parseTable(rs) {
   return out;
 }
 
-/** dialog id -> component file, from the registry's lazy imports. */
-export function parseRegistry(ts, dir) {
-  const out = [];
-  for (const m of ts.matchAll(/\{ id: '([^']+)'[^\n]*?import\('([^']+)'\)/g)) out.push([m[1], resolveTs(dir, m[2])]);
-  return out;
-}
+const covers = (declared, command) => declared.some((d) => (d.endsWith('*') ? command.startsWith(d.slice(0, -1)) : d === command));
 
-function resolveTs(dir, spec) {
-  const base = resolve(dir, spec);
-  return [base + '.ts', join(base, 'index.ts')].find(existsSync) ?? null;
-}
-
-const read = (f) => readFileSync(f, 'utf8');
-const strip = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-
-/** The commands a file calls itself: `this.call('x')`, `invoke('x')`, `this.invoke('x')`. */
-export function callsIn(src) {
-  const out = new Set();
-  for (const m of strip(src).matchAll(/\b(?:call|invoke)(?:<[^>(]*>)?\(\s*'([a-z][a-z0-9_]*)'/g)) out.add(m[1]);
-  return out;
-}
-
-/** The injected names of a file: `name = inject(Class)` / `name: T = inject(Class)` -> the file of Class (a relative import). */
-export function injections(src, file) {
-  const code = strip(src);
-  const imports = new Map();
-  for (const m of code.matchAll(/import\s*\{([^}]*)\}\s*from\s*'(\.[^']*)'/g)) {
-    for (const n of m[1].split(',')) imports.set(n.trim().split(/\s+as\s+/).pop(), m[2]);
-  }
-  const out = new Map();
-  for (const m of code.matchAll(/([A-Za-z_$][\w$]*)\s*(?::[^=;()]+)?=\s*inject(?:<[^>]*>)?\(\s*([A-Za-z_$][\w$]*)/g)) {
-    const spec = imports.get(m[2]);
-    const f = spec && resolveTs(dirname(file), spec);
-    if (f) out.set(m[1], f);
-  }
-  return out;
-}
-
-/** The body of method `name` in `code` (all of them, when several classes in the file define it), by brace matching. */
-export function methodBodies(code, name) {
-  const out = [];
-  const re = new RegExp(`(?:^|[\\s.])(?:async\\s+)?${name}\\s*(?:<[^>(]*>)?\\([^)]*\\)\\s*(?::[^{;=]+)?\\{`, 'gm');
-  for (const m of code.matchAll(re)) {
-    let i = m.index + m[0].length;
-    let depth = 1;
-    const start = i;
-    while (i < code.length && depth > 0) depth += code[i] === '{' ? 1 : code[i] === '}' ? -1 : 0, i++;
-    out.push(code.slice(start, i));
-  }
-  return out;
-}
-
-/** The methods of the injected `name` that `code` calls (`name.m(` / `this.name.m(`). */
-function usedMethods(code, name) {
-  const used = new Set();
-  for (const m of code.matchAll(new RegExp(`\\b${name.replace(/\$/g, '\\$')}\\s*\\.\\s*([A-Za-z_$][\\w$]*)\\s*[(<]`, 'g'))) used.add(m[1]);
-  return used;
-}
-
-/** Every command the dialog can reach, with the file that calls it: its own file in full, injected classes by the methods used. */
-export function reachable(entry) {
-  const seen = new Set();
-  const found = new Map();
-  const visit = (file, code) => {
-    for (const c of callsIn(code)) if (!found.has(c)) found.set(c, file);
-    for (const [name, target] of injections(read(file), file)) {
-      for (const method of usedMethods(code, name)) {
-        const key = `${target}#${method}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const tsrc = strip(read(target));
-        for (const body of methodBodies(tsrc, method)) visit(target, body);
-      }
-    }
-  };
-  visit(entry, strip(read(entry)));
-  return found;
-}
-
-export function audit(table, registry, exceptions = EXCEPTIONS) {
+/** The problems of one dialog: derived `reached` against `declared`, `base` and the `table`. */
+export function auditDialog({ id, declared, reached, base, table, exceptions = {} }) {
   const problems = [];
-  for (const [id, file] of registry) {
-    if (!file) continue;
-    for (const [cmd, via] of reachable(file)) {
-      const classes = table.get(cmd);
-      if (!classes || classes.includes('DIALOG') || exceptions[id]?.includes(cmd)) continue;
-      problems.push(`${id}: calls ${cmd} (${via.replace(root + '/', '')}), which a dialog window may not call`);
+  const skip = exceptions.reached ?? [];
+  const extraOk = exceptions.declared ?? [];
+  const need = [...reached.keys()].filter((c) => !covers(base, c) && !skip.includes(c));
+  for (const c of need) {
+    if (!table.has(c)) problems.push(`${id}: calls ${c} (${reached.get(c)}), which is not in the command table`);
+    else if (!covers(declared, c)) problems.push(`${id}: calls ${c} (${reached.get(c)}) but does not declare it in 'commands'`);
+  }
+  for (const d of declared) {
+    const matches = d.endsWith('*') ? [...reached.keys()].some((c) => c.startsWith(d.slice(0, -1))) : reached.has(d);
+    if (!matches && !extraOk.includes(d)) problems.push(`${id}: declares ${d} but nothing it reaches calls it`);
+    if (!d.endsWith('*')) {
+      const classes = table.get(d);
+      if (!classes) problems.push(`${id}: declares ${d}, which is not in the command table`);
+      else if (!classes.includes('DIALOG')) problems.push(`${id}: declares ${d}, which the command table does not let a dialog call (add DIALOG to its entry, reviewed)`);
     }
   }
   return problems;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const table = parseTable(read(resolve(root, 'src-tauri/src/lib.rs')));
-  const registry = parseRegistry(read(join(APP, 'dialog-windows/dialog-registry.ts')), join(APP, 'dialog-windows'));
-  const problems = audit(table, registry);
-  if (problems.length) {
-    console.error(problems.join('\n'));
-    process.exit(1);
+export function run(rootDir = root) {
+  const analysis = createAnalysis(join(rootDir, 'tsconfig.app.json'));
+  const app = join(rootDir, 'src/app');
+  const table = parseTable(readFileSync(join(rootDir, 'src-tauri/src/lib.rs'), 'utf8'));
+  const known = new Set(table.keys());
+  const registryFile = join(app, 'dialog-windows/dialog-registry.ts');
+  const kitBase = readStringArray(analysis, join(app, 'dialog-windows/kit/dialog-kind.ts'), 'KIT_BASE_COMMANDS') ?? [];
+  const appBase = readStringArray(analysis, join(app, 'dialog-windows/dialog-def.ts'), 'DIALOG_BASE_COMMANDS') ?? [];
+  const syncBase0 = readStringArray(analysis, join(app, 'dialog-windows/dialog-def.ts'), 'DIALOG_SYNC_COMMANDS') ?? [];
+  const base = [...kitBase, ...appBase, ...syncBase0];
+  const problems = [];
+  const derived = {};
+
+  // The shell and the base providers every dialog window boots.
+  const find = (file, name) => {
+    const sf = analysis.program.getSourceFile(join(app, file));
+    let out = null;
+    const visit = (n) => {
+      if ((ts.isClassDeclaration(n) || ts.isFunctionDeclaration(n)) && n.name?.text === name) out = n;
+      ts.forEachChild(n, visit);
+    };
+    if (sf) visit(sf);
+    return out;
+  };
+  const shell = find('dialog-windows/dialog-shell.ts', 'DialogShell');
+  const providers = find('dialog-windows/dialog-bootstrap.ts', 'dialogBaseProviders');
+  if (!shell || !providers) throw new Error('the dialog shell or its base providers moved: update check-dialog-commands.mjs');
+  // The UI state a dialog window syncs with its host is applied by `sharedUiState`; what applying it calls is listed by
+  // hand in DIALOG_SYNC_COMMANDS (the analysis cannot tell which entries a given dialog receives).
+  const syncFn = find('popout/shared-state.ts', 'sharedUiState');
+  const boundary = new Set(syncFn ? [syncFn] : []);
+  // Host-only services: the dock and the pop-out service exist in a dialog's injector graph (a dialog may inject the
+  // perspectives or the command registry) but have nothing to dock or pop out there; their commands are MAIN-only.
+  for (const [file, name, member] of HOST_ONLY_SERVICES) {
+    const c = find(file, name);
+    const target = member ? c?.members.find((m) => m.name?.getText?.() === member) : c;
+    if (!target) problems.push(`HOST_ONLY_SERVICES names ${name}${member ? `.${member}` : ''} (${file}), which does not exist: update check-dialog-commands.mjs`);
+    else boundary.add(target);
   }
-  console.log(`dialog commands: ${registry.length} dialogs, ${table.size} commands, no denied calls`);
+  const baseReached = analysis.reach([...analysis.componentEntries(shell), providers], known, boundary).commands;
+  for (const c of baseReached.keys()) {
+    if (!covers(base, c)) problems.push(`the dialog shell reaches ${c} (${baseReached.get(c)}); add it to DIALOG_BASE_COMMANDS`);
+  }
+  for (const c of appBase) if (!baseReached.has(c)) problems.push(`DIALOG_BASE_COMMANDS lists ${c}, which the dialog shell and base providers never call`);
+
+  for (const entry of readRegistry(analysis, registryFile)) {
+    if (!entry.component) {
+      problems.push(`${entry.id}: its load() does not name a component`);
+      continue;
+    }
+    const cls = analysis.declsOf(entry.component).find(ts.isClassDeclaration);
+    if (!cls) {
+      problems.push(`${entry.id}: cannot find the component class`);
+      continue;
+    }
+    const { commands, dynamic } = analysis.reach(analysis.componentEntries(cls), known, boundary);
+    for (const where of dynamic) problems.push(`${entry.id}: a command is called by a computed name (${where}); call it by a literal so it can be declared`);
+    derived[entry.id] = [...commands.keys()].filter((c) => !covers(base, c)).sort();
+    problems.push(...auditDialog({ id: entry.id, declared: entry.commands, reached: commands, base, table, exceptions: EXCEPTIONS[entry.id] }));
+  }
+  return { problems, derived, base, dialogs: Object.keys(derived).length, commands: table.size };
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const r = run();
+  if (process.argv.includes('--json')) {
+    console.log(JSON.stringify(r.derived, null, 2));
+  } else if (r.problems.length) {
+    console.error(r.problems.join('\n'));
+    process.exit(1);
+  } else {
+    console.log(`dialog commands: ${r.dialogs} dialogs, ${r.commands} commands in the table, every declared list matches what the dialogs reach`);
+  }
 }

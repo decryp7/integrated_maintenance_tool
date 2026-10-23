@@ -6,13 +6,14 @@ import { WorkArea } from '../popout/bounds';
 import { currentWindowLabel, listenHere, Unlisten } from '../windowing/window-events';
 import { ConfirmQuestion } from './dialog-session';
 
-/** Wire contract of the dialog commands (camelCase JSON), mirroring `app/src-tauri/src/dialog_windows.rs`. */
+/**
+ * Wire contract of the dialog commands (camelCase JSON), mirroring `app/src-tauri/src/dialog_windows.rs`. The kind, modality and
+ * required choice are not sent: Rust takes them from the dialog's declared contract (`dialog-contracts.json`).
+ */
 export interface DialogOpenRequest {
   dialogId: string;
   instance?: string;
   title: string;
-  modality: 'modal' | 'modeless';
-  requiredChoice?: boolean;
   input?: unknown;
   width?: number;
   height?: number;

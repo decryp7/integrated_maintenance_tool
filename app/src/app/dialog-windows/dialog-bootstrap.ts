@@ -7,14 +7,14 @@ import { WORKSPACE_QUERIES, WORKSPACE_SUMMARY } from '../core/workspace/workspac
 import { ThemeService } from '../core/workspace/theme.service';
 import { UiSync } from '../popout/ui-sync';
 import { provideDebriefIcons } from '../shared/material/debrief-icons';
-import { DialogFeature } from './dialog-def';
+import { DialogBackend } from './dialog-def';
 import { HOST_COMMAND_FORWARD } from './host-commands';
 import { dialogDef } from './dialog-registry';
 
 type Providers = (Provider | EnvironmentProviders)[];
 
-/** Feature groups, each loaded only by the dialogs that name it. */
-const FEATURES: Record<DialogFeature, () => Promise<Providers>> = {
+/** Backend provider groups, each loaded only by the dialogs that name it in `backends`. */
+const BACKENDS: Record<DialogBackend, () => Promise<Providers>> = {
   ai: () => import('../ai/provide-ai').then((m) => [m.provideAi()]),
   tools: () => import('../core/tools-backend').then((m) => m.provideToolsBackend()),
   share: async () => {
@@ -55,7 +55,7 @@ const FEATURES: Record<DialogFeature, () => Promise<Providers>> = {
  * the registry and loaded by id.
  */
 export async function dialogAppConfig(dialogId: string): Promise<ApplicationConfig> {
-  const features = await Promise.all((dialogDef(dialogId)?.features ?? []).map((f) => FEATURES[f]()));
+  const features = await Promise.all((dialogDef(dialogId)?.backends ?? []).map((b) => BACKENDS[b]()));
   return { providers: [...dialogBaseProviders(), ...features.flat()] };
 }
 

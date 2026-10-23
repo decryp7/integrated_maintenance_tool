@@ -20,7 +20,7 @@ export class ClosePromptService {
   /** Opens the prompt (once: a second request while it is open is ignored). Dismissing keeps the window open. */
   open(): DialogRef<ClosePromptAnswer> {
     if (this.ref) return this.ref;
-    const ref = this.dialogs.open<ClosePromptAnswer>(ClosePrompt, { title: $localize`:@@windowing.closePrompt.title:Close Debrief?`, width: 460 });
+    const ref = this.dialogs.open(ClosePrompt, { title: $localize`:@@windowing.closePrompt.title:Close Debrief?`, width: 460 });
     this.ref = ref;
     void ref.closed.then(async (answer) => {
       this.ref = null;

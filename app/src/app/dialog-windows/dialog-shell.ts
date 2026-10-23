@@ -66,7 +66,13 @@ const REFIT_DEBOUNCE_MS = 60;
       <ng-container #host />
       @if (shellClose()) {
         <div class="foot" data-testid="dialog-shell-foot">
-          <button type="button" class="btn" (click)="dismiss()" data-testid="dialog-shell-close" i18n="@@dialogWindow.close">Close</button>
+          <button type="button" class="btn" (click)="dismiss()" data-testid="dialog-shell-close" data-dialog-close>
+            @if (modality() === 'modal') {
+              <ng-container i18n="@@dialogWindow.cancel">Cancel</ng-container>
+            } @else {
+              <ng-container i18n="@@dialogWindow.close">Close</ng-container>
+            }
+          </button>
         </div>
       }
     </main>
@@ -98,6 +104,8 @@ export class DialogShell {
   private readonly body = viewChild.required<ElementRef<HTMLElement>>('body');
   private readonly host = viewChild.required('host', { read: ViewContainerRef });
   private closing = false;
+  /** Fits the window to the content again after a short delay; set once the window is being fitted. */
+  private refit: (() => void) | null = null;
   private mounted = false;
 
   protected readonly title = signal('');
@@ -158,7 +166,11 @@ export class DialogShell {
       const body = this.body().nativeElement;
       // The shell's own button does not count: only the content's and the error state's.
       const has = hasCloseAction(body, body.querySelector('[data-testid=dialog-shell-foot]'));
-      this.shellClose.set(!required && !has && !!this.component());
+      const next = !required && !has && !!this.component();
+      if (next === this.shellClose()) return;
+      this.shellClose.set(next);
+      // The footer changes how tall the window must be: fit again once it is drawn.
+      this.refit?.();
     };
     afterNextRender(
       () => {
@@ -199,7 +211,8 @@ export class DialogShell {
       document.title = start.title;
       this.inputs.set(isRecord(start.input) ? start.input : {});
       this.component.set(component);
-      if (def.height === undefined) this.fitToContent();
+      // The kind decides: decisions and forms without a declared height are fitted, viewers grow with their content, tools keep their size.
+      if (def.fit) this.fitToContent();
     } catch (e) {
       this.fail(e);
     }
@@ -225,6 +238,7 @@ export class DialogShell {
       clearTimeout(timer);
       timer = setTimeout(fit, REFIT_DEBOUNCE_MS);
     };
+    this.refit = schedule;
     afterNextRender(
       () => {
         fit();
@@ -251,7 +265,9 @@ export class DialogShell {
     // Measure at the natural height: the content normally stretches to fill the window.
     const flex = content.style.flex;
     content.style.flex = 'none';
-    const bottom = content.getBoundingClientRect().bottom - body.getBoundingClientRect().top + body.scrollTop;
+    // The last child, not the content: the shell's own Close footer (when the content has none) sits below it.
+    const last = (body.lastElementChild as HTMLElement | null) ?? content;
+    const bottom = last.getBoundingClientRect().bottom - body.getBoundingClientRect().top + body.scrollTop;
     content.style.flex = flex;
     const padding = parseFloat(getComputedStyle(body).paddingBottom) || BODY_PADDING_PX;
     return Math.ceil(bottom + padding);

@@ -5,6 +5,7 @@ import { clampToWorkAreas } from '../popout/bounds';
 import { errorMessage } from '../tools/tool-errors';
 import { loadDialogBounds, rememberDialogBounds } from './dialog-bounds';
 import { DialogLabels } from './dialog-labels';
+import { raiseToKindMinimum } from './kit';
 import {
   DIALOG_CLOSED_EVENT,
   DIALOG_IO,
@@ -70,14 +71,12 @@ export class TauriDialogBackend implements DialogPresenter {
         dialogId: def.id,
         instance: request.instance,
         title: request.title,
-        modality: def.modality,
-        requiredChoice: def.requiredChoice,
         input: request.inputs,
         width: request.width,
         height: def.height,
         minWidth: def.minWidth,
         minHeight: def.minHeight,
-        bounds: remembered ? clampToWorkAreas(remembered, areas) : undefined,
+        bounds: remembered ? raiseToKindMinimum(def.kind, clampToWorkAreas(remembered, areas)) : undefined,
       };
     };
     const start = async () => {

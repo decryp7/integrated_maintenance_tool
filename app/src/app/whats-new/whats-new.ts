@@ -29,6 +29,7 @@ export const WHATS_NEW_SEEN_KEY = 'debrief.whatsnew.seen';
         </ul>
       }
     </ng-template>
+    <div class="notes">
     @if (current(); as r) {
       <section class="release" data-testid="whats-new-current" [attr.aria-label]="r.version">
         <ng-container [ngTemplateOutlet]="notes" [ngTemplateOutletContext]="{ $implicit: r }" />
@@ -46,13 +47,16 @@ export const WHATS_NEW_SEEN_KEY = 'debrief.whatsnew.seen';
         }
       </details>
     }
+    </div>
     <div class="actions">
       <button class="btn primary" type="button" data-testid="whats-new-close" (click)="ref.close()" i18n="@@whatsNew.close">Got it</button>
     </div>
   `,
   imports: [NgTemplateOutlet],
   styles: `
-    :host { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; max-height: var(--dialog-window-max-height, 70vh); overflow: auto; }
+    :host { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; min-height: 0; max-height: var(--dialog-window-max-height, 70vh); overflow: hidden; }
+    /* The notes scroll; the Got it button stays in view whatever the window size (a dialog window has no title-bar buttons). */
+    .notes { flex: 1 1 auto; min-height: 0; overflow: auto; }
     h3 { margin: 0 0 var(--s-2); font-size: var(--fs-md); display: flex; gap: var(--s-2); align-items: baseline; }
     h4 { margin: var(--s-3) 0 var(--s-1); font-size: var(--fs-sm); color: var(--text-2); }
     .date { font-size: var(--fs-xs); color: var(--muted); font-weight: 400; }

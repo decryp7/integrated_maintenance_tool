@@ -3,6 +3,13 @@
 What changed for people who use Debrief, one section per release. This file is curated by hand (the in-app "What's new"
 panel reads it at build time); `git cliff` lists every commit if you need the full history.
 
+## Unreleased
+
+### Fixed
+
+- **Dialogs:** Every dialog is now one of four kinds (decision, form, viewer, tool) that decides its size, buttons and keys: result windows open at least 680 x 560 and only grow, questions are exactly as big as their text, and every window has a Close or Cancel button that stays in view (What's new no longer scrolls its Got it button out of sight)
+- **Dialogs:** A dialog window may call only the commands it needs, so a bug in one window can no longer do what only the main window should; Restart to apply in Settings and the plugin windows, and Restart as administrator in the profiling and diagnostics windows, now restart through the window that opened them and keep its session
+
 ## 1.0.2 (2026-10-23)
 
 ### Added

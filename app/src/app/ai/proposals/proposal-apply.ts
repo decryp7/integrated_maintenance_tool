@@ -48,7 +48,7 @@ export class ProposalApply {
     switch (p.kind) {
       case 'regex': {
         const label = p.rationale.trim() || $localize`:@@ai.proposalApply.defaultLabel:AI pattern`;
-        const ref = this.dialogs.open<boolean>(MarkDialog, {
+        const ref = this.dialogs.open(MarkDialog, {
           title: $localize`:@@ai.proposalApply.highlight.title:Highlight lines`,
           width: 760,
           inputs: {

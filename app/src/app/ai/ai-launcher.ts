@@ -165,7 +165,7 @@ export class AiLauncher {
   async suggestRegex(lines: readonly string[], options: { intent?: string; highlight?: boolean } = {}): Promise<string | null> {
     if (!(await this.ensureModel())) return null;
     const m = await this.lazy();
-    const ref = this.dialogs.open<string>(m.AiRegexDialog, {
+    const ref = this.dialogs.open(m.AiRegexDialog, {
       title: $localize`:@@ai.launcher.title.suggestRegex:Suggest a regex`,
       width: 720,
       inputs: { lines: [...lines], intent: options.intent ?? '', highlight: !!options.highlight },
