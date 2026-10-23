@@ -17,6 +17,7 @@ pub mod events;
 pub mod exceptions;
 pub mod export;
 pub mod file_target;
+pub mod find;
 pub mod guard;
 pub mod home;
 pub mod icons;

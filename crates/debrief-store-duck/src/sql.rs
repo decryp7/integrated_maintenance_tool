@@ -195,7 +195,6 @@ fn search_superset(e: &Expr) -> Option<String> {
         .terms
         .iter()
         .chain(&words.prefixes)
-        .chain(&words.phrases)
         .map(|w| substring_sql(w, false))
         .collect::<Option<Vec<_>>>()?;
     let words = and(&parts);
@@ -444,12 +443,12 @@ pub fn expr_sql(e: &Expr, schema: &dyn FieldSource, group_by: &[String]) -> Opti
         Expr::Search(s) => {
             let text = substring_sql(s.literal.as_deref()?, s.case_sensitive)?;
             let Some(words) = &s.words else { return Some(text) };
-            // Word hits from the index (else not expressible: see `search_superset`); phrases as written.
-            let mut parts = vec![schema.word_hits(words)?];
-            for p in &words.phrases {
-                parts.push(substring_sql(p, false)?);
+            // Word hits from the index (else not expressible: see `search_superset`). Phrases ignore separators
+            // and case boundaries, which SQL cannot say: a search with phrases is checked by the scan.
+            if !words.phrases.is_empty() {
+                return None;
             }
-            let words = and(&parts);
+            let words = schema.word_hits(words)?;
             if s.substring {
                 format!("({words}) OR {text}")
             } else {
@@ -627,12 +626,14 @@ mod tests {
             text_mode,
             ..Filter::default()
         };
-        // The index answers: exact SQL, phrases checked as written, substrings added on request.
+        // The index answers: exact SQL, substrings added on request.
+        let (f, _) = compile(&q("timeout", TextMode::Words), &[], &[], &Hits).unwrap();
+        assert!(f.exact && f.content_sql().contains("e.id IN (1, 2)") && !f.content_sql().contains("'%timeout%'"));
+        // A phrase ignores separators (SQL cannot say that): the words narrow, the scan checks the phrase.
         let (f, _) = compile(&q("timeout \"timed out\"", TextMode::Words), &[], &[], &Hits).unwrap();
-        assert!(f.exact);
         let sql = f.content_sql();
         assert!(
-            sql.contains("e.id IN (1, 2)") && sql.contains("'%timed out%'") && !sql.contains("'%timeout%'"),
+            !f.exact && sql.contains("'%timeout%'") && sql.contains("'%timed%'") && !sql.contains("'%timed out%'"),
             "{sql}"
         );
         let (f, _) = compile(&q("imeout", TextMode::WordsOrSubstring), &[], &[], &Hits).unwrap();
