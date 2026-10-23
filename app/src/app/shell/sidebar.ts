@@ -150,7 +150,7 @@ function shortPath(path: string): string {
           <debrief-icon name="file" [size]="13" class="faint" />
         }
         @let nm = splitName(member || nameOnly ? s.name : short(s.path));
-        <span class="name" [title]="s.path"><span class="head">{{ nm.head }}</span><span class="tail">{{ nm.tail }}</span></span>
+        <span class="name" [title]="s.path"><span class="nm-head">{{ nm.head }}</span><span class="nm-tail">{{ nm.tail }}</span></span>
         @if (notable(s.id); as st) {
           <span class="state" [class]="'state ' + st.kind" [title]="hint(st)" [attr.aria-label]="label(st) + ': ' + hint(st)" role="img">{{ label(st) }}</span>
         }
@@ -186,8 +186,8 @@ function shortPath(path: string): string {
     .src:hover { background: var(--bg-hover); }
     /* Truncates with an ellipsis but never collapses to nothing next to the badge, count and row buttons. */
     .src .name { flex: 1; min-width: 0; display: flex; overflow: hidden; }
-    .src .name .head { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .src .name .tail { flex: none; white-space: pre; }
+    .src .name .nm-head { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .src .name .nm-tail { flex: none; white-space: pre; }
     /* The folder every listed path shares, said once; a long one wraps instead of hiding its distinguishing end. */
     .folder-root { display: flex; align-items: flex-start; gap: 6px; padding: 4px 6px 0; font-size: var(--fs-xs); color: var(--text-2); overflow-wrap: anywhere; }
     .folder-root debrief-icon { flex: none; margin-top: 2px; }

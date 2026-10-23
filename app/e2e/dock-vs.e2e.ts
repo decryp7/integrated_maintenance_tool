@@ -38,6 +38,8 @@ async function panelMenu(page: Page, name: string) {
 }
 
 test.describe('VS-style docking', () => {
+  // Wide enough for a document column, the timeline column and a tool window side by side (at 1440 px the document is tabbed into the events group instead).
+  test.use({ viewport: { width: 1920, height: 1080 } });
   // These start from the fuller arrangement (the inspector docked, Metrics tabbed with the timeline) that the
   // minimal default no longer opens.
   // The docking mechanics are checked on the default arrangement (timeline and the registry beside it over the events).

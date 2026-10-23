@@ -94,4 +94,28 @@ test.describe('home in a narrow pane with very long paths and names', () => {
     expect(await tail.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
     await expect(row.getByRole('button', { name: /Copy/ })).toBeVisible();
   });
+
+  test('a finding in a 300 px Health card shows its whole badge, a readable title, and the actions below, without an inner scrollbar', async ({ page }) => {
+    await openHome(page);
+    await squeeze(page, 300);
+    const rows = page.locator('debrief-home-view [data-testid=home-findings] .finding');
+    expect(await rows.count()).toBeGreaterThan(0);
+    for (const row of await rows.all()) {
+      const tag = row.locator('.tag');
+      expect(await tag.evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
+      expect(await tag.evaluate((e) => (e.textContent ?? '').trim().length)).toBeGreaterThan(3);
+      const title = (await row.locator('.title').boundingBox())!;
+      expect(title.width).toBeGreaterThan(150);
+      const acts = (await row.locator('.acts').boundingBox())!;
+      expect(acts.y).toBeGreaterThanOrEqual(title.y + title.height - 1);
+      expect(acts.x + acts.width).toBeLessThanOrEqual(300);
+    }
+    const list = page.locator('debrief-home-view [data-testid=home-findings]');
+    expect(await list.evaluate((e) => e.scrollHeight <= e.clientHeight + 1)).toBe(true);
+    const text = row0(page);
+    await expect(text).toBeVisible();
+  });
 });
+function row0(page: Page) {
+  return page.locator('debrief-home-view [data-testid=home-findings] .finding .title').first();
+}

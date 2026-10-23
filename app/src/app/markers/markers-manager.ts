@@ -46,7 +46,7 @@ function failureText(f: { message: string; line: number | null }): string {
             <th scope="col"><span class="sr" i18n="@@markers.manager.col.reorder">Reorder</span></th>
             <th scope="col"><span class="sr" i18n="@@markers.manager.col.look">Look</span></th>
             <th scope="col" i18n="@@markers.manager.col.label">Label</th>
-            <th scope="col" class="narrow-hide" i18n="@@markers.manager.col.description">Description</th>
+            <th scope="col" class="narrow-hide col-desc" i18n="@@markers.manager.col.description">Description</th>
             <th scope="col" class="narrow-hide" i18n="@@markers.manager.col.matchesWhen">Matches when</th>
             <th scope="col" class="num" i18n="@@markers.manager.col.events">Events</th>
             <th scope="col" i18n="@@markers.manager.col.on">On</th>
@@ -59,8 +59,8 @@ function failureText(f: { message: string; line: number | null }): string {
               <td><span cdkDragHandle class="grip" aria-hidden="true"><debrief-icon name="drag" [size]="14" /></span></td>
               <td><debrief-marker-glyph [glyph]="glyph(r.rule)" [size]="20" /></td>
               <th scope="row" class="lbl" [title]="r.rule.description ?? ''">{{ r.rule.label || r.rule.kind }}<span class="faint mono id">{{ r.rule.kind }}</span></th>
-              <td class="desc narrow-hide">{{ r.rule.description }}</td>
-              <td class="when narrow-hide">{{ when(r) }}</td>
+              <td class="desc narrow-hide col-desc">{{ r.rule.description }}</td>
+              <td class="when narrow-hide"><code class="rx" [title]="when(r)">{{ when(r) }}</code></td>
               <td class="num mono">{{ r.enabled ? (counts()[r.rule.kind] === undefined ? '…' : fmt(counts()[r.rule.kind]!)) : '–' }}</td>
               <td><input type="checkbox" [checked]="r.enabled" [attr.aria-label]="toggleLabel(r.enabled, r.rule.label || r.rule.kind)" (change)="toggle(i)" /></td>
               <td class="actions narrow-wrap">
@@ -90,7 +90,7 @@ function failureText(f: { message: string; line: number | null }): string {
               <th scope="col"><span class="sr" i18n="@@markers.manager.col.look">Look</span></th>
               <th scope="col" i18n="@@markers.manager.col.label">Label</th>
               <th scope="col" i18n="@@markers.manager.col.plugin">Plugin</th>
-              <th scope="col" class="narrow-hide" i18n="@@markers.manager.col.description">Description</th>
+              <th scope="col" class="narrow-hide col-desc" i18n="@@markers.manager.col.description">Description</th>
               <th scope="col" class="narrow-hide" i18n="@@markers.manager.col.matchesWhen">Matches when</th>
               <th scope="col" class="num" i18n="@@markers.manager.col.events">Events</th>
               <th scope="col" i18n="@@markers.manager.col.on">On</th>
@@ -105,8 +105,8 @@ function failureText(f: { message: string; line: number | null }): string {
                 </td>
                 <th scope="row" class="lbl" [title]="p.info?.description ?? ''">{{ p.label }}<span class="faint mono id">{{ p.kind }}</span></th>
                 <td><span class="badge owner mono" [title]="ownerTitle(p.owner)">{{ p.owner }}</span>@if (p.info?.role; as role) { <span class="badge">{{ role }}</span> }</td>
-                <td class="desc narrow-hide">{{ p.info?.description }}</td>
-                <td class="when narrow-hide">{{ pluginWhen(p) }} <span class="badge ro" title="Rules of plugin markers cannot be edited" i18n-title="@@markers.manager.readOnlyTitle" i18n="@@markers.manager.readOnly">read-only</span></td>
+                <td class="desc narrow-hide col-desc">{{ p.info?.description }}</td>
+                <td class="when narrow-hide"><code class="rx" [title]="pluginWhen(p)">{{ pluginWhen(p) }}</code> <span class="badge ro" title="Rules of plugin markers cannot be edited" i18n-title="@@markers.manager.readOnlyTitle" i18n="@@markers.manager.readOnly">read-only</span></td>
                 <td class="num mono">{{ p.enabled && p.when.length ? (counts()[p.kind] === undefined ? '…' : fmt(counts()[p.kind]!)) : '–' }}</td>
                 <td><input type="checkbox" [checked]="p.enabled" [attr.aria-label]="toggleLabel(p.enabled, p.label)" (change)="togglePlugin(p)" /></td>
                 <td class="actions narrow-wrap">
@@ -128,15 +128,22 @@ function failureText(f: { message: string; line: number | null }): string {
     .highlights { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border); }
     .highlights h2 { margin: 0; }
     :host { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); }
-    .head { display: flex; align-items: center; gap: 12px; padding: 8px 14px; font-size: var(--fs-sm); }
-    .spacer { flex: 1; }
-    .scroll { flex: 1; overflow: auto; padding: 0 14px 14px; }
+    .head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 8px 14px; font-size: var(--fs-sm); }
+    .head .faint { flex: 1 1 200px; min-width: 0; }
+    .spacer { display: none; }
+    .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0 14px 14px; container: markers / inline-size; }
     .rules { width: 100%; border-collapse: collapse; font-size: var(--fs-md); }
     .rules th, .rules td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
     .rules thead th { color: var(--muted); font-weight: 500; position: sticky; top: 0; background: var(--bg-1); }
     .rules th.lbl { font-weight: 600; color: var(--text); }
     .id { display: block; font-weight: 400; font-size: var(--fs-xs); }
-    .desc, .when { color: var(--text-2); max-width: 280px; }
+    .desc { color: var(--text-2); max-width: 280px; overflow-wrap: anywhere; }
+    .when { color: var(--text-2); min-width: 120px; max-width: 360px; }
+    .rules th.lbl, .rules td { overflow-wrap: anywhere; }
+    /* A long regex wraps inside its cell (never clipped mid-word), is cut after three lines, and is in full in the tooltip. */
+    .rx { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; font-family: var(--font-mono, monospace); font-size: var(--fs-xs); }
+    @container markers (max-width: 959px) { .col-desc { display: none; } .actions { white-space: normal; } .badge { white-space: normal; overflow-wrap: anywhere; } }
+    @container markers (max-width: 559px) { .actions { white-space: normal; } .rules th, .rules td { padding-inline: 4px; } }
     .num { text-align: right; }
     .off { opacity: 0.6; }
     .grip { cursor: grab; color: var(--faint); display: inline-flex; }
