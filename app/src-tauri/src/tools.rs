@@ -749,10 +749,17 @@ pub(crate) mod tests {
             &ToolError::Failed(format!("relog did not finish within 120s{}", "x".repeat(4000))),
         );
         let logged = crate::activity::captured();
+        // Other tests log through the same process-wide logger while this one captures (a process-monitor "start"
+        // failure, for one): pick the records by tool as well as by operation.
         let find = |op: &str| {
+            let tool = match op {
+                "start" | "stop" => "perfmon.sets",
+                "convert" => "relog",
+                _ => "elevation",
+            };
             logged
                 .iter()
-                .find(|c| c.props.get("Op").is_some_and(|o| o == op))
+                .find(|c| c.props.get("Tool").is_some_and(|t| t == tool) && c.props.get("Op").is_some_and(|o| o == op))
                 .unwrap_or_else(|| panic!("{op} logged"))
         };
         let bad = find("dance-log-test");

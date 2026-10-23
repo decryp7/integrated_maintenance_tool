@@ -797,10 +797,6 @@ pub(crate) mod test_support {
     /// Waits for the test app's job `id` to end; how it ended.
     pub fn job_end(app: &tauri::App<MockRuntime>, id: u64) -> jobs::service::JobOutcome {
         use tauri::Manager;
-        // A job that ends before it was ever shown (under 2 s old) is dropped from the history, and a waiter that
-        // arrives after that is told "cancelled": let the test clock pass the visibility threshold, so the job is
-        // kept however quickly it ends.
-        app.state::<TestClock>().0.advance(jobs::queue::VISIBLE_AFTER_MS);
         app.state::<jobs::Jobs>().wait_end(jobs::JobId(id))
     }
 

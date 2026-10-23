@@ -221,7 +221,13 @@ struct Inner {
     controls: HashMap<JobId, Control>,
     /// Who waits for a job's end (a dialog showing its progress): told once, with the full result.
     waiters: HashMap<JobId, Vec<mpsc::Sender<JobOutcome>>>,
+    /// How the last quick jobs ended (they are dropped from the queue's history): a dialog that starts waiting after a
+    /// job already finished still gets its real outcome, not "cancelled".
+    quick: std::collections::VecDeque<JobOutcome>,
 }
+
+/// How many dropped quick jobs' outcomes are remembered for late waiters.
+const QUICK_OUTCOMES: usize = 64;
 
 /// How a job ended, for whoever waits for it (`jobs_wait`).
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
@@ -279,6 +285,7 @@ impl Jobs {
                 queue: JobQueue::new(cores),
                 controls: HashMap::new(),
                 waiters: HashMap::new(),
+                quick: std::collections::VecDeque::new(),
             }),
             clock,
             listeners: Mutex::new(Vec::new()),
@@ -500,6 +507,13 @@ impl Jobs {
         match finished {
             Ok(f) => {
                 let outcome = JobOutcome::of(&f.job, raw);
+                if !f.kept {
+                    let mut inner = self.lock();
+                    if inner.quick.len() >= QUICK_OUTCOMES {
+                        inner.quick.pop_front();
+                    }
+                    inner.quick.push_back(outcome.clone());
+                }
                 for w in waiters {
                     let _ = w.send(outcome.clone());
                 }
@@ -644,6 +658,9 @@ impl Jobs {
                     rx
                 }
                 None => {
+                    if let Some(o) = inner.quick.iter().find(|o| o.id == id) {
+                        return o.clone();
+                    }
                     return JobOutcome {
                         id,
                         state: JobState::Cancelled,
@@ -898,6 +915,22 @@ pub(crate) mod tests {
             })
             .unwrap();
         (h, tx)
+    }
+
+    #[test]
+    fn a_quick_job_that_ended_before_the_wait_reports_how_it_ended() {
+        // Under 2 s old when it ends, the job is not kept in the history; a dialog that starts waiting afterwards must
+        // still hear "done" (or the failure), not "cancelled".
+        let (jobs, _clock) = service();
+        let done = jobs.submit(ai("quick"), Controls::default(), |_ctx| Ok::<_, String>(Done::new(7u32))).unwrap();
+        let failed = jobs.submit(ai("quick failure"), Controls::default(), |_ctx| Err::<Done<u32>, _>("boom".to_string())).unwrap();
+        let (done_id, failed_id) = (done.id, failed.id);
+        assert_eq!(done.wait(), Ok(Ok(7)));
+        assert_eq!(failed.wait(), Ok(Err("boom".to_string())));
+        assert_eq!(jobs.wait_end(done_id).state, JobState::Done);
+        let late = jobs.wait_end(failed_id);
+        assert_eq!((late.state, late.error.as_deref()), (JobState::Failed, Some("boom")));
+        assert_eq!(jobs.wait_end(JobId(9_999)).state, JobState::Cancelled, "a job nobody knows is still cancelled");
     }
 
     #[test]
