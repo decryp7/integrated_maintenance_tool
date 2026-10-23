@@ -94,7 +94,11 @@ pub(crate) async fn store_maintenance<R: Runtime>(app: AppHandle<R>, state: Curr
             };
             ctx.message(msg);
             log::info!(Action = action.title(); "Store maintenance done");
-            return Ok(if cancelled { Done::new(()).cancelled_if(true) } else { Done::new(()) });
+            return Ok(if cancelled {
+                Done::new(()).cancelled_if(true)
+            } else {
+                Done::new(())
+            });
         }
         log::info!(Action = action.title(); "Store maintenance done");
         ctx.message(&report.message);

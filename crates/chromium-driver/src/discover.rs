@@ -101,10 +101,13 @@ pub fn find_for_tests() -> Option<Browser> {
 }
 
 pub fn find_for_tests_with(env: &dyn Fn(&str) -> Option<String>, exists: &dyn Fn(&Path) -> bool) -> Option<Browser> {
-    env("CHROMIUM_TEST_PATH").map(PathBuf::from).filter(|p| exists(p)).map(|path| Browser {
-        flavor: Flavor::Chromium,
-        path,
-    })
+    env("CHROMIUM_TEST_PATH")
+        .map(PathBuf::from)
+        .filter(|p| exists(p))
+        .map(|path| Browser {
+            flavor: Flavor::Chromium,
+            path,
+        })
 }
 
 pub fn find_with(os: Os, env: &dyn Fn(&str) -> Option<String>, exists: &dyn Fn(&Path) -> bool) -> Option<Browser> {
@@ -153,9 +156,15 @@ mod tests {
     #[test]
     fn tests_find_only_the_pinned_test_browser_never_the_installed_ones() {
         let installed = |p: &Path| p.starts_with("/Applications") || p.starts_with("/usr/bin");
-        assert!(find_for_tests_with(&env, &installed).is_none(), "an installed Chrome is not a test browser");
+        assert!(
+            find_for_tests_with(&env, &installed).is_none(),
+            "an installed Chrome is not a test browser"
+        );
         let pinned = |k: &str| (k == "CHROMIUM_TEST_PATH").then(|| "/opt/test/chrome".to_string());
-        assert!(find_for_tests_with(&pinned, &|_| false).is_none(), "a path that does not exist is skipped");
+        assert!(
+            find_for_tests_with(&pinned, &|_| false).is_none(),
+            "a path that does not exist is skipped"
+        );
         let b = find_for_tests_with(&pinned, &|p| p == Path::new("/opt/test/chrome")).unwrap();
         assert_eq!(b.path, PathBuf::from("/opt/test/chrome"));
     }

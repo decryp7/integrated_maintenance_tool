@@ -260,7 +260,11 @@ impl JobProgress {
             fraction: known.then(|| (done as f64 / total as f64).min(1.0) as f32),
             done: Some(done),
             total: known.then_some(total),
-            unit: if scale == PhaseScale::Bytes { ProgressUnit::Bytes } else { ProgressUnit::Items },
+            unit: if scale == PhaseScale::Bytes {
+                ProgressUnit::Bytes
+            } else {
+                ProgressUnit::Items
+            },
             phase: Some(JobPhase::new(label, scale)),
             ..JobProgress::default()
         }
@@ -574,7 +578,8 @@ mod tests {
         assert_eq!((c.fraction, c.total), (None, None));
         let v = serde_json::to_value(&b).unwrap();
         assert_eq!(v["phase"], serde_json::json!({"label": "Downloading", "scale": "bytes"}));
-        let old: JobProgress = serde_json::from_value(serde_json::json!({"fraction": null, "done": null, "total": null, "etaMs": null})).unwrap();
+        let old: JobProgress =
+            serde_json::from_value(serde_json::json!({"fraction": null, "done": null, "total": null, "etaMs": null})).unwrap();
         assert_eq!(old.phase, None);
     }
 }

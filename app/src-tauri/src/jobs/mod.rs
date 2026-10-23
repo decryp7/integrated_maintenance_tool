@@ -461,7 +461,10 @@ pub(crate) fn export<R: Runtime>(
         path: path.display().to_string(),
     };
     // The probe reports the events written so far of those to write, under the phase "Writing the export".
-    let controls = in_phase(with_query_progress(cancelling(Controls::default(), &control), &control), "Writing the export");
+    let controls = in_phase(
+        with_query_progress(cancelling(Controls::default(), &control), &control),
+        "Writing the export",
+    );
     crate::error::lift(
         spawn(app, spec, controls, move |ctx: &JobCtx| -> CmdResult<Done<()>> {
             ctx.phase("Preparing the export", PhaseScale::Indeterminate, 0, 0);

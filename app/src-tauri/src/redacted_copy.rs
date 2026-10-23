@@ -167,15 +167,22 @@ pub(crate) async fn export_redacted_copy<R: Runtime>(
     };
     // A file job: the Jobs pane shows the events redacted so far, and Cancel stops the copy and removes its work folder.
     let spec = crate::jobs::export_spec("Redacted copy", Some(state.label()), &request.out);
-    let result = crate::jobs::JobResult::File { path: request.out.display().to_string() };
+    let result = crate::jobs::JobResult::File {
+        path: request.out.display().to_string(),
+    };
     let (controls, control) = crate::jobs::store_cancel(Default::default());
     let controls = crate::jobs::with_phase_probe(controls, &control, "Redacting events");
     let win = state.arc().clone();
-    let report = crate::jobs::run(&app, spec, controls, move |ctx: &crate::jobs::JobCtx| -> CmdResult<crate::jobs::Done<RedactedExport>> {
-        ctx.phase("Preparing the copy", crate::jobs::PhaseScale::Indeterminate, 0, 0);
-        let r = crate::jobs::with_store(&win, &control, |s| s.export_redacted_project(&request).map_err(CmdError::from))?;
-        Ok(crate::jobs::Done::new(r).with_result(result))
-    })
+    let report = crate::jobs::run(
+        &app,
+        spec,
+        controls,
+        move |ctx: &crate::jobs::JobCtx| -> CmdResult<crate::jobs::Done<RedactedExport>> {
+            ctx.phase("Preparing the copy", crate::jobs::PhaseScale::Indeterminate, 0, 0);
+            let r = crate::jobs::with_store(&win, &control, |s| s.export_redacted_project(&request).map_err(CmdError::from))?;
+            Ok(crate::jobs::Done::new(r).with_result(result))
+        },
+    )
     .await?;
     let safe = privacy::safe_path(std::path::Path::new(&path));
     domain_event("project.shared-redacted", op.as_deref(), &[("Path", &safe)]);

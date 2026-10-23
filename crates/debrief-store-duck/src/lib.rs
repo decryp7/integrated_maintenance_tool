@@ -225,8 +225,16 @@ pub(crate) struct Inner {
 }
 
 /// The catalog tables that hold the imported data; a reload keeps their rows aside until it completes.
-const ASIDE_TABLES: [&str; 8] =
-    ["segments", "segment_fields", "histogram", "ord", "diagnostics", "tail_offsets", "source_encodings", "sources"];
+const ASIDE_TABLES: [&str; 8] = [
+    "segments",
+    "segment_fields",
+    "histogram",
+    "ord",
+    "diagnostics",
+    "tail_offsets",
+    "source_encodings",
+    "sources",
+];
 
 /// What a reload keeps until the new data is complete: the old segment files and the unrecognised list.
 pub(crate) struct Aside {
@@ -376,7 +384,9 @@ impl Inner {
         let files = writer::segment_files(&conn, &self.dir).map_err(|e| engine(format!("{e:#}")))?;
         let mut sql = String::from("BEGIN TRANSACTION;");
         for t in ASIDE_TABLES {
-            sql.push_str(&format!("DROP TABLE IF EXISTS aside_{t}; CREATE TABLE aside_{t} AS SELECT * FROM {t}; DELETE FROM {t};"));
+            sql.push_str(&format!(
+                "DROP TABLE IF EXISTS aside_{t}; CREATE TABLE aside_{t} AS SELECT * FROM {t}; DELETE FROM {t};"
+            ));
         }
         sql.push_str("COMMIT;");
         conn.execute_batch(&sql).map_err(engine)?;
@@ -415,7 +425,9 @@ impl Inner {
         let new_files = writer::segment_files(&conn, &self.dir).map_err(|e| engine(format!("{e:#}")))?;
         let mut sql = String::from("BEGIN TRANSACTION;");
         for t in ASIDE_TABLES {
-            sql.push_str(&format!("DELETE FROM {t}; INSERT INTO {t} SELECT * FROM aside_{t}; DROP TABLE aside_{t};"));
+            sql.push_str(&format!(
+                "DELETE FROM {t}; INSERT INTO {t} SELECT * FROM aside_{t}; DROP TABLE aside_{t};"
+            ));
         }
         // The full-text index was emptied: the restored segments are indexed again in the background.
         sql.push_str("UPDATE segments SET indexed = FALSE; COMMIT;");

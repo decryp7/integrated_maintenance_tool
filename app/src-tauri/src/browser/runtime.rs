@@ -228,7 +228,11 @@ pub async fn browser_runtime_install<R: Runtime>(app: AppHandle<R>, _win: Curren
     let spec = JobSpec::new(JobKind::Download, "Install Chromium");
     let version = crate::jobs::run(&app, spec, Default::default(), move |ctx: &JobCtx| -> CmdResult<Done<String>> {
         let v = install_blocking(&root, &mut |phase, done, total| {
-            let scale = if phase == "Self-test" { PhaseScale::Indeterminate } else { PhaseScale::Bytes };
+            let scale = if phase == "Self-test" {
+                PhaseScale::Indeterminate
+            } else {
+                PhaseScale::Bytes
+            };
             ctx.phase(phase, scale, done, total);
             !ctx.is_cancelled()
         })
