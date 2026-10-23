@@ -168,12 +168,11 @@ pub fn import_files_parallel(
     // Every file's size and archive entries are needed before the first is read (source ids follow the file
     // order): looked at on the pool.
     let look = |(p, _): &(PathBuf, String)| -> (u64, u32) {
-        let looked = if progress.is_cancelled() {
+        if progress.is_cancelled() {
             (0, 1)
         } else {
             (std::fs::metadata(p).map_or(0, |m| m.len()), source_slots(p))
-        };
-        looked
+        }
     };
     let looked: Vec<(u64, u32)> = match &pool {
         Ok(pool) => pool.install(|| files.par_iter().map(look).collect()),
