@@ -144,10 +144,10 @@ describe('DialogService in the page', () => {
     expect(b).toBe(a);
     expect(dialogs.stack()).toHaveLength(1);
     expect(dialogs.stack()[0]!.modality).toBe('modeless');
-    // another dialog is raised when its id is opened again
+    // opening it again raises it, but not over a modal dialog that is being answered
     dialogs.open(ModalX, { title: 'Q' });
     dialogs.open(ModelessX, { title: 'About' });
-    expect(dialogs.stack().at(-1)?.modality).toBe('modeless');
+    expect(dialogs.stack().at(-1)?.modality).toBe('modal');
   });
 
   it('asks canClose before closing, from the options and from the component', () => {
@@ -166,5 +166,16 @@ describe('DialogService in the page', () => {
     const g = TestBed.inject(InPageDialogBackend).show({ def: null, component: Guarded, title: 'G', inputs: {}, width: 300 });
     g.close();
     expect(TestBed.inject(InPageDialogBackend).stack()).toHaveLength(1);
+  });
+});
+
+describe('raising an in-page dialog', () => {
+  it('brings it to the front, except over a modal dialog opened after it', async () => {
+    const { raise } = await import('./in-page-dialog-backend');
+    const d = (id: number, modality: 'modal' | 'modeless') => ({ id, modality }) as never;
+    const stack = [d(1, 'modeless'), d(2, 'modeless'), d(3, 'modal')];
+    expect(raise(stack, 1)).toBe(stack);
+    expect(raise(stack, 9)).toBe(stack);
+    expect(raise([d(1, 'modeless'), d(2, 'modeless')], 1).map((x) => x.id)).toEqual([2, 1]);
   });
 });

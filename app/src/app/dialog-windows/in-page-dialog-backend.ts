@@ -32,6 +32,13 @@ export class InPageDialogBackend implements DialogPresenter {
     const ref: DialogRef = { closed, close };
     const options = { title: request.title, inputs: request.inputs, width: request.width };
     this.stack.update((s) => [...s, { id, component: request.component, options, ref, modality: request.def?.modality ?? 'modal' }]);
-    return { closed, close, isOpen: () => this.stack().some((d) => d.id === id), focus: () => this.stack.update((s) => [...s.filter((d) => d.id !== id), ...s.filter((d) => d.id === id)]) };
+    return { closed, close, isOpen: () => this.stack().some((d) => d.id === id), focus: () => this.stack.update((s) => raise(s, id)) };
   }
+}
+
+/** Brings dialog `id` to the front, but never over a modal dialog opened after it (that one is being answered first). */
+export function raise(stack: readonly OpenDialog[], id: number): readonly OpenDialog[] {
+  const at = stack.findIndex((d) => d.id === id);
+  if (at < 0 || stack.slice(at + 1).some((d) => d.modality === 'modal')) return stack;
+  return [...stack.slice(0, at), ...stack.slice(at + 1), stack[at]!];
 }

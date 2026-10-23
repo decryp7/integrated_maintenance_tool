@@ -14,14 +14,15 @@ const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select
   // Some browsers (Safari) do not focus a clicked button, so Escape must also work from the document.
   host: { '(document:keydown.escape)': 'onEscape($event)' },
   template: `
-    @for (d of dialogs.stack(); track d.id) {
+    @for (d of dialogs.stack(); track d.id; let i = $index) {
       @if (d.modality === 'modal') {
-        <div class="backdrop" data-debrief-overlay data-testid="dialog-backdrop" (mousedown)="d.ref.close()"></div>
+        <div class="backdrop" data-debrief-overlay data-testid="dialog-backdrop" [style.z-index]="210 + 2 * i" (mousedown)="d.ref.close()"></div>
       }
       <div
         #box
         class="dialog"
         [class.modeless]="d.modality === 'modeless'"
+        [style.z-index]="211 + 2 * i"
         role="dialog"
         [attr.data-modality]="d.modality"
         [attr.data-dialog]="idOf(d)"
@@ -43,7 +44,7 @@ const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select
   styles: `
     .backdrop { position: fixed; inset: 0; z-index: 210; background: var(--scrim); }
     .dialog { position: fixed; z-index: 211; top: 56px; inset-inline-start: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px); max-height: calc(100vh - 96px); display: flex; flex-direction: column; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--border-3); box-shadow: var(--shadow); color: var(--text); }
-    .dialog.modeless { z-index: 150; top: 72px; inset-inline-start: auto; inset-inline-end: 24px; transform: none; max-height: calc(100vh - 112px); box-shadow: var(--shadow); }
+    .dialog.modeless { top: 72px; inset-inline-start: auto; inset-inline-end: 24px; transform: none; max-height: calc(100vh - 112px); box-shadow: var(--shadow); }
     .head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--border); }
     h2 { margin: 0; font-size: var(--fs-lg); font-weight: 600; }
     .body { min-height: 0; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
@@ -81,7 +82,10 @@ export class DialogHost {
 
   protected onEscape(e: Event): void {
     // A modeless dialog leaves the page usable, so Escape reaches it only from inside it (see onKey).
-    const top = this.dialogs.stack().filter((d) => d.modality === 'modal').at(-1);
+    const all = this.dialogs.stack();
+    const idle = !document.activeElement || document.activeElement === document.body;
+    // ...or from nowhere in particular (its focused control went away): then the topmost modeless one answers.
+    const top = all.filter((d) => d.modality === 'modal').at(-1) ?? (idle ? all.at(-1) : undefined);
     if (!top) return;
     e.preventDefault();
     top.ref.close();
