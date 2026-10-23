@@ -309,3 +309,88 @@ pub fn discover(
     }
     all
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::profile::Profile;
+    use crate::test_dirs::scratch_dir;
+
+    fn tree() -> PathBuf {
+        let dir = std::fs::canonicalize(scratch_dir("discover")).unwrap();
+        for f in ["a.log", "sub/b.log", "sub/deep/c.log", "z.log"] {
+            let p = dir.join(f);
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            std::fs::write(p, "x").unwrap();
+        }
+        dir
+    }
+
+    fn all(paths: &[PathBuf]) -> Vec<PathBuf> {
+        let p = CompiledProfile::compile(Profile::default_profile()).unwrap();
+        discover(paths, &p, &HashSet::new(), &HashSet::new(), &ImportProgress::default(), 2)
+    }
+
+    #[test]
+    fn a_root_inside_another_is_merged_sorted_and_listed_once() {
+        let dir = tree();
+        let found = all(&[dir.join("sub"), dir.clone()]);
+        let want: Vec<PathBuf> = ["a.log", "sub/b.log", "sub/deep/c.log", "z.log"]
+            .iter()
+            .map(|f| dir.join(f))
+            .collect();
+        assert_eq!(found, want);
+    }
+
+    #[test]
+    fn the_consumer_can_stop_merged_roots_after_the_first_file() {
+        let dir = tree();
+        let p = CompiledProfile::compile(Profile::default_profile()).unwrap();
+        let mut got = Vec::new();
+        discover_stream(
+            &[dir.join("sub"), dir.clone()],
+            &p,
+            &HashSet::new(),
+            &HashSet::new(),
+            &ImportProgress::default(),
+            2,
+            &|_| 1,
+            &mut |f| {
+                got.push(f.path);
+                false
+            },
+        );
+        assert_eq!(got, [dir.join("a.log")]);
+    }
+
+    #[test]
+    fn a_cancelled_import_lists_nothing_from_merged_roots() {
+        let dir = tree();
+        let progress = ImportProgress::default();
+        progress.cancel();
+        let p = CompiledProfile::compile(Profile::default_profile()).unwrap();
+        let found = discover(&[dir.join("sub"), dir], &p, &HashSet::new(), &HashSet::new(), &progress, 2);
+        assert!(found.is_empty(), "{found:?}");
+    }
+
+    #[test]
+    fn the_consumer_can_stop_the_walk_inside_a_folder() {
+        let dir = tree();
+        let p = CompiledProfile::compile(Profile::default_profile()).unwrap();
+        let mut got = Vec::new();
+        discover_stream(
+            std::slice::from_ref(&dir),
+            &p,
+            &HashSet::new(),
+            &HashSet::new(),
+            &ImportProgress::default(),
+            2,
+            &|_| 1,
+            &mut |f| {
+                got.push(f.path);
+                false
+            },
+        );
+        assert_eq!(got, [dir.join("a.log")]);
+    }
+}

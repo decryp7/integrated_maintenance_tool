@@ -216,20 +216,29 @@ mod tests {
         assert!(!v.knows("a"));
     }
 
-    struct Fixed(Vec<Candidate>, bool);
+    /// A catalogue of fixed candidates (built or not); its events page is empty (`.2`) or fails.
+    struct Fixed(Vec<Candidate>, bool, bool);
 
     impl SearchSource for Fixed {
         fn summary(&self) -> StoreResult<crate::ports::SummaryReply> {
-            unreachable!()
+            Err(crate::ports::StoreError::Invalid("not part of the fixture".into()))
         }
         fn page(&self, _: &crate::ports::PageQuery) -> StoreResult<crate::ports::PageReply> {
-            unreachable!()
+            if self.2 {
+                return Ok(crate::ports::PageReply {
+                    total: 0,
+                    offset: 0,
+                    rows: Vec::new(),
+                    anchor_index: None,
+                });
+            }
+            Err(crate::ports::StoreError::Invalid("the events cannot be read".into()))
         }
         fn facet(&self, _: &crate::api::FacetRequest) -> StoreResult<crate::api::Facet> {
-            unreachable!()
+            Err(crate::ports::StoreError::Invalid("not part of the fixture".into()))
         }
         fn exception_groups(&self) -> StoreResult<Vec<crate::exceptions::ExceptionGroup>> {
-            unreachable!()
+            Err(crate::ports::StoreError::Invalid("not part of the fixture".into()))
         }
         fn catalogue(&self, req: &CatalogueRequest) -> StoreResult<CatalogueReply> {
             assert!(req.all);
@@ -244,7 +253,11 @@ mod tests {
     #[test]
     fn refresh_builds_groups_and_keeps_learning() {
         let names = Names::default();
-        let store = Fixed(vec![cand("Acme.Graphic.Builder.exe", 5), cand("graphicbuilder.exe", 9)], true);
+        let store = Fixed(
+            vec![cand("Acme.Graphic.Builder.exe", 5), cand("graphicbuilder.exe", 9)],
+            true,
+            false,
+        );
         assert!(!names.is_built());
         assert_eq!(names.refresh(&store).unwrap(), 1);
         assert!(names.is_built());
@@ -252,7 +265,7 @@ mod tests {
         assert_eq!(names.refresh(&store).unwrap(), 1);
         assert_eq!(names.read(|b, _| b.facts().len()), 1);
         // A catalogue that is not built keeps the old table.
-        let unbuilt = Fixed(vec![], false);
+        let unbuilt = Fixed(vec![], false, false);
         assert_eq!(names.refresh(&unbuilt).unwrap(), 1);
         assert!(!names.is_built(), "new sources are being catalogued");
         names.context().remember("graphic");
@@ -264,6 +277,37 @@ mod tests {
         assert!(!names.settings().ai_aliases);
         names.set_book(NameBook::default());
         assert_eq!(names.read(|b, _| b.groups().len()), 0);
+    }
+
+    #[test]
+    fn the_fixture_answers_only_the_catalogue_and_events() {
+        let store = look_alikes_of(true);
+        assert!(store.summary().is_err() && store.exception_groups().is_err());
+        assert!(store
+            .facet(&crate::api::FacetRequest {
+                query: Default::default(),
+                field: "f".into(),
+                limit: 1,
+            })
+            .is_err());
+    }
+
+    fn look_alikes_of(page_works: bool) -> Fixed {
+        Fixed(
+            vec![cand("Graphic.Builder.exe", 9), cand("Graphic.Builders.exe", 8)],
+            true,
+            page_works,
+        )
+    }
+
+    #[test]
+    fn look_alikes_stay_apart_when_their_events_cannot_be_read_or_say_nothing() {
+        for page_works in [false, true] {
+            let names = Names::default();
+            let groups = names.refresh(&look_alikes_of(page_works)).unwrap();
+            assert_eq!(groups, 2, "no co-occurrence evidence, no merge (page works: {page_works})");
+            assert!(names.is_built());
+        }
     }
 
     struct M;
@@ -279,7 +323,7 @@ mod tests {
     #[test]
     fn alias_job_respects_the_settings_switch() {
         let names = Names::default();
-        names.refresh(&Fixed(vec![cand("graphicbuilder.exe", 50)], true)).unwrap();
+        names.refresh(&Fixed(vec![cand("graphicbuilder.exe", 50)], true, false)).unwrap();
         let cfg = AliasJobConfig {
             pause: std::time::Duration::ZERO,
             ..AliasJobConfig::default()

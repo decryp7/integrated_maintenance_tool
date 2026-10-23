@@ -271,6 +271,34 @@ mod tests {
     }
 
     #[test]
+    fn absorbing_a_group_adds_the_counts_of_a_shared_spelling() {
+        let mut a = group(&[cand("graphicbuilder.exe", 4)], &Vocabulary::builtin()).remove(0);
+        let b = group(
+            &[cand("graphicbuilder.exe", 6), cand("Graphic.Builder.exe", 1)],
+            &Vocabulary::builtin(),
+        )
+        .remove(0);
+        a.absorb(b);
+        assert_eq!(a.spellings[0].count, 10);
+        assert_eq!(a.spellings.len(), 2);
+        assert_eq!(a.count, 11);
+    }
+
+    #[test]
+    fn a_field_group_is_named_by_its_field() {
+        let mut c = cand("alpha", 1);
+        c.scope = Scope::Field("host".into());
+        let g = group(&[c], &Vocabulary::builtin());
+        assert_eq!(g[0].kind_label(), "host");
+    }
+
+    #[test]
+    fn very_short_names_are_alike_only_when_equal() {
+        assert!(similar("ab", "ab"));
+        assert!(!similar("ab", "ba"));
+    }
+
+    #[test]
     fn spellings_group_into_one_entity() {
         let c = [
             cand("CompanyA.Graphic.Builder.exe", 5),

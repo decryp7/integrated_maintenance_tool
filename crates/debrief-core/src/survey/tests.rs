@@ -583,6 +583,13 @@ fn limits_are_clamped_and_progress_is_reported() {
 }
 
 #[test]
+fn surveying_only_an_empty_store_says_to_open_something_too() {
+    let ws = crate::workspace::WorkspaceStore::new(Workspace::new(Profile::default_profile()).unwrap());
+    let e = survey_only(&ws, &SurveyRequest::default(), &SurveyControl::new()).err();
+    assert_eq!(e, Some(SurveyError::NothingOpened));
+}
+
+#[test]
 fn a_survey_of_an_empty_store_says_to_open_something() {
     let ws = crate::workspace::WorkspaceStore::new(Workspace::new(Profile::default_profile()).unwrap());
     let e = run(&ws, DEFAULT_PROFILE_TOML, &SurveyRequest::default(), &SurveyControl::new()).unwrap_err();

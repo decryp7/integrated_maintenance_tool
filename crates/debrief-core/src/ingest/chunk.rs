@@ -452,6 +452,20 @@ mod tests {
     }
 
     #[test]
+    fn only_ascii_compatible_encodings_are_offered() {
+        assert_eq!(Encoding::from_label("iso-2022-jp"), None, "a stateful escape-sequence encoding");
+        assert_eq!(Encoding::from_label("replacement"), None);
+        assert_eq!(Encoding::from_label(" UTF-8 "), Some(Encoding::Utf8));
+        assert_eq!(Encoding::from_label("utf-16be"), Some(Encoding::Utf16Be));
+        assert!(matches!(Encoding::from_label("sjis"), Some(Encoding::Legacy(_))));
+        assert_eq!(
+            Encoding::from_rs(encoding_rs::ISO_2022_JP),
+            Encoding::Utf8,
+            "a detector never returns it; read as UTF-8"
+        );
+    }
+
+    #[test]
     fn utf8_lines_match_str_lines_with_exact_offsets() {
         let text = "alpha\r\nbeta\n\nγάμμα\ndelta";
         for block in [1, 2, 3, 5, 64] {

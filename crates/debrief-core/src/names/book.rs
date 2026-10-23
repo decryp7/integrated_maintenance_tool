@@ -441,6 +441,38 @@ mod tests {
     const B: &str = "executable|b";
 
     #[test]
+    fn merging_the_later_group_into_the_earlier_and_the_other_way_round_agree() {
+        let mut b = book();
+        b.merge(B, A, false);
+        let groups = b.groups();
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].count, 10);
+        assert_eq!(groups[0].spellings.len(), 3);
+    }
+
+    #[test]
+    fn splitting_off_a_spelling_the_group_does_not_have_changes_nothing() {
+        let mut b = book();
+        b.split(A, "nope.exe", false);
+        assert_eq!(b.groups().len(), 2);
+        assert_eq!(b.groups()[0].spellings.len(), 2);
+    }
+
+    #[test]
+    fn the_book_stops_taking_facts_at_its_limit() {
+        let mut b = book();
+        b.facts = (0..MAX_FACTS as u64)
+            .map(|id| UserFact {
+                id,
+                kind: FactKind::Merge { a: A.into(), b: A.into() },
+                global: false,
+            })
+            .collect();
+        assert_eq!(b.accept("anything", A, false), None);
+        assert_eq!(b.facts.len(), MAX_FACTS);
+    }
+
+    #[test]
     fn accept_reject_replace_each_other_and_undo() {
         let mut b = book();
         let id = b.accept(" gfx ", A, false).unwrap();

@@ -119,3 +119,32 @@ pub fn ai_views_text() -> String {
     }
     out
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_editor_gets_every_view_with_its_columns() {
+        let views = sql_views();
+        let names: Vec<&str> = views.iter().map(|v| v.name.as_str()).collect();
+        assert_eq!(names, ["events", "sources", "fields", "notes"]);
+        for v in &views {
+            assert!(!v.description.is_empty() && !v.columns.is_empty(), "{}", v.name);
+            assert!(v.columns.iter().all(|c| !c.name.is_empty() && !c.ty.is_empty()), "{}", v.name);
+        }
+    }
+
+    #[test]
+    fn the_model_is_told_about_the_ai_views_only() {
+        let text = ai_views_text();
+        for v in AI_VIEWS {
+            assert!(text.contains(&format!("{v}: ")), "{v}");
+        }
+        assert!(!text.contains("notes: "), "the user's notes never go to the model");
+        let events = sql_views().into_iter().find(|v| v.name == "events").unwrap();
+        for c in &events.columns {
+            assert!(text.contains(&format!("  {} {} - ", c.name, c.ty)), "{}", c.name);
+        }
+    }
+}

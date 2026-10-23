@@ -481,6 +481,155 @@ mod names {
     }
 
     #[test]
+    fn anchors_break_a_tie_by_the_names_seen_around_each_candidate() {
+        let s = store_with(
+            "names-anchored",
+            &[
+                ("Started CompanyA.Graphic.Builder.exe pid 4242", "agent.exe"),
+                ("Loaded graphicbuilder.exe plugin", "agent.exe"),
+                ("CompanyA.Tray.Agent.exe launched CompanyA.Report.Builder.exe", "agent.exe"),
+                ("CompanyA.Tray.Agent.exe asked CompanyA.Report.Builder.exe to run", "agent.exe"),
+                ("Started CompanyA.Tray.Agent.exe", "agent.exe"),
+            ],
+        );
+        let names = Names::default();
+        names.refresh(&s).unwrap();
+        let tied = resolve(&s, &names, "builder");
+        assert!(tied.clarify.is_some(), "two builders tie without context");
+        names.context().anchors = vec!["CompanyA.Tray.Agent.exe".into()];
+        let r = resolve(&s, &names, "builder");
+        assert!(r.clarify.is_none(), "{r:#?}");
+        assert_eq!(r.values[0].group.as_deref(), Some("executable|report builder"), "{r:#?}");
+        // With the context switched off the anchors are not read.
+        names.set_settings(crate::names::NameSettings {
+            ai_aliases: true,
+            context: false,
+        });
+        assert!(resolve(&s, &names, "builder").clarify.is_some());
+    }
+
+    #[test]
+    fn every_way_of_matching_has_a_phrase_and_a_rank() {
+        let ways = [
+            Via::UserAlias,
+            Via::Exact,
+            Via::Segmented,
+            Via::Parts,
+            Via::Alias,
+            Via::Prefix,
+            Via::Fuzzy,
+        ];
+        for w in ways {
+            assert!(!w.phrase().is_empty());
+        }
+        let ranks: Vec<f64> = ways.iter().map(|w| w.base()).collect();
+        assert!(ranks.windows(2).all(|p| p[0] > p[1]), "{ranks:?}");
+        let hows = [
+            (How::UserAlias, Via::UserAlias),
+            (How::Exact, Via::Exact),
+            (How::Segmented, Via::Segmented),
+            (How::Parts, Via::Parts),
+            (How::Prefix, Via::Prefix),
+            (How::Alias, Via::Alias),
+            (How::Typo, Via::Fuzzy),
+        ];
+        for (h, v) in hows {
+            assert_eq!(Via::from_how(h), v);
+        }
+    }
+
+    #[test]
+    fn field_values_and_sources_are_matched_next_to_the_entities() {
+        let s = spelled();
+        let names = Names::default();
+        names.refresh(&s).unwrap();
+        let r = resolve(&s, &names, "agent");
+        let groups: Vec<Option<&str>> = r.values.iter().map(|v| v.group.as_deref()).collect();
+        assert!(groups.contains(&Some("field:ProcessName|agent")), "{groups:?}");
+        assert!(groups.contains(&Some("executable|tray agent")), "{groups:?}");
+        let source = r
+            .values
+            .iter()
+            .find(|v| v.value == "host-agent.log")
+            .expect("the source is a plain match");
+        assert!(source.group.is_none() && source.source.is_some(), "{source:#?}");
+        let ctx = names.context().clone();
+        let found = names.read(|book, vocab| {
+            let settings = names.settings();
+            let layer = NameLayer {
+                book,
+                vocab,
+                ctx: &ctx,
+                settings,
+            };
+            find_with(&s, "agent", 0, 5, Some(&layer)).unwrap()
+        });
+        assert_eq!(found.step, Some(FindStep::Words));
+        assert!(
+            found.note.contains("Also in field values: ProcessName = agent.exe"),
+            "{}",
+            found.note
+        );
+        // A name written one way only has no "also written as".
+        let tray = names.read(|book, vocab| {
+            let layer = NameLayer {
+                book,
+                vocab,
+                ctx: &ctx,
+                settings: names.settings(),
+            };
+            find_with(&s, "tray agent", 0, 5, Some(&layer)).unwrap()
+        });
+        assert!(tray.total >= 1 && !tray.note.contains("Also written as"), "{}", tray.note);
+    }
+
+    #[test]
+    fn a_fuzzy_name_is_offered_without_its_spellings_or_evidence() {
+        let s = spelled();
+        let names = Names::default();
+        names.refresh(&s).unwrap();
+        let ctx = names.context().clone();
+        let found = names.read(|book, vocab| {
+            let settings = names.settings();
+            let layer = NameLayer {
+                book,
+                vocab,
+                ctx: &ctx,
+                settings,
+            };
+            find_with(&s, "bilder", 0, 5, Some(&layer)).unwrap()
+        });
+        assert_eq!(found.step, None);
+        assert!(
+            found
+                .note
+                .starts_with("No events contain 'bilder'. Did you mean graphicbuilder.exe"),
+            "{}",
+            found.note
+        );
+        assert!(
+            !found.note.contains("Also written as") && !found.note.contains("Example events"),
+            "{}",
+            found.note
+        );
+        // A group with several spellings says how else it is written.
+        let typo = names.read(|book, vocab| {
+            let layer = NameLayer {
+                book,
+                vocab,
+                ctx: &ctx,
+                settings: names.settings(),
+            };
+            find_with(&s, "grafic bilder", 0, 5, Some(&layer)).unwrap()
+        });
+        assert!(
+            typo.note.contains("Did you mean") && typo.note.contains("Also written as"),
+            "{}",
+            typo.note
+        );
+    }
+
+    #[test]
     fn without_a_book_nothing_changes() {
         let s = spelled();
         let plain = resolve_terms(&s, "graphic builder", 5).unwrap();
