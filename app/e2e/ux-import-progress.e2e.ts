@@ -86,7 +86,7 @@ test.describe('import progress', () => {
     await expect(banner).toHaveCount(0);
   });
 
-  test('the phases explain themselves: a growing found count, then formats, then files; Cancel works while finding', async ({ page }) => {
+  test('the phases explain themselves: a growing found count, then files; Cancel works while finding', async ({ page }) => {
     await page.clock.install();
     await openAppWith(page, `${SLOW_IMPORT}&mockSlowDiscovery=60000`);
     await page.locator('debrief-sidebar').getByRole('button', { name: 'Open folder' }).click();
@@ -101,8 +101,6 @@ test.describe('import progress', () => {
     await page.clock.runFor(3 * FILE_MS);
     await expect(status).toContainText('Finding files… 6,170 found');
     await page.clock.runFor(FILE_MS);
-    await expect(status).toContainText(/Detecting formats… \d+ of 6/);
-    await page.clock.runFor(5 * FILE_MS);
     await expect(status).toContainText('Importing 0 of 6 files');
     await status.getByRole('button', { name: 'Cancel' }).click();
     await page.clock.runFor(FILE_MS);
