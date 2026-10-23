@@ -1013,7 +1013,8 @@ mod tests {
 
         let out = dir.0.join("events.clef");
         let req: ExportRequest = serde_json::from_value(json!({"format": "clef", "path": out.to_string_lossy()})).unwrap();
-        let job = crate::test_support::returns_fast("export_events", export_events(app.handle().clone(), st(), OpId::default(), req)).unwrap();
+        let job =
+            crate::test_support::returns_fast("export_events", export_events(app.handle().clone(), st(), OpId::default(), req)).unwrap();
         assert_eq!(
             crate::test_support::job_done(&app, job),
             format!("Exported {} events.", summary["total"])
@@ -1199,17 +1200,20 @@ mod tests {
         );
         assert!(e.props["Rows"].parse::<u64>().unwrap() > 0);
         let file = dir.0.join("p.debriefz").to_string_lossy().into_owned();
-        crate::test_support::finished(&app, block(save_project(
-            app.handle().clone(),
-            st(),
-            crate::paths::WindowGrants::of(app.handle(), "main"),
-            op("op-save"),
-            file.clone(),
-            "P".into(),
-            json!({}),
-            None,
-            None,
-        )))
+        crate::test_support::finished(
+            &app,
+            block(save_project(
+                app.handle().clone(),
+                st(),
+                crate::paths::WindowGrants::of(app.handle(), "main"),
+                op("op-save"),
+                file.clone(),
+                "P".into(),
+                json!({}),
+                None,
+                None,
+            )),
+        )
         .unwrap();
         assert!(crate::tools::tests::domain_event("project.saved", "op-save").props["Path"].starts_with("<dir#"));
         block(open_project(
@@ -1487,17 +1491,20 @@ mod tests {
         )
         .unwrap();
         let ui = json!({ "profiling": { "captures": [s(&capture), "relative.cpuprofile"] } });
-        crate::test_support::finished(&app, block(save_project(
-            app.handle().clone(),
-            st(),
-            grants(),
-            OpId::default(),
-            s(&project),
-            "P".into(),
-            ui,
-            None,
-            None,
-        )))
+        crate::test_support::finished(
+            &app,
+            block(save_project(
+                app.handle().clone(),
+                st(),
+                grants(),
+                OpId::default(),
+                s(&project),
+                "P".into(),
+                ui,
+                None,
+                None,
+            )),
+        )
         .unwrap();
         let listed = crate::recent::recents(app.handle()).list().projects;
         assert_eq!((listed[0].name.as_str(), listed.len()), ("P", 1));

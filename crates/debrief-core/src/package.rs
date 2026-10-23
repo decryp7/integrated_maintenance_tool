@@ -300,7 +300,6 @@ impl ProjectDir {
     }
 }
 
-
 fn read_text(path: &Path) -> Result<String> {
     let f = std::fs::File::open(path).with_context(|| format!("cannot open {}", path.display()))?;
     let bytes = crate::bundle::read_capped(f, MAX_MANIFEST_BYTES)?;

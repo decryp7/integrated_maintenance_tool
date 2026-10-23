@@ -816,7 +816,9 @@ pub(crate) mod test_support {
         match (end.state, end.result) {
             (jobs::JobState::Done, Some(jobs::JobResult::Value { value })) => Ok(value),
             (jobs::JobState::Done, Some(jobs::JobResult::File { detail: Some(value), .. })) => Ok(value),
-            (state, result) => Err(end.error.unwrap_or_else(|| format!("the job ended {state:?} without a value ({result:?})"))),
+            (state, result) => Err(end
+                .error
+                .unwrap_or_else(|| format!("the job ended {state:?} without a value ({result:?})"))),
         }
     }
 
@@ -834,7 +836,10 @@ pub(crate) mod test_support {
         let started = std::time::Instant::now();
         let out = block(f);
         let took = started.elapsed();
-        assert!(took < FAST_RETURN, "{what} took {took:?} to return: long work belongs in a job, not in the command");
+        assert!(
+            took < FAST_RETURN,
+            "{what} took {took:?} to return: long work belongs in a job, not in the command"
+        );
         out
     }
 
