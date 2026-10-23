@@ -3,7 +3,7 @@ import { provideActivity } from '../core/activity/provide-activity';
 import { provideBackend } from '../core/backend';
 import { provideErrorLogging, provideLogger } from '../core/logger';
 import { provideNativeFeel } from '../core/native-feel';
-import { WORKSPACE_QUERIES } from '../core/workspace/workspace-queries';
+import { WORKSPACE_QUERIES, WORKSPACE_SUMMARY } from '../core/workspace/workspace-queries';
 import { ThemeService } from '../core/workspace/theme.service';
 import { UiSync } from '../popout/ui-sync';
 import { provideDebriefIcons } from '../shared/material/debrief-icons';
@@ -38,7 +38,9 @@ const FEATURES: Record<DialogFeature, () => Promise<Providers>> = {
     return [{ provide: AnalysisBackend, useFactory: createAnalysisBackend }];
   },
   // The dialog shows the workspace's own data (timeline, ...): the window fetches it like the main window does.
-  workspace: async () => [{ provide: WORKSPACE_QUERIES, useValue: true }],
+  workspace: async () => [{ provide: WORKSPACE_QUERIES, useValue: true }, { provide: WORKSPACE_SUMMARY, useValue: true }],
+  // The dialog reads the workspace's summary (sources, fields) but not its timeline.
+  summary: async () => [{ provide: WORKSPACE_SUMMARY, useValue: true }],
   skew: () => import('../core/skew-backend').then((m) => [m.provideSkewBackend()]),
   profiling: () => import('../profiling/profiling-backend').then((m) => m.provideProfilingBackend()),
   native: () => import('../profiling/native/native-backend').then((m) => m.provideNativeBackend()),
@@ -64,6 +66,7 @@ export function dialogBaseProviders(): Providers {
     provideLogger(),
     provideErrorLogging(),
     { provide: WORKSPACE_QUERIES, useValue: false },
+    { provide: WORKSPACE_SUMMARY, useValue: false },
     provideBackend(),
     provideActivity(),
     provideDebriefIcons(),

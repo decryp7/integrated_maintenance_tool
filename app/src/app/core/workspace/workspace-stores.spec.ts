@@ -9,7 +9,7 @@ import { SelectionStore } from './selection.store';
 import { WorkspaceStatusStore } from './status.store';
 import { ThemeService } from './theme.service';
 import { TimelineStore } from './timeline-data.store';
-import { WORKSPACE_QUERIES } from './workspace-queries';
+import { WORKSPACE_QUERIES, WORKSPACE_SUMMARY } from './workspace-queries';
 import { UiPrefsStore } from './ui-prefs.store';
 import { sameSources, WorkspaceDataStore } from './workspace-data.store';
 
@@ -182,5 +182,15 @@ describe('workspace stores', () => {
     expect(TestBed.inject(WorkspaceDataStore).summary()).not.toBeNull();
     expect(spy).not.toHaveBeenCalled();
     expect(timeline.timeline()).toBeNull();
+  });
+
+  it('a dialog window that does not name the summary feature never loads the workspace', async () => {
+    const backend = tinyBackend();
+    const spy = vi.spyOn(backend, 'workspaceSummary');
+    TestBed.configureTestingModule({ providers: [...provideTinyBackendBare(backend), { provide: WORKSPACE_QUERIES, useValue: false }, { provide: WORKSPACE_SUMMARY, useValue: false }] });
+    TestBed.inject(WorkspaceDataStore);
+    await settle();
+    expect(spy).not.toHaveBeenCalled();
+    expect(TestBed.inject(WorkspaceDataStore).summary()).toBeNull();
   });
 });

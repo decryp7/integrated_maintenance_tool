@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { WorkspaceStore } from '../core/workspace.store';
 import { settle } from '../../testing/helpers';
 import { dialogAppConfig } from './dialog-bootstrap';
 import { DIALOG_IO } from './dialog-io';
@@ -43,6 +44,11 @@ describe('every dialog window', () => {
         expect(errors.filter((e) => /NG0\d+|No provider|NullInjector/.test(e))).toEqual([]);
         // The mock engine refuses to preview files outside the (empty) workspace; that is the mock's rule, not a missing provider.
         expect(errors.filter((e) => !/readFileHead/.test(e))).toEqual([]);
+        const store = TestBed.inject(WorkspaceStore);
+        const wants = !!(def.features?.includes('workspace') || def.features?.includes('summary'));
+        for (let i = 0; i < 100 && wants && !store.summary(); i++) await settle(fixture, 1);
+        // A dialog loads the workspace only when it names the `summary` or `workspace` feature.
+        expect(store.summary() !== null).toBe(wants);
         fixture.destroy();
       } finally {
         spy.mockRestore();

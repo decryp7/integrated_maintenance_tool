@@ -131,6 +131,7 @@ export function browserDialogIo(): DialogIo {
     ask: async (q) => window.confirm(q.message),
     workAreas: async () => [],
     windowLabel: async () => route().get('label') ?? '',
-    fitHeight: async () => undefined,
+    // The browser build has no window to size: it publishes the height a native window would get (the e2e checks the fit with it).
+    fitHeight: async (px) => void (document.documentElement.dataset['fittedHeight'] = String(px)),
   };
 }

@@ -55,7 +55,7 @@ const key = (target: Element, k: string, init: KeyboardEventInit = {}) => target
 
 describe('DialogShell', () => {
   it('sizes the window to the content unless the dialog names a height', async () => {
-    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ height: 120 } as DOMRect);
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ height: 120, top: 0, bottom: 136 } as DOMRect);
     try {
       const { io } = await setup();
       expect(io.fitted).toEqual([152]);

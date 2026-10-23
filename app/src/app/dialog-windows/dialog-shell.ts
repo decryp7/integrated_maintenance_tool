@@ -17,6 +17,7 @@ import { deniedCommand } from '../core/denied-command';
 import { Logger } from '../core/logger';
 import { REPORT_PROBLEM_COMMAND } from '../diagnostics/snapshot.types';
 import { WorkspaceStore } from '../core/workspace.store';
+import { WORKSPACE_SUMMARY } from '../core/workspace/workspace-queries';
 import { PopoutBackend } from '../popout/popout-backend';
 
 import { sharedUiState } from '../popout/shared-state';
@@ -31,8 +32,11 @@ import { DIALOG_ROUTE } from './dialog-route';
 
 /** The dialog window starts syncing once its workspace loaded, or after this long anyway. */
 const SYNC_START_TIMEOUT_MS = 5000;
-/** The shell body's padding (see the styles): the window is this much taller than its content. */
+/** The shell body's padding (see the styles). */
 const BODY_PADDING_PX = 16;
+/** Re-fits after the content changed size wait this long, and happen at most this many times. */
+const REFIT_DEBOUNCE_MS = 60;
+const MAX_REFITS = 12;
 
 /**
  * The small app a dialog window boots into (ADR 0050): the dialog's content under the OS title bar. It takes its input
@@ -81,6 +85,8 @@ export class DialogShell {
   private readonly io = inject(DIALOG_IO);
   private readonly lookup = inject(DIALOG_LOOKUP);
   private readonly injector = inject(Injector);
+  private readonly queries = inject(WORKSPACE_SUMMARY);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly logger = inject(Logger);
   private readonly sync = inject(UiSync);
   private readonly store = inject(WorkspaceStore);
@@ -103,7 +109,7 @@ export class DialogShell {
   protected readonly contentInjector = Injector.create({ providers: [{ provide: DIALOG_REF, useValue: this.ref }], parent: this.injector });
 
   constructor() {
-    const destroy = inject(DestroyRef);
+    const destroy = this.destroyRef;
     void this.init();
     let off: (() => void) | null = null;
     void this.io.listen(DIALOG_CLOSE_REQUESTED_EVENT, () => void this.close()).then((u) => (off = u), () => undefined);
@@ -158,24 +164,56 @@ export class DialogShell {
   }
 
   /**
-   * The window opens at a default size; unless the dialog names a height in the registry, it is sized to what its content
-   * needs (once, after the first render: the user's own resizing afterwards stretches the content, which fills the window).
+   * The window opens at a default size; unless the dialog names a height in the registry, it is fitted to what its content
+   * needs: after the first layout and once the fonts are ready, and again when the content changes size (bounded and
+   * debounced, never past `MAX_REFITS`). The measure is the content's natural bottom edge plus the body's padding, rounded
+   * up, so there is neither a scrollbar nor a gap; the engine clamps it to the dialog's minimum and the screen.
    */
   private fitToContent(): void {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let last = 0;
+    let refits = 0;
+    const fit = () => {
+      const needed = this.neededHeight();
+      if (needed <= 0 || needed === last || refits >= MAX_REFITS) return;
+      refits++;
+      last = needed;
+      void this.io.fitHeight(needed).catch(() => undefined);
+    };
+    const schedule = () => {
+      clearTimeout(timer);
+      timer = setTimeout(fit, REFIT_DEBOUNCE_MS);
+    };
     afterNextRender(
       () => {
+        fit();
+        void (document.fonts?.ready ?? Promise.resolve()).then(fit, () => undefined);
         const content = this.body().nativeElement.firstElementChild;
-        if (!content) return;
-        // Measure at its natural height: the content normally stretches to fill the window.
-        const el = content as HTMLElement;
-        const flex = el.style.flex;
-        el.style.flex = 'none';
-        const h = el.getBoundingClientRect().height;
-        el.style.flex = flex;
-        if (h > 0) void this.io.fitHeight(h + 2 * BODY_PADDING_PX).catch(() => undefined);
+        if (content && typeof ResizeObserver !== 'undefined') {
+          const observer = new ResizeObserver(schedule);
+          observer.observe(content);
+          this.destroyRef.onDestroy(() => {
+            observer.disconnect();
+            clearTimeout(timer);
+          });
+        }
       },
       { injector: this.injector },
     );
+  }
+
+  /** The window height the content needs: its natural bottom edge within the body plus the body's bottom padding, rounded up. */
+  private neededHeight(): number {
+    const body = this.body().nativeElement;
+    const content = body.firstElementChild as HTMLElement | null;
+    if (!content) return 0;
+    // Measure at the natural height: the content normally stretches to fill the window.
+    const flex = content.style.flex;
+    content.style.flex = 'none';
+    const bottom = content.getBoundingClientRect().bottom - body.getBoundingClientRect().top + body.scrollTop;
+    content.style.flex = flex;
+    const padding = parseFloat(getComputedStyle(body).paddingBottom) || BODY_PADDING_PX;
+    return Math.ceil(bottom + padding);
   }
 
   /** Closes this dialog with `result` (none: dismissed), unless the content refuses (unsaved edits). */
@@ -214,6 +252,8 @@ export class DialogShell {
       const port = this.backend.syncPort(this.route.host, false, () => [this.route.host]);
       this.sync.start(port, false, this.route.label, sharedUiState(this.injector));
     };
+    // A window that does not load the workspace has nothing to wait for.
+    if (!this.queries) start();
     const fallback = setTimeout(start, SYNC_START_TIMEOUT_MS);
     const ref = effect(
       () => {

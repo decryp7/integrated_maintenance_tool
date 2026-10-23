@@ -9,6 +9,7 @@ import { Platform } from '../platform';
 import { JobsBackend } from '../../jobs/jobs-backend';
 import { RECENT_STORE } from '../../welcome/recent-store';
 import { plural } from '../../i18n/locale';
+import { WORKSPACE_SUMMARY } from './workspace-queries';
 import { SelectionStore } from './selection.store';
 import { WorkspaceBusy, WorkspaceStatusStore } from './status.store';
 
@@ -219,7 +220,8 @@ export const WorkspaceDataStore = signalStore(
   ),
   withHooks({
     onInit(store) {
-      void store.init();
+      // A dialog window loads the workspace only when its dialog names the `summary` or `workspace` feature (dialog-bootstrap.ts).
+      if (inject(WORKSPACE_SUMMARY)) void store.init();
     },
   }),
 );

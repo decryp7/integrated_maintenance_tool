@@ -9,7 +9,7 @@ import { HOST_COMMAND_FORWARD } from './host-commands';
 describe('dialog window bootstrap', () => {
   it('builds a small provider set, plus the features the dialog names, loaded on demand', async () => {
     const base = await dialogAppConfig('about'); // tools
-    const none = await dialogAppConfig('settings');
+    const none = await dialogAppConfig('cheat-sheet');
     const ai = await dialogAppConfig('ai-setup');
     expect(none.providers.length).toBe(dialogBaseProviders().length);
     expect(base.providers.length).toBeGreaterThan(none.providers.length);
@@ -20,7 +20,7 @@ describe('dialog window bootstrap', () => {
   it('keeps the workspace queries off unless the dialog names the workspace feature', async () => {
     const flag = (c: { providers: unknown[] }) =>
       c.providers.filter((p) => (p as { provide?: unknown }).provide === WORKSPACE_QUERIES).map((p) => (p as { useValue: boolean }).useValue).at(-1);
-    expect(flag(await dialogAppConfig('settings'))).toBe(false);
+    expect(flag(await dialogAppConfig('cheat-sheet'))).toBe(false);
     expect(flag(await dialogAppConfig('no-such-dialog'))).toBe(false);
     for (const d of DIALOG_DEFS) expect(flag(await dialogAppConfig(d.id))).toBe(d.features?.includes('workspace') ? true : false);
   });
