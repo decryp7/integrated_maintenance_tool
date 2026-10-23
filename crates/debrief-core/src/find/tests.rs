@@ -261,3 +261,57 @@ fn until_the_catalogue_is_built_values_come_from_facets() {
         "the names in message text need the catalogue"
     );
 }
+
+/// A store whose catalogue still lists a name whose events are gone: nothing matches any text, the catalogue knows the name.
+struct Stale(WorkspaceStore, Scope);
+
+impl SearchSource for Stale {
+    fn summary(&self) -> StoreResult<crate::ports::SummaryReply> {
+        SearchSource::summary(&self.0)
+    }
+    fn page(&self, req: &PageQuery) -> StoreResult<crate::ports::PageReply> {
+        let mut p = SearchSource::page(&self.0, req)?;
+        if req.query.text.is_empty() && req.query.filters.is_empty() && req.query.sources.is_empty() && req.query.ql.is_empty() {
+            return Ok(p);
+        }
+        p.total = 0;
+        p.rows.clear();
+        Ok(p)
+    }
+    fn facet(&self, req: &FacetRequest) -> StoreResult<crate::api::Facet> {
+        SearchSource::facet(&self.0, req)
+    }
+    fn exception_groups(&self) -> StoreResult<Vec<crate::exceptions::ExceptionGroup>> {
+        SearchSource::exception_groups(&self.0)
+    }
+    fn catalogue(&self, _: &CatalogueRequest) -> StoreResult<crate::catalogue::CatalogueReply> {
+        Ok(crate::catalogue::CatalogueReply {
+            built: true,
+            pending: 0,
+            candidates: vec![crate::catalogue::Candidate {
+                scope: self.1.clone(),
+                name: "Gone.Worker.exe".into(),
+                count: 3,
+                first_ts: None,
+                last_ts: None,
+                seen_in: Vec::new(),
+            }],
+        })
+    }
+}
+
+#[test]
+fn a_name_the_catalogue_remembers_is_searched_by_its_text_when_the_words_find_nothing() {
+    let store = store_with("stale", &[("idle", "agent")]);
+    // The Value step finds nothing here either (the stub has no events): the reply suggests the name.
+    let r = find(
+        &Stale(store, Scope::Entity(crate::entities::EntityKind::Executable)),
+        "Gone.Worker.exe",
+        0,
+        5,
+    )
+    .unwrap();
+    assert_eq!(r.step, None);
+    assert!(r.note.contains("Did you mean Gone.Worker.exe (executable)"), "{}", r.note);
+    assert_eq!(r.values[0].value, "Gone.Worker.exe");
+}

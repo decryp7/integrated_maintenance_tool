@@ -134,3 +134,37 @@ fn kinds_round_trip() {
     }
     assert_eq!(EntityKind::from_id("nope"), None);
 }
+
+#[test]
+fn three_digit_numbers_are_codes_only_in_an_http_context_and_range() {
+    assert!(names(&["wrote 999 rows"], EntityKind::ErrorCode).is_empty());
+    assert!(names(&["waited 404 ms"], EntityKind::ErrorCode).is_empty());
+    assert_eq!(names(&["status 404 returned"], EntityKind::ErrorCode), ["HTTP 404"]);
+}
+
+#[test]
+fn names_that_are_not_hosts_are_left_out() {
+    assert!(names(&["see foo_bar.example now"], EntityKind::Host).is_empty());
+    assert!(names(&["see foo$bar.example now"], EntityKind::Host).is_empty());
+}
+
+#[test]
+fn quoted_stretches_are_split_or_kept_whole() {
+    // A quoted stretch without spaces is split as usual; one with spaces is a single token.
+    assert_eq!(names(&[r#"loaded "Widget.dll""#], EntityKind::Library), ["Widget.dll"]);
+    assert_eq!(names(&[r#"loaded "a.dll,b.dll""#], EntityKind::Library), ["a.dll", "b.dll"]);
+    // A quote that never closes within the token limit is dropped without a panic.
+    let long = format!("\"{}", "a".repeat(10_000));
+    let _ = extract(&[long.as_str()]);
+}
+
+#[test]
+fn urls_with_odd_authorities() {
+    assert!(names(&["GET http:///x done"], EntityKind::Url).is_empty());
+    let _ = extract(&[
+        "GET http://host:abc/x done",
+        "GET http://[::1]:8080/x done",
+        "GET http://[::1/x done",
+    ]);
+    assert!(names(&["GET http://host:abc/x done"], EntityKind::Url).len() <= 1);
+}
