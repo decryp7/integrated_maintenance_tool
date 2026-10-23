@@ -3,11 +3,10 @@ import { patchState, signalStore, withComputed, withMethods, withState } from '@
 import { TailFileChange, TailFileState, TailStatus } from '../core/api.types';
 import { DebriefBackend } from '../core/backend';
 import { describeError } from '../core/logger';
+import { setError, setLoaded, setLoading, withRequestStatus } from '../shared/store/with-request-status';
 
 interface TailStatusState {
   status: TailStatus | null;
-  loading: boolean;
-  error: string | null;
 }
 
 /** File states worth a badge in the sidebar (tailing and whole files need none). */
@@ -21,7 +20,8 @@ const NOTABLE: ReadonlySet<string> = new Set(['rotated', 'truncated', 'deleted',
  */
 export const TailStatusStore = signalStore(
   { providedIn: 'root' },
-  withState<TailStatusState>({ status: null, loading: false, error: null }),
+  withState<TailStatusState>({ status: null }),
+  withRequestStatus(),
   withComputed((store) => ({
     /** Notable state per source id (rotated, truncated, deleted, error), for badges. */
     notable: computed(() => {
@@ -35,12 +35,12 @@ export const TailStatusStore = signalStore(
     /** Fetches the status again; overlapping calls keep only the newest answer. Never rejects. */
     const refresh = async (): Promise<void> => {
       const mine = ++seq;
-      patchState(store, { loading: true });
+      patchState(store, setLoading());
       try {
         const status = await backend.tailStatus();
-        if (mine === seq) patchState(store, { status, loading: false, error: null });
+        if (mine === seq) patchState(store, { status }, setLoaded());
       } catch (e) {
-        if (mine === seq) patchState(store, { loading: false, error: describeError(e) });
+        if (mine === seq) patchState(store, setError(describeError(e)));
       }
     };
     return {

@@ -181,7 +181,7 @@ const SYSTEM_KEYS = ['appVersion', 'commit', 'os', 'osVersion', 'arch', 'cpuCore
       </div>
     } @else if (!store.error()) {
       <p class="empty" data-testid="diag-empty">
-        @if (store.loading()) {
+        @if (store.isLoading()) {
           <ng-container i18n="@@diagnostics.reportView.loading">Loading…</ng-container>
         } @else {
           <ng-container i18n="@@diagnostics.reportView.empty">No diagnostics report is open. Open a zip saved with Help ▸ Report a problem… (File ▸ Open, or drop it here) to see its processes, steps and snapshots.</ng-container>

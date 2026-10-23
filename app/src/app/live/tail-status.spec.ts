@@ -50,7 +50,7 @@ describe('tail status', () => {
     vi.spyOn(backend, 'tailStatus').mockRejectedValueOnce('gone');
     await store.refresh();
     expect(store.error()).toBe('gone');
-    expect(store.loading()).toBe(false);
+    expect(store.isLoading()).toBe(false);
     let release!: (s: TailStatus) => void;
     vi.spyOn(backend, 'tailStatus').mockImplementationOnce(() => new Promise((r) => (release = r)));
     const slow = store.refresh();
