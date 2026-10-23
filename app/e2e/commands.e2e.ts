@@ -49,7 +49,7 @@ test.describe('commands without another spec', () => {
   });
 
   test('Analyze ▸ Time zone ▸ UTC and Local switch the status bar zone and the check mark', async ({ page }) => {
-    const tz = page.locator('debrief-status-bar .tz');
+    const tz = page.locator('debrief-status-bar .tz:not(.details)');
     await chooseMenu(page, 'Analyze', 'Time zone', 'Local');
     await expect(tz).not.toHaveText('UTC');
     await chooseMenu(page, 'Analyze', 'Time zone', 'UTC');
