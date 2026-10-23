@@ -29,6 +29,8 @@ pub enum SetupStage {
         total: u64,
         bytes_per_sec: f64,
         eta_secs: Option<u64>,
+        /// Parallel connections in use (1 for a single stream).
+        connections: u32,
     },
     Verifying {
         bytes: u64,
@@ -253,6 +255,7 @@ impl Setup<'_> {
             opts: DownloadOptions {
                 max_bytes: cap.max(remote.size),
                 backoff: self.backoff,
+                connections: self.settings.download_connections as usize,
                 ..DownloadOptions::default()
             },
         };
@@ -262,6 +265,7 @@ impl Setup<'_> {
             total: remote.size,
             bytes_per_sec: 0.0,
             eta_secs: None,
+            connections: 1,
         });
         std::thread::scope(|scope| {
             let worker = scope.spawn(|| dl.download_as(remote, &dir, name, progress));
@@ -347,6 +351,7 @@ fn emit_progress(p: &Progress, on_stage: &mut dyn FnMut(SetupStage)) {
             total: s.total,
             bytes_per_sec: s.bytes_per_sec,
             eta_secs: s.eta_secs,
+            connections: s.connections,
         },
         Phase::Verifying => SetupStage::Verifying {
             bytes: s.bytes,

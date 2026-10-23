@@ -18,6 +18,7 @@ import {
   fitLabel,
   fitNumbers,
   formatBytes,
+  formatConnections,
   formatEta,
   formatRate,
   hardwareLines,
@@ -450,6 +451,7 @@ export class AiSetupWizard implements OnInit {
       base,
       formatRate(this.transfer().rate),
       formatEta(this.transfer().etaSecs),
+      formatConnections(st.connections),
     ]
       .filter(Boolean)
       .join(' · ');

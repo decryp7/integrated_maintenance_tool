@@ -127,6 +127,8 @@ pub enum RuntimeEvent {
         total: u64,
         bytes_per_sec: f64,
         eta_secs: Option<u64>,
+        /// Parallel connections in use.
+        connections: u32,
         verifying: bool,
     },
     Unpacking {
@@ -174,6 +176,7 @@ impl RuntimeEvent {
             total: s.total,
             bytes_per_sec: s.bytes_per_sec,
             eta_secs: s.eta_secs,
+            connections: s.connections,
             verifying: s.phase == debrief_ai::models::source::Phase::Verifying,
         }
     }
@@ -326,6 +329,7 @@ impl AiCore {
         let source = (rt.source)(&s, &rt.catalog)?;
         let opts = DownloadOptions {
             backoff: self.deps.download_backoff,
+            connections: s.download_connections as usize,
             ..DownloadOptions::default()
         };
         // A new build is switched to only after it answered with the user's active model (ADR 0009).

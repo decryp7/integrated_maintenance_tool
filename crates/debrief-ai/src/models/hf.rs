@@ -280,6 +280,17 @@ impl HuggingFace {
             if start != Some(pos) {
                 return Err(AiError::Network("the host answered a different byte range than requested".into()));
             }
+        } else if matches!(status, 429 | 503) {
+            let after = resp.headers().get("retry-after").and_then(|v| v.to_str().ok());
+            let detail = if status == 429 {
+                "the model host is rate limiting requests"
+            } else {
+                "the model host is busy"
+            };
+            return Err(match net::status_error(status, &self.endpoint_host(), detail) {
+                AiError::Connection(n) => AiError::Connection(n.with_retry_after(after)),
+                e => e,
+            });
         } else {
             self.check_status(status, &remote.repo)?;
         }
@@ -374,19 +385,49 @@ impl ModelSource for HuggingFace {
     }
 
     fn fetch(&self, remote: &RemoteFile, offset: u64, sink: &mut dyn FnMut(&[u8]) -> Result<()>, cancel: &AtomicBool) -> Result<()> {
+        self.fetch_range(remote, offset, remote.size, sink, cancel)
+    }
+
+    /// One `Range` request to the resolved CDN address must be answered `206` for the same total size.
+    fn supports_ranges(&self, remote: &RemoteFile) -> bool {
+        if !safe_repo(&remote.repo) || !is_safe_file_name(&remote.file) {
+            return false;
+        }
+        let Ok(url) = self.resolve_url(remote, false) else { return false };
+        let Ok((resp, _)) = self.send(&self.dl, "GET", &url, &[("Range", "bytes=0-0".to_string())], None) else {
+            return false;
+        };
+        let total = resp
+            .headers()
+            .get("content-range")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|r| r.rsplit('/').next())
+            .and_then(|t| t.parse::<u64>().ok());
+        resp.status().as_u16() == 206 && total == Some(remote.size)
+    }
+
+    fn fetch_range(
+        &self,
+        remote: &RemoteFile,
+        start: u64,
+        end: u64,
+        sink: &mut dyn FnMut(&[u8]) -> Result<()>,
+        cancel: &AtomicBool,
+    ) -> Result<()> {
         if !safe_repo(&remote.repo) || !is_safe_file_name(&remote.file) {
             return Err(AiError::Refused("that repository or file name is not acceptable".into()));
         }
-        let mut pos = offset;
+        let end = end.min(remote.size);
+        let mut pos = start;
         let mut url = self.resolve_url(remote, false)?;
         let mut refreshed = false;
-        while pos < remote.size {
+        while pos < end {
             if cancel.load(Ordering::Relaxed) {
                 return Err(AiError::Cancelled);
             }
-            let end = (pos + self.cfg.chunk_bytes - 1).min(remote.size - 1);
-            match self.fetch_chunk(remote, &url, pos, end, &mut *sink, cancel) {
-                Ok(()) => pos = end + 1,
+            let last = (pos + self.cfg.chunk_bytes - 1).min(end - 1);
+            match self.fetch_chunk(remote, &url, pos, last, &mut *sink, cancel) {
+                Ok(()) => pos = last + 1,
                 // The signed address expired: resolve again once.
                 Err(AiError::Gated { .. }) if !refreshed => {
                     refreshed = true;

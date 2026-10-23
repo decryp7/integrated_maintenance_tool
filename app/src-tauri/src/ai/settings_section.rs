@@ -95,7 +95,14 @@ fn field_of(f: &Value) -> Option<SettingField> {
     let mut field = SettingField::new(key, label, kind, default).describe(desc);
     if matches!(
         key,
-        "threads" | "hf_endpoint" | "download_proxy" | "max_download_gb" | "models_dir" | "temperature" | "llama_server_path"
+        "threads"
+            | "hf_endpoint"
+            | "download_proxy"
+            | "max_download_gb"
+            | "download_connections"
+            | "models_dir"
+            | "temperature"
+            | "llama_server_path"
     ) {
         field = field.as_advanced();
     }
@@ -174,6 +181,7 @@ pub fn to_settings(values: &ValidValues, base: &AiSettings) -> AiSettings {
     }
     s.download_proxy = text(values, "download_proxy");
     s.max_download_gb = int("max_download_gb", i64::from(s.max_download_gb)) as u32;
+    s.download_connections = int("download_connections", i64::from(s.download_connections)) as u32;
     s.models_dir = text(values, "models_dir");
     if let Some(b) = text(values, "inference_build") {
         s.inference_build = b;
@@ -251,7 +259,7 @@ mod tests {
             &json!({
                 "autoload": false, "idle_unload_minutes": 0, "gpu_offload": "all", "context_length": 4096,
                 "max_tokens": 512, "temperature": 0.5, "threads": 4, "hf_endpoint": "https://mirror.example",
-                "download_proxy": "http://p:3128", "max_download_gb": 9, "models_dir": models,
+                "download_proxy": "http://p:3128", "max_download_gb": 9, "download_connections": 6, "models_dir": models,
                 "inference_build": "vulkan", "llama_server_path": server,
                 "runtime_updates": "automatic", "model_updates": "manual", "update_check_hours": 6
             }),
@@ -272,6 +280,7 @@ mod tests {
         assert!((a.temperature - 0.5).abs() < 1e-6);
         assert_eq!(a.hf_endpoint, "https://mirror.example");
         assert_eq!(a.download_proxy.as_deref(), Some("http://p:3128"));
+        assert_eq!(a.download_connections, 6);
         assert_eq!(a.models_dir.as_deref(), Some(models));
         assert_eq!(
             (a.inference_build.as_str(), a.llama_server_path.as_deref()),

@@ -72,6 +72,8 @@ pub struct NetError {
     pub kind: NetKind,
     pub host: String,
     pub detail: String,
+    /// The server's `Retry-After` (whole seconds) on a 429/503, when it gave one.
+    pub retry_after_secs: Option<u32>,
 }
 
 fn trust_store() -> &'static str {
@@ -138,7 +140,19 @@ impl NetError {
             kind,
             host: host.to_string(),
             detail: strip_query(&detail.into()),
+            retry_after_secs: None,
         }
+    }
+
+    /// Records the server's `Retry-After` header value (delta-seconds form; dates are ignored).
+    pub fn with_retry_after(mut self, header: Option<&str>) -> NetError {
+        self.retry_after_secs = header.and_then(|v| v.trim().parse().ok());
+        self
+    }
+
+    /// The server asked to slow down (429 or 503): a segmented download uses fewer connections.
+    pub fn is_throttle(&self) -> bool {
+        matches!(self.kind, NetKind::Http(429 | 503))
     }
 
     /// Worth retrying after a pause: timeouts, dropped networks, rate limits and server errors.
@@ -360,5 +374,15 @@ mod tests {
         assert!(!t(NetKind::Tls) && !t(NetKind::ProxyAuth) && !t(NetKind::Http(404)) && !t(NetKind::Http(403)));
         assert!(AiError::Connection(NetError::new(NetKind::Timeout, "h", "")).is_transient());
         assert!(!AiError::Connection(NetError::new(NetKind::Tls, "h", "")).is_transient());
+    }
+
+    #[test]
+    fn throttling_carries_the_retry_after_the_server_gave() {
+        let e = |st, h| AiError::Connection(NetError::new(NetKind::Http(st), "h", "").with_retry_after(h));
+        assert_eq!(e(429, Some(" 7 ")).throttle(), Some(Some(Duration::from_secs(7))));
+        assert_eq!(e(503, None).throttle(), Some(None));
+        assert_eq!(e(503, Some("Wed, 21 Oct 2026 07:28:00 GMT")).throttle(), Some(None));
+        assert_eq!(e(500, None).throttle(), None);
+        assert_eq!(AiError::Network("x".into()).throttle(), None);
     }
 }

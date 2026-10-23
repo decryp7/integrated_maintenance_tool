@@ -73,4 +73,12 @@ impl AiError {
             _ => false,
         }
     }
+
+    /// The host asked to slow down (HTTP 429/503): `Some(how long it asked to wait)`, `Some(None)` when it gave no time.
+    pub fn throttle(&self) -> Option<Option<std::time::Duration>> {
+        match self {
+            AiError::Connection(n) if n.is_throttle() => Some(n.retry_after_secs.map(|s| std::time::Duration::from_secs(s.into()))),
+            _ => None,
+        }
+    }
 }

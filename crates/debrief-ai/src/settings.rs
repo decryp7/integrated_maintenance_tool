@@ -75,6 +75,8 @@ pub struct AiSettings {
     pub hf_endpoint: String,
     pub download_proxy: Option<String>,
     pub max_download_gb: u32,
+    /// Parallel connections for large downloads (1 turns segmented downloads off, at most 8).
+    pub download_connections: u32,
     /// Folder for downloaded models (default: `models` in the app data folder).
     pub models_dir: Option<String>,
     /// Inference build of llama-server: `auto` (the best one that works here) or a build id such as
@@ -108,6 +110,7 @@ impl Default for AiSettings {
             hf_endpoint: crate::models::hf::DEFAULT_ENDPOINT.into(),
             download_proxy: None,
             max_download_gb: 20,
+            download_connections: 4,
             models_dir: None,
             inference_build: AUTO_BUILD.into(),
             llama_server_path: None,
@@ -140,6 +143,7 @@ impl AiSettings {
             self.gpu_offload = GpuOffload::Layers(n.min(1000));
         }
         let blank = |s: &Option<String>| s.as_deref().is_none_or(|v| v.trim().is_empty());
+        self.download_connections = self.download_connections.clamp(1, 8);
         if blank(&self.download_proxy) {
             self.download_proxy = None;
         }
@@ -277,6 +281,7 @@ pub fn schema() -> Value {
         f("hf_endpoint", "Model host", "Where models are downloaded from. Use a mirror on corporate networks (https only).", "string", json!(d.hf_endpoint), json!({}), false),
         f("download_proxy", "Download proxy", "Optional http://host:port proxy, used for model downloads only.", "string", Value::Null, json!({}), false),
         f("max_download_gb", "Largest download (GB)", "Refuse model files larger than this.", "int", json!(d.max_download_gb), json!({"min": 1, "max": 200}), false),
+        f("download_connections", "Download connections", "Large downloads (models, runtimes, updates) use this many parallel connections when the host allows it. 1 turns it off; 8 is the most. Fewer are used automatically if the host asks to slow down.", "int", json!(d.download_connections), json!({"min": 1, "max": 8}), false),
         f("models_dir", "Models folder", "Where downloaded models are stored. Empty uses the app data folder.", "path", Value::Null, json!({}), true),
         f("inference_build", "Inference build", "Which llama-server build runs the model. Automatic picks the best one that works on this computer: CUDA with an NVIDIA GPU, else Vulkan, else the CPU (Metal on Apple Silicon). If the chosen build cannot start, Debrief falls back to the next one and says so.", "enum", json!(AUTO_BUILD), json!({"options": ["auto", "cpu", "vulkan", "cuda-13", "cuda-12", "rocm", "sycl", "sycl-fp32", "openvino", "metal"], "optionsSource": "aiInferenceBuilds"}), true),
         f("runtime_updates", "Inference runtime updates", "When Debrief pins a newer llama.cpp build than the one installed. Automatic downloads and verifies it in the background (the installed build keeps working until the new one is verified, and a running chat is never interrupted); Ask tells you and offers Update, Later and Skip this version; Manual only looks when you choose Check now.", "enum", json!(d.runtime_updates.as_str()), json!({"options": ["automatic", "ask", "manual"]}), false),
@@ -315,6 +320,7 @@ mod tests {
             threads: 9999,
             idle_unload_minutes: 99999,
             max_download_gb: 0,
+            download_connections: 99,
             gpu_offload: GpuOffload::Layers(5000),
             download_proxy: Some("  ".into()),
             models_dir: Some("".into()),
@@ -334,6 +340,7 @@ mod tests {
             (1024, 512, 256, 1440, 1)
         );
         assert_eq!(s.temperature, 0.2);
+        assert_eq!(s.download_connections, 8);
         assert_eq!(s.gpu_offload, GpuOffload::Layers(1000));
         assert!(s.download_proxy.is_none() && s.models_dir.is_none() && s.active_model.is_none());
         assert_eq!(s.hf_endpoint, "https://huggingface.co");
