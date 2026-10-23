@@ -69,6 +69,49 @@ fn ask(provider: &dyn LlmProvider, message: ChatMessage, cancel: &Arc<AtomicBool
     Ok(provider.chat(&req, &mut |_| {})?.text)
 }
 
+/// How long a build gets to print its version.
+pub const SMOKE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// The check every new build passes, with or without a model: `server --version` starts, exits successfully within
+/// `timeout` (missing libraries, a wrong CPU architecture or a blocked binary fail here) and is then reaped.
+/// Cancelling stops it with [`AiError::Cancelled`]; every failure is [`AiError::SelfTest`] saying what to do.
+pub fn smoke_check(server: &std::path::Path, build: &str, timeout: std::time::Duration, cancel: &Arc<AtomicBool>) -> Result<()> {
+    use std::sync::atomic::Ordering;
+    use std::time::Instant;
+    let fail = |why: String| {
+        AiError::SelfTest(format!(
+            "the new {build} inference runtime does not start on this computer ({why}). Choose another build in the AI settings."
+        ))
+    };
+    let mut child = std::process::Command::new(server)
+        .arg("--version")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map_err(|e| fail(e.to_string()))?;
+    let deadline = Instant::now() + timeout;
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) if status.success() => return Ok(()),
+            Ok(Some(status)) => return Err(fail(format!("it exited with {status}"))),
+            Ok(None) => {}
+            Err(e) => return Err(fail(e.to_string())),
+        }
+        if cancel.load(Ordering::Relaxed) {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(AiError::Cancelled);
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(fail("it did not answer in time".into()));
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
 /// Runs the self-test of the build `runtime` starts (`build` names it in messages) with the model of `req`.
 /// Cancelling stops it with [`AiError::Cancelled`]; every failure is [`AiError::SelfTest`].
 pub fn self_test(runtime: &dyn ModelRuntime, req: LoadRequest, build: &str, cancel: &Arc<AtomicBool>) -> Result<SelfTestReport> {
@@ -128,6 +171,48 @@ mod tests {
     use crate::runtime::{GpuMode, Loaded};
     use std::path::PathBuf;
     use std::sync::Mutex;
+
+    #[cfg(unix)]
+    fn script(dir: &std::path::Path, body: &str) -> PathBuf {
+        use std::os::unix::fs::PermissionsExt;
+        let p = dir.join("llama-server");
+        std::fs::write(&p, format!("#!/bin/sh\n{body}\n")).unwrap();
+        std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
+        p
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_smoke_check_passes_a_build_that_prints_its_version_and_names_every_failure() {
+        let d = tempfile::tempdir().unwrap();
+        let no = Arc::new(AtomicBool::new(false));
+        let t = std::time::Duration::from_secs(5);
+        assert!(smoke_check(&script(d.path(), "echo version: 1"), "CPU", t, &no).is_ok());
+        let e = smoke_check(&script(d.path(), "exit 3"), "CPU", t, &no).unwrap_err();
+        assert!(
+            matches!(&e, AiError::SelfTest(m) if m.contains("CPU") && m.contains("exited")),
+            "{e}"
+        );
+        let e = smoke_check(&script(d.path(), "sleep 5"), "CPU", std::time::Duration::from_millis(100), &no).unwrap_err();
+        assert!(matches!(&e, AiError::SelfTest(m) if m.contains("in time")), "{e}");
+        let yes = Arc::new(AtomicBool::new(true));
+        assert!(matches!(
+            smoke_check(&script(d.path(), "sleep 5"), "CPU", t, &yes),
+            Err(AiError::Cancelled)
+        ));
+    }
+
+    #[test]
+    fn the_smoke_check_reports_a_missing_server() {
+        let e = smoke_check(
+            std::path::Path::new("/nonexistent/llama-server"),
+            "CPU",
+            SMOKE_TIMEOUT,
+            &Arc::new(AtomicBool::new(false)),
+        )
+        .unwrap_err();
+        assert!(matches!(e, AiError::SelfTest(_)));
+    }
 
     struct Fake {
         loads: Result<()>,

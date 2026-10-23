@@ -370,9 +370,10 @@ export type AiRuntimeEvent =
       connections?: number;
       verifying: boolean;
     }
-  | { stage: 'unpacking'; id: string; asset: string }
+  /** `done` of `total` bytes of all the build's archives. */
+  | { stage: 'unpacking'; id: string; asset: string; done: number; total: number }
   | { stage: 'finishing'; id: string }
-  /** The unpacked build answers with the active model before Debrief switches to it (ADR 0009). */
+  /** The unpacked build is checked (it starts here and, with an active model, answers) before Debrief switches to it (ADR 0009). */
   | { stage: 'testing'; id: string }
   | { stage: 'ready'; id: string; runtime: AiInstalledRuntime }
   | { stage: 'failed'; id: string; code: AiErrorCode; message: string }

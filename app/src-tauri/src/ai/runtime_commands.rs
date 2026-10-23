@@ -7,12 +7,15 @@ use super::core::AiCore;
 use super::error::{AiCmdError, AiErrorCode, AiResult};
 use super::runtimes::RuntimeEvent;
 use super::{RUNTIME_EVENT, STATUS_EVENT};
-use crate::jobs::{self, Controls, Done, JobKind, JobLink, JobProgress, JobResult, JobSpec};
+use crate::jobs::{self, Controls, Done, JobKind, JobLink, JobProgress, JobResult, JobSpec, PhaseScale};
 use crate::settings::AI_SECTION;
+use crate::sync::lock;
 use debrief_ai::runtimes::builds::label;
+use debrief_ai::runtimes::RuntimeStage;
 use debrief_ai::runtimes::{InstalledRuntime, RuntimeOverview};
 use serde_json::Value;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Runtime};
 
@@ -107,10 +110,12 @@ pub(crate) fn start_install_with<R: Runtime>(
     let (a, c) = (app.clone(), core.clone());
     let queued = jobs::spawn(&app, spec, controls, move |ctx: &jobs::JobCtx| -> AiResult<Done<()>> {
         let (app, core) = (a, c);
+        let stage = Mutex::new(InstallPhase::Downloading);
         let result = std::thread::scope(|scope| {
             let worker = scope.spawn(|| {
                 let a = app.clone();
-                let mut on_stage = |st| {
+                let mut on_stage = |st: RuntimeStage| {
+                    *lock(&stage) = InstallPhase::of(&st);
                     let _ = a.emit(RUNTIME_EVENT, RuntimeEvent::of_stage(&id, st));
                 };
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -119,18 +124,25 @@ pub(crate) fn start_install_with<R: Runtime>(
                 .unwrap_or_else(|_| Err(AiCmdError::new(AiErrorCode::Engine, "the runtime install stopped unexpectedly")))
             });
             let mut last = None;
+            let mut last_phase = None;
             while !worker.is_finished() {
                 std::thread::sleep(TICK);
-                let ev = RuntimeEvent::of_progress(&id, &progress);
-                if let RuntimeEvent::Progress {
-                    bytes, total, verifying, ..
-                } = &ev
-                {
-                    if *total > 0 && last != Some((*bytes, *total)) {
-                        last = Some((*bytes, *total));
-                        ctx.progress(phase_progress(*verifying, *bytes, *total));
-                        let _ = app.emit(RUNTIME_EVENT, ev);
+                let phase = *lock(&stage);
+                if phase == InstallPhase::Downloading {
+                    let ev = RuntimeEvent::of_progress(&id, &progress);
+                    if let RuntimeEvent::Progress {
+                        bytes, total, verifying, ..
+                    } = &ev
+                    {
+                        if *total > 0 && last != Some((*bytes, *total)) {
+                            last = Some((*bytes, *total));
+                            ctx.progress(phase_progress(*verifying, *bytes, *total));
+                            let _ = app.emit(RUNTIME_EVENT, ev);
+                        }
                     }
+                } else if last_phase != Some(phase) {
+                    last_phase = Some(phase);
+                    ctx.progress(phase.job_progress());
                 }
             }
             worker
@@ -157,12 +169,50 @@ pub(crate) fn start_install_with<R: Runtime>(
     })
 }
 
+/// The label of the self-test phase, shown the same way in the setup window, the Jobs pane and the status bar.
+pub(crate) const TESTING_LABEL: &str = "Checking that llama.cpp runs on this Mac";
+
+/// Where an install is after the download, as the job shows it. The download's own bytes come from the
+/// [`Progress`](debrief_ai::models::Progress) ticker.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum InstallPhase {
+    Downloading,
+    Unpacking { done: u64, total: u64 },
+    Finishing,
+    Testing,
+}
+
+impl InstallPhase {
+    pub(crate) fn of(stage: &RuntimeStage) -> InstallPhase {
+        match stage {
+            RuntimeStage::Downloading { .. } => InstallPhase::Downloading,
+            RuntimeStage::Unpacking { done, total, .. } => InstallPhase::Unpacking {
+                done: *done,
+                total: *total,
+            },
+            RuntimeStage::Finishing => InstallPhase::Finishing,
+            RuntimeStage::Testing => InstallPhase::Testing,
+        }
+    }
+
+    /// The job's progress in this phase (none for `Downloading`: its bytes come from [`phase_progress`]).
+    pub(crate) fn job_progress(self) -> JobProgress {
+        match self {
+            InstallPhase::Downloading => JobProgress::in_phase("Downloading", PhaseScale::Bytes, 0, 0),
+            InstallPhase::Unpacking { done, total } => JobProgress::in_phase("Unpacking", PhaseScale::Bytes, done, total),
+            InstallPhase::Finishing => JobProgress::in_phase("Finishing", PhaseScale::Indeterminate, 0, 0),
+            InstallPhase::Testing => JobProgress::in_phase(TESTING_LABEL, PhaseScale::Indeterminate, 0, 0),
+        }
+    }
+}
+
 /// Job progress for one artifact: bytes, labelled with the phase so a checksum pass reads as "Checking", not as a
 /// second download restarting from zero under the same title.
 pub(crate) fn phase_progress(verifying: bool, bytes: u64, total: u64) -> JobProgress {
+    let label = if verifying { "Checking" } else { "Downloading" };
     JobProgress {
-        current: Some(if verifying { "Checking" } else { "Downloading" }.to_string()),
-        ..JobProgress::bytes(bytes, total)
+        current: Some(label.to_string()),
+        ..JobProgress::in_phase(label, PhaseScale::Bytes, bytes, total)
     }
 }
 

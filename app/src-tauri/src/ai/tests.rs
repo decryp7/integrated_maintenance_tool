@@ -5,6 +5,7 @@
 use super::commands::{check_link, markdown_target, sample_of};
 use super::core::{AiCore, AiDeps};
 use super::{AiState, SETUP_EVENT};
+use crate::jobs::PhaseScale;
 use crate::test_support::{samples, test_app_safe_mode, test_app_with_commands, window, TempDir};
 use crate::tools::tests::ipc;
 use debrief_ai::hardware::{Gpu, Hardware, HardwareProbe};
@@ -1127,6 +1128,7 @@ fn test_runtimes_with(tmp: &TempDir, delay: Duration, tests: Arc<BuildTests>) ->
                 problem: None,
             })
         }),
+        smoke: Arc::new(|_: &Path, _: &str, _: &Arc<std::sync::atomic::AtomicBool>| Ok(())),
         build_runtime: Arc::new(move |server: &Path| {
             tests.servers.lock().unwrap().push(server.to_path_buf());
             let mut scripts = tests.scripts.lock().unwrap();
@@ -1352,11 +1354,22 @@ fn a_new_runtime_is_switched_to_only_after_it_passes_its_self_test() {
     let events = setup_events(&app);
     let rt_events = runtime_events(&app);
     let main = window(&app, "main");
-    // Without an active model there is nothing to test with: the build installs as before.
+    // Without an active model there is no answer to test: only the "does it run here" check runs (a seam in these
+    // tests), and the build installs.
     ipc(&main, "ai_runtime_install", json!({"id": "cpu"})).unwrap();
     assert_eq!(install_end(&rt_events, "cpu")["stage"], "ready");
     assert!(f.build_tests.servers.lock().unwrap().is_empty());
-    assert!(!rt_events.lock().unwrap().iter().any(|e| e["stage"] == "testing"));
+    let order: Vec<String> = rt_events
+        .lock()
+        .unwrap()
+        .iter()
+        .filter_map(|e| e["stage"].as_str().map(String::from))
+        .collect();
+    let pos = |s: &str| order.iter().position(|x| x == s);
+    assert!(
+        pos("unpacking") < pos("finishing") && pos("finishing") < pos("testing") && pos("testing") < pos("ready"),
+        "{order:?}"
+    );
     ipc(&main, "ai_setup_run", json!({"modelId": TEST_MODEL})).unwrap();
     wait_until("ready", || stages(&events).last().is_some_and(|s| s == "ready"));
     wait_until("loaded", || ipc(&main, "ai_status", json!({})).unwrap()["state"] == "ready");
@@ -2014,4 +2027,33 @@ fn job_progress_labels_the_phase_so_a_check_is_not_a_second_download() {
     let v = phase_progress(true, 10, 10);
     assert_eq!((d.current.as_deref(), d.done, d.total), (Some("Downloading"), Some(5), Some(10)));
     assert_eq!((v.current.as_deref(), v.done, v.total), (Some("Checking"), Some(10), Some(10)));
+    assert_eq!(
+        d.phase.as_ref().map(|p| (p.label.as_str(), p.scale)),
+        Some(("Downloading", PhaseScale::Bytes))
+    );
+    assert_eq!(v.phase.as_ref().map(|p| p.label.as_str()), Some("Checking"));
+}
+
+#[test]
+fn an_install_shows_downloading_unpacking_and_the_runtime_check_as_job_phases() {
+    use super::runtime_commands::{InstallPhase, TESTING_LABEL};
+    use debrief_ai::runtimes::RuntimeStage;
+    let phase_of = |st: RuntimeStage| {
+        let p = InstallPhase::of(&st).job_progress();
+        (p.phase.map(|p| (p.label, p.scale)), p.done, p.total, p.fraction)
+    };
+    let unpack = phase_of(RuntimeStage::Unpacking {
+        asset: "a.zip".into(),
+        done: 25,
+        total: 100,
+    });
+    assert_eq!(
+        unpack,
+        (Some(("Unpacking".into(), PhaseScale::Bytes)), Some(25), Some(100), Some(0.25))
+    );
+    let test = phase_of(RuntimeStage::Testing);
+    assert_eq!(test.0, Some((TESTING_LABEL.into(), PhaseScale::Indeterminate)));
+    assert_eq!(test.3, None, "no fraction while it checks");
+    assert_eq!(TESTING_LABEL, "Checking that llama.cpp runs on this Mac");
+    assert_eq!(phase_of(RuntimeStage::Finishing).0.map(|p| p.0), Some("Finishing".into()));
 }

@@ -240,28 +240,45 @@ fn installs_a_zip_build_with_only_the_files_it_needs() {
     assert_eq!(std::fs::read(rt.dir.join(SERVER)).unwrap(), server);
     assert!(!dir.path().join("evil.dll").exists() && !dir.path().join("b7").join("evil.dll").exists());
     assert!(dir.path().join("b7/manifest.json").is_file());
+    let mut it = stages.iter();
     assert_eq!(
-        stages,
-        [
-            RuntimeStage::Downloading {
-                asset: "llama-b7-bin-win-cpu-x64.zip".into(),
-                index: 1,
-                count: 2
-            },
-            RuntimeStage::Downloading {
-                asset: "cudart-llama-bin-win-cuda-13.4-x64.zip".into(),
-                index: 2,
-                count: 2
-            },
-            RuntimeStage::Unpacking {
-                asset: "llama-b7-bin-win-cpu-x64.zip".into()
-            },
-            RuntimeStage::Unpacking {
-                asset: "cudart-llama-bin-win-cuda-13.4-x64.zip".into()
-            },
-            RuntimeStage::Finishing
-        ]
+        it.next(),
+        Some(&RuntimeStage::Downloading {
+            asset: "llama-b7-bin-win-cpu-x64.zip".into(),
+            index: 1,
+            count: 2
+        })
     );
+    assert_eq!(
+        it.next(),
+        Some(&RuntimeStage::Downloading {
+            asset: "cudart-llama-bin-win-cuda-13.4-x64.zip".into(),
+            index: 2,
+            count: 2
+        })
+    );
+    let unpacking: Vec<(String, u64, u64)> = it
+        .by_ref()
+        .map_while(|s| match s {
+            RuntimeStage::Unpacking { asset, done, total } => Some((asset.clone(), *done, *total)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        it.next(),
+        None,
+        "Finishing was consumed as the end of the unpacking run: {stages:?}"
+    );
+    assert_eq!(stages.last(), Some(&RuntimeStage::Finishing));
+    let total = unpacking[0].2;
+    assert!(total > 0 && unpacking.iter().all(|u| u.2 == total && u.1 <= total), "{unpacking:?}");
+    assert!(unpacking.windows(2).all(|w| w[0].1 <= w[1].1), "bytes never go back: {unpacking:?}");
+    assert_eq!((unpacking[0].0.as_str(), unpacking[0].1), ("llama-b7-bin-win-cpu-x64.zip", 0));
+    assert!(
+        unpacking.iter().any(|u| u.0.starts_with("cudart")),
+        "the second archive is unpacked: {unpacking:?}"
+    );
+    assert_eq!(unpacking.last().map(|u| u.1), Some(total), "ends at 100%");
     // The archives are gone, the build is listed, and the signed CDN address never shows up in errors.
     assert_eq!(std::fs::read_dir(dir.path().join("downloads")).unwrap().count(), 0);
     assert_eq!(store.list("b7").len(), 1);
@@ -436,4 +453,25 @@ fn one_install_per_build_at_a_time() {
     assert_eq!(errors.len(), 1, "{errors:?}");
     assert!(matches!(&errors[0], AiError::Refused(m) if m.contains("already")));
     assert_eq!(store.list("b7").len(), 1);
+}
+
+#[test]
+fn unpacking_reports_growing_bytes_for_both_archive_kinds_and_ends_at_the_total() {
+    use debrief_ai::runtimes::unpack::unpack_with;
+    let dir = tempfile::tempdir().unwrap();
+    let big = blob(900_000);
+    let tgz = dir.path().join("a.tar.gz");
+    std::fs::write(&tgz, tgz_of(&[("llama-b7/llama-server", Some(&big), None)])).unwrap();
+    let zip = dir.path().join("a.zip");
+    std::fs::write(&zip, zip_of(&[(SERVER, &big), ("llama-cli.exe", b"skipped")])).unwrap();
+    for archive in [tgz, zip] {
+        let out = tempfile::tempdir().unwrap();
+        let mut seen: Vec<(u64, u64)> = vec![];
+        unpack_with(&archive, out.path(), &UnpackLimits::default(), &mut |d, t| seen.push((d, t))).unwrap();
+        let total = seen[0].1;
+        assert!(total > 0 && seen.iter().all(|s| s.1 == total && s.0 <= total), "{seen:?}");
+        assert!(seen.windows(2).all(|w| w[0].0 <= w[1].0), "{seen:?}");
+        assert!(seen.len() > 2, "progress arrives while the big file is written: {seen:?}");
+        assert_eq!(seen.last(), Some(&(total, total)));
+    }
 }

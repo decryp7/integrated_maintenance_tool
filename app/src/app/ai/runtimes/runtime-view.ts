@@ -30,17 +30,21 @@ export function runtimeStageLabel(e: RuntimeRunning, label: string): string {
     case 'finishing':
       return $localize`:@@ai.runtime.stage.finishing:Finishing ${label}:label:…`;
     case 'testing':
-      return $localize`:@@ai.runtime.stage.testing:Testing ${label}:label: with your model…`;
+      return $localize`:@@ai.runtime.stage.testing:Checking that llama.cpp runs on this Mac…`;
   }
 }
 
-/** Download progress in percent, or null when the stage has none. */
+/** Download or unpacking progress in percent, or null when the stage has none. */
 export function runtimePercent(e: RuntimeRunning | null): number | null {
-  return e?.stage === 'progress' ? percent(e.bytes, e.total) : null;
+  if (e?.stage === 'progress') return percent(e.bytes, e.total);
+  return e?.stage === 'unpacking' && e.total > 0 ? percent(e.done, e.total) : null;
 }
 
 /** "12 MB of 32 MB · 24 MB/s · 1 s left". */
 export function runtimeProgressText(e: RuntimeRunning | null, speed?: TransferSpeed): string {
+  if (e?.stage === 'unpacking') {
+    return e.total > 0 ? $localize`:@@ai.runtime.unpack.of:${formatBytes(e.done)}:done: of ${formatBytes(e.total)}:total:` : '';
+  }
   if (e?.stage !== 'progress') return '';
   const base = $localize`:@@ai.runtime.progress.of:${formatBytes(e.bytes)}:done: of ${formatBytes(e.total)}:total:`;
   if (e.verifying) return $localize`:@@ai.runtime.progress.checking:Checking the download: ${base}:progress:`;

@@ -4223,17 +4223,24 @@
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.stage.testing" datatype="html">
-        <source>Testing <x id="label" equiv-text="label"/> with your model…</source>
+        <source>Checking that llama.cpp runs on this Mac…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
           <context context-type="linenumber">33</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.runtime.unpack.of" datatype="html">
+        <source><x id="done" equiv-text="formatBytes(e.done)"/> of <x id="total" equiv-text="formatBytes(e.total)"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
+          <context context-type="linenumber">46</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.progress.of" datatype="html">
         <source><x id="done" equiv-text="formatBytes(e.bytes)"/> of <x id="total" equiv-text="formatBytes(e.total)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">45</context>
+          <context context-type="linenumber">49</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
@@ -4244,7 +4251,7 @@
         <source>Checking the download: <x id="progress" equiv-text="base"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">46</context>
+          <context context-type="linenumber">50</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
@@ -4255,42 +4262,42 @@
         <source>In use</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">64</context>
+          <context context-type="linenumber">68</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.state.ready" datatype="html">
         <source>Installed, works here</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">66</context>
+          <context context-type="linenumber">70</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.state.problem" datatype="html">
         <source>Installed, does not work here</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">68</context>
+          <context context-type="linenumber">72</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.state.unchecked" datatype="html">
         <source>Installed</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">70</context>
+          <context context-type="linenumber">74</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.state.available" datatype="html">
         <source>Not installed</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">72</context>
+          <context context-type="linenumber">76</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.runtime.device" datatype="html">
         <source><x id="description" equiv-text="d.description"/> (<x id="name" equiv-text="d.name"/>, <x id="free" equiv-text="size(d.freeMib)"/> of <x id="total" equiv-text="size(d.totalMib)"/> free)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/runtimes/runtime-view.ts</context>
-          <context context-type="linenumber">79</context>
+          <context context-type="linenumber">83</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.setup" datatype="html">
