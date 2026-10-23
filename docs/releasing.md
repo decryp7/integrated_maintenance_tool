@@ -106,3 +106,12 @@ from the releases page; revoke the old secrets.
   then Restart to update.
 - `node --test scripts/release` tests the manifest generator; `cargo test -p debrief-app --lib updater` tests the
   client side (parsing, typed errors, the state machine, the "not available" build).
+
+## macOS bundles must be ad-hoc sealed
+
+Every Tauri app in the suite needs `bundle.macOS.signingIdentity: "-"` (Debrief: `app/src-tauri/tauri.macos.conf.json`)
+and a CI step that verifies the result. Without it the bundle is only linker-signed (`flags=0x20002(adhoc,linker-signed)`,
+`Sealed Resources=none`), and Gatekeeper reports a quarantined download as "Debrief.app is damaged and can't be opened"
+(v1.0.0 shipped like this; fixed in 1.0.1). `scripts/ci/macos-verify-bundle.sh` runs after the macOS bundle step and
+fails the job unless `codesign --verify --deep --strict` passes on the `.app` and on the `.app` inside the DMG, the
+signature is not linker-signed only, resources are sealed and every nested Mach-O (sidecars, `libduckdb.dylib`) verifies.

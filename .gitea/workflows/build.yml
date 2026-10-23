@@ -812,6 +812,13 @@ jobs:
           fi
           echo "the worker loads $found"
 
+      # signingIdentity "-" (tauri.macos.conf.json) must leave an ad-hoc sealed .app, in the bundle and in the DMG:
+      # a linker-signed one is reported as "damaged" on a quarantined download.
+      - name: Verify the .app and the DMG are ad-hoc sealed (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: bash scripts/ci/macos-verify-bundle.sh
+
       - name: Collect installers
         shell: bash
         run: |

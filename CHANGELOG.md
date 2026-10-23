@@ -3,6 +3,12 @@
 What changed for people who use Debrief, one section per release. This file is curated by hand (the in-app "What's new"
 panel reads it at build time); `git cliff` lists every commit if you need the full history.
 
+## 1.0.1 (2026-10-23)
+
+### Fixed
+
+- **macOS:** The app opens after download instead of being reported as damaged
+
 ## 1.0.0 (2026-10-23)
 
 ### Added

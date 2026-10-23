@@ -3,6 +3,18 @@ import { ChangelogRelease } from './changelog';
 
 export const CHANGELOG: readonly ChangelogRelease[] = [
   {
+    "version": "1.0.1",
+    "date": "2026-10-23",
+    "groups": [
+      {
+        "title": "Fixed",
+        "items": [
+          "macOS: The app opens after download instead of being reported as damaged"
+        ]
+      }
+    ]
+  },
+  {
     "version": "1.0.0",
     "date": "2026-10-23",
     "groups": [
