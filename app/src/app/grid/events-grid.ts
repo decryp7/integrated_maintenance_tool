@@ -223,7 +223,7 @@ export type GridRowVm = RowVm | PlaceholderVm;
     }
   `,
   styles: `
-    :host { flex: 1; min-width: 0; box-sizing: border-box; padding-left: var(--debrief-flyout-inset-left, 0px); padding-right: var(--debrief-flyout-inset-right, 0px); display: flex; flex-direction: column; background: var(--bg-1); min-height: 0; position: relative; }
+    :host { flex: 1; min-width: 0; box-sizing: border-box; display: flex; flex-direction: column; background: var(--bg-1); min-height: 0; position: relative; }
     .bar { height: 32px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 8px 0 14px; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
     .total { color: var(--text-2); }
     .warn { color: var(--warn-text); }

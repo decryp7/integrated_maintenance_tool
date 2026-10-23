@@ -295,7 +295,7 @@ export class DockHost implements OnDestroy {
       });
     });
     // A slide-out over the events grid must not cover the row that was just selected: the grid keeps clear of it
-    // (`--debrief-flyout-inset-*` on the grid, which pads its own edge) for as long as the flyout is open.
+    // (padding on the grid's own edge) for as long as the flyout is open.
     effect((onCleanup) => {
       const item = this.open();
       if (!item || item.side === 'bottom') return;
@@ -303,7 +303,7 @@ export class DockHost implements OnDestroy {
       const frame = requestAnimationFrame(() => this.insetGrid(side));
       onCleanup(() => {
         cancelAnimationFrame(frame);
-        for (const grid of document.querySelectorAll<HTMLElement>('debrief-events-grid')) grid.style.removeProperty(`--debrief-flyout-inset-${side}`);
+        for (const grid of document.querySelectorAll<HTMLElement>('debrief-events-grid')) grid.style.removeProperty(side === 'right' ? 'padding-right' : 'padding-left');
       });
     });
     const onPointerDown = (e: PointerEvent) => {
@@ -333,7 +333,7 @@ export class DockHost implements OnDestroy {
     for (const grid of document.querySelectorAll<HTMLElement>('debrief-events-grid')) {
       const box = grid.getBoundingClientRect();
       const overlap = side === 'right' ? box.right - Math.max(box.left, flyout.left) : Math.min(box.right, flyout.right) - box.left;
-      grid.style.setProperty(`--debrief-flyout-inset-${side}`, `${Math.max(0, Math.round(overlap))}px`);
+      grid.style.setProperty(side === 'right' ? 'padding-right' : 'padding-left', `${Math.max(0, Math.round(overlap))}px`);
     }
   }
 

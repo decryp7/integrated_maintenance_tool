@@ -62,7 +62,7 @@ test('the Inspector flyout does not cover the selected row', async ({ page }) =>
   // Closing it gives the grid its width back.
   await page.keyboard.press('Escape');
   await expect(flyout).toHaveCount(0);
-  await expect.poll(() => page.locator('debrief-events-grid').evaluate((e) => (e as HTMLElement).style.getPropertyValue('--debrief-flyout-inset-right'))).toBe('');
+  await expect.poll(() => page.locator('debrief-events-grid').evaluate((e) => (e as HTMLElement).style.paddingRight)).toBe('');
 });
 
 // U6: Compare opens with sensible windows (not an empty one before the data) and does not starve the grid.
