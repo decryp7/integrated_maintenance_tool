@@ -2,14 +2,14 @@
 // `debrief://notifications-open` events; camelCase JSON), mirrored by
 // app/src-tauri/src/notification_centre/{centre,persist,mod}.rs. Change both sides together.
 
-export type NoticeSource = 'job' | 'liveAlert' | 'import' | 'plugin' | 'ai' | 'update' | 'session' | 'performance' | 'workspace';
+export type NoticeSource = 'job' | 'liveAlert' | 'import' | 'plugin' | 'ai' | 'update' | 'session' | 'performance' | 'workspace' | 'health';
 
-export const NOTICE_SOURCES: readonly NoticeSource[] = ['job', 'liveAlert', 'import', 'plugin', 'ai', 'update', 'session', 'performance', 'workspace'];
+export const NOTICE_SOURCES: readonly NoticeSource[] = ['job', 'liveAlert', 'import', 'plugin', 'ai', 'update', 'session', 'performance', 'workspace', 'health'];
 
 /** One of Debrief's capped processes (Settings ▸ Performance, `performance.types.ts`). */
 export type NoticeProcess = { kind: 'storeWorker' } | { kind: 'ai' } | { kind: 'plugin'; pluginId: string };
 
-export type NoticeSeverity = 'info' | 'success' | 'warning' | 'error';
+export type NoticeSeverity = 'info' | 'success' | 'warning' | 'error' | 'critical';
 
 export type NoticeScope = 'app' | 'project';
 
@@ -36,7 +36,9 @@ export type NoticeAction =
   /** Opens the process' memory cap with a suggested value (Settings ▸ Performance, or the plugin's own cap). */
   | { type: 'raiseMemoryCap'; process: NoticeProcess; suggestedMb: number }
   /** Lets a process the memory watcher stopped start again. */
-  | { type: 'retryProcess'; process: NoticeProcess };
+  | { type: 'retryProcess'; process: NoticeProcess }
+  /** Repairs a service from the shell (`health_repair`). */
+  | { type: 'repairService'; service: string };
 
 export interface NoticeLink {
   window: string | null;
@@ -55,7 +57,7 @@ export interface Notice {
   /** Epoch ms of the latest occurrence. */
   at: number;
   firstAt: number;
-  /** How many times it happened (the same dedupe key merges). */
+  /** How many times it happened (the same cause merges). */
   count: number;
   read: boolean;
   primary: NoticeAction | null;
@@ -63,7 +65,8 @@ export interface Notice {
   /** A third button (e.g. "Skip this version" next to "Update" and "Later"). */
   tertiary: NoticeAction | null;
   link: NoticeLink;
-  dedupeKey: string | null;
+  /** What the message is about (`health:store`, `job:12`): the same cause updates it in place, a cleared cause removes it. */
+  cause: string;
   scope: NoticeScope;
 }
 

@@ -8,6 +8,9 @@ export const MAX_TOASTS = 3;
 /** A toast goes away by itself after this long (the message stays in Notifications). */
 export const TOAST_MS = 8000;
 
+/** Errors and critical failures stay until resolved or dismissed (the host's display rule); the rest time out. */
+const staysUntilDismissed = (severity: Notice['severity']): boolean => severity === 'error' || severity === 'critical';
+
 export type ReadFilter = 'all' | 'unread';
 
 /**
@@ -113,10 +116,8 @@ export const NotificationsStore = signalStore(
         if (p && !p.read && !OWN_TOASTS.includes(p.source)) {
           patchState(store, (s) => ({ toasts: [...s.toasts.filter((t) => t.id !== p.id), p].slice(-MAX_TOASTS) }));
           clearTimeout(timers.get(p.id));
-          timers.set(
-            p.id,
-            setTimeout(() => dismissToast(p.id), TOAST_MS),
-          );
+          timers.delete(p.id);
+          if (!staysUntilDismissed(p.severity)) timers.set(p.id, setTimeout(() => dismissToast(p.id), TOAST_MS));
         }
       },
 
@@ -146,7 +147,7 @@ export const NotificationsStore = signalStore(
       /** Posts (or replaces, by key) a message of the UI's own; it counts as unread until read, dismissed or acted on. */
       postLocal(n: NewLocalNotice): void {
         const now = Date.now();
-        const dedupeKey = 'local:' + n.key;
+        const cause = 'local:' + n.key;
         const notice: Notice = {
           id: -++localIds,
           source: n.source,
@@ -161,15 +162,15 @@ export const NotificationsStore = signalStore(
           secondary: null,
           tertiary: null,
           link: { window: null, jobId: null, recordId: null, pluginId: null, path: null },
-          dedupeKey,
+          cause,
           scope: 'project',
         };
-        patchState(store, (s) => ({ local: [{ notice, actionLabel: n.actionLabel, run: n.run }, ...s.local.filter((l) => l.notice.dedupeKey !== dedupeKey)] }));
+        patchState(store, (s) => ({ local: [{ notice, actionLabel: n.actionLabel, run: n.run }, ...s.local.filter((l) => l.notice.cause !== cause)] }));
       },
 
       /** Removes the local message with this key, if any (what it offered no longer applies). */
       withdrawLocal(key: string): void {
-        patchState(store, (s) => ({ local: s.local.filter((l) => l.notice.dedupeKey !== 'local:' + key) }));
+        patchState(store, (s) => ({ local: s.local.filter((l) => l.notice.cause !== 'local:' + key) }));
       },
 
       /** The label of a local message's action; null for the engine's messages. */
@@ -190,8 +191,9 @@ export const NotificationsStore = signalStore(
       /** A toast of the UI's own (not a message of the centre): e.g. "Explaining event #7 — running in Jobs". */
       showLocal(n: Pick<Notice, 'severity' | 'title'> & { body?: string; primary?: Notice['primary'] }): void {
         const now = Date.now();
+        const id = -++localIds;
         const toast: Notice = {
-          id: -++localIds,
+          id,
           source: 'job',
           severity: n.severity,
           title: n.title,
@@ -204,14 +206,11 @@ export const NotificationsStore = signalStore(
           secondary: null,
           tertiary: null,
           link: { window: null, jobId: null, recordId: null, pluginId: null, path: null },
-          dedupeKey: null,
+          cause: `ui-toast:${-id}`,
           scope: 'project',
         };
         patchState(store, (s) => ({ toasts: [...s.toasts, toast].slice(-MAX_TOASTS) }));
-        timers.set(
-          toast.id,
-          setTimeout(() => dismissToast(toast.id), TOAST_MS),
-        );
+        if (!staysUntilDismissed(toast.severity)) timers.set(toast.id, setTimeout(() => dismissToast(toast.id), TOAST_MS));
       },
 
       /** Keeps the toast open while the pointer or focus is on it. */
@@ -222,7 +221,8 @@ export const NotificationsStore = signalStore(
 
       /** The pointer and focus left the toast: it goes after the usual time again. */
       releaseToast(id: number): void {
-        if (!store.toasts().some((t) => t.id === id)) return;
+        const toast = store.toasts().find((t) => t.id === id);
+        if (!toast || staysUntilDismissed(toast.severity)) return;
         clearTimeout(timers.get(id));
         timers.set(
           id,

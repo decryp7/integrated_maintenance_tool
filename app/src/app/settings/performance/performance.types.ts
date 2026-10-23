@@ -1,7 +1,7 @@
 // Wire contract of Settings ▸ Performance (ADR 0031; camelCase JSON), mirrored by
 // app/src-tauri/src/performance/{commands,suggest,watch}.rs. Change both sides together.
-// Commands: `performance_suggest`, `performance_preset`, `performance_memory`, `performance_set_plugin_memory`,
-// `performance_retry_store_worker`. The section's values are applied with `set_settings` (section `performance`).
+// Commands: `performance_suggest`, `performance_preset`, `performance_memory`, `performance_set_plugin_memory`
+// (restarting a stopped store worker is `health_repair`, see health/). The section's values are applied with `set_settings` (section `performance`).
 
 import { SettingValue } from '../settings.types';
 

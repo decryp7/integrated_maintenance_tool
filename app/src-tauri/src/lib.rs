@@ -43,6 +43,7 @@ mod error;
 mod file_commands;
 #[cfg(test)]
 mod generated_types;
+mod health;
 mod insights;
 mod instance;
 mod investigate;
@@ -400,7 +401,8 @@ command_table! {
     Query [WINDOW] => performance::commands::performance_preset,
     Query [WINDOW] => performance::commands::performance_memory,
     Mutation [WINDOW] => performance::commands::performance_set_plugin_memory,
-    Mutation [WINDOW] => performance::commands::performance_retry_store_worker,
+    Query [WINDOW] => health::commands::health_snapshot,
+    Mutation [WINDOW] => health::commands::health_repair,
     Query [WINDOW] => browser::research::ai_research_draft,
     Mutation [WINDOW] => browser::research::ai_research,
     Query [WINDOW] => browser::driving::browser_driving,
@@ -642,6 +644,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     jobs::init(app.handle());
     notification_centre::init(app.handle());
     performance::attach_notifications(app.handle());
+    health::commands::init(app.handle());
 
     // ---- settings ----
     settings::init(app.handle());
@@ -688,24 +691,24 @@ fn session_notices<R: tauri::Runtime>(app: &tauri::AppHandle<R>, previous_crash:
     use notification_centre::centre::{NewNotice, NoticeScope, NoticeSeverity, NoticeSource};
     if previous_crash {
         let n = NewNotice::new(
+            format!("session:crash:{}", activity::session_id()),
             NoticeSource::Session,
             NoticeSeverity::Warning,
             "Debrief did not close properly",
             NoticeScope::App,
         )
-        .body("Your last session can be restored; jobs that were running are listed as interrupted, with Retry.")
-        .dedupe(format!("session:crash:{}", activity::session_id()));
+        .body("Your last session can be restored; jobs that were running are listed as interrupted, with Retry.");
         notification_centre::post(app, None, n, None);
     }
     if safe_mode {
         let n = NewNotice::new(
+            format!("session:safe:{}", activity::session_id()),
             NoticeSource::Session,
             NoticeSeverity::Info,
             "Debrief runs in safe mode",
             NoticeScope::App,
         )
-        .body("Plugins and the AI are off for this run. Restart Debrief normally to turn them on again.")
-        .dedupe(format!("session:safe:{}", activity::session_id()));
+        .body("Plugins and the AI are off for this run. Restart Debrief normally to turn them on again.");
         notification_centre::post(app, None, n, None);
     }
 }
@@ -967,6 +970,7 @@ pub(crate) mod test_support {
         jobs::wire(app.handle(), &jobs);
         app.manage(jobs);
         app.manage(notification_centre::NotificationCentre::new(None, clock));
+        health::commands::setup(app.handle());
         // The repository samples count as chosen in the main window (files in a test's own folder do not).
         paths::allow_under(app.handle(), windows::MAIN, &samples());
         browser::manage_state(app.handle(), std::sync::Arc::default());

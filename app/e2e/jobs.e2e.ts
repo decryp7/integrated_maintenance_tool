@@ -69,7 +69,7 @@ test.describe('jobs', () => {
     // The AI answer finishes first: "Explanation ready" with View, and View opens the answer with its citations.
     const toast = page.getByTestId('notice-toast').filter({ hasText: 'Explanation ready' });
     await expect(toast).toBeVisible({ timeout: 15_000 });
-    await expectNoSeriousViolations(page, testInfo, 'jobs-toast', 'debrief-notification-toasts');
+    await expectNoSeriousViolations(page, testInfo, 'jobs-toast', 'debrief-notification-host');
     await toast.getByTestId('notice-toast-primary').click();
     await expect(page.getByTestId('ai-narrative')).toContainText('failed order submission');
     await page.keyboard.press('Escape');

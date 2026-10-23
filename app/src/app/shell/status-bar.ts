@@ -10,13 +10,13 @@ import { ImportStatus } from '../import/import-ui';
 import { StatusJobs } from '../jobs/status-jobs';
 import { ProblemsBadge } from '../problems/problems-badge';
 import { AiBrowsingChip } from '../browser/ai-browsing-chip';
-import { StoreHealth } from '../core/store-health';
+import { ServiceStatusChip } from '../health/service-status-chip';
 import { LifecycleService } from '../lifecycle/lifecycle.service';
 
 @Component({
   selector: 'debrief-status-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CdkConnectedOverlay, CdkOverlayOrigin, BackgroundWork, ImportStatus, StatusJobs, ProblemsBadge, AiBrowsingChip],
+  imports: [CdkConnectedOverlay, CdkOverlayOrigin, BackgroundWork, ImportStatus, StatusJobs, ProblemsBadge, AiBrowsingChip, ServiceStatusChip],
   template: `
     @if (store.summary(); as s) {
       @if (s.sources.length) {
@@ -35,9 +35,7 @@ import { LifecycleService } from '../lifecycle/lifecycle.service';
       <span i18n="@@shell.statusBar.noWorkspace">No workspace</span>
     }
     <span class="spacer"></span>
-    @if (health.down(); as d) {
-      <button type="button" class="store-down keep" data-testid="store-down-chip" [title]="d.message" (click)="detailsOpen.set(true)" i18n="@@shell.statusBar.storeDown">Log store stopped</button>
-    }
+    <debrief-service-status-chip class="keep" />
     @if (otherBusy(); as busy) {
       <span class="busy keep" role="status" data-testid="status-busy"><span class="spinner" aria-hidden="true"></span>{{ busy }}</span>
     }
@@ -66,16 +64,6 @@ import { LifecycleService } from '../lifecycle/lifecycle.service';
     <button type="button" class="tz details" data-testid="status-details" cdkOverlayOrigin #origin="cdkOverlayOrigin" aria-haspopup="dialog" [attr.aria-expanded]="detailsOpen()" (click)="detailsOpen.set(!detailsOpen())" i18n="@@shell.statusBar.details">Details</button>
     <ng-template cdkConnectedOverlay [cdkConnectedOverlayOrigin]="origin" [cdkConnectedOverlayOpen]="detailsOpen()" [cdkConnectedOverlayPositions]="positions" cdkConnectedOverlayHasBackdrop cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop" (backdropClick)="detailsOpen.set(false)" (detach)="detailsOpen.set(false)" (overlayKeydown)="$event.key === 'Escape' && detailsOpen.set(false)">
       <dl class="details-pop" role="dialog" aria-label="Details" i18n-aria-label="@@shell.statusBar.detailsLabel" data-testid="status-details-popover">
-        @if (health.down(); as d) {
-          <div class="store-cause" data-testid="store-down-details">
-            <strong>{{ d.message }}</strong>
-            @if (d.hint) { <span>{{ d.hint }}</span> }
-            <button type="button" class="btn" data-testid="store-down-details-retry" (click)="health.tryAgain()" i18n="@@shell.statusBar.tryAgain">Try again</button>
-            @if (d.detail) {
-              <details><summary i18n="@@shell.statusBar.technical">Technical details</summary><code class="debrief-selectable">{{ d.detail }}</code></details>
-            }
-          </div>
-        }
         @if (store.summary(); as s) {
           <div><dt i18n="@@shell.statusBar.detail.sources">Sources</dt><dd>{{ fmt(s.sources.length) }}</dd></div>
           <div><dt i18n="@@shell.statusBar.detail.events">Events</dt><dd>{{ fmt(s.total) }}</dd></div>
@@ -112,9 +100,6 @@ import { LifecycleService } from '../lifecycle/lifecycle.service';
     .details-pop > div { display: flex; justify-content: space-between; gap: 16px; }
     .details-pop dt { color: var(--muted); }
     .details-pop dd { margin: 0; font-variant-numeric: tabular-nums; text-align: end; overflow-wrap: anywhere; }
-    .store-down { border: 1px solid var(--lvl-error); background: transparent; color: inherit; border-radius: 9px; height: 18px; padding: 0 8px; cursor: pointer; font-size: var(--fs-xs); font-weight: 600; }
-    .store-cause { flex-direction: column; align-items: flex-start; }
-    .store-cause code { display: block; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); font-size: var(--fs-xs); max-width: 420px; max-height: 160px; overflow: auto; }
     .live { display: inline-flex; align-items: center; gap: 6px; height: 18px; padding: 0 8px; border-radius: 9px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; font-size: var(--fs-xs); font-weight: 600; }
     .live:hover:not(:disabled) { background: var(--bg-hover); color: var(--statusbar-strong); }
     .live:disabled { cursor: default; opacity: 0.5; }
@@ -128,7 +113,6 @@ import { LifecycleService } from '../lifecycle/lifecycle.service';
 })
 export class StatusBar {
   protected readonly store = inject(WorkspaceStore);
-  protected readonly health = inject(StoreHealth);
   protected readonly live = inject(LiveTail);
   /** The running app's version, as the backend reports it. */
   protected readonly version = computed(() => this.lifecycle.status()?.version ?? '');

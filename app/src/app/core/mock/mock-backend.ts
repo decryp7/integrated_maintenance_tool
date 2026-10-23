@@ -1023,7 +1023,7 @@ function alertNotice(alert: LiveAlert) {
     title: alert.instance ? `${what} on ${alert.instance}` : what,
     body: alert.message,
     primary: { type: 'showAlert' as const, alertId: alert.id },
-    dedupeKey: `live:${alert.kind}:${who}`,
+    cause: `live:${alert.kind}:${who}`,
   };
 }
 

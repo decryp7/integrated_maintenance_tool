@@ -116,17 +116,6 @@ pub async fn performance_set_plugin_memory(
     Ok(memory(&live))
 }
 
-/// Lets the store worker start again after the watcher stopped it (its crash count is reset; the next action starts
-/// it with the current settings).
-#[tauri::command]
-pub async fn performance_retry_store_worker(state: State<'_, AppState>, op: crate::activity::OpId) -> CmdResult<()> {
-    if let Some(w) = live(&state).worker() {
-        w.reset();
-    }
-    crate::activity::domain_event("performance.retryStoreWorker", op.as_deref(), &[]);
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

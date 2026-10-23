@@ -453,7 +453,7 @@ fn update_messages_name_the_versions_and_sizes() {
     );
     let n = update_commands::update_notice(&u(UpdateKind::Runtime, 20_000));
     assert!(n.title.contains("runtime update") && n.body.contains("(20 KB"), "{}", n.body);
-    assert_eq!(n.dedupe_key.as_deref(), Some("ai-update:runtime:m"));
+    assert_eq!(n.cause.as_str(), "ai-update:runtime:m");
 }
 
 #[test]

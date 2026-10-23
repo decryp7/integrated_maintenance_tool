@@ -73,13 +73,13 @@ pub fn notice(process: &ProcessRef, name: &str, event: &MemoryEvent) -> Option<N
     match event {
         MemoryEvent::Warning(u) => Some(
             NewNotice::new(
+                format!("memory:warning:{}", key(process)),
                 NoticeSource::Performance,
                 NoticeSeverity::Info,
                 format!("{name} is using {} of {} MB", mb(u.used), mb(u.limit)),
                 NoticeScope::App,
             )
             .body("It is close to its memory cap. If it needs more, Debrief stops it; the cap is in Settings ▸ Performance.")
-            .dedupe(format!("memory:warning:{}", key(process)))
             .link(link)
             .quiet(),
         ),
@@ -91,6 +91,7 @@ pub fn notice(process: &ProcessRef, name: &str, event: &MemoryEvent) -> Option<N
             };
             Some(
                 NewNotice::new(
+                    format!("memory:stopped:{}", key(process)),
                     NoticeSource::Performance,
                     NoticeSeverity::Warning,
                     format!("{name} was stopped: it used more than its {} MB memory cap", mb(u.limit)),
@@ -105,7 +106,6 @@ pub fn notice(process: &ProcessRef, name: &str, event: &MemoryEvent) -> Option<N
                     suggested_mb: suggested,
                 })
                 .secondary(NoticeAction::RetryProcess { process: process.clone() })
-                .dedupe(format!("memory:stopped:{}", key(process)))
                 .link(link),
             )
         }
@@ -263,7 +263,7 @@ mod tests {
             (n.severity, n.source, n.scope),
             (NoticeSeverity::Info, NoticeSource::Performance, NoticeScope::App)
         );
-        assert_eq!(n.dedupe_key.as_deref(), Some("memory:warning:plugin:net.x"));
+        assert_eq!(n.cause, "memory:warning:plugin:net.x");
         assert_eq!(n.link.plugin_id.as_deref(), Some("net.x"));
         assert!(notice(&p, "x", &MemoryEvent::Ended(usage(1, 1, 2))).is_none());
     }
@@ -297,7 +297,7 @@ mod tests {
                 process: ProcessRef::StoreWorker
             })
         );
-        assert_eq!(n.dedupe_key.as_deref(), Some("memory:stopped:storeWorker"));
+        assert_eq!(n.cause, "memory:stopped:storeWorker");
         // The wire shape the UI maps.
         let wire = serde_json::to_value(n.primary.unwrap()).unwrap();
         assert_eq!(

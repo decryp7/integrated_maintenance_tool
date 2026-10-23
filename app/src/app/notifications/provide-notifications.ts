@@ -1,6 +1,4 @@
 import {
-  ApplicationRef,
-  createComponent,
   effect,
   EnvironmentInjector,
   EnvironmentProviders,
@@ -16,7 +14,8 @@ import { DockService } from '../dock/dock.service';
 import { DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefCommand, DebriefView } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS, UiStateContribution } from '../lifecycle/ui-state';
 import { NOTIFICATIONS_VIEW } from './notice-actions';
-import { NotificationToasts } from './notification-toasts';
+import { NotificationsSource } from './notifications-source';
+import { provideNotificationSource } from '../health/provide-notification-host';
 import { NotificationsBackend } from './notifications-backend';
 import { NotificationsStore } from './notifications.store';
 import { NoticesRecord } from './notifications.types';
@@ -95,13 +94,9 @@ export class NotificationsPersistence {
   };
 }
 
-/** Mounts the toasts and opens Notifications when an OS notification was clicked. */
+/** Opens Notifications when an OS notification was clicked. */
 export function startNotifications(): void {
   const injector = inject(EnvironmentInjector);
-  const host = document.createElement('debrief-notification-toasts');
-  document.body.append(host);
-  const ref = createComponent(NotificationToasts, { environmentInjector: injector, hostElement: host });
-  inject(ApplicationRef).attachView(ref.hostView);
   const store = inject(NotificationsStore);
   const dock = inject(DockService);
   effect(
@@ -118,6 +113,7 @@ export function provideNotifications(): EnvironmentProviders {
     { provide: DEBRIEF_VIEWS, multi: true, useFactory: notificationsViews },
     { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => notificationsCommands(inject(NotificationsStore)) },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => [inject(NotificationsPersistence).contribution] },
+    provideNotificationSource(NotificationsSource),
     provideAppInitializer(() => startNotifications()),
   ]);
 }

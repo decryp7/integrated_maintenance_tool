@@ -107,7 +107,7 @@ test.describe('live tail: alerts', () => {
     await expect(toast).toBeVisible();
     await expect(toast).toContainText('Critical');
     await expect(toast).toContainText('Error spike');
-    await expectNoSeriousViolations(page, testInfo, 'alert-toast', 'debrief-alert-toasts');
+    await expectNoSeriousViolations(page, testInfo, 'alert-toast', 'debrief-notification-host');
     await toast.getByRole('button', { name: 'Show' }).click();
     // The evidence: errors and fatals in the alert's time range (which pauses following).
     const level = (l: string) => page.getByRole('toolbar', { name: 'Levels' }).locator(`button[data-level=${l}]`);
@@ -159,7 +159,7 @@ test.describe('live tail: alerts', () => {
     await liveButton(page).click();
     await expect(liveButton(page)).toHaveAttribute('aria-pressed', 'false');
     // The toasts float over the panel (critical ones stay until closed): close them so they cannot cover its buttons.
-    const dismiss = page.getByRole('button', { name: 'Dismiss alert' });
+    const dismiss = page.getByRole('button', { name: 'Dismiss notification' });
     // (A warning toast may time out on its own between the count and the click.)
     while (await dismiss.count()) await dismiss.first().click({ timeout: 2_000 }).catch(() => undefined);
     const filters = panel.getByRole('group', { name: 'Filter by severity' });

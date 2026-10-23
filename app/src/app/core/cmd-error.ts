@@ -12,6 +12,8 @@ export class CmdError extends Error implements CmdErrorDto {
   readonly line?: number;
   readonly hint?: string;
   readonly detail?: string;
+  /** The service outage this is a symptom of (`health:store`); service health reports it once. */
+  override readonly cause?: CmdErrorDto['cause'];
 
   constructor(dto: CmdErrorDto) {
     super(dto.message);
@@ -22,7 +24,16 @@ export class CmdError extends Error implements CmdErrorDto {
     if (dto.line !== undefined) this.line = dto.line;
     if (dto.hint !== undefined) this.hint = dto.hint;
     if (dto.detail !== undefined) this.detail = dto.detail;
+    if (dto.cause !== undefined) this.cause = dto.cause;
   }
+}
+
+/**
+ * Whether `e` is a symptom of a service outage the engine reports once through service health (`cause` is `health:...`).
+ * No panel, banner or toast repeats it: the status chip states it and panels wait.
+ */
+export function isServiceOutage(e: unknown): boolean {
+  return e instanceof CmdError && !!e.cause?.startsWith('health:');
 }
 
 /** Whether `v` has the wire shape of a command error. */

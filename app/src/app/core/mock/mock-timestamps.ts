@@ -43,7 +43,7 @@ export function timestampNotice(source: MockSource): MockNewNotice | null {
     title: `Timestamps not recognised in ${source.name}`,
     body,
     primary: { type: 'fixTimestamps', path: source.path, format },
-    dedupeKey: `import:timestamps:${source.path}`,
+    cause: `import:timestamps:${source.path}`,
     once: true,
     link: { path: source.path },
   };

@@ -719,6 +719,28 @@ debrief-monitor --config <monitor.json> --out <dir> [--duration <10m|30s|2h|1500
 `debrief-collect` writes an `.debriefz` bundle that Debrief opens directly; `debrief-monitor` writes rolling CLEF files.
 Run them from a checkout with `cargo run -p debrief-collect -- --help` or `cargo run -p debrief-monitor -- --config monitor.json --out ./logs`.
 
+## Notifications and service status
+
+Everything Debrief tells you appears as a notification in the corner of the window, and stays in the **Notifications**
+list (the bell). One problem is one notification: if the same thing happens again, the notification you already have is
+updated (with a count) instead of a new one appearing. Errors stay until you dismiss them or the cause is gone; other
+messages disappear after a few seconds. Technical text is folded behind **Details**.
+
+When one of Debrief's own services stops, you see a single chip at the right of the status bar instead of a message in
+every panel:
+
+| Service | What it is | Button |
+|---|---|---|
+| Log store | The database worker that holds your events | Restart, or Try again after repeated failures |
+| AI worker | The local model | Try again |
+| Plugins | Importers and tools that run in their own process | Allow again (after a plugin was switched off) |
+| Research browser | The browser the assistant drives | Install (downloads the pinned Chromium) |
+| Downloads | Model, runtime and update downloads | Try again (runs the failed download again) |
+
+Choose the chip to read what happened, the next step and the technical details. The button repairs the service from
+Debrief itself; it does not need the service to work. Every window shows the same state. While the log store is down, the
+grid, the timeline and other panels say *Waiting for the log store* and load again by themselves when it is back.
+
 ## Troubleshooting
 
 ### Behind a corporate proxy (Zscaler etc.)

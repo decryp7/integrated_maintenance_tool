@@ -1,6 +1,4 @@
-import { ApplicationRef, ChangeDetectionStrategy, Component, computed, DestroyRef, EnvironmentInjector, inject } from '@angular/core';
-import { mountInToastStack } from './ui/toast-stack';
-import { WorkspaceToasts } from './shell/workspace-toasts';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { WorkspaceStore } from './core/workspace.store';
 import { ActivityBar } from './shell/activity-bar';
 import { Sidebar } from './shell/sidebar';
@@ -95,7 +93,5 @@ export class App {
 
   constructor() {
     inject(NarrowWindow).start();
-    const toasts = mountInToastStack(WorkspaceToasts, 'debrief-workspace-toasts', inject(EnvironmentInjector), inject(ApplicationRef));
-    inject(DestroyRef).onDestroy(() => toasts.destroy());
   }
 }

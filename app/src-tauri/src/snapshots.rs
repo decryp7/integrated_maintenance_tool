@@ -612,21 +612,8 @@ pub fn emit_engine_error<R: tauri::Runtime>(app: &tauri::AppHandle<R>, window: &
     }
     crate::windows::emit_to_window(app, window, ERROR_EVENT, error);
     if let (EngineErrorKind::PluginQuarantined, Some(id)) = (&error.kind, &error.plugin) {
-        use crate::notification_centre::centre::{NewNotice, NoticeAction, NoticeLink, NoticeScope, NoticeSeverity, NoticeSource};
-        let notice = NewNotice::new(
-            NoticeSource::Plugin,
-            NoticeSeverity::Error,
-            "A plugin was switched off",
-            NoticeScope::Project,
-        )
-        .body(error.message.clone())
-        .primary(NoticeAction::ResetPlugin { plugin_id: id.clone() })
-        .dedupe(format!("plugin:{id}"))
-        .link(NoticeLink {
-            plugin_id: Some(id.clone()),
-            ..NoticeLink::default()
-        });
-        crate::notification_centre::post(app, Some(window), notice, Some(crate::notify::NotificationKind::Attention));
+        // One outage: service health states it (status bar, one notification with "Allow again").
+        crate::health::hub::report_plugin_quarantined(id, &error.message);
     }
 }
 

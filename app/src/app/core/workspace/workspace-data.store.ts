@@ -2,7 +2,7 @@ import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { MarkerKind, WorkspaceSummary } from '../api.types';
 import { DebriefBackend } from '../backend';
-import { failureText } from '../cmd-error';
+import { failureText, isServiceOutage } from '../cmd-error';
 import { isCancellation } from '../activity/runtime';
 import { Logger } from '../logger';
 import { Platform } from '../platform';
@@ -28,6 +28,14 @@ interface DataState {
 /** The text the error banner shows: the message, then the engine's next step (`hint`) when it gave one. */
 export function errorText(e: unknown): string {
   return failureText(e);
+}
+
+/**
+ * The banner text for a failed command, or null when the failure is a service outage: service health states that once
+ * (the status chip), so no banner repeats it.
+ */
+export function bannerText(e: unknown, text: string = errorText(e)): string | null {
+  return isServiceOutage(e) ? null : text;
 }
 
 /** The busy state while `n` paths are being opened. */
@@ -112,7 +120,7 @@ export const WorkspaceDataStore = signalStore(
         } catch (e) {
           status.setBusy(null);
           // A cancelled re-import leaves the previous data in place: say so instead of showing a failure.
-          status.setError(isCancellation(e) ? cancelledText(operation) : errorText(e));
+          status.setError(bannerText(e, isCancellation(e) ? cancelledText(operation) : errorText(e)));
         }
       };
 
@@ -193,7 +201,7 @@ export const WorkspaceDataStore = signalStore(
           try {
             await backend.setImportWindow(range.from, range.to);
           } catch (e) {
-            status.setError(errorText(e));
+            status.setError(bannerText(e));
             return;
           }
           try {
@@ -207,7 +215,7 @@ export const WorkspaceDataStore = signalStore(
             const paths = await platform.pickPaths(directory);
             if (paths.length) await open(paths);
           } catch (e) {
-            status.setError(errorText(e));
+            status.setError(bannerText(e));
           }
         },
         removeSource: (id: number) =>

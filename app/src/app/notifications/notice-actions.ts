@@ -1,6 +1,7 @@
 import { inject, Injectable, Injector } from '@angular/core';
 import { AiBackend } from '../ai/ai-backend';
 import { LifecycleBackend } from '../core/tools-backend';
+import { ServiceHealthStore } from '../health/service-health.store';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { JobViewer, JOBS_VIEW } from '../jobs/job-viewer';
 import { JobsBackend } from '../jobs/jobs-backend';
@@ -50,6 +51,8 @@ export function actionLabel(a: NoticeAction): string {
       return $localize`:@@notifications.action.raiseMemoryCap:Raise the cap…`;
     case 'retryProcess':
       return $localize`:@@notifications.action.retryProcess:Retry`;
+    case 'repairService':
+      return $localize`:@@notifications.action.repairService:Try again`;
   }
 }
 
@@ -187,6 +190,9 @@ export class NoticeActions {
         await retryProcess(this.injector, a.process);
         return null;
       }
+      case 'repairService':
+        await this.injector.get(ServiceHealthStore).repair(a.service);
+        return null;
       case 'showAlert': {
         const [{ AlertsStore }, { LiveAlerts }] = await Promise.all([import('../live/alerts.store'), import('../live/live-alerts')]);
         const entry = this.injector.get(AlertsStore).alerts().find((e) => e.alert.id === a.alertId);

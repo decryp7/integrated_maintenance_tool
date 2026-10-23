@@ -219,43 +219,75 @@ pub async fn browser_runtime_status<R: Runtime>(app: AppHandle<R>) -> CmdResult<
     Ok(status(&app))
 }
 
+/// The work of the install job: downloads, verifies and self-tests the pinned Chromium, phase by phase.
+fn install_body<R: Runtime>(
+    app: AppHandle<R>,
+    root: PathBuf,
+) -> impl FnOnce(&crate::jobs::JobCtx) -> CmdResult<crate::jobs::Done<RuntimeStatus>> + Send + 'static {
+    use crate::jobs::{Done, PhaseScale};
+    move |ctx| {
+        let v = install_blocking(&root, &mut |phase, done, total| {
+            let scale = if phase == "Self-test" {
+                PhaseScale::Indeterminate
+            } else {
+                PhaseScale::Bytes
+            };
+            ctx.phase(phase, scale, done, total);
+            !ctx.is_cancelled()
+        })
+        .map_err(|e| {
+            if ctx.is_cancelled() {
+                crate::CmdError::new(crate::ErrorCode::Cancelled, "cancelled")
+            } else {
+                crate::CmdError::from(e)
+            }
+        })?;
+        log::info!(Version = v.as_str(); "Chromium installed");
+        if let Some(h) = app.try_state::<super::BrowserState>() {
+            refresh_sources(&app, &h.0);
+        }
+        crate::health::hub::report_browser_available();
+        Ok(Done::new(status(&app)))
+    }
+}
+
 /// Downloads the pinned Chromium (only when the user asks). A download job does the work (the command returns its id at
 /// once); its value (`jobs_wait`) is the new status.
 #[tauri::command]
 pub async fn browser_runtime_install<R: Runtime>(app: AppHandle<R>, _win: CurrentWindow) -> CmdResult<u64> {
-    use crate::jobs::{Done, JobCtx, JobKind, JobSpec, PhaseScale};
+    use crate::jobs::{JobKind, JobSpec};
     let root = root(&app).ok_or("Debrief's data folder is not available")?;
     // A download job: Jobs shows each phase with its bytes, and Cancel works in every phase.
     let spec = JobSpec::new(JobKind::Download, "Install Chromium");
-    let handle = app.clone();
-    crate::jobs::start_value(
-        &app,
+    crate::jobs::start_value(&app, spec, Default::default(), install_body(app.clone(), root))
+}
+
+/// The repair of the research browser: the same install job, waited for (blocking: call from a background thread).
+/// The job is one the downloads service does not report, because its outcome is the browser's.
+pub fn repair_install<R: Runtime>(app: &AppHandle<R>) -> Result<(), crate::health::model::Cause> {
+    use crate::health::model::Cause;
+    use crate::jobs::{JobKind, JobSpec};
+    let root = root(app).ok_or_else(|| Cause::new("Debrief's data folder is not available."))?;
+    let spec = JobSpec::new(JobKind::Download, "Install Chromium");
+    let h = app.clone();
+    let announce = move |id: crate::jobs::JobId| {
+        if let Some(health) = crate::health::current() {
+            health.ignore_download_job(id.0);
+        }
+    };
+    tauri::async_runtime::block_on(crate::jobs::run_announced(
+        app,
         spec,
         Default::default(),
-        move |ctx: &JobCtx| -> CmdResult<Done<RuntimeStatus>> {
-            let v = install_blocking(&root, &mut |phase, done, total| {
-                let scale = if phase == "Self-test" {
-                    PhaseScale::Indeterminate
-                } else {
-                    PhaseScale::Bytes
-                };
-                ctx.phase(phase, scale, done, total);
-                !ctx.is_cancelled()
-            })
-            .map_err(|e| {
-                if ctx.is_cancelled() {
-                    crate::CmdError::new(crate::ErrorCode::Cancelled, "cancelled")
-                } else {
-                    crate::CmdError::from(e)
-                }
-            })?;
-            log::info!(Version = v.as_str(); "Chromium installed");
-            if let Some(h) = handle.try_state::<super::BrowserState>() {
-                refresh_sources(&handle, &h.0);
-            }
-            Ok(Done::new(status(&handle)))
-        },
-    )
+        announce,
+        install_body(h, root),
+    ))
+    .map(|_| ())
+    .map_err(|e| {
+        Cause::new("Chromium could not be installed.")
+            .hint("Check the connection and try again.")
+            .detail(e.message)
+    })
 }
 
 /// Removes the downloaded Chromium (the machine's own browsers are never touched).

@@ -437,6 +437,7 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
 fn announce<R: Runtime>(app: &AppHandle<R>, info: &state::UpdateInfo) {
     use crate::notification_centre::centre::{NewNotice, NoticeAction, NoticeScope, NoticeSeverity, NoticeSource};
     let notice = NewNotice::new(
+        format!("update:{}", info.version),
         NoticeSource::Update,
         NoticeSeverity::Info,
         format!("Debrief {} is available", info.version),
@@ -444,7 +445,6 @@ fn announce<R: Runtime>(app: &AppHandle<R>, info: &state::UpdateInfo) {
     )
     .body(format!("You have {}.", info.current_version))
     .primary(NoticeAction::InstallUpdate)
-    .dedupe(format!("update:{}", info.version))
     .once();
     crate::notification_centre::post(app, None, notice, Some(crate::notify::NotificationKind::UpdateAvailable));
 }

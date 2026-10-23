@@ -177,8 +177,30 @@ fn job_title(kind: JobKind, state: JobState, title: &str) -> String {
     }
 }
 
+/// Tells service health how a download ended. True for a failed one (its own message is replaced by the service's).
+fn report_download<R: Runtime>(app: &AppHandle<R>, job: &model::Job) -> bool {
+    let Some(health) = app.try_state::<std::sync::Arc<crate::health::hub::Health>>() else {
+        return false;
+    };
+    match job.state() {
+        JobState::Done => {
+            health.download_done(job.id.0);
+            false
+        }
+        JobState::Failed => {
+            health.download_failed(job.id.0, &job.title, job.error.as_deref().unwrap_or_default());
+            true
+        }
+        _ => false,
+    }
+}
+
 /// A finished job that needs attention becomes a message (and an OS notification while Debrief is not focused).
 fn finished<R: Runtime>(app: &AppHandle<R>, f: &Finished) {
+    // A download that failed is the downloads service being down: service health states it once, with Try again.
+    if f.job.kind == JobKind::Download && report_download(app, &f.job) {
+        return;
+    }
     if !f.attention {
         return;
     }
@@ -211,6 +233,7 @@ fn finished<R: Runtime>(app: &AppHandle<R>, f: &Finished) {
         _ => job_title(job.kind, job.state(), &job.title),
     };
     let mut notice = NewNotice::new(
+        format!("job:{id}"),
         NoticeSource::Job,
         if ok { NoticeSeverity::Success } else { NoticeSeverity::Error },
         title,
@@ -222,7 +245,6 @@ fn finished<R: Runtime>(app: &AppHandle<R>, f: &Finished) {
         body
     })
     .primary(primary)
-    .dedupe(format!("job:{id}"))
     .link(NoticeLink {
         window: job.source.window.clone(),
         job_id: Some(id),
@@ -240,22 +262,14 @@ fn finished<R: Runtime>(app: &AppHandle<R>, f: &Finished) {
     crate::notification_centre::post(app, job.window(), notice, os);
 }
 
-/// A paused queue (the AI was quarantined): an app message with "Reset AI".
+/// A paused queue (the AI was quarantined): service health states it once (the Jobs pane shows the pause itself).
 fn paused<R: Runtime>(app: &AppHandle<R>, kind: JobKind, reason: &str) {
     if kind != JobKind::Ai {
         return;
     }
-    let notice = NewNotice::new(
-        NoticeSource::Ai,
-        NoticeSeverity::Warning,
-        "AI requests are paused",
-        NoticeScope::App,
-    )
-    .body(format!("{reason}. Waiting requests stay queued until you reset the AI."))
-    .primary(NoticeAction::ResetAi)
-    .secondary(NoticeAction::ShowJobs)
-    .dedupe("ai:paused");
-    crate::notification_centre::post(app, None, notice, Some(NotificationKind::Attention));
+    if let Some(health) = app.try_state::<std::sync::Arc<crate::health::hub::Health>>() {
+        health.ai(crate::health::hub::AiHealth::Switched, Some(reason));
+    }
 }
 
 /// Runs `f` as a job and hands its value back to the awaiting command. Without the service (some tests)

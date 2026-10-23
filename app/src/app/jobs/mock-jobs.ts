@@ -171,7 +171,7 @@ export class MockJobs implements JobsBackend {
       body: ok && e.doneTitle ? e.info.title : ok && e.info.message ? e.info.message : ok ? `Took ${Math.round(((e.info.finishedAt ?? 0) - (e.info.startedAt ?? 0)) / 1000)} s.` : (e.info.error ?? ''),
       primary,
       secondary: ok ? null : { type: 'showJobs' },
-      dedupeKey: `job:${jobId}`,
+      cause: `job:${jobId}`,
       scope: e.info.source.window ? 'project' : 'app',
       link: { jobId },
     });

@@ -125,6 +125,20 @@ pub struct CmdError {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(test, ts(optional))]
     pub detail: Option<String>,
+    /// The service failure this error is a symptom of (`health:store`): the engine reports that once through service
+    /// health, so the UI does not show it again as an error of the request. (A one-byte enum: the error stays small.)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
+    pub cause: Option<ServiceCause>,
+}
+
+/// A service whose outage an error is a symptom of; serialised as the notification cause key (`health:<service>`). A
+/// service gets a variant when its commands fail because of it (today: the log store's).
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum ServiceCause {
+    #[serde(rename = "health:store")]
+    Store,
 }
 
 /// The result of a command.
@@ -150,7 +164,14 @@ impl CmdError {
             line: None,
             hint: None,
             detail: None,
+            cause: None,
         }
+    }
+
+    /// Marks the error as a symptom of a service outage (see [`crate::health`]).
+    pub fn caused_by(mut self, cause: ServiceCause) -> CmdError {
+        self.cause = Some(cause);
+        self
     }
 
     pub fn failed(message: impl Into<String>) -> CmdError {

@@ -341,7 +341,9 @@ pub async fn ai_reset<R: Runtime>(app: AppHandle<R>) -> Ai<AiStatus> {
         jobs.pump();
     }
     emit_status(&app, &core);
-    Ok(core.status())
+    let status = core.status();
+    crate::health::commands::refresh_ai(&app, status.state, status.reason.as_deref());
+    Ok(status)
 }
 
 // ---- use cases ----

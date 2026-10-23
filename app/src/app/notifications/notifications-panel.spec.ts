@@ -10,7 +10,9 @@ import { JobsBackend } from '../jobs/jobs-backend';
 import { JobsStore } from '../jobs/jobs.store';
 import { JobInfo } from '../jobs/jobs.types';
 import { NoticeActions } from './notice-actions';
-import { NotificationToasts } from './notification-toasts';
+import { NotificationHost } from '../health/notification-host';
+import { provideNotificationSource } from '../health/provide-notification-host';
+import { NotificationsSource } from './notifications-source';
 import { NotificationsBackend } from './notifications-backend';
 import { NotificationsPanel } from './notifications-panel';
 import { NotificationsStore, TOAST_MS } from './notifications.store';
@@ -30,7 +32,7 @@ function notice(p: Partial<Notice> & { id: number }): Notice {
     secondary: null,
     tertiary: null,
     link: { window: 'main', jobId: null, recordId: null, pluginId: null, path: null },
-    dedupeKey: null,
+    cause: `fixture:${p.id}`,
     scope: 'project',
     ...p,
   };
@@ -148,7 +150,7 @@ describe('NotificationsPanel', () => {
     f.detectChanges();
     const labels = Array.from(document.querySelectorAll('[data-testid=kind-filter-list] [role=option]')).map((l) => l.textContent?.replace(/\s+/g, ' ').trim());
     expect(labels.some((l) => l?.includes('Updates1'))).toBe(true);
-    expect(labels).toHaveLength(9);
+    expect(labels).toHaveLength(10);
     document.querySelector<HTMLElement>('[data-testid=kind-update]')!.click();
     f.detectChanges();
     expect(all(f, 'h3').map((h) => h.textContent)).toEqual(['Updates']);
@@ -305,7 +307,7 @@ describe('NotificationsPanel', () => {
   });
 });
 
-describe('NotificationToasts', () => {
+describe('notification toasts in the host', () => {
   afterEach(() => {
     vi.useRealTimers();
     TestBed.resetTestingModule();
@@ -315,8 +317,8 @@ describe('NotificationToasts', () => {
     const fake = new FakeNotices();
     const ctx = new FakeContext();
     const actions = makeActions();
-    TestBed.configureTestingModule({ providers: providers(fake, ctx, actions) });
-    const f = TestBed.createComponent(NotificationToasts);
+    TestBed.configureTestingModule({ providers: [...providers(fake, ctx, actions), provideNotificationSource(NotificationsSource)] });
+    const f = TestBed.createComponent(NotificationHost);
     return { f, fake, ctx, actions, store: TestBed.inject(NotificationsStore) };
   }
 

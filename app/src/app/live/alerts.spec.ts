@@ -7,7 +7,9 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { DialogService } from '../ui/dialog.service';
 import { TimeCursor } from '../analysis/time-cursor';
 import { LiveTail } from '../workspace/live-tail';
-import { AlertToasts } from './alert-toasts';
+import { NotificationHost } from '../health/notification-host';
+import { provideNotificationSource } from '../health/provide-notification-host';
+import { AlertsSource } from './alerts-source';
 import { AlertsStore, kindLabel, MAX_ALERTS, MAX_TOASTS, MUTE_MS, muteKey, muteLabel, muteTarget, severityLabel, TOAST_MS } from './alerts.store';
 import { AlertsView } from './alerts-view';
 import { LiveAlerts } from './live-alerts';
@@ -220,7 +222,7 @@ describe('LiveAlerts', () => {
 describe('alert components', () => {
   async function setup() {
     const backend = new MockBackend({ latency: false, dataset: tinyDataset });
-    TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
+    TestBed.configureTestingModule({ providers: [provideTinyBackend(backend), provideNotificationSource(AlertsSource)] });
     await settle();
     return { backend, store: TestBed.inject(AlertsStore), actions: TestBed.inject(LiveAlerts) };
   }
@@ -228,7 +230,7 @@ describe('alert components', () => {
   it('toasts show the severity in words, Show applies the evidence, Mute mutes the kind', async () => {
     const { store, actions } = await setup();
     const show = vi.spyOn(actions, 'show').mockImplementation(() => undefined);
-    const fixture = TestBed.createComponent(AlertToasts);
+    const fixture = TestBed.createComponent(NotificationHost);
     store.receive(alert());
     store.receive(rule('payments'));
     await settle(fixture);

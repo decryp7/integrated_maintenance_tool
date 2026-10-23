@@ -1,10 +1,10 @@
 import { Injector } from '@angular/core';
 import { AiBackend } from '../../ai/ai-backend';
 import { LifecycleBackend } from '../../core/tools-backend';
+import { ServiceHealthStore } from '../../health/service-health.store';
 import { COMMAND_CONTEXT } from '../../extensions/command-registry';
 import { EngineSettingsStore } from '../engine-settings.store';
 import { SettingsDialogService } from '../settings-dialog';
-import { PerformanceBackend } from './performance-backend';
 import { PluginMemoryStore } from './plugin-memory.store';
 import { PERFORMANCE_SECTION, ProcessRef } from './performance.types';
 
@@ -43,8 +43,12 @@ export async function raiseMemoryCap(injector: Injector, process: ProcessRef, su
 /** "Retry" of a memory message: lets the stopped process start again (its next use starts it). */
 export async function retryProcess(injector: Injector, process: ProcessRef): Promise<void> {
   switch (process.kind) {
-    case 'storeWorker':
-      return injector.get(PerformanceBackend).retryStoreWorker();
+    case 'storeWorker': {
+      // The shell restarts it (service health); a store that is not down starts again with its next use anyway.
+      const health = injector.get(ServiceHealthStore);
+      if (!health.isServing('store')) await health.repair('store');
+      return;
+    }
     case 'ai':
       await injector.get(AiBackend).reset();
       return;

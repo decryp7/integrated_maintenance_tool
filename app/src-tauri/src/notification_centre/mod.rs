@@ -179,6 +179,21 @@ impl NotificationCentre {
         self.with_list(window, |c| c.mark_read(id).then_some(())).is_some()
     }
 
+    /// The cause cleared (the service is back): removes its message from the app list and every window's list. True when
+    /// one was removed.
+    pub fn resolve(&self, cause: &str) -> bool {
+        let mut any = false;
+        for c in lock(&self.projects).values_mut() {
+            any |= c.resolve_cause(cause).is_some();
+        }
+        let mut app = lock(&self.app);
+        if app.resolve_cause(cause).is_some() {
+            self.save_app(&app);
+            any = true;
+        }
+        any
+    }
+
     pub fn dismiss(&self, window: &str, id: NoticeId) -> bool {
         self.with_list(window, |c| c.dismiss(id).then_some(())).is_some()
     }
@@ -295,6 +310,18 @@ pub fn post<R: Runtime>(app: &AppHandle<R>, window: Option<&str>, new: NewNotice
     Some(notice)
 }
 
+/// The cause cleared: removes the message with this cause (if any) and tells every window. Never fails.
+pub fn resolve_cause<R: Runtime>(app: &AppHandle<R>, cause: &str) {
+    let Some(centre) = app.try_state::<NotificationCentre>() else {
+        return;
+    };
+    if centre.resolve(cause) {
+        for label in labels(app) {
+            emit_snapshot(app, &centre, &label, None);
+        }
+    }
+}
+
 /// A window got the focus: if it was an OS notification's click, the window opens that message.
 pub fn on_focus<R: Runtime>(app: &AppHandle<R>, label: &str) {
     let Some(centre) = app.try_state::<NotificationCentre>() else {
@@ -398,12 +425,12 @@ mod tests {
 
     fn alert(n: u32) -> NewNotice {
         NewNotice::new(
+            format!("live:spike:WEB0{n}"),
             NoticeSource::LiveAlert,
             NoticeSeverity::Error,
             format!("ERROR spike on WEB0{n}"),
             NoticeScope::Project,
         )
-        .dedupe(format!("live:spike:WEB0{n}"))
     }
 
     #[test]
@@ -419,6 +446,7 @@ mod tests {
         let update = c.post(
             Some("main"),
             NewNotice::new(
+                "update:2.0",
                 NoticeSource::Update,
                 NoticeSeverity::Info,
                 "Debrief 2.0 is available",
@@ -428,7 +456,13 @@ mod tests {
         );
         c.post(
             None,
-            NewNotice::new(NoticeSource::Job, NoticeSeverity::Success, "Model downloaded", NoticeScope::Project),
+            NewNotice::new(
+                "job:model",
+                NoticeSource::Job,
+                NoticeSeverity::Success,
+                "Model downloaded",
+                NoticeScope::Project,
+            ),
         );
         let main = c.snapshot("main");
         assert_eq!(main.notices.len(), 3, "its project message and the two app messages");
@@ -527,7 +561,15 @@ mod tests {
         let app = test_app_with_commands(None);
         window(&app, "main");
         SHOWN.with(|s| s.borrow_mut().clear());
-        let failed = || NewNotice::new(NoticeSource::Job, NoticeSeverity::Error, "Export failed", NoticeScope::Project);
+        let failed = || {
+            NewNotice::new(
+                "job:export",
+                NoticeSource::Job,
+                NoticeSeverity::Error,
+                "Export failed",
+                NoticeScope::Project,
+            )
+        };
         post(app.handle(), Some("main"), failed(), Some(NotificationKind::JobFailed));
         post(app.handle(), Some("main"), failed(), Some(NotificationKind::JobFailed));
         assert_eq!(SHOWN.with(|s| s.borrow().clone()), ["Export failed"], "the second is rate-limited");

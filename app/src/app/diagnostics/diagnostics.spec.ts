@@ -323,7 +323,6 @@ describe('SnapshotErrorHandler', () => {
     expect(TestBed.inject(ErrorHandler)).toBeInstanceOf(SnapshotErrorHandler);
     expect(TestBed.inject(SnapshotBackend)).toBeTruthy();
     expect(TestBed.inject(FailureReporter)).toBe(TestBed.inject(ErrorSnapshotService));
-    document.querySelectorAll('debrief-snapshot-toast').forEach((e) => e.remove());
   });
 });
 

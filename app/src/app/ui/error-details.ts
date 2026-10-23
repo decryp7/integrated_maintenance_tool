@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
-import { StoreHealth } from '../core/store-health';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, untracked } from '@angular/core';
+import { ServiceHealthStore } from '../health/service-health.store';
+import { WaitingFor } from '../health/waiting-for';
 
 /**
  * An inline error as people read it: a sentence saying what did not happen ("Couldn't load events."), Retry, and the
@@ -8,12 +9,11 @@ import { StoreHealth } from '../core/store-health';
 @Component({
   selector: 'debrief-error-details',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [WaitingFor],
   template: `
-    @if (health.down()) {
-      <!-- The log store is not running: one calm state in every panel; the cause and details live in the status bar. -->
-      <strong class="summary" data-testid="store-down-empty" i18n="@@ui.errorDetails.storeDown">The log store isn't running.</strong>
-      <span class="faint" i18n="@@ui.errorDetails.storeDownSee">See Details in the status bar.</span>
-      <button class="btn" type="button" data-testid="store-down-retry" (click)="tryAgain()" i18n="@@ui.errorDetails.tryAgain">Try again</button>
+    @if (waiting()) {
+      <!-- The log store is not working: one calm state in every panel; the status chip says why and repairs it. -->
+      <debrief-waiting-for service="store" />
     } @else {
     <strong class="summary">{{ summary() }}</strong>
     @if (retryable()) {
@@ -38,20 +38,25 @@ import { StoreHealth } from '../core/store-health';
   `,
 })
 export class ErrorDetails {
-  protected readonly health = inject(StoreHealth);
+  private readonly health = inject(ServiceHealthStore);
   /** What did not happen, as a sentence. */
   readonly summary = input.required<string>();
   /** The backend's message (technical); folded away. */
   readonly detail = input<string | null>(null);
   readonly retryable = input(true);
   readonly retry = output<void>();
+  /** The log store is not working: the panel waits instead of showing an error of its own. */
+  protected readonly waiting = computed(() => !this.health.isServing('store'));
 
-  /** Restarts the store worker, then lets the panel load again. */
-  protected async tryAgain(): Promise<void> {
-    try {
-      await this.health.tryAgain();
-    } finally {
-      this.retry.emit();
-    }
+  constructor() {
+    // Loads again by itself when the store comes back after this panel waited for it (an output is outside the signal
+    // graph). Waiting for the first snapshot of a new window does not count: nothing was lost then.
+    let waited = false;
+    effect(() => {
+      const heard = this.health.isReady();
+      const now = this.waiting();
+      if (waited && !now) untracked(() => this.retry.emit());
+      waited = heard && now;
+    });
   }
 }

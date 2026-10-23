@@ -11,7 +11,8 @@ export interface MockNewNotice {
   primary?: NoticeAction | null;
   secondary?: NoticeAction | null;
   tertiary?: NoticeAction | null;
-  dedupeKey?: string | null;
+  /** Mandatory: the same cause updates the message in place. */
+  cause: string;
   /** Posting the same key again changes nothing (the engine's `NewNotice::once`). */
   once?: boolean;
   scope?: NoticeScope;
@@ -43,8 +44,7 @@ export class MockNotifications implements NotificationsBackend {
   /** Posts a message (as the engine's producers do). */
   post(n: MockNewNotice): Notice {
     const now = Date.now();
-    const key = n.dedupeKey ?? null;
-    const existing = key ? this.notices.find((m) => m.dedupeKey === key) : undefined;
+    const existing = this.notices.find((m) => m.cause === n.cause);
     let notice: Notice;
     if (existing && n.once) return existing;
     if (existing) {
@@ -65,7 +65,7 @@ export class MockNotifications implements NotificationsBackend {
         secondary: n.secondary ?? null,
         tertiary: n.tertiary ?? null,
         link: { window: 'main', jobId: null, recordId: null, pluginId: null, path: null, ...n.link },
-        dedupeKey: key,
+        cause: n.cause,
         scope: n.scope ?? 'project',
       };
       this.notices = [...this.notices, notice];
@@ -76,6 +76,13 @@ export class MockNotifications implements NotificationsBackend {
     }
     this.emit(notice);
     return notice;
+  }
+
+  /** The cause cleared (the engine's `resolve_cause`): the message goes. */
+  resolve(cause: string): void {
+    const before = this.notices.length;
+    this.notices = this.notices.filter((m) => m.cause !== cause);
+    if (this.notices.length !== before) this.emit(null);
   }
 
   /** Simulates a click on an OS notification. */

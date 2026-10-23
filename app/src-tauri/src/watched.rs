@@ -345,13 +345,13 @@ fn announce_known_issues<R: Runtime>(app: &AppHandle<R>, win: &CurrentWindow, di
     let Ok(report) = report else { return };
     for m in state.fresh_matches(&report) {
         let notice = NewNotice::new(
+            format!("watched-issue:{}", m.issue.id),
             NoticeSource::Workspace,
             NoticeSeverity::Warning,
             format!("Known issue found: {}", m.issue.title),
             NoticeScope::Project,
         )
-        .body(format!("{} events in files from {}. {}", m.count, file_name(dir), m.issue.fix))
-        .dedupe(format!("watched-issue:{}", m.issue.id));
+        .body(format!("{} events in files from {}. {}", m.count, file_name(dir), m.issue.fix));
         crate::notification_centre::post(app, Some(win.label()), notice, Some(NotificationKind::Attention));
     }
 }

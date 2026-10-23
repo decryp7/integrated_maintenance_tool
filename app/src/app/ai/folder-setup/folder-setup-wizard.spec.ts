@@ -163,7 +163,7 @@ describe('folder set-up hint, command and backends', () => {
     expect(notices.localAction(-1)).toBeNull();
     await ws.openPaths(['/logs']);
     TestBed.tick();
-    const posted = notices.notices().find((n) => n.dedupeKey === 'local:' + FOLDER_SETUP_NOTICE)!;
+    const posted = notices.notices().find((n) => n.cause === 'local:' + FOLDER_SETUP_NOTICE)!;
     expect(posted.title).toBe('New folder? Set up analysis');
     expect(notices.unread()).toBe(unread + 1);
     expect(notices.localAction(posted.id)).toBe('Set up analysis…');
@@ -174,10 +174,10 @@ describe('folder set-up hint, command and backends', () => {
     // A new open offers it again (once); dismissing it removes it.
     await ws.openPaths(['/more']);
     TestBed.tick();
-    const again = notices.notices().filter((n) => n.dedupeKey === 'local:' + FOLDER_SETUP_NOTICE);
+    const again = notices.notices().filter((n) => n.cause === 'local:' + FOLDER_SETUP_NOTICE);
     expect(again).toHaveLength(1);
     await notices.dismiss(again[0]!.id);
-    expect(notices.notices().some((n) => n.dedupeKey === 'local:' + FOLDER_SETUP_NOTICE)).toBe(false);
+    expect(notices.notices().some((n) => n.cause === 'local:' + FOLDER_SETUP_NOTICE)).toBe(false);
     expect(workspace).toBeTruthy();
   });
 

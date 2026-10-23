@@ -248,12 +248,17 @@ pub(crate) fn alert_notice(alert: &debrief_core::workspace::LiveAlert) -> crate:
         debrief_core::api::Severity::Warning => NoticeSeverity::Warning,
         debrief_core::api::Severity::Info => NoticeSeverity::Info,
     };
-    NewNotice::new(NoticeSource::LiveAlert, severity, title, NoticeScope::Project)
-        .body(alert.message.clone())
-        .primary(NoticeAction::ShowAlert {
-            alert_id: alert.id.clone(),
-        })
-        .dedupe(format!("live:{}:{who}", alert.kind))
+    NewNotice::new(
+        format!("live:{}:{who}", alert.kind),
+        NoticeSource::LiveAlert,
+        severity,
+        title,
+        NoticeScope::Project,
+    )
+    .body(alert.message.clone())
+    .primary(NoticeAction::ShowAlert {
+        alert_id: alert.id.clone(),
+    })
 }
 
 /// Turns a window's live tail on (replacing a running session) or off;
@@ -914,13 +919,10 @@ mod tests {
         };
         let n = alert_notice(&alert("errorSpike", Some("WEB02"), None));
         assert_eq!(n.title, "Error spike on WEB02");
-        assert_eq!(n.dedupe_key.as_deref(), Some("live:errorSpike:WEB02"));
+        assert_eq!(n.cause, "live:errorSpike:WEB02");
         assert_eq!(n.severity, crate::notification_centre::centre::NoticeSeverity::Error);
         let r = alert_notice(&alert("rule", None, Some("payment errors")));
-        assert_eq!(
-            (r.title.as_str(), r.dedupe_key.as_deref()),
-            ("payment errors", Some("live:rule:payment errors"))
-        );
+        assert_eq!((r.title.as_str(), r.cause.as_str()), ("payment errors", "live:rule:payment errors"));
         for k in ["silence", "crash", "slowOutlier", "rateChange", "memoryGrowth", "other"] {
             assert!(!alert_notice(&alert(k, None, None)).title.is_empty());
         }

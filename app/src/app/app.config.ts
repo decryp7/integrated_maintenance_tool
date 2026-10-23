@@ -44,6 +44,9 @@ import { provideIncident } from './investigate/incident/provide-incident';
 import { provideKnownIssues } from './investigate/known-issues/provide-known-issues';
 import { providePlaybooks } from './investigate/playbooks/provide-playbooks';
 import { provideStorePane } from './store-pane/provide-store-pane';
+import { provideNotificationHost, provideNotificationSource } from './health/provide-notification-host';
+import { provideServiceHealth } from './core/service-health/provide-service-health';
+import { WorkspaceSource } from './shell/workspace-source';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -93,5 +96,8 @@ export const appConfig: ApplicationConfig = {
     provideIncident(),
     providePlaybooks(),
     provideStorePane(),
+    provideServiceHealth(),
+    provideNotificationHost(),
+    provideNotificationSource(WorkspaceSource),
   ],
 };

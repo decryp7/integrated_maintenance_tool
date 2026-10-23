@@ -60,9 +60,9 @@ test('an uncaught error saves a snapshot, shows the toast and the notice, and th
 
   await expect(toast(page)).toContainText('Something went wrong.', { timeout: CAPTURE_TIMEOUT });
   // The short toast; what Debrief did about the error is under Details.
-  await expect(page.locator('[data-testid=snapshot-notice]')).toHaveCount(0);
+  await expect(page.locator('[data-testid=notification-details]')).toHaveCount(0);
   await toast(page).getByRole('button', { name: 'Details' }).click();
-  await expect(page.locator('[data-testid=snapshot-notice]')).toContainText('Debrief saved a screenshot of this error locally to help diagnose it. Nothing is sent anywhere.');
+  await expect(page.locator('[data-testid=notification-details]')).toContainText('Debrief saved a screenshot of this error locally to help diagnose it. Nothing is sent anywhere.');
   await toast(page).getByRole('button', { name: 'View snapshot' }).click();
 
   const view = page.locator('debrief-error-snapshots-view');
@@ -170,7 +170,7 @@ test('toasts stack one above the other instead of on top of each other', async (
   await throwUncaught(page, 'stacked boom');
   await expect(toast(page)).toContainText('Something went wrong', { timeout: CAPTURE_TIMEOUT });
   await page.keyboard.press('ControlOrMeta+s');
-  const notice = page.locator('.debrief-toast-stack .toast.info');
+  const notice = page.getByTestId('workspace-notice');
   await expect(notice).toContainText('Saved');
   const a = (await toast(page).boundingBox())!;
   const b = (await notice.boundingBox())!;
