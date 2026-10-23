@@ -1,7 +1,7 @@
 import { InjectionToken } from '@angular/core';
 import type { SerializedDockview } from 'dockview';
-import { AutoHideItem, sanitizeAutoHide } from './auto-hide';
-import { DockSlot, Rect } from './dock-geometry';
+import { AutoHideItem, sanitizeAutoHide, sanitizeSides } from './auto-hide';
+import { DockSlot, Rect, Side } from './dock-geometry';
 
 /** Bump when the set of built-in panels or their meaning changes; older saved layouts are ignored. */
 export const LAYOUT_VERSION = 1;
@@ -28,6 +28,8 @@ export interface DockExtras {
   autoHidden: AutoHideItem[];
   pinnedTabs: string[];
   poppedOut: PoppedOutPanel[];
+  /** Side each tool window was last auto-hidden to, so it goes there again (absent in older layouts). */
+  autoHideSides?: Record<string, Side>;
 }
 
 /** A complete saved arrangement: the dockview grid and the extras. */
@@ -88,7 +90,13 @@ export function sanitizeExtras(raw: unknown): DockExtras {
       slot: sanitizeSlot(p['slot']),
     });
   }
-  return { autoHidden: sanitizeAutoHide(raw['autoHidden']), pinnedTabs: ids(raw['pinnedTabs']), poppedOut: popped };
+  const sides = sanitizeSides(raw['autoHideSides']);
+  return {
+    autoHidden: sanitizeAutoHide(raw['autoHidden']),
+    pinnedTabs: ids(raw['pinnedTabs']),
+    poppedOut: popped,
+    ...(Object.keys(sides).length ? { autoHideSides: sides } : {}),
+  };
 }
 
 /** Reads a stored envelope; null for unknown versions and anything malformed. */

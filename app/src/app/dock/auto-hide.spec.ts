@@ -1,4 +1,4 @@
-import { AutoHideItem, AutoHideState, autoHideReduce, clampSize, EMPTY_AUTO_HIDE, itemsOn, MAX_FLYOUT, MIN_FLYOUT, sanitizeAutoHide } from './auto-hide';
+import { AutoHideItem, AutoHideState, autoHideReduce, clampSize, EMPTY_AUTO_HIDE, itemsOn, MAX_FLYOUT, MIN_FLYOUT, sanitizeAutoHide, AUTO_HIDE_SIDES, chooseSide, isAutoHideSide, sanitizeSides } from './auto-hide';
 import { at } from '../../testing/must';
 
 const item = (id: string, side: AutoHideItem['side'] = 'left', size = 300): AutoHideItem => ({
@@ -154,5 +154,27 @@ describe('sanitizeAutoHide', () => {
 
   it('clamps the size and tolerates a missing slot', () => {
     expect(sanitizeAutoHide([{ id: 'a', side: 'left', size: 5 }])[0]).toMatchObject({ size: MIN_FLYOUT, slot: { referencePanel: null, direction: 'within' } });
+  });
+});
+
+describe('auto-hide sides', () => {
+  it('are left, right and bottom, never the top', () => {
+    expect([...AUTO_HIDE_SIDES]).toEqual(['left', 'right', 'bottom']);
+    expect(isAutoHideSide('top')).toBe(false);
+    expect(isAutoHideSide(undefined)).toBe(false);
+    expect(sanitizeAutoHide([{ id: 'a', side: 'top' }])).toEqual([]);
+  });
+
+  it('chooses the side asked for, else the remembered one, else the nearest edge; never the top', () => {
+    expect(chooseSide('bottom', 'left', 'right')).toBe('bottom');
+    expect(chooseSide(undefined, 'left', 'right')).toBe('left');
+    expect(chooseSide(undefined, undefined, 'right')).toBe('right');
+    expect(chooseSide('top', 'top', 'right')).toBe('right');
+  });
+
+  it('parses the remembered sides and drops anything malformed (older layouts have none)', () => {
+    expect(sanitizeSides(undefined)).toEqual({});
+    expect(sanitizeSides([])).toEqual({});
+    expect(sanitizeSides({ a: 'left', b: 'top', c: 3, '': 'right' })).toEqual({ a: 'left' });
   });
 });

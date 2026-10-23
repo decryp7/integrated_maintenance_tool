@@ -25,6 +25,7 @@ export class DockPersistence {
         autoHidden: [...this.ctx.autoHide().items],
         pinnedTabs: [...this.ctx.pinned()],
         poppedOut: this.ctx.windows()?.records() ?? [],
+        ...(Object.keys(this.ctx.autoHideSides()).length ? { autoHideSides: { ...this.ctx.autoHideSides() } } : {}),
       },
     };
   }

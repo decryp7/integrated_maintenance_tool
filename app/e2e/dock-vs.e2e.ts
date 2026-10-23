@@ -140,6 +140,49 @@ test.describe('VS-style docking', () => {
     expect(column.y + column.height).toBeGreaterThanOrEqual(grid.y + grid.height - 2);
   });
 
+  test('auto hide button: collapses a tool pane to its edge, chooses left, right or bottom, slides out and pins back', async ({ page }) => {
+    // The documents (Events) offer no auto-hide button at all; the inspector's pane does, with its shortcut in the tooltip.
+    await expect(groupOf(page, 'Events').getByRole('button', { name: /^Auto-hide/ })).toHaveCount(0);
+    const button = groupOf(page, 'Inspector').getByRole('button', { name: 'Auto-hide Inspector' });
+    await expect(button).toHaveAttribute('aria-pressed', 'false');
+    await expect(button).toHaveAttribute('title', /Ctrl\+Alt\+H/);
+
+    // Default: the edge the pane is nearest to (right).
+    await button.click();
+    await expect(tab(page, 'Inspector')).toHaveCount(0);
+    const right = page.getByRole('navigation', { name: 'Auto-hidden tool windows (right)' }).getByRole('button', { name: 'Inspector' });
+    await expect(right).toBeVisible();
+    await right.click();
+    const flyout = page.getByRole('region', { name: 'Inspector' });
+    await expect(flyout).toBeVisible();
+    const pin = flyout.getByRole('button', { name: 'Pin Inspector' });
+    await expect(pin).toHaveAttribute('aria-pressed', 'true');
+    await pin.click();
+    await expect(tab(page, 'Inspector')).toBeVisible();
+
+    // The choice (right-click or Shift+F10 on the button): left, right or bottom, never the top.
+    await button.click({ button: 'right' });
+    const menu = page.getByRole('menu', { name: 'Actions' });
+    await expect(menu.getByRole('menuitem')).toHaveText(['Auto-hide to the left', 'Auto-hide to the right', 'Auto-hide to the bottom']);
+    await menu.getByRole('menuitem', { name: 'Auto-hide to the bottom' }).click();
+    const bottom = page.getByRole('navigation', { name: 'Auto-hidden tool windows (bottom)' }).getByRole('button', { name: 'Inspector' });
+    await expect(bottom).toBeVisible();
+    await bottom.hover();
+    await expect(flyout).toBeVisible();
+    await flyout.getByRole('button', { name: 'Pin Inspector' }).click();
+    await expect(tab(page, 'Inspector')).toBeVisible();
+
+    // It remembers: the plain button now goes to the bottom again; the keyboard reaches the choice too.
+    await button.click();
+    await expect(bottom).toBeVisible();
+    await bottom.click();
+    await flyout.getByRole('button', { name: 'Pin Inspector' }).click();
+    await button.focus();
+    await page.keyboard.press('Shift+F10');
+    await page.getByRole('menu', { name: 'Actions' }).getByRole('menuitem', { name: 'Auto-hide to the left' }).click();
+    await expect(page.getByRole('navigation', { name: 'Auto-hidden tool windows (left)' }).getByRole('button', { name: 'Inspector' })).toBeVisible();
+  });
+
   test('the auto-hide command toggles the active tool window', async ({ page }) => {
     await tab(page, 'Inspector').click();
     await runCommand(page, 'Auto hide / pin tool window');

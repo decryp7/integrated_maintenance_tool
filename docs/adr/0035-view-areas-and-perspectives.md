@@ -68,3 +68,14 @@ and a group, next to a separate search box in the filter bar.
   limit and no store access.
 - Perspectives are a per-viewer preference, not project state: opening a project restores its dock layout, not the
   active perspective's name.
+
+## Update 2026-10-23: the auto-hide button and its sides
+
+Auto-hide applies only to tool windows docked in the grid; the document area (timeline, grid, documents) never offers
+it (the button is hidden, not disabled). Each tool pane's group header carries an **Auto-hide** button (aria-label
+"Auto-hide <title>", tooltip with `Ctrl+Alt+H`); the slid-out flyout carries the pressed **Pin** button. The target is
+always `left`, `right` or `bottom` (`AUTO_HIDE_SIDES`): the side asked for in the button's menu, else the side the pane
+used last time, else its nearest edge (`chooseSide`). The last side per pane is saved as the optional
+`autoHideSides` in the layout extras; layouts saved without it load unchanged and malformed entries are dropped
+(`sanitizeSides`), so the envelope version stays 2.
+
