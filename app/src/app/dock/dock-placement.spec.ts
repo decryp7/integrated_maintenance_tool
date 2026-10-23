@@ -57,10 +57,12 @@ describe('DockPlacement.addView: DebriefView.fullHeight (Home, Registry)', () =>
   const full = (id = 'full'): DebriefView => ({ id, title: id, icon: 'panel', area: 'document', fullHeight: true, component: async () => class {} }) as DebriefView;
 
   /** A fake dock holding the timeline; `addPanel` records the position it is given and returns a panel with a sizeable group. */
-  function fakeDock(width: number, groups: unknown[] = []) {
+  function fakeDock(width: number, groups: unknown[] = [], main?: { id: string; width: number }) {
     const setSize = vi.fn();
     const addPanel = vi.fn(() => ({ group: { api: { setSize, setConstraints: vi.fn() } } }));
-    const dock = { width, height: 900, groups, getPanel: (id: string) => (id === 'timeline' ? {} : undefined), addPanel } as unknown as DockviewApi;
+    const group = main ? { id: main.id, width: main.width, api: { location: { type: 'grid' }, setConstraints: vi.fn() } } : undefined;
+    const getPanel = (id: string) => (id === 'timeline' ? { group } : id === 'events' && group ? { group } : undefined);
+    const dock = { width, height: 900, groups, panels: [], getPanel, addPanel } as unknown as DockviewApi;
     TestBed.configureTestingModule({ providers: provideDockTesting() });
     return { dock, addPanel, setSize, placement: TestBed.inject(DockPlacement) };
   }
@@ -93,5 +95,32 @@ describe('DockPlacement.addView: DebriefView.fullHeight (Home, Registry)', () =>
     placement.addView(dock, full('registry'), false);
     expect(addPanel).toHaveBeenCalledWith(expect.objectContaining({ position: { referenceGroup: 'g7', direction: 'within' } }));
     expect(setSize).not.toHaveBeenCalled();
+  });
+
+  it('shares the events group as a tab when the timeline column cannot spare a readable column ', () => {
+    const { dock, addPanel, setSize, placement } = fakeDock(900, [], { id: 'gm', width: 900 });
+    placement.addView(dock, full(), false);
+    expect(addPanel).toHaveBeenCalledWith(expect.objectContaining({ position: { referenceGroup: 'gm', direction: 'within' } }));
+    expect(setSize).not.toHaveBeenCalled();
+  });
+
+  it('limits its column to the width the timeline column can spare,', () => {
+    const { dock, addPanel, setSize, placement } = fakeDock(1600, [], { id: 'gm', width: 1600 });
+    placement.addView(dock, full(), false);
+    expect(addPanel).toHaveBeenCalledWith(expect.objectContaining({ position: { direction: 'right' } }));
+    expect(setSize).toHaveBeenCalledWith({ width: 1600 - 560 });
+  });
+});
+
+describe('DockPlacement.addView: side tool windows', () => {
+  it('never get narrower than the side-tool minimum, whatever their view declares', () => {
+    const side = (minSize?: DebriefView['minSize']): DebriefView => ({ ...view(minSize), area: 'side' });
+    const a = fakePanel();
+    setup(a.panel).addView(api, side(), false);
+    expect(a.setConstraints).toHaveBeenCalledWith({ minimumWidth: 320 });
+    TestBed.resetTestingModule();
+    const b = fakePanel();
+    setup(b.panel).addView(api, side({ width: 400 }), false);
+    expect(b.setConstraints).toHaveBeenCalledWith({ minimumWidth: 400 });
   });
 });

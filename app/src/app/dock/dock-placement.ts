@@ -19,6 +19,12 @@ const DOCUMENT_GRID_SHARE = 0.35;
 const FULL_HEIGHT_WIDTH_SHARE = 0.55;
 /** ...but never wider than this, px: on a 2560 px window a sparse tree or a dashboard does not need 1400 px (U15). */
 const FULL_HEIGHT_MAX_WIDTH = 960;
+/** A side tool window (the assistant, notes, problems) is never made narrower than this, px: its text and composer need it. */
+export const SIDE_TOOL_MIN_WIDTH = 320;
+/** The timeline/events column keeps at least this much width, px, when a full-height document opens beside it. */
+const MAIN_MIN_WIDTH = 560;
+/** A full-height document column is not worth opening narrower than this, px (it is tabbed with the events instead). */
+const FULL_HEIGHT_MIN_WIDTH = 420;
 /** A document group counts as full height when it is at least this share of the dock's height. */
 const FULL_HEIGHT_MIN_SHARE = 0.9;
 /** Size and position of a group floated with the "Float panel" button: roomy, and inside the window. */
@@ -117,7 +123,8 @@ export class DockPlacement {
     const panel = this.place(api, view, inactive, id);
     // The view's minimum size (A4): the dock refuses a split that would make the group smaller.
     const min = view.minSize;
-    if (panel && min) panel.group.api.setConstraints({ ...(min.width ? { minimumWidth: min.width } : {}), ...(min.height ? { minimumHeight: min.height } : {}) });
+    const minWidth = viewArea(view) === 'side' ? Math.max(min?.width ?? 0, SIDE_TOOL_MIN_WIDTH) : (min?.width ?? 0);
+    if (panel && (min || minWidth)) panel.group.api.setConstraints({ ...(minWidth ? { minimumWidth: minWidth } : {}), ...(min?.height ? { minimumHeight: min.height } : {}) });
     return panel;
   }
 
@@ -145,9 +152,26 @@ export class DockPlacement {
   private addTool(api: DockviewApi, base: AddPanel): IDockviewPanel {
     const sameKind = this.toolGroupFor(api, 'right');
     if (sameKind) return api.addPanel({ ...base, position: { referencePanel: sameKind, direction: 'within' } });
+    this.makeRoomForTool(api);
     const panel = api.addPanel({ ...base, position: { direction: 'right' } });
     panel.group.api.setSize({ width: TOOL_SIZE.side });
     return panel;
+  }
+
+  /**
+   * A new side tool column takes its width from the timeline column, which must stay readable: the full-height document
+   * column (Home, Registry) beside it gives up the difference, or, when it cannot stay readable either, is tabbed into the
+   * events group. So the tool windows are never squeezed into slivers between narrow document columns.
+   */
+  private makeRoomForTool(api: DockviewApi): void {
+    const main = api.getPanel(PANEL.events)?.group ?? api.getPanel(PANEL.timeline)?.group;
+    if (!main || main.api.location.type !== 'grid' || main.width <= 0) return;
+    const deficit = MAIN_MIN_WIDTH + TOOL_SIZE.side - main.width;
+    if (deficit <= 0) return;
+    const column = api.groups.find((g) => g !== main && g.api.location.type === 'grid' && g.panels.length > 0 && g.height >= api.height * FULL_HEIGHT_MIN_SHARE && g.panels.every((p) => this.isDocument(p.id) && !MAIN_PANELS.has(p.id)));
+    if (!column) return;
+    if (column.width - deficit >= FULL_HEIGHT_MIN_WIDTH) column.api.setSize({ width: column.width - deficit });
+    else column.api.moveTo({ group: main, position: 'center' });
   }
 
   /** A status tool window as a tab on the bottom side bar, slid out unless opened in the background. */
@@ -220,8 +244,13 @@ export class DockPlacement {
     const column = api.groups.find((g) => tall(g) && g.panels.length > 0 && !g.panels.some((p) => MAIN_PANELS.has(p.id)) && g.panels.some((p) => this.isDocument(p.id)));
     if (column) return api.addPanel({ ...base, position: { referenceGroup: column.id, direction: 'within' } });
     if (!api.getPanel(PANEL.timeline) && !api.getPanel(PANEL.events)) return api.addPanel(base);
+    // The timeline/events column must stay readable: a new column only gets the width that column can spare, else the
+    // document shares the events group as a tab (the tool windows are never squeezed to make room).
+    const main = api.getPanel(PANEL.events)?.group ?? api.getPanel(PANEL.timeline)?.group;
+    const spare = main && main.api.location.type === 'grid' && main.width > 0 ? main.width - MAIN_MIN_WIDTH : Number.POSITIVE_INFINITY;
+    if (main && spare < FULL_HEIGHT_MIN_WIDTH) return api.addPanel({ ...base, position: { referenceGroup: main.id, direction: 'within' } });
     const panel = api.addPanel({ ...base, position: { direction: 'right' } });
-    if (api.width > 0) panel.group.api.setSize({ width: Math.min(FULL_HEIGHT_MAX_WIDTH, Math.round(api.width * FULL_HEIGHT_WIDTH_SHARE)) });
+    if (api.width > 0) panel.group.api.setSize({ width: Math.min(FULL_HEIGHT_MAX_WIDTH, Math.round(api.width * FULL_HEIGHT_WIDTH_SHARE), spare) });
     return panel;
   }
 

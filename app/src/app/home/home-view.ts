@@ -1,5 +1,5 @@
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild } from '@angular/core';
 import { AiButton } from '../ai/ai-button';
 import { AiLauncher } from '../ai/ai-launcher';
 import { AnalysisState } from '../analysis/analysis-state';
@@ -14,10 +14,10 @@ import { RECENT_PROJECTS } from '../projects/recent-projects';
 import { formatBytes } from '../shared/format/units';
 import { Icon } from '../shared/icon';
 import { PathText } from '../shared/path-text';
-import { measuredWidth } from '../profiling/flame/measured-width';
 import { HealthActions } from './health/health-actions';
 import { ActionButton, actionButtons, healthStats } from './health/health-model';
 import { bucketAt, bucketRange, feedItems, historyOption, sparklinePath, SPARK_H, SPARK_W } from './home-model';
+import { MeasuredWidthOf } from './health-width';
 import { HomePrefs } from './home-prefs';
 import { HomeStore } from './home.store';
 
@@ -42,8 +42,7 @@ const VISIBLE_ROWS = 6;
 @Component({
   selector: 'debrief-home-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '[class.narrow]': 'narrow()' },
-  imports: [AnalysisState, Icon, AiButton, CoverageNote, EChart, CdkVirtualScrollViewport, CdkFixedSizeVirtualScroll, CdkVirtualForOf, PathText],
+    imports: [AnalysisState, Icon, AiButton, CoverageNote, EChart, CdkVirtualScrollViewport, CdkFixedSizeVirtualScroll, CdkVirtualForOf, PathText, MeasuredWidthOf],
   template: `
     <div class="bar">
       <p class="subtitle" data-testid="home-subtitle">@if (summary(); as s) { {{ span() }} } @else { <span i18n="@@home.view.subtitle">Everything you opened, at a glance</span> }</p>
@@ -119,7 +118,7 @@ const VISIBLE_ROWS = 6;
           }
         }
 
-        <section class="health" aria-labelledby="home-health">
+        <section class="health" [class.narrow]="narrow()" aria-labelledby="home-health" debriefMeasuredWidth>
           <h3 id="home-health" i18n="@@home.view.health">Health check</h3>
           <debrief-coverage-note [coverage]="home.health.coverage()" />
           <debrief-analysis-state [loading]="home.health.loading()" [error]="home.health.error()" [retryable]="home.health.retryable()" [hasData]="!!findings()" [empty]="false" (retry)="home.health.retry()">
@@ -245,9 +244,9 @@ const VISIBLE_ROWS = 6;
     [data-severity='warning'] .tag { border-color: var(--lvl-warn); color: var(--warn-text); }
     .detail { margin: 2px 0 0; font-size: var(--fs-sm); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .acts { flex: none; display: flex; flex-wrap: wrap; gap: 6px; }
-    :host(.narrow) .finding { flex-direction: column; align-items: stretch; gap: 4px; }
-    :host(.narrow) .title, :host(.narrow) .detail { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
-    :host(.narrow) .acts { flex: none; }
+    .narrow .finding { flex-direction: column; align-items: stretch; gap: 4px; }
+    .narrow .title, .narrow .detail { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+    .narrow .acts { flex: none; }
     .none { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); }
     .none debrief-icon { color: var(--ok); margin-top: 2px; }
     .none p { margin: 4px 0 0; font-size: var(--fs-sm); }
@@ -267,9 +266,9 @@ export class HomeView {
 
   protected readonly count = formatCount;
   protected readonly bytes = formatBytes;
-  private readonly paneWidth = measuredWidth(0);
-  /** The pane is too narrow for the actions beside the text. */
-  protected readonly narrow = computed(() => (this.paneWidth() ?? NARROW_PANE_PX) < NARROW_PANE_PX);
+  private readonly healthWidth = viewChild(MeasuredWidthOf);
+  /** The Health column (not the pane: it shares the row with Needs attention) is too narrow for the actions beside the text. */
+  protected readonly narrow = computed(() => (this.healthWidth()?.width() ?? NARROW_PANE_PX) < NARROW_PANE_PX);
   protected readonly rowPx = computed(() => (this.narrow() ? NARROW_ROW_PX : ROW_PX));
   protected readonly FIRST_FINDINGS = FIRST_FINDINGS;
   protected readonly showAll = signal(false);
@@ -284,7 +283,8 @@ export class HomeView {
   protected readonly crashes = computed(() => (this.findings() ?? []).filter((f) => f.kind === 'crash').length);
   protected readonly errorSpark = computed(() => sparklinePath(this.summary()?.errorTrend ?? []));
   protected readonly warningSpark = computed(() => sparklinePath(this.summary()?.warningTrend ?? []));
-  protected readonly listHeight = computed(() => Math.min(this.shown().length, VISIBLE_ROWS) * this.rowPx());
+  /** Rows plus the list's 1 px borders, so a list that fits has no scrollbar of its own. */
+  protected readonly listHeight = computed(() => Math.min(this.shown().length, VISIBLE_ROWS) * this.rowPx() + 2);
   protected readonly stats = computed(() => {
     const summary = this.store.summary();
     return summary && this.hasData() ? healthStats(summary, this.store.instanceCount(), this.findings() ?? []) : null;

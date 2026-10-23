@@ -172,7 +172,7 @@ describe('HomeView', () => {
     expect(finding.querySelector('.detail')!.getAttribute('title')).toContain(path);
   });
 
-  it('stacks the actions below the text of a finding in a narrow pane and gives the row room for them', async () => {
+  it('stacks the actions below the text of a finding when the Health column is narrow and gives the row room for them', async () => {
     const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get');
     const original = globalThis.ResizeObserver;
     globalThis.ResizeObserver = class {
@@ -187,7 +187,7 @@ describe('HomeView', () => {
         const { fixture } = setup([crash]);
         await settle(fixture, 8);
         const host = fixture.nativeElement as HTMLElement;
-        expect(host.classList.contains('narrow')).toBe(narrow);
+        expect((host.querySelector('section.health') as HTMLElement).classList.contains('narrow')).toBe(narrow);
         expect((host.querySelector('.finding') as HTMLElement).style.height).toBe(row);
       }
     } finally {

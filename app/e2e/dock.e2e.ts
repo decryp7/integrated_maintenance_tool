@@ -19,6 +19,8 @@ async function box(page: Page, selector: string) {
 }
 
 test.describe('dock layout', () => {
+  // Wide enough for a document column, the timeline column and a tool window side by side (at 1440 px the document is tabbed into the events group instead).
+  test.use({ viewport: { width: 1920, height: 1080 } });
   // The docking mechanics are checked on the default arrangement (timeline and registry beside it, over the events).
   test.beforeEach(async ({ page }) => {
     await openApp(page);
