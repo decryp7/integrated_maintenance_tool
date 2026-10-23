@@ -82,7 +82,8 @@ test('a user journey is logged once per operation, in order, with triggers and w
   await page.keyboard.press('ControlOrMeta+Comma');
   const settings = page.getByRole('dialog', { name: 'Settings' });
   await settings.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Diagnostics', exact: true }).click();
-  await settings.getByLabel('Log level', { exact: true }).selectOption('debug');
+  await settings.getByLabel(/^Log level/).click();
+  await page.getByRole('option', { name: /debug/i }).click();
   // Settings apply by themselves (there is no Apply button).
   await expect(settings.getByTestId('settings-notice')).toContainText('saved');
   await page.keyboard.press('Escape');

@@ -35,6 +35,8 @@ test('unreadable timestamps: an Explorer warning and one message whose Fix times
   await expect(dialog).toHaveCount(0);
 
   // The Explorer icon opens the same wizard.
-  await warning.click();
+  // By keyboard: pointing at the row shows its action buttons over the right end of the row, where the warning is.
+  await warning.focus();
+  await page.keyboard.press('Enter');
   await expect(page.getByRole('dialog', { name: 'Fix timestamps' }).getByTestId('timestamp-format')).toHaveValue('%a %b %d %H:%M:%S %Y');
 });

@@ -48,7 +48,11 @@ test.describe('Folder set-up', () => {
     // One lane per machine now, the proposed marker is in the legend; the wizard opens again from the File menu.
     await expect.poll(async () => (await lanes.allInnerTexts()).some((l) => /\d{3,4}$/.test(l))).toBe(false);
     await expect(lanes.filter({ hasText: 'WEB02' })).toHaveCount(1);
-    await expect(page.locator('debrief-timeline-panel').getByRole('group', { name: 'Markers' })).toContainText('Reindex start');
+    // The legend shows what fits on one line; "+N more" opens the rest.
+    const timeline = page.locator('debrief-timeline-panel');
+    await timeline.getByTestId('legend-more').click();
+    await expect(timeline.getByRole('group', { name: 'Markers' })).toContainText('Reindex start');
+    await page.keyboard.press('Escape');
     await chooseMenu(page, 'File', 'Set up analysis for this folder…');
     const again = page.getByRole('dialog', { name: 'Set up analysis for this folder' });
     await expect(again.getByTestId('survey-facts')).toBeVisible();

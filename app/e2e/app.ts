@@ -99,3 +99,16 @@ export async function expandFields(page: Page): Promise<void> {
   if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 }
+
+/** The status bar's Details popover (sources, events, group-by, importers): opened, returned, and closed by `closeStatusDetails`. */
+export async function openStatusDetails(page: Page) {
+  await page.getByTestId('status-details').click();
+  const popover = page.getByTestId('status-details-popover');
+  await expect(popover).toBeVisible();
+  return popover;
+}
+
+export async function closeStatusDetails(page: Page): Promise<void> {
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('status-details-popover')).toHaveCount(0);
+}
