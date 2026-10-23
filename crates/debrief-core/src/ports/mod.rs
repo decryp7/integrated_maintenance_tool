@@ -176,6 +176,11 @@ pub trait Query: Send + Sync {
     fn check_query(&self, text: &str) -> StoreResult<Option<QlError>>;
     fn complete_query(&self, req: &CompletionRequest) -> StoreResult<Vec<Completion>>;
     fn export(&self, req: &ExportRequest) -> StoreResult<ExportResult>;
+    /// Names the store knows that look like `req.text` (field values and entities found in event text), from its
+    /// catalogue; `built: false` until every source is catalogued. A store without a catalogue says so.
+    fn catalogue(&self, _req: &crate::catalogue::CatalogueRequest) -> StoreResult<crate::catalogue::CatalogueReply> {
+        Ok(crate::catalogue::CatalogueReply::default())
+    }
 }
 
 /// Time-order positions of all events (unfiltered): position `p` is the `p`-th event in time order

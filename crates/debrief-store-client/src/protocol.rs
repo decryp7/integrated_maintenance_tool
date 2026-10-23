@@ -475,7 +475,7 @@ mod tests {
             "AppendTail",
             "SetSourceEncoding",
         ];
-        assert_eq!(WIRE_VERSION, 2);
+        assert_eq!(WIRE_VERSION, 3, "3: Query::catalogue");
         let names = wire_names();
         assert_eq!(&names[..V1.len()], V1, "the operations' order is the wire encoding");
         let unique: std::collections::HashSet<_> = names.iter().collect();

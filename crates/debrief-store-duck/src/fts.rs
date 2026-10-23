@@ -207,9 +207,9 @@ pub fn segment_key(file: &str) -> u64 {
         .fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ b as u64).wrapping_mul(0x0100_0000_01b3))
 }
 
-/// Layout version of the index (2: no positions; 3: smart-search words of message, exception and template);
+/// Layout version of the index (2: no positions; 3: smart-search words of message, exception and template; 4: joined parts of names);
 /// an index of another version is rebuilt.
-const LAYOUT: u32 = 3;
+const LAYOUT: u32 = 4;
 
 fn payload(epoch: u64) -> String {
     format!("fts_epoch={epoch};layout={LAYOUT}")
@@ -583,7 +583,17 @@ mod tests {
             assert!(!stream.token().text.is_empty());
             words.push(std::mem::take(&mut stream.token_mut().text));
         }
-        assert_eq!(words, ["system", "timeoutexception", "timeout", "exception"]);
+        assert_eq!(
+            words,
+            [
+                "system",
+                "timeoutexception",
+                "timeout",
+                "exception",
+                "systemtimeout",
+                "systemtimeoutexception"
+            ]
+        );
         assert!(!WordsTokenizer.token_stream("").advance());
     }
 }

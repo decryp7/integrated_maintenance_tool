@@ -832,6 +832,7 @@ export interface InferredRegex {
  *   run_query        { request: { query } }                 -> { result: QlResult } | { error: QlError }
  *   check_query      { text }                               -> QlError | null
  *   complete_query   { request: { text, cursor } }          -> Completion[]
+ *   did_you_mean     { text }                               -> ValueMatch[]
  *   classify_search  { text, fields }                       -> SearchInputKind
  *   query_patterns   { request: { query } }                 -> Analyzed<Pattern[]>
  *   query_exceptions { request: { query } }                 -> Analyzed<ExceptionGroup[]>
@@ -877,6 +878,26 @@ export type QueryOutcome = { result: QlResult } | { error: QlError };
 export type SearchInputKind = 'text' | 'query';
 
 export type CompletionKind = 'field' | 'keyword' | 'operator' | 'function' | 'value';
+
+/**
+ * A name the logs hold that search words refer to (`did_you_mean`, the assistant's `find_values`): a field value, a
+ * source name (`@source`) or an entity found in event text (`@entity`, with its `kind`).
+ */
+export interface ValueMatch {
+  field: string;
+  value: string;
+  /** Events with the value. */
+  count: number;
+  /** How the value matched: `exact`, `parts`, `prefix` or `fuzzy` (typos). */
+  via: 'exact' | 'parts' | 'prefix' | 'fuzzy';
+  /** What an entity is (`executable`, `library`, `file`, `path`, `host`, `ip`, `url`, `exception`, `errorCode`, `guid`). */
+  kind?: string;
+  /** First and last time an entity was seen (epoch ms). */
+  firstSeen?: number;
+  lastSeen?: number;
+  /** Names of sources that have it. */
+  seenIn?: string[];
+}
 
 export interface Completion {
   label: string;

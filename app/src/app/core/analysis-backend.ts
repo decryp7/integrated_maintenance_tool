@@ -18,6 +18,7 @@ import {
   RequestSpan,
   StreamedQueryOutcome,
   TracesResult,
+  ValueMatch,
 } from './api.types';
 import { ChannelFactory, tauriChannel } from './tauri-channel';
 import { cancelJob } from '../jobs/job-cancel';
@@ -40,6 +41,8 @@ export abstract class AnalysisBackend {
   abstract classifySearch(text: string, fields: readonly string[]): Promise<SearchInputKind>;
   /** `cursor` is a UTF-8 byte offset into `text`. */
   abstract completeQuery(text: string, cursor: number): Promise<Completion[]>;
+  /** Names the search words may mean ("Did you mean ..."): field values and entities from the engine's catalogue. */
+  abstract didYouMean(text: string): Promise<ValueMatch[]>;
   // The analyses resolve with their result and how much of the matching data they looked at (`Analyzed`).
   abstract queryPatterns(query: QlQuery): Promise<Analyzed<Pattern[]>>;
   abstract queryExceptions(query: QlQuery): Promise<Analyzed<ExceptionGroup[]>>;
@@ -121,6 +124,9 @@ export class TauriAnalysisBackend extends AnalysisBackend {
   }
   completeQuery(text: string, cursor: number) {
     return this.call<Completion[]>('complete_query', { request: { text, cursor } });
+  }
+  didYouMean(text: string) {
+    return this.call<ValueMatch[]>('did_you_mean', { text });
   }
   queryPatterns(query: QlQuery) {
     return this.call<Analyzed<Pattern[]>>('query_patterns', { request: { query } });

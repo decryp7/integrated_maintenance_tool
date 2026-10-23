@@ -195,3 +195,29 @@ fn hits_say_exception_and_template_and_empty_values_never_match() {
     assert_eq!(mention("no match here", &["zzz".to_string()]), None);
     assert_eq!(mention("x", &[]), None);
 }
+
+#[test]
+fn a_name_only_in_message_text_is_resolved_with_its_kind() {
+    let s = store_with("entity", &[("Started Acme.Render.Worker.exe", "agent"), ("idle", "agent")]);
+    for text in ["render worker", "rendr wrker", "RenderWorker"] {
+        let v = resolve_terms(&s, text, 5).unwrap();
+        let m = v
+            .iter()
+            .find(|m| m.value == "Acme.Render.Worker.exe")
+            .unwrap_or_else(|| panic!("{text}: {v:#?}"));
+        assert_eq!(
+            (m.field.as_str(), m.kind),
+            (ENTITY_FIELD, Some(crate::entities::EntityKind::Executable)),
+            "{text}"
+        );
+        assert_eq!(m.seen_in, ["host-agent.log"]);
+    }
+    // The Value step finds the events of an entity by its text.
+    let r = find(&s, "rendr wrker", 0, 5).unwrap();
+    assert!(r.note.contains("Did you mean Acme.Render.Worker.exe (executable)"), "{}", r.note);
+    let m = &resolve_terms(&s, "render worker", 1).unwrap()[0];
+    assert_eq!(
+        (m.label().as_str(), m.describe().as_str()),
+        ("executable", "executable Acme.Render.Worker.exe")
+    );
+}
