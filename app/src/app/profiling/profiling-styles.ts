@@ -21,6 +21,8 @@ export const PROFILING_STYLES =
   tr.sel td { background: var(--bg-sel); }
   tr.clickable { cursor: pointer; }
   tr.clickable:hover td { background: var(--bg-hover); }
+  /* A link in a table cell is a click target: 24 px tall (WCAG 2.2 target size) however the font sets the line. */
+  td .link { min-height: 24px; }
   .actions { display: inline-flex; gap: 2px; }
   .mini { all: unset; cursor: pointer; font-size: var(--fs-xs); padding: 0 5px; border-radius: 3px; color: var(--chip-text); border: 1px solid transparent; }
   .mini:hover { border-color: var(--border-3); }
