@@ -98,6 +98,7 @@ fn opts() -> DownloadOptions {
         margin_bytes: 1000,
         attempts: 3,
         backoff: Duration::from_millis(1),
+        ..DownloadOptions::default()
     }
 }
 

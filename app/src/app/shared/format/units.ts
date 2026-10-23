@@ -122,6 +122,12 @@ export function formatRate(bytesPerSec: number | null | undefined): string {
   return $localize`:@@core.units.perSecond:${size}:size:/s`;
 }
 
+/** "4 connections"; '' for a single stream or while unknown. */
+export function formatConnections(n: number | null | undefined): string {
+  if (!usable(n) || n < 2) return '';
+  return $localize`:@@core.units.connections:${Math.round(n)}:count: connections`;
+}
+
 /** "250 events/s", "1.2k events/s"; '' while unknown or idle. */
 export function formatEventRate(perSec: number | null | undefined): string {
   if (!usable(perSec) || perSec <= 0) return '';

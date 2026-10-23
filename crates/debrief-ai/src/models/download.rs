@@ -2,6 +2,7 @@
 //! SHA-256 verification before the file appears under its real name.
 
 use super::disk::DiskSpace;
+use super::segmented::{self, Coverage, HostGate, Tuning};
 use super::source::{ModelSource, Phase, Progress, RemoteFile};
 use crate::catalog::is_safe_file_name;
 use crate::error::{AiError, Result};
@@ -9,6 +10,7 @@ use sha2::{Digest, Sha256};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use std::time::Duration;
 
 #[derive(Debug, Clone)]
@@ -18,6 +20,15 @@ pub struct DownloadOptions {
     pub margin_bytes: u64,
     pub attempts: u32,
     pub backoff: Duration,
+    /// Parallel connections for a large file (1 turns segmented downloads off; at most
+    /// [`segmented::MAX_CONNECTIONS`]).
+    pub connections: usize,
+    /// Files of at least this many bytes are downloaded in segments when the host serves byte ranges.
+    pub segment_threshold: u64,
+    /// Smallest range a connection is given (and the smallest worth splitting off a slow one).
+    pub min_block: u64,
+    /// Caps the connections open at once across downloads; `None` for no cap beyond `connections`.
+    pub host_gate: Option<Arc<HostGate>>,
 }
 
 impl Default for DownloadOptions {
@@ -27,6 +38,10 @@ impl Default for DownloadOptions {
             margin_bytes: 512 * 1024 * 1024,
             attempts: 3,
             backoff: Duration::from_secs(2),
+            connections: 4,
+            segment_threshold: 64 * 1024 * 1024,
+            min_block: 1024 * 1024,
+            host_gate: Some(HostGate::shared()),
         }
     }
 }
@@ -55,7 +70,7 @@ pub struct Downloader<'a> {
     pub opts: DownloadOptions,
 }
 
-fn hex(bytes: &[u8]) -> String {
+pub(super) fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
@@ -78,7 +93,7 @@ pub fn sha256_file(path: &Path, progress: &Progress) -> Result<String> {
     Ok(hex(&h.finalize()))
 }
 
-fn io_err(e: std::io::Error) -> AiError {
+pub(super) fn io_err(e: std::io::Error) -> AiError {
     if e.kind() == std::io::ErrorKind::StorageFull {
         AiError::Disk("the disk is full".into())
     } else {
@@ -140,13 +155,24 @@ impl Downloader<'_> {
             }
             std::fs::remove_file(&dest)?;
         }
-        let mut have = std::fs::metadata(&part).map(|m| m.len()).unwrap_or(0);
+        let sidecar = segmented::sidecar_path(&part);
+        let part_len = std::fs::metadata(&part).map(|m| m.len()).unwrap_or(0);
+        // An interrupted segmented download left its finished ranges in the sidecar.
+        let saved = segmented::load_sidecar(&sidecar, remote, part_len);
+        if saved.is_none() {
+            let _ = std::fs::remove_file(&sidecar);
+        }
+        let mut have = match &saved {
+            Some(c) => c.prefix(),
+            None => part_len,
+        };
         if have > remote.size {
             std::fs::remove_file(&part)?;
             have = 0;
         }
+        let covered = saved.as_ref().map_or(have, Coverage::covered);
         if let Some(free) = self.disk.available_bytes(dir) {
-            let need = (remote.size - have).saturating_add(self.opts.margin_bytes);
+            let need = (remote.size - covered).saturating_add(self.opts.margin_bytes);
             if free < need {
                 return Err(AiError::Disk(format!(
                     "{:.1} GB are needed but only {:.1} GB are free on that drive",
@@ -155,6 +181,43 @@ impl Downloader<'_> {
                 )));
             }
         }
+        let segments = self.opts.connections.min(segmented::MAX_CONNECTIONS) >= 2
+            && remote.size >= self.opts.segment_threshold
+            && remote.size > have
+            && self.source.supports_ranges(remote);
+        let got = if segments {
+            let cov = saved.unwrap_or_else(|| Coverage::prefix_of(have));
+            let tuning = Tuning {
+                connections: self.opts.connections,
+                min_block: self.opts.min_block,
+                attempts: self.opts.attempts,
+                backoff: self.opts.backoff,
+                gate: self.opts.host_gate.clone(),
+            };
+            segmented::run(self.source, remote, &part, cov, &tuning, progress)?
+        } else {
+            // One stream. A leftover sidecar means the file was preallocated: only its first run is real data.
+            if saved.is_some() {
+                let _ = std::fs::remove_file(&sidecar);
+            }
+            self.single_stream(remote, &part, have, progress)?
+        };
+        if got != remote.sha256 {
+            let _ = std::fs::remove_file(&part);
+            let _ = std::fs::remove_file(&sidecar);
+            return Err(AiError::Integrity(format!(
+                "the checksum does not match (expected {}…, got {}…); the file was deleted, please try again",
+                &remote.sha256[..12],
+                &got[..12]
+            )));
+        }
+        std::fs::rename(&part, &dest).map_err(io_err)?;
+        let _ = std::fs::remove_file(&sidecar);
+        Ok(dest)
+    }
+
+    /// Downloads the rest of `remote` (from byte `have`) over one connection at a time and returns its SHA-256.
+    fn single_stream(&self, remote: &RemoteFile, part: &Path, mut have: u64, progress: &Progress) -> Result<String> {
         progress.begin(Phase::Downloading, remote.size, have);
         // A download that starts from nothing is hashed as it is written, so there is no second pass over the file
         // (a resumed one has to re-read what was already on disk, as before).
@@ -164,10 +227,10 @@ impl Downloader<'_> {
             if hasher.as_ref().is_some_and(|h| h.len != have) {
                 hasher = None;
             }
-            let result = self.fetch_into(remote, &part, have, progress, hasher.as_mut());
-            have = std::fs::metadata(&part).map(|m| m.len()).unwrap_or(0);
+            let result = self.fetch_into(remote, part, have, progress, hasher.as_mut());
+            have = std::fs::metadata(part).map(|m| m.len()).unwrap_or(0);
             if have > remote.size {
-                let _ = std::fs::remove_file(&part);
+                let _ = std::fs::remove_file(part);
                 return Err(AiError::Integrity("the host sent more data than the file size".into()));
             }
             match result {
@@ -195,19 +258,10 @@ impl Downloader<'_> {
             Some(h) => h.finish(),
             None => {
                 progress.begin(Phase::Verifying, remote.size, 0);
-                sha256_file(&part, progress)?
+                sha256_file(part, progress)?
             }
         };
-        if got != remote.sha256 {
-            let _ = std::fs::remove_file(&part);
-            return Err(AiError::Integrity(format!(
-                "the checksum does not match (expected {}…, got {}…); the file was deleted, please try again",
-                &remote.sha256[..12],
-                &got[..12]
-            )));
-        }
-        std::fs::rename(&part, &dest).map_err(io_err)?;
-        Ok(dest)
+        Ok(got)
     }
 
     fn fetch_into(

@@ -4,7 +4,7 @@
  * what is installed, usable, suggested and active.
  */
 import { AiRuntimeDevice, AiRuntimeEntry, AiRuntimeEvent, AiRuntimeOverview } from '../ai.types';
-import { formatBytes, formatEta, formatRate, percent } from '../ai-format';
+import { formatBytes, formatConnections, formatEta, formatRate, percent } from '../ai-format';
 import { TransferSpeed } from '../../shared/format/transfer-speed';
 
 export type RuntimeTerminal = Extract<AiRuntimeEvent, { stage: 'ready' | 'failed' | 'cancelled' }>;
@@ -45,7 +45,7 @@ export function runtimeProgressText(e: RuntimeRunning | null, speed?: TransferSp
   const base = $localize`:@@ai.runtime.progress.of:${formatBytes(e.bytes)}:done: of ${formatBytes(e.total)}:total:`;
   if (e.verifying) return $localize`:@@ai.runtime.progress.checking:Checking the download: ${base}:progress:`;
   const { rate, etaSecs } = speed ?? { rate: e.bytesPerSec, etaSecs: e.etaSecs };
-  return [base, formatRate(rate), formatEta(etaSecs)].filter(Boolean).join(' · ');
+  return [base, formatRate(rate), formatEta(etaSecs), formatConnections(e.connections)].filter(Boolean).join(' · ');
 }
 
 export type EntryState = 'active' | 'ready' | 'problem' | 'unchecked' | 'available';

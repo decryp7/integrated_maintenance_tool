@@ -187,6 +187,8 @@ export type SetupEvent =
       total: number;
       bytesPerSec: number;
       etaSecs: number | null;
+      /** Parallel connections in use; absent from older events. */
+      connections?: number;
     }
   | { stage: 'verifying'; bytes: number; total: number }
   | { stage: 'validating' }
@@ -341,6 +343,7 @@ export type AiRuntimeEvent =
       total: number;
       bytesPerSec: number;
       etaSecs: number | null;
+      connections?: number;
       verifying: boolean;
     }
   | { stage: 'unpacking'; id: string; asset: string }

@@ -15,6 +15,7 @@ import { AiBackend, toAiError } from '../ai-backend';
 import {
   fitLabel,
   formatBytes,
+  formatConnections,
   formatEta,
   formatRate,
   hardwareLines,
@@ -443,6 +444,7 @@ export class AiSetupWizard implements OnInit {
       base,
       formatRate(this.transfer().rate),
       formatEta(this.transfer().etaSecs),
+      formatConnections(st.connections),
     ]
       .filter(Boolean)
       .join(' · ');

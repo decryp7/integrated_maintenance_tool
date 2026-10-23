@@ -5,6 +5,7 @@
 pub mod disk;
 pub mod download;
 pub mod hf;
+pub mod segmented;
 pub mod source;
 pub mod store;
 pub mod verify;
@@ -12,5 +13,6 @@ pub mod verify;
 pub use disk::{DiskSpace, SystemDisk};
 pub use download::{DownloadOptions, Downloader};
 pub use hf::{HfConfig, HuggingFace};
+pub use segmented::HostGate;
 pub use source::{ModelSource, Phase, Progress, ProgressSnapshot, RemoteFile};
 pub use store::{AddMode, InstalledModel, ModelStore};
