@@ -10,6 +10,7 @@ import { ImportStatus } from '../import/import-ui';
 import { StatusJobs } from '../jobs/status-jobs';
 import { ProblemsBadge } from '../problems/problems-badge';
 import { AiBrowsingChip } from '../browser/ai-browsing-chip';
+import { LifecycleService } from '../lifecycle/lifecycle.service';
 
 @Component({
   selector: 'debrief-status-bar',
@@ -73,7 +74,7 @@ import { AiBrowsingChip } from '../browser/ai-browsing-chip';
           <div><dt i18n="@@shell.statusBar.detail.group">Group</dt><dd>{{ store.effectiveGroupBy().join(', ') || '—' }}</dd></div>
         }
         <div><dt i18n="@@shell.statusBar.detail.importers">Importers</dt><dd>{{ importers() }}</dd></div>
-        <div><dt i18n="@@shell.statusBar.detail.version">Version</dt><dd>Debrief 0.1.0</dd></div>
+        <div><dt i18n="@@shell.statusBar.detail.version">Version</dt><dd>Debrief {{ version() }}</dd></div>
       </dl>
     </ng-template>
   `,
@@ -111,6 +112,9 @@ import { AiBrowsingChip } from '../browser/ai-browsing-chip';
 export class StatusBar {
   protected readonly store = inject(WorkspaceStore);
   protected readonly live = inject(LiveTail);
+  /** The running app's version, as the backend reports it. */
+  protected readonly version = computed(() => this.lifecycle.status()?.version ?? '');
+  private readonly lifecycle = inject(LifecycleService);
   protected readonly liveTitle = computed(() => {
     const error = this.live.error();
     if (error) return $localize`:@@shell.statusBar.liveFailed:Live tail failed: ${error}:error:`;
