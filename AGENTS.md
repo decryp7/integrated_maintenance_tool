@@ -83,6 +83,12 @@ The family's binding rules, copied from [paddock/docs/rules.md](https://dev.decr
 38. Tests: Vitest through the Angular unit-test builder, `await fixture.whenStable()`, store tests via `TestBed`; use CDK harnesses for Material/CDK widgets; each lifecycle effect gets a test that triggers the failure.
 39. A shared store feature or component used by two apps lives in `paddock-ui`, not copied.
 
+**Design (user, 2026-10-24)**
+40. **Recurring bugs mean a missing design rule.** When the same kind of bug shows up again (in one area, across dialogs,
+    panes or apps), stop fixing instances: name the pattern, propose a redesign as an ADR that makes the class impossible
+    or checked (a declared contract, one shared mechanism, a lint or test over every instance), and fix the instances
+    through it. Until v1, check every batch of bug reports for such patterns.
+
 ## Design principles
 
 Apply these deliberately. They are not decoration:
