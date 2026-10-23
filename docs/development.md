@@ -153,7 +153,8 @@ the installer builds regenerate them before bundling.
 ### Regenerating the screenshots
 
 The README screenshots are captured by a Playwright script against the browser build with the mock
-backend (1600×1000, dark theme plus one light shot). Views that are missing are skipped with a warning.
+backend at 1440×900 and device pixel ratio 2, in both colour schemes (`name.png` is dark, `name-light.png` light). Views that
+are missing are skipped with a warning.
 
 ```sh
 cd app
@@ -162,7 +163,9 @@ npm run screenshots     # writes docs/screenshots/*.png
 ```
 
 The script is [`app/scripts/screenshots/capture.ts`](../app/scripts/screenshots/capture.ts); set
-`DEBRIEF_SHOT_PORT` to use another dev-server port.
+`DEBRIEF_SHOT_PORT` to use another dev-server port, `DEBRIEF_SHOT_OUT` to write elsewhere, `DEBRIEF_SHOT_THEMES=dark` (or `light`)
+for one scheme and `DEBRIEF_SHOT_ONLY=home,jobs` for named shots. The marketing images (`docs/images/debrief-*.svg` and PNGs) are
+generated from these screenshots by Paddock's `docs/images/src/app-poster.mjs` (`PADDOCK_APPS=<parent of this checkout, named debrief>`).
 
 ### Diagrams and What's new
 

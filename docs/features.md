@@ -6,6 +6,8 @@ covers inputs, profiles, the query language and shortcuts, and [development](dev
 > The screenshots are captured automatically from the UI running against the built-in demo data.
 > See [Regenerating the screenshots](development.md#regenerating-the-screenshots).
 
+![Debrief: the instance timeline with lifecycle markers above the events grid](screenshots/workspace.png)
+
 ## Timeline per instance, with lifecycle markers
 
 ![Timeline zoomed to a 22 minute window](screenshots/timeline-zoom.png)
@@ -103,6 +105,17 @@ disabled one says why, e.g. the file is inside an archive).
 
 ![Query results table](screenshots/query-results.png)
 
+### Lenses and filter sets
+
+![The Lens menu with profile lenses and a filter-set chip](screenshots/lenses.png)
+
+A **lens** is a named view preset: levels, search text, filters, extra grid columns and row highlights. The profile ships
+built-in lenses (such as *Errors only* and *Warnings and worse*); *Save current as lens…* keeps your own. The time range,
+the instance selection and filter sets are not part of a lens. *Filters → set* moves the current field filters into a
+**filter set**: a named chip you switch on and off without deleting its filters (`Alt+1` to `Alt+9` toggle the first nine).
+Built-in lenses are profile configuration (`[[lens]]`), validated by the engine; see
+[ADR 0049](adr/0049-lenses-and-filter-sets.md).
+
 - **One search field.** The filter bar's field takes plain words (message search as you type) or a query; the engine tells
   which. History, completions, *Ask AI* and *Save* sit inside it, and `Ctrl/⌘+/` focuses it.
 - **Search everything** (`Ctrl/⌘+Shift+F`, or *Search everything…* in the palette) looks for the text in every kind of
@@ -127,6 +140,8 @@ permissions before it is installed, revokes permissions, and enables, disables o
 its first instruction (files, network, programs and memory limited; see [plugin-sdk.md](plugin-sdk.md)). Settings ▸
 Plugin trust lists the publisher keys you trust; developer mode accepts unsigned packages after a warning
 ([ADR 0027](adr/0027-plugin-sdk.md)).
+
+![The Plugins view: one table of built-in and packaged plugins with version, source, what each provides, memory use and status](screenshots/plugins.png)
 
 ![Setting up a format for a file Debrief did not recognise](screenshots/format-wizard.png)
 
@@ -212,6 +227,10 @@ Analysis runs in the engine and is available from the command palette (`Ctrl/⌘
 <tr>
 <td><img src="screenshots/anomalies.png" alt="Anomalies view: error spikes, crash and slow outliers"></td>
 <td><img src="screenshots/exceptions.png" alt="Exceptions view: exception groups with counts"></td>
+</tr>
+<tr>
+<td><img src="screenshots/outliers.png" alt="Error outliers view: fields and values over-represented among errors, with lift and p-value"></td>
+<td><img src="screenshots/pattern-values.png" alt="Patterns view with the values behind a mined template's placeholders opened"></td>
 </tr>
 </table>
 
@@ -348,6 +367,13 @@ replaced without confirmation.
 
 ## Watched folders and time-range import
 
+<table>
+<tr>
+<td width="50%"><img src="screenshots/time-window.png" alt="The Open a time range dialog with a UTC start and end"></td>
+<td width="50%"><img src="screenshots/watched-folders.png" alt="Watched folders: a folder whose new files are imported as they settle"></td>
+</tr>
+</table>
+
 *Watched folders* (View ▸ Tools, or the command *Show watched folders*) imports files into the open project as they
 appear in folders you choose. A file is read once it has stopped changing; copies in progress (`*.part`, `*.tmp`, ...),
 empty files and files over 4 GiB are left alone and say so; a locked file is retried a few times and then reported.
@@ -366,6 +392,13 @@ anomaly, pattern, exception and known-issue analyses (with `--fail-on-findings` 
 writes the incident summary as HTML or PDF. Exit codes are 0 done, 1 failed, 2 wrong command line, 3 findings; with
 `--json` every command prints exactly one JSON object. Output is bounded (rows, items and cell length) and the store
 runs in the same worker process as in the app. `--since` and `--until` import only a time range of very large inputs (events outside it never reach the store; files that stopped growing before it are not opened; [ADR 0047](adr/0047-time-window-import.md)). `debrief watch DIR` imports files as they settle in a folder (debounced, partial writes and temporary names ignored, locked files retried, huge files reported) and announces known issues from your knowledge files ([ADR 0048](adr/0048-watched-folders.md)). Reference: [cli.md](cli.md).
+
+```sh
+debrief import ./incident --store ./case          # read once, keep the store
+debrief query 'level >= warning | stats count() as n by SourceContext | sort n desc' --store ./case
+debrief analyze outliers --store ./case --fail-on-findings
+debrief report --out incident.html --store ./case --title "Checkout failures"
+```
 
 ## Scheduled and triggered collection (`debrief-agent`)
 
@@ -477,6 +510,8 @@ automatic research off and the AI only offers the button. Research runs as a job
 pane or the status chip.
 
 ## Jobs and notifications
+
+![The Jobs pane: a running export with progress and time left, and finished AI requests](screenshots/jobs.png)
 
 Everything that takes a while is a **job**: AI answers and chat turns, web research, imports, long queries
 and analyses, exports and bundles, model and runtime downloads, the folder survey, storage clean-up and
@@ -778,6 +813,8 @@ sub-tracks below the lane's markers, so none hides another; the lane grows by on
 - **Diagnostics with or without the UI.** *Help ▸ Report a problem…* (and *Save diagnostics…* on the safe-mode and crash banners) and `debrief-app --export-diagnostics [<file.zip>] [--force]` (no window, no plugins; exits 0/1) write one zip with Debrief's logs, each child process's log (AI engine, llama-server, plugin processes; secrets scrubbed), `processes.json`, steps, snapshots, crash marker and a versioned `manifest.json`; opening that zip in Debrief shows it as a diagnostics workspace (one lane per log, crash/restart markers, the *Diagnostics report* panel). Sample: `samples/diagnostics/debrief-diagnostics-sample.zip`.
 
 ## Easy to start, hard to get wrong
+
+![Home: tiles, events over time by level, needs-attention items and the health check](screenshots/home.png)
 
 - **Try a demo** on the welcome screen opens the bundled sample incident and offers a short, skippable
   guided tour of the timeline, grid, search field, Moment view, markers and Home.
