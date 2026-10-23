@@ -4,18 +4,24 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { DialogService } from '../ui/dialog.service';
 import { ImportRangeDialog } from './import-range-dialog';
 
-/** Epoch ms of a `datetime-local` text (read as UTC, like the engine's times), or null when blank or not a time. */
+/** `YYYY-MM-DD`, optionally with `HH:MM[:SS[.fff]]` (a `T` or a space between) and an optional `Z` or `+HH:MM` offset. */
+const ISO_TIME = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?))?\s*(Z|[+-]\d{2}:\d{2})?$/i;
+
+/**
+ * Epoch ms of an ISO-style date and time (UTC unless it carries an offset, like the engine's times), or null when blank
+ * or not one: only the unambiguous year-first form is read, never a locale's day/month order.
+ */
 export function parseRangeTime(text: string): number | null {
-  const t = text.trim();
-  if (!t) return null;
-  const ms = Date.parse(/Z$|[+-]\d{2}:\d{2}$/.test(t) ? t : `${t}Z`);
+  const m = ISO_TIME.exec(text.trim());
+  if (!m) return null;
+  const ms = Date.parse(`${m[1]}T${m[2] ?? '00:00'}${m[3]?.toUpperCase() ?? 'Z'}`);
   return Number.isFinite(ms) ? ms : null;
 }
 
 /** Why a range cannot be used, or null: the engine re-validates; this only saves a round trip. */
 export function rangeProblem(from: number | null, to: number | null, rawFrom: string, rawTo: string): string | null {
-  if (rawFrom.trim() && from === null) return $localize`:@@import.range.badFrom:The start is not a date and time.`;
-  if (rawTo.trim() && to === null) return $localize`:@@import.range.badTo:The end is not a date and time.`;
+  if (rawFrom.trim() && from === null) return $localize`:@@import.range.badFrom:The start is not a date and time (write it as 2026-10-14 10:30).`;
+  if (rawTo.trim() && to === null) return $localize`:@@import.range.badTo:The end is not a date and time (write it as 2026-10-14 11:00).`;
   if (from !== null && to !== null && to < from) return $localize`:@@import.range.backwards:The end is before the start.`;
   if (from === null && to === null) return $localize`:@@import.range.empty:Give a start, an end, or both.`;
   return null;

@@ -8,13 +8,13 @@ import { parseRangeTime, rangeProblem } from './import-range';
   selector: 'debrief-import-range-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <p i18n="@@import.range.hint">Only events inside this range are imported, which keeps a very large folder small. Times are UTC. Files that stopped changing well before the start are not even opened.</p>
+    <p i18n="@@import.range.hint">Only events inside this range are imported, which keeps a very large folder small. Type times as year-month-day hour:minute, for example 2026-10-14 10:30; they are UTC. Files that stopped changing well before the start are not even opened.</p>
     <div class="row">
       <label class="lbl"><span i18n="@@import.range.from">From (UTC)</span>
-        <input class="input" type="datetime-local" data-testid="range-from" [value]="from()" (input)="from.set(val($event))" />
+        <input class="input" type="text" inputmode="numeric" autocomplete="off" placeholder="2026-10-14 10:30" data-testid="range-from" [value]="from()" (input)="from.set(val($event))" />
       </label>
       <label class="lbl"><span i18n="@@import.range.to">To (UTC)</span>
-        <input class="input" type="datetime-local" data-testid="range-to" [value]="to()" (input)="to.set(val($event))" />
+        <input class="input" type="text" inputmode="numeric" autocomplete="off" placeholder="2026-10-14 11:00" data-testid="range-to" [value]="to()" (input)="to.set(val($event))" />
       </label>
     </div>
     @if (problem(); as p) { <p class="err" role="alert">{{ p }}</p> }
