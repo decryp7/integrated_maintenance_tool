@@ -46,7 +46,7 @@ fn start_when_free(store: &dyn Store, start: &Start, ctx: &JobCtx, cancel: &Atom
 /// The job's progress from the session's.
 pub(crate) fn job_progress(p: &ProgressSnapshot) -> JobProgress {
     JobProgress {
-        phase: p.phase.as_deref().map(|l| JobPhase::new(l, PhaseScale::Indeterminate)),
+        phase: p.phase.as_deref().map(|l| JobPhase::new(l, PhaseScale::Count)),
         fraction: (p.bytes_total > 0 && p.phase.is_none()).then(|| (p.bytes_done as f64 / p.bytes_total as f64) as f32),
         done: Some(p.done as u64),
         total: Some(p.total as u64),
@@ -173,6 +173,6 @@ mod tests {
             ..p.clone()
         });
         assert_eq!(tail.fraction, None, "the tail has no byte scale");
-        assert_eq!(tail.phase, Some(JobPhase::new("Compacting segments", PhaseScale::Indeterminate)));
+        assert_eq!(tail.phase, Some(JobPhase::new("Compacting segments", PhaseScale::Count)));
     }
 }

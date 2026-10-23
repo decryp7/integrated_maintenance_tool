@@ -98,6 +98,12 @@ function importJob(id: number, progress: Partial<JobInfo['progress']> = {}, patc
 }
 
 describe('jobImportProgress', () => {
+  it('carries the job phase so the tail of an import is named instead of sitting at 100%', () => {
+    const job = importJob(3, { done: 3, total: 3, etaMs: null, unit: 'items', fraction: null, phase: { label: 'Compacting segments', scale: 'count' } });
+    expect(jobImportProgress(job).phase).toBe('Compacting segments');
+    expect(importStatusText(jobImportProgress(job))).toBe('Compacting segments');
+  });
+
   it('reads files, bytes and the current file from the job, with defaults for what it does not report', () => {
     expect(jobImportProgress(importJob(1))).toEqual(p());
     const bare = importJob(2, { done: null, total: null, etaMs: null, bytesDone: undefined, bytesTotal: undefined, current: undefined }, { elapsedMs: 10 });

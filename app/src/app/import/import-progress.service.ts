@@ -22,6 +22,7 @@ const STARTING: ImportProgress = { running: true, done: 0, total: 0, cancelled: 
 /** A running import job's progress (\`debrief://jobs\`) in the shape the widgets show. */
 export function jobImportProgress(job: JobInfo): ImportProgress {
   const p = job.progress;
+  const phase = phaseText(p);
   return {
     running: true,
     done: p.done ?? 0,
@@ -32,7 +33,7 @@ export function jobImportProgress(job: JobInfo): ImportProgress {
     current: p.current ?? null,
     elapsedMs: job.elapsedMs,
     etaMs: p.etaMs ?? job.etaMs,
-    phase: phaseText(p) || null,
+    ...(phase ? { phase } : {}),
   };
 }
 
