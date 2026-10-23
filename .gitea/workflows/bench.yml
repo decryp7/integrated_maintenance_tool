@@ -32,7 +32,7 @@ jobs:
     name: engine benchmarks
     runs-on: ubuntu-latest
     container:
-      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
     steps:
       - uses: actions/checkout@v4
 
@@ -97,7 +97,7 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     container:
-      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
