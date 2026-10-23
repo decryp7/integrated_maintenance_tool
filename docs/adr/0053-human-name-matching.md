@@ -3,7 +3,7 @@
 - Status: accepted (2026-10-23)
 - Date: 2026-10-23
 - Related: the entity catalogue (`debrief_core::catalogue`, `entities`), `find`, the assistant's `find_values` and
-  `find_events` tools, Pitwall (local model, optional)
+  `find_events` tools, Debrief's own local AI model (optional)
 
 ## Context
 
@@ -23,11 +23,15 @@ All of it lives in the engine (`debrief_core::names`); the UI and the assistant 
    splits follow the logs). Names are normalised (file name of a path, extension, repeated vendor prefix, version and
    architecture suffixes), and spellings group into one entity with a canonical spelling and counts per spelling.
    Bounded (64 characters, 8 words), pure, never panics; unknown tokens (`svchost`) stay whole.
-2. **Layer 2, optional AI aliases.** A low-priority background job (`alias_job`) asks the local Pitwall model once per
-   entity above a frequency threshold and per model version for a human name and up to six aliases, as strict JSON.
-   Every answer is validated (length, charset, word count, no echo of the prompt, no duplicates), cached in the name
-   book, never requested at search time, labelled AI-generated, removable by the user, and switchable off in Settings.
-   Only a loopback address is accepted for Pitwall; nothing leaves the machine. Without a model the layer is off.
+2. **Layer 2, optional AI aliases.** A low-priority background job (`alias_job`) asks Debrief's own local model (the
+   llama.cpp worker the assistant uses, through `debrief_ai::names_model::LocalAliasModel`) once per entity above a
+   frequency threshold and per model version for a human name and up to six aliases, as strict JSON. The shell runs it
+   as a quiet Maintenance job (its own queue, no message or notification), after the catalogue is built, and waits for
+   the assistant's queue to be empty before every request. It never loads a model by itself: it runs only when the
+   model is in memory or is loaded automatically. Every answer is validated (length, charset, word count, no echo of
+   the prompt, no duplicates), cached in the name book, never requested at search time, labelled AI-generated,
+   removable by the user, and switchable off in Settings. Nothing leaves the machine; without a model the layer is off.
+   (Pitwall, the separate local model server, is not used here; it joins later through its app contract.)
 3. **Context.** Candidates are ranked by the selected time window, open sources, the event in the Inspector, recent
    searches and co-occurrence (names in the same events), which also joins look-alike spellings.
 4. **Ask when unsure.** Two different entities that match in the same way with scores closer than `TIE_GAP` produce a

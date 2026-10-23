@@ -486,9 +486,12 @@ pub struct NameLayer<'a> {
 }
 
 /// What [`resolve_names`] found: the values, and a question when two entities tie.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Resolved {
     pub values: Vec<ValueMatch>,
+    /// Set when two different entities match about equally: ask this instead of guessing.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub clarify: Option<Clarification>,
 }
 

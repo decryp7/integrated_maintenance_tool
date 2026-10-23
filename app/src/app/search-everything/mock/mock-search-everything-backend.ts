@@ -1,6 +1,6 @@
 import type { KnowledgeBackend } from '../../ai/knowledge/knowledge-backend';
 import type { AnalysisBackend } from '../../core/analysis-backend';
-import { DocHit, FindValuesRequest, ValueMatch, DocScope, FieldHit, KindHits, LEVELS, Query, SearchAllReply, SearchAllRequest, SnippetPart } from '../../core/api.types';
+import { DocHit, FindValuesReply, FindValuesRequest, NameFactReply, NameFeedback, NameRemovedReply, NameUndoReply, RemoveNameAlias, ValueMatch, DocScope, FieldHit, KindHits, LEVELS, Query, SearchAllReply, SearchAllRequest, SnippetPart } from '../../core/api.types';
 import type { DebriefBackend } from '../../core/backend';
 import type { NotesBackend } from '../../notes/notes-backend';
 import { CmdError } from '../../core/cmd-error';
@@ -45,6 +45,49 @@ function noteTitle(text: string): string {
   const line = text.split('\n').map((l) => l.trim()).find((l) => l) ?? '';
   return line.length > NOTE_TITLE_CHARS ? `${line.slice(0, NOTE_TITLE_CHARS)}…` : line;
 }
+
+/** One entity of the mock name book: the names the mock logs hold for one thing, and the AI aliases suggested for it. */
+interface MockEntity {
+  id: string;
+  display: string;
+  kind: string;
+  spellings: { name: string; count: number }[];
+  evidence: number[];
+  aliases: string[];
+}
+
+/** Invented entities, enough to show a match with its reasons and a tie ("builder" is two things). */
+const MOCK_ENTITIES: readonly MockEntity[] = [
+  {
+    id: 'executable|graphic builder',
+    display: 'Graphic Builder',
+    kind: 'executable',
+    spellings: [
+      { name: 'graphicbuilder.exe', count: 9 },
+      { name: 'CompanyA.Graphic.Builder.exe', count: 5 },
+      { name: 'graphic-builder.exe', count: 2 },
+    ],
+    evidence: [3, 7, 12],
+    aliases: ['image editor'],
+  },
+  {
+    id: 'executable|report builder',
+    display: 'Report Builder',
+    kind: 'executable',
+    spellings: [
+      { name: 'CompanyA.Report.Builder.exe', count: 7 },
+      { name: 'reportbuilder.exe', count: 3 },
+    ],
+    evidence: [5, 9, 14],
+    aliases: [],
+  },
+];
+
+const squashed = (t: string) => words(t).join('');
+
+/** The mock's way of matching, best first (the engine's `How`, simplified). */
+type MockVia = ValueMatch['via'];
+const VIA_SCORE: Record<MockVia, number> = { userAlias: 1.3, exact: 1, segmented: 0.95, parts: 0.85, alias: 0.8, prefix: 0.7, fuzzy: 0.55 };
 
 /** The other mock backends the search reads, resolved when a search needs them (so a missing one fails only its kind). */
 export interface MockSearchSources {
@@ -92,17 +135,104 @@ export class MockSearchEverythingBackend implements SearchEverythingBackend {
     return hits;
   }
 
-  /** Source names whose letters and digits hold the words' (separators and case ignored), then field values the same way. */
-  async findValues(request: FindValuesRequest): Promise<ValueMatch[]> {
-    const squash = (t: string) => words(t).join('');
-    const wanted = squash(request.text);
-    if (!wanted) return [];
+  /** What the user told the mock: the words that mean an entity, the ones that do not, and the order to undo them in. */
+  private readonly meant = new Map<string, string>();
+  private readonly notMeant = new Set<string>();
+  private readonly facts: { id: number; undo: () => void }[] = [];
+  private readonly removedAliases = new Set<string>();
+  private nextFact = 1;
+
+  /** How the words match an entity of the mock name book, or null. */
+  private matchEntity(e: MockEntity, text: string): { via: MockVia; why: string } | null {
+    const q = squashed(text);
+    if (this.notMeant.has(`${q}|${e.id}`)) return null;
+    if (this.meant.get(q) === e.id) return { via: 'userAlias', why: 'you told Debrief this name' };
+    if (q === squashed(e.display)) return { via: 'segmented', why: 'same name written differently' };
+    if (e.aliases.some((a) => squashed(a) === q && !this.removedAliases.has(`${e.id}\t${a}`))) return { via: 'alias', why: 'AI alias (AI-generated)' };
+    const typed = words(text);
+    const own = words(e.display);
+    if (typed.length && typed.every((w) => own.includes(w))) return { via: 'parts', why: 'your words are parts of the name' };
+    if (typed.length && typed.every((w) => own.some((o) => o.startsWith(w)))) return { via: 'prefix', why: 'your words start the words of the name' };
+    return null;
+  }
+
+  /**
+   * Entities of the mock name book (with spellings, why and evidence; a tie asks a question), then source names whose
+   * letters and digits hold the words' (separators and case ignored). The engine is the reference.
+   */
+  async findValues(request: FindValuesRequest): Promise<FindValuesReply> {
+    const wanted = squashed(request.text);
+    if (!wanted) return { values: [] };
     const limit = request.limit || 5;
+    const matched = MOCK_ENTITIES.flatMap((e) => {
+      const m = this.matchEntity(e, request.text);
+      return m ? [{ e, ...m }] : [];
+    }).sort((a, b) => VIA_SCORE[b.via] - VIA_SCORE[a.via]);
+    const entities: ValueMatch[] = matched.map(({ e, via, why }) => ({
+      field: '@entity',
+      value: e.spellings[0]?.name ?? e.display,
+      count: e.spellings.reduce((n, s) => n + s.count, 0),
+      via,
+      kind: e.kind,
+      why,
+      spellings: e.spellings,
+      evidence: e.evidence,
+      group: e.id,
+    }));
+    const [first, second] = matched;
+    const tie = first && second && first.via === second.via;
     const summary = await this.workspace.workspaceSummary();
-    const out: ValueMatch[] = summary.sources
-      .filter((s) => squash(s.name).includes(wanted))
-      .map((s) => ({ field: '@source', value: s.name, count: s.records, via: squash(s.name) === wanted ? ('exact' as const) : ('parts' as const), why: 'the source name holds your words' }));
-    return out.slice(0, limit);
+    const sources: ValueMatch[] = summary.sources
+      .filter((s) => squashed(s.name).includes(wanted))
+      .map((s) => ({ field: '@source', value: s.name, count: s.records, via: squashed(s.name) === wanted ? ('exact' as const) : ('parts' as const), why: 'the source name holds your words' }));
+    const values = [...entities, ...sources].slice(0, limit);
+    return tie ? { values, clarify: { question: `Which one do you mean: ${first.e.display} or ${second.e.display}?`, options: [first.e.id, second.e.id] } } : { values };
+  }
+
+  private known(group: string): MockEntity {
+    const e = MOCK_ENTITIES.find((x) => x.id === group);
+    if (!e) throw new CmdError({ code: 'invalid', message: 'that name is no longer in the logs; search again', retryable: false });
+    return e;
+  }
+
+  private phrase(text: string): string {
+    const t = text.trim();
+    if (!t || t.length > 128) throw new CmdError({ code: 'invalid', message: 'the words must be 1 to 128 characters', retryable: false });
+    return squashed(t);
+  }
+
+  async acceptName(feedback: NameFeedback): Promise<NameFactReply> {
+    const q = this.phrase(feedback.text);
+    const e = this.known(feedback.group);
+    const before = this.meant.get(q);
+    this.meant.set(q, e.id);
+    const id = this.nextFact++;
+    this.facts.push({ id, undo: () => (before === undefined ? this.meant.delete(q) : this.meant.set(q, before)) });
+    return { fact: id };
+  }
+
+  async rejectName(feedback: NameFeedback): Promise<NameFactReply> {
+    const key = `${this.phrase(feedback.text)}|${this.known(feedback.group).id}`;
+    const had = this.notMeant.has(key);
+    this.notMeant.add(key);
+    const id = this.nextFact++;
+    this.facts.push({ id, undo: () => void (had || this.notMeant.delete(key)) });
+    return { fact: id };
+  }
+
+  async undoName(): Promise<NameUndoReply> {
+    const f = this.facts.pop();
+    f?.undo();
+    return { undone: f ? { id: f.id, kind: {}, global: false } : null };
+  }
+
+  async removeNameAlias(request: RemoveNameAlias): Promise<NameRemovedReply> {
+    const e = this.known(request.group);
+    const alias = request.alias.trim();
+    const key = `${e.id}\t${alias}`;
+    if (!e.aliases.includes(alias) || this.removedAliases.has(key)) return { removed: false };
+    this.removedAliases.add(key);
+    return { removed: true };
   }
 
   async searchEverything(request: SearchAllRequest): Promise<SearchAllReply | null> {

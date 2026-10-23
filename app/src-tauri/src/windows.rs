@@ -62,6 +62,8 @@ pub struct WindowState {
     pub(crate) ai: crate::ai::WindowAi,
     /// The window's notes (ADR 0021), saved with the project.
     pub(crate) notes: crate::notes::WindowNotes,
+    /// The workspace's name layer (human-like name matching, ADR 0053).
+    pub(crate) names: crate::names::WindowNames,
 }
 
 impl WindowState {
@@ -83,6 +85,7 @@ impl WindowState {
             dumps: crate::dumps::DumpsSlot::default(),
             ai: crate::ai::WindowAi::default(),
             notes: crate::notes::WindowNotes::default(),
+            names: crate::names::WindowNames::default(),
         }
     }
 

@@ -1,5 +1,6 @@
 import { DialogRef } from '@angular/cdk/dialog';
 import { ChangeDetectionStrategy, Component, computed, inject, Injector } from '@angular/core';
+import { ValueMatch } from '../core/api.types';
 import { formatCount, formatTime } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
 import { ActiveDescendantNavigation } from '../shared/list-navigation';
@@ -8,6 +9,8 @@ import { SearchEverythingNavigator } from './search-everything-navigator';
 import { SearchEverythingStore } from './search-everything.store';
 
 let nextId = 0;
+/** Spellings listed under a suggestion. */
+const MAX_SPELLINGS_SHOWN = 4;
 
 /**
  * The search everything palette (Mod+Shift+F), shown in a CDK dialog: a combobox whose results are grouped by kind with
@@ -46,11 +49,43 @@ let nextId = 0;
         <span class="muted" data-testid="search-everything-empty" i18n="@@search.status.none">Nothing matches “{{ store.searched() //i18n(ph="text") }}”.</span>
       }
     </div>
-    @if (store.suggestion(); as s) {
+    @if (store.clarify(); as c) {
+      <div class="status ask" data-testid="search-everything-clarify" role="group" i18n-aria-label="@@search.clarify.label" aria-label="Which one do you mean?">
+        <span class="muted">{{ c.question }}</span>
+        @for (o of store.options(); track o.group) {
+          <button type="button" class="btn ghost" [attr.data-testid]="'search-everything-option'" (click)="store.acceptName(o)" [title]="why(o)">{{ o.value }}</button>
+        }
+      </div>
+    } @else if (store.suggestion(); as s) {
       <div class="status" data-testid="search-everything-suggestion">
         <span class="muted" i18n="@@search.suggestion.prefix">Did you mean</span>
         <button type="button" class="btn ghost" (click)="store.acceptSuggestion()">{{ s.value }}</button>
         <span class="muted">({{ fieldName(s.field, s.kind) }})?</span>
+        @if (s.group) {
+          <button type="button" class="btn ghost" data-testid="search-everything-accept" (click)="store.acceptName(s)" i18n="@@search.suggestion.accept">Yes, remember</button>
+          <button type="button" class="btn ghost" data-testid="search-everything-reject" (click)="store.rejectName(s)" i18n="@@search.suggestion.reject">Not this</button>
+        }
+      </div>
+      @if (s.why) {
+        <div class="status why" data-testid="search-everything-why">
+          <span class="muted">{{ s.why }}</span>
+          @if (s.via === 'alias') {
+            <span class="tag" data-testid="search-everything-ai" i18n="@@search.suggestion.ai">AI-generated</span>
+          }
+          @if (spellings(s); as written) {
+            <span class="muted" data-testid="search-everything-spellings" i18n="@@search.suggestion.spellings">Also written: {{ written //i18n(ph="spellings") }}</span>
+          }
+        </div>
+      }
+    }
+    @if (store.feedback(); as f) {
+      <div class="status" data-testid="search-everything-feedback" aria-live="polite">
+        @if (f.kind === 'accepted') {
+          <span class="muted" i18n="@@search.feedback.accepted">Remembered: “{{ f.typed //i18n(ph="typed") }}” means {{ f.value //i18n(ph="value") }}.</span>
+        } @else {
+          <span class="muted" i18n="@@search.feedback.rejected">Remembered: “{{ f.typed //i18n(ph="typed") }}” is not {{ f.value //i18n(ph="value") }}.</span>
+        }
+        <button type="button" class="btn ghost" data-testid="search-everything-undo" (click)="store.undoName()" i18n="@@search.feedback.undo">Undo</button>
       </div>
     }
     <div class="list" role="listbox" [id]="listId" i18n-aria-label="@@search.list.label" aria-label="Results">
@@ -88,6 +123,8 @@ let nextId = 0;
     .status { display: flex; align-items: center; gap: 8px; min-height: 0; font-size: var(--fs-sm); }
     .status:empty { display: none; }
     .muted { color: var(--muted); padding: 2px 4px; }
+    .status.ask, .status.why { flex-wrap: wrap; }
+    .tag { padding: 0 6px; border: 1px solid var(--border-3); border-radius: 8px; color: var(--muted); font-size: var(--fs-xs); }
     .err { color: var(--danger-text); padding: 2px 4px; }
     .list { overflow: auto; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
     .head { display: flex; align-items: baseline; gap: 6px; padding: 6px 10px 2px; color: var(--muted); font-size: var(--fs-xs); }
@@ -130,6 +167,18 @@ export class SearchEverythingPalette {
   protected fieldName(field: string, kind?: string): string {
     if (field === '@entity' && kind) return kind;
     return field === '@source' ? $localize`:@@search.suggestion.source:source` : field;
+  }
+
+  /** The other spellings of the suggested name, a few of them; empty when the logs write it one way. */
+  protected spellings(v: ValueMatch): string {
+    const others = (v.spellings ?? []).filter((s) => s.name !== v.value).map((s) => s.name);
+    const shown = others.slice(0, MAX_SPELLINGS_SHOWN).join(', ');
+    return others.length > MAX_SPELLINGS_SHOWN ? `${shown}, …` : shown;
+  }
+
+  /** Why a value matched, for a tooltip. */
+  protected why(v: ValueMatch): string {
+    return v.why;
   }
 
   protected optionId(r: ResultRow): string {

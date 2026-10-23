@@ -2027,3 +2027,44 @@ fn job_progress_labels_the_phase_so_a_check_is_not_a_second_download() {
     assert_eq!((d.current.as_deref(), d.done, d.total), (Some("Downloading"), Some(5), Some(10)));
     assert_eq!((v.current.as_deref(), v.done, v.total), (Some("Checking"), Some(10), Some(10)));
 }
+
+#[test]
+fn finding_values_builds_the_names_and_the_alias_job_runs_on_the_local_model_only_when_it_may() {
+    let f = Fixture::new("names");
+    let core = f.core();
+    let provider = Arc::new(ScriptedProvider::new(vec![text(r#"{"items":[]}"#); 40]));
+    core.set_fixed_provider(provider.clone());
+    let app = f.app(core.clone());
+    let main = window(&app, "main");
+    open_samples(&main);
+    let win = app.state::<crate::windows::Windows>().get("main").unwrap();
+    // The first search after the catalogue is ready rebuilds the table and queues the alias job (a quiet one).
+    wait_until("the name table", || {
+        ipc(&main, "find_values", json!({"request": {"text": "gateway"}})).unwrap();
+        win.names.names().is_built()
+    });
+    wait_until("the alias job to finish", || !win.names.job_pending());
+    let reply = ipc(&main, "find_values", json!({"request": {"text": "gateway"}})).unwrap();
+    assert!(reply["values"].is_array(), "{reply}");
+    // With the switch off the model is never asked again.
+    ipc(&main, "set_settings", json!({"section": "ai", "values": {"name_aliases": false}})).unwrap();
+    let asked = provider.requests().len();
+    assert!(!crate::names::schedule_alias_job(app.handle(), "main", &win.names));
+    assert_eq!(provider.requests().len(), asked);
+    assert!(!win.names.job_pending(), "a refused job leaves no flag behind");
+}
+
+#[test]
+fn the_name_commands_validate_what_the_webview_sends() {
+    let f = Fixture::new("names-cmd");
+    let app = f.app(f.core());
+    let main = window(&app, "main");
+    for (cmd, args) in [
+        ("names_accept", json!({"request": {"text": "gfx", "group": "executable|nothing"}})),
+        ("names_reject", json!({"request": {"text": "  ", "group": "x"}})),
+        ("names_remove_alias", json!({"request": {"group": "", "alias": "a"}})),
+    ] {
+        assert_eq!(code(ipc(&main, cmd, args).unwrap_err()), "invalid", "{cmd}");
+    }
+    assert_eq!(ipc(&main, "names_undo", json!({})).unwrap()["undone"], Value::Null);
+}

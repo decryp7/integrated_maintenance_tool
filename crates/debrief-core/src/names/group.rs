@@ -205,6 +205,23 @@ pub fn merge_cooccurring(groups: &mut Vec<NameGroup>, cooc: &Cooccurrence, min_s
     merged
 }
 
+/// Positions of the groups among the first `limit` (most events first) that have a look-alike of their scope in the
+/// same range: the ones worth reading events for before [`merge_cooccurring`].
+pub fn look_alikes(groups: &[NameGroup], limit: usize) -> Vec<usize> {
+    let top = &groups[..groups.len().min(limit)];
+    let mut out = Vec::new();
+    for (i, a) in top.iter().enumerate() {
+        if top
+            .iter()
+            .enumerate()
+            .any(|(j, b)| i != j && a.scope == b.scope && similar(&a.key, &b.key))
+        {
+            out.push(i);
+        }
+    }
+    out
+}
+
 fn together(a: &NameGroup, b: &NameGroup, cooc: &Cooccurrence, min: f64) -> bool {
     a.spellings
         .iter()

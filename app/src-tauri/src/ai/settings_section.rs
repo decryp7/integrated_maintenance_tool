@@ -170,6 +170,9 @@ pub fn to_settings(values: &ValidValues, base: &AiSettings) -> AiSettings {
     if let Some(b) = values.bool("autoload") {
         s.autoload = b;
     }
+    if let Some(b) = values.bool("name_aliases") {
+        s.name_aliases = b;
+    }
     s.idle_unload_minutes = int("idle_unload_minutes", i64::from(s.idle_unload_minutes)) as u32;
     s.gpu_offload = values.text("gpu_offload").map_or(s.gpu_offload, gpu_from);
     s.context_length = int("context_length", s.context_length as i64) as usize;
@@ -228,6 +231,12 @@ mod tests {
         let gpu = s.find("gpu_offload").unwrap();
         assert!(matches!(&gpu.kind, FieldKind::Enum { options } if options.iter().any(|o| o.value == "all" && o.label.contains("All"))));
         assert!(s.find("hf_endpoint").unwrap().advanced);
+        // The AI aliases switch renders as a toggle with a label and help text; the Pitwall fields are gone.
+        let aliases = s.find("name_aliases").unwrap();
+        assert!(matches!(aliases.kind, FieldKind::Bool));
+        assert_eq!(aliases.default, json!(true));
+        assert!(aliases.label.contains("aliases") && aliases.description.contains("local AI model"));
+        assert!(s.find("pitwall_url").is_none() && s.find("pitwall_model").is_none());
         assert!(field_of(&json!({"key": "x", "type": "secret"})).is_none());
         assert!(
             field_of(&json!({"key": "x", "type": "int"})).is_none(),
@@ -261,7 +270,8 @@ mod tests {
                 "max_tokens": 512, "temperature": 0.5, "threads": 4, "hf_endpoint": "https://mirror.example",
                 "download_proxy": "http://p:3128", "max_download_gb": 9, "download_connections": 6, "models_dir": models,
                 "inference_build": "vulkan", "llama_server_path": server,
-                "runtime_updates": "automatic", "model_updates": "manual", "update_check_hours": 6
+                "runtime_updates": "automatic", "model_updates": "manual", "update_check_hours": 6,
+                "name_aliases": false
             }),
         );
         assert!(errors.is_empty(), "{errors:?}");
@@ -272,6 +282,7 @@ mod tests {
         let a = to_settings(&values, &base);
         assert_eq!(a.active_model.as_deref(), Some("keep.gguf"));
         assert!(!a.autoload);
+        assert!(!a.name_aliases, "the AI aliases switch reaches the settings");
         assert_eq!(
             (a.idle_unload_minutes, a.context_length, a.max_tokens, a.threads),
             (0, 4096, 512, 4)
