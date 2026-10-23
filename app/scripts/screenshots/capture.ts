@@ -342,6 +342,21 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
     await page.waitForTimeout(800);
   });
 
+
+  // ---- the README tour strip: step 1 (samples loaded, file list) and step 2 (the sample profile's extractors) ----
+  await fresh(page, theme);
+  await shot(page, 'tour-open', async () => {
+    await page.locator('.debrief-tab[data-panel-id="timeline"] .debrief-tab-close').click({ timeout: 2000 }).catch(() => undefined);
+    await page.waitForTimeout(800);
+  });
+
+  await fresh(page, theme);
+  await shot(page, 'tour-profile', async () => {
+    await showPanel(page, 'Profile', 'Profile editor', 'Show Profile editor');
+    await page.getByRole('button', { name: /^Extractors/ }).first().click();
+    await page.waitForTimeout(800);
+  }, 'Profile');
+
   // Home: the dashboard (tiles, history by level, findings, activity).
   await fresh(page, theme);
   // Home is a scrolling page taller than 900 px: zoom its content out a little so the first screen fits whole (nothing cut mid-card).

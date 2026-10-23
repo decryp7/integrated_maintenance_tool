@@ -86,7 +86,7 @@ Prefer to build it yourself? [Build from source](#building-from-source).
 
 ### A two-minute tour
 
-![The welcome screen](docs/screenshots/welcome.png)
+![A two-minute tour: open the samples, load the sample profile, read the timeline, inspect an event](docs/images/debrief-tour.svg?v=2a125057)
 
 1. **Open the samples.** Start Debrief, choose *Open folder…* (`Ctrl/⌘+Shift+O`) and pick the
    [`samples/`](samples/) folder (or drag it onto the window). It holds one incident seen through
