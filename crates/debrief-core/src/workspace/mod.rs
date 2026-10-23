@@ -63,6 +63,8 @@ pub struct ImportProgress {
 #[derive(Debug, Default)]
 struct ProgressDetail {
     current: Option<String>,
+    /// The stage after the files are read ("Compacting segments"); `None` while reading.
+    phase: Option<String>,
     started: Option<Instant>,
     finished_ms: Option<u64>,
 }
@@ -84,6 +86,9 @@ pub struct ProgressSnapshot {
     pub elapsed_ms: u64,
     /// Estimated time left from the bytes read so far; `None` until it can be estimated.
     pub eta_ms: Option<u64>,
+    /// The stage the import is in after the files are read ("Compacting segments"); `None` while reading.
+    #[serde(default)]
+    pub phase: Option<String>,
 }
 
 impl ProgressSnapshot {
@@ -99,6 +104,7 @@ impl ProgressSnapshot {
             current: None,
             elapsed_ms: 0,
             eta_ms: None,
+            phase: None,
         }
     }
 }
@@ -120,14 +126,14 @@ impl ImportProgress {
     pub fn snapshot(&self) -> ProgressSnapshot {
         use std::sync::atomic::Ordering::SeqCst;
         let running = self.running.load(SeqCst);
-        let (current, elapsed_ms) = {
+        let (current, phase, elapsed_ms) = {
             let d = self.detail();
             let elapsed = match (d.finished_ms, d.started) {
                 (Some(ms), _) => ms,
                 (None, Some(t)) => t.elapsed().as_millis() as u64,
                 (None, None) => 0,
             };
-            (d.current.clone(), elapsed)
+            (d.current.clone(), d.phase.clone(), elapsed)
         };
         let (bytes_done, bytes_total) = (self.bytes_done.load(SeqCst), self.bytes_total.load(SeqCst));
         ProgressSnapshot {
@@ -140,6 +146,7 @@ impl ImportProgress {
             current: if running { current } else { None },
             elapsed_ms,
             eta_ms: if running { eta(elapsed_ms, bytes_done, bytes_total) } else { None },
+            phase: if running { phase } else { None },
         }
     }
 
@@ -156,10 +163,16 @@ impl ImportProgress {
         self.bytes_total.store(bytes, SeqCst);
         *self.detail() = ProgressDetail {
             current: None,
+            phase: None,
             started: Some(Instant::now()),
             finished_ms: None,
         };
         self.running.store(true, SeqCst);
+    }
+
+    /// Names the stage the import is in once the files are read (`None` clears it).
+    pub fn set_phase(&self, phase: Option<&str>) {
+        self.detail().phase = phase.map(str::to_string);
     }
 
     pub(crate) fn reading(&self, path: &Path) {
@@ -175,6 +188,7 @@ impl ImportProgress {
     pub(crate) fn finish(&self) {
         let mut d = self.detail();
         d.current = None;
+        d.phase = None;
         d.finished_ms = Some(d.started.map_or(0, |t| t.elapsed().as_millis() as u64));
         drop(d);
         self.running.store(false, std::sync::atomic::Ordering::SeqCst);
@@ -183,6 +197,11 @@ impl ImportProgress {
     /// The flag [`ImportProgress::cancel`] sets, for code that checks it in a loop.
     pub fn cancel_flag(&self) -> &std::sync::atomic::AtomicBool {
         &self.cancel
+    }
+
+    /// Whether Cancel was asked for (also for code outside this crate that decides what to keep).
+    pub fn is_cancelled_flag(&self) -> bool {
+        self.is_cancelled()
     }
 
     pub(crate) fn is_cancelled(&self) -> bool {
@@ -1263,5 +1282,28 @@ mod progress_tests {
         let (p, name, result) = &results[0];
         assert_eq!((p.as_str(), name.as_str()), ("/definitely/not/here.log", "here.log"));
         assert!(result.is_err());
+    }
+}
+
+#[cfg(test)]
+mod phase_tests {
+    use super::*;
+
+    #[test]
+    fn the_phase_shows_while_running_and_clears_on_start_and_finish() {
+        let p = ImportProgress::default();
+        p.start(2, 10);
+        assert_eq!(p.snapshot().phase, None, "reading files has no phase");
+        p.set_phase(Some("Compacting segments"));
+        assert_eq!(p.snapshot().phase.as_deref(), Some("Compacting segments"));
+        p.finish();
+        assert_eq!(p.snapshot().phase, None);
+        p.set_phase(Some("late"));
+        assert_eq!(p.snapshot().phase, None, "a stopped import shows no phase");
+        p.start(1, 1);
+        assert_eq!(p.snapshot().phase, None, "a new import starts without the old phase");
+        assert!(!p.is_cancelled_flag());
+        p.cancel();
+        assert!(p.is_cancelled_flag());
     }
 }

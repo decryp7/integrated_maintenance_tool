@@ -3,7 +3,7 @@
 //! bytes, the current file) is the job's, Cancel cancels the session, and its report is the result. Readers keep
 //! working meanwhile (the store never blocks them). The annotators run over the new data before the job ends.
 
-use crate::jobs::{Controls, Done, JobCtx, JobProgress, JobResult, JobSpec};
+use crate::jobs::{Controls, Done, JobCtx, JobPhase, JobProgress, JobResult, JobSpec, PhaseScale};
 use crate::windows::{CurrentWindow, WindowState};
 use crate::CmdResult;
 use debrief_core::ports::{ImportReport, ImportSession, Store, StoreResult};
@@ -46,7 +46,8 @@ fn start_when_free(store: &dyn Store, start: &Start, ctx: &JobCtx, cancel: &Atom
 /// The job's progress from the session's.
 pub(crate) fn job_progress(p: &ProgressSnapshot) -> JobProgress {
     JobProgress {
-        fraction: (p.bytes_total > 0).then(|| (p.bytes_done as f64 / p.bytes_total as f64) as f32),
+        phase: p.phase.as_deref().map(|l| JobPhase::new(l, PhaseScale::Indeterminate)),
+        fraction: (p.bytes_total > 0 && p.phase.is_none()).then(|| (p.bytes_done as f64 / p.bytes_total as f64) as f32),
         done: Some(p.done as u64),
         total: Some(p.total as u64),
         eta_ms: p.eta_ms,
@@ -156,6 +157,7 @@ mod tests {
             current: Some("/logs/app.log".into()),
             elapsed_ms: 10,
             eta_ms: Some(30),
+            phase: None,
         };
         let j = job_progress(&p);
         assert_eq!(j.fraction, Some(0.25));
@@ -166,5 +168,11 @@ mod tests {
         assert_eq!(j.current.as_deref(), Some("app.log"));
         let idle = job_progress(&ProgressSnapshot::stopped());
         assert_eq!((idle.fraction, idle.bytes_total, idle.current), (None, None, None));
+        let tail = job_progress(&ProgressSnapshot {
+            phase: Some("Compacting segments".into()),
+            ..p.clone()
+        });
+        assert_eq!(tail.fraction, None, "the tail has no byte scale");
+        assert_eq!(tail.phase, Some(JobPhase::new("Compacting segments", PhaseScale::Indeterminate)));
     }
 }

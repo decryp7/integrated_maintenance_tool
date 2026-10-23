@@ -26,6 +26,15 @@ export interface JobSource {
 /** What `done` and `total` count: bytes are shown as sizes with speed and time left, items as plain numbers. */
 export type ProgressUnit = 'items' | 'bytes';
 
+/** How a phase is measured; an indeterminate phase has no total, only a growing count. */
+export type PhaseScale = 'bytes' | 'count' | 'indeterminate';
+
+/** The stage a job is in ("Downloading", "Unpacking"), on its own scale. */
+export interface JobPhase {
+  label: string;
+  scale: PhaseScale;
+}
+
 export interface JobProgress {
   /** 0..1. */
   fraction: number | null;
@@ -39,6 +48,8 @@ export interface JobProgress {
   bytesTotal?: number;
   /** What the job works on now (an import: the file being read); absent between items. */
   current?: string;
+  /** The stage the job is in now; absent for jobs without stages. */
+  phase?: JobPhase | null;
 }
 
 /** Where a finished job's result is (`jobs_result`). */

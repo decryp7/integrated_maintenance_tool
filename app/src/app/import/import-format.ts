@@ -41,6 +41,7 @@ export function progressLine(p: ImportProgress): string {
  * them yet (a folder is still being walked), instead of a "0 of 0 files" that reads as broken.
  */
 export function importStatusText(p: ImportProgress): string {
+  if (p.phase) return p.phase;
   if (p.total <= 0) return $localize`:@@import.format.scanning:Scanning for files…`;
   const line = progressLine(p);
   return $localize`:@@import.format.importing:Importing ${line}:line:`;

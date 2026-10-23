@@ -4,6 +4,7 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { WorkspaceStatusStore } from '../core/workspace/status.store';
 import { UxBackend } from '../core/ux-backend';
 import { JobsStore } from '../jobs/jobs.store';
+import { phaseText } from '../jobs/jobs-text';
 import { JobInfo } from '../jobs/jobs.types';
 
 /** Imports running longer than this also show the progress toast. */
@@ -31,6 +32,7 @@ export function jobImportProgress(job: JobInfo): ImportProgress {
     current: p.current ?? null,
     elapsedMs: job.elapsedMs,
     etaMs: p.etaMs ?? job.etaMs,
+    phase: phaseText(p) || null,
   };
 }
 

@@ -21,7 +21,7 @@ pub mod persist;
 pub mod queue;
 pub mod service;
 
-pub use model::{JobId, JobKind, JobLink, JobProgress, JobResult, JobSpec, JobState};
+pub use model::{JobId, JobKind, JobLink, JobPhase, JobProgress, JobResult, JobSpec, JobState, PhaseScale};
 pub use queue::JobsSnapshot;
 #[cfg(test)]
 pub(crate) use service::tests::{wait_until, ManualClock};
@@ -327,6 +327,19 @@ fn cancelling(mut controls: Controls, control: &debrief_core::ql::QueryControl) 
     controls
 }
 
+/// `controls` whose probe also names the phase (the probe's counts then read as that phase's growing count).
+fn in_phase(controls: Controls, label: &'static str) -> Controls {
+    let Some(inner) = controls.probe.clone() else { return controls };
+    let mut c = controls;
+    c.probe = Some(Arc::new(move || {
+        inner().map(|p| JobProgress {
+            phase: Some(JobPhase::new(label, PhaseScale::Count)),
+            ..p
+        })
+    }));
+    c
+}
+
 /// `controls` with a probe of `control`'s progress (the events the store has read of those it will read, as its
 /// worker reports them) unless they have their own.
 fn with_query_progress(controls: Controls, control: &debrief_core::ql::QueryControl) -> Controls {
@@ -435,9 +448,11 @@ pub(crate) fn export<R: Runtime>(
     let result = JobResult::File {
         path: path.display().to_string(),
     };
-    let controls = cancelling(Controls::default(), &control);
+    // The probe reports the events written so far of those to write, under the phase "Writing the export".
+    let controls = in_phase(with_query_progress(cancelling(Controls::default(), &control), &control), "Writing the export");
     crate::error::lift(
         spawn(app, spec, controls, move |ctx: &JobCtx| -> CmdResult<Done<()>> {
+            ctx.phase("Preparing the export", PhaseScale::Indeterminate, 0, 0);
             let summary = with_store(&w, &control, f)?;
             ctx.message(&summary);
             Ok(Done::new(()).with_result(result))

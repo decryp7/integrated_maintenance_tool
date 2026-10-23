@@ -2865,6 +2865,8 @@ export interface ImportProgress {
   elapsedMs: number;
   /** Estimated time left from the bytes read so far; null until it can be estimated. */
   etaMs: number | null;
+  /** The import job's phase label ("Writing the index"), when it reports one. */
+  phase?: string | null;
 }
 
 /** A saved previous version of the active profile. */
