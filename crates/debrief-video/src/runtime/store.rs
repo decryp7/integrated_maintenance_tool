@@ -589,7 +589,7 @@ mod tests {
         let store = FfmpegStore::new(dir.path());
         let (c, m) = archive("t1", &[7u8; 4096]);
         let progress = Progress::new();
-        store.install(&c, "test-x64", &m, &Roomy, &progress, &mut |_| {}, &passes).unwrap();
+        store.install(&c, "test-x64", &m, &Roomy, 1, &progress, &mut |_| {}, &passes).unwrap();
         let snap = progress.snapshot();
         assert_eq!(snap.phase, Phase::Downloading, "no verifying pass over the written archive");
         assert_eq!(snap.bytes, c.platforms["test-x64"].size, "every byte counted exactly once");
