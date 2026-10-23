@@ -58,3 +58,31 @@ for (const size of [{ width: 1021, height: 727 }, { width: 760, height: 560 }]) 
     expect(host.height).toBeGreaterThan(size.height - 48);
   });
 }
+
+// A small dialog window is fitted to its content: at the height the shell asks the window for there is no vertical
+// scrollbar and no empty gap below the buttons (the browser build publishes the requested height on <html>).
+const FIT: [string, string, object][] = [
+  ['close-prompt', 'Close Debrief?', {}],
+  ['unsaved-changes', 'Unsaved changes', { name: 'Untitled', action: 'quit' }],
+  ['open-ask', 'Open 1 file', { ask: { count: 1, names: ['a.log'] } }],
+];
+for (const [id, title, input] of FIT) {
+  test(`the ${id} dialog window fits its content: no scrollbar and no gap`, async ({ page }) => {
+    await page.setViewportSize({ width: 460, height: 700 });
+    await page.goto(`/#/dialog?id=${id}&host=main&label=d-main-1&title=${encodeURIComponent(title)}&dialogInput=${encodeURIComponent(JSON.stringify(input))}`);
+    const shell = page.locator('debrief-dialog-shell');
+    await expect(shell.locator('[data-testid=dialog-loading]')).toHaveCount(0, { timeout: 15_000 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset['fittedHeight'] ?? ''), { timeout: 10_000 }).not.toBe('');
+    const fitted = Number(await page.evaluate(() => document.documentElement.dataset['fittedHeight']));
+    await page.setViewportSize({ width: 460, height: fitted });
+    const m = await page.evaluate(() => {
+      const body = document.querySelector('debrief-dialog-shell main') as HTMLElement;
+      const content = body.firstElementChild as HTMLElement;
+      const pad = parseFloat(getComputedStyle(body).paddingBottom);
+      return { scroll: body.scrollHeight, client: body.clientHeight, gap: body.getBoundingClientRect().bottom - pad - content.getBoundingClientRect().bottom };
+    });
+    expect(m.scroll).toBeLessThanOrEqual(m.client);
+    expect(m.gap).toBeGreaterThanOrEqual(-1);
+    expect(m.gap).toBeLessThanOrEqual(4);
+  });
+}
