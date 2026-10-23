@@ -47,7 +47,7 @@ fn start_when_free(store: &dyn Store, start: &Start, ctx: &JobCtx, cancel: &Atom
 pub(crate) fn job_progress(p: &ProgressSnapshot) -> JobProgress {
     JobProgress {
         phase: import_phase(p),
-        // Only the byte-reading phase has a fraction: finding, detecting and the tail have no byte scale.
+        // Only the byte-reading phase has a fraction: finding and the tail have no byte scale.
         fraction: (p.phase == ImportPhase::Importing && !p.finding && p.bytes_total > 0)
             .then(|| (p.bytes_done as f64 / p.bytes_total as f64) as f32),
         done: Some(p.done as u64),
@@ -72,7 +72,6 @@ fn import_phase(p: &ProgressSnapshot) -> Option<JobPhase> {
     match p.phase {
         ImportPhase::Idle => None,
         ImportPhase::Finding => Some(JobPhase::new("Finding files", PhaseScale::Indeterminate)),
-        ImportPhase::Detecting => Some(JobPhase::new("Checking files", PhaseScale::Count)),
         // Files are read while the walk goes on: the count is of the files found so far, which still grows.
         ImportPhase::Importing if p.finding => Some(JobPhase::new("Importing while finding files", PhaseScale::Count)),
         ImportPhase::Importing => Some(JobPhase::new("Importing", PhaseScale::Count)),

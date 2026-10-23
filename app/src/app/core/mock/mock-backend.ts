@@ -102,7 +102,7 @@ export interface MockBackendOptions {
   longNames?: boolean;
   /** Opening paths is slow and cancellable: each path stands for a folder of files read this many ms apart. */
   slowImportMs?: number;
-  /** With a slow import: finding the files and detecting formats take this many ms per step (five steps each). */
+  /** With a slow import: finding the files takes this many ms per step (five steps each). */
   slowDiscoveryMs?: number;
   /** The clock of every simulated delay, live tick and import step (default: the page's timers). */
   clock?: MockClock;
@@ -1032,8 +1032,6 @@ function importJobPhase(p: ImportProgress): JobPhase | null {
   switch (p.phase) {
     case 'finding':
       return { label: 'Finding files', scale: 'indeterminate' };
-    case 'detecting':
-      return { label: 'Checking files', scale: 'count' };
     case 'importing':
       return { label: 'Importing', scale: 'count' };
     case 'finishing':

@@ -20,14 +20,14 @@ const STARTING: ImportProgress = { running: true, phase: 'finding', done: 0, tot
 
 /**
  * The import phase from the job's one phase (label and scale): an indeterminate count with no total is the
- * folder walk, an indeterminate phase after the total is known is the tail (its label is the step), a count
- * without bytes is the check of each file, and anything else reads the files.
+ * folder walk, an indeterminate phase after the total is known is the tail (its label is the step), and
+ * anything else reads the files.
  */
 function importPhaseOf(p: JobProgress): { phase: ImportPhase; stage?: string } {
   const phase = p.phase;
   if (!phase) return { phase: 'importing' };
   if (phase.scale === 'indeterminate') return (p.total ?? 0) > 0 ? { phase: 'finishing', stage: phase.label } : { phase: 'finding' };
-  return { phase: (p.bytesTotal ?? 0) > 0 ? 'importing' : 'detecting' };
+  return { phase: 'importing' };
 }
 
 /** A running import job's progress (\`debrief://jobs\`) in the shape the widgets show. */

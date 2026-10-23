@@ -2889,7 +2889,7 @@ export function fileExistsPath(error: unknown): string | null {
 }
 
 /** What an import is doing. Before `importing` the totals are not known: `done` counts what was found or looked at so far. */
-export type ImportPhase = 'idle' | 'finding' | 'detecting' | 'importing' | 'finishing';
+export type ImportPhase = 'idle' | 'finding' | 'importing' | 'finishing';
 
 /** Progress of the running (or last) import. */
 export interface ImportProgress {

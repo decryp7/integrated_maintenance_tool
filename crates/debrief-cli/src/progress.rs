@@ -29,7 +29,6 @@ pub fn progress_line(p: &ProgressSnapshot) -> String {
     match p.phase {
         ImportPhase::Idle => String::new(),
         ImportPhase::Finding => format!("Finding files: {} found ({})", p.done, size(p.bytes_total)),
-        ImportPhase::Detecting => format!("Checking files: {} of {}", p.done, p.total),
         ImportPhase::Importing => format!(
             "Importing {} of {} files, {} of {}",
             p.done,

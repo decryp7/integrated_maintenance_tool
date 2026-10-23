@@ -27,7 +27,7 @@ function nonNegativeInt(v: string | null): number | undefined {
  *   ?mockLiveAlertMs=10000    raise a live alert this often (0 = never)
  *   ?mockLongNames=1          the demo files also include very long paths and file names
  *   ?mockSlowImport=600       opening is slow and cancellable: each path is a folder of files read this many ms apart
- *   ?mockSlowDiscovery=2000   with mockSlowImport: finding files and detecting formats take this many ms per step
+ *   ?mockSlowDiscovery=2000   with mockSlowImport: finding files takes this many ms per step
  */
 export function mockOptionsFromSearch(search: string): MockBackendOptions {
   const p = new URLSearchParams(search);

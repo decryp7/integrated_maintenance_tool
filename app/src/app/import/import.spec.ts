@@ -53,10 +53,10 @@ describe('import formatting', () => {
     expect(importStatusText(finding(12_345, GB(3.1)))).toBe('Finding files… 12,345 found (3.1 GB)');
     expect(detailText(finding(1, 1, '/data/logs/2026'))).toBe('in 2026');
     expect(detailText(finding(1, 1))).toBe('');
-    const detecting = p({ phase: 'detecting', done: 4000, total: 12_345, bytesDone: 0, bytesTotal: 5, etaMs: null });
-    expect(importStatusText(detecting)).toBe('Detecting formats… 4,000 of 12,345');
-    expect(percent(detecting)).toBe(32);
-    expect(percent(p({ phase: 'detecting', done: 0, total: 0 }))).toBe(0);
+    // Files are read while the walk goes on: the total is what was found so far and settles when the walk ends.
+    const reading = p({ phase: 'importing', done: 4000, total: 12_345, bytesDone: GB(1), bytesTotal: GB(3), etaMs: null });
+    expect(importStatusText(reading)).toBe('Importing 4,000 of 12,345 files · 1 GB of 3 GB');
+    expect(percent(reading)).toBe(33);
     expect(detailText(p())).toBe('Reading app.log');
     expect(importStatusText(p({ done: 1234, total: 12_345, bytesDone: GB(1.2), bytesTotal: GB(3.1), etaMs: 120_000 }))).toBe('Importing 1,234 of 12,345 files · 1.2 GB of 3.1 GB · about 2 min left');
   });
@@ -64,8 +64,6 @@ describe('import formatting', () => {
   it('reads the phase from the job, and defaults to importing for jobs that do not report one', () => {
     expect(jobImportProgress(importJob(3, { phase: { label: 'Finding files', scale: 'indeterminate' as const }, done: 700, total: 0 })).phase).toBe('finding');
     expect(jobImportProgress(importJob(4, { phase: undefined })).phase).toBe('importing');
-    const counting = { label: 'Checking files', scale: 'count' as const };
-    expect(jobImportProgress(importJob(5, { phase: counting, bytesTotal: 0 })).phase).toBe('detecting');
     expect(jobImportProgress(importJob(6, { phase: { label: 'Importing', scale: 'count' } })).phase).toBe('importing');
   });
 
@@ -179,9 +177,9 @@ describe('ImportProgressService and its widgets', () => {
     expect(text(toast)).toContain('in 2026');
     expect(toast.nativeElement.querySelector('.bar.indeterminate')).not.toBeNull();
     expect(status.nativeElement.querySelector('[role=progressbar]').getAttribute('aria-valuenow')).toBeNull();
-    jobs.apply({ jobs: [importJob(9, { phase: { label: 'Checking files', scale: 'count' as const }, done: 4000, total: 12_345, bytesDone: 0, bytesTotal: 0, current: undefined })], paused: [] });
+    jobs.apply({ jobs: [importJob(9, { phase: { label: 'Importing while finding files', scale: 'count' as const }, done: 4000, bytesDone: 1_000_000, bytesTotal: 3_000_000_000, total: 12_345, current: undefined })], paused: [] });
     toast.detectChanges();
-    expect(text(toast)).toContain('Detecting formats… 4,000 of 12,345');
+    expect(text(toast)).toContain('Importing 4,000 of 12,345 files');
     expect(toast.nativeElement.querySelector('.bar.indeterminate')).toBeNull();
   });
 

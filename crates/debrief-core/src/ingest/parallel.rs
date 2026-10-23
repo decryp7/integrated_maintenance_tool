@@ -166,15 +166,13 @@ pub fn import_files_parallel(
         .thread_name(|i| format!("debrief-parse-{i}"))
         .build();
     // Every file's size and archive entries are needed before the first is read (source ids follow the file
-    // order): looked at on the pool, counted into the progress ("detecting").
-    progress.detecting(files.len());
+    // order): looked at on the pool.
     let look = |(p, _): &(PathBuf, String)| -> (u64, u32) {
         let looked = if progress.is_cancelled() {
             (0, 1)
         } else {
             (std::fs::metadata(p).map_or(0, |m| m.len()), source_slots(p))
         };
-        progress.detected(1);
         looked
     };
     let looked: Vec<(u64, u32)> = match &pool {

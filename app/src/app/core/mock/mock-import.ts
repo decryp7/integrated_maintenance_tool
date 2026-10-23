@@ -40,7 +40,7 @@ export class MockImportSim {
   constructor(
     private readonly msPerFile: number,
     private readonly clock: MockClock = systemMockClock,
-    /** Pretend finding the files and detecting their formats take this many ms per step (0: skipped). */
+    /** Pretend finding the files takes this many ms per step (0: skipped). */
     private readonly discoveryMs = 0,
   ) {}
 
@@ -52,17 +52,12 @@ export class MockImportSim {
     if (this.state.running) this.cancelRequested = true;
   }
 
-  /** The phases before reading: the found count grows step by step, then each file is looked at; Cancel ends either. */
+  /** The phase before reading: the found count grows step by step; Cancel ends it. */
   private async discover(total: number, started: number, onProgress: (p: ImportProgress) => void): Promise<void> {
     const steps = 5;
     const perStep = 1_234;
     for (let i = 1; i <= steps && !this.cancelRequested; i++) {
       this.state = { ...IDLE_PROGRESS, running: true, phase: 'finding', done: i * perStep, bytesTotal: i * perStep * 250_000, current: `/demo/folder-${i}`, elapsedMs: this.clock.now() - started };
-      onProgress(this.progress());
-      await this.clock.sleep(this.discoveryMs);
-    }
-    for (let i = 1; i <= steps && !this.cancelRequested; i++) {
-      this.state = { ...IDLE_PROGRESS, running: true, phase: 'detecting', done: Math.round((i * total) / steps), total, elapsedMs: this.clock.now() - started };
       onProgress(this.progress());
       await this.clock.sleep(this.discoveryMs);
     }

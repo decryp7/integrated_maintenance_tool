@@ -14,7 +14,6 @@ export function fileName(path: string | null): string {
 export function percent(p: ImportProgress): number {
   if (p.phase === 'finding') return 0;
   if (p.phase === 'finishing') return 100;
-  if (p.phase === 'detecting') return p.total > 0 ? Math.min(100, Math.round((p.done / p.total) * 100)) : 0;
   if (p.bytesTotal > 0) return Math.min(100, Math.round((p.bytesDone / p.bytesTotal) * 100));
   if (p.total > 0) return Math.min(100, Math.round((p.done / p.total) * 100));
   return 0;
@@ -27,13 +26,6 @@ export function findingText(p: ImportProgress): string {
   return $localize`:@@import.format.finding:Finding files… ${count}:count: found (${size}:size:)`;
 }
 
-/** "Detecting formats… 4,000 of 12,345" */
-export function detectingText(p: ImportProgress): string {
-  const done = formatCount(p.done);
-  const total = formatCount(p.total);
-  return $localize`:@@import.format.detecting:Detecting formats… ${done}:done: of ${total}:total:`;
-}
-
 /** What the import works on now, for the card: the folder being listed, or the file being read. */
 export function detailText(p: ImportProgress): string {
   const name = fileName(p.current);
@@ -44,7 +36,6 @@ export function detailText(p: ImportProgress): string {
 /** "3 of 12 files · 24 MB of 80 MB · about 12 s left" */
 export function progressLine(p: ImportProgress): string {
   if (p.phase === 'finding') return findingText(p);
-  if (p.phase === 'detecting') return detectingText(p);
   const done = formatCount(p.done);
   const total = formatCount(p.total);
   const parts = [

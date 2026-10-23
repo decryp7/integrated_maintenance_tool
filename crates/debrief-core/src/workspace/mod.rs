@@ -76,8 +76,8 @@ struct ProgressDetail {
     finished_ms: Option<u64>,
 }
 
-/// What an import is doing, in order. Before `Importing` the totals are not known yet: the counters of the
-/// snapshot then count what has been found or checked so far.
+/// What an import is doing, in order: `Finding` (a growing count), `Importing` (files are read while the walk goes
+/// on, `total` is what was found so far and settles when the walk ends), `Finishing`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ImportPhase {
@@ -86,8 +86,6 @@ pub enum ImportPhase {
     Idle,
     /// Walking the folders: `done` files found so far (`total` unknown, 0), `bytes_total` their size, `current` the folder.
     Finding,
-    /// Looking at each file (size, archive entries) to number the sources: `done` of `total` files.
-    Detecting,
     /// Reading the files: `done` of `total` files, `bytes_done` of `bytes_total`.
     Importing,
     /// After the files are read (compacting, indexing, restoring): the snapshot's `stage` names the step.
@@ -98,9 +96,8 @@ impl ImportPhase {
     fn from_u8(n: u8) -> ImportPhase {
         match n {
             1 => ImportPhase::Finding,
-            2 => ImportPhase::Detecting,
-            3 => ImportPhase::Importing,
-            4 => ImportPhase::Finishing,
+            2 => ImportPhase::Importing,
+            3 => ImportPhase::Finishing,
             _ => ImportPhase::Idle,
         }
     }
@@ -281,29 +278,6 @@ impl ImportProgress {
         if let Ok(mut d) = self.detail.try_lock() {
             d.current = Some(folder.to_string_lossy().into_owned());
         }
-    }
-
-    /// Looking at `total` files, none yet.
-    pub(crate) fn detecting(&self, total: usize) {
-        use std::sync::atomic::Ordering::SeqCst;
-        if !self.running.load(SeqCst) {
-            self.cancel.store(false, SeqCst);
-            *self.detail() = ProgressDetail {
-                current: None,
-                stage: None,
-                started: Some(Instant::now()),
-                finished_ms: None,
-            };
-        }
-        self.reset_counts();
-        self.total.store(total, SeqCst);
-        self.detail().current = None;
-        self.phase.store(ImportPhase::Detecting as u8, SeqCst);
-        self.running.store(true, SeqCst);
-    }
-
-    pub(crate) fn detected(&self, files: usize) {
-        self.done.fetch_add(files, std::sync::atomic::Ordering::SeqCst);
     }
 
     /// Reading `total` files of `bytes`. A cancel asked for in an earlier phase stays; a read that did not

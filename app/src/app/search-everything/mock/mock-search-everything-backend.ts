@@ -101,7 +101,7 @@ export class MockSearchEverythingBackend implements SearchEverythingBackend {
     const summary = await this.workspace.workspaceSummary();
     const out: ValueMatch[] = summary.sources
       .filter((s) => squash(s.name).includes(wanted))
-      .map((s) => ({ field: '@source', value: s.name, count: s.records, via: squash(s.name) === wanted ? ('exact' as const) : ('parts' as const) }));
+      .map((s) => ({ field: '@source', value: s.name, count: s.records, via: squash(s.name) === wanted ? ('exact' as const) : ('parts' as const), why: 'the source name holds your words' }));
     return out.slice(0, limit);
   }
 

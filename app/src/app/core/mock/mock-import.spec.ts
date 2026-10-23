@@ -32,7 +32,7 @@ describe('mock import, files and profile history', () => {
       if (p.phase === 'finding') found.push(p.done);
     };
     await sim.run(['/a/1', '/a/2'], () => undefined, seen);
-    expect(phases).toEqual(['finding', 'detecting', 'importing']);
+    expect(phases).toEqual(['finding', 'importing']);
     expect(found.length).toBeGreaterThan(3);
     expect(found.every((n, i) => i === 0 || n > found[i - 1]!)).toBe(true);
     // Cancelled while finding: nothing is read and everything is skipped.
