@@ -26,14 +26,18 @@ describe('real app: query language', () => {
     );
     // The rows are read in one call: a webdriver round trip per row is slow and the rows re-render while it runs.
     // The total drops before the first page of the narrowed result is drawn, so wait for rows with text.
-    const readRows = () =>
-      browser.execute(() => Array.from(document.querySelectorAll('imt-events-grid [role=row].row')).map((r) => r.textContent ?? ''));
-    await browser.waitUntil(async () => (await readRows()).some((t) => t.trim().length > 0), {
-      timeout: 30_000,
-      timeoutMsg: 'the narrowed rows were not drawn',
-    });
-    // Placeholder rows of a page still loading are empty; the loaded ones are what the filter must have narrowed.
-    const levels = (await readRows()).filter((t) => t.trim().length > 0);
+    // Rows are redrawn while the narrowed page loads: take the first reading that has loaded rows, in one call.
+    let levels: string[] = [];
+    await browser.waitUntil(
+      async () => {
+        const texts = await browser.execute(() =>
+          Array.from(document.querySelectorAll('imt-events-grid [role=row].row')).map((r) => r.textContent ?? ''),
+        );
+        levels = texts.filter((t) => t.trim().length > 0);
+        return levels.length > 0;
+      },
+      { timeout: 30_000, timeoutMsg: 'the narrowed rows were not drawn' },
+    );
     expect(levels.length).toBeGreaterThan(0);
     expect(levels[0]).toMatch(/ERR|FTL/);
     for (const text of levels) expect(text).not.toMatch(/\b(INF|WRN|DBG|VRB)\b/);
