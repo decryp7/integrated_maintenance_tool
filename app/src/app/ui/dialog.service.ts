@@ -1,7 +1,8 @@
-import { computed, inject, Injectable, InjectionToken, signal, Type } from '@angular/core';
-import { DialogModality, dialogIdOf } from '../dialog-windows/dialog-def';
+import { computed, inject, Injectable, Injector, InjectionToken, signal, Type } from '@angular/core';
+import { WorkspaceStore } from '../core/workspace.store';
+import { DialogModality, dialogIdOf, instanceKey } from '../dialog-windows/dialog-def';
 import { dialogDef } from '../dialog-windows/dialog-registry';
-import { DialogBackend } from '../dialog-windows/dialog-backend';
+import { DialogPresenter } from '../dialog-windows/dialog-presenter';
 import { DialogSession } from '../dialog-windows/dialog-session';
 import { ModalGate } from '../dialog-windows/modal-gate';
 import { InPageDialogBackend } from '../dialog-windows/in-page-dialog-backend';
@@ -46,11 +47,12 @@ interface NativeConfirm {
  */
 @Injectable({ providedIn: 'root' })
 export class DialogService {
-  private readonly backend = inject(DialogBackend);
+  private readonly backend = inject(DialogPresenter);
   private readonly inPage = inject(InPageDialogBackend);
   private readonly live = new Map<string, DialogRef>();
   private readonly sessions = new Map<string, DialogSession>();
   private readonly gate = inject(ModalGate);
+  private readonly injector = inject(Injector);
   private readonly modalWindows = signal(0);
 
   /** The dialogs shown in the page (`debrief-dialog-host` renders them). */
@@ -62,10 +64,12 @@ export class DialogService {
     if ((component as unknown as NativeConfirm).nativeConfirm && this.backend.windowed && this.backend.confirm) return this.confirm<R>(options);
     const id = dialogIdOf(component);
     const def = id ? dialogDef(id) : undefined;
-    if (def) {
-      const existing = this.live.get(def.id);
+    // One window per dialog id. In the page only modeless dialogs are single (modal ones stack, each blocking the last).
+    const key = def ? (def.instanced ? `${def.id}#${instanceKey(options.inputs ?? {})}` : def.id) : '';
+    if (def && (this.backend.windowed || def.modality === 'modeless')) {
+      const existing = this.sessions.get(key)?.isOpen?.() === false ? undefined : this.live.get(key);
       if (existing) {
-        this.sessions.get(def.id)?.focus();
+        this.sessions.get(key)?.focus();
         return existing as DialogRef<R>;
       }
     }
@@ -76,21 +80,40 @@ export class DialogService {
       inputs: options.inputs ?? {},
       width: options.width ?? def?.width ?? 560,
       canClose: options.canClose,
+      instance: def?.instanced ? key.split('#')[1] : undefined,
     });
     const closed = session.closed.then((r) => r as R | undefined);
     const ref: DialogRef<R> = { closed, close: (r) => session.close(r) };
     if (def) {
-      this.live.set(def.id, ref as DialogRef);
-      this.sessions.set(def.id, session);
+      const single = this.backend.windowed || def.modality === 'modeless';
+      if (single) {
+        this.live.set(key, ref as DialogRef);
+        this.sessions.set(key, session);
+      }
       const blocks = this.backend.windowed && def.modality === 'modal';
       if (blocks) this.block();
       void closed.then(() => {
-        this.live.delete(def.id);
-        this.sessions.delete(def.id);
+        if (single && this.live.get(key) === (ref as DialogRef)) {
+          this.live.delete(key);
+          this.sessions.delete(key);
+        }
         if (blocks) this.unblock();
+        if (this.backend.windowed) this.refreshAfterWindow();
       });
     }
     return ref;
+  }
+
+  /**
+   * A dialog window works on its own stores and the engine; what it changed in the engine (the profile, sources,
+   * parsers) reaches this window by reloading the summary. (Interaction state syncs through `UiSync`.)
+   */
+  private refreshAfterWindow(): void {
+    try {
+      void this.injector.get(WorkspaceStore).refreshSummary().catch(() => undefined);
+    } catch {
+      /* no workspace (a dialog window before it loaded): nothing to refresh */
+    }
   }
 
   private block(): void {

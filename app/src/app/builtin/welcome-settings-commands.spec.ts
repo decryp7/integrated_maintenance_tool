@@ -2,7 +2,6 @@ import { TestBed } from '@angular/core/testing';
 import { provideFakeDock, provideTinyBackend, settle } from '../../testing/helpers';
 import { CommandRegistry } from '../extensions/command-registry';
 import { DialogService } from '../ui/dialog.service';
-import { EngineSettingsStore } from '../settings/engine-settings.store';
 import { WelcomeService } from '../welcome/welcome';
 
 describe('welcome, settings and export commands', () => {
@@ -30,7 +29,8 @@ describe('welcome, settings and export commands', () => {
     await settle();
     await registry.run('settings.diagnostics');
     expect(TestBed.inject(DialogService).stack()[0]?.options.title).toBe('Settings');
-    expect(TestBed.inject(EngineSettingsStore).selected()).toBe('diagnostics');
+    // The section travels to the dialog window as its input.
+    expect(TestBed.inject(DialogService).stack()[0]?.options.inputs).toEqual({ section: 'diagnostics' });
   });
 
   it('opens the export dialog only when exporters exist', async () => {

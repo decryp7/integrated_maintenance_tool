@@ -76,6 +76,9 @@ pub fn is_dialog(label: &str) -> bool {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DialogRequest {
     pub dialog_id: String,
+    /// Tells apart the windows of a dialog that is open once per input (a hash of the input; letters and digits).
+    #[serde(default)]
+    pub instance: Option<String>,
     pub title: String,
     pub modality: Modality,
     /// The typed input of the dialog, handed to its webview through `dialog_take_input`.
@@ -136,6 +139,7 @@ struct Entry {
     host: String,
     parent: String,
     dialog_id: String,
+    instance: Option<String>,
     title: String,
     modality: Modality,
     input: Option<Value>,
@@ -156,10 +160,10 @@ impl Dialogs {
     }
 
     /// The window of `dialog_id` opened by `parent`, if there is one (the parent is the one waiting for the answer).
-    fn find(&self, parent: &str, dialog_id: &str) -> Option<String> {
+    fn find(&self, parent: &str, dialog_id: &str, instance: Option<&str>) -> Option<String> {
         self.lock()
             .iter()
-            .find(|(_, e)| e.parent == parent && e.dialog_id == dialog_id)
+            .find(|(_, e)| e.parent == parent && e.dialog_id == dialog_id && e.instance.as_deref() == instance)
             .map(|(l, _)| l.clone())
     }
 
@@ -224,6 +228,12 @@ pub fn validate(r: &DialogRequest) -> anyhow::Result<()> {
     if !valid_view_id(&r.dialog_id) {
         anyhow::bail!("not a dialog id: {:?}", r.dialog_id.chars().take(64).collect::<String>());
     }
+    if r.instance
+        .as_ref()
+        .is_some_and(|i| i.is_empty() || i.len() > 16 || !i.bytes().all(|b| b.is_ascii_alphanumeric()))
+    {
+        anyhow::bail!("not an instance key");
+    }
     if r.input.as_ref().is_some_and(|i| i.to_string().len() > MAX_INPUT_BYTES) {
         anyhow::bail!("the dialog input is larger than {MAX_INPUT_BYTES} bytes");
     }
@@ -258,7 +268,7 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, caller: &str, request: DialogRequest
     let dialogs = app
         .try_state::<Dialogs>()
         .ok_or_else(|| anyhow::anyhow!("Debrief is not ready yet"))?;
-    if let Some(existing) = dialogs.find(caller, &request.dialog_id) {
+    if let Some(existing) = dialogs.find(caller, &request.dialog_id, request.instance.as_deref()) {
         if let Some(w) = app.get_window(&existing) {
             let _ = w.unminimize();
             let _ = w.set_focus();
@@ -278,6 +288,7 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, caller: &str, request: DialogRequest
         host: host.clone(),
         parent: parent_window.label().to_string(),
         dialog_id: request.dialog_id.clone(),
+        instance: request.instance.clone(),
         title: title.clone(),
         modality: request.modality,
         input: request.input.clone(),
@@ -521,6 +532,7 @@ mod tests {
     fn request(id: &str, modality: Modality) -> DialogRequest {
         DialogRequest {
             dialog_id: id.into(),
+            instance: None,
             title: "Set up the AI assistant".into(),
             modality,
             input: Some(serde_json::json!({ "modelId": "m1" })),
@@ -576,6 +588,11 @@ mod tests {
         let mut big = request("ai-setup", Modality::Modal);
         big.input = Some(Value::String("x".repeat(MAX_INPUT_BYTES + 1)));
         assert!(validate(&big).unwrap_err().to_string().contains("larger"));
+        for bad in ["", "a b", "../x", &"x".repeat(17)] {
+            let mut r = request("a", Modality::Modal);
+            r.instance = Some(bad.to_string());
+            assert!(validate(&r).is_err(), "{bad}");
+        }
         let mut r = request("a", Modality::Modal);
         r.width = Some(f64::NAN);
         r.height = Some(1e9);
@@ -613,11 +630,15 @@ mod tests {
         let first = open(&h, MAIN, request("ai-setup", Modality::Modeless)).unwrap();
         assert_eq!((first.label.as_str(), first.existing), ("d-main-1", false));
         assert!(h.get_webview_window("d-main-1").is_some());
+        let mut other = request("ai-setup", Modality::Modeless);
+        other.instance = Some("abc1".into());
+        assert!(!open(&h, MAIN, other.clone()).unwrap().existing, "another input is another window");
+        assert!(open(&h, MAIN, other).unwrap().existing);
         let again = open(&h, MAIN, request("ai-setup", Modality::Modeless)).unwrap();
         assert_eq!((again.label.as_str(), again.existing), ("d-main-1", true));
         // A second dialog is a second window; a dialog can open another one for the same host.
         let nested = open(&h, "d-main-1", request("confirm-x", Modality::Modal)).unwrap();
-        assert_eq!(nested.label, "d-main-2");
+        assert_eq!(nested.label, "d-main-3");
         let start = crate::test_support::Now::now(dialog_take_input(h.clone(), window(&app, "d-main-1").as_ref().window()));
         assert_eq!(start.unwrap().input, Some(serde_json::json!({ "modelId": "m1" })));
         assert!(crate::test_support::Now::now(dialog_take_input(h.clone(), window(&app, MAIN).as_ref().window())).is_err());

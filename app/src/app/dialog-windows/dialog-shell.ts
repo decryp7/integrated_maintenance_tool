@@ -24,7 +24,7 @@ import { DIALOG_REF, DialogRef } from '../ui/dialog.service';
 import { DialogComponent, DialogModality } from './dialog-def';
 import { DIALOG_CLOSE_REQUESTED_EVENT, DIALOG_IO } from './dialog-io';
 import { dialogKeyAction, findDefaultAction } from './dialog-keys';
-import { dialogDef } from './dialog-registry';
+import { DIALOG_LOOKUP } from './dialog-registry';
 import { DIALOG_ROUTE } from './dialog-route';
 
 /** The dialog window starts syncing once its workspace loaded, or after this long anyway. */
@@ -63,6 +63,7 @@ const SYNC_START_TIMEOUT_MS = 5000;
 export class DialogShell {
   private readonly route = inject(DIALOG_ROUTE)!;
   private readonly io = inject(DIALOG_IO);
+  private readonly lookup = inject(DIALOG_LOOKUP);
   private readonly injector = inject(Injector);
   private readonly logger = inject(Logger);
   private readonly sync = inject(UiSync);
@@ -93,7 +94,7 @@ export class DialogShell {
 
   private async init(): Promise<void> {
     try {
-      const def = dialogDef(this.route.id);
+      const def = this.lookup(this.route.id);
       if (!def) throw new Error($localize`:@@dialogWindow.unknown:This dialog is not known to this version of Debrief: ${this.route.id}:id:`);
       const [start, component] = await Promise.all([this.io.take(), def.load()]);
       this.title.set(start.title);

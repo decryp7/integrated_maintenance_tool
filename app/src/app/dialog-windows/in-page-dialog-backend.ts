@@ -1,6 +1,6 @@
 import { inject, Injectable, Injector, signal } from '@angular/core';
 import { DialogRef, OpenDialog } from '../ui/dialog.service';
-import type { DialogBackend } from './dialog-backend';
+import type { DialogPresenter } from './dialog-presenter';
 import { ConfirmQuestion, DialogSession, DialogShowRequest } from './dialog-session';
 import { DialogComponent } from './dialog-def';
 
@@ -12,7 +12,7 @@ let nextId = 1;
  * floating panel that leaves the page usable.
  */
 @Injectable({ providedIn: 'root' })
-export class InPageDialogBackend implements DialogBackend {
+export class InPageDialogBackend implements DialogPresenter {
   private readonly injector = inject(Injector);
   readonly stack = signal<readonly OpenDialog[]>([]);
   readonly windowed = false;
@@ -32,6 +32,6 @@ export class InPageDialogBackend implements DialogBackend {
     const ref: DialogRef = { closed, close };
     const options = { title: request.title, inputs: request.inputs, width: request.width };
     this.stack.update((s) => [...s, { id, component: request.component, options, ref, modality: request.def?.modality ?? 'modal' }]);
-    return { closed, close, focus: () => this.stack.update((s) => [...s.filter((d) => d.id !== id), ...s.filter((d) => d.id === id)]) };
+    return { closed, close, isOpen: () => this.stack().some((d) => d.id === id), focus: () => this.stack.update((s) => [...s.filter((d) => d.id !== id), ...s.filter((d) => d.id === id)]) };
   }
 }

@@ -16,6 +16,11 @@ export interface DialogDef {
   readonly height?: number;
   readonly minWidth?: number;
   readonly minHeight?: number;
+  /**
+   * Each distinct input is its own dialog (a clock adjustment per source, a narrative per event): opening the same
+   * id with the same input focuses it, with another input opens another window. Without it, one window per id.
+   */
+  readonly instanced?: boolean;
   /** The content component, loaded when the dialog window opens (the host never loads it). */
   readonly load: () => Promise<Type<unknown>>;
 }
@@ -31,4 +36,14 @@ export interface DialogComponent {
 export function dialogIdOf(component: Type<unknown>): string | undefined {
   const id = (component as unknown as DialogComponent).dialogId;
   return typeof id === 'string' && id ? id : undefined;
+}
+
+/** A short stable key of an input value (FNV-1a over its JSON): the identity of an instanced dialog. */
+export function instanceKey(inputs: unknown): string {
+  let h = 0x811c9dc5;
+  for (const ch of JSON.stringify(inputs) ?? '') {
+    h ^= ch.charCodeAt(0);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(36);
 }

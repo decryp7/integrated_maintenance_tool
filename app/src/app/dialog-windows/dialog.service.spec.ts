@@ -5,7 +5,7 @@ import { DEBRIEF_COMMANDS } from '../extensions/tokens';
 import { provideTinyBackendBare } from '../../testing/helpers';
 import { DIALOG_REF, DialogService } from '../ui/dialog.service';
 import { ConfirmDialog } from '../ui/confirm-dialog';
-import { DialogBackend } from './dialog-backend';
+import { DialogPresenter } from './dialog-presenter';
 import { ConfirmQuestion, DialogSession, DialogShowRequest } from './dialog-session';
 import { InPageDialogBackend } from './in-page-dialog-backend';
 import { ModalGate } from './modal-gate';
@@ -23,7 +23,7 @@ class ModelessX {
 class OverlayX {}
 
 /** A windowed backend that records what it was asked to show; each session is resolved by the test. */
-class FakeWindows implements DialogBackend {
+class FakeWindows implements DialogPresenter {
   readonly windowed = true;
   readonly shown: DialogShowRequest[] = [];
   readonly sessions: { resolve: (r?: unknown) => void; focused: number; closes: unknown[] }[] = [];
@@ -47,7 +47,7 @@ describe('DialogService with windows', () => {
   let windows: FakeWindows;
   beforeEach(() => {
     windows = new FakeWindows();
-    TestBed.configureTestingModule({ providers: [{ provide: DialogBackend, useValue: windows }] });
+    TestBed.configureTestingModule({ providers: [{ provide: DialogPresenter, useValue: windows }] });
   });
 
   it('passes the typed inputs and the registered size to the backend and returns the result', async () => {

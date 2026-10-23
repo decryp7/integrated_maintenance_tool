@@ -1,5 +1,6 @@
 import { NgComponentOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, effect, ElementRef, inject, Injector, untracked, viewChildren } from '@angular/core';
+import { dialogIdOf } from '../dialog-windows/dialog-def';
 import { Icon } from '../shared/icon';
 import { DIALOG_REF, DialogService, OpenDialog } from './dialog.service';
 
@@ -23,7 +24,7 @@ const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select
         [class.modeless]="d.modality === 'modeless'"
         role="dialog"
         [attr.data-modality]="d.modality"
-        [attr.data-dialog]="d.component['dialogId'] ?? null"
+        [attr.data-dialog]="idOf(d)"
         [attr.aria-modal]="d.modality === 'modal'"
         [attr.aria-labelledby]="'debrief-dialog-title-' + d.id"
         [style.width.px]="d.options.width ?? 560"
@@ -72,6 +73,10 @@ export class DialogHost {
         void boxes;
       });
     });
+  }
+
+  protected idOf(d: OpenDialog): string | null {
+    return dialogIdOf(d.component) ?? null;
   }
 
   protected onEscape(e: Event): void {

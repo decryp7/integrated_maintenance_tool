@@ -1,3 +1,4 @@
+import { InjectionToken } from '@angular/core';
 import { DialogDef } from './dialog-def';
 /**
  * Every dialog of Debrief (ADR 0050): id, modality and the lazy import of its content. A dialog component
@@ -15,7 +16,7 @@ export const DIALOG_DEFS: readonly DialogDef[] = [
   { id: 'cheat-sheet', modality: 'modeless', width: 640, load: () => import('../help/cheat-sheet').then((m) => m.CheatSheet) },
   { id: 'package-review', modality: 'modal', width: 600, load: () => import('../plugins-panel/package-review-dialog').then((m) => m.PackageReviewDialog) },
   { id: 'plugin-permissions', modality: 'modal', width: 560, load: () => import('../plugins-panel/plugin-permissions-dialog').then((m) => m.PluginPermissionsDialog) },
-  { id: 'clock', modality: 'modeless', width: 560, load: () => import('../skew/clock-dialog').then((m) => m.ClockDialog) },
+  { id: 'clock', modality: 'modeless', width: 560, instanced: true, load: () => import('../skew/clock-dialog').then((m) => m.ClockDialog) },
   { id: 'collector', modality: 'modeless', width: 760, load: () => import('../tools/collector/collector-dialog').then((m) => m.CollectorDialog) },
   { id: 'drop', modality: 'modal', width: 640, load: () => import('../context/drop-dialog').then((m) => m.DropDialog) },
   { id: 'mark', modality: 'modal', width: 760, load: () => import('../context/mark-dialog').then((m) => m.MarkDialog) },
@@ -34,14 +35,14 @@ export const DIALOG_DEFS: readonly DialogDef[] = [
   { id: 'ai-setup', modality: 'modeless', width: 760, height: 640, load: () => import('../ai/setup/setup-wizard').then((m) => m.AiSetupWizard) },
   { id: 'ai-models', modality: 'modeless', width: 820, height: 640, load: () => import('../ai/models/model-manager').then((m) => m.AiModelManager) },
   { id: 'ai-query', modality: 'modeless', width: 640, load: () => import('../ai/dialogs/query-dialog').then((m) => m.AiQueryDialog) },
-  { id: 'ai-narrative', modality: 'modeless', width: 680, load: () => import('../ai/dialogs/narrative-dialog').then((m) => m.AiNarrativeDialog) },
-  { id: 'ai-proposal-result', modality: 'modeless', width: 760, load: () => import('../ai/dialogs/proposal-result-dialog').then((m) => m.AiProposalResultDialog) },
-  { id: 'ai-regex', modality: 'modeless', width: 640, load: () => import('../ai/dialogs/regex-dialog').then((m) => m.AiRegexDialog) },
-  { id: 'ai-propose', modality: 'modeless', width: 760, load: () => import('../ai/dialogs/propose-dialog').then((m) => m.AiProposeDialog) },
+  { id: 'ai-narrative', modality: 'modeless', width: 680, instanced: true, load: () => import('../ai/dialogs/narrative-dialog').then((m) => m.AiNarrativeDialog) },
+  { id: 'ai-proposal-result', modality: 'modeless', width: 760, instanced: true, load: () => import('../ai/dialogs/proposal-result-dialog').then((m) => m.AiProposalResultDialog) },
+  { id: 'ai-regex', modality: 'modeless', width: 640, instanced: true, load: () => import('../ai/dialogs/regex-dialog').then((m) => m.AiRegexDialog) },
+  { id: 'ai-propose', modality: 'modeless', width: 760, instanced: true, load: () => import('../ai/dialogs/propose-dialog').then((m) => m.AiProposeDialog) },
   { id: 'folder-setup', modality: 'modeless', width: 720, load: () => import('../ai/folder-setup/folder-setup-wizard').then((m) => m.FolderSetupWizard) },
   { id: 'knowledge-editor', modality: 'modal', width: 720, load: () => import('../ai/knowledge/knowledge-editor').then((m) => m.KnowledgeEditor) },
   { id: 'profile-native', modality: 'modeless', width: 720, load: () => import('../profiling/native/native-dialog').then((m) => m.NativeDialog) },
-  { id: 'profile-etl', modality: 'modeless', width: 600, load: () => import('../profiling/native/etl-dialog').then((m) => m.EtlDialog) },
+  { id: 'profile-etl', modality: 'modeless', width: 600, instanced: true, load: () => import('../profiling/native/etl-dialog').then((m) => m.EtlDialog) },
   { id: 'profile-dotnet', modality: 'modeless', width: 720, load: () => import('../profiling/dotnet/dotnet-dialog').then((m) => m.DotnetDialog) },
   { id: 'report-problem', modality: 'modeless', width: 680, load: () => import('../diagnostics/report-problem-dialog').then((m) => m.ReportProblemDialog) },
   { id: 'alert-rules', modality: 'modeless', width: 760, load: () => import('../live/alert-rules-editor').then((m) => m.AlertRulesEditor) },
@@ -64,3 +65,6 @@ const BY_ID = new Map(DIALOG_DEFS.map((d) => [d.id, d]));
 export function dialogDef(id: string): DialogDef | undefined {
   return BY_ID.get(id);
 }
+
+/** Where the dialog shell finds definitions (tests provide their own). */
+export const DIALOG_LOOKUP = new InjectionToken<(id: string) => DialogDef | undefined>('DIALOG_LOOKUP', { providedIn: 'root', factory: () => dialogDef });

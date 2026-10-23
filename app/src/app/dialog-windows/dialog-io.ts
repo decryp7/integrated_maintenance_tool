@@ -8,6 +8,7 @@ import { ConfirmQuestion } from './dialog-session';
 /** Wire contract of the dialog commands (camelCase JSON), mirroring `app/src-tauri/src/dialog_windows.rs`. */
 export interface DialogOpenRequest {
   dialogId: string;
+  instance?: string;
   title: string;
   modality: 'modal' | 'modeless';
   input?: unknown;

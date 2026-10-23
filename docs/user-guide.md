@@ -92,6 +92,31 @@ selected, the time ranges you zoomed to and the views you brought forward. `Ctrl
 Drag an event row onto the Notes panel to write a note on it. In a narrow window the Explorer closes by itself and
 the filter bar folds the time range and time zone into a ⋯ menu.
 
+## Dialogs are windows
+
+Every dialog in Debrief (Settings, the AI set-up and model manager, What's new, About, Export, Share a redacted copy,
+pickers such as the time range or the text encoding, ...) opens as a window of its own, with the operating system's title
+bar, owned by the Debrief window you opened it from and centred on it. Drag it to another monitor, resize it: Debrief
+remembers the size and place of each dialog. Yes/no questions ("Delete this source?") use the system's message box.
+
+Two kinds:
+
+- **Dialogs you must answer** (confirmations, unsaved changes, pickers that feed the next step, plugin permissions) are
+  *modal*: the Debrief window behind them is dimmed and does not react until you answer, and the dialog stays above it.
+- **Tools you keep beside the work** (Settings, AI set-up and models, What's new, About, Export, Report a problem, ...) are
+  *modeless*: the Debrief window stays usable, and opening the same dialog again brings the open window to the front. The
+  first-start AI set-up is one of these, so you can look around while the model downloads.
+
+![A modeless dialog beside the work](screenshots/dialog-modeless.png)
+
+![A modal dialog over a dimmed window](screenshots/dialog-modal.png)
+
+The screenshots come from the browser build, which draws the same dialogs inside the page; on the desktop each is a real window.
+
+`Esc` and `Cmd+W` / `Ctrl+W` close a dialog window (Settings asks first when edits are unapplied), `Enter` runs its default
+button, and focus returns to the window you came from. The command palette and the Search everything list, menus,
+drop-downs and tooltips are not dialogs; they stay inside the window.
+
 ## Projects
 
 *Save project* (`Ctrl/⌘+S`) writes the window's store as one `.debriefz` file: the imported events, the profile, filters,

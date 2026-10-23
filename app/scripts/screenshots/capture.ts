@@ -154,6 +154,19 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
   });
   await page.keyboard.press('Escape');
 
+  // Dialogs are OS windows on the desktop (ADR 0050); the browser build shows the same dialogs in the page: a modeless
+  // tool beside the work, and a modal question with the page dimmed behind it.
+  await shot(page, 'dialog-modeless', async () => {
+    await need(page, 'About Debrief');
+    await expect(page.getByRole('dialog', { name: 'About Debrief' })).toHaveAttribute('data-modality', 'modeless');
+  });
+  await page.keyboard.press('Escape');
+  await shot(page, 'dialog-modal', async () => {
+    await need(page, 'Paste as log');
+    await expect(page.getByRole('dialog', { name: 'Paste as log' })).toHaveAttribute('data-modality', 'modal');
+  });
+  await page.keyboard.press('Escape');
+
   await shot(page, 'timeline-zoom', async () => {
     const zoomIn = page.getByRole('button', { name: 'Zoom in' });
     for (let i = 0; i < 3; i++) await zoomIn.click();

@@ -13,7 +13,7 @@ import {
   DialogOpenRequest,
   DialogResultEvent,
 } from './dialog-io';
-import type { DialogBackend } from './dialog-backend';
+import type { DialogPresenter } from './dialog-presenter';
 import { InPageDialogBackend } from './in-page-dialog-backend';
 import { ConfirmQuestion, DialogSession, DialogShowRequest } from './dialog-session';
 
@@ -46,7 +46,7 @@ interface Pending {
  * a window cannot be opened the dialog is shown in the page instead (degrade, don't fail).
  */
 @Injectable({ providedIn: 'root' })
-export class TauriDialogBackend implements DialogBackend {
+export class TauriDialogBackend implements DialogPresenter {
   private readonly io = inject(DIALOG_IO);
   private readonly inPage = inject(InPageDialogBackend);
   private readonly labels = inject(DialogLabels);
@@ -68,6 +68,7 @@ export class TauriDialogBackend implements DialogBackend {
       const remembered = loadDialogBounds()[def.id];
       return {
         dialogId: def.id,
+        instance: request.instance,
         title: request.title,
         modality: def.modality,
         input: request.inputs,
