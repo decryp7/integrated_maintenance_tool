@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="500" viewBox="0 0 1600 500" role="img" aria-labelledby="t d">
+<title id="t">How Debrief works</title><desc id="d">Open, then Search and filter, then Analyse, then Share. Pitcrew opens its job logs in Debrief. Sighter run bundles and Pitwall explanations come after version 1.</desc>
+<style>
+:root{--ink:#14161A;--muted:#566070;--card:#FFFFFF;--line:#DDE1E8;--soft:#F1F3F7;--bar:#ECEEF2;--link:#8A93A3;--codebg:#F7F8FA;--acc:#1D5FD1;--acct:#1D5FD1;--accf:#2F6FE0;--glow:.20;--shadow:.22;--wbg:#FFFFFF}
+@media (prefers-color-scheme: dark){:root{--ink:#F2F4F7;--muted:#A6AEBC;--card:#171A20;--line:#2B303A;--soft:#1B1E24;--bar:#20242C;--link:#667085;--codebg:#12151A;--acc:#5B9BFF;--acct:#5B9BFF;--glow:.26;--shadow:.55;--wbg:#0E0F12}}
+text{font-family:-apple-system,"SF Pro Display","SF Pro Text","Segoe UI Variable Display","Segoe UI",Cantarell,"Noto Sans",system-ui,sans-serif;font-variant-numeric:tabular-nums;fill:var(--ink)}
+.lt{display:inline}.dk{display:none}
+@media (prefers-color-scheme: dark){.lt{display:none}.dk{display:inline}}
+.eyebrow{font-size:15px;font-weight:600;letter-spacing:.14em;fill:var(--acct)}
+.h1{font-size:56px;font-weight:600;letter-spacing:-.025em}
+.h2{font-size:42px;font-weight:600;letter-spacing:-.02em}
+.sub{font-size:22px;fill:var(--muted)}
+.small{font-size:20px;fill:var(--muted)}
+.pilltxt{font-size:17px;font-weight:600;fill:var(--acct)}
+.name{font-size:26px;font-weight:600;letter-spacing:-.01em}
+.card{fill:var(--card);stroke:var(--line)}
+.ph{fill:var(--soft);stroke:var(--link);stroke-width:1.5;stroke-dasharray:5 4}
+.mono{font-weight:600;fill:var(--muted)}
+.track{fill:none;stroke:var(--line);stroke-width:1.25;opacity:.8}
+.gl{fill:none;stroke:var(--acct);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.accfill{fill:var(--acc);fill-opacity:.13}.accline{fill:var(--acc)}
+.ptitle{font-size:29px;font-weight:600;letter-spacing:-.01em}
+.pbody{font-size:21px;fill:var(--muted)}
+.stepn{font-size:16px;font-weight:600;letter-spacing:.1em;fill:var(--muted)}
+.stept{font-size:26px;font-weight:600}
+.steps{font-size:21px;fill:var(--muted)}
+.conn{fill:none;stroke:var(--link);stroke-width:1.5;stroke-linecap:round;stroke-dasharray:1 7}
+.chev{fill:none;stroke:var(--link);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.wtit{font-size:17px;font-weight:600;letter-spacing:.14em;fill:var(--muted)}
+.wname{font-size:22px;font-weight:600}.wnote{font-size:20px;fill:var(--muted)}
+.wbar{fill:var(--bar)}.wedge{fill:none;stroke:var(--line)}
+.mbg{fill:var(--soft)}.mc{fill:var(--card);stroke:var(--line)}.mside{fill:var(--bar)}.mrule{fill:var(--line)}.ms{fill:var(--line)}
+.mfield{fill:var(--soft);stroke:var(--line)}.mact{fill:var(--acc);fill-opacity:.14}.maccf{fill:var(--accf)}.mbox{fill:var(--acc);fill-opacity:.12;stroke:var(--acc);stroke-width:2}
+.mt{font-size:14px;font-weight:500;fill:var(--ink)}.mm{font-size:13px;fill:var(--muted)}.mta{font-size:13px;font-weight:600;fill:var(--acct)}.mtw{font-size:12.5px;font-weight:600;fill:#fff}.mh{font-size:20px;font-weight:600;fill:var(--ink)}
+.medge{fill:none;stroke:var(--link);stroke-width:1.5}.mcode{fill:var(--codebg);stroke:var(--line)}.mmono{font:13px ui-monospace,"SF Mono",Menlo,Consolas,monospace;fill:var(--ink)}.mmonoa{font:600 13px ui-monospace,"SF Mono",Menlo,Consolas,monospace;fill:var(--acct)}
+.madd{fill:#2EA043;fill-opacity:.18}.mdel{fill:#F85149;fill-opacity:.16}.mrec{fill:#E5484D}
+</style><svg x="80" y="40" width="40" height="40" viewBox="60 60 904 904" overflow="visible">
+  
+  <defs>
+    <linearGradient id="d0bg" x1="0" y1="100" x2="0" y2="924" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5590FF"/><stop offset="0.55" stop-color="#2E6BF0"/><stop offset="1" stop-color="#1D4FD3"/>
+    </linearGradient>
+    <radialGradient id="d0sheen" cx="330.72" cy="100" r="700.4" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="d0edge" x1="0" y1="100" x2="0" y2="924" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.4"/><stop offset="0.3" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="0.75" stop-color="#000000" stop-opacity="0"/><stop offset="1" stop-color="#000000" stop-opacity="0.18"/>
+    </linearGradient>
+    <clipPath id="d0clip"><path d="M383.41 100H640.59C722.19 100 763 100 806.92 113.89C854.88 131.34 892.66 169.12 910.11 217.08C924 261 924 301.81 924 383.41V640.59C924 722.19 924 763 910.11 806.92C892.66 854.88 854.88 892.66 806.92 910.11C763 924 722.19 924 640.59 924H383.41C301.81 924 261 924 217.08 910.11C169.12 892.66 131.34 854.88 113.89 806.92C100 763 100 722.19 100 640.59V383.41C100 301.81 100 261 113.89 217.08C131.34 169.12 169.12 131.34 217.08 113.89C261 100 301.81 100 383.41 100Z"/></clipPath>
+    <filter id="d0gs" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#10308A" flood-opacity="0.32"/></filter>
+    <filter id="d0ts" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity="0.28"/></filter>
+    
+  </defs>
+  <path d="M383.41 100H640.59C722.19 100 763 100 806.92 113.89C854.88 131.34 892.66 169.12 910.11 217.08C924 261 924 301.81 924 383.41V640.59C924 722.19 924 763 910.11 806.92C892.66 854.88 854.88 892.66 806.92 910.11C763 924 722.19 924 640.59 924H383.41C301.81 924 261 924 217.08 910.11C169.12 892.66 131.34 854.88 113.89 806.92C100 763 100 722.19 100 640.59V383.41C100 301.81 100 261 113.89 217.08C131.34 169.12 169.12 131.34 217.08 113.89C261 100 301.81 100 383.41 100Z" fill="url(#d0bg)" filter="url(#d0ts)"/>
+  <g clip-path="url(#d0clip)">
+    <path d="M60 907.52L907.52 60L1022.8800000000001 60L60 1022.8800000000001Z" fill="#FFFFFF" opacity="0.08"/>
+    <path d="M60 1080.56L1080.56 60L1113.52 60L60 1113.52Z" fill="#FFFFFF" opacity="0.08800000000000001"/>
+    <rect x="100" y="100" width="824" height="824" fill="url(#d0sheen)"/>
+    <path d="M383.41 100H640.59C722.19 100 763 100 806.92 113.89C854.88 131.34 892.66 169.12 910.11 217.08C924 261 924 301.81 924 383.41V640.59C924 722.19 924 763 910.11 806.92C892.66 854.88 854.88 892.66 806.92 910.11C763 924 722.19 924 640.59 924H383.41C301.81 924 261 924 217.08 910.11C169.12 892.66 131.34 854.88 113.89 806.92C100 763 100 722.19 100 640.59V383.41C100 301.81 100 261 113.89 217.08C131.34 169.12 169.12 131.34 217.08 113.89C261 100 301.81 100 383.41 100Z" fill="none" stroke="url(#d0edge)" stroke-width="6"/>
+    
+  </g>
+  <g filter="url(#d0gs)" transform="translate(512 512) scale(1) translate(-512 -512)"><g opacity="0.6"><path d="M300 340H600" fill="none" stroke="#FFFFFF" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/><path d="M300 684H552" fill="none" stroke="#FFFFFF" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/></g><path d="M300 512H426L480 424L568 604L620 512H724" fill="none" stroke="#FFFFFF" stroke-width="68" stroke-linecap="round" stroke-linejoin="round"/><path d="M668 340a46 46 0 1 1 92 0a46 46 0 1 1 -92 0Z" fill="#FFFFFF"/></g>
+</svg><text class="name" x="132" y="68" style="font-size:28px">How Debrief works</text>
+<circle class="accfill" cx="260" cy="188" r="44"/><g class="gl" transform="translate(242 170) scale(1.5)"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></g><path class="conn" d="M318 188 L554 188"/><path class="chev" d="M548 182 l7 6 -7 6"/><text class="stepn" x="260" y="272" text-anchor="middle">STEP 1</text><text class="stept" x="260" y="302" text-anchor="middle">Open</text><text class="steps" x="260" y="330" text-anchor="middle">Logs, zips and diagnostic</text><text class="steps" x="260" y="358" text-anchor="middle">files, or a time range of</text><text class="steps" x="260" y="386" text-anchor="middle">a huge folder.</text>
+<circle class="accfill" cx="620" cy="188" r="44"/><g class="gl" transform="translate(602 170) scale(1.5)"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></g><path class="conn" d="M678 188 L914 188"/><path class="chev" d="M908 182 l7 6 -7 6"/><text class="stepn" x="620" y="272" text-anchor="middle">STEP 2</text><text class="stept" x="620" y="302" text-anchor="middle">Search and filter</text><text class="steps" x="620" y="330" text-anchor="middle">Facets, lenses and a</text><text class="steps" x="620" y="358" text-anchor="middle">query language.</text>
+<circle class="accfill" cx="980" cy="188" r="44"/><g class="gl" transform="translate(962 170) scale(1.5)"><path d="M3 12h4l2-6 4 12 2-6h6"/></g><path class="conn" d="M1038 188 L1274 188"/><path class="chev" d="M1268 182 l7 6 -7 6"/><text class="stepn" x="980" y="272" text-anchor="middle">STEP 3</text><text class="stept" x="980" y="302" text-anchor="middle">Analyse</text><text class="steps" x="980" y="330" text-anchor="middle">Anomalies, patterns,</text><text class="steps" x="980" y="358" text-anchor="middle">exceptions and error</text><text class="steps" x="980" y="386" text-anchor="middle">outliers.</text>
+<circle class="accfill" cx="1340" cy="188" r="44"/><g class="gl" transform="translate(1322 170) scale(1.5)"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></g><text class="stepn" x="1340" y="272" text-anchor="middle">STEP 4</text><text class="stept" x="1340" y="302" text-anchor="middle">Share</text><text class="steps" x="1340" y="330" text-anchor="middle">Incident reports and</text><text class="steps" x="1340" y="358" text-anchor="middle">redacted copies.</text>
+<line x1="80" x2="1520" y1="434" y2="434" stroke="var(--line)"/>
+<text class="small" x="80" y="472">Pitcrew opens its job logs in Debrief. Sighter run bundles and Pitwall explanations come after version 1.</text>
+</svg>

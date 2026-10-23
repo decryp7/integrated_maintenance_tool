@@ -1,6 +1,6 @@
 # Debrief usability audit (2026-10-22)
 
-> A point-in-time record. Findings from it were acted on the same day (perspectives and view areas in [ADR 0035](../adr/0035-view-areas-and-perspectives.md), Home in place of Overview, one search field, the Plugins view with a Health tab); its text and screenshots describe the UI as audited, including the Overview, the Query panel, Plugin health and the Focused/Full layouts that no longer exist.
+> A point-in-time record. Findings from it were acted on the same day (perspectives and view areas in [ADR 0035](../adr/0035-view-areas-and-perspectives.md), Home in place of Overview, one search field, the Plugins view with a Health tab); its text and screenshots describe the UI as audited, including the Overview, the Query panel, Plugin health and the Focused/Full layouts that no longer exist. The screenshots were taken under the product's former name, IMT, and are kept unchanged as part of the record.
 
 A walk through the whole UI of the browser build (`npm start`, mock backend) on `feature/log-analysis-ide`
 (`eafca99`), driven by Playwright (Chromium, 1440×900 unless stated) with axe-core (WCAG 2.2 A/AA) on every

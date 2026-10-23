@@ -12,7 +12,7 @@ profile, and it never leaves your machine.
 
 </div>
 
-![Debrief main workspace: instance timeline with lifecycle markers, events grid, facets sidebar and inspector](docs/screenshots/workspace.png)
+![Debrief: make sense of any log file](docs/images/debrief-hero.svg?v=57e71272)
 
 ## At a glance
 
@@ -43,18 +43,25 @@ scale to that. Debrief is built for exactly this job:
 
 ## Key features
 
+![Debrief features: a timeline per instance, pattern trends, error outliers and range comparison](docs/images/debrief-features.svg?v=9c26a5b7)
+
 Every feature, with screenshots, is in [docs/features.md](docs/features.md).
 
 - **Timeline per instance.** One lane per process on a shared time axis, with lifecycle markers and drag-to-zoom ([details](docs/features.md#timeline-per-instance-with-lifecycle-markers)).
 - **Events grid.** A virtualised grid with an inspector for every property ([grid](docs/features.md#events-grid-with-virtualisation), [inspector](docs/features.md#inspector)).
 - **Home and search.** A dashboard of everything opened with a health check, a timeline minimap, and *Search everything* across events, sources, fields, notes and knowledge ([Home](docs/features.md#easy-to-start-hard-to-get-wrong), [search](docs/features.md#filters-facets-and-the-query-language)).
 - **Filters and query language.** Facets, chips and a pipe query language with `stats` ([details](docs/features.md#filters-facets-and-the-query-language)).
-- **Many formats, extensible by plugins.** Detected from content; add more with profiles or Rust plugins that run out of process in a sandbox, shipped as signed `.debriefplugin` packages ([details](docs/features.md#many-formats-extensible-by-plugins), [SDK](docs/plugin-sdk.md)).
+- **Many formats, extensible by plugins.** Detected from content; add more with profiles or Rust plugins that run out of process in a sandbox, shipped as signed `.debriefplugin` packages and managed in one Plugins table ([details](docs/features.md#many-formats-extensible-by-plugins), [SDK](docs/plugin-sdk.md)).
 - **Profiles and pipelines.** Extractors, cleanup steps, markers and badges in editable TOML ([details](docs/features.md#profiles-extractors-pipelines-markers-and-badges)).
-- **Charts and analysis.** Anomalies, patterns, exceptions, comparisons, clock-skew correction and configuration diff ([charts](docs/features.md#charts), [analysis](docs/features.md#analysis)).
+- **Lenses and filter sets.** Switch between named views ("Errors only", your own saved ones) and switch groups of filters on and off with `Alt+1` to `Alt+9` without deleting them ([details](docs/features.md#lenses-and-filter-sets)).
+- **Charts and analysis.** Anomalies, exceptions, comparisons, clock-skew correction and configuration diff ([charts](docs/features.md#charts), [analysis](docs/features.md#analysis)).
+- **Pattern trends and value inspector.** Every message pattern has a trend sparkline on one shared scale, and a *Values* list shows what was behind each placeholder ([details](docs/features.md#analysis)).
+- **Error outliers.** The fields and values over-represented among errors, ranked by lift and significance: "only host B", "only build 3.1" instead of "errors rose" ([details](docs/features.md#analysis)).
 - **Known issues, incident summary and playbooks.** Declare errors you have diagnosed, build an incident report in one step and follow repeatable investigations, all without a model ([details](docs/features.md#known-issues-the-incident-summary-and-playbooks)).
 - **Video sources.** Turn a screen recording into frames described by the local model and aligned to the logs ([details](docs/features.md#video-sources)).
 - **Live tail and alerts.** Follow growing files and raise alerts as events arrive ([details](docs/features.md#live-tail-and-alerts)).
+- **Time-range import and watched folders.** Open only the hour you need from a huge folder, or let Debrief import new files as they settle in folders you watch and announce known issues ([details](docs/features.md#watched-folders-and-time-range-import)).
+- **Command line.** `debrief import`, `query`, `analyze`, `watch` and `report` run the same engine headlessly, for scripts and CI gates ([details](docs/cli.md)).
 - **Windows diagnostics.** Event logs, registry exports, Performance Monitor, process monitor and the diagnostics collector ([details](docs/features.md#performance-monitor-process-monitor-and-diagnostics-collector)).
 - **Profiling and dumps.** Analyse profiler captures and heap snapshots, record .NET and native processes, and read crash dumps and UMDH heap logs ([profiling](docs/features.md#profiling), [dumps](docs/features.md#crash-dumps-and-umdh-heap-logs)).
 - **Local AI assistant, Chromium browser and Research.** Models run on your machine and can read screenshots and your Markdown knowledge files; when a question needs the web, the AI researches it itself read-only in a real Chromium browser it starts for the purpose (you see it and can stop it) and answers with citations ([assistant](docs/features.md#local-ai-assistant), [browser and Research](docs/features.md#the-ais-browser-real-chromium)).
@@ -67,7 +74,7 @@ Every feature, with screenshots, is in [docs/features.md](docs/features.md).
 
 ### Install
 
-Download the installer for your platform from the **Releases** page of this repository:
+Download the installer for your platform from the [**Releases** page](https://dev.decryptology.net/decryp7/debrief/releases) of this repository (the latest release is the one to take; installed copies offer signed updates from the same page):
 
 | Platform | Package |
 |---|---|
@@ -75,11 +82,11 @@ Download the installer for your platform from the **Releases** page of this repo
 | macOS | `.dmg` |
 | Linux | `.deb` or `.rpm` |
 
-No release yet, or you want the latest? [Build from source](#building-from-source).
+Prefer to build it yourself? [Build from source](#building-from-source).
 
 ### A two-minute tour
 
-![The welcome screen](docs/screenshots/welcome.png)
+![A two-minute tour: open the samples, load the sample profile, read the timeline, inspect an event](docs/images/debrief-tour.svg?v=2a125057)
 
 1. **Open the samples.** Start Debrief, choose *Open folder…* (`Ctrl/⌘+Shift+O`) and pick the
    [`samples/`](samples/) folder (or drag it onto the window). It holds one incident seen through
@@ -94,8 +101,8 @@ No release yet, or you want the latest? [Build from source](#building-from-sourc
 5. **Inspect.** Click an event to see all of its properties; `↑`/`↓` move through the grid.
 6. **Ask a question.** Press `Ctrl/⌘+/` and type
    `level >= warning | stats count() as n by SourceContext | sort n desc`.
-7. **Find what changed.** Run *Show anomalies*, *Show patterns* and *Show exceptions* from the
-   command palette (`Ctrl/⌘+K`), then select an error spike and run *Analyse this moment*.
+7. **Find what changed.** Run *Show anomalies*, *Show patterns*, *Show exceptions* and *Show error outliers*
+   from the command palette (`Ctrl/⌘+K`), then select an error spike and run *Analyse this moment*.
 8. **Teach Debrief a format.** Click *Set up format…* next to a file shown in italics and mark a sample line.
 
 The built-in browser demo (`npm start`, below) loads similar data without installing anything.
@@ -144,6 +151,10 @@ Prerequisites per platform, Visual Studio Code, third-party notices, regeneratin
 tests and CI are in [docs/development.md](docs/development.md).
 
 ## Plugins and roadmap
+
+**Planned after version 1:** Pitwall, the local model server of the same family, as a second backend for the AI assistant, and
+opening Sighter run bundles next to the logs. Neither is part of version 1.
+
 
 Extend Debrief with profiles (TOML), Rust plugins (each runs in its own sandboxed process, with a memory cap, and as a
 signed `.debriefplugin` package when third-party) or Angular UI plugins:
