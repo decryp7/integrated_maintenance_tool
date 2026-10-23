@@ -5,7 +5,7 @@ import { formatDateTime } from '../../core/format';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { AnalysisState } from '../../analysis/analysis-state';
 import { AsyncResource } from '../../analysis/async-resource';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { ProfilingBackend } from '../profiling-backend';
 import { formatNs } from '../profiling-format';
 import { ActiveProfile } from '../profiling-navigator';

@@ -139,6 +139,7 @@ export class KeyboardSettings {
 
   constructor() {
     // While recording, every key press belongs to the editor: no command runs and the page does not react.
+    // effect-state: suspends global shortcuts while a key is being recorded and restores them on cleanup
     effect((onCleanup) => {
       const id = this.recording();
       this.registry.keysSuspended.set(id !== null);

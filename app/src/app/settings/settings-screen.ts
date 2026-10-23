@@ -88,7 +88,7 @@ import { SettingField, SettingsSection } from './settings.types';
       </nav>
 
       <section class="content" aria-label="Settings" i18n-aria-label="@@settings.screen.content.label">
-        @if (store.loadError(); as e) {
+        @if (store.error(); as e) {
           <div class="banner err" role="alert">
             <span i18n="@@settings.screen.loadError">Could not load the settings: {{ e }}</span>
             <button class="btn" type="button" (click)="store.load()" i18n="@@settings.screen.retry">Retry</button>
@@ -301,7 +301,7 @@ export class SettingsScreen {
       if (section) this.store.select(section);
     });
     // The search covers the parser library too, before the Parsers section was ever opened.
-    if (!this.parserLibrary.library() && !this.parserLibrary.loading()) void this.parserLibrary.load();
+    if (!this.parserLibrary.library() && !this.parserLibrary.isLoading()) void this.parserLibrary.load();
   }
 
   /** Opens the Parsers view and closes Settings. */

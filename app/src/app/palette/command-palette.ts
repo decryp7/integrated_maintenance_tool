@@ -136,6 +136,7 @@ export class CommandPalette {
 
   constructor() {
     let wasOpen = false;
+    // effect-state: resets the search and focus each time the palette opens (an event, not derived state)
     effect(() => {
       const open = this.palette.isOpen();
       // Switching between commands and windows while open starts a new search too.

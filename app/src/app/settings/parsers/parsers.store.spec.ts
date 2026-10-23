@@ -27,7 +27,7 @@ describe('ParsersStore', () => {
     expect(store.parsers()).toEqual([]);
     expect(store.stale()).toBe(0);
     await store.load();
-    expect(store.loading()).toBe(false);
+    expect(store.isLoading()).toBe(false);
     expect(store.groups().map((g) => g.category)).toEqual(['.NET', 'Big data', 'Generic', 'Mobile', 'System', 'Web servers']);
     expect(store.broken()).toHaveLength(1);
     await store.setEnabled('nlog', false);
@@ -38,9 +38,9 @@ describe('ParsersStore', () => {
     const { store, backend } = setup();
     vi.spyOn(backend, 'list').mockRejectedValueOnce(new Error('engine gone'));
     await store.load();
-    expect(store.loadError()).toBe('engine gone');
+    expect(store.error()).toBe('engine gone');
     await store.load();
-    expect(store.loadError()).toBeNull();
+    expect(store.error()).toBeNull();
     expect(store.library()).not.toBeNull();
   });
 

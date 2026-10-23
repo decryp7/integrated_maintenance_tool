@@ -4,7 +4,7 @@ import { FrameDto } from '../core/api.types';
 import { MockProfilingBackend } from '../core/mock/mock-profiling';
 import { MOCK_CAPTURE_PATHS } from '../core/mock/mock-profiling-data';
 import { CapturePicker, CapturesStore, FrameNames } from './captures.store';
-import { ProfileViewState } from './profile-view-state';
+import { ProfileViewState } from './profile-view-state.store';
 import { ProfilingBackend } from './profiling-backend';
 import { openDemoCaptures, setupProfiling } from './testing/profiling-test-support';
 import { at } from '../../testing/must';

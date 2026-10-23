@@ -337,6 +337,7 @@ export class ChartCard {
     let seq = 0;
     let fetched = '';
     let fetchedKey = '';
+    // effect-state: IPC chart request keyed on query and data version; the result lands in state
     effect(() => {
       const def = this.def();
       const fromProfile = this.fromProfile();

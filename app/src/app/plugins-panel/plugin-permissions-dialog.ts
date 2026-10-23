@@ -28,7 +28,7 @@ import { PluginPackagesStore } from './plugin-packages.store';
           <p class="faint" i18n="@@pluginsPanel.packages.review.noPermissions">This plugin asks for no permissions.</p>
         }
       </fieldset>
-      <debrief-tool-error [message]="store.error()" (dismissed)="store.dismissError()" />
+      <debrief-tool-error [message]="store.failure()" (dismissed)="store.dismissError()" />
       <div class="foot">
         <button type="button" class="btn ghost" (click)="ref.close()" i18n="@@pluginsPanel.packages.permissions.cancel">Cancel</button>
         <button type="button" class="btn primary" [disabled]="!!store.busy() || !changed()" (click)="save(p.id)" i18n="@@pluginsPanel.packages.permissions.save">Apply and restart plugin</button>

@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
 import { all, buttonByText, el, settle, text, typeInto } from '../../testing/helpers';
 import { CapturesStore } from './captures.store';
-import { DEFAULT_FRAMEWORK_PATTERNS, ProfileViewState } from './profile-view-state';
+import { DEFAULT_FRAMEWORK_PATTERNS, ProfileViewState } from './profile-view-state.store';
 import { CaptureNotes, MeasurementLegend, MeasurementTag, nextTagId, NoCapture, ProfileBar } from './profiling-shared';
 import { openDemoCaptures, setupProfiling } from './testing/profiling-test-support';
 

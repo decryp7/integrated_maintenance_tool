@@ -16,7 +16,7 @@ describe('StorageStore', () => {
     const { store } = setup();
     expect(store.categories()).toEqual([]);
     await store.load();
-    expect(store.loading()).toBe(false);
+    expect(store.isLoading()).toBe(false);
     expect(store.categories()).toHaveLength(8);
     expect(store.cache().map((c) => c.id)).toEqual(['bundle-extracts', 'webview-cache', 'ai-runtimes-outdated']);
     expect(store.cacheBytes()).toBe((12 + 45 + 210) * 1024 * 1024);
@@ -25,10 +25,10 @@ describe('StorageStore', () => {
   it('shows a failed measurement and recovers on retry', async () => {
     const { store } = setup(new MockStorageBackend('?mockStorageFail=1'));
     await store.load();
-    expect(store.loadError()).toContain('not readable');
+    expect(store.error()).toContain('not readable');
     expect(store.usage()).toBeNull();
     await store.load();
-    expect(store.loadError()).toBeNull();
+    expect(store.error()).toBeNull();
     expect(store.usage()).not.toBeNull();
   });
 

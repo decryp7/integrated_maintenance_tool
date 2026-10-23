@@ -4,7 +4,7 @@ import { all, buttonByText, el, settle, text, typeInto } from '../../../testing/
 import { HeapObjectsPage, HeapPaths, HeapTypesPage } from '../../core/api.types';
 import { MockProfilingBackend, MockProfilingOptions } from '../../core/mock/mock-profiling';
 import { CapturesStore } from '../captures.store';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { openDemoCaptures, setupProfiling } from '../testing/profiling-test-support';
 import { HeapSelection, HeapTab, sparkline } from './heap-selection';
 import { flattenDominators } from './heap-dominators';

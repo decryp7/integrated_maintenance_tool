@@ -22,7 +22,7 @@ import { PluginPermissionsDialog } from './plugin-permissions-dialog';
       <div class="note" role="status" data-testid="packages-safe-mode" i18n="@@pluginsPanel.packages.safeMode">Safe mode: third-party plugins are not loaded. Restart normally to use them.</div>
     }
     @if (!store.review()) {
-      <debrief-tool-error [message]="store.error()" [retry]="store.retry() !== null" (retried)="store.retryFailed()" (dismissed)="store.dismissError()" />
+      <debrief-tool-error [message]="store.failure()" [retry]="store.retry() !== null" (retried)="store.retryFailed()" (dismissed)="store.dismissError()" />
     }
     @if (store.showRestart()) {
       <div class="restart" role="status" data-testid="packages-restart">

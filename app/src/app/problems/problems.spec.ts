@@ -188,7 +188,7 @@ describe('ProblemsStore', () => {
     await withUntimedFile(backend);
     const store = TestBed.inject(ProblemsStore);
     await store.load();
-    expect(store.loaded()).toBe(true);
+    expect(store.isLoaded()).toBe(true);
     expect(store.counts()).toMatchObject({ warning: 2, info: 1, total: 3 });
     const key = problemKey(store.rows().find((r) => r.kind === 'timestampUnparsed')!);
 
@@ -216,10 +216,10 @@ describe('ProblemsStore', () => {
     const store = TestBed.inject(ProblemsStore);
     const failing = vi.spyOn(problems, 'problems').mockRejectedValueOnce('engine busy');
     await store.load();
-    expect(store.loadError()).toContain('engine busy');
+    expect(store.error()).toContain('engine busy');
     failing.mockRestore();
     await store.load();
-    expect(store.loadError()).toBeNull();
+    expect(store.error()).toBeNull();
     const key = problemKey(store.rows().find((r) => r.fix)!);
     vi.spyOn(problems, 'evaluateFix').mockRejectedValueOnce('no store');
     await store.preview(key);

@@ -7,6 +7,7 @@ import { LifecycleService } from '../lifecycle/lifecycle.service';
 import { errorMessage } from '../tools/tool-errors';
 import { ConfirmDialog } from '../ui/confirm-dialog';
 import { DialogService } from '../ui/dialog.service';
+import { setError, setIdle, setLoaded, setLoading, withRequestStatus } from '../shared/store/with-request-status';
 
 /** The file extension of a plugin package. */
 export const PACKAGE_EXTENSION = 'debriefplugin';
@@ -26,10 +27,10 @@ export interface PackageReview {
 
 interface PackagesState {
   installed: InstalledPluginsDto | null;
-  loading: boolean;
   /** What is being done right now (shown on the busy control), or null. */
   busy: string | null;
-  error: string | null;
+  /** The last action failed (the failure of reading the list is `error`, from `withRequestStatus`). */
+  actionError: string | null;
   /** The failed request that Retry repeats, or null when retrying makes no sense. */
   retry: 'load' | null;
   review: PackageReview | null;
@@ -37,17 +38,20 @@ interface PackagesState {
   restartNeeded: boolean;
 }
 
-const INITIAL: PackagesState = { installed: null, loading: false, busy: null, error: null, retry: null, review: null, restartNeeded: false };
+const INITIAL: PackagesState = { installed: null, busy: null, actionError: null, retry: null, review: null, restartNeeded: false };
 
 /**
  * Third-party plugins installed from `.debriefplugin` packages: the review before installing (signature, permissions),
  * then enable/disable, permissions, quarantine reset and removal. Failures never throw out of the store; they land in
- * `error`.
+ * `failure`.
  */
 export const PluginPackagesStore = signalStore(
   { providedIn: 'root' },
   withState<PackagesState>(INITIAL),
+  withRequestStatus(),
   withComputed((store) => ({
+    /** What to tell the user: the failed action, else the failed read of the list. */
+    failure: computed(() => store.actionError() ?? store.error()),
     plugins: computed<InstalledPluginDto[]>(() => store.installed()?.plugins ?? []),
     damaged: computed(() => store.installed()?.damaged ?? []),
     safeMode: computed(() => !!store.installed()?.safeMode),
@@ -66,14 +70,14 @@ export const PluginPackagesStore = signalStore(
       platform = inject(Platform),
       dialogs = inject(DialogService),
     ) => {
-      /** Runs an action with the busy label; a failure lands in `error`. Resolves to whether it succeeded. */
+      /** Runs an action with the busy label; a failure lands in `actionError`. Resolves to whether it succeeded. */
       const run = async (label: string, op: () => Promise<void>): Promise<boolean> => {
-        patchState(store, { busy: label, error: null, retry: null });
+        patchState(store, { busy: label, actionError: null, retry: null });
         try {
           await op();
           return true;
         } catch (e) {
-          patchState(store, { error: errorMessage(e) });
+          patchState(store, { actionError: errorMessage(e) });
           return false;
         } finally {
           patchState(store, { busy: null });
@@ -83,14 +87,12 @@ export const PluginPackagesStore = signalStore(
       const replace = (plugin: InstalledPluginDto) =>
         patchState(store, (s) => (s.installed ? { installed: { ...s.installed, plugins: s.installed.plugins.map((p) => (p.id === plugin.id ? plugin : p)) } } : {}));
       const load = async (): Promise<void> => {
-        patchState(store, { loading: true });
+        patchState(store, setLoading());
         try {
-          patchState(store, { installed: await backend.listPackages() });
-          if (store.retry() === 'load') patchState(store, { error: null, retry: null });
+          const installed = await backend.listPackages();
+          patchState(store, { installed }, setLoaded(), store.retry() === 'load' ? { retry: null } : {});
         } catch (e) {
-          patchState(store, { error: errorMessage(e), retry: 'load' });
-        } finally {
-          patchState(store, { loading: false });
+          patchState(store, setError(errorMessage(e)), { actionError: null, retry: 'load' });
         }
       };
       const review = async (path: string): Promise<void> => {
@@ -110,7 +112,7 @@ export const PluginPackagesStore = signalStore(
               { name: $localize`:@@pluginsPanel.packages.pickFilter:Debrief plugin package`, extensions: [PACKAGE_EXTENSION] },
             ]);
           } catch (e) {
-            patchState(store, { error: errorMessage(e), retry: null });
+            patchState(store, { actionError: errorMessage(e), retry: null });
             return;
           }
           if (path) await review(path);
@@ -136,7 +138,7 @@ export const PluginPackagesStore = signalStore(
           patchState(store, { review: null, restartNeeded: true });
           await load();
         },
-        cancelReview: () => patchState(store, { review: null, error: null, retry: null }),
+        cancelReview: () => patchState(store, { review: null, actionError: null, retry: null }),
         /** Enables or disables an installed plugin. */
         setEnabled: async (id: string, enabled: boolean): Promise<void> => {
           await run(enabled ? $localize`:@@pluginsPanel.packages.busy.enabling:Enabling…` : $localize`:@@pluginsPanel.packages.busy.disabling:Disabling…`, async () =>
@@ -177,7 +179,7 @@ export const PluginPackagesStore = signalStore(
         retryFailed: async (): Promise<void> => {
           if (store.retry() === 'load') await load();
         },
-        dismissError: () => patchState(store, { error: null, retry: null }),
+        dismissError: () => patchState(store, { actionError: null, retry: null }, store.isError() ? setIdle() : {}),
       };
     },
   ),

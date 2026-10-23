@@ -5,12 +5,10 @@ import { failureText } from '../../core/cmd-error';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { PlaybookBackend } from '../investigate-backend';
 import { newPlaybook, newRunId, recordOf } from './playbook-model';
+import { setError, setLoaded, setLoading, withRequestStatus } from '../../shared/store/with-request-status';
 
 interface PlaybookState {
   library: PlaybookLibrary;
-  loaded: boolean;
-  loading: boolean;
-  loadError: string | null;
   /** The playbook shown (a saved one or a template). */
   selectedId: string | null;
   /** The runs of the project (what is saved in it). */
@@ -47,11 +45,9 @@ let runSeq = 0;
 /** The playbook library, the project's runs and the active run. The engine validates and computes; this keeps the state. */
 export const PlaybookStore = signalStore(
   { providedIn: 'root' },
+  withRequestStatus(),
   withState<PlaybookState>({
     library: EMPTY_LIBRARY,
-    loaded: false,
-    loading: false,
-    loadError: null,
     selectedId: null,
     runs: [],
     activeRunId: null,
@@ -103,13 +99,11 @@ export const PlaybookStore = signalStore(
     };
 
     const load = async () => {
-      patchState(store, { loading: true, loadError: null });
+      patchState(store, setLoading());
       try {
-        patchState(store, { library: await backend.library(), loaded: true });
+        patchState(store, { library: await backend.library() }, setLoaded());
       } catch (e) {
-        patchState(store, { loadError: failureText(e) });
-      } finally {
-        patchState(store, { loading: false });
+        patchState(store, setError(failureText(e)));
       }
     };
 

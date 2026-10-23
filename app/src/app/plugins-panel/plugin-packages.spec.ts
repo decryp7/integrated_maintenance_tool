@@ -85,21 +85,21 @@ describe('PluginPackagesStore', () => {
     expect(store.developerMode()).toBe(true);
     expect(store.safeMode()).toBe(true);
     expect(store.showRestart()).toBe(false);
-    expect(store.loading()).toBe(false);
+    expect(store.isLoading()).toBe(false);
   });
 
   it('keeps a failed load as a retryable error, and Retry clears it', async () => {
     const { store, backend } = setup();
     vi.spyOn(backend, 'listPackages').mockRejectedValueOnce(new CmdError({ code: 'io', message: 'Cannot read the plugins folder.', retryable: true, hint: 'Check it.' }));
     await store.load();
-    expect(store.error()).toBe('Cannot read the plugins folder. Check it.');
+    expect(store.failure()).toBe('Cannot read the plugins folder. Check it.');
     expect(store.retry()).toBe('load');
     await store.retryFailed();
-    expect(store.error()).toBeNull();
+    expect(store.failure()).toBeNull();
     expect(store.plugins().length).toBe(1);
     // Nothing to retry: a no-op.
     await store.retryFailed();
-    expect(store.error()).toBeNull();
+    expect(store.failure()).toBeNull();
   });
 
   it('picks a package in the dialog filtered to .debriefplugin and reviews it with every permission approved', async () => {
@@ -119,7 +119,7 @@ describe('PluginPackagesStore', () => {
     expect(backend.calls).toEqual([]);
     pickOpenPath.mockRejectedValueOnce(new Error('dialog unavailable'));
     await store.pickAndReview();
-    expect(store.error()).toBe('dialog unavailable');
+    expect(store.failure()).toBe('dialog unavailable');
     expect(store.retry()).toBeNull();
   });
 
@@ -163,20 +163,20 @@ describe('PluginPackagesStore', () => {
     vi.spyOn(backend, 'installPackage').mockRejectedValueOnce(new CmdError({ code: 'diskFull', message: 'The disk is full.', retryable: true }));
     await store.install();
     expect(store.review()).not.toBeNull();
-    expect(store.error()).toBe('The disk is full.');
+    expect(store.failure()).toBe('The disk is full.');
     expect(store.restartNeeded()).toBe(false);
     store.cancelReview();
     expect(store.review()).toBeNull();
-    expect(store.error()).toBeNull();
+    expect(store.failure()).toBeNull();
   });
 
   it('reports a tampered package without opening a review', async () => {
     const { store } = setup();
     await store.reviewPackage('/p/tampered.debriefplugin');
     expect(store.review()).toBeNull();
-    expect(store.error()).toBe('The package was changed after it was signed. Get the package again from its publisher.');
+    expect(store.failure()).toBe('The package was changed after it was signed. Get the package again from its publisher.');
     store.dismissError();
-    expect(store.error()).toBeNull();
+    expect(store.failure()).toBeNull();
   });
 
   it('enables, disables and changes permissions in place', async () => {
@@ -193,7 +193,7 @@ describe('PluginPackagesStore', () => {
     expect(store.plugins()[0]?.granted).toEqual(['network']);
     expect(backend.calls).toEqual([`setEnabled:${SAP}:false`, `setEnabled:${SAP}:false`, `setEnabled:${SAP}:true`, `setPermissions:${SAP}:network`]);
     expect(await store.setPermissions(SAP, ['writeFolders'])).toBe(false);
-    expect(store.error()).toContain('does not ask for writeFolders');
+    expect(store.failure()).toContain('does not ask for writeFolders');
   });
 
   it('removes after confirming, and keeps the plugin when the user says no', async () => {
@@ -226,7 +226,7 @@ describe('PluginPackagesStore', () => {
     const failing = store.remove(SAP);
     answerTop(dialogs, true);
     await failing;
-    expect(store.error()).toBe('file in use');
+    expect(store.failure()).toBe('file in use');
     expect(store.plugins().length).toBe(1);
   });
 
@@ -241,7 +241,7 @@ describe('PluginPackagesStore', () => {
     vi.spyOn(mockTools(), 'pluginReset').mockRejectedValueOnce(new Error('not quarantined'));
     reload.mockClear();
     await store.reset(SAP);
-    expect(store.error()).toBe('not quarantined');
+    expect(store.failure()).toBe('not quarantined');
     expect(reload).not.toHaveBeenCalled();
   });
 });
@@ -380,7 +380,7 @@ describe('PackageReviewDialog', () => {
     expect(el(host, '[role=dialog] .err').textContent).toContain('changed since you reviewed it');
     el<HTMLButtonElement>(host, '[role=dialog] .err .btn.ghost').click();
     await settle(host);
-    expect(store.error()).toBeNull();
+    expect(store.failure()).toBeNull();
   });
 });
 

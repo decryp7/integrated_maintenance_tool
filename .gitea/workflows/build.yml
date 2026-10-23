@@ -274,7 +274,7 @@ jobs:
 
       - name: Third-party notices are up to date
         run: |
-          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs app/scripts/whats-new.test.mjs app/scripts/build-sidecars.test.mjs app/scripts/libduckdb.test.mjs app/scripts/lint-styles.test.mjs scripts/commit-lint.test.mjs scripts/ci/check-icons.test.mjs
+          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs app/scripts/whats-new.test.mjs app/scripts/build-sidecars.test.mjs app/scripts/libduckdb.test.mjs app/scripts/lint-styles.test.mjs app/scripts/lint-effects.test.mjs scripts/commit-lint.test.mjs scripts/ci/check-icons.test.mjs
           node scripts/ci/check-icons.mjs
           scripts/notices/generate.sh
           git diff --exit-code -- app/src-tauri/resources app/src/app/about/generated

@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { UiStateContribution } from '../lifecycle/ui-state';
-import { HighlightRules, parseHighlightRules } from './bookmarks/highlight';
+import { HighlightRules, parseHighlightRules } from './bookmarks/highlight-rules.store';
 import { parseSavedQueries, SavedQueryStore } from './bookmarks/saved-query.store';
 import { FilterSetStore } from '../lenses/filter-set.store';
 import { LensStore } from '../lenses/lens.store';

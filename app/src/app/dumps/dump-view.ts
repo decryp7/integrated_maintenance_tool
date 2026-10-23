@@ -1,5 +1,5 @@
 import { CdkListbox, CdkOption } from '@angular/cdk/listbox';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, linkedSignal, signal, untracked } from '@angular/core';
 import { symbolProblemLines, symbolProblemTotal, symbolStatusHint, symbolStatusLabel } from './symbol-status';
 import { DumpFinding, DumpOverview, FrameTrust, ModulesPage, StackDto, ThreadsPage, ThreadState } from '../core/api.types';
 import { formatDateTime, formatDuration } from '../core/format';
@@ -231,9 +231,10 @@ export class DumpView {
     { id: 'details', label: $localize`:@@dumps.tab.details:Details` },
   ];
   /** Problem first: a dump opens on its findings. */
-  readonly tab = signal<DumpTab>('findings');
-  readonly selectedThread = signal<number | null>(null);
-  readonly highlightFrame = signal<number | null>(null);
+  // Another dump starts from the findings, with no thread or frame picked.
+  readonly tab = linkedSignal<number | null, DumpTab>({ source: () => this.id(), computation: () => 'findings' });
+  readonly selectedThread = linkedSignal<number | null, number | null>({ source: () => this.id(), computation: () => null });
+  readonly highlightFrame = linkedSignal<number | null, number | null>({ source: () => this.id(), computation: () => null });
   readonly threadFilter = signal('');
   readonly moduleFilter = signal('');
 
@@ -254,9 +255,6 @@ export class DumpView {
     effect(() => {
       const id = this.id();
       untracked(() => {
-        this.tab.set('findings');
-        this.selectedThread.set(null);
-        this.highlightFrame.set(null);
         if (id === null) {
           for (const r of [this.overview, this.findings, this.threads, this.stack, this.modules]) r.reset();
           return;

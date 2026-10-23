@@ -4,7 +4,7 @@ import { CapturesStore } from './captures.store';
 import { formatNs, measurementGlyph, measurementHelp } from './profiling-format';
 import { PROFILING_STYLES } from './profiling-styles';
 import { ActiveProfile } from './profiling-navigator';
-import { cleanPatterns, ProfileViewState } from './profile-view-state';
+import { cleanPatterns, ProfileViewState } from './profile-view-state.store';
 
 let tagIds = 0;
 

@@ -5,12 +5,10 @@ import { StorageBackend } from './storage-backend';
 import { JobsBackend } from '../../jobs/jobs-backend';
 import { orphaned, stillOrphaned } from './stores-format';
 import { StorageCategory, StorageCategoryId, StorageClearResult, StoragePolicy, StorageUsage, StoreClearResult, StoreFolder, StoreFolders } from './storage.types';
+import { setError, setLoaded, setLoading, withRequestStatus } from '../../shared/store/with-request-status';
 
 interface StorageState {
   usage: StorageUsage | null;
-  loading: boolean;
-  /** Measuring failed (shown with Retry). */
-  loadError: string | null;
   /** The categories being cleared now. */
   clearing: StorageCategoryId[] | null;
   /** The maintenance job that clears them, while Settings follows it. */
@@ -42,7 +40,7 @@ interface StorageState {
   policyError: string | null;
 }
 
-const INITIAL: StorageState = { usage: null, loading: false, loadError: null, clearing: null, job: null, result: null, actionError: null, retry: null, revealed: null,
+const INITIAL: StorageState = { usage: null, clearing: null, job: null, result: null, actionError: null, retry: null, revealed: null,
   stores: null, storesLoading: false, storesError: null, selected: [], storesClearing: false, storesResult: null, storesActionError: null, policy: null, policyError: null,
 };
 
@@ -53,6 +51,7 @@ const INITIAL: StorageState = { usage: null, loading: false, loadError: null, cl
 export const StorageStore = signalStore(
   { providedIn: 'root' },
   withState<StorageState>(INITIAL),
+  withRequestStatus(),
   withComputed((store) => {
     const categories = computed<StorageCategory[]>(() => store.usage()?.categories ?? []);
     /** What "Clear cache" removes: every clearable cache category with something to remove. */
@@ -61,7 +60,7 @@ export const StorageStore = signalStore(
       categories,
       cache,
       cacheBytes: computed(() => cache().reduce((n, c) => n + c.clearableBytes, 0)),
-      busy: computed(() => store.loading() || store.clearing() !== null),
+      busy: computed(() => store.isLoading() || store.clearing() !== null),
       folders: computed<StoreFolder[]>(() => store.stores()?.folders ?? []),
       orphanedFolders: computed<StoreFolder[]>(() => orphaned(store.stores()?.folders ?? [])),
       /** What cleaning up the ticked stores would free. */
@@ -70,13 +69,11 @@ export const StorageStore = signalStore(
   }),
   withMethods((store, backend = inject(StorageBackend), jobs = inject(JobsBackend)) => {
     const load = async (): Promise<void> => {
-      patchState(store, { loading: true, loadError: null });
+      patchState(store, setLoading());
       try {
-        patchState(store, { usage: await backend.usage() });
+        patchState(store, { usage: await backend.usage() }, setLoaded());
       } catch (e) {
-        patchState(store, { loadError: errorMessage(e) });
-      } finally {
-        patchState(store, { loading: false });
+        patchState(store, setError(errorMessage(e)));
       }
     };
     const clear = async (ids: StorageCategoryId[]): Promise<void> => {

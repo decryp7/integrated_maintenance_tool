@@ -13,6 +13,7 @@ import { SourceFileActions } from '../sources/source-file-actions';
 import { countProblems, groupProblems, ProblemItem, problemKey, quickFixOf } from './problems-model';
 import { ProblemsBackend } from './problems-backend';
 import { RefreshThrottle } from './refresh-throttle';
+import { setError, setLoaded, setLoading, withRequestStatus } from '../shared/store/with-request-status';
 
 /** A quick fix's preview (`evaluate_fix`): running, its result, or why it failed. */
 export type FixPreview = { state: 'running' } | { state: 'done'; result: FixEvaluation } | { state: 'failed'; error: string };
@@ -31,11 +32,6 @@ export const PROBLEMS_REFRESH_HIDDEN_MS = 10_000;
 
 interface ProblemsState {
   rows: DiagnosticRow[];
-  /** The first listing arrived (the badge shows nothing before). */
-  loaded: boolean;
-  loading: boolean;
-  /** Listing failed (shown with Retry). */
-  loadError: string | null;
   index: IndexStatus | null;
   /** The problem shown in the details (its `problemKey`). */
   selectedKey: string | null;
@@ -50,9 +46,6 @@ interface ProblemsState {
 
 const INITIAL: ProblemsState = {
   rows: [],
-  loaded: false,
-  loading: false,
-  loadError: null,
   index: null,
   selectedKey: null,
   previews: {},
@@ -71,6 +64,7 @@ const INITIAL: ProblemsState = {
 export const ProblemsStore = signalStore(
   { providedIn: 'root' },
   withState<ProblemsState>(INITIAL),
+  withRequestStatus(),
   // The Problems pane registers here; changes are listed sooner while it is visible.
   withProps(() => ({ gate: new ConsumerGate() })),
   withComputed((store) => ({
@@ -111,17 +105,15 @@ export const ProblemsStore = signalStore(
 
       const load = async (): Promise<void> => {
         const mine = ++seq;
-        patchState(store, { loading: true, loadError: null });
+        patchState(store, setLoading());
         try {
           const [rows, index] = await Promise.all([backend.problems(), backend.indexStatus().catch(() => null)]);
           if (mine !== seq) return;
           const keys = new Set(rows.map(problemKey));
           // Previews are of the stored events: after a re-read they are out of date.
-          patchState(store, (s) => ({ rows, index, loaded: true, previews: {}, selectedKey: s.selectedKey && keys.has(s.selectedKey) ? s.selectedKey : null }));
+          patchState(store, (s) => ({ rows, index, previews: {}, selectedKey: s.selectedKey && keys.has(s.selectedKey) ? s.selectedKey : null }), setLoaded());
         } catch (e) {
-          if (mine === seq) patchState(store, { loadError: failureText(e) });
-        } finally {
-          if (mine === seq) patchState(store, { loading: false });
+          if (mine === seq) patchState(store, setError(failureText(e)));
         }
       };
 

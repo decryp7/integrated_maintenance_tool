@@ -87,6 +87,7 @@ export class ExceptionsView {
   protected readonly selected = signal<string | null>(null);
 
   constructor() {
+    // effect-state: consumes a one-shot focus request from another panel (clears it) and then reveals the group
     effect(() => {
       const fingerprint = this.focus.fingerprint();
       const groups = this.res.result();

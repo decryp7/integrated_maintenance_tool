@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { all, buttonByText, el, settle, text } from '../../../testing/helpers';
 import { FrameDto } from '../../core/api.types';
 import { FakeContext } from '../../analysis/test-setup';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { ProfilingBackend } from '../profiling-backend';
 import { openDemoCaptures, setupProfiling } from '../testing/profiling-test-support';
 import { ButterflyView } from './butterfly-view';

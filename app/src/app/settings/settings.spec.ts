@@ -98,11 +98,10 @@ describe('GeneralSettings', () => {
 });
 
 describe('SettingsDialogService', () => {
-  it('opens the settings screen once', () => {
+  it('opens the settings screen once', async () => {
     TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
     const service = TestBed.inject(SettingsDialogService);
-    service.open();
-    service.open();
+    await Promise.all([service.open(), service.open()]);
     const stack = TestBed.inject(DialogService).stack();
     expect(stack).toHaveLength(1);
     expect(stack[0]?.options.title).toBe('Settings');
@@ -113,7 +112,7 @@ describe('SettingsDialogService', () => {
     TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
     const store = TestBed.inject(EngineSettingsStore);
     const canClose = vi.spyOn(store, 'canClose').mockReturnValue(false);
-    TestBed.inject(SettingsDialogService).open();
+    await TestBed.inject(SettingsDialogService).open();
     const dialogs = TestBed.inject(DialogService);
     dialogs.dismissTop();
     expect(canClose).toHaveBeenCalledOnce();

@@ -155,6 +155,7 @@ export class ExtractorEditor {
   constructor() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let seq = 0;
+    // effect-state: debounced IPC preview; its result lands in state when the engine answers
     effect(() => {
       const rule = this.rule();
       const toml = this.draft.text();

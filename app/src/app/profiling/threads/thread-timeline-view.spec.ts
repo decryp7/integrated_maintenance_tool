@@ -3,7 +3,7 @@ import { afterEach, beforeEach, vi } from 'vitest';
 import { all, buttonByText, el, settle, text, typeInto } from '../../../testing/helpers';
 import { MockProfilingOptions, MockProfilingBackend } from '../../core/mock/mock-profiling';
 import { ThreadTimeline, ThreadTimelineRequest } from '../../core/api.types';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { openDemoCaptures, setupProfiling } from '../testing/profiling-test-support';
 import { brushToRange, lanePath, ThreadTimelineView } from './thread-timeline-view';
 import { at } from '../../../testing/must';

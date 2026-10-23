@@ -51,7 +51,7 @@ const NAMES_SHOWN = 3;
       <div class="banner err" role="alert"><span>{{ e }}</span><button type="button" class="btn ghost" (click)="store.dismiss()" i18n="@@settings.parsers.dismiss">Dismiss</button></div>
     }
 
-    @if (store.loadError(); as e) {
+    @if (store.error(); as e) {
       <div class="banner err" role="alert">
         <span i18n="@@settings.parsers.loadError">Could not list the parsers: {{ e }}</span>
         <button type="button" class="btn" (click)="store.load()" i18n="@@settings.parsers.retry">Retry</button>

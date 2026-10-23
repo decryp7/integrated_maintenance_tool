@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { HeapSummary } from '../../core/api.types';
 import { formatCount } from '../../core/format';
 import { CapturesStore } from '../captures.store';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { formatBytes } from '../profiling-format';
 import { ActiveProfile } from '../profiling-navigator';
 import { CaptureNotes, NoCapture } from '../profiling-shared';

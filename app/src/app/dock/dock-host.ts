@@ -271,6 +271,7 @@ export class DockHost implements OnDestroy {
     afterNextRender(() => this.dock.attach(this.mount().nativeElement));
     this.offKeys = this.keys.listen(document);
     // Mount the slid-out view's component into the flyout body.
+    // effect-state: mounts and disposes view renderers in the DOM flyout (side effect, not derived state)
     effect(() => {
       const item = this.open();
       const body = this.flyoutBody()?.nativeElement;

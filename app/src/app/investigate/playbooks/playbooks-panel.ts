@@ -22,11 +22,11 @@ const JSON_FILES = [{ name: 'JSON', extensions: ['json'] }];
       <button type="button" class="btn" data-testid="pb-new" (click)="store.startNew()"><debrief-icon name="plus" [size]="12" /> <span i18n="@@playbooks.new">New playbook</span></button>
       <button type="button" class="btn" data-testid="pb-import" (click)="importFile()" i18n="@@playbooks.import">Import</button>
       <span class="spacer"></span>
-      @if (store.loading()) {
+      @if (store.isLoading()) {
         <span class="faint" i18n="@@playbooks.loading">Loading...</span>
       }
     </div>
-    @if (store.loadError(); as error) {
+    @if (store.error(); as error) {
       <div class="error" role="alert" data-testid="pb-load-error">
         <span i18n="@@playbooks.loadError">The playbooks could not be listed: {{ error }}</span>
         <button type="button" class="btn" (click)="store.load()" i18n="@@playbooks.retry">Retry</button>
@@ -152,7 +152,7 @@ export class PlaybooksPanel implements OnInit {
   }
 
   ngOnInit(): void {
-    if (!this.store.loaded()) void this.store.load();
+    if (!this.store.isLoaded()) void this.store.load();
   }
 
   protected async importFile(): Promise<void> {

@@ -32,6 +32,7 @@ export const LevelCountsStore = signalStore(
       const query = inject(QueryStore);
       const data = inject(WorkspaceDataStore);
       let seq = 0;
+      // effect-state: IPC facet request keyed on the query; the answer lands in the store
       effect(() => {
         const q = { ...query.effectiveQuery(), levels: [] };
         data.dataVersion();

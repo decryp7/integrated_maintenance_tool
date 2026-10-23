@@ -57,6 +57,18 @@ module.exports = defineConfig(
     },
   },
   {
+    // Rule 31: a store is changed only through its own methods, so `patchState` lives in `*.store.ts` files (and the
+    // shared store features and tests) and nowhere else.
+    files: ['src/**/*.ts'],
+    ignores: ['src/**/*.store.ts', 'src/**/*.spec.ts', 'src/app/shared/store/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { paths: [{ name: '@ngrx/signals', importNames: ['patchState'], message: 'Change state in the store\'s own methods (a *.store.ts file), not outside it (rule 31).' }] },
+      ],
+    },
+  },
+  {
     files: ['**/*.html'],
     extends: [angular.configs.templateRecommended, angular.configs.templateAccessibility],
     rules: {

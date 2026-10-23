@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { all, buttonByText, el, settle, text } from '../../../testing/helpers';
 import { Evidence, FrameDto } from '../../core/api.types';
 import { FakeContext } from '../../analysis/test-setup';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { openDemoCaptures, setupProfiling } from '../testing/profiling-test-support';
 import { evidenceSummary, FindingsView } from './findings-view';
 

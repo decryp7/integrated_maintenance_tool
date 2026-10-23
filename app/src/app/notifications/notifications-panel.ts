@@ -142,6 +142,7 @@ export class NotificationsPanel {
 
   constructor() {
     let known = new Set<number>();
+    // effect-state: announces a new unread notice to screen readers (compares with the previous list)
     effect(() => {
       const notices = this.store.snapshot().notices;
       untracked(() => {

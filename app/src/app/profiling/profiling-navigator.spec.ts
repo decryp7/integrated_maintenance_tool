@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { Evidence, EvidenceView, FrameDto, HotspotRow } from '../core/api.types';
-import { ProfileViewState } from './profile-view-state';
+import { ProfileViewState } from './profile-view-state.store';
 import { ActiveProfile, PROFILING_VIEW_IDS as V, ProfilingNavigator } from './profiling-navigator';
 import { CapturesStore } from './captures.store';
 import { ProfilingBackend } from './profiling-backend';

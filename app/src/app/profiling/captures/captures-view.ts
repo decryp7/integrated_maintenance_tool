@@ -5,7 +5,7 @@ import { WorkspaceStore } from '../../core/workspace.store';
 import { CommandRegistry } from '../../extensions/command-registry';
 import { RecentService } from '../../core/recent/recent.service';
 import { CapturesStore } from '../captures.store';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { captureKindLabel, formatBytes, formatNs, isHeap, isProfile } from '../profiling-format';
 import { PROFILING_VIEW_IDS, ProfilingNavigator } from '../profiling-navigator';
 import { PROFILING_STYLES } from '../profiling-styles';

@@ -183,6 +183,7 @@ export class JobsPanel {
   constructor() {
     let seen = new Map<number, JobState>();
     const meters = new Map<number, TransferMeter>();
+    // effect-state: samples progress over time into transfer speeds (needs wall-clock history, not derivable)
     effect(() => {
       const jobs = this.store.snapshot().jobs;
       untracked(() => {

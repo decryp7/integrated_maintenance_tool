@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { PluginMemoryStore } from '../settings/performance/plugin-memory.store';
 import { MAX_PLUGIN_MB, MIN_PLUGIN_MB } from '../settings/performance/performance.types';
 
@@ -55,18 +55,13 @@ export class PluginMemory {
   protected readonly min = MIN_PLUGIN_MB;
   protected readonly max = MAX_PLUGIN_MB;
   protected readonly row = computed(() => this.store.processes().find((p) => p.process.kind === 'plugin' && p.process.pluginId === this.pluginId()));
-  protected readonly draft = signal<number | null>(null);
+  /** The plugin's own cap, or the value a memory message suggested ("Raise the cap…"); typing overwrites it until either changes. */
+  protected readonly draft = linkedSignal<number | null>(() => {
+    const asked = this.store.requested();
+    return asked?.pluginId === this.pluginId() ? asked.mb : (this.row()?.overrideMb ?? null);
+  });
   protected readonly error = signal<string | null>(null);
   protected readonly label = computed(() => $localize`:@@pluginsPanel.memory.aria:Memory cap of ${this.pluginName() || this.pluginId()}:name: in MB`);
-
-  constructor() {
-    // The plugin's own cap, or the value a memory message suggested ("Raise the cap…").
-    effect(() => {
-      const asked = this.store.requested();
-      const r = this.row();
-      this.draft.set(asked?.pluginId === this.pluginId() ? asked.mb : (r?.overrideMb ?? null));
-    });
-  }
 
   protected num(e: Event): number | null {
     const v = (e.target as HTMLInputElement).valueAsNumber;

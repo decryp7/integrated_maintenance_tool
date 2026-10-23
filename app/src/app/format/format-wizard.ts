@@ -220,6 +220,7 @@ export class FormatWizard implements OnInit {
 
   constructor() {
     // Ask the engine for the candidate parser and how it reads the sample (after a short pause while typing).
+    // effect-state: debounced IPC preview; clears the preview when there is no sample
     effect((onCleanup) => {
       const request = this.request();
       const head = this.head();

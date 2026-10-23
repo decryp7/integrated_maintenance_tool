@@ -5,7 +5,7 @@ import { all, buttonByText, el, settle, text } from '../../../testing/helpers';
 import { FrameDto, TreePage, TreeRequest } from '../../core/api.types';
 import { MockProfilingBackend } from '../../core/mock/mock-profiling';
 import { FakeContext } from '../../analysis/test-setup';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { ProfilingBackend } from '../profiling-backend';
 import { openDemoCaptures, setupProfiling } from '../testing/profiling-test-support';
 import { CallTreeView, InvertedTreeView } from './call-tree-view';

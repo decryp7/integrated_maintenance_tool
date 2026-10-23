@@ -3,7 +3,7 @@ import { By } from '@angular/platform-browser';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { all, buttonByText, el, settle, text, typeInto } from '../../../testing/helpers';
 import { FlameRequest } from '../../core/api.types';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { openDemoCaptures, setupProfiling } from '../testing/profiling-test-support';
 import { MockProfilingOptions } from '../../core/mock/mock-profiling';
 import { FlameChart } from './flame-chart';

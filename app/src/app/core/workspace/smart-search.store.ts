@@ -41,6 +41,7 @@ export const SmartSearchStore = signalStore(
       const logger = inject(Logger);
       let seq = 0;
       let lastKey = '';
+      // effect-state: IPC scan keyed on the query; progress and result land in the store
       effect(() => {
         const q = query.effectiveQuery();
         data.dataVersion();

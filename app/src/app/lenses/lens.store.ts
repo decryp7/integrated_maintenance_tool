@@ -1,7 +1,7 @@
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { WorkspaceStore } from '../core/workspace.store';
-import { HighlightRules } from '../projects/bookmarks/highlight';
+import { HighlightRules } from '../projects/bookmarks/highlight-rules.store';
 import { newId } from '../projects/bookmarks/ids';
 import { recordSnapshot } from '../undo/snapshot-undo';
 import { UndoStack } from '../undo/undo-stack';

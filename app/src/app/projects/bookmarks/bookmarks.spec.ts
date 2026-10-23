@@ -6,7 +6,7 @@ import { WorkspaceStore } from '../../core/workspace.store';
 import { UI_STATE_CONTRIBUTIONS, UiStateRegistry } from '../../lifecycle/ui-state';
 import { provideToolsTesting } from '../../tools/mock/test-support';
 import { ProjectUiState } from '../project-ui-state';
-import { fieldValue, HighlightRules, matchesRule, parseHighlightRules } from './highlight';
+import { fieldValue, HighlightRules, matchesRule, parseHighlightRules } from './highlight-rules.store';
 import { HighlightEditor } from './highlight-editor';
 import { newId } from './ids';
 import { SavedQueries } from './saved-queries';

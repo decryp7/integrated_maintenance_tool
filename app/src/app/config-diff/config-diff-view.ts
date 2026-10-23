@@ -352,6 +352,7 @@ export class ConfigDiffView {
       const last = slots[slots.length - 1];
       if (first && last && slots.some((s) => !s.row)) void this.store.ensure(first.index, last.index + 1);
     });
+    // effect-state: mirrors the DOM viewport size (ResizeObserver) into a signal
     effect((onCleanup) => {
       const host = this.scroller()?.nativeElement;
       if (!host) return;

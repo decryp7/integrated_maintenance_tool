@@ -4,7 +4,7 @@ import { DiffSort, FlameGraph, FunctionDiffPage, FunctionDiffRow } from '../../c
 import { AnalysisState } from '../../analysis/analysis-state';
 import { AsyncResource } from '../../analysis/async-resource';
 import { CapturesStore } from '../captures.store';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { ProfilingBackend } from '../profiling-backend';
 import { formatMetric, formatPct, formatPp } from '../profiling-format';
 import { ActiveProfile } from '../profiling-navigator';

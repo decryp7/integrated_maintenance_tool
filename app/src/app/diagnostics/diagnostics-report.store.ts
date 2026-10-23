@@ -3,11 +3,10 @@ import { patchState, signalStore, withComputed, withMethods, withState } from '@
 import { describeError } from '../core/logger';
 import { DiagnosticsReportState, DiagnosticsReportView } from './diagnostics-report.types';
 import { SnapshotBackend } from './snapshot-backend';
+import { setError, setLoaded, setLoading, withRequestStatus } from '../shared/store/with-request-status';
 
 interface State {
   report: DiagnosticsReportView | null;
-  loading: boolean;
-  error: string | null;
   /** The snapshot shown large. */
   selected: string | null;
   /** Loaded images by snapshot id (data URLs). */
@@ -19,7 +18,8 @@ interface State {
 /** State of the "Diagnostics report" view: the report this window opened, read-only. */
 export const DiagnosticsReportStore = signalStore(
   { providedIn: 'root' },
-  withState<State>({ report: null, loading: false, error: null, selected: null, images: {}, imageErrors: {} }),
+  withState<State>({ report: null, selected: null, images: {}, imageErrors: {} }),
+  withRequestStatus(),
   withComputed((s) => ({
     current: computed(() => s.report()?.snapshots.find((x) => x.id === s.selected()) ?? null),
   })),
@@ -36,19 +36,18 @@ export const DiagnosticsReportStore = signalStore(
     return {
       /** Asks the engine for the report; resolves to its answer, or null when the request failed (then `error` is set). */
       async refresh(): Promise<DiagnosticsReportState | null> {
-        patchState(store, { loading: true, error: null });
+        patchState(store, setLoading());
         try {
           const state = await backend.diagnosticsReport();
           const sameReport = state.report !== null && state.report.name === store.report()?.name;
           patchState(store, (st) => ({
             report: state.report,
-            loading: false,
             ...(sameReport ? {} : { selected: null, images: {}, imageErrors: {} }),
             ...(state.report?.snapshots.some((x) => x.id === st.selected) ? {} : { selected: null }),
-          }));
+          }), setLoaded());
           return state;
         } catch (e) {
-          patchState(store, { loading: false, error: describeError(e) });
+          patchState(store, setError(describeError(e)));
           return null;
         }
       },

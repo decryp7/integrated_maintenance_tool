@@ -3,7 +3,7 @@ import { ProfileMoment } from '../../core/api.types';
 import { AsyncResource } from '../../analysis/async-resource';
 import { AnalysisState } from '../../analysis/analysis-state';
 import { ProfilingBackend } from '../profiling-backend';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { formatCount } from '../../core/format';
 import { formatNs, formatPct } from '../profiling-format';
 import { ProfilingNavigator } from '../profiling-navigator';

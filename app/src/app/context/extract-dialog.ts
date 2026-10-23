@@ -100,6 +100,7 @@ export class ExtractDialog {
       },
       (e) => this.error.set(String(e)),
     );
+    // effect-state: debounced IPC preview; its result lands in state when the engine answers
     effect((onCleanup) => {
       if (!this.loaded()) return;
       const draft = this.draft();

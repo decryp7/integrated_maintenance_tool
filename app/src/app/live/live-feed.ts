@@ -54,6 +54,7 @@ export class LiveFeed {
 
     // Live tail off: nothing is pending any more; on: the status table starts from fresh numbers.
     let wasOn = false;
+    // effect-state: live tail on/off transitions drive the coalescer and the IPC status refresh
     effect(() => {
       const on = this.live.enabled();
       untracked(() => {

@@ -4,7 +4,7 @@ import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { CapturesStore } from './captures.store';
 import { ProfilingBackend } from './profiling-backend';
 import { isHeap, isProfile } from './profiling-format';
-import { ProfileViewState } from './profile-view-state';
+import { ProfileViewState } from './profile-view-state.store';
 
 /** Dock view ids of the profiling views. */
 export const PROFILING_VIEW_IDS = {

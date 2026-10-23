@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
 import { Evidence, FrameDto } from '../core/api.types';
-import { cleanPatterns, DEFAULT_FRAMEWORK_PATTERNS, MAX_PATTERN_LEN, MAX_PATTERNS, ProfileViewState } from './profile-view-state';
+import { cleanPatterns, DEFAULT_FRAMEWORK_PATTERNS, MAX_PATTERN_LEN, MAX_PATTERNS, ProfileViewState } from './profile-view-state.store';
 
 const frame: FrameDto = { id: 3, name: 'A.B.C', module: 'A', file: null, line: null, kind: 'managed', isFramework: false };
 

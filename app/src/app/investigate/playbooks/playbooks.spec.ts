@@ -127,12 +127,12 @@ describe('PlaybookStore', () => {
   it('loads the library and reports a failure', async () => {
     const { store, backend } = provide();
     await store.load();
-    expect(store.loaded()).toBe(true);
+    expect(store.isLoaded()).toBe(true);
     expect(store.library().templates.length).toBe(2);
     vi.spyOn(backend, 'library').mockRejectedValueOnce(rejecting('disk gone'));
     await store.load();
-    expect(store.loadError()).toBe('disk gone');
-    expect(store.loading()).toBe(false);
+    expect(store.error()).toBe('disk gone');
+    expect(store.isLoading()).toBe(false);
   });
 
   it('copies a template into the library and selects the copy', async () => {
@@ -392,7 +392,7 @@ describe('PlaybooksPanel', () => {
     expect(el(fixture, '[data-testid="pb-load-error"]').textContent).toContain('nope');
     buttonByText(fixture, 'Retry').click();
     await settle(fixture);
-    expect(store.loadError()).toBeNull();
+    expect(store.error()).toBeNull();
   });
 
   it('shows warnings, past runs with open and delete, and exports and imports through the file dialogs', async () => {
