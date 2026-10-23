@@ -1,5 +1,5 @@
 import { inject, Injectable, linkedSignal, signal } from '@angular/core';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 
 export type HeapTab = 'findings' | 'types' | 'diff' | 'growth' | 'dominators' | 'instances';
 

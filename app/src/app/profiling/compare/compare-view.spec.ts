@@ -4,7 +4,7 @@ import { afterEach, beforeEach, vi } from 'vitest';
 import { all, buttonByText, el, settle, text, typeInto } from '../../../testing/helpers';
 import { FunctionDiffPage } from '../../core/api.types';
 import { CapturesStore } from '../captures.store';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { openDemoCaptures, setupProfiling } from '../testing/profiling-test-support';
 import { FlameChart } from '../flame/flame-chart';
 import { MockProfilingBackend } from '../../core/mock/mock-profiling';

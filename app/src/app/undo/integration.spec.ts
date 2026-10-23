@@ -8,7 +8,7 @@ import { newRule } from '../live/live-rules.model';
 import { MarkerProfile } from '../markers/marker-profile';
 import { ProfileDraft } from '../profile/profile-draft';
 import { ProfileEdits } from '../profile/profile-edits';
-import { HighlightRules } from '../projects/bookmarks/highlight';
+import { HighlightRules } from '../projects/bookmarks/highlight-rules.store';
 import { SavedQueryStore } from '../projects/bookmarks/saved-query.store';
 import { DashboardStore } from '../share/dashboard/dashboard.store';
 import { ReportStore } from '../share/report/report.store';

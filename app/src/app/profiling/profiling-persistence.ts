@@ -2,7 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { MetricId, RecursionMode } from '../core/api.types';
 import { UiStateContribution } from '../lifecycle/ui-state';
 import { CapturesStore } from './captures.store';
-import { DEFAULT_FRAMEWORK_PATTERNS, ProfileViewState } from './profile-view-state';
+import { DEFAULT_FRAMEWORK_PATTERNS, ProfileViewState } from './profile-view-state.store';
 
 /** Version of the saved profiling state; older or newer versions are read field by field. */
 export const PROFILING_STATE_VERSION = 1;

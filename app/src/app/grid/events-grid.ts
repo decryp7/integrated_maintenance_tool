@@ -21,7 +21,7 @@ import { px } from '../theme/theme-tokens';
 import { RecordActions } from '../context/record-actions';
 import { FieldFormatters } from '../extensions/field-formatters';
 import { MarkerIcon } from '../shared/marker-icon';
-import { HighlightRules } from '../projects/bookmarks/highlight';
+import { HighlightRules } from '../projects/bookmarks/highlight-rules.store';
 import { NotesStore } from '../notes/notes.store';
 import { firstLine } from '../notes/notes-model';
 import { GridSelection } from './grid-selection';

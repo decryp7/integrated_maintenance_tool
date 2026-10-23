@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { MOCK_CAPTURE_PATHS } from '../core/mock/mock-profiling-data';
 import { UI_STATE_CONTRIBUTIONS, UiStateRegistry } from '../lifecycle/ui-state';
 import { CapturesStore } from './captures.store';
-import { ProfileViewState } from './profile-view-state';
+import { ProfileViewState } from './profile-view-state.store';
 import { ProfilingBackend } from './profiling-backend';
 import { parseProfilingUiState, PROFILING_STATE_KEY, PROFILING_STATE_VERSION, ProfilingPersistence, ProfilingUiState } from './profiling-persistence';
 import { openDemoCaptures, provideProfilingTesting, setupProfiling } from './testing/profiling-test-support';

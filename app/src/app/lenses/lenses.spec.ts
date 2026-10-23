@@ -4,7 +4,7 @@ import { LensCfg } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { UI_STATE_CONTRIBUTIONS, UiStateRegistry } from '../lifecycle/ui-state';
 import { mockLenses } from '../core/mock/mock-lenses';
-import { HighlightRules } from '../projects/bookmarks/highlight';
+import { HighlightRules } from '../projects/bookmarks/highlight-rules.store';
 import { ProjectUiState } from '../projects/project-ui-state';
 import { provideToolsTesting } from '../tools/mock/test-support';
 import { UndoStack } from '../undo/undo-stack';

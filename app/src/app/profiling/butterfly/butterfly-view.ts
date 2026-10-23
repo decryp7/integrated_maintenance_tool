@@ -3,7 +3,7 @@ import { Butterfly, ButterflyRow, FrameDto, MetricValues } from '../../core/api.
 import { AnalysisState } from '../../analysis/analysis-state';
 import { AsyncResource } from '../../analysis/async-resource';
 import { FrameNames } from '../captures.store';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { ProfilingBackend } from '../profiling-backend';
 import { formatMetric, formatPct, measurementOf } from '../profiling-format';
 import { ActiveProfile, ProfilingNavigator } from '../profiling-navigator';

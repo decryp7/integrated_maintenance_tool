@@ -13,7 +13,7 @@ import { SettingsStore } from '../settings/settings.store';
 import { EventsGrid, SCROLL_IDLE_MS } from './events-grid';
 import { GridSelection } from './grid-selection';
 import { RecordActions } from '../context/record-actions';
-import { HighlightRules } from '../projects/bookmarks/highlight';
+import { HighlightRules } from '../projects/bookmarks/highlight-rules.store';
 import { at } from '../../testing/must';
 
 const VIEWPORT_H = 260;

@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { HighlightOp } from '../../core/tools.types';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { Icon } from '../../shared/icon';
-import { HIGHLIGHT_COLORS, HIGHLIGHT_OPS, HighlightRules } from './highlight';
+import { HIGHLIGHT_COLORS, HIGHLIGHT_OPS, HighlightRules } from './highlight-rules.store';
 
 const PSEUDO_FIELDS = ['@level', '@message', '@exception', '@source'];
 

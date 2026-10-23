@@ -3,7 +3,7 @@ import { ProfileSpan, ProfileTimeRange } from '../../core/api.types';
 import { formatDateTime, formatDuration } from '../../core/format';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { ProfilingBackend } from '../profiling-backend';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { ProfilingNavigator } from '../profiling-navigator';
 
 /** A capture span placed on the visible log range (percent of the plot). */

@@ -4,7 +4,7 @@ import { all, buttonByText, el, settle, text, typeInto } from '../../../testing/
 import { HotspotsPage, HotspotsRequest } from '../../core/api.types';
 import { MockProfilingBackend } from '../../core/mock/mock-profiling';
 import { FakeContext } from '../../analysis/test-setup';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { ProfilingBackend } from '../profiling-backend';
 import { openDemoCaptures, setupProfiling } from '../testing/profiling-test-support';
 import { HotspotsView, ROW_H, rowWindow } from './hotspots-view';

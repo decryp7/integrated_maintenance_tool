@@ -6,7 +6,7 @@ import { DebriefBackend } from '../../core/backend';
 import { Logger } from '../../core/logger';
 import { COMMAND_CONTEXT } from '../../extensions/command-registry';
 import { FakeContext } from '../../analysis/test-setup';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { ProfilingBackend } from '../profiling-backend';
 import { openDemoCaptures, setupProfiling } from '../testing/profiling-test-support';
 import { ProfileMomentSection } from './profile-moment';

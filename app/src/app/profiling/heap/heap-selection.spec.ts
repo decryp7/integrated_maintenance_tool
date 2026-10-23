@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { HEAP_TABS, HeapSelection, sparkline } from './heap-selection';
 
 describe('HeapSelection', () => {

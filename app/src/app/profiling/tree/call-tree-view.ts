@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, injec
 import { RovingFocusNavigation } from '../../shared/list-navigation';
 import { TreeDirection } from '../../core/api.types';
 import { AnalysisState } from '../../analysis/analysis-state';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { formatMetric, formatPct } from '../profiling-format';
 import { ActiveProfile, ProfilingNavigator } from '../profiling-navigator';
 import { CaptureNotes, MeasurementLegend, MeasurementTag, NoCapture, ProfileBar } from '../profiling-shared';

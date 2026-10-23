@@ -4,7 +4,7 @@ import { Evidence, EvidenceView, ProfileFinding } from '../../core/api.types';
 import { AnalysisState } from '../../analysis/analysis-state';
 import { AsyncResource } from '../../analysis/async-resource';
 import { SeverityBadge } from '../../live/severity-badge';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { ProfilingBackend } from '../profiling-backend';
 import { formatNs, formatPct } from '../profiling-format';
 import { ActiveProfile, ProfilingNavigator } from '../profiling-navigator';

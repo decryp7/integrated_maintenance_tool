@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { flattenContributions, DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefCommand, DebriefView } from '../extensions/tokens';
 import { CapturesStore } from './captures.store';
 import { PROFILING_VIEW_IDS as V } from './profiling-navigator';
-import { ProfileViewState } from './profile-view-state';
+import { ProfileViewState } from './profile-view-state.store';
 import { ProfilingCommands, PROFILING_VIEWS, provideProfiling, showOpened, startProfiling } from './provide-profiling';
 import { DotnetCommands } from './dotnet/dotnet-commands';
 import { NativeCommands } from './native/native-commands';

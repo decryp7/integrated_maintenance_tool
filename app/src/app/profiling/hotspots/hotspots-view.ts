@@ -3,7 +3,7 @@ import { HotspotRow, ProfileGroupBy } from '../../core/api.types';
 import { formatCount } from '../../core/format';
 import { plural } from '../../i18n/locale';
 import { AnalysisState } from '../../analysis/analysis-state';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { ActiveProfile, ProfilingNavigator } from '../profiling-navigator';
 import { CaptureNotes, MeasurementLegend, MeasurementTag, NoCapture, ProfileBar } from '../profiling-shared';
 import { PROFILING_STYLES } from '../profiling-styles';

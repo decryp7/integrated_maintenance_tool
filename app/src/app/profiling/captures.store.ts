@@ -8,7 +8,7 @@ import { ProfilingBackend } from './profiling-backend';
 import { plural } from '../i18n/locale';
 import { profilingErrorCode } from './profiling-errors';
 import { isHeap, isProfile } from './profiling-format';
-import { ProfileViewState } from './profile-view-state';
+import { ProfileViewState } from './profile-view-state.store';
 import { RecentService } from '../core/recent/recent.service';
 import { browserMocks } from '../core/mock-registry';
 

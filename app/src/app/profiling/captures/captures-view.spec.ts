@@ -5,7 +5,7 @@ import { MockProfilingBackend } from '../../core/mock/mock-profiling';
 import { ProfilingBackend } from '../profiling-backend';
 import { FakeContext } from '../../analysis/test-setup';
 import { CapturesStore } from '../captures.store';
-import { ProfileViewState } from '../profile-view-state';
+import { ProfileViewState } from '../profile-view-state.store';
 import { openDemoCaptures, provideProfilingTesting, setupProfiling } from '../testing/profiling-test-support';
 import { MOCK_CAPTURE_PATHS } from '../../core/mock/mock-profiling-data';
 import { DEBRIEF_COMMANDS, DebriefCommand } from '../../extensions/tokens';
