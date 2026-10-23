@@ -24,7 +24,7 @@ pub mod process;
 pub mod ready;
 
 pub use challenge::{detect as detect_challenge, Challenge};
-pub use discover::{find, Browser as BrowserExe, Flavor};
+pub use discover::{find, find_for_tests, Browser as BrowserExe, Flavor};
 pub use launch::{Chromium, LaunchOptions, Profile, Visibility};
 pub use page::Page;
 

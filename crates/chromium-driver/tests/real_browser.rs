@@ -1,7 +1,7 @@
 //! Launches a real Chromium-based browser when one is installed (skipped otherwise) against a local server that
 //! serves a page rendered by script.
 
-use chromium_driver::{find, Chromium, LaunchOptions, Visibility};
+use chromium_driver::{find_for_tests as find, Chromium, LaunchOptions, Visibility};
 use serde_json::json;
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -31,7 +31,7 @@ fn serve() -> u16 {
 #[test]
 fn renders_a_scripted_page_and_leaves_nothing_behind() {
     let Some(exe) = find() else {
-        eprintln!("skipped: no Chromium-based browser installed");
+        eprintln!("skipped: set CHROMIUM_TEST_PATH to a pinned test Chromium (installed browsers are never launched by tests)");
         return;
     };
     let port = serve();

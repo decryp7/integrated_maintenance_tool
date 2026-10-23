@@ -319,6 +319,15 @@ pub enum MaintenanceAction {
 }
 
 impl MaintenanceAction {
+    /// The phase the job reports first.
+    pub fn phase(self) -> &'static str {
+        match self {
+            MaintenanceAction::Compact => "Compacting segments",
+            MaintenanceAction::RebuildIndex => "Clearing the index",
+            MaintenanceAction::ClearCachedAnalyses => "Clearing cached analyses",
+        }
+    }
+
     /// The job's title.
     pub fn title(self) -> &'static str {
         match self {

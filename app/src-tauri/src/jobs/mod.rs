@@ -327,6 +327,13 @@ fn cancelling(mut controls: Controls, control: &debrief_core::ql::QueryControl) 
     controls
 }
 
+/// `controls` whose Cancel also cancels the returned [`QueryControl`](debrief_core::ql::QueryControl): the store
+/// work run under `control.scope(..)` (or [`with_store`]) is interrupted by it.
+pub(crate) fn store_cancel(controls: Controls) -> (Controls, debrief_core::ql::QueryControl) {
+    let control = debrief_core::ql::QueryControl::new();
+    (cancelling(controls, &control), control)
+}
+
 /// `controls` whose probe also names the phase (the probe's counts then read as that phase's growing count).
 fn in_phase(controls: Controls, label: &'static str) -> Controls {
     let Some(inner) = controls.probe.clone() else { return controls };
