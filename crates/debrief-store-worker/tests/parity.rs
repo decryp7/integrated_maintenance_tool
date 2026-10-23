@@ -266,7 +266,15 @@ fn mixed_sources_imported_by_the_worker_read_like_in_process() {
         .map(|p| samples().join(p))
         .collect();
     let local_dir = TempDir::new("mixed-local");
-    let plugins = debrief_plugin_host::Builtins::load(&debrief_plugin_host::builtins::default_binary()).plugins();
+    // The syslog plugin lives in the bundled plugins binary, which `cargo test -p debrief-store-worker` does not build
+    // (a workspace test run does): without it the syslog file is reported as unrecognised, far from the cause.
+    let plugins_binary = debrief_plugin_host::builtins::default_binary();
+    assert!(
+        plugins_binary.is_file(),
+        "{} is missing: build it first with `cargo build -p debrief-plugins` (or run `cargo test --workspace`)",
+        plugins_binary.display()
+    );
+    let plugins = debrief_plugin_host::Builtins::load(&plugins_binary).plugins();
     let registry = debrief_store_worker::server::install_plugins(plugins, &[]);
     let local = DuckStore::create(&local_dir.0, Profile::default_profile(), registry).unwrap();
     local.open(&paths).unwrap().wait().unwrap();

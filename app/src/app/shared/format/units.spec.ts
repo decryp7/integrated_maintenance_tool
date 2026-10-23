@@ -12,6 +12,7 @@ import {
   formatExactBytes,
   formatNumber,
   formatPercent,
+  formatConnections,
   formatRate,
   formatRelativeTime,
   NONE,
@@ -61,6 +62,16 @@ describe('formatBytes', () => {
   it('gives the exact size for tooltips', () => {
     expect(formatExactBytes(1234567)).toBe('1,234,567 bytes');
     expect(formatExactBytes(1)).toBe('1 byte');
+  });
+});
+
+describe('connections', () => {
+  it('names the parallel connections only when there are several', () => {
+    expect(formatConnections(4)).toBe('4 connections');
+    expect(formatConnections(1)).toBe('');
+    expect(formatConnections(0)).toBe('');
+    expect(formatConnections(null)).toBe('');
+    expect(formatConnections(Number.NaN)).toBe('');
   });
 });
 

@@ -7,6 +7,7 @@
 
 mod analysis;
 mod anomalies;
+mod catalogue;
 mod compact;
 mod console;
 mod context;
@@ -208,6 +209,8 @@ pub(crate) struct Inner {
     /// The full-text index and its indexing thread (`None` when the index cannot be opened: search then
     /// fails with the reason, everything else works).
     fts: Option<fts::FtsService>,
+    /// The catalogue of names and its building thread (`None` when the thread cannot start: lookups then fail).
+    catalogue: Option<catalogue::CatalogueService>,
     fts_error: Option<String>,
     /// Word-search hits handed to SQL (smart search).
     pub(crate) hits: hits::HitsCache,
@@ -318,6 +321,9 @@ impl Inner {
         self.generation.fetch_add(1, Ordering::SeqCst);
         if let Some(f) = &self.fts {
             f.wake();
+        }
+        if let Some(c) = &self.catalogue {
+            c.wake();
         }
         // The burst's free pages go back to the OS now: the process may idle afterwards.
         debrief_alloc::release();
@@ -456,6 +462,7 @@ impl Inner {
             "BEGIN TRANSACTION; DELETE FROM segments; DELETE FROM segment_fields; DELETE FROM histogram; DELETE FROM ord; DELETE FROM diagnostics; DELETE FROM tail_offsets; DELETE FROM source_encodings; DELETE FROM sources; COMMIT;",
         )
         .map_err(engine)?;
+        catalogue::forget(&conn, None).map_err(engine)?;
         writer::refresh_view(&conn, &self.dir, &self.schema).map_err(|e| engine(format!("{e:#}")))?;
         if let Some(f) = &self.fts {
             if let Err(e) = f.clear() {
@@ -743,6 +750,12 @@ impl DuckStore {
                 (None, Some(format!("the full-text index is unavailable: {e:#}")))
             }
         };
+        let catalogue = conn
+            .try_clone()
+            .map_err(anyhow::Error::from)
+            .and_then(|c| catalogue::CatalogueService::start(c, write_lock.clone()))
+            .map_err(|e| log::warn!("the catalogue is unavailable: {e:#}"))
+            .ok();
         DuckStore {
             inner: Arc::new(Inner {
                 dir: dir.to_path_buf(),
@@ -762,6 +775,7 @@ impl DuckStore {
                 import_window: RwLock::new(Default::default()),
                 write_lock,
                 fts,
+                catalogue,
                 fts_error,
                 hits: hits::HitsCache::new(&dir.join("tmp").join("hits")),
                 console: console::ConsoleState::default(),
@@ -919,6 +933,7 @@ impl Ingest for DuckStore {
                     "BEGIN TRANSACTION; DELETE FROM diagnostics WHERE source IN ({list}); DELETE FROM tail_offsets WHERE source IN ({list}); DELETE FROM sources WHERE id IN ({list}); COMMIT;"
                 ))
                 .map_err(engine)?;
+                catalogue::forget(&conn, Some(&list)).map_err(engine)?;
                 if let Some(f) = &self.inner.fts {
                     for id in &gone {
                         if let Err(e) = f.delete_source(*id) {
@@ -954,6 +969,9 @@ impl Ingest for DuckStore {
             "DELETE FROM tail_offsets WHERE source = ?",
             "DELETE FROM sources WHERE id = ?",
         ] {
+            conn.execute(sql, params![id.0]).map_err(engine)?;
+        }
+        for sql in catalogue::DELETE_SQL {
             conn.execute(sql, params![id.0]).map_err(engine)?;
         }
         if let Some(f) = &self.inner.fts {

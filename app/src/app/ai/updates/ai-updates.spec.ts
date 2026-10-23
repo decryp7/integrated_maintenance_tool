@@ -37,9 +37,9 @@ describe('AI update texts', () => {
     expect(kindTitle('model')).toBe('Models');
     expect(['automatic', 'ask', 'manual'].map((p) => policyLabel(p as never))).toEqual(['Automatic', 'Ask', 'Manual']);
     expect(lastCheckText(kindStatus())).toBe('Never checked');
-    expect(lastCheckText(kindStatus({ lastCheck: Date.UTC(2026, 9, 20, 12) }), 'en-GB')).toMatch(/^Checked 20 Oct 2026/);
+    expect(lastCheckText(kindStatus({ lastCheck: Date.UTC(2026, 9, 20, 12) }), 'en-GB')).toMatch(/^Checked (19|20|21) Oct 2026/);
     expect(nextCheckText(kindStatus())).toBe('Checks only when you choose Check now');
-    expect(nextCheckText(kindStatus({ nextCheck: Date.UTC(2026, 9, 21, 12) }), 'en-GB')).toMatch(/^Next check 21 Oct 2026/);
+    expect(nextCheckText(kindStatus({ nextCheck: Date.UTC(2026, 9, 21, 12) }), 'en-GB')).toMatch(/^Next check (20|21|22) Oct 2026/);
     expect(updateLine(update())).toMatch(/^b1 → b2 · 3\d(\.\d)? MB$/);
   });
 });

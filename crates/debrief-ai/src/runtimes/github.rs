@@ -192,6 +192,13 @@ impl GithubReleases {
             }
             200 if pos > 0 => return Err(AiError::Network("the host ignored the resume request".into())),
             401 | 403 => return Err(AiError::Gated { url: String::new() }),
+            s @ (429 | 503) => {
+                let after = resp.headers().get("retry-after").and_then(|v| v.to_str().ok());
+                return Err(match net::status_error(s, "github.com", "GitHub asked to slow down") {
+                    AiError::Connection(n) => AiError::Connection(n.with_retry_after(after)),
+                    e => e,
+                });
+            }
             s => Self::check_status(s, "the runtime")?,
         }
         let want = end - pos + 1;
@@ -238,17 +245,45 @@ impl ModelSource for GithubReleases {
     }
 
     fn fetch(&self, remote: &RemoteFile, offset: u64, sink: &mut dyn FnMut(&[u8]) -> Result<()>, cancel: &AtomicBool) -> Result<()> {
+        self.fetch_range(remote, offset, remote.size, sink, cancel)
+    }
+
+    /// One `Range` request to the resolved CDN address must be answered `206` for the same total size.
+    fn supports_ranges(&self, remote: &RemoteFile) -> bool {
+        let Ok(a) = self.asset(&remote.repo, &remote.file).cloned() else {
+            return false;
+        };
+        let Ok(url) = self.resolve(&a, false) else { return false };
+        let Ok((resp, _)) = self.get(&url, "bytes=0-0") else { return false };
+        let total = resp
+            .headers()
+            .get("content-range")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|r| r.rsplit('/').next())
+            .and_then(|t| t.parse::<u64>().ok());
+        resp.status().as_u16() == 206 && total == Some(a.size)
+    }
+
+    fn fetch_range(
+        &self,
+        remote: &RemoteFile,
+        start: u64,
+        end: u64,
+        sink: &mut dyn FnMut(&[u8]) -> Result<()>,
+        cancel: &AtomicBool,
+    ) -> Result<()> {
         let a = self.asset(&remote.repo, &remote.file)?.clone();
-        let mut pos = offset;
+        let end = end.min(a.size);
+        let mut pos = start;
         let mut url = self.resolve(&a, false)?;
         let mut refreshed = false;
-        while pos < a.size {
+        while pos < end {
             if cancel.load(Ordering::Relaxed) {
                 return Err(AiError::Cancelled);
             }
-            let end = (pos + self.cfg.chunk_bytes - 1).min(a.size - 1);
-            match self.fetch_chunk(&url, pos, end, &mut *sink, cancel) {
-                Ok(()) => pos = end + 1,
+            let last = (pos + self.cfg.chunk_bytes - 1).min(end - 1);
+            match self.fetch_chunk(&url, pos, last, &mut *sink, cancel) {
+                Ok(()) => pos = last + 1,
                 // The signed CDN address expired: resolve again once.
                 Err(AiError::Gated { .. }) if !refreshed => {
                     refreshed = true;

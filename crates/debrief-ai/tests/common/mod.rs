@@ -24,6 +24,8 @@ pub struct Resp {
     pub cut_after: Option<usize>,
     /// Wait this long before answering (a slow server).
     pub delay_ms: u64,
+    /// Send the body at about this many bytes per second (a per-connection rate limit).
+    pub rate_bps: Option<u64>,
 }
 
 impl Resp {
@@ -34,6 +36,7 @@ impl Resp {
             body: body.into(),
             cut_after: None,
             delay_ms: 0,
+            rate_bps: None,
         }
     }
     pub fn json(status: u16, v: serde_json::Value) -> Resp {
@@ -152,7 +155,20 @@ fn serve(mut s: TcpStream, h: Handler, reqs: Arc<Mutex<Vec<Req>>>, port: u16) {
         Some(n) => &resp.body[..n.min(resp.body.len())],
         None => &resp.body[..],
     };
-    let _ = s.write_all(body);
+    match resp.rate_bps {
+        Some(rate) => {
+            let slice = 16 * 1024;
+            for part in body.chunks(slice) {
+                if s.write_all(part).is_err() {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_secs_f64(part.len() as f64 / rate as f64));
+            }
+        }
+        None => {
+            let _ = s.write_all(body);
+        }
+    }
     let _ = s.flush();
 }
 

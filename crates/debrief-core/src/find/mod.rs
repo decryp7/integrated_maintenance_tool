@@ -15,6 +15,7 @@
 //! clipped to [`MESSAGE_CHARS`] characters.
 
 use crate::api::FacetRequest;
+use crate::catalogue::{CatalogueRequest, Scope};
 use crate::ports::{EventView, Filter, PageQuery, StoreResult};
 use crate::query::{FieldFilter, TextMode};
 use crate::search_all::{SearchSource, MAX_DISTINCT_VALUES, MAX_VALUE_FIELDS};
@@ -34,6 +35,8 @@ pub const MESSAGE_CHARS: usize = 300;
 pub const MAX_TEXT_CHARS: usize = 256;
 /// The pseudo field of a source's name.
 pub const SOURCE_FIELD: &str = "@source";
+/// The pseudo field of an entity found in message or exception text.
+pub const ENTITY_FIELD: &str = "@entity";
 /// Share of the search's trigrams a value must hold to be an approximate match.
 const FUZZY_SHARE: f64 = 0.5;
 /// Fewest trigrams a search needs before approximate matching is tried.
@@ -66,6 +69,35 @@ pub struct ValueMatch {
     /// The source's id, for `@source`.
     #[serde(skip)]
     pub source: Option<u32>,
+    /// What an entity found in event text is (`field` is then [`ENTITY_FIELD`]); none for field values and sources.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind: Option<crate::entities::EntityKind>,
+    /// First and last time the value was seen (entities only).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_seen: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_seen: Option<i64>,
+    /// Names of sources that have it (at most a few; entities and field values from the catalogue).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub seen_in: Vec<String>,
+}
+
+impl ValueMatch {
+    /// What the value is: its field, or the entity kind.
+    pub fn label(&self) -> String {
+        match self.kind {
+            Some(k) => k.id().to_string(),
+            None => self.field.clone(),
+        }
+    }
+
+    /// `field = value`, or `kind value` for an entity.
+    pub fn describe(&self) -> String {
+        match self.kind {
+            Some(k) => format!("{} {}", k.id(), self.value),
+            None => format!("{} = {}", self.field, self.value),
+        }
+    }
 }
 
 /// What the search box asks for its "Did you mean" line: the user's words, and at most `limit` values (0 = a few).
@@ -190,6 +222,11 @@ pub fn find(store: &(impl SearchSource + ?Sized), text: &str, offset: usize, lim
                     sources: vec![id],
                     ..Filter::default()
                 },
+                None if best.kind.is_some() => Filter {
+                    text: format!("\"{}\"", best.value.replace('"', " ")),
+                    text_mode: TextMode::Words,
+                    ..Filter::default()
+                },
                 None => Filter {
                     filters: vec![FieldFilter {
                         field: best.field.clone(),
@@ -207,7 +244,7 @@ pub fn find(store: &(impl SearchSource + ?Sized), text: &str, offset: usize, lim
     }
     let Some((step, total, rows)) = found else {
         reply.note = match reply.values.first() {
-            Some(v) => format!("No events contain '{text}'. Did you mean {} ({})?", v.value, v.field),
+            Some(v) => format!("No events contain '{text}'. Did you mean {} ({})?", v.value, v.label()),
             None => format!("No events, field values or sources match '{text}', not even partly."),
         };
         return Ok(reply);
@@ -227,11 +264,7 @@ pub fn find(store: &(impl SearchSource + ?Sized), text: &str, offset: usize, lim
         FindStep::Partial => format!("No exact match for '{text}'; found {total} events where its words are part of longer words{about}."),
         FindStep::Value => format!(
             "No event text matches '{text}'; found {total} events with {}.",
-            reply
-                .values
-                .first()
-                .map(|v| format!("{} = {}", v.field, v.value))
-                .unwrap_or_default()
+            reply.values.first().map(|v| v.describe()).unwrap_or_default()
         ),
     };
     if step != FindStep::Value {
@@ -240,7 +273,7 @@ pub fn find(store: &(impl SearchSource + ?Sized), text: &str, offset: usize, lim
             .iter()
             .filter(|v| v.via != Via::Fuzzy)
             .take(3)
-            .map(|v| format!("{} = {} ({} events)", v.field, v.value, v.count))
+            .map(|v| format!("{} ({} events)", v.describe(), v.count))
             .collect();
         if !also.is_empty() {
             reply.note.push_str(&format!(" Also in field values: {}.", also.join("; ")));
@@ -300,7 +333,7 @@ fn mention(text: &str, words: &[String]) -> Option<String> {
 
 /// Letters and digits only, lower-cased.
 fn squash(s: &str) -> String {
-    s.chars().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).collect()
+    crate::catalogue::squash(s)
 }
 
 fn trigrams(s: &str) -> HashSet<[char; 3]> {
@@ -363,9 +396,54 @@ pub fn resolve_terms(store: &(impl SearchSource + ?Sized), text: &str, limit: us
                 count: s.records as u64,
                 via: v,
                 source: Some(s.id),
+                kind: None,
+                first_seen: None,
+                last_seen: None,
+                seen_in: Vec::new(),
             });
         }
     }
+    let catalogue = store.catalogue(&CatalogueRequest { text: text.clone() })?;
+    if catalogue.built {
+        // The catalogue holds field values and the names found in event text; no facet is read.
+        for c in &catalogue.candidates {
+            let (field, kind) = match &c.scope {
+                Scope::Entity(k) => (ENTITY_FIELD.to_string(), Some(*k)),
+                Scope::Field(f) => (f.clone(), None),
+            };
+            if let Some(via) = via(&text, &words, &wanted, &c.name) {
+                out.push(ValueMatch {
+                    field,
+                    value: c.name.clone(),
+                    count: c.count,
+                    via,
+                    source: None,
+                    kind,
+                    first_seen: kind.and(c.first_ts),
+                    last_seen: kind.and(c.last_ts),
+                    seen_in: c.seen_in.clone(),
+                });
+            }
+        }
+    } else {
+        facet_values(store, &summary, &text, &words, &wanted, &mut out)?;
+    }
+    let best = out.iter().map(|m| m.via).min();
+    out.retain(|m| m.via != Via::Fuzzy || best == Some(Via::Fuzzy));
+    out.sort_by(|a, b| a.via.cmp(&b.via).then(b.count.cmp(&a.count)).then_with(|| a.value.cmp(&b.value)));
+    out.truncate(limit.clamp(1, MAX_VALUES));
+    Ok(out)
+}
+
+/// Without a built catalogue: the values of the low-cardinality fields, read as facets.
+fn facet_values(
+    store: &(impl SearchSource + ?Sized),
+    summary: &crate::ports::SummaryReply,
+    text: &str,
+    words: &WordQuery,
+    wanted: &HashSet<[char; 3]>,
+    out: &mut Vec<ValueMatch>,
+) -> StoreResult<()> {
     let fields = summary
         .fields
         .iter()
@@ -378,22 +456,22 @@ pub fn resolve_terms(store: &(impl SearchSource + ?Sized), text: &str, limit: us
             limit: MAX_DISTINCT_VALUES,
         })?;
         for v in &facet.values {
-            if let Some(via) = via(&text, &words, &wanted, &v.value) {
+            if let Some(via) = via(text, words, wanted, &v.value) {
                 out.push(ValueMatch {
                     field: f.name.clone(),
                     value: v.value.clone(),
                     count: v.count as u64,
                     via,
                     source: None,
+                    kind: None,
+                    first_seen: None,
+                    last_seen: None,
+                    seen_in: Vec::new(),
                 });
             }
         }
     }
-    let best = out.iter().map(|m| m.via).min();
-    out.retain(|m| m.via != Via::Fuzzy || best == Some(Via::Fuzzy));
-    out.sort_by(|a, b| a.via.cmp(&b.via).then(b.count.cmp(&a.count)).then_with(|| a.value.cmp(&b.value)));
-    out.truncate(limit.clamp(1, MAX_VALUES));
-    Ok(out)
+    Ok(())
 }
 
 #[cfg(test)]

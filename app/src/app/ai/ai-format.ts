@@ -1,6 +1,6 @@
 /** Pure display formatters for the AI views (sizes, rates, times, fit and speed labels, hardware). */
 import { Assessment, Fit, FitAdvice, Gpu, Hardware, Speed } from './ai.types';
-export { formatBytes, formatEta, formatRate, percent } from '../shared/format/units';
+export { formatBytes, formatConnections, formatEta, formatRate, percent } from '../shared/format/units';
 
 /** "Text + images" or "Text only": whether a model reads images (ADR 0025). */
 export function visionLabel(vision: boolean): string {

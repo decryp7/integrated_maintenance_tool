@@ -306,7 +306,8 @@ impl FfmpegStore {
 
     /// Downloads, verifies, unpacks and self-tests the pinned release for `platform`, then makes it the active one
     /// (the active one before becomes the rollback target; older ones are removed). A failure at any step leaves the
-    /// runtime in use as it was; verified archives stay for another try.
+    /// runtime in use as it was; verified archives stay for another try. A large archive is fetched over `connections`
+    /// parallel connections when the host allows it (the `download_connections` setting; 1 for a single stream).
     #[allow(clippy::too_many_arguments)]
     pub fn install(
         &self,
@@ -314,6 +315,7 @@ impl FfmpegStore {
         platform: &str,
         source: &dyn ModelSource,
         disk: &dyn DiskSpace,
+        connections: usize,
         progress: &Progress,
         on_stage: &mut dyn FnMut(InstallStage),
         check: Check<'_>,
@@ -339,6 +341,7 @@ impl FfmpegStore {
             opts: DownloadOptions {
                 max_bytes: asset.size.max(1),
                 margin_bytes: 256 << 20,
+                connections,
                 ..DownloadOptions::default()
             },
         };
@@ -535,7 +538,7 @@ mod tests {
 
     fn install(store: &FfmpegStore, c: &FfmpegCatalog, m: &dyn ModelSource, check: Check<'_>) -> Result<InstalledRelease> {
         let mut stages = Vec::new();
-        let r = store.install(c, "test-x64", m, &Roomy, &Progress::new(), &mut |s| stages.push(s), check);
+        let r = store.install(c, "test-x64", m, &Roomy, 1, &Progress::new(), &mut |s| stages.push(s), check);
         if r.is_ok() {
             assert_eq!(
                 stages,
@@ -568,6 +571,7 @@ mod tests {
                 "macos-arm64",
                 &Mem(BTreeMap::new()),
                 &Roomy,
+                1,
                 &Progress::new(),
                 &mut |_| {},
                 &passes,

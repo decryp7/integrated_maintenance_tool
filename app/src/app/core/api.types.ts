@@ -491,6 +491,13 @@ export interface ValueMatch {
   /** Events with the value. */
   count: number;
   via: ValueVia;
+  /** What an entity (`@entity`) is: `executable`, `library`, `file`, `path`, `host`, `ip`, `url`, `exception`, `errorCode`, `guid`. */
+  kind?: string;
+  /** First and last time an entity was seen (epoch ms). */
+  firstSeen?: number;
+  lastSeen?: number;
+  /** Names of sources that have it. */
+  seenIn?: string[];
 }
 
 /** A run of a snippet: a matched word (`mark`) or the text around it. */

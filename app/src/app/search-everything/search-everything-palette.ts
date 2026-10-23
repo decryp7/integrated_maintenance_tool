@@ -50,7 +50,7 @@ let nextId = 0;
       <div class="status" data-testid="search-everything-suggestion">
         <span class="muted" i18n="@@search.suggestion.prefix">Did you mean</span>
         <button type="button" class="btn ghost" (click)="store.acceptSuggestion()">{{ s.value }}</button>
-        <span class="muted">({{ fieldName(s.field) }})?</span>
+        <span class="muted">({{ fieldName(s.field, s.kind) }})?</span>
       </div>
     }
     <div class="list" role="listbox" [id]="listId" i18n-aria-label="@@search.list.label" aria-label="Results">
@@ -127,7 +127,8 @@ export class SearchEverythingPalette {
   }
 
   /** A field as shown: the pseudo field of a source's name reads "source". */
-  protected fieldName(field: string): string {
+  protected fieldName(field: string, kind?: string): string {
+    if (field === '@entity' && kind) return kind;
     return field === '@source' ? $localize`:@@search.suggestion.source:source` : field;
   }
 

@@ -64,6 +64,9 @@ describe('runtime view helpers', () => {
     expect(runtimePercent({ stage: 'finishing', id: 'cpu' })).toBeNull();
     expect(runtimePercent(null)).toBeNull();
     expect(runtimeProgressText(tick)).toBe('10 MB of 20 MB · 5 MB/s · less than a minute left');
+    expect(runtimeProgressText({ ...tick, connections: 4 })).toBe(
+      '10 MB of 20 MB · 5 MB/s · less than a minute left · 4 connections',
+    );
     expect(runtimeProgressText({ ...tick, verifying: true })).toBe('Checking the download: 10 MB of 20 MB');
     expect(runtimeProgressText({ ...tick, bytesPerSec: 0, etaSecs: null })).toBe('10 MB of 20 MB');
     expect(runtimeProgressText(null)).toBe('');
