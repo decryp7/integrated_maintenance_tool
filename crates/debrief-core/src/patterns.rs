@@ -182,6 +182,21 @@ struct Node {
     clusters: Vec<usize>,
 }
 
+/// A message's tokens, made ahead of time by [`PatternMiner::prepare`] (none for Serilog events).
+pub struct Prepared(Option<Vec<(Box<str>, Option<(usize, usize)>)>>);
+
+/// Mines `records` with the tokenizing done on `stages`' pool and the clustering in record order on one thread: the
+/// same patterns as adding them one by one. The flag is false when cancelled.
+pub fn mine_pipelined<R: RowRef + Send + Sync>(
+    records: impl Iterator<Item = R>,
+    miner: &mut PatternMiner,
+    stages: &crate::stages::Stages<'_>,
+) -> bool {
+    stages.run(records, |r| PatternMiner::prepare(r), |r, prepared, _| {
+        miner.add_prepared(&r, prepared);
+    })
+}
+
 /// Incremental template miner.
 pub struct PatternMiner {
     config: MinerConfig,
@@ -216,9 +231,32 @@ impl PatternMiner {
 
     /// Assigns the event to a cluster (creating it if needed) and returns the cluster id.
     pub fn add<R: RowRef + ?Sized>(&mut self, record: &R) -> usize {
-        let id = match record.template().filter(|t| !t.is_empty()) {
-            Some(t) => self.add_serilog(t),
-            None => self.add_mined(record.message()),
+        self.add_prepared(record, Self::prepare(record))
+    }
+
+    /// The costly, pure part of [`Self::add`] (tokenizing and masking the message), which can run on any thread
+    /// before the ordered [`Self::add_prepared`]. Nothing for events with a Serilog template.
+    pub fn prepare<R: RowRef + ?Sized>(record: &R) -> Prepared {
+        if record.template().is_some_and(|t| !t.is_empty()) {
+            return Prepared(None);
+        }
+        Prepared(Some(
+            tokenize_spans(record.message(), MAX_TOKENS)
+                .into_iter()
+                .map(|(t, span)| (Box::<str>::from(t), span))
+                .collect(),
+        ))
+    }
+
+    /// [`Self::add`] with the tokens [`Self::prepare`] made for this record.
+    pub fn add_prepared<R: RowRef + ?Sized>(&mut self, record: &R, prepared: Prepared) -> usize {
+        let id = match (record.template().filter(|t| !t.is_empty()), prepared.0) {
+            (Some(t), _) => self.add_serilog(t),
+            (None, Some(spans)) => {
+                let spans: Vec<Token<'_>> = spans.iter().map(|(t, s)| (Cow::Borrowed(&**t), *s)).collect();
+                self.add_mined(record.message(), spans)
+            }
+            (None, None) => self.add_mined(record.message(), tokenize_spans(record.message(), MAX_TOKENS)),
         };
         if let Some(ts) = record.ts() {
             if let Some(remap) = self.scale.fit(ts) {
@@ -266,8 +304,7 @@ impl PatternMiner {
         id
     }
 
-    fn add_mined(&mut self, message: &str) -> usize {
-        let spans = tokenize_spans(message, MAX_TOKENS);
+    fn add_mined(&mut self, message: &str, spans: Vec<Token<'_>>) -> usize {
         let tokens: Vec<&Cow<str>> = spans.iter().map(|t| &t.0).collect();
         let route_depth = self.config.depth.saturating_sub(2).min(tokens.len());
         let max_children = self.config.max_children.max(1);

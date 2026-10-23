@@ -576,6 +576,23 @@ mod tests {
         assert!(e.to_string().contains("choose your own ffmpeg"), "{e}");
     }
 
+    /// A fresh install hashes the archive while it is written: the progress never enters the verifying phase
+    /// (which would re-read the whole archive) and ends with every byte counted once.
+    #[test]
+    fn a_fresh_install_hashes_while_writing_without_a_second_read() {
+        use debrief_ai::models::Phase;
+        let dir = tempfile::tempdir().unwrap();
+        let store = FfmpegStore::new(dir.path());
+        let (c, m) = archive("t1", &[7u8; 4096]);
+        let progress = Progress::new();
+        store
+            .install(&c, "test-x64", &m, &Roomy, &progress, &mut |_| {}, &passes)
+            .unwrap();
+        let snap = progress.snapshot();
+        assert_eq!(snap.phase, Phase::Downloading, "no verifying pass over the written archive");
+        assert_eq!(snap.bytes, c.platforms["test-x64"].size, "every byte counted exactly once");
+    }
+
     #[test]
     fn install_update_rollback_and_delete() {
         let dir = tempfile::tempdir().unwrap();

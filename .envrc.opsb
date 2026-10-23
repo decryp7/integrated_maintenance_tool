@@ -1,0 +1,1 @@
+export DUCKDB_LIB_DIR=/Volumes/d8sst7/dev.decryptology.net/debrief/target/libduckdb/1.5.6/libduckdb-osx-universal DUCKDB_INCLUDE_DIR=/Volumes/d8sst7/dev.decryptology.net/debrief/target/libduckdb/1.5.6/libduckdb-osx-universal CARGO_TARGET_DIR=$HOME/.debrief-target-opsB CARGO_BUILD_JOBS=4

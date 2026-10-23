@@ -28,10 +28,7 @@ use std::path::{Path, PathBuf};
 /// [`MAX_DEFAULT_THREADS`] so the worker stays within its memory budget (each parse thread holds a chunk
 /// buffer, a batch and its store writer's buffers). Settings can raise it.
 pub fn default_threads() -> usize {
-    std::thread::available_parallelism()
-        .map_or(2, |n| n.get())
-        .saturating_sub(1)
-        .clamp(1, MAX_DEFAULT_THREADS)
+    crate::threads::threads(crate::threads::WorkKind::Cpu, None).clamp(1, MAX_DEFAULT_THREADS)
 }
 
 /// Upper bound of [`default_threads`].
