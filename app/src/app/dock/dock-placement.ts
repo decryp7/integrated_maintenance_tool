@@ -27,8 +27,10 @@ const FULL_HEIGHT_MAX_WIDTH = 880;
 /** The events grid and timeline keep at least this much width beside a full-height column (the column gives way first, never below its minimum). */
 const MAIN_MIN_WIDTH = 640;
 const FULL_HEIGHT_MIN_WIDTH = 320;
+/** The least width the events grid keeps when a window narrows beside a full-height column, px. */
+const GRID_MIN_WIDTH = 760;
 /** Below this dock width a full-height document is placed like any other document. */
-const FULL_HEIGHT_MIN_DOCK_WIDTH = 800;
+const FULL_HEIGHT_MIN_DOCK_WIDTH = 900;
 /** A document group counts as full height when it is at least this share of the dock's height. */
 const FULL_HEIGHT_MIN_SHARE = 0.9;
 /** Width of a full-height column in a dock `dockWidth` px wide: a share of it, capped, and never so wide that the grid drops below its minimum. */
@@ -247,6 +249,8 @@ export class DockPlacement {
     if (!api.getPanel(PANEL.timeline) && !api.getPanel(PANEL.events)) return api.addPanel(base);
     const panel = api.addPanel({ ...base, position: { direction: 'right' } });
     if (api.width > 0) panel.group.api.setSize({ width: fullHeightWidth(api.width) });
+    // When the window narrows later, the full-height column gives way and the grid keeps a readable width.
+    (api.getPanel(PANEL.events) ?? api.getPanel(PANEL.timeline))?.group?.api?.setConstraints?.({ minimumWidth: GRID_MIN_WIDTH });
     return panel;
   }
 

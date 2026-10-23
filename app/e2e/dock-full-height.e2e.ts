@@ -23,7 +23,7 @@ async function expectFullHeight(page: Page, panel: Locator): Promise<void> {
   expect(events.height).toBeGreaterThan(200);
   expect(timeline.height).toBeGreaterThan(150);
   expect(events.height + timeline.height).toBeGreaterThan(dock.height * 0.9);
-  expect(group.width).toBeGreaterThan(400);
+  expect(group.width).toBeGreaterThan(300);
 }
 
 test.describe('full-height documents (Home, Registry)', () => {

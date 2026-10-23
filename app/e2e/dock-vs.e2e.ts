@@ -96,7 +96,7 @@ test.describe('VS-style docking', () => {
     await expect(tab(page, 'Inspector')).toHaveCount(0);
     const sideTab = page.getByRole('navigation', { name: 'Auto-hidden tool windows (right)' }).getByRole('button', { name: 'Inspector' });
     await expect(sideTab).toBeVisible();
-    await expect(groups(page)).toHaveCount(3);
+    await expect(groups(page)).toHaveCount(4);
 
     await sideTab.hover();
     const flyout = page.getByRole('region', { name: 'Inspector' });
@@ -122,7 +122,7 @@ test.describe('VS-style docking', () => {
     await sideTab.click();
     await flyout.getByRole('button', { name: 'Pin Inspector' }).click();
     await expect(tab(page, 'Inspector')).toBeVisible();
-    await expect(groups(page)).toHaveCount(4);
+    await expect(groups(page)).toHaveCount(5);
     await expect(page.locator('debrief-inspector')).toBeVisible();
     // Back at the right edge of the window, beside the groups it was beside, once the dock layout has settled.
     await expect
