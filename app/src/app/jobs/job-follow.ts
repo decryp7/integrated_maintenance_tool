@@ -15,7 +15,7 @@ export class JobFollow {
 
   /** "Exporting report.html — running in Jobs", with "Show in Jobs". */
   started(title: string): void {
-    this.injector.get(NotificationsStore).showLocal({ severity: 'info', title, primary: { type: 'showJobs' } });
+    this.injector.get(NotificationsStore).showLocal({ severity: 'info', title, primary: { type: 'showJobs' }, running: true });
   }
 
   /** A request that did not start (refused, queue full): says why. */

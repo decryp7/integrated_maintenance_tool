@@ -13,8 +13,13 @@ type AddPanel = { id: string; component: string; title: string; inactive: boolea
 
 const INSPECTOR_WIDTH = 372;
 const TIMELINE_HEIGHT = 300;
-/** The share of the dock's height the events grid keeps when a document opens beside the timeline. */
-const DOCUMENT_GRID_SHARE = 0.35;
+/** The timeline row's height once an analysis panel shares the dock (the grid keeps the rest). */
+const TIMELINE_COMPACT_HEIGHT = 210;
+/** The share of the dock's height the events grid keeps when a document opens beside the timeline (it is the main artefact). */
+const DOCUMENT_GRID_SHARE = 0.6;
+/** A document that opens beside the timeline takes at most this share of the dock's width, and at most `DOCUMENT_MAX_WIDTH` px. */
+const DOCUMENT_WIDTH_SHARE = 0.4;
+const DOCUMENT_MAX_WIDTH = 640;
 /** The share of the dock's width a full-height document (Home, Registry) gets in its own column. */
 const FULL_HEIGHT_WIDTH_SHARE = 0.4;
 /** ...but never wider than this, px: on a 2560 px window a sparse tree or a dashboard does not need 1400 px (U15). */
@@ -153,8 +158,12 @@ export class DockPlacement {
   private addTool(api: DockviewApi, base: AddPanel): IDockviewPanel {
     const sameKind = this.toolGroupFor(api, 'right');
     if (sameKind) return api.addPanel({ ...base, position: { referencePanel: sameKind, direction: 'within' } });
+    // A column at the window edge must not change the rows' heights (dockview redistributes them when the root flips
+    // to a horizontal split, which left the events grid two rows when the inspector was pinned).
+    const heights = api.groups.filter((g) => g.api.location.type === 'grid').map((g) => ({ group: g, height: g.height }));
     const panel = api.addPanel({ ...base, position: { direction: 'right' } });
     panel.group.api.setSize({ width: TOOL_SIZE.side });
+    for (const { group, height } of heights) if (height > 0 && Math.abs(group.height - height) > 2) group.api.setSize({ height });
     return panel;
   }
 
@@ -187,6 +196,12 @@ export class DockPlacement {
     if (!below) return api.addPanel(base);
     const panel = api.addPanel({ ...base, position: { referenceGroup: below.group.id, direction: 'below' } });
     panel.group.api.setSize({ height: ANALYSIS_HEIGHT });
+    // A third band must not starve the events grid: the timeline row gives up height before the grid does.
+    const timeline = api.getPanel(PANEL.timeline)?.group;
+    if (timeline && timeline.api.location.type === 'grid' && timeline.height > TIMELINE_COMPACT_HEIGHT) timeline.api.setSize({ height: TIMELINE_COMPACT_HEIGHT });
+    const events = below.group;
+    const grid = api.height - TIMELINE_COMPACT_HEIGHT - ANALYSIS_HEIGHT;
+    if (timeline && events.api.location.type === 'grid' && grid > 200) events.api.setSize({ height: grid });
     return panel;
   }
 
@@ -214,6 +229,7 @@ export class DockPlacement {
     if (main && main.group.api.location.type === 'grid') {
       const panel = api.addPanel({ ...base, position: { referenceGroup: main.group.id, direction: 'right' } });
       this.giveDocumentsRoom(api);
+      this.narrowDocument(api, panel.group);
       return panel;
     }
     const ref = this.anchorFor(api, 'center');
@@ -257,6 +273,12 @@ export class DockPlacement {
     if (!events || events.api.location.type !== 'grid' || api.height <= 0) return;
     const wanted = Math.round(api.height * DOCUMENT_GRID_SHARE);
     if (events.height > wanted) events.api.setSize({ height: wanted });
+  }
+
+  /** A document opened beside the timeline is a side column, not half of the row: the timeline plot keeps the width. */
+  private narrowDocument(api: DockviewApi, group: DockviewGroupPanel): void {
+    if (api.width <= 0) return;
+    group.api.setSize({ width: Math.min(DOCUMENT_MAX_WIDTH, Math.round(api.width * DOCUMENT_WIDTH_SHARE)) });
   }
 
   /** A docked tool window already open on that side, to tab a new one with. */

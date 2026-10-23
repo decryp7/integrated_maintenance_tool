@@ -16,7 +16,7 @@ export const WATCHED_VIEWS: DebriefView[] = [
 ];
 
 export const WATCHED_COMMANDS: DebriefCommand[] = [
-  { id: 'watched.show', title: $localize`:@@watched.commands.show:Show watched folders`, category: CATEGORY, run: (ctx) => ctx.showView('watched-folders') },
+  { id: 'watched.show', title: $localize`:@@watched.commands.show:Show watched folders`, category: CATEGORY, view: 'watched-folders', run: (ctx) => ctx.showView('watched-folders') },
 ];
 
 /** Watched folders: the view and its command. */

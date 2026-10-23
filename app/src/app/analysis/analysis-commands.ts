@@ -3,7 +3,7 @@ import { CommandContext, DebriefCommand } from '../extensions/tokens';
 import { AnalysisTargets } from './analysis-targets';
 import { QuerySession } from './query-session';
 import { TimeCursor } from './time-cursor';
-import { aroundTime, midpoint, previousWindow, WIDTHS } from './windows';
+import { aroundTime, midpoint, WIDTHS } from './windows';
 
 const loaded = (ctx: CommandContext) => !!ctx.summary;
 const CATEGORY = $localize`:@@analysis.commands.category:Analyze`;
@@ -56,8 +56,7 @@ export class AnalysisCommands {
       category: CATEGORY,
       when: loaded,
       run: (ctx) => {
-        const r = this.targets.currentRange();
-        if (r) this.targets.setWindows(previousWindow(r), r);
+        this.targets.compareCurrentRange();
         ctx.showView('compare');
       },
     },

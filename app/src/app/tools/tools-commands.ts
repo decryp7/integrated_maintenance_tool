@@ -31,9 +31,9 @@ export class ToolsCommands {
   private readonly plugins = inject(PluginsTabs);
 
   readonly commands: DebriefCommand[] = [
-    { id: 'tools.perfmon.show', title: $localize`:@@tools.cmd.perfmon:Open Performance Monitor`, category: $localize`:@@tools.category.tools:Tools`, when: () => this.catalog.listed(TOOL_IDS.perfmonTemplates), run: (ctx) => ctx.showView('perfmon') },
-    { id: 'tools.monitor.show', title: $localize`:@@tools.cmd.processMonitor:Open Process Monitor`, category: $localize`:@@tools.category.tools:Tools`, when: () => this.catalog.listed(TOOL_IDS.processMonitor), run: (ctx) => ctx.showView('process-monitor') },
-    { id: 'tools.eventlog.show', title: $localize`:@@tools.cmd.eventLog:Open Event Log Follower`, category: $localize`:@@tools.category.tools:Tools`, when: () => this.catalog.listed(TOOL_IDS.eventLog), run: (ctx) => ctx.showView('event-log-follower') },
+    { id: 'tools.perfmon.show', title: $localize`:@@tools.cmd.perfmon:Open Performance Monitor`, category: $localize`:@@tools.category.tools:Tools`, when: () => this.catalog.listed(TOOL_IDS.perfmonTemplates), view: 'perfmon', run: (ctx) => ctx.showView('perfmon') },
+    { id: 'tools.monitor.show', title: $localize`:@@tools.cmd.processMonitor:Open Process Monitor`, category: $localize`:@@tools.category.tools:Tools`, when: () => this.catalog.listed(TOOL_IDS.processMonitor), view: 'process-monitor', run: (ctx) => ctx.showView('process-monitor') },
+    { id: 'tools.eventlog.show', title: $localize`:@@tools.cmd.eventLog:Open Event Log Follower`, category: $localize`:@@tools.category.tools:Tools`, when: () => this.catalog.listed(TOOL_IDS.eventLog), view: 'event-log-follower', run: (ctx) => ctx.showView('event-log-follower') },
     {
       id: 'tools.health.show',
       title: $localize`:@@tools.cmd.pluginHealth:Open plugin health`,

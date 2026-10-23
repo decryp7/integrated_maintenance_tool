@@ -47,7 +47,7 @@ export class DiagnosticsCommands {
       keybinding: CAPTURE_KEYBINDING,
       run: async () => void (await this.snapshots.manual()),
     },
-    { id: 'diagnostics.snapshots.show', title: $localize`:@@diagnostics.commands.showSnapshots:Show error snapshots`, category: $localize`:@@diagnostics.commands.category.tools:Tools`, run: (ctx) => ctx.showView('error-snapshots') },
+    { id: 'diagnostics.snapshots.show', title: $localize`:@@diagnostics.commands.showSnapshots:Show error snapshots`, category: $localize`:@@diagnostics.commands.category.tools:Tools`, view: 'error-snapshots', run: (ctx) => ctx.showView('error-snapshots') },
     {
       id: REPORT_PROBLEM_COMMAND,
       title: $localize`:@@diagnostics.commands.report:Report a problem…`,

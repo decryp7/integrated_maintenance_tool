@@ -61,7 +61,7 @@ export function provideHome(): EnvironmentProviders {
   return makeEnvironmentProviders([
     provideDebriefPlugin({
       views: HOME_VIEWS,
-      commands: [{ id: 'view.home', title: $localize`:@@home.plugin.show:Show Home`, category: $localize`:@@home.plugin.category:View`, run: (ctx) => ctx.showView(HOME_VIEW) }],
+      commands: [{ id: 'view.home', title: $localize`:@@home.plugin.show:Show Home`, category: $localize`:@@home.plugin.category:View`, view: HOME_VIEW, run: (ctx) => ctx.showView(HOME_VIEW) }],
     }),
     provideEnvironmentInitializer(() => inject(HomeAutoOpen)),
   ]);

@@ -187,7 +187,10 @@ describe('AnalysisCommands', () => {
     const { cmds, ctx, targets, cursor } = await setup();
     const range = targets.currentRange()!;
     find(cmds, 'compare.previous').run(ctx);
-    expect(targets.windowB()).toEqual(range);
+    // The range is all the data, so there is nothing before it: its two halves are compared.
+    const half = Math.round((range.from + range.to) / 2);
+    expect(targets.windowA()).toEqual({ from: range.from, to: half });
+    expect(targets.windowB()).toEqual({ from: half, to: range.to });
     expect(ctx.last('showView')).toEqual(['compare']);
     find(cmds, 'compare.beforeAfter').run(ctx);
     const mid = Math.round((range.from + range.to) / 2);

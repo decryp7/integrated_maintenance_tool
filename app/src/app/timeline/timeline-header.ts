@@ -1,3 +1,4 @@
+import { RovingTabindex } from '../shared/roving-tabindex';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { formatDuration } from '../core/format';
 import { WorkspaceDataStore } from '../core/workspace/workspace-data.store';
@@ -24,7 +25,7 @@ import { isMac } from '../extensions/keybinding';
 @Component({
   selector: 'debrief-timeline-header',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Switch, AutoFocus, LiveWindowControls, HealthHeadline, HelpHint],
+  imports: [RovingTabindex, Icon, Switch, AutoFocus, LiveWindowControls, HealthHeadline, HelpHint],
   host: { style: 'display: contents' },
   template: `
     <div class="head">
@@ -46,7 +47,7 @@ import { isMac } from '../extensions/keybinding';
       @if (src.loading()) { <span class="spinner" role="status" aria-label="Loading" i18n-aria-label="@@timeline.panel.loading"></span> }
       <span class="spacer"></span>
       @if (src.main) { <debrief-live-window-controls /> }
-      <div class="zoom" role="group" aria-label="Zoom" i18n-aria-label="@@timeline.panel.zoom">
+      <div class="zoom" role="group" debriefRoving="button" rovingAxis="horizontal" aria-label="Zoom" i18n-aria-label="@@timeline.panel.zoom">
         <button class="icon-btn" title="Previous range (Alt+←)" i18n-title="@@timeline.panel.back.title" aria-label="Previous range" i18n-aria-label="@@timeline.panel.back.aria" [disabled]="!zoom.canBack()" (click)="zoom.back()">←</button>
         <button class="icon-btn" title="Next range (Alt+→)" i18n-title="@@timeline.panel.forward.title" aria-label="Next range" i18n-aria-label="@@timeline.panel.forward.aria" [disabled]="!zoom.canForward()" (click)="zoom.forward()">→</button>
         <button class="icon-btn" title="Zoom in" i18n-title="@@timeline.panel.zoomIn.title" aria-label="Zoom in" i18n-aria-label="@@timeline.panel.zoomIn.aria" (click)="zoom.zoomIn()"><debrief-icon name="plus" [size]="13" /></button>

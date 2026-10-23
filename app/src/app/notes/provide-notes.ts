@@ -18,7 +18,7 @@ export function notesViews(): DebriefView[] {
 
 export function notesCommands(actions: NoteActions, workspace: WorkspaceStore): DebriefCommand[] {
   return [
-    { id: 'notes.show', title: $localize`:@@notes.cmd.show:Show notes`, category: CATEGORY(), run: (ctx) => ctx.showView(NOTES_VIEW) },
+    { id: 'notes.show', title: $localize`:@@notes.cmd.show:Show notes`, category: CATEGORY(), view: NOTES_VIEW, run: (ctx) => ctx.showView(NOTES_VIEW) },
     {
       id: 'notes.addSelected',
       title: $localize`:@@notes.cmd.addSelected:Add note to the selected event…`,
@@ -29,7 +29,7 @@ export function notesCommands(actions: NoteActions, workspace: WorkspaceStore): 
     },
     { id: 'notes.addRange', title: $localize`:@@notes.cmd.addRange:Add note to the time range…`, category: CATEGORY(), when: () => workspace.hasRange(), run: () => void actions.writeOnRange() },
     { id: 'notes.addProject', title: $localize`:@@notes.cmd.addProject:Add note to the project…`, category: CATEGORY(), run: () => void actions.write(anchors.project()) },
-    { id: 'notes.image', title: $localize`:@@notes.cmd.image:Mark up an image…`, category: CATEGORY(), run: (ctx) => ctx.showView(NOTE_IMAGE_VIEW) },
+    { id: 'notes.image', title: $localize`:@@notes.cmd.image:Mark up an image…`, category: CATEGORY(), view: NOTE_IMAGE_VIEW, run: (ctx) => ctx.showView(NOTE_IMAGE_VIEW) },
   ];
 }
 

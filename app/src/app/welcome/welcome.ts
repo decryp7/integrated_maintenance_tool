@@ -8,6 +8,7 @@ import { CommandRegistry } from '../extensions/command-registry';
 import { RecentService } from '../core/recent/recent.service';
 import { RecentOpener } from '../shell/menu/recent-opener';
 import { formatOpenedAt } from '../core/recent/recent-date';
+import { AiStatusStore } from '../ai/ai-status.store';
 import { READ_ONLY_DETAIL, READ_ONLY_PROMISE } from '../shared/read-only';
 
 /**
@@ -41,6 +42,16 @@ export class WelcomeService {
   }
 }
 
+const AI_OFFER_KEY = 'debrief.welcome.aiOfferDismissed';
+
+function storedFlag(key: string): boolean {
+  try {
+    return localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+
 /** Last two path segments, e.g. "web01/orders.clef". */
 export function shortPath(path: string): string {
   return path.split(/[\\/]/).filter(Boolean).slice(-2).join('/') || path;
@@ -61,6 +72,14 @@ export function shortPath(path: string): string {
         <button class="btn big" type="button" data-testid="try-demo" [disabled]="demo.loading()" (click)="demo.start()"><debrief-icon name="timeline" [size]="15" /> {{ demoLabel() }}</button>
       </div>
       <p class="safe" data-testid="read-only-promise"><debrief-icon name="check" [size]="14" /> {{ promise }} <debrief-help label="Your files are safe" i18n-label="@@welcome.safe.helpLabel" [text]="detail" /></p>
+      @if (aiOffer()) {
+        <p class="ai-offer" data-testid="welcome-ai-offer">
+          <debrief-icon name="ai" [size]="14" />
+          <span i18n="@@welcome.ai.text">Optional: an AI assistant that runs on this computer.</span>
+          <button class="link" type="button" data-testid="welcome-ai-setup" (click)="setUpAi()" i18n="@@welcome.ai.setup">Set it up</button>
+          <button class="link muted" type="button" data-testid="welcome-ai-dismiss" (click)="dismissAi()" i18n="@@welcome.ai.dismiss">Not now</button>
+        </p>
+      }
       <p class="faint hint" i18n="@@welcome.hint">Or drag and drop files or folders anywhere in the window. The format is detected from the content, not the extension.</p>
 
       @if (recentProjects().length || recent().length) {
@@ -91,7 +110,10 @@ export function shortPath(path: string): string {
   `,
   styles: `
     :host { position: absolute; inset: 0; z-index: 5; overflow: auto; background: var(--bg-1); display: flex; justify-content: center; }
-    .welcome { width: min(720px, 100%); padding: 48px 24px; display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
+    .welcome { width: min(720px, 100%); margin-block: auto; padding: 48px 24px; display: flex; flex-direction: column; gap: 14px; align-items: center; text-align: center; }
+    .actions { flex-wrap: wrap; justify-content: center; }
+    .ai-offer { margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; font-size: var(--fs-md); color: var(--text-2); }
+    .ai-offer .muted { color: var(--muted); }
     h1 { margin: 0; font-size: var(--fs-xl); font-weight: 600; }
     .lead { margin: 0; color: var(--text-2); font-size: var(--fs-lg); }
     .actions { display: flex; gap: 10px; margin-top: 6px; }
@@ -99,7 +121,8 @@ export function shortPath(path: string): string {
     .hint { margin: 0; font-size: var(--fs-sm); }
     .safe { margin: 0; display: flex; align-items: center; gap: 6px; font-size: var(--fs-md); color: var(--text-2); }
     .safe debrief-icon { color: var(--ok); }
-    .recent ul { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+    .recent { align-self: stretch; }
+    .recent ul { align-items: center; margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
     .link { border: 0; background: transparent; color: var(--chip-text); cursor: pointer; padding: 3px 0; text-align: left; font-size: var(--fs-sm); }
     .link:hover { text-decoration: underline; }
     .link .path { color: var(--muted); margin-inline-start: 6px; }
@@ -130,6 +153,24 @@ export class Welcome {
     this.store.sourcesVersion();
     return this.recentStore.list();
   });
+
+  private readonly ai = inject(AiStatusStore);
+  private readonly aiDismissed = signal(storedFlag(AI_OFFER_KEY));
+  /** A quiet one-line offer to set up the AI assistant, until it is set up or dismissed. */
+  protected readonly aiOffer = computed(() => this.ai.needsSetup() && !this.aiDismissed());
+
+  protected setUpAi(): void {
+    void this.commands.run('ai.setup');
+  }
+
+  protected dismissAi(): void {
+    this.aiDismissed.set(true);
+    try {
+      localStorage.setItem(AI_OFFER_KEY, '1');
+    } catch {
+      /* storage unavailable: the offer comes back next start, which is harmless */
+    }
+  }
 
   protected readonly recentProjects = computed(() => this.recentProjectsList.projects());
 

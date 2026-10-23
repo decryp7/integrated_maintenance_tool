@@ -61,6 +61,8 @@ test.describe('home (dashboard and health check)', () => {
     // Only the first findings show until "Show all"; the list is virtualised: scroll to the end for the info findings.
     await region.getByTestId('home-findings-toggle').click();
     await expect(region.getByTestId('home-findings-toggle')).toContainText('Show fewer');
+    // Home is a side document now (the events grid keeps the height): maximise it to see the whole list.
+    await page.locator('.dv-groupview').filter({ has: home }).getByRole('button', { name: 'Maximize panel' }).click();
     await page.waitForTimeout(300);
     await findings.evaluate((el) => el.scrollTo(0, el.scrollHeight));
     await findings.locator('.finding[data-severity=info]').getByRole('button', { name: 'Set up format…' }).first().click();

@@ -1,3 +1,4 @@
+import { RovingTabindex } from '../shared/roving-tabindex';
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { ErrorDetails } from '../ui/error-details';
 import { AnnotationDto } from '../core/api.types';
@@ -51,7 +52,7 @@ function timelineSource(): TimelineSource {
 @Component({
   selector: 'debrief-timeline-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TimeCursorLine, AnnotationTrack, ProfileSpanTrack, DumpMarkerTrack, NoteTimelineTrack, TimelineHeader, TimelineLegend, TimelineMinimap, TimelineLanes, TimelineTooltips, TimelineInteraction, ErrorDetails],
+  imports: [RovingTabindex, TimeCursorLine, AnnotationTrack, ProfileSpanTrack, DumpMarkerTrack, NoteTimelineTrack, TimelineHeader, TimelineLegend, TimelineMinimap, TimelineLanes, TimelineTooltips, TimelineInteraction, ErrorDetails],
   // One store per panel: an additional timeline gets its own `TimelineInstanceStore` (created only when used).
   providers: [TimelineInstanceStore, { provide: TIMELINE_SOURCE, useFactory: timelineSource }],
   host: { '[class.instance]': '!src.main' },
@@ -101,7 +102,7 @@ function timelineSource(): TimelineSource {
           </div>
         </div>
 
-        <debrief-timeline-lanes
+        <debrief-timeline-lanes debriefRoving=".lane-label, .marker"
           [lanes]="lanes()"
           [runLayout]="runLayout()"
           [annLanes]="annLayout().lanes"

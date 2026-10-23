@@ -1,3 +1,4 @@
+import { RovingTabindex } from '../shared/roving-tabindex';
 import { PathText } from '../shared/path-text';
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
@@ -56,11 +57,11 @@ function shortPath(path: string): string {
 @Component({
   selector: 'debrief-sidebar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PathText, Icon, FieldsPanel, NgTemplateOutlet, SourceSwatch, TimestampWarning],
+  imports: [RovingTabindex, PathText, Icon, FieldsPanel, NgTemplateOutlet, SourceSwatch, TimestampWarning],
   template: `
     <div class="head">
       <span class="section-title" i18n="@@shell.sidebar.explorer">Explorer</span>
-      <span class="tools">
+      <span class="tools" role="toolbar" aria-label="Explorer actions" i18n-aria-label="@@shell.sidebar.tools" debriefRoving="button" rovingAxis="horizontal">
         <button class="icon-btn" aria-label="Open files" title="Open files" i18n-aria-label="@@shell.sidebar.openFiles" i18n-title="@@shell.sidebar.openFilesTitle" (click)="store.pickAndOpen(false)"><debrief-icon name="file" [size]="14" /></button>
         <button class="icon-btn" aria-label="Open folder" title="Open folder" i18n-aria-label="@@shell.sidebar.openFolder" i18n-title="@@shell.sidebar.openFolderTitle" (click)="store.pickAndOpen(true)"><debrief-icon name="folder" [size]="14" /></button>
         <button class="icon-btn" aria-label="Open a time range" title="Open a time range…" i18n-aria-label="@@shell.sidebar.openRange" i18n-title="@@shell.sidebar.openRangeTitle" data-testid="open-range" (click)="importRange.pickAndOpen(true)"><debrief-icon name="metrics" [size]="14" /></button>

@@ -6,7 +6,7 @@ import { AsyncResource, errorText } from './async-resource';
 import { HISTORY_STORE, LocalHistoryStore, MAX_HISTORY, QueryHistory } from './history-store';
 import { TimeCursor, TimeCursorLine, TimeCursorSource, timeToFrac, xToTime } from './time-cursor';
 import { manualFrames } from '../../testing/helpers';
-import { aroundTime, midpoint, previousWindow, span } from './windows';
+import { aroundTime, defaultWindows, midpoint, previousWindow, span } from './windows';
 import { Component, signal } from '@angular/core';
 import { MemoryHistory } from './test-setup';
 
@@ -305,5 +305,20 @@ describe('TimeCursor', () => {
     expect(timeToFrac(1001, { from: 0, to: 1000 })).toBeNull();
     expect(timeToFrac(null, { from: 0, to: 1000 })).toBeNull();
     expect(timeToFrac(5, null)).toBeNull();
+  });
+});
+
+describe('defaultWindows (compare defaults)', () => {
+  const extent = { from: 1000, to: 2000 };
+  it('compares a range with the window before it when that one holds data', () => {
+    expect(defaultWindows({ from: 1500, to: 2000 }, extent)).toEqual({ a: { from: 1000, to: 1500 }, b: { from: 1500, to: 2000 } });
+    expect(defaultWindows({ from: 1600, to: 1800 }, extent)).toEqual({ a: { from: 1400, to: 1600 }, b: { from: 1600, to: 1800 } });
+  });
+  it('compares the two halves when the range is all the data (the window before it is empty)', () => {
+    expect(defaultWindows({ from: 1000, to: 2000 }, extent)).toEqual({ a: { from: 1000, to: 1500 }, b: { from: 1500, to: 2000 } });
+    expect(defaultWindows({ from: 1000, to: 1400 }, extent)).toEqual({ a: { from: 1000, to: 1200 }, b: { from: 1200, to: 1400 } });
+  });
+  it('without a known extent uses the window before', () => {
+    expect(defaultWindows({ from: 100, to: 150 }, null)).toEqual({ a: { from: 50, to: 100 }, b: { from: 100, to: 150 } });
   });
 });

@@ -92,11 +92,11 @@ test.describe('activity bar', () => {
     await page.keyboard.press('Enter');
     await expect(tab(page, 'patterns')).toBeVisible();
 
-    // Tab reaches the next buttons; Space toggles live tail.
+    // The bar is one Tab stop: the arrows reach the next buttons; Space toggles live tail.
     await analysis.focus();
-    await page.keyboard.press('Tab');
+    await page.keyboard.press('ArrowDown');
     await expect(barButton(page, 'Metrics')).toBeFocused();
-    await page.keyboard.press('Tab');
+    await page.keyboard.press('ArrowDown');
     await expect(barButton(page, 'Toggle live tail')).toBeFocused();
     await page.keyboard.press('Space');
     await expect(barButton(page, 'Toggle live tail')).toHaveAttribute('aria-pressed', 'true');
