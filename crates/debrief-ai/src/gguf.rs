@@ -72,6 +72,13 @@ pub struct GgufInfo {
     pub embedding_length: Option<u32>,
     pub head_count: Option<u32>,
     pub head_count_kv: Option<u32>,
+    /// Per-head key and value sizes when the file states them (otherwise `embedding_length / head_count`).
+    pub key_length: Option<u32>,
+    pub value_length: Option<u32>,
+    /// Window of the sliding-window attention layers (Gemma), when the file has one.
+    pub sliding_window: Option<u32>,
+    /// Qwen3.5-style hybrids: only every n-th layer has a KV cache.
+    pub full_attention_interval: Option<u32>,
     pub expert_count: Option<u32>,
     pub tensor_count: u64,
     pub file_size: u64,
@@ -89,16 +96,10 @@ impl GgufInfo {
         self.expert_count.unwrap_or(0) > 1
     }
 
-    /// Bytes of KV cache per token (f16 keys and values).
+    /// Bytes of KV cache per token for a full-attention model (f16 keys and values); the exact, architecture
+    /// aware figure is `crate::fit::KvShape::from_gguf`.
     pub fn kv_bytes_per_token(&self) -> u64 {
-        match (self.block_count, self.embedding_length, self.head_count, self.head_count_kv) {
-            (Some(l), Some(e), Some(h), kv) if h > 0 => {
-                let kv = kv.unwrap_or(h).max(1) as u64;
-                2 * l as u64 * kv * (e as u64 / h as u64) * 2
-            }
-            // Unknown layout: a typical 7-9B model.
-            _ => 128 * 1024,
-        }
+        crate::fit::KvShape::from_gguf(self).bytes_per_token_full()
     }
 }
 
@@ -183,6 +184,10 @@ fn wanted(key: &str) -> bool {
         ".embedding_length",
         ".attention.head_count",
         ".attention.head_count_kv",
+        ".attention.key_length",
+        ".attention.value_length",
+        ".attention.sliding_window",
+        ".full_attention_interval",
         ".expert_count",
     ]
     .iter()
@@ -368,6 +373,10 @@ pub fn parse<R: Read + Seek>(r: R, len: u64) -> Result<GgufInfo> {
         embedding_length: per_arch("embedding_length").map(|n| n as u32),
         head_count: per_arch("attention.head_count").map(|n| n as u32),
         head_count_kv: per_arch("attention.head_count_kv").map(|n| n as u32),
+        key_length: per_arch("attention.key_length").map(|n| n as u32),
+        value_length: per_arch("attention.value_length").map(|n| n as u32),
+        sliding_window: per_arch("attention.sliding_window").map(|n| n as u32),
+        full_attention_interval: per_arch("full_attention_interval").map(|n| n as u32),
         expert_count: per_arch("expert_count").map(|n| n as u32),
         chat_template: h.text("tokenizer.chat_template"),
         architecture,

@@ -294,6 +294,12 @@ export class MockAiBackend extends AiBackend {
       return mockRecommendations(this.installed.map((m) => m.fileName));
     });
   }
+  refineFit() {
+    return this.later(() => {
+      this.check();
+      return mockRecommendations(this.installed.map((m) => m.fileName));
+    });
+  }
   catalog() {
     return this.later(() => {
       this.check();

@@ -4,7 +4,7 @@ import { el, all, MemoryLogger, provideTinyBackend, tinyBackend, typeInto } from
 import { at, must } from '../../testing/must';
 import { appConfig } from '../app.config';
 import { isActivityTracked } from '../core/activity/backend-activity';
-import { DocHit, KindHits, SearchAllReply } from '../core/api.types';
+import { DocHit, FindValuesRequest, KindHits, SearchAllReply, ValueMatch } from '../core/api.types';
 import { CmdError } from '../core/cmd-error';
 import { Logger } from '../core/logger';
 import { WorkspaceStore } from '../core/workspace.store';
@@ -54,9 +54,15 @@ const full = reply({
 class FakeBackend extends SearchEverythingBackend {
   readonly calls: string[] = [];
   answer: (text: string) => Promise<SearchAllReply | null> = async () => full;
+  values: ValueMatch[] = [];
+  valuesFail = false;
   searchEverything(request: { text: string }) {
     this.calls.push(request.text);
     return this.answer(request.text);
+  }
+  async findValues(_request: FindValuesRequest) {
+    if (this.valuesFail) throw new Error('boom');
+    return this.values;
   }
 }
 
@@ -72,6 +78,18 @@ describe('search everything backend', () => {
     const invoke = vi.fn(async () => null);
     await new TauriSearchEverythingBackend(invoke as never).searchEverything({ text: 'timeout' });
     expect(invoke).toHaveBeenCalledWith('search_everything', { request: { text: 'timeout' } });
+    await new TauriSearchEverythingBackend(invoke as never).findValues({ text: 'graphic builder' });
+    expect(invoke).toHaveBeenCalledWith('find_values', { request: { text: 'graphic builder' } });
+  });
+
+  it('the mock resolves words to the source whose name holds them, ignoring separators and case', async () => {
+    const workspace = tinyBackend();
+    const mock = new MockSearchEverythingBackend(workspace, { notes: () => new MockNotesBackend(), knowledge: () => new MockKnowledgeBackend(), analysis: () => new MockAnalysisBackend(recordsFrom(workspace)) });
+    const name = must((await workspace.workspaceSummary()).sources[0]).name;
+    const spaced = name.replace(/[^\p{L}\p{N}]+/gu, ' ').toUpperCase();
+    const values = await mock.findValues({ text: spaced });
+    expect(values.map((v) => [v.field, v.value, v.via])).toContainEqual(['@source', name, 'exact']);
+    expect(await mock.findValues({ text: ' -- ' })).toEqual([]);
   });
 
   it('is the mock behind the shared proxy in a browser', () => {
@@ -268,6 +286,48 @@ describe('search everything knowledge results', () => {
     await new Promise((r) => setTimeout(r));
     expect(open).toHaveBeenCalledTimes(1);
     expect(context.notifyError).toHaveBeenCalledWith('This knowledge file no longer exists.');
+  });
+});
+
+describe('search everything suggestion', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('offers the value the words mean, takes it on accept, and stays quiet when it is what was typed or the lookup fails', async () => {
+    const { backend } = provide();
+    const fake = backend as FakeBackend;
+    fake.values = [{ field: 'ProcessName', value: 'CompanyA.Graphic.Builder.exe', count: 40, via: 'parts' }];
+    const store = TestBed.inject(SearchEverythingStore);
+    store.setText('graphic builder');
+    await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS);
+    expect(store.suggestion()?.value).toBe('CompanyA.Graphic.Builder.exe');
+    store.acceptSuggestion();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store.text()).toBe('CompanyA.Graphic.Builder.exe');
+    expect(fake.calls.at(-1)).toBe('CompanyA.Graphic.Builder.exe');
+    expect(store.suggestion()).toBeNull();
+    fake.valuesFail = true;
+    store.setText('graphic builder');
+    await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS);
+    expect(store.suggestion()).toBeNull();
+    expect(store.error()).toBeNull();
+    store.acceptSuggestion();
+    expect(store.text()).toBe('graphic builder');
+  });
+
+  it('shows the line in the palette with the field', async () => {
+    const { backend } = provide();
+    (backend as FakeBackend).values = [{ field: 'ProcessName', value: 'CompanyA.Graphic.Builder.exe', count: 40, via: 'parts' }];
+    TestBed.overrideProvider(DialogRef, { useValue: { close: vi.fn() } });
+    const f = TestBed.createComponent(SearchEverythingPalette);
+    f.detectChanges();
+    typeInto(el<HTMLInputElement>(f, '[data-testid=search-everything-input]'), 'graphic builder');
+    await TestBed.inject(SearchEverythingStore).searchNow();
+    f.detectChanges();
+    const line = el(f, '[data-testid=search-everything-suggestion]').textContent ?? '';
+    expect(line).toContain('Did you mean');
+    expect(line).toContain('CompanyA.Graphic.Builder.exe');
+    expect(line).toContain('(ProcessName)?');
   });
 });
 

@@ -2,7 +2,7 @@ import { inject, Injectable, Injector, signal } from '@angular/core';
 import type { DockviewApi } from 'dockview';
 import { ViewRegistry } from '../extensions/view-registry';
 import { AutoHideState, EMPTY_AUTO_HIDE } from './auto-hide';
-import { Rect } from './dock-geometry';
+import { Rect, Side } from './dock-geometry';
 import { DropGuides } from './drop-guides';
 import { PANEL_WINDOWS, PanelWindows } from './panel-windows';
 import { viewKind, ViewKind } from './view-kind';
@@ -38,6 +38,8 @@ export class DockContext {
   /** Ids of the panels showing now: each group's active tab (the others are tabs behind it). */
   readonly shown = signal<ReadonlySet<string>>(new Set());
   readonly autoHide = signal<AutoHideState>(EMPTY_AUTO_HIDE);
+  /** The side each tool window was last auto-hidden to (it goes there again). */
+  readonly autoHideSides = signal<Readonly<Record<string, Side>>>({});
   /** Tabs pinned to the left of their strip (they survive "Close all"). */
   readonly pinned = signal<ReadonlySet<string>>(new Set());
   /** Ticks whenever dockview reports a layout change (a sash moved, a group floated, moved or was maximised). */

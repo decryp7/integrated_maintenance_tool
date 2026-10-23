@@ -4,7 +4,7 @@
 //! its notes. The names and payloads are documented in app/src/app/core/api.types.ts.
 
 use crate::engine::with_store;
-use crate::jobs::{Controls, Done, JobKind, JobSpec};
+use crate::jobs::{Controls, Done, JobKind, JobSpec, PhaseScale};
 use crate::query_cancel::QueryStreamEvent;
 use crate::windows::CurrentWindow;
 use crate::{CmdError, CmdResult};
@@ -72,18 +72,56 @@ pub(crate) async fn store_memory<R: Runtime>(app: AppHandle<R>, state: CurrentWi
 /// the job's message says what it did. Refused (busy) while an import runs.
 #[tauri::command]
 pub(crate) async fn store_maintenance<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, action: MaintenanceAction) -> CmdResult<u64> {
-    let spec = JobSpec::new(JobKind::Maintenance, action.title())
-        .window(state.label())
-        .not_cancellable();
+    let spec = JobSpec::new(JobKind::Maintenance, action.title()).window(state.label());
     let win = state.arc().clone();
-    let id = crate::jobs::spawn(&app, spec, Controls::default(), move |ctx| -> CmdResult<Done<()>> {
+    let (controls, control) = crate::jobs::store_cancel(Controls::default());
+    let id = crate::jobs::spawn(&app, spec, controls, move |ctx| -> CmdResult<Done<()>> {
         let store = win.engine.store()?;
-        let report = store.maintain(action).map_err(CmdError::from)?;
+        ctx.phase(action.phase(), PhaseScale::Indeterminate, 0, 0);
+        let report = match control.scope(|| store.maintain(action)) {
+            Ok(r) => r,
+            // Cancel interrupted the store's statements: nothing was half applied (compaction swaps in one transaction).
+            Err(_) if ctx.is_cancelled() => return Ok(Done::new(()).cancelled_if(true)),
+            Err(e) => return Err(CmdError::from(e)),
+        };
+        if action == MaintenanceAction::RebuildIndex {
+            // The store returns at once and indexes in the background: the job lasts until the index covers the segments.
+            let cancelled = follow_indexing(&*store, ctx);
+            let msg = if cancelled {
+                "Stopped waiting; the full-text index keeps catching up in the background."
+            } else {
+                "The full-text index is rebuilt."
+            };
+            ctx.message(msg);
+            log::info!(Action = action.title(); "Store maintenance done");
+            return Ok(if cancelled {
+                Done::new(()).cancelled_if(true)
+            } else {
+                Done::new(())
+            });
+        }
         log::info!(Action = action.title(); "Store maintenance done");
         ctx.message(&report.message);
         Ok(Done::new(()))
     });
     crate::error::lift(id.map(|id| id.0))
+}
+
+/// Waits for the full-text index to cover every segment, reporting how many are done; true when Cancel stopped the wait.
+fn follow_indexing(store: &dyn debrief_core::ports::Store, ctx: &crate::jobs::JobCtx) -> bool {
+    let mut total = 0u64;
+    loop {
+        if ctx.is_cancelled() {
+            return true;
+        }
+        let Ok(index) = store.store_index() else { return false };
+        total = total.max(index.pending_segments);
+        if index.pending_segments == 0 || index.error.is_some() {
+            return false;
+        }
+        ctx.phase("Indexing segments", PhaseScale::Count, total - index.pending_segments, total);
+        std::thread::sleep(std::time::Duration::from_millis(250));
+    }
 }
 
 #[tauri::command]

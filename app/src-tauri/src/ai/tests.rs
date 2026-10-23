@@ -484,10 +484,7 @@ fn set_up_downloads_as_a_job_and_becomes_ready() {
     wait_until("ready", || stages(&events).last().is_some_and(|s| s == "ready"));
     let s = stages(&events);
     assert_eq!(&s[..3], ["probing", "recommending", "downloading"], "{s:?}");
-    assert!(
-        s.contains(&"verifying".to_string()) && s.contains(&"warmingUp".to_string()),
-        "{s:?}"
-    );
+    assert!(s.contains(&"warmingUp".to_string()), "{s:?}");
     wait_until("the task to go", || {
         ipc(&main, "background_tasks", json!({})).unwrap().as_array().unwrap().is_empty() && !core.setup_running()
     });

@@ -120,6 +120,14 @@ pub async fn ai_recommend<R: Runtime>(app: AppHandle<R>) -> Ai<Recommendations> 
     .await
 }
 
+/// As `ai_recommend`, after reading the headers of the models that could fit (the first bytes of each file, no
+/// download) so the verdicts use the real architecture. Slow (network): call it after showing the quick answer.
+#[tauri::command]
+pub async fn ai_refine_fit<R: Runtime>(app: AppHandle<R>) -> Ai<Recommendations> {
+    let core = core(&app)?;
+    blocking(move || core.refine_fit()).await
+}
+
 /// Every catalog model with its fit on this machine, best first.
 #[tauri::command]
 pub async fn ai_catalog<R: Runtime>(app: AppHandle<R>) -> Ai<Vec<Recommendation>> {

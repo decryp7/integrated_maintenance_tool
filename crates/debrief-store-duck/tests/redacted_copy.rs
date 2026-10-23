@@ -195,3 +195,23 @@ fn nothing_to_redact_with_or_nothing_copyable_is_refused_with_what_to_do() {
         Err(StoreError::Invalid(_))
     ));
 }
+
+#[test]
+fn a_cancelled_copy_reports_its_progress_stops_and_leaves_no_file() {
+    let logs = TempDir::new("redcopy-cancel-logs");
+    write_logs(&logs.0);
+    let dir = TempDir::new("redcopy-cancel-store");
+    let (store, _) = store_with(&dir, Profile::default_profile(), std::slice::from_ref(&logs.0)).unwrap();
+    let out_dir = TempDir::new("redcopy-cancel-out");
+    let out = out_dir.0.join("shared.debriefz");
+    let control = debrief_core::ql::QueryControl::new();
+    control.cancel();
+    let err = control.scope(|| store.export_redacted_project(&request(&out, cfg()))).unwrap_err();
+    assert!(matches!(err, StoreError::Cancelled), "{err:?}");
+    assert!(!out.exists());
+    // Counting: an uncancelled run advances the control to the number of events it redacted.
+    let control = debrief_core::ql::QueryControl::new();
+    control.scope(|| store.export_redacted_project(&request(&out, cfg()))).unwrap();
+    let p = control.progress();
+    assert!(p.done == 3 && p.total >= p.done, "{p:?}");
+}

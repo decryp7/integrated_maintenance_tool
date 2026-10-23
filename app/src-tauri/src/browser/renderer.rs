@@ -50,7 +50,7 @@ impl Sources {
             .as_ref()
             .and_then(mk)
             .or_else(|| self.installed.as_ref().and_then(mk))
-            .or_else(chromium_driver::find)
+            .or_else(fallback_browser)
     }
 }
 
@@ -352,6 +352,18 @@ impl PageDriver for ChromiumPage {
     }
 }
 
+/// The machine's own browser when nothing is configured or installed. Under test only the pinned test browser
+/// counts: a test run never launches the user's installed Chrome.
+#[cfg(not(test))]
+pub(crate) fn fallback_browser() -> Option<chromium_driver::BrowserExe> {
+    chromium_driver::find()
+}
+
+#[cfg(test)]
+pub(crate) fn fallback_browser() -> Option<chromium_driver::BrowserExe> {
+    chromium_driver::find_for_tests()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -363,7 +375,7 @@ mod tests {
             configured: Some("/nonexistent/chrome".into()),
             installed: None,
         });
-        if chromium_driver::find().is_none() {
+        if chromium_driver::find_for_tests().is_none() {
             let e = r.session("main", false).err().unwrap();
             assert!(e.to_string().contains("Settings"));
         }
@@ -418,7 +430,7 @@ mod tests {
     type Live = (Arc<Renderers>, ChromiumPage, Arc<Mutex<Vec<Cue>>>);
 
     fn live_page(on_screen: bool) -> Option<Live> {
-        chromium_driver::find()?;
+        chromium_driver::find_for_tests()?;
         let renderers = Arc::new(Renderers::default());
         let seen = Arc::new(Mutex::new(Vec::new()));
         let s2 = seen.clone();

@@ -192,8 +192,11 @@ pub async fn video_open<R: Runtime>(
                 };
                 st.edit(|| {
                     analyse(&i, &mut |stage, p| {
-                        ctx.message(stage_text(stage));
-                        ctx.progress(JobProgress::fraction(p as f32));
+                        // Each stage is a named phase of its own: the whole-file hash is "Reading the video", not a silent wait.
+                        ctx.progress(JobProgress {
+                            phase: Some(crate::jobs::JobPhase::new(stage_text(stage), crate::jobs::PhaseScale::Count)),
+                            ..JobProgress::fraction(p as f32)
+                        });
                     })
                 })
                 .map_err(cmd)?

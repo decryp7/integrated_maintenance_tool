@@ -156,6 +156,46 @@ describe('HomeView', () => {
     expect(pair.querySelector('.health')).toBeTruthy();
   });
 
+  it('shows a long unrecognised path shortened, with the full path as tooltip, and keeps a long finding title and detail reachable', async () => {
+    const path = `C:\\ProgramData\\${'VeryLongVendorName\\'.repeat(8)}CompanyA.Graphic.Builder.Service.Diagnostics.2026-10-23.dmp`;
+    const long: Finding = { kind: 'rateChange', severity: 'warning', title: 'x'.repeat(200), detail: `No importer reads ${path}`, action: null };
+    const { fixture } = setup([long]);
+    await settle(fixture, 8);
+    const store = TestBed.inject(WorkspaceStore);
+    store.applySummary({ ...store.summary()!, unrecognized: [{ path, name: 'CompanyA.Graphic.Builder.Service.Diagnostics.2026-10-23.dmp', reason: 'No importer' }] });
+    await settle(fixture, 4);
+    const row = fixture.nativeElement.querySelector('[data-testid=home-attention] .callout [data-testid=path-text]') as HTMLElement;
+    expect(row.getAttribute('title')).toBe(path);
+    expect(fixture.nativeElement.querySelector('[data-testid=home-attention] .callout button[aria-label="Copy the full path"]')).toBeTruthy();
+    const finding = fixture.nativeElement.querySelector('.finding') as HTMLElement;
+    expect(finding.querySelector('.title')!.getAttribute('title')).toBe('x'.repeat(200));
+    expect(finding.querySelector('.detail')!.getAttribute('title')).toContain(path);
+  });
+
+  it('stacks the actions below the text of a finding in a narrow pane and gives the row room for them', async () => {
+    const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get');
+    const original = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    } as unknown as typeof ResizeObserver;
+    try {
+      for (const [px, narrow, row] of [[900, false, '56px'], [320, true, '116px']] as const) {
+        TestBed.resetTestingModule();
+        width.mockReturnValue(px);
+        const { fixture } = setup([crash]);
+        await settle(fixture, 8);
+        const host = fixture.nativeElement as HTMLElement;
+        expect(host.classList.contains('narrow')).toBe(narrow);
+        expect((host.querySelector('.finding') as HTMLElement).style.height).toBe(row);
+      }
+    } finally {
+      globalThis.ResizeObserver = original;
+      width.mockRestore();
+    }
+  });
+
   it('asks the health check once when the timeline headline and Home both show it', async () => {
     const { fixture, overview } = setup([crash, file]);
     const headline = TestBed.createComponent(HealthHeadline);

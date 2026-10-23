@@ -89,6 +89,11 @@ impl SysinfoSource {
         let mut matched: HashSet<u32> = HashSet::new();
         let mut parents = HashMap::new();
         for (pid, p) in self.sys.processes() {
+            // Linux lists every thread as a process that repeats its process's whole resident size: only real
+            // processes are monitored (otherwise a 400-thread process reads as 400 processes of the full size).
+            if p.thread_kind().is_some() {
+                continue;
+            }
             let exe = p.exe().map(|e| e.to_string_lossy());
             if targets.matches(pid.as_u32(), &p.name().to_string_lossy(), exe.as_deref()) {
                 matched.insert(pid.as_u32());
@@ -161,5 +166,38 @@ mod tests {
         let mut m = HashSet::from([1]);
         expand_children(&mut m, &parents);
         assert_eq!(m, HashSet::from([1, 2, 3]));
+    }
+
+    /// Linux lists threads as processes; each would repeat the process's whole resident size.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn threads_are_not_sampled_as_processes() {
+        use crate::config::Target;
+        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let threads: Vec<_> = (0..20)
+            .map(|_| {
+                let s = stop.clone();
+                std::thread::spawn(move || {
+                    while !s.load(std::sync::atomic::Ordering::Relaxed) {
+                        std::thread::sleep(std::time::Duration::from_millis(10));
+                    }
+                })
+            })
+            .collect();
+        let me = std::process::id();
+        let tids: Vec<u32> = std::fs::read_dir("/proc/self/task")
+            .unwrap()
+            .flatten()
+            .filter_map(|e| e.file_name().to_string_lossy().parse().ok())
+            .filter(|t| *t != me)
+            .collect();
+        let all = Targets::new(vec![Target::Name(globset::Glob::new("*").unwrap().compile_matcher())]);
+        let samples = SysinfoSource::new().sample(&all, false);
+        stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        for t in threads {
+            let _ = t.join();
+        }
+        assert!(samples.iter().any(|p| p.pid == me));
+        assert!(samples.iter().all(|p| !tids.contains(&p.pid)), "a thread was sampled as a process");
     }
 }

@@ -473,6 +473,26 @@ export interface SearchAllRequest {
   limit?: number;
 }
 
+/** What the search box asks for its "Did you mean" line (`find_values({ request })` → `ValueMatch[]`, Rust `debrief_core::find`). */
+export interface FindValuesRequest {
+  text: string;
+  /** Most values; 0/absent = a few. */
+  limit?: number;
+}
+
+/** How a value matched the words, best first. */
+export type ValueVia = 'exact' | 'parts' | 'prefix' | 'fuzzy';
+
+/** A value the logs hold that the words refer to (`CompanyA.Graphic.Builder.exe` of the field `ProcessName` for "graphic builder"). */
+export interface ValueMatch {
+  /** The field (`@source` for a source's name). */
+  field: string;
+  value: string;
+  /** Events with the value. */
+  count: number;
+  via: ValueVia;
+}
+
 /** A run of a snippet: a matched word (`mark`) or the text around it. */
 export interface SnippetPart {
   text: string;
@@ -2882,9 +2902,18 @@ export function fileExistsPath(error: unknown): string | null {
   return text.endsWith(FILE_EXISTS_SUFFIX) ? text.slice(0, -FILE_EXISTS_SUFFIX.length) : null;
 }
 
+/** What an import is doing. Before `importing` the totals are not known: `done` counts what was found or looked at so far. */
+export type ImportPhase = 'idle' | 'finding' | 'detecting' | 'importing' | 'finishing';
+
 /** Progress of the running (or last) import. */
 export interface ImportProgress {
   running: boolean;
+  /**
+   * `finding`: `done` files found so far (`total` 0 = unknown), `bytesTotal` their size, `current` the folder being
+   * listed. `detecting`: `done` of `total` files looked at. `importing`: files and bytes read. `finishing`: all
+   * files are read; `stage` names the step (compacting, indexing).
+   */
+  phase: ImportPhase;
   /** Files read so far, of `total`. */
   done: number;
   total: number;
@@ -2897,6 +2926,8 @@ export interface ImportProgress {
   elapsedMs: number;
   /** Estimated time left from the bytes read so far; null until it can be estimated. */
   etaMs: number | null;
+  /** The step of the `finishing` phase ("Compacting segments"); null in every other phase. */
+  stage?: string | null;
 }
 
 /** A saved previous version of the active profile. */

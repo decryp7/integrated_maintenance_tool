@@ -1,3 +1,4 @@
+import { PathText } from '../shared/path-text';
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormatWizard } from '../format/format-wizard';
@@ -55,7 +56,7 @@ function shortPath(path: string): string {
 @Component({
   selector: 'debrief-sidebar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, FieldsPanel, NgTemplateOutlet, SourceSwatch, TimestampWarning],
+  imports: [PathText, Icon, FieldsPanel, NgTemplateOutlet, SourceSwatch, TimestampWarning],
   template: `
     <div class="head">
       <span class="section-title" i18n="@@shell.sidebar.explorer">Explorer</span>
@@ -120,7 +121,7 @@ function shortPath(path: string): string {
       @for (u of unrecognized(); track u.path) {
         <div class="src dim unparsed" [title]="u.reason">
           <debrief-icon name="file" [size]="13" />
-          <span class="ellipsis name">{{ short(u.path) }}</span>
+          <debrief-path-text class="name" [value]="short(u.path)" [full]="u.path" />
           @if (isImage(u.path)) {
             <button class="btn ghost setup" data-testid="mark-up-image" [attr.aria-label]="markUpLabel(u.name)" title="Open the image to mark areas and write notes" i18n-title="@@shell.sidebar.markUpTitle" (click)="markUp(u)" i18n="@@shell.sidebar.markUp">Mark up</button>
           }

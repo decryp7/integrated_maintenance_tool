@@ -11,7 +11,7 @@ import { Platform } from '../../core/platform';
 import { ConfirmDialog } from '../../ui/confirm-dialog';
 import { DialogService } from '../../ui/dialog.service';
 import { AiBackend, toAiError } from '../ai-backend';
-import { fitLabel, formatBytes, visionLabel } from '../ai-format';
+import { fitAdvice, fitFacts, fitLabel, fitNumbers, formatBytes, visionLabel } from '../ai-format';
 import { AiStatusStore } from '../ai-status.store';
 import { InstalledModel, Recommendation, SetupEvent } from '../ai.types';
 import { AiRuntimePanel } from '../runtimes/runtime-panel';
@@ -200,6 +200,10 @@ const ENGINE_STATE: Record<string, string> = {
                 >{{ size(r.model.sizeBytes) }} · {{ r.model.license
                 }}@if (r.model.toolCalling) {<ng-container i18n="@@ai.models.toolCalling"> · tool calling</ng-container>} · {{ visionLabel(!!r.model.projector) }}</span
               >
+              <span class="facts" [attr.data-testid]="'ai-fit-' + r.model.id">{{ numbers(r) }}</span>
+              @if (r.assessment.fit !== 'comfortable') {
+                <span class="facts" [attr.data-testid]="'ai-fit-advice-' + r.model.id">{{ facts(r) }}{{ advice(r) }}</span>
+              }
               @if (r.model.notes) {
                 <span class="facts notes" data-testid="ai-catalog-notes">{{ r.model.notes }}</span>
               }
@@ -340,6 +344,15 @@ export class AiModelManager implements OnInit {
   );
   protected readonly size = formatBytes;
   protected readonly fit = fitLabel;
+  protected readonly numbers = (r: Recommendation) => fitNumbers(r.assessment);
+  protected readonly facts = (r: Recommendation) => {
+    const f = fitFacts(r.assessment);
+    return `${f.machine} · ${f.now}`;
+  };
+  protected readonly advice = (r: Recommendation) => {
+    const a = fitAdvice(r.assessment);
+    return a.length ? ` · ${a.join(' · ')}` : '';
+  };
 
   protected useLabel(m: InstalledModel): string {
     return $localize`:@@ai.models.use.label:Use ${m.name}:name:`;

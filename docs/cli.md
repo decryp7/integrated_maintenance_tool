@@ -75,6 +75,11 @@ offset.
 | 1 | The work failed: a file, the store, a query, the output. The message says what to fix. |
 | 2 | The command line was wrong (usage is printed). |
 | 3 | Done, and `--fail-on-findings` found something (anomalies, exceptions or known issues). For CI gates. |
+| 130 | Stopped with Ctrl+C (or SIGTERM) during an import: it is cancelled and the files read so far stay in the store. |
+
+## Progress
+
+While files are imported the phase and its counts ("Finding files: 1,200 found", "Importing 12 of 40 files", "Compacting segments") are written to standard error about every half second, only when standard error is a terminal. `--quiet` turns them off; `--json` and `--format json` imply it.
 
 ## JSON
 

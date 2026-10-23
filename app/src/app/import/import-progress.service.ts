@@ -1,10 +1,10 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
-import { ImportProgress } from '../core/api.types';
+import { ImportPhase, ImportProgress } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { WorkspaceStatusStore } from '../core/workspace/status.store';
 import { UxBackend } from '../core/ux-backend';
 import { JobsStore } from '../jobs/jobs.store';
-import { JobInfo } from '../jobs/jobs.types';
+import { JobInfo, JobProgress } from '../jobs/jobs.types';
 
 /** Imports running longer than this also show the progress toast. */
 export const LONG_IMPORT_MS = 1500;
@@ -16,13 +16,27 @@ export interface PartialImport {
 }
 
 /** What the widgets show before the import's job reports (the engine lists a job once it ran a moment). */
-const STARTING: ImportProgress = { running: true, done: 0, total: 0, cancelled: false, bytesDone: 0, bytesTotal: 0, current: null, elapsedMs: 0, etaMs: null };
+const STARTING: ImportProgress = { running: true, phase: 'finding', done: 0, total: 0, cancelled: false, bytesDone: 0, bytesTotal: 0, current: null, elapsedMs: 0, etaMs: null };
+
+/**
+ * The import phase from the job's one phase (label and scale): an indeterminate count with no total is the
+ * folder walk, an indeterminate phase after the total is known is the tail (its label is the step), a count
+ * without bytes is the check of each file, and anything else reads the files.
+ */
+function importPhaseOf(p: JobProgress): { phase: ImportPhase; stage?: string } {
+  const phase = p.phase;
+  if (!phase) return { phase: 'importing' };
+  if (phase.scale === 'indeterminate') return (p.total ?? 0) > 0 ? { phase: 'finishing', stage: phase.label } : { phase: 'finding' };
+  return { phase: (p.bytesTotal ?? 0) > 0 ? 'importing' : 'detecting' };
+}
 
 /** A running import job's progress (\`debrief://jobs\`) in the shape the widgets show. */
 export function jobImportProgress(job: JobInfo): ImportProgress {
   const p = job.progress;
+  const { phase, stage } = importPhaseOf(p);
   return {
     running: true,
+    phase,
     done: p.done ?? 0,
     total: p.total ?? 0,
     cancelled: false,
@@ -31,6 +45,7 @@ export function jobImportProgress(job: JobInfo): ImportProgress {
     current: p.current ?? null,
     elapsedMs: job.elapsedMs,
     etaMs: p.etaMs ?? job.etaMs,
+    ...(stage ? { stage } : {}),
   };
 }
 

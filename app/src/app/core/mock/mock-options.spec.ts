@@ -32,4 +32,9 @@ describe('mockOptionsFromSearch', () => {
     expect(mockOptionsFromSearch('?mockLive=1&mockLiveRotateMs=x')).toEqual({ liveRate: 20, exposeLiveCalls: true });
     expect(mockOptionsFromSearch('?mockLive=2')).toEqual({});
   });
+
+  it('reads the long names switch', () => {
+    expect(mockOptionsFromSearch('?mockLongNames=1')).toEqual({ longNames: true });
+    expect(mockOptionsFromSearch('?mockLongNames=0')).toEqual({});
+  });
 });

@@ -515,6 +515,7 @@ impl ModelRuntime for WorkerRuntime {
             &(self.hardware)(),
             &req.info,
             crate::runtime::projector_bytes(req.projector.as_deref()),
+            req.context,
         )?;
         let sup = Arc::new(Supervisor::new(self.cfg.clone(), self.health.clone()));
         let l = sup.load(LoadParams {

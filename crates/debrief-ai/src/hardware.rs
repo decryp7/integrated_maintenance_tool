@@ -1,6 +1,7 @@
 //! What the machine can run: RAM, cores and GPUs. The probe sits behind a trait so the
 //! recommender can be tested with any machine. External tools (`nvidia-smi`) run with a timeout.
 
+use crate::fit::Live;
 use debrief_collect::CommandRunner;
 use serde::Serialize;
 use std::time::Duration;
@@ -47,6 +48,11 @@ impl Hardware {
 
 pub trait HardwareProbe {
     fn probe(&self) -> Hardware;
+
+    /// The state of the machine right now (free video memory); unknown by default.
+    fn live(&self) -> Live {
+        Live::default()
+    }
 }
 
 const GB: f64 = 1024.0 * 1024.0 * 1024.0;
@@ -66,6 +72,14 @@ pub fn parse_nvidia_smi(out: &str) -> Vec<Gpu> {
             })
         })
         .collect()
+}
+
+/// Parses `nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits` (MiB): the most free memory of any GPU, in GB.
+pub fn parse_nvidia_free(out: &str) -> Option<f64> {
+    out.lines()
+        .filter_map(|l| l.trim().parse::<f64>().ok())
+        .map(|mib| mib / 1024.0)
+        .fold(None, |a: Option<f64>, v| Some(a.map_or(v, |x| x.max(v))))
 }
 
 /// Apple Silicon: the GPU shares all of the RAM.
@@ -140,6 +154,23 @@ impl<R: CommandRunner> SystemProbe<R> {
 }
 
 impl<R: CommandRunner> HardwareProbe for SystemProbe<R> {
+    fn live(&self) -> Live {
+        let args: Vec<String> = ["--query-gpu=memory.free", "--format=csv,noheader,nounits"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let nvidia = self
+            .runner
+            .run("nvidia-smi", &args, SMI_TIMEOUT)
+            .ok()
+            .filter(|o| o.success())
+            .and_then(|o| parse_nvidia_free(&String::from_utf8_lossy(&o.stdout)));
+        Live {
+            free_vram_gb: nvidia.or_else(platform_free_vram_gb),
+            ..Live::default()
+        }
+    }
+
     fn probe(&self) -> Hardware {
         let mut sys = sysinfo::System::new();
         sys.refresh_memory();
@@ -161,6 +192,16 @@ impl<R: CommandRunner> HardwareProbe for SystemProbe<R> {
 #[cfg(windows)]
 fn platform_gpus() -> Vec<Gpu> {
     crate::dxgi::adapters()
+}
+
+#[cfg(windows)]
+fn platform_free_vram_gb() -> Option<f64> {
+    crate::dxgi::free_vram_gb()
+}
+
+#[cfg(not(windows))]
+fn platform_free_vram_gb() -> Option<f64> {
+    None
 }
 
 #[cfg(not(windows))]
@@ -292,5 +333,19 @@ mod tests {
         }
         let h = SystemProbe::new(Missing).probe();
         assert!(h.cpu_cores >= 1 && h.total_ram_gb > 0.1 && !h.os.is_empty());
+    }
+
+    #[test]
+    fn free_video_memory_comes_from_nvidia_smi_and_the_best_gpu_wins() {
+        assert_eq!(parse_nvidia_free("7168\n512\n"), Some(7.0));
+        assert_eq!(parse_nvidia_free("junk\n"), None);
+        assert_eq!(parse_nvidia_free(""), None);
+        assert_eq!(SystemProbe::new(ok("7168\n")).live().free_vram_gb, Some(7.0));
+        let missing = Fake(Err(CommandError::NotFound("nvidia-smi".into())), RefCell::new(vec![]));
+        // without nvidia-smi only the platform API can answer (none off Windows)
+        let live = SystemProbe::new(missing).live();
+        assert!(cfg!(windows) || live.free_vram_gb.is_none());
+        assert_eq!(live.reclaim_gb, 0.0);
+        assert_eq!(Live::default().free_vram_gb, None);
     }
 }

@@ -72,6 +72,15 @@ the inspector sliding out from the right when you select an event.
 - **Search everything** (`Ctrl/⌘+Shift+F`) searches events, sources, fields and values, marker kinds, exception groups,
   notes and knowledge files at once and opens the match you choose.
 
+### Auto-hide
+
+Every tool pane (Inspector, Metrics, Problems and the like; not the timeline, events grid or other documents) has an
+**Auto-hide** button (a pin) in its header, next to the panel menu. Click it, or press the shortcut (`Ctrl+Alt+H` by default; the tooltip shows your current one), and the pane
+collapses into a tab on the edge it sits nearest to; hover the tab or click it to slide the pane out, and press its
+**Pin** button to dock it again. Panes only auto-hide to the **left, right or bottom**, never the top. To choose the
+edge, right-click the Auto-hide button (or press `Shift+F10` / the Menu key on it) and pick *Auto-hide to the left /
+right / bottom*. Debrief remembers the edge per pane and saves it with the layout.
+
 ### Perspectives
 
 A perspective is a named window arrangement. **Investigate** (the default) is the timeline over the events;

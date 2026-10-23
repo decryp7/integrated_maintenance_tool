@@ -112,10 +112,34 @@ export interface Hardware {
 export type Fit = 'comfortable' | 'tight' | 'tooLarge';
 export type Speed = 'fast' | 'moderate' | 'slow';
 
+/** What to change when a model does not fit comfortably. */
+export type FitAdvice = { kind: 'shorterContext'; tokens: number } | { kind: 'smallerQuant' } | { kind: 'closeApps'; gb: number };
+
+/** The verdict on one model and the numbers behind it (the engine's `fit::Assessment`). */
 export interface Assessment {
+  /** Total memory the model needs: weights + context. */
   needGb: number;
+  weightsGb: number;
+  /** KV cache plus compute buffers for `context`. */
+  contextGb: number;
+  /** Context length (tokens) the need was computed for. */
+  context: number;
+  /** The context part is a guess: the model's header has not been read yet. */
+  rough: boolean;
+  /** Never better than either of the two checks below. */
   fit: Fit;
   speed: Speed;
+  fitsMachine: Fit;
+  fitsNow: Fit;
+  /** What this machine can hold for a model. */
+  capacityGb: number;
+  /** What is free for a model right now. */
+  availableNowGb: number;
+  /** Memory other programs are using (the capacity that is not free). */
+  inUseGb: number;
+  /** Part of the model runs from system RAM (slower). */
+  spills: boolean;
+  advice: FitAdvice[];
 }
 
 export interface CatalogModel {

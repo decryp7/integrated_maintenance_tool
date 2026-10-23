@@ -3,13 +3,15 @@
 
 use crate::catalog::{projector_file_name, Catalog, CatalogModel};
 use crate::error::{AiError, Result};
+use crate::fit::{Fit, KvShape, Live, ShapeCache};
 use crate::gguf;
 use crate::hardware::{Hardware, HardwareProbe};
 use crate::llm::{ChatMessage, ChatRequest, LlmProvider};
+use crate::models::header::read_remote_header;
 use crate::models::source::RemoteFile;
 use crate::models::source::{ModelSource, Phase, Progress};
 use crate::models::{DiskSpace, DownloadOptions, Downloader, ModelStore};
-use crate::recommend::{recommend, Recommendation, Recommendations};
+use crate::recommend::{recommend_with, Recommendation, Recommendations};
 use crate::runtime::{check_memory, effective_context, load_with_fallback, projector_bytes, LoadRequest, ModelRuntime};
 use crate::settings::AiSettings;
 use serde::Serialize;
@@ -82,14 +84,62 @@ pub struct Setup<'a> {
     pub settings_path: &'a Path,
     pub settings: AiSettings,
     pub backoff: Duration,
+    /// Header-derived KV shapes of catalog models (empty until [`Setup::refine`] has run).
+    pub shapes: &'a ShapeCache,
+    /// Memory Debrief's own loaded model would give back (GB).
+    pub reclaim_gb: f64,
 }
 
 impl Setup<'_> {
+    fn live(&self) -> Live {
+        Live {
+            reclaim_gb: self.reclaim_gb,
+            ..self.probe.live()
+        }
+    }
+
+    fn recommendations(&self, hardware: &Hardware, installed: &[String]) -> Recommendations {
+        recommend_with(
+            hardware,
+            &self.live(),
+            self.catalog,
+            installed,
+            self.settings.context_length,
+            &self.shapes.snapshot(),
+        )
+    }
+
+    /// Reads the headers of the catalog models that could fit (first bytes only, no download) so that their
+    /// verdicts use the real architecture instead of a rough estimate. A model whose header cannot be read
+    /// (offline, host error) keeps the rough estimate.
+    pub fn refine(&self) -> Recommendations {
+        let hardware = self.probe.probe();
+        let installed: Vec<String> = self.store.list().into_iter().map(|m| m.file_name).collect();
+        for r in self.recommendations(&hardware, &installed).ranked {
+            let m = &r.model;
+            if r.assessment.fit == Fit::TooLarge || r.installed || self.shapes.contains(&m.file) {
+                continue;
+            }
+            let remote = RemoteFile {
+                repo: m.hf_repo.clone(),
+                file: m.file.clone(),
+                size: m.size_bytes,
+                sha256: m.sha256.clone(),
+                license: None,
+                gated: false,
+            };
+            if let Ok(info) = read_remote_header(self.source, &remote) {
+                self.shapes.insert(&m.file, KvShape::from_gguf(&info));
+            }
+        }
+        self.recommendations(&hardware, &installed)
+    }
+
     /// Step 1: what would be set up, and what does it cost.
     pub fn plan(&self) -> Result<SetupPlan> {
         let hardware = self.probe.probe();
         let installed: Vec<String> = self.store.list().into_iter().map(|m| m.file_name).collect();
-        let recommendations = recommend(&hardware, self.catalog, &installed);
+        let recommendations = self.recommendations(&hardware, &installed);
         let chosen = recommendations.best.clone();
         let (mut license, mut gated, mut note) = (None, false, None);
         let mut download_bytes = 0;
@@ -238,7 +288,12 @@ impl Setup<'_> {
         let path = self.store.path_of(file_name)?;
         let info = gguf::inspect(&path)?;
         let projector = self.store.projector_path(file_name)?;
-        check_memory(hardware, &info, projector_bytes(projector.as_deref()))?;
+        check_memory(
+            hardware,
+            &info,
+            projector_bytes(projector.as_deref()),
+            effective_context(&self.settings, &info),
+        )?;
         let gpu = self.settings.gpu_offload.into();
         on_stage(SetupStage::Loading {
             gpu: gpu != crate::runtime::GpuMode::Cpu,

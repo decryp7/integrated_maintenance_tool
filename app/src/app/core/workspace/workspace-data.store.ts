@@ -3,6 +3,7 @@ import { patchState, signalStore, withComputed, withHooks, withMethods, withStat
 import { MarkerKind, WorkspaceSummary } from '../api.types';
 import { DebriefBackend } from '../backend';
 import { failureText } from '../cmd-error';
+import { isCancellation } from '../activity/runtime';
 import { Logger } from '../logger';
 import { Platform } from '../platform';
 import { JobsBackend } from '../../jobs/jobs-backend';
@@ -50,6 +51,21 @@ export function sameSources(a: WorkspaceSummary | null, b: WorkspaceSummary): bo
  * loads when the store is first used (a read of the engine, nothing else: the window's side effects start in
  * `provideWorkspace`).
  */
+/** What a cancelled workspace command tells the user (the previous data stays). */
+function cancelledText(operation: string): string {
+  return operation === 'reloaded' || operation === 'profile applied'
+    ? $localize`:@@core.workspace.reloadCancelled:Reload cancelled — previous data kept`
+    : $localize`:@@core.workspace.cancelled:Cancelled — previous data kept`;
+}
+
+/** A followed job ended cancelled. */
+class CancelledError extends Error {
+  constructor() {
+    super('cancelled');
+    this.name = 'AbortError';
+  }
+}
+
 export const WorkspaceDataStore = signalStore(
   { providedIn: 'root' },
   withState<DataState>({ summary: null, sourcesVersion: 0, appendVersion: 0, profileVersion: 0, importVersion: 0 }),
@@ -94,7 +110,8 @@ export const WorkspaceDataStore = signalStore(
           });
         } catch (e) {
           status.setBusy(null);
-          status.setError(errorText(e));
+          // A cancelled re-import leaves the previous data in place: say so instead of showing a failure.
+          status.setError(isCancellation(e) ? cancelledText(operation) : errorText(e));
         }
       };
 
@@ -124,6 +141,7 @@ export const WorkspaceDataStore = signalStore(
             { kind: 'import', label, jobId },
             async () => {
               const end = await jobs.wait(jobId);
+              if (end.state === 'cancelled') throw new CancelledError();
               if (end.state === 'failed') throw new Error(end.error ?? $localize`:@@core.workspace.profileFailed:The profile could not be applied.`);
               return backend.workspaceSummary();
             },

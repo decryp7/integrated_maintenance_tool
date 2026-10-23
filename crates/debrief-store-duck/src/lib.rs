@@ -227,6 +227,24 @@ pub(crate) struct Inner {
     pub(crate) preaggregate_above: AtomicU64,
 }
 
+/// The catalog tables that hold the imported data; a reload keeps their rows aside until it completes.
+const ASIDE_TABLES: [&str; 8] = [
+    "segments",
+    "segment_fields",
+    "histogram",
+    "ord",
+    "diagnostics",
+    "tail_offsets",
+    "source_encodings",
+    "sources",
+];
+
+/// What a reload keeps until the new data is complete: the old segment files and the unrecognised list.
+pub(crate) struct Aside {
+    files: Vec<String>,
+    unrecognized: Vec<debrief_core::api::UnrecognizedFile>,
+}
+
 /// A connection borrowed from the pool, returned on drop.
 pub(crate) struct Conn<'a> {
     inner: &'a Inner,
@@ -269,18 +287,33 @@ pub(crate) fn write_lock<T>(m: &RwLock<T>) -> RwLockWriteGuard<'_, T> {
 impl Inner {
     /// After the events changed: compaction, positions and a checkpoint. Failures are logged (the data is
     /// complete without them; the next change retries).
-    fn maintain(&self, conn: &Connection) {
+    ///
+    /// `progress` names each stage and is polled for Cancel: a cancelled import skips the compaction (only an
+    /// optimisation; the next change retries) but still orders the events, so what was read stays usable.
+    fn maintain(&self, conn: &Connection, progress: Option<&ImportProgress>) {
+        let stage = |label: &str| {
+            if let Some(p) = progress {
+                p.set_stage(Some(label));
+            }
+        };
         let tc = std::time::Instant::now();
-        match compact::compact(conn, &self.dir, &self.schema) {
-            Ok(c) if c.replaced > 0 => log::info!("compacted {} segments into {}", c.replaced, c.written),
-            Ok(_) => {}
-            Err(e) => log::warn!("segment compaction failed: {e:#}"),
+        if progress.is_some_and(|p| p.cancel_flag().load(Ordering::SeqCst)) {
+            log::info!("import cancelled: segment compaction skipped");
+        } else {
+            stage("Compacting segments");
+            match compact::compact(conn, &self.dir, &self.schema) {
+                Ok(c) if c.replaced > 0 => log::info!("compacted {} segments into {}", c.replaced, c.written),
+                Ok(_) => {}
+                Err(e) => log::warn!("segment compaction failed: {e:#}"),
+            }
         }
+        stage("Ordering events by time");
         log::debug!("import: compact {:?}", tc.elapsed());
         if let Err(e) = pos::rebuild(conn) {
             log::warn!("time-order positions could not be rebuilt: {e}");
         }
         log::debug!("import: pos {:?}", tc.elapsed());
+        stage("Saving the index");
         // Write the catalog into the database file now, so a reopen does not replay the WAL.
         if let Err(e) = conn.execute_batch("CHECKPOINT") {
             log::warn!("checkpoint failed: {e}");
@@ -349,6 +382,76 @@ impl Inner {
         Ok(())
     }
 
+    /// Forgets every event, source and problem like [`Inner::forget_events`] but keeps the old catalog rows in
+    /// `aside_*` tables and the old segment files on disk, so [`Inner::restore_aside`] can bring them back.
+    pub(crate) fn set_aside_events(&self) -> StoreResult<Aside> {
+        let conn = self.conn()?;
+        let _writing = lock(&self.write_lock);
+        let files = writer::segment_files(&conn, &self.dir).map_err(|e| engine(format!("{e:#}")))?;
+        let mut sql = String::from("BEGIN TRANSACTION;");
+        for t in ASIDE_TABLES {
+            sql.push_str(&format!(
+                "DROP TABLE IF EXISTS aside_{t}; CREATE TABLE aside_{t} AS SELECT * FROM {t}; DELETE FROM {t};"
+            ));
+        }
+        sql.push_str("COMMIT;");
+        conn.execute_batch(&sql).map_err(engine)?;
+        writer::refresh_view(&conn, &self.dir, &self.schema).map_err(|e| engine(format!("{e:#}")))?;
+        if let Some(f) = &self.fts {
+            if let Err(e) = f.clear() {
+                log::warn!("could not clear the full-text index: {e:#}");
+            }
+        }
+        let unrecognized = std::mem::take(&mut write_lock(&self.state).unrecognized);
+        self.generation.fetch_add(1, Ordering::SeqCst);
+        self.bump_version(&conn)?;
+        Ok(Aside { files, unrecognized })
+    }
+
+    /// The new data is complete: drops the kept rows and deletes the old segment files.
+    pub(crate) fn discard_aside(&self, aside: Aside) {
+        if let Ok(conn) = self.conn() {
+            for t in ASIDE_TABLES {
+                if let Err(e) = conn.execute_batch(&format!("DROP TABLE IF EXISTS aside_{t}")) {
+                    log::warn!("could not drop aside_{t}: {e}");
+                }
+            }
+            for f in aside.files {
+                if std::fs::remove_file(&f).is_err() && Path::new(&f).exists() {
+                    let _ = conn.execute("INSERT OR IGNORE INTO trash VALUES (?)", params![f]);
+                }
+            }
+        }
+    }
+
+    /// The new import did not complete: removes what it wrote and puts the kept rows and files back.
+    pub(crate) fn restore_aside(&self, aside: Aside) -> StoreResult<()> {
+        let conn = self.conn()?;
+        let _writing = lock(&self.write_lock);
+        let new_files = writer::segment_files(&conn, &self.dir).map_err(|e| engine(format!("{e:#}")))?;
+        let mut sql = String::from("BEGIN TRANSACTION;");
+        for t in ASIDE_TABLES {
+            sql.push_str(&format!(
+                "DELETE FROM {t}; INSERT INTO {t} SELECT * FROM aside_{t}; DROP TABLE aside_{t};"
+            ));
+        }
+        // The full-text index was emptied: the restored segments are indexed again in the background.
+        sql.push_str("UPDATE segments SET indexed = FALSE; COMMIT;");
+        conn.execute_batch(&sql).map_err(engine)?;
+        writer::refresh_view(&conn, &self.dir, &self.schema).map_err(|e| engine(format!("{e:#}")))?;
+        for f in new_files {
+            if !aside.files.contains(&f) && std::fs::remove_file(&f).is_err() && Path::new(&f).exists() {
+                let _ = conn.execute("INSERT OR IGNORE INTO trash VALUES (?)", params![f]);
+            }
+        }
+        write_lock(&self.state).unrecognized = aside.unrecognized;
+        self.generation.fetch_add(1, Ordering::SeqCst);
+        if let Some(f) = &self.fts {
+            f.wake();
+        }
+        self.bump_version(&conn)
+    }
+
     /// Forgets every event, source and problem (the opened roots stay): the manifest is emptied, the views
     /// refreshed and the segment files deleted (or moved to `trash` while a reader holds them).
     pub(crate) fn forget_events(&self) -> StoreResult<()> {
@@ -379,6 +482,8 @@ impl Inner {
     /// Reads `paths` (canonical) into the database.
     pub(crate) fn import(&self, paths: &[PathBuf], progress: &ImportProgress) -> StoreResult<ImportReport> {
         let started = std::time::Instant::now();
+        // From here the progress reads "finding files" with live counts; it ends with this function, however.
+        let _run = progress.begin();
         let (profile, parser_set, roots, removed) = {
             let s = read_lock(&self.state);
             (s.profile.clone(), s.parsers.clone(), s.roots.clone(), s.removed.clone())
@@ -394,7 +499,9 @@ impl Inner {
             }
         }
         known.extend(self.unrecognized().into_iter().map(|u| u.path));
-        let files = ingest::files_to_read(paths, &roots, &profile, &removed, &known);
+        let threads = read_lock(&self.options).parse_threads.max(1);
+        // Walkers mostly wait for the disk or the network, so they may outnumber the parse threads.
+        let files = ingest::find_files(paths, &roots, &profile, &removed, &known, progress, (threads * 2).clamp(4, 16));
         let encodings = self.encoding_policy(&conn);
         let env = ImportEnv {
             importers: self.registry.importers(),
@@ -424,11 +531,12 @@ impl Inner {
         let t0 = std::time::Instant::now();
         let outcomes = ingest::import_files_parallel(&env, &files, &removed, progress, &opts, &sink);
         let t1 = t0.elapsed();
+        progress.set_stage(Some("Writing the last segments"));
         sink.finish().map_err(|e| engine(format!("{e:#}")))?;
         // Each source recorded its parser; the catalog keeps a copy of every parser's TOML (ADR 0026).
         parsers::record(&conn, &parser_set).map_err(engine)?;
         let t2 = t0.elapsed();
-        self.maintain(&conn);
+        self.maintain(&conn, Some(progress));
         self.bump_version(&conn)?;
         log::debug!("import: parse {t1:?} finish {t2:?} maintained {:?}", t0.elapsed());
         let mut report = ImportReport::default();
@@ -871,7 +979,7 @@ impl Ingest for DuckStore {
                 log::warn!("could not remove source {id} from the full-text index: {e:#}");
             }
         }
-        self.inner.maintain(&conn);
+        self.inner.maintain(&conn, None);
         let mut s = write_lock(&self.inner.state);
         let p = PathBuf::from(&path);
         s.roots.retain(|r| *r != p);

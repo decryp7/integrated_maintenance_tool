@@ -1,3 +1,4 @@
+import { withLongNames } from './mock-long-names';
 import { parse, TomlError } from 'smol-toml';
 import {
   AlertTarget,
@@ -50,6 +51,7 @@ import { mockExplainRegex, mockInferRegex } from './mock-regex';
 import { syntheticFacet, syntheticPage } from './mock-synthetic';
 import { MOCK_PROFILE_TOML } from './mock-profile';
 import { mockJobs, mockSteps } from '../../jobs/mock-jobs';
+import type { JobPhase } from '../../jobs/jobs.types';
 import { emptyReport, LEGACY_LIVE, MockAlertMutes, MockLiveConfig, MockLiveSim, mockGroupOf, mockResolveLiveOptions, mockResolveWindow, mockWatchMode } from './mock-live';
 import { validateLiveSection } from './mock-live-profile';
 import { BUILTIN_ICONS } from '../../markers/builtin-icons';
@@ -96,8 +98,12 @@ export interface MockBackendOptions {
   exposeLiveCalls?: boolean;
   /** Marker kinds contributed by (mock) plugins (default: the Windows plugin's; `[]` = none, like safe mode). */
   pluginMarkerKinds?: readonly MockPluginKind[];
+  /** The demo dataset also has files with very long paths and names (UI overflow tests). */
+  longNames?: boolean;
   /** Opening paths is slow and cancellable: each path stands for a folder of files read this many ms apart. */
   slowImportMs?: number;
+  /** With a slow import: finding the files and detecting formats take this many ms per step (five steps each). */
+  slowDiscoveryMs?: number;
   /** The clock of every simulated delay, live tick and import step (default: the page's timers). */
   clock?: MockClock;
 }
@@ -151,12 +157,12 @@ export class MockBackend implements DebriefBackend {
     this.clock = options.clock ?? systemMockClock;
     this.failuresLeft = { ...options.fail };
     this.latency = options.latency ?? true;
-    this.makeDataset = options.dataset ?? (() => generateDemo());
+    this.makeDataset = options.dataset ?? (() => (options.longNames ? withLongNames(generateDemo()) : generateDemo()));
     this.engine = new MockEngine(options.pluginMarkerKinds ?? MOCK_PLUGIN_KINDS);
     this.dataset = this.makeDataset();
     this.profile = parse(this.profileToml) as ProfileModel;
     this.liveSim = new MockLiveSim(liveConfig(options), () => this.nextSourceId++);
-    this.importSim = options.slowImportMs ? new MockImportSim(options.slowImportMs, this.clock) : null;
+    this.importSim = options.slowImportMs ? new MockImportSim(options.slowImportMs, this.clock, options.slowDiscoveryMs ?? 0) : null;
     if (options.exposeLiveCalls) (globalThis as Record<string, unknown>)['__debriefMockLiveCalls'] = this.liveCalls;
     this.apply();
   }
@@ -413,12 +419,13 @@ export class MockBackend implements DebriefBackend {
         (file) => this.addExtra(file),
         (p) =>
           ctx.progress({
-            fraction: p.bytesTotal ? p.bytesDone / p.bytesTotal : null,
+            fraction: p.phase === 'importing' && p.bytesTotal ? p.bytesDone / p.bytesTotal : null,
             done: p.done,
             total: p.total,
             etaMs: p.etaMs,
             bytesDone: p.bytesDone,
             bytesTotal: p.bytesTotal,
+            phase: importJobPhase(p),
             ...(p.current ? { current: p.current } : {}),
           }),
       );
@@ -1018,4 +1025,20 @@ function alertNotice(alert: LiveAlert) {
     primary: { type: 'showAlert' as const, alertId: alert.id },
     dedupeKey: `live:${alert.kind}:${who}`,
   };
+}
+
+/** The one phase an import job shows, from the import's phase (as the engine's job progress derives it). */
+function importJobPhase(p: ImportProgress): JobPhase | null {
+  switch (p.phase) {
+    case 'finding':
+      return { label: 'Finding files', scale: 'indeterminate' };
+    case 'detecting':
+      return { label: 'Checking files', scale: 'count' };
+    case 'importing':
+      return { label: 'Importing', scale: 'count' };
+    case 'finishing':
+      return { label: p.stage ?? 'Finishing', scale: 'indeterminate' };
+    default:
+      return null;
+  }
 }

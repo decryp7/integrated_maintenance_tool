@@ -238,6 +238,8 @@ impl Fixture {
             settings_path: Box::leak(self.dir.path().join("ai.json").into_boxed_path()),
             settings: self.settings.clone(),
             backoff: Duration::from_millis(1),
+            shapes: Box::leak(Box::new(debrief_ai::fit::ShapeCache::default())),
+            reclaim_gb: 0.0,
         }
     }
     fn settings_file(&self) -> std::path::PathBuf {
@@ -307,7 +309,6 @@ fn set_up_runs_every_stage_and_remembers_the_model() {
             "probing",
             "recommending",
             "downloading",
-            "verifying",
             "validating",
             "loading",
             "warming",
@@ -711,4 +712,33 @@ fn a_projector_that_differs_from_the_catalog_is_refused_and_the_model_kept() {
     assert!(f.store.dir().join("fake-4b.gguf").is_file());
     assert!(!f.store.dir().join("fake-4b.mmproj.gguf").exists());
     assert!(!f.settings_file().exists());
+}
+
+#[test]
+fn refining_reads_the_header_once_and_matches_the_verdict_for_the_downloaded_file() {
+    use debrief_ai::fit::{assess, Live, Subject};
+    use debrief_ai::hardware::HardwareProbe;
+    let f = fixture(Engine::Works);
+    let s = f.setup();
+    let rough = s.plan().unwrap().recommendations.ranked[0].assessment.clone();
+    assert!(rough.rough);
+    let refined = s.refine();
+    let a = refined.ranked[0].assessment.clone();
+    assert!(!a.rough, "the header gave the real architecture");
+    assert_eq!(f.source.fetches.load(Ordering::SeqCst), 1);
+    s.refine();
+    assert_eq!(f.source.fetches.load(Ordering::SeqCst), 1, "a header is read once");
+    // what the engine says about the same file after the download
+    let path = f.dir.path().join("fake.gguf");
+    std::fs::write(&path, &f.source.data).unwrap();
+    let info = debrief_ai::gguf::inspect(&path).unwrap();
+    let after = assess(
+        &f.probe.probe(),
+        &Live::default(),
+        &Subject::from_gguf(&info, 0, f.settings.context_length),
+    );
+    assert_eq!(
+        (a.weights_gb, a.context_gb, a.need_gb, a.fit),
+        (after.weights_gb, after.context_gb, after.need_gb, after.fit)
+    );
 }

@@ -161,6 +161,15 @@ impl ValueMatch {
     }
 }
 
+/// What the search box asks for its "Did you mean" line: the user's words, and at most `limit` values (0 = a few).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FindValuesRequest {
+    pub text: String,
+    #[serde(default)]
+    pub limit: usize,
+}
+
 /// The step of the ladder that found the events, narrowest first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
