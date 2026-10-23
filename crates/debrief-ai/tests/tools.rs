@@ -139,10 +139,12 @@ fn unknown_tools_and_helpers() {
     e.merge(&Evidence {
         record_ids: vec![1, 2],
         queries: vec!["q".into()],
+        sql: vec![],
     });
     e.merge(&Evidence {
         record_ids: vec![2, 3],
         queries: vec!["q".into(), "r".into()],
+        sql: vec![],
     });
     assert_eq!((e.record_ids, e.queries), (vec![1, 2, 3], vec!["q".to_string(), "r".to_string()]));
     assert_eq!(

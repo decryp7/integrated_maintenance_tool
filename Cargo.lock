@@ -1549,6 +1549,7 @@ dependencies = [
  "debrief-collect",
  "debrief-core",
  "debrief-ipc",
+ "debrief-store-duck",
  "flate2",
  "getrandom 0.4.3",
  "image",

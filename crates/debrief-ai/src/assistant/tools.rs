@@ -88,7 +88,11 @@ pub fn collect_ids(v: &Value, out: &mut Vec<u32>) {
 #[serde(rename_all = "camelCase")]
 pub struct Evidence {
     pub record_ids: Vec<u32>,
+    /// Query-language queries the tools ran (the chat shows each as an editable chip).
     pub queries: Vec<String>,
+    /// SQL texts `run_sql` ran (shown read-only in the same chip, so the user sees the assistant used SQL).
+    #[serde(default)]
+    pub sql: Vec<String>,
 }
 
 impl Evidence {
@@ -101,6 +105,11 @@ impl Evidence {
         for q in &o.queries {
             if !self.queries.contains(q) {
                 self.queries.push(q.clone());
+            }
+        }
+        for q in &o.sql {
+            if !self.sql.contains(q) {
+                self.sql.push(q.clone());
             }
         }
     }
@@ -283,6 +292,12 @@ impl<'a> EngineTools<'a> {
                 &["ql"],
             ),
             spec(
+                super::sql_tool::RUN_SQL,
+                &super::sql_tool::description(),
+                json!({"sql": {"type": "string", "description": "One SELECT statement over the views events, sources and fields."}, "limit": {"type": "integer"}}),
+                &["sql"],
+            ),
+            spec(
                 "check_query",
                 "Check that a query is valid without running it.",
                 json!({"ql": ql}),
@@ -356,7 +371,11 @@ impl<'a> EngineTools<'a> {
         ToolOutcome {
             text: truncate_chars(&text, self.limits.max_chars),
             summary,
-            evidence: Evidence { record_ids: ids, queries },
+            evidence: Evidence {
+                record_ids: ids,
+                queries,
+                sql: Vec::new(),
+            },
             ..Default::default()
         }
     }
@@ -560,6 +579,7 @@ impl EngineTools<'_> {
             "find_events" => self.find_events(s, parse!(FindArg)),
             "find_values" => self.find_values(s, parse!(FindArg)),
             "run_query" => self.run_query(s, parse!(QlArg)),
+            super::sql_tool::RUN_SQL => super::sql_tool::run(s, parse!(super::sql_tool::SqlArg), |v, summary| self.finish(v, summary, vec![])),
             "check_query" => {
                 let a = parse!(QlArg);
                 match s.check_query(&a.ql) {

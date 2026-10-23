@@ -6,111 +6,16 @@
 use crate::schema::parquet_from;
 use crate::sql::{ident, lit};
 use debrief_core::batch::EventSchema;
-use debrief_core::ports::{SqlView, SqlViewColumn};
+use debrief_core::ports::{sql_views, SqlView, SQL_VIEW_TABLE};
 
-/// `(name, type, description)` of each view's columns, in order.
-type Columns = &'static [(&'static str, &'static str, &'static str)];
-
-const EVENTS: Columns = &[
-    (
-        "id",
-        "UBIGINT",
-        "The event's id (stable for the store; \"Open in Events\" uses it).",
-    ),
-    ("ts", "TIMESTAMP", "Event time (UTC); NULL for untimed events."),
-    ("level", "VARCHAR", "Verbose, Debug, Information, Warning, Error or Fatal."),
-    ("source", "UINTEGER", "The source's id (join sources.id)."),
-    ("line", "UINTEGER", "Line number in the source."),
-    ("byte_offset", "UBIGINT", "Byte offset of the event in the source."),
-    ("message", "VARCHAR", "The rendered message."),
-    ("template", "VARCHAR", "The message template, when the format has one."),
-    ("exception", "VARCHAR", "The exception text, if any."),
-    ("fields", "MAP(VARCHAR, VARCHAR)", "Every other field as text: fields['RequestId']."),
-];
-
-const SOURCES: Columns = &[
-    ("id", "UINTEGER", "The source's id."),
-    ("name", "VARCHAR", "File name (archive members: the member's name)."),
-    ("path", "VARCHAR", "Full path."),
-    ("importer", "VARCHAR", "The importer that read it."),
-    ("parser", "VARCHAR", "The parser that read it."),
-    ("events", "UBIGINT", "Events read."),
-    ("skipped", "UBIGINT", "Lines skipped."),
-    ("first_ts", "TIMESTAMP", "Earliest event time."),
-    ("last_ts", "TIMESTAMP", "Latest event time."),
-    ("bytes", "UBIGINT", "Bytes read."),
-];
-
-const FIELDS: Columns = &[
-    ("key", "VARCHAR", "The field's name (events.fields[key])."),
-    ("type", "VARCHAR", "text, integer, number or boolean."),
-    (
-        "storage",
-        "VARCHAR",
-        "declared, promoted, partly or overflow (how fast filters on it are).",
-    ),
-    ("events", "UBIGINT", "Events that have it."),
-    ("fill_rate", "DOUBLE", "events over all events, 0 to 1."),
-    ("approx_distinct", "UBIGINT", "Approximate distinct values (at least this many)."),
-];
-
-const NOTES: Columns = &[
-    ("id", "VARCHAR", "The note's id."),
-    (
-        "anchor",
-        "VARCHAR",
-        "event, range, instant, source, marker, chartPoint, project or image.",
-    ),
-    ("event_id", "UBIGINT", "The noted event (events.id), for event notes."),
-    ("source_id", "UINTEGER", "The noted source (sources.id), for source notes."),
-    (
-        "from_ts",
-        "TIMESTAMP",
-        "Start of the noted time (event, instant, range, marker, chart point).",
-    ),
-    ("to_ts", "TIMESTAMP", "End of the noted range."),
-    ("severity", "VARCHAR", "info, warning or problem."),
-    ("tags", "VARCHAR[]", "Its tags."),
-    ("text", "VARCHAR", "The Markdown text (at most 2,048 characters)."),
-    ("author", "VARCHAR", "Who wrote it."),
-    ("created", "TIMESTAMP", "When it was written."),
-    ("updated", "TIMESTAMP", "When it was last changed."),
-];
-
-/// The views with their descriptions.
-const VIEWS: [(&str, &str, Columns); 4] = [
-    (
-        "events",
-        "Every event of the store's sources, in no particular order (add ORDER BY ts).",
-        EVENTS,
-    ),
-    ("sources", "The sources (files and archive members) in the store.", SOURCES),
-    ("fields", "The fields the events carry, with how they are stored.", FIELDS),
-    ("notes", "The window's notes.", NOTES),
-];
-
-/// The views as the editor completes them.
+/// The views as the editor completes them (the table lives in the port: `debrief_core::ports::SQL_VIEW_TABLE`).
 pub fn schema() -> Vec<SqlView> {
-    VIEWS
-        .iter()
-        .map(|(name, description, cols)| SqlView {
-            name: name.to_string(),
-            description: description.to_string(),
-            columns: cols
-                .iter()
-                .map(|(n, t, d)| SqlViewColumn {
-                    name: n.to_string(),
-                    ty: t.to_string(),
-                    description: d.to_string(),
-                })
-                .collect(),
-        })
-        .collect()
+    sql_views()
 }
 
 /// `CREATE TABLE` of the tables behind `sources`, `fields` and `notes` (filled by the console, not by queries).
 pub fn tables_ddl() -> String {
-    VIEWS[1..]
+    SQL_VIEW_TABLE[1..]
         .iter()
         .map(|(name, _, cols)| {
             let cols = cols

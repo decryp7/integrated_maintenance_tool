@@ -20,6 +20,7 @@ import { ChatStore } from './chat.store';
 import { JobsStore } from '../../jobs/jobs.store';
 import { queuedLabel } from '../../jobs/jobs-text';
 import { AiCitations } from './citation-actions';
+import { QueryChip } from './query-chip';
 import { isNotFound } from './markdown';
 import { AiRichText } from './rich-text';
 
@@ -31,7 +32,7 @@ import { AiRichText } from './rich-text';
 @Component({
   selector: 'debrief-ai-chat-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AiRichText, AiProposalCard, AgentApprovalCard, LinkCard, AgentPaused, ChatBrowserBar, ResearchOfferCard, ChatComposer, Icon, CdkMenu, CdkMenuItem, CdkMenuTrigger],
+  imports: [QueryChip, AiRichText, AiProposalCard, AgentApprovalCard, LinkCard, AgentPaused, ChatBrowserBar, ResearchOfferCard, ChatComposer, Icon, CdkMenu, CdkMenuItem, CdkMenuTrigger],
   template: `
     <div class="bar" role="toolbar" aria-label="Chat" i18n-aria-label="@@ai.chat.toolbar.label">
       <label class="sr-only" for="ai-chat-session" i18n="@@ai.chat.session.label">Chat</label>
@@ -92,6 +93,14 @@ import { AiRichText } from './rich-text';
                   </li>
                 }
               </ul>
+              @for (c of t.tools; track $index) {
+                @for (q of c.queries; track q) {
+                  <debrief-query-chip [query]="q" language="ql" (open)="applyQuery($event)" />
+                }
+                @for (q of c.sql; track q) {
+                  <debrief-query-chip [query]="q" language="sql" />
+                }
+              }
             }
             @if (t.step; as st) {
               <p class="step muted" role="status" data-testid="agent-step">{{ stepText(st.step, st.limit, st.action, st.site) }}</p>

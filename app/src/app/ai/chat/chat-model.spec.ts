@@ -19,7 +19,7 @@ describe('reduceTurn', () => {
     ]);
     // A finish without a start still shows a chip.
     t = reduceTurn(t, { type: 'toolFinished', name: 'get_events', summary: 'declined', error: true, evidence: ev });
-    expect(t.tools[2]).toEqual({ name: 'get_events', args: '', running: false, summary: 'declined', error: true });
+    expect(t.tools[2]).toEqual({ name: 'get_events', args: '', running: false, summary: 'declined', error: true, queries: [], sql: [] });
     t = reduceTurn(t, { type: 'proposal', proposal: q });
     t = reduceTurn(t, { type: 'delta', text: 'Done.' });
     const done = reduceTurn(t, { type: 'done', text: 'Final', citations: [{ kind: 'query', ql: 'a' }], usage: { inputTokens: 1, outputTokens: 2 }, notes: ['n'] });

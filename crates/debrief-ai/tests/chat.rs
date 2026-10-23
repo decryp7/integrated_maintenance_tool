@@ -637,6 +637,7 @@ fn a_related_logs_turn_lists_the_links_with_reasons_and_cites_them() {
             evidence: debrief_ai::assistant::Evidence {
                 record_ids: vec![42],
                 queries: vec![],
+                sql: vec![],
             },
             usage: Default::default(),
         },
