@@ -151,8 +151,12 @@ fn spawn_setup<R: Runtime>(app: AppHandle<R>, core: Arc<AiCore>, job: SetupJob, 
         move |on_progress: &dyn Fn(JobProgress)| -> Ai<()> {
             let a = app.clone();
             let mut on_stage = |st: SetupStage| {
-                if let SetupStage::Downloading { bytes, total, .. } = &st {
-                    on_progress(JobProgress::bytes(*bytes, *total));
+                match &st {
+                    SetupStage::Downloading { bytes, total, .. } => {
+                        on_progress(super::runtime_commands::phase_progress(false, *bytes, *total))
+                    }
+                    SetupStage::Verifying { bytes, total } => on_progress(super::runtime_commands::phase_progress(true, *bytes, *total)),
+                    _ => {}
                 }
                 let _ = a.emit(SETUP_EVENT, SetupEvent::Stage(st));
             };

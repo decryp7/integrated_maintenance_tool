@@ -438,7 +438,7 @@ export class AiSetupWizard implements OnInit {
     const st = this.running()?.stage;
     if (!st || (st.stage !== 'downloading' && st.stage !== 'verifying')) return '';
     const base = $localize`:@@ai.runtime.progress.of:${formatBytes(st.bytes)}:done: of ${formatBytes(st.total)}:total:`;
-    if (st.stage === 'verifying') return base;
+    if (st.stage === 'verifying') return $localize`:@@ai.runtime.progress.checking:Checking the download: ${base}:progress:`;
     return [
       base,
       formatRate(this.transfer().rate),

@@ -122,10 +122,13 @@ pub(crate) fn start_install_with<R: Runtime>(
             while !worker.is_finished() {
                 std::thread::sleep(TICK);
                 let ev = RuntimeEvent::of_progress(&id, &progress);
-                if let RuntimeEvent::Progress { bytes, total, .. } = &ev {
+                if let RuntimeEvent::Progress {
+                    bytes, total, verifying, ..
+                } = &ev
+                {
                     if *total > 0 && last != Some((*bytes, *total)) {
                         last = Some((*bytes, *total));
-                        ctx.progress(JobProgress::bytes(*bytes, *total));
+                        ctx.progress(phase_progress(*verifying, *bytes, *total));
                         let _ = app.emit(RUNTIME_EVENT, ev);
                     }
                 }
@@ -152,6 +155,15 @@ pub(crate) fn start_install_with<R: Runtime>(
         core.end_runtime_install();
         AiCmdError::busy(e)
     })
+}
+
+/// Job progress for one artifact: bytes, labelled with the phase so a checksum pass reads as "Checking", not as a
+/// second download restarting from zero under the same title.
+pub(crate) fn phase_progress(verifying: bool, bytes: u64, total: u64) -> JobProgress {
+    JobProgress {
+        current: Some(if verifying { "Checking" } else { "Downloading" }.to_string()),
+        ..JobProgress::bytes(bytes, total)
+    }
 }
 
 /// Deletes an installed build (of the pinned release or an older one); stops the engine first if it may
