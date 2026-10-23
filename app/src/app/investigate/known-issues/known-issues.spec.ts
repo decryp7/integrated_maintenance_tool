@@ -134,7 +134,7 @@ describe('KnownIssues component', () => {
     expect(card.textContent).toContain('Payment gateway timeouts');
     expect(el(f, '[data-testid=known-issue-fix]').textContent).toContain('Raise the timeout.');
     expect(el(f, '[data-testid=known-issue-count]').textContent).toContain('1,234');
-    expect(el(f, '[data-testid=known-issue-origin]').textContent).toBe('Rule');
+    expect(el(f, '[data-testid=known-issue-origin]').textContent).toBe('From rule');
     expect(card.textContent).toContain('Payments');
     buttonByText(f, 'Show events').click();
     expect(context.setQuery).toHaveBeenCalledWith({ ql: '@message ~ "timed out"' });

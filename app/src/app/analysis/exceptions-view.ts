@@ -18,7 +18,6 @@ import { CoverageNote } from './coverage-note';
   imports: [AnalysisState, CoverageNote],
   template: `
     <div class="bar">
-      <span class="section-title" i18n="@@analysis.exceptions.title">Exceptions</span>
       @if (res.result(); as list) { <span class="faint" i18n="@@analysis.exceptions.groups">{{ list.length }} groups</span> }
       <span class="spacer"></span>
       <button class="btn" type="button" (click)="res.retry()" i18n="@@analysis.exceptions.refresh">Refresh</button>

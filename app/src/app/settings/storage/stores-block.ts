@@ -139,7 +139,7 @@ import { notSelectableReason, parseAutoCleanDays, shortStoreName, stateLabel } f
     .lines { display: flex; flex-direction: column; gap: 2px; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 6px 8px; text-align: start; vertical-align: top; border-bottom: 1px solid var(--border); }
-    thead th { font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    thead th { font-size: var(--fs-sm); font-weight: 600; color: var(--muted); }
     tbody th { font-weight: 500; color: var(--text); }
     .num { text-align: end; white-space: nowrap; }
     .files { display: block; font-size: var(--fs-sm); color: var(--muted); }

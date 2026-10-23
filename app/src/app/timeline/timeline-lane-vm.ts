@@ -12,6 +12,11 @@ export const SPARSE_PX_PER_EVENT = 6;
 /** Kinds drawn as a thin tick strip when a lane is too busy for full shapes. */
 const COMPACT_KINDS: ReadonlySet<string> = new Set(['warning']);
 
+/** Markers chained closer than this (px) collapse into one glyph with a count badge. */
+const CROWD_PX = 14;
+/** Crashes are never folded into a crowd. */
+const KEEP_KINDS: ReadonlySet<string> = new Set(['fatal']);
+
 /** A marker hit area as the lanes draw it. */
 export interface TargetVm extends MarkerTarget {
   /** Left edge in % of the plot. */
@@ -154,7 +159,7 @@ export function buildLaneVms(lanes: readonly Lane[], t: Timeline, o: LaneVmOptio
         const k = o.kinds.get(cluster.kind);
         return { cluster, left: clamp(((cluster.ts - t.from) / span) * 100, 0, 100), color: k?.color ?? null, label: k?.label ?? cluster.kind };
       }),
-      { plotWidth: o.plotWidth, priority, compactKinds: COMPACT_KINDS },
+      { plotWidth: o.plotWidth, priority, compactKinds: COMPACT_KINDS, crowdPx: CROWD_PX, keepKinds: KEEP_KINDS },
     );
     const filtered = o.groups.has(lane.key);
     const marks = o.marks(lane);

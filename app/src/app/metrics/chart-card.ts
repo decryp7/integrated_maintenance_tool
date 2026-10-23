@@ -106,7 +106,7 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
     itemStyle: !isLine ? { borderRadius: stacked ? 0 : [2, 2, 0, 0] } : undefined,
     emphasis: { focus: 'series' },
     endLabel: directLabels && !p.other ? { show: true, formatter: '{a}', color: t.text, fontSize: 10.5, fontFamily: t.fontMono } : undefined,
-    labelLayout: directLabels && !p.other ? { moveOverlap: 'shiftY' } : undefined,
+    labelLayout: directLabels && !p.other ? { moveOverlap: 'shiftY', hideOverlap: true } : undefined,
     markLine: i === 0 ? markLine : undefined,
   }));
   // The legend wraps (never pages); reserve a row of headroom per ~LEGEND_PER_ROW entries so it cannot overlap the plot.

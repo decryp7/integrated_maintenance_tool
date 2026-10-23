@@ -1,3 +1,4 @@
+import { splitInstance } from './events-grid';
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
 import { Page, PageRequest, RecordView } from '../core/api.types';
@@ -814,5 +815,12 @@ describe('EventsGrid at scale', { timeout: 30_000 }, () => {
       await flush(fixture);
       expect(selectedIds()).toEqual(before);
     });
+  });
+});
+
+describe('splitInstance', () => {
+  it('splits the name from the host and process id', () => {
+    expect(splitInstance('OrderService · WEB01 · 3312')).toEqual({ instName: 'OrderService', instRest: 'WEB01 · 3312' });
+    expect(splitInstance('worker')).toEqual({ instName: 'worker', instRest: '' });
   });
 });

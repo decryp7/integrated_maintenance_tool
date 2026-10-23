@@ -8,7 +8,6 @@ import { QuerySession } from './query-session';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="bar">
-      <span class="section-title" i18n="@@analysis.queryResults.title">Query results</span>
       @if (table(); as t) {
         <span class="faint" i18n="@@analysis.queryResults.size">{t.rows.length, plural, =1 {1 row} other {{{ t.rows.length }} rows}} · {t.columns.length, plural, =1 {1 column} other {{{ t.columns.length }} columns}}</span>
       }
@@ -31,7 +30,7 @@ import { QuerySession } from './query-session';
           <thead>
             <tr>
               @for (c of t.columns; track $index; let i = $index) {
-                <th scope="col" [attr.aria-sort]="ariaSort(i)">
+                <th scope="col" [class.num]="numericColumn(i)" [attr.aria-sort]="ariaSort(i)">
                   <button type="button" (click)="sortBy(i)">{{ c }}<span aria-hidden="true">{{ marker(i) }}</span></button>
                 </th>
               }
@@ -67,6 +66,7 @@ import { QuerySession } from './query-session';
       table.grid th { position: sticky; top: 0; background: var(--bg-2); color: var(--muted); font-weight: 600; }
       table.grid th button { all: unset; cursor: pointer; display: inline-flex; gap: 4px; }
       table.grid th button:focus-visible { outline: 2px solid var(--focus-ring); }
+      table.grid th.num { text-align: right; }
       table.grid td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
     `,
   ],
@@ -83,6 +83,12 @@ export class QueryResultsView {
     return s ? sortRows(t.rows, s.col, s.dir) : t.rows;
   });
   protected readonly text = cellText;
+
+  /** A column is numeric (its header aligns right with its cells) when its first non-empty cell is a number. */
+  protected numericColumn(col: number): boolean {
+    const cell = this.rows().map((r) => r[col]).find((v) => v !== null && v !== undefined);
+    return typeof cell === 'number';
+  }
 
   protected isNumber(v: unknown): boolean {
     return typeof v === 'number';

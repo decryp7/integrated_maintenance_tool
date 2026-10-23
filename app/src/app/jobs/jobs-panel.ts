@@ -1,3 +1,4 @@
+import { Tabs } from '../shared/tabs';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { AiBackend } from '../ai/ai-backend';
 import { formatDuration } from '../core/format';
@@ -5,6 +6,7 @@ import { formatBytes, formatCount, formatEta, formatRate, TransferMeter } from '
 import { TransferSpeed } from '../shared/format/transfer-speed';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { Icon } from '../shared/icon';
+import { PanelEmpty } from './panel-empty';
 import { JobViewer } from './job-viewer';
 import { KindFilter, KindOption } from '../ui/kind-filter';
 import { JobsStore, JobsView } from './jobs.store';
@@ -19,14 +21,10 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
 @Component({
   selector: 'imt-jobs-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, KindFilter],
+  imports: [Icon, KindFilter, PanelEmpty, Tabs],
   template: `
     <div class="bar" role="toolbar" aria-label="Job filters" i18n-aria-label="@@jobs.panel.filters">
-      <div class="seg" role="group" aria-label="Show" i18n-aria-label="@@jobs.panel.show" data-testid="jobs-view">
-        @for (v of views; track v.id) {
-          <button type="button" class="btn small" [attr.aria-pressed]="store.view() === v.id" (click)="store.setView(v.id)" [attr.data-testid]="'jobs-view-' + v.id">{{ v.label }} <span class="faint">{{ store.viewCounts()[v.id] }}</span></button>
-        }
-      </div>
+      <imt-tabs kind="filter" label="Show" i18n-label="@@jobs.panel.show" idPrefix="jobs-view-" data-testid="jobs-view" [items]="viewItems()" [selected]="store.view()" (selectedChange)="store.setView($any($event))" />
       <imt-kind-filter label="Kind" i18n-label="@@jobs.panel.kind" [options]="kindOptions()" [selected]="store.kinds()" (toggled)="store.toggleKind($any($event))" (cleared)="store.setKinds([])" />
       <span class="spacer"></span>
       <button type="button" class="btn ghost small" [disabled]="!store.finished().length" (click)="store.clearFinished()" data-testid="jobs-clear" i18n="@@jobs.panel.clear">Clear finished</button>
@@ -52,18 +50,33 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
     }
     <p class="sr-only" aria-live="polite" data-testid="jobs-live">{{ announcement() }}</p>
     @if (!store.jobs().length) {
-      <p class="muted empty" data-testid="jobs-empty" i18n="@@jobs.panel.empty">No jobs. Long work (AI answers, imports, analyses, exports, downloads) shows here while it runs and after it finished.</p>
+      <imt-panel-empty class="empty" data-testid="jobs-empty" icon="jobs" title="No jobs" i18n-title="@@jobs.panel.empty.title"><ng-container i18n="@@jobs.panel.empty">Long work such as imports, exports and downloads shows here while it runs.</ng-container></imt-panel-empty>
     }
     @for (section of sections(); track section.id) {
       @if (section.jobs.length) {
         <h3 [id]="'jobs-h-' + section.id">{{ section.title }} <span class="muted">{{ section.jobs.length }}</span></h3>
         <ul role="list" [attr.aria-labelledby]="'jobs-h-' + section.id" (keydown)="onListKey($event)">
           @for (j of section.jobs; track j.id) {
-            <li role="listitem" class="job" [class.unseen]="j.unseen" [attr.data-state]="j.state" [attr.data-testid]="'job-' + j.id" [attr.aria-label]="rowLabel(j)">
+            <li role="listitem" class="job" [class.unseen]="j.unseen" [attr.data-state]="j.state" [class.viewable]="viewable(j)" [attr.tabindex]="viewable(j) ? 0 : null" [attr.data-testid]="'job-' + j.id" [attr.aria-label]="rowLabel(j)" (click)="rowClick($event, j)" (keydown.enter)="rowKey($event, j)">
               <div class="row">
-                <span class="kind" [attr.data-kind]="j.kind">{{ kindLabel(j.kind) }}</span>
                 <span class="title" [title]="j.title">{{ j.title }}</span>
+                <span class="kind" [attr.data-kind]="j.kind">{{ kindLabel(j.kind) }}</span>
                 <span class="state" [attr.data-testid]="'job-state-' + j.id">{{ j.state === 'queued' ? queuedLabel(j.position) : stateLabel(j.state) }}</span>
+                <span class="actions">
+                  @if (j.movable) {
+                    <button type="button" class="icon-btn" [attr.aria-label]="moveLabel(j, true)" [title]="moveLabel(j, true)" [disabled]="j.position === 1" (click)="store.move(j.id, true)"><imt-icon name="arrowUp" [size]="14" /></button>
+                    <button type="button" class="icon-btn" [attr.aria-label]="moveLabel(j, false)" [title]="moveLabel(j, false)" (click)="store.move(j.id, false)"><imt-icon name="arrowDown" [size]="14" /></button>
+                  }
+                  @if (j.cancellable) {
+                    <button type="button" class="icon-btn" (click)="store.cancel(j.id)" [attr.data-testid]="'job-cancel-' + j.id" [attr.aria-label]="cancelLabel(j)" [title]="cancelLabel(j)"><imt-icon name="close" [size]="14" /></button>
+                  }
+                  @if (j.retryable) {
+                    <button type="button" class="icon-btn" (click)="store.retry(j.id)" [attr.data-testid]="'job-retry-' + j.id" [attr.aria-label]="retryLabel(j)" [title]="retryLabel(j)"><imt-icon name="refresh" [size]="14" /></button>
+                  }
+                  @if (viewable(j)) {
+                    <button type="button" class="icon-btn" (click)="view(j)" [attr.data-testid]="'job-view-' + j.id" [attr.aria-label]="viewLabel(j)" [title]="viewLabel(j)"><imt-icon name="note" [size]="14" /></button>
+                  }
+                </span>
               </div>
               @if (j.state === 'running') {
                 <div class="progress">
@@ -91,21 +104,6 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
               @if (j.error) {
                 <p class="error small">{{ j.error }}</p>
               }
-              <div class="actions">
-                @if (j.movable) {
-                  <button type="button" class="icon-btn" [attr.aria-label]="moveLabel(j, true)" [title]="moveLabel(j, true)" [disabled]="j.position === 1" (click)="store.move(j.id, true)"><imt-icon name="arrowUp" [size]="14" /></button>
-                  <button type="button" class="icon-btn" [attr.aria-label]="moveLabel(j, false)" [title]="moveLabel(j, false)" (click)="store.move(j.id, false)"><imt-icon name="arrowDown" [size]="14" /></button>
-                }
-                @if (j.cancellable) {
-                  <button type="button" class="btn small" (click)="store.cancel(j.id)" [attr.data-testid]="'job-cancel-' + j.id" [attr.aria-label]="cancelLabel(j)" i18n="@@jobs.panel.cancel">Cancel</button>
-                }
-                @if (j.retryable) {
-                  <button type="button" class="btn small" (click)="store.retry(j.id)" [attr.data-testid]="'job-retry-' + j.id" [attr.aria-label]="retryLabel(j)" i18n="@@jobs.panel.retry">Retry</button>
-                }
-                @if (j.state === 'done' && j.resultType) {
-                  <button type="button" class="btn small primary" (click)="view(j)" [attr.data-testid]="'job-view-' + j.id" [attr.aria-label]="viewLabel(j)" i18n="@@jobs.panel.view">View</button>
-                }
-              </div>
             </li>
           }
         </ul>
@@ -116,17 +114,15 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
     :host { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; overflow: auto; height: 100%; box-sizing: border-box; font-size: var(--fs-md); }
     .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
     .spacer, .grow { flex: 1; }
-    .chip { border: 1px solid var(--border-2); background: transparent; color: var(--text-2); border-radius: 10px; padding: 1px 8px; font-size: var(--fs-xs); cursor: pointer; }
-    .chip[aria-pressed='true'] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-    .chip:focus-visible, .link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+    .link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     .paused, .err { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--lvl-warn); background: color-mix(in srgb, var(--lvl-warn) 12%, transparent); }
     .err { border-color: var(--lvl-error); background: color-mix(in srgb, var(--lvl-error) 10%, transparent); margin: 0; }
-    h3 { margin: 8px 0 2px; font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-2); }
+    h3 { margin: 8px 0 2px; font-size: var(--fs-sm); font-weight: 600; color: var(--text-2); }
     ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
     .job { border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; }
     .job.unseen { border-left: 3px solid var(--accent); }
     .row { display: flex; align-items: center; gap: 6px; min-width: 0; }
-    .kind { font-size: var(--fs-2xs); padding: 0 6px; border-radius: 8px; border: 1px solid var(--border-2); color: var(--text-2); white-space: nowrap; }
+    .kind { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
     .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
     .state { font-size: var(--fs-xs); color: var(--text-2); white-space: nowrap; }
     [data-state='failed'] .state, .error { color: var(--danger-text, var(--lvl-error)); }
@@ -135,9 +131,15 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
     .meta { display: flex; flex-wrap: wrap; gap: 10px; }
     .msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
     .link { all: unset; cursor: pointer; text-decoration: underline; color: var(--text-2); }
-    .actions { display: flex; gap: 6px; justify-content: flex-end; }
+    /* Row actions show on hover and keyboard focus only. */
+    .actions { display: flex; gap: 2px; opacity: 0; }
     .actions:empty { display: none; }
-    .empty { margin: 12px 0; }
+    .job:hover .actions, .job:focus-within .actions { opacity: 1; }
+    @media (hover: none) { .actions { opacity: 1; } }
+    .job.viewable { cursor: pointer; }
+    .job.viewable:hover { background: var(--bg-hover); }
+    .job:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+    .count { font-variant-numeric: tabular-nums; }
     .small { font-size: var(--fs-xs); }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   `,
@@ -147,6 +149,7 @@ export class JobsPanel {
   private readonly viewer = inject(JobViewer);
   private readonly ai = inject(AiBackend);
   private readonly ctx = inject(COMMAND_CONTEXT);
+  protected readonly viewItems = computed(() => this.views.map((v) => ({ id: v.id, label: v.label, count: this.store.viewCounts()[v.id] })));
   protected readonly views: readonly { id: JobsView; label: string }[] = [
     { id: 'all', label: $localize`:@@jobs.panel.view.all:All` },
     { id: 'running', label: $localize`:@@jobs.panel.view.running:Running` },
@@ -249,6 +252,21 @@ export class JobsPanel {
 
   protected viewLabel(j: JobInfo): string {
     return $localize`:@@jobs.panel.viewLabel:View the result of ${j.title}:job:`;
+  }
+
+  /** A finished job with a result opens it on a row click. */
+  protected viewable(j: JobInfo): boolean {
+    return j.state === 'done' && !!j.resultType;
+  }
+
+  protected rowClick(e: Event, j: JobInfo): void {
+    if (!this.viewable(j) || (e.target as HTMLElement).closest('button')) return;
+    void this.view(j);
+  }
+
+  protected rowKey(e: Event, j: JobInfo): void {
+    if (e.target !== e.currentTarget || !this.viewable(j)) return;
+    void this.view(j);
   }
 
   protected async view(j: JobInfo): Promise<void> {

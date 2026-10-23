@@ -20,7 +20,7 @@ const TOKENS: ChartTokens = {
   fontMono: 'mono',
 };
 
-const labels = { level: (l: string) => `L:${l}`, marker: (k: string) => `M:${k}`, anomaly: 'Anomaly' };
+const labels = { level: (l: string) => `L:${l}`, marker: (k: string) => `M:${k}`, markerLane: 'Markers', anomaly: 'Anomaly' };
 
 function summary(patch: Partial<HomeSummary> = {}): HomeSummary {
   return {
@@ -86,19 +86,23 @@ describe('bucketRange and bucketAt', () => {
 });
 
 describe('historyOption', () => {
-  it('stacks the levels present, most severe at the baseline, with markers and anomalies on the first series', () => {
+  it('stacks the levels present, most severe at the baseline, with anomalies on the first series and markers on their own lane', () => {
     const option = historyOption(summary(), TOKENS, 'utc', labels) as unknown as {
-      series: { name: string; stack: string; markLine?: { data: unknown[] }; markArea?: { data: unknown[] }; data: number[][] }[];
-      xAxis: { min: number; max: number };
+      series: { name: string; stack?: string; type: string; markLine?: unknown; markArea?: { data: unknown[] }; data: unknown[] }[];
+      xAxis: { min: number; max: number }[];
     };
-    expect(option.series.map((x) => x.name)).toEqual(['L:Error', 'L:Warning', 'L:Information']);
-    expect(new Set(option.series.map((x) => x.stack))).toEqual(new Set(['events']));
-    expect(option.xAxis).toMatchObject({ min: 1000, max: 4000 });
-    expect(option.series[0]?.markLine?.data).toHaveLength(2);
-    expect(option.series[0]?.markArea?.data).toHaveLength(1);
-    expect(option.series[1]?.markLine).toBeUndefined();
+    const bars = option.series.filter((x) => x.type === 'bar');
+    expect(bars.map((x) => x.name)).toEqual(['L:Error', 'L:Warning', 'L:Information']);
+    expect(new Set(bars.map((x) => x.stack))).toEqual(new Set(['events']));
+    expect(option.xAxis[0]).toMatchObject({ min: 1000, max: 4000 });
+    // Markers are shapes on a lane under the plot, never rules through the bars.
+    expect(option.series.some((x) => x.markLine)).toBe(false);
+    const lane = option.series.find((x) => x.type === 'scatter');
+    expect(lane?.data).toHaveLength(2);
+    expect(bars[0]?.markArea?.data).toHaveLength(1);
+    expect(bars[1]?.markArea).toBeUndefined();
     // Bucket centres on the x axis.
-    expect(option.series[0]?.data[0]).toEqual([1500, 0]);
+    expect(bars[0]?.data[0]).toEqual([1500, 0]);
   });
 
   it('has nothing to draw without timestamps or events', () => {

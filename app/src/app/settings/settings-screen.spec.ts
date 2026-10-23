@@ -1,3 +1,4 @@
+import { pick } from './themed-select.testing';
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, typeInto } from '../../testing/helpers';
 import { LifecycleService } from '../lifecycle/lifecycle.service';
@@ -68,7 +69,7 @@ describe('SettingsScreen', () => {
     const { fixture } = await setup();
     const groups = all(fixture, 'nav .group').map((g) => g.textContent?.trim());
     expect(groups).toEqual(['Application', 'Data', 'AI', 'Plugins', 'Diagnostics']);
-    const items = all(fixture, 'nav .nav').map((b) => [...b.querySelectorAll('.name, .badge')].map((x) => x.textContent?.trim()).join(' ') || b.textContent?.trim());
+    const items = all(fixture, 'nav .nav').map((b) => [...b.querySelectorAll('.name, .status')].map((x) => x.textContent?.trim()).join(' ') || b.textContent?.trim());
     expect(items).toEqual([
       'General',
       'Appearance',
@@ -130,7 +131,7 @@ describe('SettingsScreen', () => {
     expect(el<HTMLInputElement>(fixture, 'imt-setting-field input').disabled).toBe(true);
     typeInto(el<HTMLInputElement>(fixture, 'input[type=search]'), 'log level');
     await settle(fixture);
-    typeInto(el<HTMLSelectElement>(fixture, 'imt-setting-field select'), 'debug', 'change');
+    await pick(fixture, 'imt-setting-field imt-select button', 'ebug');
     await settle(fixture);
     el<HTMLButtonElement>(fixture, 'imt-setting-field button.reset').click();
     await settle(fixture);

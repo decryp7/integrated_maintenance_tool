@@ -3,8 +3,8 @@ import { PluginMemoryStore } from '../settings/performance/plugin-memory.store';
 import { MAX_PLUGIN_MB, MIN_PLUGIN_MB } from '../settings/performance/performance.types';
 
 /**
- * A plugin's memory in the Plugins panel (ADR 0031): its cap, the peak the memory watcher last reported, and its own
- * cap over the default (applied from the plugin's next start). The engine validates the cap.
+ * A plugin's memory cap in the detail panel (ADR 0031): its own cap over the default (applied from the plugin's next
+ * start), saved when the field loses focus or on Enter. The engine validates the cap.
  */
 @Component({
   selector: 'imt-plugin-memory',
@@ -12,26 +12,23 @@ import { MAX_PLUGIN_MB, MIN_PLUGIN_MB } from '../settings/performance/performanc
   template: `
     @if (row(); as r) {
       <div class="mem" data-testid="plugin-memory">
-        <span class="faint">
-          @if (r.peakMb !== null) {
-            <ng-container i18n="@@pluginsPanel.memory.peak">Memory: peak {{ r.peakMb }} MB of a {{ r.capMb }} MB cap</ng-container>
-          } @else {
-            <ng-container i18n="@@pluginsPanel.memory.cap">Memory cap: {{ r.capMb }} MB</ng-container>
-          }
-          @if (r.state === 'stopped') {
-            <strong class="warn" i18n="@@pluginsPanel.memory.stopped">· stopped over its cap</strong>
-          } @else if (r.state === 'warned') {
-            <span class="warn" i18n="@@pluginsPanel.memory.warned">· near its cap</span>
-          }
-        </span>
         <label class="cap">
-          <span i18n="@@pluginsPanel.memory.own">Own cap</span>
-          <input type="number" [min]="min" [max]="max" step="64" [value]="draft() ?? ''" (input)="draft.set(num($event))" [attr.aria-label]="label()" data-testid="plugin-memory-input" />
-          <span class="faint">MB</span>
+          <span class="lbl" i18n="@@pluginsPanel.memory.own">Memory cap</span>
+          <span class="field">
+            <input class="input" type="number" [min]="min" [max]="max" step="64" [value]="draft() ?? r.capMb" (input)="draft.set(num($event))" (blur)="save()" (keydown.enter)="save()" [attr.aria-label]="label()" data-testid="plugin-memory-input" />
+            <span class="unit">MB</span>
+          </span>
         </label>
-        <button type="button" class="btn" [disabled]="draft() === null || draft() === r.overrideMb" (click)="save()" data-testid="plugin-memory-set" i18n="@@pluginsPanel.memory.set">Set</button>
+        <span class="faint note">
+          @if (r.peakMb !== null) {
+            <ng-container i18n="@@pluginsPanel.memory.peak">Peak {{ r.peakMb }} MB of a {{ r.capMb }} MB cap.</ng-container>
+          } @else {
+            <ng-container i18n="@@pluginsPanel.memory.cap">The cap is {{ r.capMb }} MB.</ng-container>
+          }
+          <ng-container i18n="@@pluginsPanel.memory.applies">A new cap applies from the plugin's next start.</ng-container>
+        </span>
         @if (r.overrideMb !== null) {
-          <button type="button" class="btn ghost" (click)="clear()" data-testid="plugin-memory-clear" i18n="@@pluginsPanel.memory.clear">Use the default</button>
+          <button type="button" class="btn ghost link" (click)="clear()" data-testid="plugin-memory-clear" i18n="@@pluginsPanel.memory.clear">Use the default</button>
         }
         @if (error(); as e) {
           <span class="err" role="alert">{{ e }}</span>
@@ -40,10 +37,14 @@ import { MAX_PLUGIN_MB, MIN_PLUGIN_MB } from '../settings/performance/performanc
     }
   `,
   styles: `
-    .mem { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: var(--fs-sm); }
-    .cap { display: inline-flex; gap: 4px; align-items: center; }
-    input { width: 80px; }
-    .warn { color: var(--warn-text); }
+    .mem { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-sm); align-items: flex-start; }
+    .cap { display: flex; flex-direction: column; gap: 4px; }
+    .lbl { color: var(--muted); }
+    .field { display: inline-flex; align-items: center; gap: 6px; }
+    input { width: 96px; font-variant-numeric: tabular-nums; }
+    .unit { color: var(--muted); }
+    .note { line-height: 1.4; }
+    .link { padding-inline: 0; }
     .err { color: var(--danger-text, var(--lvl-error)); }
   `,
 })
@@ -72,8 +73,11 @@ export class PluginMemory {
     return Number.isFinite(v) ? v : null;
   }
 
+  /** Saves a changed cap (on blur or Enter); an unchanged or empty field does nothing. */
   protected async save(): Promise<void> {
-    this.error.set(await this.store.setCap(this.pluginId(), this.draft()));
+    const mb = this.draft();
+    if (mb === null || mb === this.row()?.overrideMb) return;
+    this.error.set(await this.store.setCap(this.pluginId(), mb));
   }
 
   protected async clear(): Promise<void> {

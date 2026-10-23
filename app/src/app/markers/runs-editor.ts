@@ -138,6 +138,7 @@ const PREVIEW_DEBOUNCE_MS = 300;
   styles: `
     :host { display: block; }
     .sub { font-size: var(--fs-md); font-weight: 600; margin: 18px 0 6px; }
+    .sub .faint { margin-inline-start: 4px; font-weight: 400; }
     .sub .faint { font-weight: 400; }
     h4 { margin: 0 0 6px; font-size: var(--fs-md); }
     .rules { list-style: none; margin: 0 0 8px; padding: 0; font-size: var(--fs-md); }

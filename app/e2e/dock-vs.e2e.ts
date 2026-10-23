@@ -10,7 +10,6 @@ import { showProfileEditor } from './menu-support';
 const tab = (page: Page, name: string) => page.getByRole('tab', { name, exact: true });
 const groups = (page: Page) => page.locator('.dv-groupview');
 const groupOf = (page: Page, name: string) => groups(page).filter({ has: tab(page, name) });
-const SCREENSHOTS = '../docs/screenshots';
 
 async function box(page: Page, selector: string) {
   // A panel moving between the dock and the auto-hide fly-out is re-mounted: wait until it has a box again.
@@ -48,7 +47,7 @@ test.describe('VS-style docking', () => {
     await openView(page, 'metrics');
   });
 
-  test('dragging a tab onto the left edge guide docks it along the whole left edge', async ({ page, browserName }) => {
+  test('dragging a tab onto the left edge guide docks it along the whole left edge', async ({ page }) => {
     const dock = await box(page, '.imt-dock-mount');
     // A point of the left guide (32px, centred) that is not on a group's tab strip: a release over a tab strip tabs the
     // panel into that group even while the edge guide is lit (see the R5 report).
@@ -63,7 +62,6 @@ test.describe('VS-style docking', () => {
     await dragTabTo(page, 'Metrics', x, y);
     await expect(page.locator('.imt-guide-left.hot')).toHaveCount(1);
     await expect(page.locator('.imt-guide-edges .imt-guide')).toHaveCount(4);
-    if (browserName === 'chromium') await page.screenshot({ path: `${SCREENSHOTS}/docking-guides-edge.png` });
     await page.mouse.up();
     const metrics = await box(page, 'imt-metrics-view');
     const events = await box(page, 'imt-events-grid');
@@ -72,11 +70,10 @@ test.describe('VS-style docking', () => {
     expect(metrics.height).toBeGreaterThan(events.height + 200);
   });
 
-  test('dragging a tab onto the centre of the compass tabs it into that group', async ({ page, browserName }) => {
+  test('dragging a tab onto the centre of the compass tabs it into that group', async ({ page }) => {
     const content = await box(page, '.dv-groupview:has(imt-events-grid) .dv-content-container');
     await dragTabTo(page, 'Metrics', content.x + content.width / 2, content.y + content.height / 2);
     await expect(page.locator('.imt-guide-center.hot')).toHaveCount(1);
-    if (browserName === 'chromium') await page.screenshot({ path: `${SCREENSHOTS}/docking-guides-compass.png` });
     await page.mouse.up();
     await expect(groupOf(page, 'Events')).toContainText('Metrics');
     await expect(groups(page)).toHaveCount(4);
@@ -93,7 +90,7 @@ test.describe('VS-style docking', () => {
     expect(await groupOf(page, 'Metrics').locator('[role="tab"]').allInnerTexts()).toEqual(before);
   });
 
-  test('auto hide: the inspector collapses to a side bar, slides out on hover, hides on Escape, pins back', async ({ page, browserName }) => {
+  test('auto hide: the inspector collapses to a side bar, slides out on hover, hides on Escape, pins back', async ({ page }) => {
     await groupOf(page, 'Inspector').getByRole('button', { name: 'Panel menu', exact: true }).click();
     await page.getByRole('menu', { name: 'Actions' }).getByRole('menuitem', { name: 'Auto hide', exact: true }).click();
     await expect(tab(page, 'Inspector')).toHaveCount(0);
@@ -107,7 +104,6 @@ test.describe('VS-style docking', () => {
     await expect(flyout.locator('imt-inspector')).toBeVisible();
     await expect(sideTab).toHaveAttribute('aria-expanded', 'true');
     await flyout.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
-    if (browserName === 'chromium') await page.screenshot({ path: `${SCREENSHOTS}/docking-autohide.png` });
     await expectNoSeriousViolations(page, test.info(), 'auto-hide');
     await flyout.locator('imt-inspector').click();
     await page.keyboard.press('Escape');

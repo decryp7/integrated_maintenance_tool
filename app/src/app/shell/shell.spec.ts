@@ -252,19 +252,24 @@ describe('StatusBar', () => {
     await settle(fixture);
     store.setMatchTotal(3);
     await settle(fixture);
-    expect(text(fixture)).toContain('2 sources');
     expect(text(fixture)).toContain('11 events');
-    expect(el(fixture, '[data-testid=status-untimed]').textContent).toContain('1 without a time');
     expect(text(fixture)).toMatch(/\d+ instances/);
+    // The rarely needed facts live in the Details popover, not in the bar.
+    expect(text(fixture)).not.toContain('Importers');
+    el<HTMLButtonElement>(fixture, '[data-testid=status-details]').click();
+    fixture.detectChanges();
+    const pop = document.querySelector('[data-testid=status-details-popover]')!;
+    expect(pop.textContent).toContain('Sources');
+    expect(pop.textContent).toContain('json · text');
+    expect(pop.querySelector('[data-testid=status-untimed]')!.textContent).toContain('Without a time');
     expect(text(fixture)).toContain('3 matching');
-    expect(text(fixture)).toContain('Importers: json · text');
     expect(el(fixture, '[data-testid=status-profile]').textContent).toContain('Profile: ');
     expect(all(fixture, 'span').find((s) => /\d+ events/.test(s.textContent ?? ''))?.title).toMatch(/^Indexed in \d/);
     el<HTMLButtonElement>(fixture, '.tz').click();
     expect(store.timezone()).toBe('local');
     await store.clearWorkspace();
     await settle(fixture);
-    expect(text(fixture)).toContain('Importers: —');
+    expect(document.querySelector('[data-testid=status-details-popover]')!.textContent).toContain('Importers—');
     // Nothing open: no counts, group or profile that describe nothing.
     expect(text(fixture)).toContain('No files open');
     expect(text(fixture)).not.toContain('0 sources');
@@ -276,10 +281,13 @@ describe('StatusBar', () => {
   it('shows how many events the pipeline dropped', async () => {
     const { fixture, store, backend } = setup(StatusBar);
     await settle(fixture);
-    expect(text(fixture)).not.toContain('dropped by pipeline');
+    el<HTMLButtonElement>(fixture, '[data-testid=status-details]').click();
+    fixture.detectChanges();
+    const pop = () => document.querySelector('[data-testid=status-details-popover]')!.textContent;
+    expect(pop()).not.toContain('Dropped by pipeline');
     await store.applyProfile(await backend.saveProfile(DROP_DEBUG_PROFILE));
     await settle(fixture);
-    expect(text(fixture)).toContain('1 dropped by pipeline');
+    expect(pop()).toContain('Dropped by pipeline1');
   });
 
   it('has a Live tail toggle that reflects and switches the live state', async () => {
@@ -322,12 +330,14 @@ describe('StatusBar', () => {
     expect(button.title).toBe('Live tail failed: watch limit reached');
   });
 
-  it('pluralises one source', async () => {
+  it('counts the sources in the Details popover', async () => {
     const { fixture, store } = setup(StatusBar);
     await settle(fixture);
     await store.removeSource(1);
     await settle(fixture);
-    expect(el(fixture, '.strong').textContent?.trim()).toBe('1 source');
+    el<HTMLButtonElement>(fixture, '[data-testid=status-details]').click();
+    fixture.detectChanges();
+    expect(document.querySelector('[data-testid=status-details-popover]')!.textContent).toContain('Sources1');
   });
 });
 
@@ -341,7 +351,8 @@ describe('Sidebar', () => {
     // Two folders are open: each gets a heading and its files show their names only (H2); the path is the tooltip.
     expect(all(fixture, '[data-testid=folder-heading]').map((n) => n.textContent?.trim())).toEqual(['logs/web01', 'logs/web02']);
     expect(all(fixture, '.src:not(.dim) .name').map((n) => n.textContent)).toEqual(['app.clef', 'app.log']);
-    expect(all(fixture, '[data-testid=format-badge]').map((n) => n.getAttribute('title'))).toHaveLength(2);
+    expect(all(fixture, '.src:not(.dim)').map((n) => n.getAttribute('title'))).toEqual([expect.stringContaining('Format: '), expect.stringContaining('Format: ')]);
+    expect(all(fixture, '[data-testid=format-badge]')).toHaveLength(0);
     expect(el(fixture, '.src.dim').textContent).toContain('system/export.reg');
     expect(el(fixture, '.src').getAttribute('title')).toContain('7 events');
     el<HTMLButtonElement>(fixture, '[aria-label="Remove app.log"]').click();

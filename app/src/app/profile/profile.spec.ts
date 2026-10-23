@@ -1,5 +1,5 @@
 import { Component, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { parse } from 'smol-toml';
 import { all, buttonByText, el, provideTinyBackend, settle, testLogger, text, tinyBackend, typeInto } from '../../testing/helpers';
 import { ImtBackend } from '../core/backend';
@@ -43,6 +43,16 @@ function configure(backend: ImtBackend = tinyBackend()) {
 }
 
 const wait = (ms = 360) => new Promise((r) => setTimeout(r, ms));
+
+/** Opens the "..." menu of the profile editor and triggers the item with this label. */
+async function menuItem(fixture: ComponentFixture<unknown>, label: string): Promise<void> {
+  (fixture.nativeElement.querySelector('[data-testid=profile-more]') as HTMLButtonElement).click();
+  fixture.detectChanges();
+  await fixture.whenStable();
+  const item = [...document.querySelectorAll<HTMLButtonElement>('.cdk-overlay-container [cdkMenuItem]')].find((b) => b.textContent?.trim() === label);
+  if (!item) throw new Error(`No menu item "${label}"`);
+  item.click();
+}
 
 describe('ProfileDraft', () => {
   it('loads, tracks dirty state and validates', async () => {
@@ -225,7 +235,7 @@ describe('ProfileEditor', () => {
     expect(text(fixture)).toContain("syntax error, so the form can't show it");
     buttonByText(fixture, 'Fix in TOML view').click();
     await settle(fixture);
-    buttonByText(fixture, 'Revert').click();
+    await menuItem(fixture, 'Revert');
     await settle(fixture);
     expect(draft.dirty()).toBe(false);
   });
@@ -246,11 +256,11 @@ describe('ProfileEditor', () => {
     expect(store.summary()?.profileName).toBe('Via keyboard');
     fixture.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true }));
     fixture.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', ctrlKey: true, bubbles: true }));
-    buttonByText(fixture, 'Import…').click();
+    await menuItem(fixture, 'Import…');
     await settle(fixture);
     expect(text(fixture)).toContain('/p/in.toml');
     vi.spyOn(backend, 'exportProfile').mockResolvedValue();
-    buttonByText(fixture, 'Export…').click();
+    await menuItem(fixture, 'Export…');
     await settle(fixture);
     expect(backend.exportProfile).toHaveBeenCalled();
   });

@@ -153,7 +153,7 @@ describe('RegistryView', () => {
     await settle(fixture);
     expect(store.selected()?.fields['ValueName']).toBe('TimeoutSeconds');
     expect(timeout.getAttribute('aria-selected')).toBe('true');
-    expect(fixture.nativeElement.textContent).toContain('DELETED KEY');
+    expect(fixture.nativeElement.textContent).toContain('Deleted key');
   });
 
   it('expands and collapses with keys, moves with arrows and Home/End', async () => {

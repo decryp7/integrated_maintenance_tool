@@ -1,5 +1,5 @@
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { AiButton } from '../ai/ai-button';
 import { AiLauncher } from '../ai/ai-launcher';
 import { AnalysisState } from '../analysis/analysis-state';
@@ -13,7 +13,6 @@ import { ChartTheme } from '../metrics/chart-theme';
 import { RECENT_PROJECTS } from '../projects/recent-projects';
 import { formatBytes } from '../shared/format/units';
 import { Icon } from '../shared/icon';
-import { HelpHint } from '../ui/help-hint';
 import { HealthActions } from './health/health-actions';
 import { ActionButton, actionButtons, healthStats } from './health/health-model';
 import { bucketAt, bucketRange, feedItems, historyOption, sparklinePath, SPARK_H, SPARK_W } from './home-model';
@@ -21,7 +20,9 @@ import { HomePrefs } from './home-prefs';
 import { HomeStore } from './home.store';
 
 /** Height of one finding row in the virtualised list (fixed, so only the visible rows are rendered). */
-const ROW_PX = 58;
+const ROW_PX = 56;
+/** Findings shown before "Show all". */
+const FIRST_FINDINGS = 3;
 /** Rows visible before the list scrolls inside itself. */
 const VISIBLE_ROWS = 6;
 
@@ -35,21 +36,22 @@ const VISIBLE_ROWS = 6;
 @Component({
   selector: 'imt-home-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AnalysisState, Icon, HelpHint, AiButton, CoverageNote, EChart, CdkVirtualScrollViewport, CdkFixedSizeVirtualScroll, CdkVirtualForOf],
+  imports: [AnalysisState, Icon, AiButton, CoverageNote, EChart, CdkVirtualScrollViewport, CdkFixedSizeVirtualScroll, CdkVirtualForOf],
   template: `
     <div class="bar">
-      <h2 class="section-title" i18n="@@home.view.title">Home</h2>
-      <imt-help label="Home" i18n-label="@@home.view.helpLabel" text="A dashboard of everything you opened: what happened over time, what went wrong and where to look first. It is computed by the engine; your files are never changed." i18n-text="@@home.view.helpText" />
+      <p class="subtitle" data-testid="home-subtitle">@if (summary(); as s) { {{ span() }} } @else { <span i18n="@@home.view.subtitle">Everything you opened, at a glance</span> }</p>
       <span class="spacer"></span>
-      <button class="btn" type="button" data-testid="home-refresh" (click)="home.refresh()" [disabled]="home.summaryLoading()" i18n="@@home.view.refresh">Refresh</button>
+      <button class="icon-btn" type="button" data-testid="home-refresh" aria-label="Refresh" title="Refresh" i18n-aria-label="@@home.view.refresh" i18n-title="@@home.view.refreshTitle" (click)="home.refresh()" [disabled]="home.summaryLoading()"><imt-icon name="refresh" [size]="14" /></button>
       <imt-ai-button label="Root causes" i18n-label="@@home.view.rootCauses" hint="The local model reads the findings and exceptions and lists the likely root causes" i18n-hint="@@home.view.rootCausesHint" testId="ai-root-causes" (pressed)="ai.rootCauses()" />
     </div>
     <div class="scroll" tabindex="0" role="region" aria-label="Home dashboard" i18n-aria-label="@@home.view.region">
       <div class="actions" role="group" aria-label="Quick actions" i18n-aria-label="@@home.view.quickActions">
-        <button class="btn" type="button" data-testid="home-open-files" (click)="run('file.openFiles')"><imt-icon name="file" [size]="14" /> <span i18n="@@home.view.openFiles">Open files…</span></button>
-        <button class="btn" type="button" data-testid="home-open-folder" (click)="run('file.openFolder')"><imt-icon name="folder" [size]="14" /> <span i18n="@@home.view.openFolder">Open folder…</span></button>
-        <button class="btn" type="button" data-testid="home-open-last" [disabled]="!lastProject()" [title]="lastProject()?.name ?? ''" (click)="run('project.openLast')"><imt-icon name="home" [size]="14" /> <span i18n="@@home.view.openLast">Open last project</span></button>
-        <button class="btn" type="button" data-testid="home-open-recent" (click)="run('project.recent')" i18n="@@home.view.openRecent">Recent projects…</button>
+        <button class="btn primary" type="button" data-testid="home-open-files" (click)="run('file.openFiles')"><imt-icon name="file" [size]="14" /> <span i18n="@@home.view.openFiles">Open files…</span></button>
+        <button class="btn ghost" type="button" data-testid="home-open-folder" (click)="run('file.openFolder')"><imt-icon name="folder" [size]="14" /> <span i18n="@@home.view.openFolder">Open folder…</span></button>
+        @if (lastProject(); as last) {
+          <button class="btn ghost" type="button" data-testid="home-open-last" [title]="last.name" (click)="run('project.openLast')"><imt-icon name="home" [size]="14" /> <span i18n="@@home.view.openLast">Open last project</span></button>
+        }
+        <button class="btn ghost" type="button" data-testid="home-open-recent" (click)="run('project.recent')" i18n="@@home.view.openRecent">Recent projects…</button>
       </div>
 
       @if (!hasData()) {
@@ -58,25 +60,24 @@ const VISIBLE_ROWS = 6;
         <imt-analysis-state [loading]="home.summaryLoading()" [error]="home.summaryError()" [retryable]="home.summaryRetryable()" [hasData]="!!summary()" [empty]="false" (retry)="home.retrySummary()">
           @if (summary(); as s) {
             <dl class="tiles" aria-label="Summary" i18n-aria-label="@@home.view.summary" data-testid="home-tiles">
-              <div><dt i18n="@@home.view.events">Events</dt><dd>{{ count(s.events) }}</dd></div>
-              <div><dt i18n="@@home.view.sources">Sources</dt><dd>{{ count(s.sources) }}</dd></div>
-              <div [class.bad]="s.errors > 0">
+              <div class="hero"><dt i18n="@@home.view.events">Events</dt><dd>{{ count(s.events) }}</dd></div>
+              <div class="hero" [class.bad]="s.errors > 0">
                 <dt i18n="@@home.view.errors">Errors</dt><dd>{{ count(s.errors) }}<button class="cover" type="button" data-testid="home-tile-errors" (click)="showLevels(['Error', 'Fatal'])" aria-label="Show the errors and fatal events" i18n-aria-label="@@home.view.showErrors"></button></dd>
                 @if (errorSpark(); as d) { <svg class="spark bad" [attr.viewBox]="viewBox" preserveAspectRatio="none" aria-hidden="true"><path [attr.d]="d" /></svg> }
               </div>
-              <div [class.warn]="s.warnings > 0">
+              <div class="hero" [class.warn]="s.warnings > 0">
                 <dt i18n="@@home.view.warnings">Warnings</dt><dd>{{ count(s.warnings) }}<button class="cover" type="button" data-testid="home-tile-warnings" (click)="showLevels(['Warning'])" aria-label="Show the warning events" i18n-aria-label="@@home.view.showWarnings"></button></dd>
                 @if (warningSpark(); as d) { <svg class="spark warn" [attr.viewBox]="viewBox" preserveAspectRatio="none" aria-hidden="true"><path [attr.d]="d" /></svg> }
               </div>
-              <div [class.bad]="crashes() > 0"><dt i18n="@@home.view.crashes">Crashes</dt><dd>{{ count(crashes()) }}</dd></div>
-              <div><dt i18n="@@home.view.anomalies">Anomalies</dt><dd [attr.aria-busy]="!s.analysed">{{ s.analysed ? count(s.anomalyCount) : '…' }}<button class="cover" type="button" data-testid="home-tile-anomalies" (click)="show('anomalies')" aria-label="Open the Anomalies view" i18n-aria-label="@@home.view.showAnomalies"></button></dd></div>
-              <div><dt i18n="@@home.view.exceptions">Exception groups</dt><dd [attr.aria-busy]="!s.analysed">{{ s.analysed ? count(s.exceptionGroups) : '…' }}<button class="cover" type="button" data-testid="home-tile-exceptions" (click)="show('exceptions')" aria-label="Open the Exceptions view" i18n-aria-label="@@home.view.showExceptions"></button></dd></div>
-              <div class="wide"><dt i18n="@@home.view.timeSpan">Time span</dt><dd>{{ span() }}</dd></div>
+              <div class="hero"><dt i18n="@@home.view.anomalies">Anomalies</dt><dd [attr.aria-busy]="!s.analysed">{{ s.analysed ? count(s.anomalyCount) : '…' }}<button class="cover" type="button" data-testid="home-tile-anomalies" (click)="show('anomalies')" aria-label="Open the Anomalies view" i18n-aria-label="@@home.view.showAnomalies"></button></dd></div>
+              <div class="chip"><dt i18n="@@home.view.sources">Sources</dt><dd>{{ count(s.sources) }}</dd></div>
+              <div class="chip" [class.bad]="crashes() > 0"><dt i18n="@@home.view.crashes">Crashes</dt><dd>{{ count(crashes()) }}</dd></div>
+              <div class="chip"><dt i18n="@@home.view.exceptions">Exception groups</dt><dd [attr.aria-busy]="!s.analysed">{{ s.analysed ? count(s.exceptionGroups) : '…' }}<button class="cover" type="button" data-testid="home-tile-exceptions" (click)="show('exceptions')" aria-label="Open the Exceptions view" i18n-aria-label="@@home.view.showExceptions"></button></dd></div>
               @if (home.storeOverview.data(); as o) {
-                <div><dt i18n="@@home.view.storeSize">Store</dt><dd>{{ bytes(o.sizeBytes) }}</dd></div>
+                <div class="chip"><dt i18n="@@home.view.storeSize">Store</dt><dd>{{ bytes(o.sizeBytes) }}</dd></div>
               }
               @if (home.memory.data(); as m) {
-                <div><dt i18n="@@home.view.memory">Memory</dt><dd>{{ bytes(m.worker?.rssBytes ?? m.duckUsedBytes) }}</dd></div>
+                <div class="chip"><dt i18n="@@home.view.memory">Memory</dt><dd>{{ bytes(m.worker?.rssBytes ?? m.duckUsedBytes) }}</dd></div>
               }
             </dl>
             <imt-coverage-note [coverage]="s.coverage" />
@@ -92,24 +93,21 @@ const VISIBLE_ROWS = 6;
         </imt-analysis-state>
 
         @if (stats(); as st) {
-          @if (st.unrecognized.length) {
-            <section class="sub" aria-labelledby="home-unrec">
-              <h3 id="home-unrec" i18n="@@home.view.unrecognized">{st.unrecognized.length, plural, =1 {{{ st.unrecognized.length }} file not opened} other {{{ st.unrecognized.length }} files not opened}}</h3>
-              <ul>
-                @for (u of st.unrecognized; track u.path) {
-                  <li><span class="mono name" [title]="u.path">{{ u.name }}</span><span class="muted"> — {{ u.reason }}</span></li>
-                }
-              </ul>
-            </section>
-          }
-          @if (st.plugins.length) {
-            <section class="sub" aria-labelledby="home-plugins">
-              <h3 id="home-plugins" i18n="@@home.view.pluginProblems">{st.plugins.length, plural, =1 {{{ st.plugins.length }} plugin with problems} other {{{ st.plugins.length }} plugins with problems}}</h3>
-              <ul>
-                @for (p of st.plugins; track p.id) {
-                  <li><strong>{{ p.name }}</strong><span class="muted"> — {{ p.problem }}</span></li>
-                }
-              </ul>
+          @if (st.unrecognized.length + st.plugins.length; as n) {
+            <section class="attention" aria-labelledby="home-attention" data-testid="home-attention">
+              <h3 id="home-attention"><span i18n="@@home.view.attention">Needs attention</span> <span class="count faint">{{ n }}</span></h3>
+              @for (u of st.unrecognized; track u.path) {
+                <div class="callout">
+                  <imt-icon name="alert" [size]="16" class="warn" />
+                  <div class="body"><div class="t" [title]="u.path">{{ u.name }}</div><div class="d">{{ u.reason }}</div></div>
+                </div>
+              }
+              @for (p of st.plugins; track p.id) {
+                <div class="callout">
+                  <imt-icon name="alert" [size]="16" class="warn" />
+                  <div class="body"><div class="t">{{ p.name }}</div><div class="d">{{ p.problem }}</div></div>
+                </div>
+              }
             </section>
           }
         }
@@ -130,18 +128,23 @@ const VISIBLE_ROWS = 6;
               } @else {
                 <!-- Only the visible rows are rendered, however many findings the engine returns. -->
                 <cdk-virtual-scroll-viewport class="findings" data-testid="home-findings" [itemSize]="rowPx" [style.height.px]="listHeight()" role="list" aria-label="Findings" i18n-aria-label="@@home.view.findings">
-                  <div *cdkVirtualFor="let f of list; trackBy: trackFinding" class="finding" role="listitem" [attr.data-severity]="f.severity">
+                  <div *cdkVirtualFor="let f of shown(); trackBy: trackFinding" class="finding" role="listitem" [attr.data-severity]="f.severity">
                     <div class="text">
                       <div class="title"><span class="tag">{{ severityText(f) }}</span> {{ f.title }}</div>
                       <p class="detail" [title]="f.detail">{{ f.detail }}</p>
                     </div>
                     <div class="acts">
                       @for (b of buttons(f); track b.id) {
-                        <button class="btn" type="button" (click)="act(f, b)">{{ b.label }}</button>
+                        <button class="btn ghost link" type="button" (click)="act(f, b)">{{ b.label }}</button>
                       }
                     </div>
                   </div>
                 </cdk-virtual-scroll-viewport>
+                @if (list.length > FIRST_FINDINGS) {
+                  <button class="btn ghost link all" type="button" data-testid="home-findings-toggle" (click)="showAll.set(!showAll())">
+                    @if (showAll()) { <span i18n="@@home.view.showFewer">Show fewer</span> } @else { <span i18n="@@home.view.showAll">Show all {{ list.length }}</span> }
+                  </button>
+                }
               }
             }
           </imt-analysis-state>
@@ -152,7 +155,7 @@ const VISIBLE_ROWS = 6;
           @if (feed().length) {
             <ul data-testid="home-feed">
               @for (item of feed(); track item.key) {
-                <li [class.failed]="item.failed"><time class="mono faint">{{ clock(item.time) }}</time> {{ item.label }}@if (item.failed) {<span class="bad"> — <span i18n="@@home.view.failed">failed</span></span>}</li>
+                <li [class.failed]="item.failed"><time class="faint">{{ clock(item.time) }}</time> {{ item.label }}@if (item.failed) {<span class="bad"> — <span i18n="@@home.view.failed">failed</span></span>}</li>
               }
             </ul>
           } @else {
@@ -169,30 +172,41 @@ const VISIBLE_ROWS = 6;
   `,
   styles: `
     :host { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--bg-1); color: var(--text); }
-    .bar { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border); }
-    .bar h2 { margin: 0; }
+    .bar { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--border); }
     .spacer { flex: 1; }
     .scroll { flex: 1; min-height: 0; overflow: auto; padding: 10px 12px 16px; display: flex; flex-direction: column; gap: 12px; }
     .actions { display: flex; flex-wrap: wrap; gap: 6px; }
     .actions .btn { display: inline-flex; align-items: center; gap: 6px; }
     .pad { margin: 4px 0; }
-    .tiles { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
-    .tiles > div { position: relative; padding: 6px 8px; border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-2); min-height: 52px; }
-    .tiles > div.wide { grid-column: span 2; }
-    .tiles dt { font-size: var(--fs-xs); color: var(--muted); }
-    .tiles dd { margin: 2px 0 0; font-size: var(--fs-lg); font-weight: 600; font-variant-numeric: tabular-nums; }
-    .tiles .wide dd { font-size: var(--fs-sm); font-weight: 500; }
+    .subtitle { margin: 0; font-size: var(--fs-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+    .tiles { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+    .tiles .hero { flex: 1 1 calc(25% - 8px); min-width: 160px; }
+    .tiles > div { position: relative; }
+    .tiles .hero { padding: 10px 12px; border: 1px solid var(--border-2); border-radius: var(--r-3); background: var(--bg-2); min-height: 72px; }
+    .tiles .hero dt { font-size: var(--fs-sm); color: var(--muted); }
+    .tiles .hero dd { margin: 2px 0 0; font-size: var(--fs-hero); line-height: 1.15; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .tiles .chip { flex: none; display: inline-flex; align-items: baseline; gap: 6px; padding: 2px 10px; border: 1px solid var(--border-2); border-radius: 999px; font-size: var(--fs-sm); width: max-content; max-width: 100%; }
+    .tiles .chip dt { color: var(--muted); }
+    .tiles .chip dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
     .tiles > div.bad dd { color: var(--danger-text); }
     .tiles > div.warn dd { color: var(--warn-text); }
-    .cover { position: absolute; inset: 0; border: 0; border-radius: 6px; background: transparent; cursor: pointer; }
+    .cover { position: absolute; inset: 0; border: 0; border-radius: var(--r-3); background: transparent; cursor: pointer; }
     .cover:hover { background: var(--bg-hover); opacity: 0.35; }
     .cover:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-    .spark { position: absolute; right: 6px; bottom: 6px; width: 44%; height: 16px; fill: none; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+    .spark { position: absolute; right: 10px; bottom: 10px; width: 40%; height: 20px; fill: none; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
     .spark path { vector-effect: non-scaling-stroke; }
     .spark.bad { stroke: var(--danger-text); }
     .spark.warn { stroke: var(--warn-text); }
-    h3 { margin: 0 0 4px; font-size: var(--fs-sm); font-weight: 600; display: flex; align-items: center; gap: 6px; }
-    .chart { height: 200px; min-height: 160px; }
+    .attention { display: flex; flex-direction: column; gap: 6px; }
+    .callout { display: flex; gap: 10px; align-items: flex-start; padding: 8px 12px; border: 1px solid var(--border-2); border-inline-start: 3px solid var(--warn-text); border-radius: var(--r-2); background: var(--bg-2); }
+    .callout .warn { color: var(--warn-text); margin-top: 1px; }
+    .callout .t { font-size: var(--fs-md); font-weight: 600; }
+    .callout .d { font-size: var(--fs-sm); color: var(--muted); }
+    .count { font-weight: 400; font-variant-numeric: tabular-nums; }
+    .link { color: var(--accent-text); }
+    .all { align-self: flex-start; margin-top: 4px; }
+    h3 { margin: 0 0 6px; font-size: var(--fs-md); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+    .chart { height: 150px; min-height: 130px; }
     .hint { margin: 2px 0 0; font-size: var(--fs-xs); }
     .sub ul, .feed ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; }
     .sub li, .feed li { font-size: var(--fs-sm); overflow-wrap: anywhere; }
@@ -202,10 +216,10 @@ const VISIBLE_ROWS = 6;
     .faint { color: var(--faint); }
     .bad { color: var(--danger-text); }
     .findings { border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-2); }
-    .finding { box-sizing: border-box; height: 58px; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border-2); }
+    .finding { box-sizing: border-box; height: 56px; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border-2); }
     .finding .text { flex: 1; min-width: 0; }
     .title { font-weight: 600; font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .tag { display: inline-block; padding: 0 5px; margin-right: 4px; border-radius: 4px; font-size: var(--fs-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; border: 1px solid var(--border-3); color: var(--text-2); }
+    .tag { display: inline-block; padding: 0 5px; margin-right: 4px; border-radius: 4px; font-size: var(--fs-xs); font-weight: 600; border: 1px solid var(--border-3); color: var(--text-2); }
     [data-severity='critical'] .tag { border-color: var(--lvl-error); color: var(--danger-text); }
     [data-severity='warning'] .tag { border-color: var(--lvl-warn); color: var(--warn-text); }
     .detail { margin: 2px 0 0; font-size: var(--fs-sm); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -230,6 +244,10 @@ export class HomeView {
   protected readonly count = formatCount;
   protected readonly bytes = formatBytes;
   protected readonly rowPx = ROW_PX;
+  protected readonly FIRST_FINDINGS = FIRST_FINDINGS;
+  protected readonly showAll = signal(false);
+  /** The findings on show: the first few, all on request. */
+  protected readonly shown = computed(() => (this.showAll() ? (this.findings() ?? []) : (this.findings() ?? []).slice(0, FIRST_FINDINGS)));
   protected readonly viewBox = `0 0 ${SPARK_W} ${SPARK_H}`;
 
   protected readonly hasData = computed(() => (this.store.summary()?.sources.length ?? 0) + (this.store.summary()?.unrecognized.length ?? 0) > 0);
@@ -239,7 +257,7 @@ export class HomeView {
   protected readonly crashes = computed(() => (this.findings() ?? []).filter((f) => f.kind === 'crash').length);
   protected readonly errorSpark = computed(() => sparklinePath(this.summary()?.errorTrend ?? []));
   protected readonly warningSpark = computed(() => sparklinePath(this.summary()?.warningTrend ?? []));
-  protected readonly listHeight = computed(() => Math.min(this.findings()?.length ?? 0, VISIBLE_ROWS) * ROW_PX);
+  protected readonly listHeight = computed(() => Math.min(this.shown().length, VISIBLE_ROWS) * ROW_PX);
   protected readonly stats = computed(() => {
     const summary = this.store.summary();
     return summary && this.hasData() ? healthStats(summary, this.store.instanceCount(), this.findings() ?? []) : null;
@@ -268,6 +286,7 @@ export class HomeView {
     return historyOption(s, this.theme.tokens(), this.store.timezone(), {
       level: (l) => levels[l],
       marker: (k) => kinds.get(k)?.label ?? k,
+      markerLane: $localize`:@@home.view.markerLane:Markers`,
       anomaly: $localize`:@@home.view.anomaly:Anomaly`,
     });
   });

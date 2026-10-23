@@ -321,8 +321,9 @@ export class TimelinePanel {
   private markerAria(m: LaidMarker): string {
     const label = m.label;
     const at = this.time(m.cluster.ts);
-    const count = m.cluster.count;
-    return count > 1
+    // The badge shows the formatted count, so the accessible name carries the same text (WCAG 2.5.3).
+    const count = formatCount(m.cluster.count);
+    return m.cluster.count > 1
       ? $localize`:@@timeline.marker.ariaMany:${label}:label: at ${at}:time:, ${count}:count: events`
       : $localize`:@@timeline.marker.ariaOne:${label}:label: at ${at}:time:`;
   }

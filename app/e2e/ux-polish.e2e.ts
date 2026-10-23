@@ -39,12 +39,11 @@ test.describe('timeline legend (F7) and explorer (H2)', () => {
     const row = page.locator('imt-timeline-panel .legend-row');
     await expect(row).toBeVisible();
     const heights = await row.evaluate((el) => ({ row: el.getBoundingClientRect().height, line: el.querySelector('.lg')!.getBoundingClientRect().height }));
-    // Each group is one line of 24 px hit areas; the groups (markers, runs, annotations) wrap onto further lines only when
-    // the panel is narrow, as it is with a document open beside the timeline. Never the old stack of wrapped rows per group.
-    expect(heights.row).toBeLessThan(heights.line * 3.5);
+    // One line of 24 px hit areas, whatever the panel width: the full legend opens as a popover over the lanes.
+    expect(heights.row).toBeLessThan(heights.line * 1.8);
     const headings = page.locator('imt-sidebar [data-testid=folder-heading]');
     await expect(headings.first()).toBeVisible();
-    await expect(page.locator('imt-sidebar [data-testid=format-badge]').first()).toHaveAttribute('title', /.+/);
+    await expect(page.locator('imt-sidebar .src:not(.dim)').first()).toHaveAttribute('title', /Format: /);
   });
 });
 
@@ -67,8 +66,9 @@ test.describe('inspector (K1), anomalies (K2)', () => {
     await openView(page, 'Anomalies');
     const head = page.locator('imt-anomalies-view [data-testid=anomaly-head]');
     await expect(head.getByRole('button', { name: 'Sort by score' })).toBeVisible();
-    await head.getByRole('button', { name: 'Sort by kind' }).click();
-    await expect(head.getByRole('button', { name: 'Sort by kind' })).toHaveAttribute('aria-pressed', 'true');
+    // The list is grouped by kind, so the headers sort inside each group.
+    await head.getByRole('button', { name: 'Sort by score' }).click();
+    await expect(head.getByRole('button', { name: 'Sort by score' })).toHaveAttribute('aria-pressed', 'true');
   });
 });
 

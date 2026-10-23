@@ -21,7 +21,6 @@ import { CoverageNote } from './coverage-note';
   imports: [AnalysisState, CoverageNote],
   template: `
     <div class="bar">
-      <span class="section-title" i18n="@@analysis.outliers.title">Error outliers</span>
       @if (res.result(); as r) {
         <span class="faint" i18n="@@analysis.outliers.summary">{{ count(r.subsetTotal) }} selected events against {{ count(r.restTotal) }} others</span>
       }

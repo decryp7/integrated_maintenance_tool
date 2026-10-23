@@ -10,7 +10,7 @@ export const ANALYSIS_STYLES = `
   .row:focus-visible, .btn:focus-visible, .link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
   .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .grow { flex: 1; min-width: 0; }
-  .num { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
   .muted { color: var(--muted); }
   .link { background: none; border: 0; padding: 0; font: inherit; color: var(--chip-text); cursor: pointer; text-align: left; }
   .link:hover { text-decoration: underline; }
@@ -22,7 +22,7 @@ export const ANALYSIS_STYLES = `
   table.grid td.num, table.grid th.num { text-align: right; }
   .card { border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-2); padding: 10px 12px; }
   .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
-  h3.sec { margin: 14px 0 6px; font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  h3.sec { margin: 14px 0 6px; font-size: var(--fs-sm); font-weight: 600; color: var(--muted); text-transform: none; }
   .bars { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--lane-bar); min-width: 60px; }
   .bars span { display: block; height: 100%; }
   .lvl { font-family: var(--font-mono); font-size: var(--fs-2xs); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--border-3); color: var(--text-2); }

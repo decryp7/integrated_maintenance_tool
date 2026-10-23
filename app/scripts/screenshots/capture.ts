@@ -9,7 +9,10 @@ import { ensureInspector, openApp } from '../../e2e/app';
  * skipped with a warning and the others still run. Navigation uses roles, labels and the
  * command palette (command titles) instead of CSS structure.
  */
-const OUT = resolve(process.cwd(), '../docs/screenshots') // run from app/ (npm run screenshots);
+// IMT_SHOT_OUT redirects a trial run elsewhere; the default is the committed set. Run from app/ (npm run screenshots).
+const OUT = process.env['IMT_SHOT_OUT'] ? resolve(process.env['IMT_SHOT_OUT']) : resolve(process.cwd(), '../docs/screenshots');
+const THEMES = (process.env['IMT_SHOT_THEMES'] ?? 'dark,light').split(',') as ('dark' | 'light')[];
+let suffix = '';
 const skipped: string[] = [];
 
 /** Runs a palette command by (part of) its title. Returns false if no such command exists. */
@@ -49,6 +52,7 @@ async function shot(page: Page, name: string, prepare: () => Promise<void>, maxi
   // IMT_SHOT_ONLY=home,light restricts a run to the named shots.
   const only = process.env['IMT_SHOT_ONLY'];
   if (only && !only.split(',').includes(name)) return;
+  const file = `${name}${suffix}`;
   let restore: (() => Promise<void>) | undefined;
   try {
     await prepare();
@@ -59,21 +63,28 @@ async function shot(page: Page, name: string, prepare: () => Promise<void>, maxi
       restore = async () => void (await page.getByRole('button', { name: 'Restore panel size' }).first().click());
     }
     await settle(page);
-    await page.screenshot({ path: join(OUT, `${name}.png`) });
-    console.log(`captured ${name}`);
+    await page.screenshot({ path: join(OUT, `${file}.png`) });
+    console.log(`captured ${file}`);
   } catch (e) {
     const why = e instanceof Error ? e.message.split('\n').slice(0, 4).join(' ') : String(e);
-    skipped.push(`${name}: ${why}`);
+    skipped.push(`${file}: ${why}`);
     console.warn(`SKIPPED ${name}: ${why}`);
   } finally {
     await restore?.().catch(() => undefined);
   }
 }
 
-/** Brings a panel to the front: clicks its tab if it is open, otherwise toggles it from the palette. */
-async function showPanel(page: Page, tab: string, toggleCommand: string): Promise<void> {
+/**
+ * Brings a panel to the front: clicks its tab if it is open, else its activity-bar button, else the first palette
+ * command (by title) that exists.
+ */
+async function showPanel(page: Page, tab: string, ...commands: string[]): Promise<void> {
   const t = page.getByRole('tab', { name: tab, exact: true });
-  if (!(await t.count())) await need(page, toggleCommand);
+  if (!(await t.count())) {
+    const button = page.getByRole('button', { name: tab, exact: true });
+    if (await button.count()) await button.first().click();
+    else for (const c of commands) if ((await page.getByRole('button', { name: c, exact: true }).count()) ? (await page.getByRole('button', { name: c, exact: true }).first().click(), true) : await command(page, c)) break;
+  }
   await page.getByRole('tab', { name: tab, exact: true }).first().click();
 }
 
@@ -117,22 +128,22 @@ async function fresh(page: Page, theme: 'dark' | 'light' = 'dark'): Promise<void
   await page.waitForTimeout(500);
 }
 
-test('capture README screenshots', async ({ page }) => {
-  mkdirSync(OUT, { recursive: true });
-
-  await fresh(page);
+/** Every shot of one colour scheme; light shots get a `-light` suffix. */
+async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
+  suffix = theme === 'light' ? '-light' : '';
+  await fresh(page, theme);
 
   await shot(page, 'welcome', async () => {
     await need(page, 'Close workspace');
     await expect(page.locator('imt-welcome')).toBeVisible();
   });
-  await fresh(page);
+  await fresh(page, theme);
   await growTimeline(page);
 
   await shot(page, 'workspace', async () => {
     // The default layout keeps the inspector auto-hidden; the README shot shows it docked with an event selected.
     await clickRow(page, 'HTTP POST');
-    await ensureInspector(page);
+    await ensureInspector(page).catch(() => undefined); // an inspector that stays auto-hidden is fine for the shot
     await expect(page.locator('imt-timeline-panel .lane').first()).toBeVisible();
   });
 
@@ -151,12 +162,13 @@ test('capture README screenshots', async ({ page }) => {
 
   await shot(page, 'inspector', async () => {
     await clickRow(page, 'HTTP POST');
-    await expect(page.locator('imt-inspector')).toContainText(/Properties|RequestPath/i);
+    await ensureInspector(page).catch(() => undefined);
+    await expect(page.locator('imt-inspector')).toBeVisible();
   });
 
   await shot(page, 'query', async () => {
-    await need(page, 'Query: focus query bar');
-    const input = page.getByRole('textbox', { name: 'Query' }).or(page.getByRole('combobox', { name: 'Query' })).first();
+    await need(page, 'Query: focus the search field');
+    const input = page.getByTestId('query-field');
     await input.fill('level >= warning | stats count() as n by SourceContext | sort n desc | head 10');
     await page.keyboard.press('ControlOrMeta+Enter');
     await page.waitForTimeout(800);
@@ -167,8 +179,13 @@ test('capture README screenshots', async ({ page }) => {
     await page.waitForTimeout(800);
   }, 'Query results');
 
+  // The query shots leave their text in the search field: clear it so later shots show an empty field.
+  await need(page, 'Query: focus the search field').catch(() => undefined);
+  await page.getByTestId('query-field').fill('').catch(() => undefined);
+  await page.keyboard.press('Enter');
+
   await shot(page, 'metrics', async () => {
-    await showPanel(page, 'Metrics', 'Toggle Metrics panel');
+    await showPanel(page, 'Metrics', 'Show Metrics');
     await page.waitForTimeout(1200);
   }, 'Metrics');
 
@@ -176,7 +193,7 @@ test('capture README screenshots', async ({ page }) => {
     ['patterns', 'Show patterns', 'Patterns'],
     ['exceptions', 'Show exceptions', 'Exceptions'],
     ['anomalies', 'Show anomalies', 'Anomalies'],
-    ['compare', 'Show compare', 'Compare'],
+    ['compare', 'Compare time ranges', 'Compare time ranges'],
   ] as const) {
     await shot(
       page,
@@ -191,7 +208,7 @@ test('capture README screenshots', async ({ page }) => {
   }
 
   await shot(page, 'moment', async () => {
-    await showPanel(page, 'Events', 'Toggle Events panel');
+    await showPanel(page, 'Events', 'Show events');
     await page.locator('imt-events-grid [role=row].row').nth(8).click();
     await need(page, 'Analyse this moment');
     await page.waitForTimeout(1500);
@@ -203,55 +220,47 @@ test('capture README screenshots', async ({ page }) => {
   }, 'Markers');
 
   await shot(page, 'profile', async () => {
-    await showPanel(page, 'Profile', 'Toggle Profile panel');
+    await showPanel(page, 'Profile', 'Profile editor', 'Show Profile editor');
     await page.waitForTimeout(800);
   }, 'Profile');
 
 
   await shot(page, 'perfmon', async () => {
-    await showPanel(page, 'Performance Monitor', 'Toggle Performance Monitor panel');
+    await showPanel(page, 'Performance Monitor', 'Open Performance Monitor');
     await page.waitForTimeout(800);
   }, 'Performance Monitor');
 
   await shot(page, 'process-monitor', async () => {
-    await need(page, 'Toggle Process Monitor panel');
+    await showPanel(page, 'Process Monitor', 'Open Process Monitor');
     await page.waitForTimeout(800);
   }, 'Process Monitor');
 
   await shot(page, 'registry', async () => {
-    await showPanel(page, 'Registry', 'Toggle Registry panel');
+    await showPanel(page, 'Registry', 'Show registry viewer');
     await page.waitForTimeout(800);
   }, 'Registry');
 
-  await fresh(page);
+  await fresh(page, theme);
   await shot(page, 'floating-panel', async () => {
-    await page.getByRole('button', { name: 'Float panel' }).first().click();
+    await need(page, 'Float panel');
     await page.waitForTimeout(600);
   });
 
-  await fresh(page, 'light');
+  // Home: the dashboard (tiles, history by level, findings, activity).
+  await fresh(page, theme);
   await growTimeline(page);
-  await shot(page, 'light-theme', async () => {
-    await clickRow(page, 'HTTP POST');
-  });
+  // Home is a scrolling page: a taller window shows its first screen whole (nothing cut mid-card).
+  await shot(page, 'home', async () => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await command(page, 'Show Home');
+    await expect(page.locator('imt-home-view [data-testid=home-history]')).toBeVisible();
+    await page.waitForTimeout(800);
+  }, 'Home');
+  await page.setViewportSize({ width: 1440, height: 900 });
+}
 
-  await fresh(page, 'dark');
-  await command(page, 'Theme: Console');
-  await growTimeline(page);
-  await shot(page, 'theme-console', async () => {
-    await clickRow(page, 'HTTP POST');
-  });
-
-  // Home: the dashboard (tiles, history by level, findings, activity) in both themes.
-  for (const theme of ['dark', 'light'] as const) {
-    await fresh(page, theme);
-    await growTimeline(page);
-    await shot(page, theme === 'dark' ? 'home' : 'home-light', async () => {
-      await command(page, 'Show Home');
-      await expect(page.locator('imt-home-view [data-testid=home-history]')).toBeVisible();
-      await page.waitForTimeout(800);
-    }, 'Home');
-  }
-
+test('capture README screenshots', async ({ page }) => {
+  mkdirSync(OUT, { recursive: true });
+  for (const theme of THEMES) await captureAll(page, theme);
   if (skipped.length) console.warn(`\nSkipped ${skipped.length} shot(s):\n  ${skipped.join('\n  ')}`);
 });

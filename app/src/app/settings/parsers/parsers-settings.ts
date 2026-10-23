@@ -126,7 +126,7 @@ const NAMES_SHOWN = 3;
     :host-context(.parsers-view) .parser { flex-direction: column; align-items: stretch; }
     .section-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     h3 { margin: 0 0 4px; font-size: var(--fs-lg); font-weight: 600; }
-    h4 { margin: 14px 0 4px; font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    h4 { margin: 14px 0 4px; font-size: var(--fs-sm); font-weight: 600; color: var(--muted); }
     .spacer { flex: 1; }
     .desc { margin: 4px 0 8px; color: var(--muted); line-height: 1.45; }
     .muted { color: var(--muted); }

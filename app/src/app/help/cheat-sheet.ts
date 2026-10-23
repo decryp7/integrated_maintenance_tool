@@ -42,7 +42,7 @@ export const PRINT_CLASS = 'imt-print-cheat-sheet';
     imt-cheat-sheet .cs-bar { display: flex; gap: 8px; }
     imt-cheat-sheet .cs-search { flex: 1; }
     imt-cheat-sheet .cs-count { margin: 0; font-size: var(--fs-xs); color: var(--muted); }
-    imt-cheat-sheet .cs-group h3 { margin: 6px 0 4px; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+    imt-cheat-sheet .cs-group h3 { margin: 6px 0 4px; font-size: var(--fs-xs); color: var(--muted); font-weight: 600; }
     imt-cheat-sheet dl { margin: 0; display: grid; gap: 2px; }
     imt-cheat-sheet .cs-row { display: grid; grid-template-columns: 180px 1fr; gap: 12px; align-items: baseline; padding: 3px 0; border-bottom: 1px solid var(--border); }
     imt-cheat-sheet dt, imt-cheat-sheet dd { margin: 0; }

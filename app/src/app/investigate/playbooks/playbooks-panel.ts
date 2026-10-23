@@ -119,7 +119,7 @@ const JSON_FILES = [{ name: 'JSON', extensions: ['json'] }];
     .body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(180px, 30%) 1fr; }
     @container (max-width: 560px) { .body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } .details { border-left: 0; border-top: 1px solid var(--border); } }
     .list { min-height: 0; overflow: auto; padding: 4px 0; display: flex; flex-direction: column; }
-    .list h3 { margin: 8px 12px 2px; font-size: var(--fs-xs); color: var(--muted); text-transform: uppercase; }
+    .list h3 { margin: 8px 12px 2px; font-size: var(--fs-xs); color: var(--muted); }
     .list p { margin: 2px 12px; }
     .item { text-align: left; border: 0; background: transparent; color: var(--text-2); padding: 4px 12px; min-height: 24px; cursor: pointer; font-size: var(--fs-sm); }
     .item:hover { background: var(--bg-hover); }

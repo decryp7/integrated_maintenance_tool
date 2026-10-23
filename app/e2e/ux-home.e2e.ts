@@ -6,7 +6,7 @@ import { chooseMenu } from './menu-support';
 async function setAutoOpen(page: Page, on: boolean): Promise<void> {
   await page.getByRole('button', { name: 'Settings' }).click();
   const dialog = page.getByRole('dialog', { name: 'Settings' });
-  const auto = dialog.getByRole('checkbox', { name: /Home: show when files or a project open/ });
+  const auto = dialog.getByRole('switch', { name: /Home: show when files or a project open/ });
   if (on) await auto.check();
   else await auto.uncheck();
   await page.keyboard.press('Escape');
@@ -58,7 +58,10 @@ test.describe('home (dashboard and health check)', () => {
     await expect.poll(async () => parseCount(await gridTotal(page).innerText())).toBeLessThan(total);
 
     // The unrecognised file's action opens the format wizard.
-    // The list is virtualised: scroll to the end for the info findings.
+    // Only the first findings show until "Show all"; the list is virtualised: scroll to the end for the info findings.
+    await region.getByTestId('home-findings-toggle').click();
+    await expect(region.getByTestId('home-findings-toggle')).toContainText('Show fewer');
+    await page.waitForTimeout(300);
     await findings.evaluate((el) => el.scrollTo(0, el.scrollHeight));
     await findings.locator('.finding[data-severity=info]').getByRole('button', { name: 'Set up format…' }).first().click();
     await expect(page.getByRole('dialog', { name: 'Set up format' })).toBeVisible();
@@ -95,8 +98,8 @@ test.describe('home quick actions and history', () => {
     const home = page.locator('imt-home-view');
     await expect(home).toBeVisible({ timeout: 10_000 });
     await expect(home.getByTestId('home-open-files')).toBeVisible();
-    // Open last project needs a recent project: disabled on a fresh profile.
-    await expect(home.getByTestId('home-open-last')).toBeDisabled();
+    // Open last project needs a recent project: not offered on a fresh profile.
+    await expect(home.getByTestId('home-open-last')).toHaveCount(0);
     // A click inside the history chart narrows the time range to that bar.
     const chart = home.getByTestId('home-history');
     await expect(chart).toBeVisible();

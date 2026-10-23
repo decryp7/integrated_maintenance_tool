@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, settle, text } from '../../testing/helpers';
 import { CmdError } from '../core/cmd-error';
 import { DROPPED_FILES_HANDLERS } from '../core/dropped-files';
@@ -7,7 +7,7 @@ import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { mockPackages, mockTools, provideToolsTesting } from '../tools/mock/test-support';
 import { MockPluginPackagesOptions } from './mock/mock-plugin-packages-backend';
 import { DialogService } from '../ui/dialog.service';
-import { InstalledPackages } from './installed-packages';
+import { PluginsInstalled } from './plugins-installed';
 import { permissionTitle, refusalLiftedByTrust, signatureText, stateLabel } from './package-labels';
 import { pluginPackageDropHandler } from './package-drop';
 import { PackageReviewDialog, PackageReviewOpener } from './package-review-dialog';
@@ -388,27 +388,32 @@ describe('InstalledPackages', () => {
   async function view(packages: Partial<MockPluginPackagesOptions> = {}) {
     const ctx = setup(packages);
     const host = await hostFixture();
-    const fixture = TestBed.createComponent(InstalledPackages);
+    const fixture = TestBed.createComponent(PluginsInstalled);
     await settle(fixture);
     return { ...ctx, fixture, host };
   }
 
-  it('lists installed plugins with signature, state and granted permissions', async () => {
+  const row = (fixture: ComponentFixture<unknown>, id: string) => el(fixture, `tr.plugin[data-id="${id}"]`);
+  const rowMenu = async (fixture: ComponentFixture<unknown>, id: string) => {
+    row(fixture, id).querySelector<HTMLButtonElement>('[data-testid=plugin-more]')!.click();
+    await settle(fixture);
+  };
+  const menuItem = (testid: string) => document.body.querySelector<HTMLButtonElement>(`[data-testid=${testid}]`)!;
+
+  it('lists installed packages as rows of the plugins table, with their signature and state in the side panel', async () => {
     const { fixture } = await view();
-    const item = el(fixture, '.package');
-    expect(item.textContent).toContain('SAP log importer');
-    expect(item.textContent).toContain('v1.2.0');
-    expect(item.textContent).toContain('Contoso');
-    expect(item.textContent).toContain(SAP);
+    const tr = row(fixture, SAP);
+    expect(tr.textContent).toContain('SAP log importer');
+    expect(tr.textContent).toContain('1.2.0');
+    expect(tr.textContent).toContain('Contoso');
+    expect(tr.querySelector('[data-testid=plugin-source]')!.textContent?.trim()).toBe('Package');
+    expect(all(fixture, '.package')).toHaveLength(0);
+    tr.click();
+    await settle(fixture);
     expect(el(fixture, '[data-testid=package-signature]').textContent).toBe('Signed by Contoso Ltd');
     expect(el(fixture, '[data-testid=package-state]').textContent).toBe('running');
-    expect(el(fixture, '[data-testid=package-granted]').textContent).toContain('Network access');
+    expect(el(fixture, '[data-testid=plugin-permissions]').textContent).toContain('Network access');
     expect(text(fixture)).not.toContain('Changes apply after a restart');
-    expect(all(fixture, '.package button').map((b) => b.getAttribute('aria-label'))).toEqual([
-      'Disable SAP log importer',
-      'Permissions of SAP log importer',
-      'Remove SAP log importer',
-    ]);
   });
 
   it('installs from a file through the review, then offers the restart', async () => {
@@ -420,7 +425,8 @@ describe('InstalledPackages', () => {
     await settle(host);
     await settle(fixture);
     expect(store.plugins().length).toBe(2);
-    expect(all(fixture, '[data-testid=package-state]').map((e) => e.textContent)).toEqual(['running', 'pending restart']);
+    expect(all(fixture, 'tr.plugin [data-testid=plugin-source]').filter((e) => e.textContent?.includes('Package'))).toHaveLength(2);
+    expect(row(fixture, 'net.example.web-enricher').textContent).toContain('Not running');
     expect(el(fixture, '[data-testid=packages-restart]').textContent).toContain('Changes apply after a restart.');
     buttonByText(fixture, 'Restart to apply').click();
     await settle(fixture);
@@ -429,15 +435,19 @@ describe('InstalledPackages', () => {
   });
 
   it('disables, enables, revokes a permission and removes with confirmation', async () => {
-    const { fixture, host, backend, dialogs } = await view();
-    buttonByText(fixture, 'Disable').click();
+    const { fixture, host, store, backend, dialogs } = await view();
+    await rowMenu(fixture, SAP);
+    menuItem('plugin-disable').click();
     await settle(fixture);
-    expect(el(fixture, '[data-testid=package-state]').textContent).toBe('disabled');
-    buttonByText(fixture, 'Enable').click();
+    expect(store.plugins()[0]?.state).toBe('disabled');
+    await rowMenu(fixture, SAP);
+    menuItem('plugin-enable').click();
     await settle(fixture);
-    expect(el(fixture, '[data-testid=package-state]').textContent).toBe('pending restart');
+    expect(store.plugins()[0]?.state).toBe('pendingRestart');
 
-    buttonByText(fixture, 'Permissions…').click();
+    row(fixture, SAP).click();
+    await settle(fixture);
+    el<HTMLButtonElement>(fixture, '[data-testid=plugin-permissions-edit]').click();
     await settle(host);
     expect(el(host, '[role=dialog] h2').textContent).toBe('Permissions of SAP log importer');
     expect(text(host)).toContain('restarts at once with the new permissions');
@@ -457,21 +467,24 @@ describe('InstalledPackages', () => {
     await settle(fixture);
     expect(backend.calls).toContain(`setPermissions:${SAP}:`);
     expect(dialogs.stack()).toEqual([]);
-    expect(text(fixture)).not.toContain('Network access');
+    expect(store.plugins()[0]?.granted).toEqual([]);
 
-    buttonByText(fixture, 'Remove').click();
+    await rowMenu(fixture, SAP);
+    menuItem('plugin-remove').click();
     await settle(host);
     expect(el(host, '[data-testid=confirm-message]').textContent).toContain('Remove SAP log importer?');
     buttonByText(host, /^Remove$/).click();
     await settle(host);
     await settle(fixture);
     expect(backend.calls).toContain(`remove:${SAP}`);
-    expect(text(fixture)).toContain('No third-party plugins are installed.');
+    expect(store.plugins()).toEqual([]);
   });
 
   it('keeps the permissions dialog open with the error when applying fails', async () => {
     const { fixture, host, backend, dialogs } = await view();
-    buttonByText(fixture, 'Permissions…').click();
+    row(fixture, SAP).click();
+    await settle(fixture);
+    el<HTMLButtonElement>(fixture, '[data-testid=plugin-permissions-edit]').click();
     await settle(host);
     vi.spyOn(backend, 'setPackagePermissions').mockRejectedValueOnce(new Error('the plugin did not restart'));
     toggle(el<HTMLInputElement>(host, 'input[data-permission=network]'));
@@ -492,14 +505,17 @@ describe('InstalledPackages', () => {
     expect(text(host)).toContain('no longer installed');
   });
 
-  it('shows a quarantined plugin with its problem and resets it', async () => {
+  it('shows a quarantined package with its problem and resets it from the row menu', async () => {
     const ctx = setup();
     ctx.backend.setState(SAP, 'quarantined', 'Crashed 3 times in a row.');
-    const fixture = TestBed.createComponent(InstalledPackages);
+    const fixture = TestBed.createComponent(PluginsInstalled);
     await settle(fixture);
-    expect(el(fixture, '.package').getAttribute('data-state')).toBe('quarantined');
+    expect(row(fixture, SAP).querySelector('[data-testid=plugin-status]')!.getAttribute('data-status')).toBe('quarantined');
+    row(fixture, SAP).click();
+    await settle(fixture);
     expect(el(fixture, '[data-testid=package-problem]').textContent).toBe('Crashed 3 times in a row.');
-    buttonByText(fixture, 'Reset').click();
+    await rowMenu(fixture, SAP);
+    menuItem('plugin-reset').click();
     await settle(fixture);
     expect(mockTools().calls).toContain(`pluginReset:${SAP}`);
   });
@@ -507,10 +523,9 @@ describe('InstalledPackages', () => {
   it('shows safe mode, damaged records and a load failure with Retry', async () => {
     const ctx = setup({ safeMode: true, damaged: true });
     const reject = vi.spyOn(ctx.backend, 'listPackages').mockRejectedValueOnce(new Error('plugins folder unreadable'));
-    const fixture = TestBed.createComponent(InstalledPackages);
+    const fixture = TestBed.createComponent(PluginsInstalled);
     await settle(fixture);
     expect(text(fixture)).toContain('plugins folder unreadable');
-    expect(text(fixture)).not.toContain('No third-party plugins');
     buttonByText(fixture, 'Retry').click();
     await settle(fixture);
     expect(reject).toHaveBeenCalledTimes(2);
@@ -519,15 +534,18 @@ describe('InstalledPackages', () => {
     expect(el(fixture, '[data-testid=package-damaged]').textContent).toContain('missing field `version`');
   });
 
-  it('shows the developer-mode warning of an installed plugin and the empty state', async () => {
+  it('flags an unsigned package in its Source cell and shows the developer-mode warning', async () => {
     const ctx = setup({ developerMode: true });
     const r = await ctx.backend.readPackage('/p/unsigned.imtplugin');
     await ctx.backend.installPackage('/p/unsigned.imtplugin', r.digest, []);
     await ctx.backend.removePackage(SAP);
-    const fixture = TestBed.createComponent(InstalledPackages);
+    const fixture = TestBed.createComponent(PluginsInstalled);
     await settle(fixture);
-    expect(el(fixture, '.warn').textContent).toContain('Developer mode');
-    expect(el(fixture, '[data-testid=package-granted]').textContent).toContain('No permissions granted.');
-    expect(el(fixture, '[data-testid=package-signature]').classList).toContain('unsigned');
+    const tr = all(fixture, 'tr.plugin').at(-1)!;
+    expect(tr.querySelector('[data-testid=package-signature]')!.textContent).toBe('Not signed');
+    tr.click();
+    await settle(fixture);
+    expect(text(fixture)).toContain('Developer mode');
+    expect(text(fixture)).toContain('No permissions granted.');
   });
 });

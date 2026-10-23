@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
-# Rebuilds the fonts embedded in IMT's PDF reports (SIL OFL 1.1, see OFL-*.txt).
+# Rebuilds the fonts embedded in Debrief's PDF reports (SIL OFL 1.1, see OFL-*.txt).
 #
 # Sources (the same families the UI ships via @fontsource):
 #   IBM Plex Sans 3.201 (variable)  https://github.com/google/fonts/tree/main/ofl/ibmplexsans
-#   JetBrains Mono 2.305            https://github.com/JetBrains/JetBrainsMono/tree/master/fonts/ttf
+#   JetBrains Mono 2.304            https://github.com/JetBrains/JetBrainsMono/tree/master/fonts/ttf
 #
 # Needs Python 3 with fontTools (`pip install fonttools==4.55.0`). Usage:
 #   build-fonts.sh <IBMPlexSans[wdth,wght].ttf> <IBMPlexSans-Italic[wdth,wght].ttf> <JetBrainsMono-Regular.ttf>
@@ -14,8 +14,8 @@
 # and U+FFFD, without hinting or OpenType layout tables (the PDF writer does no shaping).
 #
 # "Plex" is a Reserved Font Name under IBM's OFL, so the reduced (modified) Plex fonts are
-# renamed "IMT Report Sans" as OFL condition 3 requires; JetBrains Mono has no reserved
-# name and is renamed "IMT Report Mono" only for consistency.
+# renamed "Debrief Report Sans" as OFL condition 3 requires; JetBrains Mono has no reserved
+# name and is renamed "Debrief Report Mono" only for consistency.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 tmp=$(mktemp -d)
@@ -25,10 +25,10 @@ python3 -m fontTools.varLib.instancer -q -o "$tmp/regular.ttf" "$1" wght=400 wdt
 python3 -m fontTools.varLib.instancer -q -o "$tmp/bold.ttf" "$1" wght=700 wdth=100
 python3 -m fontTools.varLib.instancer -q -o "$tmp/italic.ttf" "$2" wght=400 wdth=100
 cp "$3" "$tmp/mono.ttf"
-for spec in "regular IMTReportSans-Regular IMT_Report_Sans Regular" \
-            "bold IMTReportSans-Bold IMT_Report_Sans Bold" \
-            "italic IMTReportSans-Italic IMT_Report_Sans Italic" \
-            "mono IMTReportMono-Regular IMT_Report_Mono Regular"; do
+for spec in "regular DebriefReportSans-Regular Debrief_Report_Sans Regular" \
+            "bold DebriefReportSans-Bold Debrief_Report_Sans Bold" \
+            "italic DebriefReportSans-Italic Debrief_Report_Sans Italic" \
+            "mono DebriefReportMono-Regular Debrief_Report_Mono Regular"; do
   set -- $spec
   python3 -m fontTools.subset "$tmp/$1.ttf" --unicodes="$unicodes" --layout-features='' --no-hinting \
     --name-IDs='0,1,2,3,4,5,6,13,14' --drop-tables+=GSUB,GPOS,GDEF,DSIG,STAT,MVAR,HVAR \

@@ -62,7 +62,7 @@ type Opt = Record<string, any>;
 describe('buildOption', () => {
   it('shifts overlapping end labels and wraps the legend with headroom', () => {
     const few = buildOption(data(['a', 'b']), TOKENS, 'utc', new Map()) as Opt;
-    expect(few['series'][0]['labelLayout']).toEqual({ moveOverlap: 'shiftY' });
+    expect(few['series'][0]['labelLayout']).toEqual({ moveOverlap: 'shiftY', hideOverlap: true });
     expect(few['legend'].type).toBe('plain');
     const many = buildOption(data(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i']), TOKENS, 'utc', new Map()) as Opt;
     expect(many['legend'].type).toBe('plain');

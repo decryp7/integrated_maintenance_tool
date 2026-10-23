@@ -17,7 +17,7 @@ async function openPlugins(page: Page) {
 test('installs a signed package after reviewing its publisher and permissions', async ({ page }) => {
   await openApp(page);
   const panel = await openPlugins(page);
-  const installed = panel.getByRole('list', { name: 'Installed from packages' }).getByRole('listitem');
+  const installed = panel.locator('tr.plugin').filter({ has: page.getByTestId('plugin-source').filter({ hasText: 'Package' }) });
   await expect(installed).toHaveCount(1);
 
   await panel.getByRole('button', { name: 'Install from file…' }).click();
@@ -37,19 +37,22 @@ test('installs a signed package after reviewing its publisher and permissions', 
   await expect(review).toBeHidden();
 
   await expect(installed).toHaveCount(2);
-  const added = panel.locator('li.package[data-id="net.example.web-enricher"]');
+  const added = panel.locator('tr.plugin[data-id="net.example.web-enricher"]');
   await expect(added).toContainText('Web access log enricher');
-  await expect(added.getByTestId('package-signature')).toHaveText('Signed by Example Software Inc.');
-  await expect(added.getByTestId('package-state')).toHaveText('pending restart');
-  await expect(added.getByTestId('package-granted')).toContainText('Network access');
-  await expect(added.getByTestId('package-granted')).not.toContainText('Run programs');
+  // The row opens the side panel with the package's signature, state and what was granted.
+  await added.click();
+  const detail = panel.getByTestId('plugin-detail');
+  await expect(detail.getByTestId('package-signature')).toHaveText('Signed by Example Software Inc.');
+  await expect(detail.getByTestId('package-state')).toHaveText('pending restart');
+  await expect(detail.getByTestId('plugin-permissions')).toContainText('Network access');
+  await expect(detail.getByTestId('plugin-permissions')).not.toContainText('Run programs');
   await expect(panel.getByTestId('packages-restart')).toContainText('Changes apply after a restart.');
 });
 
 test('refuses an unsigned package and installs nothing', async ({ page }) => {
   await openAppWith(page, '?mock-plugin-package=unsigned');
   const panel = await openPlugins(page);
-  const installed = panel.getByRole('list', { name: 'Installed from packages' }).getByRole('listitem');
+  const installed = panel.locator('tr.plugin').filter({ has: page.getByTestId('plugin-source').filter({ hasText: 'Package' }) });
   await expect(installed).toHaveCount(1);
 
   await panel.getByRole('button', { name: 'Install from file…' }).click();
@@ -65,5 +68,5 @@ test('refuses an unsigned package and installs nothing', async ({ page }) => {
   await review.getByRole('button', { name: 'Cancel' }).click();
   await expect(review).toBeHidden();
   await expect(installed).toHaveCount(1);
-  await expect(panel.locator('li.package[data-id="org.example.homebrew"]')).toHaveCount(0);
+  await expect(panel.locator('tr.plugin[data-id="org.example.homebrew"]')).toHaveCount(0);
 });

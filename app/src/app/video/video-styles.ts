@@ -1,7 +1,7 @@
 /** Layout shared by the Video panels; colours are the app's tokens (dark and light). */
 export const VIDEO_STYLES = `
   :host { display: block; min-width: 0; color: var(--text-2); font-size: var(--fs-sm); }
-  h3 { margin: 0 0 6px; font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  h3 { margin: 0 0 6px; font-size: var(--fs-xs); font-weight: 600; color: var(--muted); }
   p { margin: 4px 0; }
   .muted { color: var(--muted); }
   .mono { font-family: var(--font-mono); }

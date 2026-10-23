@@ -138,7 +138,9 @@ describe('JobsPanel', () => {
     const { f, root } = setup();
     await render(f);
     expect(el(f, '[data-testid=jobs-empty]').textContent).toContain('No jobs');
-    expect(root.querySelector('h3')).toBeNull();
+    expect(root.querySelector('[data-testid=jobs-empty] imt-icon')).not.toBeNull();
+    expect(root.querySelector('[data-testid=jobs-empty] h3')?.textContent).toBe('No jobs');
+    expect(all(f, 'h3').filter((h) => !h.closest('[data-testid=jobs-empty]'))).toHaveLength(0);
     expect((el(f, '[data-testid=jobs-clear]') as HTMLButtonElement).disabled).toBe(true);
   });
 
@@ -211,8 +213,9 @@ describe('JobsPanel', () => {
   it('moves waiting AI jobs; the first cannot move up', async () => {
     const { f, fake } = setup(sample());
     await render(f);
-    const first = all<HTMLButtonElement>(f, '[data-testid=job-2] .icon-btn');
-    const second = all<HTMLButtonElement>(f, '[data-testid=job-3] .icon-btn');
+    const move = (id: number) => all<HTMLButtonElement>(f, `[data-testid=job-${id}] .icon-btn`).filter((b) => b.getAttribute('aria-label')?.startsWith('Move'));
+    const first = move(2);
+    const second = move(3);
     expect(first.map((b) => b.getAttribute('aria-label'))).toEqual(['Move Summarize up', 'Move Summarize down']);
     expect(at(first, 0).disabled).toBe(true);
     expect(at(first, 1).disabled).toBe(false);
@@ -220,7 +223,7 @@ describe('JobsPanel', () => {
     expect(fake.move).toHaveBeenLastCalledWith(2, false);
     at(second, 0).click();
     expect(fake.move).toHaveBeenLastCalledWith(3, true);
-    expect(all(f, '[data-testid=job-1] .icon-btn')).toHaveLength(0);
+    expect(move(1)).toHaveLength(0);
   });
 
   it('shows All, Running and Failed as a segmented control with counts, and a Kind filter with counts that combines kinds (K5)', async () => {
@@ -228,7 +231,7 @@ describe('JobsPanel', () => {
     await render(f);
     expect(all(f, '.chip')).toHaveLength(0);
     const view = (v: string) => el<HTMLButtonElement>(f, `[data-testid=jobs-view-${v}]`);
-    expect(all(f, '[data-testid=jobs-view] button').map((b) => b.textContent?.replace(/\s+/g, ' ').trim())).toEqual(['All 5', 'Running 3', 'Failed 1']);
+    expect(all(f, '[data-testid=jobs-view] button').map((b) => b.textContent?.replace(/\s+/g, ' ').trim())).toEqual(['All5', 'Running3', 'Failed1']);
     expect(view('all').getAttribute('aria-pressed')).toBe('true');
     view('failed').click();
     f.detectChanges();
@@ -462,5 +465,18 @@ describe('StatusJobs', () => {
     const { f } = setupStatus([], 1);
     await render(f);
     expect(el(f, '[data-testid=status-notifications]').getAttribute('aria-label')).toBe('1 unread notification');
+  });
+
+  it('hides the count of an empty view and opens a finished job on a row click', async () => {
+    const { f } = setup(sample());
+    await render(f);
+    const row = el(f, '[data-testid=job-4]');
+    expect(row.classList.contains('viewable')).toBe(true);
+    expect(row.getAttribute('tabindex')).toBe('0');
+    row.click();
+    await settle(f);
+    expect(TestBed.inject(JobViewer).view).toBeDefined();
+    // A click on one of the row's own buttons does not also open it.
+    expect(el(f, '[data-testid=job-1]').classList.contains('viewable')).toBe(false);
   });
 });

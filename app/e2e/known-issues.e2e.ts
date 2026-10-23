@@ -13,12 +13,12 @@ async function openPane(page: import('@playwright/test').Page) {
   return section;
 }
 
-test('a declared known issue shows its fix, count and Rule badge, and Show events filters the grid', async ({ page }, testInfo) => {
+test('a declared known issue shows its fix, count and rule origin, and Show events filters the grid', async ({ page }, testInfo) => {
   await openAppWith(page, '?mockAiStepMs=5');
   const section = await openPane(page);
   const card = section.getByTestId('known-issue-payment-gateway-timeouts');
   await expect(card).toContainText('Payment gateway timeouts');
-  await expect(card.getByTestId('known-issue-origin')).toHaveText('Rule');
+  await expect(card.getByTestId('known-issue-origin')).toHaveText('From rule');
   await expect(card.getByTestId('known-issue-count')).toContainText(/\d+ events/);
   await expect(card.getByTestId('known-issue-fix')).toContainText('Raise the gateway timeout');
   await expect(section.getByTestId('known-issues-warnings')).toContainText('1 knowledge notes need fixing');

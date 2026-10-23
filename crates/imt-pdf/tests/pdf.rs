@@ -238,8 +238,8 @@ fn writes_a_valid_pdf_with_extractable_text_and_vector_figures() {
             b"/Identity-H",
             b"/ToUnicode",
             b"/FontFile2",
-            b"+IMTReportSans-Bold",
-            b"+IMTReportMono-Regular",
+            b"+DebriefReportSans-Bold",
+            b"+DebriefReportMono-Regular",
         ] {
             assert!(find(&pdf, needle).is_some(), "{}", String::from_utf8_lossy(needle));
         }

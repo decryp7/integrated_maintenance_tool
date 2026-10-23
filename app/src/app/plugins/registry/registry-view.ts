@@ -20,7 +20,6 @@ const AUTO_EXPAND_LIMIT = 400;
   imports: [Icon, NextSteps],
   template: `
     <div class="bar">
-      <span class="section-title" i18n="@@plugins.registry.title">Registry</span>
       <input class="input filter" type="search" placeholder="Filter keys, values, data" i18n-placeholder="@@plugins.registry.filter.placeholder" aria-label="Filter registry" i18n-aria-label="@@plugins.registry.filter.aria" [value]="filter()" (input)="filter.set($any($event.target).value)" />
       <span class="spacer"></span>
       <button class="btn ghost" [disabled]="!selectedNode()" (click)="copyPath()" title="Copy the path of the selected key or value" i18n-title="@@plugins.registry.copyPath.title">
@@ -60,16 +59,12 @@ const AUTO_EXPAND_LIMIT = 400;
               @if (item.expandable) { <imt-icon [name]="item.expanded ? 'chevronDown' : 'chevronRight'" [size]="12" /> }
             </span>
             <imt-icon class="kind" [name]="item.node.kind === 'value' ? 'file' : 'folder'" [size]="13" />
-            <span class="label mono ellipsis">{{ item.node.label }}</span>
+            <span class="label ellipsis" [title]="item.node.label">{{ item.node.label }}</span>
             @if (item.node.deleted) {
-              <span class="badge" i18n="@@plugins.registry.deletedKey">DELETED KEY</span>
+              <span class="deleted" i18n="@@plugins.registry.deletedKey">Deleted key</span>
             }
-            @if (item.node.valueType) {
-              <span class="badge">{{ item.node.valueType }}</span>
-            }
-            @if (item.node.kind === 'value') {
-              <span class="data mono ellipsis" [title]="item.node.data">{{ item.node.data }}</span>
-            }
+            <span class="data mono ellipsis" [title]="item.node.kind === 'value' ? item.node.data : ''">{{ item.node.kind === 'value' ? item.node.data : '' }}</span>
+            <span class="type">{{ item.node.valueType }}</span>
           </div>
         } @empty {
           <div class="faint pad" i18n="@@plugins.registry.noMatch">Nothing matches "{{ filter() }}".</div>
@@ -91,6 +86,8 @@ const AUTO_EXPAND_LIMIT = 400;
     .twisty { width: 14px; flex: none; display: inline-flex; }
     .kind { color: var(--faint); flex: none; }
     .label { flex: none; max-width: 40%; font-size: var(--fs-sm); }
+    .deleted { flex: none; color: var(--danger-text); font-size: var(--fs-xs); }
+    .type { flex: none; width: 110px; text-align: right; font-size: var(--fs-2xs, 11px); color: var(--muted); }
     .data { flex: 1; min-width: 0; font-size: var(--fs-sm); color: var(--muted); }
     .pad { padding: 8px 14px; }
   `,

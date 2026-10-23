@@ -29,7 +29,7 @@ test('production build loads under the Tauri CSP without violations', async ({ p
   await openView(page, 'metrics');
   await expect(page.locator('imt-chart-card canvas').first()).toBeVisible();
   await page.getByRole('button', { name: 'Profile editor' }).click();
-  await expect(page.getByText('Parsing profile')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save & apply' })).toBeVisible();
 
   const violations = await page.evaluate(() => (window as unknown as { __cspViolations: string[] }).__cspViolations);
   expect([...problems, ...violations.map((v) => `violation: ${v}`)]).toEqual([]);
