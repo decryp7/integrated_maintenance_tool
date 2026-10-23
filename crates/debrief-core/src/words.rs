@@ -9,7 +9,10 @@
 //!   so `TimeoutException` also finds `Timeout.Exception`; a run without parts asks for itself.
 //! - The last run is a prefix unless the text ends in a space or a quote: `timeout exc` finds
 //!   `TimeoutException`.
-//! - Quoted phrases (`"builder failed"`) must also appear as written, ignoring case.
+//! - Quoted phrases (`"builder failed"`) must also appear, ignoring case and separators: any run of
+//!   non-alphanumeric characters (spaces, `.`, `_`, `-`, `/`, `\`, `::`) and every `camelCase` boundary count as
+//!   the same gap, so `"graphic builder"` finds `Graphic.Builder`, `GraphicBuilder` and `graphic_builder`
+//!   ([`phrase_in`]).
 //!
 //! Runs longer than [`MAX_RUN`] characters (hashes, base64) are not words; their parts still are.
 
@@ -148,10 +151,40 @@ impl WordQuery {
         self.terms.iter().all(|t| have.contains(t))
             && self.prefixes.iter().all(|p| have.iter().any(|w| w.starts_with(p.as_str())))
             && (self.phrases.is_empty() || {
-                let lower: Vec<String> = texts.iter().map(|t| t.to_lowercase()).collect();
-                self.phrases.iter().all(|p| lower.iter().any(|t| t.contains(p.as_str())))
+                self.phrases.iter().all(|p| texts.iter().any(|t| phrase_in(p, t)))
             })
     }
+}
+
+/// A text as its words between single spaces and at both ends: its parts (`CompanyA.Graphic` gives
+/// ` company a graphic `) or its whole runs (` companya graphic `).
+fn gapped(text: &str, parts_form: bool) -> String {
+    let mut out = String::from(" ");
+    for run in runs(text) {
+        if parts_form {
+            for p in parts(run) {
+                out.push_str(&p.to_lowercase());
+                out.push(' ');
+            }
+        } else {
+            out.push_str(&run.to_lowercase());
+            out.push(' ');
+        }
+    }
+    out
+}
+
+/// Whether `text` holds `phrase` as consecutive words, ignoring case and what separates them: any run of
+/// non-alphanumeric characters and every `camelCase`/digit boundary is one gap. `graphic builder` is in
+/// `CompanyA.Graphic.Builder.exe`, `GraphicBuilder` and `graphic_builder`; a phrase written as one run
+/// (`GraphicBuilder`) is also found as that run. A phrase without words (only punctuation) is a plain
+/// case-insensitive substring.
+pub fn phrase_in(phrase: &str, text: &str) -> bool {
+    let wanted = gapped(phrase, true);
+    if wanted.len() <= 1 {
+        return text.to_lowercase().contains(&phrase.to_lowercase());
+    }
+    gapped(text, true).contains(&wanted) || gapped(text, false).contains(&gapped(phrase, false))
 }
 
 /// Phrases (`"..."`) of a search and the text with the quotes removed (the phrases' words stay, so a word
@@ -244,6 +277,29 @@ mod tests {
         assert!(q.matches(&["GRAPHIC Builder Failed: x1"]));
         assert!(!q.matches(&["failed builder x"]), "the phrase is checked");
         assert!(!WordQuery::parse("--").matches(&["--"]), "an empty query matches nothing");
+    }
+
+    #[test]
+    fn phrases_ignore_separators_case_and_camel_case() {
+        let hit = |p: &str, t: &str| phrase_in(p, t);
+        for t in [
+            "CompanyA.Graphic.Builder.exe failed",
+            "GraphicBuilder",
+            "graphic_builder",
+            "Graphic-Builder",
+            "C:\\tools\\Graphic\\Builder.exe",
+            "Graphic::Builder",
+            "GRAPHIC   BUILDER",
+        ] {
+            assert!(hit("graphic builder", t), "{t}");
+        }
+        assert!(hit("GraphicBuilder", "the graphic.builder ran"), "a camel phrase finds separated words");
+        assert!(hit("graphicbuilder", "GraphicBuilder"), "a one-run phrase finds the run");
+        assert!(!hit("graphic builder", "builder graphic"), "order matters");
+        assert!(!hit("graphic builder", "graphic the builder"), "the words are consecutive");
+        assert!(!hit("graphic build", "graphic builder"), "whole words");
+        assert!(hit("::", "a::b") && !hit("--", "a b"), "no words: a substring");
+        assert!(WordQuery::parse("\"graphic builder\"").matches(&["CompanyA.Graphic.Builder.exe"]));
     }
 
     #[test]

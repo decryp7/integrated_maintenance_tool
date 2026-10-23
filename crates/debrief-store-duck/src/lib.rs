@@ -915,7 +915,7 @@ impl DuckStore {
 impl Search for DuckStore {
     /// Words of `text` ([`debrief_core::words`]: all required, the last a prefix, case-insensitive, split on
     /// punctuation and inside `camelCase`); the first `limit` hits (default 1,000, at most 10,000) in time
-    /// order. A quoted phrase must also appear as written (ignoring case) in the message, exception or
+    /// order. A quoted phrase must also appear (ignoring case and separators: `"graphic builder"` finds `Graphic.Builder`) in the message, exception or
     /// template; up to 1,000 candidates are checked, beyond that the total is not exact. Only indexed
     /// segments are searched ([`Search::index_status`] tells how far indexing is).
     fn search(&self, req: &SearchRequest) -> StoreResult<SearchReply> {
@@ -939,7 +939,7 @@ impl Search for DuckStore {
             let ok: HashSet<EventId> = self
                 .texts(chunk)?
                 .into_iter()
-                .filter(|(_, text)| phrases.iter().all(|p| text.contains(p.as_str())))
+                .filter(|(_, text)| phrases.iter().all(|p| debrief_core::words::phrase_in(p, text)))
                 .map(|(id, _)| id)
                 .collect();
             for id in chunk.iter().filter(|id| ok.contains(*id)) {
