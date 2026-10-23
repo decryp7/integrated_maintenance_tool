@@ -1435,7 +1435,12 @@ mod phase_tests {
 
     #[test]
     fn every_stored_phase_number_reads_back_and_unknown_ones_are_idle() {
-        let phases = [ImportPhase::Idle, ImportPhase::Finding, ImportPhase::Importing, ImportPhase::Finishing];
+        let phases = [
+            ImportPhase::Idle,
+            ImportPhase::Finding,
+            ImportPhase::Importing,
+            ImportPhase::Finishing,
+        ];
         for (n, want) in phases.into_iter().enumerate() {
             assert_eq!(ImportPhase::from_u8(n as u8), want);
         }
