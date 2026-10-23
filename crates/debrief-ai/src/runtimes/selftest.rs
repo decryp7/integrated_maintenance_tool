@@ -83,7 +83,7 @@ pub fn smoke_check(server: &std::path::Path, build: &str, timeout: std::time::Du
             "the new {build} inference runtime does not start on this computer ({why}). Choose another build in the AI settings."
         ))
     };
-    let mut child = std::process::Command::new(server)
+    let mut child = debrief_core::process::quiet_command(server)
         .arg("--version")
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
